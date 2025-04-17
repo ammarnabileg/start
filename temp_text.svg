@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="150">
+    <style>
+        @font-face {
+            font-family: 'Cairo-SemiBold';
+            src: url('fonts/Cairo-SemiBold.ttf') format('truetype');
+        }
+        text {
+            font-family: 'Cairo-SemiBold';
+            fill: black;
+            text-anchor: middle;
+            alignment-baseline: middle;
+        }
+    </style>
+    <text x="50%" y="40%" font-size="50">Mr. Mohammed Al-Nagar</text>
+    <text x="50%" y="80%" font-size="40">عدد الضيوف: 1</text>
+</svg>
