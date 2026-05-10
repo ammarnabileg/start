@@ -1,0 +1,17 @@
+/* HalaOps CRM custom tweaks (Tailwind handles 99%) */
+
+body { font-family: 'Cairo', system-ui, sans-serif; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f3f4f6; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .15);
+}
+
+table th { font-weight: 600; color: #374151; }
+
+[hidden] { display: none !important; }
