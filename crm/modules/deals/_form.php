@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/events.php';
 require_perm('deals.manage');
 
 $id = (int)($_GET['id'] ?? 0);
@@ -39,13 +40,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         if ($deal) {
+            $oldStage = $deal['stage'];
             db_update(tbl('deals'), $data, 'id = :id', ['id' => $id]);
             activity_log('update', 'deal', $id, ['title' => $data['title'], 'stage' => $stage]);
+            if ($oldStage !== $stage) {
+                event_fire('deal.advanced', 'deal', $id, ['from' => $oldStage, 'to' => $stage], (int)$data['owner_id']);
+            }
+            if ($oldStage !== 'won' && $stage === 'won') {
+                event_fire('deal.won', 'deal', $id, ['amount' => $data['amount']], (int)$data['owner_id']);
+                notify((int)$data['owner_id'], 'deal_won', '🎉 صفقة مكسوبة: ' . $data['title'], format_money($data['amount'], $data['currency']), '/crm/modules/deals/edit.php?id=' . $id, '🎉');
+            }
+            if (in_array($oldStage, ['lost'], true) && $stage === 'won') {
+                event_fire('deal.recovered', 'deal', $id, [], (int)$data['owner_id']);
+            }
             flash('success', 'تم التحديث.');
             redirect('modules/deals/edit.php?id=' . $id);
         } else {
             $newId = db_insert(tbl('deals'), $data);
             activity_log('create', 'deal', (int)$newId, ['title' => $data['title']]);
+            event_fire('deal.created', 'deal', (int)$newId, [], (int)$data['owner_id']);
             flash('success', 'تم إنشاء الصفقة.');
             redirect('modules/deals/edit.php?id=' . $newId);
         }

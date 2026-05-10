@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/events.php';
 require_perm('tasks.manage');
 csrf_check();
 
@@ -12,5 +13,6 @@ db_update(tbl('tasks'),
     'id = :id', ['id' => $id]
 );
 activity_log('complete', 'task', $id, ['title' => $task['title']]);
+event_fire('task.completed', 'task', $id, ['priority' => $task['priority']], (int)$task['assignee_id']);
 flash('success', 'تم إنهاء المهمة.');
 back();

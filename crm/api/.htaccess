@@ -1,0 +1,17 @@
+RewriteEngine On
+RewriteBase /crm/api/
+
+# Pretty routes for /api/v1/*
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^v1/me/?$ v1/me.php [L,QSA]
+RewriteRule ^v1/clients/?$ v1/clients.php [L,QSA]
+RewriteRule ^v1/deals/?$ v1/deals.php [L,QSA]
+RewriteRule ^v1/tasks(/.*)?$ v1/tasks.php [L,QSA]
+RewriteRule ^v1/candidates/?$ v1/candidates.php [L,QSA]
+RewriteRule ^v1/dashboard/?$ v1/dashboard.php [L,QSA]
+RewriteRule ^v1/?$ v1/index.php [L,QSA]
+
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization"

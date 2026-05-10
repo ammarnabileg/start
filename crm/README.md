@@ -1,7 +1,8 @@
 # HalaOps CRM (PHP Native)
 
 نظام CRM متكامل لشركة هلا كارير، PHP native (بدون أي framework)، MySQL، Tailwind.
-يحتوي على: مستخدمين، أدوار وصلاحيات، عملاء، صفقات، مهام، وسجل أنشطة.
+يحتوي على: مستخدمين، أدوار وصلاحيات، عملاء، صفقات، مهام، توظيف (مرشحين/شواغر/تعيينات)،
+أداء، Gamification (XP/Levels/Badges/Streaks)، إشعارات، AI Copilot، و REST API.
 
 ## ✅ المميزات
 
@@ -128,11 +129,56 @@ crm/
 6. **المستخدمون** → أنشئ موظف بهذا الدور.
 7. سجّل خروج، ادخل بحساب الموظف، تأكد إنه يرى فقط ما يخصه.
 
+## ✨ الموديولات الإضافية (V1.1)
+
+### التوظيف
+- **المرشحون**: قاعدة بيانات كاملة + مهارات + CV + LinkedIn
+- **الشواغر**: تتبع كل شاغر مع headcount + progress bar
+- **التعيينات**: pipeline من مُرسل → مقابلة → عرض → تم تعيينه
+
+### الأداء + Gamification (Arena)
+- **5 درجات**: Performance، Reliability محسوبة آليًا من events حقيقية
+- **XP System**: كل عمل (إكمال مهمة، إغلاق صفقة، تعيين مرشح) يكسب XP
+- **Levels**: منحنى نمو `xp = 50 × level^1.6`
+- **Streaks**: عدّاد التزام يومي
+- **Badges**: 10 شارات افتراضية (common → mythic) قابلة للتوسعة
+- **Leaderboard**: ترتيب الموظفين بالـ XP والأداء
+- **Anti-cheat**: cap يومي 500 XP لمنع الـ farming
+
+### الإشعارات
+- جرس مع عدّاد في الـ header
+- إشعارات تلقائية: مهمة موكلة، صفقة مكسوبة، Level Up، Badge Unlock
+- صفحة كاملة لإدارة الإشعارات (mark read / clear all)
+
+### AI Copilot
+- محادثات مستقلة (multi-conversation)
+- يستخدم Claude API لو ضبطت `ANTHROPIC_API_KEY` كمتغير بيئة
+- يحقن سياق الحساب الحالي (صفقات/مهام) في الـ system prompt
+
+### REST API
+- Token-based auth (`Authorization: Bearer crm_xxx...`)
+- Endpoints: `/api/v1/me|clients|deals|tasks|candidates|dashboard`
+- إنشاء tokens من **الإعدادات → API Tokens**
+
+## 🔌 استخدام REST API
+```bash
+# 1) من الإعدادات أنشئ token
+# 2) ثم:
+curl https://your-domain/crm/api/v1/clients \
+  -H "Authorization: Bearer crm_xxxxxxxxxxxxx"
+
+curl -X POST https://your-domain/crm/api/v1/tasks \
+  -H "Authorization: Bearer crm_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"اتصال متابعة","priority":"high","due_at":"2026-06-01 14:00"}'
+```
+
 ## 🛣 الخطوات التالية
 
-- إضافة موديول التوظيف (Candidates + Placements).
-- إضافة Performance + Gamification.
-- إضافة AI insights (OpenAI/Claude API).
+- Mobile app (React Native/Flutter يستهلك REST API)
+- WebSocket للـ realtime
+- Workflow Automation builder
+- Email/SMS integrations
 - تفاصيل أكثر في [`docs/crm/00-MASTER-BLUEPRINT.md`](../docs/crm/00-MASTER-BLUEPRINT.md).
 
 ## 📝 الترخيص

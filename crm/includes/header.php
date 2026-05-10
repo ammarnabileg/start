@@ -42,6 +42,22 @@ tailwind.config = {
           <?php endif; ?>
         </div>
         <div class="flex items-center gap-4">
+          <?php
+            $unread = (int)db_scalar('SELECT COUNT(*) FROM ' . tbl('notifications') . ' WHERE user_id = :u AND read_at IS NULL', ['u' => $user['id']]);
+            $myStats = db_one('SELECT level, total_xp, current_streak FROM ' . tbl('user_stats') . ' WHERE user_id = :u', ['u' => $user['id']]);
+          ?>
+          <?php if ($myStats): ?>
+            <a href="<?= url('modules/arena/') ?>" class="flex items-center gap-2 text-sm bg-gradient-to-l from-purple-100 to-emerald-100 px-3 py-1 rounded-full hover:scale-105 transition">
+              <span>⚡L<?= (int)$myStats['level'] ?></span>
+              <?php if ((int)$myStats['current_streak']): ?><span>🔥<?= (int)$myStats['current_streak'] ?></span><?php endif; ?>
+            </a>
+          <?php endif; ?>
+          <a href="<?= url('modules/notifications/') ?>" class="relative text-xl hover:opacity-70" title="الإشعارات">
+            🔔
+            <?php if ($unread): ?>
+              <span class="absolute -top-1 -left-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"><?= $unread > 9 ? '9+' : $unread ?></span>
+            <?php endif; ?>
+          </a>
           <span class="text-sm text-gray-600">مرحبًا، <?= e($user['name']) ?></span>
           <a href="<?= url('logout.php') ?>" class="text-sm text-red-600 hover:underline">خروج</a>
         </div>

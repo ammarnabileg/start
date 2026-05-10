@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/events.php';
 require_perm('tasks.manage');
 
 $id = (int)($_GET['id'] ?? 0);
@@ -39,14 +40,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         if ($task) {
+            $wasDone = $task['status'] === 'done';
             unset($data['created_by']);
             db_update(tbl('tasks'), $data, 'id = :id', ['id' => $id]);
             activity_log('update', 'task', $id, ['title' => $data['title'], 'status' => $status]);
+            if (!$wasDone && $status === 'done') {
+                event_fire('task.completed', 'task', $id, ['priority' => $data['priority']], (int)$data['assignee_id']);
+            }
+            // notify assignee on assign change
+            if ((int)$task['assignee_id'] !== (int)$data['assignee_id']) {
+                notify((int)$data['assignee_id'], 'task_assigned', '📌 مهمة جديدة موكلة إليك: ' . $data['title'], null, '/crm/modules/tasks/edit.php?id=' . $id, '📌');
+            }
             flash('success', 'تم التحديث.');
             redirect('modules/tasks/edit.php?id=' . $id);
         } else {
             $newId = db_insert(tbl('tasks'), $data);
             activity_log('create', 'task', (int)$newId, ['title' => $data['title']]);
+            if ((int)$data['assignee_id'] !== auth_id()) {
+                notify((int)$data['assignee_id'], 'task_assigned', '📌 مهمة جديدة موكلة إليك: ' . $data['title'], null, '/crm/modules/tasks/edit.php?id=' . $newId, '📌');
+            }
             flash('success', 'تم إنشاء المهمة.');
             redirect('modules/tasks/edit.php?id=' . $newId);
         }

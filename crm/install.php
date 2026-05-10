@@ -174,6 +174,174 @@ elseif ($step === '2') {
             `value` TEXT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}candidates (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(160) NOT NULL,
+            email VARCHAR(160) NULL,
+            phone VARCHAR(40) NULL,
+            headline VARCHAR(220) NULL,
+            level ENUM('intern','junior','mid','senior','lead','manager','director') NULL,
+            skills JSON NULL,
+            current_role VARCHAR(160) NULL,
+            current_company VARCHAR(160) NULL,
+            salary_expectation DECIMAL(12,2) NULL,
+            currency VARCHAR(8) NOT NULL DEFAULT 'SAR',
+            availability VARCHAR(80) NULL,
+            source VARCHAR(80) NULL,
+            cv_url VARCHAR(255) NULL,
+            linkedin_url VARCHAR(255) NULL,
+            status ENUM('new','screening','interviewing','shortlisted','offered','placed','rejected','onhold') NOT NULL DEFAULT 'new',
+            owner_id INT UNSIGNED NOT NULL,
+            notes TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (owner_id), INDEX (status), INDEX (level),
+            CONSTRAINT fk_{$P}cands_owner FOREIGN KEY (owner_id) REFERENCES {$P}users(id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}vacancies (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            client_id INT UNSIGNED NOT NULL,
+            title VARCHAR(220) NOT NULL,
+            description TEXT NULL,
+            level ENUM('intern','junior','mid','senior','lead','manager','director') NULL,
+            headcount INT UNSIGNED NOT NULL DEFAULT 1,
+            placed_count INT UNSIGNED NOT NULL DEFAULT 0,
+            salary_min DECIMAL(12,2) NULL,
+            salary_max DECIMAL(12,2) NULL,
+            currency VARCHAR(8) NOT NULL DEFAULT 'SAR',
+            status ENUM('open','onhold','closed','cancelled') NOT NULL DEFAULT 'open',
+            owner_id INT UNSIGNED NOT NULL,
+            opened_at DATE NULL,
+            closed_at DATE NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (client_id), INDEX (owner_id), INDEX (status),
+            CONSTRAINT fk_{$P}vac_client FOREIGN KEY (client_id) REFERENCES {$P}clients(id) ON DELETE CASCADE,
+            CONSTRAINT fk_{$P}vac_owner FOREIGN KEY (owner_id) REFERENCES {$P}users(id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}placements (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            candidate_id INT UNSIGNED NOT NULL,
+            vacancy_id INT UNSIGNED NOT NULL,
+            deal_id INT UNSIGNED NULL,
+            stage ENUM('submitted','interview','offer','placed','probation_passed','probation_failed','rejected') NOT NULL DEFAULT 'submitted',
+            offered_salary DECIMAL(12,2) NULL,
+            placed_at DATE NULL,
+            probation_end_at DATE NULL,
+            notes TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (candidate_id), INDEX (vacancy_id), INDEX (stage),
+            UNIQUE KEY uniq_{$P}plc (candidate_id, vacancy_id),
+            CONSTRAINT fk_{$P}plc_cand FOREIGN KEY (candidate_id) REFERENCES {$P}candidates(id) ON DELETE CASCADE,
+            CONSTRAINT fk_{$P}plc_vac FOREIGN KEY (vacancy_id) REFERENCES {$P}vacancies(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}events (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NULL,
+            type VARCHAR(80) NOT NULL,
+            subject_type VARCHAR(40) NULL,
+            subject_id INT UNSIGNED NULL,
+            metadata JSON NULL,
+            xp_awarded INT NOT NULL DEFAULT 0,
+            occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id, occurred_at), INDEX (type), INDEX (subject_type, subject_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}user_stats (
+            user_id INT UNSIGNED PRIMARY KEY,
+            level INT UNSIGNED NOT NULL DEFAULT 1,
+            total_xp INT UNSIGNED NOT NULL DEFAULT 0,
+            current_streak INT UNSIGNED NOT NULL DEFAULT 0,
+            longest_streak INT UNSIGNED NOT NULL DEFAULT 0,
+            last_activity_date DATE NULL,
+            performance_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+            reliability_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            CONSTRAINT fk_{$P}stats_user FOREIGN KEY (user_id) REFERENCES {$P}users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}xp_ledger (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            delta INT NOT NULL,
+            source_type VARCHAR(40) NOT NULL,
+            source_id INT UNSIGNED NULL,
+            reason VARCHAR(255) NULL,
+            at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id, at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}badges (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            `key` VARCHAR(80) NOT NULL UNIQUE,
+            name VARCHAR(120) NOT NULL,
+            description VARCHAR(255) NULL,
+            rarity ENUM('common','rare','epic','legendary','mythic') NOT NULL DEFAULT 'common',
+            icon VARCHAR(20) NOT NULL DEFAULT '🏅',
+            criteria JSON NOT NULL,
+            xp_reward INT NOT NULL DEFAULT 0
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}user_badges (
+            user_id INT UNSIGNED NOT NULL,
+            badge_id INT UNSIGNED NOT NULL,
+            awarded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, badge_id),
+            CONSTRAINT fk_{$P}ub_user FOREIGN KEY (user_id) REFERENCES {$P}users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_{$P}ub_badge FOREIGN KEY (badge_id) REFERENCES {$P}badges(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}notifications (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            kind VARCHAR(40) NOT NULL,
+            title VARCHAR(220) NOT NULL,
+            body TEXT NULL,
+            link VARCHAR(255) NULL,
+            icon VARCHAR(20) NULL,
+            read_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id, read_at, created_at),
+            CONSTRAINT fk_{$P}notif_user FOREIGN KEY (user_id) REFERENCES {$P}users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}api_tokens (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            token_hash CHAR(64) NOT NULL UNIQUE,
+            last_used_at DATETIME NULL,
+            revoked_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id),
+            CONSTRAINT fk_{$P}tok_user FOREIGN KEY (user_id) REFERENCES {$P}users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}ai_conversations (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            title VARCHAR(220) NOT NULL DEFAULT 'محادثة',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (user_id, updated_at),
+            CONSTRAINT fk_{$P}ai_conv_user FOREIGN KEY (user_id) REFERENCES {$P}users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS {$P}ai_messages (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            conversation_id INT UNSIGNED NOT NULL,
+            role ENUM('user','assistant','system') NOT NULL,
+            content MEDIUMTEXT NOT NULL,
+            tokens_used INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (conversation_id, created_at),
+            CONSTRAINT fk_{$P}ai_msg_conv FOREIGN KEY (conversation_id) REFERENCES {$P}ai_conversations(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
     ];
 
     foreach ($sql as $q) {
@@ -196,6 +364,29 @@ elseif ($step === '2') {
             done('دور أُضيف: ' . htmlspecialchars($r['name']));
         } else {
             info('دور موجود: ' . htmlspecialchars($r['name']));
+        }
+    }
+
+    // Seed default badges
+    $badges = [
+        ['first_blood',   'البداية',         'common',    '🎯', 'أول مهمة منجزة',                   ['event' => 'task.completed', 'count' => 1], 10],
+        ['streak_7',      'محارب الأسبوع',    'rare',      '🔥', '7 أيام متواصلة',                   ['streak_gte' => 7],                          50],
+        ['streak_30',     'سلطان الالتزام',   'epic',      '⚡', '30 يوم متواصل',                    ['streak_gte' => 30],                         200],
+        ['streak_100',    'أسطورة',           'legendary', '👑', '100 يوم متواصل',                   ['streak_gte' => 100],                        1000],
+        ['the_closer',    'القاتل',           'epic',      '💼', '5 صفقات مكسوبة',                   ['event' => 'deal.won', 'count' => 5],        300],
+        ['client_master', 'سيد العملاء',      'rare',      '🤝', '10 عملاء مدارين',                  ['event' => 'client.created', 'count' => 10], 100],
+        ['recruiter_pro', 'صياد المواهب',     'epic',      '🎯', '5 تعيينات مكتملة',                 ['event' => 'placement.placed', 'count' => 5], 400],
+        ['task_machine',  'آلة الإنجاز',      'rare',      '🤖', '50 مهمة منجزة',                    ['event' => 'task.completed', 'count' => 50], 150],
+        ['phoenix',       'العنقاء',          'legendary', '🔄', 'تحويل صفقة خاسرة إلى مكسوبة',       ['event' => 'deal.recovered'],                500],
+        ['mentor',        'المعلم',           'epic',      '🎓', '20 مراجعة مفيدة للزملاء',          ['event' => 'review.peer', 'count' => 20],    250],
+    ];
+    foreach ($badges as [$key, $name, $rarity, $icon, $desc, $criteria, $xp]) {
+        $exists = $pdo->prepare("SELECT id FROM {$P}badges WHERE `key` = ?");
+        $exists->execute([$key]);
+        if (!$exists->fetch()) {
+            $stmt = $pdo->prepare("INSERT INTO {$P}badges (`key`,name,description,rarity,icon,criteria,xp_reward) VALUES (?,?,?,?,?,?,?)");
+            $stmt->execute([$key, $name, $desc, $rarity, $icon, json_encode($criteria, JSON_UNESCAPED_UNICODE), $xp]);
+            done('شارة أُضيفت: ' . htmlspecialchars($name));
         }
     }
 

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/events.php';
 require_perm('clients.manage');
 
 $id = (int)($_GET['id'] ?? 0);
@@ -47,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $newId = db_insert(tbl('clients'), $data);
             activity_log('create', 'client', (int)$newId, ['name' => $data['name']]);
+            event_fire('client.created', 'client', (int)$newId, [], (int)$data['owner_id']);
             flash('success', 'تم إنشاء العميل.');
             redirect('modules/clients/view.php?id=' . $newId);
         }

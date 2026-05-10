@@ -1,7 +1,6 @@
 <?php
 /**
- * Canonical permission catalog.
- * Used by installer + roles UI.
+ * Canonical permission catalog (extended).
  */
 
 function crm_permission_groups(): array {
@@ -32,11 +31,35 @@ function crm_permission_groups(): array {
             'tasks.view.all' => 'عرض كل المهام',
             'tasks.manage'   => 'إدارة المهام',
         ],
-        'السجلات' => [
-            'activities.view' => 'عرض سجل الأنشطة',
+        'التوظيف' => [
+            'candidates.view.own' => 'عرض مرشحيّ',
+            'candidates.view.all' => 'عرض كل المرشحين',
+            'candidates.manage'   => 'إدارة المرشحين',
+            'vacancies.view'      => 'عرض الشواغر',
+            'vacancies.manage'    => 'إدارة الشواغر',
+            'placements.view'     => 'عرض التعيينات',
+            'placements.manage'   => 'إدارة التعيينات',
         ],
-        'الإعدادات' => [
-            'settings.manage' => 'إدارة إعدادات النظام',
+        'الأداء' => [
+            'performance.view.own' => 'عرض أدائي',
+            'performance.view.all' => 'عرض أداء الكل',
+        ],
+        'Arena (الجيميفيكيشن)' => [
+            'arena.view'  => 'عرض الـ Arena (الـ XP والشارات)',
+            'arena.admin' => 'إدارة المهمات والشارات',
+        ],
+        'الإشعارات' => [
+            'notifications.manage' => 'إدارة الإشعارات (إرسال يدوي)',
+        ],
+        'API' => [
+            'api.use' => 'استخدام REST API',
+        ],
+        'AI Copilot' => [
+            'ai.use' => 'استخدام مساعد الذكاء الاصطناعي',
+        ],
+        'السجلات والإعدادات' => [
+            'activities.view'  => 'عرض سجل الأنشطة',
+            'settings.manage'  => 'إدارة إعدادات النظام',
         ],
     ];
 }
@@ -54,18 +77,23 @@ function crm_default_roles(): array {
         [
             'key'   => 'admin',
             'name'  => 'مدير النظام',
-            'permissions' => ['*'], // wildcard
+            'permissions' => ['*'],
         ],
         [
             'key'   => 'manager',
             'name'  => 'مدير',
             'permissions' => [
                 'dashboard.view',
-                'users.view',
-                'roles.view',
+                'users.view', 'roles.view',
                 'clients.view.all', 'clients.manage',
                 'deals.view.all',   'deals.manage',
                 'tasks.view.all',   'tasks.manage',
+                'candidates.view.all', 'candidates.manage',
+                'vacancies.view',  'vacancies.manage',
+                'placements.view', 'placements.manage',
+                'performance.view.all', 'arena.view', 'arena.admin',
+                'notifications.manage',
+                'ai.use', 'api.use',
                 'activities.view',
             ],
         ],
@@ -77,6 +105,22 @@ function crm_default_roles(): array {
                 'clients.view.own', 'clients.manage',
                 'deals.view.own',   'deals.manage',
                 'tasks.view.own',   'tasks.manage',
+                'performance.view.own', 'arena.view',
+                'ai.use',
+            ],
+        ],
+        [
+            'key'   => 'recruiter',
+            'name'  => 'توظيف',
+            'permissions' => [
+                'dashboard.view',
+                'clients.view.own', 'clients.manage',
+                'candidates.view.own', 'candidates.manage',
+                'vacancies.view', 'vacancies.manage',
+                'placements.view', 'placements.manage',
+                'tasks.view.own', 'tasks.manage',
+                'performance.view.own', 'arena.view',
+                'ai.use',
             ],
         ],
         [
@@ -87,6 +131,7 @@ function crm_default_roles(): array {
                 'clients.view.own',
                 'deals.view.own',
                 'tasks.view.own',
+                'performance.view.own', 'arena.view',
             ],
         ],
     ];
