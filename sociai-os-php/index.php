@@ -46,6 +46,12 @@ spl_autoload_register(function (string $class): void {
 // Bootstrap
 // ============================================================
 require_once BASE_PATH . '/config/config.php';
+require_once BASE_PATH . '/core/Database.php';
+require_once BASE_PATH . '/core/Security.php';
+require_once BASE_PATH . '/core/Auth.php';
+require_once BASE_PATH . '/core/Request.php';
+require_once BASE_PATH . '/core/Response.php';
+require_once BASE_PATH . '/core/Router.php';
 
 use SociAI\Core\{Auth, Router, Request, Response, Security, Database};
 

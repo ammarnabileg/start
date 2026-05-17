@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+namespace SociAI\Models;
 class Content
 {
     private static function db(): Database { return Database::getInstance(); }

@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+namespace SociAI\Core;
 class Response
 {
     public static function json(mixed $data, int $status = 200): never

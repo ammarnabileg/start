@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+namespace SociAI\Models;
 class User
 {
     private static Database $db;

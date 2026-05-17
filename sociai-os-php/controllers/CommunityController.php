@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../core/Database.php';
-require_once __DIR__ . '/../core/Auth.php';
-require_once __DIR__ . '/../core/Request.php';
-require_once __DIR__ . '/../core/Response.php';
+namespace SociAI\Controllers;
+
+use SociAI\Core\{Auth, Database, Request, Response};
+
 require_once __DIR__ . '/../agents/CommunityAgent.php';
 
 class CommunityController
