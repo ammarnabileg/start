@@ -332,7 +332,10 @@ class SetupController
             ];
         }
 
-        $sqlFile = BASE_PATH . '/database/schema.sql';
+        // Try sql/ directory first (project default), then database/
+        $sqlFile = file_exists(BASE_PATH . '/sql/schema.sql')
+            ? BASE_PATH . '/sql/schema.sql'
+            : BASE_PATH . '/database/schema.sql';
         if (!file_exists($sqlFile)) {
             $results['message'] = 'schema.sql not found — skipped migrations.';
             return $results;

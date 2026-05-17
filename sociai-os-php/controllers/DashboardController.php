@@ -17,7 +17,11 @@ class DashboardController
     public function index(): void
     {
         Auth::requireAuth();
-        $user    = Auth::getCurrentUser();
+        $user = Auth::getCurrentUser();
+        if (!$user) {
+            Response::redirect('/auth/login');
+            return;
+        }
         $brandId = $this->getActiveBrandId($user['id']);
 
         $currentUser = [
@@ -53,6 +57,10 @@ class DashboardController
     {
         Auth::requireAuth();
         $user = Auth::getCurrentUser();
+        if (!$user) {
+            Response::redirect('/auth/login');
+            return;
+        }
 
         $currentUser = [
             'name'     => $user['full_name'] ?? $user['username'] ?? 'User',

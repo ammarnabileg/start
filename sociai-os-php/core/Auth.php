@@ -295,14 +295,33 @@ class Auth
             return null;
         }
 
-        $db   = Database::getInstance();
-        $user = $db->fetchOne(
-            "SELECT * FROM users WHERE id = ? AND is_active = 1 AND deleted_at IS NULL",
-            [$userId]
-        );
+        $db = Database::getInstance();
+
+        // Try with deleted_at (full schema), fall back to simpler query for partial installs
+        try {
+            $user = $db->fetchOne(
+                "SELECT * FROM users WHERE id = ? AND is_active = 1 AND deleted_at IS NULL",
+                [$userId]
+            );
+        } catch (\Throwable) {
+            // deleted_at column may not exist yet — run simpler query
+            try {
+                $user = $db->fetchOne(
+                    "SELECT * FROM users WHERE id = ? AND is_active = 1",
+                    [$userId]
+                );
+            } catch (\Throwable) {
+                return null;
+            }
+        }
 
         if (!$user) {
-            self::logout();
+            // Clear stale session without touching user_sessions table
+            $_SESSION = [];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+            self::$currentUser = null;
             return null;
         }
 
