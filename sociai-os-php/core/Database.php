@@ -246,11 +246,6 @@ class Database
         return $this->connect()->lastInsertId();
     }
 
-    public function rollBack(): void
-    {
-        $this->rollback();
-    }
-
     /**
      * Execute callback inside a transaction; auto-rollback on exception.
      */
