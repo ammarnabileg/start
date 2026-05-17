@@ -236,6 +236,21 @@ class Database
         }
     }
 
+    public function prepare(string $sql): \PDOStatement
+    {
+        return $this->connect()->prepare($sql);
+    }
+
+    public function lastInsertId(): string
+    {
+        return $this->connect()->lastInsertId();
+    }
+
+    public function rollBack(): void
+    {
+        $this->rollback();
+    }
+
     /**
      * Execute callback inside a transaction; auto-rollback on exception.
      */

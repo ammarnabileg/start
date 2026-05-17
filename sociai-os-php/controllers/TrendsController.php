@@ -11,7 +11,7 @@ require_once __DIR__ . '/../agents/CopywritingAgent.php';
 
 class TrendsController
 {
-    private \PDO $db;
+    private Database $db;
     private Auth $auth;
     private Request $request;
     private Response $response;

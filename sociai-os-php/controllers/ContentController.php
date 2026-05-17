@@ -9,7 +9,7 @@ require_once __DIR__ . '/../agents/CopywritingAgent.php';
 
 class ContentController
 {
-    private \PDO $db;
+    private Database $db;
     private Auth $auth;
     private Request $request;
     private Response $response;

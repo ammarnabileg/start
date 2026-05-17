@@ -9,7 +9,7 @@ require_once __DIR__ . '/../agents/AnalyticsAgent.php';
 
 class AnalyticsController
 {
-    private \PDO $db;
+    private Database $db;
     private Auth $auth;
     private Request $request;
     private Response $response;

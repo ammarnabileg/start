@@ -8,7 +8,7 @@ use SociAI\Core\{Auth, Database, Request, Response};
 
 class AuthController
 {
-    private \PDO $db;
+    private Database $db;
     private Auth $auth;
     private Request $request;
     private Response $response;
@@ -67,19 +67,13 @@ class AuthController
         }
 
         $stmt = $this->db->prepare(
-            'SELECT id,email,password_hash,name,role,is_active,two_fa_enabled,two_fa_secret,failed_login_attempts,locked_until
+            'SELECT id,email,full_name,password_hash,is_active,two_factor_enabled,two_factor_secret
              FROM users WHERE email=? LIMIT 1'
         );
         $stmt->execute([$email]);
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            if ($user) {
-                $attempts = (int)$user['failed_login_attempts'] + 1;
-                $lock = $attempts >= 5 ? date('Y-m-d H:i:s', time() + 900) : null;
-                $this->db->prepare('UPDATE users SET failed_login_attempts=?,locked_until=? WHERE id=?')
-                    ->execute([$attempts, $lock, $user['id']]);
-            }
             $_SESSION['login_error'] = 'Invalid email or password.';
             $this->response->redirect('/login');
             return;
@@ -91,18 +85,7 @@ class AuthController
             return;
         }
 
-        if ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
-            $min = ceil((strtotime($user['locked_until']) - time()) / 60);
-            $_SESSION['login_error'] = "Account locked. Try in {$min} minutes.";
-            $this->response->redirect('/login');
-            return;
-        }
-
-        $this->db->prepare(
-            'UPDATE users SET failed_login_attempts=0,locked_until=NULL,last_login_at=NOW() WHERE id=?'
-        )->execute([$user['id']]);
-
-        if ((bool)$user['two_fa_enabled']) {
+        if ((bool)$user['two_factor_enabled']) {
             $_SESSION['pending_2fa_user_id'] = $user['id'];
             $_SESSION['pending_2fa_remember'] = $remember;
             $this->response->redirect('/2fa');
@@ -149,15 +132,16 @@ class AuthController
         $this->db->beginTransaction();
         try {
             $hash = password_hash($pass, PASSWORD_ARGON2ID, ['memory_cost'=>65536,'time_cost'=>4,'threads'=>2]);
-            $this->db->prepare('INSERT INTO users (name,email,password_hash,role,is_active,created_at) VALUES (?,?,?,?,1,NOW())')
-                ->execute([$name, $email, $hash, 'owner']);
+            $username = substr(strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name)), 0, 32) . rand(100, 999);
+            $this->db->prepare('INSERT INTO users (full_name,username,email,password_hash,is_active,created_at) VALUES (?,?,?,?,1,NOW())')
+                ->execute([$name, $username, $email, $hash]);
             $userId = (int)$this->db->lastInsertId();
 
             $this->db->prepare('INSERT INTO brands (name,industry,owner_id,created_at) VALUES (?,?,?,NOW())')
                 ->execute([$brand, $industry, $userId]);
             $brandId = (int)$this->db->lastInsertId();
 
-            $this->db->prepare('INSERT INTO brand_users (brand_id,user_id,role) VALUES (?,?,?)')
+            $this->db->prepare('INSERT INTO team_members (id,brand_id,user_id,role,created_at) VALUES (UUID(),?,?,?,NOW())')
                 ->execute([$brandId, $userId, 'owner']);
 
             $this->db->commit();
@@ -177,13 +161,9 @@ class AuthController
         $user = $this->auth->getCurrentUser();
         if ($user) {
             $this->logAudit($user['id'], 'logout', 'user', $user['id'], []);
-            $this->db->prepare('UPDATE users SET remember_token=NULL WHERE id=?')->execute([$user['id']]);
         }
         session_unset();
         session_destroy();
-        if (isset($_COOKIE['remember_token'])) {
-            setcookie('remember_token', '', time() - 3600, '/', '', true, true);
-        }
         $this->response->redirect('/login');
     }
 
@@ -216,11 +196,11 @@ class AuthController
             return;
         }
 
-        $stmt = $this->db->prepare('SELECT id,email,name,role,two_fa_secret FROM users WHERE id=? LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id,email,full_name,two_factor_secret FROM users WHERE id=? LIMIT 1');
         $stmt->execute([$userId]);
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$user || !$this->verifyTOTP($user['two_fa_secret'], $code)) {
+        if (!$user || !$this->verifyTOTP($user['two_factor_secret'], $code)) {
             $_SESSION['2fa_error'] = 'Invalid or expired code.';
             $this->response->redirect('/2fa');
             return;
@@ -312,19 +292,10 @@ class AuthController
     {
         session_regenerate_id(true);
         $_SESSION['user_id']   = $user['id'];
-        $_SESSION['user_name'] = $user['name'];
-        $_SESSION['user_role'] = $user['role'];
+        $_SESSION['user_name'] = $user['full_name'] ?? $user['username'] ?? '';
+        $_SESSION['user_role'] = 'owner';
         $_SESSION['logged_in'] = true;
         $_SESSION['login_at']  = time();
-
-        if ($remember) {
-            $token = bin2hex(random_bytes(32));
-            $hash  = hash('sha256', $token);
-            $this->db->prepare(
-                'UPDATE users SET remember_token=?,remember_token_expires_at=DATE_ADD(NOW(),INTERVAL 30 DAY) WHERE id=?'
-            )->execute([$hash, $user['id']]);
-            setcookie('remember_token', $user['id'] . ':' . $token, time() + 86400*30, '/', '', true, true);
-        }
     }
 
     private function verifyTOTP(string $secret, string $code): bool

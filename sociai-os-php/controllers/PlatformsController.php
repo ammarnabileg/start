@@ -8,7 +8,7 @@ use SociAI\Core\{Auth, Database, Request, Response};
 
 class PlatformsController
 {
-    private \PDO $db;
+    private Database $db;
     private Auth $auth;
     private Request $request;
     private Response $response;
