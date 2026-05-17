@@ -55,7 +55,7 @@ if (defined('DB_HOST')) {
 
         // Check tables
         $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $required = ['users', 'brands', 'content_posts', 'platform_accounts'];
+        $required = ['users', 'brands', 'content_pieces', 'platform_accounts', 'campaigns', 'scheduled_posts', 'agent_tasks', 'notifications'];
         $missing  = array_diff($required, $tables);
         if (empty($missing)) {
             $checks[] = [$pass, 'Database tables', count($tables) . ' tables found'];
