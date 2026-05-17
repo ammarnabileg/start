@@ -617,4 +617,4 @@ $csrfToken = bin2hex(random_bytes(16));
 })();
 </script>
 
-<?php $content = ob_get_clean(); include __DIR__ . '/../../views/layouts/main.php'; ?>
+<?php $content = ob_get_clean(); include __DIR__ . '/../layouts/main.php'; ?>

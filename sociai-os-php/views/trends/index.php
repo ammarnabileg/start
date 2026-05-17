@@ -485,4 +485,4 @@ $urgencyBadge = [
 })();
 </script>
 
-<?php $content = ob_get_clean(); include __DIR__ . '/../../views/layouts/main.php'; ?>
+<?php $content = ob_get_clean(); include __DIR__ . '/../layouts/main.php'; ?>
