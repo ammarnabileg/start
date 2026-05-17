@@ -1,11 +1,10 @@
-Options -Indexes
-Options +FollowSymLinks
+DirectoryIndex index.php
 
 RewriteEngine On
 RewriteBase /
 
-# Security: block direct access to sensitive files
-<FilesMatch "\.(env|log|sql|md|json|lock|sh)$">
+# Block direct access to sensitive files
+<FilesMatch "\.(env|log|sql|sh)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
@@ -15,10 +14,10 @@ RewriteBase /
     Deny from all
 </FilesMatch>
 
-# Deny access to sensitive directories
-RedirectMatch 403 ^/(config|core|models|agents|sql|cache)/
+# Block direct access to sensitive directories
+RedirectMatch 403 ^/(config|core|models|agents|sql|cache|logs)(/|$)
 
-# Allow static assets directly
+# Allow static assets through directly
 RewriteCond %{REQUEST_URI} ^/assets/ [OR]
 RewriteCond %{REQUEST_URI} ^/uploads/
 RewriteRule ^ - [L]
@@ -28,8 +27,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
 
-# PHP settings — use php_flag/php_value only if on mod_php
-# If your server uses PHP-FPM, set these in php.ini or .user.ini instead
+# PHP settings (mod_php only — ignored on PHP-FPM)
 <IfModule mod_php.c>
     php_value upload_max_filesize 50M
     php_value post_max_size 50M
@@ -43,7 +41,7 @@ RewriteRule ^ index.php [QSA,L]
     php_value memory_limit 256M
 </IfModule>
 
-# Security headers — only if mod_headers is enabled
+# Security headers
 <IfModule mod_headers.c>
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-Content-Type-Options "nosniff"
