@@ -1,158 +1,240 @@
+<?php ob_start(); ?>
 <?php
-$pageTitle  = 'Analytics';
-$activePage = 'analytics';
-$kpis = [
-  ['label'=>'Total Reach',        'value'=>'4.7M',    'change'=>'+18.4%','up'=>true, 'icon'=>'🌐','color'=>'blue'],
-  ['label'=>'Total Impressions',  'value'=>'12.3M',   'change'=>'+22.1%','up'=>true, 'icon'=>'👁️','color'=>'purple'],
-  ['label'=>'Engagement Rate',    'value'=>'8.3%',    'change'=>'+2.1%', 'up'=>true, 'icon'=>'❤️','color'=>'pink'],
-  ['label'=>'Follower Growth',    'value'=>'+12,431', 'change'=>'+34.2%','up'=>true, 'icon'=>'📈','color'=>'green'],
-  ['label'=>'Avg. Viral Score',   'value'=>'78.4',    'change'=>'+5pts', 'up'=>true, 'icon'=>'🔥','color'=>'yellow'],
-  ['label'=>'Link Clicks',        'value'=>'89.2K',   'change'=>'-3.4%', 'up'=>false,'icon'=>'🔗','color'=>'cyan'],
-  ['label'=>'Profile Visits',     'value'=>'234K',    'change'=>'+11.8%','up'=>true, 'icon'=>'👤','color'=>'orange'],
-  ['label'=>'Conversions',        'value'=>'1,847',   'change'=>'+28.3%','up'=>true, 'icon'=>'🎯','color'=>'green'],
+// Variables passed from DashboardController::analytics()
+// $brand, $brandId, $platformAnalytics, $topPosts, $totals, $csrf
+
+$platformColors = [
+    'linkedin'  => ['hex' => '#0A66C2', 'label' => 'LinkedIn'],
+    'instagram' => ['hex' => '#E1306C', 'label' => 'Instagram'],
+    'facebook'  => ['hex' => '#1877F2', 'label' => 'Facebook'],
+    'tiktok'    => ['hex' => '#010101', 'label' => 'TikTok'],
+    'twitter'   => ['hex' => '#1DA1F2', 'label' => 'Twitter/X'],
+    'youtube'   => ['hex' => '#FF0000', 'label' => 'YouTube'],
+    'threads'   => ['hex' => '#6B7280', 'label' => 'Threads'],
+    'snapchat'  => ['hex' => '#F7C034', 'label' => 'Snapchat'],
 ];
-$iconColors = ['blue'=>'metric-icon-blue','pink'=>'metric-icon-pink','green'=>'metric-icon-green','yellow'=>'metric-icon-yellow','purple'=>'metric-icon-purple','cyan'=>'metric-icon-cyan','orange'=>'metric-icon-orange'];
+
+function anaFormatNum(int $n): string {
+    if ($n >= 1000000) return round($n / 1000000, 1) . 'M';
+    if ($n >= 1000) return round($n / 1000, 1) . 'K';
+    return (string)$n;
+}
 ?>
-<?php ob_start() ?>
-<div class="page-header page-header-row">
-  <div>
-    <h1>Analytics Dashboard 📊</h1>
-    <p>Track performance across all platforms with AI-powered insights</p>
-  </div>
-  <div style="display:flex;gap:0.5rem;align-items:center">
-    <div style="display:flex;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);overflow:hidden">
-      <?php foreach(['7D'=>'7d','30D'=>'30d','90D'=>'90d','6M'=>'6m','1Y'=>'1y'] as $l=>$v): ?>
-      <button class="lang-btn <?= $v==='30d'?'active':'' ?>" onclick="SociAI.showToast('Loading <?= $l ?> data...','info')"><?= $l ?></button>
-      <?php endforeach ?>
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+        <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">Analytics Dashboard 📊</h1>
+        <p style="color:var(--text-muted);font-size:0.875rem;">Track performance across all platforms with AI-powered insights</p>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="SociAI.showToast('Exporting PDF report...','info')">📥 Export</button>
-  </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="if(window.SociAI)SociAI.showToast('Exporting PDF report…','info')">📥 Export</button>
+        <a href="/dashboard/content" class="btn btn-primary btn-sm">+ Create Content</a>
+    </div>
 </div>
 
-<!-- KPI Row 1 -->
-<div class="dashboard-grid grid-cols-4 mb-4">
-  <?php foreach (array_slice($kpis,0,4) as $kpi): ?>
-  <div class="metric-card">
-    <div class="metric-header">
-      <div>
-        <div class="metric-label"><?= htmlspecialchars($kpi['label']) ?></div>
-        <div class="metric-value"><?= htmlspecialchars($kpi['value']) ?></div>
-      </div>
-      <div class="metric-icon <?= $iconColors[$kpi['color']] ?>"><?= $kpi['icon'] ?></div>
-    </div>
-    <div class="metric-change <?= $kpi['up']?'trend-up':'trend-down' ?>">
-      <?= $kpi['up']?'↑':'↓' ?> <?= htmlspecialchars($kpi['change']) ?> vs last period
-    </div>
-  </div>
-  <?php endforeach ?>
+<?php if (!$brandId): ?>
+<!-- No Brand -->
+<div class="glass-card" style="text-align:center;padding:4rem 2rem;">
+    <div style="font-size:3rem;margin-bottom:1rem;">📊</div>
+    <h3 style="font-size:1.1rem;margin-bottom:0.5rem;color:var(--text-secondary);">Set Up Your Brand First</h3>
+    <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;">Create a brand and connect your platforms to start seeing analytics data.</p>
+    <a href="/brands/create" class="btn btn-primary">Create Brand</a>
 </div>
 
-<!-- Charts Row -->
-<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-  <!-- Line Chart -->
-  <div class="glass-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <h3>📈 Reach Growth Over Time</h3>
-      <div style="display:flex;gap:0.5rem">
-        <span class="legend-item"><span class="legend-dot" style="background:#3B82F6"></span>Reach</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#10B981"></span>Engagement</span>
-      </div>
+<?php elseif (empty($platformAnalytics)): ?>
+<!-- No Analytics Data -->
+<div class="glass-card" style="text-align:center;padding:5rem 2rem;margin-bottom:2rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">📈</div>
+    <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:0.5rem;color:var(--text-secondary);">No analytics data yet</h2>
+    <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;max-width:420px;margin-left:auto;margin-right:auto;">
+        Connect your social platforms and publish content to start tracking impressions, engagement, reach, and more.
+    </p>
+    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+        <a href="/dashboard/settings" class="btn btn-primary">🔌 Connect Platforms</a>
+        <a href="/dashboard/content" class="btn btn-ghost">✨ Create Content</a>
     </div>
-    <div class="chart-wrapper" style="height:200px">
-      <canvas id="reachChart" style="width:100%;height:200px"></canvas>
-    </div>
-  </div>
-
-  <!-- Donut: Content Mix -->
-  <div class="glass-card">
-    <h3 style="margin-bottom:1rem">🥧 Content Mix</h3>
-    <div class="donut-chart" data-segments='[{"pct":30,"color":"#3B82F6"},{"pct":25,"color":"#EC4899"},{"pct":20,"color":"#EF4444"},{"pct":15,"color":"#60A5FA"},{"pct":10,"color":"#FCA5A5"}]' style="width:150px;height:150px">
-      <svg class="donut-svg" width="150" height="150" viewBox="0 0 180 180"></svg>
-      <div class="donut-center"><span class="val" style="font-size:1.1rem">1.2K</span><span class="lbl">Posts</span></div>
-    </div>
-    <div class="chart-legend" style="margin-top:0.75rem">
-      <div class="legend-item"><span class="legend-dot" style="background:#3B82F6"></span>LinkedIn 30%</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#EC4899"></span>Instagram 25%</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#EF4444"></span>TikTok 20%</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#60A5FA"></span>Facebook 15%</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#FCA5A5"></span>Other 10%</div>
-    </div>
-  </div>
 </div>
 
-<!-- Bar Chart -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-  <div class="glass-card">
-    <h3 style="margin-bottom:1rem">📊 Engagement by Platform</h3>
-    <div class="chart-wrapper" style="height:220px">
-      <canvas id="engagementChart" style="width:100%;height:220px"></canvas>
-    </div>
-  </div>
+<?php else: ?>
 
-  <!-- KPI Row 2 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-    <?php foreach (array_slice($kpis,4) as $kpi): ?>
-    <div class="metric-card" style="padding:1rem">
-      <div class="metric-header" style="margin-bottom:0.5rem">
-        <div>
-          <div class="metric-label" style="font-size:0.72rem"><?= htmlspecialchars($kpi['label']) ?></div>
-          <div class="metric-value" style="font-size:1.3rem"><?= htmlspecialchars($kpi['value']) ?></div>
+<!-- Totals Row -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem;">
+    <?php
+    $totalCards = [
+        ['label' => 'Total Impressions', 'key' => 'impressions', 'icon' => '👁️', 'color' => 'rgba(59,130,246,0.15)',  'textcolor' => 'var(--blue-light)'],
+        ['label' => 'Total Reach',        'key' => 'reach',       'icon' => '🌐', 'color' => 'rgba(139,92,246,0.15)',  'textcolor' => 'var(--purple-light,#c4b5fd)'],
+        ['label' => 'Engagements',        'key' => 'engagements', 'icon' => '❤️', 'color' => 'rgba(16,185,129,0.15)',  'textcolor' => 'var(--green-light)'],
+        ['label' => 'Total Likes',        'key' => 'likes',       'icon' => '👍', 'color' => 'rgba(245,158,11,0.15)',  'textcolor' => 'var(--yellow)'],
+        ['label' => 'Comments',           'key' => 'comments',    'icon' => '💬', 'color' => 'rgba(236,72,153,0.15)',  'textcolor' => '#f472b6'],
+        ['label' => 'Shares',             'key' => 'shares',      'icon' => '🔁', 'color' => 'rgba(6,182,212,0.15)',   'textcolor' => 'var(--cyan)'],
+    ];
+    foreach ($totalCards as $tc):
+        $val = (int)($totals[$tc['key']] ?? 0);
+    ?>
+    <div class="glass-card" style="padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+            <div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;"><?= $tc['label'] ?></div>
+            <div style="width:32px;height:32px;border-radius:8px;background:<?= $tc['color'] ?>;display:flex;align-items:center;justify-content:center;font-size:0.9rem;"><?= $tc['icon'] ?></div>
         </div>
-        <div class="metric-icon <?= $iconColors[$kpi['color']] ?>" style="width:34px;height:34px;font-size:0.9rem"><?= $kpi['icon'] ?></div>
-      </div>
-      <div class="metric-change <?= $kpi['up']?'trend-up':'trend-down' ?>" style="font-size:0.7rem">
-        <?= $kpi['up']?'↑':'↓' ?> <?= htmlspecialchars($kpi['change']) ?>
-      </div>
+        <div style="font-size:1.7rem;font-weight:700;color:<?= $tc['textcolor'] ?>;"><?= anaFormatNum($val) ?></div>
     </div>
-    <?php endforeach ?>
-  </div>
+    <?php endforeach; ?>
 </div>
 
-<!-- Top Performing Content -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-  <div class="glass-card">
-    <div class="section-header"><h3>🏆 Top Posts This Month</h3></div>
-    <?php
-    $topPosts = [
-      ['title'=>'5 AI trends reshaping business','platform'=>'linkedin','engagement'=>'14.2K','reach'=>'287K','viral'=>92],
-      ['title'=>'Behind the scenes launch video','platform'=>'instagram','engagement'=>'8.7K','reach'=>'156K','viral'=>88],
-      ['title'=>'Why brands fail at TikTok','platform'=>'tiktok','engagement'=>'22.1K','reach'=>'892K','viral'=>95],
-      ['title'=>'Weekly motivation carousel','platform'=>'instagram','engagement'=>'5.3K','reach'=>'89K','viral'=>79],
-      ['title'=>'Customer 10x growth story','platform'=>'facebook','engagement'=>'3.1K','reach'=>'67K','viral'=>71],
-    ];
-    ?>
-    <?php foreach ($topPosts as $i => $p): ?>
-    <div style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-      <span style="font-size:1.2rem;font-weight:800;color:var(--text-muted);min-width:20px"><?= $i+1 ?></span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($p['title']) ?></div>
-        <div style="font-size:0.72rem;color:var(--text-muted)"><?= $p['platform'] ?> · <?= $p['reach'] ?> reach</div>
-      </div>
-      <span class="viral-score <?= $p['viral']>=85?'viral-high':($p['viral']>=70?'viral-mid':'viral-low') ?>"><?= $p['viral'] ?></span>
+<!-- Platform Breakdown -->
+<div class="glass-card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h3 style="font-size:1rem;font-weight:600;">📡 Performance by Platform</h3>
+        <span style="font-size:0.78rem;color:var(--text-muted);"><?= count($platformAnalytics) ?> platform<?= count($platformAnalytics) !== 1 ? 's' : '' ?></span>
     </div>
-    <?php endforeach ?>
-  </div>
-
-  <!-- AI Recommendations -->
-  <div class="glass-card">
-    <div class="section-header"><h3>🤖 AI Insights</h3></div>
-    <?php
-    $insights = [
-      ['icon'=>'📈','color'=>'blue','text'=>'Your TikTok engagement is 2.3x higher than average. Increase posting frequency to 2x daily.'],
-      ['icon'=>'⏰','color'=>'green','text'=>'Best performing time slots: 8-9 AM and 7-8 PM. 94% of your top posts hit these windows.'],
-      ['icon'=>'🎯','color'=>'purple','text'=>'Educational content outperforms promotional by 340%. Shift content mix toward more tutorials.'],
-      ['icon'=>'⚠️','color'=>'yellow','text'=>'Snapchat engagement dropped 12% last week. Consider refreshing your story format.'],
-    ];
-    $ic = ['blue'=>'rgba(59,130,246,0.1)','green'=>'rgba(16,185,129,0.1)','purple'=>'rgba(139,92,246,0.1)','yellow'=>'rgba(245,158,11,0.1)'];
-    $bc = ['blue'=>'rgba(59,130,246,0.2)','green'=>'rgba(16,185,129,0.2)','purple'=>'rgba(139,92,246,0.2)','yellow'=>'rgba(245,158,11,0.2)'];
-    ?>
-    <?php foreach ($insights as $ins): ?>
-    <div style="display:flex;gap:0.75rem;padding:0.875rem;background:<?= $ic[$ins['color']] ?>;border:1px solid <?= $bc[$ins['color']] ?>;border-radius:var(--radius-md);margin-bottom:0.75rem">
-      <span style="font-size:1.1rem;flex-shrink:0;margin-top:1px"><?= $ins['icon'] ?></span>
-      <p style="font-size:0.82rem;margin:0;line-height:1.5"><?= htmlspecialchars($ins['text']) ?></p>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+            <thead>
+                <tr>
+                    <?php foreach (['Platform', 'Posts', 'Impressions', 'Reach', 'Engagements', 'Likes', 'Comments', 'Shares'] as $th): ?>
+                    <th style="padding:0.6rem 1rem;font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;text-align:<?= $th === 'Platform' ? 'left' : 'right' ?>;border-bottom:1px solid var(--glass-border);white-space:nowrap;"><?= $th ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($platformAnalytics as $pa):
+                    $meta  = $platformColors[$pa['platform']] ?? ['hex' => '#555', 'label' => ucfirst($pa['platform'])];
+                    $total = max(1, (int)($totals['engagements'] ?: 1));
+                    $pct   = round((int)$pa['engagements'] / $total * 100);
+                ?>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding:0.75rem 1rem;">
+                        <div style="display:flex;align-items:center;gap:0.6rem;">
+                            <span style="width:10px;height:10px;border-radius:50%;background:<?= htmlspecialchars($meta['hex']) ?>;flex-shrink:0;"></span>
+                            <span style="font-weight:600;color:var(--text-primary);"><?= htmlspecialchars($meta['label']) ?></span>
+                        </div>
+                    </td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= number_format((int)($pa['post_count'] ?? 0)) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= anaFormatNum((int)$pa['impressions']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= anaFormatNum((int)$pa['reach']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;">
+                        <span style="font-weight:700;color:var(--green-light);"><?= anaFormatNum((int)$pa['engagements']) ?></span>
+                        <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.3rem;"><?= $pct ?>%</span>
+                    </td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= anaFormatNum((int)$pa['likes']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= anaFormatNum((int)$pa['comments']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;color:var(--text-secondary);"><?= anaFormatNum((int)$pa['shares']) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+            <tfoot>
+                <tr style="border-top:1px solid var(--glass-border);">
+                    <td style="padding:0.75rem 1rem;font-weight:700;color:var(--text-primary);">Total</td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;"></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;color:var(--text-primary);"><?= anaFormatNum((int)$totals['impressions']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;color:var(--text-primary);"><?= anaFormatNum((int)$totals['reach']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:var(--green-light);"><?= anaFormatNum((int)$totals['engagements']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;color:var(--text-primary);"><?= anaFormatNum((int)$totals['likes']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;color:var(--text-primary);"><?= anaFormatNum((int)$totals['comments']) ?></td>
+                    <td style="padding:0.75rem 1rem;text-align:right;font-weight:600;color:var(--text-primary);"><?= anaFormatNum((int)$totals['shares']) ?></td>
+                </tr>
+            </tfoot>
+        </table>
     </div>
-    <?php endforeach ?>
-  </div>
 </div>
-<?php $content = ob_get_clean(); ?>
-<?php include __DIR__ . '/../layouts/main.php' ?>
+
+<!-- Engagement Bar Chart -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;margin-bottom:1.5rem;">
+
+    <div class="glass-card">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1.25rem;">📊 Engagement by Platform</h3>
+        <?php if (empty($platformAnalytics)): ?>
+        <p style="color:var(--text-muted);text-align:center;padding:2rem 0;">No data yet.</p>
+        <?php else:
+            $maxEng = max(array_map(fn($p) => (int)$p['engagements'], $platformAnalytics)) ?: 1;
+        ?>
+        <div style="display:flex;flex-direction:column;gap:0.85rem;">
+            <?php foreach ($platformAnalytics as $pa):
+                $meta = $platformColors[$pa['platform']] ?? ['hex' => '#555', 'label' => ucfirst($pa['platform'])];
+                $pct  = round((int)$pa['engagements'] / $maxEng * 100);
+            ?>
+            <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                    <span style="font-size:0.8rem;font-weight:500;color:var(--text-secondary);"><?= htmlspecialchars($meta['label']) ?></span>
+                    <span style="font-size:0.8rem;font-weight:700;color:var(--text-primary);"><?= anaFormatNum((int)$pa['engagements']) ?></span>
+                </div>
+                <div style="height:8px;background:var(--glass-bg);border-radius:4px;overflow:hidden;">
+                    <div style="width:<?= $pct ?>%;height:100%;background:<?= htmlspecialchars($meta['hex']) ?>;border-radius:4px;transition:width 0.4s;"></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="glass-card">
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:1.25rem;">🥧 Engagement Share</h3>
+        <?php if (empty($platformAnalytics)): ?>
+        <p style="color:var(--text-muted);text-align:center;padding:2rem 0;">No data yet.</p>
+        <?php else:
+            $totalEng = max(1, array_sum(array_map(fn($p) => (int)$p['engagements'], $platformAnalytics)));
+        ?>
+        <div style="display:flex;flex-direction:column;gap:0.65rem;">
+            <?php foreach ($platformAnalytics as $pa):
+                $meta = $platformColors[$pa['platform']] ?? ['hex' => '#555', 'label' => ucfirst($pa['platform'])];
+                $pct  = round((int)$pa['engagements'] / $totalEng * 100);
+            ?>
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <span style="width:10px;height:10px;border-radius:50%;background:<?= htmlspecialchars($meta['hex']) ?>;flex-shrink:0;"></span>
+                <span style="font-size:0.8rem;color:var(--text-secondary);flex:1;"><?= htmlspecialchars($meta['label']) ?></span>
+                <span style="font-size:0.8rem;font-weight:700;color:var(--text-primary);"><?= $pct ?>%</span>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+
+</div>
+
+<!-- Top Posts -->
+<div class="glass-card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h3 style="font-size:1rem;font-weight:600;">🏆 Top Performing Content</h3>
+        <a href="/dashboard/content" style="font-size:0.75rem;color:var(--blue-light);">View All →</a>
+    </div>
+    <?php if (empty($topPosts)): ?>
+    <div style="text-align:center;padding:2rem;color:var(--text-muted);">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">🏆</div>
+        <p style="font-size:0.82rem;">No top posts data yet. Publish and track content to see rankings.</p>
+    </div>
+    <?php else: ?>
+    <?php foreach ($topPosts as $i => $p):
+        $meta = $platformColors[$p['platform']] ?? ['hex' => '#555', 'label' => ucfirst($p['platform'])];
+        $vs   = (int)($p['viral_score'] ?? 0);
+        $vc   = $vs >= 85 ? 'var(--green-light)' : ($vs >= 70 ? 'var(--yellow)' : 'var(--text-secondary)');
+    ?>
+    <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span style="font-size:1.1rem;font-weight:800;color:var(--text-muted);min-width:22px;"><?= $i + 1 ?></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:<?= htmlspecialchars($meta['hex']) ?>;flex-shrink:0;"></span>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                <?= htmlspecialchars($p['title'] ?? '(Untitled)') ?>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">
+                <?= htmlspecialchars($meta['label']) ?> · <?= anaFormatNum((int)$p['total_reach']) ?> reach
+            </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:0.82rem;font-weight:700;color:var(--green-light);"><?= anaFormatNum((int)$p['total_engagements']) ?></div>
+            <div style="font-size:0.7rem;color:var(--text-muted);">engagements</div>
+        </div>
+        <?php if ($vs > 0): ?>
+        <div style="text-align:center;flex-shrink:0;min-width:44px;">
+            <div style="font-size:1rem;font-weight:800;color:<?= $vc ?>;"><?= $vs ?></div>
+            <div style="font-size:0.62rem;color:var(--text-muted);">viral</div>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<?php endif; // end analytics data check ?>
+
+<?php $content = ob_get_clean(); include __DIR__ . '/../layouts/main.php'; ?>

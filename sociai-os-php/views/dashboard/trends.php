@@ -1,99 +1,137 @@
+<?php ob_start(); ?>
 <?php
-$pageTitle  = 'Trend Hunter';
-$activePage = 'trends';
-$trends = [
-  ['topic'=>'#AIAgents',          'platform'=>'linkedin',  'score'=>97,'growth'=>'+340%','volume'=>'2.1M posts','angle'=>'How autonomous AI agents are replacing entire social media teams','hashtags'=>['#AI','#Automation','#Future','#Tech','#AgentAI']],
-  ['topic'=>'#CreatorEconomy2025','platform'=>'tiktok',    'score'=>94,'growth'=>'+280%','volume'=>'8.7M posts','angle'=>'The new rules for monetizing your audience in 2025','hashtags'=>['#Creator','#Monetize','#TikTok','#ContentCreator','#Brand']],
-  ['topic'=>'#SustainableBrands', 'platform'=>'instagram', 'score'=>91,'growth'=>'+215%','volume'=>'4.3M posts','angle'=>'Brands that put sustainability first are winning Gen-Z loyalty','hashtags'=>['#Sustainable','#GreenBrand','#EcoFriendly','#GenZ','#CSR']],
-  ['topic'=>'#RemoteWorkTools',   'platform'=>'twitter',   'score'=>88,'growth'=>'+175%','volume'=>'1.8M posts','angle'=>'The 10 productivity tools every remote team is using in 2025','hashtags'=>['#RemoteWork','#Productivity','#WFH','#Tools','#Tech']],
-  ['topic'=>'#ViralMarketing',    'platform'=>'instagram', 'score'=>85,'growth'=>'+155%','volume'=>'3.2M posts','angle'=>'What makes content go viral? Unpacking the algorithm secrets','hashtags'=>['#Marketing','#Viral','#Content','#Growth','#Algorithm']],
-  ['topic'=>'#AIHealthcare',      'platform'=>'linkedin',  'score'=>83,'growth'=>'+130%','volume'=>'890K posts','angle'=>'How AI is transforming patient outcomes and healthcare efficiency','hashtags'=>['#AI','#Healthcare','#MedTech','#Innovation','#Digital']],
-  ['topic'=>'#DigitalNomad2025',  'platform'=>'tiktok',    'score'=>80,'growth'=>'+120%','volume'=>'5.6M posts','angle'=>'The reality of working from anywhere: income, lifestyle, tips','hashtags'=>['#DigitalNomad','#Travel','#Freedom','#Remote','#Lifestyle']],
-  ['topic'=>'#B2BMarketing',      'platform'=>'linkedin',  'score'=>78,'growth'=>'+95%', 'volume'=>'1.1M posts','angle'=>'LinkedIn strategies that actually convert to pipeline in 2025','hashtags'=>['#B2B','#LinkedIn','#Marketing','#Sales','#Growth']],
+// Variables passed from DashboardController::trends()
+// $brand, $brandId, $trends, $platformFilter, $csrf
+
+$platformColors = [
+    'linkedin'  => '#0A66C2', 'instagram' => '#E1306C', 'tiktok'    => '#010101',
+    'twitter'   => '#1DA1F2', 'facebook'  => '#1877F2', 'youtube'   => '#FF0000',
+    'threads'   => '#6B7280', 'snapchat'  => '#FFFC00', 'pinterest' => '#E60023',
 ];
-$sounds = [
-  ['name'=>'Epic Drop',          'artist'=>'Trending Audio','uses'=>'2.1M','growth'=>'+450%'],
-  ['name'=>'Motivational Rise',  'artist'=>'Background',    'uses'=>'1.8M','growth'=>'+320%'],
-  ['name'=>'Corporate Beat',     'artist'=>'BizPodcast',    'uses'=>'980K','growth'=>'+280%'],
-  ['name'=>'Story Tension',      'artist'=>'CinemaFX',      'uses'=>'756K','growth'=>'+215%'],
+
+$platformLabels = [
+    'linkedin'  => 'LinkedIn',   'instagram' => 'Instagram', 'tiktok'    => 'TikTok',
+    'twitter'   => 'Twitter/X',  'facebook'  => 'Facebook',  'youtube'   => 'YouTube',
+    'threads'   => 'Threads',    'snapchat'  => 'Snapchat',  'pinterest' => 'Pinterest',
 ];
+
+$allPlatformFilters = ['all', 'linkedin', 'instagram', 'tiktok', 'twitter', 'facebook', 'youtube'];
 ?>
-<?php ob_start() ?>
-<div class="trends-page">
-  <div class="page-header page-header-row">
-    <div>
-      <h1>Trend Hunter 🔥</h1>
-      <p>AI-powered real-time trend detection across all 11 platforms</p>
-    </div>
-    <div style="display:flex;gap:0.75rem;align-items:center">
-      <div class="live-indicator"><span class="live-dot"></span>Scanning Live</div>
-      <button class="btn btn-ghost" onclick="SociAI.showToast('Refreshing trends...','info')">🔄 Refresh</button>
-    </div>
-  </div>
 
-  <!-- Platform Filters -->
-  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button class="platform-filter-btn btn btn-primary btn-sm" data-platform="all">🌐 All Platforms</button>
-    <?php foreach(['linkedin'=>'💼 LinkedIn','instagram'=>'📸 Instagram','tiktok'=>'🎵 TikTok','twitter'=>'🐦 Twitter/X','facebook'=>'👥 Facebook','youtube'=>'▶️ YouTube'] as $k=>$v): ?>
-    <button class="platform-filter-btn btn btn-ghost btn-sm" data-platform="<?= $k ?>"><?= $v ?></button>
-    <?php endforeach ?>
-  </div>
-
-  <!-- Trend Cards Grid -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;margin-bottom:2rem">
-    <?php foreach ($trends as $t): ?>
-    <div class="trend-card" data-platform="<?= $t['platform'] ?>">
-      <div class="trend-header">
+<div style="padding:0;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
         <div>
-          <div class="trend-name"><?= htmlspecialchars($t['topic']) ?></div>
-          <span class="platform-badge platform-<?= $t['platform'] ?>" style="margin-top:0.3rem;display:inline-flex"><?= ucfirst($t['platform']) ?></span>
+            <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:0.25rem;">Trend Hunter 🔥</h1>
+            <p style="color:var(--text-muted);font-size:0.875rem;">Real-time trend opportunities across all platforms</p>
         </div>
-        <div class="virality-score"><?= $t['score'] ?>/100</div>
-      </div>
-      <div class="trend-stats">
-        <span>📈 <?= htmlspecialchars($t['growth']) ?></span>
-        <span>📝 <?= htmlspecialchars($t['volume']) ?></span>
-      </div>
-      <div class="trend-angle">
-        💡 <em><?= htmlspecialchars($t['angle']) ?></em>
-      </div>
-      <div class="hashtag-row" style="margin-bottom:0.75rem">
-        <?php foreach ($t['hashtags'] as $h): ?>
-        <span class="hashtag"><?= htmlspecialchars($h) ?></span>
-        <?php endforeach ?>
-      </div>
-      <button class="btn btn-primary btn-sm btn-block gen-trend-btn">
-        ✨ Generate Content from Trend
-      </button>
+        <div style="display:flex;gap:0.75rem;align-items:center;">
+            <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:var(--green-light);padding:0.4rem 0.85rem;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:99px;">
+                <span class="status-dot status-running"></span> Live Data
+            </div>
+            <form method="get" style="display:none;" id="refreshForm"></form>
+            <button class="btn btn-ghost" onclick="document.getElementById('refreshForm').submit()">🔄 Refresh</button>
+        </div>
     </div>
-    <?php endforeach ?>
-  </div>
 
-  <!-- Viral Sounds Section -->
-  <div class="glass-card">
-    <div class="section-header" style="margin-bottom:1rem">
-      <h3>🎵 Trending Sounds (TikTok & Reels)</h3>
-      <span class="live-indicator" style="font-size:0.72rem"><span class="live-dot"></span>Real-time</span>
+    <!-- Platform Filters -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+        <?php foreach ($allPlatformFilters as $pf): ?>
+        <a href="?platform=<?= $pf ?>"
+           class="btn btn-sm <?= $platformFilter === $pf ? 'btn-primary' : 'btn-ghost' ?>"
+           style="font-size:0.8rem;">
+            <?php if ($pf === 'all'): ?>🌐 All Platforms<?php else: ?>
+            <?= htmlspecialchars($platformLabels[$pf] ?? ucfirst($pf)) ?>
+            <?php endif; ?>
+        </a>
+        <?php endforeach; ?>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem">
-      <?php foreach ($sounds as $s): ?>
-      <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:1rem;transition:all 0.2s" onmouseover="this.style.borderColor='var(--glass-border-hover)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
-          <div style="width:40px;height:40px;background:var(--gradient-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;animation:spin 3s linear infinite">🎵</div>
-          <div>
-            <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($s['name']) ?></div>
-            <div style="font-size:0.72rem;color:var(--text-muted)"><?= htmlspecialchars($s['artist']) ?></div>
-          </div>
+
+    <!-- Trend Cards or Empty State -->
+    <?php if (empty($trends)): ?>
+    <div class="glass-card" style="text-align:center;padding:5rem 2rem;">
+        <div style="font-size:4rem;margin-bottom:1rem;">🔥</div>
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem;color:var(--text-secondary);">No trend data available yet</h2>
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;max-width:400px;margin-left:auto;margin-right:auto;">
+            Trend data is fetched by the AI Trend Hunter agent. Run the agent to populate trending topics and hashtags.
+        </p>
+        <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+            <a href="/dashboard/agents" class="btn btn-primary">🤖 Run Trend Hunter Agent</a>
+            <?php if ($platformFilter !== 'all'): ?>
+            <a href="?platform=all" class="btn btn-ghost">🌐 View All Platforms</a>
+            <?php endif; ?>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem">
-          <span>🎬 <?= $s['uses'] ?> uses</span>
-          <span style="color:var(--green-light)"><?= $s['growth'] ?></span>
-        </div>
-        <button class="btn btn-ghost btn-sm btn-block" onclick="SociAI.showToast('Opening audio details...','info')">Use This Sound</button>
-      </div>
-      <?php endforeach ?>
     </div>
-  </div>
+
+    <?php else: ?>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:1rem;margin-bottom:2rem;">
+        <?php foreach ($trends as $t):
+            $platform = $t['platform'] ?? 'unknown';
+            $hexColor = htmlspecialchars($platformColors[$platform] ?? '#555');
+            $platLabel = htmlspecialchars($platformLabels[$platform] ?? ucfirst($platform));
+            $relevance = min(100, (int)($t['relevance_score'] ?? 0));
+            $growth    = round((float)($t['growth_rate'] ?? 0), 1);
+            $posts     = number_format((int)($t['post_count'] ?? 0));
+            $region    = $t['region'] ?? null;
+        ?>
+        <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:1.25rem;transition:border-color var(--tr),transform var(--tr);" onmouseover="this.style.borderColor='rgba(255,255,255,.15)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='var(--glass-border)';this.style.transform='none'">
+            <!-- Header -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.75rem;">
+                <div>
+                    <div style="font-size:1rem;font-weight:700;color:var(--blue-light);margin-bottom:0.3rem;"><?= htmlspecialchars($t['hashtag'] ?? '—') ?></div>
+                    <span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.7rem;font-weight:600;color:#fff;background:<?= $hexColor ?>;padding:2px 8px;border-radius:99px;"><?= $platLabel ?></span>
+                </div>
+                <div style="text-align:center;flex-shrink:0;">
+                    <?php $vc = $relevance >= 85 ? 'var(--green)' : ($relevance >= 70 ? 'var(--yellow)' : 'var(--text-muted)'); ?>
+                    <div style="font-size:1.4rem;font-weight:800;color:<?= $vc ?>;"><?= $relevance ?></div>
+                    <div style="font-size:0.62rem;color:var(--text-muted);">/ 100</div>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div style="display:flex;gap:1rem;margin-bottom:0.75rem;font-size:0.78rem;color:var(--text-muted);">
+                <span style="color:var(--green-light);font-weight:600;">
+                    📈 +<?= $growth ?>%
+                </span>
+                <span>📝 <?= $posts ?> posts</span>
+                <?php if ($region): ?>
+                <span>🌍 <?= htmlspecialchars($region) ?></span>
+                <?php endif; ?>
+            </div>
+
+            <!-- Relevance Bar -->
+            <div style="margin-bottom:0.85rem;">
+                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);margin-bottom:0.25rem;">
+                    <span>Relevance Score</span>
+                    <span style="color:<?= $vc ?>;"><?= $relevance ?>%</span>
+                </div>
+                <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
+                    <div style="width:<?= $relevance ?>%;height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:2px;transition:width 0.4s;"></div>
+                </div>
+            </div>
+
+            <!-- Detected At -->
+            <?php if (!empty($t['created_at'])): ?>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.85rem;">
+                Detected <?= date('M j, g:i a', strtotime($t['created_at'])) ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Generate CTA -->
+            <a href="/dashboard/copywriting" class="btn btn-primary btn-sm" style="width:100%;text-align:center;display:block;" onclick="sessionStorage.setItem('trend_hashtag','<?= htmlspecialchars($t['hashtag'] ?? '') ?>')">
+                ✨ Generate Content from Trend
+            </a>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div style="text-align:center;padding:0.5rem 0 1rem;color:var(--text-muted);font-size:0.78rem;">
+        Showing <?= count($trends) ?> trend<?= count($trends) !== 1 ? 's' : '' ?><?= $platformFilter !== 'all' ? ' for ' . htmlspecialchars($platformLabels[$platformFilter] ?? $platformFilter) : '' ?> · Updated by AI Trend Hunter Agent
+    </div>
+
+    <?php endif; ?>
+
 </div>
-<?php $content = ob_get_clean(); ?>
-<?php include __DIR__ . '/../layouts/main.php' ?>
+
+<?php $content = ob_get_clean(); include __DIR__ . '/../layouts/main.php'; ?>
