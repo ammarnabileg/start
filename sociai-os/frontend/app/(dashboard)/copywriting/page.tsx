@@ -80,7 +80,7 @@ export default function CopywritingPage() {
   };
 
   const handleSave = (id: string) => {
-    setSaved(prev => new Set([...prev, id]));
+    setSaved(prev => new Set(Array.from(prev).concat(id)));
   };
 
   const output = MOCK_OUTPUTS[activeType] || MOCK_OUTPUTS.caption;

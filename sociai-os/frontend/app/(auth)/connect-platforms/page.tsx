@@ -24,7 +24,7 @@ export default function ConnectPlatformsPage() {
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     await new Promise((r) => setTimeout(r, 1800));
-    setConnected((prev) => new Set([...prev, platformId]));
+    setConnected((prev) => new Set(Array.from(prev).concat(platformId)));
     setConnecting(null);
   };
 

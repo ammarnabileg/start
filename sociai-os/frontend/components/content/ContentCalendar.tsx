@@ -66,8 +66,10 @@ export function ContentCalendar() {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
-  const cells = Array.from({ length: firstDay }, (_, i) => ({ day: null, key: `empty-${i}` }))
-    .concat(Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, key: `day-${i + 1}` })));
+  const cells: { day: number | null; key: string }[] = [
+    ...Array.from({ length: firstDay }, (_, i) => ({ day: null as null, key: `empty-${i}` })),
+    ...Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, key: `day-${i + 1}` })),
+  ];
 
   return (
     <div className="glass-panel rounded-2xl overflow-hidden">
