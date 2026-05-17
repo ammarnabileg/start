@@ -111,7 +111,8 @@ define('META_APP_SECRET',   env('META_APP_SECRET',   ''));
 define('META_REDIRECT_URI', APP_URL . '/oauth/meta/callback');
 
 // TikTok
-define('TIKTOK_CLIENT_KEY',    env('TIKTOK_CLIENT_KEY',    ''));
+define('TIKTOK_CLIENT_KEY',    env('TIKTOK_CLIENT_KEY',    env('TIKTOK_CLIENT_ID', '')));
+define('TIKTOK_CLIENT_ID',     env('TIKTOK_CLIENT_ID',     env('TIKTOK_CLIENT_KEY', '')));
 define('TIKTOK_CLIENT_SECRET', env('TIKTOK_CLIENT_SECRET', ''));
 define('TIKTOK_REDIRECT_URI',  APP_URL . '/oauth/tiktok/callback');
 
@@ -120,12 +121,16 @@ define('TWITTER_API_KEY',       env('TWITTER_API_KEY',       ''));
 define('TWITTER_API_SECRET',    env('TWITTER_API_SECRET',    ''));
 define('TWITTER_ACCESS_TOKEN',  env('TWITTER_ACCESS_TOKEN',  ''));
 define('TWITTER_ACCESS_SECRET', env('TWITTER_ACCESS_SECRET', ''));
+define('TWITTER_CLIENT_ID',     env('TWITTER_CLIENT_ID',     env('TWITTER_API_KEY',    '')));
+define('TWITTER_CLIENT_SECRET', env('TWITTER_CLIENT_SECRET', env('TWITTER_API_SECRET', '')));
 define('TWITTER_REDIRECT_URI',  APP_URL . '/oauth/twitter/callback');
 
 // YouTube / Google
 define('YOUTUBE_CLIENT_ID',     env('YOUTUBE_CLIENT_ID',     ''));
 define('YOUTUBE_CLIENT_SECRET', env('YOUTUBE_CLIENT_SECRET', ''));
 define('YOUTUBE_REDIRECT_URI',  APP_URL . '/oauth/youtube/callback');
+define('GOOGLE_CLIENT_ID',      env('GOOGLE_CLIENT_ID',      env('YOUTUBE_CLIENT_ID',     '')));
+define('GOOGLE_CLIENT_SECRET',  env('GOOGLE_CLIENT_SECRET',  env('YOUTUBE_CLIENT_SECRET', '')));
 
 // Pinterest
 define('PINTEREST_APP_ID',     env('PINTEREST_APP_ID',     ''));

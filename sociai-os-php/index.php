@@ -29,6 +29,7 @@ spl_autoload_register(function (string $class): void {
         'SociAI\\Controllers\\' => BASE_PATH . '/controllers/',
         'SociAI\\Agents\\'      => BASE_PATH . '/agents/',
         'SociAI\\Api\\'         => BASE_PATH . '/api/',
+        'SociAI\\Platforms\\'   => BASE_PATH . '/core/platforms/',
     ];
     foreach ($map as $prefix => $dir) {
         if (str_starts_with($class, $prefix)) {
@@ -330,6 +331,7 @@ $router->group('/api', function(Router $r): void {
     $r->post('/community/reply',          'CommunityController@reply',     ['api', 'auth']);
     $r->post('/community/mark-spam',      'CommunityController@markSpam',  ['api', 'auth']);
     $r->post('/community/auto-reply-all', 'CommunityController@bulkReply', ['api', 'auth']);
+    $r->post('/community/sync',           'CommunityController@syncNow',   ['api', 'auth']);
 
     // Trends
     $r->post('/trends/scan',     'TrendsController@scanTrends',       ['api', 'auth']);
@@ -337,10 +339,13 @@ $router->group('/api', function(Router $r): void {
     $r->get('/trends/sounds',    'TrendsController@getViralSounds',   ['api', 'auth']);
 
     // Content
-    $r->get('/content/list',         'ContentController@index',    ['api', 'auth']);
-    $r->post('/content/approve',     'ContentController@approve',  ['api', 'auth']);
-    $r->post('/content/reject',      'ContentController@reject',   ['api', 'auth']);
-    $r->post('/content/schedule',    'ContentController@schedule', ['api', 'auth']);
+    $r->get('/content/list',              'ContentController@index',       ['api', 'auth']);
+    $r->post('/content/approve',          'ContentController@approve',     ['api', 'auth']);
+    $r->post('/content/reject',           'ContentController@reject',      ['api', 'auth']);
+    $r->post('/content/schedule',         'ContentController@schedule',    ['api', 'auth']);
+    $r->post('/content/generate',         'ContentController@generateAI',  ['api', 'auth']);
+    $r->post('/content/generate-image',   'ContentController@generateImage',['api', 'auth']);
+    $r->post('/content/publish/{id}',     'ContentController@publishNow',  ['api', 'auth']);
 });
 
 // ============================================================

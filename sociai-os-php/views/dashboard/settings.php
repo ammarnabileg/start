@@ -1,18 +1,47 @@
 <?php
+declare(strict_types=1);
+use SociAI\Core\{Auth, Database};
+
 $pageTitle  = 'Settings';
 $activePage = 'settings';
-$platforms = [
-  ['name'=>'LinkedIn',  'emoji'=>'💼','status'=>'connected',   'account'=>'Ahmed Al-Rashid','followers'=>'48.2K'],
-  ['name'=>'Instagram', 'emoji'=>'📸','status'=>'connected',   'account'=>'@ahmedbrand',     'followers'=>'127.5K'],
-  ['name'=>'TikTok',    'emoji'=>'🎵','status'=>'connected',   'account'=>'@ahmedbrand',     'followers'=>'89.3K'],
-  ['name'=>'Facebook',  'emoji'=>'👥','status'=>'connected',   'account'=>'Ahmed Brand Page','followers'=>'34.1K'],
-  ['name'=>'Twitter/X', 'emoji'=>'🐦','status'=>'connected',   'account'=>'@ahmed_brand',    'followers'=>'22.8K'],
-  ['name'=>'YouTube',   'emoji'=>'▶️','status'=>'connected',   'account'=>'Ahmed Brand',     'followers'=>'15.4K'],
-  ['name'=>'Snapchat',  'emoji'=>'👻','status'=>'expired',     'account'=>'@ahmedbrand',     'followers'=>'8.9K'],
-  ['name'=>'Threads',   'emoji'=>'🧵','status'=>'connected',   'account'=>'@ahmedbrand',     'followers'=>'5.2K'],
-  ['name'=>'Pinterest', 'emoji'=>'📌','status'=>'connected',   'account'=>'Ahmed Brand',     'followers'=>'11.7K'],
-  ['name'=>'WhatsApp',  'emoji'=>'💬','status'=>'not_connected','account'=>'—',              'followers'=>'—'],
-  ['name'=>'Telegram',  'emoji'=>'✈️','status'=>'connected',   'account'=>'@AhmedBrand',     'followers'=>'4.1K'],
+
+// Load real platform accounts from DB
+$_db     = Database::getInstance();
+$_user   = Auth::getCurrentUser();
+$_brandId = $_SESSION['active_brand_id'] ?? '';
+if (empty($_brandId)) {
+    $row = $_db->fetchOne("SELECT b.id FROM brands b INNER JOIN team_members tm ON tm.brand_id=b.id WHERE tm.user_id=? ORDER BY tm.created_at ASC LIMIT 1", [$_user['id']]);
+    $_brandId = $row['id'] ?? '';
+    if ($_brandId) $_SESSION['active_brand_id'] = $_brandId;
+}
+
+$connectedAccounts = $_db->fetchAll(
+    "SELECT id, platform, account_name, account_id, follower_count, avatar_url, token_expires_at, last_synced_at, is_active
+     FROM platform_accounts WHERE brand_id = ? ORDER BY platform ASC",
+    [$_brandId]
+);
+
+// Build lookup by platform
+$connectedMap = [];
+foreach ($connectedAccounts as $acc) {
+    $connectedMap[$acc['platform']] = $acc;
+}
+
+// All supported platforms
+$supportedPlatforms = [
+    'facebook'  => ['name'=>'Facebook',    'emoji'=>'👥', 'oauth'=>'meta'],
+    'instagram' => ['name'=>'Instagram',   'emoji'=>'📸', 'oauth'=>'meta'],
+    'twitter'   => ['name'=>'Twitter/X',   'emoji'=>'🐦', 'oauth'=>'twitter'],
+    'linkedin'  => ['name'=>'LinkedIn',    'emoji'=>'💼', 'oauth'=>'linkedin'],
+    'tiktok'    => ['name'=>'TikTok',      'emoji'=>'🎵', 'oauth'=>'tiktok'],
+    'youtube'   => ['name'=>'YouTube',     'emoji'=>'▶️', 'oauth'=>'youtube'],
+];
+
+// Legacy static fallback for display of non-supported platforms
+$legacyPlatforms = [
+  ['name'=>'Snapchat',  'emoji'=>'👻','status'=>'not_connected','account'=>'—','followers'=>'—'],
+  ['name'=>'Threads',   'emoji'=>'🧵','status'=>'not_connected','account'=>'—','followers'=>'—'],
+  ['name'=>'Pinterest', 'emoji'=>'📌','status'=>'not_connected','account'=>'—','followers'=>'—'],
 ];
 $apiKeys = [
   ['name'=>'OpenAI API Key',      'key'=>'sk-proj-••••••••••••••••••••••••••••••xK8A'],
@@ -196,34 +225,91 @@ $apiKeys = [
 
 <!-- Platforms Panel -->
 <div class="settings-panel" id="platformsPanel" style="display:none">
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.875rem">
-    <?php foreach ($platforms as $p): ?>
-    <div style="background:var(--glass-bg);border:1px solid <?= $p['status']==='expired'?'rgba(245,158,11,0.4)':($p['status']==='not_connected'?'var(--glass-border)':'rgba(16,185,129,0.3)') ?>;border-radius:var(--radius-md);padding:1rem">
+  <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-sm);font-size:0.82rem;color:var(--blue-light)">
+    🔌 Connect your social media accounts to enable AI-powered community management, content publishing, and analytics.
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:0.875rem">
+    <?php foreach ($supportedPlatforms as $key => $pInfo):
+      $acc        = $connectedMap[$key] ?? null;
+      $isConnected = $acc !== null && ($acc['is_active'] ?? false);
+      $isExpired   = $acc !== null && !empty($acc['token_expires_at']) && strtotime($acc['token_expires_at']) < time();
+      $status      = $isConnected ? ($isExpired ? 'expired' : 'connected') : 'not_connected';
+      $borderColor = $status === 'expired'
+        ? 'rgba(245,158,11,0.4)'
+        : ($status === 'connected' ? 'rgba(16,185,129,0.3)' : 'var(--glass-border)');
+      $oauthRoute  = '/oauth/' . $pInfo['oauth'] . '/connect';
+      $followers   = $acc ? number_format((int)($acc['follower_count'] ?? 0)) : null;
+      $lastSync    = $acc && $acc['last_synced_at'] ? date('M j, g:i a', strtotime($acc['last_synced_at'])) : null;
+    ?>
+    <div style="background:var(--glass-bg);border:1px solid <?= $borderColor ?>;border-radius:var(--radius-md);padding:1rem">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+        <span style="font-size:1.5rem"><?= $pInfo['emoji'] ?></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.9rem;font-weight:600"><?= htmlspecialchars($pInfo['name']) ?></div>
+          <?php if ($isConnected && !$isExpired): ?>
+          <div style="font-size:0.73rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <?= htmlspecialchars($acc['account_name'] ?? '') ?>
+            <?php if ($followers): ?> · <?= $followers ?> followers<?php endif; ?>
+          </div>
+          <?php if ($lastSync): ?>
+          <div style="font-size:0.7rem;color:var(--text-muted)">Last sync: <?= $lastSync ?></div>
+          <?php endif; ?>
+          <?php elseif ($isExpired): ?>
+          <div style="font-size:0.73rem;color:var(--yellow)">⚠️ Token expired — reconnect</div>
+          <?php else: ?>
+          <div style="font-size:0.73rem;color:var(--text-muted)">Not connected</div>
+          <?php endif; ?>
+        </div>
+        <?php if ($isConnected && !$isExpired): ?>
+        <span style="width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 6px var(--green);flex-shrink:0"></span>
+        <?php endif; ?>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <?php if ($isConnected && !$isExpired): ?>
+        <a href="<?= $oauthRoute ?>" class="btn btn-ghost btn-sm" style="flex:1;text-align:center">🔄 Reconnect</a>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)"
+                onclick="disconnectPlatform('<?= htmlspecialchars($acc['id'] ?? '') ?>', '<?= htmlspecialchars($pInfo['name']) ?>')">✕</button>
+        <?php elseif ($isExpired): ?>
+        <a href="<?= $oauthRoute ?>" class="btn btn-primary btn-sm" style="flex:1;text-align:center">🔄 Reconnect</a>
+        <?php else: ?>
+        <a href="<?= $oauthRoute ?>" class="btn btn-primary btn-sm" style="flex:1;text-align:center">🔗 Connect</a>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endforeach; ?>
+
+    <!-- Legacy / coming soon platforms -->
+    <?php foreach ($legacyPlatforms as $p): ?>
+    <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:1rem;opacity:.7">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
         <span style="font-size:1.5rem"><?= $p['emoji'] ?></span>
-        <div style="flex:1">
-          <div style="font-size:0.9rem;font-weight:600"><?= htmlspecialchars($p['name']) ?></div>
-          <?php if ($p['status'] === 'connected'): ?>
-          <div style="font-size:0.75rem;color:var(--text-muted)"><?= htmlspecialchars($p['account']) ?> · <?= $p['followers'] ?></div>
-          <?php elseif ($p['status'] === 'expired'): ?>
-          <div style="font-size:0.75rem;color:var(--yellow)">⚠️ Token expired — reconnect</div>
-          <?php else: ?>
-          <div style="font-size:0.75rem;color:var(--text-muted)">Not connected</div>
-          <?php endif ?>
-        </div>
-        <?php if ($p['status'] === 'connected'): ?>
-        <span style="width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 6px var(--green)"></span>
-        <?php endif ?>
+        <div><div style="font-size:0.9rem;font-weight:600"><?= htmlspecialchars($p['name']) ?></div>
+        <div style="font-size:0.73rem;color:var(--text-muted)">Coming soon</div></div>
       </div>
-      <?php if ($p['status'] === 'connected'): ?>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="SociAI.showToast('Reconnecting...','info')">🔄 Reconnect</button>
-      <?php else: ?>
-      <button class="btn btn-primary btn-sm btn-block" onclick="SociAI.showToast('Opening OAuth...','info')">🔗 Connect</button>
-      <?php endif ?>
+      <button class="btn btn-ghost btn-sm btn-block" disabled>Coming Soon</button>
     </div>
-    <?php endforeach ?>
+    <?php endforeach; ?>
+  </div>
+
+  <div style="margin-top:1.25rem;padding:.75rem 1rem;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--radius-sm);font-size:.8rem">
+    ✅ Connected platforms automatically sync interactions every 5 minutes. AI replies are generated every 10 minutes.
   </div>
 </div>
+
+<script>
+async function disconnectPlatform(accountId, name) {
+  if (!confirm('Disconnect ' + name + '? This will stop syncing and remove the stored access token.')) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const r = await fetch('/oauth/<?= 'meta' ?>/disconnect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify({ account_id: accountId }),
+  });
+  const d = await r.json();
+  alert(d.message || (d.success ? 'Disconnected!' : 'Error: ' + (d.error||'Failed')));
+  if (d.success) location.reload();
+}
+</script>
 
 <!-- API Keys Panel -->
 <div class="settings-panel" id="apiPanel" style="display:none">
