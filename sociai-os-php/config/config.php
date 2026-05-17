@@ -64,11 +64,11 @@ date_default_timezone_set(APP_TIMEZONE);
 // ============================================================
 // Database
 // ============================================================
-define('DB_HOST',    env('DB_HOST',    '127.0.0.1'));
+define('DB_HOST',    env('DB_HOST',    'localhost'));
 define('DB_PORT',    (int) env('DB_PORT', 3306));
-define('DB_NAME',    env('DB_NAME',    'sociai_os'));
-define('DB_USER',    env('DB_USER',    'root'));
-define('DB_PASS',    env('DB_PASS',    ''));
+define('DB_NAME',    env('DB_NAME',    'admin_sm_manager'));
+define('DB_USER',    env('DB_USER',    'sm_manager'));
+define('DB_PASS',    env('DB_PASS',    'vi761N7&u'));
 define('DB_CHARSET', env('DB_CHARSET', 'utf8mb4'));
 
 // ============================================================

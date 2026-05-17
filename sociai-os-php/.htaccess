@@ -4,7 +4,7 @@ Options +FollowSymLinks
 RewriteEngine On
 RewriteBase /
 
-# Security
+# Security: block direct access to sensitive files
 <FilesMatch "\.(env|log|sql|md|json|lock|sh)$">
     Order Allow,Deny
     Deny from all
@@ -18,7 +18,7 @@ RewriteBase /
 # Deny access to sensitive directories
 RedirectMatch 403 ^/(config|core|models|agents|sql|cache)/
 
-# Allow static assets
+# Allow static assets directly
 RewriteCond %{REQUEST_URI} ^/assets/ [OR]
 RewriteCond %{REQUEST_URI} ^/uploads/
 RewriteRule ^ - [L]
@@ -28,13 +28,24 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
 
-# PHP settings
-php_value upload_max_filesize 50M
-php_value post_max_size 50M
-php_value max_execution_time 120
-php_value memory_limit 256M
+# PHP settings — use php_flag/php_value only if on mod_php
+# If your server uses PHP-FPM, set these in php.ini or .user.ini instead
+<IfModule mod_php.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 120
+    php_value memory_limit 256M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 120
+    php_value memory_limit 256M
+</IfModule>
 
-# Headers
-Header always set X-Frame-Options "SAMEORIGIN"
-Header always set X-Content-Type-Options "nosniff"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"
+# Security headers — only if mod_headers is enabled
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
