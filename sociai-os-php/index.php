@@ -188,6 +188,14 @@ $router->use('rate_limit_api', function(array $params, callable $next): void {
 // PUBLIC ROUTES (no auth required)
 // ============================================================
 
+// --- Setup Wizard (runs before .env exists, no auth, no DB) ---
+$router->get('/setup',                  'SetupController@index');
+$router->post('/setup/test-db',         'SetupController@testDB');
+$router->post('/setup/test-openai',     'SetupController@testOpenAI');
+$router->post('/setup/test-anthropic',  'SetupController@testAnthropic');
+$router->post('/setup/save',            'SetupController@save');
+$router->get('/setup/check',            'SetupController@check');
+
 // --- Landing ---
 $router->get('/', function(): void {
     require BASE_PATH . '/views/landing.php';
