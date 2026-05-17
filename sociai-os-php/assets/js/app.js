@@ -75,8 +75,17 @@ const API = {
     if (mobileToggle) mobileToggle.addEventListener('click', openSidebar);
     overlay.addEventListener('click', closeSidebar);
 
+    // Nav items with data-href — navigate on click
+    sidebar.querySelectorAll('.nav-item[data-href]').forEach(item => {
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', () => {
+            const href = item.dataset.href;
+            if (href) window.location.href = href;
+        });
+    });
+
     // Close on nav link click (mobile)
-    sidebar.querySelectorAll('.nav-link').forEach(link =>
+    sidebar.querySelectorAll('.nav-link, .nav-item[data-href]').forEach(link =>
         link.addEventListener('click', () => {
             if (window.innerWidth < 992) closeSidebar();
         })

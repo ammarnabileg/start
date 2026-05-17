@@ -9,38 +9,33 @@ use SociAI\Core\{Auth, Database, Request, Response};
 class PlatformsController
 {
     private Database $db;
-    private Auth $auth;
     private Request $request;
-    private Response $response;
 
     private const SUPPORTED_PLATFORMS = [
-        'instagram' => ['name' => 'Instagram', 'color' => '#E1306C', 'icon' => 'instagram'],
+        'instagram' => ['name' => 'Instagram',   'color' => '#E1306C', 'icon' => 'instagram'],
         'twitter'   => ['name' => 'X (Twitter)', 'color' => '#000000', 'icon' => 'twitter'],
-        'linkedin'  => ['name' => 'LinkedIn', 'color' => '#0A66C2', 'icon' => 'linkedin'],
-        'facebook'  => ['name' => 'Facebook', 'color' => '#1877F2', 'icon' => 'facebook'],
-        'tiktok'    => ['name' => 'TikTok', 'color' => '#010101', 'icon' => 'tiktok'],
-        'youtube'   => ['name' => 'YouTube', 'color' => '#FF0000', 'icon' => 'youtube'],
-        'threads'   => ['name' => 'Threads', 'color' => '#000000', 'icon' => 'threads'],
-        'snapchat'  => ['name' => 'Snapchat', 'color' => '#FFFC00', 'icon' => 'snapchat'],
+        'linkedin'  => ['name' => 'LinkedIn',    'color' => '#0A66C2', 'icon' => 'linkedin'],
+        'facebook'  => ['name' => 'Facebook',    'color' => '#1877F2', 'icon' => 'facebook'],
+        'tiktok'    => ['name' => 'TikTok',      'color' => '#010101', 'icon' => 'tiktok'],
+        'youtube'   => ['name' => 'YouTube',     'color' => '#FF0000', 'icon' => 'youtube'],
+        'threads'   => ['name' => 'Threads',     'color' => '#000000', 'icon' => 'threads'],
+        'snapchat'  => ['name' => 'Snapchat',    'color' => '#FFFC00', 'icon' => 'snapchat'],
     ];
 
     public function __construct()
     {
-        $this->db       = Database::getInstance();
-        $this->auth     = new Auth();
-        $this->request  = new Request();
-        $this->response = new Response();
+        $this->db      = Database::getInstance();
+        $this->request = new Request();
     }
 
     public function index(): void
     {
-        $this->auth->requireAuth();
-        $user    = $this->auth->getCurrentUser();
+        Auth::requireAuth();
+        $user    = Auth::getCurrentUser();
         $brandId = $this->getActiveBrandId($user['id']);
 
         $connected = $this->loadConnectedAccounts($brandId);
 
-        // Merge platform config with connection status
         $platforms = [];
         foreach (self::SUPPORTED_PLATFORMS as $key => $info) {
             $connectedAccount = null;
@@ -51,48 +46,37 @@ class PlatformsController
                 }
             }
             $platforms[$key] = array_merge($info, [
-                'key'             => $key,
-                'is_connected'    => $connectedAccount !== null,
-                'account'         => $connectedAccount,
+                'key'          => $key,
+                'is_connected' => $connectedAccount !== null,
+                'account'      => $connectedAccount,
             ]);
         }
 
-        $this->response->view('platforms/index', [
+        Response::view('platforms/index', [
             'title'     => 'Platforms – SociAI OS',
             'platforms' => $platforms,
             'brandId'   => $brandId,
+            'csrf'      => Auth::csrfToken(),
         ]);
     }
 
     public function connect(string $platform): void
     {
-        $this->auth->requireAuth();
-
+        Auth::requireAuth();
         if (!array_key_exists($platform, self::SUPPORTED_PLATFORMS)) {
-            $this->response->json(['success' => false, 'error' => 'Unsupported platform'], 400);
+            Response::json(['success' => false, 'error' => 'Unsupported platform'], 400);
             return;
         }
-
-        $this->response->redirect('/oauth/connect/' . $platform);
-    }
-
-    public function callback(string $platform): void
-    {
-        // Delegated to AuthController::oauthCallback
-        $this->auth->requireAuth();
-
-        require_once __DIR__ . '/AuthController.php';
-        $controller = new AuthController();
-        $controller->oauthCallback($platform);
+        Response::redirect('/oauth/connect/' . $platform);
     }
 
     public function disconnect(): void
     {
-        $this->auth->requireAuth();
-        $user    = $this->auth->getCurrentUser();
+        Auth::requireAuth();
+        $user    = Auth::getCurrentUser();
         $brandId = $this->getActiveBrandId($user['id']);
 
-        $platformAccountId = (int) $this->request->post('platform_account_id', 0);
+        $platformAccountId = $this->request->post('platform_account_id', '');
 
         $stmt = $this->db->prepare(
             'SELECT id, platform FROM platform_accounts WHERE id = ? AND brand_id = ? LIMIT 1'
@@ -101,20 +85,17 @@ class PlatformsController
         $account = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$account) {
-            $this->response->json(['success' => false, 'error' => 'Platform account not found'], 404);
+            Response::json(['success' => false, 'error' => 'Platform account not found'], 404);
             return;
         }
 
-        // Revoke token from platform (best-effort)
-        $this->revokeOAuthToken($account);
-
         $this->db->prepare(
             'UPDATE platform_accounts
-             SET is_active = 0, access_token = NULL, refresh_token = NULL, disconnected_at = NOW(), updated_at = NOW()
+             SET is_active = 0, access_token_encrypted = NULL, refresh_token_encrypted = NULL, updated_at = NOW()
              WHERE id = ?'
         )->execute([$platformAccountId]);
 
-        $this->response->json([
+        Response::json([
             'success' => true,
             'message' => ucfirst($account['platform']) . ' account disconnected.',
         ]);
@@ -122,96 +103,36 @@ class PlatformsController
 
     public function testConnection(): void
     {
-        $this->auth->requireAuth();
-        $user    = $this->auth->getCurrentUser();
+        Auth::requireAuth();
+        $user    = Auth::getCurrentUser();
         $brandId = $this->getActiveBrandId($user['id']);
 
-        $platformAccountId = (int) $this->request->post('platform_account_id', 0);
+        $platformAccountId = $this->request->post('platform_account_id', '');
 
         $stmt = $this->db->prepare(
-            'SELECT id, platform, access_token, username FROM platform_accounts
-             WHERE id = ? AND brand_id = ? AND is_active = 1 LIMIT 1'
+            'SELECT id, platform, access_token_encrypted, account_name
+             FROM platform_accounts WHERE id = ? AND brand_id = ? AND is_active = 1 LIMIT 1'
         );
         $stmt->execute([$platformAccountId, $brandId]);
         $account = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$account) {
-            $this->response->json(['success' => false, 'error' => 'Account not found or inactive'], 404);
+            Response::json(['success' => false, 'error' => 'Account not found or inactive'], 404);
             return;
         }
 
-        $token  = $this->decryptToken($account['access_token'] ?? '');
+        $token  = $this->decryptToken($account['access_token_encrypted'] ?? '');
         $result = $this->pingPlatformAPI($account['platform'], $token);
 
         $this->db->prepare(
-            'UPDATE platform_accounts SET last_sync_at = NOW(), sync_errors = ? WHERE id = ?'
-        )->execute([$result['success'] ? 0 : ($account['sync_errors'] + 1), $account['id']]);
+            'UPDATE platform_accounts SET last_synced_at = NOW() WHERE id = ?'
+        )->execute([$account['id']]);
 
-        $this->response->json([
+        Response::json([
             'success'  => $result['success'],
             'platform' => $account['platform'],
-            'username' => $account['username'],
+            'username' => $account['account_name'],
             'message'  => $result['message'] ?? '',
-        ]);
-    }
-
-    public function getMetrics(): void
-    {
-        $this->auth->requireAuth();
-        $user    = $this->auth->getCurrentUser();
-        $brandId = $this->getActiveBrandId($user['id']);
-
-        $platformAccountId = (int) $this->request->get('platform_account_id', 0);
-        $period = $this->request->get('period', '30d');
-        $days   = $this->periodToDays($period);
-
-        if ($platformAccountId > 0) {
-            $stmt = $this->db->prepare(
-                'SELECT * FROM platform_accounts WHERE id = ? AND brand_id = ? LIMIT 1'
-            );
-            $stmt->execute([$platformAccountId, $brandId]);
-            $account = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            if (!$account) {
-                $this->response->json(['success' => false, 'error' => 'Account not found'], 404);
-                return;
-            }
-        }
-
-        $stmt = $this->db->prepare(
-            'SELECT cp.platform,
-                    COUNT(cp.id) AS posts,
-                    COALESCE(SUM(pm.impressions),0) AS reach,
-                    COALESCE(SUM(pm.likes),0) AS likes,
-                    COALESCE(SUM(pm.comments),0) AS comments,
-                    COALESCE(SUM(pm.shares),0) AS shares,
-                    COALESCE(AVG(pm.engagement_rate),0) AS avg_engagement
-             FROM content_posts cp
-             LEFT JOIN post_metrics pm ON pm.content_post_id = cp.id
-             WHERE cp.brand_id = ?
-               AND cp.status = "published"
-               AND cp.published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-             GROUP BY cp.platform'
-        );
-        $stmt->execute([$brandId, $days]);
-        $metrics = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        // Follower growth
-        $growthStmt = $this->db->prepare(
-            'SELECT platform, SUM(follower_count) AS followers, DATE(snapshot_date) AS day
-             FROM follower_snapshots
-             WHERE brand_id = ? AND snapshot_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-             GROUP BY platform, DATE(snapshot_date)
-             ORDER BY day ASC'
-        );
-        $growthStmt->execute([$brandId, $days]);
-        $growth = $growthStmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        $this->response->json([
-            'success' => true,
-            'metrics' => $metrics,
-            'growth'  => $growth,
-            'period'  => $period,
         ]);
     }
 
@@ -219,11 +140,11 @@ class PlatformsController
     // Private helpers
     // =========================================================================
 
-    private function loadConnectedAccounts(int $brandId): array
+    private function loadConnectedAccounts(string $brandId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, platform, username, is_active, follower_count, following_count,
-                    token_expires_at, last_sync_at, sync_errors
+            'SELECT id, platform, account_name, is_active, follower_count,
+                    token_expires_at, last_synced_at
              FROM platform_accounts WHERE brand_id = ? ORDER BY platform ASC'
         );
         $stmt->execute([$brandId]);
@@ -261,33 +182,6 @@ class PlatformsController
         ];
     }
 
-    private function revokeOAuthToken(array $account): void
-    {
-        // Best-effort token revocation — ignore errors
-        try {
-            $token = $this->decryptToken($account['access_token'] ?? '');
-            if (empty($token)) return;
-
-            $revokeUrls = [
-                'twitter' => 'https://api.twitter.com/2/oauth2/revoke',
-            ];
-
-            if (isset($revokeUrls[$account['platform']])) {
-                $ch = curl_init($revokeUrls[$account['platform']]);
-                curl_setopt_array($ch, [
-                    CURLOPT_POST           => true,
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_POSTFIELDS     => 'token=' . urlencode($token),
-                    CURLOPT_TIMEOUT        => 5,
-                ]);
-                curl_exec($ch);
-                curl_close($ch);
-            }
-        } catch (\Throwable $e) {
-            // Ignore
-        }
-    }
-
     private function decryptToken(string $encrypted): string
     {
         if (empty($encrypted)) return '';
@@ -302,23 +196,22 @@ class PlatformsController
         }
     }
 
-    private function periodToDays(string $period): int
-    {
-        return match ($period) {
-            '7d'  => 7, '14d' => 14, '30d' => 30, '90d' => 90, default => 30,
-        };
-    }
-
-    private function getActiveBrandId(int $userId): int
+    private function getActiveBrandId(string $userId): string
     {
         if (!empty($_SESSION['active_brand_id'])) {
-            return (int) $_SESSION['active_brand_id'];
+            return (string)$_SESSION['active_brand_id'];
         }
         $stmt = $this->db->prepare(
-            'SELECT b.id FROM brands b INNER JOIN brand_users bu ON bu.brand_id = b.id WHERE bu.user_id = ? ORDER BY bu.created_at ASC LIMIT 1'
+            'SELECT b.id FROM brands b
+             INNER JOIN team_members tm ON tm.brand_id = b.id
+             WHERE tm.user_id = ? ORDER BY tm.created_at ASC LIMIT 1'
         );
         $stmt->execute([$userId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ? (int) $row['id'] : 0;
+        if ($row) {
+            $_SESSION['active_brand_id'] = $row['id'];
+            return (string)$row['id'];
+        }
+        return '';
     }
 }

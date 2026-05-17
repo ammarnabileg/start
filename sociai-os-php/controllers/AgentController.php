@@ -14,14 +14,12 @@ use SociAI\Agents\{ContentGeneratorAgent, StrategyExtractorAgent, TrendHunterAge
 class AgentController
 {
     private Request  $request;
-    private Response $response;
     private Brand    $brandModel;
     private Database $db;
 
     public function __construct()
     {
         $this->request    = new Request();
-        $this->response   = new Response();
         $this->brandModel = new Brand();
         $this->db         = Database::getInstance();
     }
@@ -37,7 +35,7 @@ class AgentController
             [$brand['id']]
         );
 
-        $this->response->view('agents.index', [
+        Response::view('agents.index', [
             'brand'     => $brand,
             'tasks'     => $tasks,
             'user'      => $user,
@@ -64,17 +62,17 @@ class AgentController
             $result = $agent->generate($input);
 
             if ($this->request->isAjax()) {
-                $this->response->success($result['output'], 'Content generated successfully.');
+                Response::success($result['output'], 'Content generated successfully.');
             } else {
                 Response::flash('success', 'Content generated successfully!');
-                $this->response->redirect('/brands/' . $params['slug'] . '/content');
+                Response::redirect('/brands/' . $params['slug'] . '/content');
             }
         } catch (\Throwable $e) {
             if ($this->request->isAjax()) {
-                $this->response->error($e->getMessage());
+                Response::error($e->getMessage());
             } else {
                 Response::flash('error', 'Agent failed: ' . $e->getMessage());
-                $this->response->redirect('/brands/' . $params['slug'] . '/agents');
+                Response::redirect('/brands/' . $params['slug'] . '/agents');
             }
         }
     }
@@ -113,17 +111,17 @@ class AgentController
             $result = $agent->extract($input);
 
             if ($this->request->isAjax()) {
-                $this->response->success($result['output'], 'Strategy extracted successfully.');
+                Response::success($result['output'], 'Strategy extracted successfully.');
             } else {
                 Response::flash('success', 'Strategy analysed and saved!');
-                $this->response->redirect('/brands/' . $params['slug'] . '/strategy');
+                Response::redirect('/brands/' . $params['slug'] . '/strategy');
             }
         } catch (\Throwable $e) {
             if ($this->request->isAjax()) {
-                $this->response->error($e->getMessage());
+                Response::error($e->getMessage());
             } else {
                 Response::flash('error', $e->getMessage());
-                $this->response->redirect('/brands/' . $params['slug'] . '/strategy');
+                Response::redirect('/brands/' . $params['slug'] . '/strategy');
             }
         }
     }
@@ -147,9 +145,9 @@ class AgentController
             $agent  = new TrendHunterAgent();
             $result = $agent->hunt($input);
 
-            $this->response->success($result['output'], 'Trends discovered successfully!');
+            Response::success($result['output'], 'Trends discovered successfully!');
         } catch (\Throwable $e) {
-            $this->response->error($e->getMessage());
+            Response::error($e->getMessage());
         }
     }
 
@@ -164,9 +162,9 @@ class AgentController
         try {
             $agent  = new CommunityReplyAgent();
             $result = $agent->processBatch($brand['id'], $interactionIds);
-            $this->response->success($result['output'], 'Replies generated successfully.');
+            Response::success($result['output'], 'Replies generated successfully.');
         } catch (\Throwable $e) {
-            $this->response->error($e->getMessage());
+            Response::error($e->getMessage());
         }
     }
 
@@ -186,7 +184,7 @@ class AgentController
             'video_views'  => (int)($metrics['video_views']  ?? 0),
         ]);
 
-        $this->response->success(['viral_score' => $score]);
+        Response::success(['viral_score' => $score]);
     }
 
     public function taskList(array $params): void
@@ -201,7 +199,7 @@ class AgentController
             [$brand['id']]
         );
 
-        $this->response->success($tasks);
+        Response::success($tasks);
     }
 
     public function taskStatus(array $params): void
@@ -211,7 +209,7 @@ class AgentController
         $task   = $this->db->fetchOne("SELECT * FROM agent_tasks WHERE id = ?", [$taskId]);
 
         if (!$task) {
-            $this->response->error('Task not found.', 404);
+            Response::error('Task not found.', 404);
             return;
         }
 
@@ -222,7 +220,7 @@ class AgentController
             }
         }
 
-        $this->response->success($task);
+        Response::success($task);
     }
 
     private function getBrandBySlug(string $slug, string $userId): array

@@ -221,7 +221,17 @@ $router->group('/oauth', function(Router $r): void {
 $router->group('', function(Router $r): void {
 
     // --- Dashboard ---
-    $r->get('/dashboard', 'DashboardController@index', ['auth']);
+    $r->get('/dashboard',             'DashboardController@index',       ['auth']);
+    $r->get('/dashboard/content',     'DashboardController@content',     ['auth']);
+    $r->get('/dashboard/strategy',    'DashboardController@strategy',    ['auth']);
+    $r->get('/dashboard/copywriting', 'DashboardController@copywriting', ['auth']);
+    $r->get('/dashboard/analytics',   'DashboardController@analytics',   ['auth']);
+    $r->get('/dashboard/campaigns',   'DashboardController@campaigns',   ['auth']);
+    $r->get('/dashboard/community',   'DashboardController@community',   ['auth']);
+    $r->get('/dashboard/trends',      'DashboardController@trends',      ['auth']);
+    $r->get('/dashboard/agents',      'DashboardController@agents',      ['auth']);
+    $r->get('/dashboard/team',        'DashboardController@team',        ['auth']);
+    $r->get('/dashboard/settings',    'DashboardController@settings',    ['auth']);
 
     // --- Brands ---
     $r->get('/brands',              'BrandController@index',     ['auth']);

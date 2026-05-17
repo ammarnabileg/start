@@ -9,16 +9,12 @@ use SociAI\Core\{Auth, Database, Request, Response};
 class AuthController
 {
     private Database $db;
-    private Auth $auth;
     private Request $request;
-    private Response $response;
 
     public function __construct()
     {
-        $this->db       = Database::getInstance();
-        $this->auth     = new Auth();
-        $this->request  = new Request();
-        $this->response = new Response();
+        $this->db      = Database::getInstance();
+        $this->request = new Request();
     }
 
     public function showLogin(): void
@@ -83,7 +79,7 @@ class AuthController
             Response::redirect('/auth/2fa');
         }
 
-        $this->establishSession($user, $remember);
+        $this->establishSession($user);
         Response::redirect('/dashboard');
     }
 
@@ -205,10 +201,10 @@ class AuthController
 
     public function oauthConnect(string $platform): void
     {
-        $this->auth->requireAuth();
+        Auth::requireAuth();
         $config = $this->getOAuthConfig($platform);
         if (!$config) {
-            $this->response->redirect('/settings/platforms?error=unsupported_platform');
+            Response::redirect('/settings/platforms?error=unsupported_platform');
             return;
         }
         $state = bin2hex(random_bytes(16));
@@ -222,58 +218,60 @@ class AuthController
             'state'         => $state,
             'response_type' => 'code',
         ]);
-        $this->response->redirect($config['auth_url'] . '?' . $params);
+        Response::redirect($config['auth_url'] . '?' . $params);
     }
 
     public function oauthCallback(string $platform): void
     {
-        $this->auth->requireAuth();
+        Auth::requireAuth();
         $code  = $this->request->get('code', '');
         $state = $this->request->get('state', '');
 
         if (empty($code) || $state !== ($_SESSION['oauth_state'] ?? '')) {
-            $this->response->redirect('/settings/platforms?error=oauth_failed');
+            Response::redirect('/settings/platforms?error=oauth_failed');
             return;
         }
         unset($_SESSION['oauth_state'], $_SESSION['oauth_platform']);
 
         $config = $this->getOAuthConfig($platform);
         if (!$config) {
-            $this->response->redirect('/settings/platforms?error=unsupported_platform');
+            Response::redirect('/settings/platforms?error=unsupported_platform');
             return;
         }
 
         try {
             $tokens  = $this->exchangeOAuthCode($code, $config);
             $profile = $this->fetchOAuthProfile($platform, $tokens);
-            $user    = $this->auth->getCurrentUser();
+            $user    = Auth::getCurrentUser();
 
             $encToken   = $this->encryptToken($tokens['access_token']);
             $encRefresh = !empty($tokens['refresh_token']) ? $this->encryptToken($tokens['refresh_token']) : null;
             $expiresAt  = isset($tokens['expires_in']) ? date('Y-m-d H:i:s', time() + (int)$tokens['expires_in']) : null;
 
+            $activeBrandId = $_SESSION['active_brand_id'] ?? '';
             $check = $this->db->prepare(
-                'SELECT id FROM platform_accounts WHERE user_id=? AND platform=? AND platform_user_id=? LIMIT 1'
+                'SELECT id FROM platform_accounts WHERE brand_id=? AND platform=? AND account_id=? LIMIT 1'
             );
-            $check->execute([$user['id'], $platform, $profile['id']]);
+            $check->execute([$activeBrandId, $platform, $profile['id']]);
             $existing = $check->fetch();
 
             if ($existing) {
                 $this->db->prepare(
-                    'UPDATE platform_accounts SET access_token=?,refresh_token=?,token_expires_at=?,username=?,updated_at=NOW() WHERE id=?'
+                    'UPDATE platform_accounts SET access_token_encrypted=?,refresh_token_encrypted=?,token_expires_at=?,account_name=?,updated_at=NOW() WHERE id=?'
                 )->execute([$encToken, $encRefresh, $expiresAt, $profile['username'] ?? '', $existing['id']]);
             } else {
+                $newAccountId = $this->generateUuid();
                 $this->db->prepare(
-                    'INSERT INTO platform_accounts (user_id,platform,platform_user_id,username,access_token,refresh_token,token_expires_at,created_at)
-                     VALUES (?,?,?,?,?,?,?,NOW())'
-                )->execute([$user['id'], $platform, $profile['id'], $profile['username'] ?? '', $encToken, $encRefresh, $expiresAt]);
+                    'INSERT INTO platform_accounts (id,brand_id,platform,account_id,account_name,access_token_encrypted,refresh_token_encrypted,token_expires_at,is_active,created_at)
+                     VALUES (?,?,?,?,?,?,?,?,1,NOW())'
+                )->execute([$newAccountId, $_SESSION['active_brand_id'] ?? '', $platform, $profile['id'], $profile['username'] ?? '', $encToken, $encRefresh, $expiresAt]);
             }
 
-            $this->logAudit($user['id'], 'oauth_connect', 'platform_account', 0, ['platform' => $platform]);
-            $this->response->redirect('/settings/platforms?success=connected');
+            $this->logAudit($user['id'], 'oauth_connect', 'platform_account', $newAccountId ?? '', ['platform' => $platform]);
+            Response::redirect('/settings/platforms?success=connected');
         } catch (\Throwable $e) {
             error_log("OAuth callback failed for {$platform}: " . $e->getMessage());
-            $this->response->redirect('/settings/platforms?error=oauth_failed');
+            Response::redirect('/settings/platforms?error=oauth_failed');
         }
     }
 
@@ -356,10 +354,10 @@ class AuthController
         return base64_encode($iv . openssl_encrypt($token, 'AES-256-CBC', hash('sha256',$key,true), OPENSSL_RAW_DATA, $iv));
     }
 
-    private function logAudit(int $userId, string $action, string $resType, int $resId, array $meta): void
+    private function logAudit(string $userId, string $action, string $resType, string $resId, array $meta): void
     {
         try {
-            $this->db->prepare('INSERT INTO audit_logs (user_id,action,resource_type,resource_id,meta,ip_address,created_at) VALUES (?,?,?,?,?,?,NOW())')
+            $this->db->prepare('INSERT INTO audit_log (user_id,action,entity_type,entity_id,new_values,ip_address,created_at) VALUES (?,?,?,?,?,?,NOW())')
                 ->execute([$userId,$action,$resType,$resId,json_encode($meta),$this->getClientIp()]);
         } catch (\Throwable $e) { error_log('Audit log: '.$e->getMessage()); }
     }
