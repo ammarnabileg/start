@@ -23,30 +23,27 @@ class AuthController
 
     public function showLogin(): void
     {
-        if ($this->auth->getCurrentUser()) {
-            $this->response->redirect('/dashboard');
+        if (Auth::getCurrentUser()) {
+            Response::redirect('/dashboard');
             return;
         }
         $data = [
             'title'   => 'Login - SociAI OS',
-            'error'   => $_SESSION['login_error'] ?? null,
-            'success' => $_SESSION['login_success'] ?? null,
+            'csrf'    => Auth::csrfToken(),
         ];
-        unset($_SESSION['login_error'], $_SESSION['login_success']);
-        $this->response->view('auth/login', $data);
+        Response::view('auth/login', $data);
     }
 
     public function showRegister(): void
     {
-        if ($this->auth->getCurrentUser()) {
-            $this->response->redirect('/dashboard');
+        if (Auth::getCurrentUser()) {
+            Response::redirect('/dashboard');
             return;
         }
-        $this->response->view('auth/register', [
+        Response::view('auth/register', [
             'title' => 'Create Account - SociAI OS',
-            'error' => $_SESSION['register_error'] ?? null,
+            'csrf'  => Auth::csrfToken(),
         ]);
-        unset($_SESSION['register_error']);
     }
 
     public function login(): void
@@ -56,14 +53,12 @@ class AuthController
         $remember = (bool)$this->request->post('remember', false);
 
         if (empty($email) || empty($password)) {
-            $_SESSION['login_error'] = 'Email and password are required.';
-            $this->response->redirect('/login');
-            return;
+            Response::flash('error', 'Email and password are required.');
+            Response::redirect('/auth/login');
         }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $_SESSION['login_error'] = 'Invalid email address.';
-            $this->response->redirect('/login');
-            return;
+            Response::flash('error', 'Invalid email address.');
+            Response::redirect('/auth/login');
         }
 
         $stmt = $this->db->prepare(
@@ -74,125 +69,122 @@ class AuthController
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            $_SESSION['login_error'] = 'Invalid email or password.';
-            $this->response->redirect('/login');
-            return;
+            Response::flash('error', 'Invalid email or password.');
+            Response::redirect('/auth/login');
         }
 
         if (!(bool)$user['is_active']) {
-            $_SESSION['login_error'] = 'Your account has been deactivated.';
-            $this->response->redirect('/login');
-            return;
+            Response::flash('error', 'Your account has been deactivated.');
+            Response::redirect('/auth/login');
         }
 
         if ((bool)$user['two_factor_enabled']) {
             $_SESSION['pending_2fa_user_id'] = $user['id'];
-            $_SESSION['pending_2fa_remember'] = $remember;
-            $this->response->redirect('/2fa');
-            return;
+            Response::redirect('/auth/2fa');
         }
 
         $this->establishSession($user, $remember);
-        $this->logAudit($user['id'], 'login', 'user', $user['id'], ['ip' => $this->getClientIp()]);
-        $this->response->redirect('/dashboard');
+        Response::redirect('/dashboard');
     }
 
     public function register(): void
     {
-        $name    = trim($this->request->post('name', ''));
-        $email   = trim($this->request->post('email', ''));
-        $pass    = $this->request->post('password', '');
-        $confirm = $this->request->post('confirm_password', '');
-        $brand   = trim($this->request->post('brand_name', ''));
-        $industry= trim($this->request->post('industry', ''));
+        $fullName = trim($this->request->post('full_name', ''));
+        $username = trim($this->request->post('username', ''));
+        $email    = trim($this->request->post('email', ''));
+        $pass     = $this->request->post('password', '');
 
         $errors = [];
-        if (strlen($name) < 2) $errors[] = 'Name must be at least 2 characters.';
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Invalid email address.';
-        if (strlen($pass) < 8) $errors[] = 'Password must be at least 8 characters.';
-        if (!preg_match('/[A-Z]/', $pass)) $errors[] = 'Password must have an uppercase letter.';
-        if (!preg_match('/[0-9]/', $pass)) $errors[] = 'Password must have a number.';
-        if ($pass !== $confirm) $errors[] = 'Passwords do not match.';
-        if (strlen($brand) < 2) $errors[] = 'Brand name is required.';
+        if (strlen($fullName) < 2)                        $errors[] = 'Full name must be at least 2 characters.';
+        if (!preg_match('/^[a-zA-Z0-9_.\-]{3,64}$/', $username)) $errors[] = 'Username must be 3-64 alphanumeric characters.';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL))   $errors[] = 'Invalid email address.';
+        if (strlen($pass) < 8)                            $errors[] = 'Password must be at least 8 characters.';
+        if (!preg_match('/[A-Z]/', $pass))                $errors[] = 'Password must have an uppercase letter.';
+        if (!preg_match('/[0-9]/', $pass))                $errors[] = 'Password must have a number.';
 
         if (!empty($errors)) {
-            $_SESSION['register_error'] = implode(' ', $errors);
-            $this->response->redirect('/register');
-            return;
+            Response::flash('error', implode(' ', $errors));
+            Response::redirect('/auth/register');
         }
 
-        $dup = $this->db->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
-        $dup->execute([$email]);
+        $dup = $this->db->prepare('SELECT id FROM users WHERE email=? OR username=? LIMIT 1');
+        $dup->execute([$email, $username]);
         if ($dup->fetch()) {
-            $_SESSION['register_error'] = 'An account with this email already exists.';
-            $this->response->redirect('/register');
-            return;
+            Response::flash('error', 'Email or username already in use.');
+            Response::redirect('/auth/register');
         }
 
         $this->db->beginTransaction();
         try {
-            $hash = password_hash($pass, PASSWORD_ARGON2ID, ['memory_cost'=>65536,'time_cost'=>4,'threads'=>2]);
-            $username = substr(strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name)), 0, 32) . rand(100, 999);
-            $this->db->prepare('INSERT INTO users (full_name,username,email,password_hash,is_active,created_at) VALUES (?,?,?,?,1,NOW())')
-                ->execute([$name, $username, $email, $hash]);
-            $userId = (int)$this->db->lastInsertId();
+            $algo = defined('PASSWORD_ARGON2ID') && defined('SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13')
+                  ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
+            $hash   = password_hash($pass, $algo);
+            $userId = $this->generateUuid();
+            $this->db->prepare(
+                'INSERT INTO users (id,full_name,username,email,password_hash,is_active,created_at) VALUES (?,?,?,?,?,1,NOW())'
+            )->execute([$userId, $fullName, $username, $email, $hash]);
 
-            $this->db->prepare('INSERT INTO brands (name,industry,owner_id,created_at) VALUES (?,?,?,NOW())')
-                ->execute([$brand, $industry, $userId]);
-            $brandId = (int)$this->db->lastInsertId();
+            $brandId = $this->generateUuid();
+            $slug    = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $username)) . '-' . rand(100, 999);
+            $this->db->prepare(
+                'INSERT INTO brands (id,name,slug,owner_id,created_at) VALUES (?,?,?,?,NOW())'
+            )->execute([$brandId, $fullName . "'s Brand", $slug, $userId]);
 
-            $this->db->prepare('INSERT INTO team_members (id,brand_id,user_id,role,created_at) VALUES (UUID(),?,?,?,NOW())')
-                ->execute([$brandId, $userId, 'owner']);
+            $this->db->prepare(
+                'INSERT INTO team_members (id,brand_id,user_id,role,created_at) VALUES (UUID(),?,?,?,NOW())'
+            )->execute([$brandId, $userId, 'owner']);
 
             $this->db->commit();
-            $_SESSION['login_success'] = 'Account created! Please sign in.';
-            $this->logAudit($userId, 'register', 'user', $userId, ['brand_id' => $brandId]);
-            $this->response->redirect('/login');
+            Response::flash('success', 'Account created! Please sign in.');
+            Response::redirect('/auth/login');
         } catch (\Throwable $e) {
-            $this->db->rollBack();
+            $this->db->rollback();
             error_log('Registration failed: ' . $e->getMessage());
-            $_SESSION['register_error'] = 'Registration failed. Please try again.';
-            $this->response->redirect('/register');
+            Response::flash('error', 'Registration failed: ' . $e->getMessage());
+            Response::redirect('/auth/register');
         }
+    }
+
+    private function generateUuid(): string
+    {
+        $b = random_bytes(16);
+        $b[6] = chr(ord($b[6]) & 0x0f | 0x40);
+        $b[8] = chr(ord($b[8]) & 0x3f | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
     }
 
     public function logout(): void
     {
-        $user = $this->auth->getCurrentUser();
-        if ($user) {
-            $this->logAudit($user['id'], 'logout', 'user', $user['id'], []);
-        }
         session_unset();
         session_destroy();
-        $this->response->redirect('/login');
+        Response::redirect('/auth/login');
     }
 
     public function show2FA(): void
     {
         if (empty($_SESSION['pending_2fa_user_id'])) {
-            $this->response->redirect('/login');
+            Response::redirect('/auth/login');
             return;
         }
-        $this->response->view('auth/2fa', [
+        Response::view('auth/2fa', [
             'title' => 'Two-Factor Auth - SociAI OS',
-            'error' => $_SESSION['2fa_error'] ?? null,
+            'csrf'  => Auth::csrfToken(),
         ]);
-        unset($_SESSION['2fa_error']);
     }
 
     public function verify2FA(): void
     {
         if (empty($_SESSION['pending_2fa_user_id'])) {
-            $this->response->redirect('/login');
+            Response::redirect('/auth/login');
             return;
         }
 
-        $userId = (int)$_SESSION['pending_2fa_user_id'];
+        $userId = $_SESSION['pending_2fa_user_id'];
         $code   = trim($this->request->post('code', ''));
 
         if (!preg_match('/^\d{6}$/', $code)) {
-            $_SESSION['2fa_error'] = 'Please enter a valid 6-digit code.';
-            $this->response->redirect('/2fa');
+            Response::flash('error', 'Please enter a valid 6-digit code.');
+            Response::redirect('/auth/2fa');
             return;
         }
 
@@ -200,17 +192,15 @@ class AuthController
         $stmt->execute([$userId]);
         $user = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$user || !$this->verifyTOTP($user['two_factor_secret'], $code)) {
-            $_SESSION['2fa_error'] = 'Invalid or expired code.';
-            $this->response->redirect('/2fa');
+        if (!$user || !$this->verifyTOTP((string)$user['two_factor_secret'], $code)) {
+            Response::flash('error', 'Invalid or expired code.');
+            Response::redirect('/auth/2fa');
             return;
         }
 
-        $remember = $_SESSION['pending_2fa_remember'] ?? false;
-        unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_remember']);
-        $this->establishSession($user, (bool)$remember);
-        $this->logAudit($userId, '2fa_verified', 'user', $userId, []);
-        $this->response->redirect('/dashboard');
+        unset($_SESSION['pending_2fa_user_id']);
+        $this->establishSession($user);
+        Response::redirect('/dashboard');
     }
 
     public function oauthConnect(string $platform): void
@@ -288,7 +278,7 @@ class AuthController
     }
 
     // =========================================================================
-    private function establishSession(array $user, bool $remember): void
+    private function establishSession(array $user): void
     {
         session_regenerate_id(true);
         $_SESSION['user_id']   = $user['id'];

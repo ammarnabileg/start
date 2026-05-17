@@ -55,6 +55,12 @@ require_once BASE_PATH . '/core/Router.php';
 
 use SociAI\Core\{Auth, Router, Request, Response, Security, Database};
 
+// Global helper
+function abort(int $code, string $message = ''): never
+{
+    throw new \RuntimeException($message, $code);
+}
+
 // Start secure session
 Auth::startSession();
 
