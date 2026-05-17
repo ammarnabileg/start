@@ -48,4 +48,11 @@ yarn-error.log*
 # Backup files
 *.bak
 *.backup
-*_backup 
+*_backup sociai-os/backend/app/**/__pycache__
+
+# SociAI-OS
+sociai-os/**/__pycache__/
+sociai-os/**/*.pyc
+sociai-os/.env
+sociai-os/frontend/node_modules/
+sociai-os/frontend/.next/
