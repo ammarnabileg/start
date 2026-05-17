@@ -317,5 +317,42 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// ============================================================
+// Modal helpers
+// ============================================================
+function openModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.classList.add('open');
+}
+function closeModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.classList.remove('open');
+}
+// Open via data-modal attribute
+document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => openModal(btn.dataset.modal));
+});
+// Close via modal-close button or clicking the overlay
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('open');
+    });
+    overlay.querySelector('.modal-close')?.addEventListener('click', () => overlay.classList.remove('open'));
+});
+
+// ============================================================
+// Theme toggle (dark/light)
+// ============================================================
+document.querySelectorAll('.theme-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        const icon = btn.querySelector('.theme-icon');
+        if (icon) icon.textContent = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
+    });
+});
+
 // Export to global scope
-window.SociAI = { API, AIGenerator, showToast, renderViralScore, formatNumber, formatDate };
+window.SociAI = { API, AIGenerator, showToast, renderViralScore, formatNumber, formatDate, openModal, closeModal };
+// Legacy alias used in some views
+window.SociAI.closeModal = closeModal;
+window.SociAI.generateContent = (type, params) => { showToast('AI generation requires an API key.', 'info'); };
