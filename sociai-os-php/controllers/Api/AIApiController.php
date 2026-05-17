@@ -10,29 +10,29 @@ class AIApiController
     public function __construct() { $this->req=new Request(); $this->res=new Response(); }
     public function generate(array $p): void {
         $params = $this->req->all();
-        if (empty($params['brand_id'])) { $this->res->error('brand_id required.'); return; }
+        if (empty($params['brand_id'])) { Response::error('brand_id required.'); return; }
         $params['user_id'] = Auth::id();
         $agent = new \SociAI\Agents\ContentGeneratorAgent();
-        try { $result = $agent->generate($params); $this->res->success($result['output'],'Content generated.'); }
-        catch(\Throwable $e) { $this->res->error($e->getMessage()); }
+        try { $result = $agent->generate($params); Response::success($result['output'],'Content generated.'); }
+        catch(\Throwable $e) { Response::error($e->getMessage()); }
     }
     public function generateImage(array $p): void {
         $prompt = $this->req->post('prompt','');
-        if (!$prompt) { $this->res->error('prompt required.'); return; }
+        if (!$prompt) { Response::error('prompt required.'); return; }
         try {
             $result = AI::generateImage($prompt,(int)$this->req->post('width',1024),(int)$this->req->post('height',1024));
-            $this->res->success($result);
-        } catch(\Throwable $e) { $this->res->error($e->getMessage()); }
+            Response::success($result);
+        } catch(\Throwable $e) { Response::error($e->getMessage()); }
     }
     public function viralScore(array $p): void {
         $m = $this->req->json() ?? $this->req->all();
         $score = (new Analytics())->calculateViralScore($m);
-        $this->res->success(['viral_score'=>$score]);
+        Response::success(['viral_score'=>$score]);
     }
     public function taskStatus(array $p): void {
         $task = Database::getInstance()->fetchOne("SELECT * FROM agent_tasks WHERE id=?",$p['id']);
-        if (!$task) { $this->res->error('Not found.',404); return; }
+        if (!$task) { Response::error('Not found.',404); return; }
         foreach(['input_data','output_data'] as $f) { if(isset($task[$f])&&is_string($task[$f])) $task[$f]=json_decode($task[$f],true); }
-        $this->res->success($task);
+        Response::success($task);
     }
 }
