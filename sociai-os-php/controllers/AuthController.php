@@ -126,9 +126,10 @@ class AuthController
                 'INSERT INTO brands (id,name,slug,owner_id,created_at) VALUES (?,?,?,?,NOW())'
             )->execute([$brandId, $fullName . "'s Brand", $slug, $userId]);
 
+            $tmId = $this->generateUuid();
             $this->db->prepare(
-                'INSERT INTO team_members (id,brand_id,user_id,role,created_at) VALUES (UUID(),?,?,?,NOW())'
-            )->execute([$brandId, $userId, 'owner']);
+                'INSERT INTO team_members (id,brand_id,user_id,role,created_at) VALUES (?,?,?,?,NOW())'
+            )->execute([$tmId, $brandId, $userId, 'owner']);
 
             $this->db->commit();
             Response::flash('success', 'Account created! Please sign in.');
