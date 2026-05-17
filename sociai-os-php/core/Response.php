@@ -59,4 +59,40 @@ class Response
     {
         self::error($message, 403);
     }
+
+    public static function flash(string $type, string $message): void
+    {
+        $_SESSION['_flash'][$type][] = $message;
+    }
+
+    public static function getFlash(): array
+    {
+        $result = ['error' => [], 'success' => [], 'warning' => [], 'info' => []];
+
+        // Structured flash storage
+        if (!empty($_SESSION['_flash']) && is_array($_SESSION['_flash'])) {
+            foreach ($_SESSION['_flash'] as $type => $msgs) {
+                $result[$type] = array_merge($result[$type] ?? [], (array)$msgs);
+            }
+            unset($_SESSION['_flash']);
+        }
+
+        // Legacy session keys set by controllers
+        $legacy = [
+            'error'   => ['login_error', 'register_error', '2fa_error', 'error', 'flash_error'],
+            'success' => ['login_success', 'register_success', 'success', 'flash_success'],
+            'warning' => ['warning', 'flash_warning'],
+            'info'    => ['info', 'flash_info'],
+        ];
+        foreach ($legacy as $type => $keys) {
+            foreach ($keys as $key) {
+                if (!empty($_SESSION[$key])) {
+                    $result[$type][] = $_SESSION[$key];
+                    unset($_SESSION[$key]);
+                }
+            }
+        }
+
+        return $result;
+    }
 }
