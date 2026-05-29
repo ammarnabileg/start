@@ -17,7 +17,7 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Login required']); exit;
 }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $community_id = (int)($data['community_id'] ?? 0);
 
 if (!$community_id) {

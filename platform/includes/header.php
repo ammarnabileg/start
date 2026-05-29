@@ -4,7 +4,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/functions.php';
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $platform_name = 'Discover';
 try { $platform_name = get_platform_setting('platform_name', 'Discover'); } catch(Exception $e) {}
 $unread_count = 0;

@@ -9,7 +9,7 @@ if (!$slug) { header('Location: /platform/index.php'); exit; }
 $community = db_fetch('SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last, u.avatar as owner_avatar FROM communities c JOIN users u ON u.id = c.owner_id WHERE c.slug = ? AND c.is_active = 1', [$slug]);
 if (!$community) { http_response_code(404); die('<h1>Community not found</h1>'); }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $community_id = $community['id'];
 
 // Get membership status

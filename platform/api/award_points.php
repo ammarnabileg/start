@@ -17,7 +17,7 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Authentication required']); exit;
 }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $target_user_id = (int)($data['user_id'] ?? 0);
 $community_id = (int)($data['community_id'] ?? 0);
 $points = (int)($data['points'] ?? 0);

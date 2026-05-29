@@ -14,7 +14,7 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Authentication required']); exit;
 }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 
 // Handle GET actions
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $page_title = 'Discover Communities';
-$current_user = get_current_user();
+$current_user = get_auth_user();
 
 // Filters
 $q        = trim($_GET['q'] ?? '');

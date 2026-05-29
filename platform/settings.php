@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 require_login();
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $tab = $_GET['tab'] ?? 'profile';
 $valid_tabs = ['profile', 'account', 'notifications', 'payment', 'history', 'affiliates', 'payouts', 'theme'];
 if (!in_array($tab, $valid_tabs)) $tab = 'profile';
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     $success = 'Profile updated successfully!';
-                    $current_user = get_current_user();
+                    $current_user = get_auth_user();
                 }
             }
         }
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $theme = in_array($_POST['theme'] ?? '', ['light', 'dark']) ? $_POST['theme'] : 'light';
             db_execute('UPDATE users SET theme=? WHERE id=?', [$theme, $current_user['id']]);
             $success = 'Theme updated!';
-            $current_user = get_current_user();
+            $current_user = get_auth_user();
             header('Location: /platform/settings.php?tab=theme&saved=1');
             exit;
         }

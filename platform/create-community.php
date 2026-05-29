@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 require_login();
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $error = '';
 $success = '';
 $step = max(1, min(5, (int)($_GET['step'] ?? 1)));

@@ -9,7 +9,7 @@ if (!$username) { header('Location: /platform/index.php'); exit; }
 $profile_user = db_fetch('SELECT * FROM users WHERE username = ?', [$username]);
 if (!$profile_user) { http_response_code(404); die('<h1>User not found</h1>'); }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $is_own_profile = $current_user && $current_user['id'] === $profile_user['id'];
 
 // Follow status

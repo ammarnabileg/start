@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/db.php';
 
-function get_current_user(): ?array {
+function get_auth_user(): ?array {
     if (!isset($_SESSION['user_id'])) return null;
     $user = db_fetch('SELECT * FROM users WHERE id = ?', [$_SESSION['user_id']]);
     return $user ?: null;

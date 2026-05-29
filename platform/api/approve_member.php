@@ -17,7 +17,7 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Authentication required']); exit;
 }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $membership_id = (int)($data['membership_id'] ?? 0);
 $status = $data['status'] ?? '';
 

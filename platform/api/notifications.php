@@ -9,7 +9,7 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Authentication required']); exit;
 }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 $action = $data['action'] ?? $_GET['action'] ?? 'list';
 

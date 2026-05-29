@@ -12,7 +12,7 @@ $course = db_fetch(
 );
 if (!$course) { http_response_code(404); die('<h1>Course not found</h1>'); }
 
-$current_user = get_current_user();
+$current_user = get_auth_user();
 $community_id = $course['community_id'];
 
 // Get sections with lessons
