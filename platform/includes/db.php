@@ -1,9 +1,9 @@
 <?php
 // Database configuration - use environment variables or fallback to constants
 define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost');
-define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'discover_platform');
-define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER') ?: 'root');
-define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: '');
+define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'admin_discover');
+define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER') ?: 'discover_user');
+define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: 'LBAk1ef_h9icl6%s');
 define('DB_CHARSET', 'utf8mb4');
 
 $pdo = null;
