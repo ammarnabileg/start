@@ -98,13 +98,13 @@ INSERT INTO topics (community_id, name, sort_order) VALUES
 
 -- Posts
 INSERT INTO posts (community_id, user_id, topic_id, title, content, is_pinned, pin_order, like_count, comment_count) VALUES
-(1, 2, 1, 'Welcome to Tech Learning Hub!', 'Ahlan wa sahlan to our community! 🎉 We are thrilled to have you here. This is the place where Arab developers come to learn, grow, and connect.\n\nPlease introduce yourself below and let us know what you are hoping to learn. We have structured courses, weekly Q&A sessions, and a very supportive community.\n\nRemember our community rules:\n1. Be respectful and supportive\n2. Share knowledge freely\n3. Help others when you can\n4. No spam or self-promotion without permission', 1, 1, 234, 45),
+(1, 2, 1, 'Welcome to Tech Learning Hub!', 'Ahlan wa sahlan to our community!  We are thrilled to have you here. This is the place where Arab developers come to learn, grow, and connect.\n\nPlease introduce yourself below and let us know what you are hoping to learn. We have structured courses, weekly Q&A sessions, and a very supportive community.\n\nRemember our community rules:\n1. Be respectful and supportive\n2. Share knowledge freely\n3. Help others when you can\n4. No spam or self-promotion without permission', 1, 1, 234, 45),
 (1, 2, 1, 'Roadmap 2025: What We Are Building', 'Exciting news! Here is our content roadmap for 2025:\n\n- **React & Next.js Course** (January)\n- **Python for Data Science** (February)\n- **Mobile Dev with Flutter** (March)\n- **Cloud Architecture on AWS** (April)\n- **AI/ML Fundamentals** (May)\n\nWhich course are you most excited about? Vote in the comments!', 1, 2, 189, 67),
 (1, 1, 2, 'How I landed my first remote job as a developer', 'After 8 months of learning through this community, I finally got my first remote job offer! Here is what helped me:\n\n1. Building real projects (not just tutorials)\n2. Contributing to open source\n3. The mock interview sessions in this community\n4. My portfolio on GitHub\n\nDo not give up! The path is long but worth it. Happy to answer questions.', 0, 0, 312, 89),
-(1, 3, 4, 'My First AI Project - Image Classifier', 'I just finished building my first image classification model using PyTorch! 🤖 It can distinguish between 10 different types of Arabic calligraphy styles.\n\nAccuracy: 94.7% on test set\nTraining time: 3 hours on Google Colab\n\nFull code on GitHub. Would love feedback from the AI/ML folks here!', 0, 0, 156, 34),
-(2, 3, 6, 'Welcome to Arabic Music Academy', 'Welcome everyone to our beautiful musical journey! 🎵\n\nThis community is dedicated to preserving and advancing Arabic musical traditions while embracing modern techniques.\n\nWhether you play oud, qanun, violin, or sing - you belong here. Let us learn from each other and keep our musical heritage alive.', 1, 1, 178, 23),
+(1, 3, 4, 'My First AI Project - Image Classifier', 'I just finished building my first image classification model using PyTorch!  It can distinguish between 10 different types of Arabic calligraphy styles.\n\nAccuracy: 94.7% on test set\nTraining time: 3 hours on Google Colab\n\nFull code on GitHub. Would love feedback from the AI/ML folks here!', 0, 0, 156, 34),
+(2, 3, 6, 'Welcome to Arabic Music Academy', 'Welcome everyone to our beautiful musical journey! \n\nThis community is dedicated to preserving and advancing Arabic musical traditions while embracing modern techniques.\n\nWhether you play oud, qanun, violin, or sing - you belong here. Let us learn from each other and keep our musical heritage alive.', 1, 1, 178, 23),
 (2, 3, 7, 'Maqam Rast - The Foundation of Arabic Music', 'Today we explore Maqam Rast, often called the "mother of all maqamat." Starting on C, it creates that quintessential Arabic sound we all love.\n\nKey characteristics:\n- Neutral third (between major and minor)\n- Creates a feeling of joy and openness\n- Used extensively in Egyptian classical music\n\nListen to Om Kalthoum singing in Rast to truly understand its beauty.', 0, 0, 145, 28),
-(3, 4, 10, 'Welcome to Gulf Business Network', 'Hello Gulf entrepreneurs and business leaders! 👋\n\nThis is your space to connect, collaborate, and grow. We have members from Saudi Arabia, UAE, Kuwait, Qatar, Bahrain, and Oman.\n\nShare your biggest business challenge below and let the community help!', 1, 1, 287, 56),
+(3, 4, 10, 'Welcome to Gulf Business Network', 'Hello Gulf entrepreneurs and business leaders! \n\nThis is your space to connect, collaborate, and grow. We have members from Saudi Arabia, UAE, Kuwait, Qatar, Bahrain, and Oman.\n\nShare your biggest business challenge below and let the community help!', 1, 1, 287, 56),
 (3, 1, 11, 'Series A Funding in the Gulf - What VCs Look For', 'After meeting with 20+ VCs in the Gulf region over the past year, here are the key things they look for:\n\n1. **Market Size**: Is the Gulf market big enough? Usually looking for $500M+ TAM\n2. **Team**: Domain expertise and execution track record\n3. **Traction**: Revenue or strong user growth metrics\n4. **Defensibility**: What is your moat?\n5. **Regional Understanding**: You need to know the cultural nuances\n\nHappy to do a live Q&A session if there is interest!', 0, 0, 423, 112);
 
 -- Comments
@@ -217,17 +217,17 @@ INSERT INTO lessons (section_id, title, content, video_url, lesson_type, duratio
 
 -- Badges
 INSERT INTO badges (community_id, name, description, icon, points_required, badge_type) VALUES
-(NULL, 'First Steps', 'Joined your first community', '🌟', 0, 'manual'),
-(NULL, 'Scholar', 'Completed your first course', '📚', 0, 'course_complete'),
-(NULL, 'Master', 'Completed 5 courses', '🎓', 0, 'course_complete'),
-(NULL, 'Contributor', 'Created 10 posts', '✍️', 0, 'manual'),
-(NULL, 'Popular', 'Received 100 likes', '❤️', 0, 'points'),
-(NULL, 'Streak Master', 'Maintained a 30-day streak', '🔥', 0, 'streak'),
-(NULL, 'Top Learner', 'Reached leaderboard #1', '🏆', 1000, 'points'),
-(1, 'Code Warrior', 'Completed all web development courses', '⚔️', 500, 'course_complete'),
-(1, 'Algorithm Master', 'Solved 50 coding challenges', '🧮', 750, 'points'),
-(2, 'Maqam Master', 'Completed all maqam courses', '🎵', 500, 'course_complete'),
-(3, 'Gulf Shark', 'Top business contributor', '🦈', 1000, 'points');
+(NULL, 'First Steps', 'Joined your first community', '', 0, 'manual'),
+(NULL, 'Scholar', 'Completed your first course', '', 0, 'course_complete'),
+(NULL, 'Master', 'Completed 5 courses', '', 0, 'course_complete'),
+(NULL, 'Contributor', 'Created 10 posts', '', 0, 'manual'),
+(NULL, 'Popular', 'Received 100 likes', '', 0, 'points'),
+(NULL, 'Streak Master', 'Maintained a 30-day streak', '', 0, 'streak'),
+(NULL, 'Top Learner', 'Reached leaderboard #1', '', 1000, 'points'),
+(1, 'Code Warrior', 'Completed all web development courses', '', 500, 'course_complete'),
+(1, 'Algorithm Master', 'Solved 50 coding challenges', '', 750, 'points'),
+(2, 'Maqam Master', 'Completed all maqam courses', '', 500, 'course_complete'),
+(3, 'Gulf Shark', 'Top business contributor', '', 1000, 'points');
 
 -- Award some badges to users
 INSERT INTO user_badges (user_id, badge_id, community_id) VALUES
