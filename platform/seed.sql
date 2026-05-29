@@ -32,6 +32,11 @@ ALTER TABLE course_sections AUTO_INCREMENT = 1;
 ALTER TABLE lessons AUTO_INCREMENT = 1;
 ALTER TABLE posts AUTO_INCREMENT = 1;
 ALTER TABLE badges AUTO_INCREMENT = 1;
+ALTER TABLE topics AUTO_INCREMENT = 1;
+ALTER TABLE comments AUTO_INCREMENT = 1;
+ALTER TABLE memberships AUTO_INCREMENT = 1;
+ALTER TABLE notifications AUTO_INCREMENT = 1;
+ALTER TABLE user_points AUTO_INCREMENT = 1;
 
 -- Sample Users (password: Password123!)
 INSERT INTO users (username, email, password_hash, first_name, last_name, bio, location, affiliate_code, theme) VALUES
