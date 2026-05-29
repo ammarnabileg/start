@@ -9,7 +9,9 @@ if (is_logged_in()) {
 }
 
 $error = '';
-$redirect = $_GET['redirect'] ?? '/index.php';
+// Sanitize redirect to prevent open redirect - only allow relative paths
+$redirect_raw = $_GET['redirect'] ?? '/index.php';
+$redirect = (strpos($redirect_raw, '/') === 0 && strpos($redirect_raw, '//') !== 0) ? $redirect_raw : '/index.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {

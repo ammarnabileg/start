@@ -87,9 +87,10 @@ if ($action === 'like') {
             // Notify post author
             $ns = db_fetch('SELECT post_likes FROM notification_settings WHERE user_id = ?', [$post['user_id']]);
             if (!$ns || $ns['post_likes']) {
+                $community_row = db_fetch('SELECT slug FROM communities WHERE id=?', [$post['community_id']]);
                 create_notification($post['user_id'], 'post_like', 'Post Liked',
                     ($current_user['first_name'] ?: $current_user['username']) . ' liked your post',
-                    '/community.php?slug=' . urlencode(db_fetch('SELECT slug FROM communities WHERE id=?', [$post['community_id']])['slug'] ?? '')
+                    '/community.php?slug=' . urlencode($community_row['slug'] ?? '')
                 );
             }
         }
@@ -109,7 +110,7 @@ if ($action === 'pin') {
 
     // Check owner
     $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$post['community_id']]);
-    if (!$community || $community['owner_id'] !== $current_user['id']) {
+    if (!$community || (int)$community['owner_id'] !== (int)$current_user['id']) {
         echo json_encode(['error' => 'Permission denied']); exit;
     }
 
@@ -134,9 +135,9 @@ if ($action === 'delete') {
     $post = db_fetch('SELECT * FROM posts WHERE id = ?', [$post_id]);
     if (!$post) { echo json_encode(['error' => 'Post not found']); exit; }
 
-    $is_author = $post['user_id'] === $current_user['id'];
+    $is_author = (int)$post['user_id'] === (int)$current_user['id'];
     $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$post['community_id']]);
-    $is_owner = $community && $community['owner_id'] === $current_user['id'];
+    $is_owner = $community && (int)$community['owner_id'] === (int)$current_user['id'];
 
     $mem = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$current_user['id'], $post['community_id']]);
     $is_admin = $mem && in_array($mem['role'], ['admin', 'owner']);

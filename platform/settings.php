@@ -536,7 +536,7 @@ include __DIR__ . '/includes/header.php';
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Payouts</h2>
         <div class="bg-gradient-to-br from-primary-600 to-accent-500 rounded-2xl p-6 text-white mb-5">
           <div class="text-sm opacity-80 mb-1">Available Balance</div>
-          <div class="text-4xl font-black"><?= '$' . number_format($current_user['affiliate_balance'] ?? 0, 2) ?></div>
+          <div class="text-4xl font-black"><?= '$' . number_format((float)($current_user['affiliate_balance'] ?? 0), 2) ?></div>
           <button class="mt-4 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-all backdrop-blur-sm border border-white/30">
             Request Payout
           </button>

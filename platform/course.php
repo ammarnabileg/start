@@ -10,7 +10,7 @@ $course = db_fetch(
     'SELECT c.*, co.slug as community_slug, co.name as community_name, co.id as community_id FROM courses c JOIN communities co ON co.id = c.community_id WHERE c.id = ? AND c.is_published = 1',
     [$course_id]
 );
-if (!$course) { http_response_code(404); die('<h1>Course not found</h1>'); }
+if (!$course) { http_response_code(404); die('<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:50px"><h1>Course Not Found</h1><p><a href="/index.php">Browse Communities</a></p></body></html>'); }
 
 $current_user = get_auth_user();
 $community_id = $course['community_id'];

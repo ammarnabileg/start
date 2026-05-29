@@ -29,7 +29,7 @@ if (!$target_user_id || !$community_id || $points <= 0 || $points > 10000) {
 
 // Verify caller is owner of the community
 $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$community_id]);
-if (!$community || $community['owner_id'] !== $current_user['id']) {
+if (!$community || (int)$community['owner_id'] !== (int)$current_user['id']) {
     echo json_encode(['error' => 'Only community owner can award points']); exit;
 }
 

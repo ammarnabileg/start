@@ -7,7 +7,7 @@ $slug = $_GET['slug'] ?? '';
 if (!$slug) { header('Location: /index.php'); exit; }
 
 $community = db_fetch('SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last, u.avatar as owner_avatar FROM communities c JOIN users u ON u.id = c.owner_id WHERE c.slug = ? AND c.is_active = 1', [$slug]);
-if (!$community) { http_response_code(404); die('<h1>Community not found</h1>'); }
+if (!$community) { http_response_code(404); die('<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:50px"><h1>Community Not Found</h1><p><a href="/index.php">Browse Communities</a></p></body></html>'); }
 
 $current_user = get_auth_user();
 $community_id = $community['id'];

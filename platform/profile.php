@@ -7,7 +7,7 @@ $username = $_GET['username'] ?? '';
 if (!$username) { header('Location: /index.php'); exit; }
 
 $profile_user = db_fetch('SELECT * FROM users WHERE username = ?', [$username]);
-if (!$profile_user) { http_response_code(404); die('<h1>User not found</h1>'); }
+if (!$profile_user) { http_response_code(404); die('<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:50px"><h1>User Not Found</h1><p><a href="/index.php">Go Home</a></p></body></html>'); }
 
 $current_user = get_auth_user();
 $is_own_profile = $current_user && $current_user['id'] === $profile_user['id'];

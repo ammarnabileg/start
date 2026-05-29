@@ -6,7 +6,9 @@ function format_member_count(int $n): string {
 }
 
 function time_ago(string $timestamp): string {
-    $diff = time() - strtotime($timestamp);
+    $ts = strtotime($timestamp);
+    if ($ts === false) return 'unknown';
+    $diff = time() - $ts;
     if ($diff < 60) return 'just now';
     if ($diff < 3600) return floor($diff / 60) . 'm ago';
     if ($diff < 86400) return floor($diff / 3600) . 'h ago';
@@ -24,10 +26,11 @@ function get_video_embed(string $input): string {
     }
     // YouTube patterns
     $yt_patterns = [
-        '/youtu\.be\/([a-zA-Z0-9_-]{11})/',
-        '/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/',
-        '/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/',
-        '/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/',
+        '/youtu\.be\/([a-zA-Z0-9_-]{11})(?:[?&]|$)/',
+        '/youtube\.com\/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})(?:&|$)/',
+        '/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?:[?\/]|$)/',
+        '/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})(?:[?\/]|$)/',
+        '/youtube\.com\/v\/([a-zA-Z0-9_-]{11})(?:[?\/]|$)/',
     ];
     foreach ($yt_patterns as $pattern) {
         if (preg_match($pattern, $input, $m)) {
@@ -95,16 +98,18 @@ function slugify(string $text): string {
 
 function unique_slug(string $base): string {
     $slug = slugify($base);
+    if ($slug === '') $slug = 'community';
     $original = $slug;
     $i = 2;
     while (db_fetch('SELECT id FROM communities WHERE slug = ?', [$slug])) {
         $slug = $original . '-' . $i++;
+        if ($i > 9999) break; // safety limit
     }
     return $slug;
 }
 
 function get_avatar_url(?string $avatar, string $name = 'U', int $size = 40): string {
-    if ($avatar) return htmlspecialchars($avatar);
+    if ($avatar && trim($avatar) !== '') return htmlspecialchars(trim($avatar));
     $initials = urlencode(strtoupper(substr($name, 0, 2)));
     return "https://ui-avatars.com/api/?name={$initials}&size={$size}&background=0d9488&color=fff&bold=true";
 }
@@ -140,7 +145,8 @@ function get_course_progress(int $user_id, int $course_id): array {
     return ['total' => $t, 'completed' => $c, 'percent' => $t > 0 ? round(($c / $t) * 100) : 0];
 }
 
-function format_price(float $price, string $interval = ''): string {
+function format_price($price, string $interval = ''): string {
+    $price = (float)$price;
     if ($price <= 0) return 'Free';
     $formatted = '$' . number_format($price, 2);
     if ($interval === 'monthly') return $formatted . '/mo';

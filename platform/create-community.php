@@ -364,18 +364,27 @@ function generateSlug(name) {
 
 function previewLogo(url) {
   const preview = document.getElementById('logo-preview');
-  if (url) {
-    preview.innerHTML = `<img src="${url}" class="w-full h-full object-cover" onerror="this.style.display='none'">`;
+  if (url && /^https?:\/\//i.test(url)) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'w-full h-full object-cover';
+    img.onerror = function() { this.style.display = 'none'; };
+    preview.innerHTML = '';
+    preview.appendChild(img);
   }
 }
 
 function previewBanner(url) {
   const preview = document.getElementById('banner-preview-div');
   if (url) {
-    preview.style.backgroundImage = `url(${url})`;
-    preview.style.backgroundSize = 'cover';
-    preview.style.backgroundPosition = 'center';
-    preview.querySelector('span') && (preview.querySelector('span').style.display = 'none');
+    // Sanitize: only allow http/https URLs
+    if (/^https?:\/\//i.test(url)) {
+      preview.style.backgroundImage = 'url(' + url.replace(/['"()]/g, '') + ')';
+      preview.style.backgroundSize = 'cover';
+      preview.style.backgroundPosition = 'center';
+      const span = preview.querySelector('span');
+      if (span) span.style.display = 'none';
+    }
   }
 }
 

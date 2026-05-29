@@ -14,8 +14,13 @@ $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 $action = $data['action'] ?? $_GET['action'] ?? 'list';
 
 if ($action === 'mark_all_read') {
-    db_execute('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [$current_user['id']]);
-    echo json_encode(['success' => true]);
+    // Only require CSRF for state-changing POST requests
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        db_execute('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [$current_user['id']]);
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['error' => 'Method not allowed']);
+    }
     exit;
 }
 

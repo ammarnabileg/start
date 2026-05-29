@@ -13,8 +13,13 @@ function get_auth_user(): ?array {
 
 function require_login(): void {
     if (!isset($_SESSION['user_id'])) {
-        $redirect = urlencode($_SERVER['REQUEST_URI'] ?? '/');
-        header('Location: /login.php?redirect=' . $redirect);
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        // Only pass redirect if it's a simple path (no scheme, no double slashes)
+        if (strpos($uri, '/') === 0 && strpos($uri, '//') !== 0) {
+            header('Location: /login.php?redirect=' . urlencode($uri));
+        } else {
+            header('Location: /login.php');
+        }
         exit;
     }
 }

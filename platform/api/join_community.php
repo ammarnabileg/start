@@ -39,8 +39,12 @@ if ($existing) {
     } elseif ($existing['status'] === 'banned') {
         echo json_encode(['error' => 'You are banned from this community']); exit;
     }
-    // Rejected - allow re-request
-    db_execute('UPDATE memberships SET status="pending", joined_at=NOW() WHERE user_id=? AND community_id=?', [$current_user['id'], $community_id]);
+    // Rejected - allow re-request; auto-approve for public communities
+    $re_status = $community['type'] === 'private' ? 'pending' : 'approved';
+    db_execute('UPDATE memberships SET status=?, joined_at=NOW() WHERE user_id=? AND community_id=?', [$re_status, $current_user['id'], $community_id]);
+    if ($re_status === 'approved') {
+        db_execute('UPDATE communities SET member_count = member_count + 1 WHERE id = ?', [$community_id]);
+    }
 } else {
     $status = $community['type'] === 'private' ? 'pending' : 'approved';
     db_insert('INSERT INTO memberships (user_id, community_id, role, status) VALUES (?,?,?,?)',
