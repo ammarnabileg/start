@@ -1,7 +1,6 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+ini_set('display_errors', 0);
+error_reporting(0);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -85,7 +84,7 @@ include __DIR__ . '/includes/header.php';
         Discover Your <span class="text-accent-300">Community</span>
       </h1>
       <p class="text-primary-100 text-lg mb-8">Join thousands of communities for learning, networking, and growth across the Gulf region.</p>
-      <form action="/platform/index.php" method="GET" class="flex gap-2 max-w-xl mx-auto">
+      <form action="/index.php" method="GET" class="flex gap-2 max-w-xl mx-auto">
         <div class="flex-1 relative">
           <input type="text" name="q" value="<?= e($q) ?>"
             placeholder="Search for communities..."
@@ -174,7 +173,7 @@ include __DIR__ . '/includes/header.php';
         </div>
       </div>
       <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-        <a href="/platform/index.php" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">Reset</a>
+        <a href="/index.php" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">Reset</a>
         <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Apply Filters</button>
       </div>
     </form>
@@ -190,7 +189,7 @@ include __DIR__ . '/includes/header.php';
       <?php endif; ?>
     </p>
     <?php if ($current_user): ?>
-      <a href="/platform/create-community.php" class="text-sm text-primary-600 dark:text-primary-400 font-semibold hover:underline flex items-center gap-1">
+      <a href="/create-community.php" class="text-sm text-primary-600 dark:text-primary-400 font-semibold hover:underline flex items-center gap-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Create Community
       </a>
@@ -203,7 +202,7 @@ include __DIR__ . '/includes/header.php';
       <div class="text-6xl mb-4">🔍</div>
       <h3 class="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">No communities found</h3>
       <p class="text-gray-500 dark:text-gray-400 mb-6">Try different search terms or filters</p>
-      <a href="/platform/index.php" class="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all">Browse All</a>
+      <a href="/index.php" class="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-all">Browse All</a>
     </div>
   <?php else: ?>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -275,7 +274,7 @@ include __DIR__ . '/includes/header.php';
             </div>
 
             <?php if ($is_member): ?>
-              <a href="/platform/community.php?slug=<?= e($c['slug']) ?>"
+              <a href="/community.php?slug=<?= e($c['slug']) ?>"
                 class="w-full text-center py-2 rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-semibold hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-all">
                 Open Community
               </a>
@@ -284,7 +283,7 @@ include __DIR__ . '/includes/header.php';
                 Request Pending
               </button>
             <?php else: ?>
-              <a href="/platform/community.php?slug=<?= e($c['slug']) ?>"
+              <a href="/community.php?slug=<?= e($c['slug']) ?>"
                 class="w-full text-center py-2 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 text-white text-sm font-semibold hover:shadow-md hover:shadow-primary-500/30 transition-all hover:-translate-y-0.5">
                 <?= $c['pricing'] === 'paid' ? 'View Community' : 'Join Free' ?>
               </a>

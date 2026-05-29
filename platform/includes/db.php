@@ -1,4 +1,14 @@
 <?php
+// Auto-detect base URL
+if (!defined('BASE_URL')) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    define('BASE_URL', $protocol . '://' . $host);
+}
+if (!defined('SITE_NAME')) {
+    define('SITE_NAME', 'Discover');
+}
+
 // Database configuration - use environment variables or fallback to constants
 define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost');
 define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'admin_discover');
@@ -22,9 +32,17 @@ function get_pdo(): PDO {
     try {
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     } catch (PDOException $e) {
-        // In production, log the error and show a friendly message
         error_log('Database connection failed: ' . $e->getMessage());
-        die(json_encode(['error' => 'Database connection failed']) );
+        if (!headers_sent()) {
+            header('HTTP/1.1 500 Internal Server Error');
+        }
+        // Return JSON for API requests, HTML for page requests
+        $is_api = (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false);
+        if ($is_api) {
+            header('Content-Type: application/json');
+            die(json_encode(['error' => 'Service temporarily unavailable']));
+        }
+        die('<html><body style="font-family:sans-serif;text-align:center;padding:50px"><h2>Service temporarily unavailable</h2><p>Please try again later.</p></body></html>');
     }
 
     return $pdo;

@@ -66,7 +66,7 @@ if ($existing) {
                 db_insert('INSERT INTO user_badges (user_id, badge_id, community_id) VALUES (?,?,?)',
                     [$current_user['id'], $badge['id'], $community_id]);
                 create_notification($current_user['id'], 'badge_awarded', 'Badge Earned!',
-                    'You earned the "First Steps" badge for joining your first community!', '/platform/profile.php?username=' . $current_user['username']);
+                    'You earned the "First Steps" badge for joining your first community!', '/profile.php?username=' . $current_user['username']);
             }
         }
     }

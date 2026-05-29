@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_execute('UPDATE users SET theme=? WHERE id=?', [$theme, $current_user['id']]);
             $success = 'Theme updated!';
             $current_user = get_auth_user();
-            header('Location: /platform/settings.php?tab=theme&saved=1');
+            header('Location: /settings.php?tab=theme&saved=1');
             exit;
         }
 
@@ -147,7 +147,7 @@ $referred_users = db_fetch('SELECT COUNT(*) as cnt FROM users WHERE referred_by 
 $affiliate_earnings = db_fetch('SELECT COALESCE(SUM(affiliate_commission), 0) as total FROM payments WHERE affiliate_user_id = ? AND status = "completed"', [$current_user['id']]);
 
 $timezones = DateTimeZone::listIdentifiers(DateTimeZone::ALL);
-$base_url = 'http' . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 's' : '') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+$base_url = BASE_URL;
 
 $page_title = 'Settings';
 include __DIR__ . '/includes/header.php';
@@ -310,7 +310,7 @@ include __DIR__ . '/includes/header.php';
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-gray-900 dark:text-white">Active Sessions</h2>
-            <a href="/platform/api/settings_save.php?action=logout_all" class="text-sm text-red-600 dark:text-red-400 hover:underline font-medium">Logout All Devices</a>
+            <a href="/api/settings_save.php?action=logout_all" class="text-sm text-red-600 dark:text-red-400 hover:underline font-medium">Logout All Devices</a>
           </div>
           <div class="space-y-3">
             <?php foreach ($user_sessions as $sess): ?>
@@ -408,7 +408,7 @@ include __DIR__ . '/includes/header.php';
                     <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">Default</span>
                   <?php endif; ?>
                 </div>
-                <a href="/platform/api/settings_save.php?action=remove_payment&id=<?= $pm['id'] ?>&csrf_token=<?= csrf_token() ?>"
+                <a href="/api/settings_save.php?action=remove_payment&id=<?= $pm['id'] ?>&csrf_token=<?= csrf_token() ?>"
                   class="text-xs text-red-500 hover:text-red-700 font-medium" onclick="return confirm('Remove this card?')">Remove</a>
               </div>
             <?php endforeach; ?>
@@ -505,7 +505,7 @@ include __DIR__ . '/includes/header.php';
           <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Your Referral Link</h3>
           <div class="flex gap-2">
             <input type="text" readonly id="ref-link"
-              value="<?= e($base_url) ?>/platform/register.php?ref=<?= e($current_user['affiliate_code'] ?? '') ?>"
+              value="<?= e($base_url) ?>/register.php?ref=<?= e($current_user['affiliate_code'] ?? '') ?>"
               class="flex-1 px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 font-mono">
             <button onclick="copyRefLink()" class="px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Copy</button>
           </div>

@@ -49,7 +49,7 @@ if ($status === 'approved' && $old_status !== 'approved') {
     // Notify new member
     create_notification($membership['user_id'], 'membership_approved', 'Membership Approved!',
         "You've been approved to join {$community_name}",
-        '/platform/community.php?slug=' . ($community ? $community['slug'] : '')
+        '/community.php?slug=' . ($community ? $community['slug'] : '')
     );
 
     // Auto-follow owner

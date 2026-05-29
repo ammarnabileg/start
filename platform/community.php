@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $slug = $_GET['slug'] ?? '';
-if (!$slug) { header('Location: /platform/index.php'); exit; }
+if (!$slug) { header('Location: /index.php'); exit; }
 
 $community = db_fetch('SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last, u.avatar as owner_avatar FROM communities c JOIN users u ON u.id = c.owner_id WHERE c.slug = ? AND c.is_active = 1', [$slug]);
 if (!$community) { http_response_code(404); die('<h1>Community not found</h1>'); }
@@ -28,9 +28,11 @@ if ($current_user) {
     }
 }
 
-$tab = $_GET['tab'] ?? 'community';
+// Default tab: non-members see 'about', approved members see 'community'
+$default_tab = $is_approved ? 'community' : 'about';
+$tab = $_GET['tab'] ?? $default_tab;
 $valid_tabs = ['community', 'classroom', 'members', 'leaderboard', 'about'];
-if (!in_array($tab, $valid_tabs)) $tab = 'community';
+if (!in_array($tab, $valid_tabs)) $tab = $default_tab;
 
 // Sidebar data
 $admin_members = db_fetch_all(
@@ -137,7 +139,7 @@ include __DIR__ . '/includes/header.php';
                 Join Community
               </button>
             <?php else: ?>
-              <a href="/platform/login.php" class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold">Sign In to Join</a>
+              <a href="/login.php" class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold">Sign In to Join</a>
             <?php endif; ?>
           </div>
         <?php endif; ?>
@@ -317,7 +319,7 @@ include __DIR__ . '/includes/header.php';
                         </div>
                       </div>
                     <?php endif; ?>
-                    <a href="/platform/course.php?id=<?= $course['id'] ?>"
+                    <a href="/course.php?id=<?= $course['id'] ?>"
                       class="block w-full text-center py-2 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 text-white text-xs font-semibold hover:shadow-md transition-all hover:-translate-y-0.5">
                       <?= $progress['completed'] > 0 && $progress['percent'] < 100 ? 'Continue' : ($progress['percent'] === 100 ? '✓ Completed' : 'Start') ?>
                     </a>
@@ -339,7 +341,7 @@ include __DIR__ . '/includes/header.php';
             'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.id as membership_id FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.status = "pending" ORDER BY m.joined_at',
             [$community_id]
         ) : [];
-        $referral_link = 'http' . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 's' : '') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/platform/community.php?slug=' . urlencode($community['slug']);
+        $referral_link = BASE_URL . '/community.php?slug=' . urlencode($community['slug']);
         ?>
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
           <!-- Stats + Invite -->
@@ -394,7 +396,7 @@ include __DIR__ . '/includes/header.php';
           <!-- Members Grid -->
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <?php foreach ($all_members as $mem): ?>
-              <a href="/platform/profile.php?username=<?= e($mem['username']) ?>"
+              <a href="/profile.php?username=<?= e($mem['username']) ?>"
                 class="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600">
                 <div class="relative flex-shrink-0">
                   <img src="<?= get_avatar_url($mem['avatar'], $mem['first_name'] . ' ' . $mem['last_name']) ?>" class="w-10 h-10 rounded-full object-cover">
@@ -566,7 +568,7 @@ include __DIR__ . '/includes/header.php';
                     <?= $community['pricing'] === 'paid' ? '💰 Join for ' . format_price($community['price'], $community['price_interval']) : '🚀 Join Community — Free' ?>
                   </button>
                 <?php else: ?>
-                  <a href="/platform/login.php" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold">Sign In to Join</a>
+                  <a href="/login.php" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold">Sign In to Join</a>
                 <?php endif; ?>
               </div>
             <?php endif; ?>
@@ -645,7 +647,7 @@ include __DIR__ . '/includes/header.php';
                   <?= $community['pricing'] === 'paid' ? 'Join · ' . format_price($community['price']) : 'Join Community' ?>
                 </button>
               <?php else: ?>
-                <a href="/platform/login.php" class="block w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 text-white text-sm font-semibold">Sign In to Join</a>
+                <a href="/login.php" class="block w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 text-white text-sm font-semibold">Sign In to Join</a>
               <?php endif; ?>
             <?php else: ?>
               <div class="w-full text-center py-2 text-xs text-primary-600 dark:text-primary-400 font-medium">✓ Member <?= $is_admin ? '(' . ucfirst($my_role) . ')' : '' ?></div>
@@ -712,7 +714,7 @@ include __DIR__ . '/includes/header.php';
 const CSRF_TOKEN = '<?= csrf_token() ?>';
 
 function joinCommunity(communityId) {
-  fetch('/platform/api/join_community.php', {
+  fetch('/api/join_community.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({community_id: communityId, csrf_token: CSRF_TOKEN})
@@ -732,7 +734,7 @@ function createPost(communityId) {
   const content = document.getElementById('post-content').value.trim();
   const topicId = document.getElementById('post-topic')?.value || '';
   if (!content) { showToast('Please write something!', 'error'); return; }
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'create', community_id: communityId, content, topic_id: topicId, csrf_token: CSRF_TOKEN})
@@ -749,7 +751,7 @@ function createPost(communityId) {
 }
 
 function toggleLike(postId, btn) {
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'like', post_id: postId, csrf_token: CSRF_TOKEN})
@@ -774,7 +776,7 @@ function submitComment(postId, communityId) {
   const input = document.getElementById('comment-input-' + postId);
   const content = input?.value.trim();
   if (!content) return;
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'comment', post_id: postId, community_id: communityId, content, csrf_token: CSRF_TOKEN})
@@ -795,7 +797,7 @@ function togglePostMenu(postId) {
 }
 
 function pinPost(postId, pin) {
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'pin', post_id: postId, pin: pin, csrf_token: CSRF_TOKEN})
@@ -809,7 +811,7 @@ function pinPost(postId, pin) {
 
 function deletePost(postId) {
   if (!confirm('Delete this post?')) return;
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'delete', post_id: postId, csrf_token: CSRF_TOKEN})
@@ -825,7 +827,7 @@ function deletePost(postId) {
 }
 
 function approveMember(membershipId, status) {
-  fetch('/platform/api/approve_member.php', {
+  fetch('/api/approve_member.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({membership_id: membershipId, status, csrf_token: CSRF_TOKEN})
@@ -849,7 +851,7 @@ function submitAwardPoints() {
   const points = document.getElementById('award-points').value;
   const reason = document.getElementById('award-reason').value;
   if (!points || points < 1) { showToast('Enter valid points', 'error'); return; }
-  fetch('/platform/api/award_points.php', {
+  fetch('/api/award_points.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({user_id: userId, community_id: communityId, points, reason, csrf_token: CSRF_TOKEN})
@@ -868,7 +870,7 @@ function showAddTopic() {
 function addTopic(communityId) {
   const name = document.getElementById('new-topic-name').value.trim();
   if (!name) return;
-  fetch('/platform/api/post_action.php', {
+  fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'add_topic', community_id: communityId, name, csrf_token: CSRF_TOKEN})

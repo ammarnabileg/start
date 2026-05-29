@@ -4,12 +4,12 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 if (is_logged_in()) {
-    header('Location: /platform/index.php');
+    header('Location: /index.php');
     exit;
 }
 
 $error = '';
-$redirect = $_GET['redirect'] ?? '/platform/index.php';
+$redirect = $_GET['redirect'] ?? '/index.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
@@ -99,14 +99,14 @@ $page_title = 'Sign In';
   <div class="flex-1 flex flex-col justify-center items-center p-6 sm:p-12">
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
-        <a href="/platform/index.php" class="inline-flex items-center gap-2 mb-6">
+        <a href="/index.php" class="inline-flex items-center gap-2 mb-6">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-accent-500 flex items-center justify-center">
             <span class="text-white font-bold text-lg">D</span>
           </div>
           <span class="font-black text-2xl gradient-text">Discover</span>
         </a>
         <h2 class="text-2xl font-bold text-gray-900">Sign in to your account</h2>
-        <p class="text-gray-500 mt-2 text-sm">Don't have an account? <a href="/platform/register.php" class="text-primary-600 font-semibold hover:underline">Get started free</a></p>
+        <p class="text-gray-500 mt-2 text-sm">Don't have an account? <a href="/register.php" class="text-primary-600 font-semibold hover:underline">Get started free</a></p>
       </div>
 
       <?php if ($error): ?>

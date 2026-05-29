@@ -13,8 +13,8 @@ try { $platform_name_footer = get_platform_setting('platform_name', 'Discover');
         <span class="text-gray-400 dark:text-gray-600 text-sm">&copy; <?= date('Y') ?></span>
       </div>
       <nav class="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-        <a href="/platform/index.php" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Discover</a>
-        <a href="/platform/create-community.php" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Create Community</a>
+        <a href="/index.php" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Discover</a>
+        <a href="/create-community.php" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Create Community</a>
         <a href="#" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Privacy</a>
         <a href="#" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Terms</a>
         <a href="#" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Help</a>

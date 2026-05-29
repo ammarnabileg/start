@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $course_id = (int)($_GET['id'] ?? 0);
-if (!$course_id) { header('Location: /platform/index.php'); exit; }
+if (!$course_id) { header('Location: /index.php'); exit; }
 
 $course = db_fetch(
     'SELECT c.*, co.slug as community_slug, co.name as community_name, co.id as community_id FROM courses c JOIN communities co ON co.id = c.community_id WHERE c.id = ? AND c.is_published = 1',
@@ -63,9 +63,9 @@ include __DIR__ . '/includes/header.php';
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
   <!-- Breadcrumb -->
   <nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-    <a href="/platform/community.php?slug=<?= e($course['community_slug']) ?>" class="hover:text-primary-600 dark:hover:text-primary-400"><?= e($course['community_name']) ?></a>
+    <a href="/community.php?slug=<?= e($course['community_slug']) ?>" class="hover:text-primary-600 dark:hover:text-primary-400"><?= e($course['community_name']) ?></a>
     <span>›</span>
-    <a href="/platform/community.php?slug=<?= e($course['community_slug']) ?>&tab=classroom" class="hover:text-primary-600 dark:hover:text-primary-400">Classroom</a>
+    <a href="/community.php?slug=<?= e($course['community_slug']) ?>&tab=classroom" class="hover:text-primary-600 dark:hover:text-primary-400">Classroom</a>
     <span>›</span>
     <span class="text-gray-700 dark:text-gray-300 font-medium truncate"><?= e($course['title']) ?></span>
   </nav>
@@ -217,7 +217,7 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <div class="flex justify-center gap-3">
-      <a href="/platform/community.php?slug=<?= e($course['community_slug']) ?>&tab=classroom"
+      <a href="/community.php?slug=<?= e($course['community_slug']) ?>&tab=classroom"
         class="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
         Back to Classroom
       </a>
@@ -241,7 +241,7 @@ function toggleSection(sectionId) {
 }
 
 function completeLesson(lessonId, courseId, communityId) {
-  fetch('/platform/api/complete_lesson.php', {
+  fetch('/api/complete_lesson.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({lesson_id: lessonId, course_id: courseId, community_id: communityId, csrf_token: CSRF_TOKEN})

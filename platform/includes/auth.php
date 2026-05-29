@@ -14,7 +14,7 @@ function get_auth_user(): ?array {
 function require_login(): void {
     if (!isset($_SESSION['user_id'])) {
         $redirect = urlencode($_SERVER['REQUEST_URI'] ?? '/');
-        header('Location: /platform/login.php?redirect=' . $redirect);
+        header('Location: /login.php?redirect=' . $redirect);
         exit;
     }
 }

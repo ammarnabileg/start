@@ -7,13 +7,13 @@ $comments_list = db_fetch_all(
 );
 ?>
 <div class="flex items-start gap-3 mb-3">
-  <a href="/platform/profile.php?username=<?= e($post['username']) ?>">
+  <a href="/profile.php?username=<?= e($post['username']) ?>">
     <img src="<?= get_avatar_url($post['avatar'] ?? null, $post_user_name) ?>"
       class="w-9 h-9 rounded-full object-cover flex-shrink-0">
   </a>
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-2 flex-wrap">
-      <a href="/platform/profile.php?username=<?= e($post['username']) ?>" class="font-semibold text-sm text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-all"><?= e($post_user_name) ?></a>
+      <a href="/profile.php?username=<?= e($post['username']) ?>" class="font-semibold text-sm text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-all"><?= e($post_user_name) ?></a>
       <span class="text-xs text-gray-400 dark:text-gray-500">•</span>
       <span class="text-xs text-gray-400 dark:text-gray-500"><?= time_ago($post['created_at']) ?></span>
       <?php if (!empty($post['topic_name'])): ?>

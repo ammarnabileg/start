@@ -89,7 +89,7 @@ if ($action === 'like') {
             if (!$ns || $ns['post_likes']) {
                 create_notification($post['user_id'], 'post_like', 'Post Liked',
                     ($current_user['first_name'] ?: $current_user['username']) . ' liked your post',
-                    '/platform/community.php?slug=' . urlencode(db_fetch('SELECT slug FROM communities WHERE id=?', [$post['community_id']])['slug'] ?? '')
+                    '/community.php?slug=' . urlencode(db_fetch('SELECT slug FROM communities WHERE id=?', [$post['community_id']])['slug'] ?? '')
                 );
             }
         }

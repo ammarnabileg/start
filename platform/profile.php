@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $username = $_GET['username'] ?? '';
-if (!$username) { header('Location: /platform/index.php'); exit; }
+if (!$username) { header('Location: /index.php'); exit; }
 
 $profile_user = db_fetch('SELECT * FROM users WHERE username = ?', [$username]);
 if (!$profile_user) { http_response_code(404); die('<h1>User not found</h1>'); }
@@ -63,14 +63,14 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div class="flex items-center gap-2 pb-1">
               <?php if ($is_own_profile): ?>
-                <a href="/platform/settings.php" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Edit Profile</a>
+                <a href="/settings.php" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Edit Profile</a>
               <?php elseif ($current_user): ?>
                 <button onclick="toggleFollow(<?= $profile_user['id'] ?>)" id="follow-btn"
                   class="px-4 py-2 rounded-xl text-sm font-semibold transition-all <?= $is_following ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400' : 'bg-gradient-to-r from-primary-600 to-accent-500 text-white hover:shadow-md hover:-translate-y-0.5' ?>">
                   <?= $is_following ? 'Following' : 'Follow' ?>
                 </button>
               <?php else: ?>
-                <a href="/platform/login.php" class="px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold">Follow</a>
+                <a href="/login.php" class="px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold">Follow</a>
               <?php endif; ?>
             </div>
           </div>
@@ -138,13 +138,13 @@ include __DIR__ . '/includes/header.php';
             <h3 class="font-bold text-gray-700 dark:text-gray-300">No communities yet</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1"><?= $is_own_profile ? "You haven't created any communities yet." : "This user hasn't created any communities yet." ?></p>
             <?php if ($is_own_profile): ?>
-              <a href="/platform/create-community.php" class="mt-4 inline-block px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Create Community</a>
+              <a href="/create-community.php" class="mt-4 inline-block px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Create Community</a>
             <?php endif; ?>
           </div>
         <?php else: ?>
           <div class="grid sm:grid-cols-2 gap-4">
             <?php foreach ($owned_communities as $c): ?>
-              <a href="/platform/community.php?slug=<?= e($c['slug']) ?>"
+              <a href="/community.php?slug=<?= e($c['slug']) ?>"
                 class="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all">
                 <div class="h-24 relative bg-gradient-to-br from-primary-600 to-accent-500 overflow-hidden">
                   <?php if ($c['banner']): ?><img src="<?= e($c['banner']) ?>" class="w-full h-full object-cover"><?php endif; ?>
@@ -172,7 +172,7 @@ include __DIR__ . '/includes/header.php';
         <?php else: ?>
           <div class="grid sm:grid-cols-2 gap-4">
             <?php foreach ($memberships as $c): ?>
-              <a href="/platform/community.php?slug=<?= e($c['slug']) ?>"
+              <a href="/community.php?slug=<?= e($c['slug']) ?>"
                 class="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-3">
                 <?php if ($c['logo']): ?>
                   <img src="<?= e($c['logo']) ?>" class="w-12 h-12 rounded-xl object-cover flex-shrink-0">
@@ -190,22 +190,23 @@ include __DIR__ . '/includes/header.php';
               </a>
             <?php endforeach; ?>
           </div>
-        <?php elseif ($tab === 'about'): ?>
-          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
-            <h3 class="font-bold text-lg mb-4 text-gray-900 dark:text-white">About</h3>
-            <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed"><?= nl2br(e($profile_user['bio'] ?: 'No bio provided.')) ?></p>
-            <?php if (!empty($user_badges)): ?>
-              <h4 class="font-bold mt-6 mb-3 text-gray-900 dark:text-white">Badges</h4>
-              <div class="flex flex-wrap gap-2">
-                <?php foreach ($user_badges as $b): ?>
-                  <div class="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-3 py-1.5 rounded-xl text-sm" title="<?= e($b['description'] ?? '') ?>">
-                    <?= $b['icon'] ?? '🏅' ?> <?= e($b['name']) ?>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-            <?php endif; ?>
-          </div>
         <?php endif; ?>
+
+      <?php elseif ($tab === 'about'): ?>
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+          <h3 class="font-bold text-lg mb-4 text-gray-900 dark:text-white">About</h3>
+          <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed"><?= nl2br(e($profile_user['bio'] ?: 'No bio provided.')) ?></p>
+          <?php if (!empty($user_badges)): ?>
+            <h4 class="font-bold mt-6 mb-3 text-gray-900 dark:text-white">Badges</h4>
+            <div class="flex flex-wrap gap-2">
+              <?php foreach ($user_badges as $b): ?>
+                <div class="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-3 py-1.5 rounded-xl text-sm" title="<?= e($b['description'] ?? '') ?>">
+                  <?= $b['icon'] ?? '🏅' ?> <?= e($b['name']) ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
       <?php endif; ?>
     </div>
 
@@ -275,7 +276,7 @@ include __DIR__ . '/includes/header.php';
 const CSRF_TOKEN = '<?= csrf_token() ?>';
 
 function toggleFollow(userId) {
-  fetch('/platform/api/settings_save.php', {
+  fetch('/api/settings_save.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'toggle_follow', user_id: userId, csrf_token: CSRF_TOKEN})

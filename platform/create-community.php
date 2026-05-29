@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Update member count
                 db_execute('UPDATE communities SET member_count = 1 WHERE id = ?', [$community_id]);
 
-                header('Location: /platform/community.php?slug=' . urlencode($slug));
+                header('Location: /community.php?slug=' . urlencode($slug));
                 exit;
             }
         }

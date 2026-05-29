@@ -46,7 +46,7 @@ $name = $target_user ? ($target_user['first_name'] ?: $target_user['username']) 
 
 create_notification($target_user_id, 'points_awarded', 'Points Awarded!',
     "You received {$points} XP in {$community['name']}" . ($reason ? ": {$reason}" : ''),
-    '/platform/community.php?slug=' . urlencode($community['slug']) . '&tab=leaderboard'
+    '/community.php?slug=' . urlencode($community['slug']) . '&tab=leaderboard'
 );
 
 echo json_encode(['success' => true, 'points' => $points]);

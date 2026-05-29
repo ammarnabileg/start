@@ -8,7 +8,7 @@ header('Content-Type: application/json');
 if (!is_logged_in()) {
     // Check if it's a GET request for logout_all
     if (isset($_GET['action']) && $_GET['action'] === 'logout_all') {
-        header('Location: /platform/login.php');
+        header('Location: /login.php');
         exit;
     }
     echo json_encode(['error' => 'Authentication required']); exit;
@@ -21,15 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $action = $_GET['action'] ?? '';
     if ($action === 'logout_all') {
         logout_all_devices($current_user['id']);
-        header('Location: /platform/login.php');
+        header('Location: /login.php');
         exit;
     }
     if ($action === 'remove_payment') {
         $id = (int)($_GET['id'] ?? 0);
         $csrf = $_GET['csrf_token'] ?? '';
-        if (!verify_csrf($csrf)) { header('Location: /platform/settings.php?tab=payment&error=csrf'); exit; }
+        if (!verify_csrf($csrf)) { header('Location: /settings.php?tab=payment&error=csrf'); exit; }
         db_execute('DELETE FROM payment_methods WHERE id = ? AND user_id = ?', [$id, $current_user['id']]);
-        header('Location: /platform/settings.php?tab=payment&saved=1');
+        header('Location: /settings.php?tab=payment&saved=1');
         exit;
     }
     echo json_encode(['error' => 'Method not allowed']); exit;
@@ -64,7 +64,7 @@ if ($action === 'toggle_follow') {
             $my_name = $current_user['first_name'] ?: $current_user['username'];
             create_notification($target_id, 'new_follower', 'New Follower',
                 "{$my_name} started following you",
-                '/platform/profile.php?username=' . $current_user['username']
+                '/profile.php?username=' . $current_user['username']
             );
         }
 

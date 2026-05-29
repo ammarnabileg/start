@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 
 if (is_logged_in()) {
-    header('Location: /platform/index.php');
+    header('Location: /index.php');
     exit;
 }
 
@@ -68,12 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($referred_by) {
                 create_notification($referred_by, 'affiliate_referral', 'New Referral!',
                     "{$first_name} {$last_name} joined via your referral link.",
-                    '/platform/settings.php?tab=affiliates'
+                    '/settings.php?tab=affiliates'
                 );
             }
 
             login_user($user_id);
-            header('Location: /platform/index.php');
+            header('Location: /index.php');
             exit;
         }
     }
@@ -138,14 +138,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
-        <a href="/platform/index.php" class="inline-flex items-center gap-2 mb-6">
+        <a href="/index.php" class="inline-flex items-center gap-2 mb-6">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-accent-500 flex items-center justify-center">
             <span class="text-white font-bold text-lg">D</span>
           </div>
           <span class="font-black text-2xl gradient-text">Discover</span>
         </a>
         <h2 class="text-2xl font-bold text-gray-900">Create your account</h2>
-        <p class="text-gray-500 mt-2 text-sm">Already have an account? <a href="/platform/login.php" class="text-primary-600 font-semibold hover:underline">Sign in</a></p>
+        <p class="text-gray-500 mt-2 text-sm">Already have an account? <a href="/login.php" class="text-primary-600 font-semibold hover:underline">Sign in</a></p>
       </div>
 
       <?php if ($error): ?>

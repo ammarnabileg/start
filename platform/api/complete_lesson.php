@@ -97,7 +97,7 @@ if ($cid) {
         if ($community_id) {
             create_notification($current_user['id'], 'course_complete', 'Course Complete! 🎉',
                 'Congratulations! You completed a course and earned 100 XP + Scholar badge!',
-                '/platform/course.php?id=' . $cid
+                '/course.php?id=' . $cid
             );
         }
     }

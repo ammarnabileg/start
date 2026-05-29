@@ -1,7 +1,7 @@
 <?php
 // Redirect to course.php with lesson param
 $lesson_id = (int)($_GET['id'] ?? 0);
-if (!$lesson_id) { header('Location: /platform/index.php'); exit; }
+if (!$lesson_id) { header('Location: /index.php'); exit; }
 
 require_once __DIR__ . '/includes/db.php';
 $lesson = db_fetch(
@@ -9,5 +9,5 @@ $lesson = db_fetch(
     [$lesson_id]
 );
 if (!$lesson) { http_response_code(404); die('Lesson not found'); }
-header('Location: /platform/course.php?id=' . $lesson['course_id'] . '&lesson=' . $lesson_id);
+header('Location: /course.php?id=' . $lesson['course_id'] . '&lesson=' . $lesson_id);
 exit;
