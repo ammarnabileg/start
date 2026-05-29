@@ -1,32 +1,37 @@
 USE admin_discover;
 
 -- Clear existing data (in reverse FK order)
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE notifications;
-TRUNCATE TABLE notification_settings;
-TRUNCATE TABLE community_notification_settings;
-TRUNCATE TABLE user_points;
-TRUNCATE TABLE user_streaks;
-TRUNCATE TABLE user_badges;
-TRUNCATE TABLE badges;
-TRUNCATE TABLE lesson_progress;
-TRUNCATE TABLE lessons;
-TRUNCATE TABLE course_sections;
-TRUNCATE TABLE courses;
-TRUNCATE TABLE comments;
-TRUNCATE TABLE post_likes;
-TRUNCATE TABLE posts;
-TRUNCATE TABLE topics;
-TRUNCATE TABLE memberships;
-TRUNCATE TABLE community_links;
-TRUNCATE TABLE communities;
-TRUNCATE TABLE follows;
-TRUNCATE TABLE user_links;
-TRUNCATE TABLE user_sessions;
-TRUNCATE TABLE payment_methods;
-TRUNCATE TABLE payments;
-TRUNCATE TABLE users;
-SET FOREIGN_KEY_CHECKS = 1;
+DELETE FROM notifications;
+DELETE FROM notification_settings;
+DELETE FROM community_notification_settings;
+DELETE FROM user_points;
+DELETE FROM user_streaks;
+DELETE FROM user_badges;
+DELETE FROM badges;
+DELETE FROM lesson_progress;
+DELETE FROM lessons;
+DELETE FROM course_sections;
+DELETE FROM courses;
+DELETE FROM comments;
+DELETE FROM post_likes;
+DELETE FROM posts;
+DELETE FROM topics;
+DELETE FROM memberships;
+DELETE FROM community_links;
+DELETE FROM communities;
+DELETE FROM follows;
+DELETE FROM user_links;
+DELETE FROM user_sessions;
+DELETE FROM payment_methods;
+DELETE FROM payments;
+DELETE FROM users;
+ALTER TABLE users AUTO_INCREMENT = 1;
+ALTER TABLE communities AUTO_INCREMENT = 1;
+ALTER TABLE courses AUTO_INCREMENT = 1;
+ALTER TABLE course_sections AUTO_INCREMENT = 1;
+ALTER TABLE lessons AUTO_INCREMENT = 1;
+ALTER TABLE posts AUTO_INCREMENT = 1;
+ALTER TABLE badges AUTO_INCREMENT = 1;
 
 -- Sample Users (password: Password123!)
 INSERT INTO users (username, email, password_hash, first_name, last_name, bio, location, affiliate_code, theme) VALUES
