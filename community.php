@@ -652,201 +652,186 @@ include __DIR__ . '/includes/header.php';
 
       <!-- ====== TAB: ADMIN ====== -->
       <?php elseif ($tab === 'admin' && $is_admin): ?>
-        <?php
-        $approved_members = db_fetch_all(
-            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.status = "approved" ORDER BY u.first_name',
-            [$community_id]
-        );
-        $community_badges = db_fetch_all('SELECT * FROM badges WHERE community_id = ? ORDER BY created_at DESC', [$community_id]);
-        $pending_members_admin = db_fetch_all(
-            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.id as membership_id FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.status = "pending" ORDER BY m.joined_at',
-            [$community_id]
-        );
-        $all_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
-        $current_admins = db_fetch_all(
-            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.role FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.role IN ("admin","owner") AND m.status = "approved" ORDER BY m.role DESC, u.first_name',
-            [$community_id]
-        );
-        ?>
-        <div class="space-y-5">
-          <!-- Award Points -->
-          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Award Points to Member</h3>
-            <form onsubmit="adminAwardPoints(event, <?= $community_id ?>)" class="space-y-3">
-              <select name="user_id" id="admin-award-user"
-                      class="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <?php foreach ($approved_members as $m): ?>
-                  <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name'] ?? '') . ' ' . ($m['last_name'] ?? '')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
-                <?php endforeach; ?>
-              </select>
-              <div class="flex gap-3">
-                <input type="number" id="admin-award-points-val" placeholder="Points (e.g. 50)" min="1" max="10000"
-                       class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <input type="text" id="admin-award-reason" placeholder="Reason..."
-                       class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-              </div>
-              <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Award Points</button>
-            </form>
-          </div>
+<?php
+  // Load all data needed for admin tab
+  $adm_members = db_fetch_all(
+    'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar
+     FROM memberships m JOIN users u ON u.id = m.user_id
+     WHERE m.community_id = ? AND m.status = "approved"
+     ORDER BY u.first_name',
+    [$community_id]
+  );
+  $adm_badges = db_fetch_all('SELECT * FROM badges WHERE community_id = ? ORDER BY id DESC', [$community_id]);
+  $adm_pending = db_fetch_all(
+    'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.id as membership_id
+     FROM memberships m JOIN users u ON u.id = m.user_id
+     WHERE m.community_id = ? AND m.status = "pending" ORDER BY m.joined_at',
+    [$community_id]
+  );
+  $adm_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
+  $adm_admins = db_fetch_all(
+    'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.role
+     FROM memberships m JOIN users u ON u.id = m.user_id
+     WHERE m.community_id = ? AND m.role IN ("admin","owner") AND m.status = "approved"
+     ORDER BY FIELD(m.role,"owner","admin"), u.first_name',
+    [$community_id]
+  );
+?>
+<div class="space-y-6">
 
-          <!-- Manage Badges -->
-          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Badges</h3>
-            <?php if (!empty($community_badges)): ?>
-              <div class="space-y-2 mb-5">
-                <?php foreach ($community_badges as $badge): ?>
-                  <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
-                    <div class="flex items-center gap-3">
-                      <span class="text-2xl"><?= e($badge['icon']) ?></span>
-                      <div>
-                        <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= e($badge['name']) ?></div>
-                        <div class="text-xs text-gray-500 dark:text-gray-500"><?= e($badge['description']) ?></div>
-                      </div>
-                    </div>
-                    <div class="flex gap-2">
-                      <button onclick="openAwardBadgeModal(<?= $badge['id'] ?>, '<?= e($badge['name']) ?>')"
-                              class="px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-200 dark:hover:bg-white/15 transition-colors">Award</button>
-                      <button onclick="deleteBadge(<?= $badge['id'] ?>, <?= $community_id ?>)"
-                              class="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors">Delete</button>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
+  <!-- AWARD POINTS -->
+  <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+    <h3 class="text-lg font-bold text-white mb-4">Award Points</h3>
+    <div class="space-y-3">
+      <select id="adm-user" class="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+        <?php foreach ($adm_members as $m): ?>
+          <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
+        <?php endforeach; ?>
+      </select>
+      <div class="flex gap-3">
+        <input id="adm-pts" type="number" min="1" max="9999" placeholder="Points" class="flex-1 bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+        <input id="adm-reason" type="text" placeholder="Reason (optional)" class="flex-1 bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+      </div>
+      <button onclick="doAwardPoints(<?= $community_id ?>)" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">Award Points</button>
+    </div>
+  </div>
+
+  <!-- PENDING REQUESTS -->
+  <?php if (!empty($adm_pending)): ?>
+  <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+    <h3 class="text-lg font-bold text-white mb-4">Pending Requests <span class="ml-2 bg-amber-500/20 text-amber-400 text-sm px-2 py-0.5 rounded-full"><?= count($adm_pending) ?></span></h3>
+    <div class="space-y-2">
+      <?php foreach ($adm_pending as $pm): ?>
+        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center gap-3">
+            <img src="<?= get_avatar_url($pm) ?>" class="w-9 h-9 rounded-full object-cover bg-gray-700">
+            <div>
+              <p class="text-sm font-semibold text-white"><?= e(trim(($pm['first_name']??'').' '.($pm['last_name']??'')) ?: $pm['username']) ?></p>
+              <p class="text-xs text-gray-500">@<?= e($pm['username']) ?></p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'approved', this)" class="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 transition-colors">Approve</button>
+            <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'rejected', this)" class="px-3 py-1.5 bg-white/10 text-gray-300 rounded-lg text-xs font-semibold hover:bg-white/20 transition-colors">Reject</button>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <!-- MANAGE BADGES -->
+  <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+    <h3 class="text-lg font-bold text-white mb-4">Badges</h3>
+    <?php if (!empty($adm_badges)): ?>
+    <div class="space-y-2 mb-5">
+      <?php foreach ($adm_badges as $b): ?>
+        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center gap-3">
+            <span class="text-xl"><?= e($b['icon'] ?? '🏅') ?></span>
+            <div>
+              <p class="text-sm font-semibold text-white"><?= e($b['name']) ?></p>
+              <p class="text-xs text-gray-500"><?= e($b['description'] ?? '') ?></p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="doAwardBadge(<?= $b['id'] ?>, '<?= e($b['name']) ?>', <?= $community_id ?>)" class="px-3 py-1.5 bg-white/10 text-gray-300 rounded-lg text-xs font-semibold hover:bg-white/20">Award</button>
+            <button onclick="doDeleteBadge(<?= $b['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-900/50">Del</button>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+    <div class="space-y-3 pt-4 border-t border-white/10">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Create Badge</p>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="b-name" type="text" placeholder="Badge name" class="bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+        <input id="b-icon" type="text" placeholder="Icon emoji" value="🏅" class="bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+      </div>
+      <input id="b-desc" type="text" placeholder="Description" class="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+      <button onclick="doCreateBadge(<?= $community_id ?>)" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">Create Badge</button>
+    </div>
+  </div>
+
+  <!-- TOPICS -->
+  <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+    <h3 class="text-lg font-bold text-white mb-4">Topics</h3>
+    <div class="flex flex-wrap gap-2 mb-4">
+      <?php foreach ($adm_topics as $t): ?>
+        <span class="flex items-center gap-2 bg-white/10 text-gray-300 px-3 py-1.5 rounded-full text-sm">
+          # <?= e($t['name']) ?>
+          <button onclick="doDeleteTopic(<?= $t['id'] ?>, <?= $community_id ?>)" class="text-gray-500 hover:text-red-400 transition-colors text-xs">&#x2715;</button>
+        </span>
+      <?php endforeach; ?>
+    </div>
+    <div class="flex gap-2">
+      <input id="new-topic-name" type="text" placeholder="New topic..." class="flex-1 bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+      <button onclick="doAddTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-white text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-100 transition-colors">Add</button>
+    </div>
+  </div>
+
+  <!-- MANAGE ADMINS (owner only) -->
+  <?php if ($is_owner): ?>
+  <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+    <h3 class="text-lg font-bold text-white mb-4">Manage Admins</h3>
+    <div class="space-y-2 mb-5">
+      <?php foreach ($adm_admins as $a): ?>
+        <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center gap-3">
+            <img src="<?= get_avatar_url($a) ?>" class="w-9 h-9 rounded-full object-cover bg-gray-700">
+            <div>
+              <p class="text-sm font-semibold text-white"><?= e(trim(($a['first_name']??'').' '.($a['last_name']??'')) ?: $a['username']) ?></p>
+              <p class="text-xs text-gray-500">@<?= e($a['username']) ?></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-1 rounded-full <?= $a['role']==='owner' ? 'bg-amber-900/30 text-amber-400' : 'bg-teal-900/30 text-teal-400' ?> font-semibold"><?= ucfirst($a['role']) ?></span>
+            <?php if ($a['role'] === 'admin'): ?>
+              <button onclick="doDemoteAdmin(<?= $a['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-900/50">Remove</button>
             <?php endif; ?>
-
-            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Create New Badge</h4>
-            <form onsubmit="createBadge(event, <?= $community_id ?>)" class="space-y-3">
-              <div class="grid grid-cols-2 gap-3">
-                <input type="text" id="badge-name" placeholder="Badge name" required
-                       class="bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <input type="text" id="badge-icon" placeholder="Icon (emoji)" value="🏅"
-                       class="bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-              </div>
-              <input type="text" id="badge-description" placeholder="Description..."
-                     class="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <div class="grid grid-cols-2 gap-3">
-                <input type="number" id="badge-points" placeholder="Points required (0=manual)" min="0"
-                       class="bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <select id="badge-type"
-                        class="bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                  <option value="achievement">Achievement</option>
-                  <option value="participation">Participation</option>
-                  <option value="completion">Completion</option>
-                </select>
-              </div>
-              <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Create Badge</button>
-            </form>
-          </div>
-
-          <!-- Pending Members -->
-          <?php if (!empty($pending_members_admin)): ?>
-            <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
-              <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                Pending Membership Requests
-                <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 text-sm font-bold px-2 py-0.5 rounded-full"><?= count($pending_members_admin) ?></span>
-              </h3>
-              <div class="space-y-2">
-                <?php foreach ($pending_members_admin as $pm): ?>
-                  <div class="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800/30">
-                    <div class="flex items-center gap-3">
-                      <img src="<?= get_avatar_url($pm['avatar'] ?? null, ($pm['first_name'] ?? '') . ' ' . ($pm['last_name'] ?? '')) ?>" class="w-9 h-9 rounded-full object-cover">
-                      <div>
-                        <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= e(trim(($pm['first_name'] ?? '') . ' ' . ($pm['last_name'] ?? ''))) ?></div>
-                        <div class="text-xs text-gray-500 dark:text-gray-500">@<?= e($pm['username']) ?></div>
-                      </div>
-                    </div>
-                    <div class="flex gap-2">
-                      <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'approved')" class="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition-colors">Approve</button>
-                      <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'rejected')" class="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold hover:bg-red-200 transition-colors">Reject</button>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-            </div>
-          <?php endif; ?>
-
-          <!-- Topics Management -->
-          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Topics</h3>
-            <div class="space-y-2 mb-4">
-              <?php foreach ($all_topics as $topic): ?>
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
-                  <span class="text-sm font-medium text-gray-900 dark:text-white"># <?= e($topic['name']) ?></span>
-                  <button onclick="deleteTopic(<?= $topic['id'] ?>, <?= $community_id ?>)"
-                          class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
-                </div>
-              <?php endforeach; ?>
-            </div>
-            <div class="flex gap-2">
-              <input type="text" id="admin-new-topic" placeholder="New topic name..."
-                     class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <button onclick="addTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors">Add</button>
-            </div>
-          </div>
-
-          <?php if ($is_owner): ?>
-          <!-- Manage Admins (owner only) -->
-          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Admins</h3>
-            <div class="space-y-2 mb-4">
-              <?php foreach ($current_admins as $adm): ?>
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
-                  <div class="flex items-center gap-3">
-                    <img src="<?= get_avatar_url($adm) ?>" class="w-8 h-8 rounded-full object-cover">
-                    <div>
-                      <p class="text-sm font-semibold text-gray-900 dark:text-white"><?= e(trim(($adm['first_name']??'').' '.($adm['last_name']??'')) ?: $adm['username']) ?></p>
-                      <p class="text-xs text-gray-400">@<?= e($adm['username']) ?></p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs px-2 py-1 rounded-full <?= $adm['role']==='owner' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' ?> font-semibold">
-                      <?= ucfirst($adm['role']) ?>
-                    </span>
-                    <?php if ($adm['role'] === 'admin' && $adm['id'] !== $current_user['id']): ?>
-                      <button onclick="removeAdmin(<?= $adm['id'] ?>, <?= $community_id ?>)"
-                              class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Remove</button>
-                    <?php endif; ?>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            </div>
-            <!-- Add admin from existing members -->
-            <div class="space-y-2">
-              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Promote Member to Admin</p>
-              <div class="flex gap-2">
-                <select id="promote-user-select" class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                  <option value="">— Select member —</option>
-                  <?php foreach ($approved_members as $m):
-                    $already_admin = false;
-                    foreach($current_admins as $a) { if($a['id']==$m['id']) { $already_admin=true; break; } }
-                    if ($already_admin) continue; ?>
-                    <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
-                  <?php endforeach; ?>
-                </select>
-                <button onclick="promoteToAdmin(<?= $community_id ?>)" class="px-4 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Promote</button>
-              </div>
-            </div>
-          </div>
-          <?php endif; ?>
-        </div>
-
-        <!-- Award Badge Modal -->
-        <div id="award-badge-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-airbnb-lg w-full max-w-sm p-6 border border-gray-200 dark:border-white/10">
-            <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Award Badge: <span id="award-badge-name"></span></h3>
-            <input type="hidden" id="award-badge-id">
-            <select id="award-badge-user"
-                    class="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4">
-              <?php foreach ($approved_members as $m): ?>
-                <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name'] ?? '') . ' ' . ($m['last_name'] ?? '')) ?: $m['username']) ?></option>
-              <?php endforeach; ?>
-            </select>
-            <div class="flex justify-end gap-3">
-              <button onclick="document.getElementById('award-badge-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Cancel</button>
-              <button onclick="submitAwardBadge(<?= $community_id ?>)" class="px-5 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Award</button>
-            </div>
           </div>
         </div>
+      <?php endforeach; ?>
+    </div>
+    <div class="space-y-2 pt-4 border-t border-white/10">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Promote Member to Admin</p>
+      <div class="flex gap-2">
+        <select id="promote-sel" class="flex-1 bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <option value="">&#8212; Select member &#8212;</option>
+          <?php
+          $admin_ids = array_column($adm_admins, 'id');
+          foreach ($adm_members as $m):
+            if (in_array($m['id'], $admin_ids)) continue;
+          ?>
+            <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <button onclick="doPromoteAdmin(<?= $community_id ?>)" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:opacity-90">Promote</button>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
+</div><!-- end admin tab -->
+
+<!-- Award Badge Modal -->
+<div id="ab-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  <div class="bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-white/10">
+    <h3 class="font-bold text-lg text-white mb-1">Award Badge</h3>
+    <p class="text-sm text-gray-400 mb-4">Awarding: <strong id="ab-badge-name" class="text-white"></strong></p>
+    <input type="hidden" id="ab-badge-id">
+    <input type="hidden" id="ab-comm-id">
+    <select id="ab-user" class="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 mb-4">
+      <?php foreach ($adm_members as $m): ?>
+        <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <div class="flex justify-end gap-3">
+      <button onclick="document.getElementById('ab-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+      <button onclick="submitAwardBadge()" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:opacity-90">Award</button>
+    </div>
+  </div>
+</div>
 
       <?php endif; // end tab ?>
     </div>
@@ -1087,16 +1072,6 @@ function deletePost(postId) {
   });
 }
 
-function approveMember(membershipId, status) {
-  fetch('/api/approve_member.php', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({membership_id: membershipId, status, csrf_token: CSRF_TOKEN})
-  }).then(r => r.json()).then(data => {
-    if (data.success) { showToast(status === 'approved' ? 'Member approved!' : 'Request rejected!'); setTimeout(() => location.reload(), 600); }
-    else showToast(data.error || 'Error', 'error');
-  });
-}
-
 function awardPoints(userId, communityId) {
   document.getElementById('award-user-id').value = userId;
   document.getElementById('award-community-id').value = communityId;
@@ -1121,17 +1096,10 @@ function submitAwardPoints() {
 function showAddTopic() { document.getElementById('add-topic-modal').classList.remove('hidden'); }
 
 function addTopic(communityId) {
-  const adminInput = document.getElementById('admin-new-topic');
   const modalInput = document.getElementById('new-topic-name');
-  const name = (adminInput ? adminInput.value : (modalInput ? modalInput.value : '')).trim();
+  const name = (modalInput ? modalInput.value : '').trim();
   if (!name) return;
-  fetch('/api/post_action.php', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'add_topic', community_id: communityId, name, csrf_token: CSRF_TOKEN})
-  }).then(r => r.json()).then(data => {
-    if (data.success) { showToast('Topic added!'); setTimeout(() => location.reload(), 500); }
-    else showToast(data.error || 'Error', 'error');
-  });
+  doAddTopic(communityId);
 }
 
 function copyInviteLink() {
@@ -1151,131 +1119,121 @@ function deleteCourse(courseId, communityId) {
   });
 }
 
-async function adminAwardPoints(e, communityId) {
-  e.preventDefault();
-  const userId = document.getElementById('admin-award-user').value;
-  const points = document.getElementById('admin-award-points-val').value;
-  const reason = document.getElementById('admin-award-reason').value;
-
-  if (!userId || !points || parseInt(points) < 1) {
-    alert('Please select a member and enter valid points');
-    return;
-  }
-
+// ── Admin Tab Functions ──────────────────────────────────────────────
+async function doAwardPoints(cid) {
+  const uid = document.getElementById('adm-user')?.value;
+  const pts = parseInt(document.getElementById('adm-pts')?.value);
+  const reason = document.getElementById('adm-reason')?.value || 'Bonus points';
+  if (!uid || !pts || pts < 1) { alert('Select member and enter valid points'); return; }
   const fd = new FormData();
-  fd.append('user_id', userId);
-  fd.append('community_id', communityId);
-  fd.append('points', points);
-  fd.append('reason', reason || 'Bonus points');
-  fd.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
-
-  try {
-    const res = await fetch('/api/award_points.php', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.success) {
-      alert('Points awarded successfully!');
-      document.getElementById('admin-award-points-val').value = '';
-      document.getElementById('admin-award-reason').value = '';
-    } else {
-      alert(data.error || 'Failed to award points');
-    }
-  } catch(err) {
-    alert('Error: ' + err.message);
-  }
+  fd.append('user_id', uid); fd.append('community_id', cid);
+  fd.append('points', pts); fd.append('reason', reason);
+  fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/award_points.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Points awarded!'); document.getElementById('adm-pts').value=''; document.getElementById('adm-reason').value=''; }
+  else alert(d.error || 'Failed');
 }
 
-async function createBadge(e, communityId) {
-  e.preventDefault();
-  const name = document.getElementById('badge-name').value;
-  const icon = document.getElementById('badge-icon').value;
-  const description = document.getElementById('badge-description').value;
-  const points = document.getElementById('badge-points').value || 0;
-  const type = document.getElementById('badge-type').value;
-
+async function doCreateBadge(cid) {
+  const name = document.getElementById('b-name')?.value?.trim();
+  const icon = document.getElementById('b-icon')?.value?.trim() || '🏅';
+  const desc = document.getElementById('b-desc')?.value?.trim() || '';
   if (!name) { alert('Badge name required'); return; }
-
   const fd = new FormData();
-  fd.append('action', 'create_badge');
-  fd.append('community_id', communityId);
-  fd.append('name', name);
-  fd.append('icon', icon || '🏅');
-  fd.append('description', description);
-  fd.append('points_required', points);
-  fd.append('badge_type', type);
-  fd.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
-
-  try {
-    const res = await fetch('/api/manage_badges.php', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.success) {
-      location.reload();
-    } else {
-      alert(data.error || 'Failed');
-    }
-  } catch(err) { alert('Error'); }
+  fd.append('action','create'); fd.append('community_id', cid);
+  fd.append('name', name); fd.append('icon', icon); fd.append('description', desc);
+  fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/manage_badges.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Badge created!'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
 }
 
-function openAwardBadgeModal(badgeId, badgeName) {
-  document.getElementById('award-badge-id').value = badgeId;
-  document.getElementById('award-badge-name').textContent = badgeName;
-  document.getElementById('award-badge-modal').classList.remove('hidden');
+function doAwardBadge(badgeId, badgeName, cid) {
+  document.getElementById('ab-badge-id').value = badgeId;
+  document.getElementById('ab-badge-name').textContent = badgeName;
+  document.getElementById('ab-comm-id').value = cid;
+  document.getElementById('ab-modal').classList.remove('hidden');
 }
 
-function submitAwardBadge(communityId) {
-  const badgeId = document.getElementById('award-badge-id').value;
-  const userId = document.getElementById('award-badge-user').value;
-  fetch('/api/manage_badges.php', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'award_badge', community_id: communityId, badge_id: badgeId, user_id: userId, csrf_token: CSRF_TOKEN})
-  }).then(r => r.json()).then(data => {
-    if (data.success) { showToast('Badge awarded!'); document.getElementById('award-badge-modal').classList.add('hidden'); }
-    else showToast(data.error || 'Error', 'error');
-  });
+async function submitAwardBadge() {
+  const badgeId = document.getElementById('ab-badge-id').value;
+  const userId  = document.getElementById('ab-user').value;
+  const cid     = document.getElementById('ab-comm-id').value;
+  const fd = new FormData();
+  fd.append('action','award'); fd.append('badge_id', badgeId);
+  fd.append('user_id', userId); fd.append('community_id', cid);
+  fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/manage_badges.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { document.getElementById('ab-modal').classList.add('hidden'); showToast('Badge awarded!'); }
+  else alert(d.error || 'Failed');
 }
 
-function deleteBadge(badgeId, communityId) {
+async function doDeleteBadge(badgeId, cid) {
   if (!confirm('Delete this badge?')) return;
-  fetch('/api/manage_badges.php', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'delete_badge', community_id: communityId, badge_id: badgeId, csrf_token: CSRF_TOKEN})
-  }).then(r => r.json()).then(data => {
-    if (data.success) { showToast('Badge deleted!'); setTimeout(() => location.reload(), 500); }
-    else showToast(data.error || 'Error', 'error');
-  });
-}
-
-async function promoteToAdmin(communityId) {
-  const userId = document.getElementById('promote-user-select').value;
-  if (!userId) { alert('Please select a member'); return; }
   const fd = new FormData();
-  fd.append('action', 'promote_admin'); fd.append('user_id', userId);
-  fd.append('community_id', communityId); fd.append('csrf_token', CSRF_TOKEN);
-  const res = await fetch('/api/approve_member.php', {method:'POST', body:fd});
-  const data = await res.json();
-  if (data.success) { showToast('Member promoted to admin!'); setTimeout(()=>location.reload(),800); }
-  else alert(data.error || 'Failed');
+  fd.append('action','delete'); fd.append('badge_id', badgeId); fd.append('community_id', cid); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/manage_badges.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Deleted'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
 }
 
-async function removeAdmin(userId, communityId) {
+async function doAddTopic(cid) {
+  const name = document.getElementById('new-topic-name')?.value?.trim();
+  if (!name) { alert('Enter topic name'); return; }
+  const fd = new FormData();
+  fd.append('action','add_topic'); fd.append('community_id', cid); fd.append('name', name); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/post_action.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Topic added'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
+}
+
+async function doDeleteTopic(topicId, cid) {
+  if (!confirm('Delete topic?')) return;
+  const fd = new FormData();
+  fd.append('action','delete_topic'); fd.append('topic_id', topicId); fd.append('community_id', cid); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/post_action.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Deleted'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
+}
+
+async function doPromoteAdmin(cid) {
+  const uid = document.getElementById('promote-sel')?.value;
+  if (!uid) { alert('Select a member'); return; }
+  const fd = new FormData();
+  fd.append('action','promote_admin'); fd.append('user_id', uid); fd.append('community_id', cid); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/approve_member.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Promoted to admin!'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
+}
+
+async function doDemoteAdmin(uid, cid) {
   if (!confirm('Remove admin privileges?')) return;
   const fd = new FormData();
-  fd.append('action', 'demote_admin'); fd.append('user_id', userId);
-  fd.append('community_id', communityId); fd.append('csrf_token', CSRF_TOKEN);
-  const res = await fetch('/api/approve_member.php', {method:'POST', body:fd});
-  const data = await res.json();
-  if (data.success) { showToast('Admin removed'); setTimeout(()=>location.reload(),800); }
-  else alert(data.error || 'Failed');
+  fd.append('action','demote_admin'); fd.append('user_id', uid); fd.append('community_id', cid); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/approve_member.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) { showToast('Admin removed'); setTimeout(()=>location.reload(), 800); }
+  else alert(d.error || 'Failed');
 }
 
-function deleteTopic(topicId, communityId) {
-  if (!confirm('Delete this topic?')) return;
-  fetch('/api/post_action.php', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'delete_topic', topic_id: topicId, community_id: communityId, csrf_token: CSRF_TOKEN})
-  }).then(r => r.json()).then(data => {
-    if (data.success) { showToast('Topic deleted!'); setTimeout(() => location.reload(), 500); }
-    else showToast(data.error || 'Error', 'error');
-  });
+async function approveMember(membershipId, status, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  const fd = new FormData();
+  fd.append('membership_id', membershipId); fd.append('status', status); fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/approve_member.php', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.success) {
+    showToast(status === 'approved' ? 'Approved!' : 'Rejected');
+    if (btn) { const row = btn.closest('.flex.items-center.justify-between'); if (row) row.remove(); }
+    else setTimeout(() => location.reload(), 600);
+  } else { alert(d.error || 'Failed'); if (btn) { btn.disabled = false; btn.textContent = status === 'approved' ? 'Approve' : 'Reject'; } }
 }
 </script>
 

@@ -1,6 +1,5 @@
-# Prevent PHP execution in uploads
-php_flag engine off
-Options -ExecCGI
-AddHandler cgi-script .php .pl .py .jsp .asp .sh .cgi
-RemoveHandler .php
-RemoveType .php
+# Block PHP execution only
+<FilesMatch "\.(php|php5|php7|phtml|pl|py|cgi|sh)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

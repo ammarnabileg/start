@@ -29,7 +29,7 @@ if (!$mem || !in_array($mem['role'], ['admin', 'owner'])) {
     echo json_encode(['error' => 'Permission denied']); exit;
 }
 
-if ($action === 'create_badge') {
+if ($action === 'create' || $action === 'create_badge') {
     $name        = trim($data['name'] ?? '');
     $description = trim($data['description'] ?? '');
     $icon        = trim($data['icon'] ?? '🏅');
@@ -47,7 +47,7 @@ if ($action === 'create_badge') {
     exit;
 }
 
-if ($action === 'award_badge') {
+if ($action === 'award' || $action === 'award_badge') {
     $badge_id     = (int)($data['badge_id'] ?? 0);
     $target_user  = (int)($data['user_id'] ?? 0);
 
@@ -72,7 +72,7 @@ if ($action === 'award_badge') {
     exit;
 }
 
-if ($action === 'delete_badge') {
+if ($action === 'delete' || $action === 'delete_badge') {
     $badge_id = (int)($data['badge_id'] ?? 0);
     if (!$badge_id) { echo json_encode(['error' => 'badge_id required']); exit; }
 
