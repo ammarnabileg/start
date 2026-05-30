@@ -40,10 +40,10 @@ ALTER TABLE user_points AUTO_INCREMENT = 1;
 
 -- Sample Users (password: Password123!)
 INSERT INTO users (username, email, password_hash, first_name, last_name, bio, location, affiliate_code, theme) VALUES
-('admin', 'admin@discover.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Ahmad', 'Al-Rashid', 'Founder of Discover platform. Tech entrepreneur and community builder from Riyadh.', 'Riyadh, Saudi Arabia', 'ADMIN001', 'light'),
-('sarah_tech', 'sarah@discover.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Sarah', 'Al-Hassan', 'Full-stack developer and online educator. Passionate about teaching programming in Arabic.', 'Dubai, UAE', 'SARAH002', 'dark'),
-('khalid_music', 'khalid@discover.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Khalid', 'Al-Mansouri', 'Professional musician, oud player, and music educator with 15 years of experience.', 'Abu Dhabi, UAE', 'KHALID003', 'light'),
-('fatima_biz', 'fatima@discover.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Fatima', 'Al-Zahra', 'Business consultant and entrepreneur. Helping Gulf businesses scale and grow.', 'Kuwait City, Kuwait', 'FATIMA004', 'light');
+('admin', 'admin@discover.com', '$2y$12$s/CEo3Ve0QH7RPTh2GXFb.1lMrNBjzOGVOEANLQnpetdWJTohB5iq', 'Ahmad', 'Al-Rashid', 'Founder of Discover platform. Tech entrepreneur and community builder from Riyadh.', 'Riyadh, Saudi Arabia', 'ADMIN001', 'light'),
+('sarah_tech', 'sarah@discover.com', '$2y$12$s/CEo3Ve0QH7RPTh2GXFb.1lMrNBjzOGVOEANLQnpetdWJTohB5iq', 'Sarah', 'Al-Hassan', 'Full-stack developer and online educator. Passionate about teaching programming in Arabic.', 'Dubai, UAE', 'SARAH002', 'dark'),
+('khalid_music', 'khalid@discover.com', '$2y$12$s/CEo3Ve0QH7RPTh2GXFb.1lMrNBjzOGVOEANLQnpetdWJTohB5iq', 'Khalid', 'Al-Mansouri', 'Professional musician, oud player, and music educator with 15 years of experience.', 'Abu Dhabi, UAE', 'KHALID003', 'light'),
+('fatima_biz', 'fatima@discover.com', '$2y$12$s/CEo3Ve0QH7RPTh2GXFb.1lMrNBjzOGVOEANLQnpetdWJTohB5iq', 'Fatima', 'Al-Zahra', 'Business consultant and entrepreneur. Helping Gulf businesses scale and grow.', 'Kuwait City, Kuwait', 'FATIMA004', 'light');
 
 -- Communities
 INSERT INTO communities (owner_id, name, slug, description, short_bio, category, type, pricing, price, price_interval, language, member_count) VALUES
