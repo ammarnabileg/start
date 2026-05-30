@@ -39,22 +39,23 @@ include __DIR__ . '/includes/header.php';
 
 <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
- <!-- Profile header — full-width banner -->
- <div class="relative -mx-4 sm:-mx-6 lg:-mx-8 mb-0">
- <!-- Banner -->
- <div class="h-40 sm:h-56 bg-gradient-to-br from-primary-700 via-primary-600 to-accent-500 overflow-hidden">
- <div class="w-full h-full opacity-30 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.4),transparent)]"></div>
- </div>
+ <!-- Banner — full width outside container -->
+ <div class="h-44 sm:h-52 bg-gradient-to-br from-primary-700 via-primary-600 to-accent-500 -mx-4 sm:-mx-6 lg:-mx-8 mb-0 overflow-hidden flex-shrink-0">
+   <?php if (!empty($profile_user['banner'])): ?>
+     <img src="<?= e($profile_user['banner']) ?>" class="w-full h-full object-cover">
+   <?php else: ?>
+     <div class="w-full h-full opacity-30 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.4),transparent)]"></div>
+   <?php endif; ?>
  </div>
 
- <!-- Avatar + info card -->
- <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 -mt-8 mx-0 mb-6 overflow-hidden">
- <div class="px-6 pt-0 pb-5">
+ <!-- Avatar + info card — sits BELOW the banner, not overlapping -->
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 mt-4 mb-6 overflow-hidden">
+ <div class="px-6 pt-5 pb-5">
  <!-- Avatar row -->
- <div class="flex items-end justify-between gap-4 flex-wrap -mt-10 mb-4">
+ <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
  <img src="<?= get_avatar_url($profile_user['avatar'] ?? null, ($profile_user['first_name'] ?? '') . ' ' . ($profile_user['last_name'] ?? ''), 96) ?>"
  class="w-20 h-20 rounded-2xl border-4 border-white dark:border-[#1a1a1a] object-cover">
- <div class="flex items-center gap-2 mt-10">
+ <div class="flex items-center gap-2">
  <?php if ($is_own_profile): ?>
  <a href="/settings.php" class="px-4 py-2 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 rounded-full text-sm font-semibold hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Edit Profile</a>
  <?php elseif ($current_user): ?>
