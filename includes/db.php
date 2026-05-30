@@ -79,3 +79,14 @@ function get_platform_setting(string $key, string $default = ''): string {
  $row = db_fetch('SELECT setting_value FROM platform_settings WHERE setting_key = ?', [$key]);
  return $row ? $row['setting_value'] : $default;
 }
+
+// One-time fix: clean legacy /platform/ prefix from stored notification links
+function fix_notification_links(): void {
+ static $done = false;
+ if ($done) return;
+ $done = true;
+ try {
+   db_execute("UPDATE notifications SET link = REPLACE(link, '/platform/', '/') WHERE link LIKE '%/platform/%'");
+ } catch (Exception $e) {}
+}
+fix_notification_links();

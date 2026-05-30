@@ -40,6 +40,11 @@ if ($action === 'list') {
  [$current_user['id'], $limit]
  );
  $unread = get_unread_notification_count($current_user['id']);
+ // Fix any legacy /platform/ links stored in DB
+ foreach ($notifications as &$n) {
+   if (!empty($n['link'])) $n['link'] = str_replace('/platform/', '/', $n['link']);
+ }
+ unset($n);
  echo json_encode(['success' => true, 'notifications' => $notifications, 'unread' => $unread]);
  exit;
 }

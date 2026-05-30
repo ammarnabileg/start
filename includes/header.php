@@ -236,7 +236,7 @@ if ($current_user && isset($current_user['theme']) && $current_user['theme'] ===
  </div>
  <?php else: ?>
  <?php foreach ($recent_notifications as $notif): ?>
- <a href="<?= e($notif['link'] ?: '#') ?>"
+ <a href="<?= e($notif['link'] ? str_replace('/platform/', '/', $notif['link']) : '#') ?>"
  class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors <?= !$notif['is_read'] ? 'bg-primary-50/50 dark:bg-primary-900/10' : '' ?>">
  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">
  <?php $icons = ['new_follower'=>'👤','post_like'=>'♥','membership_approved'=>'✓','points_awarded'=>'★','badge_awarded'=>'🏅']; echo $icons[$notif['type']] ?? '●'; ?>
