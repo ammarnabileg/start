@@ -663,6 +663,10 @@ include __DIR__ . '/includes/header.php';
             [$community_id]
         );
         $all_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
+        $current_admins = db_fetch_all(
+            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.role FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.role IN ("admin","owner") AND m.status = "approved" ORDER BY m.role DESC, u.first_name',
+            [$community_id]
+        );
         ?>
         <div class="space-y-5">
           <!-- Award Points -->
@@ -779,6 +783,51 @@ include __DIR__ . '/includes/header.php';
               <button onclick="addTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors">Add</button>
             </div>
           </div>
+
+          <?php if ($is_owner): ?>
+          <!-- Manage Admins (owner only) -->
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 shadow-airbnb">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Admins</h3>
+            <div class="space-y-2 mb-4">
+              <?php foreach ($current_admins as $adm): ?>
+                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+                  <div class="flex items-center gap-3">
+                    <img src="<?= get_avatar_url($adm) ?>" class="w-8 h-8 rounded-full object-cover">
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white"><?= e(trim(($adm['first_name']??'').' '.($adm['last_name']??'')) ?: $adm['username']) ?></p>
+                      <p class="text-xs text-gray-400">@<?= e($adm['username']) ?></p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs px-2 py-1 rounded-full <?= $adm['role']==='owner' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' ?> font-semibold">
+                      <?= ucfirst($adm['role']) ?>
+                    </span>
+                    <?php if ($adm['role'] === 'admin' && $adm['id'] !== $current_user['id']): ?>
+                      <button onclick="removeAdmin(<?= $adm['id'] ?>, <?= $community_id ?>)"
+                              class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Remove</button>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <!-- Add admin from existing members -->
+            <div class="space-y-2">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Promote Member to Admin</p>
+              <div class="flex gap-2">
+                <select id="promote-user-select" class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">— Select member —</option>
+                  <?php foreach ($approved_members as $m):
+                    $already_admin = false;
+                    foreach($current_admins as $a) { if($a['id']==$m['id']) { $already_admin=true; break; } }
+                    if ($already_admin) continue; ?>
+                    <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
+                  <?php endforeach; ?>
+                </select>
+                <button onclick="promoteToAdmin(<?= $community_id ?>)" class="px-4 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Promote</button>
+              </div>
+            </div>
+          </div>
+          <?php endif; ?>
         </div>
 
         <!-- Award Badge Modal -->
@@ -935,8 +984,6 @@ include __DIR__ . '/includes/header.php';
     </div>
   </div>
 </div>
-
-<?php include __DIR__ . '/includes/footer.php'; ?>
 
 <script>
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '<?= csrf_token() ?>';
@@ -1197,6 +1244,29 @@ function deleteBadge(badgeId, communityId) {
   });
 }
 
+async function promoteToAdmin(communityId) {
+  const userId = document.getElementById('promote-user-select').value;
+  if (!userId) { alert('Please select a member'); return; }
+  const fd = new FormData();
+  fd.append('action', 'promote_admin'); fd.append('user_id', userId);
+  fd.append('community_id', communityId); fd.append('csrf_token', CSRF_TOKEN);
+  const res = await fetch('/api/approve_member.php', {method:'POST', body:fd});
+  const data = await res.json();
+  if (data.success) { showToast('Member promoted to admin!'); setTimeout(()=>location.reload(),800); }
+  else alert(data.error || 'Failed');
+}
+
+async function removeAdmin(userId, communityId) {
+  if (!confirm('Remove admin privileges?')) return;
+  const fd = new FormData();
+  fd.append('action', 'demote_admin'); fd.append('user_id', userId);
+  fd.append('community_id', communityId); fd.append('csrf_token', CSRF_TOKEN);
+  const res = await fetch('/api/approve_member.php', {method:'POST', body:fd});
+  const data = await res.json();
+  if (data.success) { showToast('Admin removed'); setTimeout(()=>location.reload(),800); }
+  else alert(data.error || 'Failed');
+}
+
 function deleteTopic(topicId, communityId) {
   if (!confirm('Delete this topic?')) return;
   fetch('/api/post_action.php', {
@@ -1208,3 +1278,5 @@ function deleteTopic(topicId, communityId) {
   });
 }
 </script>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

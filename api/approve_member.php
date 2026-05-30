@@ -18,6 +18,23 @@ if (!is_logged_in()) {
 }
 
 $current_user = get_auth_user();
+$action = $data['action'] ?? 'update_status';
+
+// Handle promote/demote admin actions
+if ($action === 'promote_admin' || $action === 'demote_admin') {
+    $user_id = (int)($data['user_id'] ?? 0);
+    $community_id = (int)($data['community_id'] ?? 0);
+    if (!$user_id || !$community_id) { echo json_encode(['error'=>'Missing params']); exit; }
+
+    // Only owner can promote/demote
+    $caller = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$current_user['id'], $community_id]);
+    if (!$caller || $caller['role'] !== 'owner') { echo json_encode(['error'=>'Only owner can manage admins']); exit; }
+
+    $new_role = $action === 'promote_admin' ? 'admin' : 'member';
+    db_execute('UPDATE memberships SET role=? WHERE user_id=? AND community_id=? AND status="approved"', [$new_role, $user_id, $community_id]);
+    echo json_encode(['success'=>true, 'role'=>$new_role]); exit;
+}
+
 $membership_id = (int)($data['membership_id'] ?? 0);
 $status = $data['status'] ?? '';
 
