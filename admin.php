@@ -108,7 +108,7 @@ include __DIR__ . '/includes/header.php';
   <div class="flex gap-6 flex-col md:flex-row">
     <!-- Sidebar -->
     <div class="md:w-52 flex-shrink-0">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3 shadow-sm sticky top-20">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-3 shadow-sm sticky top-20">
         <h2 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 mb-2">Admin</h2>
         <?php
         $nav = [
@@ -121,7 +121,7 @@ include __DIR__ . '/includes/header.php';
         foreach ($nav as $t => $info):
         ?>
           <a href="?tab=<?= $t ?>"
-            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all <?= $tab === $t ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' ?>">
+            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all <?= $tab === $t ? 'bg-gradient-to-r from-primary-600 to-accent-500 text-white font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-800 dark:hover:text-gray-200' ?>">
             <span><?= $info['icon'] ?></span>
             <span><?= $info['label'] ?></span>
           </a>
@@ -133,19 +133,19 @@ include __DIR__ . '/includes/header.php';
     <div class="flex-1 min-w-0">
 
       <?php if ($tab === 'settings'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Site Settings</h2>
         <form method="POST" enctype="multipart/form-data" class="space-y-5">
           <input type="hidden" name="action" value="save_settings">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Site Name</label>
             <input type="text" name="platform_name" value="<?= e($settings['platform_name'] ?? 'Discover') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Site Tagline</label>
             <input type="text" name="platform_tagline" value="<?= e($settings['platform_tagline'] ?? '') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Site Logo</label>
@@ -165,7 +165,7 @@ include __DIR__ . '/includes/header.php';
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Footer Text</label>
             <input type="text" name="footer_text" value="<?= e($settings['footer_text'] ?? '') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
               placeholder="© 2025 Discover. All rights reserved.">
           </div>
           <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Save Settings</button>
@@ -173,24 +173,24 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'seo'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">SEO Settings</h2>
         <form method="POST" enctype="multipart/form-data" class="space-y-5">
           <input type="hidden" name="action" value="save_seo">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Meta Title</label>
             <input type="text" name="seo_title" value="<?= e($settings['seo_title'] ?? '') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Meta Description</label>
             <textarea name="seo_description" rows="3"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($settings['seo_description'] ?? '') ?></textarea>
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($settings['seo_description'] ?? '') ?></textarea>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Meta Keywords</label>
             <input type="text" name="seo_keywords" value="<?= e($settings['seo_keywords'] ?? '') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
               placeholder="community, learning, networking">
           </div>
           <div>
@@ -204,7 +204,7 @@ include __DIR__ . '/includes/header.php';
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Google Analytics ID</label>
             <input type="text" name="ga_id" value="<?= e($settings['ga_id'] ?? '') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
               placeholder="G-XXXXXXXXXX">
           </div>
           <div>
@@ -225,7 +225,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'pricing'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Community Pricing</h2>
         <form method="POST" class="space-y-5">
           <input type="hidden" name="action" value="save_pricing">
@@ -233,14 +233,14 @@ include __DIR__ . '/includes/header.php';
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Community Creation Price ($)</label>
             <input type="number" name="community_creation_price" step="0.01" min="0"
               value="<?= e($settings['community_creation_price'] ?? '0') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             <p class="text-xs text-gray-400 mt-1">Set to 0 for free community creation</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Affiliate Commission Rate (%)</label>
             <input type="number" name="affiliate_commission_rate" step="0.1" min="0" max="100"
               value="<?= e($settings['affiliate_commission_rate'] ?? '7') ?>"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
           </div>
           <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Save Pricing</button>
         </form>
@@ -255,12 +255,12 @@ include __DIR__ . '/includes/header.php';
            FROM users u ORDER BY u.id ASC'
       );
       ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Users Management <span class="text-sm font-normal text-gray-500">(<?= count($users) ?> total)</span></h2>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-100 dark:border-gray-700">
+              <tr class="border-b border-gray-100 dark:border-white/10">
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">ID</th>
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">User</th>
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Email</th>
@@ -271,7 +271,7 @@ include __DIR__ . '/includes/header.php';
             </thead>
             <tbody>
               <?php foreach ($users as $u): ?>
-                <tr class="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                <tr class="border-b border-gray-50 dark:border-white/10/50 hover:bg-gray-50 dark:hover:bg-white/5">
                   <td class="py-2.5 px-3 text-gray-400 text-xs"><?= $u['id'] ?></td>
                   <td class="py-2.5 px-3">
                     <div class="font-medium text-gray-900 dark:text-white text-xs"><?= e(trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''))) ?: e($u['username']) ?></div>
@@ -312,12 +312,12 @@ include __DIR__ . '/includes/header.php';
            FROM communities c JOIN users u ON u.id = c.owner_id ORDER BY c.id ASC'
       );
       ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Communities Management <span class="text-sm font-normal text-gray-500">(<?= count($communities) ?> total)</span></h2>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-gray-100 dark:border-gray-700">
+              <tr class="border-b border-gray-100 dark:border-white/10">
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Name</th>
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Owner</th>
                 <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Members</th>
@@ -328,7 +328,7 @@ include __DIR__ . '/includes/header.php';
             </thead>
             <tbody>
               <?php foreach ($communities as $c): ?>
-                <tr class="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                <tr class="border-b border-gray-50 dark:border-white/10/50 hover:bg-gray-50 dark:hover:bg-white/5">
                   <td class="py-2.5 px-3">
                     <a href="/community.php?slug=<?= e($c['slug']) ?>" class="font-medium text-primary-600 dark:text-primary-400 hover:underline text-xs"><?= e($c['name']) ?></a>
                   </td>
@@ -340,7 +340,7 @@ include __DIR__ . '/includes/header.php';
                     <?php elseif ($c['pricing'] === 'free_trial'): ?>
                       <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full font-medium">Free Trial</span>
                     <?php else: ?>
-                      <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full font-medium">Free</span>
+                      <span class="px-2 py-0.5 bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 rounded-full font-medium">Free</span>
                     <?php endif; ?>
                   </td>
                   <td class="py-2.5 px-3">
