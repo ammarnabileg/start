@@ -26,15 +26,15 @@ include 'init.php';
 
 
 	<?php
-	$post_id  = $_GET["id"];
+	$post_id = $_GET["id"];
 
 	$result = $mysqli->query("SELECT * FROM blog_posts where blog_posts_id='$post_id' ") or die($$mysqli->error);
 	if ($result->num_rows > 0){
 		while($row = $result->fetch_assoc()) {
 
-			$blog_posts_title  = $row["blog_posts_title"];
-			$blog_posts_img  = $row["blog_posts_img"];
-			$blog_posts_text  = $row["blog_posts_text"];
+			$blog_posts_title = $row["blog_posts_title"];
+			$blog_posts_img = $row["blog_posts_img"];
+			$blog_posts_text = $row["blog_posts_text"];
 
 		}
 	}
@@ -61,7 +61,7 @@ include 'init.php';
 
 
 			<div class="lg:flex max-w-md gap-6 mx-auto mt-8 lg:mt-16 lg:grid-cols-3 lg:max-w-full mb-16 lg:space-y-0 space-y-7">
-				<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-shadow:rgb(0,_0,_0)_9px_9px] ">
+				<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-:rgb(0,_0,_0)_9px_9px] ">
 					<div class="p-5">
 						<div class="relative">
 							<img class="object-cover w-full h-full" src="<?php echo $blog_posts_img; ?>" alt="">
@@ -80,7 +80,7 @@ include 'init.php';
 
 
 
-					<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-shadow:rgb(0,_0,_0)_9px_9px] ">
+					<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-:rgb(0,_0,_0)_9px_9px] ">
 						<div class="py-5">
 
 							<p class="text-2xl font-semibold">
@@ -95,7 +95,7 @@ include 'init.php';
 
 					<div class="relative flex">
 						<div class="absolute inset-y-0 left-0 flex items-center selectbox">
-							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px]  sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3  shadow-sm placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
+							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px] sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3 placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
 								<option value="Null" disable="">إختر الدولة</option>
 								<option data-countrycode="EG" value="20" selected="">Egypt (+20)</option>
 								<option data-countrycode="KW" value="965">Kuwait (+965)</option>
@@ -314,8 +314,8 @@ include 'init.php';
 
 							</select>
 						</div>
-						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
-						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" value="<?php echo $actual_link; ?>">
+						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
+						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" value="<?php echo $actual_link; ?>">
 					</div>
 
 					<input type="submit" class="cursor-pointer inline-flex items-center justify-center px-6 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-[#22e203] hover:text-white focus:bg-[#f1f1f1]" value="إرسال" name="lead_reg">
@@ -323,13 +323,13 @@ include 'init.php';
 
 						</div>
 					</div>
-					<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-shadow:rgb(0,_0,_0)_9px_9px] ">
+					<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-:rgb(0,_0,_0)_9px_9px] ">
 						<div class="py-5">
 
 							<p class="text-black text-xl font-semibold">موضوعات أخرى</p>
 
 							<?php
-							$post_id  = $_GET["id"];
+							$post_id = $_GET["id"];
 
 							$result = $mysqli->query("SELECT * FROM blog_posts LIMIT 3") or die($$mysqli->error);
 							if ($result->num_rows > 0){
@@ -337,7 +337,7 @@ include 'init.php';
 							?>
 
 
-							<p class="mt-4 text-base text-gray-600"><?php echo  $row["blog_posts_title"]; ?></p>
+							<p class="mt-4 text-base text-gray-600"><?php echo $row["blog_posts_title"]; ?></p>
 							<a href="blog_post.php?id=<?php echo $row["blog_posts_id"] ?>" title="" class="inline-flex items-center justify-center pb-0.5 mt-5 text-base font-semibold text-blue-600 transition-all duration-200 border-b-2 border-transparent hover:border-blue-600 focus:border-blue-600">
 								أكمل القراءة
 								<i class="mx-2 w-5 h-5 fa-solid fa-chevron-left"></i>

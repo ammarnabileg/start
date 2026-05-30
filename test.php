@@ -6,13 +6,13 @@ include 'connect.php';
 
 // ✅ تحميل الدعوة
 if (!isset($_GET['id']) || empty($_GET['id'])) {
-    die("Invalid invitation ID.");
+ die("Invalid invitation ID.");
 }
 $invitation_id = (int) $_GET['id'];
 $result = $mysqli->query("SELECT * FROM events_invitations WHERE events_invitations_id = $invitation_id");
 
 if (!$result || $result->num_rows == 0) {
-    die("Invitation not found.");
+ die("Invitation not found.");
 }
 
 $row = $result->fetch_assoc();
@@ -22,69 +22,69 @@ $events_invitations_count = $row["events_invitations_count"];
 // ✅ مسار الخط
 $font_path = "fonts/Cairo-SemiBold.ttf";
 if (!file_exists($font_path)) {
-    die("Error: Font file not found.");
+ die("Error: Font file not found.");
 }
 
 // ✅ تحميل صورة الخلفية
 $bg_url = "https://start.com.eg/assets/img/invitation1.jpg";
 $bg_image = @imagecreatefromjpeg($bg_url);
 if (!$bg_image) {
-    die("Error: Could not load background image.");
+ die("Error: Could not load background image.");
 }
 
 // ✅ تحميل صورة QR
 $qr_image_path = "https://start.com.eg/qr.php?f=png&s=qr&d=https://start.com.eg/invitation_review.php?id=".$invitation_id."&sf=8&w=225&h=225";
 $qr_image = @imagecreatefrompng($qr_image_path);
 if (!$qr_image) {
-    die("Error: Could not load QR image.");
+ die("Error: Could not load QR image.");
 }
 
 // ✅ إنشاء النصوص كـ PNG شفاف باستخدام SVG
 function createTextImage($text1, $text2, $font_path) {
-    $svg_file = "/var/www/vhosts/start.com.eg/httpdocs/temp_text.svg";
-    $png_file = "/var/www/vhosts/start.com.eg/httpdocs/temp_text.png";
+ $svg_file = "/var/www/vhosts/start.com.eg/httpdocs/temp_text.svg";
+ $png_file = "/var/www/vhosts/start.com.eg/httpdocs/temp_text.png";
 
-    $svg_content = <<<SVG
+ $svg_content = <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="150">
-    <style>
-        @font-face {
-            font-family: 'Cairo-SemiBold';
-            src: url('{$font_path}') format('truetype');
-        }
-        text {
-            font-family: 'Cairo-SemiBold';
-            fill: black;
-            text-anchor: middle;
-            alignment-baseline: middle;
-        }
-    </style>
-    <text x="50%" y="40%" font-size="50">{$text1}</text>
-    <text x="50%" y="80%" font-size="40">عدد الضيوف: {$text2}</text>
+ <style>
+ @font-face {
+ font-family: 'Cairo-SemiBold';
+ src: url('{$font_path}') format('truetype');
+ }
+ text {
+ font-family: 'Cairo-SemiBold';
+ fill: black;
+ text-anchor: middle;
+ alignment-baseline: middle;
+ }
+ </style>
+ <text x="50%" y="40%" font-size="50">{$text1}</text>
+ <text x="50%" y="80%" font-size="40">عدد الضيوف: {$text2}</text>
 </svg>
 SVG;
 
-    file_put_contents($svg_file, $svg_content);
+ file_put_contents($svg_file, $svg_content);
 
-    // ✅ تحويل SVG إلى PNG باستخدام Imagick
-    $imagick = new Imagick();
-    $imagick->readImage($svg_file);
-    $imagick->setImageFormat("png");
-    $imagick->setImageBackgroundColor('transparent');
-    $imagick = $imagick->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
-    $imagick->writeImage($png_file);
+ // ✅ تحويل SVG إلى PNG باستخدام Imagick
+ $imagick = new Imagick();
+ $imagick->readImage($svg_file);
+ $imagick->setImageFormat("png");
+ $imagick->setImageBackgroundColor('transparent');
+ $imagick = $imagick->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
+ $imagick->writeImage($png_file);
 
-    if (!file_exists($png_file)) {
-        die("Error: Could not convert SVG to PNG.");
-    }
+ if (!file_exists($png_file)) {
+ die("Error: Could not convert SVG to PNG.");
+ }
 
-    return $png_file;
+ return $png_file;
 }
 
 // ✅ إنشاء النصوص
 $text_image_path = createTextImage($events_invitations_name, $events_invitations_count, $font_path);
 $text_image = @imagecreatefrompng($text_image_path);
 if (!$text_image) {
-    die("Error: Could not load text image.");
+ die("Error: Could not load text image.");
 }
 
 // ✅ دمج النص في الصورة

@@ -8,7 +8,7 @@ if(isset($_SESSION['users_id'])){
 
 	$users_id=$_SESSION['users_id'];
 
-	$result = $mysqli->query("SELECT * FROM users where users_id  = '$users_id' ") or die($$mysqli->error);
+	$result = $mysqli->query("SELECT * FROM users where users_id = '$users_id' ") or die($$mysqli->error);
 	if ($result->num_rows > 0) {
 		while($row = $result->fetch_assoc()) {
 			$users_name = $row["users_name"];

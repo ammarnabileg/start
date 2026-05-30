@@ -41,7 +41,7 @@ include 'init.php';
 			</div>
 
 			<?php 
-			if ($_SESSION['login'] == true  ) {
+			if ($_SESSION['login'] == true ) {
 			?>
 
 			<nav class="mt-10">
@@ -60,7 +60,7 @@ include 'init.php';
 				if (in_array(1, $unique_permissions) || in_array(2, $unique_permissions) || in_array(3, $unique_permissions)) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=ViewProjects">
+				 href="cpanel.php?p=ViewProjects">
 					<i class="fa-solid fa-city text-xl"></i>
 					<span class="mx-3">المشروعات</span>
 				</a>
@@ -73,11 +73,11 @@ include 'init.php';
 				if (in_array(4, $unique_permissions)) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=NewProject">
+				 href="cpanel.php?p=NewProject">
 					<svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
 						 stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-							  d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z">
+							 d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z">
 						</path>
 					</svg>
 					<span class="mx-3">إضافة مشروع جديد</span>
@@ -95,7 +95,7 @@ include 'init.php';
 
 
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=Blog">
+				 href="cpanel.php?p=Blog">
 					<i class="fa-regular fa-newspaper text-xl"></i>
 					<span class="mx-3">المقالات</span>
 				</a>
@@ -108,7 +108,7 @@ include 'init.php';
 				if (in_array(8, $unique_permissions)) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=NewArticle">
+				 href="cpanel.php?p=NewArticle">
 					<i class="fa-regular fa-pen-to-square text-xl"></i>
 					<span class="mx-3">إضافة مقالة جديدة</span>
 				</a>
@@ -124,7 +124,7 @@ include 'init.php';
 				if (in_array(9, $unique_permissions) || in_array(10, $unique_permissions)) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=ViewLeads&type=active&page=1">
+				 href="cpanel.php?p=ViewLeads&type=active&page=1">
 					<i class="fa-regular fa-user text-xl"></i>
 					<span class="mx-3">العملاء الجدد</span>
 				</a>
@@ -137,7 +137,7 @@ include 'init.php';
 				if (in_array(11, $unique_permissions)) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=Contactus&page=1">
+				 href="cpanel.php?p=Contactus&page=1">
 					<i class="fa-solid fa-headset text-xl"></i>
 					<span class="mx-3">نموذج التواصل</span>
 				</a>
@@ -152,7 +152,7 @@ include 'init.php';
 				<hr class="my-2 border-[#6b7280]">
 
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=ViewStaff&dir=users&page=1">
+				 href="cpanel.php?p=ViewStaff&dir=users&page=1">
 					<i class="fa-solid fa-user-tie text-xl"></i>
 					<span class="mx-3">الموظفين</span>
 				</a>
@@ -165,7 +165,7 @@ include 'init.php';
 				if (in_array(16, $unique_permissions) || in_array(17, $unique_permissions) ||in_array(18, $unique_permissions) || in_array(19, $unique_permissions) ) {
 				?>
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=StaffAccess&dir=Roles&page=1">
+				 href="cpanel.php?p=StaffAccess&dir=Roles&page=1">
 					<i class="fa-solid fa-user-gear text-xl"></i>
 					<span class="mx-3">صلاحيات الموظفين</span>
 				</a>
@@ -179,7 +179,7 @@ include 'init.php';
 				<hr class="my-2 border-[#6b7280]">
 
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=ViewEvents">
+				 href="cpanel.php?p=ViewEvents">
 					<i class="fa-regular fa-calendar-days text-xl"></i>
 					<span class="mx-3">إدارة الأحداث</span>
 				</a>
@@ -193,7 +193,7 @@ include 'init.php';
 				<hr class="my-2 border-[#6b7280]">
 
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=NewEventInvitation">
+				 href="cpanel.php?p=NewEventInvitation">
 					<i class="fa-regular fa-calendar-days text-xl"></i>
 					<span class="mx-3">إنشاء دعوة</span>
 				</a>
@@ -203,7 +203,7 @@ include 'init.php';
 				
 				<hr class="my-2 border-[#6b7280]">
 				<a class="flex items-center px-6 py-2 mt-4 text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-				   href="cpanel.php?p=Logout">
+				 href="cpanel.php?p=Logout">
 					<i class="fa-solid fa-arrow-right-from-bracket text-xl"></i>
 					<span class="mx-3">تسجيل خروج</span>
 				</a>
@@ -221,7 +221,7 @@ include 'init.php';
 					<button @click="sidebarOpen = true" class="flex gap-3 text-gray-500 focus:outline-none lg:hidden">
 						<svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 							<path d="M4 6H20M4 12H20M4 18H11" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-								  stroke-linejoin="round"></path>
+								 stroke-linejoin="round"></path>
 						</svg> قائمة لوحة التحكم
 
 					</button>

@@ -23,33 +23,33 @@ include 'init.php';
 
 
 	<!--
- <section class="relative  sm:py-16 lg:py-24">
-  <div class="absolute inset-0">
-   <img class="object-cover w-full h-full" src="assets/img/map.png" alt="" />
-  </div>
-  <div class="absolute inset-0 bg-[#0000008a]"></div>
+ <section class="relative sm:py-16 lg:py-24">
+ <div class="absolute inset-0">
+ <img class="object-cover w-full h-full" src="assets/img/map.png" alt="" />
+ </div>
+ <div class="absolute inset-0 bg-[#0000008a]"></div>
 
 
-  <div class="py-10 bg-gray-50 sm:py-16 lg:py-24 max-w-2xl mx-auto">
-   <div class="max-w-6xl px-4 mx-auto sm:px-6 lg:px-8">
+ <div class="py-10 bg-gray-50 sm:py-16 lg:py-24 max-w-2xl mx-auto">
+ <div class="max-w-6xl px-4 mx-auto sm:px-6 lg:px-8">
  <div class="relative">
-  <div class="aspect-w-4 aspect-h-3">
-   <img class="object-cover w-full h-full rounded-3xl" src="assets/img/main-video.jpg" alt="" />
-  </div>
+ <div class="aspect-w-4 aspect-h-3">
+ <img class="object-cover w-full h-full rounded-3xl" src="assets/img/main-video.jpg" alt="" />
+ </div>
 
-  <div class="absolute inset-0 flex items-center justify-center">
-   <div class="flex items-center justify-center rounded-full w-28 h-28 bg-white/20">
+ <div class="absolute inset-0 flex items-center justify-center">
+ <div class="flex items-center justify-center rounded-full w-28 h-28 bg-white/20">
  <button type="button" class="flex items-center justify-center w-20 h-20 text-white transition-all duration-200 rounded-full bg-gradient-to-r from-[#000] to-[#f1d293] hover:opacity-90">
-  <svg class="w-6 h-6 lg:w-8 lg:h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-   <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18c.62-.39.62-1.29 0-1.69L9.54 5.98C8.87 5.55 8 6.03 8 6.82z"></path>
-  </svg>
+ <svg class="w-6 h-6 lg:w-8 lg:h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+ <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18c.62-.39.62-1.29 0-1.69L9.54 5.98C8.87 5.55 8 6.03 8 6.82z"></path>
+ </svg>
  </button>
-   </div>
-  </div>
+ </div>
+ </div>
 
  </div>
-   </div>
-  </div>
+ </div>
+ </div>
  </section>
 
 -->
@@ -86,84 +86,84 @@ include 'init.php';
 
 
 <section class="py-10 bg-gray-50 sm:py-16 lg:py-24">
-    <div class="px-4 mx-auto sm:px-6 lg:px-8 max-w-7xl">
-        <div class="max-w-2xl mx-auto text-center">
-            <h2 class="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl lg:text-5xl">إتصل بنا</h2>
-            <p class="max-w-xl mx-auto mt-4 text-base leading-relaxed text-gray-500"></p>
-        </div>
+ <div class="px-4 mx-auto sm:px-6 lg:px-8 max-w-7xl">
+ <div class="max-w-2xl mx-auto text-center">
+ <h2 class="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl lg:text-5xl">إتصل بنا</h2>
+ <p class="max-w-xl mx-auto mt-4 text-base leading-relaxed text-gray-500"></p>
+ </div>
 
-        <div class="max-w-5xl mx-auto mt-12 sm:mt-16">
-            <div class="grid grid-cols-1 gap-6 px-8 text-center md:px-0 md:grid-cols-3">
-                <div class="overflow-hidden bg-white rounded-xl">
-                    <div class="p-6">
-                        <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1"
-                                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                            />
-                        </svg>
-                        <p dir="ltr" class="mt-6 text-lg font-medium text-gray-900">+20-1552521511
+ <div class="max-w-5xl mx-auto mt-12 sm:mt-16">
+ <div class="grid grid-cols-1 gap-6 px-8 text-center md:px-0 md:grid-cols-3">
+ <div class="overflow-hidden bg-white rounded-xl">
+ <div class="p-6">
+ <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ <path
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ stroke-width="1"
+ d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+ />
+ </svg>
+ <p dir="ltr" class="mt-6 text-lg font-medium text-gray-900">+20-1552521511
 </p>
-                        <p dir="ltr" class="mt-1 text-lg font-medium text-gray-900">+20-1552521511</p>
-                    </div>
-                </div>
+ <p dir="ltr" class="mt-1 text-lg font-medium text-gray-900">+20-1552521511</p>
+ </div>
+ </div>
 
-                <div class="overflow-hidden bg-white rounded-xl">
-                    <div class="p-6">
-                        <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <p dir="ltr" class="mt-6 text-lg font-medium text-gray-900">contact@example.com</p>
-                    </div>
-                </div>
+ <div class="overflow-hidden bg-white rounded-xl">
+ <div class="p-6">
+ <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+ </svg>
+ <p dir="ltr" class="mt-6 text-lg font-medium text-gray-900">contact@example.com</p>
+ </div>
+ </div>
 
-                <div class="overflow-hidden bg-white rounded-xl">
-                    <div class="p-6">
-                        <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <p class="mt-6 text-lg font-medium leading-relaxed text-gray-900">محمد عبدالحليم ابو غزاله, طريق المشير أحمد بدوي،, محافظة القاهرة‬, Badr, Egypt
+ <div class="overflow-hidden bg-white rounded-xl">
+ <div class="p-6">
+ <svg class="flex-shrink-0 w-10 h-10 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+ <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+ </svg>
+ <p class="mt-6 text-lg font-medium leading-relaxed text-gray-900">محمد عبدالحليم ابو غزاله, طريق المشير أحمد بدوي،, محافظة القاهرة‬, Badr, Egypt
 </p>
-                    </div>
-                </div>
-            </div>
+ </div>
+ </div>
+ </div>
 
-            <div class="mt-6 overflow-hidden bg-white rounded-xl">
-                <div class="px-6 py-12 sm:p-12">
-                    <h3 class="text-3xl font-semibold text-center text-gray-900">أرسل لنا رسالة</h3>
+ <div class="mt-6 overflow-hidden bg-white rounded-xl">
+ <div class="px-6 py-12 sm:p-12">
+ <h3 class="text-3xl font-semibold text-center text-gray-900">أرسل لنا رسالة</h3>
 
-                    <form action="actions.php" method="POST" class="mt-14">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-                            <div>
-                                <label for="name" class="text-base font-medium text-gray-900"> اسمك الكريم </label>
-                                <div class="mt-2.5 relative">
-                                    <input type="text" name="name" id="name" placeholder="أكتب اسمك الكامل" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
-                                </div>
-                            </div>
+ <form action="actions.php" method="POST" class="mt-14">
+ <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+ <div>
+ <label for="name" class="text-base font-medium text-gray-900"> اسمك الكريم </label>
+ <div class="mt-2.5 relative">
+ <input type="text" name="name" id="name" placeholder="أكتب اسمك الكامل" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
+ </div>
+ </div>
 
-                            <div>
-                                <label for="job" class="text-base font-medium text-gray-900"> الوظيفة </label>
-                                <div class="mt-2.5 relative">
-                                    <input type="text" name="job" id="job" placeholder="ما هي وظيفتك الحالة" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
-                                </div>
-                            </div>
+ <div>
+ <label for="job" class="text-base font-medium text-gray-900"> الوظيفة </label>
+ <div class="mt-2.5 relative">
+ <input type="text" name="job" id="job" placeholder="ما هي وظيفتك الحالة" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
+ </div>
+ </div>
 
 							<div>
-                                <label for="email" class="text-base font-medium text-gray-900"> البريد الإلكتروني </label>
-                                <div class="mt-2.5 relative">
-                                    <input type="email" name="email" id="email" placeholder="أكتب بريدك الإلكتروني" class="text-left block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
-                                </div>
-                            </div>
+ <label for="email" class="text-base font-medium text-gray-900"> البريد الإلكتروني </label>
+ <div class="mt-2.5 relative">
+ <input type="email" name="email" id="email" placeholder="أكتب بريدك الإلكتروني" class="text-left block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600" />
+ </div>
+ </div>
 
-                            <div>
-                                <label for="phone" class="text-base font-medium text-gray-900"> رقم الهاتف </label>
-                                <div class="mt-2.5 relative">
+ <div>
+ <label for="phone" class="text-base font-medium text-gray-900"> رقم الهاتف </label>
+ <div class="mt-2.5 relative">
 <div class="relative flex">
 						<div class="absolute inset-y-0 left-0 flex items-center selectbox">
-							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px]  sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3  shadow-sm placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
+							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px] sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3 placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
 								<option value="Null" disable="">إختر الدولة</option>
 								<option data-countrycode="EG" value="20" selected="">Egypt (+20)</option>
 								<option data-countrycode="KW" value="965">Kuwait (+965)</option>
@@ -382,29 +382,29 @@ include 'init.php';
 
 							</select>
 						</div>
-						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
-						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" value="https://start.com.eg/contact.php">
+						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
+						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" value="https://start.com.eg/contact.php">
 					</div>
 								</div>
-                            </div>
+ </div>
 
 
-                            <div class="sm:col-span-2">
-                                <label for="msg" class="text-base font-medium text-gray-900"> الرسالة </label>
-                                <div class="mt-2.5 relative">
-                                    <textarea name="msg" id="msg" placeholder="" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md resize-y focus:outline-none focus:border-blue-600 caret-blue-600" rows="4"></textarea>
-                                </div>
-                            </div>
+ <div class="sm:col-span-2">
+ <label for="msg" class="text-base font-medium text-gray-900"> الرسالة </label>
+ <div class="mt-2.5 relative">
+ <textarea name="msg" id="msg" placeholder="" class="block w-full px-4 py-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md resize-y focus:outline-none focus:border-blue-600 caret-blue-600" rows="4"></textarea>
+ </div>
+ </div>
 
-                            <div class="sm:col-span-2">
+ <div class="sm:col-span-2">
 								<input type="submit" class="cursor-pointer inline-flex items-center justify-center w-full px-4 py-4 mt-2 text-base font-semibold text-white transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md focus:outline-none hover:bg-blue-700 focus:bg-blue-700" value="إرسال" name="contactus">
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+ </div>
+ </div>
+ </form>
+ </div>
+ </div>
+ </div>
+ </div>
 </section>
 
 	

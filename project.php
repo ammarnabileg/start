@@ -32,7 +32,7 @@ while ($row = $result->fetch_assoc()){
 
 <style>
 	th,td{
-	   border: 1px solid;
+	 border: 1px solid;
 
 	}
 	</style>
@@ -126,7 +126,7 @@ while ($row = $result->fetch_assoc()){
 
 					<div class="relative flex">
 						<div class="absolute inset-y-0 left-0 flex items-center selectbox">
-							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px]  sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3  shadow-sm placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
+							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[100px] sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3 placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
 								<option value="Null" disable="">إختر الدولة</option>
 								<option data-countrycode="EG" value="20" selected="">Egypt (+20)</option>
 								<option data-countrycode="KW" value="965">Kuwait (+965)</option>
@@ -345,8 +345,8 @@ while ($row = $result->fetch_assoc()){
 
 							</select>
 						</div>
-						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
-						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" value="<?php echo $actual_link; ?>">
+						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
+						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" value="<?php echo $actual_link; ?>">
 					</div>
 
 					<input type="submit" class="cursor-pointer inline-flex items-center justify-center px-6 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-[#22e203] hover:text-white focus:bg-[#f1f1f1]" value="طلب إستشارة مجانية" name="lead_reg">
@@ -640,7 +640,7 @@ while ($row = $result->fetch_assoc()){
 
 					<div class="relative flex">
 						<div class="absolute inset-y-0 left-0 flex items-center selectbox">
-							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3  shadow-sm placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
+							<select required="required" id="country_code" name="country_code" class=" min-h-[50px] max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3 placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
 								<option value="Null" disable="">إختر الدولة</option>
 								<option data-countrycode="EG" value="20" selected="">Egypt (+20)</option>
 								<option data-countrycode="KW" value="965">Kuwait (+965)</option>
@@ -859,8 +859,8 @@ while ($row = $result->fetch_assoc()){
 
 							</select>
 						</div>
-						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
-						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" value="https://start.com.eg/project.php">
+						<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
+						<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32 min-h-[50px] placeholder-gray-500 bg-[#fff] dark:text-[#9e9e9e]" value="https://start.com.eg/project.php">
 					</div>
 
 					<input type="submit" class="cursor-pointer inline-flex items-center justify-center px-6 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-white focus:bg-[#f1f1f1]" value="طلب إستشارة مجانية" name="lead_reg">

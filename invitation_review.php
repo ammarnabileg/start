@@ -29,7 +29,7 @@ if ($result->num_rows > 0) {
 	}
 }
 
-$result = $mysqli->query("SELECT * FROM events_inv_type where events_inv_type_id  = $events_invitations_type ") or die($mysqli->error);
+$result = $mysqli->query("SELECT * FROM events_inv_type where events_inv_type_id = $events_invitations_type ") or die($mysqli->error);
 if ($result->num_rows > 0) {
 	while($row = $result->fetch_assoc()) {
 		$events_inv_type_title=$row["events_inv_type_title"];
@@ -37,7 +37,7 @@ if ($result->num_rows > 0) {
 }
 
 
-$result = $mysqli->query("SELECT * FROM events where events_id  = $events_invitations_eventid ") or die($mysqli->error);
+$result = $mysqli->query("SELECT * FROM events where events_id = $events_invitations_eventid ") or die($mysqli->error);
 if ($result->num_rows > 0) {
 	while($row = $result->fetch_assoc()) {
 		$events_name=$row["events_name"];
@@ -51,7 +51,7 @@ if ($result->num_rows > 0) {
 
 
 $attended=0;
-$result = $mysqli->query("SELECT * FROM events_attendance where events_attendance_invitationid  = $invitation_id ") or die($mysqli->error);
+$result = $mysqli->query("SELECT * FROM events_attendance where events_attendance_invitationid = $invitation_id ") or die($mysqli->error);
 if ($result->num_rows > 0) {
 	while($row = $result->fetch_assoc()) {
 		$attended=1;
@@ -60,7 +60,7 @@ if ($result->num_rows > 0) {
 
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['review_invitation'])) {
-	$passcode =  $_POST['passcode'];
+	$passcode = $_POST['passcode'];
 	$passcode = (int) filter_var($passcode, FILTER_SANITIZE_NUMBER_INT);
 	$events_org_code = (int) filter_var($events_org_code, FILTER_SANITIZE_NUMBER_INT);
 
@@ -82,23 +82,23 @@ echo 'aaaa';
 
 
 				$mysqli->query("INSERT INTO events_attendance 
-                    (
-                    events_attendance_invitationid,
+ (
+ events_attendance_invitationid,
 					events_attendance_moreinf,
 					events_attendance_realcount,
 					events_attendance_eventid,
 					events_attendance_orgid
-                    )
-                    VALUES
-                    (
-                    '$invitation_id',
+ )
+ VALUES
+ (
+ '$invitation_id',
 					'$more_inf',
 					'$n_of_att',
 					'$events_invitations_eventid',
 					'$users_id'
-                    )") or die($mysqli->error);
+ )") or die($mysqli->error);
 				$_SESSION['MSG_success']='تم تسجيل الحضور بنجاح';
-				header('Location: invitation_review.php?id='.$invitation_id);            exit;
+				header('Location: invitation_review.php?id='.$invitation_id); exit;
 
 
 
@@ -106,7 +106,7 @@ echo 'aaaa';
 
 			}else{
 				$_SESSION['MSG_error']='خطأ في كود المنظم!!';
-				header('Location: invitation_review.php?id='.$invitation_id);            exit;
+				header('Location: invitation_review.php?id='.$invitation_id); exit;
 
 			}
 
@@ -116,7 +116,7 @@ echo 'aaaa';
 
 		$_SESSION['MSG_error']='يجب تسجيل الدخول!';
 
-		header('Location: cpanel.php');            exit;
+		header('Location: cpanel.php'); exit;
 
 	}
 
@@ -143,22 +143,22 @@ else{
 
 		<?php if(isset($events_desc)&& $events_desc!=" " && $events_desc!=Null){ ?>
 		<div class="mt-12 text-base leading-relaxed text-gray-100 border border-1 bg-black border-b-0 p-4 shadow-t-lg rounded-t-lg">تفاصيل الحدث</div>
-		<div class="text-base leading-relaxed text-gray-600 border border-1  p-4 shadow-b-lg rounded-b-lg"><?= $events_desc; ?></div>
+		<div class="text-base leading-relaxed text-gray-600 border border-1 p-4 shadow-b-lg rounded-b-lg"><?= $events_desc; ?></div>
 		<?php } ?>
 
 		<div class="mt-12 text-base leading-relaxed text-gray-100 border border-1 bg-black border-b-0 p-4 shadow-t-lg rounded-t-lg">تفاصيل إضافية</div>
 
-		<div class="text-base leading-relaxed text-gray-600 border border-1  p-4 shadow-b-lg rounded-b-lg">
+		<div class="text-base leading-relaxed text-gray-600 border border-1 p-4 shadow-b-lg rounded-b-lg">
 			<p class=" ">هذه الدعوة تشمل <?= $events_invitations_count; ?> أفراد.</p>
 
 			<?= $events_invitations_more; ?>
 		</div>
 
 
-		<div class="mt-12 flex-col flex text-center place-items-center border-black justify-center items-center text-base leading-relaxed text-gray-600 border border-1  p-4 shadow-lg rounded-lg">
+		<div class="mt-12 flex-col flex text-center place-items-center border-black justify-center items-center text-base leading-relaxed text-gray-600 border border-1 p-4 rounded-lg">
 
 			<a href="<?= $events_for_url; ?>" class="place-items-center"><img class="max-w-[80px]" src="https://i.postimg.cc/8PPRxPwc/location.png" /></a>
-			<a href="<?= $events_for_url; ?>"  class="mt-5 items-center justify-center px-4 py-3 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-white focus:bg-[#f1f1f1]" role="button">عرض الموقع</a>
+			<a href="<?= $events_for_url; ?>" class="mt-5 items-center justify-center px-4 py-3 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-white focus:bg-[#f1f1f1]" role="button">عرض الموقع</a>
 
 		</div>
 
@@ -166,21 +166,21 @@ else{
 
 
 		<div class="mt-[300px] text-base leading-relaxed text-gray-100 border border-1 bg-black border-b-0 p-4 shadow-t-lg rounded-t-lg">خاص بالمنظمين</div>
-		<div class="text-base leading-relaxed text-gray-600 border border-1  p-4 shadow-b-lg rounded-b-lg">
+		<div class="text-base leading-relaxed text-gray-600 border border-1 p-4 shadow-b-lg rounded-b-lg">
 
 			<?php if($attended==0){ ?>
 			<form action="invitation_review.php?id=<?= $invitation_id; ?>" method="POST">
 				<div dir="ltr" class="flex space-x-2 justify-center">
-					<input type="text" name="passcode" class="w-72 h-12 text-center text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="●●●●" oninput="this.value = this.value.replace(/\D/g, '').split('').join('  ')" />
+					<input type="text" name="passcode" class="w-72 h-12 text-center text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="●●●●" oninput="this.value = this.value.replace(/\D/g, '').split('').join(' ')" />
 				</div>
 				<div dir="ltr" class="flex justify-center">
 					<input type="number" name="n_of_att" class="w-72 text-center text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="عدد الحضور" required>
 				</div>
 				<div dir="ltr" class="flex justify-center">
-					<textarea name="more_inf" class="w-72 text-center text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"  rows="4" cols="50" placeholder="تفاصيل إضافية"></textarea>
+					<textarea name="more_inf" class="w-72 text-center text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4" cols="50" placeholder="تفاصيل إضافية"></textarea>
 				</div>
 				<div dir="ltr" class="flex mt-2 justify-center">
-					<input type="submit" class="w-72 h-12 cursor-pointer inline-flex items-center justify-center px-6  text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-[#22e203] hover:text-white focus:bg-[#f1f1f1]" value="إرسال" name="review_invitation">
+					<input type="submit" class="w-72 h-12 cursor-pointer inline-flex items-center justify-center px-6 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-[#22e203] hover:text-white focus:bg-[#f1f1f1]" value="إرسال" name="review_invitation">
 				</div>
 			</form>
 			<?php }else{ ?>

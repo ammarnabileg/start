@@ -3,7 +3,7 @@
 
 
 
-// header('Location: https://join-vital.com/go.php?id=34');             
+// header('Location: https://join-vital.com/go.php?id=34'); 
 header( "refresh:10;url=https://join-vital.com/go.php?id=34" );
 
 
@@ -19,7 +19,7 @@ session_start();
 $pageTitle = 'Home';
 include 'init.php'; 
 
-/*        
+/* 
 include 'includes/Pages/home.php'; 
 include './includes/templates/footer.php';
 */

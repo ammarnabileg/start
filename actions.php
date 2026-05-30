@@ -30,12 +30,12 @@ if($task == "DeleteEvent"){
 	$DeleteEvent_id = $_GET['id'];
 
 	$mysqli->query("UPDATE events SET events_activity = 0 
-            WHERE events_id = $DeleteEvent_id") or die($mysqli->error);
+ WHERE events_id = $DeleteEvent_id") or die($mysqli->error);
 			$_SESSION['MSG_success']= "تم حذف الحدث بنجاح.";
 
 	header('Location: '.$_SERVER['HTTP_REFERER']); 
 	exit;
-}    
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~[DeleteProject]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -47,11 +47,11 @@ if($task == "DeleteProject"){
 	$DeleteProject_id = $_GET['id'];
 
 	$mysqli->query("DELETE FROM projects
-            WHERE projects_id = $DeleteProject_id") or die($mysqli->error);
+ WHERE projects_id = $DeleteProject_id") or die($mysqli->error);
 
 	header('Location: '.$_SERVER['HTTP_REFERER']); 
 	exit;
-}    
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~[DeleteProject]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -63,11 +63,11 @@ if($task == "Deleteuser"){
 	$DeleteUser_id = $_GET['id'];
 
 	$mysqli->query("DELETE FROM users
-            WHERE users_id  = $DeleteUser_id") or die($mysqli->error);
+ WHERE users_id = $DeleteUser_id") or die($mysqli->error);
 
 	header('Location: '.$_SERVER['HTTP_REFERER']); 
 	exit;
-}    
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~[Deleteuser]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -79,11 +79,11 @@ if($task == "DeleteBlog"){
 	$DeleteBlog = $_GET['id'];
 
 	$mysqli->query("DELETE FROM blog_posts
-            WHERE blog_posts_id  = $DeleteBlog") or die($mysqli->error);
+ WHERE blog_posts_id = $DeleteBlog") or die($mysqli->error);
 
 	header('Location: '.$_SERVER['HTTP_REFERER']); 
 	exit;
-}    
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~[DeleteBlog]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -94,11 +94,11 @@ if($task == "Deleterole"){
 	$id = $_GET['id'];
 
 	$mysqli->query("DELETE FROM roles
-            WHERE roles_id  = $id") or die($mysqli->error);
+ WHERE roles_id = $id") or die($mysqli->error);
 
 	header('Location: '.$_SERVER['HTTP_REFERER']); 
 	exit;
-}    
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~[Deleterole]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -115,7 +115,7 @@ if (isset($_POST['addnewuser']))
 	$users_phone = $_POST['users_phone'];
 	$rand_password = $_POST['rand_password'];
 	$roles = $_POST['roles'];
-    $rolesStr = implode(",", $roles); 
+ $rolesStr = implode(",", $roles); 
 
 	$error_1=0;
 	$result = $mysqli->query("SELECT * FROM users where users_email = '$email' ") or die($$mysqli->error);
@@ -126,13 +126,13 @@ if (isset($_POST['addnewuser']))
 
 
 		$mysqli->query("INSERT INTO users 
-                    (     
-                    users_name,users_email,users_ccode,users_phone,users_password,users_access
-                    ) 
-                    VALUES
-                    (
-                    '$name','$email','$users_ccode','$users_phone','$rand_password','$rolesStr'
-                    )") or die($mysqli->error);
+ ( 
+ users_name,users_email,users_ccode,users_phone,users_password,users_access
+ ) 
+ VALUES
+ (
+ '$name','$email','$users_ccode','$users_phone','$rand_password','$rolesStr'
+ )") or die($mysqli->error);
 		$_SESSION['MSG_success']='تمت إضافة الحساب بنجاح.<br> <a href="cpanel.php?p=ViewStaff&dir=users&page=1">عرض جميع المستخدمين</a>' ;
 	}
 
@@ -155,25 +155,25 @@ if (isset($_POST['updateuser']))
 	$users_phone = $_POST['users_phone'];
 	$rand_password = $_POST['rand_password'];
 	$roles = $_POST['roles'];
-    $rolesStr = implode(",", $roles); 
+ $rolesStr = implode(",", $roles); 
 	
 
 	$result = $mysqli->query("SELECT * FROM users where users_email = '$email' ") or die($$mysqli->error);
 	if ($result->num_rows > 0) {
 		while($row = $result->fetch_assoc()) {
-			$userss_id  = $row["users_id"];
+			$userss_id = $row["users_id"];
 			
 		}
 		
 		
 		$mysqli->query("UPDATE users SET 
-            users_name = '$name',					 
-            users_email = '$email',					 
-            users_ccode = '$users_ccode',					 
-            users_phone = '$users_phone',					 
-            users_password = '$rand_password',
-            users_access = '$rolesStr'
-            WHERE users_email = '$email' ") or die($mysqli->error);
+ users_name = '$name',					 
+ users_email = '$email',					 
+ users_ccode = '$users_ccode',					 
+ users_phone = '$users_phone',					 
+ users_password = '$rand_password',
+ users_access = '$rolesStr'
+ WHERE users_email = '$email' ") or die($mysqli->error);
 
 		$_SESSION['MSG_success']='تم تعديل بيانات الحساب بنجاح' ;
 
@@ -191,32 +191,32 @@ if (isset($_POST['updateuser']))
 
 if (isset($_POST['contactus']))
 {
-    $name = htmlspecialchars(trim($_POST['name']));
-    $country_code = htmlspecialchars(trim($_POST['country_code']));
-    $phone = htmlspecialchars(trim($_POST['phone']));
-    $email = htmlspecialchars(trim($_POST['email']));
-    $job = htmlspecialchars(trim($_POST['job']));
-    $msg = htmlspecialchars(trim($_POST['msg']));
+ $name = htmlspecialchars(trim($_POST['name']));
+ $country_code = htmlspecialchars(trim($_POST['country_code']));
+ $phone = htmlspecialchars(trim($_POST['phone']));
+ $email = htmlspecialchars(trim($_POST['email']));
+ $job = htmlspecialchars(trim($_POST['job']));
+ $msg = htmlspecialchars(trim($_POST['msg']));
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['MSG_error'] = 'بريد إلكتروني غير صالح';
-        header('Location: contact.php');
-        exit;
-    }
+ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+ $_SESSION['MSG_error'] = 'بريد إلكتروني غير صالح';
+ header('Location: contact.php');
+ exit;
+ }
 	
 
 	
 	$mysqli->query("INSERT INTO contact 
-                    (     
-                    contact_name,contact_ccode,contact_phone,contact_email,contact_job,contact_msg
-                    ) 
-                    VALUES
-                    (
-                    '$name','$country_code','$phone','$email','$job','$msg'
-                    )") or die($mysqli->error);
+ ( 
+ contact_name,contact_ccode,contact_phone,contact_email,contact_job,contact_msg
+ ) 
+ VALUES
+ (
+ '$name','$country_code','$phone','$email','$job','$msg'
+ )") or die($mysqli->error);
 		$_SESSION['MSG_success']='تم إرسال رسالتك بنجاح';
 
-	header('Location: contact.php');            exit;
+	header('Location: contact.php'); exit;
 
 }
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[updateuser]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
@@ -229,22 +229,22 @@ if (isset($_POST['addnewrole']))
 {
 	$rolename = $_POST['rolename'];
 	$permissions = $_POST['permissions'];
-    $permissionsStr = implode(",", $permissions); // This creates a comma-separated list
+ $permissionsStr = implode(",", $permissions); // This creates a comma-separated list
 
 
 	
 	$mysqli->query("INSERT INTO roles 
-                    (     
-                    roles_name,roles_permissions
-                    ) 
-                    VALUES
-                    (
-                    '$rolename','$permissionsStr'
-                    )") or die($mysqli->error);
+ ( 
+ roles_name,roles_permissions
+ ) 
+ VALUES
+ (
+ '$rolename','$permissionsStr'
+ )") or die($mysqli->error);
 		$_SESSION['MSG_success']='تم إضافة دور '.$rolename.' بنجاح';
 
-	header('Location: cpanel.php?p=StaffAccess&dir=NewRole');            exit;
-}      
+	header('Location: cpanel.php?p=StaffAccess&dir=NewRole'); exit;
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[addnewrole]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -254,18 +254,18 @@ if (isset($_POST['updaterole']))
 	$roleid = $_POST['roleid'];
 	$rolename = $_POST['rolename'];
 	$permissions = $_POST['permissions'];
-    $permissionsStr = implode(",", $permissions); // This creates a comma-separated list
+ $permissionsStr = implode(",", $permissions); // This creates a comma-separated list
 
 
 	$mysqli->query("UPDATE roles SET 
-            roles_name = '$rolename',					 
-            roles_permissions = '$permissionsStr'	
-            WHERE roles_id  = $roleid ") or die($mysqli->error);
+ roles_name = '$rolename',					 
+ roles_permissions = '$permissionsStr'	
+ WHERE roles_id = $roleid ") or die($mysqli->error);
 
 	$_SESSION['MSG_success']='تم تحديث دور '.$rolename.' بنجاح';
 
-	header('Location: cpanel.php?p=StaffAccess&dir=edit_role&id='.$roleid);            exit;
-}      
+	header('Location: cpanel.php?p=StaffAccess&dir=edit_role&id='.$roleid); exit;
+} 
 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[updaterole]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
@@ -284,21 +284,21 @@ if (isset($_POST['aaaaaaaaaaaaaaa']))
 	}
 
 	$mysqli->query("UPDATE groups SET 
-            group_lec_num = '$group_lec_num',					 
-            group_type = '$group_type'	
-            WHERE group_id = $groupcode and group_academyid = $myacademyid") or die($mysqli->error);
+ group_lec_num = '$group_lec_num',					 
+ group_type = '$group_type'	
+ WHERE group_id = $groupcode and group_academyid = $myacademyid") or die($mysqli->error);
 
 	$mysqli->query("INSERT INTO plans 
-                    (     
-                    plans_title,plans_group,plans_date
-                    ) 
-                    VALUES
-                    (
-                    '$f_title','$f_group','$timenow'
-                    )") or die($mysqli->error);
+ ( 
+ plans_title,plans_group,plans_date
+ ) 
+ VALUES
+ (
+ '$f_title','$f_group','$timenow'
+ )") or die($mysqli->error);
 
-	header('Location: plans.php');            exit;
-}      
+	header('Location: plans.php'); exit;
+} 
 ////~/~/~/~/~/~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[]~~~~[END]~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~/~/~/~/~/~////
 
 
