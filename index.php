@@ -1,747 +1,322 @@
 <?php
-error_reporting(E_ALL ^ E_NOTICE);
+ini_set('display_errors', 0);
+error_reporting(0);
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/functions.php';
 
-ob_start(); // Output Buffering Start
+$page_title = 'Discover Communities';
+$current_user = get_auth_user();
 
-session_start();
-$pageTitle = 'Home';
-include 'init.php'; 
+// Filters
+$q        = trim($_GET['q'] ?? '');
+$category = $_GET['category'] ?? 'all';
+$price    = $_GET['price'] ?? '';
+$type     = $_GET['type'] ?? '';
+$sort     = $_GET['sort'] ?? 'trending';
+$lang     = $_GET['lang'] ?? '';
+$page     = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 20;
+$offset   = ($page - 1) * $per_page;
 
+$categories = ['all', 'trending', 'hobbies', 'music', 'money', 'celebrity', 'tech', 'health', 'sports', 'self_improvement', 'relationships'];
+$cat_labels = ['all'=>'All', 'trending'=>'Trending', 'hobbies'=>'Hobbies', 'music'=>'Music', 'money'=>'Money', 'celebrity'=>'Celebrity', 'tech'=>'Tech', 'health'=>'Health', 'sports'=>'Sports', 'self_improvement'=>'Self Improvement', 'relationships'=>'Relationships'];
+$cat_icons = [
+    'all' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>',
+    'trending' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+    'hobbies' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>',
+    'music' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>',
+    'money' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+    'celebrity' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>',
+    'tech' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>',
+    'health' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>',
+    'sports' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>',
+    'self_improvement' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+    'relationships' => '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>',
+];
+
+// Build query
+$where = ['c.is_active = 1'];
+$params = [];
+
+if ($q) {
+    $where[] = '(c.name LIKE ? OR c.description LIKE ? OR c.short_bio LIKE ?)';
+    $params = array_merge($params, ["%$q%", "%$q%", "%$q%"]);
+}
+if ($category && $category !== 'all' && $category !== 'trending') {
+    $where[] = 'c.category = ?';
+    $params[] = $category;
+}
+if ($price === 'free') {
+    $where[] = 'c.pricing = "free"';
+} elseif ($price === 'paid') {
+    $where[] = 'c.pricing = "paid"';
+} elseif ($price === 'free_trial') {
+    $where[] = 'c.pricing = "free_trial"';
+}
+if ($type === 'public') {
+    $where[] = 'c.type = "public"';
+} elseif ($type === 'private') {
+    $where[] = 'c.type = "private"';
+}
+if ($lang) {
+    $where[] = 'c.language = ?';
+    $params[] = $lang;
+}
+
+$where_str = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$order = $sort === 'top' ? 'c.member_count DESC' : 'c.member_count DESC, c.created_at DESC';
+
+$count_row = db_fetch("SELECT COUNT(*) as cnt FROM communities c $where_str", $params);
+$total = (int)($count_row['cnt'] ?? 0);
+$total_pages = ceil($total / $per_page);
+
+$communities = db_fetch_all(
+    "SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last,
+     (SELECT COUNT(*) FROM memberships m WHERE m.community_id = c.id AND m.status = 'approved') as real_member_count
+     FROM communities c
+     JOIN users u ON u.id = c.owner_id
+     $where_str
+     ORDER BY $order
+     LIMIT ? OFFSET ?",
+    array_merge($params, [$per_page, $offset])
+);
+
+include __DIR__ . '/includes/header.php';
 ?>
 
-
-
-
-
-
-
-
-
-
-
-<section class="relative w-full h-screen flex items-center justify-center text-white text-center">
-    <div class="absolute inset-0 w-full h-full">
-
-   <video autoplay muted loop playsinline class="w-full h-full object-cover">
-            <source src="assets/img/header-start.mp4" type="video/mp4">
-        </video>
-        <!---
-        <img src="assets/img/bg-11.png" 
-             alt="start" 
-             class="absolute inset-0 w-full h-full object-cover " 
-             onerror="this.classList.remove('hidden')">
-		--->
-		
+<!-- Category chips row — sticky below nav, Airbnb-style -->
+<div class="sticky top-16 z-40 bg-white/95 dark:bg-[#121212]/95 glass border-b border-gray-200/60 dark:border-white/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-1">
+      <!-- Chips scroll area -->
+      <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide py-3 flex-1">
+        <?php foreach ($categories as $cat): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['category' => $cat, 'page' => 1])) ?>"
+             class="flex flex-col items-center gap-1 px-4 py-1 flex-shrink-0 text-xs font-medium transition-colors whitespace-nowrap cursor-pointer
+                    <?= ($category === $cat) ? 'text-gray-900 dark:text-white chip-active' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300' ?>">
+            <?= $cat_icons[$cat] ?? '' ?>
+            <?= $cat_labels[$cat] ?>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <!-- Filter button -->
+      <div class="flex-shrink-0 pl-4 border-l border-gray-200 dark:border-white/10 ml-2">
+        <button onclick="toggleFilters()"
+                class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 dark:border-white/20 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          Filters
+          <?php if ($price || $type || ($sort && $sort !== 'trending') || $lang): ?>
+            <span class="w-2 h-2 bg-primary-500 rounded-full"></span>
+          <?php endif; ?>
+        </button>
+      </div>
     </div>
-
-    <!-- طبقة شفافة -->
-    <div class="absolute inset-0 bg-black/50"></div>
-
-    <!-- النص -->
-    <div class="relative z-10 animate-fade-in">
-        <h1 class="text-4xl sm:text-5xl md:text-7xl font-bold uppercase text-gray-100">
-            Start <br> Development
-        </h1>
-        <p dir="ltr" class="text-2xl md:text-3xl mt-4 text-gray-300">
-            To Infinity...
-        </p>
-				<a href="#about" >
-				<!-- <img class="mx-auto max-w-[70px] mt-[100px]" src="assets/img/mouse-scroll.gif"> -->
-				<i class=" mt-[100px] text-4xl text-gray-900 fa-solid fa-chevron-down" ></i>
-			</a>
-    </div>
-</section>
-
-
-<?php /*
-
-<section class="bg-white py-24 sm:py-24 lg:py-36 ">
-	<div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-		<div class="text-center items-center grid-cols-1 gap-12 lg:grid-cols-2">
-			<div>
-				<p class="text-base tracking-wider text-yellow-500 uppercase">إبدأ معنا حياة يملؤها التقدم</p>
-				<h1 class="mt-4 text-4xl font-semibold text-[#000] lg:mt-8 lg:leading-[1.3] sm:text-6xl xl:text-8xl leading-10">
-					رواد الإستثمار والتطوير العقاري
-				</h1>
-				<p class="mt-4 text-base text-gray-600 lg:mt-8 sm:text-xl">نمي استثماراتك بسرعه مع قادة الصناعة..</p>
-			</div>
-			<a href="#about" >
-				<!-- <img class="mx-auto max-w-[70px] mt-[100px]" src="assets/img/mouse-scroll.gif"> -->
-				<i class=" mt-[100px] text-4xl text-gray-600 fa-solid fa-chevron-down" ></i>
-			</a>
-		</div>
-	</div>
-</section>
-*/ ?>
-
-
-
-
-
-
-
-
-<!--
-
-
-<section class="relative  sm:py-16 lg:py-24">
- <div class="absolute inset-0">
-  <img class="object-cover w-full h-full" src="assets/img/map.png" alt="" />
- </div>
- <div class="absolute inset-0 bg-[#0000008a]"></div>
-
-
- <div class="py-10 bg-gray-50 sm:py-16 lg:py-24 max-w-2xl mx-auto">
-  <div class="max-w-6xl px-4 mx-auto sm:px-6 lg:px-8">
-   <div class="relative">
- <div class="aspect-w-4 aspect-h-3">
-  <img class="object-cover w-full h-full rounded-3xl" src="assets/img/main-video.jpg" alt="" />
- </div>
-
- <div class="absolute inset-0 flex items-center justify-center">
-  <div class="flex items-center justify-center rounded-full w-28 h-28 bg-white/20">
-   <button type="button" class="flex items-center justify-center w-20 h-20 text-white transition-all duration-200 rounded-full bg-gradient-to-r from-[#000] to-[#f1d293] hover:opacity-90 " onclick="openModal('modelConfirm')">
- <svg class="w-6 h-6 lg:w-8 lg:h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-  <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18c.62-.39.62-1.29 0-1.69L9.54 5.98C8.87 5.55 8 6.03 8 6.82z"></path>
- </svg>
-   </button>
   </div>
- </div>
+</div>
 
-   </div>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Filter Panel -->
+  <div id="filter-panel" class="<?= ($price || $type || ($sort && $sort !== 'trending') || $lang) ? '' : 'hidden' ?> bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 mb-6 shadow-airbnb">
+    <form method="GET" id="filter-form">
+      <input type="hidden" name="q" value="<?= e($q) ?>">
+      <input type="hidden" name="category" value="<?= e($category) ?>">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <div>
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Price</h4>
+          <?php foreach ([''=>'All Prices', 'free'=>'Free', 'paid'=>'Paid', 'free_trial'=>'Free Trial'] as $val => $label): ?>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+              <input type="radio" name="price" value="<?= $val ?>" <?= $price === $val ? 'checked' : '' ?>
+                     class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
+              <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Type</h4>
+          <?php foreach ([''=>'All Types', 'public'=>'Public', 'private'=>'Private'] as $val => $label): ?>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+              <input type="radio" name="type" value="<?= $val ?>" <?= $type === $val ? 'checked' : '' ?>
+                     class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
+              <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Sort By</h4>
+          <?php foreach (['trending'=>'Trending', 'top'=>'Top Members'] as $val => $label): ?>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+              <input type="radio" name="sort" value="<?= $val ?>" <?= $sort === $val ? 'checked' : '' ?>
+                     class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
+              <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Language</h4>
+          <?php foreach ([''=>'All Languages', 'en'=>'English', 'ar'=>'Arabic', 'fr'=>'French'] as $val => $label): ?>
+            <label class="flex items-center gap-2 mb-2 cursor-pointer">
+              <input type="radio" name="lang" value="<?= $val ?>" <?= $lang === $val ? 'checked' : '' ?>
+                     class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
+              <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
+        <a href="/index.php" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium transition-colors">Reset</a>
+        <button type="submit" class="px-5 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors">Apply Filters</button>
+      </div>
+    </form>
   </div>
- </div>
 
-
-
- <div id="modelConfirm" onclick="closeModal('modelConfirm')" class="fixed hidden z-50 inset-0 bg-gray-900 bg-opacity-60 overflow-y-auto h-full w-full px-4 ">
-  <div class="relative top-40 mx-auto shadow-xl rounded-md bg-white max-w-3xl">
-
-   <div class="flex justify-end p-2">
- <button onclick="closeModal('modelConfirm')" type="button"
-   class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
-  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-   <path fill-rule="evenodd"
-   d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-   clip-rule="evenodd"></path>
-  </svg>
- </button>
-   </div>
-
-   <div class="p-6 pt-0 text-center">
-
- <iframe width="100%" height="350" src="https://www.youtube.com/embed/Y5U4AaNs4_0" title="خطوات ستارت العقارية بمدينة بدر" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-   </div>
-
+  <!-- Results header -->
+  <div class="flex items-center justify-between mb-6">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+      <?php if ($q): ?>
+        <span class="font-semibold text-gray-900 dark:text-white"><?= $total ?></span> results for "<span class="font-semibold text-primary-600 dark:text-primary-400"><?= e($q) ?></span>"
+      <?php else: ?>
+        <span class="font-semibold text-gray-900 dark:text-white"><?= $total ?></span> communities
+      <?php endif; ?>
+    </p>
+    <?php if ($current_user): ?>
+      <a href="/create-community.php" class="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Create Community
+      </a>
+    <?php endif; ?>
   </div>
- </div>
 
- <script type="text/javascript">
-  window.openModal = function(modalId) {
-   document.getElementById(modalId).style.display = 'block'
-   document.getElementsByTagName('body')[0].classList.add('overflow-y-hidden')
-  }
-
-  window.closeModal = function(modalId) {
-   document.getElementById(modalId).style.display = 'none'
-   document.getElementsByTagName('body')[0].classList.remove('overflow-y-hidden')
-  }
-
-  // Close all modals when press ESC
-  document.onkeydown = function(event) {
-   event = event || window.event;
-   if (event.keyCode === 27) {
- document.getElementsByTagName('body')[0].classList.remove('overflow-y-hidden')
- let modals = document.getElementsByClassName('modal');
- Array.prototype.slice.call(modals).forEach(i => {
-  i.style.display = 'none'
- })
-   }
-  };
- </script>
-</section>
-
-
-
--->
-
-
-
-
-
-
-
-
-
-<section id="about" class="py-24 sm:py-24 lg:py-36 bg-white">
-	<div class="px-4 mx-auto sm:px-6 lg:px-8 max-w-7xl">
-		<div class="grid items-center grid-cols-1 gap-y-12 lg:grid-cols-2 lg:gap-x-24">
-			<style>
-
-				@-webkit-keyframes action {
-					0% { transform: translateY(0); }
-					100% { transform: translateY(-10px); }
-				}
-
-				@keyframes action {
-					0% { transform: translateY(0); }
-					100% { transform: translateY(-10px); }
-				}
-
-
-			</style>
-			<div class="action" style="-webkit-animation: action 1s infinite  alternate;
-									   animation: action 1s infinite  alternate;">
-
-				<img class=" w-full max-w-md mx-auto" draggable="false" src="https://start.com.eg/assets/img/logo-b.png" alt="" />
-			</div>
-
-			<div class="text-center ltr:lg:text-left rtl:lg:text-right">
-				<h2 class="text-xl font-bold leading-tight text-yellow-500 sm:text-2xl lg:text-3xl">خيارك الأول في مدينة بدر</h2>
-				<p class="mt-6 text-base text-gray-900">
-					نحن شركة ستارت للتطوير العقاري نعد من أفضل الشركات صعودا في السوق العقاري ونؤمن بأن قوتنا تستمد من تميزنا وعندما يتعلق الأمر بالتصميم والتنفيذ في مجال العقارات نعمل باجتهاد مما يتوافق مع المواصفات المصرية قمنا بتصميم وتنفيذ وتسليم الكثير من المشروعات في وقت قياسي كما شهد عملائنا على كفائتنا وخبرتنا واحترامنا في التعامل معهم وتلبية رغباتهم وتسليمهم قبل الميعاد المتفق عليه بجودة وكفائة عالية لدينا الآن خمسة وعشرون مشروعا بين تنفيذ واشراف وتشطيبات مستمرين في البناء والتطوير ونطمح الى أن نصبح أفضل شركة تطوير عقاري في مصر
-					...
-				</p>
-
-				<a href="about.php" title="" class="mt-5 inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-white focus:bg-[#f1f1f1]" role="button">  عن الشركة</a>
-			</div>
-
-		</div>
-	</div>
-</section>
-
-
-
-
-
-
-
-<section class="bg-yellow-50 py-24 sm:py-24 lg:py-36">
-	<div class="px-4 mx-auto sm:px-6 lg:px-8 max-w-7xl">
-		<div class="max-w-2xl mx-auto text-center">
-			<p class="text-base tracking-wider text-yellow-500 uppercase">مشروعاتنا</p>
-			<h2 class="text-3xl font-bold leading-tight text-black sm:text-4xl lg:text-5xl lg:leading-tight">آخر أعمالنا</h2>
-		</div>
-
-
-
-
-		<div class="grid max-w-md grid-cols-1 gap-6 mx-auto mt-8 lg:mt-16 lg:grid-cols-3 lg:max-w-full mb-16">
-
-
-
-			<?php
-
-
-			$result = $mysqli->query("SELECT * FROM projects LIMIT 3") or die($$mysqli->error);
-			while ($row = $result->fetch_assoc()): 
-
-			?>
-
-
-			<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white  [box-shadow:rgb(0,_0,_0)_9px_9px]  ">
-
-				<a href="project.php?id=<?php echo $row["projects_id"]; ?>" title="" class="block aspect-w-4 aspect-h-3">
-					<img class="object-cover w-full h-full" src="uploads/img/<?php echo $row["projects_thumbnail"]; ?>" alt="" />
-				</a>
-				<p class="mt-5 text-2xl font-semibold px-4 mb-4">
-					<a href="project.php?id=<?php echo $row["projects_id"]; ?>" title="" class="text-black"><?php echo $row["projects_name"]; ?></a>
-				</p>
-			</div>
-
-			<?php
-
-			endwhile; 
-
-			?>
-
-
-		</div>
-
-
-
-
-		<div class="flex justify-center">
-			<a href="projects.php?page=1" title="" class="mt-5 inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-white focus:bg-[#f1f1f1]" role="button">  عرض المزيد</a>
-		</div>
-
-	</div>
-</section>
-
-
-
-
-<section class="py-24 sm:py-24 lg:py-36 bg-white">
-	<div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-		<div class="max-w-xl mx-auto text-center">
-
-			<h2 class="text-3xl font-bold leading-tight text-yellow-500 sm:text-4xl lg:text-5xl">نحن نبني الثقة</h2>
-			<p class="mt-4 text-base leading-relaxed text-gray-900">في ستارت، نحن ملتزمون ببناء الثقة من خلال التميز في تقديم الحلول العقارية ونفخر بكوننا مصدرك الإستشاري الموثوق.</p>
-		</div>
-
-		<div class="grid max-w-md grid-cols-1 gap-6 mx-auto mt-8 lg:mt-16 lg:grid-cols-2 lg:max-w-full justify-center max-w-lg px-10 mx-auto mt-8 space-y-8 lg:max-w-2xl sm:px-0 sm:space-y-0 sm:flex-row sm:mt-16 sm:gap-x-6 lg:gap-x-12 sm:items-center">
-
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">باقة من الخبراء</p>
-					<p class="ml-4 leading-snug text-gray-600">فريق متكامل من الخبراء يضم نخبة من المهندسين والمعماريين، يعمل بتناغم لتحقيق أعلى جودة.</p>
-				</div>
-			</div>
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">تصاميم مبتكرة تلهم</p>
-					<p class="ml-4 leading-snug text-gray-600">تصاميم تجمع بين الحداثة والأصالة، مع تشطيبات متقنة تُبرز التفاصيل.</p>
-				</div>
-			</div>
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">خدمة استثنائية بعد البيع</p>
-					<p class="ml-4 leading-snug text-gray-600">دعم مستمر ومتابعة دقيقة لضمان رضا العملاء وحل أي تحديات بسرعة.</p>
-				</div>
-			</div>
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">عروض حصرية لا تُنافس</p>
-					<p class="ml-4 leading-snug text-gray-600">أسعار جذابة دون التنازل عن الجودة والتميز في كل مشروع.</p>
-				</div>
-			</div>
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">مواقع استراتيجية ترفع القيمة</p>
-					<p class="ml-4 leading-snug text-gray-600">نختار بعناية مواقع مشروعاتنا لتقديم استثمارات عالية القيمة.</p>
-				</div>
-			</div>
-
-			<div class="flex items-center lg:flex-1 gap-3">
-				<i class="fa-regular text-5xl fa-star flex-shrink-0 text-yellow-500 "></i>
-				<div>
-					<p class="ml-4 text-lg font-semibold leading-snug text-gray-900">تشطيبات فائقة الجودة</p>
-					<p class="ml-4 leading-snug text-gray-600">نحرص على أدق التفاصيل في التشطيب، لتسليم وحدات جاهزة بأعلى معايير.</p>
-				</div>
-			</div>
-
-
-		</div>
-
-	</div>
-</section>
-
-
-<?php
-/*
-
-		<div class="flex justify-center mt-10 sm:mt-16">
-			<iframe  src="https://www.facebook.com/plugins/video.php?height=314&href=https%3A%2F%2Fwww.facebook.com%2FStartDevEg%2Fvideos%2F1125711762274949%2F&show_text=false&width=560&t=0" width="560" height="314" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowFullScreen="true"></iframe>
-		</div>
-
-		<div class="mt-5 sm:mt-16">
-			<img class="w-full max-w-3xl mx-auto -mb-16" src="assets/img/start-mall.png"/>
-		</div>
-
-*/ ?>
-
-
-
-
-<section class="max-w-7xl mx-auto px-4 pt-24 sm:pt-24 lg:pt-36">
-    <div class=" flex flex-col lg:flex-row items-center gap-8 ">
-    <div class="w-full lg:w-1/2 ">
-        <h5 class="text-gray-100 uppercase tracking-widest text-sm">آخر مشاريعنا</h5>
-        <h2 class="text-3xl font-bold text-[#9C784A] mt-2">Start Mall</h2>
-        <div class="text-gray-200 mt-4 leading-relaxed">
-			<p>مشروع ستارت مول هو مشروع تجاري إداري طبي مملوك لشركة ستارت العقارية&nbsp;</p><p><span style="color:hsl(0,0%,0%);">مساحة المشروع 1449م&nbsp;</span></p><p>يتكون المشروع من&nbsp;</p><ul><li>جراش&nbsp;</li><li>- دور أرضي منخفض&nbsp;</li><li>- دور أرضي مرتفع نشاط تجاري&nbsp;</li><li>- دور أول نشاط تجاري&nbsp;</li><li>- دور ثاني طبي&nbsp;</li><li>- دور ثالث اداري&nbsp;</li><li>تم التعاقد على المشروع في 10 / 02 / 2024</li><li>حالة المشروع الان قيد الانشاء&nbsp;</li><li>التسليم 2026&nbsp;</li><li>&nbsp;</li><li>&nbsp;</li></ul> 
-        </div>
-        
-        <!-- زر التفاصيل -->
-        <div class="mt-6">
-            <a href="https://start.com.eg/project.php?id=3" class="inline-flex items-center px-6 py-3 bg-[#9C784A] text-white text-sm font-semibold rounded-full shadow-md transition-all hover:bg-[#8B6A3E]">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-                عرض المزيد
-            </a>
-        </div>
-    </div>    
-    <div class="w-full lg:w-1/2">
-        <div class="relative w-full max-w-3xl shadow-lg rounded-lg overflow-hidden">
-            <iframe src="https://www.facebook.com/plugins/video.php?height=314&href=https%3A%2F%2Fwww.facebook.com%2FStartDevEg%2Fvideos%2F1125711762274949%2F&show_text=false&width=560&t=0" 
-                    width="560" height="314" 
-                    class="w-full min-h-64 sm:min-h-[314px] border-2 border-gray-300 rounded-lg"
-                    style="border:none;overflow:hidden" 
-                    scrolling="no" frameborder="0" allowfullscreen="true"
-                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
-            </iframe>
-        </div>
+  <!-- Community Cards Grid — Airbnb property card style -->
+  <?php if (empty($communities)): ?>
+    <div class="text-center py-24">
+      <div class="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <h3 class="text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">No communities found</h3>
+      <p class="text-gray-500 dark:text-gray-500 mb-6 text-sm">Try different search terms or filters</p>
+      <a href="/index.php" class="px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors">Browse All</a>
     </div>
+  <?php else: ?>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+      <?php foreach ($communities as $c): ?>
+        <?php
+        $is_member = false;
+        $membership_status = null;
+        if ($current_user) {
+            $mem = db_fetch('SELECT status FROM memberships WHERE user_id = ? AND community_id = ?', [$current_user['id'], $c['id']]);
+            if ($mem) { $is_member = $mem['status'] === 'approved'; $membership_status = $mem['status']; }
+        }
+        ?>
+        <!-- Airbnb-style property card -->
+        <div class="community-card group cursor-pointer" onclick="window.location='/community.php?slug=<?= e($c['slug']) ?>'">
+          <!-- Image area — 4:3 ratio -->
+          <div class="relative aspect-[4/3] rounded-2xl overflow-hidden mb-3 bg-gray-100 dark:bg-[#2a2a2a]">
+            <?php if ($c['banner']): ?>
+              <img src="<?= e($c['banner']) ?>" alt="<?= e($c['name']) ?>"
+                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+            <?php else: ?>
+              <div class="w-full h-full bg-gradient-to-br from-primary-700 to-accent-500 flex items-center justify-center">
+                <span class="text-5xl font-black text-white/30"><?= strtoupper(substr($c['name'], 0, 1)) ?></span>
+              </div>
+            <?php endif; ?>
+
+            <!-- Category badge top-left -->
+            <div class="absolute top-3 left-3">
+              <span class="bg-black/50 glass text-white text-xs font-semibold px-2.5 py-1 rounded-full capitalize">
+                <?= str_replace('_', ' ', $cat_labels[$c['category']] ?? $c['category']) ?>
+              </span>
+            </div>
+
+            <!-- Pricing badge top-right -->
+            <div class="absolute top-3 right-3">
+              <?php if ($c['pricing'] === 'free'): ?>
+                <span class="bg-green-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">Free</span>
+              <?php elseif ($c['pricing'] === 'paid'): ?>
+                <span class="bg-[#1a1a1a]/80 glass text-white text-xs font-bold px-2.5 py-1 rounded-full"><?= format_price($c['price'], $c['price_interval'] ?? '') ?>/mo</span>
+              <?php else: ?>
+                <span class="bg-accent-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">Free Trial</span>
+              <?php endif; ?>
+            </div>
+
+            <!-- Logo bottom-left -->
+            <?php if ($c['logo']): ?>
+              <div class="absolute bottom-3 left-3">
+                <img src="<?= e($c['logo']) ?>" class="w-9 h-9 rounded-xl object-cover border-2 border-white/30 shadow-lg" alt="">
+              </div>
+            <?php endif; ?>
+
+            <!-- Member status indicator -->
+            <?php if ($is_member): ?>
+              <div class="absolute bottom-3 right-3">
+                <span class="bg-primary-500/90 text-white text-xs font-bold px-2 py-0.5 rounded-full">Joined</span>
+              </div>
+            <?php elseif ($membership_status === 'pending'): ?>
+              <div class="absolute bottom-3 right-3">
+                <span class="bg-amber-500/90 text-white text-xs font-bold px-2 py-0.5 rounded-full">Pending</span>
+              </div>
+            <?php endif; ?>
+          </div>
+
+          <!-- Card content — Airbnb minimal style -->
+          <div class="px-0.5">
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <h3 class="font-semibold text-gray-900 dark:text-white text-sm leading-tight line-clamp-1"><?= e($c['name']) ?></h3>
+              <span class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 font-medium"><?= format_member_count((int)$c['real_member_count']) ?> members</span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 leading-relaxed mb-1.5"><?= e($c['short_bio'] ?: $c['description']) ?></p>
+            <div class="flex items-center gap-1.5">
+              <img src="<?= get_avatar_url(null, ($c['owner_first'] ?: $c['owner_username'])) ?>"
+                   class="w-4 h-4 rounded-full object-cover bg-gray-200 dark:bg-gray-700" alt="">
+              <span class="text-xs text-gray-500 dark:text-gray-500">by <?= e($c['owner_first'] ?: $c['owner_username']) ?></span>
+              <?php if ($c['type'] === 'private'): ?>
+                <span class="ml-auto text-xs text-gray-400 dark:text-gray-600 flex items-center gap-0.5">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                  Private
+                </span>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; ?>
     </div>
 
-    <!-- الصورة -->
-    <div class="mt-10 sm:mt-16 relative">
-        <img class="w-full max-w-3xl mx-auto -mb-10 sm:-mb-16 shadow-xl " 
-             src="assets/img/start-mall.png" 
-             alt="Start Mall">
-    </div>
+    <!-- Pagination -->
+    <?php if ($total_pages > 1): ?>
+      <div class="flex items-center justify-center gap-2 mt-12">
+        <?php if ($page > 1): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>"
+             class="w-10 h-10 rounded-full border border-gray-300 dark:border-white/20 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </a>
+        <?php endif; ?>
+        <?php
+        $start_page = max(1, $page - 2);
+        $end_page = min($total_pages, $page + 2);
+        for ($i = $start_page; $i <= $end_page; $i++):
+        ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"
+             class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors
+                    <?= $i === $page ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'border border-gray-300 dark:border-white/20 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' ?>">
+            <?= $i ?>
+          </a>
+        <?php endfor; ?>
+        <?php if ($page < $total_pages): ?>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>"
+             class="w-10 h-10 rounded-full border border-gray-300 dark:border-white/20 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+            <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
+  <?php endif; ?>
+</main>
 
-</section>
+<?php include __DIR__ . '/includes/footer.php'; ?>
 
-
-
-
-
-
-<section class="bg-white py-24 sm:py-24 lg:py-36  text-gray-900" >
-	<div id="hero-help" class="max-w-screen-lg container mx-auto bg-yellow-50 py-24 text-center rounded-lg px-8 ">
-		<div class="">
-			<h3 class="text-3xl md:text-5xl font-semibold">هل تحتاج إلى مساعدة؟</h3>
-			<p class="mt-8 text-lg md:text-xl font-light max-w-[600px] mx-auto">
-				هل لديك المزيد من الاستفسارات أو تحتاج الى استشارة أحد موظفينا من الاستشاريين العقاريين المتخصصين في الاستثمار العقاري؟
-			</p>
-			<form action="includes/Sections/lead_reg.php" method="POST" class="flex flex-col mt-6 gap-y-3">
-				<div>
-					<label for="name" class="sr-only">الاسم</label>
-					<input type="text" name="lead_name" id="name" placeholder="أكتب اسمك هنا" class="block w-full p-4 text-black placeholder-gray-500 transition-all duration-200 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-blue-600 caret-blue-600">
-				</div>
-
-				<div class="relative flex">
-					<div class="absolute inset-y-0 left-0 flex items-center selectbox">
-						<select required="required" id="country_code" name="country_code" class=" min-h-[58px] max-w-[100px]  sm:max-w-[135px] h-full rounded-md block w-full rounded border-0 py-2 px-3.5 pl-3  shadow-sm placeholder-[#000] bg-[#86868617] dark:text-[#000] text-[#000] ">
-							<option value="Null" disable="">إختر الدولة</option>
-							<option data-countrycode="EG" value="20" selected="">Egypt (+20)</option>
-							<option data-countrycode="KW" value="965">Kuwait (+965)</option>
-							<option data-countrycode="SA" value="966">Saudi Arabia (+966)</option>
-							<option data-countrycode="AE" value="971">United Arab Emirates (+971)</option>
-							<option data-countrycode="IL" value="972">Palestine (+972)</option>
-							<option data-countrycode="DZ" value="213">Algeria (+213)</option>
-							<option data-countrycode="AD" value="376">Andorra (+376)</option>
-							<option data-countrycode="AO" value="244">Angola (+244)</option>
-							<option data-countrycode="AI" value="1264">Anguilla (+1264)</option>
-							<option data-countrycode="AG" value="1268">Antigua &amp; Barbuda (+1268)</option>
-							<option data-countrycode="AR" value="54">Argentina (+54)</option>
-							<option data-countrycode="AM" value="374">Armenia (+374)</option>
-							<option data-countrycode="AW" value="297">Aruba (+297)</option>
-							<option data-countrycode="AU" value="61">Australia (+61)</option>
-							<option data-countrycode="AT" value="43">Austria (+43)</option>
-							<option data-countrycode="AZ" value="994">Azerbaijan (+994)</option>
-							<option data-countrycode="BS" value="1242">Bahamas (+1242)</option>
-							<option data-countrycode="BH" value="973">Bahrain (+973)</option>
-							<option data-countrycode="BD" value="880">Bangladesh (+880)</option>
-							<option data-countrycode="BB" value="1246">Barbados (+1246)</option>
-							<option data-countrycode="BY" value="375">Belarus (+375)</option>
-							<option data-countrycode="BE" value="32">Belgium (+32)</option>
-							<option data-countrycode="BZ" value="501">Belize (+501)</option>
-							<option data-countrycode="BJ" value="229">Benin (+229)</option>
-							<option data-countrycode="BM" value="1441">Bermuda (+1441)</option>
-							<option data-countrycode="BT" value="975">Bhutan (+975)</option>
-							<option data-countrycode="BO" value="591">Bolivia (+591)</option>
-							<option data-countrycode="BA" value="387">Bosnia Herzegovina (+387)</option>
-							<option data-countrycode="BW" value="267">Botswana (+267)</option>
-							<option data-countrycode="BR" value="55">Brazil (+55)</option>
-							<option data-countrycode="BN" value="673">Brunei (+673)</option>
-							<option data-countrycode="BG" value="359">Bulgaria (+359)</option>
-							<option data-countrycode="BF" value="226">Burkina Faso (+226)</option>
-							<option data-countrycode="BI" value="257">Burundi (+257)</option>
-							<option data-countrycode="KH" value="855">Cambodia (+855)</option>
-							<option data-countrycode="CM" value="237">Cameroon (+237)</option>
-							<option data-countrycode="CA" value="1">Canada (+1)</option>
-							<option data-countrycode="CV" value="238">Cape Verde Islands (+238)</option>
-							<option data-countrycode="KY" value="1345">Cayman Islands (+1345)</option>
-							<option data-countrycode="CF" value="236">Central African Republic (+236)</option>
-							<option data-countrycode="CL" value="56">Chile (+56)</option>
-							<option data-countrycode="CN" value="86">China (+86)</option>
-							<option data-countrycode="CO" value="57">Colombia (+57)</option>
-							<option data-countrycode="KM" value="269">Comoros (+269)</option>
-							<option data-countrycode="CG" value="242">Congo (+242)</option>
-							<option data-countrycode="CK" value="682">Cook Islands (+682)</option>
-							<option data-countrycode="CR" value="506">Costa Rica (+506)</option>
-							<option data-countrycode="HR" value="385">Croatia (+385)</option>
-							<option data-countrycode="CU" value="53">Cuba (+53)</option>
-							<option data-countrycode="CY" value="90392">Cyprus North (+90392)</option>
-							<option data-countrycode="CY" value="357">Cyprus South (+357)</option>
-							<option data-countrycode="CZ" value="42">Czech Republic (+42)</option>
-							<option data-countrycode="DK" value="45">Denmark (+45)</option>
-							<option data-countrycode="DJ" value="253">Djibouti (+253)</option>
-							<option data-countrycode="DM" value="1809">Dominica (+1809)</option>
-							<option data-countrycode="DO" value="1809">Dominican Republic (+1809)</option>
-							<option data-countrycode="EC" value="593">Ecuador (+593)</option>
-							<option data-countrycode="SV" value="503">El Salvador (+503)</option>
-							<option data-countrycode="GQ" value="240">Equatorial Guinea (+240)</option>
-							<option data-countrycode="ER" value="291">Eritrea (+291)</option>
-							<option data-countrycode="EE" value="372">Estonia (+372)</option>
-							<option data-countrycode="ET" value="251">Ethiopia (+251)</option>
-							<option data-countrycode="FK" value="500">Falkland Islands (+500)</option>
-							<option data-countrycode="FO" value="298">Faroe Islands (+298)</option>
-							<option data-countrycode="FJ" value="679">Fiji (+679)</option>
-							<option data-countrycode="FI" value="358">Finland (+358)</option>
-							<option data-countrycode="FR" value="33">France (+33)</option>
-							<option data-countrycode="GF" value="594">French Guiana (+594)</option>
-							<option data-countrycode="PF" value="689">French Polynesia (+689)</option>
-							<option data-countrycode="GA" value="241">Gabon (+241)</option>
-							<option data-countrycode="GM" value="220">Gambia (+220)</option>
-							<option data-countrycode="GE" value="7880">Georgia (+7880)</option>
-							<option data-countrycode="DE" value="49">Germany (+49)</option>
-							<option data-countrycode="GH" value="233">Ghana (+233)</option>
-							<option data-countrycode="GI" value="350">Gibraltar (+350)</option>
-							<option data-countrycode="GR" value="30">Greece (+30)</option>
-							<option data-countrycode="GL" value="299">Greenland (+299)</option>
-							<option data-countrycode="GD" value="1473">Grenada (+1473)</option>
-							<option data-countrycode="GP" value="590">Guadeloupe (+590)</option>
-							<option data-countrycode="GU" value="671">Guam (+671)</option>
-							<option data-countrycode="GT" value="502">Guatemala (+502)</option>
-							<option data-countrycode="GN" value="224">Guinea (+224)</option>
-							<option data-countrycode="GW" value="245">Guinea - Bissau (+245)</option>
-							<option data-countrycode="GY" value="592">Guyana (+592)</option>
-							<option data-countrycode="HT" value="509">Haiti (+509)</option>
-							<option data-countrycode="HN" value="504">Honduras (+504)</option>
-							<option data-countrycode="HK" value="852">Hong Kong (+852)</option>
-							<option data-countrycode="HU" value="36">Hungary (+36)</option>
-							<option data-countrycode="IS" value="354">Iceland (+354)</option>
-							<option data-countrycode="IN" value="91">India (+91)</option>
-							<option data-countrycode="ID" value="62">Indonesia (+62)</option>
-							<option data-countrycode="IR" value="98">Iran (+98)</option>
-							<option data-countrycode="IQ" value="964">Iraq (+964)</option>
-							<option data-countrycode="IE" value="353">Ireland (+353)</option>
-							<option data-countrycode="IT" value="39">Italy (+39)</option>
-							<option data-countrycode="JM" value="1876">Jamaica (+1876)</option>
-							<option data-countrycode="JP" value="81">Japan (+81)</option>
-							<option data-countrycode="JO" value="962">Jordan (+962)</option>
-							<option data-countrycode="KZ" value="7">Kazakhstan (+7)</option>
-							<option data-countrycode="KE" value="254">Kenya (+254)</option>
-							<option data-countrycode="KI" value="686">Kiribati (+686)</option>
-							<option data-countrycode="KP" value="850">Korea North (+850)</option>
-							<option data-countrycode="KR" value="82">Korea South (+82)</option>
-							<option data-countrycode="KG" value="996">Kyrgyzstan (+996)</option>
-							<option data-countrycode="LA" value="856">Laos (+856)</option>
-							<option data-countrycode="LV" value="371">Latvia (+371)</option>
-							<option data-countrycode="LB" value="961">Lebanon (+961)</option>
-							<option data-countrycode="LS" value="266">Lesotho (+266)</option>
-							<option data-countrycode="LR" value="231">Liberia (+231)</option>
-							<option data-countrycode="LY" value="218">Libya (+218)</option>
-							<option data-countrycode="LI" value="417">Liechtenstein (+417)</option>
-							<option data-countrycode="LT" value="370">Lithuania (+370)</option>
-							<option data-countrycode="LU" value="352">Luxembourg (+352)</option>
-							<option data-countrycode="MO" value="853">Macao (+853)</option>
-							<option data-countrycode="MK" value="389">Macedonia (+389)</option>
-							<option data-countrycode="MG" value="261">Madagascar (+261)</option>
-							<option data-countrycode="MW" value="265">Malawi (+265)</option>
-							<option data-countrycode="MY" value="60">Malaysia (+60)</option>
-							<option data-countrycode="MV" value="960">Maldives (+960)</option>
-							<option data-countrycode="ML" value="223">Mali (+223)</option>
-							<option data-countrycode="MT" value="356">Malta (+356)</option>
-							<option data-countrycode="MH" value="692">Marshall Islands (+692)</option>
-							<option data-countrycode="MQ" value="596">Martinique (+596)</option>
-							<option data-countrycode="MR" value="222">Mauritania (+222)</option>
-							<option data-countrycode="YT" value="269">Mayotte (+269)</option>
-							<option data-countrycode="MX" value="52">Mexico (+52)</option>
-							<option data-countrycode="FM" value="691">Micronesia (+691)</option>
-							<option data-countrycode="MD" value="373">Moldova (+373)</option>
-							<option data-countrycode="MC" value="377">Monaco (+377)</option>
-							<option data-countrycode="MN" value="976">Mongolia (+976)</option>
-							<option data-countrycode="MS" value="1664">Montserrat (+1664)</option>
-							<option data-countrycode="MA" value="212">Morocco (+212)</option>
-							<option data-countrycode="MZ" value="258">Mozambique (+258)</option>
-							<option data-countrycode="MN" value="95">Myanmar (+95)</option>
-							<option data-countrycode="NA" value="264">Namibia (+264)</option>
-							<option data-countrycode="NR" value="674">Nauru (+674)</option>
-							<option data-countrycode="NP" value="977">Nepal (+977)</option>
-							<option data-countrycode="NL" value="31">Netherlands (+31)</option>
-							<option data-countrycode="NC" value="687">New Caledonia (+687)</option>
-							<option data-countrycode="NZ" value="64">New Zealand (+64)</option>
-							<option data-countrycode="NI" value="505">Nicaragua (+505)</option>
-							<option data-countrycode="NE" value="227">Niger (+227)</option>
-							<option data-countrycode="NG" value="234">Nigeria (+234)</option>
-							<option data-countrycode="NU" value="683">Niue (+683)</option>
-							<option data-countrycode="NF" value="672">Norfolk Islands (+672)</option>
-							<option data-countrycode="NP" value="670">Northern Marianas (+670)</option>
-							<option data-countrycode="NO" value="47">Norway (+47)</option>
-							<option data-countrycode="OM" value="968">Oman (+968)</option>
-							<option data-countrycode="PW" value="680">Palau (+680)</option>
-							<option data-countrycode="PA" value="507">Panama (+507)</option>
-							<option data-countrycode="PG" value="675">Papua New Guinea (+675)</option>
-							<option data-countrycode="PY" value="595">Paraguay (+595)</option>
-							<option data-countrycode="PE" value="51">Peru (+51)</option>
-							<option data-countrycode="PH" value="63">Philippines (+63)</option>
-							<option data-countrycode="PL" value="48">Poland (+48)</option>
-							<option data-countrycode="PT" value="351">Portugal (+351)</option>
-							<option data-countrycode="PR" value="1787">Puerto Rico (+1787)</option>
-							<option data-countrycode="QA" value="974">Qatar (+974)</option>
-							<option data-countrycode="RE" value="262">Reunion (+262)</option>
-							<option data-countrycode="RO" value="40">Romania (+40)</option>
-							<option data-countrycode="RU" value="7">Russia (+7)</option>
-							<option data-countrycode="RW" value="250">Rwanda (+250)</option>
-							<option data-countrycode="SM" value="378">San Marino (+378)</option>
-							<option data-countrycode="ST" value="239">Sao Tome &amp; Principe (+239)</option>
-							<option data-countrycode="SN" value="221">Senegal (+221)</option>
-							<option data-countrycode="CS" value="381">Serbia (+381)</option>
-							<option data-countrycode="SC" value="248">Seychelles (+248)</option>
-							<option data-countrycode="SL" value="232">Sierra Leone (+232)</option>
-							<option data-countrycode="SG" value="65">Singapore (+65)</option>
-							<option data-countrycode="SK" value="421">Slovak Republic (+421)</option>
-							<option data-countrycode="SI" value="386">Slovenia (+386)</option>
-							<option data-countrycode="SB" value="677">Solomon Islands (+677)</option>
-							<option data-countrycode="SO" value="252">Somalia (+252)</option>
-							<option data-countrycode="ZA" value="27">South Africa (+27)</option>
-							<option data-countrycode="ES" value="34">Spain (+34)</option>
-							<option data-countrycode="LK" value="94">Sri Lanka (+94)</option>
-							<option data-countrycode="SH" value="290">St. Helena (+290)</option>
-							<option data-countrycode="KN" value="1869">St. Kitts (+1869)</option>
-							<option data-countrycode="SC" value="1758">St. Lucia (+1758)</option>
-							<option data-countrycode="SD" value="249">Sudan (+249)</option>
-							<option data-countrycode="SR" value="597">Suriname (+597)</option>
-							<option data-countrycode="SZ" value="268">Swaziland (+268)</option>
-							<option data-countrycode="SE" value="46">Sweden (+46)</option>
-							<option data-countrycode="CH" value="41">Switzerland (+41)</option>
-							<option data-countrycode="SI" value="963">Syria (+963)</option>
-							<option data-countrycode="TW" value="886">Taiwan (+886)</option>
-							<option data-countrycode="TJ" value="7">Tajikstan (+7)</option>
-							<option data-countrycode="TH" value="66">Thailand (+66)</option>
-							<option data-countrycode="TG" value="228">Togo (+228)</option>
-							<option data-countrycode="TO" value="676">Tonga (+676)</option>
-							<option data-countrycode="TT" value="1868">Trinidad &amp; Tobago (+1868)</option>
-							<option data-countrycode="TN" value="216">Tunisia (+216)</option>
-							<option data-countrycode="TR" value="90">Turkey (+90)</option>
-							<option data-countrycode="TM" value="7">Turkmenistan (+7)</option>
-							<option data-countrycode="TM" value="993">Turkmenistan (+993)</option>
-							<option data-countrycode="TC" value="1649">Turks &amp; Caicos Islands (+1649)</option>
-							<option data-countrycode="TV" value="688">Tuvalu (+688)</option>
-							<option data-countrycode="UG" value="256">Uganda (+256)</option>
-							<option data-countrycode="GB" value="44">UK (+44)</option>
-							<option data-countrycode="UA" value="380">Ukraine (+380)</option>
-							<option data-countrycode="UY" value="598">Uruguay (+598)</option>
-							<option data-countrycode="US" value="1">USA (+1)</option>
-							<option data-countrycode="UZ" value="7">Uzbekistan (+7)</option>
-							<option data-countrycode="VU" value="678">Vanuatu (+678)</option>
-							<option data-countrycode="VA" value="379">Vatican City (+379)</option>
-							<option data-countrycode="VE" value="58">Venezuela (+58)</option>
-							<option data-countrycode="VN" value="84">Vietnam (+84)</option>
-							<option data-countrycode="VG" value="84">Virgin Islands - British (+1284)</option>
-							<option data-countrycode="VI" value="84">Virgin Islands - US (+1340)</option>
-							<option data-countrycode="WF" value="681">Wallis &amp; Futuna (+681)</option>
-							<option data-countrycode="YE" value="969">Yemen (North)(+969)</option>
-							<option data-countrycode="YE" value="967">Yemen (South)(+967)</option>
-							<option data-countrycode="ZM" value="260">Zambia (+260)</option>
-							<option data-countrycode="ZW" value="263">Zimbabwe (+263)</option>
-
-						</select>
-					</div>
-					<input required="required" type="number" name="phone" autocomplete="tel" class="text-[#000] block w-full rounded border border-gray-200 py-2 px-3.5 pl-24 sm:pl-32  min-h-[58px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" placeholder="رقم هاتفك">
-					<input required="required" type="text" name="this_url" autocomplete="tel" class="hidden text-[#000] block w-full rounded border-0 py-2 px-3.5 pl-32  min-h-[50px] placeholder-gray-500 shadow-sm bg-[#fff] dark:text-[#9e9e9e]" value="<?php echo $actual_link; ?>">
-				</div>
-				<input type="submit" class="cursor-pointer inline-flex items-center justify-center px-6 py-4 text-base font-semibold text-black transition-all duration-200 bg-[#f1d293] border border-transparent rounded-md lg:inline-flex hover:bg-[#22e203] hover:text-white focus:bg-[#f1f1f1]" value="طلب إستشارة مجانية" name="lead_reg">
-			</form>
-
-			<div class="flex gap-1 sm:gap-4 mx-auto mt-10">
-
-				<a href="https://wa.me/201552521511" target="_blank" class="justify-center w-full inline-flex px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none flex items-center"><i class="fa-brands fa-whatsapp w-5 h-5 mr-2"></i>واتساب</a>
-
-				<a href="tel:+201552521511" class="justify-center w-full inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none flex items-center"><i class="fa-solid fa-phone w-5 h-5 mr-2"></i>اتصال</a>
-
-			</div>
-
-
-		</div>
-	</div>
-</section>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<section class="pt-10 bg-gray-50 sm:pt-16 lg:pt-24" >
-	<div class="px-4 mx-auto sm:px-6 lg:px-8 max-w-7xl">
-		<div class="max-w-2xl mx-auto text-center">
-			<p class="text-base tracking-wider text-[#f1d293] uppercase">المقالات</p>
-			<h2 class="text-3xl font-bold leading-tight text-black sm:text-4xl lg:text-5xl lg:leading-tight">أحدث التطورات العقارية</h2>
-		</div>
-
-
-
-		<div class="grid max-w-md grid-cols-1 gap-6 mx-auto mt-8 lg:mt-16 lg:grid-cols-3 lg:max-w-full ">
-
-
-			<?php
-			$result = $mysqli->query("SELECT * FROM blog_posts LIMIT 3 ") or die($$mysqli->error);
-			while ($row = $result->fetch_assoc()): 
-			?>
-
-			<div class="overflow-hidden rounded-3xl border border-solid border-black bg-white px-4 py-5 [box-shadow:rgb(0,_0,_0)_9px_9px]  ">
-				<div class="p-5">
-					<div class="relative">
-						<a href="blog_post.php?id=<?php echo $row["blog_posts_id"]; ?>" title="<?php echo $row["blog_posts_title"]; ?>" class="block aspect-w-4 aspect-h-3">
-							<img class="object-cover w-full h-full" src="<?php echo $row["blog_posts_img"]; ?>" alt="" />
-						</a>
-					</div>
-					<p class="mt-5 text-2xl font-semibold">
-						<a href="blog_post.php?id=<?php echo $row["blog_posts_id"]; ?>" title="<?php echo $row["blog_posts_title"]; ?>" class="text-black"> <?php echo $row["blog_posts_title"]; ?> </a>
-					</p>
-					<p class="mt-4 text-base text-gray-600"><?php echo substr($row["blog_posts_text"],0,50); ?>...</p>
-					<a href="blog_post.php?id=<?php echo $row["blog_posts_id"]; ?>" title="<?php echo $row["blog_posts_title"]; ?>" class="inline-flex items-center justify-center pb-0.5 mt-5 text-base font-semibold text-blue-600 transition-all duration-200 border-b-2 border-transparent hover:border-blue-600 focus:border-blue-600">
-						أكمل القراءة
-						<i class="mx-2 w-5 h-5 fa-solid fa-chevron-left"></i>
-					</a>
-				</div>
-			</div>
-
-
-			<?php
-			endwhile; 
-			?>
-
-
-
-		</div>
-		<div class="flex justify-center mt-10">
-			<div class=" inline-flex justify-center gap-2">
-
-				<a href="blog.php?page=1" class="inline-flex size-8 items-center justify-center rounded overflow-hidden border border-solid border-black bg-white text-gray-900 px-3 py-4 [box-shadow:rgb(0,_0,_0)_3px_3px]">
-					<span>عرض المزيد</span>
-
-				</a>
-			</div>
-		</div>
-
-
-
-	</div>
-</section>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<?php
-include 'includes/templates/footer.php'; 
-
-ob_end_flush();
-?>
+<script>
+function toggleFilters() {
+  document.getElementById('filter-panel').classList.toggle('hidden');
+}
+</script>
