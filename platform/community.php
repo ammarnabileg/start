@@ -31,8 +31,21 @@ if ($current_user) {
 // Default tab: non-members see 'about', approved members see 'community'
 $default_tab = $is_approved ? 'community' : 'about';
 $tab = $_GET['tab'] ?? $default_tab;
-$valid_tabs = ['community', 'classroom', 'members', 'leaderboard', 'about'];
+$valid_tabs = ['community', 'classroom', 'members', 'leaderboard', 'about', 'admin'];
 if (!in_array($tab, $valid_tabs)) $tab = $default_tab;
+// Non-admins cannot access admin tab
+if ($tab === 'admin' && !$is_admin) $tab = $default_tab;
+
+// Tab order: members see community first, non-members see about first
+$is_admin_or_owner = $is_admin; // alias used in several places
+if ($is_approved) {
+    $tab_order = ['community' => 'Community', 'classroom' => 'Classroom', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About'];
+} else {
+    $tab_order = ['about' => 'About', 'community' => 'Community', 'classroom' => 'Classroom', 'members' => 'Members', 'leaderboard' => 'Leaderboard'];
+}
+if ($is_admin) {
+    $tab_order['admin'] = 'Admin';
+}
 
 // Sidebar data
 $admin_members = db_fetch_all(
@@ -76,16 +89,24 @@ include __DIR__ . '/includes/header.php';
             </div>
           </div>
           <!-- Tab Navigation -->
-          <div class="w-full mt-3">
-            <nav class="flex gap-1 overflow-x-auto">
-              <?php foreach (['community'=>'Community','classroom'=>'Classroom','members'=>'Members','leaderboard'=>'Leaderboard','about'=>'About'] as $t => $label): ?>
+          <div class="w-full mt-3 flex items-center justify-between gap-2 flex-wrap">
+            <nav class="flex gap-1 overflow-x-auto -mx-1 px-1">
+              <?php foreach ($tab_order as $t => $label): ?>
                 <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?>"
                   class="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap
-                  <?= $tab === $t ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' ?>">
-                  <?= $label ?>
+                  <?= $tab === $t ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' ?>
+                  <?= $t === 'admin' ? 'bg-amber-500 text-white hover:bg-amber-600' : '' ?>">
+                  <?= $t === 'admin' ? '⚙ ' : '' ?><?= $label ?>
                 </a>
               <?php endforeach; ?>
             </nav>
+            <?php if ($is_owner): ?>
+              <a href="/edit-community.php?id=<?= $community_id ?>"
+                class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit Community
+              </a>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -145,30 +166,30 @@ include __DIR__ . '/includes/header.php';
         <?php endif; ?>
 
         <?php if ($is_approved): ?>
-        <div class="flex gap-4">
-          <!-- Topics sidebar -->
-          <div class="w-40 flex-shrink-0">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3 sticky top-20">
-              <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">Topics</h4>
-              <a href="?slug=<?= e($slug) ?>&tab=community"
-                class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm transition-all <?= !$topic_id ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' ?>">
-                All Posts
+        <div class="flex-1 min-w-0">
+          <!-- Topic Pills Filter Bar -->
+          <div class="flex gap-2 flex-wrap mb-5 overflow-x-auto -mx-1 px-1 pb-1">
+            <a href="?slug=<?= e($slug) ?>&tab=community"
+              class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap
+                     <?= !$topic_id ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary-100 hover:text-primary-700 dark:hover:bg-primary-900/30' ?>">
+              All Posts
+            </a>
+            <?php foreach ($topics as $t): ?>
+              <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $t['id'] ?>"
+                class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap
+                       <?= $topic_id === (int)$t['id'] ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary-100 hover:text-primary-700 dark:hover:bg-primary-900/30' ?>">
+                # <?= e($t['name']) ?>
               </a>
-              <?php foreach ($topics as $t): ?>
-                <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $t['id'] ?>"
-                  class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm transition-all <?= $topic_id === (int)$t['id'] ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' ?>">
-                  # <?= e($t['name']) ?>
-                </a>
-              <?php endforeach; ?>
-              <?php if ($is_admin): ?>
-                <button onclick="showAddTopic()" class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all mt-1 w-full">
-                  + Add Topic
-                </button>
-              <?php endif; ?>
-            </div>
+            <?php endforeach; ?>
+            <?php if ($is_admin): ?>
+              <button onclick="showAddTopic()"
+                class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-500 transition-all whitespace-nowrap">
+                + Add Topic
+              </button>
+            <?php endif; ?>
           </div>
 
-          <!-- Posts Area -->
+          <!-- Posts Area (no more sidebar) -->
           <div class="flex-1 min-w-0">
             <!-- Create Post -->
             <?php if ($current_user): ?>
@@ -261,6 +282,25 @@ include __DIR__ . '/includes/header.php';
 
       <!-- ====== TAB: CLASSROOM ====== -->
       <?php elseif ($tab === 'classroom'): ?>
+        <?php if (!$is_approved): ?>
+          <!-- Members-only lock -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center shadow-sm">
+            <div class="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Members Only</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">Join this community to access all courses and learning materials.</p>
+            <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
+              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-600 rounded-xl font-semibold">⏳ Request Pending</span>
+            <?php elseif ($current_user): ?>
+              <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all hover:-translate-y-0.5">Join Community</button>
+            <?php else: ?>
+              <a href="/login.php" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold">Sign In to Join</a>
+            <?php endif; ?>
+          </div>
+        <?php else: ?>
         <?php
         $courses = db_fetch_all(
             'SELECT * FROM courses WHERE community_id = ? AND is_published = 1 ORDER BY sort_order, created_at',
@@ -271,10 +311,11 @@ include __DIR__ . '/includes/header.php';
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Classroom</h2>
             <?php if ($is_admin): ?>
-              <button onclick="alert('Course creation coming soon!')" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">
+              <a href="/manage-course.php?community_id=<?= $community_id ?>"
+                class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all hover:-translate-y-0.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Course
-              </button>
+              </a>
             <?php endif; ?>
           </div>
           <?php if (empty($courses)): ?>
@@ -284,7 +325,7 @@ include __DIR__ . '/includes/header.php';
               <p class="text-sm text-gray-500 dark:text-gray-400">The community hasn't added any courses yet.</p>
             </div>
           <?php else: ?>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               <?php foreach ($courses as $course): ?>
                 <?php
                 $progress = ['percent' => 0, 'completed' => 0, 'total' => 0];
@@ -292,7 +333,7 @@ include __DIR__ . '/includes/header.php';
                 $section_count = db_fetch('SELECT COUNT(*) as cnt FROM course_sections WHERE course_id = ?', [$course['id']]);
                 $lesson_count = db_fetch('SELECT COUNT(*) as cnt FROM lessons l JOIN course_sections cs ON cs.id = l.section_id WHERE cs.course_id = ?', [$course['id']]);
                 ?>
-                <div class="group bg-gray-50 dark:bg-gray-700/50 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-600 hover:shadow-lg hover:-translate-y-1 transition-all">
+                <div class="group bg-gray-50 dark:bg-gray-700/50 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-600 shadow-sm hover:shadow-xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300">
                   <div class="h-36 overflow-hidden relative">
                     <?php if ($course['thumbnail']): ?>
                       <img src="<?= e($course['thumbnail']) ?>" alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
@@ -303,6 +344,18 @@ include __DIR__ . '/includes/header.php';
                       <div class="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full"><?= format_price($course['price']) ?></div>
                     <?php else: ?>
                       <div class="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Free</div>
+                    <?php endif; ?>
+                    <?php if ($is_admin): ?>
+                      <div class="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <a href="/manage-course.php?community_id=<?= $community_id ?>&course_id=<?= $course['id'] ?>"
+                          class="p-1 bg-white/90 rounded-lg hover:bg-white shadow text-xs font-bold text-primary-600" title="Edit">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </a>
+                        <button onclick="deleteCourse(<?= $course['id'] ?>, <?= $community_id ?>)"
+                          class="p-1 bg-white/90 rounded-lg hover:bg-red-50 shadow text-red-600" title="Delete">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
                     <?php endif; ?>
                   </div>
                   <div class="p-4">
@@ -329,6 +382,7 @@ include __DIR__ . '/includes/header.php';
             </div>
           <?php endif; ?>
         </div>
+        <?php endif; ?>
 
       <!-- ====== TAB: MEMBERS ====== -->
       <?php elseif ($tab === 'members'): ?>
@@ -436,6 +490,24 @@ include __DIR__ . '/includes/header.php';
 
       <!-- ====== TAB: LEADERBOARD ====== -->
       <?php elseif ($tab === 'leaderboard'): ?>
+        <?php if (!$is_approved): ?>
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center shadow-sm">
+            <div class="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Members Only</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">Join this community to see the leaderboard and rankings.</p>
+            <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
+              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-600 rounded-xl font-semibold">⏳ Request Pending</span>
+            <?php elseif ($current_user): ?>
+              <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all hover:-translate-y-0.5">Join Community</button>
+            <?php else: ?>
+              <a href="/login.php" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold">Sign In to Join</a>
+            <?php endif; ?>
+          </div>
+        <?php else: ?>
         <?php
         $leaderboard = get_community_leaderboard($community_id, 50);
         ?>
@@ -521,6 +593,7 @@ include __DIR__ . '/includes/header.php';
             <?php endforeach; ?>
           </div>
         </div>
+        <?php endif; // end $is_approved check for leaderboard ?>
 
       <!-- ====== TAB: ABOUT ====== -->
       <?php elseif ($tab === 'about'): ?>
@@ -574,6 +647,153 @@ include __DIR__ . '/includes/header.php';
             <?php endif; ?>
           </div>
         </div>
+      <!-- ====== TAB: ADMIN ====== -->
+      <?php elseif ($tab === 'admin' && $is_admin): ?>
+        <?php
+        $approved_members = db_fetch_all(
+            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.status = "approved" ORDER BY u.first_name',
+            [$community_id]
+        );
+        $community_badges = db_fetch_all('SELECT * FROM badges WHERE community_id = ? ORDER BY created_at DESC', [$community_id]);
+        $pending_members_admin = db_fetch_all(
+            'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar, m.id as membership_id FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.community_id = ? AND m.status = "pending" ORDER BY m.joined_at',
+            [$community_id]
+        );
+        $all_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
+        ?>
+
+        <div class="space-y-6">
+          <!-- A) Award Points -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Award Points to Member</h3>
+            <form onsubmit="adminAwardPoints(event, <?= $community_id ?>)" class="space-y-3">
+              <select name="user_id" id="admin-award-user" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                <?php foreach ($approved_members as $m): ?>
+                  <option value="<?= $m['id'] ?>"><?= e(trim($m['first_name'] . ' ' . $m['last_name']) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
+                <?php endforeach; ?>
+              </select>
+              <div class="flex gap-3">
+                <input type="number" id="admin-award-points-val" placeholder="Points (e.g. 50)" min="1" max="10000"
+                  class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                <input type="text" id="admin-award-reason" placeholder="Reason..."
+                  class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              </div>
+              <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Award Points</button>
+            </form>
+          </div>
+
+          <!-- B) Manage Badges -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Badges</h3>
+
+            <?php if (!empty($community_badges)): ?>
+              <div class="space-y-2 mb-5">
+                <?php foreach ($community_badges as $badge): ?>
+                  <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl"><?= e($badge['icon']) ?></span>
+                      <div>
+                        <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= e($badge['name']) ?></div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400"><?= e($badge['description']) ?></div>
+                      </div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button onclick="openAwardBadgeModal(<?= $badge['id'] ?>, '<?= e($badge['name']) ?>')"
+                        class="px-3 py-1.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg text-xs font-semibold hover:bg-primary-100 transition-all">Award</button>
+                      <button onclick="deleteBadge(<?= $badge['id'] ?>, <?= $community_id ?>)"
+                        class="px-3 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all">Delete</button>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
+
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Create New Badge</h4>
+            <form onsubmit="createBadge(event, <?= $community_id ?>)" class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <input type="text" id="badge-name" placeholder="Badge name" required
+                  class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                <input type="text" id="badge-icon" placeholder="Icon (emoji)" value="🏅"
+                  class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              </div>
+              <input type="text" id="badge-description" placeholder="Description..."
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              <div class="grid grid-cols-2 gap-3">
+                <input type="number" id="badge-points" placeholder="Points required (0 = manual)" min="0"
+                  class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                <select id="badge-type" class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                  <option value="achievement">Achievement</option>
+                  <option value="participation">Participation</option>
+                  <option value="completion">Completion</option>
+                </select>
+              </div>
+              <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">Create Badge</button>
+            </form>
+          </div>
+
+          <!-- C) Pending Members -->
+          <?php if (!empty($pending_members_admin)): ?>
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Pending Membership Requests
+              <span class="ml-2 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 text-sm font-bold px-2 py-0.5 rounded-full"><?= count($pending_members_admin) ?></span>
+            </h3>
+            <div class="space-y-2">
+              <?php foreach ($pending_members_admin as $pm): ?>
+                <div class="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/50">
+                  <div class="flex items-center gap-3">
+                    <img src="<?= get_avatar_url($pm['avatar'], $pm['first_name'] . ' ' . $pm['last_name']) ?>" class="w-9 h-9 rounded-full object-cover">
+                    <div>
+                      <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= e(trim($pm['first_name'] . ' ' . $pm['last_name'])) ?></div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">@<?= e($pm['username']) ?></div>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'approved')" class="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition-all">Approve</button>
+                    <button onclick="approveMember(<?= $pm['membership_id'] ?>, 'rejected')" class="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold hover:bg-red-200 transition-all">Reject</button>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <?php endif; ?>
+
+          <!-- D) Topics Management -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Manage Topics</h3>
+            <div class="space-y-2 mb-4">
+              <?php foreach ($all_topics as $topic): ?>
+                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <span class="text-sm font-medium text-gray-900 dark:text-white"># <?= e($topic['name']) ?></span>
+                  <button onclick="deleteTopic(<?= $topic['id'] ?>, <?= $community_id ?>)"
+                    class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">Delete</button>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="admin-new-topic" placeholder="New topic name..."
+                class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              <button onclick="addTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Award Badge Modal -->
+        <div id="award-badge-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Award Badge: <span id="award-badge-name"></span></h3>
+            <input type="hidden" id="award-badge-id">
+            <select id="award-badge-user" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              <?php foreach ($approved_members as $m): ?>
+                <option value="<?= $m['id'] ?>"><?= e(trim($m['first_name'] . ' ' . $m['last_name']) ?: $m['username']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="flex justify-end gap-3">
+              <button onclick="document.getElementById('award-badge-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">Cancel</button>
+              <button onclick="submitAwardBadge(<?= $community_id ?>)" class="px-5 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Award</button>
+            </div>
+          </div>
+        </div>
+
       <?php endif; ?>
     </div>
 
@@ -711,7 +931,47 @@ include __DIR__ . '/includes/header.php';
 <?php include __DIR__ . '/includes/footer.php'; ?>
 
 <script>
-const CSRF_TOKEN = '<?= csrf_token() ?>';
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '<?= csrf_token() ?>';
+
+async function toggleLike(btn) {
+  if (!btn) return;
+  const postId = btn.dataset.postId;
+  const liked = btn.dataset.liked === '1';
+
+  // Optimistic update
+  const countEl = btn.querySelector('.like-count');
+  const svgPath = btn.querySelector('svg path');
+  const currentCount = parseInt(countEl.textContent) || 0;
+  btn.dataset.liked = liked ? '0' : '1';
+  countEl.textContent = liked ? currentCount - 1 : currentCount + 1;
+
+  if (!liked) {
+    btn.classList.add('text-red-500', 'bg-red-50');
+    btn.classList.remove('text-gray-500', 'hover:text-red-500', 'hover:bg-red-50');
+    if (svgPath) svgPath.setAttribute('fill', 'currentColor');
+  } else {
+    btn.classList.remove('text-red-500', 'bg-red-50');
+    btn.classList.add('text-gray-500', 'hover:text-red-500', 'hover:bg-red-50');
+    if (svgPath) svgPath.setAttribute('fill', 'none');
+  }
+
+  // Background server call
+  try {
+    const fd = new FormData();
+    fd.append('action', 'like');
+    fd.append('post_id', postId);
+    fd.append('csrf_token', CSRF_TOKEN);
+    const res = await fetch('/api/post_action.php', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.like_count !== undefined) {
+      countEl.textContent = data.like_count;
+    }
+  } catch(e) {
+    // Revert on error
+    btn.dataset.liked = liked ? '1' : '0';
+    countEl.textContent = currentCount;
+  }
+}
 
 function joinCommunity(communityId) {
   fetch('/api/join_community.php', {
@@ -776,6 +1036,21 @@ function submitComment(postId, communityId) {
   const input = document.getElementById('comment-input-' + postId);
   const content = input?.value.trim();
   if (!content) return;
+  // Optimistic: append comment immediately
+  const listEl = document.getElementById('comments-list-' + postId);
+  const tempDiv = document.createElement('div');
+  tempDiv.className = 'flex items-start gap-2';
+  tempDiv.innerHTML = `<div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex-shrink-0"></div>
+    <div class="flex-1 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+      <div class="flex items-baseline gap-2"><span class="text-xs font-semibold text-gray-900 dark:text-white">You</span><span class="text-xs text-gray-400">just now</span></div>
+      <p class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">${content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+    </div>`;
+  if (listEl) listEl.appendChild(tempDiv);
+  input.value = '';
+  // Update comment count
+  const commentCountEl = document.querySelector('#post-' + postId + ' .comment-count');
+  if (commentCountEl) commentCountEl.textContent = parseInt(commentCountEl.textContent||0) + 1;
+
   fetch('/api/post_action.php', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -784,9 +1059,7 @@ function submitComment(postId, communityId) {
   .then(r => r.json())
   .then(data => {
     if (data.success) {
-      input.value = '';
       showToast('Comment added!');
-      setTimeout(() => location.reload(), 500);
     }
   });
 }
@@ -868,7 +1141,10 @@ function showAddTopic() {
 }
 
 function addTopic(communityId) {
-  const name = document.getElementById('new-topic-name').value.trim();
+  // Admin tab uses different input id
+  const adminInput = document.getElementById('admin-new-topic');
+  const modalInput = document.getElementById('new-topic-name');
+  const name = (adminInput ? adminInput.value : (modalInput ? modalInput.value : '')).trim();
   if (!name) return;
   fetch('/api/post_action.php', {
     method: 'POST',
@@ -886,5 +1162,106 @@ function copyInviteLink() {
   const link = document.getElementById('invite-link');
   link.select();
   navigator.clipboard.writeText(link.value).then(() => showToast('Link copied!'));
+}
+
+function deleteCourse(courseId, communityId) {
+  if (!confirm('Delete this course? This cannot be undone.')) return;
+  fetch('/api/manage_course.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'delete_course', course_id: courseId, community_id: communityId, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Course deleted!'); setTimeout(() => location.reload(), 500); }
+    else showToast(data.error || 'Error', 'error');
+  });
+}
+
+function adminAwardPoints(event, communityId) {
+  event.preventDefault();
+  const userId = document.getElementById('admin-award-user').value;
+  const points = document.getElementById('admin-award-points-val').value;
+  const reason = document.getElementById('admin-award-reason').value;
+  if (!points || points < 1) { showToast('Enter valid points', 'error'); return; }
+  fetch('/api/award_points.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: userId, community_id: communityId, points, reason, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Points awarded!'); document.getElementById('admin-award-points-val').value = ''; document.getElementById('admin-award-reason').value = ''; }
+    else showToast(data.error || 'Error', 'error');
+  });
+}
+
+function createBadge(event, communityId) {
+  event.preventDefault();
+  const name = document.getElementById('badge-name').value.trim();
+  const icon = document.getElementById('badge-icon').value.trim() || '🏅';
+  const description = document.getElementById('badge-description').value.trim();
+  const points_required = parseInt(document.getElementById('badge-points').value) || 0;
+  const badge_type = document.getElementById('badge-type').value;
+  if (!name) { showToast('Badge name required', 'error'); return; }
+  fetch('/api/manage_badges.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'create_badge', community_id: communityId, name, icon, description, points_required, badge_type, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Badge created!'); setTimeout(() => location.reload(), 500); }
+    else showToast(data.error || 'Error', 'error');
+  });
+}
+
+function openAwardBadgeModal(badgeId, badgeName) {
+  document.getElementById('award-badge-id').value = badgeId;
+  document.getElementById('award-badge-name').textContent = badgeName;
+  document.getElementById('award-badge-modal').classList.remove('hidden');
+}
+
+function submitAwardBadge(communityId) {
+  const badgeId = document.getElementById('award-badge-id').value;
+  const userId = document.getElementById('award-badge-user').value;
+  fetch('/api/manage_badges.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'award_badge', community_id: communityId, badge_id: badgeId, user_id: userId, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Badge awarded!'); document.getElementById('award-badge-modal').classList.add('hidden'); }
+    else showToast(data.error || 'Error', 'error');
+  });
+}
+
+function deleteBadge(badgeId, communityId) {
+  if (!confirm('Delete this badge?')) return;
+  fetch('/api/manage_badges.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'delete_badge', community_id: communityId, badge_id: badgeId, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Badge deleted!'); setTimeout(() => location.reload(), 500); }
+    else showToast(data.error || 'Error', 'error');
+  });
+}
+
+function deleteTopic(topicId, communityId) {
+  if (!confirm('Delete this topic?')) return;
+  fetch('/api/post_action.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'delete_topic', topic_id: topicId, community_id: communityId, csrf_token: CSRF_TOKEN})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showToast('Topic deleted!'); setTimeout(() => location.reload(), 500); }
+    else showToast(data.error || 'Error', 'error');
+  });
 }
 </script>

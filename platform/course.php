@@ -15,6 +15,46 @@ if (!$course) { http_response_code(404); die('<!DOCTYPE html><html><head><title>
 $current_user = get_auth_user();
 $community_id = $course['community_id'];
 
+// Check membership - courses are members only
+$course_membership = null;
+$course_is_member = false;
+if ($current_user) {
+    $course_membership = db_fetch('SELECT status, role FROM memberships WHERE user_id = ? AND community_id = ?', [$current_user['id'], $community_id]);
+    $course_is_member = $course_membership && $course_membership['status'] === 'approved';
+}
+// Also allow admins/owners to always access
+$course_is_admin = $course_membership && in_array($course_membership['role'], ['admin', 'owner']) && $course_is_member;
+
+if (!$course_is_member) {
+    $community_for_lock = db_fetch('SELECT name, slug, type FROM communities WHERE id=?', [$community_id]);
+    $page_title = $course['title'];
+    include __DIR__ . '/includes/header.php';
+    ?>
+    <main class="max-w-2xl mx-auto px-4 sm:px-6 py-20 text-center">
+      <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-xl p-12">
+        <div class="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-black text-gray-900 dark:text-white mb-3">Members Only Course</h1>
+        <p class="text-gray-500 dark:text-gray-400 mb-2 text-lg"><?= e($course['title']) ?></p>
+        <p class="text-gray-400 dark:text-gray-500 mb-8">Join <?= e($community_for_lock['name'] ?? 'this community') ?> to access all courses and learning materials.</p>
+        <?php if ($current_user): ?>
+          <a href="/community.php?slug=<?= e($community_for_lock['slug'] ?? '') ?>&tab=about"
+            class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-bold hover:shadow-lg transition-all hover:-translate-y-0.5">
+            Join Community
+          </a>
+        <?php else: ?>
+          <a href="/login.php" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-bold hover:shadow-lg transition-all hover:-translate-y-0.5">Sign In to Join</a>
+        <?php endif; ?>
+      </div>
+    </main>
+    <?php
+    include __DIR__ . '/includes/footer.php';
+    exit;
+}
+
 // Get sections with lessons
 $sections = db_fetch_all('SELECT * FROM course_sections WHERE course_id = ? ORDER BY sort_order', [$course_id]);
 $all_lessons = [];

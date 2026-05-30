@@ -171,4 +171,20 @@ if ($action === 'add_topic') {
     exit;
 }
 
+if ($action === 'delete_topic') {
+    $topic_id = (int)($data['topic_id'] ?? 0);
+    $community_id = (int)($data['community_id'] ?? 0);
+    if (!$topic_id || !$community_id) { echo json_encode(['error' => 'Missing data']); exit; }
+
+    $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$community_id]);
+    $mem = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$current_user['id'], $community_id]);
+    if (!$community || !$mem || !in_array($mem['role'], ['admin', 'owner'])) {
+        echo json_encode(['error' => 'Permission denied']); exit;
+    }
+
+    db_execute('DELETE FROM topics WHERE id = ? AND community_id = ?', [$topic_id, $community_id]);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
 echo json_encode(['error' => 'Unknown action']);

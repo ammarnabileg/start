@@ -157,3 +157,7 @@ function format_price($price, string $interval = ''): string {
 function e(string $str): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 }
+
+function generate_csrf_token(): string {
+    return csrf_token();
+}
