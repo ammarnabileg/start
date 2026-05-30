@@ -42,7 +42,12 @@ db_execute('UPDATE memberships SET status=? WHERE id=?', [$status, $membership_i
 if ($status === 'approved' && $old_status !== 'approved') {
     // Increment member count
     db_execute('UPDATE communities SET member_count = member_count + 1 WHERE id = ?', [$membership['community_id']]);
+} elseif (in_array($status, ['rejected', 'banned']) && $old_status === 'approved') {
+    // Decrement member count when removing an approved member
+    db_execute('UPDATE communities SET member_count = GREATEST(member_count - 1, 0) WHERE id = ?', [$membership['community_id']]);
+}
 
+if ($status === 'approved' && $old_status !== 'approved') {
     $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$membership['community_id']]);
     $community_name = $community ? $community['name'] : 'the community';
 

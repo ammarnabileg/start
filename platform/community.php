@@ -534,7 +534,7 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
               <div class="text-2xl mb-1">👥</div>
-              <div class="font-bold text-sm text-gray-900 dark:text-white"><?= format_member_count($community['member_count']) ?></div>
+              <div class="font-bold text-sm text-gray-900 dark:text-white"><?= format_member_count((int)($member_count_approved['cnt'] ?? 0)) ?></div>
               <div class="text-xs text-gray-500 dark:text-gray-400">Members</div>
             </div>
             <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">

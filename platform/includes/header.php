@@ -6,7 +6,26 @@ require_once __DIR__ . '/functions.php';
 
 $current_user = get_auth_user();
 $platform_name = 'Discover';
-try { $platform_name = get_platform_setting('platform_name', 'Discover'); } catch(Exception $e) {}
+$platform_logo = '';
+$platform_tagline = '';
+$seo_title = '';
+$seo_desc = '';
+$seo_keywords = '';
+$seo_og_image = '';
+$ga_id = '';
+$seo_index = 'yes';
+try {
+    $platform_name    = get_platform_setting('platform_name', 'Discover');
+    $platform_logo    = get_platform_setting('platform_logo', '');
+    $platform_tagline = get_platform_setting('platform_tagline', '');
+    $seo_title        = get_platform_setting('seo_title', $platform_name . ' - Discover Communities');
+    $seo_desc         = get_platform_setting('seo_description', 'Join thousands of communities for learning, networking, and growth.');
+    $seo_keywords     = get_platform_setting('seo_keywords', 'community, learning, courses, networking');
+    $seo_og_image     = get_platform_setting('seo_og_image', '');
+    $ga_id            = get_platform_setting('ga_id', '');
+    $seo_index        = get_platform_setting('seo_index', 'yes');
+} catch(Exception $e) {}
+$page_title_full = isset($page_title) ? $page_title . ' | ' . $platform_name : $seo_title;
 $unread_count = 0;
 $recent_notifications = [];
 if ($current_user) {
@@ -27,7 +46,22 @@ $theme_class = ($current_user && $current_user['theme'] === 'dark') ? 'dark' : '
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= isset($page_title) ? e($page_title) . ' - ' : '' ?><?= e($platform_name) ?></title>
+  <title><?= e($page_title_full) ?></title>
+  <meta name="description" content="<?= e($seo_desc) ?>">
+  <meta name="keywords" content="<?= e($seo_keywords) ?>">
+  <?php if ($seo_index !== 'yes'): ?>
+  <meta name="robots" content="noindex,nofollow">
+  <?php endif; ?>
+  <?php if ($seo_og_image): ?>
+  <meta property="og:image" content="<?= e($seo_og_image) ?>">
+  <?php endif; ?>
+  <meta property="og:title" content="<?= e($page_title_full) ?>">
+  <meta property="og:description" content="<?= e($seo_desc) ?>">
+  <meta property="og:type" content="website">
+  <?php if ($ga_id): ?>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($ga_id) ?>"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?= e($ga_id) ?>');</script>
+  <?php endif; ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -90,9 +124,13 @@ $theme_class = ($current_user && $current_user['theme'] === 'dark') ? 'dark' : '
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->
       <a href="/index.php" class="flex items-center gap-2 group flex-shrink-0">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-accent-500 flex items-center justify-center shadow-md group-hover:shadow-primary-500/30 transition-smooth">
-          <span class="text-white font-bold text-lg">D</span>
-        </div>
+        <?php if ($platform_logo): ?>
+          <img src="<?= e($platform_logo) ?>" alt="<?= e($platform_name) ?>" class="h-9 w-auto object-contain">
+        <?php else: ?>
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-accent-500 flex items-center justify-center shadow-md group-hover:shadow-primary-500/30 transition-smooth">
+            <span class="text-white font-bold text-lg"><?= strtoupper(substr($platform_name, 0, 1)) ?></span>
+          </div>
+        <?php endif; ?>
         <span class="font-black text-xl hidden sm:block gradient-text"><?= e($platform_name) ?></span>
       </a>
 

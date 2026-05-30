@@ -1,6 +1,10 @@
 <?php
 $platform_name_footer = 'Discover';
-try { $platform_name_footer = get_platform_setting('platform_name', 'Discover'); } catch(Exception $e) {}
+$footer_text_custom = '';
+try {
+    $platform_name_footer = get_platform_setting('platform_name', 'Discover');
+    $footer_text_custom = get_platform_setting('footer_text', '');
+} catch(Exception $e) {}
 ?>
 <footer class="mt-auto py-10 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -10,7 +14,7 @@ try { $platform_name_footer = get_platform_setting('platform_name', 'Discover');
           <span class="text-white font-bold text-sm">D</span>
         </div>
         <span class="font-black gradient-text"><?= e($platform_name_footer) ?></span>
-        <span class="text-gray-400 dark:text-gray-600 text-sm">&copy; <?= date('Y') ?></span>
+        <span class="text-gray-400 dark:text-gray-600 text-sm"><?= $footer_text_custom ? e($footer_text_custom) : ('&copy; ' . date('Y') . ' ' . e($platform_name_footer) . '. All rights reserved.') ?></span>
       </div>
       <nav class="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
         <a href="/index.php" class="hover:text-primary-600 dark:hover:text-primary-400 transition-smooth">Discover</a>

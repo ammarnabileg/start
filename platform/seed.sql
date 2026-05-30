@@ -273,3 +273,21 @@ INSERT INTO notifications (user_id, type, title, message, link, is_read) VALUES
 -- Follows
 INSERT INTO follows (follower_id, following_id) VALUES
 (1, 2), (1, 3), (2, 1), (2, 4), (3, 1), (3, 2), (4, 1), (4, 2), (4, 3);
+
+-- Platform settings
+INSERT IGNORE INTO platform_settings (setting_key, setting_value) VALUES
+('platform_name', 'Discover'),
+('platform_tagline', 'Join thousands of communities for learning, networking, and growth'),
+('platform_logo', ''),
+('footer_text', '© 2025 Discover. All rights reserved.'),
+('seo_title', 'Discover - Find Your Community'),
+('seo_description', 'Join thousands of communities for learning, networking, and growth across the Gulf region.'),
+('seo_keywords', 'community, learning, courses, networking, Gulf, Saudi Arabia'),
+('seo_og_image', ''),
+('ga_id', ''),
+('seo_index', 'yes'),
+('community_creation_price', '0'),
+('affiliate_commission_rate', '7');
+
+-- Recalculate real member counts from approved memberships
+UPDATE communities c SET member_count = (SELECT COUNT(*) FROM memberships m WHERE m.community_id = c.id AND m.status = 'approved');

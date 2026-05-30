@@ -59,7 +59,8 @@ $total = (int)($count_row['cnt'] ?? 0);
 $total_pages = ceil($total / $per_page);
 
 $communities = db_fetch_all(
-    "SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last
+    "SELECT c.*, u.username as owner_username, u.first_name as owner_first, u.last_name as owner_last,
+     (SELECT COUNT(*) FROM memberships m WHERE m.community_id = c.id AND m.status = 'approved') as real_member_count
      FROM communities c
      JOIN users u ON u.id = c.owner_id
      $where_str
@@ -260,7 +261,7 @@ include __DIR__ . '/includes/header.php';
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                <span class="font-semibold"><?= format_member_count($c['member_count']) ?></span> members
+                <span class="font-semibold"><?= format_member_count($c['real_member_count']) ?></span> members
               </div>
               <span class="flex items-center gap-1 text-xs <?= $c['type'] === 'private' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400' ?>">
                 <?php if ($c['type'] === 'private'): ?>
