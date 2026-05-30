@@ -58,7 +58,14 @@ $sidebar_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDE
 $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About', 'admin' => 'Admin'];
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<?php
+// Determine dark mode
+$theme_class = 'dark';
+if ($current_user && isset($current_user['theme']) && $current_user['theme'] === 'light') {
+    $theme_class = '';
+}
+?>
+<html lang="en" class="<?= $theme_class ?>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,6 +74,7 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -81,26 +89,28 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
     }
   </script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f5; }
-    .sidebar-link { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; font-size:13px; font-weight:500; color:#52525b; transition:background .15s,color .15s; cursor:pointer; }
-    .sidebar-link:hover { background:#f0f0f1; color:#18181b; }
-    .sidebar-link.active { background:#EEF2FF; color:#3B5BDB; font-weight:600; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .post-card { background:#fff; border:1px solid #e4e4e7; border-radius:12px; padding:16px; margin-bottom:8px; transition:box-shadow .15s; }
+    .dark .post-card { background:#1a1a1a; border-color:rgba(255,255,255,.1); }
     .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    .dark .post-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.4); }
     .btn-brand { background:#3B5BDB; color:#fff; padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:background .15s; }
     .btn-brand:hover { background:#3451C7; }
     .scrollbar-hide::-webkit-scrollbar { display:none; }
     .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
   </style>
 </head>
-<body>
+<body class="bg-[#f4f4f5] dark:bg-[#121212] text-gray-900 dark:text-gray-100 min-h-screen">
 
-<!-- ═══════════════ COMMUNITY TOP BAR ═══════════════ -->
-<header class="sticky top-0 z-50 bg-white border-b border-gray-200" style="box-shadow:0 1px 0 #e4e4e7">
+<!-- ═══════════════ TOP BAR (row 1) ═══════════════ -->
+<header class="sticky top-0 z-50 bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10" style="box-shadow:0 1px 0 rgba(0,0,0,.08)">
+  <!-- Row 1: Logo | Search | Actions -->
   <div class="max-w-[1280px] mx-auto px-4 flex items-center h-14 gap-4">
-
-    <!-- Left: Community identity -->
-    <div class="flex items-center gap-2 flex-shrink-0 mr-2">
+    <!-- Left: Community identity + back link -->
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <a href="/index.php" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mr-1 hidden sm:block" title="All communities">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      </a>
       <?php if ($community['logo']): ?>
         <img src="<?= e($community['logo']) ?>" alt="" class="w-8 h-8 rounded-lg object-cover flex-shrink-0">
       <?php else: ?>
@@ -108,42 +118,31 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
           <?= strtoupper(substr($community['name'], 0, 1)) ?>
         </div>
       <?php endif; ?>
-      <span class="font-bold text-gray-900 text-sm hidden sm:block max-w-[140px] truncate"><?= e($community['name']) ?></span>
+      <span class="font-bold text-gray-900 dark:text-white text-sm hidden sm:block max-w-[140px] truncate"><?= e($community['name']) ?></span>
       <?php if ($is_owner): ?>
-        <a href="/edit-community.php?id=<?= $community_id ?>" class="text-gray-500 hover:text-gray-600 transition-colors ml-1" title="Edit community">
+        <a href="/edit-community.php?id=<?= $community_id ?>" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ml-1" title="Edit community">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
         </a>
       <?php endif; ?>
     </div>
 
-    <!-- Center: Tabs -->
-    <nav class="flex items-center gap-0.5 flex-1 justify-center overflow-x-auto scrollbar-hide">
-      <?php foreach ($tab_order as $t => $label): ?>
-        <?php $active = $tab === $t; $lbl = $tab_labels[$t] ?? $label; ?>
-        <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?>"
-           class="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors
-                  <?= $active ? 'bg-brand/10 text-brand font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' ?>
-                  <?= $t === 'admin' ? ($active ? '' : 'text-amber-600 hover:bg-amber-50') : '' ?>">
-          <?= $lbl ?>
-        </a>
-      <?php endforeach; ?>
-    </nav>
+    <!-- Center: Search bar (hidden on mobile) -->
+    <div class="hidden md:flex flex-1 max-w-sm mx-auto">
+      <div class="flex items-center w-full bg-gray-100 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-full px-4 py-2 gap-2">
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="Search community..." class="bg-transparent text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none w-full">
+      </div>
+    </div>
 
     <!-- Right: Actions -->
-    <div class="flex items-center gap-2 flex-shrink-0">
-      <!-- Search -->
-      <button class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Search">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-      </button>
+    <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
       <?php if ($current_user): ?>
-        <!-- Notifications -->
-        <a href="/notifications.php" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Notifications">
+        <a href="/notifications.php" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors" title="Notifications">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
         </a>
-        <!-- Avatar -->
-        <a href="/profile.php?username=<?= e($current_user['username']) ?>" class="ml-1">
+        <a href="/profile.php?username=<?= e($current_user['username']) ?>">
           <img src="<?= get_avatar_url($current_user['avatar'] ?? null, ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?>"
-               class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 hover:border-brand transition-colors">
+               class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/20 hover:border-brand transition-colors">
         </a>
       <?php else: ?>
         <a href="/login.php" class="btn-brand">Sign In</a>
@@ -151,101 +150,48 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
       <!-- Join / member status -->
       <?php if (!$is_approved): ?>
         <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
-          <span class="text-xs bg-amber-100 text-amber-700 font-semibold px-3 py-1.5 rounded-full">Pending</span>
+          <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold px-3 py-1.5 rounded-full">Pending</span>
         <?php elseif ($current_user): ?>
-          <button onclick="joinCommunity(<?= $community_id ?>)" class="btn-brand ml-1">
+          <button onclick="joinCommunity(<?= $community_id ?>)" class="btn-brand">
             <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join' ?>
           </button>
         <?php endif; ?>
       <?php else: ?>
-        <span class="text-xs text-brand font-semibold px-3 py-1.5 rounded-full bg-brand/10 ml-1">Member</span>
+        <span class="text-xs text-brand font-semibold px-3 py-1.5 rounded-full bg-brand/10">Member</span>
       <?php endif; ?>
+    </div>
+  </div>
+
+  <!-- Row 2: Tab bar -->
+  <div class="border-t border-gray-100 dark:border-white/5">
+    <div class="max-w-[1280px] mx-auto px-4">
+      <nav class="flex items-center gap-0 overflow-x-auto scrollbar-hide">
+        <?php foreach ($tab_order as $t => $label): ?>
+          <?php $active = $tab === $t; $lbl = $tab_labels[$t] ?? $label; ?>
+          <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?>"
+             class="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2
+                    <?= $active
+                        ? 'border-brand text-brand font-semibold'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/30' ?>
+                    <?= $t === 'admin' && !$active ? 'text-amber-600 dark:text-amber-400' : '' ?>">
+            <?= $lbl ?>
+          </a>
+        <?php endforeach; ?>
+      </nav>
     </div>
   </div>
 </header>
 
 <!-- ═══════════════ MAIN LAYOUT ═══════════════ -->
+<?php
+// Load leaderboard for sidebar (top 5)
+$sidebar_leaderboard = get_community_leaderboard($community_id, 5);
+?>
 <div class="max-w-[1280px] mx-auto px-4 py-5 flex gap-5">
 
-  <!-- LEFT SIDEBAR -->
-  <aside class="w-52 flex-shrink-0 hidden lg:block">
-    <div class="sticky top-20 space-y-1">
-      <!-- Feed -->
-      <a href="?slug=<?= e($slug) ?>&tab=community" class="sidebar-link <?= $tab === 'community' && !isset($_GET['topic']) ? 'active' : '' ?>">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-        Feed
-      </a>
-
-      <?php if (!empty($sidebar_topics)): ?>
-        <div class="pt-3 pb-1">
-          <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-1">Topics</p>
-          <?php foreach ($sidebar_topics as $st):
-            $topic_active = $tab === 'community' && isset($_GET['topic']) && (int)$_GET['topic'] === (int)$st['id'];
-          ?>
-            <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $st['id'] ?>"
-               class="sidebar-link <?= $topic_active ? 'active' : '' ?>">
-              <span class="text-gray-500 font-bold">#</span>
-              <span class="truncate"><?= e($st['name']) ?></span>
-            </a>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
-
-      <!-- Quick links -->
-      <div class="pt-3 border-t border-gray-200 space-y-1">
-        <a href="?slug=<?= e($slug) ?>&tab=classroom" class="sidebar-link <?= $tab === 'classroom' ? 'active' : '' ?>">
-          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-          Courses
-        </a>
-        <a href="?slug=<?= e($slug) ?>&tab=members" class="sidebar-link <?= $tab === 'members' ? 'active' : '' ?>">
-          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          Members
-        </a>
-        <a href="?slug=<?= e($slug) ?>&tab=leaderboard" class="sidebar-link <?= $tab === 'leaderboard' ? 'active' : '' ?>">
-          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          Leaderboard
-        </a>
-        <?php if ($is_approved && $current_user): ?>
-          <?php
-          $my_points_sidebar = get_user_points_in_community($current_user['id'], $community_id);
-          $my_streak_sidebar = db_fetch('SELECT current_streak FROM user_streaks WHERE user_id = ? AND community_id = ?', [$current_user['id'], $community_id]);
-          ?>
-          <div class="mt-4 p-3 bg-brand rounded-xl text-white text-xs">
-            <p class="font-bold mb-2 opacity-80">Your Stats</p>
-            <div class="flex justify-between">
-              <span><?= number_format($my_points_sidebar) ?> XP</span>
-              <span><?= $my_streak_sidebar ? $my_streak_sidebar['current_streak'] : 0 ?> day streak</span>
-            </div>
-          </div>
-        <?php endif; ?>
-        <?php if ($is_owner): ?>
-          <button onclick="alert('Go live feature coming soon!')" class="sidebar-link w-full mt-2 border border-gray-200 justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-            Go live
-          </button>
-        <?php endif; ?>
-      </div>
-    </div>
-  </aside>
-
-  <!-- MAIN CONTENT -->
+  <!-- MAIN CONTENT (70%) -->
   <div class="flex-1 min-w-0">
-    <!-- Mobile: topic pills -->
-    <?php if ($tab === 'community' && !empty($sidebar_topics) && $is_approved): ?>
-      <div class="lg:hidden flex gap-2 overflow-x-auto scrollbar-hide mb-4 pb-1">
-        <a href="?slug=<?= e($slug) ?>&tab=community"
-           class="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold border <?= !isset($_GET['topic']) ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-200' ?>">All</a>
-        <?php foreach ($sidebar_topics as $st): ?>
-          <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $st['id'] ?>"
-             class="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold border <?= isset($_GET['topic']) && (int)$_GET['topic'] === (int)$st['id'] ? 'bg-brand text-white border-brand' : 'bg-white text-gray-600 border-gray-200' ?>">
-            # <?= e($st['name']) ?>
-          </a>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-
     <div class="space-y-0">
-
     <!-- ============ MAIN CONTENT ============ -->
     <div class="flex-1 min-w-0">
 
@@ -283,12 +229,12 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
         <!-- Join prompt for non-members -->
         <?php if (!$is_approved): ?>
-          <div class="bg-white rounded-xl border border-gray-200 p-8 text-center mb-4">
-            <div class="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg class="w-7 h-7 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center mb-4">
+            <div class="w-14 h-14 bg-gray-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-7 h-7 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Join to see the community feed</h3>
-            <p class="text-gray-500 text-sm mb-5">Become a member to post, comment, and interact with the community.</p>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Join to see the community feed</h3>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mb-5">Become a member to post, comment, and interact with the community.</p>
             <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
               <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-600 rounded-xl text-sm font-semibold">Request Pending Approval</span>
             <?php elseif ($current_user): ?>
@@ -307,13 +253,13 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
           <div class="flex gap-2 flex-wrap mb-5 overflow-x-auto scrollbar-hide">
             <a href="?slug=<?= e($slug) ?>&tab=community"
                class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap
-                      <?= !$topic_id ? 'bg-brand text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' ?>">
+                      <?= !$topic_id ? 'bg-brand text-white' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]' ?>">
               All Posts
             </a>
             <?php foreach ($topics as $t): ?>
               <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $t['id'] ?>"
                  class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap
-                        <?= $topic_id === (int)$t['id'] ? 'bg-brand text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' ?>">
+                        <?= $topic_id === (int)$t['id'] ? 'bg-brand text-white' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]' ?>">
                 # <?= e($t['name']) ?>
               </a>
             <?php endforeach; ?>
@@ -327,17 +273,17 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
           <!-- Create Post -->
           <?php if ($current_user): ?>
-            <div class="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+            <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-4 mb-3">
               <div class="flex items-start gap-3">
                 <img src="<?= get_avatar_url($current_user['avatar'] ?? null, ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?>"
                      class="w-9 h-9 rounded-full object-cover flex-shrink-0">
                 <div class="flex-1">
                   <textarea id="post-content" placeholder="Write something to the community..." rows="2"
-                            class="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50 resize-none placeholder-gray-400"
+                            class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand/50 resize-none placeholder-gray-400 dark:placeholder-gray-600"
                             onfocus="this.rows=4" onblur="if(!this.value)this.rows=2"></textarea>
                   <div class="mt-2 flex items-center justify-between">
                     <select id="post-topic"
-                            class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand">
+                            class="text-xs border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-brand">
                       <option value="">No topic</option>
                       <?php foreach ($topics as $t): ?>
                         <option value="<?= $t['id'] ?>" <?= $topic_id === (int)$t['id'] ? 'selected' : '' ?>># <?= e($t['name']) ?></option>
@@ -378,7 +324,7 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
           <!-- Regular Posts -->
           <?php if (empty($posts) && empty($pinned_posts)): ?>
-            <div class="text-center py-16 bg-white rounded-2xl border border-gray-200">
+            <div class="text-center py-16 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10">
               <div class="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
               </div>
@@ -428,14 +374,14 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
       <!-- ====== TAB: CLASSROOM ====== -->
       <?php elseif ($tab === 'classroom'): ?>
         <?php if (!$is_approved): ?>
-          <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-12 text-center">
+            <div class="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Members Only</h3>
-            <p class="text-gray-500 mb-6 text-sm">Join this community to access all courses and learning materials.</p>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Members Only</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 text-sm">Join this community to access all courses and learning materials.</p>
             <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
-              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-600 rounded-xl font-semibold">Request Pending</span>
+              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl font-semibold">Request Pending</span>
             <?php elseif ($current_user): ?>
               <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-xl font-semibold hover:shadow-lg transition-all">Join Community</button>
             <?php else: ?>
@@ -446,9 +392,9 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
           <?php
           $courses = db_fetch_all('SELECT * FROM courses WHERE community_id = ? AND is_published = 1 ORDER BY sort_order, created_at', [$community_id]);
           ?>
-          <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-6">
             <div class="flex items-center justify-between mb-6">
-              <h2 class="text-xl font-bold text-gray-900">Classroom</h2>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">Classroom</h2>
               <?php if ($is_admin): ?>
                 <a href="/manage-course.php?community_id=<?= $community_id ?>"
                    class="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">
@@ -542,7 +488,7 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
         ) : [];
         $referral_link = BASE_URL . '/community.php?slug=' . urlencode($community['slug']);
         ?>
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-6">
           <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div class="flex items-center gap-6">
               <div class="text-center">
@@ -639,14 +585,14 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
       <!-- ====== TAB: LEADERBOARD ====== -->
       <?php elseif ($tab === 'leaderboard'): ?>
         <?php if (!$is_approved): ?>
-          <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-12 text-center">
+            <div class="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Members Only</h3>
-            <p class="text-gray-500 mb-6 text-sm">Join this community to see the leaderboard.</p>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Members Only</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 text-sm">Join this community to see the leaderboard.</p>
             <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
-              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 text-amber-600 rounded-xl font-semibold">Request Pending</span>
+              <span class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl font-semibold">Request Pending</span>
             <?php elseif ($current_user): ?>
               <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-xl font-semibold hover:shadow-lg transition-all">Join Community</button>
             <?php else: ?>
@@ -655,8 +601,8 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
           </div>
         <?php else: ?>
           <?php $leaderboard = get_community_leaderboard($community_id, 50); ?>
-          <div class="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 class="text-xl font-bold text-gray-900 mb-6">Leaderboard</h2>
+          <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-6">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Leaderboard</h2>
 
             <!-- Top 3 Podium -->
             <?php if (count($leaderboard) >= 3): ?>
@@ -732,31 +678,31 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
       <!-- ====== TAB: ABOUT ====== -->
       <?php elseif ($tab === 'about'): ?>
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
           <!-- Stats Grid -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 border-b border-gray-100">
-            <div class="text-center p-4 bg-gray-50 rounded-xl">
-              <div class="font-bold text-lg text-gray-900 capitalize"><?= $community['type'] ?></div>
-              <div class="text-xs text-gray-500 mt-0.5">Access</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 border-b border-gray-100 dark:border-white/10">
+            <div class="text-center p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
+              <div class="font-bold text-lg text-gray-900 dark:text-white capitalize"><?= $community['type'] ?></div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Access</div>
             </div>
-            <div class="text-center p-4 bg-gray-50 rounded-xl">
-              <div class="font-bold text-lg text-gray-900"><?= format_member_count((int)($member_count_approved['cnt'] ?? 0)) ?></div>
-              <div class="text-xs text-gray-500 mt-0.5">Members</div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
+              <div class="font-bold text-lg text-gray-900 dark:text-white"><?= format_member_count((int)($member_count_approved['cnt'] ?? 0)) ?></div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Members</div>
             </div>
-            <div class="text-center p-4 bg-gray-50 rounded-xl">
-              <div class="font-bold text-lg text-gray-900"><?= $community['pricing'] === 'free' ? 'Free' : format_price($community['price'], $community['price_interval'] ?? '') ?></div>
-              <div class="text-xs text-gray-500 mt-0.5">Pricing</div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
+              <div class="font-bold text-lg text-gray-900 dark:text-white"><?= $community['pricing'] === 'free' ? 'Free' : format_price($community['price'], $community['price_interval'] ?? '') ?></div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Pricing</div>
             </div>
-            <div class="text-center p-4 bg-gray-50 rounded-xl">
-              <div class="font-bold text-lg text-gray-900 truncate"><?= e($community['owner_first'] ?: $community['owner_username']) ?></div>
-              <div class="text-xs text-gray-500 mt-0.5">Owner</div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
+              <div class="font-bold text-lg text-gray-900 dark:text-white truncate"><?= e($community['owner_first'] ?: $community['owner_username']) ?></div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Owner</div>
             </div>
           </div>
 
           <!-- Description -->
           <div class="p-6">
-            <h3 class="font-bold text-lg text-gray-900 mb-4">About This Community</h3>
-            <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+            <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">About This Community</h3>
+            <div class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line">
               <?= e($community['description'] ?: $community['short_bio'] ?: 'No description provided.') ?>
             </div>
 
@@ -809,17 +755,17 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 <div class="space-y-6">
 
   <!-- AWARD POINTS -->
-  <div class="bg-white rounded-2xl border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-900 mb-4">Award Points</h3>
+  <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Award Points</h3>
     <div class="space-y-3">
-      <select id="adm-user" class="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50">
+      <select id="adm-user" class="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand/50">
         <?php foreach ($adm_members as $m): ?>
           <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
         <?php endforeach; ?>
       </select>
       <div class="flex gap-3">
-        <input id="adm-pts" type="number" min="1" max="9999" placeholder="Points" class="flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder-gray-600 focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50">
-        <input id="adm-reason" type="text" placeholder="Reason (optional)" class="flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm placeholder-gray-600 focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50">
+        <input id="adm-pts" type="number" min="1" max="9999" placeholder="Points" class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-brand/50">
+        <input id="adm-reason" type="text" placeholder="Reason (optional)" class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-brand/50">
       </div>
       <button onclick="doAwardPoints(<?= $community_id ?>)" class="px-5 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">Award Points</button>
     </div>
@@ -828,12 +774,12 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
   <!-- PENDING REQUESTS -->
   <?php if (!empty($adm_pending)): ?>
   <div class="bg-white rounded-2xl border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-900 mb-4">Pending Requests <span class="ml-2 bg-amber-500/20 text-amber-400 text-sm px-2 py-0.5 rounded-full"><?= count($adm_pending) ?></span></h3>
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Pending Requests <span class="ml-2 bg-amber-500/20 text-amber-400 text-sm px-2 py-0.5 rounded-full"><?= count($adm_pending) ?></span></h3>
     <div class="space-y-2">
       <?php foreach ($adm_pending as $pm): ?>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
           <div class="flex items-center gap-3">
-            <img src="<?= get_avatar_url($pm) ?>" class="w-9 h-9 rounded-full object-cover bg-gray-700">
+            <img src="<?= get_avatar_url($pm) ?>" class="w-9 h-9 rounded-full object-cover">
             <div>
               <p class="text-sm font-semibold text-gray-900"><?= e(trim(($pm['first_name']??'').' '.($pm['last_name']??'')) ?: $pm['username']) ?></p>
               <p class="text-xs text-gray-500">@<?= e($pm['username']) ?></p>
@@ -851,11 +797,11 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
   <!-- MANAGE BADGES -->
   <div class="bg-white rounded-2xl border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-900 mb-4">Badges</h3>
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Badges</h3>
     <?php if (!empty($adm_badges)): ?>
     <div class="space-y-2 mb-5">
       <?php foreach ($adm_badges as $b): ?>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-xl">
           <div class="flex items-center gap-3">
             <span class="text-xl"><?= e($b['icon'] ?? '🏅') ?></span>
             <div>
@@ -884,18 +830,18 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
   <!-- TOPICS -->
   <div class="bg-white rounded-2xl border border-gray-200 p-6">
-    <h3 class="text-lg font-bold text-gray-900 mb-4">Topics</h3>
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Topics</h3>
     <div class="flex flex-wrap gap-2 mb-4">
       <?php foreach ($adm_topics as $t): ?>
-        <span class="flex items-center gap-2 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">
+        <span class="flex items-center gap-2 bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 px-3 py-1.5 rounded-full text-sm">
           # <?= e($t['name']) ?>
           <button onclick="doDeleteTopic(<?= $t['id'] ?>, <?= $community_id ?>)" class="text-gray-500 hover:text-red-400 transition-colors text-xs">&#x2715;</button>
         </span>
       <?php endforeach; ?>
     </div>
     <div class="flex gap-2">
-      <input id="new-topic-name" type="text" placeholder="New topic..." class="flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm placeholder-gray-600 focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50">
-      <button onclick="doAddTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-white text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-100 transition-colors">Add</button>
+      <input id="new-topic-name" type="text" placeholder="New topic..." class="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-brand/50">
+      <button onclick="doAddTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-gray-100 dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-[#333] transition-colors">Add</button>
     </div>
   </div>
 
@@ -907,7 +853,7 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
       <?php foreach ($adm_admins as $a): ?>
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
           <div class="flex items-center gap-3">
-            <img src="<?= get_avatar_url($a) ?>" class="w-9 h-9 rounded-full object-cover bg-gray-700">
+            <img src="<?= get_avatar_url($a) ?>" class="w-9 h-9 rounded-full object-cover">
             <div>
               <p class="text-sm font-semibold text-gray-900"><?= e(trim(($a['first_name']??'').' '.($a['last_name']??'')) ?: $a['username']) ?></p>
               <p class="text-xs text-gray-500">@<?= e($a['username']) ?></p>
@@ -964,7 +910,155 @@ $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Me
 
       <?php endif; // end tab ?>
     </div><!-- end space-y-0 -->
+  </div><!-- end inner div -->
   </div><!-- end main content -->
+
+  <!-- RIGHT SIDEBAR (30%) -->
+  <aside class="w-72 flex-shrink-0 hidden lg:block">
+    <div class="sticky top-[108px] space-y-4">
+
+      <!-- Community Info Card -->
+      <div class="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden">
+        <!-- Banner / Logo header -->
+        <?php if ($community['banner']): ?>
+          <div class="h-20 bg-cover bg-center" style="background-image:url('<?= e($community['banner']) ?>')"></div>
+        <?php else: ?>
+          <div class="h-16 bg-gradient-to-r from-brand to-blue-400"></div>
+        <?php endif; ?>
+        <div class="px-4 pb-4">
+          <div class="-mt-5 mb-3">
+            <?php if ($community['logo']): ?>
+              <img src="<?= e($community['logo']) ?>" class="w-12 h-12 rounded-xl object-cover border-2 border-white dark:border-[#1a1a1a] shadow-md">
+            <?php else: ?>
+              <div class="w-12 h-12 rounded-xl bg-brand flex items-center justify-center text-white font-black text-lg border-2 border-white dark:border-[#1a1a1a] shadow-md">
+                <?= strtoupper(substr($community['name'], 0, 1)) ?>
+              </div>
+            <?php endif; ?>
+          </div>
+          <h3 class="font-bold text-gray-900 dark:text-white text-sm leading-tight"><?= e($community['name']) ?></h3>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 mb-2">community.app/<?= e($community['slug']) ?></p>
+          <?php if ($community['description'] || $community['short_bio']): ?>
+            <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3 line-clamp-3"><?= e($community['description'] ?: $community['short_bio']) ?></p>
+          <?php endif; ?>
+
+          <!-- Stats row -->
+          <div class="flex gap-3 mb-3">
+            <div class="text-center">
+              <div class="font-bold text-sm text-gray-900 dark:text-white"><?= format_member_count((int)($member_count_approved['cnt'] ?? 0)) ?></div>
+              <div class="text-[10px] text-gray-400 dark:text-gray-500">Members</div>
+            </div>
+            <div class="w-px bg-gray-200 dark:bg-white/10"></div>
+            <div class="text-center">
+              <div class="font-bold text-sm text-gray-900 dark:text-white"><?= $admin_count['cnt'] ?? 0 ?></div>
+              <div class="text-[10px] text-gray-400 dark:text-gray-500">Admins</div>
+            </div>
+            <div class="w-px bg-gray-200 dark:bg-white/10"></div>
+            <div class="text-center">
+              <div class="font-bold text-sm text-gray-900 dark:text-white capitalize"><?= e($community['type']) ?></div>
+              <div class="text-[10px] text-gray-400 dark:text-gray-500">Access</div>
+            </div>
+          </div>
+
+          <!-- Admin avatars -->
+          <?php if (!empty($admin_members)): ?>
+            <div class="flex items-center gap-1 mb-3">
+              <div class="flex -space-x-1">
+                <?php foreach (array_slice($admin_members, 0, 4) as $adm): ?>
+                  <img src="<?= get_avatar_url($adm['avatar'] ?? null, ($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')) ?>"
+                       class="w-6 h-6 rounded-full border-2 border-white dark:border-[#1a1a1a] object-cover" title="<?= e(trim(($adm['first_name']??'').' '.($adm['last_name']??'')) ?: $adm['username']) ?>">
+                <?php endforeach; ?>
+              </div>
+              <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                <?= count($admin_members) === 1 ? '1 admin' : count($admin_members) . ' admins' ?>
+              </span>
+            </div>
+          <?php endif; ?>
+
+          <!-- Links -->
+          <?php if (!empty($community_links)): ?>
+            <div class="space-y-1 mb-3">
+              <?php foreach (array_slice($community_links, 0, 4) as $cl): ?>
+                <a href="<?= e($cl['url']) ?>" target="_blank" rel="noopener"
+                   class="flex items-center gap-2 text-xs text-brand hover:underline truncate">
+                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                  <?= e($cl['name'] ?: $cl['url']) ?>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+
+          <!-- Action button -->
+          <?php if ($is_owner): ?>
+            <a href="/edit-community.php?id=<?= $community_id ?>"
+               class="block w-full text-center py-2 bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-[#333] transition-colors">
+              Settings
+            </a>
+          <?php elseif (!$is_approved): ?>
+            <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
+              <span class="block w-full text-center py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-semibold">
+                Pending Approval
+              </span>
+            <?php elseif ($current_user): ?>
+              <button onclick="joinCommunity(<?= $community_id ?>)"
+                      class="block w-full text-center py-2 bg-brand text-white rounded-xl text-xs font-semibold hover:shadow-md transition-all">
+                <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join Community' ?>
+              </button>
+            <?php else: ?>
+              <a href="/login.php" class="block w-full text-center py-2 bg-brand text-white rounded-xl text-xs font-semibold">Sign In to Join</a>
+            <?php endif; ?>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Mini Leaderboard Widget -->
+      <?php if (!empty($sidebar_leaderboard)): ?>
+      <div class="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-bold text-sm text-gray-900 dark:text-white">Leaderboard</h4>
+          <a href="?slug=<?= e($slug) ?>&tab=leaderboard" class="text-xs text-brand hover:underline">View all</a>
+        </div>
+        <div class="space-y-2">
+          <?php foreach ($sidebar_leaderboard as $i => $ldr): ?>
+            <div class="flex items-center gap-2">
+              <span class="w-4 text-xs font-bold text-gray-400 dark:text-gray-500 text-center"><?= $i + 1 ?></span>
+              <img src="<?= get_avatar_url($ldr['avatar'] ?? null, ($ldr['first_name'] ?? '') . ' ' . ($ldr['last_name'] ?? '')) ?>"
+                   class="w-7 h-7 rounded-full object-cover flex-shrink-0">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                  <?= e(trim(($ldr['first_name'] ?? '') . ' ' . ($ldr['last_name'] ?? '')) ?: $ldr['username']) ?>
+                </div>
+              </div>
+              <span class="text-xs font-bold text-brand flex-shrink-0"><?= number_format($ldr['total_points']) ?> XP</span>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Your Stats (if member) -->
+      <?php if ($is_approved && $current_user): ?>
+        <?php
+        $my_points_sidebar = get_user_points_in_community($current_user['id'], $community_id);
+        $my_streak_sidebar = db_fetch('SELECT current_streak FROM user_streaks WHERE user_id = ? AND community_id = ?', [$current_user['id'], $community_id]);
+        ?>
+        <div class="bg-brand rounded-2xl p-4 text-white">
+          <p class="font-bold text-sm mb-2 opacity-90">Your Stats</p>
+          <div class="flex justify-between">
+            <div class="text-center">
+              <div class="font-black text-lg"><?= number_format($my_points_sidebar) ?></div>
+              <div class="text-xs opacity-70">XP</div>
+            </div>
+            <div class="text-center">
+              <div class="font-black text-lg"><?= $my_streak_sidebar ? $my_streak_sidebar['current_streak'] : 0 ?></div>
+              <div class="text-xs opacity-70">Day streak</div>
+            </div>
+          </div>
+        </div>
+      <?php endif; ?>
+
+    </div>
+  </aside>
+
 </div><!-- end flex layout -->
 
 <!-- Add Topic Modal -->
