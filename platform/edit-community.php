@@ -97,20 +97,20 @@ include __DIR__ . '/includes/header.php';
     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
     <!-- Basic Info -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6">
       <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Basic Information</h2>
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Community Name <span class="text-red-500">*</span></label>
           <input type="text" name="name" value="<?= e($community['name']) ?>" required
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-sm">
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-airbnb">
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">URL Slug <span class="text-red-500">*</span></label>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">discover.com/</span>
             <input type="text" name="slug" value="<?= e($community['slug']) ?>" required pattern="[a-z0-9-]{3,100}"
-              class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 font-mono text-sm shadow-sm">
+              class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 font-mono text-sm shadow-airbnb">
           </div>
         </div>
         <div>
@@ -119,7 +119,7 @@ include __DIR__ . '/includes/header.php';
             <?php foreach ($categories as $cat): ?>
               <label class="cursor-pointer">
                 <input type="radio" name="category" value="<?= $cat ?>" <?= $community['category'] === $cat ? 'checked' : '' ?> class="sr-only peer">
-                <div class="px-3 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-center text-xs font-medium text-gray-600 dark:text-gray-400 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 peer-checked:text-primary-600 transition-all cursor-pointer">
+                <div class="px-3 py-2 rounded-xl border-2 border-gray-200 dark:border-white/10 text-center text-xs font-medium text-gray-600 dark:text-gray-400 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 peer-checked:text-primary-600 transition-all cursor-pointer">
                   <?= $cat_labels[$cat] ?>
                 </div>
               </label>
@@ -132,7 +132,7 @@ include __DIR__ . '/includes/header.php';
             <?php foreach (['public' => ['label' => 'Public', 'icon' => '🌐'], 'private' => ['label' => 'Private', 'icon' => '🔒']] as $val => $opt): ?>
               <label class="cursor-pointer">
                 <input type="radio" name="type" value="<?= $val ?>" <?= $community['type'] === $val ? 'checked' : '' ?> class="sr-only peer">
-                <div class="p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all text-center">
+                <div class="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all text-center">
                   <div class="text-xl mb-1"><?= $opt['icon'] ?></div>
                   <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= $opt['label'] ?></div>
                 </div>
@@ -143,13 +143,13 @@ include __DIR__ . '/includes/header.php';
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Short Description</label>
           <input type="text" name="short_bio" value="<?= e($community['short_bio'] ?? '') ?>" maxlength="200"
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-sm"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-airbnb"
             placeholder="One-line description (max 200 chars)">
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Full Description</label>
           <textarea name="description" rows="5"
-            class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 shadow-sm"><?= e($community['description'] ?? '') ?></textarea>
+            class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 shadow-airbnb"><?= e($community['description'] ?? '') ?></textarea>
         </div>
         <div>
           <label class="flex items-center gap-3 cursor-pointer">
@@ -162,14 +162,14 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <!-- Media -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6">
       <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Media & Branding</h2>
       <div class="space-y-5">
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Community Logo</label>
           <div class="flex items-center gap-4">
             <?php if ($community['logo']): ?>
-              <img id="logo-preview" src="<?= e($community['logo']) ?>" class="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-600">
+              <img id="logo-preview" src="<?= e($community['logo']) ?>" class="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 dark:border-white/10">
             <?php else: ?>
               <div id="logo-preview" class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-2xl flex-shrink-0"><?= strtoupper(substr($community['name'], 0, 1)) ?></div>
             <?php endif; ?>
@@ -197,13 +197,13 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <!-- Pricing -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6">
       <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Pricing</h2>
       <div class="grid gap-3 mb-4">
         <?php foreach (['free'=>['icon'=>'🆓','label'=>'Free','desc'=>'Anyone can join for free'], 'paid'=>['icon'=>'💰','label'=>'Paid','desc'=>'Charge a recurring fee'], 'free_trial'=>['icon'=>'🎁','label'=>'Free Trial','desc'=>'Free to try, then paid']] as $val => $opt): ?>
           <label class="cursor-pointer">
             <input type="radio" name="pricing" value="<?= $val ?>" <?= $community['pricing'] === $val ? 'checked' : '' ?> class="sr-only peer" onchange="togglePaidFields()">
-            <div class="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all">
+            <div class="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-white/10 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all">
               <div class="text-2xl"><?= $opt['icon'] ?></div>
               <div>
                 <div class="font-bold text-gray-900 dark:text-white"><?= $opt['label'] ?></div>
@@ -213,15 +213,15 @@ include __DIR__ . '/includes/header.php';
           </label>
         <?php endforeach; ?>
       </div>
-      <div id="paid-fields" class="<?= in_array($community['pricing'], ['paid', 'free_trial']) ? '' : 'hidden' ?> grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
+      <div id="paid-fields" class="<?= in_array($community['pricing'], ['paid', 'free_trial']) ? '' : 'hidden' ?> grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
         <div>
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Price ($)</label>
           <input type="number" name="price" value="<?= e($community['price'] ?? '0') ?>" step="0.01" min="0"
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
         </div>
         <div>
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Billing</label>
-          <select name="price_interval" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+          <select name="price_interval" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             <option value="monthly" <?= $community['price_interval'] === 'monthly' ? 'selected' : '' ?>>Monthly</option>
             <option value="yearly" <?= $community['price_interval'] === 'yearly' ? 'selected' : '' ?>>Yearly</option>
             <option value="one_time" <?= $community['price_interval'] === 'one_time' ? 'selected' : '' ?>>One Time</option>
@@ -231,15 +231,15 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <!-- Links -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6">
       <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Community Links</h2>
       <div id="links-container" class="space-y-2 mb-3">
         <?php foreach ($community_links as $link): ?>
           <div class="flex items-center gap-2 link-row">
             <input type="text" name="link_name[]" value="<?= e($link['name']) ?>" placeholder="Label"
-              class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
+              class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
             <input type="url" name="link_url[]" value="<?= e($link['url']) ?>" placeholder="https://..."
-              class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
+              class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
             <button type="button" onclick="this.closest('.link-row').remove()" class="p-1.5 text-red-400 hover:text-red-600 rounded-lg">✕</button>
           </div>
         <?php endforeach; ?>
@@ -249,7 +249,7 @@ include __DIR__ . '/includes/header.php';
 
     <!-- Actions -->
     <div class="flex items-center justify-between">
-      <a href="/community.php?slug=<?= e($community['slug']) ?>" class="px-5 py-3 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">Cancel</a>
+      <a href="/community.php?slug=<?= e($community['slug']) ?>" class="px-5 py-3 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">Cancel</a>
       <button type="submit"
         class="px-8 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-bold hover:shadow-xl hover:shadow-primary-500/30 transition-all hover:-translate-y-0.5 flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -266,8 +266,8 @@ function addLink() {
   const row = document.createElement('div');
   row.className = 'flex items-center gap-2 link-row';
   row.innerHTML = `
-    <input type="text" name="link_name[]" placeholder="Label" class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
-    <input type="url" name="link_url[]" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
+    <input type="text" name="link_name[]" placeholder="Label" class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
+    <input type="url" name="link_url[]" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
     <button type="button" onclick="this.closest('.link-row').remove()" class="p-1.5 text-red-400 hover:text-red-600 rounded-lg">✕</button>`;
   container.appendChild(row);
 }

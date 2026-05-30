@@ -89,7 +89,7 @@ include __DIR__ . '/includes/header.php';
     <div class="mb-5 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">❌ <?= e($error) ?></div>
   <?php endif; ?>
 
-  <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+  <div class="bg-white dark:bg-[#1a1a1a] rounded-3xl border border-gray-100 dark:border-white/10 shadow-xl overflow-hidden">
     <!-- Step Indicator -->
     <div class="bg-gradient-to-r from-primary-600 to-accent-500 px-8 py-5">
       <div class="flex items-center justify-between">
@@ -128,7 +128,7 @@ include __DIR__ . '/includes/header.php';
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Community Name <span class="text-red-500">*</span></label>
             <input type="text" name="name" id="community-name" value="<?= e($_POST['name'] ?? '') ?>"
               oninput="generateSlug(this.value)"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
               placeholder="e.g. Tech Learning Hub" required>
           </div>
 
@@ -137,7 +137,7 @@ include __DIR__ . '/includes/header.php';
             <div class="flex items-center gap-2">
               <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">discover.com/</span>
               <input type="text" name="slug" id="community-slug" value="<?= e($_POST['slug'] ?? '') ?>"
-                class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 font-mono text-sm"
+                class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 font-mono text-sm"
                 placeholder="my-community-name" required pattern="[a-z0-9-]{3,100}">
             </div>
             <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
@@ -149,7 +149,7 @@ include __DIR__ . '/includes/header.php';
               <?php foreach ($categories as $cat): ?>
                 <label class="cursor-pointer">
                   <input type="radio" name="category" value="<?= $cat ?>" <?= (($_POST['category'] ?? 'trending') === $cat) ? 'checked' : '' ?> class="sr-only peer">
-                  <div class="px-3 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-center text-xs font-medium text-gray-600 dark:text-gray-400 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 peer-checked:text-primary-600 dark:peer-checked:text-primary-400 transition-all cursor-pointer hover:border-gray-300 dark:hover:border-gray-500">
+                  <div class="px-3 py-2 rounded-xl border-2 border-gray-200 dark:border-white/10 text-center text-xs font-medium text-gray-600 dark:text-gray-400 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 peer-checked:text-primary-600 dark:peer-checked:text-primary-400 transition-all cursor-pointer hover:border-gray-300 dark:hover:border-gray-500">
                     <?= $cat_labels[$cat] ?>
                   </div>
                 </label>
@@ -163,7 +163,7 @@ include __DIR__ . '/includes/header.php';
               <?php foreach (['public' => ['label' => 'Public', 'desc' => 'Anyone can join', 'icon' => '🌐'], 'private' => ['label' => 'Private', 'desc' => 'Approval required', 'icon' => '🔒']] as $val => $opt): ?>
                 <label class="cursor-pointer">
                   <input type="radio" name="type" value="<?= $val ?>" <?= (($_POST['type'] ?? 'public') === $val) ? 'checked' : '' ?> class="sr-only peer">
-                  <div class="p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all text-center">
+                  <div class="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all text-center">
                     <div class="text-xl mb-1"><?= $opt['icon'] ?></div>
                     <div class="font-semibold text-sm text-gray-900 dark:text-white"><?= $opt['label'] ?></div>
                     <div class="text-xs text-gray-500 dark:text-gray-400"><?= $opt['desc'] ?></div>
@@ -176,20 +176,20 @@ include __DIR__ . '/includes/header.php';
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Short Description (shows on card)</label>
             <input type="text" name="short_bio" value="<?= e($_POST['short_bio'] ?? '') ?>" maxlength="200"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
               placeholder="One line summary of your community (max 200 chars)">
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full Description</label>
             <textarea name="description" rows="5"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 placeholder-gray-400"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 placeholder-gray-400"
               placeholder="Tell potential members what this community is about..."><?= e($_POST['description'] ?? '') ?></textarea>
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Language</label>
-            <select name="language" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+            <select name="language" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
               <option value="en" <?= (($_POST['language'] ?? 'en') === 'en') ? 'selected' : '' ?>>English</option>
               <option value="ar" <?= (($_POST['language'] ?? '') === 'ar') ? 'selected' : '' ?>>Arabic (العربية)</option>
               <option value="fr" <?= (($_POST['language'] ?? '') === 'fr') ? 'selected' : '' ?>>French (Français)</option>
@@ -208,7 +208,7 @@ include __DIR__ . '/includes/header.php';
           <div>
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Community Logo</label>
             <div class="flex items-center gap-4">
-              <img id="logo-preview" src="" class="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-600 hidden">
+              <img id="logo-preview" src="" class="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 dark:border-white/10 hidden">
               <div id="logo-placeholder" class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-2xl flex-shrink-0">D</div>
               <div>
                 <input type="file" id="logo-upload" accept="image/*" class="hidden"
@@ -259,7 +259,7 @@ include __DIR__ . '/includes/header.php';
             <label class="cursor-pointer">
               <input type="radio" name="pricing" value="<?= $val ?>" <?= (($_POST['pricing'] ?? 'free') === $val) ? 'checked' : '' ?>
                 class="sr-only peer" onchange="togglePricingFields()">
-              <div class="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-600 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all">
+              <div class="flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-white/10 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/30 transition-all">
                 <div class="text-2xl"><?= $opt['icon'] ?></div>
                 <div>
                   <div class="font-bold text-gray-900 dark:text-white"><?= $opt['label'] ?></div>
@@ -270,17 +270,17 @@ include __DIR__ . '/includes/header.php';
           <?php endforeach; ?>
         </div>
 
-        <div id="paid-fields" class="<?= in_array($_POST['pricing'] ?? 'free', ['paid', 'free_trial']) ? '' : 'hidden' ?> mt-5 space-y-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
+        <div id="paid-fields" class="<?= in_array($_POST['pricing'] ?? 'free', ['paid', 'free_trial']) ? '' : 'hidden' ?> mt-5 space-y-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Price ($)</label>
               <input type="number" name="price" value="<?= e($_POST['price'] ?? '9.99') ?>" step="0.01" min="0"
-                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
                 placeholder="9.99">
             </div>
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Billing Interval</label>
-              <select name="price_interval" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              <select name="price_interval" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
                 <option value="monthly" <?= (($_POST['price_interval'] ?? 'monthly') === 'monthly') ? 'selected' : '' ?>>Monthly</option>
                 <option value="yearly" <?= (($_POST['price_interval'] ?? '') === 'yearly') ? 'selected' : '' ?>>Yearly</option>
                 <option value="one_time" <?= (($_POST['price_interval'] ?? '') === 'one_time') ? 'selected' : '' ?>>One Time</option>
@@ -316,7 +316,7 @@ include __DIR__ . '/includes/header.php';
       <div id="step-5" class="hidden">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-5">Review & Create</h2>
         <div id="review-content" class="space-y-4 mb-6">
-          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-5">
+          <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-5">
             <div id="review-preview" class="text-sm text-gray-700 dark:text-gray-300 space-y-2">
               <div class="flex gap-3">
                 <div id="review-logo" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-xl overflow-hidden flex-shrink-0">D</div>
@@ -326,7 +326,7 @@ include __DIR__ . '/includes/header.php';
                   <p id="review-bio" class="text-sm text-gray-500 dark:text-gray-400 mt-1">-</p>
                 </div>
               </div>
-              <div class="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div class="grid grid-cols-3 gap-3 pt-3 border-t border-gray-200 dark:border-white/10">
                 <div class="text-center"><div id="review-type" class="font-semibold text-gray-900 dark:text-white text-sm">-</div><div class="text-xs text-gray-400 dark:text-gray-500">Type</div></div>
                 <div class="text-center"><div id="review-pricing" class="font-semibold text-gray-900 dark:text-white text-sm">-</div><div class="text-xs text-gray-400 dark:text-gray-500">Pricing</div></div>
                 <div class="text-center"><div id="review-category" class="font-semibold text-gray-900 dark:text-white text-sm capitalize">-</div><div class="text-xs text-gray-400 dark:text-gray-500">Category</div></div>
@@ -443,8 +443,8 @@ function addCommLinkRow() {
   const row = document.createElement('div');
   row.className = 'flex items-center gap-2 link-row';
   row.innerHTML = `
-    <input type="text" name="link_name[]" placeholder="Label" class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
-    <input type="url" name="link_url[]" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none dark:text-gray-200">
+    <input type="text" name="link_name[]" placeholder="Label" class="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
+    <input type="url" name="link_url[]" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none dark:text-gray-200">
     <button type="button" onclick="this.closest('.link-row').remove()" class="p-1.5 text-red-400 hover:text-red-600 rounded-lg">✕</button>`;
   container.appendChild(row);
 }

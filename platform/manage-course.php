@@ -139,26 +139,26 @@ include __DIR__ . '/includes/header.php';
     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
     <!-- Course Info Card -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 mb-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6 mb-6">
       <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Course Details</h2>
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Course Title <span class="text-red-500">*</span></label>
           <input type="text" name="title" required value="<?= e($course['title'] ?? '') ?>"
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-sm"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-airbnb"
             placeholder="e.g. Introduction to Marketing">
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
           <textarea name="description" rows="4"
-            class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 shadow-sm"
+            class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 shadow-airbnb"
             placeholder="What will students learn in this course?"><?= e($course['description'] ?? '') ?></textarea>
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Thumbnail</label>
           <div class="flex items-center gap-4">
             <div id="thumbnail-preview-wrap" class="<?= empty($course['thumbnail']) ? 'hidden' : '' ?>">
-              <img id="thumbnail-preview" src="<?= e($course['thumbnail'] ?? '') ?>" class="w-32 h-20 object-cover rounded-xl border border-gray-200 dark:border-gray-600">
+              <img id="thumbnail-preview" src="<?= e($course['thumbnail'] ?? '') ?>" class="w-32 h-20 object-cover rounded-xl border border-gray-200 dark:border-white/10">
             </div>
             <div>
               <input type="file" id="thumbnail-upload" accept="image/*" class="hidden" onchange="uploadThumbnail(this)">
@@ -174,7 +174,7 @@ include __DIR__ . '/includes/header.php';
           <div>
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Pricing</label>
             <select name="pricing" onchange="togglePriceField()" id="course-pricing"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-sm">
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-airbnb">
               <option value="free" <?= (($course['pricing'] ?? 'free') === 'free') ? 'selected' : '' ?>>Free</option>
               <option value="paid" <?= (($course['pricing'] ?? '') === 'paid') ? 'selected' : '' ?>>Paid</option>
             </select>
@@ -182,7 +182,7 @@ include __DIR__ . '/includes/header.php';
           <div id="price-field" class="<?= (($course['pricing'] ?? 'free') === 'paid') ? '' : 'hidden' ?>">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Price ($)</label>
             <input type="number" name="price" value="<?= e($course['price'] ?? '0') ?>" step="0.01" min="0"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-sm"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200 shadow-airbnb"
               placeholder="9.99">
           </div>
         </div>
@@ -197,7 +197,7 @@ include __DIR__ . '/includes/header.php';
     </div>
 
     <!-- Sections & Lessons -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 mb-6">
+    <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 shadow-airbnb p-6 mb-6">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white">Course Content</h2>
         <button type="button" onclick="addSection()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover:shadow-md transition-all">
@@ -207,43 +207,43 @@ include __DIR__ . '/includes/header.php';
       </div>
       <div id="sections-container" class="space-y-4">
         <?php foreach ($sections_data as $s_idx => $sd): ?>
-          <div class="section-block border border-gray-200 dark:border-gray-600 rounded-2xl overflow-hidden" data-section-idx="<?= $s_idx ?>">
-            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 px-4 py-3">
+          <div class="section-block border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden" data-section-idx="<?= $s_idx ?>">
+            <div class="flex items-center gap-3 bg-gray-50 dark:bg-white/5 px-4 py-3">
               <div class="cursor-grab text-gray-400 dark:text-gray-500">⠿</div>
               <input type="text" name="section_title[]" value="<?= e($sd['section']['title']) ?>" required
                 placeholder="Section title..."
-                class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-semibold">
+                class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-semibold">
               <button type="button" onclick="this.closest('.section-block').remove()" class="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">Remove</button>
             </div>
             <div class="lessons-container p-3 space-y-2">
               <?php foreach ($sd['lessons'] as $l_idx => $lesson): ?>
-                <div class="lesson-block bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4">
+                <div class="lesson-block bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-xl p-4">
                   <div class="flex items-center gap-2 mb-3">
                     <div class="cursor-grab text-gray-400 text-xs">⠿</div>
                     <input type="text" name="lessons[<?= $s_idx ?>][title][]" value="<?= e($lesson['title']) ?>" required
                       placeholder="Lesson title..."
-                      class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-medium">
+                      class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-medium">
                     <button type="button" onclick="this.closest('.lesson-block').remove()" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex-shrink-0">✕</button>
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
                     <select name="lessons[<?= $s_idx ?>][type][]" onchange="toggleVideoFields(this)"
-                      class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+                      class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
                       <option value="video" <?= $lesson['lesson_type'] === 'video' ? 'selected' : '' ?>>Video</option>
                       <option value="text" <?= $lesson['lesson_type'] === 'text' ? 'selected' : '' ?>>Text</option>
                       <option value="mixed" <?= $lesson['lesson_type'] === 'mixed' ? 'selected' : '' ?>>Mixed</option>
                     </select>
                     <input type="number" name="lessons[<?= $s_idx ?>][duration][]" value="<?= (int)$lesson['duration_minutes'] ?>" min="0" placeholder="Duration (min)"
-                      class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+                      class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
                   </div>
                   <div class="video-fields <?= in_array($lesson['lesson_type'], ['video','mixed']) ? '' : 'hidden' ?> space-y-2 mb-2">
                     <input type="url" name="lessons[<?= $s_idx ?>][video_url][]" value="<?= e($lesson['video_url'] ?? '') ?>"
                       placeholder="YouTube/Vimeo URL..."
-                      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+                      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
                     <textarea name="lessons[<?= $s_idx ?>][video_embed][]" rows="2" placeholder="Or paste embed code (iframe)..."
-                      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($lesson['video_embed'] ?? '') ?></textarea>
+                      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($lesson['video_embed'] ?? '') ?></textarea>
                   </div>
                   <textarea name="lessons[<?= $s_idx ?>][content][]" rows="3" placeholder="Lesson content (supports markdown)..."
-                    class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($lesson['content'] ?? '') ?></textarea>
+                    class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"><?= e($lesson['content'] ?? '') ?></textarea>
                 </div>
               <?php endforeach; ?>
             </div>
@@ -267,7 +267,7 @@ include __DIR__ . '/includes/header.php';
     <!-- Submit -->
     <div class="flex items-center justify-between">
       <a href="/community.php?slug=<?= e($community['slug']) ?>&tab=classroom"
-        class="px-5 py-3 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+        class="px-5 py-3 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
         Cancel
       </a>
       <button type="submit"
@@ -289,13 +289,13 @@ function addSection() {
   const container = document.getElementById('sections-container');
   const sIdx = sectionCount++;
   const div = document.createElement('div');
-  div.className = 'section-block border border-gray-200 dark:border-gray-600 rounded-2xl overflow-hidden';
+  div.className = 'section-block border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden';
   div.dataset.sectionIdx = sIdx;
   div.innerHTML = `
-    <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 px-4 py-3">
+    <div class="flex items-center gap-3 bg-gray-50 dark:bg-white/5 px-4 py-3">
       <div class="cursor-grab text-gray-400 dark:text-gray-500">⠿</div>
       <input type="text" name="section_title[]" required placeholder="Section title..."
-        class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-semibold">
+        class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-semibold">
       <button type="button" onclick="this.closest('.section-block').remove()" class="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">Remove</button>
     </div>
     <div class="lessons-container p-3 space-y-2"></div>
@@ -313,32 +313,32 @@ function addLesson(btn, sectionIdx) {
   const section = btn.closest('.section-block');
   const container = section.querySelector('.lessons-container');
   const div = document.createElement('div');
-  div.className = 'lesson-block bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4';
+  div.className = 'lesson-block bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-xl p-4';
   div.innerHTML = `
     <div class="flex items-center gap-2 mb-3">
       <div class="cursor-grab text-gray-400 text-xs">⠿</div>
       <input type="text" name="lessons[${sectionIdx}][title][]" required placeholder="Lesson title..."
-        class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-medium">
+        class="flex-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200 font-medium">
       <button type="button" onclick="this.closest('.lesson-block').remove()" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex-shrink-0">✕</button>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
       <select name="lessons[${sectionIdx}][type][]" onchange="toggleVideoFields(this)"
-        class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+        class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
         <option value="video">Video</option>
         <option value="text" selected>Text</option>
         <option value="mixed">Mixed</option>
       </select>
       <input type="number" name="lessons[${sectionIdx}][duration][]" min="0" placeholder="Duration (min)"
-        class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+        class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
     </div>
     <div class="video-fields hidden space-y-2 mb-2">
       <input type="url" name="lessons[${sectionIdx}][video_url][]" placeholder="YouTube/Vimeo URL..."
-        class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+        class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
       <textarea name="lessons[${sectionIdx}][video_embed][]" rows="2" placeholder="Or paste embed code (iframe)..."
-        class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"></textarea>
+        class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"></textarea>
     </div>
     <textarea name="lessons[${sectionIdx}][content][]" rows="3" placeholder="Lesson content (supports markdown)..."
-      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"></textarea>`;
+      class="w-full px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 resize-none dark:text-gray-200"></textarea>`;
   container.appendChild(div);
 }
 

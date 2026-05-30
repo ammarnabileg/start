@@ -154,29 +154,29 @@ include __DIR__ . '/includes/header.php';
 ?>
 
 <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Settings</h1>
   <div class="flex gap-6 flex-col md:flex-row">
 
-    <!-- Sidebar Nav -->
+    <!-- Sidebar Nav — Airbnb style -->
     <div class="md:w-52 flex-shrink-0">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-3 shadow-sm sticky top-20">
-        <h2 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 mb-2">Settings</h2>
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-2 shadow-airbnb sticky top-20">
         <?php
         $nav_tabs = [
-            'profile'       => ['icon' => '👤', 'label' => 'Profile'],
-            'account'       => ['icon' => '🔐', 'label' => 'Account'],
-            'notifications' => ['icon' => '🔔', 'label' => 'Notifications'],
-            'payment'       => ['icon' => '💳', 'label' => 'Payment Methods'],
-            'history'       => ['icon' => '📜', 'label' => 'Payment History'],
-            'affiliates'    => ['icon' => '🔗', 'label' => 'Affiliates'],
-            'payouts'       => ['icon' => '💰', 'label' => 'Payouts'],
-            'theme'         => ['icon' => '🎨', 'label' => 'Theme'],
+            'profile'       => ['label' => 'Profile'],
+            'account'       => ['label' => 'Account & Security'],
+            'notifications' => ['label' => 'Notifications'],
+            'payment'       => ['label' => 'Payment Methods'],
+            'history'       => ['label' => 'Payment History'],
+            'affiliates'    => ['label' => 'Affiliates'],
+            'payouts'       => ['label' => 'Payouts'],
+            'theme'         => ['label' => 'Appearance'],
         ];
         foreach ($nav_tabs as $t => $info):
         ?>
           <a href="?tab=<?= $t ?>"
-            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all <?= $tab === $t ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' ?>">
-            <span><?= $info['icon'] ?></span>
-            <span><?= $info['label'] ?></span>
+             class="flex items-center px-3 py-2.5 rounded-xl text-sm transition-colors font-medium
+                    <?= $tab === $t ? 'bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-800 dark:hover:text-gray-200' ?>">
+            <?= $info['label'] ?>
           </a>
         <?php endforeach; ?>
       </div>
@@ -198,7 +198,7 @@ include __DIR__ . '/includes/header.php';
       <?php endif; ?>
 
       <?php if ($tab === 'profile'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-airbnb">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Profile Settings</h2>
         <form method="POST" class="space-y-5">
           <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -226,12 +226,12 @@ include __DIR__ . '/includes/header.php';
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
               <input type="text" name="first_name" value="<?= e($current_user['first_name'] ?? '') ?>"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
               <input type="text" name="last_name" value="<?= e($current_user['last_name'] ?? '') ?>"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
           </div>
 
@@ -240,14 +240,14 @@ include __DIR__ . '/includes/header.php';
             <div class="relative">
               <span class="absolute left-3 top-2.5 text-gray-400 text-sm">@</span>
               <input type="text" name="username" value="<?= e($current_user['username']) ?>"
-                class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Bio</label>
             <textarea name="bio" rows="3"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 placeholder-gray-400"
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none dark:text-gray-200 placeholder-gray-400"
               placeholder="Tell your community about yourself..."><?= e($current_user['bio'] ?? '') ?></textarea>
           </div>
 
@@ -255,7 +255,7 @@ include __DIR__ . '/includes/header.php';
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Location</label>
             <input type="text" name="location" value="<?= e($current_user['location'] ?? '') ?>"
               placeholder="Riyadh, Saudi Arabia"
-              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
           </div>
 
           <!-- Links Manager -->
@@ -265,9 +265,9 @@ include __DIR__ . '/includes/header.php';
               <?php foreach ($user_links as $link): ?>
                 <div class="flex items-center gap-2 link-row">
                   <input type="text" name="link_name[]" value="<?= e($link['name']) ?>" placeholder="Label (e.g. Twitter)"
-                    class="w-32 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+                    class="w-32 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
                   <input type="url" name="link_url[]" value="<?= e($link['url']) ?>" placeholder="https://..."
-                    class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+                    class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
                   <button type="button" onclick="this.closest('.link-row').remove()" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
@@ -287,7 +287,7 @@ include __DIR__ . '/includes/header.php';
       <?php elseif ($tab === 'account'): ?>
       <div class="space-y-5">
         <!-- Change Password -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Security</h2>
           <form method="POST" class="space-y-4">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -295,31 +295,31 @@ include __DIR__ . '/includes/header.php';
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Current Password</label>
               <input type="password" name="old_password" required
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
               <input type="password" name="new_password" required minlength="8"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Confirm New Password</label>
               <input type="password" name="confirm_password" required
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
             </div>
             <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Update Password</button>
           </form>
         </div>
 
         <!-- Active Sessions -->
-        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-gray-900 dark:text-white">Active Sessions</h2>
             <a href="/api/settings_save.php?action=logout_all" class="text-sm text-red-600 dark:text-red-400 hover:underline font-medium">Logout All Devices</a>
           </div>
           <div class="space-y-3">
             <?php foreach ($user_sessions as $sess): ?>
-              <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                 <div>
                   <div class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs"><?= e(substr($sess['device_info'] ?? 'Unknown device', 0, 80)) ?></div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">IP: <?= e($sess['ip_address'] ?? '-') ?> • Last active: <?= time_ago($sess['last_active']) ?></div>
@@ -337,7 +337,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'notifications'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Notification Preferences</h2>
         <form method="POST">
           <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -355,7 +355,7 @@ include __DIR__ . '/includes/header.php';
             foreach ($notif_opts as $key => $opt):
                 $checked = $notif_settings ? (bool)$notif_settings[$key] : true;
             ?>
-              <label class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+              <label class="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
                 <div>
                   <div class="text-sm font-medium text-gray-900 dark:text-white"><?= $opt['label'] ?></div>
                   <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"><?= $opt['desc'] ?></div>
@@ -369,11 +369,11 @@ include __DIR__ . '/includes/header.php';
           </div>
 
           <?php if (!empty($user_communities)): ?>
-            <div class="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-4">
+            <div class="border-t border-gray-100 dark:border-white/10 pt-4 space-y-4">
               <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Community Notifications</h3>
               <?php foreach ($user_communities as $c): ?>
                 <?php $cs = db_fetch('SELECT * FROM community_notification_settings WHERE user_id=? AND community_id=?', [$current_user['id'], $c['id']]); ?>
-                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                <div class="p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
                   <div class="font-semibold text-sm text-gray-900 dark:text-white mb-3"><?= e($c['name']) ?></div>
                   <div class="flex gap-4">
                     <label class="flex items-center gap-2 cursor-pointer">
@@ -395,14 +395,14 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'payment'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Payment Methods</h2>
 
         <!-- Existing cards -->
         <?php if (!empty($payment_methods)): ?>
           <div class="space-y-3 mb-6">
             <?php foreach ($payment_methods as $pm): ?>
-              <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-7 rounded bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white text-xs font-bold"><?= substr(e($pm['card_brand'] ?? 'CARD'), 0, 4) ?></div>
                   <div>
@@ -423,7 +423,7 @@ include __DIR__ . '/includes/header.php';
         <?php endif; ?>
 
         <!-- Add new card -->
-        <details class="bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <details class="bg-gray-50 dark:bg-white/5 rounded-xl">
           <summary class="px-4 py-3 text-sm font-semibold text-primary-600 dark:text-primary-400 cursor-pointer hover:text-primary-700 dark:hover:text-primary-300 list-none flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add Payment Method
@@ -434,7 +434,7 @@ include __DIR__ . '/includes/header.php';
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Card Brand</label>
-                <select name="card_brand" class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                <select name="card_brand" class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
                   <option value="Visa">Visa</option>
                   <option value="Mastercard">Mastercard</option>
                   <option value="Mada">Mada</option>
@@ -444,17 +444,17 @@ include __DIR__ . '/includes/header.php';
               <div>
                 <label class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Last 4 Digits</label>
                 <input type="text" name="card_last4" maxlength="4" pattern="[0-9]{4}" placeholder="1234"
-                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
               </div>
               <div>
                 <label class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Exp Month</label>
                 <input type="number" name="exp_month" min="1" max="12" placeholder="MM"
-                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
               </div>
               <div>
                 <label class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Exp Year</label>
                 <input type="number" name="exp_year" min="<?= date('Y') ?>" max="<?= date('Y') + 10 ?>" placeholder="YYYY"
-                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
+                  class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200">
               </div>
             </div>
             <button type="submit" class="px-5 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Add Card</button>
@@ -463,7 +463,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'history'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Payment History</h2>
         <?php if (empty($payment_history)): ?>
           <div class="text-center py-12">
@@ -474,7 +474,7 @@ include __DIR__ . '/includes/header.php';
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-gray-100 dark:border-gray-700">
+                <tr class="border-b border-gray-100 dark:border-white/10">
                   <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Date</th>
                   <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Type</th>
                   <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400">For</th>
@@ -484,13 +484,13 @@ include __DIR__ . '/includes/header.php';
               </thead>
               <tbody>
                 <?php foreach ($payment_history as $p): ?>
-                  <tr class="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                  <tr class="border-b border-gray-50 dark:border-white/10/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td class="py-2.5 px-3 text-gray-600 dark:text-gray-400 text-xs"><?= date('M d, Y', strtotime($p['created_at'])) ?></td>
                     <td class="py-2.5 px-3 capitalize text-gray-700 dark:text-gray-300 text-xs"><?= e($p['type']) ?></td>
                     <td class="py-2.5 px-3 text-gray-700 dark:text-gray-300 text-xs"><?= e($p['community_name'] ?? $p['course_title'] ?? '-') ?></td>
                     <td class="py-2.5 px-3 font-semibold text-gray-900 dark:text-white text-xs">$<?= number_format($p['amount'], 2) ?></td>
                     <td class="py-2.5 px-3">
-                      <?php $sc = ['completed'=>'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', 'pending'=>'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'failed'=>'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', 'refunded'=>'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400']; ?>
+                      <?php $sc = ['completed'=>'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', 'pending'=>'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'failed'=>'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', 'refunded'=>'bg-gray-100 text-gray-700 dark:bg-[#2a2a2a] dark:text-gray-400']; ?>
                       <span class="text-xs px-2 py-0.5 rounded-full font-medium <?= $sc[$p['status']] ?? '' ?> capitalize"><?= $p['status'] ?></span>
                     </td>
                   </tr>
@@ -502,7 +502,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'affiliates'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Affiliate Program</h2>
 
         <!-- Referral Link -->
@@ -511,7 +511,7 @@ include __DIR__ . '/includes/header.php';
           <div class="flex gap-2">
             <input type="text" readonly id="ref-link"
               value="<?= e($base_url) ?>/register.php?ref=<?= e($current_user['affiliate_code'] ?? '') ?>"
-              class="flex-1 px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 font-mono">
+              class="flex-1 px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-[#2a2a2a] text-sm text-gray-700 dark:text-gray-300 font-mono">
             <button onclick="copyRefLink()" class="px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-all">Copy</button>
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Earn 7% commission on all payments from your referred users</p>
@@ -519,15 +519,15 @@ include __DIR__ . '/includes/header.php';
 
         <!-- Stats -->
         <div class="grid grid-cols-3 gap-4 mb-5">
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+          <div class="text-center p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
             <div class="text-2xl font-black text-primary-600 dark:text-primary-400"><?= (int)($referred_users['cnt'] ?? 0) ?></div>
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Referred Users</div>
           </div>
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+          <div class="text-center p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
             <div class="text-2xl font-black text-green-600 dark:text-green-400">$<?= number_format($affiliate_earnings['total'] ?? 0, 2) ?></div>
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Earnings</div>
           </div>
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+          <div class="text-center p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
             <div class="text-2xl font-black text-accent-500 dark:text-accent-400">7%</div>
             <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Commission Rate</div>
           </div>
@@ -537,7 +537,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'payouts'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Payouts</h2>
         <div class="bg-gradient-to-br from-primary-600 to-accent-500 rounded-2xl p-6 text-white mb-5">
           <div class="text-sm opacity-80 mb-1">Available Balance</div>
@@ -553,7 +553,7 @@ include __DIR__ . '/includes/header.php';
       </div>
 
       <?php elseif ($tab === 'theme'): ?>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Appearance</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Choose how Discover looks for you.</p>
         <form method="POST">
@@ -562,7 +562,7 @@ include __DIR__ . '/includes/header.php';
           <div class="grid sm:grid-cols-2 gap-4 mb-6">
             <label class="cursor-pointer">
               <input type="radio" name="theme" value="light" <?= ($current_user['theme'] ?? 'light') === 'light' ? 'checked' : '' ?> class="sr-only">
-              <div class="theme-card border-2 rounded-2xl overflow-hidden transition-all hover:shadow-md <?= ($current_user['theme'] ?? 'light') === 'light' ? 'border-primary-500 shadow-primary-100' : 'border-gray-200 dark:border-gray-600' ?>"
+              <div class="theme-card border-2 rounded-2xl overflow-hidden transition-all hover:shadow-md <?= ($current_user['theme'] ?? 'light') === 'light' ? 'border-primary-500 shadow-primary-100' : 'border-gray-200 dark:border-white/10' ?>"
                 onclick="selectTheme('light', this)">
                 <div class="bg-white p-4">
                   <div class="h-2 w-12 bg-gray-300 rounded mb-2"></div>
@@ -576,7 +576,7 @@ include __DIR__ . '/includes/header.php';
             </label>
             <label class="cursor-pointer">
               <input type="radio" name="theme" value="dark" <?= ($current_user['theme'] ?? 'light') === 'dark' ? 'checked' : '' ?> class="sr-only">
-              <div class="theme-card border-2 rounded-2xl overflow-hidden transition-all hover:shadow-md <?= ($current_user['theme'] ?? 'light') === 'dark' ? 'border-primary-500' : 'border-gray-200 dark:border-gray-600' ?>"
+              <div class="theme-card border-2 rounded-2xl overflow-hidden transition-all hover:shadow-md <?= ($current_user['theme'] ?? 'light') === 'dark' ? 'border-primary-500' : 'border-gray-200 dark:border-white/10' ?>"
                 onclick="selectTheme('dark', this)">
                 <div class="bg-gray-900 p-4">
                   <div class="h-2 w-12 bg-gray-600 rounded mb-2"></div>
@@ -631,9 +631,9 @@ function addLinkRow() {
   row.className = 'flex items-center gap-2 link-row';
   row.innerHTML = `
     <input type="text" name="link_name[]" placeholder="Label (e.g. Twitter)"
-      class="w-32 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+      class="w-32 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
     <input type="url" name="link_url[]" placeholder="https://..."
-      class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
+      class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-gray-200">
     <button type="button" onclick="this.closest('.link-row').remove()" class="p-2 text-red-400 hover:text-red-600 rounded-lg">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>`;

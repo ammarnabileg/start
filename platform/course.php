@@ -31,7 +31,7 @@ if (!$course_is_member) {
     include __DIR__ . '/includes/header.php';
     ?>
     <main class="max-w-2xl mx-auto px-4 sm:px-6 py-20 text-center">
-      <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-xl p-12">
+      <div class="bg-white dark:bg-[#1a1a1a] rounded-3xl border border-gray-100 dark:border-white/10 shadow-xl p-12">
         <div class="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
           <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
@@ -111,12 +111,12 @@ include __DIR__ . '/includes/header.php';
   </nav>
 
   <!-- Progress bar -->
-  <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+  <div class="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 mb-4 border border-gray-100 dark:border-white/10 shadow-airbnb">
     <div class="flex items-center justify-between mb-2">
       <span class="text-sm font-semibold text-gray-700 dark:text-gray-300"><?= e($course['title']) ?></span>
       <span class="text-sm font-bold text-primary-600 dark:text-primary-400"><?= $progress['percent'] ?>% Complete</span>
     </div>
-    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+    <div class="w-full bg-gray-200 dark:bg-[#2a2a2a] rounded-full h-2">
       <div class="bg-gradient-to-r from-primary-500 to-accent-500 h-2 rounded-full transition-all duration-500" style="width:<?= $progress['percent'] ?>%"></div>
     </div>
     <div class="text-xs text-gray-400 dark:text-gray-500 mt-1"><?= $progress['completed'] ?> / <?= $progress['total'] ?> lessons completed</div>
@@ -125,14 +125,14 @@ include __DIR__ . '/includes/header.php';
   <div class="flex gap-5 flex-col lg:flex-row">
     <!-- Left Sidebar: Course Navigation -->
     <div class="lg:w-72 flex-shrink-0">
-      <div class="sidebar-sticky bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
-        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+      <div class="sidebar-sticky bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 overflow-hidden shadow-airbnb">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10">
           <h3 class="font-bold text-sm text-gray-700 dark:text-gray-300">Course Content</h3>
         </div>
         <div class="overflow-y-auto max-h-[calc(100vh-200px)]">
           <?php foreach ($sections as $sec): ?>
             <?php $sec_lessons = $lesson_by_section[$sec['id']] ?? []; ?>
-            <div class="border-b border-gray-50 dark:border-gray-700/50 last:border-0">
+            <div class="border-b border-gray-50 dark:border-white/10/50 last:border-0">
               <button onclick="toggleSection(<?= $sec['id'] ?>)"
                 class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all text-left">
                 <span class="text-xs font-bold text-gray-700 dark:text-gray-300 leading-tight"><?= e($sec['title']) ?></span>
@@ -170,7 +170,7 @@ include __DIR__ . '/includes/header.php';
     <!-- Main Lesson Content -->
     <div class="flex-1 min-w-0">
       <?php if ($current_lesson): ?>
-        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 overflow-hidden shadow-airbnb">
           <!-- Video or Content -->
           <?php if ($current_lesson['video_url'] || $current_lesson['video_embed']): ?>
             <div class="w-full bg-black">
@@ -190,7 +190,7 @@ include __DIR__ . '/includes/header.php';
                   <?php if ($current_lesson['duration_minutes'] > 0): ?>
                     <span class="text-xs text-gray-500 dark:text-gray-400">⏱ <?= $current_lesson['duration_minutes'] ?> min</span>
                   <?php endif; ?>
-                  <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize"><?= $current_lesson['lesson_type'] ?></span>
+                  <span class="text-xs bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize"><?= $current_lesson['lesson_type'] ?></span>
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -207,7 +207,7 @@ include __DIR__ . '/includes/header.php';
                 <?php endif; ?>
                 <?php if ($next_lesson): ?>
                   <a href="?id=<?= $course_id ?>&lesson=<?= $next_lesson['id'] ?>"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
                     Next
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                   </a>
@@ -224,7 +224,7 @@ include __DIR__ . '/includes/header.php';
           </div>
         </div>
       <?php else: ?>
-        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center shadow-sm">
+        <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-12 text-center shadow-airbnb">
           <div class="text-5xl mb-4">📚</div>
           <h3 class="font-bold text-xl text-gray-700 dark:text-gray-300 mb-2">No lessons yet</h3>
           <p class="text-gray-500 dark:text-gray-400">This course doesn't have any lessons yet.</p>
@@ -236,7 +236,7 @@ include __DIR__ . '/includes/header.php';
 
 <!-- Course Completion Modal -->
 <div id="completion-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-  <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md p-8 text-center">
+  <div class="bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl w-full max-w-md p-8 text-center">
     <div class="text-6xl mb-4">🎉</div>
     <h2 class="text-2xl font-black text-gray-900 dark:text-white mb-2">Course Complete!</h2>
     <p class="text-gray-600 dark:text-gray-400 mb-4">Congratulations! You've completed <strong><?= e($course['title']) ?></strong></p>
@@ -258,7 +258,7 @@ include __DIR__ . '/includes/header.php';
 
     <div class="flex justify-center gap-3">
       <a href="/community.php?slug=<?= e($course['community_slug']) ?>&tab=classroom"
-        class="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
+        class="px-5 py-2.5 bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
         Back to Classroom
       </a>
       <button onclick="document.getElementById('completion-modal').classList.add('hidden')"
