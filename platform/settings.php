@@ -204,17 +204,22 @@ include __DIR__ . '/includes/header.php';
           <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
           <input type="hidden" name="action" value="save_profile">
 
-          <!-- Avatar URL -->
-          <div class="flex items-center gap-4">
-            <img id="avatar-preview" src="<?= get_avatar_url($current_user['avatar'], ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? ''), 80) ?>"
-              class="w-16 h-16 rounded-2xl object-cover border-2 border-gray-200 dark:border-gray-600">
-            <div class="flex-1">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Avatar URL</label>
-              <input type="url" name="avatar" value="<?= e($current_user['avatar'] ?? '') ?>"
-                oninput="document.getElementById('avatar-preview').src = this.value || '<?= get_avatar_url(null, ($current_user['first_name'] ?? 'U')) ?>'"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
-                placeholder="https://example.com/avatar.jpg">
+          <!-- Avatar Upload -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Profile Photo</label>
+            <div class="flex items-center gap-4">
+              <img id="avatar-preview" src="<?= get_avatar_url($current_user['avatar'], ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? ''), 80) ?>"
+                class="w-20 h-20 rounded-full object-cover border-2 border-primary-200">
+              <div>
+                <input type="file" id="avatar-upload" accept="image/*" class="hidden"
+                       onchange="uploadFile(this, 'avatar', 'avatar-preview', 'avatar_url_input')">
+                <label for="avatar-upload" class="cursor-pointer px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors">
+                  Change Photo
+                </label>
+                <p class="text-xs text-gray-500 mt-1">JPG, PNG or WebP. Max 5MB.</p>
+              </div>
             </div>
+            <input type="hidden" name="avatar" id="avatar_url_input" value="<?= e($current_user['avatar'] ?? '') ?>">
           </div>
 
           <div class="grid grid-cols-2 gap-4">
@@ -594,6 +599,32 @@ include __DIR__ . '/includes/header.php';
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
 <script>
+async function uploadFile(input, type, previewId, hiddenId) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  const label = input.nextElementSibling;
+  const orig = label ? label.textContent : '';
+  if (label) label.textContent = 'Uploading...';
+  try {
+    const res = await fetch('/api/upload.php', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.url) {
+      const preview = document.getElementById(previewId);
+      if (preview) preview.src = data.url;
+      const hidden = document.getElementById(hiddenId);
+      if (hidden) hidden.value = data.url;
+    } else {
+      alert(data.error || 'Upload failed');
+    }
+  } catch(e) {
+    alert('Upload failed');
+  }
+  if (label) label.textContent = orig;
+}
+
 function addLinkRow() {
   const container = document.getElementById('links-container');
   const row = document.createElement('div');

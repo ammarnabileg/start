@@ -206,25 +206,36 @@ include __DIR__ . '/includes/header.php';
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-5">Media & Branding</h2>
         <div class="space-y-5">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Logo URL</label>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Community Logo</label>
             <div class="flex items-center gap-4">
-              <div id="logo-preview" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-2xl overflow-hidden flex-shrink-0">D</div>
-              <input type="url" name="logo" value="<?= e($_POST['logo'] ?? '') ?>"
-                oninput="previewLogo(this.value)"
-                class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
-                placeholder="https://example.com/logo.png">
+              <img id="logo-preview" src="" class="w-16 h-16 rounded-xl object-cover border-2 border-gray-200 dark:border-gray-600 hidden">
+              <div id="logo-placeholder" class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-2xl flex-shrink-0">D</div>
+              <div>
+                <input type="file" id="logo-upload" accept="image/*" class="hidden"
+                       onchange="uploadFile(this, 'community_logo', 'logo-preview', 'logo_url')">
+                <label for="logo-upload" class="cursor-pointer px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700">
+                  Upload Logo
+                </label>
+                <p class="text-xs text-gray-500 mt-1">Recommended: 200x200px</p>
+              </div>
             </div>
+            <input type="hidden" name="logo" id="logo_url" value="<?= e($_POST['logo'] ?? '') ?>">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Banner Image URL</label>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Banner Image</label>
             <div class="h-32 rounded-2xl bg-gradient-to-br from-primary-600 to-accent-500 overflow-hidden relative mb-2 flex items-center justify-center" id="banner-preview-div">
-              <span class="text-white/50 text-sm">Banner preview</span>
+              <span class="text-white/50 text-sm" id="banner-placeholder-text">Banner preview</span>
+              <img id="banner-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden">
             </div>
-            <input type="url" name="banner" value="<?= e($_POST['banner'] ?? '') ?>"
-              oninput="previewBanner(this.value)"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200"
-              placeholder="https://images.unsplash.com/...">
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Recommended: 1200×300px. Use Unsplash for free images.</p>
+            <div>
+              <input type="file" id="banner-upload" accept="image/*" class="hidden"
+                     onchange="uploadFile(this, 'community_banner', 'banner-preview', 'banner_url'); document.getElementById('banner-placeholder-text').style.display='none'; document.getElementById('banner-preview').classList.remove('hidden');">
+              <label for="banner-upload" class="cursor-pointer px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700">
+                Upload Banner
+              </label>
+              <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Recommended: 1200×300px. Max 5MB.</p>
+            </div>
+            <input type="hidden" name="banner" id="banner_url" value="<?= e($_POST['banner'] ?? '') ?>">
           </div>
         </div>
         <div class="flex justify-between mt-6">
@@ -338,6 +349,35 @@ include __DIR__ . '/includes/header.php';
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
 <script>
+async function uploadFile(input, type, previewId, hiddenId) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  const label = input.nextElementSibling;
+  const orig = label ? label.textContent : '';
+  if (label) label.textContent = 'Uploading...';
+  try {
+    const res = await fetch('/api/upload.php', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.url) {
+      const preview = document.getElementById(previewId);
+      if (preview) { preview.src = data.url; preview.classList.remove('hidden'); }
+      const hidden = document.getElementById(hiddenId);
+      if (hidden) hidden.value = data.url;
+      // Hide placeholder for logo
+      const placeholder = document.getElementById('logo-placeholder');
+      if (placeholder && type === 'community_logo') placeholder.style.display = 'none';
+    } else {
+      alert(data.error || 'Upload failed');
+    }
+  } catch(e) {
+    alert('Upload failed');
+  }
+  if (label) label.textContent = orig;
+}
+
 let currentStep = 1;
 
 function goToStep(step) {
@@ -416,7 +456,7 @@ function updateReview() {
   const type = document.querySelector('[name="type"]:checked')?.value || 'public';
   const pricing = document.querySelector('[name="pricing"]:checked')?.value || 'free';
   const category = document.querySelector('[name="category"]:checked')?.value || '-';
-  const logoUrl = document.querySelector('[name="logo"]').value;
+  const logoUrl = document.getElementById('logo_url')?.value || '';
 
   document.getElementById('review-name').textContent = name;
   document.getElementById('review-slug').textContent = 'discover.com/' + slug;
