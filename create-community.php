@@ -180,7 +180,7 @@ include __DIR__ . '/includes/header.php';
  <div class="bg-gradient-to-r from-primary-600 to-accent-500 px-8 py-5">
  <div class="flex items-center justify-between">
  <?php
- $steps = ['Basic Info', 'Media', 'Pricing', 'Links', 'Review'];
+ $steps = ['Basic Info', 'Media', 'Pricing', 'Links', 'Payment', 'Review'];
  foreach ($steps as $i => $s_label):
  $s_num = $i + 1;
  $is_active = $step === $s_num;
@@ -394,12 +394,56 @@ include __DIR__ . '/includes/header.php';
  </button>
  <div class="flex justify-between mt-6">
  <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">← Back</button>
- <button type="button" onclick="goToStep(5)" class="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold hover: transition-all hover:-translate-y-0.5">Review →</button>
+ <button type="button" onclick="goToStep(5)" class="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold hover: transition-all hover:-translate-y-0.5">Next: Payment →</button>
  </div>
  </div>
 
- <!-- Step 5: Review -->
+ <!-- Step 5: Payment -->
  <div id="step-5" class="hidden">
+ <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Platform Fee</h2>
+ <?php
+ $creation_price = (float)get_platform_setting('community_creation_price', 0);
+ $wallet_balance = (float)($current_user['wallet_balance'] ?? 0);
+ ?>
+ <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-6 mb-6 space-y-4">
+ <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-white/10">
+ <span class="text-sm text-gray-600 dark:text-gray-400">Community creation fee</span>
+ <span class="text-lg font-black text-gray-900 dark:text-white">
+ <?= $creation_price > 0 ? '$' . number_format($creation_price, 2) : 'Free' ?>
+ </span>
+ </div>
+ <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-white/10">
+ <span class="text-sm text-gray-600 dark:text-gray-400">Your wallet balance</span>
+ <span class="text-sm font-semibold <?= $wallet_balance >= $creation_price ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400' ?>">
+ $<?= number_format($wallet_balance, 2) ?>
+ </span>
+ </div>
+ <?php if ($creation_price > 0 && $wallet_balance < $creation_price): ?>
+ <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+ <p class="text-sm text-red-600 dark:text-red-400 font-semibold">⚠️ Insufficient balance</p>
+ <p class="text-xs text-red-500 dark:text-red-400 mt-1">You need $<?= number_format($creation_price - $wallet_balance, 2) ?> more. Please top up your wallet first.</p>
+ <a href="/settings.php#wallet" class="inline-block mt-3 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">Top Up Wallet</a>
+ </div>
+ <?php elseif ($creation_price > 0): ?>
+ <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+ <p class="text-sm text-green-600 dark:text-green-400 font-semibold">✓ Sufficient balance</p>
+ <p class="text-xs text-green-500 dark:text-green-400 mt-1">$<?= number_format($creation_price, 2) ?> will be deducted from your wallet upon creation.</p>
+ </div>
+ <?php else: ?>
+ <div class="p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl">
+ <p class="text-sm text-teal-600 dark:text-teal-400 font-semibold">🎉 No fee required</p>
+ <p class="text-xs text-teal-500 dark:text-teal-400 mt-1">Creating a community is free right now!</p>
+ </div>
+ <?php endif; ?>
+ </div>
+ <div class="flex justify-between">
+ <button type="button" onclick="goToStep(4)" class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">← Back</button>
+ <button type="button" onclick="goToPaymentNext()" <?= ($creation_price > 0 && $wallet_balance < $creation_price) ? 'disabled class="px-6 py-3 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl font-semibold cursor-not-allowed"' : 'class="px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-semibold hover: transition-all hover:-translate-y-0.5"' ?>>Review →</button>
+ </div>
+ </div>
+
+ <!-- Step 6: Review -->
+ <div id="step-6" class="hidden">
  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-5">Review & Create</h2>
  <div id="review-content" class="space-y-4 mb-6">
  <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-5">
@@ -422,7 +466,7 @@ include __DIR__ . '/includes/header.php';
  </div>
 
  <div class="flex justify-between">
- <button type="button" onclick="goToStep(4)" class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">← Back</button>
+ <button type="button" onclick="goToStep(5)" class="px-5 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">← Back</button>
  <button type="submit"
  class="px-8 py-3 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl font-bold hover: hover: transition-all hover:-translate-y-0.5 flex items-center gap-2">
  🚀 Create Community!
@@ -467,21 +511,27 @@ async function uploadFile(input, type, previewId, hiddenId) {
 let currentStep = 1;
 
 function goToStep(step) {
- // Validate step 1 before leaving
  if (currentStep === 1 && step > 1) {
  const name = document.querySelector('[name="name"]').value.trim();
  const slug = document.querySelector('[name="slug"]').value.trim();
- if (!name || !slug) {
- showToast('Please fill in name and slug', 'error');
- return;
- }
+ if (!name || !slug) { showToast('Please fill in name and slug', 'error'); return; }
  }
  document.getElementById('step-' + currentStep).classList.add('hidden');
  currentStep = step;
  document.getElementById('step-' + step).classList.remove('hidden');
- if (step === 5) updateReview();
+ // Update step indicator
+ document.querySelectorAll('[data-step-num]').forEach(el => {
+ const n = parseInt(el.dataset.stepNum);
+ el.className = el.className.replace(/bg-white\/\d+|border-2 border-white|bg-white/g, '').trim();
+ if (n < currentStep) el.className += ' bg-white text-primary-600';
+ else if (n === currentStep) el.className += ' bg-white/30 border-2 border-white text-white';
+ else el.className += ' bg-white/20 text-white/70';
+ });
+ if (step === 6) updateReview();
  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function goToPaymentNext() { goToStep(6); }
 
 function generateSlug(name) {
  const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/[\s]+/g, '-').replace(/-+/g, '-').trim('-');

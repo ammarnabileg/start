@@ -274,7 +274,7 @@ try {
  <?php endif; ?>
  </button>
  <!-- Notifications dropdown -->
- <div id="notif-menu" class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50" style="max-width:calc(100vw - 2rem);right:max(-100vw + 5rem, 0px)">
+ <div id="notif-menu" class="dropdown-menu absolute mt-2 w-80 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50" style="right:0;max-width:calc(100vw - 1rem)">
  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/10">
  <h3 class="font-semibold text-sm text-gray-900 dark:text-white">Notifications</h3>
  <?php if ($unread_count > 0): ?>
@@ -426,6 +426,17 @@ document.addEventListener('click', function(e) {
  }
 });
 
+
+// Reposition notifications dropdown to stay on screen
+document.getElementById('notif-dropdown-wrap')?.querySelector('button')?.addEventListener('click', function(){
+ setTimeout(()=>{
+ const menu = document.getElementById('notif-menu');
+ if (!menu || !menu.classList.contains('active')) return;
+ const rect = menu.getBoundingClientRect();
+ if (rect.left < 0) menu.style.right = 'auto', menu.style.left = '0';
+ else menu.style.right = '0', menu.style.left = 'auto';
+ }, 10);
+});
 
 function markAllRead() {
  fetch('/api/notifications.php', {
