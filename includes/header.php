@@ -228,11 +228,22 @@ try {
  <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
  </svg>
- <input id="nav-search-input" type="text" placeholder="Search communities..."
+ <?php
+ $in_community = !empty($page_community_slug);
+ $search_placeholder = $in_community ? 'Search in ' . ($page_community_name ?? 'community') . '...' : 'Search communities...';
+ $search_val = e($_GET['q'] ?? '');
+ $search_action = $in_community
+     ? "window.location='/community.php?slug=" . e($page_community_slug) . "&tab=community&q='+encodeURIComponent(this.value)"
+     : "window.location='/index.php?q='+encodeURIComponent(this.value)";
+ $btn_action = $in_community
+     ? "window.location='/community.php?slug=" . e($page_community_slug) . "&tab=community&q='+encodeURIComponent(document.getElementById('nav-search-input').value)"
+     : "window.location='/index.php?q='+encodeURIComponent(document.getElementById('nav-search-input').value)";
+ ?>
+ <input id="nav-search-input" type="text" placeholder="<?= $search_placeholder ?>"
  class="bg-transparent text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none w-full"
- value="<?= e($_GET['q'] ?? '') ?>"
- onkeydown="if(event.key==='Enter'){window.location='/index.php?q='+encodeURIComponent(this.value)}">
- <button onclick="window.location='/index.php?q='+encodeURIComponent(document.getElementById('nav-search-input').value)"
+ value="<?= $search_val ?>"
+ onkeydown="if(event.key==='Enter'){<?= $search_action ?>}">
+ <button onclick="<?= $btn_action ?>"
  class="w-7 h-7 bg-gradient-to-r from-primary-600 to-accent-500 rounded-full flex items-center justify-center flex-shrink-0 hover: transition-all">
  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>

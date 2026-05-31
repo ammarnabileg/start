@@ -60,6 +60,9 @@ $sidebar_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDE
 $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About', 'admin' => 'Admin'];
 // Search query
 $search_q = trim($_GET['q'] ?? '');
+// Tell header.php to search within this community
+$page_community_slug = $slug;
+$page_community_name = $community['name'];
 include __DIR__ . '/includes/header.php';
 ?><style>
  .post-card { background:#fff; border:1px solid #e4e4e7; border-radius:12px; padding:16px; margin-bottom:8px; }
@@ -152,49 +155,6 @@ include __DIR__ . '/includes/header.php';
 
 <!-- ═══════════════ COMMUNITY SUB-HEADER ═══════════════ -->
 <header class="bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10">
- <!-- Community info strip + search + join -->
- <div class="max-w-[1280px] mx-auto px-4 md:pl-16 flex items-center h-12 gap-4">
- <div class="flex items-center gap-2 flex-shrink-0">
- <?php if ($community['logo']): ?>
- <img src="<?= e($community['logo']) ?>" alt="" class="w-7 h-7 rounded-lg object-cover flex-shrink-0">
- <?php else: ?>
- <div class="w-7 h-7 rounded-lg bg-primary-500 flex items-center justify-center text-white font-black text-xs flex-shrink-0">
- <?= strtoupper(substr($community['name'], 0, 1)) ?>
- </div>
- <?php endif; ?>
- <span class="font-bold text-gray-900 dark:text-white text-sm hidden sm:block max-w-[160px] truncate"><?= e($community['name']) ?></span>
- <?php if ($is_owner): ?>
- <a href="/edit-community.php?id=<?= $community_id ?>" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-1" title="Edit community">
- <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
- </a>
- <?php endif; ?>
- </div>
- <!-- Search form (community-scoped) -->
- <form method="GET" action="" class="hidden md:flex flex-1 max-w-xs">
- <input type="hidden" name="slug" value="<?= e($slug) ?>">
- <input type="hidden" name="tab" value="<?= e($tab) ?>">
- <div class="flex items-center w-full bg-gray-100 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-full px-4 py-1.5 gap-2">
- <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
- <input type="text" name="q" value="<?= e($search_q) ?>" placeholder="Search posts..." class="bg-transparent text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none w-full">
- </div>
- </form>
- <!-- Join / member status -->
- <div class="flex items-center gap-2 ml-auto flex-shrink-0">
- <?php if (!$is_approved): ?>
- <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
- <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold px-3 py-1.5 rounded-full">Pending</span>
- <?php elseif ($current_user): ?>
- <button onclick="joinCommunity(<?= $community_id ?>)" class="btn-brand inline-flex items-center gap-1.5">
- <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
- <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join' ?>
- </button>
- <?php endif; ?>
- <?php else: ?>
- <span class="text-xs text-primary-600 dark:text-primary-400 font-semibold px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-900/30">Member</span>
- <?php endif; ?>
- </div>
- </div>
-
  <!-- Tab bar -->
  <div class="border-t border-gray-100 dark:border-white/5">
  <div class="max-w-[1280px] mx-auto px-4 md:pl-16">
