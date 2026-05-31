@@ -58,23 +58,22 @@ function get_user_points_in_community(int $user_id, int $community_id): int {
 }
 
 function get_community_leaderboard(int $community_id, int $limit = 20): array {
- return db_fetch_all(
- 'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar,
- COALESCE(SUM(up.points), 0) as total_points,
- (SELECT COUNT(*) FROM user_badges ub WHERE ub.user_id = u.id AND ub.community_id = ?) as badge_count,
- (SELECT COUNT(DISTINCT lp.lesson_id) FROM lesson_progress lp
- JOIN lessons l ON l.id = lp.lesson_id
- JOIN course_sections cs ON cs.id = l.section_id
- JOIN courses c ON c.id = cs.course_id
- WHERE lp.user_id = u.id AND c.community_id = ?) as lessons_completed
- FROM users u
- JOIN memberships m ON m.user_id = u.id AND m.community_id = ? AND m.status = "approved"
- LEFT JOIN user_points up ON up.user_id = u.id AND up.community_id = ?
- GROUP BY u.id
- ORDER BY total_points DESC
- LIMIT ?',
- [$community_id, $community_id, $community_id, $community_id, $limit]
- );
+    return db_fetch_all(
+        'SELECT u.id, u.username, u.first_name, u.last_name, u.avatar,
+         COALESCE(mp.total_points, 0) as total_points,
+         (SELECT COUNT(*) FROM user_badges ub WHERE ub.user_id = u.id AND ub.community_id = ?) as badge_count,
+         (SELECT COUNT(DISTINCT lp.lesson_id) FROM lesson_progress lp
+          JOIN lessons l ON l.id = lp.lesson_id
+          JOIN course_sections cs ON cs.id = l.section_id
+          JOIN courses c ON c.id = cs.course_id
+          WHERE lp.user_id = u.id AND c.community_id = ?) as lessons_completed
+         FROM users u
+         JOIN memberships m ON m.user_id = u.id AND m.community_id = ? AND m.status = "approved"
+         LEFT JOIN member_points mp ON mp.user_id = u.id AND mp.community_id = ?
+         ORDER BY total_points DESC
+         LIMIT ?',
+        [$community_id, $community_id, $community_id, $community_id, $limit]
+    );
 }
 
 function get_unread_notification_count(int $user_id): int {

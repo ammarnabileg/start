@@ -102,10 +102,15 @@ function update_daily_streak(int $user_id): void {
 }
 
 function award_points(int $user_id, int $community_id, int $points, string $reason = ''): void {
- db_insert(
- 'INSERT INTO user_points (user_id, community_id, points, reason) VALUES (?,?,?,?)',
- [$user_id, $community_id, $points, $reason]
- );
+    db_insert(
+        'INSERT INTO community_points (user_id, community_id, points, reason) VALUES (?,?,?,?)',
+        [$user_id, $community_id, $points, $reason]
+    );
+    db_execute(
+        'INSERT INTO member_points (user_id, community_id, total_points) VALUES (?,?,?)
+         ON DUPLICATE KEY UPDATE total_points = total_points + VALUES(total_points)',
+        [$user_id, $community_id, $points]
+    );
 }
 
 function csrf_token(): string {
