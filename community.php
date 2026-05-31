@@ -428,62 +428,92 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <p class="text-sm text-gray-500">The community hasn't added any courses yet.</p>
  </div>
  <?php else: ?>
- <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+ <div class="space-y-4">
  <?php foreach ($courses as $course): ?>
  <?php
- $progress = ['percent' => 0, 'completed' => 0, 'total' => 0];
- if ($current_user) $progress = get_course_progress($current_user['id'], $course['id']);
- $section_count = db_fetch('SELECT COUNT(*) as cnt FROM course_sections WHERE course_id = ?', [$course['id']]);
- $lesson_count = db_fetch('SELECT COUNT(*) as cnt FROM lessons l JOIN course_sections cs ON cs.id = l.section_id WHERE cs.course_id = ?', [$course['id']]);
+   $progress = ['percent'=>0,'completed'=>0,'total'=>0];
+   if ($current_user) $progress = get_course_progress($current_user['id'], $course['id']);
+   $lesson_count = db_fetch('SELECT COUNT(*) as cnt FROM lessons l JOIN course_sections cs ON cs.id=l.section_id WHERE cs.course_id=?', [$course['id']]);
+   $section_count = db_fetch('SELECT COUNT(*) as cnt FROM course_sections WHERE course_id=?', [$course['id']]);
+   $lc = (int)($lesson_count['cnt']??0);
+   $sc = (int)($section_count['cnt']??0);
  ?>
- <div class="group bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 hover:border-gray-300 hover: transition-all">
- <div class="aspect-video overflow-hidden relative">
- <?php if ($course['thumbnail']): ?>
- <img src="<?= e($course['thumbnail']) ?>" alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
- <?php else: ?>
- <div class="w-full h-full bg-gradient-to-br from-brand to-blue-400 flex items-center justify-center">
- <svg class="w-12 h-12 text-gray-900/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
- </div>
- <?php endif; ?>
- <div class="absolute top-2 right-2">
- <?php if ($course['pricing'] === 'paid'): ?>
- <span class="bg-white/80 glass text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full"><?= format_price($course['price']) ?></span>
- <?php else: ?>
- <span class="bg-green-500/90 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">Free</span>
- <?php endif; ?>
- </div>
- <?php if ($is_admin): ?>
- <div class="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
- <a href="/manage-course.php?community_id=<?= $community_id ?>&course_id=<?= $course['id'] ?>"
- class="p-1.5 bg-white/90 rounded-xl text-xs text-brand hover:bg-white" title="Edit">
- <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
- </a>
- <button onclick="deleteCourse(<?= $course['id'] ?>, <?= $community_id ?>)"
- class="p-1.5 bg-white/90 rounded-xl text-red-600 hover:bg-red-50" title="Delete">
- <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
- </button>
- </div>
- <?php endif; ?>
- </div>
- <div class="p-4">
- <h3 class="font-bold text-sm text-gray-900 mb-1 line-clamp-2"><?= e($course['title']) ?></h3>
- <p class="text-xs text-gray-500 mb-3"><?= (int)($section_count['cnt'] ?? 0) ?> sections &bull; <?= (int)($lesson_count['cnt'] ?? 0) ?> lessons</p>
- <?php if ($current_user && $is_approved && $progress['total'] > 0): ?>
- <div class="mb-3">
- <div class="flex justify-between text-xs text-gray-500 mb-1">
- <span>Progress</span>
- <span><?= $progress['percent'] ?>%</span>
- </div>
- <div class="w-full bg-gray-200 rounded-full h-1.5">
- <div class="bg-brand h-1.5 rounded-full" style="width:<?= $progress['percent'] ?>%"></div>
- </div>
- </div>
- <?php endif; ?>
- <a href="/course.php?id=<?= $course['id'] ?>"
- class="block w-full text-center py-2 rounded-xl bg-brand text-white text-xs font-semibold hover: transition-all">
- <?= $progress['completed'] > 0 && $progress['percent'] < 100 ? 'Continue' : ($progress['percent'] === 100 ? 'Completed' : 'Start') ?>
- </a>
- </div>
+ <div class="group flex gap-4 p-4 bg-gray-50 dark:bg-[#222] rounded-2xl border border-gray-100 dark:border-white/10 hover:border-teal-500/40 transition-all">
+   <!-- Thumbnail -->
+   <div class="w-32 h-24 rounded-xl overflow-hidden flex-shrink-0 relative">
+     <?php if ($course['thumbnail']): ?>
+     <img src="<?=e($course['thumbnail'])?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+     <?php else: ?>
+     <div class="w-full h-full bg-gradient-to-br from-teal-500 to-cyan-400 flex items-center justify-center">
+       <svg class="w-8 h-8 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+     </div>
+     <?php endif; ?>
+     <!-- Pricing badge -->
+     <div class="absolute top-1.5 left-1.5">
+       <?php if ($course['pricing']==='paid'): ?>
+       <span class="bg-gray-900/80 text-white text-xs font-bold px-2 py-0.5 rounded-full"><?=format_price($course['price'])?></span>
+       <?php else: ?>
+       <span class="bg-teal-500/90 text-white text-xs font-bold px-2 py-0.5 rounded-full">Free</span>
+       <?php endif; ?>
+     </div>
+   </div>
+   <!-- Info -->
+   <div class="flex-1 min-w-0 flex flex-col justify-between">
+     <div>
+       <div class="flex items-start justify-between gap-2">
+         <h3 class="font-bold text-gray-900 dark:text-white text-sm leading-snug line-clamp-2"><?=e($course['title'])?></h3>
+         <?php if ($is_admin): ?>
+         <div class="flex gap-1 flex-shrink-0">
+           <a href="/manage-course.php?community_id=<?=$community_id?>&course_id=<?=$course['id']?>" class="p-1.5 bg-white dark:bg-[#333] rounded-lg text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 border border-gray-200 dark:border-white/10 transition-colors" title="Edit">
+             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+           </a>
+           <button onclick="deleteCourse(<?=$course['id']?>,<?=$community_id?>)" class="p-1.5 bg-white dark:bg-[#333] rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-white/10 transition-colors" title="Delete">
+             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+           </button>
+         </div>
+         <?php endif; ?>
+       </div>
+       <?php if ($course['description']): ?>
+       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"><?=e($course['description'])?></p>
+       <?php endif; ?>
+       <div class="flex items-center gap-3 mt-2">
+         <span class="text-xs text-gray-400 flex items-center gap-1">
+           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+           <?=$sc?> sections
+         </span>
+         <span class="text-xs text-gray-400 flex items-center gap-1">
+           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+           <?=$lc?> lessons
+         </span>
+       </div>
+     </div>
+     <div class="flex items-center gap-3 mt-3">
+       <?php if ($progress['total'] > 0): ?>
+       <div class="flex-1">
+         <div class="flex justify-between text-xs text-gray-400 mb-1">
+           <span><?=$progress['completed']?>/<?=$progress['total']?> lessons</span>
+           <span class="font-semibold text-teal-600 dark:text-teal-400"><?=$progress['percent']?>%</span>
+         </div>
+         <div class="w-full bg-gray-200 dark:bg-[#333] rounded-full h-1.5">
+           <div class="bg-teal-500 h-1.5 rounded-full transition-all" style="width:<?=$progress['percent']?>%"></div>
+         </div>
+       </div>
+       <?php endif; ?>
+       <a href="/course.php?id=<?=$course['id']?>"
+         class="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-colors">
+         <?php if ($progress['percent']===100): ?>
+         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+         Review
+         <?php elseif ($progress['completed']>0): ?>
+         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+         Continue
+         <?php else: ?>
+         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+         Start
+         <?php endif; ?>
+       </a>
+     </div>
+   </div>
  </div>
  <?php endforeach; ?>
  </div>
@@ -556,8 +586,11 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <!-- Members Grid -->
  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
  <?php foreach ($all_members as $mem): ?>
- <a href="/profile.php?username=<?= e($mem['username']) ?>"
- class="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200">
+ <?php
+   $show_kick = $is_admin && $mem['id'] !== ($current_user['id'] ?? 0) && !($mem['role'] === 'owner') && !($mem['role'] === 'admin' && !$is_owner);
+ ?>
+ <div class="relative flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200">
+ <a href="/profile.php?username=<?= e($mem['username']) ?>" class="flex items-start gap-3 flex-1 min-w-0">
  <div class="relative flex-shrink-0">
  <img src="<?= get_avatar_url($mem['avatar'] ?? null, ($mem['first_name'] ?? '') . ' ' . ($mem['last_name'] ?? '')) ?>" class="w-10 h-10 rounded-full object-cover">
  <?php if ($mem['role'] === 'owner'): ?>
@@ -576,6 +609,10 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <?php endif; ?>
  </div>
  </a>
+ <?php if ($show_kick): ?>
+ <button onclick="banMember(<?= $mem['id'] ?>, <?= $community_id ?>)" class="flex-shrink-0 px-2 py-1 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg text-xs font-semibold transition-colors" title="Kick member">Kick</button>
+ <?php endif; ?>
+ </div>
  <?php endforeach; ?>
  </div>
  </div>
@@ -1331,6 +1368,19 @@ function copyInviteLink() {
  const link = document.getElementById('invite-link');
  link.select();
  navigator.clipboard.writeText(link.value).then(() => showToast('Link copied!'));
+}
+
+async function banMember(userId, communityId) {
+  if (!confirm('Remove this member from the community?')) return;
+  const fd = new FormData();
+  fd.append('action', 'ban_member');
+  fd.append('user_id', userId);
+  fd.append('community_id', communityId);
+  fd.append('csrf_token', CSRF_TOKEN);
+  const r = await fetch('/api/approve_member.php', {method:'POST', body: fd});
+  const d = await r.json();
+  if (d.success) { showToast('Member removed'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.error || 'Error', true);
 }
 
 function deleteCourse(courseId, communityId) {

@@ -20,6 +20,28 @@ if (!is_logged_in()) {
 $current_user = get_auth_user();
 $action = $data['action'] ?? 'update_status';
 
+// Handle ban_member action
+if ($action === 'ban_member') {
+ $user_id = (int)($data['user_id'] ?? 0);
+ $community_id = (int)($data['community_id'] ?? 0);
+ if (!$user_id || !$community_id) { echo json_encode(['error'=>'Missing params']); exit; }
+
+ // Fetch target membership
+ $target = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$user_id, $community_id]);
+ if (!$target) { echo json_encode(['error'=>'Member not found']); exit; }
+
+ // Fetch caller membership
+ $caller = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$current_user['id'], $community_id]);
+ if (!$caller || !in_array($caller['role'], ['admin', 'owner'])) { echo json_encode(['error'=>'Permission denied']); exit; }
+
+ if ($target['role'] === 'owner') { echo json_encode(['error'=>'Cannot ban the owner']); exit; }
+ if ($target['role'] === 'admin' && $caller['role'] === 'admin') { echo json_encode(['error'=>'Only the owner can remove admins']); exit; }
+
+ db_execute('UPDATE memberships SET status="banned" WHERE user_id=? AND community_id=?', [$user_id, $community_id]);
+ db_execute('UPDATE communities SET member_count = GREATEST(member_count - 1, 0) WHERE id = ?', [$community_id]);
+ echo json_encode(['success'=>true]); exit;
+}
+
 // Handle promote/demote admin actions
 if ($action === 'promote_admin' || $action === 'demote_admin') {
  $user_id = (int)($data['user_id'] ?? 0);

@@ -125,7 +125,7 @@ include __DIR__ . '/includes/header.php';
  <div class="flex gap-5 flex-col lg:flex-row">
  <!-- Left Sidebar: Course Navigation -->
  <div class="lg:w-72 flex-shrink-0">
- <div class="sidebar-sticky bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 overflow-hidden ">
+ <div class="sidebar-sticky bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 overflow-hidden" style="position:sticky;top:80px">
  <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10">
  <h3 class="font-bold text-sm text-gray-700 dark:text-gray-300">Course Content</h3>
  </div>
