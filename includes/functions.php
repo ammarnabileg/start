@@ -51,7 +51,7 @@ function get_video_embed(string $input): string {
 
 function get_user_points_in_community(int $user_id, int $community_id): int {
  $row = db_fetch(
- 'SELECT SUM(points) as total FROM user_points WHERE user_id = ? AND community_id = ?',
+ 'SELECT SUM(points) as total FROM community_points WHERE user_id = ? AND community_id = ?',
  [$user_id, $community_id]
  );
  return (int)($row['total'] ?? 0);

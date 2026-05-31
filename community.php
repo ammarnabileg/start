@@ -102,7 +102,8 @@ include __DIR__ . '/includes/header.php';
  <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
  <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold px-3 py-1.5 rounded-full">Pending</span>
  <?php elseif ($current_user): ?>
- <button onclick="joinCommunity(<?= $community_id ?>)" class="btn-brand">
+ <button onclick="joinCommunity(<?= $community_id ?>)" class="btn-brand inline-flex items-center gap-1.5">
+ <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
  <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join' ?>
  </button>
  <?php endif; ?>
@@ -224,26 +225,48 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 
  <!-- Create Post -->
  <?php if ($current_user): ?>
- <div class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-4 mb-3">
+ <div id="post-box" class="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/10 p-4 mb-3">
+ <!-- Collapsed state: avatar + placeholder -->
+ <div id="post-collapsed" class="flex items-center gap-3 cursor-pointer" onclick="expandPostBox()">
+ <img src="<?= get_avatar_url($current_user['avatar'] ?? null, ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?>"
+ class="w-10 h-10 rounded-full object-cover flex-shrink-0">
+ <div class="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 text-sm text-gray-400 dark:text-gray-500">
+ <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+ Write something...
+ </div>
+ </div>
+ <!-- Expanded state: full editor -->
+ <div id="post-expanded" class="hidden">
  <div class="flex items-start gap-3">
  <img src="<?= get_avatar_url($current_user['avatar'] ?? null, ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?>"
- class="w-9 h-9 rounded-full object-cover flex-shrink-0">
+ class="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5">
  <div class="flex-1">
- <textarea id="post-content" placeholder="Write something to the community..." rows="2"
- class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand/50 resize-none placeholder-gray-400 dark:placeholder-gray-600"
- onfocus="this.rows=4" onblur="if(!this.value)this.rows=2"></textarea>
- <div class="mt-2 flex items-center justify-between">
+ <textarea id="post-content" placeholder="Write something to the community..." rows="4"
+ class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/50 resize-none placeholder-gray-400 dark:placeholder-gray-500"
+ ></textarea>
+ <div class="mt-3 flex items-center justify-between gap-2">
+ <div class="flex items-center gap-1.5">
+ <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
  <select id="post-topic"
- class="text-xs border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-brand">
+ class="text-xs border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 bg-gray-50 dark:bg-[#2a2a2a] text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0d9488]">
  <option value="">No topic</option>
  <?php foreach ($topics as $t): ?>
  <option value="<?= $t['id'] ?>" <?= $topic_id === (int)$t['id'] ? 'selected' : '' ?>># <?= e($t['name']) ?></option>
  <?php endforeach; ?>
  </select>
+ </div>
+ <div class="flex items-center gap-2">
+ <button onclick="document.getElementById('post-expanded').classList.add('hidden');document.getElementById('post-collapsed').classList.remove('hidden');document.getElementById('post-content').value='';"
+ class="px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors">
+ Cancel
+ </button>
  <button onclick="createPost(<?= $community_id ?>)"
- class="px-4 py-1.5 bg-brand text-white rounded-full text-xs font-semibold hover: transition-all">
+ class="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-full text-xs font-semibold transition-colors">
+ <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
  Post
  </button>
+ </div>
+ </div>
  </div>
  </div>
  </div>
@@ -1107,7 +1130,7 @@ function showToast(msg, type = 'success') {
  const inner = document.getElementById('toast-inner');
  if (!el || !inner) return;
  inner.textContent = msg;
- inner.className = 'px-5 py-3 rounded-xl text-sm font-semibold text-gray-900 flex items-center gap-2 ' +
+ inner.className = 'px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 ' +
  (type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-amber-500' : 'bg-[#111827]');
  el.classList.remove('hidden');
  clearTimeout(el._t);
@@ -1234,13 +1257,32 @@ function submitAwardPoints() {
  });
 }
 
+function expandPostBox() {
+ document.getElementById('post-collapsed').classList.add('hidden');
+ document.getElementById('post-expanded').classList.remove('hidden');
+ document.getElementById('post-content').focus();
+}
+
 function showAddTopic() { document.getElementById('add-topic-modal').classList.remove('hidden'); }
 
-function addTopic(communityId) {
- const modalInput = document.getElementById('new-topic-name');
+async function addTopic(communityId) {
+ const modalInput = document.getElementById('new-topic-name-modal');
  const name = (modalInput ? modalInput.value : '').trim();
- if (!name) return;
- doAddTopic(communityId);
+ if (!name) { alert('Enter a topic name'); return; }
+ const fd = new FormData();
+ fd.append('action', 'add_topic');
+ fd.append('community_id', communityId);
+ fd.append('name', name);
+ fd.append('csrf_token', CSRF_TOKEN);
+ const r = await fetch('/api/post_action.php', {method: 'POST', body: fd});
+ const d = await r.json();
+ if (d.success) {
+ document.getElementById('add-topic-modal').classList.add('hidden');
+ showToast('Topic added!');
+ setTimeout(() => location.reload(), 800);
+ } else {
+ alert(d.error || 'Failed to add topic');
+ }
 }
 
 function copyInviteLink() {
