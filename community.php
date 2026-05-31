@@ -40,7 +40,7 @@ if ($is_approved) {
  $tab_order = ['about' => 'About', 'community' => 'Community', 'classroom' => 'Classroom', 'members' => 'Members', 'leaderboard' => 'Leaderboard'];
 }
 if ($is_admin) {
- $tab_order['admin'] = 'Admin';
+ $tab_order['admin'] = 'Manage';
 }
 
 $admin_members = db_fetch_all(
@@ -57,7 +57,7 @@ $community_for_header = $community;
 // Load topics for sidebar
 $sidebar_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
 // Build tab labels map
-$tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About', 'admin' => 'Admin'];
+$tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About', 'admin' => 'Manage'];
 // Search query
 $search_q = trim($_GET['q'] ?? '');
 // Tell header.php to search within this community
