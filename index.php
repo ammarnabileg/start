@@ -90,10 +90,10 @@ include __DIR__ . '/includes/header.php';
  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
  <div class="flex items-center gap-1">
  <!-- Chips scroll area -->
- <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide py-3 flex-1">
+ <div id="cat-chips" class="flex items-center gap-1 overflow-x-auto scrollbar-hide py-3 flex-1 cursor-grab select-none">
  <?php foreach ($categories as $cat): ?>
  <a href="?<?= http_build_query(array_merge($_GET, ['category' => $cat, 'page' => 1])) ?>"
- class="flex flex-col items-center gap-1 px-4 py-1 flex-shrink-0 text-xs font-medium transition-colors whitespace-nowrap cursor-pointer
+ class="flex flex-col items-center gap-1 px-4 py-1 flex-shrink-0 text-xs font-medium transition-colors whitespace-nowrap
  <?= ($category === $cat) ? 'text-gray-900 dark:text-white chip-active' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300' ?>">
  <?= $cat_icons[$cat] ?? '' ?>
  <?= $cat_labels[$cat] ?>
@@ -105,7 +105,7 @@ include __DIR__ . '/includes/header.php';
  <button onclick="toggleFilters()"
  class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 dark:border-white/20 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
- Filters
+ <span class="hidden sm:inline">Filters</span>
  <?php if ($price || $type || ($sort && $sort !== 'trending') || $lang): ?>
  <span class="w-2 h-2 bg-primary-500 rounded-full"></span>
  <?php endif; ?>
@@ -117,58 +117,58 @@ include __DIR__ . '/includes/header.php';
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
- <!-- Filter Panel -->
- <div id="filter-panel" class="<?= ($price || $type || ($sort && $sort !== 'trending') || $lang) ? '' : 'hidden' ?> bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 mb-6 ">
- <form method="GET" id="filter-form">
- <input type="hidden" name="q" value="<?= e($q) ?>">
- <input type="hidden" name="category" value="<?= e($category) ?>">
+ <!-- Filter Panel: inline on desktop, modal on mobile -->
+ <?php $filter_form_inner = '
+ <input type="hidden" name="q" value="'.e($q).'">
+ <input type="hidden" name="category" value="'.e($category).'">
  <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
  <div>
  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Price</h4>
- <?php foreach ([''=>'All Prices', 'free'=>'Free', 'paid'=>'Paid', 'free_trial'=>'Free Trial'] as $val => $label): ?>
- <label class="flex items-center gap-2 mb-2 cursor-pointer">
- <input type="radio" name="price" value="<?= $val ?>" <?= $price === $val ? 'checked' : '' ?>
- class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
- <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
- </label>
- <?php endforeach; ?>
+ '.implode('', array_map(fn($v,$l) => '<label class="flex items-center gap-2 mb-2 cursor-pointer"><input type="radio" name="price" value="'.$v.'" '.($price===$v?'checked':'').' class="text-primary-600"><span class="text-sm text-gray-600 dark:text-gray-400">'.$l.'</span></label>', array_keys([''=>'All Prices','free'=>'Free','paid'=>'Paid','free_trial'=>'Free Trial']), ['All Prices','Free','Paid','Free Trial'])).'
  </div>
  <div>
  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Type</h4>
- <?php foreach ([''=>'All Types', 'public'=>'Public', 'private'=>'Private'] as $val => $label): ?>
- <label class="flex items-center gap-2 mb-2 cursor-pointer">
- <input type="radio" name="type" value="<?= $val ?>" <?= $type === $val ? 'checked' : '' ?>
- class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
- <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
- </label>
- <?php endforeach; ?>
+ '.implode('', array_map(fn($v,$l) => '<label class="flex items-center gap-2 mb-2 cursor-pointer"><input type="radio" name="type" value="'.$v.'" '.($type===$v?'checked':'').' class="text-primary-600"><span class="text-sm text-gray-600 dark:text-gray-400">'.$l.'</span></label>', array_keys([''=>'All Types','public'=>'Public','private'=>'Private']), ['All Types','Public','Private'])).'
  </div>
  <div>
  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Sort By</h4>
- <?php foreach (['trending'=>'Trending', 'top'=>'Top Members'] as $val => $label): ?>
- <label class="flex items-center gap-2 mb-2 cursor-pointer">
- <input type="radio" name="sort" value="<?= $val ?>" <?= $sort === $val ? 'checked' : '' ?>
- class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
- <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
- </label>
- <?php endforeach; ?>
+ '.implode('', array_map(fn($v,$l) => '<label class="flex items-center gap-2 mb-2 cursor-pointer"><input type="radio" name="sort" value="'.$v.'" '.($sort===$v?'checked':'').' class="text-primary-600"><span class="text-sm text-gray-600 dark:text-gray-400">'.$l.'</span></label>', array_keys(['trending'=>'Trending','top'=>'Top Members']), ['Trending','Top Members'])).'
  </div>
  <div>
  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Language</h4>
- <?php foreach ([''=>'All Languages', 'en'=>'English', 'ar'=>'Arabic', 'fr'=>'French'] as $val => $label): ?>
- <label class="flex items-center gap-2 mb-2 cursor-pointer">
- <input type="radio" name="lang" value="<?= $val ?>" <?= $lang === $val ? 'checked' : '' ?>
- class="text-primary-600 focus:ring-primary-500 bg-gray-100 dark:bg-[#2a2a2a] border-gray-300 dark:border-white/20">
- <span class="text-sm text-gray-600 dark:text-gray-400"><?= $label ?></span>
- </label>
- <?php endforeach; ?>
+ '.implode('', array_map(fn($v,$l) => '<label class="flex items-center gap-2 mb-2 cursor-pointer"><input type="radio" name="lang" value="'.$v.'" '.($lang===$v?'checked':'').' class="text-primary-600"><span class="text-sm text-gray-600 dark:text-gray-400">'.$l.'</span></label>', array_keys([''=>'All Languages','en'=>'English','ar'=>'Arabic','fr'=>'French']), ['All Languages','English','Arabic','French'])).'
  </div>
- </div>
+ </div>'; ?>
+
+ <!-- Desktop inline panel -->
+ <div id="filter-panel" class="hidden sm:<?= ($price || $type || ($sort && $sort !== 'trending') || $lang) ? 'block' : 'hidden' ?> bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 mb-6">
+ <form method="GET" id="filter-form">
+ <?= $filter_form_inner ?>
  <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
- <a href="/index.php" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium transition-colors">Reset</a>
- <button type="submit" class="px-5 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors">Apply Filters</button>
+ <a href="/index.php" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium">Reset</a>
+ <button type="submit" class="px-5 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold">Apply</button>
  </div>
  </form>
+ </div>
+
+ <!-- Mobile filter modal -->
+ <div id="filter-modal" class="sm:hidden hidden fixed inset-0 z-50 flex items-end">
+ <div class="absolute inset-0 bg-black/50" onclick="toggleFilters()"></div>
+ <div class="relative w-full bg-white dark:bg-[#1a1a1a] rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
+ <div class="flex items-center justify-between mb-5">
+ <h3 class="font-bold text-lg text-gray-900 dark:text-white">Filters</h3>
+ <button onclick="toggleFilters()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10">
+ <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+ </button>
+ </div>
+ <form method="GET" id="filter-form-mobile">
+ <?= $filter_form_inner ?>
+ <div class="flex gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-white/10">
+ <a href="/index.php" class="flex-1 text-center py-3 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-white/20 rounded-2xl font-medium">Reset</a>
+ <button type="submit" class="flex-1 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-sm font-semibold">Apply</button>
+ </div>
+ </form>
+ </div>
  </div>
 
  <!-- Results header -->
@@ -317,6 +317,28 @@ include __DIR__ . '/includes/header.php';
 
 <script>
 function toggleFilters() {
+ const isMobile = window.innerWidth < 640;
+ if (isMobile) {
+ document.getElementById('filter-modal').classList.toggle('hidden');
+ } else {
  document.getElementById('filter-panel').classList.toggle('hidden');
+ }
 }
+
+// Category chips drag scroll
+(function(){
+ const el = document.getElementById('cat-chips');
+ if (!el) return;
+ let isDown = false, startX, scrollLeft;
+ el.addEventListener('mousedown', e => { isDown = true; el.classList.add('cursor-grabbing'); startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft; });
+ el.addEventListener('mouseleave', () => { isDown = false; el.classList.remove('cursor-grabbing'); });
+ el.addEventListener('mouseup', () => { isDown = false; el.classList.remove('cursor-grabbing'); });
+ el.addEventListener('mousemove', e => { if (!isDown) return; e.preventDefault(); el.scrollLeft = scrollLeft - (e.pageX - el.offsetLeft - startX); });
+ let tx = 0;
+ el.addEventListener('touchstart', e => { tx = e.touches[0].pageX; scrollLeft = el.scrollLeft; }, {passive:true});
+ el.addEventListener('touchmove', e => { el.scrollLeft = scrollLeft - (e.touches[0].pageX - tx); }, {passive:true});
+ // Scroll active chip into view
+ const active = el.querySelector('.chip-active');
+ if (active) active.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
+})();
 </script>
