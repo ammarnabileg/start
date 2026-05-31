@@ -160,12 +160,55 @@ if ($current_user && isset($current_user['theme']) && $current_user['theme'] ===
 </head>
 <body class="bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-gray-100 min-h-screen">
 
+<!-- Community dock — collapsed by default, hover to expand -->
+<?php if ($current_user): ?>
+<?php
+$my_communities = [];
+try {
+ $my_communities = db_fetch_all('SELECT c.id, c.name, c.slug, c.logo FROM memberships m JOIN communities c ON c.id = m.community_id WHERE m.user_id = ? AND m.status = "approved" ORDER BY m.joined_at DESC LIMIT 10', [$current_user['id']]);
+} catch (Exception $e) {}
+?>
+<?php if (!empty($my_communities)): ?>
+<div id="community-dock" class="fixed left-0 top-1/2 -translate-y-1/2 z-40 group hidden md:block">
+ <div class="flex flex-col gap-2 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-r-2xl py-3 px-2 transition-all duration-300 w-12 group-hover:w-52 overflow-hidden">
+ <?php foreach ($my_communities as $mc): ?>
+ <a href="/community.php?slug=<?= e($mc['slug']) ?>" class="flex items-center gap-3 min-w-max">
+ <!-- Logo always visible -->
+ <?php if ($mc['logo']): ?>
+ <img src="<?= e($mc['logo']) ?>" class="w-8 h-8 rounded-lg object-cover flex-shrink-0">
+ <?php else: ?>
+ <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0"><?= strtoupper(substr($mc['name'],0,1)) ?></div>
+ <?php endif; ?>
+ <!-- Name only visible on hover -->
+ <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"><?= e($mc['name']) ?></span>
+ </a>
+ <?php endforeach; ?>
+ </div>
+</div>
+<?php endif; ?>
+<?php endif; ?>
+
 <!-- NAVIGATION — Airbnb sticky pill-search nav -->
 <nav class="sticky top-0 z-50 glass bg-white/95 dark:bg-[#121212]/95 border-b border-gray-200/60 dark:border-white/10">
- <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+ <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 md:pl-16">
  <div class="flex items-center justify-between h-16 gap-4">
 
- <!-- Logo -->
+ <!-- Logo / Community branding -->
+ <?php if (!empty($community_header_mode) && !empty($community_for_header)): ?>
+ <div class="flex items-center gap-2 flex-shrink-0">
+ <a href="/index.php" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mr-1" title="All communities">
+ <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+ </a>
+ <?php if ($community_for_header['logo']): ?>
+ <img src="<?= e($community_for_header['logo']) ?>" alt="" class="h-8 w-8 rounded-xl object-cover">
+ <?php else: ?>
+ <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-black text-sm">
+ <?= strtoupper(substr($community_for_header['name'], 0, 1)) ?>
+ </div>
+ <?php endif; ?>
+ <span class="font-black text-base gradient-text hidden sm:block truncate max-w-[180px]"><?= e($community_for_header['name']) ?></span>
+ </div>
+ <?php else: ?>
  <a href="/index.php" class="flex items-center gap-2 flex-shrink-0 group">
  <?php if ($platform_logo): ?>
  <img src="<?= e($platform_logo) ?>" alt="<?= e($platform_name) ?>" class="h-8 w-auto object-contain">
@@ -176,6 +219,7 @@ if ($current_user && isset($current_user['theme']) && $current_user['theme'] ===
  <?php endif; ?>
  <span class="font-black text-lg gradient-text hidden sm:block"><?= e($platform_name) ?></span>
  </a>
+ <?php endif; ?>
 
  <!-- Center search pill (desktop) -->
  <div class="hidden md:flex flex-1 max-w-sm justify-center">

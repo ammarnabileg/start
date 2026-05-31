@@ -47,6 +47,48 @@ if ($existing) {
  }
 } else {
  $status = $community['type'] === 'private' ? 'pending' : 'approved';
+
+ // For paid communities, handle wallet deduction
+ if ($community['pricing'] === 'paid' && (float)$community['price'] > 0 && $status === 'approved') {
+ $join_price = (float)$community['price'];
+ try {
+ $pdo = get_pdo();
+ $pdo->beginTransaction();
+
+ $urow = $pdo->query("SELECT wallet_balance FROM users WHERE id = {$current_user['id']} FOR UPDATE")->fetch(PDO::FETCH_ASSOC);
+ $wallet = (float)($urow['wallet_balance'] ?? 0);
+
+ if ($wallet < $join_price) {
+ $pdo->rollBack();
+ echo json_encode([
+ 'error' => 'Insufficient wallet balance. Please top up.',
+ 'balance' => number_format($wallet, 2, '.', ''),
+ 'required' => number_format($join_price, 2, '.', ''),
+ ]); exit;
+ }
+
+ $newBal = $wallet - $join_price;
+ $pdo->prepare('UPDATE users SET wallet_balance = ? WHERE id = ?')->execute([$newBal, $current_user['id']]);
+
+ $mem_id = db_insert('INSERT INTO memberships (user_id, community_id, role, status) VALUES (?,?,?,?)',
+ [$current_user['id'], $community_id, 'member', $status]);
+
+ $pdo->prepare(
+ "INSERT INTO wallet_transactions (user_id, amount, type, description, reference_id, balance_after) VALUES (?,?,?,?,?,?)"
+ )->execute([$current_user['id'], -$join_price, 'community_join', 'Joined community: ' . $community['name'], $community_id, $newBal]);
+
+ db_execute('UPDATE communities SET member_count = member_count + 1 WHERE id = ?', [$community_id]);
+
+ $pdo->commit();
+ } catch (Exception $e) {
+ try { get_pdo()->rollBack(); } catch (Exception $e2) {}
+ echo json_encode(['error' => 'Payment failed. Please try again.']); exit;
+ }
+ // Skip the normal flow below — already done inside transaction
+ echo json_encode(['success' => true, 'message' => 'Welcome! You\'ve joined the community.']);
+ exit;
+ }
+
  db_insert('INSERT INTO memberships (user_id, community_id, role, status) VALUES (?,?,?,?)',
  [$current_user['id'], $community_id, 'member', $status]);
 

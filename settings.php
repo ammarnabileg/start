@@ -6,7 +6,7 @@ require_login();
 
 $current_user = get_auth_user();
 $tab = $_GET['tab'] ?? 'profile';
-$valid_tabs = ['profile', 'account', 'notifications', 'payment', 'history', 'affiliates', 'payouts', 'theme'];
+$valid_tabs = ['profile', 'account', 'notifications', 'payment', 'history', 'affiliates', 'payouts', 'theme', 'wallet'];
 if (!in_array($tab, $valid_tabs)) $tab = 'profile';
 
 $success = '';
@@ -167,6 +167,7 @@ include __DIR__ . '/includes/header.php';
  'notifications' => ['label' => 'Notifications'],
  'payment' => ['label' => 'Payment Methods'],
  'history' => ['label' => 'Payment History'],
+ 'wallet' => ['label' => '💳 Wallet'],
  'affiliates' => ['label' => 'Affiliates'],
  'payouts' => ['label' => 'Payouts'],
  'theme' => ['label' => 'Appearance'],
@@ -592,6 +593,147 @@ include __DIR__ . '/includes/header.php';
  <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-accent-500 text-white rounded-xl text-sm font-semibold hover: transition-all">Save Theme</button>
  </form>
  </div>
+ <?php elseif ($tab === 'wallet'): ?>
+ <div class="space-y-6">
+ <!-- Balance card -->
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6">
+ <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Wallet Balance</h2>
+ <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Your current credits for joining paid communities.</p>
+ <div id="wallet-balance-display" class="text-4xl font-black text-teal-500 dark:text-teal-400 mb-1">Loading...</div>
+ <div class="text-xs text-gray-400 dark:text-gray-500">SAR</div>
+ </div>
+
+ <!-- Add Credits -->
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6">
+ <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Add Credits</h2>
+ <div class="flex flex-wrap gap-2 mb-4">
+ <?php foreach ([10, 25, 50, 100] as $preset): ?>
+ <button onclick="setDepositAmount(<?= $preset ?>)"
+ class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-white/10 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+ <?= $preset ?> SAR
+ </button>
+ <?php endforeach; ?>
+ </div>
+ <div class="flex gap-3">
+ <input id="deposit-amount" type="number" min="1" max="10000" step="1" placeholder="Custom amount (SAR)"
+ class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+ <button onclick="doDeposit()"
+ class="px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity whitespace-nowrap">
+ Add Credits
+ </button>
+ </div>
+ <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">Min: 1 SAR — Max: 10,000 SAR per deposit. Max 5 deposits/hour.</p>
+ </div>
+
+ <!-- Withdraw -->
+ <div id="wallet-withdraw-section" class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6 hidden">
+ <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Withdraw</h2>
+ <div class="flex gap-3">
+ <input id="withdraw-amount" type="number" min="1" step="1" placeholder="Amount (SAR)"
+ class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2a2a] text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+ <button onclick="doWithdraw()"
+ class="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:opacity-80 transition-opacity whitespace-nowrap">
+ Withdraw
+ </button>
+ </div>
+ </div>
+
+ <!-- Transaction History -->
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/10 p-6">
+ <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Transaction History</h2>
+ <div id="wallet-txn-table">
+ <div class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">Loading...</div>
+ </div>
+ </div>
+ </div>
+
+ <script>
+ const WALLET_CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+ async function loadWallet() {
+ try {
+ const r = await fetch('/api/wallet.php?action=balance');
+ const d = await r.json();
+ if (d.success) {
+ document.getElementById('wallet-balance-display').textContent = parseFloat(d.balance).toLocaleString('en', {minimumFractionDigits:2}) + ' SAR';
+ if (parseFloat(d.balance) > 0) document.getElementById('wallet-withdraw-section').classList.remove('hidden');
+
+ const txns = d.transactions || [];
+ const tbl = document.getElementById('wallet-txn-table');
+ if (!txns.length) {
+ tbl.innerHTML = '<div class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">No transactions yet.</div>';
+ } else {
+ tbl.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm">
+ <thead><tr class="border-b border-gray-100 dark:border-white/10 text-xs text-gray-500 dark:text-gray-400 uppercase">
+ <th class="pb-2 text-left font-medium">Date</th>
+ <th class="pb-2 text-left font-medium">Type</th>
+ <th class="pb-2 text-left font-medium">Description</th>
+ <th class="pb-2 text-right font-medium">Amount</th>
+ <th class="pb-2 text-right font-medium">Balance</th>
+ </tr></thead>
+ <tbody>${txns.map(t => {
+ const amt = parseFloat(t.amount);
+ const color = amt >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400';
+ const prefix = amt >= 0 ? '+' : '';
+ const typeLabel = t.type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+ const date = new Date(t.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+ return `<tr class="border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/3 transition-colors">
+ <td class="py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">${date}</td>
+ <td class="py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">${typeLabel}</td>
+ <td class="py-3 text-gray-600 dark:text-gray-400">${t.description || '-'}</td>
+ <td class="py-3 font-semibold ${color} text-right whitespace-nowrap">${prefix}${Math.abs(amt).toFixed(2)}</td>
+ <td class="py-3 text-gray-700 dark:text-gray-300 text-right whitespace-nowrap">${parseFloat(t.balance_after).toFixed(2)}</td>
+ </tr>`;
+ }).join('')}</tbody>
+ </table></div>`;
+ }
+ } else {
+ document.getElementById('wallet-balance-display').textContent = '-- SAR';
+ document.getElementById('wallet-txn-table').innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Failed to load wallet data.</div>';
+ }
+ } catch(e) {
+ document.getElementById('wallet-balance-display').textContent = '-- SAR';
+ }
+ }
+
+ function setDepositAmount(amt) {
+ document.getElementById('deposit-amount').value = amt;
+ }
+
+ async function doDeposit() {
+ const amount = parseFloat(document.getElementById('deposit-amount').value);
+ if (!amount || amount <= 0 || amount > 10000) { showToast('Enter a valid amount (1-10,000 SAR)', 'error'); return; }
+ try {
+ const r = await fetch('/api/wallet.php', {
+ method: 'POST',
+ headers: {'Content-Type': 'application/json'},
+ body: JSON.stringify({action: 'deposit', amount, csrf_token: WALLET_CSRF})
+ });
+ const d = await r.json();
+ if (d.success) { showToast(d.message || 'Deposit successful!'); loadWallet(); document.getElementById('deposit-amount').value = ''; }
+ else showToast(d.error || 'Deposit failed', 'error');
+ } catch(e) { showToast('Request failed', 'error'); }
+ }
+
+ async function doWithdraw() {
+ const amount = parseFloat(document.getElementById('withdraw-amount').value);
+ if (!amount || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
+ try {
+ const r = await fetch('/api/wallet.php', {
+ method: 'POST',
+ headers: {'Content-Type': 'application/json'},
+ body: JSON.stringify({action: 'withdraw', amount, csrf_token: WALLET_CSRF})
+ });
+ const d = await r.json();
+ if (d.success) { showToast(d.message || 'Withdrawal processed!'); loadWallet(); document.getElementById('withdraw-amount').value = ''; }
+ else showToast(d.error || 'Withdrawal failed', 'error');
+ } catch(e) { showToast('Request failed', 'error'); }
+ }
+
+ // Load on page ready
+ loadWallet();
+ </script>
+
  <?php endif; ?>
  </div>
  </div>

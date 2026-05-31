@@ -16,12 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  } else {
  $action = $_POST['action'] ?? '';
  if ($action === 'create') {
- $name = trim($_POST['name'] ?? '');
- $slug = trim($_POST['slug'] ?? '');
+ $name = htmlspecialchars(trim($_POST['name'] ?? ''), ENT_QUOTES, 'UTF-8');
+ $slug = strtolower(trim($_POST['slug'] ?? ''));
  $category = $_POST['category'] ?? 'trending';
  $type = $_POST['type'] ?? 'public';
- $description = trim($_POST['description'] ?? '');
- $short_bio = trim($_POST['short_bio'] ?? '');
+ $description = htmlspecialchars(trim($_POST['description'] ?? ''), ENT_QUOTES, 'UTF-8');
+ $short_bio = htmlspecialchars(trim($_POST['short_bio'] ?? ''), ENT_QUOTES, 'UTF-8');
  $logo = trim($_POST['logo'] ?? '');
  $banner = trim($_POST['banner'] ?? '');
  $pricing = $_POST['pricing'] ?? 'free';
@@ -29,25 +29,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  $price_interval = $_POST['price_interval'] ?? 'monthly';
  $language = $_POST['language'] ?? 'en';
 
- if (!$name) { $error = 'Community name is required.'; }
+ // Allowed categories
+ $allowed_categories = ['trending', 'hobbies', 'music', 'money', 'celebrity', 'tech', 'health', 'sports', 'self_improvement', 'relationships'];
+ $allowed_types = ['public', 'private'];
+ $allowed_pricing = ['free', 'paid', 'free_trial'];
+ $allowed_intervals = ['monthly', 'yearly', 'one_time'];
+ $allowed_languages = ['en', 'ar', 'fr'];
+
+ // Validation
+ if (strlen($name) < 3 || strlen($name) > 100) { $error = 'Community name must be 3-100 characters.'; }
  elseif (!$slug) { $error = 'Slug is required.'; }
  elseif (!preg_match('/^[a-z0-9-]{3,100}$/', $slug)) { $error = 'Slug must be 3-100 lowercase letters, numbers, or hyphens.'; }
  elseif (db_fetch('SELECT id FROM communities WHERE slug = ?', [$slug])) { $error = 'This slug is already taken.'; }
+ elseif (strlen($description) > 5000) { $error = 'Description must be 5000 characters or less.'; }
+ elseif (!in_array($category, $allowed_categories)) { $error = 'Invalid category selected.'; }
+ elseif (!in_array($type, $allowed_types)) { $error = 'Invalid type selected.'; }
+ elseif (!in_array($pricing, $allowed_pricing)) { $error = 'Invalid pricing model.'; }
+ elseif (in_array($pricing, ['paid', 'free_trial']) && ($price < 1 || $price > 99999)) { $error = 'Price must be between 1 and 99,999 SAR.'; }
+ elseif (!in_array($price_interval, $allowed_intervals)) { $price_interval = 'monthly'; }
+ elseif (!in_array($language, $allowed_languages)) { $language = 'en'; }
  else {
+ // Rate limit: max 3 communities per user per day
+ try {
+ $daily_count = db_fetch(
+ "SELECT COUNT(*) as cnt FROM communities WHERE owner_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)",
+ [$current_user['id']]
+ );
+ if ((int)($daily_count['cnt'] ?? 0) >= 3) {
+ $error = 'You can create at most 3 communities per day.';
+ }
+ } catch (Exception $e) { /* non-blocking */ }
+
+ if (!$error) {
+ // Check community creation price from platform settings
+ $creation_price = 0;
+ try {
+ $creation_price = (float)get_platform_setting('community_creation_price', 0);
+ } catch (Exception $e) { $creation_price = 0; }
+
+ if ($creation_price > 0) {
+ // Wrap in DB transaction: check wallet, deduct, create community
+ try {
+ $pdo = get_pdo();
+ $pdo->beginTransaction();
+
+ $urow = $pdo->query("SELECT wallet_balance FROM users WHERE id = {$current_user['id']} FOR UPDATE")->fetch(PDO::FETCH_ASSOC);
+ $wallet = (float)($urow['wallet_balance'] ?? 0);
+
+ if ($wallet < $creation_price) {
+ $pdo->rollBack();
+ $error = 'Insufficient wallet balance. Please top up.';
+ } else {
+ $newBal = $wallet - $creation_price;
+ $pdo->prepare('UPDATE users SET wallet_balance = ? WHERE id = ?')->execute([$newBal, $current_user['id']]);
+
  $community_id = db_insert(
  'INSERT INTO communities (owner_id, name, slug, description, short_bio, logo, banner, category, type, pricing, price, price_interval, language) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
  [$current_user['id'], $name, $slug, $description, $short_bio, $logo, $banner, $category, $type, $pricing, $price, $price_interval, $language]
  );
+
+ $pdo->prepare(
+ "INSERT INTO wallet_transactions (user_id, amount, type, description, reference_id, balance_after) VALUES (?,?,?,?,?,?)"
+ )->execute([$current_user['id'], -$creation_price, 'community_creation', 'Community creation fee for: ' . $name, $community_id, $newBal]);
+
+ $pdo->commit();
+
  // Add owner as member
  db_insert('INSERT INTO memberships (user_id, community_id, role, status) VALUES (?,?,?,?)',
  [$current_user['id'], $community_id, 'owner', 'approved']);
-
  // Default topics
- $default_topics = ['General', 'Announcements', 'Q&A'];
- foreach ($default_topics as $i => $tn) {
+ foreach (['General', 'Announcements', 'Q&A'] as $i => $tn) {
  db_insert('INSERT INTO topics (community_id, name, sort_order) VALUES (?,?,?)', [$community_id, $tn, $i]);
  }
-
  // Save links
  $link_names = $_POST['link_name'] ?? [];
  $link_urls = $_POST['link_url'] ?? [];
@@ -57,16 +110,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  db_insert('INSERT INTO community_links (community_id, name, url, sort_order) VALUES (?,?,?,?)', [$community_id, trim($ln), trim($lu), $i]);
  }
  }
-
  // Award badge
  $badge = db_fetch('SELECT id FROM badges WHERE name = "First Steps" AND community_id IS NULL');
  if ($badge) db_insert('INSERT IGNORE INTO user_badges (user_id, badge_id, community_id) VALUES (?,?,?)', [$current_user['id'], $badge['id'], $community_id]);
-
- // Update member count
  db_execute('UPDATE communities SET member_count = 1 WHERE id = ?', [$community_id]);
 
  header('Location: /community.php?slug=' . urlencode($slug));
  exit;
+ }
+ } catch (Exception $e) {
+ try { get_pdo()->rollBack(); } catch (Exception $e2) {}
+ $error = 'Community creation failed. Please try again.';
+ }
+ } else {
+ // Free creation path
+ $community_id = db_insert(
+ 'INSERT INTO communities (owner_id, name, slug, description, short_bio, logo, banner, category, type, pricing, price, price_interval, language) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+ [$current_user['id'], $name, $slug, $description, $short_bio, $logo, $banner, $category, $type, $pricing, $price, $price_interval, $language]
+ );
+ // Add owner as member
+ db_insert('INSERT INTO memberships (user_id, community_id, role, status) VALUES (?,?,?,?)',
+ [$current_user['id'], $community_id, 'owner', 'approved']);
+ // Default topics
+ foreach (['General', 'Announcements', 'Q&A'] as $i => $tn) {
+ db_insert('INSERT INTO topics (community_id, name, sort_order) VALUES (?,?,?)', [$community_id, $tn, $i]);
+ }
+ // Save links
+ $link_names = $_POST['link_name'] ?? [];
+ $link_urls = $_POST['link_url'] ?? [];
+ foreach ($link_names as $i => $ln) {
+ $lu = $link_urls[$i] ?? '';
+ if (trim($ln) && trim($lu)) {
+ db_insert('INSERT INTO community_links (community_id, name, url, sort_order) VALUES (?,?,?,?)', [$community_id, trim($ln), trim($lu), $i]);
+ }
+ }
+ // Award badge
+ $badge = db_fetch('SELECT id FROM badges WHERE name = "First Steps" AND community_id IS NULL');
+ if ($badge) db_insert('INSERT IGNORE INTO user_badges (user_id, badge_id, community_id) VALUES (?,?,?)', [$current_user['id'], $badge['id'], $community_id]);
+ db_execute('UPDATE communities SET member_count = 1 WHERE id = ?', [$community_id]);
+
+ header('Location: /community.php?slug=' . urlencode($slug));
+ exit;
+ }
+ }
  }
  }
  }

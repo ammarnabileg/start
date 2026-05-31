@@ -52,102 +52,52 @@ $admin_count = db_fetch('SELECT COUNT(*) as cnt FROM memberships WHERE community
 $community_links = db_fetch_all('SELECT * FROM community_links WHERE community_id = ? ORDER BY sort_order', [$community_id]);
 
 $page_title = $community['name'];
+$community_header_mode = true;
+$community_for_header = $community;
 // Load topics for sidebar
 $sidebar_topics = db_fetch_all('SELECT * FROM topics WHERE community_id = ? ORDER BY sort_order', [$community_id]);
 // Build tab labels map
 $tab_labels = ['community' => 'Home', 'classroom' => 'Courses', 'members' => 'Members', 'leaderboard' => 'Leaderboard', 'about' => 'About', 'admin' => 'Admin'];
-?>
-<!DOCTYPE html>
-<?php
-// Determine dark mode
-$theme_class = 'dark';
-if ($current_user && isset($current_user['theme']) && $current_user['theme'] === 'light') {
- $theme_class = '';
-}
-?>
-<html lang="en" class="<?= $theme_class ?>">
-<head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title><?= e($community['name']) ?></title>
- <meta name="csrf-token" content="<?= generate_csrf_token() ?>">
- <script src="https://cdn.tailwindcss.com"></script>
- <script>
- tailwind.config = {
- darkMode: 'class',
- theme: {
- extend: {
- colors: {
- brand: { DEFAULT: '#3B5BDB', hover: '#3451C7', light: '#EEF2FF', mid: '#C5D0FA' }
- },
- boxShadow: {
- card: '0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)',
- 'card-hover': '0 4px 12px rgba(0,0,0,.10)',
- }
- }
- }
- }
- </script>
- <style>
- body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
- .post-card { background:#fff; border:1px solid #e4e4e7; border-radius:12px; padding:16px; margin-bottom:8px; transition:box- .15s; }
+// Search query
+$search_q = trim($_GET['q'] ?? '');
+include __DIR__ . '/includes/header.php';
+?><style>
+ .post-card { background:#fff; border:1px solid #e4e4e7; border-radius:12px; padding:16px; margin-bottom:8px; }
  .dark .post-card { background:#1a1a1a; border-color:rgba(255,255,255,.1); }
- .post-card:hover { box-: 0 4px 12px rgba(0,0,0,.08); }
- .dark .post-card:hover { box-: 0 4px 12px rgba(0,0,0,.4); }
- .btn-brand { background:#3B5BDB; color:#fff; padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:background .15s; }
+ .btn-brand { background:#3B5BDB; color:#fff; padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
  .btn-brand:hover { background:#3451C7; }
- .scrollbar-hide::-webkit-scrollbar { display:none; }
- .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
- </style>
-</head>
-<body class="bg-[#f4f4f5] dark:bg-[#121212] text-gray-900 dark:text-gray-100 min-h-screen">
+</style>
 
-<!-- ═══════════════ TOP BAR (row 1) ═══════════════ -->
-<header class="sticky top-0 z-50 bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10" style="box-:0 1px 0 rgba(0,0,0,.08)">
- <!-- Row 1: Logo | Search | Actions -->
- <div class="max-w-[1280px] mx-auto px-4 flex items-center h-14 gap-4">
- <!-- Left: Community identity + back link -->
+<!-- ═══════════════ COMMUNITY SUB-HEADER ═══════════════ -->
+<header class="bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10">
+ <!-- Community info strip + search + join -->
+ <div class="max-w-[1280px] mx-auto px-4 md:pl-16 flex items-center h-12 gap-4">
  <div class="flex items-center gap-2 flex-shrink-0">
- <a href="/index.php" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mr-1 hidden sm:block" title="All communities">
- <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
- </a>
  <?php if ($community['logo']): ?>
- <img src="<?= e($community['logo']) ?>" alt="" class="w-8 h-8 rounded-lg object-cover flex-shrink-0">
+ <img src="<?= e($community['logo']) ?>" alt="" class="w-7 h-7 rounded-lg object-cover flex-shrink-0">
  <?php else: ?>
- <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+ <div class="w-7 h-7 rounded-lg bg-primary-500 flex items-center justify-center text-white font-black text-xs flex-shrink-0">
  <?= strtoupper(substr($community['name'], 0, 1)) ?>
  </div>
  <?php endif; ?>
- <span class="font-bold text-gray-900 dark:text-white text-sm hidden sm:block max-w-[140px] truncate"><?= e($community['name']) ?></span>
+ <span class="font-bold text-gray-900 dark:text-white text-sm hidden sm:block max-w-[160px] truncate"><?= e($community['name']) ?></span>
  <?php if ($is_owner): ?>
- <a href="/edit-community.php?id=<?= $community_id ?>" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ml-1" title="Edit community">
+ <a href="/edit-community.php?id=<?= $community_id ?>" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-1" title="Edit community">
  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
  </a>
  <?php endif; ?>
  </div>
-
- <!-- Center: Search bar (hidden on mobile) -->
- <div class="hidden md:flex flex-1 max-w-sm mx-auto">
- <div class="flex items-center w-full bg-gray-100 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-full px-4 py-2 gap-2">
+ <!-- Search form (community-scoped) -->
+ <form method="GET" action="" class="hidden md:flex flex-1 max-w-xs">
+ <input type="hidden" name="slug" value="<?= e($slug) ?>">
+ <input type="hidden" name="tab" value="<?= e($tab) ?>">
+ <div class="flex items-center w-full bg-gray-100 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 rounded-full px-4 py-1.5 gap-2">
  <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
- <input type="text" placeholder="Search community..." class="bg-transparent text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none w-full">
+ <input type="text" name="q" value="<?= e($search_q) ?>" placeholder="Search posts..." class="bg-transparent text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none w-full">
  </div>
- </div>
-
- <!-- Right: Actions -->
- <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
- <?php if ($current_user): ?>
- <a href="/notifications.php" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors" title="Notifications">
- <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
- </a>
- <a href="/profile.php?username=<?= e($current_user['username']) ?>">
- <img src="<?= get_avatar_url($current_user['avatar'] ?? null, ($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?>"
- class="w-8 h-8 rounded-full object-cover border-2 border-gray-200 dark:border-white/20 hover:border-brand transition-colors">
- </a>
- <?php else: ?>
- <a href="/login.php" class="btn-brand">Sign In</a>
- <?php endif; ?>
+ </form>
  <!-- Join / member status -->
+ <div class="flex items-center gap-2 ml-auto flex-shrink-0">
  <?php if (!$is_approved): ?>
  <?php if ($my_membership && $my_membership['status'] === 'pending'): ?>
  <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold px-3 py-1.5 rounded-full">Pending</span>
@@ -157,18 +107,18 @@ if ($current_user && isset($current_user['theme']) && $current_user['theme'] ===
  </button>
  <?php endif; ?>
  <?php else: ?>
- <span class="text-xs text-brand font-semibold px-3 py-1.5 rounded-full bg-brand/10">Member</span>
+ <span class="text-xs text-primary-600 dark:text-primary-400 font-semibold px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-900/30">Member</span>
  <?php endif; ?>
  </div>
  </div>
 
- <!-- Row 2: Tab bar -->
+ <!-- Tab bar -->
  <div class="border-t border-gray-100 dark:border-white/5">
- <div class="max-w-[1280px] mx-auto px-4">
+ <div class="max-w-[1280px] mx-auto px-4 md:pl-16">
  <nav class="flex items-center gap-0 overflow-x-auto scrollbar-hide">
  <?php foreach ($tab_order as $t => $label): ?>
  <?php $active = $tab === $t; $lbl = $tab_labels[$t] ?? $label; ?>
- <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?>"
+ <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?><?= $search_q ? '&q=' . urlencode($search_q) : '' ?>"
  class="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2
  <?= $active
  ? 'border-brand text-brand font-semibold'
@@ -187,7 +137,7 @@ if ($current_user && isset($current_user['theme']) && $current_user['theme'] ===
 // Load leaderboard for sidebar (top 5)
 $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 ?>
-<div class="max-w-[1280px] mx-auto px-4 py-5 flex gap-5">
+<div class="max-w-[1280px] mx-auto px-4 md:pl-16 py-5 flex gap-5">
 
  <!-- MAIN CONTENT (70%) -->
  <div class="flex-1 min-w-0">
@@ -207,6 +157,7 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  $pwhere = 'WHERE p.community_id = ?';
  $pparams = [$community_id];
  if ($topic_id) { $pwhere .= ' AND p.topic_id = ?'; $pparams[] = $topic_id; }
+ if ($search_q) { $pwhere .= ' AND (p.title LIKE ? OR p.content LIKE ?)'; $pparams[] = "%{$search_q}%"; $pparams[] = "%{$search_q}%"; }
 
  $pinned_posts = $is_approved ? db_fetch_all(
  "SELECT p.*, u.username, u.first_name, u.last_name, u.avatar, t.name as topic_name FROM posts p JOIN users u ON u.id = p.user_id LEFT JOIN topics t ON t.id = p.topic_id $pwhere AND p.is_pinned = 1 ORDER BY p.pin_order ASC LIMIT 3",
@@ -1374,5 +1325,4 @@ async function approveMember(membershipId, status, btn) {
 <div id="toast" class="fixed bottom-6 right-6 z-[100] hidden transition-all">
  <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-semibold text-gray-900 bg-gray-900 flex items-center gap-2"></div>
 </div>
-</body>
-</html>
+<?php include __DIR__ . '/includes/footer.php'; ?>
