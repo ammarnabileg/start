@@ -707,23 +707,23 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 
  <!-- PENDING REQUESTS (top priority) -->
  <?php if (!empty($adm_pending)): ?>
- <div class="bg-[#1a1a1a] rounded-2xl border border-amber-500/30 p-6">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-amber-500/30 p-6">
  <div class="flex items-center gap-3 mb-5">
  <div class="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 text-lg">🔔</div>
  <div>
- <h3 class="font-bold text-white">Pending Requests</h3>
- <p class="text-xs text-gray-400"><?= count($adm_pending) ?> waiting for approval</p>
+ <h3 class="font-bold text-gray-900 dark:text-white">Pending Requests</h3>
+ <p class="text-xs text-gray-500 dark:text-gray-400"><?= count($adm_pending) ?> waiting for approval</p>
  </div>
  <span class="ml-auto bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full"><?= count($adm_pending) ?></span>
  </div>
  <div class="space-y-2">
  <?php foreach ($adm_pending as $pm): ?>
- <div class="flex items-center justify-between p-3 bg-[#252525] rounded-xl border border-white/5">
+ <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#252525] rounded-xl border border-gray-100 dark:border-white/5">
  <div class="flex items-center gap-3">
- <img src="<?= get_avatar_url($pm) ?>" class="w-9 h-9 rounded-full object-cover">
+ <img src="<?= get_avatar_url($pm['avatar'] ?? null, trim(($pm['first_name']??'').' '.($pm['last_name']??'')) ?: $pm['username']) ?>" class="w-9 h-9 rounded-full object-cover">
  <div>
- <p class="text-sm font-semibold text-white"><?= e(trim(($pm['first_name']??'').' '.($pm['last_name']??'')) ?: $pm['username']) ?></p>
- <p class="text-xs text-gray-400">@<?= e($pm['username']) ?></p>
+ <p class="text-sm font-semibold text-gray-900 dark:text-white"><?= e(trim(($pm['first_name']??'').' '.($pm['last_name']??'')) ?: $pm['username']) ?></p>
+ <p class="text-xs text-gray-500 dark:text-gray-400">@<?= e($pm['username']) ?></p>
  </div>
  </div>
  <div class="flex gap-2">
@@ -737,61 +737,58 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <?php endif; ?>
 
  <!-- AWARD POINTS -->
- <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
  <div class="flex items-center gap-3 mb-5">
- <div class="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 text-lg">⚡</div>
+ <div class="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-500 text-lg">⚡</div>
  <div>
- <h3 class="font-bold text-white">Award Points</h3>
- <p class="text-xs text-gray-400">Give XP to community members</p>
+ <h3 class="font-bold text-gray-900 dark:text-white">Award Points</h3>
+ <p class="text-xs text-gray-500 dark:text-gray-400">Give XP to community members</p>
  </div>
  </div>
  <div class="space-y-3">
- <select id="adm-user" class="w-full bg-[#252525] border border-white/10 rounded-xl px-4 py-3 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 appearance-none">
+ <select id="adm-user" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
  <?php foreach ($adm_members as $m): ?>
  <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?> (@<?= e($m['username']) ?>)</option>
  <?php endforeach; ?>
  </select>
  <div class="grid grid-cols-2 gap-3">
- <div class="relative">
- <input id="adm-pts" type="number" min="1" max="9999" placeholder="Points (e.g. 100)" class="w-full bg-[#252525] border border-white/10 rounded-xl px-4 py-3 text-gray-100 text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+ <input id="adm-pts" type="number" min="1" max="9999" placeholder="Points (e.g. 100)" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+ <input id="adm-reason" type="text" placeholder="Reason (optional)" class="bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
  </div>
- <input id="adm-reason" type="text" placeholder="Reason (optional)" class="bg-[#252525] border border-white/10 rounded-xl px-4 py-3 text-gray-100 text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
- </div>
- <!-- Quick point buttons -->
  <div class="flex gap-2">
  <?php foreach ([10,25,50,100,200] as $qp): ?>
- <button onclick="document.getElementById('adm-pts').value=<?= $qp ?>" class="flex-1 py-2 bg-[#252525] border border-white/10 text-gray-300 rounded-lg text-xs font-semibold hover:border-teal-500/50 hover:text-teal-400 transition-all">+<?= $qp ?></button>
+ <button onclick="document.getElementById('adm-pts').value=<?= $qp ?>" class="flex-1 py-2 bg-gray-100 dark:bg-[#252525] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-semibold hover:border-teal-500/50 hover:text-teal-500 transition-all">+<?= $qp ?></button>
  <?php endforeach; ?>
  </div>
  <button onclick="doAwardPoints(<?= $community_id ?>)" class="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
- <span>⚡</span> Award Points
+ ⚡ Award Points
  </button>
  </div>
  </div>
 
  <!-- MANAGE BADGES -->
- <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
  <div class="flex items-center gap-3 mb-5">
- <div class="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 text-lg">🏅</div>
+ <div class="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 text-lg">🏅</div>
  <div>
- <h3 class="font-bold text-white">Badges</h3>
- <p class="text-xs text-gray-400"><?= count($adm_badges) ?> badge<?= count($adm_badges) !== 1 ? 's' : '' ?> created</p>
+ <h3 class="font-bold text-gray-900 dark:text-white">Badges</h3>
+ <p class="text-xs text-gray-500 dark:text-gray-400"><?= count($adm_badges) ?> badge<?= count($adm_badges) !== 1 ? 's' : '' ?> created</p>
  </div>
  </div>
  <?php if (!empty($adm_badges)): ?>
  <div class="grid grid-cols-1 gap-2 mb-5">
  <?php foreach ($adm_badges as $b): ?>
- <div class="flex items-center justify-between p-3 bg-[#252525] rounded-xl border border-white/5 group">
+ <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#252525] rounded-xl border border-gray-100 dark:border-white/5 group">
  <div class="flex items-center gap-3">
- <span class="text-2xl w-10 h-10 flex items-center justify-center bg-[#1a1a1a] rounded-xl"><?= e($b['icon'] ?? '🏅') ?></span>
+ <span class="text-2xl w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-[#1a1a1a] rounded-xl"><?= e($b['icon'] ?? '🏅') ?></span>
  <div>
- <p class="text-sm font-semibold text-white"><?= e($b['name']) ?></p>
+ <p class="text-sm font-semibold text-gray-900 dark:text-white"><?= e($b['name']) ?></p>
  <p class="text-xs text-gray-500"><?= e($b['description'] ?? 'No description') ?></p>
  </div>
  </div>
  <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
- <button onclick="doAwardBadge(<?= $b['id'] ?>, '<?= e($b['name']) ?>', <?= $community_id ?>)" class="px-3 py-1.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold hover:bg-amber-500/30 transition-colors">🎁 Award</button>
- <button onclick="doDeleteBadge(<?= $b['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition-colors">🗑</button>
+ <button onclick="doAwardBadge(<?= $b['id'] ?>, '<?= e($b['name']) ?>', <?= $community_id ?>)" class="px-3 py-1.5 bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-lg text-xs font-semibold hover:bg-amber-500/30 transition-colors">🎁 Award</button>
+ <button onclick="doDeleteBadge(<?= $b['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition-colors">🗑</button>
  </div>
  </div>
  <?php endforeach; ?>
@@ -802,33 +799,33 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <p class="text-sm text-gray-500">No badges yet — create your first one!</p>
  </div>
  <?php endif; ?>
- <div class="pt-4 border-t border-white/10 space-y-3">
+ <div class="pt-4 border-t border-gray-200 dark:border-white/10 space-y-3">
  <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">+ Create New Badge</p>
  <div class="grid grid-cols-3 gap-3">
- <input id="b-name" type="text" placeholder="Badge name" class="col-span-2 bg-[#252525] border border-white/10 rounded-xl px-4 py-2.5 text-gray-100 text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
- <input id="b-icon" type="text" placeholder="🏅" value="🏅" class="bg-[#252525] border border-white/10 rounded-xl px-4 py-2.5 text-gray-100 text-sm text-center placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+ <input id="b-name" type="text" placeholder="Badge name" class="col-span-2 bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+ <input id="b-icon" type="text" placeholder="🏅" value="🏅" class="bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm text-center placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
  </div>
- <input id="b-desc" type="text" placeholder="Short description..." class="w-full bg-[#252525] border border-white/10 rounded-xl px-4 py-2.5 text-gray-100 text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
- <button onclick="doCreateBadge(<?= $community_id ?>)" class="w-full py-2.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-sm font-bold hover:bg-amber-500/30 transition-colors">
+ <input id="b-desc" type="text" placeholder="Short description..." class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+ <button onclick="doCreateBadge(<?= $community_id ?>)" class="w-full py-2.5 bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-xl text-sm font-bold hover:bg-amber-500/30 transition-colors">
  🏅 Create Badge
  </button>
  </div>
  </div>
 
  <!-- TOPICS -->
- <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
  <div class="flex items-center gap-3 mb-5">
- <div class="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 text-lg">#</div>
+ <div class="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-500 font-bold text-base">#</div>
  <div>
- <h3 class="font-bold text-white">Topics</h3>
- <p class="text-xs text-gray-400"><?= count($adm_topics) ?> topic<?= count($adm_topics) !== 1 ? 's' : '' ?> active</p>
+ <h3 class="font-bold text-gray-900 dark:text-white">Topics</h3>
+ <p class="text-xs text-gray-500 dark:text-gray-400"><?= count($adm_topics) ?> topic<?= count($adm_topics) !== 1 ? 's' : '' ?> active</p>
  </div>
  </div>
  <div class="flex flex-wrap gap-2 mb-5">
  <?php foreach ($adm_topics as $t): ?>
- <span class="flex items-center gap-1.5 bg-[#252525] border border-white/10 text-gray-300 px-3 py-1.5 rounded-full text-sm hover:border-purple-500/30 transition-colors group">
- <span class="text-purple-400 text-xs">#</span><?= e($t['name']) ?>
- <button onclick="doDeleteTopic(<?= $t['id'] ?>, <?= $community_id ?>)" class="text-gray-600 hover:text-red-400 transition-colors ml-1 text-xs leading-none">✕</button>
+ <span class="flex items-center gap-1.5 bg-gray-100 dark:bg-[#252525] border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-full text-sm hover:border-purple-500/40 transition-colors">
+ <span class="text-purple-500 text-xs font-bold">#</span><?= e($t['name']) ?>
+ <button onclick="doDeleteTopic(<?= $t['id'] ?>, <?= $community_id ?>)" class="text-gray-400 hover:text-red-500 transition-colors ml-1 text-xs leading-none">✕</button>
  </span>
  <?php endforeach; ?>
  <?php if (empty($adm_topics)): ?>
@@ -836,8 +833,8 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <?php endif; ?>
  </div>
  <div class="flex gap-2">
- <input id="new-topic-name" type="text" placeholder="New topic name..." class="flex-1 bg-[#252525] border border-white/10 rounded-xl px-4 py-2.5 text-gray-100 text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
- <button onclick="doAddTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/30 transition-colors">
+ <input id="new-topic-name" type="text" placeholder="New topic name..." class="flex-1 bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+ <button onclick="doAddTopic(<?= $community_id ?>)" class="px-5 py-2.5 bg-purple-500/20 text-purple-500 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/30 transition-colors">
  + Add
  </button>
  </div>
@@ -845,39 +842,39 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 
  <!-- MANAGE ADMINS (owner only) -->
  <?php if ($is_owner): ?>
- <div class="bg-[#1a1a1a] rounded-2xl border border-white/10 p-6">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6">
  <div class="flex items-center gap-3 mb-5">
- <div class="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 text-lg">👑</div>
+ <div class="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-500 text-lg">👑</div>
  <div>
- <h3 class="font-bold text-white">Manage Admins</h3>
- <p class="text-xs text-gray-400"><?= count($adm_admins) ?> admin<?= count($adm_admins) !== 1 ? 's' : '' ?> in this community</p>
+ <h3 class="font-bold text-gray-900 dark:text-white">Manage Admins</h3>
+ <p class="text-xs text-gray-500 dark:text-gray-400"><?= count($adm_admins) ?> admin<?= count($adm_admins) !== 1 ? 's' : '' ?> in this community</p>
  </div>
  </div>
  <div class="space-y-2 mb-5">
  <?php foreach ($adm_admins as $a): ?>
- <div class="flex items-center justify-between p-3 bg-[#252525] rounded-xl border border-white/5">
+ <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#252525] rounded-xl border border-gray-100 dark:border-white/5">
  <div class="flex items-center gap-3">
- <img src="<?= get_avatar_url($a) ?>" class="w-9 h-9 rounded-full object-cover">
+ <img src="<?= get_avatar_url($a['avatar'] ?? null, trim(($a['first_name']??'').' '.($a['last_name']??'')) ?: $a['username']) ?>" class="w-9 h-9 rounded-full object-cover">
  <div>
  <p class="text-sm font-semibold text-white"><?= e(trim(($a['first_name']??'').' '.($a['last_name']??'')) ?: $a['username']) ?></p>
  <p class="text-xs text-gray-400">@<?= e($a['username']) ?></p>
  </div>
  </div>
  <div class="flex items-center gap-2">
- <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $a['role']==='owner' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30' ?>">
+ <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $a['role']==='owner' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-blue-500/20 text-blue-500 border border-blue-500/30' ?>">
  <?= $a['role']==='owner' ? '👑 Owner' : '⚙ Admin' ?>
  </span>
  <?php if ($a['role'] === 'admin'): ?>
- <button onclick="doDemoteAdmin(<?= $a['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition-colors">Remove</button>
+ <button onclick="doDemoteAdmin(<?= $a['id'] ?>, <?= $community_id ?>)" class="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition-colors">Remove</button>
  <?php endif; ?>
  </div>
  </div>
  <?php endforeach; ?>
  </div>
- <div class="pt-4 border-t border-white/10 space-y-3">
+ <div class="pt-4 border-t border-gray-200 dark:border-white/10 space-y-3">
  <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">+ Promote to Admin</p>
  <div class="flex gap-2">
- <select id="promote-sel" class="flex-1 bg-[#252525] border border-white/10 rounded-xl px-4 py-2.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+ <select id="promote-sel" class="flex-1 bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
  <option value="">— Select member —</option>
  <?php
  $admin_ids = array_column($adm_admins, 'id');
@@ -887,7 +884,7 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?></option>
  <?php endforeach; ?>
  </select>
- <button onclick="doPromoteAdmin(<?= $community_id ?>)" class="px-5 py-2.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-sm font-bold hover:bg-blue-500/30 transition-colors">Promote</button>
+ <button onclick="doPromoteAdmin(<?= $community_id ?>)" class="px-5 py-2.5 bg-blue-500/20 text-blue-500 border border-blue-500/30 rounded-xl text-sm font-bold hover:bg-blue-500/30 transition-colors">Promote</button>
  </div>
  </div>
  </div>
@@ -896,25 +893,25 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 </div><!-- end admin tab -->
 
 <!-- Award Badge Modal -->
-<div id="ab-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
- <div class="bg-[#1a1a1a] rounded-2xl w-full max-w-sm p-6 border border-white/10">
+<div id="ab-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+ <div class="bg-white dark:bg-[#1a1a1a] rounded-2xl w-full max-w-sm p-6 border border-gray-200 dark:border-white/10">
  <div class="flex items-center gap-3 mb-4">
  <span class="text-2xl">🏅</span>
  <div>
  <h3 class="font-bold text-white">Award Badge</h3>
- <p class="text-sm text-gray-400">Awarding: <strong id="ab-badge-name" class="text-amber-400"></strong></p>
+ <p class="text-sm text-gray-500 dark:text-gray-400">Awarding: <strong id="ab-badge-name" class="text-amber-500"></strong></p>
  </div>
  </div>
  <input type="hidden" id="ab-badge-id">
  <input type="hidden" id="ab-comm-id">
- <select id="ab-user" class="w-full bg-[#252525] border border-white/10 rounded-xl px-4 py-3 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 mb-4">
+ <select id="ab-user" class="w-full bg-gray-50 dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 mb-4">
  <?php foreach ($adm_members as $m): ?>
  <option value="<?= $m['id'] ?>"><?= e(trim(($m['first_name']??'').' '.($m['last_name']??'')) ?: $m['username']) ?></option>
  <?php endforeach; ?>
  </select>
  <div class="flex justify-end gap-3">
- <button onclick="document.getElementById('ab-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
- <button onclick="submitAwardBadge()" class="px-5 py-2.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-sm font-bold hover:bg-amber-500/30 transition-colors">🎁 Award Badge</button>
+ <button onclick="document.getElementById('ab-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Cancel</button>
+ <button onclick="submitAwardBadge()" class="px-5 py-2.5 bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-xl text-sm font-bold hover:bg-amber-500/30 transition-colors">🎁 Award Badge</button>
  </div>
  </div>
 </div>
