@@ -274,7 +274,7 @@ try {
  <?php endif; ?>
  </button>
  <!-- Notifications dropdown -->
- <div id="notif-menu" class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50">
+ <div id="notif-menu" class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50" style="max-width:calc(100vw - 1rem)">
  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/10">
  <h3 class="font-semibold text-sm text-gray-900 dark:text-white">Notifications</h3>
  <?php if ($unread_count > 0): ?>
@@ -325,7 +325,7 @@ try {
  alt="<?= e($current_user['username']) ?>"
  class="w-8 h-8 rounded-full object-cover">
  </button>
- <div id="user-menu" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 py-1 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:mt-0 max-sm:border-x-0 max-sm:border-b-0">
+ <div id="user-menu" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 py-1">
  <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10">
  <p class="font-semibold text-sm text-gray-900 dark:text-white"><?= e(trim(($current_user['first_name'] ?? '') . ' ' . ($current_user['last_name'] ?? '')) ?: $current_user['username']) ?></p>
  <p class="text-xs text-gray-500 dark:text-gray-400">@<?= e($current_user['username']) ?></p>
@@ -363,17 +363,33 @@ try {
  </div>
 </nav>
 
+<style>
+#mobile-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49}
+#mobile-backdrop.active{display:block}
+#user-menu.mobile-sheet{position:fixed!important;bottom:0!important;left:0!important;right:0!important;top:auto!important;width:100%!important;border-radius:1.5rem 1.5rem 0 0!important;border-left:none!important;border-right:none!important;border-bottom:none!important;margin-top:0!important;z-index:50!important;padding-bottom:env(safe-area-inset-bottom)}
+</style>
+<div id="mobile-backdrop" onclick="closeAllDropdowns()"></div>
 <script>
 function toggleDropdown(id) {
  const menu = document.getElementById(id);
  const isActive = menu.classList.contains('active');
- document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
- if (!isActive) menu.classList.add('active');
+ closeAllDropdowns();
+ if (!isActive) {
+ menu.classList.add('active');
+ if (id === 'user-menu' && window.innerWidth < 640) {
+ menu.classList.add('mobile-sheet');
+ document.getElementById('mobile-backdrop').classList.add('active');
+ }
+ }
 }
-
-document.addEventListener('click', function(e) {
- if (!e.target.closest('#notif-dropdown-wrap') && !e.target.closest('#user-dropdown-wrap')) {
+function closeAllDropdowns() {
  document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
+ document.getElementById('user-menu').classList.remove('mobile-sheet');
+ document.getElementById('mobile-backdrop').classList.remove('active');
+}
+document.addEventListener('click', function(e) {
+ if (!e.target.closest('#notif-dropdown-wrap') && !e.target.closest('#user-dropdown-wrap') && !e.target.closest('#mobile-backdrop')) {
+ closeAllDropdowns();
  }
 });
 

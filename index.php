@@ -141,7 +141,7 @@ include __DIR__ . '/includes/header.php';
  </div>'; ?>
 
  <!-- Desktop inline panel -->
- <div id="filter-panel" class="hidden sm:<?= ($price || $type || ($sort && $sort !== 'trending') || $lang) ? 'block' : 'hidden' ?> bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 mb-6">
+ <div id="filter-panel" <?= ($price || $type || ($sort && $sort !== 'trending') || $lang) ? '' : 'style="display:none"' ?> class="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-white/10 p-6 mb-6">
  <form method="GET" id="filter-form">
  <?= $filter_form_inner ?>
  <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
@@ -152,7 +152,7 @@ include __DIR__ . '/includes/header.php';
  </div>
 
  <!-- Mobile filter modal -->
- <div id="filter-modal" class="sm:hidden hidden fixed inset-0 z-50 flex items-end">
+ <div id="filter-modal" style="display:none" class="fixed inset-0 z-50 flex items-end">
  <div class="absolute inset-0 bg-black/50" onclick="toggleFilters()"></div>
  <div class="relative w-full bg-white dark:bg-[#1a1a1a] rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
  <div class="flex items-center justify-between mb-5">
@@ -319,9 +319,11 @@ include __DIR__ . '/includes/header.php';
 function toggleFilters() {
  const isMobile = window.innerWidth < 640;
  if (isMobile) {
- document.getElementById('filter-modal').classList.toggle('hidden');
+ const modal = document.getElementById('filter-modal');
+ modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
  } else {
- document.getElementById('filter-panel').classList.toggle('hidden');
+ const panel = document.getElementById('filter-panel');
+ panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
  }
 }
 
