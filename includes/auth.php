@@ -1,5 +1,13 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+ // Keep session alive for 1 year
+ ini_set('session.gc_maxlifetime', 365 * 24 * 3600);
+ session_set_cookie_params([
+ 'lifetime' => 365 * 24 * 3600,
+ 'path' => '/',
+ 'httponly' => true,
+ 'samesite' => 'Lax',
+ ]);
  session_start();
 }
 
