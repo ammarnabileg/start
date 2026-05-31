@@ -1016,8 +1016,8 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 <div id="add-topic-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
  <div class="bg-white rounded-2xl w-full max-w-sm p-6 border border-gray-200">
  <h3 class="font-bold text-lg text-gray-900 mb-4">Add Topic</h3>
- <input type="text" id="new-topic-name" placeholder="Topic name..."
- class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:outline-none focus:ring-2 focus:ring-brand/50 mb-4">
+ <input type="text" id="new-topic-name-modal" placeholder="Topic name..."
+ class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand/50 mb-4">
  <div class="flex justify-end gap-3">
  <button onclick="document.getElementById('add-topic-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
  <button onclick="addTopic(<?= $community_id ?>)" class="px-5 py-2 bg-brand text-white rounded-xl text-sm font-semibold">Add</button>
@@ -1323,6 +1323,6 @@ async function approveMember(membershipId, status, btn) {
 
 <!-- Toast -->
 <div id="toast" class="fixed bottom-6 right-6 z-[100] hidden transition-all">
- <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-semibold text-gray-900 bg-gray-900 flex items-center gap-2"></div>
+ <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-semibold text-white bg-gray-900 flex items-center gap-2"></div>
 </div>
 <?php include __DIR__ . '/includes/footer.php'; ?>

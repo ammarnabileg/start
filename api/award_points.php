@@ -27,10 +27,12 @@ if (!$target_user_id || !$community_id || $points <= 0 || $points > 10000) {
  echo json_encode(['error' => 'Invalid parameters']); exit;
 }
 
-// Verify caller is owner of the community
+// Verify caller is admin or owner of the community
 $community = db_fetch('SELECT * FROM communities WHERE id = ?', [$community_id]);
-if (!$community || (int)$community['owner_id'] !== (int)$current_user['id']) {
- echo json_encode(['error' => 'Only community owner can award points']); exit;
+if (!$community) { echo json_encode(['error' => 'Community not found']); exit; }
+$caller_mem = db_fetch('SELECT role FROM memberships WHERE user_id=? AND community_id=? AND status="approved"', [$current_user['id'], $community_id]);
+if (!$caller_mem || !in_array($caller_mem['role'], ['admin', 'owner'])) {
+ echo json_encode(['error' => 'Only admins can award points']); exit;
 }
 
 // Verify target is a member
