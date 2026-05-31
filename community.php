@@ -68,6 +68,88 @@ include __DIR__ . '/includes/header.php';
  .btn-brand:hover { background:#3451C7; }
 </style>
 
+<!-- ═══════════════ COMMUNITY BANNER ═══════════════ -->
+<?php if ($community['banner']): ?>
+<div class="relative w-full" style="height:260px;overflow:hidden;">
+ <img src="<?= e($community['banner']) ?>" alt="" class="w-full h-full object-cover">
+ <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+ <!-- Community info overlay at bottom -->
+ <div class="absolute bottom-0 left-0 right-0 max-w-[1280px] mx-auto px-4 md:pl-16 pb-4 flex items-end justify-between">
+ <div class="flex items-end gap-4">
+ <?php if ($community['logo']): ?>
+ <img src="<?= e($community['logo']) ?>" alt="" class="w-16 h-16 rounded-2xl object-cover border-2 border-white/30 flex-shrink-0">
+ <?php else: ?>
+ <div class="w-16 h-16 rounded-2xl bg-teal-600 flex items-center justify-center text-white font-black text-2xl border-2 border-white/30 flex-shrink-0">
+ <?= strtoupper(substr($community['name'], 0, 1)) ?>
+ </div>
+ <?php endif; ?>
+ <div class="pb-1">
+ <h1 class="text-xl font-black text-white leading-tight"><?= e($community['name']) ?></h1>
+ <p class="text-sm text-white/70">
+ <?= number_format((int)($member_count_approved['cnt'] ?? 0)) ?> members
+ <?php if ($community['pricing'] !== 'free' && $community['price'] > 0): ?>
+ &bull; <?= format_price($community['price'], $community['price_interval'] ?? '') ?>
+ <?php endif; ?>
+ </p>
+ </div>
+ </div>
+ <div class="flex items-center gap-2 pb-1">
+ <?php if ($is_owner): ?>
+ <a href="/edit-community.php?id=<?= $community_id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 backdrop-blur border border-white/20 text-white rounded-xl text-sm font-semibold hover:bg-white/20 transition-colors">
+ <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+ Edit
+ </a>
+ <?php endif; ?>
+ <?php if (!$is_approved && $current_user && (!$my_membership || $my_membership['status'] !== 'pending')): ?>
+ <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-1.5 px-5 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-sm font-bold transition-colors">
+ <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+ <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join Free' ?>
+ </button>
+ <?php endif; ?>
+ </div>
+ </div>
+</div>
+<?php else: ?>
+<!-- No banner: gradient placeholder -->
+<div class="relative w-full bg-gradient-to-br from-teal-900 via-[#0d9488]/60 to-[#121212]" style="height:180px;">
+ <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+ <div class="absolute bottom-0 left-0 right-0 max-w-[1280px] mx-auto px-4 md:pl-16 pb-4 flex items-end justify-between">
+ <div class="flex items-end gap-4">
+ <?php if ($community['logo']): ?>
+ <img src="<?= e($community['logo']) ?>" alt="" class="w-16 h-16 rounded-2xl object-cover border-2 border-white/30 flex-shrink-0">
+ <?php else: ?>
+ <div class="w-16 h-16 rounded-2xl bg-teal-600 flex items-center justify-center text-white font-black text-2xl border-2 border-white/20 flex-shrink-0">
+ <?= strtoupper(substr($community['name'], 0, 1)) ?>
+ </div>
+ <?php endif; ?>
+ <div class="pb-1">
+ <h1 class="text-xl font-black text-white leading-tight"><?= e($community['name']) ?></h1>
+ <p class="text-sm text-white/70">
+ <?= number_format((int)($member_count_approved['cnt'] ?? 0)) ?> members
+ <?php if ($community['pricing'] !== 'free' && $community['price'] > 0): ?>
+ &bull; <?= format_price($community['price'], $community['price_interval'] ?? '') ?>
+ <?php endif; ?>
+ </p>
+ </div>
+ </div>
+ <div class="flex items-center gap-2 pb-1">
+ <?php if ($is_owner): ?>
+ <a href="/edit-community.php?id=<?= $community_id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 backdrop-blur border border-white/20 text-white rounded-xl text-sm font-semibold hover:bg-white/20 transition-colors">
+ <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+ Edit
+ </a>
+ <?php endif; ?>
+ <?php if (!$is_approved && $current_user && (!$my_membership || $my_membership['status'] !== 'pending')): ?>
+ <button onclick="joinCommunity(<?= $community_id ?>)" class="inline-flex items-center gap-1.5 px-5 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-sm font-bold transition-colors">
+ <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+ <?= $community['pricing'] === 'paid' ? 'Join &middot; ' . format_price($community['price'], $community['price_interval'] ?? '') : 'Join Free' ?>
+ </button>
+ <?php endif; ?>
+ </div>
+ </div>
+</div>
+<?php endif; ?>
+
 <!-- ═══════════════ COMMUNITY SUB-HEADER ═══════════════ -->
 <header class="bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10">
  <!-- Community info strip + search + join -->
@@ -205,13 +287,13 @@ $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
  <div class="flex gap-2 flex-wrap mb-5 overflow-x-auto scrollbar-hide">
  <a href="?slug=<?= e($slug) ?>&tab=community"
  class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap
- <?= !$topic_id ? 'bg-brand text-white' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]' ?>">
+ <?= !$topic_id ? 'bg-teal-600 text-white font-semibold shadow-sm' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-400 border border-gray-300 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]' ?>">
  All Posts
  </a>
  <?php foreach ($topics as $t): ?>
  <a href="?slug=<?= e($slug) ?>&tab=community&topic=<?= $t['id'] ?>"
  class="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap
- <?= $topic_id === (int)$t['id'] ? 'bg-brand text-white' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]' ?>">
+ <?= $topic_id === (int)$t['id'] ? 'bg-teal-600 text-white font-semibold shadow-sm' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-400 border border-gray-300 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]' ?>">
  # <?= e($t['name']) ?>
  </a>
  <?php endforeach; ?>
