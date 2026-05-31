@@ -153,34 +153,58 @@ include __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- ═══════════════ COMMUNITY SUB-HEADER ═══════════════ -->
-<header class="bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10">
- <!-- Tab bar -->
- <div class="border-t border-gray-100 dark:border-white/5">
+<!-- ═══════════════ COMMUNITY SUB-HEADER (Desktop tabs) ═══════════════ -->
+<header class="bg-white dark:bg-[#1a1a1a] border-b border-gray-200 dark:border-white/10 hidden md:block">
  <div class="max-w-[1280px] mx-auto px-4 md:pl-16">
  <nav class="flex items-center gap-0 overflow-x-auto scrollbar-hide">
  <?php foreach ($tab_order as $t => $label): ?>
  <?php $active = $tab === $t; $lbl = $tab_labels[$t] ?? $label; ?>
  <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?><?= $search_q ? '&q=' . urlencode($search_q) : '' ?>"
  class="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2
- <?= $active
- ? 'border-brand text-brand font-semibold'
- : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/30' ?>
+ <?= $active ? 'border-brand text-brand font-semibold' : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/30' ?>
  <?= $t === 'admin' && !$active ? 'text-amber-600 dark:text-amber-400' : '' ?>">
  <?= $lbl ?>
  </a>
  <?php endforeach; ?>
  </nav>
  </div>
- </div>
 </header>
+
+<!-- ═══════════════ MOBILE BOTTOM NAV ═══════════════ -->
+<?php
+$tab_icons = [
+ 'community' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
+ 'classroom' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>',
+ 'members' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+ 'leaderboard' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
+ 'about' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+ 'admin' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>',
+];
+?>
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#1a1a1a] border-t border-gray-200 dark:border-white/10 flex items-stretch" style="padding-bottom: env(safe-area-inset-bottom)">
+ <?php foreach ($tab_order as $t => $label): ?>
+ <?php $active = $tab === $t; $lbl = $tab_labels[$t] ?? $label; $icon = $tab_icons[$t] ?? $tab_icons['about']; ?>
+ <a href="?slug=<?= e($slug) ?>&tab=<?= $t ?><?= $search_q ? '&q='.urlencode($search_q) : '' ?>"
+ class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-w-0 transition-colors
+ <?= $active ? 'text-teal-600 dark:text-teal-400' : 'text-gray-400 dark:text-gray-500' ?>
+ <?= $t === 'admin' && !$active ? '!text-amber-500' : '' ?>">
+ <?= $icon ?>
+ <span class="text-[10px] font-medium leading-none truncate w-full text-center"><?= $lbl ?></span>
+ <?php if ($active): ?>
+ <span class="absolute bottom-0 w-6 h-0.5 bg-teal-500 rounded-full"></span>
+ <?php endif; ?>
+ </a>
+ <?php endforeach; ?>
+</nav>
+<!-- Spacer so content isn't hidden behind bottom nav on mobile -->
+<div class="md:hidden h-16"></div>
 
 <!-- ═══════════════ MAIN LAYOUT ═══════════════ -->
 <?php
 // Load leaderboard for sidebar (top 5)
 $sidebar_leaderboard = get_community_leaderboard($community_id, 5);
 ?>
-<div class="max-w-[1280px] mx-auto px-4 md:pl-16 py-5 flex gap-5">
+<div class="max-w-[1280px] mx-auto px-4 md:pl-16 py-5 pb-24 md:pb-5 flex gap-5">
 
  <!-- MAIN CONTENT (70%) -->
  <div class="flex-1 min-w-0">
