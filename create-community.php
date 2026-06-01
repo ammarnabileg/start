@@ -7,7 +7,7 @@ require_login();
 $current_user = get_auth_user();
 $error = '';
 $success = '';
-$step = max(1, min(5, (int)($_GET['step'] ?? 1)));
+$step = max(1, min(6, (int)($_GET['step'] ?? 1)));
 
 // Handle submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,10 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
  if (!$error) {
  // Check community creation price from platform settings
- $creation_price = 0;
- try {
- $creation_price = (float)get_platform_setting('community_creation_price', 0);
- } catch (Exception $e) { $creation_price = 0; }
+ $creation_price = (float)get_platform_setting('community_creation_price', '0');
 
  if ($creation_price > 0) {
  // Wrap in DB transaction: check wallet, deduct, create community
@@ -402,7 +399,7 @@ include __DIR__ . '/includes/header.php';
  <div id="step-5" class="hidden">
  <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Platform Fee</h2>
  <?php
- $creation_price = (float)get_platform_setting('community_creation_price', 0);
+ $creation_price = (float)get_platform_setting('community_creation_price', '0');
  $wallet_balance = (float)($current_user['wallet_balance'] ?? 0);
  ?>
  <div class="bg-gray-50 dark:bg-white/5 rounded-2xl p-6 mb-6 space-y-4">
