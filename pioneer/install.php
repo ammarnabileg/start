@@ -34,9 +34,28 @@ $sql_statements = [
   `p_verified` tinyint(1) DEFAULT 0,
   `p_membership_type` enum('standard','verified','executive') DEFAULT 'standard',
   `p_views` int(11) DEFAULT 0,
+  `p_country_id` int(11) DEFAULT 0,
   `p_active` tinyint(1) DEFAULT 1,
   `p_created` timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`p_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+"CREATE TABLE IF NOT EXISTS `pi_countries` (
+  `c_id` int(11) NOT NULL AUTO_INCREMENT,
+  `c_name` varchar(100) NOT NULL,
+  `c_flag` varchar(20) DEFAULT '🌍',
+  `c_code` varchar(10) DEFAULT NULL,
+  `c_active` tinyint(1) DEFAULT 1,
+  `c_order` int(11) DEFAULT 0,
+  PRIMARY KEY (`c_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+"CREATE TABLE IF NOT EXISTS `pi_settings` (
+  `s_id` int(11) NOT NULL AUTO_INCREMENT,
+  `s_key` varchar(100) NOT NULL,
+  `s_value` text DEFAULT NULL,
+  PRIMARY KEY (`s_id`),
+  UNIQUE KEY `s_key` (`s_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 
 "CREATE TABLE IF NOT EXISTS `pi_institutions` (
@@ -45,6 +64,7 @@ $sql_statements = [
   `inst_name_en` varchar(300) DEFAULT NULL,
   `inst_logo` varchar(500) DEFAULT NULL,
   `inst_description` text DEFAULT NULL,
+  `inst_country_id` int(11) DEFAULT 0,
   `inst_verified` tinyint(1) DEFAULT 0,
   `inst_views` int(11) DEFAULT 0,
   `inst_active` tinyint(1) DEFAULT 1,
@@ -158,7 +178,7 @@ $sql_statements = [
 
 // Default roles
 "INSERT IGNORE INTO `pi_roles` (`role_id`, `role_name`, `role_permissions`) VALUES
-(1, 'مدير النظام', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28'),
+(1, 'مدير النظام', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30'),
 (2, 'محرر محتوى', '1,2,3,5,6,7,9,13,14,15,27,28'),
 (3, 'مشرف', '1,2,3,5,6,7,9,10,13,14,15,27,28')",
 

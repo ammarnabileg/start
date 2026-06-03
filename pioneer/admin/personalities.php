@@ -18,17 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $bio       = pi_escape($_POST['p_bio'] ?? '');
         $bio_plat  = pi_escape($_POST['p_bio_platform'] ?? '');
         $photo     = pi_escape($_POST['p_photo'] ?? '');
-        $verified  = (int)($_POST['p_verified'] ?? 0);
-        $mtype     = pi_escape($_POST['p_membership_type'] ?? 'standard');
-        $cats      = $_POST['categories'] ?? [];
+        $verified   = (int)($_POST['p_verified'] ?? 0);
+        $mtype      = pi_escape($_POST['p_membership_type'] ?? 'standard');
+        $country_id = (int)($_POST['p_country_id'] ?? 0);
+        $cats       = $_POST['categories'] ?? [];
 
         if ($id) {
             pi_require_perm('edit_personality');
-            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype' WHERE p_id=$id");
+            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id WHERE p_id=$id");
             $mysqli->query("DELETE FROM pi_personality_categories WHERE p_id=$id");
         } else {
             pi_require_perm('add_personality');
-            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_photo,p_verified,p_membership_type) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$photo',$verified,'$mtype')");
+            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_photo,p_verified,p_membership_type,p_country_id) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$photo',$verified,'$mtype',$country_id)");
             $id = $mysqli->insert_id;
         }
         foreach ($cats as $cat_id) {
@@ -54,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $all_cats = pi_get_categories();
+$all_countries = pi_get_countries();
 $filter = $_GET['filter'] ?? '';
 $search = pi_escape($_GET['q'] ?? '');
 
@@ -118,6 +120,17 @@ if ($action === 'add' || $action === 'edit') {
           <option value="standard" <?= ($edit_p['p_membership_type']??'standard')==='standard'?'selected':'' ?>>عادية</option>
           <option value="verified" <?= ($edit_p['p_membership_type']??'')==='verified'?'selected':'' ?>>موثقة</option>
           <option value="executive" <?= ($edit_p['p_membership_type']??'')==='executive'?'selected':'' ?>>رئيس تنفيذي</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">الدولة</label>
+        <select name="p_country_id" class="form-input">
+          <option value="0">— اختر الدولة —</option>
+          <?php foreach ($all_countries as $cn): ?>
+          <option value="<?= $cn['c_id'] ?>" <?= ($edit_p['p_country_id']??0)==$cn['c_id']?'selected':'' ?>>
+            <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+          </option>
+          <?php endforeach; ?>
         </select>
       </div>
       <div class="flex items-center gap-3 mt-6">

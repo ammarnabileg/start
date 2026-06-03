@@ -1,6 +1,6 @@
 <?php
 error_reporting(E_ALL ^ E_NOTICE);
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 $server   = "localhost";
 $username = "Start_Main";
@@ -10,11 +10,69 @@ $database = "Start_Main";
 $mysqli = new mysqli($server, $username, $password, $database) or die(mysqli_error($mysqli));
 $mysqli->set_charset("utf8mb4");
 
-define('BASE_URL', '/pioneer');
-define('SITE_NAME', 'PioneerIcons');
-define('SITE_NAME_AR', 'من هم');
+// ── Site settings (loaded from DB, with fallbacks) ─────────────────────────
+function pi_get_settings() {
+    global $mysqli;
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $cache = [
+        'site_name'        => 'PioneerIcons',
+        'site_name_ar'     => 'من هم',
+        'site_tagline'     => 'منصة الحضور العربي الموثق',
+        'site_description' => 'تحكم بما يعرفه الناس عنك',
+        'site_keywords'    => 'شخصيات عربية, مؤسسات, من هم, PioneerIcons',
+        'site_logo'        => '',
+        'footer_about'     => 'منصة الحضور العربي الموثق — تحكم بما يعرفه الناس عنك. نوثق الشخصيات والمؤسسات العربية الرائدة في مختلف المجالات.',
+        'social_whatsapp'  => '',
+        'social_linkedin'  => '',
+        'social_twitter'   => '',
+        'primary_color'    => '#f97316',
+        'admin_email'      => 'admin@pioneericons.com',
+        'copyright_text'   => 'جميع الحقوق محفوظة لـ PioneerIcons',
+        'google_analytics' => '',
+        'default_country'  => '0',
+    ];
+    $r = $mysqli->query("SELECT * FROM pi_settings");
+    if ($r) while ($row = $r->fetch_assoc()) $cache[$row['s_key']] = $row['s_value'];
+    return $cache;
+}
 
-// Permissions map
+function pi_setting($key, $fallback = '') {
+    $s = pi_get_settings();
+    return $s[$key] ?? $fallback;
+}
+
+// ── Country helpers ────────────────────────────────────────────────────────
+function pi_get_countries() {
+    global $mysqli;
+    $r = $mysqli->query("SELECT * FROM pi_countries WHERE c_active=1 ORDER BY c_order,c_id");
+    $c = [];
+    if ($r) while ($row=$r->fetch_assoc()) $c[] = $row;
+    return $c;
+}
+
+function pi_current_country() {
+    // Returns the active country_id (0 = all countries)
+    if (isset($_GET['country'])) {
+        $_SESSION['pi_country'] = (int)$_GET['country'];
+    }
+    return (int)($_SESSION['pi_country'] ?? 0);
+}
+
+function pi_country_where($table_prefix = 'p') {
+    // Returns SQL fragment to filter by country (empty string = no filter)
+    $cid = pi_current_country();
+    if (!$cid) return '';
+    return " AND {$table_prefix}.p_country_id = $cid ";
+}
+
+function pi_inst_country_where() {
+    $cid = pi_current_country();
+    if (!$cid) return '';
+    return " AND inst_country_id = $cid ";
+}
+
+// ── Permissions ────────────────────────────────────────────────────────────
 define('PERM', [
     'view_personalities'  => 1,
     'add_personality'     => 2,
@@ -44,6 +102,8 @@ define('PERM', [
     'manage_sponsors'     => 26,
     'view_timeline'       => 27,
     'manage_timeline'     => 28,
+    'manage_countries'    => 29,
+    'manage_settings'     => 30,
 ]);
 
 function pi_has_perm($perm_key) {
@@ -84,14 +144,18 @@ function pi_load_user() {
 
 function pi_count_personalities() {
     global $mysqli;
-    $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_personalities WHERE p_active=1");
-    return $r ? $r->fetch_assoc()['c'] : 0;
+    $cid = pi_current_country();
+    $where = $cid ? " AND p_country_id=$cid" : '';
+    $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_personalities WHERE p_active=1$where");
+    return $r ? (int)$r->fetch_assoc()['c'] : 0;
 }
 
 function pi_count_institutions() {
     global $mysqli;
-    $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_institutions WHERE inst_active=1");
-    return $r ? $r->fetch_assoc()['c'] : 0;
+    $cid = pi_current_country();
+    $where = $cid ? " AND inst_country_id=$cid" : '';
+    $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_institutions WHERE inst_active=1$where");
+    return $r ? (int)$r->fetch_assoc()['c'] : 0;
 }
 
 function pi_escape($str) {

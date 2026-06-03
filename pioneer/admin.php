@@ -136,6 +136,22 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
         <?php endif; ?>
       </a>
 
+      <?php if (pi_has_perm('manage_countries')): ?>
+      <a href="admin.php?p=countries" class="nav-link <?= $p=='countries'?'active':'' ?>">
+        <i class="fa-solid fa-globe w-5 text-center"></i>
+        <span x-show="sidebarOpen" x-cloak>الدول</span>
+      </a>
+      <?php endif; ?>
+
+      <?php if (pi_has_perm('manage_settings')): ?>
+      <a href="admin.php?p=settings" class="nav-link <?= $p=='settings'?'active':'' ?>">
+        <i class="fa-solid fa-gear w-5 text-center"></i>
+        <span x-show="sidebarOpen" x-cloak>إعدادات الموقع</span>
+      </a>
+      <?php endif; ?>
+
+      <div class="border-t border-white/10 my-2"></div>
+
       <a href="index.php" target="_blank" class="nav-link">
         <i class="fa-solid fa-arrow-up-right-from-square w-5 text-center"></i>
         <span x-show="sidebarOpen" x-cloak>عرض الموقع</span>
@@ -164,7 +180,8 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
           $titles = [
             'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
             'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
-            'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة','submissions'=>'مقترحات المستخدمين',
+            'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
+            'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع',
           ];
           echo $titles[$p] ?? 'لوحة التحكم';
           ?>
@@ -194,6 +211,8 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       elseif ($p === 'roles')         include 'admin/roles.php';
       elseif ($p === 'admin_users')   include 'admin/admin_users.php';
       elseif ($p === 'submissions')   include 'admin/submissions.php';
+      elseif ($p === 'countries')     include 'admin/countries.php';
+      elseif ($p === 'settings')      include 'admin/settings.php';
       else include 'admin/dashboard.php';
       ?>
     </main>

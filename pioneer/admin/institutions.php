@@ -11,14 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name_en  = pi_escape($_POST['inst_name_en'] ?? '');
         $logo     = pi_escape($_POST['inst_logo'] ?? '');
         $desc     = pi_escape($_POST['inst_description'] ?? '');
-        $verified = (int)($_POST['inst_verified'] ?? 0);
+        $verified   = (int)($_POST['inst_verified'] ?? 0);
+        $country_id = (int)($_POST['inst_country_id'] ?? 0);
 
         if ($id) {
             pi_require_perm('edit_institution');
-            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified WHERE inst_id=$id");
+            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified,inst_country_id=$country_id WHERE inst_id=$id");
         } else {
             pi_require_perm('add_institution');
-            $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified) VALUES ('$name_ar','$name_en','$logo','$desc',$verified)");
+            $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified,inst_country_id) VALUES ('$name_ar','$name_en','$logo','$desc',$verified,$country_id)");
         }
         $msg = 'تم الحفظ'; $action = 'list';
     }
@@ -54,6 +55,18 @@ if ($action === 'add' || $action === 'edit') {
     <input type="url" name="inst_logo" class="form-input" dir="ltr" value="<?= htmlspecialchars($ei['inst_logo']??'') ?>"></div>
     <div><label class="form-label">الوصف</label>
     <textarea name="inst_description" rows="4" class="form-input resize-y"><?= htmlspecialchars($ei['inst_description']??'') ?></textarea></div>
+    <?php $inst_countries = pi_get_countries(); ?>
+    <div>
+      <label class="form-label">الدولة</label>
+      <select name="inst_country_id" class="form-input">
+        <option value="0">— اختر الدولة —</option>
+        <?php foreach ($inst_countries as $cn): ?>
+        <option value="<?= $cn['c_id'] ?>" <?= ($ei['inst_country_id']??0)==$cn['c_id']?'selected':'' ?>>
+          <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+        </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
     <div class="flex items-center gap-2">
       <input type="checkbox" name="inst_verified" value="1" id="inst_v" <?= ($ei['inst_verified']??0)?'checked':'' ?> class="w-5 h-5 accent-blue-500">
       <label for="inst_v" class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-circle-check text-blue-500 mr-1"></i> موثقة</label>
