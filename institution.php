@@ -66,27 +66,28 @@ include 'includes/header.php';
 
 <!-- SPONSORS SPOTLIGHT -->
 <?php if (!empty($sponsors)): ?>
-<div class="max-w-7xl mx-auto px-4 py-5">
-  <div style="background:linear-gradient(135deg,#f5e9c8 0%,#ede0b0 100%);border-radius:20px;padding:18px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-    <!-- Label + CTA -->
-    <div style="flex-shrink:0;min-width:130px;">
-      <p style="font-size:13px;color:#92400e;font-weight:800;margin-bottom:8px;">تحت الضوء</p>
+<div style="background:linear-gradient(135deg,#f0dfa0 0%,#e8d080 50%,#d4b84a 100%);box-shadow:0 4px 24px rgba(180,140,0,.18);border-bottom:1px solid #c9a93a;">
+  <div class="max-w-7xl mx-auto px-4" style="display:flex;align-items:center;gap:0;min-height:88px;">
+    <!-- Label + CTA (right in RTL) -->
+    <div style="flex-shrink:0;padding:16px 0 16px 28px;border-left:1.5px solid rgba(0,0,0,.10);min-width:160px;text-align:right;">
+      <p style="font-size:11px;letter-spacing:.05em;color:#78520a;font-weight:900;margin-bottom:10px;text-transform:uppercase;">تحت الضوء ✦</p>
       <a href="advertise.php"
-        style="display:inline-block;padding:7px 18px;border-radius:999px;background:#3b82f6;color:#fff;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;">
-        أعلن عن شركتك هنا
+        style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border-radius:999px;background:#2563eb;color:#fff;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;box-shadow:0 2px 8px rgba(37,99,235,.35);">
+        <i class="fa-solid fa-bullhorn" style="font-size:11px;"></i> أعلن عن شركتك
       </a>
     </div>
     <!-- Logos -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;padding:16px 28px 16px 0;overflow-x:auto;scrollbar-width:none;">
       <?php foreach ($sponsors as $sp): ?>
-      <a href="<?= htmlspecialchars($sp['sp_url']??'#') ?>" target="_blank"
-        style="display:flex;align-items:center;justify-content:center;width:100px;height:60px;background:#fff;border-radius:12px;padding:8px;transition:box-shadow .2s;flex-shrink:0;"
-        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+      <a href="<?= htmlspecialchars($sp['sp_url']??'#') ?>" target="_blank" title="<?= htmlspecialchars($sp['sp_name']) ?>"
+        style="display:flex;align-items:center;justify-content:center;flex-shrink:0;width:130px;height:72px;background:#fff;border-radius:14px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.10);transition:transform .2s,box-shadow .2s;"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.18)'"
+        onmouseout="this.style.transform='';this.style.boxShadow='0 2px 10px rgba(0,0,0,.10)'">
         <?php if ($sp['sp_logo']): ?>
           <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" alt="<?= htmlspecialchars($sp['sp_name']) ?>"
-            style="max-height:44px;max-width:84px;object-fit:contain;">
+            style="max-height:52px;max-width:108px;object-fit:contain;">
         <?php else: ?>
-          <span style="font-size:11px;font-weight:800;color:#374151;text-align:center;"><?= htmlspecialchars($sp['sp_name']) ?></span>
+          <span style="font-size:12px;font-weight:800;color:#374151;text-align:center;line-height:1.3;"><?= htmlspecialchars($sp['sp_name']) ?></span>
         <?php endif; ?>
       </a>
       <?php endforeach; ?>
