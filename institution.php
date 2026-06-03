@@ -42,6 +42,42 @@ $social_icons = [
     'website'   => ['fa-solid fa-globe', 'bg-teal-500'],
 ];
 
+// Similar institutions (same name parts)
+$similar_insts = [];
+$name_parts = preg_split('/\s+/', trim($inst['inst_name_ar']));
+$like_clauses = [];
+foreach ($name_parts as $part) {
+    if (mb_strlen($part) >= 3) $like_clauses[] = "inst_name_ar LIKE '%".pi_escape($part)."%'";
+}
+if ($like_clauses) {
+    $like_sql = implode(' OR ', $like_clauses);
+    $r = $mysqli->query("SELECT * FROM pi_institutions WHERE inst_active=1 AND inst_id!=$inst_id AND ($like_sql) ORDER BY inst_views DESC LIMIT 4");
+    if ($r) while ($row=$r->fetch_assoc()) $similar_insts[] = $row;
+}
+
+// Same category institutions
+$same_cat_insts = [];
+if (!empty($cat_ids)) {
+    $cids_str = implode(',', $cat_ids);
+    $r = $mysqli->query("SELECT DISTINCT i.* FROM pi_institutions i JOIN pi_institution_categories ic ON i.inst_id=ic.inst_id WHERE ic.cat_id IN ($cids_str) AND i.inst_active=1 AND i.inst_id!=$inst_id ORDER BY i.inst_views DESC LIMIT 6");
+    if ($r) while ($row=$r->fetch_assoc()) $same_cat_insts[] = $row;
+}
+
+// Executive personalities (sidebar)
+$executives = [];
+$r = $mysqli->query("SELECT * FROM pi_personalities WHERE p_membership_type='executive' AND p_active=1 ORDER BY p_views DESC LIMIT 4");
+if ($r) while ($row=$r->fetch_assoc()) $executives[] = $row;
+
+// Related articles (sidebar)
+$related_articles = [];
+$r = $mysqli->query("SELECT * FROM pi_articles WHERE art_active=1 ORDER BY art_id DESC LIMIT 4");
+if ($r) while ($row=$r->fetch_assoc()) $related_articles[] = $row;
+
+// Daily personality
+$daily = null;
+$r = $mysqli->query("SELECT * FROM pi_personalities WHERE p_active=1 AND p_verified=1 ORDER BY RAND() LIMIT 1");
+if ($r && $r->num_rows) $daily = $r->fetch_assoc();
+
 // Sponsors
 $sponsors = [];
 $r = $mysqli->query("SELECT * FROM pi_sponsors WHERE sp_active=1 ORDER BY sp_order LIMIT 6");
@@ -204,14 +240,103 @@ include 'includes/header.php';
       <!-- Categories -->
       <?php if (!empty($inst_cats)): ?>
       <div class="bg-white rounded-2xl shadow-sm p-6">
-        <h3 class="font-black text-gray-800 mb-4">تصنيفات ذات صلة</h3>
+        <h3 class="font-black text-gray-800 mb-4" style="font-size:14px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">التصنيفات</h3>
         <div class="flex flex-wrap gap-2">
           <?php foreach ($inst_cats as $cat): ?>
+          <?php $lc = $cat['label_color'] ?? '#8829C8'; ?>
           <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-            style="background:<?= htmlspecialchars($cat['label_color'] ?? '#f3f4f6') ?>;color:<?= ($cat['label_color'] ?? '') ? '#fff' : '#374151' ?>"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition">
-            <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-xs"></i>
+            style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:<?= htmlspecialchars($lc) ?>18;color:<?= htmlspecialchars($lc) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;border:1.5px solid <?= htmlspecialchars($lc) ?>35;transition:opacity .15s;"
+            onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+            <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
             <?= htmlspecialchars($cat['cat_name']) ?>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- هل تقصد -->
+      <?php if (!empty($similar_insts)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-6">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-question" style="color:#8829C8;font-size:15px;"></i>
+          هل تقصد؟
+        </h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <?php foreach ($similar_insts as $si): ?>
+          <a href="institution.php?id=<?= $si['inst_id'] ?>" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid #f3f4f6;text-decoration:none;transition:all .15s;" onmouseover="this.style.borderColor='#c4b5fd';this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#f3f4f6';this.style.background='transparent'">
+            <?php if ($si['inst_logo']): ?>
+              <img src="<?= htmlspecialchars($si['inst_logo']) ?>" style="width:46px;height:46px;border-radius:12px;object-fit:contain;border:1px solid #f3f4f6;flex-shrink:0;background:#fff;padding:4px;">
+            <?php else: ?>
+              <div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="color:#fff;font-size:18px;font-weight:900;"><?= mb_substr($si['inst_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:13px;font-weight:800;color:#111827;margin:0 0 3px;display:flex;align-items:center;gap:5px;">
+                <?= htmlspecialchars($si['inst_name_ar']) ?>
+                <?php if ($si['inst_verified']): ?><i class="fa-solid fa-circle-check verified-badge" style="font-size:11px;"></i><?php endif; ?>
+              </p>
+              <?php if ($si['inst_name_en']): ?>
+              <p style="font-size:11px;color:#9ca3af;margin:0;" dir="ltr"><?= htmlspecialchars($si['inst_name_en']) ?></p>
+              <?php endif; ?>
+            </div>
+            <i class="fa-solid fa-arrow-left" style="color:#d1d5db;font-size:11px;flex-shrink:0;"></i>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- شركات من نفس المجال -->
+      <?php if (!empty($same_cat_insts)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-6">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-building" style="color:#8829C8;font-size:15px;"></i>
+          مؤسسات من نفس المجال
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <?php foreach ($same_cat_insts as $sci): ?>
+          <a href="institution.php?id=<?= $sci['inst_id'] ?>" style="text-align:center;padding:14px 8px;border-radius:14px;border:1px solid #f3f4f6;text-decoration:none;transition:all .15s;" onmouseover="this.style.borderColor='#c4b5fd';this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#f3f4f6';this.style.background='transparent'">
+            <?php if ($sci['inst_logo']): ?>
+              <img src="<?= htmlspecialchars($sci['inst_logo']) ?>" style="width:50px;height:50px;border-radius:12px;object-fit:contain;margin:0 auto 8px;border:1px solid #f3f4f6;background:#fff;padding:4px;">
+            <?php else: ?>
+              <div style="width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                <span style="color:#fff;font-size:20px;font-weight:900;"><?= mb_substr($sci['inst_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <p style="font-size:12px;font-weight:800;color:#111827;margin:0 0 3px;line-height:1.3;">
+              <?= htmlspecialchars(mb_substr($sci['inst_name_ar'],0,16)) ?><?= mb_strlen($sci['inst_name_ar'])>16?'…':'' ?>
+              <?php if ($sci['inst_verified']): ?><i class="fa-solid fa-circle-check verified-badge" style="font-size:9px;"></i><?php endif; ?>
+            </p>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Personalities from same categories -->
+      <?php if (!empty($related_personalities)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-6">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-users" style="color:#8829C8;font-size:15px;"></i>
+          شخصيات من نفس المجال
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <?php foreach ($related_personalities as $rp): ?>
+          <a href="profile.php?id=<?= $rp['p_id'] ?>" style="text-align:center;padding:14px 8px;border-radius:14px;border:1px solid #f3f4f6;text-decoration:none;transition:all .15s;" onmouseover="this.style.borderColor='#c4b5fd';this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#f3f4f6';this.style.background='transparent'">
+            <?php if ($rp['p_photo']): ?>
+              <img src="<?= htmlspecialchars($rp['p_photo']) ?>" style="width:50px;height:50px;border-radius:50%;object-fit:cover;margin:0 auto 8px;border:2px solid #f3e8ff;">
+            <?php else: ?>
+              <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                <span style="color:#fff;font-size:20px;font-weight:900;"><?= mb_substr($rp['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <p style="font-size:12px;font-weight:800;color:#111827;margin:0 0 3px;line-height:1.3;">
+              <?= htmlspecialchars(mb_substr($rp['p_name_ar'],0,16)) ?><?= mb_strlen($rp['p_name_ar'])>16?'…':'' ?>
+              <?php if ($rp['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge" style="font-size:9px;"></i><?php endif; ?>
+            </p>
+            <p style="font-size:10px;color:#9ca3af;margin:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"><?= htmlspecialchars($rp['p_title']??'') ?></p>
           </a>
           <?php endforeach; ?>
         </div>
@@ -221,53 +346,134 @@ include 'includes/header.php';
     </div>
 
     <!-- RIGHT SIDEBAR -->
-    <div class="space-y-6">
+    <div style="position:sticky;top:80px;" class="space-y-4">
 
       <!-- Stats card -->
-      <div class="bg-white rounded-2xl shadow-sm p-5">
-        <h3 class="font-black text-gray-800 mb-4">إحصائيات</h3>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between py-2 border-b border-gray-50">
-            <span class="text-gray-500 text-sm">عدد المشاهدات</span>
-            <span class="font-bold text-gray-800"><?= number_format($inst['inst_views'] ?? 0) ?></span>
+      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:18px;">
+        <h3 style="font-size:13px;font-weight:900;color:#111827;margin:0 0 12px;">إحصائيات</h3>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f9fafb;">
+            <span style="font-size:12px;color:#6b7280;">المشاهدات</span>
+            <span style="font-size:13px;font-weight:800;color:#111827;"><?= number_format($inst['inst_views'] ?? 0) ?></span>
           </div>
           <?php if (!empty($inst['inst_founded'])): ?>
-          <div class="flex items-center justify-between py-2 border-b border-gray-50">
-            <span class="text-gray-500 text-sm">سنة التأسيس</span>
-            <span class="font-bold text-gray-800"><?= htmlspecialchars($inst['inst_founded']) ?></span>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f9fafb;">
+            <span style="font-size:12px;color:#6b7280;">سنة التأسيس</span>
+            <span style="font-size:13px;font-weight:800;color:#111827;"><?= htmlspecialchars($inst['inst_founded']) ?></span>
+          </div>
+          <?php endif; ?>
+          <?php if (!empty($inst_cats)): ?>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+            <span style="font-size:12px;color:#6b7280;">التصنيفات</span>
+            <span style="font-size:13px;font-weight:800;color:#8829C8;"><?= count($inst_cats) ?></span>
           </div>
           <?php endif; ?>
         </div>
       </div>
 
-      <!-- Related personalities -->
-      <?php if (!empty($related_personalities)): ?>
-      <div class="bg-white rounded-2xl shadow-sm p-5">
-        <h3 class="font-black text-gray-800 mb-4">شخصيات ذات صلة</h3>
-        <div class="space-y-3">
-          <?php foreach ($related_personalities as $rp): ?>
-          <a href="profile.php?id=<?= $rp['p_id'] ?>"
-            class="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition">
-            <?php if (!empty($rp['p_photo'])): ?>
-              <img src="<?= htmlspecialchars($rp['p_photo']) ?>" class="w-11 h-11 rounded-full object-cover">
+      <!-- Verified membership promo -->
+      <div style="background:linear-gradient(135deg,#fef9c3,#fef3c7);border:2px solid #fde68a;border-radius:18px;padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <i class="fa-solid fa-circle-check" style="color:#d97706;font-size:20px;"></i>
+          <span style="font-size:14px;font-weight:900;color:#92400e;">عضوية موثقة</span>
+        </div>
+        <ul style="list-style:none;padding:0;margin:0 0 14px;font-size:12px;color:#78350f;">
+          <?php foreach (['ظهور في نتائج البحث أولاً','شارة التوثيق الرسمية','حماية الهوية الرقمية','إحصائيات الزيارات'] as $b): ?>
+          <li style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <i class="fa-solid fa-check" style="color:#d97706;font-size:10px;flex-shrink:0;"></i><?= $b ?>
+          </li>
+          <?php endforeach; ?>
+        </ul>
+        <a href="membership.php" style="display:block;text-align:center;padding:9px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;">اشترك الآن</a>
+      </div>
+
+      <!-- Daily personality -->
+      <?php if ($daily): ?>
+      <div style="background:linear-gradient(135deg,#8829C8,#5B1494);border-radius:18px;padding:20px;text-align:center;color:#fff;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <span style="font-size:13px;font-weight:800;">شخصية اليوم</span>
+          <i class="fa-solid fa-circle-check" style="font-size:18px;color:#c4b5fd;"></i>
+        </div>
+        <a href="profile.php?id=<?= $daily['p_id'] ?>" style="text-decoration:none;color:inherit;">
+          <?php if ($daily['p_photo']): ?>
+            <img src="<?= htmlspecialchars($daily['p_photo']) ?>" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 10px;border:3px solid rgba(255,255,255,.3);">
+          <?php else: ?>
+            <div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+              <span style="font-size:28px;font-weight:900;"><?= mb_substr($daily['p_name_ar'],0,1) ?></span>
+            </div>
+          <?php endif; ?>
+          <p style="font-size:14px;font-weight:900;margin:0 0 3px;"><?= htmlspecialchars($daily['p_name_ar']) ?> <i class="fa-solid fa-circle-check" style="font-size:12px;"></i></p>
+          <p style="font-size:11px;color:rgba(255,255,255,.7);margin:0 0 14px;"><?= htmlspecialchars($daily['p_title']??'') ?></p>
+        </a>
+        <a href="membership.php" style="display:inline-block;padding:8px 20px;background:#fff;color:#8829C8;border-radius:999px;font-size:12px;font-weight:800;text-decoration:none;">وثق ملفك لتظهر هنا</a>
+      </div>
+      <?php endif; ?>
+
+      <!-- رؤساء تنفيذيون -->
+      <?php if (!empty($executives)): ?>
+      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:16px;" x-data="{showMore:false}">
+        <h3 style="font-size:13px;font-weight:900;color:#111827;margin:0 0 14px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-crown" style="color:#d97706;font-size:13px;"></i> رؤساء تنفيذيون
+        </h3>
+        <?php foreach ($executives as $idx => $ex): ?>
+        <?php
+          $ex_job = '';
+          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND tl_is_current=1 AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
+          if ($rj && $rj->num_rows) { $rjr = $rj->fetch_assoc(); $ex_job = trim(($rjr['tl_title']??'') . ($rjr['tl_institution'] ? ' في "'.$rjr['tl_institution'].'".' : '')); }
+        ?>
+        <div x-show="showMore || <?= $idx ?> < 2">
+          <a href="profile.php?id=<?= $ex['p_id'] ?>" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;text-decoration:none;margin-bottom:6px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            <?php if ($ex['p_photo']): ?>
+              <img src="<?= htmlspecialchars($ex['p_photo']) ?>" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid #fde68a;">
             <?php else: ?>
-              <div class="w-11 h-11 rounded-full pi-gradient flex items-center justify-center text-white font-bold text-sm">
-                <?= mb_substr($rp['p_name_ar'], 0, 1) ?>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="color:#fff;font-size:17px;font-weight:900;"><?= mb_substr($ex['p_name_ar'],0,1) ?></span>
               </div>
             <?php endif; ?>
-            <div>
-              <p class="font-bold text-gray-800 text-sm">
-                <?= htmlspecialchars($rp['p_name_ar']) ?>
-                <?php if (!empty($rp['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:12px;font-weight:900;color:#92400e;margin:0 0 3px;display:flex;align-items:center;gap:4px;">
+                <?= htmlspecialchars($ex['p_name_ar']) ?> <i class="fa-solid fa-crown" style="color:#d97706;font-size:9px;"></i>
               </p>
-              <p class="text-gray-400 text-xs"><?= htmlspecialchars($rp['p_title'] ?? '') ?></p>
+              <p style="font-size:10px;color:#78350f;margin:0;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">
+                <?= htmlspecialchars($ex_job ?: ($ex['p_title']??'')) ?>
+              </p>
             </div>
           </a>
-          <?php endforeach; ?>
         </div>
-        <a href="personalities.php" class="block text-center text-purple-600 text-sm font-bold mt-3 hover:underline">
-          عرض جميع الشخصيات
+        <?php endforeach; ?>
+        <?php if (count($executives) > 2): ?>
+        <button @click="showMore=!showMore" style="width:100%;padding:7px;background:none;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;font-family:inherit;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span x-text="showMore ? 'عرض أقل' : 'عرض المزيد'"></span>
+          <i :class="showMore ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid" style="font-size:9px;"></i>
+        </button>
+        <?php endif; ?>
+        <a href="membership.php?type=executive" style="display:block;text-align:center;padding:8px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;border-radius:10px;font-size:11px;font-weight:800;text-decoration:none;margin-top:10px;">
+          للاستعلام عن باقة الرؤساء التنفيذيين
         </a>
+      </div>
+      <?php endif; ?>
+
+      <!-- مقالات تهمك -->
+      <?php if (!empty($related_articles)): ?>
+      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:16px;">
+        <h3 style="font-size:13px;font-weight:900;color:#111827;margin:0 0 12px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:13px;"></i> مقالات تهمك
+        </h3>
+        <?php foreach ($related_articles as $idx => $ra): ?>
+        <a href="<?= htmlspecialchars($ra['art_url'] ?: 'article.php?id='.$ra['art_id']) ?>" target="_blank"
+          style="display:flex;align-items:center;gap:10px;padding:8px 0;<?= $idx>0?'border-top:1px solid #f9fafb;':'' ?>text-decoration:none;">
+          <?php if ($ra['art_image']): ?>
+            <img src="<?= htmlspecialchars($ra['art_image']) ?>" style="width:52px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+          <?php else: ?>
+            <div style="width:52px;height:40px;border-radius:8px;background:#f5f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:14px;"></i>
+            </div>
+          <?php endif; ?>
+          <p style="font-size:12px;font-weight:700;color:#374151;margin:0;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;transition:color .15s;" onmouseover="this.style.color='#8829C8'" onmouseout="this.style.color='#374151'">
+            <?= htmlspecialchars($ra['art_title']) ?>
+          </p>
+        </a>
+        <?php endforeach; ?>
       </div>
       <?php endif; ?>
 
