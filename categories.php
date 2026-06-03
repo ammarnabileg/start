@@ -180,7 +180,7 @@ include 'includes/header.php';
         <div class="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center">
           <i class="fa-solid fa-users text-white text-sm"></i>
         </div>
-        <h2 class="text-xl font-black text-gray-800">الشخصيات</h2>
+        <h2 class="text-xl font-black text-gray-800">كل الشخصيات</h2>
         <span class="bg-purple-100 text-purple-700 text-xs font-black px-2.5 py-0.5 rounded-full"><?= number_format($cat_total_p) ?></span>
       </div>
     </div>
