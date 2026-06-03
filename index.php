@@ -72,9 +72,6 @@ include 'includes/header.php';
 
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
       <?php if ($cid): ?><input type="hidden" name="country" value="<?= $cid ?>"><?php endif; ?>
-      <div class="flex items-center bg-white px-4 rounded-r-2xl">
-        <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
-      </div>
       <input name="q" type="text"
         placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         class="flex-1 px-4 py-4 text-gray-800 text-base outline-none font-semibold placeholder-gray-400"

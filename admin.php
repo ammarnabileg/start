@@ -4,6 +4,12 @@ pi_load_user();
 
 $p = $_GET['p'] ?? 'dashboard';
 
+// Redirect logged-in users away from login page
+if ($p === 'login' && !empty($_SESSION['pi_admin_id'])) {
+    header('Location: admin.php?p=dashboard');
+    exit;
+}
+
 if ($p !== 'login' && $p !== 'logout') {
     pi_require_login();
 }

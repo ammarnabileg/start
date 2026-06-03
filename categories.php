@@ -83,9 +83,6 @@ include 'includes/header.php';
 <section class="hero-bg py-12">
   <div class="max-w-3xl mx-auto px-4">
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-      <div class="flex items-center bg-white pr-4 pl-2 flex-shrink-0">
-        <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
-      </div>
       <input name="q" type="text"
         placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"

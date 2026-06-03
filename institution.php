@@ -57,9 +57,6 @@ include 'includes/header.php';
       <button type="submit" class="pi-primary-bg px-8 py-4 text-white font-bold hover:opacity-90 transition whitespace-nowrap">ابحث</button>
       <input name="q" type="text" placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         class="flex-1 px-4 py-4 text-gray-800 outline-none font-semibold placeholder-gray-400 bg-white">
-      <div class="flex items-center bg-white px-4">
-        <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
-      </div>
     </form>
   </div>
 </section>
