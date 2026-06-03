@@ -156,14 +156,8 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
           </div>
         </div>
 
-        <a href="appointments.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition whitespace-nowrap">
-          نشرة تعيينات السعودية
-        </a>
         <a href="categories.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
           التصنيفات
-        </a>
-        <a href="lists.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
-          القوائم
         </a>
       </div>
 

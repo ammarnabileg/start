@@ -290,7 +290,7 @@ ON DUPLICATE KEY UPDATE role_name=VALUES(role_name), role_permissions=VALUES(rol
 --  ⚠️  Change passwords immediately after first login!
 --
 INSERT INTO `pi_admin_users` (`au_id`, `au_name`, `au_email`, `au_password`, `au_role_id`, `au_active`) VALUES
-  (1, 'مدير النظام',   'admin@pioneericons.com',  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, 1)
+  (1, 'مدير النظام',   'admin@pioneericons.com',  '$2y$12$JdbNysbQnXW3eIL6nz4ElupiPsv5HT83bd04FVBv2BLrKUUV/4mhu', 1, 1)
 ON DUPLICATE KEY UPDATE au_name=VALUES(au_name);
 
 -- ─────────────────────────────────────────────────────────────
