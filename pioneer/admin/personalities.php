@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         $verified   = (int)($_POST['p_verified'] ?? 0);
-        $mtype      = pi_escape($_POST['p_membership_type'] ?? 'standard');
+        $mtype      = ($_POST['p_executive'] ?? '') ? 'executive' : 'standard';
         $country_id = (int)($_POST['p_country_id'] ?? 0);
         $cats       = $_POST['categories'] ?? [];
 
@@ -111,13 +111,26 @@ if ($action === 'add' || $action === 'edit') {
       </div>
       <div>
         <label class="form-label">الجنسية</label>
-        <input type="text" name="p_nationality" class="form-input"
-          value="<?= htmlspecialchars($edit_p['p_nationality'] ?? '') ?>">
+        <select name="p_nationality" class="form-input">
+          <option value="">— اختر —</option>
+          <?php foreach ($all_countries as $cn): ?>
+          <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($edit_p['p_nationality']??'')==$cn['c_name']?'selected':'' ?>>
+            <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div>
         <label class="form-label">بلد الإقامة</label>
-        <input type="text" name="p_residence" class="form-input"
-          value="<?= htmlspecialchars($edit_p['p_residence'] ?? '') ?>">
+        <select name="p_residence" class="form-input">
+          <option value="">— اختر —</option>
+          <?php foreach ($all_countries as $cn): ?>
+          <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($edit_p['p_residence']??'')==$cn['c_name']?'selected':'' ?>>
+            <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
       </div>
       <div>
         <label class="form-label">الصورة الشخصية</label>
@@ -135,11 +148,22 @@ if ($action === 'add' || $action === 'edit') {
       </div>
       <div>
         <label class="form-label">نوع العضوية</label>
-        <select name="p_membership_type" class="form-input">
-          <option value="standard" <?= ($edit_p['p_membership_type']??'standard')==='standard'?'selected':'' ?>>عادية</option>
-          <option value="verified" <?= ($edit_p['p_membership_type']??'')==='verified'?'selected':'' ?>>موثقة</option>
-          <option value="executive" <?= ($edit_p['p_membership_type']??'')==='executive'?'selected':'' ?>>رئيس تنفيذي</option>
-        </select>
+        <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border:1.5px solid #e5e7eb;border-radius:12px;background:#fafafa;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" name="p_verified" value="1" id="cb_verified"
+              <?= ($edit_p['p_verified']??0)?'checked':'' ?> style="width:18px;height:18px;accent-color:#3b82f6;cursor:pointer;">
+            <span style="font-size:14px;font-weight:700;color:#374151;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-circle-check" style="color:#3b82f6;"></i> موثقة
+            </span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" name="p_executive" value="1" id="cb_executive"
+              <?= ($edit_p['p_membership_type']??'')==='executive'?'checked':'' ?> style="width:18px;height:18px;accent-color:#f59e0b;cursor:pointer;">
+            <span style="font-size:14px;font-weight:700;color:#374151;display:flex;align-items:center;gap:6px;">
+              <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> رئيس تنفيذي
+            </span>
+          </label>
+        </div>
       </div>
       <div>
         <label class="form-label">الدولة</label>
@@ -152,27 +176,26 @@ if ($action === 'add' || $action === 'edit') {
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="flex items-center gap-3 mt-6">
-        <input type="checkbox" name="p_verified" value="1" id="verified"
-          <?= ($edit_p['p_verified']??0)?'checked':'' ?> class="w-5 h-5 accent-blue-500">
-        <label for="verified" class="font-bold text-gray-700 text-sm flex items-center gap-1.5">
-          <i class="fa-solid fa-circle-check text-blue-500"></i> موثقة
-        </label>
-      </div>
     </div>
 
     <!-- Quill CSS -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <style>
+      .ql-toolbar.ql-snow{direction:ltr;text-align:left;border-radius:10px 10px 0 0 !important;border-color:#e5e7eb !important;background:#fafafa;}
+      .ql-container.ql-snow{border-radius:0 0 10px 10px !important;border-color:#e5e7eb !important;}
+      .ql-editor{direction:rtl;text-align:right;min-height:90px;font-family:'Cairo',sans-serif;font-size:14px;line-height:1.7;}
+      .ql-editor.ql-blank::before{right:15px;left:auto;}
+    </style>
 
     <div>
       <label class="form-label">السيرة الذاتية من المنصة</label>
       <div id="bio_plat_editor" style="min-height:100px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
-      <textarea name="p_bio_platform" id="p_bio_plat_hidden" class="hidden"><?= htmlspecialchars($edit_p['p_bio_platform'] ?? '') ?></textarea>
+      <textarea name="p_bio_platform" id="p_bio_plat_hidden" class="hidden"></textarea>
     </div>
     <div>
       <label class="form-label">السيرة الذاتية الكاملة</label>
       <div id="bio_full_editor" style="min-height:200px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
-      <textarea name="p_bio" id="p_bio_hidden" class="hidden"><?= htmlspecialchars($edit_p['p_bio'] ?? '') ?></textarea>
+      <textarea name="p_bio" id="p_bio_hidden" class="hidden"></textarea>
     </div>
 
     <div>
@@ -382,13 +405,15 @@ var quillToolbar = [
   [{ align: [] }],
   ['clean']
 ];
-var bioPlat = new Quill('#bio_plat_editor', { theme: 'snow', direction: 'rtl', modules: { toolbar: quillToolbar } });
-var bioFull = new Quill('#bio_full_editor', { theme: 'snow', direction: 'rtl', modules: { toolbar: quillToolbar } });
+var bioPlat = new Quill('#bio_plat_editor', { theme: 'snow', modules: { toolbar: quillToolbar } });
+var bioFull = new Quill('#bio_full_editor', { theme: 'snow', modules: { toolbar: quillToolbar } });
+bioPlat.root.setAttribute('dir','rtl');
+bioFull.root.setAttribute('dir','rtl');
 
-var ep = document.getElementById('p_bio_plat_hidden').value;
-var ef = document.getElementById('p_bio_hidden').value;
-if (ep) try { bioPlat.root.innerHTML = ep; } catch(e) {}
-if (ef) try { bioFull.root.innerHTML = ef; } catch(e) {}
+var epRaw = <?= json_encode($edit_p['p_bio_platform'] ?? '') ?>;
+var efRaw = <?= json_encode($edit_p['p_bio'] ?? '') ?>;
+if (epRaw) bioPlat.root.innerHTML = epRaw;
+if (efRaw) bioFull.root.innerHTML = efRaw;
 
 document.querySelector('form').addEventListener('submit', function() {
   document.getElementById('p_bio_plat_hidden').value = bioPlat.root.innerHTML;
