@@ -119,7 +119,7 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
 <body class="bg-gray-50">
 
 <!-- NAVBAR -->
-<nav class="bg-white shadow-md sticky top-0 z-50">
+<nav class="bg-white shadow-md sticky top-0 z-50" x-data="{mobileOpen:false}">
   <div class="max-w-7xl mx-auto px-4">
     <div class="flex items-center justify-between h-16">
 
@@ -181,7 +181,7 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
         </a>
       </div>
 
-      <!-- Right side: country + login -->
+      <!-- Right side: country + login + hamburger -->
       <div class="flex items-center gap-2">
         <?php if ($_show_country_selector): ?>
         <div class="relative" x-data="{ open: false }">
@@ -206,11 +206,59 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
         <?php endif; ?>
 
         <a href="admin.php?p=login"
-          class="px-5 py-2 pi-primary-bg text-white rounded-full font-bold hover:opacity-90 transition text-sm whitespace-nowrap">
+          class="hidden md:inline-flex px-5 py-2 pi-primary-bg text-white rounded-full font-bold hover:opacity-90 transition text-sm whitespace-nowrap">
           دخول
         </a>
+
+        <!-- Hamburger (mobile only) -->
+        <button @click="mobileOpen=!mobileOpen" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-purple-400 hover:text-purple-600 transition">
+          <i class="fa-solid fa-bars text-sm" x-show="!mobileOpen"></i>
+          <i class="fa-solid fa-xmark text-sm" x-show="mobileOpen" x-cloak></i>
+        </button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div x-show="mobileOpen" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-2"
+    class="md:hidden border-t border-gray-100 bg-white">
+    <div class="px-4 py-3 space-y-1">
+
+      <!-- أضف section -->
+      <p class="text-xs font-black text-gray-400 uppercase tracking-widest px-3 pt-2 pb-1">أضف</p>
+      <a href="add_personality.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-user-plus text-purple-500 w-5 text-center"></i> أضف شخصية
+      </a>
+      <a href="add_institution.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-building text-purple-500 w-5 text-center"></i> أضف شركة
+      </a>
+
+      <div class="border-t border-gray-100 my-1"></div>
+
+      <!-- عضويات section -->
+      <p class="text-xs font-black text-gray-400 uppercase tracking-widest px-3 pt-2 pb-1">عضويات</p>
+      <a href="membership.php?type=verified" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-circle-check text-blue-500 w-5 text-center"></i> العضوية الموثقة
+      </a>
+      <a href="membership.php?type=executive" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition font-semibold text-sm">
+        <i class="fa-solid fa-crown text-yellow-500 w-5 text-center"></i> عضوية الرؤساء التنفيذيين
+      </a>
+
+      <div class="border-t border-gray-100 my-1"></div>
+
+      <!-- Direct links -->
+      <a href="categories.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-tags text-purple-500 w-5 text-center"></i> التصنيفات
+      </a>
+      <a href="blog.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-newspaper text-purple-500 w-5 text-center"></i> المقالات
+      </a>
+
+      <div class="border-t border-gray-100 my-2"></div>
+      <a href="admin.php?p=login" class="flex items-center justify-center gap-2 px-4 py-3 pi-primary-bg text-white rounded-xl font-bold text-sm hover:opacity-90 transition">
+        <i class="fa-solid fa-right-to-bracket"></i> دخول
+      </a>
     </div>
   </div>
 </nav>
