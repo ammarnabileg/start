@@ -231,9 +231,9 @@ include 'includes/header.php';
         <div x-show="tab==='bio'" style="padding:24px;">
           <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">سيرة <?= htmlspecialchars($p['p_name_ar']) ?></h2>
           <?php if ($p['p_bio_platform']): ?>
-          <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;">
+          <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;" class="pi-rich-content">
             <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "من هم"</p>
-            <?= nl2br(htmlspecialchars($p['p_bio_platform'])) ?>
+            <?= $p['p_bio_platform'] ?>
           </div>
           <?php endif; ?>
           <?php if ($p['p_bio']): ?>
@@ -273,24 +273,6 @@ include 'includes/header.php';
           <i class="fa-solid fa-location-dot" style="color:#16a34a;"></i>
           تابع من هم <?= htmlspecialchars($country_name) ?>
         </span>
-      </div>
-      <?php endif; ?>
-
-      <!-- RELATED CATEGORIES (horizontal scroll) -->
-      <?php if (!empty($p_cats)): ?>
-      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:20px;margin-bottom:20px;">
-        <h3 style="font-size:15px;font-weight:900;color:#111827;margin:0 0 14px;">تصنيفات ذات صلة</h3>
-        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;">
-          <?php foreach ($p_cats as $cat): ?>
-          <?php $lc2 = $cat['label_color'] ?? '#8829C8'; ?>
-          <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-            style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:<?= htmlspecialchars($lc2) ?>1a;color:<?= htmlspecialchars($lc2) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:opacity .15s;border:1.5px solid <?= htmlspecialchars($lc2) ?>40;"
-            onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
-            <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
-            <?= htmlspecialchars($cat['cat_name']) ?>
-          </a>
-          <?php endforeach; ?>
-        </div>
       </div>
       <?php endif; ?>
 

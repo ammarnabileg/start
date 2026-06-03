@@ -143,6 +143,10 @@ include 'includes/header.php';
 
             <!-- Action buttons -->
             <div class="flex flex-wrap gap-3">
+              <button onclick="document.getElementById('inst-card-modal').style.display='flex'"
+                style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border-radius:999px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+                <i class="fa-solid fa-id-card"></i> تحميل البطاقة التعريفية
+              </button>
               <button onclick="navigator.share ? navigator.share({title:'<?= addslashes(htmlspecialchars($inst['inst_name_ar'])) ?>',url:location.href}) : alert('تم نسخ الرابط')"
                 class="w-9 h-9 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-purple-600 hover:border-purple-300 transition">
                 <i class="fa-solid fa-share-nodes"></i>
@@ -237,5 +241,96 @@ include 'includes/header.php';
     </div>
   </div>
 </div>
+
+<?php
+$_iS = pi_get_settings();
+$_iLogo   = htmlspecialchars($_iS['site_logo'] ?? '');
+$_iName   = htmlspecialchars($_iS['site_name'] ?? 'PioneerIcons');
+$_iTag    = htmlspecialchars($_iS['site_tagline'] ?? 'منصة الحضور العربي الموثق');
+$_instLogo = htmlspecialchars($inst['inst_logo'] ?? '');
+$_instName = htmlspecialchars($inst['inst_name_ar'] ?? '');
+$_instEn   = htmlspecialchars($inst['inst_name_en'] ?? '');
+?>
+
+<!-- INSTITUTION CARD MODAL -->
+<div id="inst-card-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:640px;overflow:hidden;font-family:'Cairo',sans-serif;">
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;gap:8px;">
+      <span style="font-size:15px;font-weight:900;color:#111827;">تحميل البطاقة التعريفية</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#9ca3af;font-weight:700;">اختر لون الخلفية</span>
+        <?php foreach ([['#E05A1B','برتقالي'],['#8829C8','بنفسجي'],['#1d4ed8','أزرق'],['#0369a1','سماوي'],['#16a34a','أخضر'],['#1e293b','داكن']] as [$clr,$lbl]): ?>
+        <button onclick="setInstCardColor('<?= $clr ?>')" title="<?= $lbl ?>"
+          style="width:26px;height:26px;border-radius:50%;background:<?= $clr ?>;border:2px solid transparent;cursor:pointer;transition:transform .15s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"></button>
+        <?php endforeach; ?>
+        <button onclick="downloadInstCard()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+          <i class="fa-solid fa-download"></i> تحميل
+        </button>
+        <button onclick="document.getElementById('inst-card-modal').style.display='none'"
+          style="width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;color:#6b7280;font-size:16px;">✕</button>
+      </div>
+    </div>
+
+    <!-- Card Preview -->
+    <div style="padding:24px;background:#f9fafb;display:flex;justify-content:center;">
+      <div id="pi-inst-card" style="width:480px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.12);">
+        <!-- Top logos -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;">
+          <div style="font-size:12px;font-weight:700;color:#9ca3af;"></div>
+          <div>
+            <?php if ($_iLogo): ?>
+            <img src="<?= $_iLogo ?>" alt="<?= $_iName ?>" style="height:28px;object-fit:contain;">
+            <?php else: ?>
+            <span style="font-size:13px;font-weight:900;color:#8829C8;"><?= $_iName ?></span>
+            <?php endif; ?>
+          </div>
+        </div>
+
+        <p style="text-align:center;font-size:13px;font-weight:700;color:#374151;margin:0 0 6px;">تعرفوا على</p>
+
+        <!-- Colored section -->
+        <div id="inst-card-bg" style="background:#E05A1B;margin:0 16px;border-radius:14px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;">
+          <!-- Logo -->
+          <?php if ($_instLogo): ?>
+          <div style="width:100px;height:100px;border-radius:16px;overflow:hidden;border:4px solid #fff;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);margin-bottom:16px;">
+            <img src="<?= $_instLogo ?>" alt="" style="width:100%;height:100%;object-fit:contain;">
+          </div>
+          <?php else: ?>
+          <div style="width:100px;height:100px;border-radius:16px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <i class="fa-solid fa-building" style="color:#fff;font-size:40px;"></i>
+          </div>
+          <?php endif; ?>
+          <h2 style="color:#fff;font-size:24px;font-weight:900;text-align:center;margin:0 0 6px;line-height:1.3;"><?= $_instName ?></h2>
+          <?php if ($_instEn): ?>
+          <p style="color:rgba(255,255,255,.8);font-size:13px;text-align:center;font-weight:600;"><?= $_instEn ?></p>
+          <?php endif; ?>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px;margin-top:8px;">
+          <span style="font-size:12px;font-weight:700;color:#6b7280;"><?= $_iName ?>.com</span>
+          <span style="color:#d1d5db;">|</span>
+          <span style="font-size:12px;font-weight:700;color:#6b7280;"><?= $_iTag ?></span>
+          <i class="fa-solid fa-circle-check" style="color:#8829C8;font-size:12px;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+function setInstCardColor(c) { document.getElementById('inst-card-bg').style.background = c; }
+function downloadInstCard() {
+  html2canvas(document.getElementById('pi-inst-card'), { scale:2, useCORS:true, allowTaint:true, backgroundColor:'#ffffff' }).then(function(canvas) {
+    var a = document.createElement('a');
+    a.download = 'institution-card-<?= $inst_id ?>.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+}
+</script>
 
 <?php include 'includes/footer.php'; ?>
