@@ -142,13 +142,18 @@ if ($action === 'add' || $action === 'edit') {
       </div>
     </div>
 
+    <!-- Quill CSS -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+
     <div>
       <label class="form-label">السيرة الذاتية من المنصة</label>
-      <textarea name="p_bio_platform" rows="3" class="form-input resize-y"><?= htmlspecialchars($edit_p['p_bio_platform'] ?? '') ?></textarea>
+      <div id="bio_plat_editor" style="min-height:100px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+      <textarea name="p_bio_platform" id="p_bio_plat_hidden" class="hidden"><?= htmlspecialchars($edit_p['p_bio_platform'] ?? '') ?></textarea>
     </div>
     <div>
       <label class="form-label">السيرة الذاتية الكاملة</label>
-      <textarea name="p_bio" rows="6" class="form-input resize-y"><?= htmlspecialchars($edit_p['p_bio'] ?? '') ?></textarea>
+      <div id="bio_full_editor" style="min-height:200px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+      <textarea name="p_bio" id="p_bio_hidden" class="hidden"><?= htmlspecialchars($edit_p['p_bio'] ?? '') ?></textarea>
     </div>
 
     <div>
@@ -172,6 +177,30 @@ if ($action === 'add' || $action === 'edit') {
     </div>
   </form>
 </div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+var quillToolbar = [
+  [{ header: [2, 3, false] }],
+  ['bold', 'italic', 'underline', 'strike'],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  ['blockquote', 'code-block'],
+  [{ align: [] }],
+  ['clean']
+];
+var bioPlat = new Quill('#bio_plat_editor', { theme: 'snow', direction: 'rtl', modules: { toolbar: quillToolbar } });
+var bioFull = new Quill('#bio_full_editor', { theme: 'snow', direction: 'rtl', modules: { toolbar: quillToolbar } });
+
+var ep = document.getElementById('p_bio_plat_hidden').value;
+var ef = document.getElementById('p_bio_hidden').value;
+if (ep) try { bioPlat.root.innerHTML = ep; } catch(e) {}
+if (ef) try { bioFull.root.innerHTML = ef; } catch(e) {}
+
+document.querySelector('form').addEventListener('submit', function() {
+  document.getElementById('p_bio_plat_hidden').value = bioPlat.root.innerHTML;
+  document.getElementById('p_bio_hidden').value = bioFull.root.innerHTML;
+});
+</script>
 
 <?php } else { // LIST view
 $where = "p_active=1";

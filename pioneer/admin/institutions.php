@@ -53,8 +53,10 @@ if ($action === 'add' || $action === 'edit') {
     <input type="text" name="inst_name_en" class="form-input" dir="ltr" value="<?= htmlspecialchars($ei['inst_name_en']??'') ?>"></div>
     <div><label class="form-label">رابط الشعار</label>
     <input type="url" name="inst_logo" class="form-input" dir="ltr" value="<?= htmlspecialchars($ei['inst_logo']??'') ?>"></div>
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <div><label class="form-label">الوصف</label>
-    <textarea name="inst_description" rows="4" class="form-input resize-y"><?= htmlspecialchars($ei['inst_description']??'') ?></textarea></div>
+    <div id="inst_desc_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+    <textarea name="inst_description" id="inst_desc_hidden" class="hidden"><?= htmlspecialchars($ei['inst_description']??'') ?></textarea></div>
     <?php $inst_countries = pi_get_countries(); ?>
     <div>
       <label class="form-label">الدولة</label>
@@ -75,6 +77,20 @@ if ($action === 'add' || $action === 'edit') {
     <a href="admin.php?p=institutions" class="btn-secondary">إلغاء</a></div>
   </form>
 </div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+var instDescQuill = new Quill('#inst_desc_editor', {
+  theme: 'snow', direction: 'rtl',
+  modules: { toolbar: [[{header:[2,3,false]}],['bold','italic','underline','strike'],[{list:'ordered'},{list:'bullet'}],['blockquote'],['clean']] }
+});
+var ed = document.getElementById('inst_desc_hidden').value;
+if (ed) try { instDescQuill.root.innerHTML = ed; } catch(e) {}
+document.querySelector('form').addEventListener('submit', function() {
+  document.getElementById('inst_desc_hidden').value = instDescQuill.root.innerHTML;
+});
+</script>
+
 <?php } else {
 $list = [];
 $r = $mysqli->query("SELECT * FROM pi_institutions WHERE inst_active=1 ORDER BY inst_created DESC");

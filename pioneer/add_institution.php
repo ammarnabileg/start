@@ -103,7 +103,8 @@ include 'includes/header.php';
 
     <div>
       <label class="form-label">نبذة عن المؤسسة</label>
-      <textarea name="inst_description" rows="5" class="form-input resize-y" placeholder="اكتب وصفاً مختصراً عن المؤسسة ونشاطها..."><?= htmlspecialchars($_POST['inst_description']??'') ?></textarea>
+      <div id="inst_desc_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+      <textarea name="inst_description" id="inst_desc_hidden" class="hidden"><?= htmlspecialchars($_POST['inst_description']??'') ?></textarea>
     </div>
 
     <div>
@@ -132,6 +133,33 @@ include 'includes/header.php';
       </div>
     </div>
 
+    <!-- Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <script>
+    var descQuill = new Quill('#inst_desc_editor', {
+      theme: 'snow',
+      direction: 'rtl',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['blockquote', 'code-block'],
+          [{ align: [] }],
+          ['clean']
+        ]
+      },
+      placeholder: 'اكتب وصفاً مختصراً عن المؤسسة ونشاطها...'
+    });
+    var existingDesc = document.getElementById('inst_desc_hidden').value;
+    if (existingDesc) {
+      try { descQuill.root.innerHTML = existingDesc; } catch(e) {}
+    }
+    document.querySelector('form').addEventListener('submit', function() {
+      document.getElementById('inst_desc_hidden').value = descQuill.root.innerHTML;
+    });
+    </script>
     <script>
     function previewInstLogo(input) {
       if (input.files && input.files[0]) {

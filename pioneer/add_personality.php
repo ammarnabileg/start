@@ -142,7 +142,8 @@ include 'includes/header.php';
 
     <div>
       <label class="form-label">نبذة أو سيرة ذاتية</label>
-      <textarea name="p_bio" rows="5" class="form-input resize-y" placeholder="اكتب نبذة مختصرة عن الشخصية..."><?= htmlspecialchars($_POST['p_bio']??'') ?></textarea>
+      <div id="bio_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+      <textarea name="p_bio" id="p_bio_hidden" class="hidden"><?= htmlspecialchars($_POST['p_bio']??'') ?></textarea>
     </div>
 
     <div>
@@ -171,6 +172,35 @@ include 'includes/header.php';
       </div>
     </div>
 
+    <!-- Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <script>
+    var bioQuill = new Quill('#bio_editor', {
+      theme: 'snow',
+      direction: 'rtl',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['blockquote', 'code-block'],
+          [{ align: [] }],
+          ['clean']
+        ]
+      },
+      placeholder: 'اكتب نبذة مختصرة عن الشخصية...'
+    });
+    // Load existing value
+    var existingBio = document.getElementById('p_bio_hidden').value;
+    if (existingBio) {
+      try { bioQuill.root.innerHTML = existingBio; } catch(e) {}
+    }
+    // Sync to hidden textarea on form submit
+    document.querySelector('form').addEventListener('submit', function() {
+      document.getElementById('p_bio_hidden').value = bioQuill.root.innerHTML;
+    });
+    </script>
     <script>
     function previewPhoto(input) {
       if (input.files && input.files[0]) {
