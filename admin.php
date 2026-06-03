@@ -32,6 +32,18 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
     /* Sidebar */
     .sidebar { background: linear-gradient(160deg, #6B21A8 0%, #4C1D95 100%); }
+
+    /* Sidebar scrollbar */
+    #admin-sidebar nav::-webkit-scrollbar { width: 4px; }
+    #admin-sidebar nav::-webkit-scrollbar-track { background: transparent; }
+    #admin-sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 99px; }
+    #admin-sidebar nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
+    #admin-sidebar nav { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
+
+    /* Close button: desktop hidden, mobile only */
+    #sidebar-close-btn { display: none; }
+    @media (max-width: 767px) { #sidebar-close-btn { display: flex; } }
+
     .nav-link {
       display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
       align-items: center; gap: 10px; width: 100%;
@@ -305,9 +317,9 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       </a>
     </nav>
 
-    <!-- Mobile close button (inside sidebar) -->
-    <button onclick="closeMobileSidebar()"
-      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+    <!-- Close button: mobile only (hidden on desktop via CSS) -->
+    <button id="sidebar-close-btn" onclick="closeMobileSidebar()"
+      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
       <i class="fa-solid fa-xmark" style="font-size:14px;"></i>
       <span style="font-size:13px;font-weight:700;">إغلاق القائمة</span>
     </button>
