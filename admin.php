@@ -116,77 +116,108 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     .ql-snow .ql-picker { font-family: 'Cairo', sans-serif; }
   </style>
 </head>
-<body style="background:#f1f5f9;" x-data="{ sidebarOpen: window.innerWidth >= 768, mobileSidebar: false }">
+<style>
+  /* Sidebar responsive behaviour — no Tailwind needed */
+  #admin-sidebar {
+    flex-shrink: 0;
+    width: 240px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #mobile-overlay  { display: none; }
+  #mobile-hamburger { display: none; }
+
+  @media (max-width: 767px) {
+    /* Hide sidebar from layout flow */
+    #admin-sidebar { display: none; }
+    /* When open — fixed overlay */
+    #admin-sidebar.mob-open {
+      display: flex;
+      position: fixed;
+      top: 0; right: 0;
+      width: 240px;
+      height: 100vh;
+      z-index: 50;
+    }
+    #mobile-overlay.mob-open {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 40;
+    }
+    #mobile-hamburger { display: flex; }
+  }
+</style>
+
+<body style="background:#f1f5f9;" x-data="{}">
 
 <?php if ($p === 'login'): include 'admin/login.php'; ?>
 <?php elseif ($p === 'logout'): include 'admin/logout.php'; ?>
 <?php else: ?>
 
 <!-- Mobile overlay -->
-<div x-show="mobileSidebar" x-cloak @click="mobileSidebar=false"
-  style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;"></div>
+<div id="mobile-overlay" onclick="closeMobileSidebar()"></div>
 
 <div style="display:flex;flex-direction:row;height:100vh;overflow:hidden;min-width:0;">
 
-  <!-- Sidebar (desktop: collapsible | mobile: fixed overlay) -->
-  <aside class="sidebar"
-    :style="mobileSidebar
-      ? 'width:240px;position:fixed;top:0;right:0;height:100vh;z-index:50;'
-      : (sidebarOpen ? 'width:240px' : 'width:58px')"
-    style="flex-shrink:0;transition:width .25s;display:flex;flex-direction:column;overflow:hidden;">
+  <!-- Sidebar -->
+  <aside id="admin-sidebar" class="sidebar">
 
     <!-- Logo -->
     <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;flex-shrink:0;">
       <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         <i class="fa-solid fa-star" style="color:#e9d5ff;font-size:14px;"></i>
       </div>
-      <span x-show="sidebarOpen || mobileSidebar" x-cloak style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;">PioneerIcons</span>
+      <span style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;">PioneerIcons</span>
     </div>
 
-    <!-- Nav scrolls within the fixed-height aside -->
-    <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 8px 24px;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;min-width:0;">
+    <!-- Nav — flex:1 + overflow-y:auto = scrollable -->
+    <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 8px 24px;display:flex;flex-direction:column;gap:2px;">
 
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
         <i class="fa-solid fa-gauge-high"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>لوحة التحكم</span>
+        <span>لوحة التحكم</span>
       </a>
 
       <?php if (pi_has_perm('view_personalities')): ?>
       <a href="admin.php?p=personalities" class="nav-link <?= $p=='personalities'?'active':'' ?>">
         <i class="fa-solid fa-users"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>الشخصيات</span>
+        <span>الشخصيات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_institutions')): ?>
       <a href="admin.php?p=institutions" class="nav-link <?= $p=='institutions'?'active':'' ?>">
         <i class="fa-solid fa-building"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>المؤسسات</span>
+        <span>المؤسسات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_categories')): ?>
       <a href="admin.php?p=categories" class="nav-link <?= $p=='categories'?'active':'' ?>">
         <i class="fa-solid fa-tags"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>التصنيفات</span>
+        <span>التصنيفات</span>
       </a>
       <a href="admin.php?p=labels" class="nav-link <?= $p=='labels'?'active':'' ?>" style="padding-right:28px;">
         <i class="fa-solid fa-circle-dot" style="font-size:10px;"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>الليبلات</span>
+        <span>الليبلات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_articles')): ?>
       <a href="admin.php?p=articles" class="nav-link <?= $p=='articles'?'active':'' ?>">
         <i class="fa-regular fa-newspaper"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>المقالات</span>
+        <span>المقالات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_sponsors')): ?>
       <a href="admin.php?p=sponsors" class="nav-link <?= $p=='sponsors'?'active':'' ?>">
         <i class="fa-solid fa-handshake"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>الرعاة</span>
+        <span>الرعاة</span>
       </a>
       <?php endif; ?>
 
@@ -195,14 +226,14 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       <?php if (pi_has_perm('view_roles')): ?>
       <a href="admin.php?p=roles" class="nav-link <?= $p=='roles'?'active':'' ?>">
         <i class="fa-solid fa-shield-halved"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>الأدوار والصلاحيات</span>
+        <span>الأدوار والصلاحيات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_admin_users')): ?>
       <a href="admin.php?p=admin_users" class="nav-link <?= $p=='admin_users'?'active':'' ?>">
         <i class="fa-solid fa-user-gear"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>مستخدمو الإدارة</span>
+        <span>مستخدمو الإدارة</span>
       </a>
       <?php endif; ?>
 
@@ -210,7 +241,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
       <a href="admin.php?p=advertise" class="nav-link <?= $p=='advertise'?'active':'' ?>">
         <i class="fa-solid fa-bullhorn"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>طلبات الإعلان</span>
+        <span>طلبات الإعلان</span>
         <?php
         $adv_rc = $mysqli->query("SHOW TABLES LIKE 'pi_advertise'");
         if ($adv_rc && $adv_rc->num_rows) {
@@ -222,7 +253,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
       <a href="admin.php?p=memberships" class="nav-link <?= $p=='memberships'?'active':'' ?>">
         <i class="fa-solid fa-crown"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>طلبات العضوية</span>
+        <span>طلبات العضوية</span>
         <?php
         $mem_rc = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'");
         if ($mem_rc && $mem_rc->num_rows) {
@@ -232,9 +263,9 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
         ?>
       </a>
 
-      <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>" style="position:relative;">
+      <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>">
         <i class="fa-solid fa-inbox"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>مقترحات المستخدمين</span>
+        <span>مقترحات المستخدمين</span>
         <?php
         $pending_count = 0;
         $rc = $mysqli->query("SHOW TABLES LIKE 'pi_submissions'");
@@ -250,14 +281,14 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       <?php if (pi_has_perm('manage_countries')): ?>
       <a href="admin.php?p=countries" class="nav-link <?= $p=='countries'?'active':'' ?>">
         <i class="fa-solid fa-globe"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>الدول</span>
+        <span>الدول</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('manage_settings')): ?>
       <a href="admin.php?p=settings" class="nav-link <?= $p=='settings'?'active':'' ?>">
         <i class="fa-solid fa-gear"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>إعدادات الموقع</span>
+        <span>إعدادات الموقع</span>
       </a>
       <?php endif; ?>
 
@@ -265,28 +296,20 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
       <a href="index.php" target="_blank" class="nav-link">
         <i class="fa-solid fa-arrow-up-right-from-square"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>عرض الموقع</span>
+        <span>عرض الموقع</span>
       </a>
 
       <a href="admin.php?p=logout" class="nav-link" style="color:rgba(252,165,165,.9);">
         <i class="fa-solid fa-right-from-bracket"></i>
-        <span x-show="sidebarOpen || mobileSidebar" x-cloak>تسجيل الخروج</span>
+        <span>تسجيل الخروج</span>
       </a>
     </nav>
 
-    <!-- Toggle desktop / Close mobile -->
-    <button @click="mobileSidebar ? mobileSidebar=false : sidebarOpen=!sidebarOpen"
-      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;transition:color .15s;"
-      onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">
-      <template x-if="mobileSidebar">
-        <span style="display:flex;align-items:center;gap:6px;">
-          <i class="fa-solid fa-xmark" style="font-size:14px;"></i>
-          <span style="font-size:12px;font-weight:700;" x-show="sidebarOpen || mobileSidebar" x-cloak>إغلاق</span>
-        </span>
-      </template>
-      <template x-if="!mobileSidebar">
-        <i :class="sidebarOpen ? 'fa-chevron-right' : 'fa-chevron-left'" class="fa-solid" style="font-size:11px;"></i>
-      </template>
+    <!-- Mobile close button (inside sidebar) -->
+    <button onclick="closeMobileSidebar()"
+      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
+      <i class="fa-solid fa-xmark" style="font-size:14px;"></i>
+      <span style="font-size:13px;font-weight:700;">إغلاق القائمة</span>
     </button>
   </aside>
 
@@ -295,9 +318,9 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
     <!-- Top bar -->
     <header style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;">
-      <!-- Mobile hamburger -->
-      <button @click="mobileSidebar=true"
-        style="width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+      <!-- Mobile hamburger (hidden on desktop via CSS) -->
+      <button id="mobile-hamburger" onclick="openMobileSidebar()"
+        style="width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
         <i class="fa-solid fa-bars" style="color:#6b7280;font-size:14px;"></i>
       </button>
       <h1 style="font-weight:800;color:#111827;font-size:18px;margin:0;flex:1;">
@@ -348,6 +371,15 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
 <?php endif; ?>
 <script>
+function openMobileSidebar() {
+  document.getElementById('admin-sidebar').classList.add('mob-open');
+  document.getElementById('mobile-overlay').classList.add('mob-open');
+}
+function closeMobileSidebar() {
+  document.getElementById('admin-sidebar').classList.remove('mob-open');
+  document.getElementById('mobile-overlay').classList.remove('mob-open');
+}
+
 // Global image preview for all .pi-upload-zone file inputs
 document.addEventListener('change', function(e) {
   var inp = e.target;
