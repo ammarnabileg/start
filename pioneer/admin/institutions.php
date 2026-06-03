@@ -76,9 +76,16 @@ if ($action === 'add' || $action === 'edit') {
       <input type="hidden" name="inst_logo" value="<?= htmlspecialchars($ei['inst_logo']??'') ?>">
     </div>
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-    <div><label class="form-label">الوصف</label>
-    <div id="inst_desc_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
-    <textarea name="inst_description" id="inst_desc_hidden" class="hidden"></textarea></div>
+    <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
+          <i class="fa-solid fa-align-right text-white text-xs"></i>
+        </div>
+        <label class="form-label mb-0 text-base">الوصف</label>
+      </div>
+      <div id="inst_desc_editor" style="background:#fff;font-family:'Cairo',sans-serif;"></div>
+      <textarea name="inst_description" id="inst_desc_hidden" class="hidden"></textarea>
+    </div>
     <?php $inst_countries = pi_get_countries(); ?>
     <div>
       <label class="form-label">الدولة</label>
@@ -103,9 +110,11 @@ if ($action === 'add' || $action === 'edit') {
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 var instDescQuill = new Quill('#inst_desc_editor', {
-  theme: 'snow', direction: 'rtl',
-  modules: { toolbar: [[{header:[2,3,false]}],['bold','italic','underline','strike'],[{list:'ordered'},{list:'bullet'}],['blockquote'],['link'],['clean']] }
+  theme: 'snow',
+  modules: { toolbar: [[{header:[2,3,false]}],['bold','italic','underline','strike'],[{list:'ordered'},{list:'bullet'}],['blockquote'],['clean']] },
+  placeholder: 'اكتب وصفاً للمؤسسة...'
 });
+instDescQuill.root.setAttribute('dir','rtl');
 var _instDescRaw = <?= json_encode($ei['inst_description'] ?? '') ?>;
 if (_instDescRaw) instDescQuill.root.innerHTML = _instDescRaw;
 document.querySelector('form').addEventListener('submit', function() {

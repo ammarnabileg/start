@@ -180,21 +180,25 @@ if ($action === 'add' || $action === 'edit') {
 
     <!-- Quill CSS -->
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-    <style>
-      .ql-toolbar.ql-snow{direction:ltr;text-align:left;border-radius:10px 10px 0 0 !important;border-color:#e5e7eb !important;background:#fafafa;}
-      .ql-container.ql-snow{border-radius:0 0 10px 10px !important;border-color:#e5e7eb !important;}
-      .ql-editor{direction:rtl;text-align:right;min-height:90px;font-family:'Cairo',sans-serif;font-size:14px;line-height:1.7;}
-      .ql-editor.ql-blank::before{right:15px;left:auto;}
-    </style>
 
-    <div>
-      <label class="form-label">السيرة الذاتية من المنصة</label>
-      <div id="bio_plat_editor" style="min-height:100px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+    <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5 space-y-1">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
+          <i class="fa-solid fa-align-right text-white text-xs"></i>
+        </div>
+        <label class="form-label mb-0 text-base">نبذة أو سيرة ذاتية</label>
+      </div>
+      <div id="bio_plat_editor" style="background:#fff;font-family:'Cairo',sans-serif;"></div>
       <textarea name="p_bio_platform" id="p_bio_plat_hidden" class="hidden"></textarea>
     </div>
-    <div>
-      <label class="form-label">السيرة الذاتية الكاملة</label>
-      <div id="bio_full_editor" style="min-height:200px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
+    <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5 space-y-1">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
+          <i class="fa-solid fa-file-lines text-white text-xs"></i>
+        </div>
+        <label class="form-label mb-0 text-base">السيرة الذاتية الكاملة</label>
+      </div>
+      <div id="bio_full_editor" style="background:#fff;font-family:'Cairo',sans-serif;"></div>
       <textarea name="p_bio" id="p_bio_hidden" class="hidden"></textarea>
     </div>
 
@@ -401,12 +405,11 @@ var quillToolbar = [
   [{ header: [2, 3, false] }],
   ['bold', 'italic', 'underline', 'strike'],
   [{ list: 'ordered' }, { list: 'bullet' }],
-  ['blockquote', 'code-block'],
-  [{ align: [] }],
+  ['blockquote'],
   ['clean']
 ];
-var bioPlat = new Quill('#bio_plat_editor', { theme: 'snow', modules: { toolbar: quillToolbar } });
-var bioFull = new Quill('#bio_full_editor', { theme: 'snow', modules: { toolbar: quillToolbar } });
+var bioPlat = new Quill('#bio_plat_editor', { theme: 'snow', modules: { toolbar: quillToolbar }, placeholder: 'اكتب نبذة مختصرة عن الشخصية...' });
+var bioFull = new Quill('#bio_full_editor', { theme: 'snow', modules: { toolbar: quillToolbar }, placeholder: 'اكتب السيرة الذاتية الكاملة...' });
 bioPlat.root.setAttribute('dir','rtl');
 bioFull.root.setAttribute('dir','rtl');
 
