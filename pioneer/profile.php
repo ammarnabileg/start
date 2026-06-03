@@ -174,10 +174,10 @@ include 'includes/header.php';
 
             <!-- Action buttons -->
             <div style="display:flex;flex-wrap:wrap;gap:10px;">
-              <a href="vcard.php?id=<?= $p_id ?>"
-                style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;">
-                <i class="fa-solid fa-download"></i> تحميل البطاقة التعريفية
-              </a>
+              <button onclick="document.getElementById('card-modal').style.display='flex'"
+                style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border-radius:999px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;">
+                <i class="fa-solid fa-id-card"></i> تحميل البطاقة التعريفية
+              </button>
               <a href="admin.php?p=personalities&action=manage&id=<?= $p_id ?>"
                 style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:1.5px solid #e5e7eb;color:#374151;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;background:#fff;transition:border-color .2s;"
                 onmouseover="this.style.borderColor='#8829C8';this.style.color='#8829C8'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151'">
@@ -575,5 +575,111 @@ include 'includes/header.php';
   .max-w-7xl > div[style*=grid] > div:last-child { position:static !important; }
 }
 </style>
+
+<?php
+// Current job title for card
+$card_title = '';
+if (!empty($tl_current)) {
+    $t = $tl_current[0];
+    $card_title = trim(($t['tl_title']??'') . ($t['tl_org'] ? ' في "'.$t['tl_org'].'"' : ''));
+} elseif (!empty($tl_past)) {
+    $t = $tl_past[0];
+    $card_title = trim(($t['tl_title']??'') . ($t['tl_org'] ? ' في "'.$t['tl_org'].'"' : ''));
+}
+$site_logo  = htmlspecialchars($_S['site_logo'] ?? '');
+$site_name  = htmlspecialchars($_S['site_name'] ?? 'PioneerIcons');
+$site_tagline = htmlspecialchars($_S['site_tagline'] ?? 'منصة الحضور العربي الموثق');
+$card_photo = htmlspecialchars($p['p_photo'] ?? '');
+$card_name  = htmlspecialchars($p['p_name_ar'] ?? '');
+$card_title_esc = htmlspecialchars($card_title);
+?>
+
+<!-- PROFILE CARD MODAL -->
+<div id="card-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:640px;overflow:hidden;font-family:'Cairo',sans-serif;">
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f3f4f6;">
+      <span style="font-size:15px;font-weight:900;color:#111827;">تحميل البطاقة التعريفية</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <!-- Color Swatches -->
+        <span style="font-size:12px;color:#9ca3af;font-weight:700;">اختر لون الخلفية</span>
+        <?php foreach ([['#E05A1B','برتقالي'],['#8829C8','بنفسجي'],['#1d4ed8','أزرق'],['#0369a1','سماوي'],['#16a34a','أخضر'],['#1e293b','داكن']] as [$clr,$lbl]): ?>
+        <button onclick="setCardColor('<?= $clr ?>')" title="<?= $lbl ?>"
+          style="width:26px;height:26px;border-radius:50%;background:<?= $clr ?>;border:2px solid transparent;cursor:pointer;transition:transform .15s;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"></button>
+        <?php endforeach; ?>
+        <!-- Download -->
+        <button onclick="downloadCard()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+          <i class="fa-solid fa-download"></i> تحميل الصورة
+        </button>
+        <button onclick="document.getElementById('card-modal').style.display='none'"
+          style="width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:16px;">✕</button>
+      </div>
+    </div>
+
+    <!-- Card Preview -->
+    <div style="padding:24px;background:#f9fafb;display:flex;justify-content:center;">
+      <div id="pi-profile-card" style="width:480px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.12);position:relative;">
+        <!-- Top row: logos -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;">
+          <div id="card-left-logo" style="font-size:13px;font-weight:900;color:#8829C8;"></div>
+          <div>
+            <?php if ($site_logo): ?>
+            <img src="<?= $site_logo ?>" alt="<?= $site_name ?>" style="height:32px;object-fit:contain;">
+            <?php else: ?>
+            <span style="font-size:14px;font-weight:900;color:#8829C8;"><?= $site_name ?></span>
+            <?php endif; ?>
+          </div>
+        </div>
+
+        <!-- Center label -->
+        <p style="text-align:center;font-size:13px;font-weight:700;color:#374151;margin:0 0 6px;">تعرفوا على</p>
+
+        <!-- Colored section with photo -->
+        <div id="card-bg-section" style="background:#E05A1B;margin:0 16px;border-radius:14px;padding:0 20px 24px;position:relative;display:flex;flex-direction:column;align-items:center;">
+          <!-- Photo -->
+          <div style="width:140px;height:160px;border-radius:16px;overflow:hidden;border:5px solid #fff;background:#f3f4f6;margin-top:-50px;box-shadow:0 8px 24px rgba(0,0,0,.18);flex-shrink:0;">
+            <?php if ($card_photo): ?>
+            <img id="card-photo-img" src="<?= $card_photo ?>" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(40%);">
+            <?php else: ?>
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#e5e7eb;">
+              <i class="fa-solid fa-user" style="font-size:48px;color:#9ca3af;"></i>
+            </div>
+            <?php endif; ?>
+          </div>
+          <!-- Name & title -->
+          <h2 style="color:#fff;font-size:28px;font-weight:900;text-align:center;margin:14px 0 6px;line-height:1.3;"><?= $card_name ?></h2>
+          <?php if ($card_title_esc): ?>
+          <p style="color:rgba(255,255,255,.9);font-size:14px;text-align:center;font-weight:600;line-height:1.5;"><?= $card_title_esc ?></p>
+          <?php endif; ?>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px;border-top:1px solid #f3f4f6;margin-top:16px;">
+          <span style="font-size:12px;font-weight:700;color:#6b7280;"><?= $site_name ?>.com</span>
+          <span style="color:#d1d5db;">|</span>
+          <span style="font-size:12px;font-weight:700;color:#6b7280;"><?= $site_tagline ?></span>
+          <i class="fa-solid fa-circle-check" style="color:#8829C8;font-size:12px;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+function setCardColor(color) {
+  document.getElementById('card-bg-section').style.background = color;
+}
+function downloadCard() {
+  var card = document.getElementById('pi-profile-card');
+  html2canvas(card, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' }).then(function(canvas) {
+    var link = document.createElement('a');
+    link.download = 'profile-card-<?= $p_id ?>.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+</script>
 
 <?php include 'includes/footer.php'; ?>
