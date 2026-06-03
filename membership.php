@@ -50,6 +50,34 @@ include 'includes/header.php';
     <a href="index.php" class="inline-block px-8 py-3 pi-primary-bg text-white font-bold rounded-xl hover:opacity-90 transition">العودة للرئيسية</a>
   </div>
 </div>
+
+<script>
+// ── Cycling 4-day countdown ──
+(function() {
+  var CYCLE = 4 * 24 * 60 * 60 * 1000;
+  var REF   = 1735689600000;
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function tick() {
+    var remaining = CYCLE - ((Date.now() - REF) % CYCLE);
+    var d = Math.floor(remaining / 86400000);
+    var h = Math.floor((remaining % 86400000) / 3600000);
+    var m = Math.floor((remaining % 3600000)  / 60000);
+    var s = Math.floor((remaining % 60000)    / 1000);
+    // verified
+    ['mv-cd-d','mv-cd-h','mv-cd-m','mv-cd-s'].forEach(function(id,i){
+      var el = document.getElementById(id);
+      if (el) el.textContent = pad([d,h,m,s][i]);
+    });
+    // executive
+    ['me-cd-d','me-cd-h','me-cd-m','me-cd-s'].forEach(function(id,i){
+      var el = document.getElementById(id);
+      if (el) el.textContent = pad([d,h,m,s][i]);
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 <?php include 'includes/footer.php'; ?><?php exit; ?>
 <?php endif; ?>
 
@@ -135,6 +163,19 @@ include 'includes/header.php';
         <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> دعم مخصص على مدار الساعة</li>
         <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> تجديد مجاني مدى الحياة</li>
       </ul>
+      <!-- Countdown -->
+      <div class="rounded-2xl mb-4 p-3" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);">
+        <p class="text-xs font-bold text-amber-200 text-center mb-2">⏳ سعر الإطلاق ينتهي خلال</p>
+        <div class="flex justify-center gap-2">
+          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-d">00</div><div class="text-xs text-amber-300 font-semibold">يوم</div></div>
+          <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-h">00</div><div class="text-xs text-amber-300 font-semibold">ساعة</div></div>
+          <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-m">00</div><div class="text-xs text-amber-300 font-semibold">دقيقة</div></div>
+          <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-s">00</div><div class="text-xs text-amber-300 font-semibold">ثانية</div></div>
+        </div>
+      </div>
       <button onclick="choosePlan('lifetime','executive')"
         class="w-full py-3.5 font-black rounded-xl hover:opacity-90 transition text-amber-900 bg-yellow-300 hover:bg-yellow-200">
         اشترك الآن
@@ -223,6 +264,19 @@ include 'includes/header.php';
         <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> دعم مدى الحياة</li>
         <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> أولوية في المراجعة</li>
       </ul>
+      <!-- Countdown -->
+      <div class="rounded-2xl mb-4 p-3" style="background:rgba(136,41,200,.07);border:1px solid rgba(136,41,200,.2);">
+        <p class="text-xs font-bold text-center mb-2" style="color:#8829C8;">⏳ سعر الإطلاق ينتهي خلال</p>
+        <div class="flex justify-center gap-2">
+          <div class="text-center"><div class="text-2xl font-black text-gray-800" id="mv-cd-d">00</div><div class="text-xs text-gray-400 font-semibold">يوم</div></div>
+          <div class="text-2xl font-black text-gray-400 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-gray-800" id="mv-cd-h">00</div><div class="text-xs text-gray-400 font-semibold">ساعة</div></div>
+          <div class="text-2xl font-black text-gray-400 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-gray-800" id="mv-cd-m">00</div><div class="text-xs text-gray-400 font-semibold">دقيقة</div></div>
+          <div class="text-2xl font-black text-gray-400 mt-0.5">:</div>
+          <div class="text-center"><div class="text-2xl font-black text-gray-800" id="mv-cd-s">00</div><div class="text-xs text-gray-400 font-semibold">ثانية</div></div>
+        </div>
+      </div>
       <button onclick="choosePlan('lifetime','verified')"
         class="w-full py-3.5 text-white font-black rounded-xl hover:opacity-90 transition" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
         اشترك الآن
