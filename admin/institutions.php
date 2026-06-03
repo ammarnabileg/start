@@ -1,5 +1,6 @@
 <?php
 pi_require_perm('view_institutions');
+$mysqli->query("CREATE TABLE IF NOT EXISTS pi_institution_categories (id int AUTO_INCREMENT PRIMARY KEY, inst_id int NOT NULL, cat_id int NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
@@ -23,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $desc     = pi_escape($_POST['inst_description'] ?? '');
         $verified   = (int)($_POST['inst_verified'] ?? 0);
         $country_id = (int)($_POST['inst_country_id'] ?? 0);
+        $cats       = $_POST['categories'] ?? [];
 
         if ($id) {
             pi_require_perm('edit_institution');
@@ -30,6 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             pi_require_perm('add_institution');
             $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified,inst_country_id) VALUES ('$name_ar','$name_en','$logo','$desc',$verified,$country_id)");
+            $id = $mysqli->insert_id;
+        }
+        // Sync categories
+        $mysqli->query("DELETE FROM pi_institution_categories WHERE inst_id=$id");
+        foreach ($cats as $cat_id) {
+            $cat_id = (int)$cat_id;
+            if ($cat_id) $mysqli->query("INSERT INTO pi_institution_categories (inst_id,cat_id) VALUES ($id,$cat_id)");
         }
         $msg = 'تم الحفظ'; $action = 'list';
     }
@@ -42,12 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'add' || $action === 'edit') {
-    $ei = null;
+    $ei = null; $edit_cats = [];
     if ($action === 'edit') {
         $eid = (int)($_GET['id'] ?? 0);
         $r = $mysqli->query("SELECT * FROM pi_institutions WHERE inst_id=$eid");
         if ($r && $r->num_rows) $ei = $r->fetch_assoc();
+        $rc = $mysqli->query("SELECT cat_id FROM pi_institution_categories WHERE inst_id=$eid");
+        if ($rc) while ($row=$rc->fetch_assoc()) $edit_cats[] = $row['cat_id'];
     }
+    $all_cats = pi_get_categories();
 ?>
 <div class="max-w-xl">
   <div class="flex items-center gap-3 mb-6">
@@ -102,6 +114,23 @@ if ($action === 'add' || $action === 'edit') {
       <input type="checkbox" name="inst_verified" value="1" id="inst_v" <?= ($ei['inst_verified']??0)?'checked':'' ?> class="w-5 h-5 accent-blue-500">
       <label for="inst_v" class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-circle-check text-blue-500 mr-1"></i> موثقة</label>
     </div>
+
+    <?php if (!empty($all_cats)): ?>
+    <div>
+      <label class="form-label">التصنيفات</label>
+      <div class="grid grid-cols-2 gap-2 bg-gray-50 rounded-xl p-4 border border-gray-200 max-h-52 overflow-y-auto">
+        <?php foreach ($all_cats as $cat): ?>
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 hover:text-purple-600">
+          <input type="checkbox" name="categories[]" value="<?= $cat['cat_id'] ?>"
+            <?= in_array($cat['cat_id'], $edit_cats)?'checked':'' ?> class="accent-purple-500 w-4 h-4">
+          <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']??'fa-tag') ?> text-purple-400 text-xs"></i>
+          <?= htmlspecialchars($cat['cat_name']) ?>
+        </label>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <div class="flex gap-3"><button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk mr-2"></i>حفظ</button>
     <a href="admin.php?p=institutions" class="btn-secondary">إلغاء</a></div>
   </form>
