@@ -3,9 +3,9 @@ error_reporting(E_ALL ^ E_NOTICE);
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 $server   = "localhost";
-$username = "Start_Main";
-$password = 'dacZ4350$';
-$database = "Start_Main";
+$username = "Abouut_user";
+$password = 'hGeFvm0o#Sgjd9_3';
+$database = "admin_abouut";
 
 $mysqli = new mysqli($server, $username, $password, $database) or die(mysqli_error($mysqli));
 $mysqli->set_charset("utf8mb4");
