@@ -11,7 +11,7 @@ $inst = $r->fetch_assoc();
 // Increment views
 $mysqli->query("UPDATE pi_institutions SET inst_views=inst_views+1 WHERE inst_id=$inst_id");
 
-$pageTitle = htmlspecialchars($inst['inst_name']) . ' - PioneerIcons';
+$pageTitle = htmlspecialchars($inst['inst_name_ar']) . ' - PioneerIcons';
 $total_count = pi_count_personalities() + pi_count_institutions();
 
 // Social links
@@ -65,7 +65,7 @@ include 'includes/header.php';
     <i class="fa-solid fa-slash text-xs text-gray-300"></i>
     <a href="all_institutions.php" class="hover:text-purple-600 transition font-semibold">المؤسسات</a>
     <i class="fa-solid fa-slash text-xs text-gray-300"></i>
-    <span class="text-gray-800 font-semibold"><?= htmlspecialchars($inst['inst_name']) ?></span>
+    <span class="text-gray-800 font-semibold"><?= htmlspecialchars($inst['inst_name_ar']) ?></span>
   </nav>
 </div>
 
@@ -82,11 +82,11 @@ include 'includes/header.php';
           <!-- Logo -->
           <div class="flex-shrink-0">
             <?php if (!empty($inst['inst_logo'])): ?>
-              <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" alt="<?= htmlspecialchars($inst['inst_name']) ?>"
+              <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" alt="<?= htmlspecialchars($inst['inst_name_ar']) ?>"
                 class="w-32 h-32 rounded-2xl object-cover border-4 border-purple-100">
             <?php else: ?>
               <div class="w-32 h-32 rounded-2xl pi-gradient flex items-center justify-center">
-                <span class="text-white font-black text-4xl"><?= mb_substr($inst['inst_name'], 0, 1) ?></span>
+                <span class="text-white font-black text-4xl"><?= mb_substr($inst['inst_name_ar'], 0, 1) ?></span>
               </div>
             <?php endif; ?>
           </div>
@@ -94,13 +94,13 @@ include 'includes/header.php';
           <!-- Info -->
           <div class="flex-1">
             <h1 class="text-2xl font-black text-gray-900 mb-1">
-              <?= htmlspecialchars($inst['inst_name']) ?>
+              <?= htmlspecialchars($inst['inst_name_ar']) ?>
               <?php if (!empty($inst['inst_verified'])): ?>
                 <i class="fa-solid fa-circle-check verified-badge text-lg mr-1"></i>
               <?php endif; ?>
             </h1>
-            <?php if (!empty($inst['inst_type'])): ?>
-              <p class="text-gray-600 font-semibold mb-2"><?= htmlspecialchars($inst['inst_type']) ?></p>
+            <?php if (!empty($inst['inst_name_en'])): ?>
+              <p class="text-gray-600 font-semibold mb-2"><?= htmlspecialchars($inst['inst_name_en']) ?></p>
             <?php endif; ?>
             <?php if (!empty($inst['inst_name_en'])): ?>
               <p class="text-gray-400 text-sm mb-2" dir="ltr"><?= htmlspecialchars($inst['inst_name_en']) ?></p>
@@ -143,7 +143,7 @@ include 'includes/header.php';
 
             <!-- Action buttons -->
             <div class="flex flex-wrap gap-3">
-              <button onclick="navigator.share ? navigator.share({title:'<?= addslashes(htmlspecialchars($inst['inst_name'])) ?>',url:location.href}) : alert('تم نسخ الرابط')"
+              <button onclick="navigator.share ? navigator.share({title:'<?= addslashes(htmlspecialchars($inst['inst_name_ar'])) ?>',url:location.href}) : alert('تم نسخ الرابط')"
                 class="w-9 h-9 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-purple-600 hover:border-purple-300 transition">
                 <i class="fa-solid fa-share-nodes"></i>
               </button>
@@ -155,7 +155,7 @@ include 'includes/header.php';
       <!-- Description -->
       <?php if (!empty($inst['inst_description'])): ?>
       <div class="bg-white rounded-2xl shadow-sm p-6">
-        <h2 class="text-lg font-black text-gray-800 mb-4">عن <?= htmlspecialchars($inst['inst_name']) ?></h2>
+        <h2 class="text-lg font-black text-gray-800 mb-4">عن <?= htmlspecialchars($inst['inst_name_ar']) ?></h2>
         <div class="text-gray-700 leading-8 text-sm space-y-4">
           <?php foreach (explode("\n\n", $inst['inst_description']) as $para): ?>
           <p><?= nl2br(htmlspecialchars($para)) ?></p>

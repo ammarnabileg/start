@@ -13,7 +13,7 @@ $cid = pi_current_country();
 
 // Build WHERE
 $where = "WHERE inst_active=1";
-if ($search) $where .= " AND (inst_name LIKE '%$search%' OR inst_type LIKE '%$search%')";
+if ($search) $where .= " AND (inst_name_ar LIKE '%$search%' OR inst_name_en LIKE '%$search%' OR inst_description LIKE '%$search%')";
 if ($cid) $where .= " AND inst_country_id=$cid";
 
 // Count
@@ -96,20 +96,20 @@ include 'includes/header.php';
     <a href="institution.php?id=<?= $inst['inst_id'] ?>" class="bg-white rounded-2xl p-5 shadow-sm card-hover block">
       <div class="flex items-center gap-4 mb-3">
         <?php if (!empty($inst['inst_logo'])): ?>
-          <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" alt="<?= htmlspecialchars($inst['inst_name']) ?>"
+          <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" alt="<?= htmlspecialchars($inst['inst_name_ar']) ?>"
             class="w-14 h-14 rounded-xl object-cover border-2 border-gray-100 flex-shrink-0">
         <?php else: ?>
           <div class="w-14 h-14 rounded-xl pi-gradient flex items-center justify-center flex-shrink-0">
-            <span class="text-white font-black text-xl"><?= mb_substr($inst['inst_name'], 0, 1) ?></span>
+            <span class="text-white font-black text-xl"><?= mb_substr($inst['inst_name_ar'], 0, 1) ?></span>
           </div>
         <?php endif; ?>
         <div class="flex-1 min-w-0">
           <h3 class="font-bold text-gray-800 text-sm leading-tight truncate">
-            <?= htmlspecialchars($inst['inst_name']) ?>
+            <?= htmlspecialchars($inst['inst_name_ar']) ?>
             <?php if (!empty($inst['inst_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
           </h3>
-          <?php if (!empty($inst['inst_type'])): ?>
-            <p class="text-gray-400 text-xs mt-0.5"><?= htmlspecialchars($inst['inst_type']) ?></p>
+          <?php if (!empty($inst['inst_name_en'])): ?>
+            <p class="text-gray-400 text-xs mt-0.5 dir-ltr"><?= htmlspecialchars($inst['inst_name_en']) ?></p>
           <?php endif; ?>
         </div>
       </div>

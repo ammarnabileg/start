@@ -161,8 +161,30 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
         </a>
       </div>
 
-      <!-- Right side: country + login -->
+      <!-- Right side: search + country + login -->
       <div class="flex items-center gap-2">
+
+        <!-- Quick search -->
+        <div class="relative hidden md:block" x-data="{open:false}">
+          <button @click="open=!open; $nextTick(()=>{ if(open) $refs.qs.focus() })"
+            class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:border-purple-400 text-gray-500 hover:text-purple-600 transition">
+            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+          </button>
+          <div x-show="open" x-cloak x-transition
+            class="absolute top-full left-0 mt-2 z-50" style="width:280px;">
+            <form action="search.php" method="GET"
+              class="flex rounded-xl overflow-hidden shadow-xl border border-gray-200 bg-white">
+              <?php if ($_active_cid): ?><input type="hidden" name="country" value="<?= $_active_cid ?>"><?php endif; ?>
+              <input x-ref="qs" name="q" type="text" placeholder="ابحث..."
+                class="flex-1 px-4 py-2.5 text-sm text-gray-800 outline-none font-semibold"
+                @keydown.escape="open=false">
+              <button type="submit"
+                class="pi-primary-bg px-4 text-white hover:opacity-90 transition">
+                <i class="fa-solid fa-magnifying-glass text-sm"></i>
+              </button>
+            </form>
+          </div>
+        </div>
 
         <!-- Country selector — only show if countries exist -->
         <?php if (!empty($_countries)): ?>
