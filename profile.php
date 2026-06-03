@@ -40,8 +40,43 @@ $related = [];
 $r = $mysqli->query("SELECT p.* FROM pi_personalities p JOIN pi_related_personalities rp ON p.p_id=rp.related_p_id WHERE rp.p_id=$p_id AND p.p_active=1 LIMIT 3");
 if ($r) while ($row=$r->fetch_assoc()) $related[] = $row;
 
-// Articles
-$articles = [];
+// Similar names ("هل تقصد")
+$similar = [];
+$name_parts = preg_split('/\s+/', trim($p['p_name_ar']));
+if (count($name_parts) >= 2) {
+    $like_clauses = [];
+    foreach ($name_parts as $part) {
+        if (mb_strlen($part) >= 3) $like_clauses[] = "p_name_ar LIKE '%".pi_escape($part)."%'";
+    }
+    if ($like_clauses) {
+        $like_sql = implode(' OR ', $like_clauses);
+        $r = $mysqli->query("SELECT * FROM pi_personalities WHERE p_active=1 AND p_id!=$p_id AND ($like_sql) ORDER BY p_views DESC LIMIT 4");
+        if ($r) while ($row=$r->fetch_assoc()) $similar[] = $row;
+    }
+}
+
+// Same categories personalities
+$same_cat = [];
+if (!empty($cat_ids)) {
+    $cids_str = implode(',', $cat_ids);
+    $r = $mysqli->query("SELECT DISTINCT p.* FROM pi_personalities p JOIN pi_personality_categories pc ON p.p_id=pc.p_id WHERE pc.cat_id IN ($cids_str) AND p.p_active=1 AND p.p_id!=$p_id ORDER BY p.p_views DESC LIMIT 6");
+    if ($r) while ($row=$r->fetch_assoc()) $same_cat[] = $row;
+}
+
+// Executive personalities (sidebar)
+$executives = [];
+$r = $mysqli->query("SELECT * FROM pi_personalities WHERE p_membership_type='executive' AND p_active=1 AND p_id!=$p_id ORDER BY p_views DESC LIMIT 4");
+if ($r) while ($row=$r->fetch_assoc()) $executives[] = $row;
+
+// Related articles (same categories or general)
+$related_articles = [];
+if (!empty($cat_ids)) {
+    $r = $mysqli->query("SELECT DISTINCT a.* FROM pi_articles a WHERE a.art_active=1 AND a.art_p_id!=$p_id ORDER BY a.art_id DESC LIMIT 4");
+} else {
+    $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_active=1 AND art_p_id!=$p_id ORDER BY art_id DESC LIMIT 4");
+}
+if ($r) while ($row=$r->fetch_assoc()) $related_articles[] = $row;
+
 $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_p_id=$p_id AND art_active=1 ORDER BY art_id DESC LIMIT 6");
 if ($r) while ($row=$r->fetch_assoc()) $articles[] = $row;
 
@@ -382,6 +417,65 @@ include 'includes/header.php';
       </div>
       <?php endif; ?>
 
+      <!-- هل تقصد -->
+      <?php if (!empty($similar)): ?>
+      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:22px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-question" style="color:#8829C8;font-size:15px;"></i>
+          هل تقصد؟
+        </h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <?php foreach ($similar as $sim): ?>
+          <a href="profile.php?id=<?= $sim['p_id'] ?>" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid #f3f4f6;text-decoration:none;transition:all .15s;" onmouseover="this.style.borderColor='#c4b5fd';this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#f3f4f6';this.style.background='transparent'">
+            <?php if ($sim['p_photo']): ?>
+              <img src="<?= htmlspecialchars($sim['p_photo']) ?>" style="width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+            <?php else: ?>
+              <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="color:#fff;font-size:18px;font-weight:900;"><?= mb_substr($sim['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:13px;font-weight:800;color:#111827;margin:0 0 3px;display:flex;align-items:center;gap:5px;">
+                <?= htmlspecialchars($sim['p_name_ar']) ?>
+                <?php if ($sim['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge" style="font-size:11px;"></i><?php endif; ?>
+              </p>
+              <p style="font-size:11px;color:#9ca3af;margin:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"><?= htmlspecialchars($sim['p_title']??'') ?></p>
+            </div>
+            <i class="fa-solid fa-arrow-left" style="color:#d1d5db;font-size:11px;flex-shrink:0;"></i>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- من نفس التصنيفات -->
+      <?php if (!empty($same_cat)): ?>
+      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:22px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-users" style="color:#8829C8;font-size:15px;"></i>
+          شخصيات من نفس المجال
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <?php foreach ($same_cat as $sc): ?>
+          <a href="profile.php?id=<?= $sc['p_id'] ?>" style="text-align:center;padding:14px 8px;border-radius:14px;border:1px solid #f3f4f6;text-decoration:none;transition:all .15s;" onmouseover="this.style.borderColor='#c4b5fd';this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#f3f4f6';this.style.background='transparent'">
+            <?php if ($sc['p_photo']): ?>
+              <img src="<?= htmlspecialchars($sc['p_photo']) ?>" style="width:50px;height:50px;border-radius:50%;object-fit:cover;margin:0 auto 8px;border:2px solid #f3e8ff;">
+            <?php else: ?>
+              <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                <span style="color:#fff;font-size:20px;font-weight:900;"><?= mb_substr($sc['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <p style="font-size:12px;font-weight:800;color:#111827;margin:0 0 3px;line-height:1.3;">
+              <?= htmlspecialchars(mb_substr($sc['p_name_ar'],0,16)) ?><?= mb_strlen($sc['p_name_ar'])>16?'…':'' ?>
+              <?php if ($sc['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge" style="font-size:9px;"></i><?php endif; ?>
+            </p>
+            <p style="font-size:10px;color:#9ca3af;margin:0;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"><?= htmlspecialchars($sc['p_title']??'') ?></p>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
       <!-- ARTICLES -->
       <?php if (!empty($articles)): ?>
       <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:24px;" x-data="{showAll:false}">
@@ -528,6 +622,77 @@ include 'includes/header.php';
           <i :class="showMore ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid" style="font-size:9px;margin-right:4px;"></i>
         </button>
         <?php endif; ?>
+      </div>
+      <?php endif; ?>
+
+      <!-- رؤساء تنفيذيون -->
+      <?php if (!empty($executives)): ?>
+      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:16px;margin-bottom:16px;" x-data="{showMore:false}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h3 style="font-size:13px;font-weight:900;color:#111827;margin:0;display:flex;align-items:center;gap:6px;">
+            <i class="fa-solid fa-crown" style="color:#d97706;font-size:13px;"></i> رؤساء تنفيذيون
+          </h3>
+        </div>
+        <?php foreach ($executives as $idx => $ex): ?>
+        <?php
+          $ex_job = '';
+          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND tl_is_current=1 AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
+          if ($rj && $rj->num_rows) { $rjr = $rj->fetch_assoc(); $ex_job = trim(($rjr['tl_title']??'') . ($rjr['tl_institution'] ? ' في "'.$rjr['tl_institution'].'".' : '')); }
+        ?>
+        <div x-show="showMore || <?= $idx ?> < 2">
+          <a href="profile.php?id=<?= $ex['p_id'] ?>" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;text-decoration:none;margin-bottom:6px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            <?php if ($ex['p_photo']): ?>
+              <img src="<?= htmlspecialchars($ex['p_photo']) ?>" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid #fde68a;">
+            <?php else: ?>
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="color:#fff;font-size:17px;font-weight:900;"><?= mb_substr($ex['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:12px;font-weight:900;color:#92400e;margin:0 0 3px;display:flex;align-items:center;gap:4px;">
+                <?= htmlspecialchars($ex['p_name_ar']) ?>
+                <i class="fa-solid fa-crown" style="color:#d97706;font-size:9px;"></i>
+              </p>
+              <p style="font-size:10px;color:#78350f;margin:0;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">
+                <?= htmlspecialchars($ex_job ?: ($ex['p_title']??'')) ?>
+              </p>
+            </div>
+          </a>
+        </div>
+        <?php endforeach; ?>
+        <?php if (count($executives) > 2): ?>
+        <button @click="showMore=!showMore" style="width:100%;padding:7px;background:none;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;font-family:inherit;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span x-text="showMore ? 'عرض أقل' : 'عرض المزيد'"></span>
+          <i :class="showMore ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid" style="font-size:9px;"></i>
+        </button>
+        <?php endif; ?>
+        <a href="membership.php?type=executive" style="display:block;text-align:center;padding:8px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;border-radius:10px;font-size:11px;font-weight:800;text-decoration:none;margin-top:10px;">
+          للاستعلام عن باقة الرؤساء التنفيذيين
+        </a>
+      </div>
+      <?php endif; ?>
+
+      <!-- مقالات تهمك -->
+      <?php if (!empty($related_articles)): ?>
+      <div style="background:#fff;border-radius:18px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:16px;margin-bottom:16px;">
+        <h3 style="font-size:13px;font-weight:900;color:#111827;margin:0 0 12px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:13px;"></i> مقالات تهمك
+        </h3>
+        <?php foreach ($related_articles as $idx => $ra): ?>
+        <a href="<?= htmlspecialchars($ra['art_url'] ?: 'article.php?id='.$ra['art_id']) ?>" target="_blank"
+          style="display:flex;align-items:center;gap:10px;padding:8px 0;<?= $idx>0?'border-top:1px solid #f9fafb;':'' ?>text-decoration:none;">
+          <?php if ($ra['art_image']): ?>
+            <img src="<?= htmlspecialchars($ra['art_image']) ?>" style="width:52px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+          <?php else: ?>
+            <div style="width:52px;height:40px;border-radius:8px;background:#f5f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:14px;"></i>
+            </div>
+          <?php endif; ?>
+          <p style="font-size:12px;font-weight:700;color:#374151;margin:0;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;transition:color .15s;" onmouseover="this.style.color='#8829C8'" onmouseout="this.style.color='#374151'">
+            <?= htmlspecialchars($ra['art_title']) ?>
+          </p>
+        </a>
+        <?php endforeach; ?>
       </div>
       <?php endif; ?>
 
