@@ -87,7 +87,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
   <!-- Sidebar -->
   <aside class="sidebar" :style="sidebarOpen ? 'width:240px' : 'width:58px'"
-    style="flex-shrink:0; transition:width .25s; display:flex; flex-direction:column; overflow:hidden;">
+    style="flex-shrink:0; transition:width .25s; display:flex; flex-direction:column; overflow-x:hidden; overflow-y:auto;">
 
     <!-- Logo -->
     <div style="padding:16px; border-bottom:1px solid rgba(255,255,255,.1); display:flex; align-items:center; gap:10px;">
@@ -98,7 +98,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     </div>
 
     <!-- Nav -->
-    <nav style="flex:1;padding:12px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;">
+    <nav style="flex:1;padding:12px 8px 24px;display:flex;flex-direction:column;gap:2px;">
 
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
         <i class="fa-solid fa-gauge-high"></i>
