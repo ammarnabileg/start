@@ -2,8 +2,16 @@
 // Load settings & countries
 $_S  = pi_get_settings();
 $_countries = pi_get_countries();
-$_active_cid = pi_current_country();
 $_default_cid = (int)($_S['default_country'] ?? 0);
+
+// If admin set default to "all countries" (0), clear any stored session filter and force 0
+if ($_default_cid === 0) {
+    unset($_SESSION['pi_country']);
+    $_active_cid = 0;
+} else {
+    $_active_cid = pi_current_country();
+}
+
 // Show country selector only when admin has a default country configured
 $_show_country_selector = !empty($_countries) && $_default_cid > 0;
 
