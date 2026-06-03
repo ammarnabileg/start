@@ -55,8 +55,14 @@ function pi_current_country() {
     // Returns the active country_id (0 = all countries)
     if (isset($_GET['country'])) {
         $_SESSION['pi_country'] = (int)$_GET['country'];
+        return (int)$_GET['country'];
     }
-    return (int)($_SESSION['pi_country'] ?? 0);
+    if (isset($_SESSION['pi_country'])) {
+        return (int)$_SESSION['pi_country'];
+    }
+    // Fall back to admin default country setting
+    $s = pi_get_settings();
+    return (int)($s['default_country'] ?? 0);
 }
 
 function pi_country_where($table_prefix = 'p') {

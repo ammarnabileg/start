@@ -3,6 +3,9 @@
 $_S  = pi_get_settings();
 $_countries = pi_get_countries();
 $_active_cid = pi_current_country();
+$_default_cid = (int)($_S['default_country'] ?? 0);
+// Show country selector only when admin has a default country configured
+$_show_country_selector = !empty($_countries) && $_default_cid > 0;
 
 // Find active country info
 $_active_country = ['c_flag'=>'🌍','c_name'=>'كل الدول'];
@@ -198,21 +201,17 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
           </div>
         </div>
 
-        <!-- Country selector — only show when a country IS selected -->
-        <?php if (!empty($_countries) && $_active_cid): ?>
+        <!-- Country selector — show only when admin has set a default country -->
+        <?php if ($_show_country_selector): ?>
         <div class="relative" x-data="{ open: false }">
           <button @click="open=!open" @click.outside="open=false"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-300 bg-purple-50 hover:border-purple-400 transition text-sm font-semibold">
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border <?= $_active_cid ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white' ?> hover:border-purple-400 transition text-sm font-semibold">
             <span class="text-base"><?= htmlspecialchars($_active_country['c_flag'] ?? '🌍') ?></span>
-            <span class="hidden sm:inline text-purple-700 max-w-20 truncate"><?= htmlspecialchars($_active_country['c_name'] ?? 'كل الدول') ?></span>
-            <i class="fa-solid fa-chevron-down text-xs text-purple-400"></i>
+            <span class="hidden sm:inline <?= $_active_cid ? 'text-purple-700' : 'text-gray-600' ?> max-w-24 truncate"><?= htmlspecialchars($_active_country['c_name'] ?? 'كل الدول') ?></span>
+            <i class="fa-solid fa-chevron-down text-xs <?= $_active_cid ? 'text-purple-400' : 'text-gray-400' ?>"></i>
           </button>
           <div x-show="open" x-cloak x-transition
             class="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-80 overflow-y-auto">
-            <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm">
-              🌍 كل الدول
-            </a>
-            <div class="border-t border-gray-100 my-1"></div>
             <?php foreach ($_countries as $c): ?>
             <a href="?country=<?= $c['c_id'] ?>"
               class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm <?= $c['c_id']==$_active_cid?'bg-purple-50 font-bold text-purple-600':'' ?>">
@@ -235,15 +234,12 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
   </div>
 </nav>
 
-<?php if ($_active_cid && $_active_country): ?>
+<?php if ($_active_cid && $_active_country && isset($_active_country['c_id'])): ?>
 <!-- Country filter bar -->
 <div class="bg-purple-50 border-b border-purple-100 py-2">
   <div class="max-w-7xl mx-auto px-4 flex items-center gap-2 text-sm text-purple-700">
     <i class="fa-solid fa-filter text-xs"></i>
     <span class="font-semibold">يتم عرض نتائج: <?= htmlspecialchars($_active_country['c_flag'].' '.$_active_country['c_name']) ?></span>
-    <a href="?country=0" class="mr-auto flex items-center gap-1 text-orange-500 hover:text-purple-700 font-bold transition">
-      <i class="fa-solid fa-xmark text-xs"></i> عرض كل الدول
-    </a>
   </div>
 </div>
 <?php endif; ?>
