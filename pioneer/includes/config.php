@@ -165,26 +165,8 @@ function pi_escape($str) {
 
 function pi_get_categories() {
     global $mysqli;
-    $r = $mysqli->query("SELECT * FROM pi_categories WHERE cat_active=1 ORDER BY cat_order,cat_id");
+    $r = $mysqli->query("SELECT c.*, l.label_name, l.label_color FROM pi_categories c LEFT JOIN pi_labels l ON c.cat_label_id=l.label_id WHERE c.cat_active=1 ORDER BY c.cat_order,c.cat_id");
     $cats = [];
-    while ($row = $r->fetch_assoc()) $cats[] = $row;
+    if ($r) while ($row = $r->fetch_assoc()) $cats[] = $row;
     return $cats;
-}
-
-function pi_badge_class($color) {
-    $map = [
-        'orange'  => 'bg-orange-100 text-orange-700',
-        'blue'    => 'bg-blue-100 text-blue-700',
-        'purple'  => 'bg-purple-100 text-purple-700',
-        'cyan'    => 'bg-cyan-100 text-cyan-700',
-        'red'     => 'bg-red-100 text-red-700',
-        'green'   => 'bg-green-100 text-green-700',
-        'gold'    => 'bg-yellow-100 text-yellow-700',
-        'navy'    => 'bg-indigo-100 text-indigo-700',
-        'teal'    => 'bg-teal-100 text-teal-700',
-        'brown'   => 'bg-amber-100 text-amber-800',
-        'gray'    => 'bg-gray-100 text-gray-700',
-        'darkblue'=> 'bg-blue-200 text-blue-900',
-    ];
-    return $map[$color] ?? 'bg-gray-100 text-gray-700';
 }

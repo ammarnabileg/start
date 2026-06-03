@@ -22,7 +22,7 @@ if ($r) while ($row = $r->fetch_assoc()) $socials[$row['sl_platform']] = $row['s
 // Categories
 $inst_cats = [];
 $cat_ids = [];
-$r = $mysqli->query("SELECT c.* FROM pi_categories c JOIN pi_institution_categories ic ON c.cat_id=ic.cat_id WHERE ic.inst_id=$inst_id");
+$r = $mysqli->query("SELECT c.*, l.label_name, l.label_color FROM pi_categories c JOIN pi_institution_categories ic ON c.cat_id=ic.cat_id LEFT JOIN pi_labels l ON c.cat_label_id=l.label_id WHERE ic.inst_id=$inst_id");
 if ($r) while ($row = $r->fetch_assoc()) { $inst_cats[] = $row; $cat_ids[] = (int)$row['cat_id']; }
 
 // Related personalities (same categories)
@@ -171,7 +171,8 @@ include 'includes/header.php';
         <div class="flex flex-wrap gap-2">
           <?php foreach ($inst_cats as $cat): ?>
           <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-            class="flex items-center gap-1.5 px-4 py-2 <?= pi_badge_class($cat['cat_badge_color']) ?> rounded-full text-sm font-semibold hover:opacity-80 transition">
+            style="background:<?= htmlspecialchars($cat['label_color'] ?? '#f3f4f6') ?>;color:<?= ($cat['label_color'] ?? '') ? '#fff' : '#374151' ?>"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition">
             <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-xs"></i>
             <?= htmlspecialchars($cat['cat_name']) ?>
           </a>

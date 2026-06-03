@@ -3,8 +3,9 @@ pi_require_perm('view_categories');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
-// Add cat_label_id column if not exists
+// Add cat_label_id column if not exists, drop old badge color column
 $mysqli->query("ALTER TABLE pi_categories ADD COLUMN IF NOT EXISTS cat_label_id INT DEFAULT NULL");
+$mysqli->query("ALTER TABLE pi_categories DROP COLUMN IF EXISTS cat_badge_color");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';

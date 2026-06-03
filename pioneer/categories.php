@@ -76,13 +76,8 @@ include 'includes/header.php';
 
   <!-- Category header -->
   <div class="bg-white rounded-2xl shadow-sm p-6 mb-8 flex items-center gap-5">
-    <?php
-    $badge_colors = ['orange'=>'bg-orange-500','blue'=>'bg-blue-500','purple'=>'bg-purple-500',
-      'cyan'=>'bg-cyan-500','red'=>'bg-red-500','green'=>'bg-green-500','gold'=>'bg-yellow-500',
-      'navy'=>'bg-indigo-600','teal'=>'bg-teal-500','brown'=>'bg-amber-600','gray'=>'bg-gray-500','darkblue'=>'bg-blue-800'];
-    $bc = $badge_colors[$current_cat['cat_badge_color']] ?? 'bg-gray-400';
-    ?>
-    <div class="w-16 h-16 rounded-2xl <?= $bc ?> flex items-center justify-center flex-shrink-0">
+    <?php $bc_hex = $current_cat['label_color'] ?? '#8829C8'; ?>
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:<?= htmlspecialchars($bc_hex) ?>">
       <i class="fa-solid <?= htmlspecialchars($current_cat['cat_icon']) ?> text-white text-2xl"></i>
     </div>
     <div>
@@ -197,18 +192,15 @@ include 'includes/header.php';
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
     <?php foreach ($page_cats as $cat): ?>
     <div class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center relative">
-      <?php
-      $badge_colors = ['orange'=>'bg-purple-500','blue'=>'bg-blue-500','purple'=>'bg-purple-500',
-        'cyan'=>'bg-cyan-500','red'=>'bg-red-500','green'=>'bg-green-500','gold'=>'bg-yellow-500',
-        'navy'=>'bg-indigo-600','teal'=>'bg-teal-500','brown'=>'bg-amber-600','gray'=>'bg-gray-500','darkblue'=>'bg-blue-800'];
-      $bc = $badge_colors[$cat['cat_badge_color']] ?? 'bg-gray-400';
-      ?>
+      <?php $label_hex = $cat['label_color'] ?? null; ?>
+      <?php if ($label_hex && $cat['label_name']): ?>
       <div class="absolute top-3 left-3">
-        <span class="<?= $bc ?> text-white text-xs font-bold px-2 py-0.5 rounded-full">
-          <?= ucfirst($cat['cat_badge_color']) ?>
+        <span style="background:<?= htmlspecialchars($label_hex) ?>" class="text-white text-xs font-bold px-2 py-0.5 rounded-full">
+          <?= htmlspecialchars($cat['label_name']) ?>
         </span>
       </div>
-      <div class="w-14 h-14 rounded-xl mx-auto mb-3 mt-4 pi-gradient flex items-center justify-center">
+      <?php endif; ?>
+      <div class="w-14 h-14 rounded-xl mx-auto mb-3 mt-4 flex items-center justify-center" style="background:<?= htmlspecialchars($label_hex ?? '#8829C8') ?>">
         <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-white text-xl"></i>
       </div>
       <h3 class="font-bold text-gray-800 text-sm mb-3 leading-tight"><?= htmlspecialchars($cat['cat_name']) ?></h3>

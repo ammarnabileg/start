@@ -20,7 +20,7 @@ if ($r) while ($row=$r->fetch_assoc()) $socials[$row['sl_platform']] = $row['sl_
 
 // Categories
 $p_cats = [];
-$r = $mysqli->query("SELECT c.* FROM pi_categories c JOIN pi_personality_categories pc ON c.cat_id=pc.cat_id WHERE pc.p_id=$p_id");
+$r = $mysqli->query("SELECT c.*, l.label_name, l.label_color FROM pi_categories c JOIN pi_personality_categories pc ON c.cat_id=pc.cat_id LEFT JOIN pi_labels l ON c.cat_label_id=l.label_id WHERE pc.p_id=$p_id");
 if ($r) while ($row=$r->fetch_assoc()) $p_cats[] = $row;
 
 // Timeline — work (current = no year_end, past = has year_end)
@@ -253,9 +253,10 @@ include 'includes/header.php';
           <?php else: ?>
           <div style="display:flex;flex-wrap:wrap;gap:10px;">
             <?php foreach ($p_cats as $cat): ?>
+            <?php $lc = $cat['label_color'] ?? '#8829C8'; ?>
             <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-              style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:#f5f0ff;color:#6b21a8;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;transition:background .15s;"
-              onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f0ff'">
+              style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:<?= htmlspecialchars($lc) ?>1a;color:<?= htmlspecialchars($lc) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;transition:opacity .15s;border:1.5px solid <?= htmlspecialchars($lc) ?>40;"
+              onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
               <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
               <?= htmlspecialchars($cat['cat_name']) ?>
             </a>
@@ -281,9 +282,10 @@ include 'includes/header.php';
         <h3 style="font-size:15px;font-weight:900;color:#111827;margin:0 0 14px;">تصنيفات ذات صلة</h3>
         <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;">
           <?php foreach ($p_cats as $cat): ?>
+          <?php $lc2 = $cat['label_color'] ?? '#8829C8'; ?>
           <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-            style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:#f5f0ff;color:#6b21a8;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:background .15s;"
-            onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f0ff'">
+            style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:<?= htmlspecialchars($lc2) ?>1a;color:<?= htmlspecialchars($lc2) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:opacity .15s;border:1.5px solid <?= htmlspecialchars($lc2) ?>40;"
+            onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
             <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
             <?= htmlspecialchars($cat['cat_name']) ?>
           </a>
