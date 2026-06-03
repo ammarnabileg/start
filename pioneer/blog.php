@@ -17,7 +17,7 @@ $total_pages = max(1, ceil($total_articles / $per_page));
 
 // Fetch
 $sql = "SELECT a.*, p.p_name_ar, p.p_photo FROM pi_articles a
-        JOIN pi_personalities p ON a.art_p_id=p.p_id
+        LEFT JOIN pi_personalities p ON a.art_p_id=p.p_id
         WHERE a.art_active=1";
 if ($search) $sql .= " AND (a.art_title LIKE '%$search%' OR a.art_source LIKE '%$search%')";
 $sql .= " ORDER BY a.art_created DESC LIMIT $per_page OFFSET $offset";

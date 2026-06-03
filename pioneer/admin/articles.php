@@ -62,72 +62,44 @@ if ($action === 'add' || $action === 'edit') {
     }
 ?>
 
-<!-- TinyMCE CDN -->
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
-<script>
-tinymce.init({
-  selector: '#art_body_editor',
-  language: 'ar',
-  directionality: 'rtl',
-  height: 550,
-  menubar: 'file edit view insert format tools table',
-  plugins: [
-    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-    'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount',
-    'emoticons', 'codesample'
-  ],
-  toolbar:
-    'undo redo | blocks | ' +
-    'bold italic underline strikethrough | forecolor backcolor | ' +
-    'alignright aligncenter alignleft alignjustify | ' +
-    'bullist numlist outdent indent | ' +
-    'link image media | table | ' +
-    'blockquote codesample | code fullscreen | removeformat help',
-  toolbar_mode: 'wrap',
-  image_title: true,
-  automatic_uploads: true,
-  file_picker_types: 'image',
-  images_upload_url: '../actions/upload_image.php',
-  images_upload_handler: function (blobInfo, progress) {
-    return new Promise(function (resolve, reject) {
-      var fd = new FormData();
-      fd.append('file', blobInfo.blob(), blobInfo.filename());
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', '../actions/upload_image.php');
-      xhr.upload.onprogress = function (e) {
-        progress(e.loaded / e.total * 100);
-      };
-      xhr.onload = function () {
-        if (xhr.status !== 200) { reject('خطأ في الرفع'); return; }
-        var json = JSON.parse(xhr.responseText);
-        if (json.error) { reject(json.error); return; }
-        resolve(json.location);
-      };
-      xhr.onerror = function () { reject('خطأ في الشبكة'); };
-      xhr.send(fd);
-    });
-  },
-  media_live_embeds: true,
-  content_style: "body { font-family: 'Cairo', sans-serif; font-size: 15px; direction: rtl; text-align: right; line-height: 1.8; color: #1f2937; padding: 16px; }",
-  setup: function (editor) {
-    editor.on('change', function () { editor.save(); });
-  }
-});
+<!-- Quill Editor -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+#art_body_quill { min-height:400px; font-family:'Cairo',sans-serif; font-size:15px; direction:rtl; text-align:right; line-height:1.8; }
+#art_body_quill .ql-editor { min-height:380px; }
+.ql-toolbar.ql-snow { direction:ltr; text-align:left; border-radius:12px 12px 0 0; border-color:#e5e7eb !important; background:#fafafa; }
+.ql-container.ql-snow { border-radius:0 0 12px 12px; border-color:#e5e7eb !important; }
+.ql-editor { direction:rtl; text-align:right; }
+.ql-editor.ql-blank::before { right:15px; left:auto; }
+</style>
 
-function insertYoutube() {
-  var url = prompt('أدخل رابط YouTube أو كود embed:');
+<script>
+function insertYoutubeQuill() {
+  var url = prompt('أدخل رابط YouTube:');
   if (!url) return;
-  var videoId = '';
   var match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-  if (match) videoId = match[1];
-  var html;
-  if (videoId) {
-    html = '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;"><iframe src="https://www.youtube.com/embed/' + videoId + '" style="position:absolute;top:0;right:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
-  } else {
-    html = url; // raw embed code
-  }
-  tinymce.activeEditor.insertContent(html);
+  if (!match) return;
+  var html = '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;"><iframe src="https://www.youtube.com/embed/' + match[1] + '" style="position:absolute;top:0;right:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
+  var range = artQuill.getSelection(true);
+  artQuill.clipboard.dangerouslyPasteHTML(range ? range.index : artQuill.getLength(), html);
+}
+function uploadImageToQuill() {
+  var input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = function() {
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '../actions/upload_image.php');
+    xhr.onload = function() {
+      var json = JSON.parse(xhr.responseText);
+      if (json.location) {
+        var range = artQuill.getSelection(true);
+        artQuill.insertEmbed(range ? range.index : 0, 'image', json.location);
+      }
+    };
+    xhr.send(fd);
+  };
+  input.click();
 }
 </script>
 
@@ -153,12 +125,19 @@ function insertYoutube() {
     <div class="bg-white rounded-2xl shadow-sm p-5">
       <div class="flex items-center justify-between mb-3">
         <label class="form-label mb-0">محتوى المقال</label>
-        <button type="button" onclick="insertYoutube()"
-          style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">
-          <i class="fa-brands fa-youtube"></i> تضمين يوتيوب
-        </button>
+        <div style="display:flex;gap:8px;">
+          <button type="button" onclick="uploadImageToQuill()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#e0f2fe;color:#0369a1;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">
+            <i class="fa-solid fa-image"></i> صورة
+          </button>
+          <button type="button" onclick="insertYoutubeQuill()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">
+            <i class="fa-brands fa-youtube"></i> يوتيوب
+          </button>
+        </div>
       </div>
-      <textarea id="art_body_editor" name="art_body"><?= htmlspecialchars($ea['art_body']??'') ?></textarea>
+      <div id="art_body_quill"></div>
+      <textarea id="art_body_hidden" name="art_body" class="hidden"><?= htmlspecialchars($ea['art_body']??'') ?></textarea>
     </div>
 
     <!-- Meta info + featured image -->
@@ -215,6 +194,32 @@ function previewArtImg(input) {
     reader.readAsDataURL(input.files[0]);
   }
 }
+</script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+var artQuill = new Quill('#art_body_quill', {
+  theme: 'snow',
+  modules: {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ color: [] }, { background: [] }],
+      [{ align: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['blockquote', 'link'],
+      ['clean']
+    ]
+  },
+  placeholder: 'اكتب محتوى المقال هنا...'
+});
+artQuill.root.setAttribute('dir', 'rtl');
+var existingBody = document.getElementById('art_body_hidden').value;
+if (existingBody) {
+  try { artQuill.root.innerHTML = existingBody; } catch(e) {}
+}
+document.querySelector('form').addEventListener('submit', function() {
+  document.getElementById('art_body_hidden').value = artQuill.root.innerHTML;
+});
 </script>
 
 <?php } else {
