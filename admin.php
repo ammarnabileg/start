@@ -133,7 +133,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     :style="mobileSidebar
       ? 'width:240px;position:fixed;top:0;right:0;height:100vh;z-index:50;'
       : (sidebarOpen ? 'width:240px' : 'width:58px')"
-    style="flex-shrink:0;transition:width .25s;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;">
+    style="flex-shrink:0;transition:width .25s;display:flex;flex-direction:column;overflow:hidden;">
 
     <!-- Logo -->
     <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -143,8 +143,8 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       <span x-show="sidebarOpen || mobileSidebar" x-cloak style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;">PioneerIcons</span>
     </div>
 
-    <!-- Nav — no flex:1 so it can overflow and scroll -->
-    <nav style="padding:12px 8px 24px;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;min-width:0;">
+    <!-- Nav scrolls within the fixed-height aside -->
+    <nav style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 8px 24px;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;min-width:0;">
 
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
         <i class="fa-solid fa-gauge-high"></i>
@@ -274,18 +274,19 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       </a>
     </nav>
 
-    <!-- Toggle -->
-    <!-- Toggle (desktop only) -->
-    <button @click="sidebarOpen=!sidebarOpen" class="hidden md:flex"
-      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;border-top:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);cursor:pointer;align-items:center;justify-content:center;transition:color .15s;flex-shrink:0;"
+    <!-- Toggle desktop / Close mobile -->
+    <button @click="mobileSidebar ? mobileSidebar=false : sidebarOpen=!sidebarOpen"
+      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;transition:color .15s;"
       onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">
-      <i :class="sidebarOpen ? 'fa-chevron-right' : 'fa-chevron-left'" class="fa-solid" style="font-size:11px;"></i>
-    </button>
-    <!-- Close (mobile only) -->
-    <button @click="mobileSidebar=false" class="md:hidden"
-      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border:none;border-top:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;">
-      <i class="fa-solid fa-xmark" style="font-size:14px;"></i>
-      <span style="font-size:12px;font-weight:700;">إغلاق</span>
+      <template x-if="mobileSidebar">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-xmark" style="font-size:14px;"></i>
+          <span style="font-size:12px;font-weight:700;" x-show="sidebarOpen || mobileSidebar" x-cloak>إغلاق</span>
+        </span>
+      </template>
+      <template x-if="!mobileSidebar">
+        <i :class="sidebarOpen ? 'fa-chevron-right' : 'fa-chevron-left'" class="fa-solid" style="font-size:11px;"></i>
+      </template>
     </button>
   </aside>
 
@@ -295,7 +296,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     <!-- Top bar -->
     <header style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;">
       <!-- Mobile hamburger -->
-      <button @click="mobileSidebar=true" class="md:hidden"
+      <button @click="mobileSidebar=true"
         style="width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
         <i class="fa-solid fa-bars" style="color:#6b7280;font-size:14px;"></i>
       </button>
