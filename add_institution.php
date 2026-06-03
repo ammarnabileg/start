@@ -115,7 +115,7 @@ include 'includes/header.php';
     يعمل هذا النموذج مثل ويكيبيديا — يمكن لأي شخص اقتراح إضافة. سيراجع فريقنا المقترح قبل النشر.
   </div>
 
-  <form method="POST" enctype="multipart/form-data">
+  <form method="POST" enctype="multipart/form-data" id="institution-submit-form">
 
     <!-- بطاقة المعلومات الأساسية -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-5">
@@ -221,7 +221,7 @@ var descQuill = new Quill('#inst_desc_editor', {
 descQuill.root.setAttribute('dir', 'rtl');
 var ed = document.getElementById('inst_desc_hidden').value;
 if (ed) try { descQuill.root.innerHTML = ed; } catch(e) {}
-document.querySelector('form').addEventListener('submit', function() {
+document.getElementById('institution-submit-form').addEventListener('submit', function() {
   document.getElementById('inst_desc_hidden').value = descQuill.root.innerHTML;
 });
 

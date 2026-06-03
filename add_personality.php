@@ -132,7 +132,7 @@ include 'includes/header.php';
     يعمل هذا النموذج مثل ويكيبيديا — يمكن لأي شخص اقتراح إضافة. سيراجع فريقنا المقترح قبل النشر.
   </div>
 
-  <form method="POST" enctype="multipart/form-data">
+  <form method="POST" enctype="multipart/form-data" id="personality-submit-form">
     <!-- بطاقة المعلومات الأساسية -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-5">
       <h2 class="font-black text-gray-800 text-base mb-5 flex items-center gap-2">
@@ -249,7 +249,7 @@ var bioQuill = new Quill('#bio_editor', {
 bioQuill.root.setAttribute('dir', 'rtl');
 var eb = document.getElementById('p_bio_hidden').value;
 if (eb) try { bioQuill.root.innerHTML = eb; } catch(e) {}
-document.querySelector('form').addEventListener('submit', function() {
+document.getElementById('personality-submit-form').addEventListener('submit', function() {
   document.getElementById('p_bio_hidden').value = bioQuill.root.innerHTML;
 });
 
