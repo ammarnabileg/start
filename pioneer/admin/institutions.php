@@ -78,7 +78,7 @@ if ($action === 'add' || $action === 'edit') {
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <div><label class="form-label">الوصف</label>
     <div id="inst_desc_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>
-    <textarea name="inst_description" id="inst_desc_hidden" class="hidden"><?= htmlspecialchars($ei['inst_description']??'') ?></textarea></div>
+    <textarea name="inst_description" id="inst_desc_hidden" class="hidden"></textarea></div>
     <?php $inst_countries = pi_get_countries(); ?>
     <div>
       <label class="form-label">الدولة</label>
@@ -104,10 +104,10 @@ if ($action === 'add' || $action === 'edit') {
 <script>
 var instDescQuill = new Quill('#inst_desc_editor', {
   theme: 'snow', direction: 'rtl',
-  modules: { toolbar: [[{header:[2,3,false]}],['bold','italic','underline','strike'],[{list:'ordered'},{list:'bullet'}],['blockquote'],['clean']] }
+  modules: { toolbar: [[{header:[2,3,false]}],['bold','italic','underline','strike'],[{list:'ordered'},{list:'bullet'}],['blockquote'],['link'],['clean']] }
 });
-var ed = document.getElementById('inst_desc_hidden').value;
-if (ed) try { instDescQuill.root.innerHTML = ed; } catch(e) {}
+var _instDescRaw = <?= json_encode($ei['inst_description'] ?? '') ?>;
+if (_instDescRaw) instDescQuill.root.innerHTML = _instDescRaw;
 document.querySelector('form').addEventListener('submit', function() {
   document.getElementById('inst_desc_hidden').value = instDescQuill.root.innerHTML;
 });
