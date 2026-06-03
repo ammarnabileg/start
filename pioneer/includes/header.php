@@ -186,18 +186,18 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
           </div>
         </div>
 
-        <!-- Country selector — only show if countries exist -->
-        <?php if (!empty($_countries)): ?>
+        <!-- Country selector — only show when a country IS selected -->
+        <?php if (!empty($_countries) && $_active_cid): ?>
         <div class="relative" x-data="{ open: false }">
           <button @click="open=!open" @click.outside="open=false"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-purple-400 transition text-sm font-semibold">
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-300 bg-purple-50 hover:border-purple-400 transition text-sm font-semibold">
             <span class="text-base"><?= htmlspecialchars($_active_country['c_flag'] ?? '🌍') ?></span>
-            <span class="hidden sm:inline text-gray-700 max-w-20 truncate"><?= htmlspecialchars($_active_country['c_name'] ?? 'كل الدول') ?></span>
-            <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+            <span class="hidden sm:inline text-purple-700 max-w-20 truncate"><?= htmlspecialchars($_active_country['c_name'] ?? 'كل الدول') ?></span>
+            <i class="fa-solid fa-chevron-down text-xs text-purple-400"></i>
           </button>
           <div x-show="open" x-cloak x-transition
             class="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-80 overflow-y-auto">
-            <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm <?= !$_active_cid?'bg-purple-50 font-bold text-purple-600':'' ?>">
+            <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm">
               🌍 كل الدول
             </a>
             <div class="border-t border-gray-100 my-1"></div>
@@ -211,14 +211,6 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
             <?php endforeach; ?>
           </div>
         </div>
-        <?php endif; ?>
-
-        <!-- show cancel only when country is actively filtered -->
-        <?php if ($_active_cid && !empty($_countries)): ?>
-        <a href="?country=0" class="hidden sm:flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-600 font-semibold hover:bg-purple-100 transition">
-          <i class="fa-solid fa-xmark text-xs"></i>
-          إلغاء الفلتر
-        </a>
         <?php endif; ?>
 
         <a href="admin.php?p=login"
