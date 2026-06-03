@@ -24,16 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'hero_title','hero_subtitle',
     ];
 
-    // Handle logo upload or URL
+    // Handle logo upload (upload only — no external URL)
     if (!empty($_FILES['site_logo_file']['name'])) {
         $logo_path = pi_upload_logo($_FILES['site_logo_file']);
         if ($logo_path) {
             $logo_esc = pi_escape($logo_path);
             $mysqli->query("INSERT INTO pi_settings (s_key,s_value) VALUES ('site_logo','$logo_esc') ON DUPLICATE KEY UPDATE s_value='$logo_esc'");
         }
-    } elseif (isset($_POST['site_logo'])) {
-        $val = pi_escape($_POST['site_logo']);
-        $mysqli->query("INSERT INTO pi_settings (s_key,s_value) VALUES ('site_logo','$val') ON DUPLICATE KEY UPDATE s_value='$val'");
     }
 
     foreach ($fields as $field) {
@@ -96,13 +93,10 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
                 <div id="logo_ph" class="text-center">
                   <i class="fa-solid fa-cloud-arrow-up text-gray-400 text-2xl mb-1"></i>
                   <p class="text-sm text-gray-500 font-semibold">اضغط لرفع صورة الشعار</p>
-                  <p class="text-xs text-gray-400">PNG, JPG, SVG, WebP</p>
+                  <p class="text-xs text-gray-400">PNG, JPG, SVG, WebP — اختياري</p>
                 </div>
                 <img id="logo_preview" class="hidden mx-auto mt-3 max-h-16 object-contain rounded-lg">
               </div>
-              <p class="text-xs text-gray-400 text-center">— أو —</p>
-              <input type="url" name="site_logo" class="form-input" dir="ltr"
-                value="<?= htmlspecialchars($S['site_logo'] ?? '') ?>" placeholder="https://... رابط صورة خارجي">
             </div>
           </div>
         </div>

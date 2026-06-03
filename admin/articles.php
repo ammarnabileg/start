@@ -16,9 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $body   = pi_escape($_POST['art_body'] ?? '');
         $source = pi_escape($_POST['art_source'] ?? '');
         $url    = pi_escape($_POST['art_url'] ?? '');
-        $image  = pi_escape($_POST['art_image'] ?? '');
+        $image  = '';
 
-        // Handle featured image upload
+        // Handle featured image upload (upload only)
         if (!empty($_FILES['art_image_file']['name']) && $_FILES['art_image_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['art_image_file']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
@@ -33,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($id) {
             pi_require_perm('edit_article');
+            // Keep existing image if no new upload
+            if (!$image) {
+                $er = $mysqli->query("SELECT art_image FROM pi_articles WHERE art_id=$id");
+                if ($er && $er->num_rows) $image = pi_escape($er->fetch_assoc()['art_image']);
+            }
             $mysqli->query("UPDATE pi_articles SET art_p_id=$p_id,art_title='$title',art_body='$body',art_source='$source',art_url='$url',art_image='$image' WHERE art_id=$id");
         } else {
             pi_require_perm('add_article');
@@ -160,7 +165,7 @@ function uploadImageToQuill() {
         <input type="url" name="art_url" class="form-input" dir="ltr" value="<?= htmlspecialchars($ea['art_url']??'') ?>">
       </div>
       <div>
-        <label class="form-label">الصورة المميزة</label>
+        <label class="form-label">الصورة المميزة <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
         <div class="pi-upload-zone" onclick="document.getElementById('art_img_file').click()">
           <input type="file" id="art_img_file" name="art_image_file" accept="image/*" class="hidden" data-preview="art_img_prev" data-placeholder="art_img_ph">
           <img id="art_img_prev" src="<?= htmlspecialchars($ea['art_image']??'') ?>"
@@ -168,10 +173,9 @@ function uploadImageToQuill() {
           <div id="art_img_ph" <?= ($ea['art_image']??'')?'style="display:none"':'' ?>>
             <i class="fa-solid fa-image" style="font-size:20px;color:#9ca3af;display:block;margin-bottom:6px;"></i>
             <p style="font-size:12px;color:#9ca3af;">اضغط لرفع صورة مميزة</p>
+            <p style="font-size:11px;color:#d1d5db;margin-top:2px;">JPG, PNG, WebP</p>
           </div>
         </div>
-        <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:4px;">— أو —</p>
-        <input type="url" name="art_image" class="form-input mt-1" dir="ltr" placeholder="رابط صورة خارجي" value="<?= htmlspecialchars($ea['art_image']??'') ?>">
       </div>
     </div>
 
