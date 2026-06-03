@@ -124,6 +124,8 @@ if ($rc) while ($c = $rc->fetch_assoc()) $all_cats[] = $c;
   </div>
 </div>
 
+<script>var _subs = {};</script>
+
 <div class="space-y-4">
 <?php foreach ($submissions as $sub):
     $data      = json_decode($sub['sub_data'], true) ?? [];
@@ -407,9 +409,6 @@ _subs[<?= $sid ?>] = {
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
-// Submission data store (populated above per-row)
-var _subs = {};
-
 // Quill instances for edit dialog
 var _bioQuill, _descQuill;
 
