@@ -6,7 +6,7 @@ if (!$art_id) { header('Location: blog.php'); exit; }
 
 $r = $mysqli->query("SELECT a.*, p.p_id, p.p_name_ar, p.p_photo, p.p_title AS p_job_title, p.p_verified, p.p_nationality
                      FROM pi_articles a
-                     LEFT JOIN pi_personalities p ON a.art_p_id=p.p_id
+                     JOIN pi_personalities p ON a.art_p_id=p.p_id
                      WHERE a.art_id=$art_id AND a.art_active=1");
 if (!$r || !$r->num_rows) { header('Location: blog.php'); exit; }
 $art = $r->fetch_assoc();
@@ -72,13 +72,9 @@ include 'includes/header.php';
             <i class="fa-solid fa-calendar text-purple-400 text-xs"></i>
             <span><?= $art['art_created'] ? date('d/m/Y', strtotime($art['art_created'])) : '' ?></span>
           </div>
-          <?php if (!empty($art['art_body'])): ?>
-          <div class="pi-rich-content text-gray-700 leading-8">
-            <?= $art['art_body'] ?>
-          </div>
-          <?php elseif (!empty($art['art_content'])): ?>
-          <div class="pi-rich-content text-gray-700 leading-8">
-            <?= $art['art_content'] ?>
+          <?php if (!empty($art['art_content'])): ?>
+          <div class="prose prose-sm max-w-none text-gray-700 leading-8">
+            <?= nl2br(htmlspecialchars($art['art_content'])) ?>
           </div>
           <?php elseif (!empty($art['art_excerpt'])): ?>
           <div class="text-gray-700 leading-8">

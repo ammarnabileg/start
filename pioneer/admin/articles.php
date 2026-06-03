@@ -137,7 +137,7 @@ function uploadImageToQuill() {
         </div>
       </div>
       <div id="art_body_quill"></div>
-      <textarea id="art_body_hidden" name="art_body" class="hidden"></textarea>
+      <textarea id="art_body_hidden" name="art_body" class="hidden"><?= htmlspecialchars($ea['art_body']??'') ?></textarea>
     </div>
 
     <!-- Meta info + featured image -->
@@ -213,8 +213,10 @@ var artQuill = new Quill('#art_body_quill', {
   placeholder: 'اكتب محتوى المقال هنا...'
 });
 artQuill.root.setAttribute('dir', 'rtl');
-var _artBodyRaw = <?= json_encode($ea['art_body'] ?? '') ?>;
-if (_artBodyRaw) artQuill.root.innerHTML = _artBodyRaw;
+var existingBody = document.getElementById('art_body_hidden').value;
+if (existingBody) {
+  try { artQuill.root.innerHTML = existingBody; } catch(e) {}
+}
 document.querySelector('form').addEventListener('submit', function() {
   document.getElementById('art_body_hidden').value = artQuill.root.innerHTML;
 });

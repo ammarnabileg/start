@@ -87,43 +87,26 @@ $social_icons = [
 include 'includes/header.php';
 ?>
 
-<!-- HERO SEARCH -->
-<section class="hero-bg py-10">
-  <div class="max-w-3xl mx-auto px-4">
-    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
-      <button type="submit" class="pi-primary-bg px-8 py-4 text-white font-bold hover:opacity-90 transition whitespace-nowrap">ابحث</button>
-      <input name="q" type="text" placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
-        class="flex-1 px-4 py-4 text-gray-800 outline-none font-semibold placeholder-gray-400 bg-white">
-      <div class="flex items-center bg-white px-4">
-        <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
-      </div>
-    </form>
-  </div>
-</section>
-
-<!-- SPONSORS SPOTLIGHT -->
+<!-- SPONSORS BAR -->
 <?php if (!empty($sponsors)): ?>
-<div class="max-w-7xl mx-auto px-4 py-5">
-  <div style="background:linear-gradient(135deg,#f5e9c8 0%,#ede0b0 100%);border-radius:20px;padding:18px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-    <!-- Label + CTA -->
-    <div style="flex-shrink:0;min-width:130px;">
-      <p style="font-size:13px;color:#92400e;font-weight:800;margin-bottom:8px;">تحت الضوء</p>
-      <a href="advertise.php"
-        style="display:inline-block;padding:7px 18px;border-radius:999px;background:#3b82f6;color:#fff;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;">
+<div style="background:#f9fafb;border-bottom:1px solid #f3f4f6;padding:12px 0;">
+  <div class="max-w-7xl mx-auto px-4" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <div style="margin-right:auto;flex-shrink:0;">
+      <p style="font-size:11px;color:#9ca3af;font-weight:700;margin-bottom:4px;">تحت الضوء</p>
+      <a href="advertise.php" class="pi-primary-bg"
+        style="display:inline-block;padding:6px 16px;border-radius:999px;color:#fff;font-size:12px;font-weight:700;text-decoration:none;">
         أعلن عن شركتك هنا
       </a>
     </div>
-    <!-- Logos -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <?php foreach ($sponsors as $sp): ?>
       <a href="<?= htmlspecialchars($sp['sp_url']??'#') ?>" target="_blank"
-        style="display:flex;align-items:center;justify-content:center;width:100px;height:60px;background:#fff;border-radius:12px;padding:8px;transition:box-shadow .2s;flex-shrink:0;"
-        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+        style="display:block;opacity:.7;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">
         <?php if ($sp['sp_logo']): ?>
           <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" alt="<?= htmlspecialchars($sp['sp_name']) ?>"
-            style="max-height:44px;max-width:84px;object-fit:contain;">
+            style="height:36px;max-width:100px;object-fit:contain;">
         <?php else: ?>
-          <span style="font-size:11px;font-weight:800;color:#374151;text-align:center;"><?= htmlspecialchars($sp['sp_name']) ?></span>
+          <span style="font-size:13px;font-weight:700;color:#374151;"><?= htmlspecialchars($sp['sp_name']) ?></span>
         <?php endif; ?>
       </a>
       <?php endforeach; ?>

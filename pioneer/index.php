@@ -48,11 +48,6 @@ if ($cid) {
 $categories = pi_get_categories();
 $feat_cats  = array_slice($categories, 0, 10);
 
-// Latest articles
-$latest_articles = [];
-$r = $mysqli->query("SELECT a.*, p.p_name_ar, p.p_photo, p.p_verified FROM pi_articles a LEFT JOIN pi_personalities p ON a.art_p_id=p.p_id WHERE a.art_active=1 ORDER BY a.art_id DESC LIMIT 6");
-if ($r) while ($row=$r->fetch_assoc()) $latest_articles[] = $row;
-
 include 'includes/header.php';
 ?>
 
@@ -222,63 +217,5 @@ include 'includes/header.php';
   </div>
   <?php endif; ?>
 </section>
-
-<?php if (!empty($latest_articles)): ?>
-<!-- LATEST ARTICLES -->
-<section class="bg-gray-50 border-t border-gray-100 py-16">
-  <div class="max-w-7xl mx-auto px-4">
-    <div class="flex items-center justify-between mb-8">
-      <h2 class="text-2xl font-black text-gray-800 section-dot">آخر المقالات</h2>
-      <a href="blog.php" class="flex items-center gap-2 text-sm font-bold text-purple-600 hover:text-purple-800 transition">
-        عرض الكل <i class="fa-solid fa-arrow-left text-xs"></i>
-      </a>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <?php foreach ($latest_articles as $art): ?>
-      <a href="article.php?id=<?= $art['art_id'] ?>" class="bg-white rounded-2xl shadow-sm card-hover overflow-hidden block group">
-        <?php if (!empty($art['art_image'])): ?>
-          <div class="h-44 overflow-hidden">
-            <img src="<?= htmlspecialchars($art['art_image']) ?>" alt="<?= htmlspecialchars($art['art_title']) ?>"
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-          </div>
-        <?php else: ?>
-          <div class="h-44 pi-gradient flex items-center justify-center">
-            <i class="fa-solid fa-newspaper text-white text-4xl opacity-40"></i>
-          </div>
-        <?php endif; ?>
-        <div class="p-5">
-          <?php if (!empty($art['art_source'])): ?>
-            <span class="inline-block text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full mb-2">
-              <?= htmlspecialchars($art['art_source']) ?>
-            </span>
-          <?php endif; ?>
-          <h3 class="font-black text-gray-800 text-sm leading-snug mb-3 line-clamp-2">
-            <?= htmlspecialchars($art['art_title']) ?>
-          </h3>
-          <?php if (!empty($art['p_name_ar'])): ?>
-          <div class="flex items-center gap-2 mt-auto">
-            <?php if (!empty($art['p_photo'])): ?>
-              <img src="<?= htmlspecialchars($art['p_photo']) ?>" class="w-6 h-6 rounded-full object-cover border border-purple-100">
-            <?php else: ?>
-              <div class="w-6 h-6 rounded-full pi-gradient flex items-center justify-center flex-shrink-0">
-                <span class="text-white font-black" style="font-size:9px"><?= mb_substr($art['p_name_ar'],0,1) ?></span>
-              </div>
-            <?php endif; ?>
-            <span class="text-xs text-gray-500 font-semibold"><?= htmlspecialchars($art['p_name_ar']) ?></span>
-            <?php if (!empty($art['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-          </div>
-          <?php endif; ?>
-          <p class="text-xs text-gray-400 font-semibold mt-2">
-            <i class="fa-solid fa-calendar text-purple-300 ml-1"></i>
-            <?= $art['art_created'] ? date('d/m/Y', strtotime($art['art_created'])) : '' ?>
-          </p>
-        </div>
-      </a>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</section>
-<?php endif; ?>
 
 <?php include 'includes/footer.php'; ?>

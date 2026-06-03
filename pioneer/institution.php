@@ -42,11 +42,6 @@ $social_icons = [
     'website'   => ['fa-solid fa-globe', 'bg-teal-500'],
 ];
 
-// Sponsors
-$sponsors = [];
-$r = $mysqli->query("SELECT * FROM pi_sponsors WHERE sp_active=1 ORDER BY sp_order LIMIT 6");
-if ($r) while ($row=$r->fetch_assoc()) $sponsors[] = $row;
-
 include 'includes/header.php';
 ?>
 
@@ -54,46 +49,14 @@ include 'includes/header.php';
 <section class="hero-bg py-10">
   <div class="max-w-3xl mx-auto px-4">
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
-      <button type="submit" class="pi-primary-bg px-8 py-4 text-white font-bold hover:opacity-90 transition whitespace-nowrap">ابحث</button>
+      <div class="flex items-center bg-white px-4"><i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i></div>
       <input name="q" type="text" placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
-        class="flex-1 px-4 py-4 text-gray-800 outline-none font-semibold placeholder-gray-400 bg-white">
-      <div class="flex items-center bg-white px-4">
-        <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
-      </div>
+        class="flex-1 px-4 py-3.5 text-gray-800 outline-none font-semibold placeholder-gray-400">
+      <span class="bg-white flex items-center px-3 text-gray-500 text-sm font-bold border-r border-gray-200">شخصية · مؤسسة</span>
+      <button type="submit" class="pi-primary-bg px-8 py-3.5 text-white font-bold hover:opacity-90 transition">ابحث</button>
     </form>
   </div>
 </section>
-
-<!-- SPONSORS SPOTLIGHT -->
-<?php if (!empty($sponsors)): ?>
-<div class="max-w-7xl mx-auto px-4 py-5">
-  <div style="background:linear-gradient(135deg,#f5e9c8 0%,#ede0b0 100%);border-radius:20px;padding:18px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-    <!-- Label + CTA -->
-    <div style="flex-shrink:0;min-width:130px;">
-      <p style="font-size:13px;color:#92400e;font-weight:800;margin-bottom:8px;">تحت الضوء</p>
-      <a href="advertise.php"
-        style="display:inline-block;padding:7px 18px;border-radius:999px;background:#3b82f6;color:#fff;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;">
-        أعلن عن شركتك هنا
-      </a>
-    </div>
-    <!-- Logos -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;">
-      <?php foreach ($sponsors as $sp): ?>
-      <a href="<?= htmlspecialchars($sp['sp_url']??'#') ?>" target="_blank"
-        style="display:flex;align-items:center;justify-content:center;width:100px;height:60px;background:#fff;border-radius:12px;padding:8px;transition:box-shadow .2s;flex-shrink:0;"
-        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
-        <?php if ($sp['sp_logo']): ?>
-          <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" alt="<?= htmlspecialchars($sp['sp_name']) ?>"
-            style="max-height:44px;max-width:84px;object-fit:contain;">
-        <?php else: ?>
-          <span style="font-size:11px;font-weight:800;color:#374151;text-align:center;"><?= htmlspecialchars($sp['sp_name']) ?></span>
-        <?php endif; ?>
-      </a>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</div>
-<?php endif; ?>
 
 <!-- BREADCRUMB -->
 <div class="max-w-7xl mx-auto px-4 py-4">
