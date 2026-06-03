@@ -44,7 +44,7 @@ if ($cid) {
     if ($r) while ($row=$r->fetch_assoc()) $institutions[] = $row;
 }
 
-// Featured categories
+// Featured categories — 2 rows on desktop (5 cols × 2 = 10), 3 rows on mobile (3 cols × 3 = 9 → use 10 to fill)
 $categories = pi_get_categories();
 $feat_cats  = array_slice($categories, 0, 10);
 
@@ -188,36 +188,40 @@ include 'includes/header.php';
 <!-- CATEGORIES -->
 <section class="max-w-7xl mx-auto px-4 py-16">
   <h2 class="text-2xl font-black text-gray-800 mb-8 text-center section-dot">استكشف التصنيفات</h2>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-4">
-    <?php foreach (array_slice($feat_cats, 0, 5) as $cat): ?>
-    <div class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center">
-      <div class="w-14 h-14 rounded-xl mx-auto mb-3 pi-gradient flex items-center justify-center">
-        <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-white text-xl"></i>
+
+  <!-- grid: mobile 3 cols (3 rows of ~3), desktop 5 cols (2 rows of 5) — show up to 10 -->
+  <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8">
+    <?php foreach ($feat_cats as $cat):
+      $label_hex  = $cat['label_color'] ?? null;
+      $label_name = $cat['label_name']  ?? null;
+    ?>
+    <div class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center relative">
+      <?php if ($label_hex && $label_name): ?>
+      <div class="absolute top-2 left-2">
+        <span style="background:<?= htmlspecialchars($label_hex) ?>" class="text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
+          <?= htmlspecialchars($label_name) ?>
+        </span>
       </div>
-      <h3 class="font-bold text-gray-800 text-sm mb-3"><?= htmlspecialchars($cat['cat_name']) ?></h3>
+      <?php endif; ?>
+      <div class="w-12 h-12 rounded-xl mx-auto mb-3 mt-3 flex items-center justify-center"
+        style="background:<?= htmlspecialchars($label_hex ?? '#8829C8') ?>">
+        <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-white text-lg"></i>
+      </div>
+      <h3 class="font-bold text-gray-800 text-xs mb-3 leading-tight"><?= htmlspecialchars($cat['cat_name']) ?></h3>
       <a href="categories.php?cat=<?= $cat['cat_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-        class="inline-block px-4 py-1.5 pi-primary-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
-        عرض الكل
+        class="inline-block px-3 py-1 pi-primary-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
+        عرض
       </a>
     </div>
     <?php endforeach; ?>
   </div>
-  <?php if (count($feat_cats) > 5): ?>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-    <?php foreach (array_slice($feat_cats, 5, 5) as $cat): ?>
-    <div class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center">
-      <div class="w-14 h-14 rounded-xl mx-auto mb-3 pi-gradient flex items-center justify-center">
-        <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-white text-xl"></i>
-      </div>
-      <h3 class="font-bold text-gray-800 text-sm mb-3"><?= htmlspecialchars($cat['cat_name']) ?></h3>
-      <a href="categories.php?cat=<?= $cat['cat_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-        class="inline-block px-4 py-1.5 pi-primary-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
-        عرض الكل
-      </a>
-    </div>
-    <?php endforeach; ?>
+
+  <div class="text-center">
+    <a href="categories.php<?= $cid ? '?country='.$cid : '' ?>"
+      class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-500 text-purple-600 font-black rounded-2xl hover:bg-purple-50 transition text-sm">
+      <i class="fa-solid fa-grid-2 text-xs"></i> تصفح كل التصنيفات
+    </a>
   </div>
-  <?php endif; ?>
 </section>
 
 <?php if (!empty($latest_articles)): ?>
