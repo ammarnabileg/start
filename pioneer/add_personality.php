@@ -12,7 +12,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $national  = trim($_POST['p_nationality'] ?? '');
     $residence = trim($_POST['p_residence'] ?? '');
     $bio       = trim($_POST['p_bio'] ?? '');
-    $photo     = trim($_POST['p_photo'] ?? '');
+    // Handle photo upload or URL
+    $photo = trim($_POST['p_photo'] ?? '');
+    if (!empty($_FILES['p_photo_file']['name']) && $_FILES['p_photo_file']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['p_photo_file']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+            $fname = 'p_' . time() . '_' . rand(100,999) . '.' . $ext;
+            if (move_uploaded_file($_FILES['p_photo_file']['tmp_name'], __DIR__ . '/uploads/' . $fname)) {
+                $photo = 'uploads/' . $fname;
+            }
+        }
+    }
     $cats      = $_POST['categories'] ?? [];
     $submitter = trim($_POST['submitter_name'] ?? '');
     $sub_email = trim($_POST['submitter_email'] ?? '');
@@ -92,7 +102,7 @@ include 'includes/header.php';
     يعمل هذا النموذج مثل ويكيبيديا — يمكن لأي شخص اقتراح إضافة أو تعديل. سيراجع فريقنا المقترح قبل النشر.
   </div>
 
-  <form method="POST" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
+  <form method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
     <h2 class="font-black text-gray-800 text-lg border-b border-gray-100 pb-4">معلومات الشخصية</h2>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -117,8 +127,16 @@ include 'includes/header.php';
         <input type="text" name="p_residence" class="form-input" value="<?= htmlspecialchars($_POST['p_residence']??'') ?>">
       </div>
       <div>
-        <label class="form-label">رابط الصورة الشخصية</label>
-        <input type="url" name="p_photo" class="form-input" dir="ltr" placeholder="https://..." value="<?= htmlspecialchars($_POST['p_photo']??'') ?>">
+        <label class="form-label">الصورة الشخصية <span class="text-gray-400 font-normal">(اختياري)</span></label>
+        <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-purple-400 transition cursor-pointer text-center" onclick="document.getElementById('photo_file').click()">
+          <input type="file" id="photo_file" name="p_photo_file" accept="image/*" class="hidden" onchange="previewPhoto(this)">
+          <img id="photo_prev" class="hidden w-20 h-20 rounded-full object-cover mx-auto mb-2">
+          <i class="fa-solid fa-camera text-gray-400 text-2xl mb-1"></i>
+          <p class="text-sm text-gray-500 font-semibold">اضغط لرفع صورة</p>
+          <p class="text-xs text-gray-400">JPG, PNG, WebP</p>
+        </div>
+        <p class="text-xs text-gray-400 text-center mt-1">— أو —</p>
+        <input type="url" name="p_photo" class="form-input mt-1" dir="ltr" placeholder="https://... رابط صورة" value="<?= htmlspecialchars($_POST['p_photo']??'') ?>">
       </div>
     </div>
 
@@ -153,6 +171,18 @@ include 'includes/header.php';
       </div>
     </div>
 
+    <script>
+    function previewPhoto(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('photo_prev');
+          img.src = e.target.result; img.classList.remove('hidden');
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+    </script>
     <button type="submit" class="w-full py-3.5 pi-primary-bg text-white font-black text-base rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
       <i class="fa-solid fa-paper-plane"></i> إرسال الاقتراح للمراجعة
     </button>

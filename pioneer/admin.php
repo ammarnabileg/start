@@ -124,6 +124,10 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
         <i class="fa-solid fa-tags"></i>
         <span x-show="sidebarOpen" x-cloak>التصنيفات</span>
       </a>
+      <a href="admin.php?p=labels" class="nav-link <?= $p=='labels'?'active':'' ?>" style="padding-right:28px;">
+        <i class="fa-solid fa-circle-dot" style="font-size:10px;"></i>
+        <span x-show="sidebarOpen" x-cloak>الليبلات</span>
+      </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_articles')): ?>
@@ -164,6 +168,18 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       <?php endif; ?>
 
       <div class="nav-section"></div>
+
+      <a href="admin.php?p=advertise" class="nav-link <?= $p=='advertise'?'active':'' ?>">
+        <i class="fa-solid fa-bullhorn"></i>
+        <span x-show="sidebarOpen" x-cloak>طلبات الإعلان</span>
+        <?php
+        $adv_rc = $mysqli->query("SHOW TABLES LIKE 'pi_advertise'");
+        if ($adv_rc && $adv_rc->num_rows) {
+            $adv_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_advertise WHERE adv_status='new'")->fetch_assoc()['c'];
+            if ($adv_new > 0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$adv_new.'</span>';
+        }
+        ?>
+      </a>
 
       <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>" style="position:relative;">
         <i class="fa-solid fa-inbox"></i>
@@ -226,7 +242,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>
@@ -256,6 +272,8 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       elseif ($p === 'admin_users')   include 'admin/admin_users.php';
       elseif ($p === 'submissions')   include 'admin/submissions.php';
       elseif ($p === 'countries')     include 'admin/countries.php';
+      elseif ($p === 'labels')        include 'admin/labels.php';
+      elseif ($p === 'advertise')     include 'admin/advertise.php';
       elseif ($p === 'settings')      include 'admin/settings.php';
       else include 'admin/dashboard.php';
       ?>

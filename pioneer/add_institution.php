@@ -9,7 +9,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ar  = trim($_POST['inst_name_ar'] ?? '');
     $name_en  = trim($_POST['inst_name_en'] ?? '');
     $desc     = trim($_POST['inst_description'] ?? '');
-    $logo     = trim($_POST['inst_logo'] ?? '');
+    $logo = trim($_POST['inst_logo'] ?? '');
+    if (!empty($_FILES['inst_logo_file']['name']) && $_FILES['inst_logo_file']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['inst_logo_file']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, ['jpg','jpeg','png','webp','gif','svg'])) {
+            $fname = 'inst_' . time() . '_' . rand(100,999) . '.' . $ext;
+            if (move_uploaded_file($_FILES['inst_logo_file']['tmp_name'], __DIR__ . '/uploads/' . $fname)) {
+                $logo = 'uploads/' . $fname;
+            }
+        }
+    }
     $cats     = $_POST['categories'] ?? [];
     $submitter  = trim($_POST['submitter_name'] ?? '');
     $sub_email  = trim($_POST['submitter_email'] ?? '');
@@ -66,7 +75,7 @@ include 'includes/header.php';
     يعمل هذا النموذج مثل ويكيبيديا — يمكن لأي شخص اقتراح إضافة أو تعديل. سيراجع فريقنا المقترح قبل النشر.
   </div>
 
-  <form method="POST" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
+  <form method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
     <h2 class="font-black text-gray-800 text-lg border-b border-gray-100 pb-4">معلومات الشركة / المؤسسة</h2>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -79,8 +88,16 @@ include 'includes/header.php';
         <input type="text" name="inst_name_en" class="form-input" dir="ltr" value="<?= htmlspecialchars($_POST['inst_name_en']??'') ?>">
       </div>
       <div class="md:col-span-2">
-        <label class="form-label">رابط الشعار</label>
-        <input type="url" name="inst_logo" class="form-input" dir="ltr" placeholder="https://..." value="<?= htmlspecialchars($_POST['inst_logo']??'') ?>">
+        <label class="form-label">شعار الشركة / المؤسسة <span class="text-gray-400 font-normal">(اختياري)</span></label>
+        <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-purple-400 transition cursor-pointer text-center" onclick="document.getElementById('logo_file_inst').click()">
+          <input type="file" id="logo_file_inst" name="inst_logo_file" accept="image/*" class="hidden" onchange="previewInstLogo(this)">
+          <img id="inst_logo_prev" class="hidden w-16 h-16 rounded-xl object-contain mx-auto mb-2">
+          <i class="fa-solid fa-building text-gray-400 text-2xl mb-1"></i>
+          <p class="text-sm text-gray-500 font-semibold">اضغط لرفع الشعار</p>
+          <p class="text-xs text-gray-400">JPG, PNG, SVG, WebP</p>
+        </div>
+        <p class="text-xs text-gray-400 text-center mt-1">— أو —</p>
+        <input type="url" name="inst_logo" class="form-input mt-1" dir="ltr" placeholder="https://... رابط خارجي" value="<?= htmlspecialchars($_POST['inst_logo']??'') ?>">
       </div>
     </div>
 
@@ -115,6 +132,18 @@ include 'includes/header.php';
       </div>
     </div>
 
+    <script>
+    function previewInstLogo(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('inst_logo_prev');
+          img.src = e.target.result; img.classList.remove('hidden');
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+    </script>
     <button type="submit" class="w-full py-3.5 pi-primary-bg text-white font-black text-base rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
       <i class="fa-solid fa-paper-plane"></i> إرسال الاقتراح للمراجعة
     </button>

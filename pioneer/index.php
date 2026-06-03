@@ -61,9 +61,9 @@ include 'includes/header.php';
       المنصة العربية الأولى للحضور الموثق
     </div>
     <h1 class="text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight">
-      <?= htmlspecialchars($_S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>
+      <?= htmlspecialchars($_S['hero_title'] ?? $_S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>
     </h1>
-    <p class="text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
+    <p class="text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['hero_subtitle'] ?? $_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
 
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
       <?php if ($cid): ?><input type="hidden" name="country" value="<?= $cid ?>"><?php endif; ?>
@@ -135,9 +135,9 @@ include 'includes/header.php';
   </div>
 
   <div class="text-center mt-8">
-    <a href="categories.php<?= $cid ? '?country='.$cid : '' ?>"
+    <a href="personalities.php<?= $cid ? '?country='.$cid : '' ?>"
       class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-400 text-purple-600 font-bold rounded-full hover:bg-purple-50 transition">
-      تصفح المزيد <i class="fa-solid fa-arrow-left"></i>
+      تصفح كل الشخصيات <i class="fa-solid fa-arrow-left"></i>
     </a>
   </div>
 </section>
@@ -175,9 +175,9 @@ include 'includes/header.php';
     </div>
 
     <div class="text-center mt-8">
-      <a href="categories.php?type=institutions<?= $cid ? '&country='.$cid : '' ?>"
+      <a href="all_institutions.php<?= $cid ? '?country='.$cid : '' ?>"
         class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-400 text-purple-600 font-bold rounded-full hover:bg-purple-50 transition">
-        عرض الكل <i class="fa-solid fa-arrow-left"></i>
+        تصفح كل المؤسسات <i class="fa-solid fa-arrow-left"></i>
       </a>
     </div>
   </div>

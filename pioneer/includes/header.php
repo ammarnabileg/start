@@ -164,7 +164,8 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
       <!-- Right side: country + login -->
       <div class="flex items-center gap-2">
 
-        <!-- Country selector -->
+        <!-- Country selector — only show if countries exist -->
+        <?php if (!empty($_countries)): ?>
         <div class="relative" x-data="{ open: false }">
           <button @click="open=!open" @click.outside="open=false"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-purple-400 transition text-sm font-semibold">
@@ -174,7 +175,6 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
           </button>
           <div x-show="open" x-cloak x-transition
             class="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-80 overflow-y-auto">
-            <!-- All countries option -->
             <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm <?= !$_active_cid?'bg-purple-50 font-bold text-purple-600':'' ?>">
               🌍 كل الدول
             </a>
@@ -187,14 +187,12 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
               <?php if ($c['c_id']==$_active_cid): ?><i class="fa-solid fa-check text-purple-500 mr-auto text-xs"></i><?php endif; ?>
             </a>
             <?php endforeach; ?>
-            <?php if (empty($_countries)): ?>
-            <p class="px-4 py-3 text-gray-400 text-xs text-center">لا توجد دول مضافة بعد</p>
-            <?php endif; ?>
           </div>
         </div>
+        <?php endif; ?>
 
-        <!-- Active country badge -->
-        <?php if ($_active_cid): ?>
+        <!-- show cancel only when country is actively filtered -->
+        <?php if ($_active_cid && !empty($_countries)): ?>
         <a href="?country=0" class="hidden sm:flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-600 font-semibold hover:bg-purple-100 transition">
           <i class="fa-solid fa-xmark text-xs"></i>
           إلغاء الفلتر

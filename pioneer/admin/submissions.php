@@ -27,6 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $cat_id = (int)$cat_id;
                     $mysqli->query("INSERT INTO pi_personality_categories (p_id,cat_id) VALUES ($new_id,$cat_id)");
                 }
+            } elseif ($sub['sub_type'] === 'institution') {
+                $name_ar = pi_escape($data['inst_name_ar'] ?? '');
+                $name_en = pi_escape($data['inst_name_en'] ?? '');
+                $desc    = pi_escape($data['inst_description'] ?? '');
+                $logo    = pi_escape($data['inst_logo'] ?? '');
+                $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_description,inst_logo) VALUES ('$name_ar','$name_en','$desc','$logo')");
+                $new_id = $mysqli->insert_id;
+                foreach (($data['categories'] ?? []) as $cat_id) {
+                    $cat_id = (int)$cat_id;
+                    $mysqli->query("INSERT INTO pi_institution_categories (inst_id,cat_id) VALUES ($new_id,$cat_id)");
+                }
             }
             $mysqli->query("UPDATE pi_submissions SET sub_status='approved',sub_note='$note' WHERE sub_id=$sub_id");
             $msg = 'تم قبول الاقتراح ونشره';
