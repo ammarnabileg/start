@@ -27,10 +27,11 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     /* Sidebar */
     .sidebar { background: linear-gradient(160deg, #6B21A8 0%, #4C1D95 100%); }
     .nav-link {
-      display: flex; align-items: center; gap: 10px;
+      display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
+      align-items: center; gap: 10px; width: 100%;
       padding: 10px 14px; border-radius: 12px;
       color: rgba(255,255,255,0.7); font-weight: 600; font-size: 14px;
-      text-decoration: none; transition: all .15s; white-space: nowrap;
+      text-decoration: none; transition: all .15s; white-space: nowrap; box-sizing: border-box;
     }
     .nav-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
     .nav-link.active { background: rgba(255,255,255,0.2); color: #fff; }
@@ -115,7 +116,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 <?php elseif ($p === 'logout'): include 'admin/logout.php'; ?>
 <?php else: ?>
 
-<div style="display:flex; height:100vh; overflow:hidden;">
+<div style="display:flex; flex-direction:row; height:100vh; overflow:hidden; min-width:0;">
 
   <!-- Sidebar -->
   <aside class="sidebar" :style="sidebarOpen ? 'width:240px' : 'width:58px'"
@@ -130,7 +131,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     </div>
 
     <!-- Nav -->
-    <nav style="flex:1;padding:12px 8px 24px;display:flex;flex-direction:column;gap:2px;">
+    <nav style="flex:1;padding:12px 8px 24px;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;min-width:0;">
 
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
         <i class="fa-solid fa-gauge-high"></i>
