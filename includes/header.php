@@ -64,6 +64,7 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
       background-size: 60px 60px, 30px 30px;
       background-position: 0 0, 15px 15px;
       opacity: .12;
+      pointer-events: none;
     }
     .hero-glow {
       position: absolute;
