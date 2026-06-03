@@ -181,6 +181,18 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
         ?>
       </a>
 
+      <a href="admin.php?p=memberships" class="nav-link <?= $p=='memberships'?'active':'' ?>">
+        <i class="fa-solid fa-crown"></i>
+        <span x-show="sidebarOpen" x-cloak>طلبات العضوية</span>
+        <?php
+        $mem_rc = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'");
+        if ($mem_rc && $mem_rc->num_rows) {
+            $mem_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_memberships WHERE mem_status='pending'")->fetch_assoc()['c'];
+            if ($mem_new > 0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$mem_new.'</span>';
+        }
+        ?>
+      </a>
+
       <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>" style="position:relative;">
         <i class="fa-solid fa-inbox"></i>
         <span x-show="sidebarOpen" x-cloak>مقترحات المستخدمين</span>
@@ -242,7 +254,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>
@@ -275,6 +287,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       elseif ($p === 'labels')        include 'admin/labels.php';
       elseif ($p === 'advertise')     include 'admin/advertise.php';
       elseif ($p === 'settings')      include 'admin/settings.php';
+      elseif ($p === 'memberships')   include 'admin/memberships.php';
       else include 'admin/dashboard.php';
       ?>
     </main>
