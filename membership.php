@@ -51,33 +51,6 @@ include 'includes/header.php';
   </div>
 </div>
 
-<script>
-// ── Cycling 4-day countdown ──
-(function() {
-  var CYCLE = 4 * 24 * 60 * 60 * 1000;
-  var REF   = 1735689600000;
-  function pad(n){ return String(n).padStart(2,'0'); }
-  function tick() {
-    var remaining = CYCLE - ((Date.now() - REF) % CYCLE);
-    var d = Math.floor(remaining / 86400000);
-    var h = Math.floor((remaining % 86400000) / 3600000);
-    var m = Math.floor((remaining % 3600000)  / 60000);
-    var s = Math.floor((remaining % 60000)    / 1000);
-    // verified
-    ['mv-cd-d','mv-cd-h','mv-cd-m','mv-cd-s'].forEach(function(id,i){
-      var el = document.getElementById(id);
-      if (el) el.textContent = pad([d,h,m,s][i]);
-    });
-    // executive
-    ['me-cd-d','me-cd-h','me-cd-m','me-cd-s'].forEach(function(id,i){
-      var el = document.getElementById(id);
-      if (el) el.textContent = pad([d,h,m,s][i]);
-    });
-  }
-  tick();
-  setInterval(tick, 1000);
-})();
-</script>
 <?php include 'includes/footer.php'; ?><?php exit; ?>
 <?php endif; ?>
 
@@ -380,4 +353,26 @@ document.addEventListener('DOMContentLoaded',function(){
 <?php endif; ?>
 </script>
 
+<script>
+// ── Cycling 4-day countdown ──
+(function() {
+  var CYCLE = 4 * 24 * 60 * 60 * 1000;
+  var REF   = 1735689600000;
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function tick() {
+    var remaining = CYCLE - ((Date.now() - REF) % CYCLE);
+    var d = Math.floor(remaining / 86400000);
+    var h = Math.floor((remaining % 86400000) / 3600000);
+    var m = Math.floor((remaining % 3600000)  / 60000);
+    var s = Math.floor((remaining % 60000)    / 1000);
+    ['mv-cd-d','mv-cd-h','mv-cd-m','mv-cd-s',
+     'me-cd-d','me-cd-h','me-cd-m','me-cd-s'].forEach(function(id,i){
+      var el = document.getElementById(id);
+      if (el) el.textContent = pad([d,h,m,s][i % 4]);
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 <?php include 'includes/footer.php'; ?>
