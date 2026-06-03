@@ -195,10 +195,8 @@ include 'includes/header.php';
       <?php if (!empty($inst['inst_description'])): ?>
       <div class="bg-white rounded-2xl shadow-sm p-6">
         <h2 class="text-lg font-black text-gray-800 mb-4">عن <?= htmlspecialchars($inst['inst_name_ar']) ?></h2>
-        <div class="text-gray-700 leading-8 text-sm space-y-4">
-          <?php foreach (explode("\n\n", $inst['inst_description']) as $para): ?>
-          <p><?= nl2br(htmlspecialchars($para)) ?></p>
-          <?php endforeach; ?>
+        <div class="text-gray-700 leading-8 text-sm space-y-2 prose prose-sm max-w-none">
+          <?= $inst['inst_description'] ?>
         </div>
       </div>
       <?php endif; ?>
