@@ -178,6 +178,181 @@ if ($action === 'add' || $action === 'edit') {
   </form>
 </div>
 
+<?php if ($edit_p): ?>
+<!-- ====== TIMELINE SECTION ====== -->
+<?php
+// Handle timeline POST actions here
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $tact = $_POST['tl_action'] ?? '';
+    if ($tact === 'save_tl' && pi_has_perm('manage_timeline')) {
+        $tl_id     = (int)($_POST['tl_id'] ?? 0);
+        $tl_pid    = (int)$edit_p['p_id'];
+        $tl_type   = pi_escape($_POST['tl_type'] ?? 'work');
+        $tl_title  = pi_escape($_POST['tl_title'] ?? '');
+        $tl_inst   = pi_escape($_POST['tl_institution'] ?? '');
+        $tl_ys     = pi_escape($_POST['tl_year_start'] ?? '');
+        $tl_ye     = pi_escape($_POST['tl_year_end'] ?? '');
+        $tl_order  = (int)($_POST['tl_order'] ?? 0);
+        if ($tl_id) {
+            $mysqli->query("UPDATE pi_timeline SET tl_type='$tl_type',tl_title='$tl_title',tl_institution='$tl_inst',tl_year_start='$tl_ys',tl_year_end='$tl_ye',tl_order=$tl_order WHERE tl_id=$tl_id AND tl_p_id=$tl_pid");
+        } else {
+            $mysqli->query("INSERT INTO pi_timeline (tl_p_id,tl_type,tl_title,tl_institution,tl_year_start,tl_year_end,tl_order) VALUES ($tl_pid,'$tl_type','$tl_title','$tl_inst','$tl_ys','$tl_ye',$tl_order)");
+        }
+    }
+    if ($tact === 'delete_tl' && pi_has_perm('manage_timeline')) {
+        $tl_id = (int)($_POST['tl_id'] ?? 0);
+        $tl_pid = (int)$edit_p['p_id'];
+        $mysqli->query("DELETE FROM pi_timeline WHERE tl_id=$tl_id AND tl_p_id=$tl_pid");
+    }
+}
+
+// Fetch timeline items for this personality
+$tl_items = [];
+$r = $mysqli->query("SELECT * FROM pi_timeline WHERE tl_p_id={$edit_p['p_id']} ORDER BY tl_type,tl_order,tl_year_start DESC");
+if ($r) while ($row = $r->fetch_assoc()) $tl_items[] = $row;
+
+// Editing a timeline item?
+$tl_editing = null;
+if (($_GET['tl_edit'] ?? '') && is_numeric($_GET['tl_edit'])) {
+    $tl_eid = (int)$_GET['tl_edit'];
+    foreach ($tl_items as $ti) { if ($ti['tl_id'] == $tl_eid) { $tl_editing = $ti; break; } }
+}
+?>
+
+<div style="max-width:700px;margin-top:32px;" x-data="{showForm:<?= $tl_editing ? 'true' : 'false' ?>}">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <h3 style="font-size:16px;font-weight:900;color:#111827;display:flex;align-items:center;gap:8px;">
+      <span style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#8829C8,#5B1494);display:inline-flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-timeline" style="color:#fff;font-size:12px;"></i>
+      </span>
+      المحطات الزمنية
+      <span style="font-size:12px;color:#9ca3af;font-weight:600;">(<?= count($tl_items) ?>)</span>
+    </h3>
+    <?php if (pi_has_perm('manage_timeline')): ?>
+    <button @click="showForm=!showForm" class="btn-primary" style="padding:7px 14px;font-size:13px;">
+      <i class="fa-solid fa-plus"></i>
+      <span x-text="showForm ? 'إخفاء النموذج' : 'إضافة محطة'"></span>
+    </button>
+    <?php endif; ?>
+  </div>
+
+  <!-- Add/Edit form -->
+  <?php if (pi_has_perm('manage_timeline')): ?>
+  <div x-show="showForm" x-cloak x-transition style="background:#f8f5ff;border:1px solid #e9d5ff;border-radius:16px;padding:20px;margin-bottom:20px;">
+    <h4 style="font-size:14px;font-weight:800;color:#6b21a8;margin-bottom:14px;">
+      <?= $tl_editing ? 'تعديل المحطة' : 'إضافة محطة جديدة' ?>
+    </h4>
+    <form method="POST" action="admin.php?p=personalities&action=edit&id=<?= $edit_p['p_id'] ?>">
+      <input type="hidden" name="tl_action" value="save_tl">
+      <?php if ($tl_editing): ?><input type="hidden" name="tl_id" value="<?= $tl_editing['tl_id'] ?>"><?php endif; ?>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">النوع</label>
+          <select name="tl_type" class="form-input">
+            <option value="work"      <?= ($tl_editing['tl_type']??'work')==='work'?'selected':'' ?>>💼 عمل</option>
+            <option value="education" <?= ($tl_editing['tl_type']??'')==='education'?'selected':'' ?>>🎓 تعليم</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">الترتيب</label>
+          <input type="number" name="tl_order" class="form-input" value="<?= $tl_editing['tl_order']??0 ?>" placeholder="0">
+        </div>
+        <div style="grid-column:span 2;">
+          <label class="form-label">العنوان (المنصب / الشهادة) <span style="color:#ef4444;">*</span></label>
+          <input type="text" name="tl_title" required class="form-input" value="<?= htmlspecialchars($tl_editing['tl_title']??'') ?>" placeholder="مثال: مدير تنفيذي، بكالوريوس هندسة...">
+        </div>
+        <div style="grid-column:span 2;">
+          <label class="form-label">الجهة / المؤسسة</label>
+          <input type="text" name="tl_institution" class="form-input" value="<?= htmlspecialchars($tl_editing['tl_institution']??'') ?>" placeholder="اسم الشركة أو الجامعة">
+        </div>
+        <div>
+          <label class="form-label">سنة البداية</label>
+          <input type="text" name="tl_year_start" class="form-input" value="<?= htmlspecialchars($tl_editing['tl_year_start']??'') ?>" placeholder="2010">
+        </div>
+        <div>
+          <label class="form-label">سنة الانتهاء</label>
+          <input type="text" name="tl_year_end" class="form-input" value="<?= htmlspecialchars($tl_editing['tl_year_end']??'') ?>" placeholder="الآن">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn-primary" style="font-size:13px;">
+          <i class="fa-solid fa-floppy-disk"></i> <?= $tl_editing ? 'حفظ التعديل' : 'إضافة' ?>
+        </button>
+        <?php if ($tl_editing): ?>
+        <a href="admin.php?p=personalities&action=edit&id=<?= $edit_p['p_id'] ?>" class="btn-secondary" style="font-size:13px;">إلغاء</a>
+        <?php else: ?>
+        <button type="button" @click="showForm=false" class="btn-secondary" style="font-size:13px;">إغلاق</button>
+        <?php endif; ?>
+      </div>
+    </form>
+  </div>
+  <?php endif; ?>
+
+  <!-- Timeline list -->
+  <?php if (empty($tl_items)): ?>
+  <div style="background:#fff;border-radius:14px;border:1px dashed #e5e7eb;padding:32px;text-align:center;color:#9ca3af;">
+    <i class="fa-solid fa-timeline" style="font-size:32px;display:block;margin-bottom:10px;opacity:.4;"></i>
+    <p style="font-size:14px;font-weight:600;">لا توجد محطات زمنية بعد</p>
+    <p style="font-size:12px;margin-top:4px;">اضغط "إضافة محطة" للبدء</p>
+  </div>
+  <?php else: ?>
+
+  <?php
+  $work_items = array_filter($tl_items, fn($i) => $i['tl_type'] === 'work');
+  $edu_items  = array_filter($tl_items, fn($i) => $i['tl_type'] === 'education');
+  $sections   = [];
+  if ($work_items) $sections['work']      = ['label'=>'💼 مسيرة العمل',   'items'=>$work_items, 'color'=>'#8829C8'];
+  if ($edu_items)  $sections['education'] = ['label'=>'🎓 التعليم',        'items'=>$edu_items,  'color'=>'#2563eb'];
+  foreach ($sections as $sec):
+  ?>
+  <div style="margin-bottom:20px;">
+    <h4 style="font-size:13px;font-weight:800;color:<?= $sec['color'] ?>;margin-bottom:10px;"><?= $sec['label'] ?></h4>
+    <div style="background:#fff;border-radius:14px;border:1px solid #f3f4f6;overflow:hidden;">
+      <?php foreach ($sec['items'] as $idx => $tl): ?>
+      <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;<?= $idx > 0 ? 'border-top:1px solid #f9fafb;' : '' ?>">
+        <div style="width:36px;height:36px;border-radius:10px;background:<?= $sec['color'] ?>18;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+          <i class="fa-solid <?= $tl['tl_type']==='education'?'fa-graduation-cap':'fa-briefcase' ?>" style="color:<?= $sec['color'] ?>;font-size:14px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:14px;font-weight:800;color:#111827;margin:0 0 2px;"><?= htmlspecialchars($tl['tl_title']) ?></p>
+          <?php if ($tl['tl_institution']): ?>
+          <p style="font-size:12px;color:#6b7280;margin:0 0 4px;"><?= htmlspecialchars($tl['tl_institution']) ?></p>
+          <?php endif; ?>
+          <?php if ($tl['tl_year_start']): ?>
+          <span style="font-size:11px;color:#9ca3af;background:#f9fafb;border:1px solid #f3f4f6;border-radius:999px;padding:1px 8px;">
+            <?= htmlspecialchars($tl['tl_year_start']) ?><?= $tl['tl_year_end'] ? ' — '.htmlspecialchars($tl['tl_year_end']) : '' ?>
+          </span>
+          <?php endif; ?>
+        </div>
+        <?php if (pi_has_perm('manage_timeline')): ?>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <a href="admin.php?p=personalities&action=edit&id=<?= $edit_p['p_id'] ?>&tl_edit=<?= $tl['tl_id'] ?>#tl-section"
+            onclick="document.querySelector('[x-data]').dispatchEvent(new CustomEvent('set-show-form'))"
+            style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#f3f4f6;color:#6b7280;text-decoration:none;transition:all .15s;"
+            onmouseover="this.style.background='#ede9fe';this.style.color='#7c3aed'" onmouseout="this.style.background='#f3f4f6';this.style.color='#6b7280'">
+            <i class="fa-solid fa-pen" style="font-size:11px;"></i>
+          </a>
+          <form method="POST" action="admin.php?p=personalities&action=edit&id=<?= $edit_p['p_id'] ?>" onsubmit="return confirm('حذف هذه المحطة؟')">
+            <input type="hidden" name="tl_action" value="delete_tl">
+            <input type="hidden" name="tl_id" value="<?= $tl['tl_id'] ?>">
+            <button type="submit" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;transition:all .15s;"
+              onmouseover="this.style.background='#fee2e2';this.style.color='#dc2626'" onmouseout="this.style.background='#f3f4f6';this.style.color='#6b7280'">
+              <i class="fa-solid fa-trash" style="font-size:11px;"></i>
+            </button>
+          </form>
+        </div>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+  <?php endif; ?>
+
+</div>
+<a id="tl-section"></a>
+<?php endif; ?>
+
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 var quillToolbar = [

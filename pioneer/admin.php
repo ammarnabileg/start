@@ -137,13 +137,6 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       </a>
       <?php endif; ?>
 
-      <?php if (pi_has_perm('view_timeline')): ?>
-      <a href="admin.php?p=timeline" class="nav-link <?= $p=='timeline'?'active':'' ?>">
-        <i class="fa-solid fa-timeline"></i>
-        <span x-show="sidebarOpen" x-cloak>المحطات الزمنية</span>
-      </a>
-      <?php endif; ?>
-
       <?php if (pi_has_perm('view_sponsors')): ?>
       <a href="admin.php?p=sponsors" class="nav-link <?= $p=='sponsors'?'active':'' ?>">
         <i class="fa-solid fa-handshake"></i>
