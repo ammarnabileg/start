@@ -66,45 +66,50 @@ include 'includes/header.php';
 
 <!-- FILTERS & GRID -->
 <section class="max-w-7xl mx-auto px-4 py-6">
+
   <!-- Filter bar -->
-  <div class="flex flex-wrap items-center gap-3 mb-6">
-    <span class="text-gray-700 font-bold text-sm">فلتر:</span>
-    <!-- Country filter -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-7 flex flex-wrap items-center gap-4">
+
+    <!-- Country -->
+    <?php if (!empty($countries)): ?>
     <form method="GET" action="personalities.php" class="flex items-center gap-2">
       <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
+      <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
+      <label class="text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">الدولة</label>
       <select name="country" onchange="this.form.submit()"
-        class="border border-gray-200 rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:border-purple-400">
-        <option value="0" <?= !$cid ? 'selected' : '' ?>>كل الدول</option>
+        class="border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:border-purple-400 bg-gray-50">
+        <option value="0" <?= !$cid ? 'selected' : '' ?>>🌍 كل الدول</option>
         <?php foreach ($countries as $c): ?>
         <option value="<?= $c['c_id'] ?>" <?= $cid == $c['c_id'] ? 'selected' : '' ?>>
-          <?= htmlspecialchars($c['c_name_ar'] ?? $c['c_name']) ?>
+          <?= htmlspecialchars(($c['c_flag']??'').' '.($c['c_name_ar'] ?? $c['c_name'])) ?>
         </option>
         <?php endforeach; ?>
       </select>
     </form>
-    <!-- Sort -->
-    <div class="flex items-center gap-2 mr-auto">
-      <span class="text-gray-500 text-sm">ترتيب:</span>
-      <a href="personalities.php?<?= http_build_query(array_merge($_GET, ['sort'=>'views', 'page'=>1])) ?>"
-        class="px-4 py-1.5 rounded-full text-sm font-bold transition <?= $sort=='views' ? 'pi-primary-bg text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300' ?>">
-        الأكثر زيارة
-      </a>
-      <a href="personalities.php?<?= http_build_query(array_merge($_GET, ['sort'=>'new', 'page'=>1])) ?>"
-        class="px-4 py-1.5 rounded-full text-sm font-bold transition <?= $sort=='new' ? 'pi-primary-bg text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300' ?>">
-        الأحدث
-      </a>
-      <a href="personalities.php?<?= http_build_query(array_merge($_GET, ['sort'=>'name', 'page'=>1])) ?>"
-        class="px-4 py-1.5 rounded-full text-sm font-bold transition <?= $sort=='name' ? 'pi-primary-bg text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300' ?>">
-        أبجدي
-      </a>
-    </div>
-  </div>
+    <div class="w-px h-7 bg-gray-200"></div>
+    <?php endif; ?>
 
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-xl font-black text-gray-800 section-dot">
-      الشخصيات
-      <span class="text-sm font-normal text-gray-400 mr-2">(<?= number_format($total) ?>)</span>
-    </h2>
+    <!-- Sort pills -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <label class="text-xs font-black text-gray-400 uppercase tracking-widest">ترتيب</label>
+      <?php
+      $sorts = ['views'=>['الأكثر زيارة','fa-fire'], 'new'=>['الأحدث','fa-clock'], 'name'=>['أبجدي','fa-arrow-down-a-z']];
+      foreach ($sorts as $sv => [$sl, $si]):
+        $active = $sort === $sv;
+        $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'']), ['sort'=>$sv,'page'=>1]);
+      ?>
+      <a href="personalities.php?<?= http_build_query($params) ?>"
+        class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold transition
+          <?= $active ? 'pi-primary-bg text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600' ?>">
+        <i class="fa-solid <?= $si ?> text-xs"></i> <?= $sl ?>
+      </a>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Count -->
+    <div class="mr-auto text-sm font-semibold text-gray-400">
+      <?= number_format($total) ?> شخصية
+    </div>
   </div>
 
   <?php if (empty($personalities)): ?>

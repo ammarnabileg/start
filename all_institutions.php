@@ -10,11 +10,19 @@ $search = pi_escape($_GET['q'] ?? '');
 $country_id = (int)($_GET['country'] ?? 0);
 if ($country_id) $_SESSION['pi_country'] = $country_id;
 $cid = pi_current_country();
+$sort = in_array($_GET['sort'] ?? '', ['views', 'name', 'new']) ? $_GET['sort'] : 'views';
 
 // Build WHERE
 $where = "WHERE inst_active=1";
 if ($search) $where .= " AND (inst_name_ar LIKE '%$search%' OR inst_name_en LIKE '%$search%' OR inst_description LIKE '%$search%')";
 if ($cid) $where .= " AND inst_country_id=$cid";
+
+// ORDER
+$order = match($sort) {
+    'name' => 'inst_name_ar ASC',
+    'new'  => 'inst_id DESC',
+    default => 'inst_views DESC',
+};
 
 // Count
 $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_institutions $where");
@@ -23,7 +31,7 @@ $total_pages = max(1, ceil($total / $per_page));
 
 // Fetch
 $institutions = [];
-$r = $mysqli->query("SELECT * FROM pi_institutions $where ORDER BY inst_views DESC LIMIT $per_page OFFSET $offset");
+$r = $mysqli->query("SELECT * FROM pi_institutions $where ORDER BY $order LIMIT $per_page OFFSET $offset");
 if ($r) while ($row = $r->fetch_assoc()) $institutions[] = $row;
 
 $countries = pi_get_countries();
@@ -58,28 +66,50 @@ include 'includes/header.php';
 
 <!-- FILTERS & GRID -->
 <section class="max-w-7xl mx-auto px-4 py-6">
+
   <!-- Filter bar -->
-  <div class="flex flex-wrap items-center gap-3 mb-6">
-    <span class="text-gray-700 font-bold text-sm">فلتر بالدولة:</span>
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-7 flex flex-wrap items-center gap-4">
+
+    <!-- Country -->
+    <?php if (!empty($countries)): ?>
     <form method="GET" action="all_institutions.php" class="flex items-center gap-2">
       <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
+      <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
+      <label class="text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">الدولة</label>
       <select name="country" onchange="this.form.submit()"
-        class="border border-gray-200 rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:border-purple-400">
-        <option value="0" <?= !$cid ? 'selected' : '' ?>>كل الدول</option>
+        class="border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:border-purple-400 bg-gray-50">
+        <option value="0" <?= !$cid ? 'selected' : '' ?>>🌍 كل الدول</option>
         <?php foreach ($countries as $c): ?>
         <option value="<?= $c['c_id'] ?>" <?= $cid == $c['c_id'] ? 'selected' : '' ?>>
-          <?= htmlspecialchars($c['c_name_ar'] ?? $c['c_name']) ?>
+          <?= htmlspecialchars(($c['c_flag']??'').' '.($c['c_name_ar'] ?? $c['c_name'])) ?>
         </option>
         <?php endforeach; ?>
       </select>
     </form>
-  </div>
+    <div class="w-px h-7 bg-gray-200"></div>
+    <?php endif; ?>
 
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-xl font-black text-gray-800 section-dot">
-      المؤسسات
-      <span class="text-sm font-normal text-gray-400 mr-2">(<?= number_format($total) ?>)</span>
-    </h2>
+    <!-- Sort pills -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <label class="text-xs font-black text-gray-400 uppercase tracking-widest">ترتيب</label>
+      <?php
+      $sorts = ['views'=>['الأكثر زيارة','fa-fire'], 'new'=>['الأحدث','fa-clock'], 'name'=>['أبجدي','fa-arrow-down-a-z']];
+      foreach ($sorts as $sv => [$sl, $si]):
+        $active = $sort === $sv;
+        $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'']), ['sort'=>$sv,'page'=>1]);
+      ?>
+      <a href="all_institutions.php?<?= http_build_query($params) ?>"
+        class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold transition
+          <?= $active ? 'pi-primary-bg text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600' ?>">
+        <i class="fa-solid <?= $si ?> text-xs"></i> <?= $sl ?>
+      </a>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Count -->
+    <div class="mr-auto text-sm font-semibold text-gray-400">
+      <?= number_format($total) ?> مؤسسة
+    </div>
   </div>
 
   <?php if (empty($institutions)): ?>
