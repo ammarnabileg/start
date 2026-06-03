@@ -221,65 +221,41 @@ include 'includes/header.php';
       </div>
 
       <!-- BIO TABS -->
-      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:20px;" x-data="{tab:'bio'}">
-        <!-- Tab bar -->
-        <div style="display:flex;border-bottom:1px solid #f3f4f6;padding:0 8px;">
-          <button @click="tab='bio'"
-            :style="tab==='bio' ? 'color:#8829C8;border-bottom:2px solid #8829C8;font-weight:800;' : 'color:#6b7280;border-bottom:2px solid transparent;'"
-            style="padding:14px 18px;font-size:14px;background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600;transition:color .15s;">
-            السيرة الذاتية
-          </button>
-          <div class="relative" x-data="{open:false}" style="display:flex;align-items:center;">
-            <button @click="open=!open" @click.outside="open=false"
-              style="display:flex;align-items:center;gap:5px;padding:14px 18px;font-size:14px;color:#6b7280;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;font-weight:600;">
-              التصنيفات <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i>
-            </button>
-            <div x-show="open" x-cloak x-transition
-              style="position:absolute;top:100%;right:0;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.12);border:1px solid #f3f4f6;padding:8px;z-index:50;min-width:160px;">
-              <button @click="tab='bio';open=false" style="display:block;width:100%;text-align:right;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;color:#374151;font-family:inherit;" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background='none'">السيرة الذاتية</button>
-              <button @click="tab='cats';open=false"  style="display:block;width:100%;text-align:right;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;color:#374151;font-family:inherit;" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background='none'">التصنيفات</button>
-            </div>
-          </div>
+      <!-- Bio -->
+      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:16px;padding:24px;">
+        <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">السيرة الذاتية</h2>
+        <?php if ($p['p_bio_platform']): ?>
+        <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;" class="pi-rich-content">
+          <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "<?= pi_setting('site_name_ar') ?>"</p>
+          <?= $p['p_bio_platform'] ?>
         </div>
-
-        <!-- Bio content -->
-        <div x-show="tab==='bio'" style="padding:24px;">
-          <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">سيرة <?= htmlspecialchars($p['p_name_ar']) ?></h2>
-          <?php if ($p['p_bio_platform']): ?>
-          <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;" class="pi-rich-content">
-            <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "<?= pi_setting('site_name_ar') ?>"</p>
-            <?= $p['p_bio_platform'] ?>
-          </div>
-          <?php endif; ?>
-          <?php if ($p['p_bio']): ?>
-          <div style="font-size:14px;color:#374151;line-height:2;font-weight:500;" class="pi-rich-content">
-            <?= $p['p_bio'] ?>
-          </div>
-          <?php else: ?>
-          <p style="color:#9ca3af;text-align:center;padding:32px;font-size:14px;">لم تتم إضافة سيرة ذاتية بعد</p>
-          <?php endif; ?>
+        <?php endif; ?>
+        <?php if ($p['p_bio']): ?>
+        <div style="font-size:14px;color:#374151;line-height:2;font-weight:500;" class="pi-rich-content">
+          <?= $p['p_bio'] ?>
         </div>
+        <?php else: ?>
+        <p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:14px;">لم تتم إضافة سيرة ذاتية بعد</p>
+        <?php endif; ?>
+      </div>
 
-        <!-- Categories content -->
-        <div x-show="tab==='cats'" x-cloak style="padding:24px;">
-          <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">التصنيفات</h2>
-          <?php if (empty($p_cats)): ?>
-          <p style="color:#9ca3af;text-align:center;padding:32px;font-size:14px;">لا توجد تصنيفات</p>
-          <?php else: ?>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <?php foreach ($p_cats as $cat): ?>
-            <?php $lc = $cat['label_color'] ?? '#8829C8'; ?>
-            <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-              style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:<?= htmlspecialchars($lc) ?>1a;color:<?= htmlspecialchars($lc) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;transition:opacity .15s;border:1.5px solid <?= htmlspecialchars($lc) ?>40;"
-              onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
-              <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
-              <?= htmlspecialchars($cat['cat_name']) ?>
-            </a>
-            <?php endforeach; ?>
-          </div>
-          <?php endif; ?>
+      <!-- Categories -->
+      <?php if (!empty($p_cats)): ?>
+      <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:16px;padding:20px 24px;">
+        <h3 style="font-size:14px;font-weight:900;color:#6b7280;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;">التصنيفات</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <?php foreach ($p_cats as $cat): ?>
+          <?php $lc = $cat['label_color'] ?? '#8829C8'; ?>
+          <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
+            style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:<?= htmlspecialchars($lc) ?>18;color:<?= htmlspecialchars($lc) ?>;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;border:1.5px solid <?= htmlspecialchars($lc) ?>35;transition:opacity .15s;"
+            onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+            <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?>" style="font-size:11px;"></i>
+            <?= htmlspecialchars($cat['cat_name']) ?>
+          </a>
+          <?php endforeach; ?>
         </div>
       </div>
+      <?php endif; ?>
 
       <!-- COUNTRY TAG -->
       <?php if ($country_name): ?>
