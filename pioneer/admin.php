@@ -4,7 +4,6 @@ pi_load_user();
 
 $p = $_GET['p'] ?? 'dashboard';
 
-// Allow login page without auth
 if ($p !== 'login' && $p !== 'logout') {
     pi_require_login();
 }
@@ -23,106 +22,151 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     * { font-family: 'Cairo', sans-serif; }
-    .pi-gradient { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
     [x-cloak] { display: none !important; }
-    .nav-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition font-semibold text-sm; }
-    .nav-link.active { @apply text-white bg-white/20; }
-    .card { @apply bg-white rounded-2xl shadow-sm p-6; }
-    .btn-primary { @apply px-5 py-2.5 text-white font-bold rounded-xl hover:opacity-90 transition text-sm; background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
-    .btn-secondary { @apply px-5 py-2.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm; }
-    .btn-danger { @apply px-4 py-2 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition text-sm; }
-    .form-input { @apply w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 transition; }
-    .form-label { @apply block text-sm font-bold text-gray-700 mb-1.5; }
-    table th { @apply px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50; }
-    table td { @apply px-4 py-3 text-sm text-gray-700 border-t border-gray-100; }
+
+    /* Sidebar */
+    .sidebar { background: linear-gradient(160deg, #6B21A8 0%, #4C1D95 100%); }
+    .nav-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 12px;
+      color: rgba(255,255,255,0.7); font-weight: 600; font-size: 14px;
+      text-decoration: none; transition: all .15s; white-space: nowrap;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .nav-link.active { background: rgba(255,255,255,0.2); color: #fff; }
+    .nav-link i { width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-section { border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
+
+    /* Buttons */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 12px; font-weight: 700; font-size: 14px;
+      color: #fff; border: none; cursor: pointer; transition: opacity .15s;
+      background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%);
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 12px; font-weight: 700; font-size: 14px;
+      color: #374151; background: #fff; border: 1px solid #e5e7eb; cursor: pointer; transition: background .15s;
+    }
+    .btn-secondary:hover { background: #f9fafb; }
+    .btn-danger {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 14px;
+      color: #dc2626; background: #fef2f2; border: none; cursor: pointer; transition: background .15s;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* Forms */
+    .form-input {
+      width: 100%; border: 1px solid #e5e7eb; border-radius: 12px;
+      padding: 10px 14px; font-size: 14px; outline: none; transition: border .15s;
+      font-family: 'Cairo', sans-serif;
+    }
+    .form-input:focus { border-color: #a855f7; }
+    .form-label { display: block; font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    table th { padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 700; color: #6b7280; background: #f9fafb; }
+    table td { padding: 12px 16px; font-size: 14px; color: #374151; border-top: 1px solid #f3f4f6; }
+    table tr:hover td { background: #fafafa; }
+
+    /* Card */
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 24px; }
   </style>
 </head>
-<body class="bg-gray-100" x-data="{ sidebarOpen: true }">
+<body style="background:#f1f5f9;" x-data="{ sidebarOpen: true }">
 
 <?php if ($p === 'login'): include 'admin/login.php'; ?>
 <?php elseif ($p === 'logout'): include 'admin/logout.php'; ?>
 <?php else: ?>
 
-<div class="flex h-screen overflow-hidden">
+<div style="display:flex; height:100vh; overflow:hidden;">
+
   <!-- Sidebar -->
-  <aside :class="sidebarOpen ? 'w-64' : 'w-16'" class="pi-gradient flex-shrink-0 transition-all duration-300 flex flex-col overflow-hidden">
+  <aside class="sidebar" :style="sidebarOpen ? 'width:240px' : 'width:58px'"
+    style="flex-shrink:0; transition:width .25s; display:flex; flex-direction:column; overflow:hidden;">
+
     <!-- Logo -->
-    <div class="flex items-center gap-3 p-4 border-b border-white/10">
-      <div class="w-9 h-9 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
-        <i class="fa-solid fa-star text-white text-sm"></i>
+    <div style="padding:16px; border-bottom:1px solid rgba(255,255,255,.1); display:flex; align-items:center; gap:10px;">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fa-solid fa-star" style="color:#e9d5ff;font-size:14px;"></i>
       </div>
-      <span x-show="sidebarOpen" x-cloak class="font-bold text-white text-base whitespace-nowrap">PioneerIcons</span>
+      <span x-show="sidebarOpen" x-cloak style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;">PioneerIcons</span>
     </div>
 
     <!-- Nav -->
-    <nav class="flex-1 p-3 overflow-y-auto space-y-1">
+    <nav style="flex:1;padding:12px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;">
+
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
-        <i class="fa-solid fa-gauge-high w-5 text-center"></i>
+        <i class="fa-solid fa-gauge-high"></i>
         <span x-show="sidebarOpen" x-cloak>لوحة التحكم</span>
       </a>
 
       <?php if (pi_has_perm('view_personalities')): ?>
       <a href="admin.php?p=personalities" class="nav-link <?= $p=='personalities'?'active':'' ?>">
-        <i class="fa-solid fa-users w-5 text-center"></i>
+        <i class="fa-solid fa-users"></i>
         <span x-show="sidebarOpen" x-cloak>الشخصيات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_institutions')): ?>
       <a href="admin.php?p=institutions" class="nav-link <?= $p=='institutions'?'active':'' ?>">
-        <i class="fa-solid fa-building w-5 text-center"></i>
+        <i class="fa-solid fa-building"></i>
         <span x-show="sidebarOpen" x-cloak>المؤسسات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_categories')): ?>
       <a href="admin.php?p=categories" class="nav-link <?= $p=='categories'?'active':'' ?>">
-        <i class="fa-solid fa-tags w-5 text-center"></i>
+        <i class="fa-solid fa-tags"></i>
         <span x-show="sidebarOpen" x-cloak>التصنيفات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_articles')): ?>
       <a href="admin.php?p=articles" class="nav-link <?= $p=='articles'?'active':'' ?>">
-        <i class="fa-regular fa-newspaper w-5 text-center"></i>
+        <i class="fa-regular fa-newspaper"></i>
         <span x-show="sidebarOpen" x-cloak>المقالات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_timeline')): ?>
       <a href="admin.php?p=timeline" class="nav-link <?= $p=='timeline'?'active':'' ?>">
-        <i class="fa-solid fa-timeline w-5 text-center"></i>
+        <i class="fa-solid fa-timeline"></i>
         <span x-show="sidebarOpen" x-cloak>المحطات الزمنية</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_sponsors')): ?>
       <a href="admin.php?p=sponsors" class="nav-link <?= $p=='sponsors'?'active':'' ?>">
-        <i class="fa-solid fa-handshake w-5 text-center"></i>
+        <i class="fa-solid fa-handshake"></i>
         <span x-show="sidebarOpen" x-cloak>الرعاة</span>
       </a>
       <?php endif; ?>
 
-      <div class="border-t border-white/10 my-2"></div>
+      <div class="nav-section"></div>
 
       <?php if (pi_has_perm('view_roles')): ?>
       <a href="admin.php?p=roles" class="nav-link <?= $p=='roles'?'active':'' ?>">
-        <i class="fa-solid fa-shield-halved w-5 text-center"></i>
+        <i class="fa-solid fa-shield-halved"></i>
         <span x-show="sidebarOpen" x-cloak>الأدوار والصلاحيات</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('view_admin_users')): ?>
       <a href="admin.php?p=admin_users" class="nav-link <?= $p=='admin_users'?'active':'' ?>">
-        <i class="fa-solid fa-user-gear w-5 text-center"></i>
+        <i class="fa-solid fa-user-gear"></i>
         <span x-show="sidebarOpen" x-cloak>مستخدمو الإدارة</span>
       </a>
       <?php endif; ?>
 
-      <div class="border-t border-white/10 my-2"></div>
+      <div class="nav-section"></div>
 
-      <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?> relative">
-        <i class="fa-solid fa-inbox w-5 text-center"></i>
+      <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>" style="position:relative;">
+        <i class="fa-solid fa-inbox"></i>
         <span x-show="sidebarOpen" x-cloak>مقترحات المستخدمين</span>
         <?php
         $pending_count = 0;
@@ -132,76 +176,76 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
             if ($rc2) $pending_count = (int)$rc2->fetch_assoc()['c'];
         }
         if ($pending_count > 0): ?>
-        <span class="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full"><?= $pending_count ?></span>
+        <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;"><?= $pending_count ?></span>
         <?php endif; ?>
       </a>
 
       <?php if (pi_has_perm('manage_countries')): ?>
       <a href="admin.php?p=countries" class="nav-link <?= $p=='countries'?'active':'' ?>">
-        <i class="fa-solid fa-globe w-5 text-center"></i>
+        <i class="fa-solid fa-globe"></i>
         <span x-show="sidebarOpen" x-cloak>الدول</span>
       </a>
       <?php endif; ?>
 
       <?php if (pi_has_perm('manage_settings')): ?>
       <a href="admin.php?p=settings" class="nav-link <?= $p=='settings'?'active':'' ?>">
-        <i class="fa-solid fa-gear w-5 text-center"></i>
+        <i class="fa-solid fa-gear"></i>
         <span x-show="sidebarOpen" x-cloak>إعدادات الموقع</span>
       </a>
       <?php endif; ?>
 
-      <div class="border-t border-white/10 my-2"></div>
+      <div class="nav-section"></div>
 
       <a href="index.php" target="_blank" class="nav-link">
-        <i class="fa-solid fa-arrow-up-right-from-square w-5 text-center"></i>
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
         <span x-show="sidebarOpen" x-cloak>عرض الموقع</span>
       </a>
 
-      <a href="admin.php?p=logout" class="nav-link text-red-300 hover:text-red-200">
-        <i class="fa-solid fa-right-from-bracket w-5 text-center"></i>
+      <a href="admin.php?p=logout" class="nav-link" style="color:rgba(252,165,165,.9);">
+        <i class="fa-solid fa-right-from-bracket"></i>
         <span x-show="sidebarOpen" x-cloak>تسجيل الخروج</span>
       </a>
     </nav>
 
-    <!-- Toggle sidebar -->
+    <!-- Toggle -->
     <button @click="sidebarOpen=!sidebarOpen"
-      class="p-4 border-t border-white/10 text-gray-400 hover:text-white transition flex items-center justify-center">
-      <i :class="sidebarOpen ? 'fa-chevron-right' : 'fa-chevron-left'" class="fa-solid text-xs"></i>
+      style="padding:14px;border-top:1px solid rgba(255,255,255,.1);background:none;border-left:none;border-right:none;border-bottom:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .15s;"
+      onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">
+      <i :class="sidebarOpen ? 'fa-chevron-right' : 'fa-chevron-left'" class="fa-solid" style="font-size:11px;"></i>
     </button>
   </aside>
 
-  <!-- Main content -->
-  <div class="flex-1 flex flex-col overflow-hidden">
+  <!-- Main -->
+  <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+
     <!-- Top bar -->
-    <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <h1 class="font-black text-gray-800 text-lg">
-          <?php
-          $titles = [
-            'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
-            'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
-            'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-            'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع',
-          ];
-          echo $titles[$p] ?? 'لوحة التحكم';
-          ?>
-        </h1>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="text-right">
-          <p class="text-sm font-bold text-gray-800"><?= htmlspecialchars($pi_user['au_name'] ?? '') ?></p>
-          <p class="text-xs text-gray-400"><?= htmlspecialchars($pi_user['au_email'] ?? '') ?></p>
+    <header style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <h1 style="font-weight:800;color:#111827;font-size:18px;margin:0;">
+        <?php
+        $titles = [
+          'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
+          'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
+          'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع',
+        ];
+        echo $titles[$p] ?? 'لوحة التحكم';
+        ?>
+      </h1>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="text-align:right;">
+          <p style="font-size:14px;font-weight:700;color:#111827;margin:0;"><?= htmlspecialchars($pi_user['au_name'] ?? '') ?></p>
+          <p style="font-size:12px;color:#9ca3af;margin:0;"><?= htmlspecialchars($pi_user['au_email'] ?? '') ?></p>
         </div>
-        <div class="w-9 h-9 rounded-full pi-gradient flex items-center justify-center text-white font-bold text-sm">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#8829C8,#5B1494);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0;">
           <?= mb_substr($pi_user['au_name'] ?? 'A', 0, 1) ?>
         </div>
       </div>
     </header>
 
-    <!-- Page content -->
-    <main class="flex-1 overflow-y-auto p-6">
+    <!-- Content -->
+    <main style="flex:1;overflow-y:auto;padding:24px;">
       <?php
-      if ($p === 'dashboard')       include 'admin/dashboard.php';
+      if ($p === 'dashboard')         include 'admin/dashboard.php';
       elseif ($p === 'personalities') include 'admin/personalities.php';
       elseif ($p === 'institutions')  include 'admin/institutions.php';
       elseif ($p === 'categories')    include 'admin/categories.php';
