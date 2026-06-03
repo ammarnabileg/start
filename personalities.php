@@ -68,47 +68,57 @@ include 'includes/header.php';
 <section class="max-w-7xl mx-auto px-4 py-6">
 
   <!-- Filter bar -->
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-7 flex flex-wrap items-center gap-4">
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-7 overflow-hidden">
+    <div class="flex flex-wrap items-stretch divide-x divide-x-reverse divide-gray-100">
 
-    <!-- Country -->
-    <?php if (!empty($countries)): ?>
-    <form method="GET" action="personalities.php" class="flex items-center gap-2">
-      <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
-      <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
-      <label class="text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">الدولة</label>
-      <select name="country" onchange="this.form.submit()"
-        class="border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 focus:outline-none focus:border-purple-400 bg-gray-50">
-        <option value="0" <?= !$cid ? 'selected' : '' ?>>🌍 كل الدول</option>
-        <?php foreach ($countries as $c): ?>
-        <option value="<?= $c['c_id'] ?>" <?= $cid == $c['c_id'] ? 'selected' : '' ?>>
-          <?= htmlspecialchars(($c['c_flag']??'').' '.($c['c_name_ar'] ?? $c['c_name'])) ?>
-        </option>
+      <!-- Sort group -->
+      <div class="flex items-center gap-1 px-5 py-3 flex-1 flex-wrap">
+        <span class="text-xs font-black text-gray-400 ml-2 whitespace-nowrap">ترتيب حسب:</span>
+        <?php
+        $sorts = [
+          'views' => ['الأكثر زيارة', 'fa-fire',         'text-orange-500'],
+          'new'   => ['الأحدث',        'fa-clock',        'text-blue-500'],
+          'name'  => ['أبجدي',          'fa-arrow-down-a-z','text-green-600'],
+        ];
+        foreach ($sorts as $sv => [$sl, $si, $ic]):
+          $active = $sort === $sv;
+          $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'']), ['sort'=>$sv,'page'=>1]);
+        ?>
+        <a href="personalities.php?<?= http_build_query($params) ?>"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-bold transition <?= $active
+            ? 'bg-purple-600 text-white shadow-sm'
+            : 'text-gray-600 hover:bg-gray-100' ?>">
+          <i class="fa-solid <?= $si ?> text-xs <?= $active ? 'text-white' : $ic ?>"></i>
+          <?= $sl ?>
+        </a>
         <?php endforeach; ?>
-      </select>
-    </form>
-    <div class="w-px h-7 bg-gray-200"></div>
-    <?php endif; ?>
+      </div>
 
-    <!-- Sort pills -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <label class="text-xs font-black text-gray-400 uppercase tracking-widest">ترتيب</label>
-      <?php
-      $sorts = ['views'=>['الأكثر زيارة','fa-fire'], 'new'=>['الأحدث','fa-clock'], 'name'=>['أبجدي','fa-arrow-down-a-z']];
-      foreach ($sorts as $sv => [$sl, $si]):
-        $active = $sort === $sv;
-        $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'']), ['sort'=>$sv,'page'=>1]);
-      ?>
-      <a href="personalities.php?<?= http_build_query($params) ?>"
-        class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold transition
-          <?= $active ? 'pi-primary-bg text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600' ?>">
-        <i class="fa-solid <?= $si ?> text-xs"></i> <?= $sl ?>
-      </a>
-      <?php endforeach; ?>
-    </div>
+      <!-- Country filter -->
+      <?php if (!empty($countries)): ?>
+      <form method="GET" action="personalities.php" class="flex items-center gap-2 px-5 py-3">
+        <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
+        <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
+        <i class="fa-solid fa-earth-americas text-purple-400 text-sm"></i>
+        <select name="country" onchange="this.form.submit()"
+          class="border-0 bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer pr-1">
+          <option value="0" <?= !$cid?'selected':'' ?>>كل الدول</option>
+          <?php foreach ($countries as $c): ?>
+          <option value="<?= $c['c_id'] ?>" <?= $cid==$c['c_id']?'selected':'' ?>>
+            <?= htmlspecialchars(($c['c_flag']??'').' '.($c['c_name_ar']??$c['c_name'])) ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+        <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+      </form>
+      <?php endif; ?>
 
-    <!-- Count -->
-    <div class="mr-auto text-sm font-semibold text-gray-400">
-      <?= number_format($total) ?> شخصية
+      <!-- Count badge -->
+      <div class="flex items-center px-5 py-3 bg-gray-50">
+        <span class="text-sm font-black text-purple-700"><?= number_format($total) ?></span>
+        <span class="text-xs font-semibold text-gray-400 mr-1">شخصية</span>
+      </div>
+
     </div>
   </div>
 
