@@ -174,6 +174,10 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
         <a href="categories.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
           التصنيفات
         </a>
+
+        <a href="blog.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
+          المقالات
+        </a>
       </div>
 
       <!-- Right side: search + country + login -->

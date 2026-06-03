@@ -27,10 +27,11 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     /* Sidebar */
     .sidebar { background: linear-gradient(160deg, #6B21A8 0%, #4C1D95 100%); }
     .nav-link {
-      display: flex; align-items: center; gap: 10px;
+      display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important;
+      align-items: center; gap: 10px; width: 100%;
       padding: 10px 14px; border-radius: 12px;
       color: rgba(255,255,255,0.7); font-weight: 600; font-size: 14px;
-      text-decoration: none; transition: all .15s; white-space: nowrap;
+      text-decoration: none; transition: all .15s; white-space: nowrap; box-sizing: border-box;
     }
     .nav-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
     .nav-link.active { background: rgba(255,255,255,0.2); color: #fff; }
@@ -75,6 +76,38 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 
     /* Card */
     .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 24px; }
+
+    /* Upload zone */
+    .pi-upload-zone {
+      border: 2px dashed #e5e7eb; border-radius: 14px; padding: 20px;
+      text-align: center; cursor: pointer; transition: border .2s, background .2s;
+      background: #fafafa; position: relative; overflow: hidden;
+    }
+    .pi-upload-zone:hover { border-color: #a855f7; background: #faf5ff; }
+    .pi-upload-zone .preview-img {
+      width: 90px; height: 90px; border-radius: 12px; object-fit: cover;
+      margin: 0 auto 10px; display: block; border: 2px solid #e9d5ff;
+    }
+    .pi-upload-zone .preview-img.rounded-full { border-radius: 50%; }
+    .pi-upload-zone .preview-label {
+      font-size: 12px; font-weight: 600; color: #9ca3af; margin-top: 6px;
+    }
+
+    /* Quill editor improvements */
+    .ql-toolbar.ql-snow {
+      border-radius: 12px 12px 0 0 !important; border-color: #e5e7eb !important;
+      background: #f9fafb; direction: ltr; text-align: left;
+      padding: 8px 10px !important;
+    }
+    .ql-container.ql-snow {
+      border-radius: 0 0 12px 12px !important; border-color: #e5e7eb !important;
+      font-family: 'Cairo', sans-serif !important; font-size: 14px !important;
+    }
+    .ql-editor { direction: rtl; text-align: right; min-height: 140px; padding: 14px 16px !important; }
+    .ql-editor.ql-blank::before { right: 16px; left: auto; font-style: normal; color: #9ca3af; }
+    .ql-container:focus-within { border-color: #a855f7 !important; }
+    .ql-toolbar:focus-within { border-color: #a855f7 !important; }
+    .ql-snow .ql-picker { font-family: 'Cairo', sans-serif; }
   </style>
 </head>
 <body style="background:#f1f5f9;" x-data="{ sidebarOpen: true }">
@@ -83,7 +116,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 <?php elseif ($p === 'logout'): include 'admin/logout.php'; ?>
 <?php else: ?>
 
-<div style="display:flex; height:100vh; overflow:hidden;">
+<div style="display:flex; flex-direction:row; height:100vh; overflow:hidden; min-width:0;">
 
   <!-- Sidebar -->
   <aside class="sidebar" :style="sidebarOpen ? 'width:240px' : 'width:58px'"
@@ -98,7 +131,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
     </div>
 
     <!-- Nav -->
-    <nav style="flex:1;padding:12px 8px 24px;display:flex;flex-direction:column;gap:2px;">
+    <nav style="flex:1;padding:12px 8px 24px;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;min-width:0;">
 
       <a href="admin.php?p=dashboard" class="nav-link <?= $p=='dashboard'?'active':'' ?>">
         <i class="fa-solid fa-gauge-high"></i>
@@ -288,5 +321,24 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
 </div>
 
 <?php endif; ?>
+<script>
+// Global image preview for all .pi-upload-zone file inputs
+document.addEventListener('change', function(e) {
+  var inp = e.target;
+  if (inp.type !== 'file' || !inp.dataset.preview) return;
+  var file = inp.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  var prevId = inp.dataset.preview;
+  var phId   = inp.dataset.placeholder;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = document.getElementById(prevId);
+    var ph  = phId ? document.getElementById(phId) : null;
+    if (img) { img.src = ev.target.result; img.classList.remove('hidden'); }
+    if (ph)  { ph.style.display = 'none'; }
+  };
+  reader.readAsDataURL(file);
+});
+</script>
 </body>
 </html>
