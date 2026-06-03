@@ -57,7 +57,7 @@ foreach (['pending','approved','rejected'] as $s) {
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-xl font-black text-gray-800">مقترحات المستخدمين</h2>
   <div class="flex gap-2">
-    <a href="admin.php?p=submissions&status=pending" class="px-4 py-1.5 text-sm font-bold rounded-full transition flex items-center gap-1.5 <?= $status_filter==='pending'?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-600' ?>">
+    <a href="admin.php?p=submissions&status=pending" class="px-4 py-1.5 text-sm font-bold rounded-full transition flex items-center gap-1.5 <?= $status_filter==='pending'?'pi-gradient text-white':'bg-white border border-gray-200 text-gray-600' ?>">
       قيد المراجعة <span class="bg-white/30 px-1.5 rounded-full text-xs"><?= $counts['pending'] ?></span>
     </a>
     <a href="admin.php?p=submissions&status=approved" class="px-4 py-1.5 text-sm font-bold rounded-full transition <?= $status_filter==='approved'?'bg-green-500 text-white':'bg-white border border-gray-200 text-gray-600' ?>">مقبولة (<?= $counts['approved'] ?>)</a>
@@ -120,7 +120,7 @@ foreach (['pending','approved','rejected'] as $s) {
         <?php foreach ($data['categories'] as $cid):
           $r2 = $mysqli->query("SELECT cat_name FROM pi_categories WHERE cat_id=".(int)$cid);
           if ($r2 && $r2->num_rows) { $cn=$r2->fetch_assoc()['cat_name']; ?>
-          <span class="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs font-semibold rounded-full"><?= htmlspecialchars($cn) ?></span>
+          <span class="px-2 py-0.5 bg-purple-50 text-purple-800 text-xs font-semibold rounded-full"><?= htmlspecialchars($cn) ?></span>
           <?php } endforeach; ?>
       </div></div>
       <?php endif; ?>

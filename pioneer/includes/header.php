@@ -14,7 +14,7 @@ foreach ($_countries as $c) {
 }
 
 $_site_name = $_S['site_name'] ?? 'PioneerIcons';
-$_primary   = $_S['primary_color'] ?? '#f97316';
+$_primary   = $_S['primary_color'] ?? '#8829C8';
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -40,14 +40,63 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
     :root { --pi-primary: <?= htmlspecialchars($_primary) ?>; }
     .verified-badge { color: #1d9bf0; }
     .gold-badge { color: #D4AF37; }
-    .pi-gradient { background: linear-gradient(135deg, #1a3a6b 0%, #0f2548 100%); }
+    .pi-gradient { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
     .pi-primary { color: var(--pi-primary); }
-    .pi-primary-bg { background-color: var(--pi-primary); }
+    .pi-primary-bg { background: linear-gradient(135deg, var(--pi-primary) 0%, #5B1494 100%); }
+    .pi-primary-bg-solid { background-color: var(--pi-primary); }
     .pi-primary-border { border-color: var(--pi-primary); }
     .card-hover { transition: transform .2s, box-shadow .2s; }
-    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,.12); }
-    .hero-bg { background: linear-gradient(135deg, #0f2548 0%, #1a3a6b 50%, #1e4080 100%); }
-    .daily-bg { background: linear-gradient(135deg, #1d9bf0 0%, #0f7dc5 100%); }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(136,41,200,.15); }
+    .hero-bg {
+      background: linear-gradient(160deg, #0B0B1F 0%, #130B2B 50%, #1A0D35 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.7) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255,255,255,.4) 1px, transparent 1px);
+      background-size: 60px 60px, 30px 30px;
+      background-position: 0 0, 15px 15px;
+      opacity: .12;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(136,41,200,.35) 0%, transparent 70%);
+      top: -150px; right: -150px;
+      pointer-events: none;
+    }
+    .hero-glow-2 {
+      position: absolute;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(91,20,148,.4) 0%, transparent 70%);
+      bottom: -100px; left: 10%;
+      pointer-events: none;
+    }
+    .daily-bg { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
+    .section-dot::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #8829C8;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .section-dot::after {
+      content: '';
+      display: inline-block;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #E53E3E;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
     [x-cloak] { display: none !important; }
   </style>
 </head>
@@ -64,7 +113,7 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
           <img src="<?= htmlspecialchars($_S['site_logo']) ?>" class="h-9 object-contain">
         <?php else: ?>
           <div class="w-9 h-9 rounded-lg pi-gradient flex items-center justify-center">
-            <i class="fa-solid fa-star text-orange-400 text-sm"></i>
+            <i class="fa-solid fa-star text-purple-300 text-sm"></i>
           </div>
           <span class="font-bold text-xl text-gray-800"><?= htmlspecialchars($_site_name) ?></span>
         <?php endif; ?>
@@ -76,16 +125,16 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
         <!-- أضف -->
         <div class="relative" x-data="{open:false}">
           <button @click="open=!open" @click.outside="open=false"
-            class="flex items-center gap-1 px-4 py-2 text-gray-700 hover:text-orange-500 font-semibold rounded-lg hover:bg-orange-50 transition">
+            class="flex items-center gap-1 px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
             أضف <i class="fa-solid fa-chevron-down text-xs mt-0.5"></i>
           </button>
           <div x-show="open" x-cloak x-transition
             class="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-            <a href="add_personality.php" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition">
-              <i class="fa-solid fa-user-plus w-5 text-orange-400"></i> أضف شخصية
+            <a href="add_personality.php" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition">
+              <i class="fa-solid fa-user-plus w-5 text-purple-500"></i> أضف شخصية
             </a>
-            <a href="add_institution.php" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition">
-              <i class="fa-solid fa-building w-5 text-orange-400"></i> أضف شركة
+            <a href="add_institution.php" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition">
+              <i class="fa-solid fa-building w-5 text-purple-500"></i> أضف شركة
             </a>
           </div>
         </div>
@@ -93,7 +142,7 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
         <!-- عضويات -->
         <div class="relative" x-data="{open:false}">
           <button @click="open=!open" @click.outside="open=false"
-            class="flex items-center gap-1 px-4 py-2 text-gray-700 hover:text-orange-500 font-semibold rounded-lg hover:bg-orange-50 transition">
+            class="flex items-center gap-1 px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
             عضويات <i class="fa-solid fa-chevron-down text-xs mt-0.5"></i>
           </button>
           <div x-show="open" x-cloak x-transition
@@ -107,13 +156,13 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
           </div>
         </div>
 
-        <a href="appointments.php" class="px-4 py-2 text-gray-700 hover:text-orange-500 font-semibold rounded-lg hover:bg-orange-50 transition whitespace-nowrap">
+        <a href="appointments.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition whitespace-nowrap">
           نشرة تعيينات السعودية
         </a>
-        <a href="categories.php" class="px-4 py-2 text-gray-700 hover:text-orange-500 font-semibold rounded-lg hover:bg-orange-50 transition">
+        <a href="categories.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
           التصنيفات
         </a>
-        <a href="lists.php" class="px-4 py-2 text-gray-700 hover:text-orange-500 font-semibold rounded-lg hover:bg-orange-50 transition">
+        <a href="lists.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
           القوائم
         </a>
       </div>
@@ -124,7 +173,7 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
         <!-- Country selector -->
         <div class="relative" x-data="{ open: false }">
           <button @click="open=!open" @click.outside="open=false"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-orange-300 transition text-sm font-semibold">
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-purple-400 transition text-sm font-semibold">
             <span class="text-base"><?= htmlspecialchars($_active_country['c_flag'] ?? '🌍') ?></span>
             <span class="hidden sm:inline text-gray-700 max-w-20 truncate"><?= htmlspecialchars($_active_country['c_name'] ?? 'كل الدول') ?></span>
             <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
@@ -132,16 +181,16 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
           <div x-show="open" x-cloak x-transition
             class="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 max-h-80 overflow-y-auto">
             <!-- All countries option -->
-            <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition text-sm <?= !$_active_cid?'bg-orange-50 font-bold text-orange-600':'' ?>">
+            <a href="?country=0" class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm <?= !$_active_cid?'bg-purple-50 font-bold text-purple-600':'' ?>">
               🌍 كل الدول
             </a>
             <div class="border-t border-gray-100 my-1"></div>
             <?php foreach ($_countries as $c): ?>
             <a href="?country=<?= $c['c_id'] ?>"
-              class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition text-sm <?= $c['c_id']==$_active_cid?'bg-orange-50 font-bold text-orange-600':'' ?>">
+              class="flex items-center gap-2.5 px-4 py-2 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition text-sm <?= $c['c_id']==$_active_cid?'bg-purple-50 font-bold text-purple-600':'' ?>">
               <span class="text-base"><?= htmlspecialchars($c['c_flag']) ?></span>
               <span><?= htmlspecialchars($c['c_name']) ?></span>
-              <?php if ($c['c_id']==$_active_cid): ?><i class="fa-solid fa-check text-orange-500 mr-auto text-xs"></i><?php endif; ?>
+              <?php if ($c['c_id']==$_active_cid): ?><i class="fa-solid fa-check text-purple-500 mr-auto text-xs"></i><?php endif; ?>
             </a>
             <?php endforeach; ?>
             <?php if (empty($_countries)): ?>
@@ -152,7 +201,7 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
 
         <!-- Active country badge -->
         <?php if ($_active_cid): ?>
-        <a href="?country=0" class="hidden sm:flex items-center gap-1 px-2 py-1 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-600 font-semibold hover:bg-orange-100 transition">
+        <a href="?country=0" class="hidden sm:flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-600 font-semibold hover:bg-purple-100 transition">
           <i class="fa-solid fa-xmark text-xs"></i>
           إلغاء الفلتر
         </a>
@@ -170,11 +219,11 @@ $_primary   = $_S['primary_color'] ?? '#f97316';
 
 <?php if ($_active_cid && $_active_country): ?>
 <!-- Country filter bar -->
-<div class="bg-orange-50 border-b border-orange-100 py-2">
-  <div class="max-w-7xl mx-auto px-4 flex items-center gap-2 text-sm text-orange-700">
+<div class="bg-purple-50 border-b border-purple-100 py-2">
+  <div class="max-w-7xl mx-auto px-4 flex items-center gap-2 text-sm text-purple-700">
     <i class="fa-solid fa-filter text-xs"></i>
     <span class="font-semibold">يتم عرض نتائج: <?= htmlspecialchars($_active_country['c_flag'].' '.$_active_country['c_name']) ?></span>
-    <a href="?country=0" class="mr-auto flex items-center gap-1 text-orange-500 hover:text-orange-700 font-bold transition">
+    <a href="?country=0" class="mr-auto flex items-center gap-1 text-orange-500 hover:text-purple-700 font-bold transition">
       <i class="fa-solid fa-xmark text-xs"></i> عرض كل الدول
     </a>
   </div>

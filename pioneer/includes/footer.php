@@ -13,7 +13,7 @@ $_S_f = pi_get_settings();
             <img src="<?= htmlspecialchars($_S_f['site_logo']) ?>" class="h-9 object-contain filter brightness-200">
           <?php else: ?>
             <div class="w-9 h-9 rounded-lg pi-gradient flex items-center justify-center">
-              <i class="fa-solid fa-star text-orange-400 text-sm"></i>
+              <i class="fa-solid fa-star text-purple-400 text-sm"></i>
             </div>
             <span class="font-bold text-xl text-white"><?= htmlspecialchars($_S_f['site_name'] ?? 'PioneerIcons') ?></span>
           <?php endif; ?>
@@ -55,13 +55,13 @@ $_S_f = pi_get_settings();
       <div>
         <h4 class="text-white font-bold text-lg mb-5">حول <?= htmlspecialchars($_S_f['site_name_ar'] ?? 'من هم') ?></h4>
         <ul class="space-y-2.5 text-sm">
-          <li><a href="categories.php" class="hover:text-orange-400 transition">التصنيفات</a></li>
-          <li><a href="admin.php" class="hover:text-orange-400 transition">إدارة الحسابات</a></li>
-          <li><a href="about.php" class="hover:text-orange-400 transition">عن <?= htmlspecialchars($_S_f['site_name_ar'] ?? 'من هم') ?></a></li>
-          <li><a href="complaints.php" class="hover:text-orange-400 transition">شكاوي وملاحظات</a></li>
-          <li><a href="about_majara.php" class="hover:text-orange-400 transition">عن مجرة</a></li>
-          <li><a href="privacy.php" class="hover:text-orange-400 transition">سياسة الخصوصية</a></li>
-          <li><a href="terms.php" class="hover:text-orange-400 transition">شروط الاستخدام</a></li>
+          <li><a href="categories.php" class="hover:text-purple-400 transition">التصنيفات</a></li>
+          <li><a href="admin.php" class="hover:text-purple-400 transition">إدارة الحسابات</a></li>
+          <li><a href="about.php" class="hover:text-purple-400 transition">عن <?= htmlspecialchars($_S_f['site_name_ar'] ?? 'من هم') ?></a></li>
+          <li><a href="complaints.php" class="hover:text-purple-400 transition">شكاوي وملاحظات</a></li>
+          <li><a href="about_majara.php" class="hover:text-purple-400 transition">عن مجرة</a></li>
+          <li><a href="privacy.php" class="hover:text-purple-400 transition">سياسة الخصوصية</a></li>
+          <li><a href="terms.php" class="hover:text-purple-400 transition">شروط الاستخدام</a></li>
         </ul>
       </div>
 
@@ -69,11 +69,11 @@ $_S_f = pi_get_settings();
       <div>
         <h4 class="text-white font-bold text-lg mb-5">مواقع أخرى من مجرة</h4>
         <ul class="space-y-2.5 text-sm">
-          <li><a href="#" class="hover:text-orange-400 transition">هارفارد بزنس ريفيو</a></li>
-          <li><a href="#" class="hover:text-orange-400 transition">MIT Technology Review</a></li>
-          <li><a href="#" class="hover:text-orange-400 transition">نفسيتي</a></li>
-          <li><a href="#" class="hover:text-orange-400 transition">العلوم للعموم</a></li>
-          <li><a href="#" class="hover:text-orange-400 transition">ستانفورد للابتكار الاجتماعي</a></li>
+          <li><a href="#" class="hover:text-purple-400 transition">هارفارد بزنس ريفيو</a></li>
+          <li><a href="#" class="hover:text-purple-400 transition">MIT Technology Review</a></li>
+          <li><a href="#" class="hover:text-purple-400 transition">نفسيتي</a></li>
+          <li><a href="#" class="hover:text-purple-400 transition">العلوم للعموم</a></li>
+          <li><a href="#" class="hover:text-purple-400 transition">ستانفورد للابتكار الاجتماعي</a></li>
         </ul>
       </div>
     </div>

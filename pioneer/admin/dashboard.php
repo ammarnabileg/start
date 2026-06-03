@@ -12,7 +12,7 @@ $stats = [
     ['label'=>'الموثقون','value'=>$count_verified,'icon'=>'fa-circle-check','color'=>'bg-green-500','link'=>'admin.php?p=personalities&filter=verified'],
     ['label'=>'الرؤساء التنفيذيون','value'=>$count_exec,'icon'=>'fa-crown','color'=>'bg-yellow-500','link'=>'admin.php?p=personalities&filter=executive'],
     ['label'=>'التصنيفات','value'=>$count_cats,'icon'=>'fa-tags','color'=>'bg-purple-500','link'=>'admin.php?p=categories'],
-    ['label'=>'المقالات','value'=>$count_arts,'icon'=>'fa-newspaper','color'=>'bg-orange-500','link'=>'admin.php?p=articles'],
+    ['label'=>'المقالات','value'=>$count_arts,'icon'=>'fa-newspaper','color'=>'pi-gradient','link'=>'admin.php?p=articles'],
 ];
 
 // Recent personalities
@@ -59,7 +59,7 @@ if ($r) while ($row=$r->fetch_assoc()) $top_p[] = $row;
     </a>
     <?php endif; ?>
     <?php if (pi_has_perm('add_role')): ?>
-    <a href="admin.php?p=roles&action=add" class="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition text-sm">
+    <a href="admin.php?p=roles&action=add" class="flex items-center gap-2 px-5 py-2.5 pi-gradient text-white font-bold rounded-xl hover:opacity-90 transition text-sm">
       <i class="fa-solid fa-shield-halved"></i> إضافة دور جديد
     </a>
     <?php endif; ?>
@@ -71,7 +71,7 @@ if ($r) while ($row=$r->fetch_assoc()) $top_p[] = $row;
   <div class="bg-white rounded-2xl shadow-sm p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-black text-gray-800">أحدث الشخصيات</h3>
-      <a href="admin.php?p=personalities" class="text-orange-500 text-sm font-bold hover:underline">عرض الكل</a>
+      <a href="admin.php?p=personalities" class="text-purple-600 text-sm font-bold hover:underline">عرض الكل</a>
     </div>
     <div class="space-y-3">
       <?php foreach ($recent_p as $rp): ?>
@@ -103,7 +103,7 @@ if ($r) while ($row=$r->fetch_assoc()) $top_p[] = $row;
   <div class="bg-white rounded-2xl shadow-sm p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-black text-gray-800">الأكثر زيارة</h3>
-      <a href="admin.php?p=personalities" class="text-orange-500 text-sm font-bold hover:underline">عرض الكل</a>
+      <a href="admin.php?p=personalities" class="text-purple-600 text-sm font-bold hover:underline">عرض الكل</a>
     </div>
     <div class="space-y-3">
       <?php foreach ($top_p as $i=>$tp): ?>
@@ -116,7 +116,7 @@ if ($r) while ($row=$r->fetch_assoc()) $top_p[] = $row;
           <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($tp['p_name_ar']) ?></p>
           <p class="text-gray-400 text-xs"><?= htmlspecialchars($tp['p_title'] ?? '') ?></p>
         </div>
-        <span class="text-xs font-bold text-orange-500"><?= number_format($tp['p_views']) ?> زيارة</span>
+        <span class="text-xs font-bold text-purple-600"><?= number_format($tp['p_views']) ?> زيارة</span>
       </div>
       <?php endforeach; ?>
       <?php if (empty($top_p)): ?>

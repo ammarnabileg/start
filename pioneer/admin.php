@@ -23,15 +23,15 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     * { font-family: 'Cairo', sans-serif; }
-    .pi-gradient { background: linear-gradient(135deg, #1a3a6b 0%, #0f2548 100%); }
+    .pi-gradient { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
     [x-cloak] { display: none !important; }
-    .nav-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition font-semibold text-sm; }
+    .nav-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition font-semibold text-sm; }
     .nav-link.active { @apply text-white bg-white/20; }
     .card { @apply bg-white rounded-2xl shadow-sm p-6; }
-    .btn-primary { @apply px-5 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition text-sm; }
+    .btn-primary { @apply px-5 py-2.5 text-white font-bold rounded-xl hover:opacity-90 transition text-sm; background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
     .btn-secondary { @apply px-5 py-2.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition text-sm; }
     .btn-danger { @apply px-4 py-2 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition text-sm; }
-    .form-input { @apply w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition; }
+    .form-input { @apply w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 transition; }
     .form-label { @apply block text-sm font-bold text-gray-700 mb-1.5; }
     table th { @apply px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50; }
     table td { @apply px-4 py-3 text-sm text-gray-700 border-t border-gray-100; }
@@ -48,7 +48,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
   <aside :class="sidebarOpen ? 'w-64' : 'w-16'" class="pi-gradient flex-shrink-0 transition-all duration-300 flex flex-col overflow-hidden">
     <!-- Logo -->
     <div class="flex items-center gap-3 p-4 border-b border-white/10">
-      <div class="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+      <div class="w-9 h-9 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
         <i class="fa-solid fa-star text-white text-sm"></i>
       </div>
       <span x-show="sidebarOpen" x-cloak class="font-bold text-white text-base whitespace-nowrap">PioneerIcons</span>
@@ -192,7 +192,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
           <p class="text-sm font-bold text-gray-800"><?= htmlspecialchars($pi_user['au_name'] ?? '') ?></p>
           <p class="text-xs text-gray-400"><?= htmlspecialchars($pi_user['au_email'] ?? '') ?></p>
         </div>
-        <div class="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">
+        <div class="w-9 h-9 rounded-full pi-gradient flex items-center justify-center text-white font-bold text-sm">
           <?= mb_substr($pi_user['au_name'] ?? 'A', 0, 1) ?>
         </div>
       </div>

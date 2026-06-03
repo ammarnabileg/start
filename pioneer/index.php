@@ -52,37 +52,52 @@ include 'includes/header.php';
 ?>
 
 <!-- HERO SECTION -->
-<section class="hero-bg py-20 text-white">
-  <div class="max-w-4xl mx-auto px-4 text-center">
-    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">
+<section class="hero-bg py-24 text-white">
+  <div class="hero-glow"></div>
+  <div class="hero-glow-2"></div>
+  <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
+    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200 backdrop-blur-sm">
+      <i class="fa-solid fa-circle-check text-purple-300 text-xs"></i>
+      المنصة العربية الأولى للحضور الموثق
+    </div>
+    <h1 class="text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight">
       <?= htmlspecialchars($_S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>
-      <i class="fa-solid fa-circle-check text-blue-400 text-3xl mr-2 align-middle"></i>
     </h1>
-    <p class="text-lg text-blue-100 mb-10 font-medium"><?= htmlspecialchars($_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
+    <p class="text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
 
-    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto">
+    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
       <?php if ($cid): ?><input type="hidden" name="country" value="<?= $cid ?>"><?php endif; ?>
-      <div class="flex items-center bg-white px-4">
+      <div class="flex items-center bg-white px-4 rounded-r-2xl">
         <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
       </div>
       <input name="q" type="text"
         placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         class="flex-1 px-4 py-4 text-gray-800 text-base outline-none font-semibold placeholder-gray-400"
         value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
-      <button type="submit" class="pi-primary-bg px-8 py-4 font-bold text-white hover:opacity-90 transition whitespace-nowrap">
-        ابحث
+      <button type="submit" class="pi-primary-bg px-8 py-4 font-bold text-white hover:opacity-90 transition whitespace-nowrap rounded-l-2xl">
+        ابحث الآن
       </button>
     </form>
+
+    <div class="flex items-center justify-center gap-8 mt-10 text-purple-300 text-sm font-semibold">
+      <span class="flex items-center gap-2"><i class="fa-solid fa-users"></i> <?= number_format(pi_count_personalities()) ?> شخصية</span>
+      <span class="w-px h-4 bg-white/20"></span>
+      <span class="flex items-center gap-2"><i class="fa-solid fa-building"></i> <?= number_format(pi_count_institutions()) ?> مؤسسة</span>
+      <span class="w-px h-4 bg-white/20"></span>
+      <span class="flex items-center gap-2"><i class="fa-solid fa-globe-asia"></i> أكثر من 17 دولة</span>
+    </div>
   </div>
 </section>
 
 <!-- MOST VISITED PERSONALITIES -->
-<section class="max-w-7xl mx-auto px-4 py-14">
+<section class="max-w-7xl mx-auto px-4 py-16">
   <div class="flex items-center justify-between mb-8">
-    <h2 class="text-2xl font-black text-gray-800">
-      الشخصيات الأكثر زيارة الآن
-      <?php if ($cid): ?><span class="text-base font-normal text-gray-400 mr-2">(مع أولوية للدولة المختارة)</span><?php endif; ?>
-    </h2>
+    <div>
+      <h2 class="text-2xl font-black text-gray-800 section-dot">
+        الشخصيات الأكثر زيارة
+      </h2>
+      <?php if ($cid): ?><p class="text-sm text-gray-400 mt-1">مع أولوية الدولة المختارة</p><?php endif; ?>
+    </div>
   </div>
 
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -99,11 +114,11 @@ include 'includes/header.php';
       <a href="profile.php?id=<?= $p['p_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
         class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center block relative">
         <?php if ($cid && ($p['p_country_id']??0) == $cid): ?>
-        <span class="absolute top-2 left-2 w-2 h-2 bg-orange-400 rounded-full" title="من الدولة المختارة"></span>
+        <span class="absolute top-2 left-2 w-2 h-2 bg-purple-500 rounded-full" title="من الدولة المختارة"></span>
         <?php endif; ?>
         <?php if ($p['p_photo']): ?>
           <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
-            class="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-orange-100">
+            class="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-purple-100">
         <?php else: ?>
           <div class="w-20 h-20 rounded-full mx-auto mb-3 bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center">
             <span class="text-white font-bold text-2xl"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
@@ -121,16 +136,16 @@ include 'includes/header.php';
 
   <div class="text-center mt-8">
     <a href="categories.php<?= $cid ? '?country='.$cid : '' ?>"
-      class="inline-flex items-center gap-2 px-8 py-3 border-2 border-orange-400 text-orange-500 font-bold rounded-full hover:bg-orange-50 transition">
+      class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-400 text-purple-600 font-bold rounded-full hover:bg-purple-50 transition">
       تصفح المزيد <i class="fa-solid fa-arrow-left"></i>
     </a>
   </div>
 </section>
 
 <!-- MOST VISITED INSTITUTIONS -->
-<section class="bg-gray-100 py-14">
+<section class="bg-gray-50 py-16 border-t border-gray-100">
   <div class="max-w-7xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 mb-8">المؤسسات الأكثر زيارة الآن</h2>
+    <h2 class="text-2xl font-black text-gray-800 mb-8 section-dot">المؤسسات الأكثر زيارة</h2>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       <?php if (empty($institutions)): ?>
         <?php for ($i=0; $i<5; $i++): ?>
@@ -161,7 +176,7 @@ include 'includes/header.php';
 
     <div class="text-center mt-8">
       <a href="categories.php?type=institutions<?= $cid ? '&country='.$cid : '' ?>"
-        class="inline-flex items-center gap-2 px-8 py-3 border-2 border-blue-400 text-blue-600 font-bold rounded-full hover:bg-blue-50 transition">
+        class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-400 text-purple-600 font-bold rounded-full hover:bg-purple-50 transition">
         عرض الكل <i class="fa-solid fa-arrow-left"></i>
       </a>
     </div>
@@ -169,8 +184,8 @@ include 'includes/header.php';
 </section>
 
 <!-- CATEGORIES -->
-<section class="max-w-7xl mx-auto px-4 py-14">
-  <h2 class="text-2xl font-black text-gray-800 mb-8 text-center">استكشف التصنيفات</h2>
+<section class="max-w-7xl mx-auto px-4 py-16">
+  <h2 class="text-2xl font-black text-gray-800 mb-8 text-center section-dot">استكشف التصنيفات</h2>
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-4">
     <?php foreach (array_slice($feat_cats, 0, 5) as $cat): ?>
     <div class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center">

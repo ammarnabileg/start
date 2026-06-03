@@ -92,7 +92,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
         <td class="text-gray-400 text-xs"><?= htmlspecialchars($art['art_source']??'—') ?></td>
         <td><div class="flex gap-2">
           <?php if ($art['art_url']): ?><a href="<?= htmlspecialchars($art['art_url']) ?>" target="_blank" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-500 transition"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a><?php endif; ?>
-          <?php if (pi_has_perm('edit_article')): ?><a href="admin.php?p=articles&action=edit&id=<?= $art['art_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition"><i class="fa-solid fa-pen text-xs"></i></a><?php endif; ?>
+          <?php if (pi_has_perm('edit_article')): ?><a href="admin.php?p=articles&action=edit&id=<?= $art['art_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a><?php endif; ?>
           <?php if (pi_has_perm('delete_article')): ?><form method="POST" onsubmit="return confirm('حذف؟')"><input type="hidden" name="action" value="delete_article"><input type="hidden" name="art_id" value="<?= $art['art_id'] ?>"><button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button></form><?php endif; ?>
         </div></td>
       </tr>

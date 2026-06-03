@@ -157,7 +157,7 @@ if ($action === 'add' || $action === 'edit') {
         <?php foreach ($all_cats as $cat): ?>
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" name="categories[]" value="<?= $cat['cat_id'] ?>"
-            <?= in_array($cat['cat_id'], $edit_cats)?'checked':'' ?> class="accent-orange-500">
+            <?= in_array($cat['cat_id'], $edit_cats)?'checked':'' ?> class="accent-purple-500">
           <span class="text-sm text-gray-700"><?= htmlspecialchars($cat['cat_name']) ?></span>
         </label>
         <?php endforeach; ?>
@@ -207,11 +207,11 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
     <input type="hidden" name="p" value="personalities">
     <input type="text" name="q" value="<?= htmlspecialchars($_GET['q']??'') ?>"
       placeholder="بحث عن شخصية..."
-      class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition">
+      class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 transition">
     <button type="submit" class="btn-primary py-2.5">بحث</button>
   </form>
   <div class="flex gap-2">
-    <a href="admin.php?p=personalities" class="px-4 py-2 text-sm font-bold rounded-xl transition <?= !$filter?'bg-orange-500 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' ?>">الكل</a>
+    <a href="admin.php?p=personalities" class="px-4 py-2 text-sm font-bold rounded-xl transition <?= !$filter?'pi-gradient text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' ?>">الكل</a>
     <a href="admin.php?p=personalities&filter=verified" class="px-4 py-2 text-sm font-bold rounded-xl transition <?= $filter==='verified'?'bg-blue-500 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' ?>">الموثقون</a>
     <a href="admin.php?p=personalities&filter=executive" class="px-4 py-2 text-sm font-bold rounded-xl transition <?= $filter==='executive'?'bg-yellow-500 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' ?>">الرؤساء التنفيذيون</a>
   </div>
@@ -275,7 +275,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
             </a>
             <?php if (pi_has_perm('edit_personality')): ?>
             <a href="admin.php?p=personalities&action=edit&id=<?= $row['p_id'] ?>"
-              class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition" title="تعديل">
+              class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition" title="تعديل">
               <i class="fa-solid fa-pen text-xs"></i>
             </a>
             <?php endif; ?>
@@ -307,7 +307,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
   <?php for ($i=1; $i<=$total_pages; $i++): ?>
   <a href="admin.php?p=personalities&page=<?=$i?>&q=<?=urlencode($_GET['q']??'')?>&filter=<?=urlencode($filter)?>"
     class="w-9 h-9 flex items-center justify-center rounded-xl font-bold text-sm transition
-      <?= $i==$page_num?'bg-orange-500 text-white':'bg-white text-gray-600 border border-gray-200 hover:bg-orange-50' ?>">
+      <?= $i==$page_num?'pi-gradient text-white':'bg-white text-gray-600 border border-gray-200 hover:bg-purple-50' ?>">
     <?=$i?>
   </a>
   <?php endfor; ?>

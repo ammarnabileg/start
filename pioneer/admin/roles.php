@@ -119,7 +119,7 @@ if ($action === 'add' || $action === 'edit') {
         <h3 class="font-black text-gray-800">الصلاحيات</h3>
         <div class="flex gap-2">
           <button type="button" onclick="document.querySelectorAll('[name=\'permissions[]\']').forEach(c=>c.checked=true)"
-            class="text-xs font-bold text-orange-500 hover:underline">تحديد الكل</button>
+            class="text-xs font-bold text-purple-600 hover:underline">تحديد الكل</button>
           <span class="text-gray-300">|</span>
           <button type="button" onclick="document.querySelectorAll('[name=\'permissions[]\']').forEach(c=>c.checked=false)"
             class="text-xs font-bold text-gray-400 hover:underline">إلغاء الكل</button>
@@ -135,9 +135,9 @@ if ($action === 'add' || $action === 'edit') {
           </div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <?php foreach ($perms as $perm_id => $perm_label): ?>
-            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-orange-50 transition">
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-purple-50 transition">
               <input type="checkbox" name="permissions[]" value="<?= $perm_id ?>"
-                class="perm-cb w-4 h-4 accent-orange-500"
+                class="perm-cb w-4 h-4 accent-purple-500"
                 <?= in_array($perm_id, $edit_perms)?'checked':'' ?>>
               <span class="text-sm text-gray-700 font-medium"><?= $perm_label ?></span>
             </label>
@@ -212,7 +212,7 @@ if ($r) while ($row=$r->fetch_assoc()) $roles[] = $row;
       <div class="flex gap-1">
         <?php if (pi_has_perm('edit_role')): ?>
         <a href="admin.php?p=roles&action=edit&id=<?= $role['role_id'] ?>"
-          class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition">
+          class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition">
           <i class="fa-solid fa-pen text-xs"></i>
         </a>
         <?php endif; ?>
@@ -237,7 +237,7 @@ if ($r) while ($row=$r->fetch_assoc()) $roles[] = $row;
           <p class="text-xs text-gray-400 font-semibold mb-1"><?= $group_name ?></p>
           <div class="flex flex-wrap gap-1">
             <?php foreach ($matched as $pid => $plabel): ?>
-            <span class="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs font-semibold rounded-full"><?= $plabel ?></span>
+            <span class="px-2 py-0.5 bg-purple-50 text-purple-800 text-xs font-semibold rounded-full"><?= $plabel ?></span>
             <?php endforeach; ?>
           </div>
         </div>

@@ -100,7 +100,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
         <td><?php if ($inst['inst_verified']): ?><i class="fa-solid fa-circle-check text-blue-500 text-lg"></i><?php else: ?><i class="fa-solid fa-circle-xmark text-gray-300 text-lg"></i><?php endif; ?></td>
         <td class="font-semibold"><?= number_format($inst['inst_views']) ?></td>
         <td><div class="flex gap-2">
-          <?php if (pi_has_perm('edit_institution')): ?><a href="admin.php?p=institutions&action=edit&id=<?= $inst['inst_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition"><i class="fa-solid fa-pen text-xs"></i></a><?php endif; ?>
+          <?php if (pi_has_perm('edit_institution')): ?><a href="admin.php?p=institutions&action=edit&id=<?= $inst['inst_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a><?php endif; ?>
           <?php if (pi_has_perm('delete_institution')): ?><form method="POST" onsubmit="return confirm('حذف؟')"><input type="hidden" name="action" value="delete_institution"><input type="hidden" name="inst_id" value="<?= $inst['inst_id'] ?>"><button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button></form><?php endif; ?>
         </div></td>
       </tr>

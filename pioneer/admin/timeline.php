@@ -100,13 +100,13 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
       <?php foreach ($list as $tl): ?>
       <tr class="hover:bg-gray-50 transition">
         <td class="font-semibold text-gray-800"><?= htmlspecialchars($tl['p_name_ar']??'—') ?></td>
-        <td><span class="px-2 py-0.5 <?= $tl['tl_type']==='education'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700' ?> rounded-full text-xs font-bold"><?= $tl['tl_type']==='education'?'تعليم':'عمل' ?></span></td>
+        <td><span class="px-2 py-0.5 <?= $tl['tl_type']==='education'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-800' ?> rounded-full text-xs font-bold"><?= $tl['tl_type']==='education'?'تعليم':'عمل' ?></span></td>
         <td class="text-gray-700"><?= htmlspecialchars($tl['tl_title']) ?></td>
         <td class="text-gray-500 text-xs"><?= htmlspecialchars($tl['tl_institution']??'—') ?></td>
         <td class="text-gray-400 text-xs"><?= $tl['tl_year_start'] ?><?= $tl['tl_year_end']?' — '.$tl['tl_year_end']:'' ?></td>
         <td><div class="flex gap-2">
           <?php if (pi_has_perm('manage_timeline')): ?>
-          <a href="admin.php?p=timeline&action=edit&id=<?= $tl['tl_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition"><i class="fa-solid fa-pen text-xs"></i></a>
+          <a href="admin.php?p=timeline&action=edit&id=<?= $tl['tl_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a>
           <form method="POST" onsubmit="return confirm('حذف؟')"><input type="hidden" name="action" value="delete_timeline"><input type="hidden" name="tl_id" value="<?= $tl['tl_id'] ?>"><button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button></form>
           <?php endif; ?>
         </div></td>

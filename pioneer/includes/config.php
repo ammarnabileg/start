@@ -26,7 +26,7 @@ function pi_get_settings() {
         'social_whatsapp'  => '',
         'social_linkedin'  => '',
         'social_twitter'   => '',
-        'primary_color'    => '#f97316',
+        'primary_color'    => '#8829C8',
         'admin_email'      => 'admin@pioneericons.com',
         'copyright_text'   => 'جميع الحقوق محفوظة لـ PioneerIcons',
         'google_analytics' => '',

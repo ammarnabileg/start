@@ -32,7 +32,7 @@ include 'includes/header.php';
       <span class="bg-white flex items-center px-4 text-gray-500 text-sm font-bold border-r border-gray-200">
         شخصية · مؤسسة
       </span>
-      <button type="submit" class="pi-orange-bg px-8 py-4 text-white font-bold hover:opacity-90 transition whitespace-nowrap">
+      <button type="submit" class="pi-primary-bg px-8 py-4 text-white font-bold hover:opacity-90 transition whitespace-nowrap">
         ابحث
       </button>
     </form>
@@ -42,7 +42,7 @@ include 'includes/header.php';
 <!-- BREADCRUMB -->
 <div class="max-w-7xl mx-auto px-4 py-4">
   <nav class="flex items-center gap-2 text-sm text-gray-500">
-    <a href="index.php" class="hover:text-orange-500 transition font-semibold">الرئيسية</a>
+    <a href="index.php" class="hover:text-purple-600 transition font-semibold">الرئيسية</a>
     <i class="fa-solid fa-slash text-xs text-gray-300"></i>
     <span class="text-gray-800 font-semibold">التصنيفات</span>
   </nav>
@@ -59,7 +59,7 @@ include 'includes/header.php';
     <?php foreach ($page_cats as $cat): ?>
     <div class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center relative">
       <?php
-      $badge_colors = ['orange'=>'bg-orange-400','blue'=>'bg-blue-500','purple'=>'bg-purple-500',
+      $badge_colors = ['orange'=>'bg-purple-500','blue'=>'bg-blue-500','purple'=>'bg-purple-500',
         'cyan'=>'bg-cyan-500','red'=>'bg-red-500','green'=>'bg-green-500','gold'=>'bg-yellow-500',
         'navy'=>'bg-indigo-600','teal'=>'bg-teal-500','brown'=>'bg-amber-600','gray'=>'bg-gray-500','darkblue'=>'bg-blue-800'];
       $bc = $badge_colors[$cat['cat_badge_color']] ?? 'bg-gray-400';
@@ -74,7 +74,7 @@ include 'includes/header.php';
       </div>
       <h3 class="font-bold text-gray-800 text-sm mb-3 leading-tight"><?= htmlspecialchars($cat['cat_name']) ?></h3>
       <a href="categories.php?cat=<?= $cat['cat_id'] ?>"
-        class="inline-block px-4 py-1.5 pi-orange-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
+        class="inline-block px-4 py-1.5 pi-primary-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
         عرض الكل
       </a>
     </div>
@@ -93,7 +93,7 @@ include 'includes/header.php';
   <div class="flex items-center justify-between mt-10">
     <?php if ($page < $total_pages): ?>
     <a href="categories.php?page=<?= $page+1 ?>&q=<?= urlencode($_GET['q']??'') ?>"
-      class="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full font-semibold text-gray-700 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-500 transition">
+      class="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600 transition">
       <i class="fa-solid fa-arrow-right"></i> التالي
     </a>
     <?php else: ?><span></span><?php endif; ?>
@@ -102,7 +102,7 @@ include 'includes/header.php';
       <?php for ($i=1; $i<=$total_pages; $i++): ?>
       <a href="categories.php?page=<?=$i?>&q=<?=urlencode($_GET['q']??'')?>"
         class="w-9 h-9 flex items-center justify-center rounded-full font-bold transition
-          <?= $i==$page ? 'pi-orange-bg text-white' : 'bg-white text-gray-600 hover:bg-orange-50 hover:text-orange-500 border border-gray-200' ?>">
+          <?= $i==$page ? 'pi-primary-bg text-white' : 'bg-white text-gray-600 hover:bg-purple-50 hover:text-purple-600 border border-gray-200' ?>">
         <?=$i?>
       </a>
       <?php endfor; ?>
@@ -110,7 +110,7 @@ include 'includes/header.php';
 
     <?php if ($page > 1): ?>
     <a href="categories.php?page=<?= $page-1 ?>&q=<?= urlencode($_GET['q']??'') ?>"
-      class="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full font-semibold text-gray-700 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-500 transition">
+      class="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600 transition">
       السابق <i class="fa-solid fa-arrow-left"></i>
     </a>
     <?php else: ?><span></span><?php endif; ?>

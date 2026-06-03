@@ -42,7 +42,7 @@ include 'includes/header.php';
       <input name="q" type="text" value="<?= htmlspecialchars($_GET['q']??'') ?>"
         placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         class="flex-1 px-4 py-4 text-gray-800 outline-none font-semibold placeholder-gray-400">
-      <button type="submit" class="pi-orange-bg px-8 py-4 text-white font-bold hover:opacity-90 transition">ابحث</button>
+      <button type="submit" class="pi-primary-bg px-8 py-4 text-white font-bold hover:opacity-90 transition">ابحث</button>
     </form>
   </div>
 </section>
@@ -51,11 +51,11 @@ include 'includes/header.php';
   <?php if ($q): ?>
   <div class="flex flex-wrap items-center gap-4 mb-8">
     <h2 class="text-xl font-black text-gray-800">
-      نتائج البحث عن: <span class="text-orange-500"><?= htmlspecialchars($_GET['q']??'') ?></span>
+      نتائج البحث عن: <span class="text-purple-600"><?= htmlspecialchars($_GET['q']??'') ?></span>
       <span class="text-base font-normal text-gray-400 mr-2">(<?= number_format($grand_total) ?> نتيجة)</span>
     </h2>
     <div class="flex gap-2 mr-auto">
-      <a href="search.php?q=<?= urlencode($_GET['q']??'') ?>&type=all" class="px-4 py-1.5 text-sm font-bold rounded-full transition <?= $type!=='personalities'&&$type!=='institutions'?'pi-orange-bg text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-orange-50' ?>">الكل (<?= $grand_total ?>)</a>
+      <a href="search.php?q=<?= urlencode($_GET['q']??'') ?>&type=all" class="px-4 py-1.5 text-sm font-bold rounded-full transition <?= $type!=='personalities'&&$type!=='institutions'?'pi-primary-bg text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-purple-50' ?>">الكل (<?= $grand_total ?>)</a>
       <a href="search.php?q=<?= urlencode($_GET['q']??'') ?>&type=personalities" class="px-4 py-1.5 text-sm font-bold rounded-full transition <?= $type==='personalities'?'bg-blue-500 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50' ?>">شخصيات (<?= $p_total ?>)</a>
       <a href="search.php?q=<?= urlencode($_GET['q']??'') ?>&type=institutions" class="px-4 py-1.5 text-sm font-bold rounded-full transition <?= $type==='institutions'?'bg-indigo-500 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-indigo-50' ?>">مؤسسات (<?= $i_total ?>)</a>
     </div>

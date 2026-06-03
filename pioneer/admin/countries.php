@@ -178,7 +178,7 @@ if ($r) while ($row=$r->fetch_assoc()) $countries[] = $row;
         <td>
           <div class="flex items-center gap-2">
             <a href="admin.php?p=countries&action=edit&id=<?= $c['c_id'] ?>"
-              class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition">
+              class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition">
               <i class="fa-solid fa-pen text-xs"></i>
             </a>
             <form method="POST" onsubmit="return confirm('حذف الدولة نهائياً؟')">

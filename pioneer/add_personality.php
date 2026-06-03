@@ -75,7 +75,7 @@ include 'includes/header.php';
     </div>
     <h2 class="text-xl font-black text-green-800 mb-2">تم إرسال الاقتراح بنجاح!</h2>
     <p class="text-green-600 mb-5">سيراجع فريقنا المعلومات ويتواصل معك قريباً</p>
-    <a href="index.php" class="inline-block px-6 py-2.5 pi-orange-bg text-white font-bold rounded-xl hover:opacity-90 transition">العودة للرئيسية</a>
+    <a href="index.php" class="inline-block px-6 py-2.5 pi-primary-bg text-white font-bold rounded-xl hover:opacity-90 transition">العودة للرئيسية</a>
   </div>
   <?php else: ?>
 
@@ -153,7 +153,7 @@ include 'includes/header.php';
       </div>
     </div>
 
-    <button type="submit" class="w-full py-3.5 pi-orange-bg text-white font-black text-base rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
+    <button type="submit" class="w-full py-3.5 pi-primary-bg text-white font-black text-base rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
       <i class="fa-solid fa-paper-plane"></i> إرسال الاقتراح للمراجعة
     </button>
   </form>

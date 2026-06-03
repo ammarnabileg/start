@@ -70,7 +70,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
         <button type="submit" class="<?= $sp['sp_active']?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500' ?> px-3 py-1 rounded-full text-xs font-bold hover:opacity-80 transition"><?= $sp['sp_active']?'نشط':'معطل' ?></button>
       </form>
       <?php if (pi_has_perm('manage_sponsors')): ?>
-      <a href="admin.php?p=sponsors&action=edit&id=<?= $sp['sp_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition"><i class="fa-solid fa-pen text-xs"></i></a>
+      <a href="admin.php?p=sponsors&action=edit&id=<?= $sp['sp_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a>
       <form method="POST" onsubmit="return confirm('حذف؟')"><input type="hidden" name="action" value="delete_sponsor"><input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>"><button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button></form>
       <?php endif; ?>
     </div>

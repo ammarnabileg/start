@@ -78,7 +78,7 @@ include 'includes/header.php';
       <input name="q" type="text" placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
         class="flex-1 px-4 py-3.5 text-gray-800 outline-none font-semibold placeholder-gray-400">
       <span class="bg-white flex items-center px-3 text-gray-500 text-sm font-bold border-r border-gray-200">شخصية · مؤسسة</span>
-      <button type="submit" class="pi-orange-bg px-8 py-3.5 text-white font-bold hover:opacity-90 transition">ابحث</button>
+      <button type="submit" class="pi-primary-bg px-8 py-3.5 text-white font-bold hover:opacity-90 transition">ابحث</button>
     </form>
   </div>
 </section>
@@ -90,7 +90,7 @@ include 'includes/header.php';
     <div class="ml-auto">
       <p class="text-gray-500 text-xs font-semibold mb-1">تحت الضوء</p>
       <a href="advertise.php"
-        class="inline-block px-5 py-2 pi-orange-bg text-white text-sm font-bold rounded-full hover:opacity-90 transition">
+        class="inline-block px-5 py-2 pi-primary-bg text-white text-sm font-bold rounded-full hover:opacity-90 transition">
         اعلن عن شركتك هنا
       </a>
     </div>
@@ -126,7 +126,7 @@ include 'includes/header.php';
           <div class="flex-shrink-0">
             <?php if ($p['p_photo']): ?>
               <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
-                class="w-32 h-32 rounded-2xl object-cover border-4 border-orange-100">
+                class="w-32 h-32 rounded-2xl object-cover border-4 border-purple-100">
             <?php else: ?>
               <div class="w-32 h-32 rounded-2xl pi-gradient flex items-center justify-center">
                 <span class="text-white font-black text-4xl"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
@@ -152,13 +152,13 @@ include 'includes/header.php';
             <div class="flex flex-wrap gap-3 text-sm text-gray-600 mb-4">
               <?php if ($p['p_nationality']): ?>
               <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-flag text-orange-400 text-xs"></i>
+                <i class="fa-solid fa-flag text-purple-500 text-xs"></i>
                 <?= htmlspecialchars($p['p_nationality']) ?>
               </span>
               <?php endif; ?>
               <?php if ($p['p_residence']): ?>
               <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-location-dot text-orange-400 text-xs"></i>
+                <i class="fa-solid fa-location-dot text-purple-500 text-xs"></i>
                 <?= htmlspecialchars($p['p_residence']) ?>
               </span>
               <?php endif; ?>
@@ -180,7 +180,7 @@ include 'includes/header.php';
             <!-- Action buttons -->
             <div class="flex flex-wrap gap-3">
               <button onclick="navigator.share ? navigator.share({title:'<?= addslashes($p['p_name_ar']) ?>',url:location.href}) : alert('تم نسخ الرابط')"
-                class="w-9 h-9 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition">
+                class="w-9 h-9 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-purple-600 hover:border-purple-300 transition">
                 <i class="fa-solid fa-share-nodes"></i>
               </button>
               <a href="admin.php?p=personalities&action=manage&id=<?= $p_id ?>"
@@ -188,7 +188,7 @@ include 'includes/header.php';
                 <i class="fa-solid fa-gear"></i> إدارة الصفحة
               </a>
               <a href="vcard.php?id=<?= $p_id ?>"
-                class="flex items-center gap-2 px-5 py-2 border border-orange-400 text-orange-500 text-sm font-bold rounded-full hover:bg-orange-50 transition">
+                class="flex items-center gap-2 px-5 py-2 border border-purple-400 text-purple-600 text-sm font-bold rounded-full hover:bg-purple-50 transition">
                 <i class="fa-solid fa-download"></i> تحميل البطاقة التعريفية
               </a>
             </div>
@@ -200,7 +200,7 @@ include 'includes/header.php';
       <div class="bg-white rounded-2xl shadow-sm" x-data="{ tab: 'bio' }">
         <div class="flex border-b border-gray-100">
           <button @click="tab='bio'"
-            :class="tab=='bio' ? 'border-b-2 border-orange-500 text-orange-600 font-bold' : 'text-gray-500 hover:text-gray-700'"
+            :class="tab=='bio' ? 'border-b-2 border-purple-500 text-purple-700 font-bold' : 'text-gray-500 hover:text-gray-700'"
             class="px-6 py-3.5 text-sm font-semibold transition">
             السيرة الذاتية
           </button>
@@ -211,10 +211,10 @@ include 'includes/header.php';
             </button>
             <div x-show="open" x-cloak x-transition
               class="absolute top-full right-0 bg-white shadow-xl rounded-xl border border-gray-100 py-2 z-10 w-44">
-              <button @click="tab='bio';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-orange-50 hover:text-orange-500 transition">السيرة الذاتية</button>
-              <button @click="tab='related';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-orange-50 hover:text-orange-500 transition">شخصيات متعلقة</button>
-              <button @click="tab='timeline';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-orange-50 hover:text-orange-500 transition">المحطات</button>
-              <button @click="tab='articles';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-orange-50 hover:text-orange-500 transition">مقالات تهمك</button>
+              <button @click="tab='bio';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-600 transition">السيرة الذاتية</button>
+              <button @click="tab='related';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-600 transition">شخصيات متعلقة</button>
+              <button @click="tab='timeline';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-600 transition">المحطات</button>
+              <button @click="tab='articles';open=false" class="block w-full text-right px-4 py-2 text-sm hover:bg-purple-50 hover:text-purple-600 transition">مقالات تهمك</button>
             </div>
           </div>
         </div>
@@ -223,7 +223,7 @@ include 'includes/header.php';
         <div x-show="tab=='bio'" class="p-6">
           <h2 class="text-lg font-black text-gray-800 mb-4">سيرة <?= htmlspecialchars($p['p_name_ar']) ?></h2>
           <?php if ($p['p_bio_platform']): ?>
-          <div class="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-gray-600 leading-7 border-r-4 border-orange-400">
+          <div class="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-gray-600 leading-7 border-r-4 border-purple-400">
             <?= nl2br(htmlspecialchars($p['p_bio_platform'])) ?>
           </div>
           <?php endif; ?>
@@ -246,7 +246,7 @@ include 'includes/header.php';
           <?php else: ?>
           <div class="space-y-4">
             <?php foreach ($related as $rel): ?>
-            <a href="profile.php?id=<?= $rel['p_id'] ?>" class="flex items-center gap-4 p-3 rounded-xl hover:bg-orange-50 transition">
+            <a href="profile.php?id=<?= $rel['p_id'] ?>" class="flex items-center gap-4 p-3 rounded-xl hover:bg-purple-50 transition">
               <?php if ($rel['p_photo']): ?>
                 <img src="<?= htmlspecialchars($rel['p_photo']) ?>" class="w-12 h-12 rounded-full object-cover">
               <?php else: ?>
@@ -272,18 +272,18 @@ include 'includes/header.php';
           <h2 class="text-lg font-black text-gray-800 mb-6">محطات في حياة <?= htmlspecialchars($p['p_name_ar']) ?> في العمل والتعليم</h2>
           <?php if (!empty($timeline_edu)): ?>
           <h3 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-graduation-cap text-orange-400"></i> التعليم
+            <i class="fa-solid fa-graduation-cap text-purple-500"></i> التعليم
           </h3>
           <div class="space-y-4 mb-8 relative">
-            <div class="absolute right-4 top-0 bottom-0 w-0.5 bg-orange-100"></div>
+            <div class="absolute right-4 top-0 bottom-0 w-0.5 bg-purple-100"></div>
             <?php foreach ($timeline_edu as $tl): ?>
             <div class="flex gap-4 relative">
-              <div class="w-8 h-8 rounded-full pi-orange-bg flex items-center justify-center flex-shrink-0 z-10">
+              <div class="w-8 h-8 rounded-full pi-primary-bg flex items-center justify-center flex-shrink-0 z-10">
                 <i class="fa-solid fa-graduation-cap text-white text-xs"></i>
               </div>
               <div class="bg-gray-50 rounded-xl p-4 flex-1">
                 <?php if ($tl['tl_institution_id']): ?>
-                  <a href="institution.php?id=<?= $tl['tl_institution_id'] ?>" class="flex items-center gap-2 mb-1 hover:text-orange-500">
+                  <a href="institution.php?id=<?= $tl['tl_institution_id'] ?>" class="flex items-center gap-2 mb-1 hover:text-purple-600">
                     <span class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($tl['tl_title']) ?></span>
                   </a>
                 <?php else: ?>
@@ -292,7 +292,7 @@ include 'includes/header.php';
                 <?php if ($tl['tl_institution']): ?>
                   <p class="text-gray-500 text-xs"><?= htmlspecialchars($tl['tl_institution']) ?></p>
                 <?php endif; ?>
-                <p class="text-orange-400 text-xs font-semibold mt-1">
+                <p class="text-purple-500 text-xs font-semibold mt-1">
                   <?= $tl['tl_year_start'] ?>
                   <?= $tl['tl_year_end'] ? ' — ' . $tl['tl_year_end'] : '' ?>
                 </p>
@@ -342,7 +342,7 @@ include 'includes/header.php';
           <div class="space-y-4" x-data="{showAll: false}">
             <template x-for="(art, i) in <?= json_encode($articles) ?>" :key="art.art_id">
               <div x-show="showAll || i < 3"
-                class="flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition">
+                class="flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-purple-50 transition">
                 <template x-if="art.art_image">
                   <img :src="art.art_image" class="w-20 h-16 rounded-lg object-cover flex-shrink-0">
                 </template>
@@ -355,14 +355,14 @@ include 'includes/header.php';
                   <p x-text="art.art_source" class="text-xs text-gray-400 font-semibold mb-1"></p>
                   <a :href="art.art_url || '#'" target="_blank"
                     x-text="art.art_title"
-                    class="font-bold text-gray-800 text-sm hover:text-orange-500 transition leading-tight block mb-2"></a>
+                    class="font-bold text-gray-800 text-sm hover:text-purple-600 transition leading-tight block mb-2"></a>
                 </div>
               </div>
             </template>
             <?php if (count($articles) > 3): ?>
             <div class="text-center">
               <button @click="showAll=!showAll"
-                class="px-6 py-2 pi-orange-bg text-white text-sm font-bold rounded-full hover:opacity-90 transition">
+                class="px-6 py-2 pi-primary-bg text-white text-sm font-bold rounded-full hover:opacity-90 transition">
                 <span x-text="showAll ? 'عرض أقل' : 'عرض المزيد'"></span>
               </button>
             </div>
@@ -470,7 +470,7 @@ include 'includes/header.php';
             <?php endforeach; ?>
           </div>
           <button @click="showMore=!showMore"
-            class="w-full py-2 text-sm font-bold text-orange-500 hover:text-orange-600 transition">
+            class="w-full py-2 text-sm font-bold text-purple-600 hover:text-purple-700 transition">
             <span x-text="showMore ? 'عرض أقل' : 'عرض المزيد'"></span>
             <i :class="showMore ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs mr-1"></i>
           </button>

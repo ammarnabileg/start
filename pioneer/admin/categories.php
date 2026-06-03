@@ -89,13 +89,13 @@ if ($r) while ($row=$r->fetch_assoc()) $cats[] = $row;
       <?php foreach ($cats as $cat): ?>
       <tr class="hover:bg-gray-50 transition">
         <td><p class="font-bold text-gray-800"><?= htmlspecialchars($cat['cat_name']) ?></p><p class="text-gray-400 text-xs" dir="ltr"><?= htmlspecialchars($cat['cat_name_en']??'') ?></p></td>
-        <td><i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-orange-400 text-lg"></i></td>
+        <td><i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-purple-500 text-lg"></i></td>
         <td><span class="px-2 py-0.5 <?= pi_badge_class($cat['cat_badge_color']) ?> rounded-full text-xs font-bold"><?= $cat['cat_badge_color'] ?></span></td>
         <td class="font-semibold"><?= $cat['p_count'] ?></td>
         <td><?= $cat['cat_order'] ?></td>
         <td><div class="flex gap-2">
           <?php if (pi_has_perm('edit_category')): ?>
-          <a href="admin.php?p=categories&action=edit&id=<?= $cat['cat_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-orange-50 hover:text-orange-500 transition"><i class="fa-solid fa-pen text-xs"></i></a>
+          <a href="admin.php?p=categories&action=edit&id=<?= $cat['cat_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a>
           <?php endif; ?>
           <?php if (pi_has_perm('delete_category')): ?>
           <form method="POST" onsubmit="return confirm('حذف التصنيف؟')">
