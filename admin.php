@@ -14,7 +14,7 @@ if ($p !== 'login' && $p !== 'logout') {
     pi_require_login();
 }
 
-$pageTitle = 'لوحة التحكم - PioneerIcons';
+$pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -183,7 +183,7 @@ $pageTitle = 'لوحة التحكم - PioneerIcons';
       <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         <i class="fa-solid fa-star" style="color:#e9d5ff;font-size:14px;"></i>
       </div>
-      <span style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;">PioneerIcons</span>
+      <span style="font-weight:800;color:#fff;font-size:16px;white-space:nowrap;"><?= pi_setting('site_name') ?></span>
     </div>
 
     <!-- Nav — flex:1 + overflow-y:auto = scrollable -->

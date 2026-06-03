@@ -10,7 +10,7 @@ $p = $r->fetch_assoc();
 
 $mysqli->query("UPDATE pi_personalities SET p_views=p_views+1 WHERE p_id=$p_id");
 
-$pageTitle = htmlspecialchars($p['p_name_ar']) . ' - PioneerIcons';
+$pageTitle = htmlspecialchars($p['p_name_ar']) . ' - ' . pi_setting('site_name');
 $total_count = pi_count_personalities() + pi_count_institutions();
 
 // Social links
@@ -247,7 +247,7 @@ include 'includes/header.php';
           <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">سيرة <?= htmlspecialchars($p['p_name_ar']) ?></h2>
           <?php if ($p['p_bio_platform']): ?>
           <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;" class="pi-rich-content">
-            <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "من هم"</p>
+            <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "<?= pi_setting('site_name_ar') ?>"</p>
             <?= $p['p_bio_platform'] ?>
           </div>
           <?php endif; ?>
@@ -286,7 +286,7 @@ include 'includes/header.php';
       <div style="margin-bottom:20px;">
         <span style="display:inline-flex;align-items:center;gap:8px;padding:8px 18px;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:999px;font-size:13px;font-weight:700;color:#166534;">
           <i class="fa-solid fa-location-dot" style="color:#16a34a;"></i>
-          تابع من هم <?= htmlspecialchars($country_name) ?>
+          تابع <?= pi_setting('site_name_ar') ?> <?= htmlspecialchars($country_name) ?>
         </span>
       </div>
       <?php endif; ?>
@@ -586,7 +586,7 @@ if (!empty($tl_current)) {
     $card_title = trim(($t['tl_title']??'') . ($t['tl_org'] ? ' في "'.$t['tl_org'].'"' : ''));
 }
 $site_logo  = htmlspecialchars($_S['site_logo'] ?? '');
-$site_name  = htmlspecialchars($_S['site_name'] ?? 'PioneerIcons');
+$site_name  = htmlspecialchars(pi_setting('site_name'));
 $site_tagline = htmlspecialchars($_S['site_tagline'] ?? 'منصة الحضور العربي الموثق');
 $card_photo = htmlspecialchars($p['p_photo'] ?? '');
 $card_name  = htmlspecialchars($p['p_name_ar'] ?? '');

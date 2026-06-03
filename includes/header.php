@@ -16,8 +16,15 @@ foreach ($_countries as $c) {
     }
 }
 
-$_site_name = $_S['site_name'] ?? 'PioneerIcons';
-$_primary   = $_S['primary_color'] ?? '#8829C8';
+$_site_name    = $_S['site_name']    ?? 'PioneerIcons';
+$_site_name_ar = $_S['site_name_ar'] ?? 'من هم';
+$_primary      = $_S['primary_color'] ?? '#8829C8';
+
+// Auto-replace hardcoded site name in any page's $pageTitle
+if (isset($pageTitle)) {
+    $pageTitle = str_replace('PioneerIcons', $_site_name,    $pageTitle);
+    $pageTitle = str_replace('من هم',       $_site_name_ar, $pageTitle);
+}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">

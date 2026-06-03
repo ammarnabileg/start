@@ -11,7 +11,7 @@ $inst = $r->fetch_assoc();
 // Increment views
 $mysqli->query("UPDATE pi_institutions SET inst_views=inst_views+1 WHERE inst_id=$inst_id");
 
-$pageTitle = htmlspecialchars($inst['inst_name_ar']) . ' - PioneerIcons';
+$pageTitle = htmlspecialchars($inst['inst_name_ar']) . ' - ' . pi_setting('site_name');
 $total_count = pi_count_personalities() + pi_count_institutions();
 
 // Social links
