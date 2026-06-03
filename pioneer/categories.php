@@ -39,7 +39,7 @@ include 'includes/header.php';
 <!-- HERO / SEARCH -->
 <section class="hero-bg py-12">
   <div class="max-w-3xl mx-auto px-4">
-    <form action="categories.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
+    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
       <div class="flex items-center bg-white px-4 gap-2">
         <i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i>
       </div>
