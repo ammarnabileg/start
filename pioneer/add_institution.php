@@ -138,7 +138,7 @@ include 'includes/header.php';
         <div class="md:col-span-2">
           <label class="add-form-label">شعار الشركة / المؤسسة <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
           <div class="upload-zone" onclick="document.getElementById('logo_file_inst').click()">
-            <input type="file" id="logo_file_inst" name="inst_logo_file" accept="image/*" class="hidden" onchange="previewInstLogo(this)">
+            <input type="file" id="logo_file_inst" name="inst_logo_file" accept="image/*" class="hidden" data-preview="inst_logo_prev" data-placeholder="inst_logo_placeholder">
             <img id="inst_logo_prev" class="hidden w-20 h-20 rounded-xl object-contain mx-auto mb-3">
             <div id="inst_logo_placeholder">
               <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">

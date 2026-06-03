@@ -18,6 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $bio       = pi_escape($_POST['p_bio'] ?? '');
         $bio_plat  = pi_escape($_POST['p_bio_platform'] ?? '');
         $photo     = pi_escape($_POST['p_photo'] ?? '');
+        if (!empty($_FILES['p_photo_file']['name']) && $_FILES['p_photo_file']['error'] === UPLOAD_ERR_OK) {
+            $ext = strtolower(pathinfo($_FILES['p_photo_file']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                $udir = dirname(__DIR__).'/uploads/';
+                if (!is_dir($udir)) mkdir($udir,0755,true);
+                $fname = 'p_'.time().'_'.rand(100,999).'.'.$ext;
+                if (move_uploaded_file($_FILES['p_photo_file']['tmp_name'], $udir.$fname))
+                    $photo = pi_escape('uploads/'.$fname);
+            }
+        }
         $verified   = (int)($_POST['p_verified'] ?? 0);
         $mtype      = pi_escape($_POST['p_membership_type'] ?? 'standard');
         $country_id = (int)($_POST['p_country_id'] ?? 0);
@@ -79,7 +89,7 @@ if ($action === 'add' || $action === 'edit') {
     <h2 class="text-xl font-black text-gray-800"><?= $action==='add'?'إضافة شخصية جديدة':'تعديل الشخصية' ?></h2>
   </div>
 
-  <form method="POST" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
+  <form method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
     <input type="hidden" name="action" value="save_personality">
     <?php if ($edit_p): ?><input type="hidden" name="p_id" value="<?= $edit_p['p_id'] ?>"><?php endif; ?>
 
@@ -110,9 +120,18 @@ if ($action === 'add' || $action === 'edit') {
           value="<?= htmlspecialchars($edit_p['p_residence'] ?? '') ?>">
       </div>
       <div>
-        <label class="form-label">رابط الصورة</label>
-        <input type="url" name="p_photo" class="form-input" dir="ltr"
-          value="<?= htmlspecialchars($edit_p['p_photo'] ?? '') ?>">
+        <label class="form-label">الصورة الشخصية</label>
+        <div class="pi-upload-zone" onclick="document.getElementById('p_photo_file').click()">
+          <input type="file" id="p_photo_file" name="p_photo_file" accept="image/*" class="hidden" data-preview="p_photo_prev" data-placeholder="p_photo_ph">
+          <img id="p_photo_prev" src="<?= htmlspecialchars($edit_p['p_photo']??'') ?>"
+            class="<?= ($edit_p['p_photo']??'')?'':'hidden' ?> w-20 h-20 rounded-full object-cover mx-auto mb-2">
+          <div id="p_photo_ph" <?= ($edit_p['p_photo']??'')?'style="display:none"':'' ?>>
+            <i class="fa-solid fa-camera" style="font-size:24px;color:#9ca3af;display:block;margin-bottom:6px;"></i>
+            <p style="font-size:13px;font-weight:700;color:#6b7280;">اضغط لرفع صورة</p>
+            <p style="font-size:11px;color:#9ca3af;margin-top:3px;">JPG, PNG, WebP</p>
+          </div>
+        </div>
+        <input type="hidden" name="p_photo" value="<?= htmlspecialchars($edit_p['p_photo']??'') ?>">
       </div>
       <div>
         <label class="form-label">نوع العضوية</label>

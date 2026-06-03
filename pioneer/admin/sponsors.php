@@ -99,7 +99,7 @@ if ($action === 'add' || $action === 'edit') {
         id="sp_drop_zone" onclick="document.getElementById('sp_logo_file').click()"
         onmouseover="this.style.borderColor='#8829C8';this.style.background='#f5f0ff'"
         onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fafafa'">
-        <input type="file" id="sp_logo_file" name="sp_logo_file" accept="image/*" class="hidden" onchange="previewSpLogo(this)">
+        <input type="file" id="sp_logo_file" name="sp_logo_file" accept="image/*" class="hidden" data-preview="sp_logo_prev" data-placeholder="sp_logo_placeholder">
         <?php if (!empty($es['sp_logo'])): ?>
           <img id="sp_logo_prev" src="<?= htmlspecialchars($es['sp_logo']) ?>"
             style="max-width:200px;max-height:120px;object-fit:contain;margin:0 auto 10px;display:block;border-radius:10px;">

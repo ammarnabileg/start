@@ -98,6 +98,18 @@ $_primary   = $_S['primary_color'] ?? '#8829C8';
       vertical-align: middle;
     }
     [x-cloak] { display: none !important; }
+    /* Global upload zone */
+    .pi-upload-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 14px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: border-color .2s, background .2s;
+    }
+    .pi-upload-zone:hover { border-color: #8829C8; background: #f5f0ff; }
+    .pi-upload-zone.drag-over { border-color: #8829C8; background: #ede9fe; }
   </style>
 </head>
 <body class="bg-gray-50">

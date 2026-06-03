@@ -10,6 +10,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name_ar  = pi_escape($_POST['inst_name_ar'] ?? '');
         $name_en  = pi_escape($_POST['inst_name_en'] ?? '');
         $logo     = pi_escape($_POST['inst_logo'] ?? '');
+        if (!empty($_FILES['inst_logo_file']['name']) && $_FILES['inst_logo_file']['error'] === UPLOAD_ERR_OK) {
+            $ext = strtolower(pathinfo($_FILES['inst_logo_file']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg','jpeg','png','webp','gif','svg'])) {
+                $udir = dirname(__DIR__).'/uploads/';
+                if (!is_dir($udir)) mkdir($udir,0755,true);
+                $fname = 'inst_'.time().'_'.rand(100,999).'.'.$ext;
+                if (move_uploaded_file($_FILES['inst_logo_file']['tmp_name'], $udir.$fname))
+                    $logo = pi_escape('uploads/'.$fname);
+            }
+        }
         $desc     = pi_escape($_POST['inst_description'] ?? '');
         $verified   = (int)($_POST['inst_verified'] ?? 0);
         $country_id = (int)($_POST['inst_country_id'] ?? 0);
@@ -44,15 +54,27 @@ if ($action === 'add' || $action === 'edit') {
     <a href="admin.php?p=institutions" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-arrow-right text-lg"></i></a>
     <h2 class="text-xl font-black text-gray-800"><?= $action==='add'?'إضافة مؤسسة':'تعديل المؤسسة' ?></h2>
   </div>
-  <form method="POST" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
+  <form method="POST" enctype="multipart/form-data" class="bg-white rounded-2xl shadow-sm p-6 space-y-5">
     <input type="hidden" name="action" value="save_institution">
     <?php if ($ei): ?><input type="hidden" name="inst_id" value="<?= $ei['inst_id'] ?>"><?php endif; ?>
     <div><label class="form-label">اسم المؤسسة (عربي) *</label>
     <input type="text" name="inst_name_ar" required class="form-input" value="<?= htmlspecialchars($ei['inst_name_ar']??'') ?>"></div>
     <div><label class="form-label">اسم المؤسسة (إنجليزي)</label>
     <input type="text" name="inst_name_en" class="form-input" dir="ltr" value="<?= htmlspecialchars($ei['inst_name_en']??'') ?>"></div>
-    <div><label class="form-label">رابط الشعار</label>
-    <input type="url" name="inst_logo" class="form-input" dir="ltr" value="<?= htmlspecialchars($ei['inst_logo']??'') ?>"></div>
+    <div>
+      <label class="form-label">شعار المؤسسة</label>
+      <div class="pi-upload-zone" onclick="document.getElementById('inst_logo_file').click()">
+        <input type="file" id="inst_logo_file" name="inst_logo_file" accept="image/*" class="hidden" data-preview="inst_logo_prev" data-placeholder="inst_logo_ph">
+        <img id="inst_logo_prev" src="<?= htmlspecialchars($ei['inst_logo']??'') ?>"
+          class="<?= ($ei['inst_logo']??'')?'':'hidden' ?> w-20 h-20 rounded-xl object-contain mx-auto mb-2">
+        <div id="inst_logo_ph" <?= ($ei['inst_logo']??'')?'style="display:none"':'' ?>>
+          <i class="fa-solid fa-building" style="font-size:24px;color:#9ca3af;display:block;margin-bottom:6px;"></i>
+          <p style="font-size:13px;font-weight:700;color:#6b7280;">اضغط لرفع الشعار</p>
+          <p style="font-size:11px;color:#9ca3af;margin-top:3px;">PNG, JPG, SVG, WebP</p>
+        </div>
+      </div>
+      <input type="hidden" name="inst_logo" value="<?= htmlspecialchars($ei['inst_logo']??'') ?>">
+    </div>
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <div><label class="form-label">الوصف</label>
     <div id="inst_desc_editor" style="min-height:160px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-family:'Cairo',sans-serif;"></div>

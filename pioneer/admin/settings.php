@@ -91,9 +91,9 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
             </div>
             <?php endif; ?>
             <div class="flex-1 space-y-2">
-              <div class="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-purple-400 transition cursor-pointer" onclick="document.getElementById('logo_file').click()">
-                <input type="file" id="logo_file" name="site_logo_file" accept="image/*" class="hidden" onchange="previewLogo(this)">
-                <div class="text-center">
+              <div class="pi-upload-zone" onclick="document.getElementById('logo_file').click()">
+                <input type="file" id="logo_file" name="site_logo_file" accept="image/*" class="hidden" data-preview="logo_preview" data-placeholder="logo_ph">
+                <div id="logo_ph" class="text-center">
                   <i class="fa-solid fa-cloud-arrow-up text-gray-400 text-2xl mb-1"></i>
                   <p class="text-sm text-gray-500 font-semibold">اضغط لرفع صورة الشعار</p>
                   <p class="text-xs text-gray-400">PNG, JPG, SVG, WebP</p>

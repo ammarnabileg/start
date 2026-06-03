@@ -85,5 +85,60 @@ $_S_f = pi_get_settings();
     </p>
   </div>
 </footer>
+<!-- Global image upload preview handler -->
+<script>
+(function() {
+  function initUploadZone(input) {
+    input.addEventListener('change', function() {
+      if (!this.files || !this.files[0]) return;
+      var prevId = this.getAttribute('data-preview');
+      var phId   = this.getAttribute('data-placeholder');
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        if (prevId) {
+          var img = document.getElementById(prevId);
+          if (img) { img.src = e.target.result; img.classList.remove('hidden'); img.style.display = ''; }
+        }
+        if (phId) {
+          var ph = document.getElementById(phId);
+          if (ph) { ph.style.display = 'none'; ph.classList.add('hidden'); }
+        }
+      };
+      reader.readAsDataURL(this.files[0]);
+    });
+    // Drag & drop support on parent zone
+    var zone = input.closest('.pi-upload-zone');
+    if (zone) {
+      zone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', function() { this.classList.remove('drag-over'); });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault(); this.classList.remove('drag-over');
+        var files = e.dataTransfer.files;
+        if (files.length) {
+          var inp = this.querySelector('input[type="file"]');
+          if (inp) {
+            var dt = new DataTransfer(); dt.items.add(files[0]);
+            inp.files = dt.files;
+            inp.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    }
+  }
+  // Init all existing upload inputs with data-preview
+  document.querySelectorAll('input[type="file"][data-preview]').forEach(initUploadZone);
+  // Watch for any dynamically added inputs
+  var obs = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(n) {
+        if (n.nodeType === 1) {
+          n.querySelectorAll && n.querySelectorAll('input[type="file"][data-preview]').forEach(initUploadZone);
+        }
+      });
+    });
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 </body>
 </html>

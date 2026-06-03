@@ -166,7 +166,7 @@ include 'includes/header.php';
         <div>
           <label class="add-form-label">الصورة الشخصية <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
           <div class="upload-zone" onclick="document.getElementById('photo_file').click()">
-            <input type="file" id="photo_file" name="p_photo_file" accept="image/*" class="hidden" onchange="previewPhoto(this)">
+            <input type="file" id="photo_file" name="p_photo_file" accept="image/*" class="hidden" data-preview="photo_prev" data-placeholder="photo_placeholder">
             <img id="photo_prev" class="hidden w-20 h-20 rounded-full object-cover mx-auto mb-3">
             <div id="photo_placeholder">
               <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">

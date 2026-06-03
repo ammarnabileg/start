@@ -182,11 +182,14 @@ function insertYoutube() {
       </div>
       <div>
         <label class="form-label">الصورة المميزة</label>
-        <div style="border:2px dashed #e5e7eb;border-radius:12px;padding:12px;text-align:center;cursor:pointer;" onclick="document.getElementById('art_img_file').click()">
-          <input type="file" id="art_img_file" name="art_image_file" accept="image/*" class="hidden" onchange="previewArtImg(this)">
-          <img id="art_img_prev" src="<?= htmlspecialchars($ea['art_image']??'') ?>" class="<?= ($ea['art_image']??'')?'':'hidden' ?> w-full h-28 object-cover rounded-lg mb-2">
-          <i class="fa-solid fa-image text-gray-400 text-xl mb-1"></i>
-          <p style="font-size:12px;color:#9ca3af;">اضغط لرفع صورة</p>
+        <div class="pi-upload-zone" onclick="document.getElementById('art_img_file').click()">
+          <input type="file" id="art_img_file" name="art_image_file" accept="image/*" class="hidden" data-preview="art_img_prev" data-placeholder="art_img_ph">
+          <img id="art_img_prev" src="<?= htmlspecialchars($ea['art_image']??'') ?>"
+            style="<?= ($ea['art_image']??'')?'':'display:none;' ?>width:100%;max-height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px;">
+          <div id="art_img_ph" <?= ($ea['art_image']??'')?'style="display:none"':'' ?>>
+            <i class="fa-solid fa-image" style="font-size:20px;color:#9ca3af;display:block;margin-bottom:6px;"></i>
+            <p style="font-size:12px;color:#9ca3af;">اضغط لرفع صورة مميزة</p>
+          </div>
         </div>
         <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:4px;">— أو —</p>
         <input type="url" name="art_image" class="form-input mt-1" dir="ltr" placeholder="رابط صورة خارجي" value="<?= htmlspecialchars($ea['art_image']??'') ?>">
