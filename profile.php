@@ -55,10 +55,13 @@ if (count($name_parts) >= 2) {
     }
 }
 
+// Build cat_ids from p_cats for same-category queries
+$cat_ids = array_column($p_cats, 'cat_id');
+
 // Same categories personalities
 $same_cat = [];
 if (!empty($cat_ids)) {
-    $cids_str = implode(',', $cat_ids);
+    $cids_str = implode(',', array_map('intval', $cat_ids));
     $r = $mysqli->query("SELECT DISTINCT p.* FROM pi_personalities p JOIN pi_personality_categories pc ON p.p_id=pc.p_id WHERE pc.cat_id IN ($cids_str) AND p.p_active=1 AND p.p_id!=$p_id ORDER BY p.p_views DESC LIMIT 6");
     if ($r) while ($row=$r->fetch_assoc()) $same_cat[] = $row;
 }
@@ -70,11 +73,7 @@ if ($r) while ($row=$r->fetch_assoc()) $executives[] = $row;
 
 // Related articles (same categories or general)
 $related_articles = [];
-if (!empty($cat_ids)) {
-    $r = $mysqli->query("SELECT DISTINCT a.* FROM pi_articles a WHERE a.art_active=1 AND a.art_p_id!=$p_id ORDER BY a.art_id DESC LIMIT 4");
-} else {
-    $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_active=1 AND art_p_id!=$p_id ORDER BY art_id DESC LIMIT 4");
-}
+$r = $mysqli->query("SELECT * FROM pi_articles WHERE art_active=1 AND art_p_id!=$p_id ORDER BY art_id DESC LIMIT 4");
 if ($r) while ($row=$r->fetch_assoc()) $related_articles[] = $row;
 
 $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_p_id=$p_id AND art_active=1 ORDER BY art_id DESC LIMIT 6");
@@ -342,8 +341,8 @@ include 'includes/header.php';
           </h4>
           <?php foreach ($tl_current as $tl): ?>
           <div style="display:flex;gap:14px;margin-bottom:14px;">
-            <?php if (!empty($tl['tl_institution_logo'])): ?>
-              <img src="<?= htmlspecialchars($tl['tl_institution_logo']) ?>" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:1px solid #f3f4f6;flex-shrink:0;">
+            <?php if (false): // tl_institution_logo not in schema ?>
+              <img src="" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:1px solid #f3f4f6;flex-shrink:0;">
             <?php else: ?>
               <div style="width:44px;height:44px;border-radius:10px;background:#f5f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="fa-solid fa-briefcase" style="color:#8829C8;font-size:16px;"></i>
@@ -636,7 +635,7 @@ include 'includes/header.php';
         <?php foreach ($executives as $idx => $ex): ?>
         <?php
           $ex_job = '';
-          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND tl_is_current=1 AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
+          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND (tl_year_end='' OR tl_year_end IS NULL) AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
           if ($rj && $rj->num_rows) { $rjr = $rj->fetch_assoc(); $ex_job = trim(($rjr['tl_title']??'') . ($rjr['tl_institution'] ? ' في "'.$rjr['tl_institution'].'".' : '')); }
         ?>
         <div x-show="showMore || <?= $idx ?> < 2">
@@ -721,10 +720,10 @@ include 'includes/header.php';
 $card_title = '';
 if (!empty($tl_current)) {
     $t = $tl_current[0];
-    $card_title = trim(($t['tl_title']??'') . ($t['tl_org'] ? ' في "'.$t['tl_org'].'"' : ''));
+    $card_title = trim(($t['tl_title']??'') . ($t['tl_institution'] ? ' في "'.$t['tl_institution'].'"' : ''));
 } elseif (!empty($tl_past)) {
     $t = $tl_past[0];
-    $card_title = trim(($t['tl_title']??'') . ($t['tl_org'] ? ' في "'.$t['tl_org'].'"' : ''));
+    $card_title = trim(($t['tl_title']??'') . ($t['tl_institution'] ? ' في "'.$t['tl_institution'].'"' : ''));
 }
 $site_logo  = htmlspecialchars($_S['site_logo'] ?? '');
 $site_name  = htmlspecialchars(pi_setting('site_name'));

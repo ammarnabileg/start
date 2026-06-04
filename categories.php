@@ -60,8 +60,8 @@ if ($cat_filter) {
     $p_search_sql = $search ? " AND (p.p_name_ar LIKE '%$search%' OR p.p_title LIKE '%$search%')" : "";
     $i_search_sql = $search ? " AND (i.inst_name_ar LIKE '%$search%' OR i.inst_description LIKE '%$search%')" : "";
 
-    $order_p = match($sort) { 'name' => 'p.p_name_ar ASC', 'new' => 'p.p_id DESC', default => 'p.p_views DESC' };
-    $order_i = match($sort) { 'name' => 'i.inst_name_ar ASC', 'new' => 'i.inst_id DESC', default => 'i.inst_views DESC' };
+    $order_p = ($sort === 'name') ? 'p.p_name_ar ASC' : (($sort === 'new') ? 'p.p_id DESC' : 'p.p_views DESC');
+    $order_i = ($sort === 'name') ? 'i.inst_name_ar ASC' : (($sort === 'new') ? 'i.inst_id DESC' : 'i.inst_views DESC');
 
     // Verified personalities (عضويات موثقة)
     $r = $mysqli->query("SELECT p.* FROM pi_personalities p JOIN pi_personality_categories pc ON p.p_id=pc.p_id WHERE pc.cat_id=$cat_filter AND p.p_active=1 AND p.p_verified=1$p_search_sql ORDER BY p.p_views DESC LIMIT 10");
@@ -228,11 +228,7 @@ $sorts_meta = [
     <div class="flex items-center justify-between mb-5">
       <div class="flex items-center gap-3">
         <?php
-        $icon_meta = match($sort) {
-            'new'  => ['bg-blue-500',   'fa-clock'],
-            'name' => ['bg-green-600',  'fa-arrow-down-a-z'],
-            default => ['bg-orange-500','fa-fire'],
-        };
+        $icon_meta = ($sort === 'new') ? ['bg-blue-500', 'fa-clock'] : (($sort === 'name') ? ['bg-green-600', 'fa-arrow-down-a-z'] : ['bg-orange-500', 'fa-fire']);
         ?>
         <div class="w-8 h-8 rounded-xl <?= $icon_meta[0] ?> flex items-center justify-center">
           <i class="fa-solid <?= $icon_meta[1] ?> text-white text-sm"></i>

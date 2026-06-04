@@ -418,7 +418,7 @@ include 'includes/header.php';
         <?php foreach ($executives as $idx => $ex): ?>
         <?php
           $ex_job = '';
-          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND tl_is_current=1 AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
+          $rj = $mysqli->query("SELECT tl_title, tl_institution FROM pi_timeline WHERE tl_p_id={$ex['p_id']} AND (tl_year_end='' OR tl_year_end IS NULL) AND tl_type='work' ORDER BY tl_year_start DESC LIMIT 1");
           if ($rj && $rj->num_rows) { $rjr = $rj->fetch_assoc(); $ex_job = trim(($rjr['tl_title']??'') . ($rjr['tl_institution'] ? ' في "'.$rjr['tl_institution'].'".' : '')); }
         ?>
         <div x-show="showMore || <?= $idx ?> < 2">

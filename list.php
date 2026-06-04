@@ -108,12 +108,11 @@ function fmt_col($value, $type) {
 function profile_col($item, $key) {
     $e = $item['entity'];
     if (!$e) return '';
-    return match($key) {
-        'country'   => $item['li_entity_type']==='personality' ? ($e['p_nationality']??'') : ($e['inst_country']??''),
-        'position'  => $item['li_entity_type']==='personality' ? ($e['p_title']??'') : '',
-        'residence' => $item['li_entity_type']==='personality' ? ($e['p_residence']??'') : '',
-        default     => ''
-    };
+    $is_p = $item['li_entity_type'] === 'personality';
+    if ($key === 'country')   return $is_p ? ($e['p_nationality']??'') : ($e['inst_country_id'] ? (string)$e['inst_country_id'] : '');
+    if ($key === 'position')  return $is_p ? ($e['p_title']??'') : '';
+    if ($key === 'residence') return $is_p ? ($e['p_residence']??'') : '';
+    return '';
 }
 ?>
 <style>

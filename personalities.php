@@ -21,11 +21,13 @@ if ($search) $where .= " AND (p.p_name_ar LIKE '%$search%' OR p.p_title LIKE '%$
 if ($cid) $where .= " AND p.p_country_id=$cid";
 
 // ORDER
-$order = match($sort) {
-    'name' => 'p.p_name_ar ASC',
-    'new'  => 'p.p_id DESC',
-    default => 'p.p_views DESC',
-};
+if ($sort === 'name') {
+    $order = 'p.p_name_ar ASC';
+} elseif ($sort === 'new') {
+    $order = 'p.p_id DESC';
+} else {
+    $order = 'p.p_views DESC';
+}
 
 // Count
 $r = $mysqli->query("SELECT COUNT(*) as c FROM pi_personalities p$join $where");

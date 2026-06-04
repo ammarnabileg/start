@@ -19,22 +19,26 @@ if ($cat_filter) {
     $where = "WHERE i.inst_active=1 AND ic.cat_id=$cat_filter";
     if ($search) $where .= " AND (i.inst_name_ar LIKE '%$search%' OR i.inst_name_en LIKE '%$search%' OR i.inst_description LIKE '%$search%')";
     if ($cid)    $where .= " AND i.inst_country_id=$cid";
-    $order = match($sort) {
-        'name' => 'i.inst_name_ar ASC',
-        'new'  => 'i.inst_id DESC',
-        default => 'i.inst_views DESC',
-    };
+    if ($sort === 'name') {
+        $order = 'i.inst_name_ar ASC';
+    } elseif ($sort === 'new') {
+        $order = 'i.inst_id DESC';
+    } else {
+        $order = 'i.inst_views DESC';
+    }
     $select = "i.*";
 } else {
     $from  = "pi_institutions";
     $where = "WHERE inst_active=1";
     if ($search) $where .= " AND (inst_name_ar LIKE '%$search%' OR inst_name_en LIKE '%$search%' OR inst_description LIKE '%$search%')";
     if ($cid)    $where .= " AND inst_country_id=$cid";
-    $order = match($sort) {
-        'name' => 'inst_name_ar ASC',
-        'new'  => 'inst_id DESC',
-        default => 'inst_views DESC',
-    };
+    if ($sort === 'name') {
+        $order = 'inst_name_ar ASC';
+    } elseif ($sort === 'new') {
+        $order = 'inst_id DESC';
+    } else {
+        $order = 'inst_views DESC';
+    }
     $select = "*";
 }
 
