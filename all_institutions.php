@@ -11,30 +11,50 @@ $country_id = (int)($_GET['country'] ?? 0);
 if ($country_id) $_SESSION['pi_country'] = $country_id;
 $cid = pi_current_country();
 $sort = in_array($_GET['sort'] ?? '', ['views', 'name', 'new']) ? $_GET['sort'] : 'views';
+$cat_filter = (int)($_GET['cat'] ?? 0);
 
 // Build WHERE
-$where = "WHERE inst_active=1";
-if ($search) $where .= " AND (inst_name_ar LIKE '%$search%' OR inst_name_en LIKE '%$search%' OR inst_description LIKE '%$search%')";
-if ($cid) $where .= " AND inst_country_id=$cid";
-
-// ORDER
-$order = match($sort) {
-    'name' => 'inst_name_ar ASC',
-    'new'  => 'inst_id DESC',
-    default => 'inst_views DESC',
-};
+if ($cat_filter) {
+    $from  = "pi_institutions i JOIN pi_institution_categories ic ON i.inst_id=ic.inst_id";
+    $where = "WHERE i.inst_active=1 AND ic.cat_id=$cat_filter";
+    if ($search) $where .= " AND (i.inst_name_ar LIKE '%$search%' OR i.inst_name_en LIKE '%$search%' OR i.inst_description LIKE '%$search%')";
+    if ($cid)    $where .= " AND i.inst_country_id=$cid";
+    $order = match($sort) {
+        'name' => 'i.inst_name_ar ASC',
+        'new'  => 'i.inst_id DESC',
+        default => 'i.inst_views DESC',
+    };
+    $select = "i.*";
+} else {
+    $from  = "pi_institutions";
+    $where = "WHERE inst_active=1";
+    if ($search) $where .= " AND (inst_name_ar LIKE '%$search%' OR inst_name_en LIKE '%$search%' OR inst_description LIKE '%$search%')";
+    if ($cid)    $where .= " AND inst_country_id=$cid";
+    $order = match($sort) {
+        'name' => 'inst_name_ar ASC',
+        'new'  => 'inst_id DESC',
+        default => 'inst_views DESC',
+    };
+    $select = "*";
+}
 
 // Count
-$r = $mysqli->query("SELECT COUNT(*) as c FROM pi_institutions $where");
+$r = $mysqli->query("SELECT COUNT(*) as c FROM $from $where");
 $total = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $total_pages = max(1, ceil($total / $per_page));
 
 // Fetch
 $institutions = [];
-$r = $mysqli->query("SELECT * FROM pi_institutions $where ORDER BY $order LIMIT $per_page OFFSET $offset");
+$r = $mysqli->query("SELECT $select FROM $from $where ORDER BY $order LIMIT $per_page OFFSET $offset");
 if ($r) while ($row = $r->fetch_assoc()) $institutions[] = $row;
 
 $countries = pi_get_countries();
+
+$cat_name = '';
+if ($cat_filter) {
+    $rc = $mysqli->query("SELECT cat_name FROM pi_categories WHERE cat_id=$cat_filter AND cat_active=1");
+    if ($rc && $rc->num_rows) $cat_name = $rc->fetch_assoc()['cat_name'];
+}
 
 include 'includes/header.php';
 ?>
@@ -42,8 +62,8 @@ include 'includes/header.php';
 <!-- HERO / SEARCH -->
 <section class="hero-bg py-14 text-white">
   <div class="max-w-3xl mx-auto px-4 text-center">
-    <h1 class="text-3xl font-black mb-3">المؤسسات</h1>
-    <p class="text-purple-200 mb-8 font-medium">تصفّح <?= number_format(pi_count_institutions()) ?> مؤسسة عربية موثقة</p>
+    <h1 class="text-3xl font-black mb-3"><?= $cat_name ? htmlspecialchars($cat_name) . ' — المؤسسات' : 'المؤسسات' ?></h1>
+    <p class="text-purple-200 mb-8 font-medium">تصفّح <?= number_format($total) ?> مؤسسة<?= $cat_name ? ' في هذا التصنيف' : ' عربية موثقة' ?></p>
     <form action="all_institutions.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
       <div class="flex items-center bg-white px-4"><i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i></div>
       <input name="q" type="text" placeholder="ابحث باسم المؤسسة أو النوع..."
@@ -60,7 +80,15 @@ include 'includes/header.php';
   <nav class="flex items-center gap-2 text-sm text-gray-500">
     <a href="index.php" class="hover:text-purple-600 transition font-semibold">الرئيسية</a>
     <i class="fa-solid fa-slash text-xs text-gray-300"></i>
+    <?php if ($cat_name): ?>
+    <a href="categories.php" class="hover:text-purple-600 transition font-semibold">التصنيفات</a>
+    <i class="fa-solid fa-slash text-xs text-gray-300"></i>
+    <a href="categories.php?cat=<?= $cat_filter ?>" class="hover:text-purple-600 transition font-semibold"><?= htmlspecialchars($cat_name) ?></a>
+    <i class="fa-solid fa-slash text-xs text-gray-300"></i>
     <span class="text-gray-800 font-semibold">المؤسسات</span>
+    <?php else: ?>
+    <span class="text-gray-800 font-semibold">المؤسسات</span>
+    <?php endif; ?>
   </nav>
 </div>
 
@@ -82,7 +110,7 @@ include 'includes/header.php';
         ];
         foreach ($sorts as $sv => [$sl, $si, $ic]):
           $active = $sort === $sv;
-          $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'']), ['sort'=>$sv,'page'=>1]);
+          $params = array_merge(array_filter(['q'=>$_GET['q']??'','country'=>$cid?:'','cat'=>$cat_filter?:'']), ['sort'=>$sv,'page'=>1]);
         ?>
         <a href="all_institutions.php?<?= http_build_query($params) ?>"
           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-bold transition <?= $active
@@ -99,6 +127,7 @@ include 'includes/header.php';
       <form method="GET" action="all_institutions.php" class="flex items-center gap-2 px-5 py-3">
         <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
         <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
+        <?php if ($cat_filter): ?><input type="hidden" name="cat" value="<?= $cat_filter ?>"><?php endif; ?>
         <i class="fa-solid fa-earth-americas text-purple-400 text-sm"></i>
         <select name="country" onchange="this.form.submit()"
           class="border-0 bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer pr-1">
