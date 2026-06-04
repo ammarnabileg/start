@@ -313,3 +313,11 @@ function pi_create_list_tables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 pi_create_list_tables();
+
+// ── Lists: add sponsor + spotlight columns if missing ──────────────────────
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_id INT DEFAULT NULL");
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_img VARCHAR(500) DEFAULT ''");
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_url VARCHAR(500) DEFAULT ''");
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_name VARCHAR(300) DEFAULT ''");
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_spotlight JSON");
+$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_criteria TEXT DEFAULT ''");
