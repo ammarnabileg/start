@@ -187,244 +187,340 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
   </div>
 
   <?php if ($view_user): ?>
-  <!-- ═══ SINGLE USER VIEW ═══ -->
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-    <!-- Header -->
-    <div class="flex items-center gap-4 p-6 border-b border-gray-100">
-      <a href="admin.php?p=users" class="text-gray-400 hover:text-gray-600">
-        <i class="fa-solid fa-arrow-right text-lg"></i>
+  <?php
+  // Pre-compute counts for KPI cards
+  $upgrade_reqs_count = 0;
+  foreach ($view_edit_reqs as $er) { if ($er['er_req_type'] === 'upgrade') $upgrade_reqs_count++; }
+  $edit_reqs_count = count($view_edit_reqs) - $upgrade_reqs_count;
+  $linked_total = count($view_personalities) + count($view_institutions);
+  $is_active = (bool)$view_user['u_active'];
+  $pending_items = 0;
+  foreach ($view_subs as $vs) { if ($vs['sub_status']==='pending') $pending_items++; }
+  foreach ($view_edit_reqs as $er) { if ($er['er_status']==='pending') $pending_items++; }
+  ?>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!--  HERO SECTION                                      -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="rounded-2xl overflow-hidden shadow-sm border border-gray-200" style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%)">
+    <!-- Back bar -->
+    <div class="px-6 pt-5 pb-0 flex items-center justify-between">
+      <a href="admin.php?p=users" class="flex items-center gap-2 text-purple-200 hover:text-white transition text-sm font-semibold">
+        <i class="fa-solid fa-arrow-right text-xs"></i> العودة للقائمة
       </a>
-      <?php if ($view_user['u_photo']): ?>
-      <img src="../<?= htmlspecialchars($view_user['u_photo']) ?>" class="w-14 h-14 rounded-full object-cover border-2 border-purple-200">
-      <?php else: ?>
-      <div class="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-2xl font-black">
-        <?= mb_substr($view_user['u_name'], 0, 1) ?>
+      <span class="text-purple-300 text-xs font-mono">ID #<?= $view_user['u_id'] ?></span>
+    </div>
+
+    <!-- Main hero content -->
+    <div class="px-6 py-6 flex flex-col md:flex-row md:items-center gap-5">
+      <!-- Avatar -->
+      <div class="relative flex-shrink-0">
+        <?php if ($view_user['u_photo']): ?>
+        <img src="../<?= htmlspecialchars($view_user['u_photo']) ?>" class="w-20 h-20 rounded-2xl object-cover border-4 border-white/20">
+        <?php else: ?>
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black text-white border-4 border-white/20" style="background:rgba(255,255,255,0.15)">
+          <?= mb_substr($view_user['u_name'], 0, 1) ?>
+        </div>
+        <?php endif; ?>
+        <span class="absolute -bottom-1 -left-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center <?= $is_active ? 'bg-emerald-400' : 'bg-red-400' ?>"></span>
       </div>
-      <?php endif; ?>
-      <div class="flex-1">
-        <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="font-black text-gray-800 text-lg"><?= htmlspecialchars($view_user['u_name']) ?></h2>
-          <?php if ($view_user['u_active']): ?>
-          <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700"><i class="fa-solid fa-circle-check ml-1"></i>نشط</span>
+
+      <!-- Identity -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 flex-wrap mb-1">
+          <h2 class="text-white font-black text-2xl"><?= htmlspecialchars($view_user['u_name']) ?></h2>
+          <?php if ($is_active): ?>
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+            <i class="fa-solid fa-circle text-[7px] ml-1"></i>نشط
+          </span>
           <?php else: ?>
-          <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-700"><i class="fa-solid fa-ban ml-1"></i>محظور</span>
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-red-400/20 text-red-300 border border-red-400/30">
+            <i class="fa-solid fa-ban text-xs ml-1"></i>محظور
+          </span>
+          <?php endif; ?>
+          <?php if ($pending_items > 0): ?>
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+            <i class="fa-solid fa-clock text-xs ml-1"></i><?= $pending_items ?> بانتظار المراجعة
+          </span>
           <?php endif; ?>
         </div>
-        <p class="text-gray-500 text-sm"><?= htmlspecialchars($view_user['u_email']) ?></p>
+        <p class="text-purple-200 text-sm mb-3" dir="ltr"><?= htmlspecialchars($view_user['u_email']) ?></p>
+        <div class="flex flex-wrap gap-4 text-xs text-purple-300">
+          <span><i class="fa-solid fa-calendar-plus ml-1 opacity-60"></i>سُجِّل <?= date('d/m/Y', strtotime($view_user['u_created'])) ?></span>
+          <?php if ($view_user['u_phone']): ?><span><i class="fa-solid fa-phone ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_phone']) ?></span><?php endif; ?>
+          <?php if ($view_user['u_job']): ?><span><i class="fa-solid fa-briefcase ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_job']) ?></span><?php endif; ?>
+          <?php if ($view_user['u_nationality']): ?><span><i class="fa-solid fa-flag ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_nationality']) ?></span><?php endif; ?>
+        </div>
       </div>
-      <!-- Action buttons -->
-      <div class="flex gap-2 flex-wrap justify-end">
+
+      <!-- Quick actions -->
+      <div class="flex flex-wrap gap-2 flex-shrink-0">
         <a href="admin.php?p=users&impersonate=<?= $view_user['u_id'] ?>"
-           onclick="return confirm('ستدخل كـ <?= htmlspecialchars(addslashes($view_user['u_name'])) ?>. متأكد؟')"
-           class="flex items-center gap-1.5 px-4 py-2 text-xs font-black bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition">
-          <i class="fa-solid fa-eye"></i> دخول كـ المستخدم
+           onclick="return confirm('ستدخل للمنصة كـ <?= htmlspecialchars(addslashes($view_user['u_name'])) ?>. تأكيد؟')"
+           class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
+           style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2)"
+           onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+          <i class="fa-solid fa-right-to-bracket"></i> دخول كـ المستخدم
         </a>
-        <?php if ($view_user['u_active']): ?>
-        <form method="POST">
+        <button onclick="document.getElementById('edit-user-panel').classList.toggle('hidden'); this.classList.toggle('bg-white/30')"
+          class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
+          style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2)"
+          onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+          <i class="fa-solid fa-pen"></i> تعديل
+        </button>
+        <?php if ($is_active): ?>
+        <form method="POST" class="inline">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
-          <button name="act" value="block" onclick="return confirm('حظر المستخدم؟')"
-            class="flex items-center gap-1.5 px-4 py-2 text-xs font-black bg-red-50 text-red-700 border border-red-200 rounded-xl hover:bg-red-100 transition">
+          <button name="act" value="block"
+            onclick="return confirm('⚠️ تحذير\n\nهل تريد حظر هذا المستخدم؟\nلن يتمكن من تسجيل الدخول.')"
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
+            style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)"
+            onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">
             <i class="fa-solid fa-ban"></i> حظر
           </button>
         </form>
         <?php else: ?>
-        <form method="POST">
+        <form method="POST" class="inline">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
           <button name="act" value="unblock"
-            class="flex items-center gap-1.5 px-4 py-2 text-xs font-black bg-green-50 text-green-700 border border-green-200 rounded-xl hover:bg-green-100 transition">
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
+            style="background:rgba(52,211,153,0.2);color:#6ee7b7;border:1px solid rgba(52,211,153,0.3)"
+            onmouseover="this.style.background='rgba(52,211,153,0.35)'" onmouseout="this.style.background='rgba(52,211,153,0.2)'">
             <i class="fa-solid fa-circle-check"></i> رفع الحظر
           </button>
         </form>
         <?php endif; ?>
-        <form method="POST" onsubmit="return confirm('حذف الحساب نهائياً؟ لا يمكن التراجع.')">
+        <form method="POST" class="inline"
+          onsubmit="return confirm('🗑️ حذف نهائي\n\nسيتم حذف حساب <?= htmlspecialchars(addslashes($view_user['u_name'])) ?> بشكل دائم.\nلا يمكن التراجع عن هذا الإجراء.\n\nهل أنت متأكد؟')">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
           <button name="act" value="delete"
-            class="flex items-center gap-1.5 px-4 py-2 text-xs font-black bg-red-600 text-white rounded-xl hover:bg-red-700 transition">
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
+            style="background:rgba(239,68,68,0.35);color:#fff;border:1px solid rgba(239,68,68,0.5)"
+            onmouseover="this.style.background='rgba(239,68,68,0.55)'" onmouseout="this.style.background='rgba(239,68,68,0.35)'">
             <i class="fa-solid fa-trash"></i> حذف
           </button>
         </form>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-gray-100">
+    <!-- KPI Bar -->
+    <div class="grid grid-cols-3 md:grid-cols-6 border-t border-white/10">
+      <?php
+      $kpis = [
+        ['label'=>'الاقتراحات',       'val'=>count($view_subs),         'icon'=>'fa-inbox',           'color'=>'text-violet-300'],
+        ['label'=>'طلبات التعديل',    'val'=>$edit_reqs_count,          'icon'=>'fa-pen-to-square',   'color'=>'text-amber-300'],
+        ['label'=>'طلبات الترقية',    'val'=>$upgrade_reqs_count,       'icon'=>'fa-crown',           'color'=>'text-yellow-300'],
+        ['label'=>'الشكاوى',          'val'=>count($view_cmps),         'icon'=>'fa-message',         'color'=>'text-blue-300'],
+        ['label'=>'الصفحات المرتبطة', 'val'=>$linked_total,             'icon'=>'fa-id-card',         'color'=>'text-emerald-300'],
+        ['label'=>'معلق للمراجعة',    'val'=>$pending_items,            'icon'=>'fa-clock',           'color'=>$pending_items?'text-red-300':'text-purple-300'],
+      ];
+      foreach ($kpis as $i => $kpi): ?>
+      <div class="flex flex-col items-center justify-center py-4 px-2 border-r border-white/10 last:border-0 <?= $i===5 && $pending_items ? 'bg-red-500/10' : '' ?>">
+        <i class="fa-solid <?= $kpi['icon'] ?> <?= $kpi['color'] ?> text-base mb-1.5"></i>
+        <p class="text-white font-black text-xl leading-none mb-1"><?= $kpi['val'] ?></p>
+        <p class="text-purple-300 text-[10px] font-semibold text-center"><?= $kpi['label'] ?></p>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
 
-      <!-- Info + Edit -->
-      <div class="p-6 md:col-span-2 space-y-6">
-        <!-- Info grid -->
-        <div class="grid grid-cols-2 gap-4 text-sm">
-          <?php
-          $fields = [
-            'الهاتف'=>$view_user['u_phone'],'الوظيفة'=>$view_user['u_job'],
-            'الجنسية'=>$view_user['u_nationality'],'الشركة'=>$view_user['u_company'],
-            'تاريخ الميلاد'=>$view_user['u_birthdate'],'الجنس'=>($view_user['u_gender']==='male'?'ذكر':($view_user['u_gender']==='female'?'أنثى':'—')),
-            'تاريخ التسجيل'=>date('Y/m/d', strtotime($view_user['u_created'])),
-            'عدد الاقتراحات'=>count($view_subs).' اقتراح',
-          ];
-          foreach ($fields as $lbl=>$val): if (!$val) continue; ?>
-          <div>
-            <span class="text-gray-400 text-xs block"><?= $lbl ?></span>
-            <p class="font-semibold text-gray-800"><?= htmlspecialchars($val) ?></p>
+  <!-- Edit panel (hidden by default, toggled by button) -->
+  <div id="edit-user-panel" class="hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Edit info -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center">
+            <i class="fa-solid fa-pen text-purple-600 text-sm"></i>
           </div>
-          <?php endforeach; ?>
+          <p class="font-black text-gray-800 text-sm">تعديل البيانات</p>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+          <input type="hidden" name="act" value="edit_user">
+          <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1.5">الاسم الكامل</label>
+              <input type="text" name="u_name" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition" value="<?= htmlspecialchars($view_user['u_name']) ?>">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1.5">البريد الإلكتروني</label>
+              <input type="email" name="u_email" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition" dir="ltr" value="<?= htmlspecialchars($view_user['u_email']) ?>">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1.5">رقم الهاتف</label>
+              <input type="text" name="u_phone" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition" value="<?= htmlspecialchars($view_user['u_phone'] ?? '') ?>">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1.5">الوظيفة</label>
+              <input type="text" name="u_job" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition" value="<?= htmlspecialchars($view_user['u_job'] ?? '') ?>">
+            </div>
+          </div>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-black text-white transition hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">
+            <i class="fa-solid fa-floppy-disk ml-2"></i>حفظ التعديلات
+          </button>
+        </form>
+      </div>
+      <!-- Change password -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+            <i class="fa-solid fa-key text-amber-600 text-sm"></i>
+          </div>
+          <p class="font-black text-gray-800 text-sm">تغيير كلمة المرور</p>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+          <input type="hidden" name="act" value="reset_password">
+          <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-1.5">كلمة المرور الجديدة</label>
+            <input type="text" name="new_password" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition font-mono" placeholder="6 أحرف على الأقل" dir="ltr">
+          </div>
+          <p class="text-xs text-gray-400"><i class="fa-solid fa-triangle-exclamation text-amber-500 ml-1"></i>هذه العملية لا يمكن التراجع عنها</p>
+          <button type="submit" onclick="return confirm('تغيير كلمة المرور؟')" class="px-5 py-2.5 rounded-xl text-sm font-black text-white transition hover:opacity-90" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+            <i class="fa-solid fa-key ml-2"></i>تغيير كلمة المرور
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!--  MAIN CONTENT GRID: Account Mgmt + Activity        -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+
+    <!-- LEFT: Account Management (2/5) -->
+    <div class="xl:col-span-2 space-y-4">
+
+      <!-- Linked Pages -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+              <i class="fa-solid fa-id-card text-indigo-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="font-black text-gray-800 text-sm">الصفحات المرتبطة</p>
+              <p class="text-gray-400 text-xs"><?= $linked_total ?> صفحة مرتبطة</p>
+            </div>
+          </div>
+          <button onclick="document.getElementById('link-page-form-<?= $view_uid ?>').classList.toggle('hidden')"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-white rounded-xl transition hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">
+            <i class="fa-solid fa-plus text-[10px]"></i>ربط صفحة
+          </button>
         </div>
 
-        <!-- Edit user form -->
-        <details class="border border-gray-100 rounded-xl">
-          <summary class="px-4 py-3 font-bold text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded-xl">
-            <i class="fa-solid fa-pen ml-2 text-purple-500"></i>تعديل بيانات المستخدم
-          </summary>
-          <form method="POST" class="p-4 space-y-3 border-t border-gray-100">
-            <input type="hidden" name="act" value="edit_user">
-            <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <!-- Link form -->
+        <div id="link-page-form-<?= $view_uid ?>" class="hidden border-b border-gray-100 p-4 bg-violet-50/60">
+          <form method="POST" class="space-y-3">
+            <input type="hidden" name="uid" value="<?= $view_uid ?>">
+            <input type="hidden" name="act" value="link_page">
+            <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="form-label text-xs">الاسم</label>
-                <input type="text" name="u_name" class="form-input text-sm" value="<?= htmlspecialchars($view_user['u_name']) ?>">
+                <label class="block text-xs font-bold text-gray-600 mb-1">النوع</label>
+                <select name="etype" id="link-etype-<?= $view_uid ?>" onchange="updateLinkSelect(<?= $view_uid ?>)"
+                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                  <option value="personality">شخصية</option>
+                  <option value="institution">مؤسسة</option>
+                </select>
               </div>
               <div>
-                <label class="form-label text-xs">البريد</label>
-                <input type="email" name="u_email" class="form-input text-sm" dir="ltr" value="<?= htmlspecialchars($view_user['u_email']) ?>">
-              </div>
-              <div>
-                <label class="form-label text-xs">الهاتف</label>
-                <input type="text" name="u_phone" class="form-input text-sm" value="<?= htmlspecialchars($view_user['u_phone'] ?? '') ?>">
-              </div>
-              <div>
-                <label class="form-label text-xs">الوظيفة</label>
-                <input type="text" name="u_job" class="form-input text-sm" value="<?= htmlspecialchars($view_user['u_job'] ?? '') ?>">
+                <label class="block text-xs font-bold text-gray-600 mb-1">بحث</label>
+                <input type="text" id="link-search-<?= $view_uid ?>" placeholder="فلترة..."
+                  oninput="filterLinkOptions(<?= $view_uid ?>)"
+                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
               </div>
             </div>
-            <button type="submit" class="btn-primary text-sm px-5 py-2">حفظ التعديلات</button>
+            <div>
+              <?php
+              $suggested_p_ids = [];
+              $suggested_i_ids = [];
+              $sr2 = $mysqli->query("SELECT sub_type,sub_data FROM pi_submissions WHERE sub_user_id=$view_uid AND sub_status='approved' ORDER BY sub_id DESC LIMIT 50");
+              if ($sr2) while ($srow=$sr2->fetch_assoc()) {
+                  $sd = json_decode($srow['sub_data'] ?? '{}', true);
+                  $sname = $srow['sub_type']==='personality' ? ($sd['p_name_ar'] ?? '') : ($sd['inst_name_ar'] ?? '');
+                  if ($srow['sub_type']==='personality' && $sname) {
+                      $sp = $mysqli->query("SELECT p_id FROM pi_personalities WHERE p_name_ar='".pi_escape($sname)."' AND p_active=1 LIMIT 1");
+                      if ($sp && $sp->num_rows) $suggested_p_ids[] = (int)$sp->fetch_assoc()['p_id'];
+                  } else if ($sname) {
+                      $si = $mysqli->query("SELECT inst_id FROM pi_institutions WHERE inst_name_ar='".pi_escape($sname)."' AND inst_active=1 LIMIT 1");
+                      if ($si && $si->num_rows) $suggested_i_ids[] = (int)$si->fetch_assoc()['inst_id'];
+                  }
+              }
+              ?>
+              <select name="eid" id="link-eid-p-<?= $view_uid ?>"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                <?php if (!empty($suggested_p_ids)): ?>
+                <optgroup label="── اقترحها هذا المستخدم ──">
+                  <?php foreach ($all_personalities_flat as $ap): if (!in_array($ap['p_id'], $suggested_p_ids)) continue; ?>
+                  <option value="<?= $ap['p_id'] ?>">★ <?= htmlspecialchars($ap['p_name_ar']) ?><?= $ap['p_title'] ? ' — '.htmlspecialchars($ap['p_title']) : '' ?></option>
+                  <?php endforeach; ?>
+                </optgroup>
+                <optgroup label="── باقي الشخصيات ──">
+                <?php else: ?>
+                <optgroup label="── الشخصيات ──">
+                <?php endif; ?>
+                  <?php foreach ($all_personalities_flat as $ap): if (in_array($ap['p_id'], $suggested_p_ids)) continue; ?>
+                  <option value="<?= $ap['p_id'] ?>"><?= htmlspecialchars($ap['p_name_ar']) ?><?= $ap['p_title'] ? ' — '.htmlspecialchars($ap['p_title']) : '' ?></option>
+                  <?php endforeach; ?>
+                </optgroup>
+              </select>
+              <select name="eid" id="link-eid-i-<?= $view_uid ?>" class="hidden w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                <?php if (!empty($suggested_i_ids)): ?>
+                <optgroup label="── اقترحها هذا المستخدم ──">
+                  <?php foreach ($all_institutions_flat as $ai): if (!in_array($ai['inst_id'], $suggested_i_ids)) continue; ?>
+                  <option value="<?= $ai['inst_id'] ?>">★ <?= htmlspecialchars($ai['inst_name_ar']) ?></option>
+                  <?php endforeach; ?>
+                </optgroup>
+                <optgroup label="── باقي المؤسسات ──">
+                <?php else: ?>
+                <optgroup label="── المؤسسات ──">
+                <?php endif; ?>
+                  <?php foreach ($all_institutions_flat as $ai): if (in_array($ai['inst_id'], $suggested_i_ids)) continue; ?>
+                  <option value="<?= $ai['inst_id'] ?>"><?= htmlspecialchars($ai['inst_name_ar']) ?></option>
+                  <?php endforeach; ?>
+                </optgroup>
+              </select>
+            </div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs text-gray-400">★ = اقترحها المستخدم سابقاً</p>
+              <button type="submit" class="px-4 py-2 text-xs font-black text-white rounded-xl transition hover:opacity-90" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">
+                <i class="fa-solid fa-link ml-1"></i>ربط
+              </button>
+            </div>
           </form>
-        </details>
+        </div>
 
-        <!-- Change password -->
-        <details class="border border-gray-100 rounded-xl">
-          <summary class="px-4 py-3 font-bold text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded-xl">
-            <i class="fa-solid fa-key ml-2 text-amber-500"></i>تغيير كلمة المرور
-          </summary>
-          <form method="POST" class="p-4 space-y-3 border-t border-gray-100">
-            <input type="hidden" name="act" value="reset_password">
-            <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
-            <input type="text" name="new_password" class="form-input text-sm" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" dir="ltr">
-            <button type="submit" class="btn-primary text-sm px-5 py-2" style="background:linear-gradient(135deg,#f59e0b,#d97706);">تغيير كلمة المرور</button>
-          </form>
-        </details>
-
-        <!-- Personalities & Institutions managed by user -->
-        <div class="border border-gray-100 rounded-xl overflow-hidden">
-          <div class="px-4 py-3 bg-gray-50 font-bold text-sm text-gray-700 flex items-center justify-between">
-            <span><i class="fa-solid fa-id-card text-purple-500 ml-1"></i>الصفحات المدارة</span>
-            <button onclick="document.getElementById('link-page-form-<?= $view_uid ?>').classList.toggle('hidden')"
-              class="px-3 py-1 text-xs font-black bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-              <i class="fa-solid fa-plus ml-1"></i>ربط صفحة
-            </button>
-          </div>
-
-          <!-- Link form -->
-          <div id="link-page-form-<?= $view_uid ?>" class="hidden border-b border-gray-100 p-4 bg-purple-50">
-            <form method="POST" class="space-y-3">
-              <input type="hidden" name="uid" value="<?= $view_uid ?>">
-              <input type="hidden" name="act" value="link_page">
-              <div class="flex gap-2 flex-wrap items-end">
-                <div class="flex-shrink-0 min-w-36">
-                  <label class="block text-xs font-bold text-gray-600 mb-1">النوع</label>
-                  <select name="etype" id="link-etype-<?= $view_uid ?>" onchange="updateLinkSelect(<?= $view_uid ?>)"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
-                    <option value="personality">شخصية</option>
-                    <option value="institution">مؤسسة</option>
-                  </select>
-                </div>
-                <div class="flex-1 min-w-52">
-                  <label class="block text-xs font-bold text-gray-600 mb-1">بحث سريع</label>
-                  <input type="text" id="link-search-<?= $view_uid ?>" placeholder="اكتب للفلترة..."
-                    oninput="filterLinkOptions(<?= $view_uid ?>)"
-                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
-                </div>
-                <button type="submit" class="px-4 py-2 text-xs font-black bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex-shrink-0">
-                  <i class="fa-solid fa-link ml-1"></i>ربط
-                </button>
-              </div>
-              <div>
-                <?php
-                // User's suggested entities (approved submissions) shown first
-                $suggested_p_ids = [];
-                $suggested_i_ids = [];
-                $sr2 = $mysqli->query("SELECT sub_type,sub_data FROM pi_submissions WHERE sub_user_id=$view_uid AND sub_status='approved' ORDER BY sub_id DESC LIMIT 50");
-                if ($sr2) while ($srow=$sr2->fetch_assoc()) {
-                    $sd = json_decode($srow['sub_data'] ?? '{}', true);
-                    $sname = $srow['sub_type']==='personality' ? ($sd['p_name_ar'] ?? '') : ($sd['inst_name_ar'] ?? '');
-                    if ($srow['sub_type']==='personality' && $sname) {
-                        $sp = $mysqli->query("SELECT p_id FROM pi_personalities WHERE p_name_ar='".pi_escape($sname)."' AND p_active=1 LIMIT 1");
-                        if ($sp && $sp->num_rows) $suggested_p_ids[] = (int)$sp->fetch_assoc()['p_id'];
-                    } else if ($sname) {
-                        $si = $mysqli->query("SELECT inst_id FROM pi_institutions WHERE inst_name_ar='".pi_escape($sname)."' AND inst_active=1 LIMIT 1");
-                        if ($si && $si->num_rows) $suggested_i_ids[] = (int)$si->fetch_assoc()['inst_id'];
-                    }
-                }
-                ?>
-                <select name="eid" id="link-eid-p-<?= $view_uid ?>"
-                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white max-h-48 overflow-y-auto">
-                  <?php if (!empty($suggested_p_ids)): ?>
-                  <optgroup label="── اقترحها هذا المستخدم ──">
-                    <?php foreach ($all_personalities_flat as $ap): if (!in_array($ap['p_id'], $suggested_p_ids)) continue; ?>
-                    <option value="<?= $ap['p_id'] ?>">★ <?= htmlspecialchars($ap['p_name_ar']) ?><?= $ap['p_title'] ? ' — '.htmlspecialchars($ap['p_title']) : '' ?></option>
-                    <?php endforeach; ?>
-                  </optgroup>
-                  <optgroup label="── باقي الشخصيات ──">
-                  <?php else: ?>
-                  <optgroup label="── الشخصيات ──">
-                  <?php endif; ?>
-                    <?php foreach ($all_personalities_flat as $ap): if (in_array($ap['p_id'], $suggested_p_ids)) continue; ?>
-                    <option value="<?= $ap['p_id'] ?>"><?= htmlspecialchars($ap['p_name_ar']) ?><?= $ap['p_title'] ? ' — '.htmlspecialchars($ap['p_title']) : '' ?></option>
-                    <?php endforeach; ?>
-                  </optgroup>
-                </select>
-                <select name="eid" id="link-eid-i-<?= $view_uid ?>" class="hidden w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
-                  <?php if (!empty($suggested_i_ids)): ?>
-                  <optgroup label="── اقترحها هذا المستخدم ──">
-                    <?php foreach ($all_institutions_flat as $ai): if (!in_array($ai['inst_id'], $suggested_i_ids)) continue; ?>
-                    <option value="<?= $ai['inst_id'] ?>">★ <?= htmlspecialchars($ai['inst_name_ar']) ?></option>
-                    <?php endforeach; ?>
-                  </optgroup>
-                  <optgroup label="── باقي المؤسسات ──">
-                  <?php else: ?>
-                  <optgroup label="── المؤسسات ──">
-                  <?php endif; ?>
-                    <?php foreach ($all_institutions_flat as $ai): if (in_array($ai['inst_id'], $suggested_i_ids)) continue; ?>
-                    <option value="<?= $ai['inst_id'] ?>"><?= htmlspecialchars($ai['inst_name_ar']) ?></option>
-                    <?php endforeach; ?>
-                  </optgroup>
-                </select>
-                <p class="text-xs text-gray-400 mt-1">★ = اقترحها المستخدم سابقاً</p>
-              </div>
-            </form>
-          </div>
-
-          <div class="p-4 space-y-2">
+        <!-- Pages list -->
+        <div class="divide-y divide-gray-50">
           <?php if (empty($view_personalities) && empty($view_institutions)): ?>
-          <p class="text-gray-400 text-sm text-center py-4">لا توجد صفحات مرتبطة بعد</p>
+          <div class="py-10 text-center">
+            <i class="fa-solid fa-id-card text-4xl text-gray-200 block mb-3"></i>
+            <p class="text-gray-400 text-sm">لا توجد صفحات مرتبطة بعد</p>
+          </div>
           <?php endif; ?>
           <?php foreach ($view_personalities as $vp):
             $mem = $vp['p_membership_type'];
-            $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vp['p_verified']?['موثق','bg-blue-100 text-blue-700']:['غير موثق','bg-gray-100 text-gray-500']);
+            if ($mem==='executive') { $mbadge='تنفيذي'; $mcls='bg-amber-100 text-amber-700 border-amber-200'; }
+            elseif ($mem==='verified'||$vp['p_verified']) { $mbadge='موثق'; $mcls='bg-blue-100 text-blue-700 border-blue-200'; }
+            else { $mbadge='غير موثق'; $mcls='bg-gray-100 text-gray-500 border-gray-200'; }
           ?>
-          <div class="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
-            <?php if ($vp['p_photo']): ?><img src="../<?= htmlspecialchars($vp['p_photo']) ?>" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
-            <?php else: ?><div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-purple-500 text-xs"></i></div><?php endif; ?>
+          <div class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition">
+            <?php if ($vp['p_photo']): ?><img src="../<?= htmlspecialchars($vp['p_photo']) ?>" class="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100">
+            <?php else: ?><div class="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-purple-500 text-xs"></i></div><?php endif; ?>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vp['p_name_ar']) ?></p>
-              <p class="text-xs text-gray-400"><?= htmlspecialchars($vp['p_title'] ?? '') ?></p>
+              <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($vp['p_title'] ?? '') ?></p>
             </div>
-            <div class="flex gap-1 items-center flex-shrink-0">
-              <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700">شخصية</span>
-              <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border <?= $mcls ?>"><?= $mbadge ?></span>
               <form method="POST" class="inline">
                 <input type="hidden" name="uid" value="<?= $view_uid ?>">
                 <input type="hidden" name="act" value="unlink_page">
                 <input type="hidden" name="etype" value="personality">
                 <input type="hidden" name="eid" value="<?= $vp['p_id'] ?>">
-                <button type="submit" onclick="return confirm('إلغاء الربط؟')" class="text-red-400 hover:text-red-600 transition px-1" title="إلغاء الربط">
+                <button type="submit" onclick="return confirm('إلغاء ربط هذه الصفحة؟')" class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition" title="إلغاء الربط">
                   <i class="fa-solid fa-link-slash text-xs"></i>
                 </button>
               </form>
@@ -433,158 +529,304 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
           <?php endforeach; ?>
           <?php foreach ($view_institutions as $vi):
             $mem = $vi['inst_membership_type'];
-            $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vi['inst_verified']?['موثقة','bg-blue-100 text-blue-700']:['غير موثقة','bg-gray-100 text-gray-500']);
+            if ($mem==='executive') { $mbadge='تنفيذي'; $mcls='bg-amber-100 text-amber-700 border-amber-200'; }
+            elseif ($mem==='verified'||$vi['inst_verified']) { $mbadge='موثقة'; $mcls='bg-blue-100 text-blue-700 border-blue-200'; }
+            else { $mbadge='غير موثقة'; $mcls='bg-gray-100 text-gray-500 border-gray-200'; }
           ?>
-          <div class="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
-            <?php if ($vi['inst_logo']): ?><img src="../<?= htmlspecialchars($vi['inst_logo']) ?>" class="w-8 h-8 rounded-xl object-cover flex-shrink-0">
-            <?php else: ?><div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-indigo-500 text-xs"></i></div><?php endif; ?>
+          <div class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition">
+            <?php if ($vi['inst_logo']): ?><img src="../<?= htmlspecialchars($vi['inst_logo']) ?>" class="w-9 h-9 rounded-xl object-cover flex-shrink-0 border border-gray-100">
+            <?php else: ?><div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-indigo-500 text-xs"></i></div><?php endif; ?>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vi['inst_name_ar']) ?></p>
+              <p class="text-xs text-indigo-400 font-semibold">مؤسسة</p>
             </div>
-            <div class="flex gap-1 items-center flex-shrink-0">
-              <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">مؤسسة</span>
-              <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border <?= $mcls ?>"><?= $mbadge ?></span>
               <form method="POST" class="inline">
                 <input type="hidden" name="uid" value="<?= $view_uid ?>">
                 <input type="hidden" name="act" value="unlink_page">
                 <input type="hidden" name="etype" value="institution">
                 <input type="hidden" name="eid" value="<?= $vi['inst_id'] ?>">
-                <button type="submit" onclick="return confirm('إلغاء الربط؟')" class="text-red-400 hover:text-red-600 transition px-1" title="إلغاء الربط">
+                <button type="submit" onclick="return confirm('إلغاء ربط هذه الصفحة؟')" class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition" title="إلغاء الربط">
                   <i class="fa-solid fa-link-slash text-xs"></i>
                 </button>
               </form>
             </div>
           </div>
           <?php endforeach; ?>
-          </div>
         </div>
-        <script>
-        function updateLinkSelect(uid) {
-          var t = document.getElementById('link-etype-'+uid).value;
-          var sp = document.getElementById('link-eid-p-'+uid);
-          var si = document.getElementById('link-eid-i-'+uid);
-          sp.classList.toggle('hidden', t !== 'personality');
-          si.classList.toggle('hidden', t !== 'institution');
-          sp.disabled = (t !== 'personality');
-          si.disabled = (t !== 'institution');
-          // Reset search
-          var s = document.getElementById('link-search-'+uid);
-          if (s) { s.value = ''; filterLinkOptions(uid); }
-        }
-        function filterLinkOptions(uid) {
-          var q = (document.getElementById('link-search-'+uid).value || '').toLowerCase();
-          var t = document.getElementById('link-etype-'+uid).value;
-          var sel = document.getElementById('link-eid-'+(t==='institution'?'i':'p')+'-'+uid);
-          var opts = sel ? sel.options : [];
-          for (var i = 0; i < opts.length; i++) {
-            opts[i].style.display = (!q || opts[i].text.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
-          }
-        }
-        updateLinkSelect(<?= $view_uid ?>);
-        </script>
       </div>
 
-      <!-- Submissions & Complaints -->
-      <div class="p-6 space-y-5">
-        <div>
-          <h3 class="font-black text-gray-700 text-sm mb-3"><i class="fa-solid fa-inbox text-purple-500 ml-1"></i>الاقتراحات (<?= count($view_subs) ?>)</h3>
-          <?php if (empty($view_subs)): ?>
-          <p class="text-gray-400 text-xs text-center py-4">لا توجد اقتراحات</p>
-          <?php else: ?>
-          <div class="space-y-2">
-            <?php foreach ($view_subs as $vs):
-              $vd = json_decode($vs['sub_data'], true) ?? [];
-              $vname = $vd['p_name_ar'] ?? $vd['inst_name_ar'] ?? 'بدون اسم';
-            ?>
-            <div class="bg-gray-50 rounded-xl p-3">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vname) ?></p>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 <?= $sub_status[$vs['sub_status']]['class'] ?>">
-                  <?= $sub_status[$vs['sub_status']]['text'] ?>
-                </span>
-              </div>
-              <div class="flex items-center justify-between mt-2">
-                <p class="text-xs text-gray-400"><?= $vs['sub_type']==='personality'?'شخصية':'مؤسسة' ?> · <?= date('Y/m/d', strtotime($vs['sub_created'])) ?></p>
-                <a href="admin.php?p=submissions&highlight=<?= $vs['sub_id'] ?>" class="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg font-bold hover:bg-purple-100 transition flex items-center gap-1">
-                  <i class="fa-solid fa-eye text-[10px]"></i> عرض وتعديل
-                </a>
-              </div>
-            </div>
-            <?php endforeach; ?>
+      <!-- User Info Card -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+            <i class="fa-solid fa-circle-info text-slate-500 text-sm"></i>
           </div>
-          <?php endif; ?>
+          <p class="font-black text-gray-800 text-sm">معلومات الحساب</p>
         </div>
-
-        <?php if (!empty($view_edit_reqs)): ?>
-        <div>
-          <h3 class="font-black text-gray-700 text-sm mb-3"><i class="fa-solid fa-pen-to-square text-amber-500 ml-1"></i>طلبات التعديل والترقية (<?= count($view_edit_reqs) ?>)</h3>
-          <div class="space-y-2">
-            <?php
-            $er_status_map = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow-100 text-yellow-700'],'approved'=>['text'=>'مقبول','class'=>'bg-green-100 text-green-700'],'rejected'=>['text'=>'مرفوض','class'=>'bg-red-100 text-red-700']];
-            $er_field_labels = ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','title'=>'المسمى','nationality'=>'الجنسية','bio'=>'السيرة','description'=>'الوصف','photo'=>'الصورة','residence'=>'الإقامة'];
-            foreach ($view_edit_reqs as $er):
-              $ed = json_decode($er['er_edit_data'] ?? '{}', true) ?: [];
-            ?>
-            <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
-              <div class="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <p class="text-sm font-bold text-gray-800"><?= htmlspecialchars($er['entity_name'] ?? 'محذوف') ?></p>
-                  <p class="text-xs text-gray-400 mt-0.5">
-                    <?= $er['er_entity_type']==='personality'?'شخصية':'مؤسسة' ?> ·
-                    <?php if ($er['er_req_type']==='edit'): ?>تعديل
-                    <?php else: ?>ترقية — <span class="font-bold <?= $er['er_upgrade_to']==='executive'?'text-amber-600':'text-blue-600' ?>"><?= $er['er_upgrade_to']==='executive'?'تنفيذي':'موثق' ?></span>
-                    <?php endif; ?> ·
-                    <?= date('Y/m/d', strtotime($er['er_created'])) ?>
-                  </p>
-                </div>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 <?= $er_status_map[$er['er_status']]['class'] ?>">
-                  <?= $er_status_map[$er['er_status']]['text'] ?>
-                </span>
-              </div>
-              <?php if (!empty($ed)): ?>
-              <div class="bg-white rounded-lg p-2 space-y-1 border border-gray-100 mb-2">
-                <?php foreach ($ed as $k => $v): if (!$v) continue; ?>
-                <div class="flex gap-2 text-xs">
-                  <span class="font-bold text-gray-400 w-20 flex-shrink-0"><?= $er_field_labels[$k] ?? $k ?>:</span>
-                  <span class="text-gray-700 break-all"><?= htmlspecialchars(mb_substr(strip_tags($v), 0, 120)) ?></span>
-                </div>
-                <?php endforeach; ?>
-              </div>
-              <?php endif; ?>
-              <?php if ($er['er_notes']): ?><p class="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mb-1"><i class="fa-solid fa-note-sticky ml-1"></i><?= htmlspecialchars($er['er_notes']) ?></p><?php endif; ?>
-              <?php if ($er['er_admin_note']): ?><p class="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1"><i class="fa-solid fa-comment ml-1"></i><?= htmlspecialchars($er['er_admin_note']) ?></p><?php endif; ?>
-              <?php if ($er['er_status']==='pending'): ?>
-              <a href="admin.php?p=edit_requests" class="text-xs font-bold text-purple-600 hover:underline mt-1 inline-block">مراجعة الطلب ←</a>
-              <?php endif; ?>
+        <div class="p-5 space-y-3">
+          <?php
+          $info_rows = [
+            ['icon'=>'fa-hashtag',      'label'=>'User ID',           'val'=>'#'.$view_user['u_id'],                    'mono'=>true],
+            ['icon'=>'fa-envelope',     'label'=>'البريد الإلكتروني', 'val'=>$view_user['u_email'],                     'mono'=>true],
+            ['icon'=>'fa-phone',        'label'=>'الهاتف',            'val'=>$view_user['u_phone']??'—',                'mono'=>false],
+            ['icon'=>'fa-briefcase',    'label'=>'الوظيفة',           'val'=>$view_user['u_job']??'—',                  'mono'=>false],
+            ['icon'=>'fa-flag',         'label'=>'الجنسية',           'val'=>$view_user['u_nationality']??'—',          'mono'=>false],
+            ['icon'=>'fa-building',     'label'=>'الشركة',            'val'=>$view_user['u_company']??'—',              'mono'=>false],
+            ['icon'=>'fa-venus-mars',   'label'=>'الجنس',             'val'=>($view_user['u_gender']==='male'?'ذكر':($view_user['u_gender']==='female'?'أنثى':'—')), 'mono'=>false],
+            ['icon'=>'fa-calendar',     'label'=>'تاريخ التسجيل',    'val'=>date('Y/m/d', strtotime($view_user['u_created'])), 'mono'=>false],
+          ];
+          foreach ($info_rows as $row): ?>
+          <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid <?= $row['icon'] ?> text-gray-400 text-xs"></i>
             </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
-
-        <div>
-          <h3 class="font-black text-gray-700 text-sm mb-3"><i class="fa-solid fa-message text-blue-500 ml-1"></i>الشكاوي (<?= count($view_cmps) ?>)</h3>
-          <?php if (empty($view_cmps)): ?>
-          <p class="text-gray-400 text-xs text-center py-4">لا توجد شكاوي</p>
-          <?php else: ?>
-          <div class="space-y-2">
-            <?php foreach ($view_cmps as $vc): ?>
-            <div class="bg-gray-50 rounded-xl p-3">
-              <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vc['cmp_subject']) ?></p>
-              <div class="flex items-center justify-between mt-1">
-                <p class="text-xs text-gray-400"><?= date('Y/m/d', strtotime($vc['cmp_created'])) ?></p>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $status_map[$vc['cmp_status']]['class'] ?>">
-                  <?= $status_map[$vc['cmp_status']]['text'] ?>
-                </span>
-              </div>
+            <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
+              <span class="text-xs text-gray-400 flex-shrink-0"><?= $row['label'] ?></span>
+              <span class="text-sm font-semibold text-gray-700 truncate <?= $row['mono'] ? 'font-mono text-xs' : '' ?>"><?= htmlspecialchars($row['val']) ?></span>
             </div>
-            <?php endforeach; ?>
           </div>
-          <?php endif; ?>
+          <?php endforeach; ?>
         </div>
       </div>
     </div>
+
+    <!-- RIGHT: Activity Center (3/5) -->
+    <div class="xl:col-span-3">
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" x-data="{tab:'subs'}">
+
+        <!-- Tab bar -->
+        <div class="flex border-b border-gray-100 overflow-x-auto">
+          <button @click="tab='subs'"
+            :class="tab==='subs' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
+            <i class="fa-solid fa-inbox text-xs"></i>
+            الاقتراحات
+            <?php if (count($view_subs)): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              :class="tab==='subs' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
+              <?= count($view_subs) ?>
+            </span>
+            <?php endif; ?>
+          </button>
+          <button @click="tab='edits'"
+            :class="tab==='edits' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
+            <i class="fa-solid fa-pen-to-square text-xs"></i>
+            طلبات التعديل
+            <?php if ($edit_reqs_count): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              :class="tab==='edits' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
+              <?= $edit_reqs_count ?>
+            </span>
+            <?php endif; ?>
+          </button>
+          <button @click="tab='upgrades'"
+            :class="tab==='upgrades' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
+            <i class="fa-solid fa-crown text-xs"></i>
+            طلبات الترقية
+            <?php if ($upgrade_reqs_count): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              :class="tab==='upgrades' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
+              <?= $upgrade_reqs_count ?>
+            </span>
+            <?php endif; ?>
+          </button>
+          <button @click="tab='cmps'"
+            :class="tab==='cmps' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
+            <i class="fa-solid fa-message text-xs"></i>
+            الشكاوى
+            <?php if (count($view_cmps)): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              :class="tab==='cmps' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
+              <?= count($view_cmps) ?>
+            </span>
+            <?php endif; ?>
+          </button>
+        </div>
+
+        <!-- Tab: Submissions -->
+        <div x-show="tab==='subs'" class="divide-y divide-gray-50">
+          <?php if (empty($view_subs)): ?>
+          <div class="py-16 text-center">
+            <i class="fa-solid fa-inbox text-5xl text-gray-200 block mb-3"></i>
+            <p class="text-gray-400 font-semibold">لا توجد اقتراحات</p>
+          </div>
+          <?php else: foreach ($view_subs as $vs):
+            $vd = json_decode($vs['sub_data'], true) ?? [];
+            $vname = $vd['p_name_ar'] ?? $vd['inst_name_ar'] ?? 'بدون اسم';
+            $vphoto = $vd['p_photo'] ?? $vd['inst_logo'] ?? '';
+            $is_p = $vs['sub_type'] === 'personality';
+            $sst = $sub_status[$vs['sub_status']];
+          ?>
+          <div class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
+            <?php if ($vphoto): ?>
+            <img src="../<?= htmlspecialchars($vphoto) ?>" class="w-10 h-10 <?= $is_p ? 'rounded-full' : 'rounded-xl' ?> object-cover flex-shrink-0 border border-gray-100">
+            <?php else: ?>
+            <div class="w-10 h-10 <?= $is_p ? 'rounded-full' : 'rounded-xl' ?> <?= $is_p ? 'bg-purple-100' : 'bg-indigo-100' ?> flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid <?= $is_p ? 'fa-user text-purple-500' : 'fa-building text-indigo-500' ?> text-sm"></i>
+            </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($vname) ?></p>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 <?= $sst['class'] ?>"><?= $sst['text'] ?></span>
+              </div>
+              <p class="text-xs text-gray-400">
+                <span class="<?= $is_p ? 'text-purple-500' : 'text-indigo-500' ?> font-semibold"><?= $is_p ? 'شخصية' : 'مؤسسة' ?></span>
+                · <?= date('d/m/Y', strtotime($vs['sub_created'])) ?>
+              </p>
+            </div>
+            <a href="admin.php?p=submissions&highlight=<?= $vs['sub_id'] ?>" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition flex-shrink-0">
+              <i class="fa-solid fa-eye text-[10px]"></i> عرض وتعديل
+            </a>
+          </div>
+          <?php endforeach; endif; ?>
+        </div>
+
+        <!-- Tab: Edit Requests -->
+        <?php
+        $er_status_map = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow-100 text-yellow-700'],'approved'=>['text'=>'مقبول','class'=>'bg-green-100 text-green-700'],'rejected'=>['text'=>'مرفوض','class'=>'bg-red-100 text-red-700']];
+        $er_field_labels = ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','title'=>'المسمى','nationality'=>'الجنسية','bio'=>'السيرة','description'=>'الوصف','photo'=>'الصورة','residence'=>'الإقامة'];
+        $edit_reqs_list = array_filter($view_edit_reqs, function($e){ return $e['er_req_type'] === 'edit'; });
+        $upgrade_reqs_list = array_filter($view_edit_reqs, function($e){ return $e['er_req_type'] === 'upgrade'; });
+        ?>
+        <div x-show="tab==='edits'" class="divide-y divide-gray-50">
+          <?php if (empty($edit_reqs_list)): ?>
+          <div class="py-16 text-center">
+            <i class="fa-solid fa-pen-to-square text-5xl text-gray-200 block mb-3"></i>
+            <p class="text-gray-400 font-semibold">لا توجد طلبات تعديل</p>
+          </div>
+          <?php else: foreach ($edit_reqs_list as $er):
+            $ed = json_decode($er['er_edit_data'] ?? '{}', true) ?: [];
+            $erst = $er_status_map[$er['er_status']];
+          ?>
+          <div class="px-5 py-4 hover:bg-gray-50 transition">
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($er['entity_name'] ?? 'محذوف') ?></p>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $erst['class'] ?>"><?= $erst['text'] ?></span>
+                </div>
+                <p class="text-xs text-gray-400">
+                  <span class="<?= $er['er_entity_type']==='personality'?'text-purple-500':'text-indigo-500' ?> font-semibold"><?= $er['er_entity_type']==='personality'?'شخصية':'مؤسسة' ?></span>
+                  · تعديل · <?= date('d/m/Y', strtotime($er['er_created'])) ?>
+                </p>
+              </div>
+              <?php if ($er['er_status']==='pending'): ?>
+              <a href="admin.php?p=edit_requests" class="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition flex-shrink-0">
+                مراجعة <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i>
+              </a>
+              <?php endif; ?>
+            </div>
+            <?php if (!empty($ed)): ?>
+            <div class="bg-gray-50 rounded-xl p-3 space-y-1.5 border border-gray-100">
+              <?php foreach ($ed as $k => $v): if (!$v) continue; ?>
+              <div class="flex gap-3 text-xs">
+                <span class="font-bold text-gray-400 w-24 flex-shrink-0"><?= $er_field_labels[$k] ?? $k ?>:</span>
+                <span class="text-gray-700"><?= htmlspecialchars(mb_substr(strip_tags((string)$v), 0, 100)) ?></span>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+            <?php if ($er['er_notes']): ?>
+            <div class="mt-2 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <i class="fa-solid fa-note-sticky mt-0.5"></i>
+              <span><?= htmlspecialchars($er['er_notes']) ?></span>
+            </div>
+            <?php endif; ?>
+          </div>
+          <?php endforeach; endif; ?>
+        </div>
+
+        <!-- Tab: Upgrade Requests -->
+        <div x-show="tab==='upgrades'" class="divide-y divide-gray-50">
+          <?php if (empty($upgrade_reqs_list)): ?>
+          <div class="py-16 text-center">
+            <i class="fa-solid fa-crown text-5xl text-gray-200 block mb-3"></i>
+            <p class="text-gray-400 font-semibold">لا توجد طلبات ترقية</p>
+          </div>
+          <?php else: foreach ($upgrade_reqs_list as $er):
+            $erst = $er_status_map[$er['er_status']];
+            $is_exec = $er['er_upgrade_to'] === 'executive';
+          ?>
+          <div class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 <?= $is_exec ? 'bg-amber-100' : 'bg-blue-100' ?>">
+              <i class="fa-solid <?= $is_exec ? 'fa-crown text-amber-500' : 'fa-circle-check text-blue-500' ?> text-base"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($er['entity_name'] ?? 'محذوف') ?></p>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $erst['class'] ?>"><?= $erst['text'] ?></span>
+              </div>
+              <p class="text-xs text-gray-400">
+                طلب ترقية إلى
+                <span class="font-bold <?= $is_exec ? 'text-amber-600' : 'text-blue-600' ?>"><?= $is_exec ? 'تنفيذي' : 'موثق' ?></span>
+                · <?= date('d/m/Y', strtotime($er['er_created'])) ?>
+              </p>
+            </div>
+            <?php if ($er['er_status']==='pending'): ?>
+            <a href="admin.php?p=edit_requests" class="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition flex-shrink-0">
+              مراجعة <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i>
+            </a>
+            <?php endif; ?>
+          </div>
+          <?php endforeach; endif; ?>
+        </div>
+
+        <!-- Tab: Complaints -->
+        <div x-show="tab==='cmps'" class="divide-y divide-gray-50">
+          <?php if (empty($view_cmps)): ?>
+          <div class="py-16 text-center">
+            <i class="fa-solid fa-message text-5xl text-gray-200 block mb-3"></i>
+            <p class="text-gray-400 font-semibold">لا توجد شكاوى</p>
+          </div>
+          <?php else: foreach ($view_cmps as $vc):
+            $cst = $status_map[$vc['cmp_status']];
+          ?>
+          <div class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
+            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-message text-blue-500 text-sm"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-sm truncate mb-0.5"><?= htmlspecialchars($vc['cmp_subject']) ?></p>
+              <p class="text-xs text-gray-400"><?= date('d/m/Y', strtotime($vc['cmp_created'])) ?></p>
+            </div>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 <?= $cst['class'] ?>"><?= $cst['text'] ?></span>
+          </div>
+          <?php endforeach; endif; ?>
+        </div>
+
+      </div>
+    </div>
   </div>
+
+  <script>
+  function updateLinkSelect(uid) {
+    var t  = document.getElementById('link-etype-'+uid).value;
+    var sp = document.getElementById('link-eid-p-'+uid);
+    var si = document.getElementById('link-eid-i-'+uid);
+    sp.classList.toggle('hidden', t !== 'personality');
+    si.classList.toggle('hidden', t !== 'institution');
+    sp.disabled = (t !== 'personality');
+    si.disabled = (t !== 'institution');
+    var s = document.getElementById('link-search-'+uid);
+    if (s) { s.value = ''; filterLinkOptions(uid); }
+  }
+  function filterLinkOptions(uid) {
+    var q   = (document.getElementById('link-search-'+uid).value || '').toLowerCase();
+    var t   = document.getElementById('link-etype-'+uid).value;
+    var sel = document.getElementById('link-eid-'+(t==='institution'?'i':'p')+'-'+uid);
+    var opts = sel ? sel.options : [];
+    for (var i = 0; i < opts.length; i++) {
+      opts[i].style.display = (!q || opts[i].text.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+    }
+  }
+  updateLinkSelect(<?= $view_uid ?>);
+  </script>
 
   <?php else: ?>
   <!-- ═══ LIST VIEW ═══ -->
