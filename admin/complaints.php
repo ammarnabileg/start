@@ -58,10 +58,6 @@ if ($action === 'view' && isset($_GET['id'])) {
     $rv = $mysqli->query("SELECT c.*, u.u_name FROM pi_complaints c LEFT JOIN pi_users u ON c.cmp_user_id=u.u_id WHERE c.cmp_id=$vid");
     if ($rv && $rv->num_rows) {
         $view = $rv->fetch_assoc();
-        if ($view['cmp_status'] === 'new') {
-            $mysqli->query("UPDATE pi_complaints SET cmp_status='read' WHERE cmp_id=$vid");
-            $view['cmp_status'] = 'read';
-        }
     }
 }
 ?>

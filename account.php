@@ -157,6 +157,14 @@ if ($r) while ($row=$r->fetch_assoc()) {
     $my_all_subs[] = $row;
 }
 
+// Load sponsors linked to this user
+$my_sponsors = [];
+$sr = $mysqli->query("SELECT s.sp_id, s.sp_name, s.sp_logo, s.sp_url,
+    (SELECT COUNT(*) FROM pi_lists WHERE list_sponsor_id=s.sp_id AND list_active=1) AS lists_count,
+    (SELECT COALESCE(SUM(list_views),0) FROM pi_lists WHERE list_sponsor_id=s.sp_id) AS total_views
+    FROM pi_sponsors s WHERE s.sp_user_id=" . (int)$user['u_id']);
+if ($sr) while ($row=$sr->fetch_assoc()) $my_sponsors[] = $row;
+
 $all_countries = pi_get_countries();
 
 // Load my edit requests (type='edit' only — upgrade requests are in memberships tab)
@@ -365,6 +373,8 @@ include 'includes/header.php';
             class="pb-3 text-sm font-bold border-b-2 border-purple-600 text-purple-600 transition">الشخصيات</button>
           <button onclick="showStatsTab('companies')" id="st-c"
             class="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 transition">الشركات</button>
+          <button onclick="showStatsTab('sponsors')" id="st-s"
+            class="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 transition">الرعايات</button>
         </div>
 
         <div id="stats-personalities">
@@ -391,6 +401,34 @@ include 'includes/header.php';
                 <p class="text-xs text-gray-400"><?= htmlspecialchars($p['p_title'] ?? '') ?></p>
               </div>
               <span class="text-xs text-gray-400"><i class="fa-solid fa-eye ml-1"></i><?= number_format($p['p_views']) ?></span>
+            </a>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <div id="stats-sponsors" class="hidden">
+          <?php if (empty($my_sponsors)): ?>
+          <div class="text-center py-16 text-gray-300">
+            <i class="fa-solid fa-handshake text-5xl mb-4"></i>
+            <p class="font-semibold text-gray-400">لا توجد رعايات مرتبطة بحسابك.</p>
+          </div>
+          <?php else: ?>
+          <div class="space-y-3">
+            <?php foreach ($my_sponsors as $sp): ?>
+            <a href="<?= htmlspecialchars($sp['sp_url'] ?: '#') ?>" target="_blank" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition">
+              <?php if (!empty($sp['sp_logo'])): ?>
+                <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" class="w-10 h-10 rounded-xl object-contain border border-gray-100">
+              <?php else: ?>
+                <div class="w-10 h-10 rounded-xl pi-gradient flex items-center justify-center flex-shrink-0">
+                  <i class="fa-solid fa-handshake text-white text-sm"></i>
+                </div>
+              <?php endif; ?>
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($sp['sp_name']) ?></p>
+                <p class="text-xs text-gray-400"><i class="fa-solid fa-list ml-1"></i><?= (int)$sp['lists_count'] ?> قوائم</p>
+              </div>
+              <span class="text-xs text-gray-400"><i class="fa-solid fa-eye ml-1"></i><?= number_format((int)$sp['total_views']) ?></span>
             </a>
             <?php endforeach; ?>
           </div>
@@ -875,12 +913,6 @@ include 'includes/header.php';
               });
               </script>
 
-              <!-- Notes always visible -->
-              <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">ملاحظات إضافية <span class="text-gray-400 font-normal">(اختياري)</span></label>
-                <textarea name="req_notes" rows="2" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أي معلومات تريد إضافتها..."></textarea>
-              </div>
-
               <button type="submit" class="w-full py-3 pi-primary-bg text-white font-black rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-paper-plane"></i> إرسال الطلب
               </button>
@@ -1232,8 +1264,10 @@ function toggleEdit(field) {
 function showStatsTab(which) {
   document.getElementById('stats-personalities').classList.toggle('hidden', which !== 'personalities');
   document.getElementById('stats-companies').classList.toggle('hidden', which !== 'companies');
+  document.getElementById('stats-sponsors').classList.toggle('hidden', which !== 'sponsors');
   document.getElementById('st-p').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='personalities' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
   document.getElementById('st-c').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='companies' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
+  document.getElementById('st-s').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='sponsors' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
 }
 <?php if (isset($_GET['sent'])): ?>
 document.addEventListener('DOMContentLoaded', function(){
