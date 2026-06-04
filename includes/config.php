@@ -274,12 +274,6 @@ if ($cols && $cols->num_rows) {
     $cols = $mysqli->query("SHOW COLUMNS FROM pi_list_items LIKE 'li_custom_data'");
     if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_list_items ADD COLUMN li_custom_data TEXT DEFAULT NULL");
 }
-// Ensure list_blocks column exists in pi_lists
-$cols = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_blocks'");
-if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_blocks TEXT DEFAULT NULL");
-// Ensure list_criteria column exists in pi_lists (added with sponsor block but may be missing)
-$cols = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_criteria'");
-if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_criteria TEXT DEFAULT NULL");
 
 function pi_user_logged_in() {
     return !empty($_SESSION['pi_user_id']);
@@ -378,13 +372,15 @@ function pi_create_list_tables() {
 }
 pi_create_list_tables();
 
-// ── Lists: add sponsor + spotlight columns if missing (safe for all versions) ─
-$r = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_sponsor_id'");
-if ($r && $r->num_rows === 0) {
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_id INT DEFAULT NULL");
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_img VARCHAR(500) DEFAULT ''");
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_url VARCHAR(500) DEFAULT ''");
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_name VARCHAR(300) DEFAULT ''");
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_spotlight TEXT DEFAULT NULL");
-    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_criteria TEXT DEFAULT NULL");
-}
+// ── Lists: add missing columns one-by-one (safe for all versions) ─────────
+$_lc = function($col, $def) use ($mysqli) {
+    $r = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE '$col'");
+    if ($r && $r->num_rows === 0) $mysqli->query("ALTER TABLE pi_lists ADD COLUMN $col $def");
+};
+$_lc('list_sponsor_id',  'INT DEFAULT NULL');
+$_lc('list_sponsor_img', "VARCHAR(500) DEFAULT ''");
+$_lc('list_sponsor_url', "VARCHAR(500) DEFAULT ''");
+$_lc('list_sponsor_name',"VARCHAR(300) DEFAULT ''");
+$_lc('list_spotlight',   'TEXT DEFAULT NULL');
+$_lc('list_criteria',    'TEXT DEFAULT NULL');
+unset($_lc);

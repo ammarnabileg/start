@@ -13,7 +13,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($r && $r->num_rows) {
             $sub  = $r->fetch_assoc();
             $data = json_decode($sub['sub_data'], true);
-            $sub_uid = $sub['sub_user_id'] ? (int)$sub['sub_user_id'] : 'NULL';
             if ($sub['sub_type'] === 'personality') {
                 $name_ar = pi_escape($data['p_name_ar'] ?? '');
                 $name_en = pi_escape($data['p_name_en'] ?? '');
@@ -22,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $res     = pi_escape($data['p_residence'] ?? '');
                 $bio     = pi_escape($data['p_bio'] ?? '');
                 $photo   = pi_escape($data['p_photo'] ?? '');
-                $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_photo,p_added_by_user) VALUES ('$name_ar','$name_en','$title','$nat','$res','$bio','$photo',$sub_uid)");
+                $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_photo) VALUES ('$name_ar','$name_en','$title','$nat','$res','$bio','$photo')");
                 $new_id = $mysqli->insert_id;
                 foreach (($data['categories'] ?? []) as $cat_id) {
                     $cat_id = (int)$cat_id;
@@ -33,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $name_en = pi_escape($data['inst_name_en'] ?? '');
                 $desc    = pi_escape($data['inst_description'] ?? '');
                 $logo    = pi_escape($data['inst_logo'] ?? '');
-                $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_description,inst_logo,inst_added_by_user) VALUES ('$name_ar','$name_en','$desc','$logo',$sub_uid)");
+                $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_description,inst_logo) VALUES ('$name_ar','$name_en','$desc','$logo')");
                 $new_id = $mysqli->insert_id;
                 foreach (($data['categories'] ?? []) as $cat_id) {
                     $cat_id = (int)$cat_id;

@@ -74,24 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (isset($_POST[$f]) && trim($_POST[$f]) !== '') $edit_data[$f] = trim($_POST[$f]);
                 }
             }
-            $mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
-                er_id INT AUTO_INCREMENT PRIMARY KEY,
-                er_user_id INT NOT NULL,
-                er_entity_type ENUM('personality','institution') NOT NULL,
-                er_entity_id INT NOT NULL,
-                er_req_type ENUM('edit','upgrade') NOT NULL,
-                er_upgrade_to ENUM('verified','executive','') DEFAULT '',
-                er_edit_data TEXT,
-                er_notes TEXT,
-                er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
-                er_admin_note TEXT,
-                er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_user (er_user_id),
-                INDEX idx_status (er_status)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             $edit_json = pi_escape(json_encode($edit_data, JSON_UNESCAPED_UNICODE));
             $mysqli->query("INSERT INTO pi_edit_requests (er_user_id,er_entity_type,er_entity_id,er_req_type,er_upgrade_to,er_edit_data,er_notes)
                 VALUES($uid,'$entity_type',$entity_id,'$req_type','$upgrade_to','$edit_json','$notes')");
+            // If upgrade request, also create a membership record with plan details
+            if ($req_type === 'upgrade') {
+                $mem_plan  = in_array($_POST['mem_plan'] ?? '', ['monthly','lifetime']) ? pi_escape($_POST['mem_plan']) : 'monthly';
+                $mem_name  = pi_escape(trim($_POST['mem_name']  ?? $user['u_name']));
+                $mem_phone = pi_escape(trim($_POST['mem_phone'] ?? $user['u_phone'] ?? ''));
+                $mem_email = pi_escape($user['u_email']);
+                $profile_url = pi_escape($entity_type === 'personality' ? 'profile.php?id='.$entity_id : 'institution.php?id='.$entity_id);
+                $mem_utype = $upgrade_to ?: 'verified';
+                $mysqli->query("INSERT INTO pi_memberships(mem_type,mem_plan,mem_name,mem_phone,mem_email,mem_profile_url) VALUES('$mem_utype','$mem_plan','$mem_name','$mem_phone','$mem_email','$profile_url')");
+            }
             header("Location: account.php?tab=accounts&req_sent=1"); exit;
         } else {
             $msg = 'حدث خطأ، يرجى المحاولة مجدداً'; $msg_type = 'error';
@@ -132,23 +127,6 @@ if ($r) while ($row=$r->fetch_assoc()) {
     $row['_photo'] = $row['sub_type'] === 'personality' ? ($d['p_photo'] ?? '') : ($d['inst_logo'] ?? '');
     $my_pending_subs[] = $row;
 }
-
-// Create edit_requests table if needed
-$mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
-    er_id INT AUTO_INCREMENT PRIMARY KEY,
-    er_user_id INT NOT NULL,
-    er_entity_type ENUM('personality','institution') NOT NULL,
-    er_entity_id INT NOT NULL,
-    er_req_type ENUM('edit','upgrade') NOT NULL,
-    er_upgrade_to ENUM('verified','executive','') DEFAULT '',
-    er_edit_data TEXT,
-    er_notes TEXT,
-    er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
-    er_admin_note TEXT,
-    er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_user (er_user_id),
-    INDEX idx_status (er_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // Load my edit requests
 $my_requests = [];
@@ -746,19 +724,70 @@ include 'includes/header.php';
               </div>
 
               <!-- Upgrade fields (shown for upgrade type) -->
-              <div id="upgrade-fields" class="space-y-3 hidden">
-                <p class="text-sm text-gray-500 font-semibold">اختر نوع الترقية المطلوبة</p>
+              <div id="upgrade-fields" class="space-y-4 hidden">
+                <p class="text-sm text-gray-600 font-bold">اختر نوع الترقية</p>
                 <div class="grid grid-cols-2 gap-3">
-                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 transition">
                     <input type="radio" name="upgrade_to" value="verified" class="accent-blue-500">
-                    <div><p class="font-black text-sm text-gray-800">توثيق</p><p class="text-xs text-gray-400">شارة زرقاء</p></div>
+                    <div><p class="font-black text-sm text-gray-800"><i class="fa-solid fa-circle-check text-blue-500 ml-1"></i>توثيق</p><p class="text-xs text-gray-400">شارة زرقاء</p></div>
                   </label>
-                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition">
                     <input type="radio" name="upgrade_to" value="executive" class="accent-amber-500">
-                    <div><p class="font-black text-sm text-gray-800">تنفيذي</p><p class="text-xs text-gray-400">شارة ذهبية</p></div>
+                    <div><p class="font-black text-sm text-gray-800"><i class="fa-solid fa-crown text-amber-500 ml-1"></i>تنفيذي</p><p class="text-xs text-gray-400">شارة ذهبية</p></div>
                   </label>
                 </div>
+                <p class="text-sm text-gray-600 font-bold mt-1">اختر الباقة</p>
+                <div class="grid grid-cols-2 gap-3" id="upgrade-plan-boxes">
+                  <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-purple-400 transition" id="plan-verified-monthly">
+                    <input type="radio" name="mem_plan" value="monthly" class="accent-purple-500 hidden">
+                    <p class="font-black text-sm text-gray-800">شهري — توثيق</p>
+                    <p class="text-purple-600 font-black text-lg">$90<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
+                  </label>
+                  <label class="flex flex-col gap-1 p-3 border-2 border-purple-500 rounded-xl cursor-pointer hover:border-purple-600 transition bg-purple-50" id="plan-verified-lifetime">
+                    <input type="radio" name="mem_plan" value="lifetime" class="accent-purple-500 hidden" checked>
+                    <p class="font-black text-sm text-gray-800">مدى الحياة — توثيق ⭐</p>
+                    <p class="text-purple-600 font-black text-lg">$99</p>
+                  </label>
+                  <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition hidden" id="plan-executive-monthly">
+                    <input type="radio" name="mem_plan" value="monthly" class="accent-amber-500 hidden">
+                    <p class="font-black text-sm text-gray-800">شهري — تنفيذي</p>
+                    <p class="text-amber-600 font-black text-lg">$210<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
+                  </label>
+                  <label class="flex flex-col gap-1 p-3 border-2 border-amber-500 rounded-xl cursor-pointer hover:border-amber-600 transition bg-amber-50 hidden" id="plan-executive-lifetime">
+                    <input type="radio" name="mem_plan" value="lifetime" class="accent-amber-500 hidden" checked>
+                    <p class="font-black text-sm text-gray-800">مدى الحياة — تنفيذي 👑</p>
+                    <p class="text-amber-600 font-black text-lg">$250</p>
+                  </label>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">الاسم الكامل <span class="text-red-500">*</span></label>
+                    <input type="text" name="mem_name" id="mem-name-field" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" value="<?= htmlspecialchars($user['u_name'] ?? '') ?>">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">رقم الجوال <span class="text-red-500">*</span></label>
+                    <input type="tel" name="mem_phone" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr" value="<?= htmlspecialchars($user['u_phone'] ?? '') ?>">
+                  </div>
+                </div>
               </div>
+              <script>
+              document.querySelectorAll('input[name="upgrade_to"]').forEach(function(r){
+                r.addEventListener('change',function(){
+                  var isExec = this.value==='executive';
+                  ['plan-verified-monthly','plan-verified-lifetime'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('hidden',isExec); });
+                  ['plan-executive-monthly','plan-executive-lifetime'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('hidden',!isExec); });
+                  // check the first visible lifetime radio
+                  var lv = isExec ? document.getElementById('plan-executive-lifetime') : document.getElementById('plan-verified-lifetime');
+                  if (lv) { var ri = lv.querySelector('input'); if(ri) ri.checked=true; }
+                });
+              });
+              document.querySelectorAll('#upgrade-plan-boxes label').forEach(function(lbl){
+                lbl.addEventListener('click',function(){
+                  var ri = this.querySelector('input[type=radio]');
+                  if(ri) ri.checked=true;
+                });
+              });
+              </script>
 
               <!-- Notes always visible -->
               <div>
