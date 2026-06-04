@@ -251,6 +251,35 @@ if ($cols && $cols->num_rows) {
     $cols = $mysqli->query("SHOW COLUMNS FROM pi_memberships LIKE 'mem_type'");
     if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_memberships ADD COLUMN mem_type ENUM('verified','executive') DEFAULT 'verified' AFTER mem_id");
 }
+// Ensure p_bio_platform column exists in pi_personalities (may be missing on older installs)
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_bio_platform'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_bio_platform TEXT DEFAULT NULL");
+// Ensure p_residence column exists in pi_personalities
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_residence'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_residence VARCHAR(100) DEFAULT NULL");
+// Ensure inst_membership_type column exists in pi_institutions (used in edit_requests approval)
+$cols = $mysqli->query("SHOW TABLES LIKE 'pi_institutions'");
+if ($cols && $cols->num_rows) {
+    $cols = $mysqli->query("SHOW COLUMNS FROM pi_institutions LIKE 'inst_membership_type'");
+    if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_institutions ADD COLUMN inst_membership_type ENUM('standard','verified','executive') DEFAULT 'standard'");
+    // Ensure inst_country column exists in pi_institutions (display field)
+    $cols = $mysqli->query("SHOW COLUMNS FROM pi_institutions LIKE 'inst_country'");
+    if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_institutions ADD COLUMN inst_country VARCHAR(100) DEFAULT NULL");
+}
+// Ensure li_order and li_custom_data columns exist in pi_list_items
+$cols = $mysqli->query("SHOW TABLES LIKE 'pi_list_items'");
+if ($cols && $cols->num_rows) {
+    $cols = $mysqli->query("SHOW COLUMNS FROM pi_list_items LIKE 'li_order'");
+    if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_list_items ADD COLUMN li_order INT DEFAULT 0");
+    $cols = $mysqli->query("SHOW COLUMNS FROM pi_list_items LIKE 'li_custom_data'");
+    if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_list_items ADD COLUMN li_custom_data TEXT DEFAULT NULL");
+}
+// Ensure list_blocks column exists in pi_lists
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_blocks'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_blocks TEXT DEFAULT NULL");
+// Ensure list_criteria column exists in pi_lists (added with sponsor block but may be missing)
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_criteria'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_criteria TEXT DEFAULT NULL");
 
 function pi_user_logged_in() {
     return !empty($_SESSION['pi_user_id']);

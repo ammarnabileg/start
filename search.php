@@ -17,13 +17,13 @@ $i_total = 0;
 if ($q) {
     if ($type !== 'institutions') {
         $r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1 AND (p_name_ar LIKE '%$q%' OR p_name_en LIKE '%$q%' OR p_title LIKE '%$q%')");
-        $p_total = (int)$r->fetch_assoc()['c'];
+        $p_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
         $r = $mysqli->query("SELECT * FROM pi_personalities WHERE p_active=1 AND (p_name_ar LIKE '%$q%' OR p_name_en LIKE '%$q%' OR p_title LIKE '%$q%') ORDER BY p_views DESC LIMIT $offset,$per_page");
         if ($r) while ($row=$r->fetch_assoc()) $personalities[] = $row;
     }
     if ($type !== 'personalities') {
         $r = $mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_active=1 AND (inst_name_ar LIKE '%$q%' OR inst_name_en LIKE '%$q%')");
-        $i_total = (int)$r->fetch_assoc()['c'];
+        $i_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
         $r = $mysqli->query("SELECT * FROM pi_institutions WHERE inst_active=1 AND (inst_name_ar LIKE '%$q%' OR inst_name_en LIKE '%$q%') ORDER BY inst_views DESC LIMIT $offset,$per_page");
         if ($r) while ($row=$r->fetch_assoc()) $institutions[] = $row;
     }

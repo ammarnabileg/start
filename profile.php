@@ -76,6 +76,7 @@ $related_articles = [];
 $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_active=1 AND art_p_id!=$p_id ORDER BY art_id DESC LIMIT 4");
 if ($r) while ($row=$r->fetch_assoc()) $related_articles[] = $row;
 
+$articles = [];
 $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_p_id=$p_id AND art_active=1 ORDER BY art_id DESC LIMIT 6");
 if ($r) while ($row=$r->fetch_assoc()) $articles[] = $row;
 
