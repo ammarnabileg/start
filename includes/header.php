@@ -208,6 +208,10 @@ $_imp_user = pi_current_user();
           التصنيفات
         </a>
 
+        <a href="lists.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
+          القوائم
+        </a>
+
         <a href="blog.php" class="px-4 py-2 text-gray-700 hover:text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition">
           المقالات
         </a>
@@ -325,6 +329,9 @@ $_imp_user = pi_current_user();
       <!-- Direct links -->
       <a href="categories.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
         <i class="fa-solid fa-tags text-purple-500 w-5 text-center"></i> التصنيفات
+      </a>
+      <a href="lists.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
+        <i class="fa-solid fa-list-ol text-purple-500 w-5 text-center"></i> القوائم
       </a>
       <a href="blog.php" @click="mobileOpen=false" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold text-sm">
         <i class="fa-solid fa-newspaper text-purple-500 w-5 text-center"></i> المقالات

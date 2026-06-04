@@ -359,6 +359,13 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       </a>
       <?php endif; ?>
 
+      <?php if (pi_has_perm('manage_lists')): ?>
+      <a href="admin.php?p=lists" class="nav-link <?= $p=='lists'?'active':'' ?>">
+        <i class="fa-solid fa-list-ol"></i>
+        <span>القوائم</span>
+      </a>
+      <?php endif; ?>
+
       <?php if (pi_has_perm('manage_edit_requests')): ?>
       <a href="admin.php?p=edit_requests" class="nav-link <?= $p=='edit_requests'?'active':'' ?>">
         <i class="fa-solid fa-pen-ruler"></i>
@@ -424,7 +431,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع','edit_requests'=>'طلبات التعديل والترقية',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع','edit_requests'=>'طلبات التعديل والترقية','lists'=>'إدارة القوائم',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>
@@ -461,6 +468,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       elseif ($p === 'complaints')    include 'admin/complaints.php';
       elseif ($p === 'users')         include 'admin/users.php';
       elseif ($p === 'edit_requests') include 'admin/edit_requests.php';
+      elseif ($p === 'lists')         include 'admin/lists.php';
       else include 'admin/dashboard.php';
       ?>
     </main>

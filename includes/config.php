@@ -116,6 +116,7 @@ define('PERM', [
     'manage_complaints'   => 34,
     'manage_submissions'  => 35,
     'manage_edit_requests'=> 36,
+    'manage_lists'        => 37,
 ]);
 
 function pi_has_perm($perm_key) {
@@ -270,3 +271,45 @@ function pi_get_categories() {
     if ($r) while ($row = $r->fetch_assoc()) $cats[] = $row;
     return $cats;
 }
+
+// ── Lists feature tables ───────────────────────────────────────────────────
+function pi_create_list_tables() {
+    global $mysqli;
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_lists (
+        list_id INT AUTO_INCREMENT PRIMARY KEY,
+        list_title VARCHAR(300) NOT NULL,
+        list_title_en VARCHAR(300) DEFAULT '',
+        list_slug VARCHAR(200) UNIQUE,
+        list_description TEXT,
+        list_cover VARCHAR(500) DEFAULT '',
+        list_logo VARCHAR(500) DEFAULT '',
+        list_year VARCHAR(10) DEFAULT '',
+        list_columns JSON,
+        list_active TINYINT DEFAULT 1,
+        list_order INT DEFAULT 0,
+        list_views INT DEFAULT 0,
+        list_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_active (list_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_list_items (
+        li_id INT AUTO_INCREMENT PRIMARY KEY,
+        li_list_id INT NOT NULL,
+        li_entity_type ENUM('personality','institution') NOT NULL,
+        li_entity_id INT NOT NULL,
+        li_rank INT DEFAULT 0,
+        li_data JSON,
+        li_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_list (li_list_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_list_blocks (
+        lb_id INT AUTO_INCREMENT PRIMARY KEY,
+        lb_list_id INT NOT NULL,
+        lb_type ENUM('text','image','video') DEFAULT 'text',
+        lb_content LONGTEXT,
+        lb_order INT DEFAULT 0,
+        INDEX idx_list (lb_list_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+pi_create_list_tables();
