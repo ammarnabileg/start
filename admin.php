@@ -284,7 +284,8 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         <?php
         $usr_r = $mysqli->query("SHOW TABLES LIKE 'pi_users'");
         if ($usr_r && $usr_r->num_rows) {
-            $usr_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=1 AND u_created >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetch_assoc()['c'];
+            $usr_new_r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=1 AND u_created >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $usr_new = ($usr_new_r) ? (int)$usr_new_r->fetch_assoc()['c'] : 0;
             if ($usr_new > 0) echo '<span style="background:#8b5cf6;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">+'.$usr_new.'</span>';
         }
         ?>
