@@ -73,6 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach (['name_ar','name_en','title','bio','nationality','residence','website','description'] as $f) {
                     if (isset($_POST[$f]) && trim($_POST[$f]) !== '') $edit_data[$f] = trim($_POST[$f]);
                 }
+                // Handle photo upload
+                if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                        $udir = __DIR__ . '/uploads/';
+                        if (!is_dir($udir)) mkdir($udir, 0755, true);
+                        $fname = 'er_' . time() . '_' . rand(100,999) . '.' . $ext;
+                        if (move_uploaded_file($_FILES['photo_file']['tmp_name'], $udir . $fname)) {
+                            $edit_data['photo'] = 'uploads/' . $fname;
+                        }
+                    }
+                }
             }
             $edit_json = pi_escape(json_encode($edit_data, JSON_UNESCAPED_UNICODE));
             $mysqli->query("INSERT INTO pi_edit_requests (er_user_id,er_entity_type,er_entity_id,er_req_type,er_upgrade_to,er_edit_data,er_notes)
@@ -114,9 +126,9 @@ if (isset($_GET['saved'])) $msg = 'تم تحديث البيانات بنجاح';
 // Load approved personalities/institutions added by user
 $my_personalities = [];
 $my_institutions  = [];
-$r = $mysqli->query("SELECT p_id,p_name_ar,p_title,p_photo,p_active,p_verified,p_views FROM pi_personalities WHERE p_added_by_user=" . (int)$user['u_id'] . " ORDER BY p_id DESC");
+$r = $mysqli->query("SELECT p_id,p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_photo,p_active,p_verified,p_views,p_membership_type FROM pi_personalities WHERE p_added_by_user=" . (int)$user['u_id'] . " ORDER BY p_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_personalities[] = $row;
-$r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_active,inst_verified,inst_views FROM pi_institutions WHERE inst_added_by_user=" . (int)$user['u_id'] . " ORDER BY inst_id DESC");
+$r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_name_en,inst_description,inst_logo,inst_active,inst_verified,inst_views,inst_membership_type FROM pi_institutions WHERE inst_added_by_user=" . (int)$user['u_id'] . " ORDER BY inst_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_institutions[] = $row;
 // Load pending/rejected submissions still awaiting review
 $my_pending_subs = [];
@@ -695,7 +707,7 @@ include 'includes/header.php';
               <h3 class="font-black text-gray-800" id="modal-title">إرسال طلب</h3>
               <button onclick="closeReqModal()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
             </div>
-            <form method="POST" class="p-6 space-y-4">
+            <form method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
               <input type="hidden" name="_action" value="send_edit_request">
               <input type="hidden" name="entity_type" id="modal-entity-type">
               <input type="hidden" name="entity_id" id="modal-entity-id">
@@ -712,7 +724,18 @@ include 'includes/header.php';
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الجنسية</label><input type="text" name="nationality" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
                   </div>
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">النبذة / السيرة الذاتية</label><textarea name="bio" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أكتب التعديل المطلوب..."></textarea></div>
-                  <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">رابط الصورة الشخصية <span class="text-gray-400 font-normal">(اختياري)</span></label><input type="text" name="photo" dir="ltr" placeholder="https://..." class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+              <div class="mt-3">
+                <label class="block text-xs font-bold text-gray-600 mb-1">الصورة الشخصية <span class="text-gray-400 font-normal">(اختياري)</span></label>
+                <div class="flex items-center gap-3">
+                  <img id="edit-photo-prev-p" src="" class="w-12 h-12 rounded-full object-cover border border-gray-200 hidden flex-shrink-0">
+                  <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
+                    <i class="fa-solid fa-image text-gray-400"></i>
+                    <span id="edit-photo-name-p" class="text-xs text-gray-400 truncate">اختر صورة...</span>
+                    <input type="file" name="photo_file" id="edit-photo-file-p" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+                      onchange="previewEditPhoto(this,'edit-photo-prev-p','edit-photo-name-p')">
+                  </label>
+                </div>
+              </div>
                 </div>
                 <div id="institution-edit-fields" class="hidden">
                   <div class="grid grid-cols-2 gap-3">
@@ -720,6 +743,18 @@ include 'includes/header.php';
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالإنجليزي</label><input type="text" name="name_en" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr"></div>
                   </div>
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">الوصف</label><textarea name="description" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"></textarea></div>
+                <div class="mt-3">
+                  <label class="block text-xs font-bold text-gray-600 mb-1">شعار المؤسسة <span class="text-gray-400 font-normal">(اختياري)</span></label>
+                  <div class="flex items-center gap-3">
+                    <img id="edit-photo-prev-i" src="" class="w-12 h-12 rounded-xl object-cover border border-gray-200 hidden flex-shrink-0">
+                    <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
+                      <i class="fa-solid fa-image text-gray-400"></i>
+                      <span id="edit-photo-name-i" class="text-xs text-gray-400 truncate">اختر صورة...</span>
+                      <input type="file" name="photo_file" id="edit-photo-file-i" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+                        onchange="previewEditPhoto(this,'edit-photo-prev-i','edit-photo-name-i')">
+                    </label>
+                  </div>
+                </div>
                 </div>
               </div>
 
@@ -803,6 +838,16 @@ include 'includes/header.php';
         </div>
       </div>
       <script>
+      var _entityData = {
+        personality: <?= json_encode(array_combine(
+          array_column($my_personalities, 'p_id'),
+          array_map(function($p){ return ['name_ar'=>$p['p_name_ar']??'','name_en'=>$p['p_name_en']??'','title'=>$p['p_title']??'','nationality'=>$p['p_nationality']??'','residence'=>$p['p_residence']??'','bio'=>$p['p_bio']??'','photo'=>$p['p_photo']??'']; }, $my_personalities)
+        ) ?: new stdClass(), JSON_UNESCAPED_UNICODE) ?>,
+        institution: <?= json_encode(array_combine(
+          array_column($my_institutions, 'inst_id'),
+          array_map(function($i){ return ['name_ar'=>$i['inst_name_ar']??'','name_en'=>$i['inst_name_en']??'','description'=>$i['inst_description']??'','photo'=>$i['inst_logo']??'']; }, $my_institutions)
+        ) ?: new stdClass(), JSON_UNESCAPED_UNICODE) ?>
+      };
       function openReqModal(type, id, name, reqType) {
         document.getElementById('modal-entity-type').value = type;
         document.getElementById('modal-entity-id').value   = id;
@@ -812,12 +857,50 @@ include 'includes/header.php';
         document.getElementById('upgrade-fields').classList.toggle('hidden', reqType !== 'upgrade');
         document.getElementById('personality-edit-fields').classList.toggle('hidden', type !== 'personality');
         document.getElementById('institution-edit-fields').classList.toggle('hidden', type !== 'institution');
+        // Pre-fill current values
+        var d = (_entityData[type] || {})[id] || {};
+        if (reqType === 'edit') {
+          if (type === 'personality') {
+            document.querySelector('[name=name_ar]').value     = d.name_ar   || '';
+            document.querySelector('[name=name_en]').value     = d.name_en   || '';
+            document.querySelector('[name=title]').value       = d.title     || '';
+            document.querySelector('[name=nationality]').value = d.nationality|| '';
+            document.querySelector('[name=residence]').value   = d.residence || '';
+            document.querySelector('[name=bio]').value         = d.bio ? d.bio.replace(/<[^>]+>/g,'') : '';
+            // Show current photo preview
+            var pp = document.getElementById('edit-photo-prev-p');
+            if (d.photo && pp) { pp.src = d.photo; pp.classList.remove('hidden'); }
+            else if (pp) pp.classList.add('hidden');
+          } else {
+            document.querySelector('[name=name_ar]').value      = d.name_ar    || '';
+            document.querySelector('[name=name_en]').value      = d.name_en    || '';
+            document.querySelector('[name=description]').value  = d.description ? d.description.replace(/<[^>]+>/g,'') : '';
+            var pi = document.getElementById('edit-photo-prev-i');
+            if (d.photo && pi) { pi.src = d.photo; pi.classList.remove('hidden'); }
+            else if (pi) pi.classList.add('hidden');
+          }
+        }
+        // Reset file inputs
+        var fp = document.getElementById('edit-photo-file-p');
+        var fi = document.getElementById('edit-photo-file-i');
+        if (fp) { fp.value = ''; document.getElementById('edit-photo-name-p').textContent = 'اختر صورة...'; }
+        if (fi) { fi.value = ''; document.getElementById('edit-photo-name-i').textContent = 'اختر صورة...'; }
         document.getElementById('req-modal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
       }
       function closeReqModal() {
         document.getElementById('req-modal').classList.add('hidden');
         document.body.style.overflow = '';
+      }
+      function previewEditPhoto(input, prevId, nameId) {
+        var prev = document.getElementById(prevId);
+        var nm   = document.getElementById(nameId);
+        if (input.files && input.files[0]) {
+          var r = new FileReader();
+          r.onload = function(e) { if (prev) { prev.src = e.target.result; prev.classList.remove('hidden'); } };
+          r.readAsDataURL(input.files[0]);
+          if (nm) nm.textContent = input.files[0].name;
+        }
       }
       document.getElementById('req-modal').addEventListener('click', function(e){ if(e.target===this) closeReqModal(); });
       </script>

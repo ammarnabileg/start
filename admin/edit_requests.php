@@ -126,6 +126,21 @@ $status_map = [
 <?php foreach ($requests as $req):
   $edit_data = json_decode($req['er_edit_data'] ?? '{}', true) ?? [];
   $is_p = $req['er_entity_type'] === 'personality';
+  // Load full current entity data for diff
+  $current = [];
+  if ($is_p) {
+      $ecr = $mysqli->query("SELECT p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_photo FROM pi_personalities WHERE p_id={$req['er_entity_id']}");
+      if ($ecr && $ecr->num_rows) {
+          $row = $ecr->fetch_assoc();
+          $current = ['name_ar'=>$row['p_name_ar'],'name_en'=>$row['p_name_en'],'title'=>$row['p_title'],'nationality'=>$row['p_nationality'],'residence'=>$row['p_residence'],'bio'=>$row['p_bio'],'photo'=>$row['p_photo']];
+      }
+  } else {
+      $ecr = $mysqli->query("SELECT inst_name_ar,inst_name_en,inst_description,inst_logo FROM pi_institutions WHERE inst_id={$req['er_entity_id']}");
+      if ($ecr && $ecr->num_rows) {
+          $row = $ecr->fetch_assoc();
+          $current = ['name_ar'=>$row['inst_name_ar'],'name_en'=>$row['inst_name_en'],'description'=>$row['inst_description'],'photo'=>$row['inst_logo']];
+      }
+  }
 ?>
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
   <div class="flex items-start gap-4">
@@ -163,19 +178,48 @@ $status_map = [
       </a>
       <?php endif; ?>
 
-      <!-- Edit data preview -->
-      <?php if ($req['er_req_type'] === 'edit' && !empty($edit_data)): ?>
-      <div class="mt-3 bg-gray-50 rounded-xl p-3 space-y-1">
-        <?php
-        $field_labels = ['name_ar'=>'الاسم بالعربي','name_en'=>'الاسم بالإنجليزي','title'=>'المسمى','nationality'=>'الجنسية','bio'=>'السيرة','description'=>'الوصف','photo'=>'الصورة'];
-        foreach ($edit_data as $k => $v): if (!$v) continue; ?>
-        <div class="flex gap-2 text-xs">
-          <span class="font-bold text-gray-500 w-24 flex-shrink-0"><?= $field_labels[$k] ?? $k ?>:</span>
-          <span class="text-gray-700 truncate"><?= htmlspecialchars(mb_substr(strip_tags($v), 0, 80)) ?></span>
-        </div>
-        <?php endforeach; ?>
-      </div>
+      <?php if ($req['er_req_type'] === 'edit'): ?>
+<div class="mt-3 border border-gray-200 rounded-xl overflow-hidden">
+  <div class="grid grid-cols-2 divide-x divide-x-reverse divide-gray-200 text-xs">
+    <div class="px-3 py-2 bg-gray-100 font-black text-gray-500">البيانات الحالية</div>
+    <div class="px-3 py-2 bg-purple-50 font-black text-purple-600">التعديلات المطلوبة</div>
+  </div>
+  <?php
+  $all_fields = $is_p
+    ? ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','title'=>'المسمى','nationality'=>'الجنسية','residence'=>'الإقامة','bio'=>'السيرة','photo'=>'الصورة']
+    : ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','description'=>'الوصف','photo'=>'الصورة'];
+  foreach ($all_fields as $fk => $fl):
+    $cur_val = $current[$fk] ?? '';
+    $new_val = $edit_data[$fk] ?? '';
+    $changed = ($new_val !== '' && $new_val !== $cur_val);
+    $added   = ($new_val !== '' && $cur_val === '');
+    if (!$cur_val && !$new_val) continue;
+    $cur_txt = $fk === 'bio' || $fk === 'description' ? mb_substr(strip_tags($cur_val), 0, 120) : mb_substr($cur_val, 0, 80);
+    $new_txt = $fk === 'bio' || $fk === 'description' ? mb_substr(strip_tags($new_val), 0, 120) : mb_substr($new_val, 0, 80);
+  ?>
+  <div class="grid grid-cols-2 divide-x divide-x-reverse divide-gray-100 border-t border-gray-100">
+    <div class="px-3 py-2 <?= $changed ? 'bg-red-50' : 'bg-white' ?>">
+      <span class="text-xs font-bold text-gray-400 block mb-0.5"><?= $fl ?></span>
+      <?php if ($fk === 'photo' && $cur_val): ?>
+        <img src="<?= htmlspecialchars($cur_val) ?>" class="w-10 h-10 rounded-lg object-cover <?= $changed ? 'ring-2 ring-red-300' : '' ?>">
+      <?php else: ?>
+        <span class="text-xs <?= $changed ? 'text-red-700 line-through' : 'text-gray-700' ?>"><?= htmlspecialchars($cur_txt ?: '—') ?></span>
       <?php endif; ?>
+    </div>
+    <div class="px-3 py-2 <?= $added ? 'bg-green-50' : ($changed ? 'bg-green-50' : 'bg-white') ?>">
+      <span class="text-xs font-bold text-gray-400 block mb-0.5"><?= $fl ?></span>
+      <?php if ($fk === 'photo' && $new_val): ?>
+        <img src="<?= htmlspecialchars($new_val) ?>" class="w-10 h-10 rounded-lg object-cover ring-2 ring-green-400">
+      <?php elseif ($new_val): ?>
+        <span class="text-xs font-bold text-green-700"><?= htmlspecialchars($new_txt) ?></span>
+      <?php else: ?>
+        <span class="text-xs text-gray-300">—</span>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
       <?php if ($req['er_notes']): ?>
       <p class="text-xs text-gray-500 mt-2 bg-yellow-50 rounded-lg px-3 py-1.5">

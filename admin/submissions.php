@@ -62,12 +62,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $data['p_nationality'] = trim($_POST['p_nationality'] ?? '');
                 $data['p_residence']   = trim($_POST['p_residence']   ?? '');
                 $data['p_bio']         = trim($_POST['p_bio']         ?? '');
-                if (trim($_POST['p_photo'] ?? '') !== '') $data['p_photo'] = trim($_POST['p_photo']);
+                if (!empty($_FILES['p_photo_file']['name']) && $_FILES['p_photo_file']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['p_photo_file']['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                        $udir = dirname(__DIR__).'/uploads/';
+                        if (!is_dir($udir)) mkdir($udir, 0755, true);
+                        $fname = 'sub_'.time().'_'.rand(100,999).'.'.$ext;
+                        if (move_uploaded_file($_FILES['p_photo_file']['tmp_name'], $udir.$fname))
+                            $data['p_photo'] = 'uploads/'.$fname;
+                    }
+                }
             } else {
                 $data['inst_name_ar']     = trim($_POST['inst_name_ar']     ?? '');
                 $data['inst_name_en']     = trim($_POST['inst_name_en']     ?? '');
                 $data['inst_description'] = trim($_POST['inst_description'] ?? '');
-                if (trim($_POST['inst_logo'] ?? '') !== '') $data['inst_logo'] = trim($_POST['inst_logo']);
+                if (!empty($_FILES['inst_logo_file']['name']) && $_FILES['inst_logo_file']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['inst_logo_file']['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                        $udir = dirname(__DIR__).'/uploads/';
+                        if (!is_dir($udir)) mkdir($udir, 0755, true);
+                        $fname = 'sub_'.time().'_'.rand(100,999).'.'.$ext;
+                        if (move_uploaded_file($_FILES['inst_logo_file']['tmp_name'], $udir.$fname))
+                            $data['inst_logo'] = 'uploads/'.$fname;
+                    }
+                }
             }
             $data['categories'] = array_map('intval', (array)($_POST['categories'] ?? []));
             $json = pi_escape(json_encode($data, JSON_UNESCAPED_UNICODE));
@@ -327,7 +345,7 @@ _subs[<?= $sid ?>] = {
     <button onclick="this.closest('dialog').close()" class="text-white/70 hover:text-white text-2xl leading-none">&times;</button>
   </div>
 
-  <form method="POST" id="edit-form" class="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+  <form method="POST" id="edit-form" enctype="multipart/form-data" class="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
     <input type="hidden" name="action" value="edit_sub">
     <input type="hidden" name="sub_id" id="edit-sub-id">
 
@@ -366,12 +384,15 @@ _subs[<?= $sid ?>] = {
         <textarea name="p_bio" id="edit-bio-hidden" class="hidden"></textarea>
       </div>
       <div class="mt-4">
-        <label class="block text-xs font-bold text-gray-500 mb-1">رابط الصورة الشخصية</label>
-        <div class="flex gap-3 items-center">
-          <input type="text" name="p_photo" id="edit-p-photo" dir="ltr" placeholder="https://..."
-            class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
-            oninput="updatePhotoPreview('p-photo-preview',this.value)">
-          <img id="p-photo-preview" src="" class="w-10 h-10 rounded-full object-cover border border-gray-200 hidden">
+        <label class="block text-xs font-bold text-gray-500 mb-1">الصورة الشخصية</label>
+        <div class="flex items-center gap-3">
+          <img id="p-photo-preview" src="" class="w-10 h-10 rounded-full object-cover border border-gray-200 hidden flex-shrink-0">
+          <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
+            <i class="fa-solid fa-image text-gray-400 text-sm"></i>
+            <span id="p-photo-file-name" class="text-xs text-gray-400 truncate">اختر صورة...</span>
+            <input type="file" name="p_photo_file" id="edit-p-photo-file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+              onchange="previewSubPhoto(this,'p-photo-preview','p-photo-file-name')">
+          </label>
         </div>
       </div>
     </div>
@@ -396,12 +417,15 @@ _subs[<?= $sid ?>] = {
         <textarea name="inst_description" id="edit-desc-hidden" class="hidden"></textarea>
       </div>
       <div class="mt-4">
-        <label class="block text-xs font-bold text-gray-500 mb-1">رابط شعار المؤسسة</label>
-        <div class="flex gap-3 items-center">
-          <input type="text" name="inst_logo" id="edit-inst-logo" dir="ltr" placeholder="https://..."
-            class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
-            oninput="updatePhotoPreview('inst-logo-preview',this.value)">
-          <img id="inst-logo-preview" src="" class="w-10 h-10 rounded-xl object-cover border border-gray-200 hidden">
+        <label class="block text-xs font-bold text-gray-500 mb-1">شعار المؤسسة</label>
+        <div class="flex items-center gap-3">
+          <img id="inst-logo-preview" src="" class="w-10 h-10 rounded-xl object-cover border border-gray-200 hidden flex-shrink-0">
+          <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
+            <i class="fa-solid fa-image text-gray-400 text-sm"></i>
+            <span id="inst-logo-file-name" class="text-xs text-gray-400 truncate">اختر صورة...</span>
+            <input type="file" name="inst_logo_file" id="edit-inst-logo-file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+              onchange="previewSubPhoto(this,'inst-logo-preview','inst-logo-file-name')">
+          </label>
         </div>
       </div>
     </div>
@@ -501,14 +525,16 @@ function openEdit(sid) {
     document.getElementById('edit-p-title').value       = s.p_title       || '';
     document.getElementById('edit-p-nationality').value = s.p_nationality  || '';
     document.getElementById('edit-p-residence').value   = s.p_residence    || '';
-    document.getElementById('edit-p-photo').value       = s.photo          || '';
-    updatePhotoPreview('p-photo-preview', s.photo || '');
+    var pprev = document.getElementById('p-photo-preview');
+    if (pprev && s.photo) { pprev.src = s.photo.startsWith('http') ? s.photo : '../'+s.photo; pprev.classList.remove('hidden'); } else if (pprev) pprev.classList.add('hidden');
+    var pf = document.getElementById('edit-p-photo-file'); if (pf) { pf.value=''; document.getElementById('p-photo-file-name').textContent='اختر صورة...'; }
     _bioQuill.root.innerHTML  = s.p_bio || '<p></p>';
   } else {
     document.getElementById('edit-inst-name-ar').value = s.inst_name_ar     || '';
     document.getElementById('edit-inst-name-en').value = s.inst_name_en     || '';
-    document.getElementById('edit-inst-logo').value    = s.photo             || '';
-    updatePhotoPreview('inst-logo-preview', s.photo || '');
+    var iprev = document.getElementById('inst-logo-preview');
+    if (iprev && s.photo) { iprev.src = s.photo.startsWith('http') ? s.photo : '../'+s.photo; iprev.classList.remove('hidden'); } else if (iprev) iprev.classList.add('hidden');
+    var ilf = document.getElementById('edit-inst-logo-file'); if (ilf) { ilf.value=''; document.getElementById('inst-logo-file-name').textContent='اختر صورة...'; }
     _descQuill.root.innerHTML = s.inst_description || '<p></p>';
   }
 
@@ -527,10 +553,14 @@ document.getElementById('edit-form').addEventListener('submit', function() {
 });
 
 function esc(s){ var d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
-function updatePhotoPreview(id, url) {
-  var img = document.getElementById(id);
-  if (!img) return;
-  if (url) { img.src = url.startsWith('http') ? url : '../' + url; img.classList.remove('hidden'); }
-  else img.classList.add('hidden');
+function previewSubPhoto(input, prevId, nameId) {
+  var prev = document.getElementById(prevId);
+  var nm   = document.getElementById(nameId);
+  if (input.files && input.files[0]) {
+    var r = new FileReader();
+    r.onload = function(e) { if (prev) { prev.src = e.target.result; prev.classList.remove('hidden'); } };
+    r.readAsDataURL(input.files[0]);
+    if (nm) nm.textContent = input.files[0].name;
+  }
 }
 </script>
