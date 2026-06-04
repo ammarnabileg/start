@@ -6,6 +6,19 @@ $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';
 
+    // Edit sponsor bonus views directly
+    if ($act === 'edit_sp_views') {
+        pi_require_any_perm('manage_sponsors','edit_sponsor');
+        $sid   = (int)($_POST['sp_id'] ?? 0);
+        $views = max(0, (int)($_POST['sp_views'] ?? 0));
+        if ($sid) {
+            try { $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_views INT DEFAULT 0"); } catch(Exception $e) {}
+            $mysqli->query("UPDATE pi_sponsors SET sp_views=$views WHERE sp_id=$sid");
+        }
+        $msg = 'تم تحديث عدد المشاهدات';
+        $action = 'list';
+    }
+
     // Edit views for a specific list linked to this sponsor
     if ($act === 'edit_views') {
         pi_require_any_perm('manage_sponsors','edit_sponsor');
@@ -194,8 +207,9 @@ function previewSpLogo(input) {
 
 <?php } else {
 $list = [];
+try { $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_views INT DEFAULT 0"); } catch(Exception $e) {}
 $r = $mysqli->query("SELECT s.*, u.u_name AS linked_user_name,
-    (SELECT COALESCE(SUM(l.list_views),0) FROM pi_lists l WHERE l.list_sponsor_id=s.sp_id) AS total_views,
+    COALESCE(s.sp_views,0) + (SELECT COALESCE(SUM(l.list_views),0) FROM pi_lists l WHERE l.list_sponsor_id=s.sp_id) AS total_views,
     (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)) AS views_30d
     FROM pi_sponsors s LEFT JOIN pi_users u ON s.sp_user_id=u.u_id ORDER BY s.sp_order,s.sp_id");
 if ($r) while ($row=$r->fetch_assoc()) {
@@ -238,7 +252,7 @@ if ($r) while ($row=$r->fetch_assoc()) {
       </div>
 
       <!-- View stats -->
-      <div class="flex gap-3 items-center">
+      <div class="flex gap-3 items-center" x-data="{editing:false}">
         <div class="text-center px-4 py-2 bg-purple-50 rounded-xl">
           <p class="text-xl font-black text-purple-700"><?= number_format((int)$sp['total_views']) ?></p>
           <p class="text-xs text-purple-400 font-semibold">إجمالي</p>
@@ -246,6 +260,25 @@ if ($r) while ($row=$r->fetch_assoc()) {
         <div class="text-center px-4 py-2 bg-blue-50 rounded-xl">
           <p class="text-xl font-black text-blue-700"><?= number_format((int)$sp['views_30d']) ?></p>
           <p class="text-xs text-blue-400 font-semibold">30 يوم</p>
+        </div>
+        <!-- Inline views editor -->
+        <div>
+          <button type="button" @click="editing=!editing"
+            class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-purple-50 hover:text-purple-600 text-gray-400 flex items-center justify-center transition"
+            title="تعديل المشاهدات">
+            <i class="fa-solid fa-pen text-xs"></i>
+          </button>
+          <div x-show="editing" x-cloak class="absolute z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-56">
+            <p class="text-xs font-black text-gray-600 mb-2">تعديل مشاهدات الراعي</p>
+            <form method="POST" class="flex gap-2">
+              <input type="hidden" name="action" value="edit_sp_views">
+              <input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>">
+              <input type="number" name="sp_views" value="<?= (int)($sp['sp_views']??0) ?>" min="0"
+                class="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-purple-400">
+              <button type="submit" class="px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 transition">حفظ</button>
+            </form>
+            <p class="text-xs text-gray-400 mt-2">هذا الرقم يُضاف لمشاهدات القوائم</p>
+          </div>
         </div>
       </div>
 
