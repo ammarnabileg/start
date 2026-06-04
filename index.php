@@ -63,7 +63,7 @@ include 'includes/header.php';
   <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
     <div class="hero-animate-1 inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200 backdrop-blur-sm">
       <i class="fa-solid fa-circle-check text-purple-300 text-xs"></i>
-      المنصة العربية الأولى للحضور الموثق
+      <?= htmlspecialchars($_S['hero_pill'] ?? 'المنصة العربية الأولى للحضور الموثق') ?>
     </div>
     <h1 class="hero-animate-2 text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight pi-shimmer-text">
       <?= htmlspecialchars($_S['hero_title'] ?? $_S['site_tagline'] ?? 'السجل العربي الأول للشخصيات والمؤسسات المؤثرة') ?>

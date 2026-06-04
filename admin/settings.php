@@ -19,7 +19,7 @@ function pi_upload_logo($file) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fields = [
         'site_name','site_name_ar','site_tagline','site_description','site_keywords',
-        'footer_about','social_whatsapp','social_linkedin','social_twitter',
+        'footer_about','hero_pill','social_whatsapp','social_linkedin','social_twitter',
         'social_instagram','social_facebook','social_youtube','social_tiktok',
         'social_snapchat','social_telegram','social_threads','social_pinterest',
         'primary_color','admin_email','copyright_text','google_analytics','default_country',
@@ -137,6 +137,11 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
         نصوص الصفحة الرئيسية (الهيرو)
       </h3>
       <div class="space-y-4">
+        <div>
+          <label class="form-label">نص الشريط الصغير (Pill) فوق العنوان</label>
+          <input type="text" name="hero_pill" class="form-input" value="<?= htmlspecialchars($S['hero_pill'] ?? 'المنصة العربية الأولى للحضور الموثق') ?>" placeholder="المنصة العربية الأولى للحضور الموثق">
+          <p class="text-xs text-gray-400 mt-1">النص الذي يظهر داخل الكبسولة فوق العنوان الرئيسي</p>
+        </div>
         <div>
           <label class="form-label">العنوان الرئيسي (H1)</label>
           <input type="text" name="hero_title" class="form-input" value="<?= htmlspecialchars($S['hero_title'] ?? $S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>" placeholder="منصة الحضور العربي الموثق">

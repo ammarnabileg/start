@@ -18,6 +18,7 @@ function pi_get_settings() {
     $cache = [
         'site_name'        => 'PioneerIcons',
         'site_name_ar'     => 'من هم',
+        'hero_pill'        => 'المنصة العربية الأولى للحضور الموثق',
         'site_tagline'     => 'السجل العربي الموثق للشخصيات والمؤسسات المؤثرة',
         'site_description' => 'حيث يجد العالم من يبحث عنه في العالم العربي',
         'site_keywords'    => 'شخصيات عربية, مؤسسات, من هم, PioneerIcons',
