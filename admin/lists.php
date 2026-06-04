@@ -85,21 +85,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Single registered sponsor (backward compat)
+        // Registered sponsor (from dropdown)
         $sponsor_id  = (int)($_POST['list_sponsor_id'] ?? 0);
-        $sponsor_url = pi_escape(trim($_POST['list_sponsor_url'] ?? ''));
-        $sponsor_name= pi_escape(trim($_POST['list_sponsor_name'] ?? ''));
-        $sponsor_img = pi_escape(trim($_POST['list_sponsor_img_keep'] ?? ''));
-        if (!empty($_FILES['list_sponsor_img_file']['name']) && $_FILES['list_sponsor_img_file']['error'] === UPLOAD_ERR_OK) {
-            $ext = strtolower(pathinfo($_FILES['list_sponsor_img_file']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, ['jpg','jpeg','png','webp','gif','svg'])) {
-                $udir = dirname(__DIR__).'/uploads/';
-                if (!is_dir($udir)) mkdir($udir, 0755, true);
-                $fname = 'sp_'.time().'_'.rand(100,999).'.'.$ext;
-                if (move_uploaded_file($_FILES['list_sponsor_img_file']['tmp_name'], $udir.$fname))
-                    $sponsor_img = pi_escape('uploads/'.$fname);
-            }
-        }
+        // Primary custom sponsor fields cleared — all go through csp_* json system
+        $sponsor_url  = '';
+        $sponsor_name = '';
+        $sponsor_img  = '';
 
         // Multiple custom sponsors
         $custom_sponsors = [];
@@ -626,52 +617,10 @@ if ($edit_id !== null) {
           <?php endif; ?>
         </div>
 
-        <div class="flex items-center gap-3 mb-4">
-          <div class="flex-1 h-px bg-gray-200"></div>
-          <span class="text-xs text-gray-400 font-bold">أو راعٍ مخصص</span>
-          <div class="flex-1 h-px bg-gray-200"></div>
-        </div>
-
-        <!-- Custom sponsor fields -->
-        <div id="custom_sponsor_fields" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="form-label">اسم الراعي</label>
-              <input type="text" name="list_sponsor_name" id="inp_sponsor_name" class="form-input"
-                placeholder="مثال: شركة الخليج للاستثمار"
-                value="<?= htmlspecialchars($list['list_sponsor_name'] ?? '') ?>">
-            </div>
-            <div>
-              <label class="form-label">رابط الموقع</label>
-              <input type="text" name="list_sponsor_url" class="form-input" dir="ltr"
-                placeholder="https://..."
-                value="<?= htmlspecialchars($list['list_sponsor_url'] ?? '') ?>">
-            </div>
-          </div>
-
-          <div>
-            <label class="form-label">شعار الراعي</label>
-            <div class="space-y-2">
-              <div class="pi-upload-zone" onclick="document.getElementById('sponsor_img_file').click()" style="height:100px">
-                <?php $sp_img = $list['list_sponsor_img'] ?? ''; ?>
-                <img id="sponsor_img_preview" src="<?= $sp_img ? htmlspecialchars($sp_img) : '' ?>"
-                  class="preview-img object-contain max-h-20 <?= $sp_img ? '' : 'hidden' ?>">
-                <div id="sponsor_img_ph" <?= $sp_img ? 'style="display:none"' : '' ?>>
-                  <i class="fa-solid fa-image text-gray-300 text-2xl mb-1"></i>
-                  <p class="preview-label text-xs">انقر لرفع شعار الراعي</p>
-                </div>
-              </div>
-              <input type="hidden" name="list_sponsor_img_keep" id="inp_sponsor_img" value="<?= htmlspecialchars($sp_img) ?>">
-              <input type="file" id="sponsor_img_file" name="list_sponsor_img_file" accept="image/*" class="hidden"
-                data-preview="sponsor_img_preview" data-placeholder="sponsor_img_ph">
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Multiple Custom Sponsors ── -->
-        <div class="mt-6">
+        <!-- ── Custom Sponsors (all via add button) ── -->
+        <div class="mt-4">
           <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-700 text-sm">رعاة مخصصون إضافيون</h4>
+            <h4 class="font-bold text-gray-700 text-sm">رعاة مخصصون</h4>
             <button type="button" onclick="addCustomSponsor()" class="btn-secondary text-xs px-3 py-2">
               <i class="fa-solid fa-plus ml-1"></i> إضافة راعٍ
             </button>
@@ -679,6 +628,13 @@ if ($edit_id !== null) {
           <div id="custom_sponsors_list" class="space-y-4">
             <?php
             $custom_sponsors_saved = json_decode($list['list_sponsors_json'] ?? '[]', true) ?: [];
+            // Migrate old primary custom sponsor into the list
+            $old_sp_name = trim($list['list_sponsor_name'] ?? '');
+            if ($old_sp_name) {
+                $already = false;
+                foreach ($custom_sponsors_saved as $x) { if (($x['name']??'') === $old_sp_name) { $already=true; break; } }
+                if (!$already) array_unshift($custom_sponsors_saved, ['name'=>$old_sp_name,'url'=>$list['list_sponsor_url']??'','img'=>$list['list_sponsor_img']??'']);
+            }
             foreach ($custom_sponsors_saved as $csi => $csp):
             ?>
             <div class="csp-row bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
