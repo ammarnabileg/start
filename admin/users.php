@@ -202,54 +202,58 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
   <!-- ══════════════════════════════════════════════════ -->
   <!--  HERO SECTION                                      -->
   <!-- ══════════════════════════════════════════════════ -->
-  <div class="rounded-2xl overflow-hidden shadow-sm border border-gray-200" style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%)">
-    <!-- Back bar -->
-    <div class="px-6 pt-5 pb-0 flex items-center justify-between">
-      <a href="admin.php?p=users" class="flex items-center gap-2 text-purple-200 hover:text-white transition text-sm font-semibold">
+  <!-- User card header -->
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
+    <!-- Purple top accent bar -->
+    <div class="h-1.5 w-full" style="background:linear-gradient(90deg,#7c3aed,#a855f7)"></div>
+
+    <!-- Navigation row -->
+    <div class="px-6 pt-4 pb-0 flex items-center justify-between">
+      <a href="admin.php?p=users" class="flex items-center gap-2 text-gray-400 hover:text-purple-600 transition text-sm font-semibold">
         <i class="fa-solid fa-arrow-right text-xs"></i> العودة للقائمة
       </a>
-      <span class="text-purple-300 text-xs font-mono">ID #<?= $view_user['u_id'] ?></span>
+      <span class="text-gray-400 text-xs font-mono bg-gray-100 px-2 py-0.5 rounded-full">ID #<?= $view_user['u_id'] ?></span>
     </div>
 
-    <!-- Main hero content -->
-    <div class="px-6 py-6 flex flex-col md:flex-row md:items-center gap-5">
+    <!-- Main content -->
+    <div class="px-6 py-5 flex flex-col md:flex-row md:items-center gap-5">
       <!-- Avatar -->
       <div class="relative flex-shrink-0">
         <?php if ($view_user['u_photo']): ?>
-        <img src="../<?= htmlspecialchars($view_user['u_photo']) ?>" class="w-20 h-20 rounded-2xl object-cover border-4 border-white/20">
+        <img src="../<?= htmlspecialchars($view_user['u_photo']) ?>" class="w-20 h-20 rounded-2xl object-cover border border-gray-200">
         <?php else: ?>
-        <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black text-white border-4 border-white/20" style="background:rgba(255,255,255,0.15)">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black text-white" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">
           <?= mb_substr($view_user['u_name'], 0, 1) ?>
         </div>
         <?php endif; ?>
-        <span class="absolute -bottom-1 -left-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center <?= $is_active ? 'bg-emerald-400' : 'bg-red-400' ?>"></span>
+        <span class="absolute -bottom-1 -left-1 w-4 h-4 rounded-full border-2 border-white <?= $is_active ? 'bg-emerald-400' : 'bg-red-400' ?>"></span>
       </div>
 
       <!-- Identity -->
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-3 flex-wrap mb-1">
-          <h2 class="text-white font-black text-2xl"><?= htmlspecialchars($view_user['u_name']) ?></h2>
+          <h2 class="text-gray-900 font-black text-2xl"><?= htmlspecialchars($view_user['u_name']) ?></h2>
           <?php if ($is_active): ?>
-          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <i class="fa-solid fa-circle text-[7px] ml-1"></i>نشط
           </span>
           <?php else: ?>
-          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-red-400/20 text-red-300 border border-red-400/30">
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-red-50 text-red-700 border border-red-200">
             <i class="fa-solid fa-ban text-xs ml-1"></i>محظور
           </span>
           <?php endif; ?>
           <?php if ($pending_items > 0): ?>
-          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+          <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200">
             <i class="fa-solid fa-clock text-xs ml-1"></i><?= $pending_items ?> بانتظار المراجعة
           </span>
           <?php endif; ?>
         </div>
-        <p class="text-purple-200 text-sm mb-3" dir="ltr"><?= htmlspecialchars($view_user['u_email']) ?></p>
-        <div class="flex flex-wrap gap-4 text-xs text-purple-300">
-          <span><i class="fa-solid fa-calendar-plus ml-1 opacity-60"></i>سُجِّل <?= date('d/m/Y', strtotime($view_user['u_created'])) ?></span>
-          <?php if ($view_user['u_phone']): ?><span><i class="fa-solid fa-phone ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_phone']) ?></span><?php endif; ?>
-          <?php if ($view_user['u_job']): ?><span><i class="fa-solid fa-briefcase ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_job']) ?></span><?php endif; ?>
-          <?php if ($view_user['u_nationality']): ?><span><i class="fa-solid fa-flag ml-1 opacity-60"></i><?= htmlspecialchars($view_user['u_nationality']) ?></span><?php endif; ?>
+        <p class="text-gray-500 text-sm mb-2" dir="ltr"><?= htmlspecialchars($view_user['u_email']) ?></p>
+        <div class="flex flex-wrap gap-4 text-xs text-gray-400">
+          <span><i class="fa-solid fa-calendar-plus ml-1"></i>سُجِّل <?= date('d/m/Y', strtotime($view_user['u_created'])) ?></span>
+          <?php if ($view_user['u_phone']): ?><span><i class="fa-solid fa-phone ml-1"></i><?= htmlspecialchars($view_user['u_phone']) ?></span><?php endif; ?>
+          <?php if ($view_user['u_job']): ?><span><i class="fa-solid fa-briefcase ml-1"></i><?= htmlspecialchars($view_user['u_job']) ?></span><?php endif; ?>
+          <?php if ($view_user['u_nationality']): ?><span><i class="fa-solid fa-flag ml-1"></i><?= htmlspecialchars($view_user['u_nationality']) ?></span><?php endif; ?>
         </div>
       </div>
 
@@ -257,25 +261,19 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
       <div class="flex flex-wrap gap-2 flex-shrink-0">
         <a href="admin.php?p=users&impersonate=<?= $view_user['u_id'] ?>"
            onclick="return confirm('ستدخل للمنصة كـ <?= htmlspecialchars(addslashes($view_user['u_name'])) ?>. تأكيد؟')"
-           class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
-           style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2)"
-           onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+           class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 transition">
           <i class="fa-solid fa-right-to-bracket"></i> دخول كـ المستخدم
         </a>
-        <button onclick="document.getElementById('edit-user-panel').classList.toggle('hidden'); this.classList.toggle('bg-white/30')"
-          class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
-          style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2)"
-          onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <button onclick="document.getElementById('edit-user-panel').classList.toggle('hidden')"
+          class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition">
           <i class="fa-solid fa-pen"></i> تعديل
         </button>
         <?php if ($is_active): ?>
         <form method="POST" class="inline">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
           <button name="act" value="block"
-            onclick="return confirm('⚠️ تحذير\n\nهل تريد حظر هذا المستخدم؟\nلن يتمكن من تسجيل الدخول.')"
-            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
-            style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)"
-            onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'">
+            onclick="return confirm('هل تريد حظر هذا المستخدم؟')"
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition">
             <i class="fa-solid fa-ban"></i> حظر
           </button>
         </form>
@@ -283,20 +281,16 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
         <form method="POST" class="inline">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
           <button name="act" value="unblock"
-            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
-            style="background:rgba(52,211,153,0.2);color:#6ee7b7;border:1px solid rgba(52,211,153,0.3)"
-            onmouseover="this.style.background='rgba(52,211,153,0.35)'" onmouseout="this.style.background='rgba(52,211,153,0.2)'">
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition">
             <i class="fa-solid fa-circle-check"></i> رفع الحظر
           </button>
         </form>
         <?php endif; ?>
         <form method="POST" class="inline"
-          onsubmit="return confirm('🗑️ حذف نهائي\n\nسيتم حذف حساب <?= htmlspecialchars(addslashes($view_user['u_name'])) ?> بشكل دائم.\nلا يمكن التراجع عن هذا الإجراء.\n\nهل أنت متأكد؟')">
+          onsubmit="return confirm('سيتم حذف حساب <?= htmlspecialchars(addslashes($view_user['u_name'])) ?> بشكل دائم. هل أنت متأكد؟')">
           <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
           <button name="act" value="delete"
-            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl transition"
-            style="background:rgba(239,68,68,0.35);color:#fff;border:1px solid rgba(239,68,68,0.5)"
-            onmouseover="this.style.background='rgba(239,68,68,0.55)'" onmouseout="this.style.background='rgba(239,68,68,0.35)'">
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-black rounded-xl bg-red-600 text-white hover:bg-red-700 transition">
             <i class="fa-solid fa-trash"></i> حذف
           </button>
         </form>
@@ -304,20 +298,20 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
     </div>
 
     <!-- KPI Bar -->
-    <div class="grid grid-cols-3 md:grid-cols-5 border-t border-white/10">
+    <div class="grid grid-cols-3 md:grid-cols-5 border-t border-gray-100">
       <?php
       $kpis = [
-        ['label'=>'الاقتراحات',       'val'=>count($view_subs),         'icon'=>'fa-inbox',           'color'=>'text-violet-300'],
-        ['label'=>'طلبات التعديل',    'val'=>$edit_reqs_count,          'icon'=>'fa-pen-to-square',   'color'=>'text-amber-300'],
-        ['label'=>'الشكاوى',          'val'=>count($view_cmps),         'icon'=>'fa-message',         'color'=>'text-blue-300'],
-        ['label'=>'الصفحات المرتبطة', 'val'=>$linked_total,             'icon'=>'fa-id-card',         'color'=>'text-emerald-300'],
-        ['label'=>'معلق للمراجعة',    'val'=>$pending_items,            'icon'=>'fa-clock',           'color'=>$pending_items?'text-red-300':'text-purple-300'],
+        ['label'=>'الاقتراحات',       'val'=>count($view_subs),  'icon'=>'fa-inbox',         'color'=>'text-violet-600', 'bg'=>'bg-violet-50'],
+        ['label'=>'طلبات التعديل',    'val'=>$edit_reqs_count,   'icon'=>'fa-pen-to-square', 'color'=>'text-amber-600',  'bg'=>'bg-amber-50'],
+        ['label'=>'الشكاوى',          'val'=>count($view_cmps),  'icon'=>'fa-message',       'color'=>'text-sky-600',    'bg'=>'bg-sky-50'],
+        ['label'=>'الصفحات المرتبطة', 'val'=>$linked_total,      'icon'=>'fa-id-card',       'color'=>'text-emerald-600','bg'=>'bg-emerald-50'],
+        ['label'=>'معلق للمراجعة',    'val'=>$pending_items,     'icon'=>'fa-clock',         'color'=>$pending_items?'text-red-600':'text-gray-400', 'bg'=>$pending_items?'bg-red-50':'bg-gray-50'],
       ];
-      foreach ($kpis as $i => $kpi): ?>
-      <div class="flex flex-col items-center justify-center py-4 px-2 border-r border-white/10 last:border-0 <?= $i===5 && $pending_items ? 'bg-red-500/10' : '' ?>">
+      foreach ($kpis as $kpi): ?>
+      <div class="flex flex-col items-center justify-center py-4 px-2 border-r border-gray-100 last:border-0 <?= $kpi['bg'] ?>">
         <i class="fa-solid <?= $kpi['icon'] ?> <?= $kpi['color'] ?> text-base mb-1.5"></i>
-        <p class="text-white font-black text-xl leading-none mb-1"><?= $kpi['val'] ?></p>
-        <p class="text-purple-300 text-[10px] font-semibold text-center"><?= $kpi['label'] ?></p>
+        <p class="text-gray-800 font-black text-xl leading-none mb-1"><?= $kpi['val'] ?></p>
+        <p class="text-gray-400 text-[10px] font-semibold text-center"><?= $kpi['label'] ?></p>
       </div>
       <?php endforeach; ?>
     </div>

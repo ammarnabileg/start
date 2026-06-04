@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $edit_data = [];
             if ($req_type === 'edit') {
                 foreach (['name_ar','name_en','title','bio','nationality','residence','website','description'] as $f) {
-                    if (isset($_POST[$f]) && trim($_POST[$f]) !== '') $edit_data[$f] = trim($_POST[$f]);
+                    if (isset($_POST[$f])) $edit_data[$f] = trim($_POST[$f]);
                 }
                 // Handle photo upload
                 if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
@@ -662,22 +662,32 @@ include 'includes/header.php';
               $ename = $er && $er->num_rows ? $er->fetch_assoc()['inst_name_ar'] : 'محذوف';
             }
           ?>
+          <?php
+          $rq_data_json = htmlspecialchars(json_encode([
+            'entity_name' => $ename,
+            'entity_type' => $rq['er_entity_type'],
+            'req_type'    => $rq['er_req_type'],
+            'status'      => $rq['er_status'],
+            'created'     => $rq['er_created'],
+            'admin_note'  => $rq['er_admin_note'] ?? '',
+            'edit_data'   => json_decode($rq['er_edit_data'] ?? '{}', true) ?: [],
+          ], JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+          ?>
           <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
             <div class="flex-1">
               <div class="flex items-center gap-2 flex-wrap">
                 <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($ename) ?></p>
-                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  <?= $rq['er_req_type'] === 'edit' ? 'تعديل' : 'طلب ترقية' ?>
-                  <?php if ($rq['er_req_type'] === 'upgrade' && $rq['er_upgrade_to']): ?>
-                  — <?= $rq['er_upgrade_to'] === 'executive' ? 'تنفيذي' : 'موثق' ?>
-                  <?php endif; ?>
-                </span>
+                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">تعديل</span>
               </div>
               <?php if ($rq['er_admin_note']): ?>
               <p class="text-xs text-gray-500 mt-0.5"><i class="fa-solid fa-comment ml-1"></i><?= htmlspecialchars($rq['er_admin_note']) ?></p>
               <?php endif; ?>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
+              <button onclick="viewEditRequest('<?= $rq_data_json ?>')"
+                class="text-xs px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold transition border border-purple-200">
+                <i class="fa-solid fa-eye ml-1"></i> عرض
+              </button>
               <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $req_status_map[$rq['er_status']]['class'] ?>">
                 <?= $req_status_map[$rq['er_status']]['text'] ?>
               </span>
@@ -934,7 +944,71 @@ include 'includes/header.php';
         }
       }
       document.getElementById('req-modal').addEventListener('click', function(e){ if(e.target===this) closeReqModal(); });
+
+      // ── View edit request popup ──────────────────────────────────────────
+      var fieldLabels = {
+        name_ar:'الاسم بالعربي', name_en:'الاسم بالإنجليزي', title:'المسمى الوظيفي',
+        nationality:'الجنسية', residence:'الإقامة', bio:'السيرة الذاتية',
+        description:'الوصف', website:'الموقع الإلكتروني', photo:'الصورة'
+      };
+      function viewEditRequest(jsonStr) {
+        var d = JSON.parse(jsonStr);
+        var statusMap = {pending:'قيد المراجعة', approved:'تم القبول', rejected:'مرفوض'};
+        var statusColor = {pending:'bg-yellow-100 text-yellow-700', approved:'bg-green-100 text-green-700', rejected:'bg-red-100 text-red-700'};
+
+        var rows = '';
+        var data = d.edit_data || {};
+        var hasData = false;
+        for (var k in data) {
+          if (!fieldLabels[k]) continue;
+          var val = data[k] || '';
+          hasData = true;
+          if (k === 'photo' && val) {
+            rows += '<div class="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0"><span class="text-xs text-gray-500 w-32 flex-shrink-0 pt-1">'+fieldLabels[k]+'</span><img src="'+val+'" class="w-14 h-14 rounded-xl object-cover border border-gray-200"></div>';
+          } else if (val) {
+            rows += '<div class="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0"><span class="text-xs text-gray-500 w-32 flex-shrink-0 pt-0.5">'+fieldLabels[k]+'</span><span class="text-sm text-gray-800 flex-1">'+val+'</span></div>';
+          }
+        }
+        if (!hasData) rows = '<p class="text-sm text-gray-400 text-center py-4">لا توجد تفاصيل تعديل</p>';
+
+        var adminNote = d.admin_note ? '<div class="mt-4 bg-blue-50 rounded-xl px-4 py-3 text-sm text-blue-800"><i class="fa-solid fa-comment-dots ml-2 text-blue-400"></i><strong>ملاحظة الإدارة:</strong> '+d.admin_note+'</div>' : '';
+
+        document.getElementById('view-req-body').innerHTML =
+          '<div class="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">' +
+          '<div class="flex-1"><p class="font-black text-gray-800">'+d.entity_name+'</p>' +
+          '<p class="text-xs text-gray-400 mt-0.5">'+date_ar(d.created)+'</p></div>' +
+          '<span class="text-xs px-2.5 py-1 rounded-full font-bold '+(statusColor[d.status]||'')+'">'+statusMap[d.status]+'</span>' +
+          '</div>' +
+          '<div class="space-y-0">'+rows+'</div>' +
+          adminNote;
+
+        document.getElementById('view-req-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeViewReqModal() {
+        document.getElementById('view-req-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+      function date_ar(s) {
+        if (!s) return '';
+        var parts = s.split(' ')[0].split('-');
+        return parts[2]+'/'+parts[1]+'/'+parts[0];
+      }
+      document.getElementById('view-req-modal').addEventListener('click', function(e){ if(e.target===this) closeViewReqModal(); });
       </script>
+
+      <!-- View Edit Request Popup -->
+      <div id="view-req-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,.5)">
+        <div class="flex items-center justify-center min-h-screen p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" dir="rtl">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 class="font-black text-gray-800 text-sm">تفاصيل طلب التعديل</h3>
+              <button onclick="closeViewReqModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div id="view-req-body" class="px-6 py-5 max-h-[70vh] overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- ──────────── MEMBERSHIP TAB ──────────── -->
       <?php elseif ($tab === 'membership'): ?>

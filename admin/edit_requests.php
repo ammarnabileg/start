@@ -50,6 +50,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mysqli->query("UPDATE pi_edit_requests SET er_status='rejected', er_admin_note='$note' WHERE er_id=$er_id");
         $msg = 'تم رفض الطلب';
     }
+
+    if ($act === 'apply_edit' && $er_id) {
+        $r = $mysqli->query("SELECT * FROM pi_edit_requests WHERE er_id=$er_id");
+        if ($r && $r->num_rows) {
+            $req = $r->fetch_assoc();
+            $is_p = $req['er_entity_type'] === 'personality';
+            if ($is_p) {
+                $map = ['name_ar'=>'p_name_ar','name_en'=>'p_name_en','title'=>'p_title','nationality'=>'p_nationality','residence'=>'p_residence','bio'=>'p_bio'];
+                $sets = [];
+                foreach ($map as $key => $col) {
+                    if (isset($_POST[$key])) $sets[] = "$col='" . pi_escape(trim($_POST[$key])) . "'";
+                }
+                if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                        $udir = dirname(__DIR__).'/uploads/';
+                        if (!is_dir($udir)) mkdir($udir, 0755, true);
+                        $fname = 'er_' . time() . '_' . rand(100,999) . '.' . $ext;
+                        if (move_uploaded_file($_FILES['photo_file']['tmp_name'], $udir.$fname))
+                            $sets[] = "p_photo='uploads/$fname'";
+                    }
+                }
+                if ($sets) $mysqli->query("UPDATE pi_personalities SET " . implode(',', $sets) . " WHERE p_id={$req['er_entity_id']}");
+            } else {
+                $map = ['name_ar'=>'inst_name_ar','name_en'=>'inst_name_en','description'=>'inst_description'];
+                $sets = [];
+                foreach ($map as $key => $col) {
+                    if (isset($_POST[$key])) $sets[] = "$col='" . pi_escape(trim($_POST[$key])) . "'";
+                }
+                if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
+                        $udir = dirname(__DIR__).'/uploads/';
+                        if (!is_dir($udir)) mkdir($udir, 0755, true);
+                        $fname = 'er_' . time() . '_' . rand(100,999) . '.' . $ext;
+                        if (move_uploaded_file($_FILES['photo_file']['tmp_name'], $udir.$fname))
+                            $sets[] = "inst_logo='uploads/$fname'";
+                    }
+                }
+                if ($sets) $mysqli->query("UPDATE pi_institutions SET " . implode(',', $sets) . " WHERE inst_id={$req['er_entity_id']}");
+            }
+            $mysqli->query("UPDATE pi_edit_requests SET er_status='approved', er_admin_note='$note' WHERE er_id=$er_id");
+            $msg = 'تم تطبيق التعديلات بنجاح';
+        }
+    }
 }
 
 // Filters
@@ -58,12 +103,12 @@ $type_filter   = $_GET['etype'] ?? '';
 $allowed_statuses = ['pending','approved','rejected'];
 if (!in_array($status_filter, $allowed_statuses)) $status_filter = 'pending';
 
-$where = "WHERE er_status='" . pi_escape($status_filter) . "'";
+$where = "WHERE er.er_status='" . pi_escape($status_filter) . "' AND er.er_req_type='edit'";
 if ($type_filter === 'personality' || $type_filter === 'institution') $where .= " AND er.er_entity_type='" . pi_escape($type_filter) . "'";
 
 $counts = [];
 foreach ($allowed_statuses as $s) {
-    $cr = $mysqli->query("SELECT COUNT(*) c FROM pi_edit_requests WHERE er_status='$s'");
+    $cr = $mysqli->query("SELECT COUNT(*) c FROM pi_edit_requests WHERE er_status='$s' AND er_req_type='edit'");
     $counts[$s] = $cr ? (int)$cr->fetch_assoc()['c'] : 0;
 }
 
@@ -93,7 +138,7 @@ $status_map = [
 <?php endif; ?>
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
-  <h2 class="text-xl font-black text-gray-800">طلبات التعديل والترقية</h2>
+  <h2 class="text-xl font-black text-gray-800">طلبات التعديل</h2>
   <div class="flex gap-2 flex-wrap">
     <?php foreach (['pending'=>'قيد المراجعة','approved'=>'مقبولة','rejected'=>'مرفوضة'] as $sk=>$sl): ?>
     <a href="admin.php?p=edit_requests&status=<?= $sk ?>"
@@ -190,12 +235,14 @@ $status_map = [
     : ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','description'=>'الوصف','photo'=>'الصورة'];
   foreach ($all_fields as $fk => $fl):
     $cur_val = $current[$fk] ?? '';
-    $new_val = $edit_data[$fk] ?? '';
-    $changed = ($new_val !== '' && $new_val !== $cur_val);
-    $added   = ($new_val !== '' && $cur_val === '');
-    if (!$cur_val && !$new_val) continue;
+    $new_val = array_key_exists($fk, $edit_data) ? ($edit_data[$fk] ?? '') : null;
+    $submitted = ($new_val !== null);
+    $changed = $submitted && ($new_val !== $cur_val);
+    $added   = $submitted && ($new_val !== '' && $cur_val === '');
+    if (!$cur_val && !$submitted) continue;
     $cur_txt = $fk === 'bio' || $fk === 'description' ? mb_substr(strip_tags($cur_val), 0, 120) : mb_substr($cur_val, 0, 80);
-    $new_txt = $fk === 'bio' || $fk === 'description' ? mb_substr(strip_tags($new_val), 0, 120) : mb_substr($new_val, 0, 80);
+    $nv_str  = $new_val ?? '';
+    $new_txt = $fk === 'bio' || $fk === 'description' ? mb_substr(strip_tags($nv_str), 0, 120) : mb_substr($nv_str, 0, 80);
   ?>
   <div class="grid grid-cols-2 divide-x divide-x-reverse divide-gray-100 border-t border-gray-100">
     <div class="px-3 py-2 <?= $changed ? 'bg-red-50' : 'bg-white' ?>">
@@ -210,8 +257,10 @@ $status_map = [
       <span class="text-xs font-bold text-gray-400 block mb-0.5"><?= $fl ?></span>
       <?php if ($fk === 'photo' && $new_val): ?>
         <img src="<?= htmlspecialchars($new_val) ?>" class="w-10 h-10 rounded-lg object-cover ring-2 ring-green-400">
-      <?php elseif ($new_val): ?>
-        <span class="text-xs font-bold text-green-700"><?= htmlspecialchars($new_txt) ?></span>
+      <?php elseif ($submitted && $new_val !== ''): ?>
+        <span class="text-xs <?= $changed ? 'font-bold text-green-700' : 'text-gray-600' ?>"><?= htmlspecialchars($new_txt) ?></span>
+      <?php elseif ($submitted && $new_val === ''): ?>
+        <span class="text-xs text-orange-500 italic">— (مسح)</span>
       <?php else: ?>
         <span class="text-xs text-gray-300">—</span>
       <?php endif; ?>
@@ -239,10 +288,23 @@ $status_map = [
         <?= $status_map[$req['er_status']]['text'] ?>
       </span>
       <?php if ($status_filter === 'pending'): ?>
-      <div class="flex gap-2">
+      <div class="flex flex-col gap-2">
+        <?php if ($req['er_req_type'] === 'edit'): ?>
+        <button onclick="openApplyModal(<?= htmlspecialchars(json_encode([
+          'er_id'       => $req['er_id'],
+          'entity_name' => $req['entity_name'] ?? '',
+          'entity_type' => $req['er_entity_type'],
+          'is_p'        => ($req['er_entity_type']==='personality'),
+          'edit_data'   => $edit_data,
+          'current'     => $current,
+        ], JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)"
+          class="px-3 py-1.5 text-xs font-black bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition flex items-center gap-1">
+          <i class="fa-solid fa-pen-to-square"></i> تعديل وتطبيق
+        </button>
+        <?php endif; ?>
         <button onclick="openAction(<?= $req['er_id'] ?>,'approve')"
           class="px-3 py-1.5 text-xs font-black bg-green-500 text-white rounded-xl hover:bg-green-600 transition flex items-center gap-1">
-          <i class="fa-solid fa-check"></i> قبول
+          <i class="fa-solid fa-check"></i> قبول مباشر
         </button>
         <button onclick="openAction(<?= $req['er_id'] ?>,'reject')"
           class="px-3 py-1.5 text-xs font-black bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition flex items-center gap-1">
@@ -280,6 +342,34 @@ $status_map = [
   </div>
 </div>
 
+<!-- Apply Edit Modal -->
+<div id="apply-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,.5)">
+  <div class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg" dir="rtl">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100" style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:1rem 1rem 0 0">
+        <h3 class="font-black text-white text-base">تعديل وتطبيق التغييرات</h3>
+        <button type="button" onclick="closeApplyModal()" class="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <form method="POST" enctype="multipart/form-data" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+        <input type="hidden" name="action" value="apply_edit">
+        <input type="hidden" name="er_id" id="apply-er-id">
+        <p class="text-xs text-gray-400">عدّل القيم حسب الحاجة ثم اضغط «تطبيق» — ستُحفظ مباشرة في الملف وسيُقبل الطلب.</p>
+        <div id="apply-fields" class="space-y-3"></div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">ملاحظة للمستخدم <span class="text-gray-400 font-normal">(اختياري)</span></label>
+          <textarea name="admin_note" rows="2" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="اكتب ملاحظة..."></textarea>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 py-3 text-white font-black rounded-xl hover:opacity-90 transition" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">
+            <i class="fa-solid fa-check ml-1"></i> تطبيق
+          </button>
+          <button type="button" onclick="closeApplyModal()" class="flex-1 py-3 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 function openAction(id, type) {
   document.getElementById('action-er-id').value = id;
@@ -294,4 +384,47 @@ function closeAction() {
   document.getElementById('action-modal').classList.add('hidden');
 }
 document.getElementById('action-modal').addEventListener('click', function(e){ if(e.target===this) closeAction(); });
+
+function openApplyModal(dataStr) {
+  var d = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+  document.getElementById('apply-er-id').value = d.er_id;
+
+  var isP = d.is_p;
+  var fieldDefs = isP
+    ? [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'title',l:'المسمى الوظيفي',type:'text'},{k:'nationality',l:'الجنسية',type:'text'},{k:'residence',l:'الإقامة',type:'text'},{k:'bio',l:'السيرة الذاتية',type:'textarea'}]
+    : [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'description',l:'الوصف',type:'textarea'}];
+
+  var html = '';
+  fieldDefs.forEach(function(f) {
+    var reqVal = (d.edit_data && d.edit_data[f.k] !== undefined) ? d.edit_data[f.k] : '';
+    var curVal = (d.current && d.current[f.k]) ? d.current[f.k] : '';
+    var changed = reqVal !== '' && reqVal !== curVal;
+    var dir = f.dir ? ' dir="ltr"' : '';
+    var highlight = changed ? ' border-purple-400 bg-purple-50' : ' border-gray-200';
+    if (f.type === 'textarea') {
+      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + f.l + (changed ? ' <span class="text-purple-500 text-xs">(مُعدَّل)</span>' : '') + '</label>' +
+        '<textarea name="'+f.k+'" rows="3" class="w-full border'+highlight+' rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"'+dir+'>'+esc(reqVal || curVal)+'</textarea></div>';
+    } else {
+      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + f.l + (changed ? ' <span class="text-purple-500 text-xs">(مُعدَّل)</span>' : '') + '</label>' +
+        '<input type="text" name="'+f.k+'" class="w-full border'+highlight+' rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"'+dir+' value="'+esc(reqVal || curVal)+'">' +
+        (changed && curVal ? '<p class="text-xs text-gray-400 mt-0.5">الحالي: <span class="line-through">' + esc(curVal) + '</span></p>' : '') +
+        '</div>';
+    }
+  });
+
+  // Photo upload
+  var photoLabel = isP ? 'الصورة الشخصية' : 'الشعار';
+  var curPhoto = (d.current && d.current.photo) ? d.current.photo : '';
+  html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">'+photoLabel+' <span class="font-normal text-gray-400">(اختياري - اترك فارغاً للإبقاء على الحالية)</span></label>' +
+    (curPhoto ? '<img src="'+curPhoto+'" class="w-12 h-12 rounded-xl object-cover border border-gray-200 mb-2">' : '') +
+    '<input type="file" name="photo_file" accept="image/*" class="w-full text-sm text-gray-600"></div>';
+
+  document.getElementById('apply-fields').innerHTML = html;
+  document.getElementById('apply-modal').classList.remove('hidden');
+}
+function closeApplyModal() {
+  document.getElementById('apply-modal').classList.add('hidden');
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+document.getElementById('apply-modal').addEventListener('click', function(e){ if(e.target===this) closeApplyModal(); });
 </script>

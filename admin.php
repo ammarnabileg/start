@@ -45,6 +45,18 @@ if ($p !== 'login' && $p !== 'logout') {
     pi_require_login();
 }
 
+// Handle AJAX requests before any HTML output
+if (!empty($_GET['ajax'])) {
+    $ajax_page = __DIR__ . "/admin/{$p}.php";
+    if (file_exists($ajax_page)) {
+        require $ajax_page;
+    } else {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'page not found']);
+    }
+    exit;
+}
+
 $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
 ?>
 <!DOCTYPE html>

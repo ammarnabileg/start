@@ -1,6 +1,9 @@
 <?php
 pi_require_perm('manage_lists');
 
+// Migrate: add list_sponsors_json column if missing
+@$mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsors_json TEXT DEFAULT NULL");
+
 $msg      = '';
 $msg_type = 'green';
 $edit_id  = isset($_GET['edit']) ? (trim($_GET['edit']) === 'new' ? 'new' : (int)$_GET['edit']) : null;
@@ -57,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $slug = pi_escape(mb_substr($raw_slug, 0, 200));
 
         // Cover upload
-        $cover = pi_escape(trim($_POST['list_cover'] ?? ''));
+        $cover = pi_escape(trim($_POST['list_cover_keep'] ?? ''));
         if (!empty($_FILES['list_cover_file']['name']) && $_FILES['list_cover_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['list_cover_file']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
@@ -70,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Logo upload
-        $logo = pi_escape(trim($_POST['list_logo'] ?? ''));
+        $logo = pi_escape(trim($_POST['list_logo_keep'] ?? ''));
         if (!empty($_FILES['list_logo_file']['name']) && $_FILES['list_logo_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['list_logo_file']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
@@ -82,11 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Sponsor
+        // Single registered sponsor (backward compat)
         $sponsor_id  = (int)($_POST['list_sponsor_id'] ?? 0);
-        $sponsor_img = pi_escape(trim($_POST['list_sponsor_img'] ?? ''));
         $sponsor_url = pi_escape(trim($_POST['list_sponsor_url'] ?? ''));
         $sponsor_name= pi_escape(trim($_POST['list_sponsor_name'] ?? ''));
+        $sponsor_img = pi_escape(trim($_POST['list_sponsor_img_keep'] ?? ''));
         if (!empty($_FILES['list_sponsor_img_file']['name']) && $_FILES['list_sponsor_img_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['list_sponsor_img_file']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg','jpeg','png','webp','gif','svg'])) {
@@ -97,6 +100,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $sponsor_img = pi_escape('uploads/'.$fname);
             }
         }
+
+        // Multiple custom sponsors
+        $custom_sponsors = [];
+        $sp_names = $_POST['csp_name'] ?? [];
+        $sp_urls  = $_POST['csp_url']  ?? [];
+        $sp_keeps = $_POST['csp_img_keep'] ?? [];
+        foreach ($sp_names as $si => $sp_name) {
+            $sp_name = trim($sp_name);
+            if (!$sp_name) continue;
+            $sp_img_val = trim($sp_keeps[$si] ?? '');
+            if (!empty($_FILES['csp_img']['name'][$si]) && $_FILES['csp_img']['error'][$si] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['csp_img']['name'][$si], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg','jpeg','png','webp','gif','svg'])) {
+                    $udir = dirname(__DIR__).'/uploads/';
+                    if (!is_dir($udir)) mkdir($udir, 0755, true);
+                    $fname = 'csp_'.time().'_'.rand(100,999).'.'.$ext;
+                    if (move_uploaded_file($_FILES['csp_img']['tmp_name'][$si], $udir.$fname))
+                        $sp_img_val = 'uploads/'.$fname;
+                }
+            }
+            $custom_sponsors[] = ['name'=>$sp_name, 'url'=>trim($sp_urls[$si]??''), 'img'=>$sp_img_val];
+        }
+        $custom_sponsors_json = pi_escape(json_encode($custom_sponsors, JSON_UNESCAPED_UNICODE));
 
         // Spotlight: array of "type-id" strings
         $spotlight_raw = $_POST['list_spotlight'] ?? [];
@@ -116,11 +142,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 list_columns='$cols_json', list_active=$active, list_order=$order,
                 list_sponsor_id=$sponsor_id_sql, list_sponsor_img='$sponsor_img',
                 list_sponsor_url='$sponsor_url', list_sponsor_name='$sponsor_name',
-                list_spotlight='$spotlight_json'
+                list_spotlight='$spotlight_json', list_sponsors_json='$custom_sponsors_json'
                 WHERE list_id=$id");
         } else {
-            $mysqli->query("INSERT INTO pi_lists (list_title,list_title_en,list_slug,list_description,list_criteria,list_cover,list_logo,list_year,list_columns,list_active,list_order,list_sponsor_id,list_sponsor_img,list_sponsor_url,list_sponsor_name,list_spotlight)
-                VALUES ('$title','$title_en','$slug','$description','$criteria','$cover','$logo','$year','$cols_json',$active,$order,$sponsor_id_sql,'$sponsor_img','$sponsor_url','$sponsor_name','$spotlight_json')");
+            $mysqli->query("INSERT INTO pi_lists (list_title,list_title_en,list_slug,list_description,list_criteria,list_cover,list_logo,list_year,list_columns,list_active,list_order,list_sponsor_id,list_sponsor_img,list_sponsor_url,list_sponsor_name,list_spotlight,list_sponsors_json)
+                VALUES ('$title','$title_en','$slug','$description','$criteria','$cover','$logo','$year','$cols_json',$active,$order,$sponsor_id_sql,'$sponsor_img','$sponsor_url','$sponsor_name','$spotlight_json','$custom_sponsors_json')");
             $id = $mysqli->insert_id;
         }
 
@@ -152,8 +178,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $bcontent = '';
             if ($btype === 'image' && isset($uploaded_images[$bi])) {
                 $bcontent = $uploaded_images[$bi];
-            } elseif ($btype === 'image' && !empty($block_contents[$bi])) {
-                $bcontent = $block_contents[$bi];
+            } elseif ($btype === 'image') {
+                $bcontent = trim($block_contents[$bi] ?? ''); // existing path (keep field)
             } else {
                 $bcontent = $block_contents[$bi] ?? '';
             }
@@ -363,10 +389,9 @@ if ($edit_id !== null) {
                   <p class="preview-label">انقر لرفع صورة الغلاف</p>
                 </div>
               </div>
+              <input type="hidden" name="list_cover_keep" value="<?= htmlspecialchars($cv) ?>">
               <input type="file" id="cover_file" name="list_cover_file" accept="image/*" class="hidden"
                 data-preview="cover_preview" data-placeholder="cover_ph">
-              <input type="text" name="list_cover" class="form-input text-sm" placeholder="أو أدخل رابط الصورة"
-                value="<?= htmlspecialchars($cv) ?>">
             </div>
           </div>
 
@@ -374,19 +399,18 @@ if ($edit_id !== null) {
           <div>
             <label class="form-label">شعار القائمة</label>
             <div class="space-y-2">
-              <div class="pi-upload-zone" onclick="document.getElementById('logo_file').click()">
+              <div class="pi-upload-zone flex flex-col items-center justify-center cursor-pointer" style="min-height:180px" onclick="document.getElementById('logo_file').click()">
                 <?php $lg = $list['list_logo'] ?? ''; ?>
                 <img id="logo_preview" src="<?= $lg ? htmlspecialchars($lg) : '' ?>"
-                  class="preview-img rounded-full <?= $lg ? '' : 'hidden' ?>">
-                <div id="logo_ph" <?= $lg ? 'style="display:none"' : '' ?>>
-                  <i class="fa-solid fa-award text-gray-300 text-3xl mb-2"></i>
-                  <p class="preview-label">انقر لرفع الشعار</p>
+                  class="<?= $lg ? '' : 'hidden' ?>" style="max-height:140px;max-width:100%;object-fit:contain;border-radius:1rem">
+                <div id="logo_ph" <?= $lg ? 'style="display:none"' : '' ?> class="flex flex-col items-center justify-center">
+                  <i class="fa-solid fa-award text-gray-300 text-5xl mb-3"></i>
+                  <p class="preview-label text-sm text-gray-400">انقر لرفع شعار القائمة</p>
                 </div>
               </div>
+              <input type="hidden" name="list_logo_keep" value="<?= htmlspecialchars($lg) ?>">
               <input type="file" id="logo_file" name="list_logo_file" accept="image/*" class="hidden"
                 data-preview="logo_preview" data-placeholder="logo_ph">
-              <input type="text" name="list_logo" class="form-input text-sm" placeholder="أو أدخل رابط الشعار"
-                value="<?= htmlspecialchars($lg) ?>">
             </div>
           </div>
         </div>
@@ -498,8 +522,13 @@ if ($edit_id !== null) {
             <div class="quill-block" data-content="<?= htmlspecialchars($block['lb_content'] ?? '') ?>"></div>
             <textarea name="block_content[]" class="quill-hidden hidden"><?= htmlspecialchars($block['lb_content'] ?? '') ?></textarea>
             <?php elseif ($block['lb_type'] === 'image'): ?>
-            <input type="text" name="block_content[]" class="form-input text-sm" dir="ltr"
-              placeholder="رابط الصورة" value="<?= htmlspecialchars($block['lb_content'] ?? '') ?>">
+            <?php $bi_img = $block['lb_content'] ?? ''; ?>
+            <input type="hidden" name="block_content[]" class="block-img-keep" value="<?= htmlspecialchars($bi_img) ?>">
+            <?php if ($bi_img): ?>
+            <img src="<?= htmlspecialchars($bi_img) ?>" class="w-20 h-14 object-cover rounded-xl border border-gray-200 mb-2">
+            <?php endif; ?>
+            <input type="file" name="block_image[<?= $bi ?>]" accept="image/*" class="w-full text-sm text-gray-600 border border-gray-200 rounded-xl px-3 py-2">
+            <p class="text-xs text-gray-400 mt-1">اختر صورة جديدة أو اترك فارغاً للإبقاء على الحالية</p>
             <?php else: ?>
             <input type="text" name="block_content[]" class="form-input text-sm" dir="ltr"
               placeholder="رابط الفيديو أو كود التضمين" value="<?= htmlspecialchars($block['lb_content'] ?? '') ?>">
@@ -634,26 +663,51 @@ if ($edit_id !== null) {
                   <p class="preview-label text-xs">انقر لرفع شعار الراعي</p>
                 </div>
               </div>
+              <input type="hidden" name="list_sponsor_img_keep" id="inp_sponsor_img" value="<?= htmlspecialchars($sp_img) ?>">
               <input type="file" id="sponsor_img_file" name="list_sponsor_img_file" accept="image/*" class="hidden"
                 data-preview="sponsor_img_preview" data-placeholder="sponsor_img_ph">
-              <input type="text" name="list_sponsor_img" id="inp_sponsor_img" class="form-input text-sm" dir="ltr"
-                placeholder="أو أدخل رابط الشعار"
-                value="<?= htmlspecialchars($sp_img) ?>"
-                oninput="document.getElementById('sponsor_img_preview').src=this.value; document.getElementById('sponsor_img_preview').classList.toggle('hidden',!this.value); document.getElementById('sponsor_img_ph').style.display=this.value?'none':'';">
             </div>
           </div>
         </div>
 
-        <!-- Preview -->
-        <div id="sponsor_preview_box" class="mt-5 <?= ($list['list_sponsor_name']??'')||$sp_img ? '' : 'hidden' ?>">
-          <p class="text-xs text-gray-400 font-bold mb-2">معاينة:</p>
-          <div class="inline-flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-            <img id="sponsor_preview_img" src="<?= htmlspecialchars($sp_img) ?>"
-              class="h-10 max-w-28 object-contain <?= $sp_img ? '' : 'hidden' ?>">
-            <div>
-              <p class="text-xs text-gray-400">الراعي الرسمي</p>
-              <p id="sponsor_preview_name" class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($list['list_sponsor_name'] ?? '') ?></p>
+        <!-- ── Multiple Custom Sponsors ── -->
+        <div class="mt-6">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-700 text-sm">رعاة مخصصون إضافيون</h4>
+            <button type="button" onclick="addCustomSponsor()" class="btn-secondary text-xs px-3 py-2">
+              <i class="fa-solid fa-plus ml-1"></i> إضافة راعٍ
+            </button>
+          </div>
+          <div id="custom_sponsors_list" class="space-y-4">
+            <?php
+            $custom_sponsors_saved = json_decode($list['list_sponsors_json'] ?? '[]', true) ?: [];
+            foreach ($custom_sponsors_saved as $csi => $csp):
+            ?>
+            <div class="csp-row bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-gray-500">راعٍ مخصص</span>
+                <button type="button" onclick="this.closest('.csp-row').remove()" class="text-red-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1">اسم الراعي</label>
+                  <input type="text" name="csp_name[]" class="form-input text-sm" value="<?= htmlspecialchars($csp['name']??'') ?>" placeholder="مثال: شركة X">
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1">رابط الموقع</label>
+                  <input type="text" name="csp_url[]" class="form-input text-sm" dir="ltr" value="<?= htmlspecialchars($csp['url']??'') ?>" placeholder="https://...">
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-bold text-gray-500 block mb-1">الشعار</label>
+                <?php if (!empty($csp['img'])): ?>
+                <img src="<?= htmlspecialchars($csp['img']) ?>" class="h-10 max-w-28 object-contain border border-gray-200 rounded-lg mb-2">
+                <?php endif; ?>
+                <input type="hidden" name="csp_img_keep[]" value="<?= htmlspecialchars($csp['img']??'') ?>">
+                <input type="file" name="csp_img[<?= $csi ?>]" accept="image/*" class="w-full text-sm text-gray-600">
+              </div>
             </div>
+            <?php endforeach; ?>
           </div>
         </div>
       </div>
@@ -844,7 +898,7 @@ function addBlock(type) {
   if (type === 'text') {
     inner += `<div class="quill-block" id="quill-${blockIdx}"></div><textarea name="block_content[]" class="quill-hidden hidden"></textarea>`;
   } else if (type === 'image') {
-    inner += `<input type="text" name="block_content[]" class="form-input text-sm" dir="ltr" placeholder="رابط الصورة">`;
+    inner += `<input type="hidden" name="block_content[]" value=""><input type="file" name="block_image[${blockIdx}]" accept="image/*" class="w-full text-sm text-gray-600 border border-gray-200 rounded-xl px-3 py-2">`;
   } else {
     inner += `<input type="text" name="block_content[]" class="form-input text-sm" dir="ltr" placeholder="رابط الفيديو أو كود التضمين">`;
   }
@@ -999,26 +1053,57 @@ document.querySelectorAll('input[type=file][data-preview]').forEach(function(inp
   });
 });
 
+// logo file change → update preview img style
+document.getElementById('logo_file').addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = document.getElementById('logo_preview');
+    var ph  = document.getElementById('logo_ph');
+    if (img) { img.src = e.target.result; img.classList.remove('hidden'); }
+    if (ph)  { ph.style.display = 'none'; }
+  };
+  reader.readAsDataURL(file);
+});
+
 // ── Sponsor select ────────────────────────────────────────────────────────
 function onSponsorSelect(val) {
-  // When a registered sponsor is chosen, clear custom fields (optional UX choice)
   if (val) {
-    document.getElementById('inp_sponsor_name').value = '';
-    document.getElementById('inp_sponsor_img').value = '';
-    document.getElementById('sponsor_img_preview').classList.add('hidden');
-    document.getElementById('sponsor_img_ph').style.display = '';
+    var ni = document.getElementById('inp_sponsor_name');
+    if (ni) ni.value = '';
   }
 }
 
-// ── Sponsor name live preview ─────────────────────────────────────────────
-var spNameInp = document.getElementById('inp_sponsor_name');
-if (spNameInp) {
-  spNameInp.addEventListener('input', function() {
-    var box = document.getElementById('sponsor_preview_box');
-    var nameEl = document.getElementById('sponsor_preview_name');
-    if (nameEl) nameEl.textContent = this.value;
-    if (box) box.classList.toggle('hidden', !this.value && !document.getElementById('inp_sponsor_img').value);
-  });
+// ── Multiple custom sponsors ──────────────────────────────────────────────
+var cspIdx = <?= count($custom_sponsors_saved ?? []) ?>;
+function addCustomSponsor() {
+  var list = document.getElementById('custom_sponsors_list');
+  var div = document.createElement('div');
+  div.className = 'csp-row bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3';
+  div.innerHTML = `
+    <div class="flex items-center justify-between mb-1">
+      <span class="text-xs font-bold text-gray-500">راعٍ مخصص</span>
+      <button type="button" onclick="this.closest('.csp-row').remove()" class="text-red-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs font-bold text-gray-500 block mb-1">اسم الراعي</label>
+        <input type="text" name="csp_name[]" class="form-input text-sm" placeholder="مثال: شركة X">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-gray-500 block mb-1">رابط الموقع</label>
+        <input type="text" name="csp_url[]" class="form-input text-sm" dir="ltr" placeholder="https://...">
+      </div>
+    </div>
+    <div>
+      <label class="text-xs font-bold text-gray-500 block mb-1">الشعار</label>
+      <input type="hidden" name="csp_img_keep[]" value="">
+      <input type="file" name="csp_img[${cspIdx}]" accept="image/*" class="w-full text-sm text-gray-600">
+    </div>
+  `;
+  list.appendChild(div);
+  cspIdx++;
 }
 
 // ── Serialize columns before form submit ─────────────────────────────────
