@@ -1,6 +1,6 @@
 <?php
 pi_require_login();
-// No additional permission required — accessible to all admin users
+pi_require_perm('manage_users');
 
 $msg = '';
 $msg_type = 'green';

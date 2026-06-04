@@ -1,5 +1,6 @@
 <?php
 pi_require_login();
+pi_require_perm('manage_complaints');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 

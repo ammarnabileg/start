@@ -1,4 +1,5 @@
 <?php
+pi_require_perm('manage_submissions');
 $msg = '';
 $msg_type = 'green';
 

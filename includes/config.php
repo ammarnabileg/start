@@ -111,6 +111,10 @@ define('PERM', [
     'manage_countries'    => 29,
     'manage_settings'     => 30,
     'manage_users'        => 31,
+    'manage_advertise'    => 32,
+    'manage_memberships'  => 33,
+    'manage_complaints'   => 34,
+    'manage_submissions'  => 35,
 ]);
 
 function pi_has_perm($perm_key) {
