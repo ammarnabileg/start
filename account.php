@@ -520,7 +520,6 @@ include 'includes/header.php';
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
-        <?php endif; ?>
       </div>
 
       <!-- ──────────── ACCOUNTS TAB ──────────── -->
