@@ -33,10 +33,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $country_id = (int)($_POST['p_country_id'] ?? 0);
         $cats       = $_POST['categories'] ?? [];
         $manager_uid = $_POST['p_added_by_user'] !== '' ? (int)$_POST['p_added_by_user'] : 'NULL';
+        $p_views_val = isset($_POST['p_views']) ? (int)$_POST['p_views'] : null;
 
         if ($id) {
             pi_require_perm('edit_personality');
-            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id,p_added_by_user=$manager_uid WHERE p_id=$id");
+            $views_sql = $p_views_val !== null ? ",p_views=$p_views_val" : '';
+            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id,p_added_by_user=$manager_uid$views_sql WHERE p_id=$id");
             $mysqli->query("DELETE FROM pi_personality_categories WHERE p_id=$id");
         } else {
             pi_require_perm('add_personality');
@@ -170,6 +172,12 @@ if ($action === 'add' || $action === 'edit') {
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if ($edit_p): ?>
+      <div>
+        <label class="form-label">عدد المشاهدات</label>
+        <input type="number" name="p_views" class="form-input" min="0" value="<?= (int)($edit_p['p_views'] ?? 0) ?>">
+      </div>
+      <?php endif; ?>
       <div>
         <label class="form-label">المدير / صاحب الحساب <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
         <?php

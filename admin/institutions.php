@@ -26,10 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $country_id = (int)($_POST['inst_country_id'] ?? 0);
         $cats       = $_POST['categories'] ?? [];
         $manager_uid = $_POST['inst_added_by_user'] !== '' ? (int)$_POST['inst_added_by_user'] : 'NULL';
+        $inst_views_val = isset($_POST['inst_views']) ? (int)$_POST['inst_views'] : null;
 
         if ($id) {
             pi_require_perm('edit_institution');
-            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified,inst_country_id=$country_id,inst_added_by_user=$manager_uid WHERE inst_id=$id");
+            $iviews_sql = $inst_views_val !== null ? ",inst_views=$inst_views_val" : '';
+            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified,inst_country_id=$country_id,inst_added_by_user=$manager_uid$iviews_sql WHERE inst_id=$id");
         } else {
             pi_require_perm('add_institution');
             $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified,inst_country_id,inst_added_by_user) VALUES ('$name_ar','$name_en','$logo','$desc',$verified,$country_id,$manager_uid)");
@@ -115,6 +117,12 @@ if ($action === 'add' || $action === 'edit') {
       <input type="checkbox" name="inst_verified" value="1" id="inst_v" <?= ($ei['inst_verified']??0)?'checked':'' ?> class="w-5 h-5 accent-blue-500">
       <label for="inst_v" class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-circle-check text-blue-500 mr-1"></i> موثقة</label>
     </div>
+    <?php if ($ei): ?>
+    <div>
+      <label class="form-label">عدد المشاهدات</label>
+      <input type="number" name="inst_views" class="form-input" min="0" value="<?= (int)($ei['inst_views'] ?? 0) ?>">
+    </div>
+    <?php endif; ?>
     <div>
       <label class="form-label">المدير / صاحب الحساب <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
       <?php

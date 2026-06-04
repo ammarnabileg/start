@@ -53,8 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if ($id) $mysqli->query("UPDATE pi_sponsors SET sp_name='$name',sp_logo='$logo',sp_url='$url',sp_order=$order WHERE sp_id=$id");
-        else      $mysqli->query("INSERT INTO pi_sponsors (sp_name,sp_logo,sp_url,sp_order) VALUES ('$name','$logo','$url',$order)");
+        $sp_user_id = (int)($_POST['sp_user_id'] ?? 0);
+        $sp_user_id_sql = $sp_user_id ? $sp_user_id : 'NULL';
+        if ($id) $mysqli->query("UPDATE pi_sponsors SET sp_name='$name',sp_logo='$logo',sp_url='$url',sp_order=$order,sp_user_id=$sp_user_id_sql WHERE sp_id=$id");
+        else      $mysqli->query("INSERT INTO pi_sponsors (sp_name,sp_logo,sp_url,sp_order,sp_user_id) VALUES ('$name','$logo','$url',$order,$sp_user_id_sql)");
         $msg = 'تم الحفظ'; $action = 'list';
     }
     if ($act === 'delete_sponsor') {
@@ -125,6 +127,22 @@ if ($action === 'add' || $action === 'edit') {
       <label class="form-label">الترتيب</label>
       <input type="number" name="sp_order" class="form-input" value="<?= $es['sp_order']??0 ?>">
     </div>
+    <div>
+      <label class="form-label">ربط بمستخدم <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
+      <?php
+      $sp_users = [];
+      $spur = $mysqli->query("SELECT u_id, u_name, u_email FROM pi_users ORDER BY u_name LIMIT 200");
+      if ($spur) while ($row=$spur->fetch_assoc()) $sp_users[] = $row;
+      ?>
+      <select name="sp_user_id" class="form-input">
+        <option value="0">— بدون ربط —</option>
+        <?php foreach ($sp_users as $pu): ?>
+        <option value="<?= $pu['u_id'] ?>" <?= ($es['sp_user_id']??0)==$pu['u_id']?'selected':'' ?>>
+          <?= htmlspecialchars($pu['u_name'].' ('.$pu['u_email'].')') ?>
+        </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
     <div class="flex gap-3">
       <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk mr-2"></i>حفظ</button>
       <a href="admin.php?p=sponsors" class="btn-secondary">إلغاء</a>
@@ -152,7 +170,7 @@ function previewSpLogo(input) {
 
 <?php } else {
 $list = [];
-$r = $mysqli->query("SELECT * FROM pi_sponsors ORDER BY sp_order,sp_id");
+$r = $mysqli->query("SELECT s.*, u.u_name AS linked_user_name FROM pi_sponsors s LEFT JOIN pi_users u ON s.sp_user_id=u.u_id ORDER BY s.sp_order,s.sp_id");
 if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
 ?>
 <?php if ($msg): ?>
@@ -178,6 +196,9 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
       </div>
     <?php endif; ?>
     <p class="font-bold text-gray-800"><?= htmlspecialchars($sp['sp_name']) ?></p>
+    <?php if (!empty($sp['linked_user_name'])): ?>
+    <p class="text-xs text-purple-600 font-semibold"><i class="fa-solid fa-user-link ml-1"></i><?= htmlspecialchars($sp['linked_user_name']) ?></p>
+    <?php endif; ?>
     <div class="flex gap-2 mt-auto">
       <form method="POST" class="inline">
         <input type="hidden" name="action" value="toggle_sponsor">

@@ -117,6 +117,7 @@ $view_subs = [];
 $view_cmps = [];
 $view_personalities = [];
 $view_institutions  = [];
+$view_sponsors      = [];
 if ($view_uid) {
     $vr = $mysqli->query("SELECT * FROM pi_users WHERE u_id=$view_uid");
     if ($vr && $vr->num_rows) {
@@ -146,6 +147,10 @@ if ($view_uid) {
         if ($er) while ($row=$er->fetch_assoc()) $view_edit_reqs[] = $row;
         $cr = $mysqli->query("SELECT cmp_id,cmp_type,cmp_subject,cmp_status,cmp_created FROM pi_complaints WHERE cmp_user_id=$view_uid ORDER BY cmp_created DESC LIMIT 20");
         if ($cr) while ($row=$cr->fetch_assoc()) $view_cmps[] = $row;
+        // Sponsors linked to this user
+        $view_sponsors = [];
+        $spqr = $mysqli->query("SELECT sp_id,sp_name,sp_logo,sp_url FROM pi_sponsors WHERE sp_user_id=$view_uid ORDER BY sp_order,sp_id");
+        if ($spqr) while ($row=$spqr->fetch_assoc()) $view_sponsors[] = $row;
     }
 }
 
@@ -627,6 +632,18 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
             </span>
             <?php endif; ?>
           </button>
+          <?php if (!empty($view_sponsors)): ?>
+          <button @click="tab='sponsors'"
+            :class="tab==='sponsors' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
+            <i class="fa-solid fa-handshake text-xs"></i>
+            الرعايات
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              :class="tab==='sponsors' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
+              <?= count($view_sponsors) ?>
+            </span>
+          </button>
+          <?php endif; ?>
         </div>
 
         <!-- Tab: Submissions -->
@@ -745,6 +762,32 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
           </div>
           <?php endforeach; endif; ?>
         </div>
+
+        <!-- Tab: Sponsors -->
+        <?php if (!empty($view_sponsors)): ?>
+        <div x-show="tab==='sponsors'" class="divide-y divide-gray-50">
+          <?php foreach ($view_sponsors as $vsp): ?>
+          <div class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
+            <?php if ($vsp['sp_logo']): ?>
+            <img src="../<?= htmlspecialchars($vsp['sp_logo']) ?>" class="w-10 h-10 rounded-xl object-contain border border-gray-100 flex-shrink-0">
+            <?php else: ?>
+            <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-handshake text-purple-500 text-sm"></i>
+            </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($vsp['sp_name']) ?></p>
+              <?php if ($vsp['sp_url']): ?>
+              <a href="<?= htmlspecialchars($vsp['sp_url']) ?>" target="_blank" class="text-xs text-purple-500 hover:underline" dir="ltr"><?= htmlspecialchars($vsp['sp_url']) ?></a>
+              <?php endif; ?>
+            </div>
+            <a href="admin.php?p=sponsors&action=edit&id=<?= $vsp['sp_id'] ?>" class="text-xs font-bold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-purple-50 hover:text-purple-600 transition flex-shrink-0">
+              <i class="fa-solid fa-pen text-[10px] ml-1"></i>تعديل
+            </a>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
 
       </div>
     </div>

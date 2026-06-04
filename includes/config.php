@@ -222,6 +222,7 @@ function pi_track_visit() {
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
     if (preg_match('/bot|crawl|spider|slurp|mediapartners|facebookexternalhit/i', $ua)) return;
 
+    // Ensure pi_visits table still exists (backward compat, no longer inserted into)
     $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visits (
         v_id INT AUTO_INCREMENT PRIMARY KEY,
         v_page VARCHAR(255),
@@ -233,13 +234,31 @@ function pi_track_visit() {
         INDEX idx_page (v_page(50))
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-    $page    = pi_escape(mb_substr(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/', 0, 200));
-    $ip      = pi_escape($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
-    $ip      = pi_escape(explode(',', $ip)[0]);
-    $uid     = !empty($_SESSION['pi_user_id']) ? (int)$_SESSION['pi_user_id'] : 'NULL';
-    $ref     = pi_escape(mb_substr($_SERVER['HTTP_REFERER'] ?? '', 0, 400));
+    // Ensure aggregated daily table exists
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visit_daily (
+        vd_page VARCHAR(255) NOT NULL,
+        vd_date DATE NOT NULL,
+        vd_count INT DEFAULT 1,
+        PRIMARY KEY (vd_page(100), vd_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-    $mysqli->query("INSERT INTO pi_visits (v_page,v_ip,v_user_id,v_ref) VALUES ('$page','$ip',$uid,'$ref')");
+    $page = mb_substr(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/', 0, 200);
+
+    // Session-based dedup: only count if not visited in last 30 minutes
+    $sess_key = 'pi_visited_' . md5($page);
+    $now = time();
+    if (!empty($_SESSION[$sess_key]) && ($now - $_SESSION[$sess_key]) < 1800) {
+        return; // already counted recently
+    }
+    $_SESSION[$sess_key] = $now;
+
+    $page_esc = pi_escape($page);
+    $mysqli->query("INSERT INTO pi_visit_daily (vd_page, vd_date, vd_count) VALUES ('$page_esc', CURDATE(), 1) ON DUPLICATE KEY UPDATE vd_count=vd_count+1");
+
+    // Auto-purge old records with 1% probability
+    if (rand(1, 100) === 1) {
+        $mysqli->query("DELETE FROM pi_visit_daily WHERE vd_date < DATE_SUB(CURDATE(), INTERVAL 365 DAY)");
+    }
 }
 
 // ── User auth ──────────────────────────────────────────────────────────────
@@ -409,6 +428,9 @@ function pi_create_list_tables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 pi_create_list_tables();
+
+// ── Add sp_user_id to pi_sponsors if missing ──────────────────────────────
+try { $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_user_id INT DEFAULT NULL"); } catch(Exception $e) {}
 
 // ── Lists: add missing columns one-by-one (safe for all versions) ─────────
 $_lc = function($col, $def) use ($mysqli) {
