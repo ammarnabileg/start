@@ -242,6 +242,9 @@ $cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_added_by_user
 if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_added_by_user INT DEFAULT NULL");
 $cols = $mysqli->query("SHOW COLUMNS FROM pi_institutions LIKE 'inst_added_by_user'");
 if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_institutions ADD COLUMN inst_added_by_user INT DEFAULT NULL");
+// Ensure cmp_status column exists (may be missing on older installs)
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_complaints LIKE 'cmp_status'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_complaints ADD COLUMN cmp_status ENUM('new','read','resolved') DEFAULT 'new'");
 
 function pi_user_logged_in() {
     return !empty($_SESSION['pi_user_id']);

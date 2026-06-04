@@ -67,10 +67,10 @@ $r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_created >= DATE_SUB
 $r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=0");       $blocked_users = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // ── Pending actions ───────────────────────────────────────────────────────────
-$pending_subs = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_submissions'"); if ($r&&$r->num_rows) $pending_subs = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_submissions WHERE sub_status='pending'")->fetch_assoc()['c'];
-$new_cmps     = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_complaints'");  if ($r&&$r->num_rows) $new_cmps     = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_complaints WHERE cmp_status='new'")->fetch_assoc()['c'];
-$pending_mems = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'"); if ($r&&$r->num_rows) $pending_mems = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_memberships WHERE mem_status='pending'")->fetch_assoc()['c'];
-$new_advs     = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_advertise'");   if ($r&&$r->num_rows) $new_advs     = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_advertise WHERE adv_status='new'")->fetch_assoc()['c'];
+$pending_subs = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_submissions'"); if ($r&&$r->num_rows) { $r2=$mysqli->query("SELECT COUNT(*) c FROM pi_submissions WHERE sub_status='pending'"); if($r2) $pending_subs=(int)$r2->fetch_assoc()['c']; }
+$new_cmps     = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_complaints'");  if ($r&&$r->num_rows) { $r2=$mysqli->query("SELECT COUNT(*) c FROM pi_complaints WHERE cmp_status='new'"); if($r2) $new_cmps=(int)$r2->fetch_assoc()['c']; }
+$pending_mems = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'"); if ($r&&$r->num_rows) { $r2=$mysqli->query("SELECT COUNT(*) c FROM pi_memberships WHERE mem_status='pending'"); if($r2) $pending_mems=(int)$r2->fetch_assoc()['c']; }
+$new_advs     = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_advertise'");   if ($r&&$r->num_rows) { $r2=$mysqli->query("SELECT COUNT(*) c FROM pi_advertise WHERE adv_status='new'"); if($r2) $new_advs=(int)$r2->fetch_assoc()['c']; }
 
 // ── Top viewed personalities & institutions ───────────────────────────────────
 $top_p = [];
