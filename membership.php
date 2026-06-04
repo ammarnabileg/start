@@ -12,11 +12,6 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_memberships (
   mem_status ENUM('pending','active','cancelled') DEFAULT 'pending',
   mem_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-// Add mem_type column if missing (old installs)
-$r = $mysqli->query("SHOW COLUMNS FROM pi_memberships LIKE 'mem_type'");
-if ($r && $r->num_rows === 0) {
-    $mysqli->query("ALTER TABLE pi_memberships ADD COLUMN mem_type ENUM('verified','executive') DEFAULT 'verified' AFTER mem_id");
-}
 
 $mem_type = ($_GET['type'] ?? '') === 'executive' ? 'executive' : 'verified';
 $pageTitle = ($mem_type === 'executive' ? 'عضوية الرؤساء التنفيذيين' : 'العضوية الموثقة') . ' - PioneerIcons';

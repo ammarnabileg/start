@@ -11,7 +11,6 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_memberships (
   mem_status ENUM('pending','active','cancelled') DEFAULT 'pending',
   mem_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-// mem_type is already defined in CREATE TABLE above — no ALTER needed here
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';

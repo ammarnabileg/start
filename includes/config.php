@@ -245,6 +245,12 @@ if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_institutions 
 // Ensure cmp_status column exists (may be missing on older installs)
 $cols = $mysqli->query("SHOW COLUMNS FROM pi_complaints LIKE 'cmp_status'");
 if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_complaints ADD COLUMN cmp_status ENUM('new','read','resolved') DEFAULT 'new'");
+// Ensure mem_type column exists in pi_memberships
+$cols = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'");
+if ($cols && $cols->num_rows) {
+    $cols = $mysqli->query("SHOW COLUMNS FROM pi_memberships LIKE 'mem_type'");
+    if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_memberships ADD COLUMN mem_type ENUM('verified','executive') DEFAULT 'verified' AFTER mem_id");
+}
 
 function pi_user_logged_in() {
     return !empty($_SESSION['pi_user_id']);
