@@ -25,12 +25,12 @@ include 'includes/header.php';
 <!-- HERO SEARCH -->
 <section class="hero-bg py-10">
   <div class="max-w-3xl mx-auto px-4">
-    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
-      <div class="flex items-center bg-white px-4"><i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i></div>
+    <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
       <input name="q" type="text" placeholder="ابحث عن <?= number_format($total_count) ?> شخصية ومؤسسة..."
-        class="flex-1 px-4 py-3.5 text-gray-800 outline-none font-semibold placeholder-gray-400">
-      <span class="bg-white flex items-center px-3 text-gray-500 text-sm font-bold border-r border-gray-200">شخصية · مؤسسة</span>
-      <button type="submit" class="pi-primary-bg px-8 py-3.5 text-white font-bold hover:opacity-90 transition">ابحث</button>
+        class="flex-1 px-4 py-4 text-gray-800 text-base outline-none font-semibold placeholder-gray-400">
+      <button type="submit" class="pi-primary-bg px-8 py-4 font-bold text-white hover:opacity-90 transition whitespace-nowrap rounded-l-2xl">
+        ابحث الآن
+      </button>
     </form>
   </div>
 </section>
