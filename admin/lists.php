@@ -2,7 +2,7 @@
 pi_require_perm('manage_lists');
 
 // Migrate: add list_sponsors_json column if missing
-@$mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsors_json TEXT DEFAULT NULL");
+try { $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsors_json TEXT DEFAULT NULL"); } catch(Exception $e) { /* already exists */ }
 
 $msg      = '';
 $msg_type = 'green';

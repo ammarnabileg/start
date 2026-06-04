@@ -87,10 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $edit_json = pi_escape(json_encode($edit_data, JSON_UNESCAPED_UNICODE));
-            $mysqli->query("INSERT INTO pi_edit_requests (er_user_id,er_entity_type,er_entity_id,er_req_type,er_upgrade_to,er_edit_data,er_notes)
-                VALUES($uid,'$entity_type',$entity_id,'$req_type','$upgrade_to','$edit_json','$notes')");
-            // If upgrade request, also create a membership record with plan details
             if ($req_type === 'upgrade') {
+                // Upgrade requests go only to pi_memberships — not to edit_requests
                 $mem_plan  = in_array($_POST['mem_plan'] ?? '', ['monthly','lifetime']) ? pi_escape($_POST['mem_plan']) : 'monthly';
                 $mem_name  = pi_escape(trim($_POST['mem_name']  ?? $user['u_name']));
                 $mem_phone = pi_escape(trim($_POST['mem_phone'] ?? $user['u_phone'] ?? ''));
@@ -98,6 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profile_url = pi_escape($entity_type === 'personality' ? 'profile.php?id='.$entity_id : 'institution.php?id='.$entity_id);
                 $mem_utype = $upgrade_to ?: 'verified';
                 $mysqli->query("INSERT INTO pi_memberships(mem_type,mem_plan,mem_name,mem_phone,mem_email,mem_profile_url) VALUES('$mem_utype','$mem_plan','$mem_name','$mem_phone','$mem_email','$profile_url')");
+            } else {
+                $mysqli->query("INSERT INTO pi_edit_requests (er_user_id,er_entity_type,er_entity_id,er_req_type,er_upgrade_to,er_edit_data,er_notes)
+                    VALUES($uid,'$entity_type',$entity_id,'$req_type','$upgrade_to','$edit_json','$notes')");
             }
             header("Location: account.php?tab=accounts&req_sent=1"); exit;
         } else {
