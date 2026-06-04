@@ -261,7 +261,6 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       </a>
       <?php endif; ?>
 
-      <?php if (pi_has_perm('manage_users')): ?>
       <a href="admin.php?p=users" class="nav-link <?= $p=='users'?'active':'' ?>">
         <i class="fa-solid fa-user-group"></i>
         <span>مستخدمو الموقع</span>
@@ -273,7 +272,6 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         }
         ?>
       </a>
-      <?php endif; ?>
 
       <?php if (pi_has_perm('view_admin_users')): ?>
       <a href="admin.php?p=admin_users" class="nav-link <?= $p=='admin_users'?'active':'' ?>">
