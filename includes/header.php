@@ -220,10 +220,53 @@ if (isset($pageTitle)) {
         </div>
         <?php endif; ?>
 
-        <a href="admin.php?p=login"
-          class="hidden md:inline-flex px-5 py-2 pi-primary-bg text-white rounded-full font-bold hover:opacity-90 transition text-sm whitespace-nowrap">
-          دخول
-        </a>
+        <?php $_hdr_user = pi_current_user(); if ($_hdr_user): ?>
+        <div class="relative hidden md:block" x-data="{open:false}">
+          <button @click="open=!open" @click.outside="open=false"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:border-purple-300 transition">
+            <?php if (!empty($_hdr_user['u_photo'])): ?>
+              <img src="<?= htmlspecialchars($_hdr_user['u_photo']) ?>" class="w-7 h-7 rounded-full object-cover">
+            <?php else: ?>
+              <div class="w-7 h-7 rounded-full pi-gradient flex items-center justify-center text-white font-black text-xs">
+                <?= mb_substr($_hdr_user['u_name'],0,1) ?>
+              </div>
+            <?php endif; ?>
+            <span class="text-sm font-bold text-gray-700 max-w-24 truncate"><?= htmlspecialchars(explode(' ',$_hdr_user['u_name'])[0]) ?></span>
+            <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+          </button>
+          <div x-show="open" x-cloak x-transition
+            class="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+            <div class="px-4 py-2 border-b border-gray-50 mb-1">
+              <p class="text-xs text-gray-400 font-semibold">مرحباً بك</p>
+              <p class="text-sm font-black text-gray-800 truncate"><?= htmlspecialchars($_hdr_user['u_name']) ?></p>
+            </div>
+            <a href="account.php?tab=profile" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold">
+              <i class="fa-solid fa-user w-4 text-gray-400"></i> حسابي
+            </a>
+            <a href="account.php?tab=submissions" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold">
+              <i class="fa-solid fa-plus-circle w-4 text-gray-400"></i> إضافاتي
+            </a>
+            <a href="account.php?tab=complaints" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition font-semibold">
+              <i class="fa-solid fa-pen-to-square w-4 text-gray-400"></i> الشكاوي
+            </a>
+            <div class="border-t border-gray-100 my-1"></div>
+            <a href="user_logout.php" class="flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition font-semibold">
+              <i class="fa-solid fa-right-from-bracket w-4"></i> خروج
+            </a>
+          </div>
+        </div>
+        <?php else: ?>
+        <div class="hidden md:flex items-center gap-2">
+          <a href="user_login.php"
+            class="px-4 py-2 border border-gray-200 text-gray-600 rounded-full font-bold hover:border-purple-400 hover:text-purple-600 transition text-sm whitespace-nowrap">
+            دخول
+          </a>
+          <a href="register.php"
+            class="px-5 py-2 pi-primary-bg text-white rounded-full font-bold hover:opacity-90 transition text-sm whitespace-nowrap">
+            تسجيل
+          </a>
+        </div>
+        <?php endif; ?>
 
         <!-- Hamburger (mobile only) -->
         <button @click="mobileOpen=!mobileOpen" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-purple-400 hover:text-purple-600 transition">
@@ -271,9 +314,25 @@ if (isset($pageTitle)) {
       </a>
 
       <div class="border-t border-gray-100 my-2"></div>
-      <a href="admin.php?p=login" class="flex items-center justify-center gap-2 px-4 py-3 pi-primary-bg text-white rounded-xl font-bold text-sm hover:opacity-90 transition">
-        <i class="fa-solid fa-right-to-bracket"></i> دخول
-      </a>
+      <?php if (pi_current_user()): ?>
+      <div class="flex gap-2">
+        <a href="account.php" class="flex items-center justify-center gap-2 px-4 py-3 pi-primary-bg text-white rounded-xl font-bold text-sm hover:opacity-90 transition">
+          <i class="fa-solid fa-user"></i> حسابي
+        </a>
+        <a href="user_logout.php" class="flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-500 rounded-xl font-bold text-sm hover:bg-red-50 transition">
+          خروج
+        </a>
+      </div>
+      <?php else: ?>
+      <div class="flex gap-2">
+        <a href="user_login.php" class="flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition">
+          دخول
+        </a>
+        <a href="register.php" class="flex items-center justify-center gap-2 px-4 py-3 pi-primary-bg text-white rounded-xl font-bold text-sm hover:opacity-90 transition">
+          تسجيل
+        </a>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </nav>

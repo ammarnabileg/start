@@ -14,7 +14,6 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_memberships (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $mysqli->query("ALTER TABLE pi_memberships ADD COLUMN IF NOT EXISTS mem_type ENUM('verified','executive') DEFAULT 'verified' AFTER mem_id");
 
-// Determine which membership type is being shown
 $mem_type = ($_GET['type'] ?? '') === 'executive' ? 'executive' : 'verified';
 $pageTitle = ($mem_type === 'executive' ? 'عضوية الرؤساء التنفيذيين' : 'العضوية الموثقة') . ' - PioneerIcons';
 
@@ -38,50 +37,123 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Fetch social proof data
+$verified_people = [];
+$r = $mysqli->query("SELECT p_id,p_name_ar,p_title,p_photo FROM pi_personalities WHERE p_active=1 AND p_verified=1 ORDER BY p_views DESC LIMIT 12");
+if ($r) while ($row=$r->fetch_assoc()) $verified_people[] = $row;
+
+$verified_insts = [];
+$r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo FROM pi_institutions WHERE inst_active=1 AND inst_verified=1 ORDER BY inst_views DESC LIMIT 8");
+if ($r) while ($row=$r->fetch_assoc()) $verified_insts[] = $row;
+
+$total_p = pi_count_personalities();
+$total_i = pi_count_institutions();
+$rr = $mysqli->query("SELECT SUM(p_views) c FROM pi_personalities WHERE p_active=1");
+$total_views = $rr ? (int)$rr->fetch_assoc()['c'] : 0;
+$rr = $mysqli->query("SELECT COUNT(DISTINCT p_country_id) c FROM pi_personalities WHERE p_active=1 AND p_country_id > 0");
+$total_countries = $rr ? max((int)$rr->fetch_assoc()['c'], 12) : 12;
+
 include 'includes/header.php';
 ?>
 
 <?php if ($success): ?>
-<div class="max-w-xl mx-auto px-4 py-16 text-center">
-  <div class="bg-green-50 border border-green-200 rounded-2xl p-12">
-    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5"><i class="fa-solid fa-circle-check text-green-500 text-4xl"></i></div>
+<div class="max-w-xl mx-auto px-4 py-20 text-center">
+  <div class="bg-green-50 border border-green-200 rounded-3xl p-14">
+    <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <i class="fa-solid fa-circle-check text-green-500 text-5xl"></i>
+    </div>
     <h2 class="text-2xl font-black text-green-800 mb-3">تم استلام طلبك!</h2>
-    <p class="text-green-600 mb-6">سيراجع فريقنا طلبك ويتواصل معك قريباً لإتمام التوثيق</p>
+    <p class="text-green-600 mb-6 font-medium">سيراجع فريقنا طلبك ويتواصل معك قريباً لإتمام التوثيق</p>
     <a href="index.php" class="inline-block px-8 py-3 pi-primary-bg text-white font-bold rounded-xl hover:opacity-90 transition">العودة للرئيسية</a>
   </div>
 </div>
-
 <?php include 'includes/footer.php'; ?><?php exit; ?>
 <?php endif; ?>
 
 <?php if ($mem_type === 'executive'): ?>
-<!-- ====== EXECUTIVE HERO ====== -->
+
+<!-- ═══════ EXECUTIVE PAGE ═══════ -->
+
+<!-- HERO -->
 <section class="py-20 text-white" style="background:linear-gradient(135deg,#78350f 0%,#92400e 40%,#b45309 100%);position:relative;overflow:hidden;">
-  <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 50%,#fbbf24 0%,transparent 60%),radial-gradient(circle at 80% 20%,#f59e0b 0%,transparent 50%);"></div>
+  <div class="absolute inset-0 opacity-15" style="background-image:radial-gradient(circle at 15% 60%,#fbbf24 0%,transparent 55%),radial-gradient(circle at 85% 15%,#f59e0b 0%,transparent 50%);pointer-events:none;"></div>
+  <div class="absolute inset-0 opacity-5" style="background-image:url('data:image/svg+xml,%3Csvg width=60 height=60 xmlns=http://www.w3.org/2000/svg%3E%3Cpath d=%27M0 0l60 60M0 60L60 0%27 stroke=%23fff stroke-width=.5/%3E%3C/svg%3E');pointer-events:none;"></div>
   <div class="max-w-3xl mx-auto px-4 text-center relative z-10">
-    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-yellow-200">
-      <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> الباقة الذهبية للقيادة
+    <div class="inline-flex items-center gap-2 bg-white/10 border border-yellow-300/30 rounded-full px-5 py-2 text-sm font-bold mb-6 text-yellow-200">
+      <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> صوتك القيادي يستحق منصة تليق به
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">عضوية الرؤساء التنفيذيين</h1>
-    <p class="text-amber-200 text-lg font-medium">حضور رقمي استثنائي يليق بمكانتك القيادية</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">باقة الرؤساء التنفيذيين</h1>
+    <p class="text-amber-200 text-lg font-medium mb-8 max-w-xl mx-auto leading-relaxed">في عالم الأعمال اليوم، لا تقتصر القيادة على الإنجازات داخل الشركة، بل تمتد إلى الحضور الرقمي الذي يعبر عنك. كل يوم، يبحث المستثمرون، والشركاء، والإعلاميون عن اسمك.</p>
+    <div class="flex flex-wrap items-center justify-center gap-4">
+      <a href="#pricing-section" onclick="event.preventDefault();document.getElementById('pricing-section').scrollIntoView({behavior:'smooth'})"
+        class="inline-flex items-center gap-2 px-8 py-4 font-black rounded-2xl text-amber-900 hover:brightness-110 transition"
+        style="background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 4px 20px rgba(251,191,36,.4)">
+        <i class="fa-solid fa-crown"></i> احصل على الباقة
+      </a>
+      <a href="membership.php?type=verified" class="inline-flex items-center gap-2 px-6 py-4 font-bold rounded-2xl border border-white/20 bg-white/10 hover:bg-white/20 transition text-sm">
+        <i class="fa-solid fa-circle-check text-blue-300"></i> التوثيق فقط
+      </a>
+    </div>
   </div>
 </section>
 
-<!-- Type switcher -->
-<div class="max-w-xl mx-auto px-4 py-6 flex justify-center">
-  <div class="flex bg-gray-100 rounded-2xl p-1 gap-1">
-    <a href="membership.php?type=verified"
-      class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-gray-500 hover:text-gray-700 transition">
-      <i class="fa-solid fa-circle-check text-blue-400"></i> التوثيق فقط
-    </a>
-    <span class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white" style="background:linear-gradient(135deg,#92400e,#b45309)">
-      <i class="fa-solid fa-crown text-yellow-300"></i> رئيس تنفيذي
-    </span>
+<!-- KEY BENEFITS -->
+<section class="py-14 bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">ماذا يتضمن باقة الرؤساء التنفيذيين؟</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">حضور رقمي متكامل يليق بمكانتك القيادية</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="rounded-2xl p-6 border-2 border-amber-100 bg-amber-50">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-4">
+          <i class="fa-solid fa-crown text-white text-lg"></i>
+        </div>
+        <h3 class="font-black text-gray-800 mb-2">سيرة ذاتية احترافية</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">سيرة ذاتية مصممة خصيصاً لتعكس مسيرتك القيادية بشكل استثنائي ومؤثر</p>
+      </div>
+      <div class="rounded-2xl p-6 border-2 border-purple-100 bg-purple-50">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
+          <i class="fa-solid fa-star text-white text-lg"></i>
+        </div>
+        <h3 class="font-black text-gray-800 mb-2">حضور رقمي مميز</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">ملفك يتصدر قسم الرؤساء التنفيذيين في كل الصفحات والبحث والتصنيفات</p>
+      </div>
+      <div class="rounded-2xl p-6 border-2 border-blue-100 bg-blue-50">
+        <div class="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center mb-4">
+          <i class="fa-solid fa-building text-white text-lg"></i>
+        </div>
+        <h3 class="font-black text-gray-800 mb-2">حضور خاص في منصات مجرة</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">مثل مقابلة ضمن هارفارد بزنس ريفيو وإم آي تي تكنولوجي ريفيو العربية وغيرها</p>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-<!-- Pricing Cards — Executive -->
-<div id="pricing-section" class="max-w-4xl mx-auto px-4 pb-16">
+<!-- STATS -->
+<section class="py-12 bg-gray-50 border-y border-gray-100">
+  <div class="max-w-4xl mx-auto px-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div>
+        <p class="text-4xl font-black text-amber-700"><?= number_format($total_p) ?>+</p>
+        <p class="text-gray-500 text-sm font-semibold mt-1">شخصية موثقة</p>
+      </div>
+      <div>
+        <p class="text-4xl font-black text-amber-700"><?= number_format($total_i) ?>+</p>
+        <p class="text-gray-500 text-sm font-semibold mt-1">مؤسسة وشركة</p>
+      </div>
+      <div>
+        <p class="text-4xl font-black text-amber-700"><?= $total_countries ?>+</p>
+        <p class="text-gray-500 text-sm font-semibold mt-1">دولة عربية</p>
+      </div>
+      <div>
+        <p class="text-4xl font-black text-amber-700"><?= number_format($total_views) ?>+</p>
+        <p class="text-gray-500 text-sm font-semibold mt-1">مشاهدة كل شهر</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<div id="pricing-section" class="max-w-4xl mx-auto px-4 py-16">
   <h2 class="text-3xl font-black text-gray-800 text-center mb-3">اختر باقتك</h2>
   <p class="text-gray-400 text-center mb-10 font-medium">باقة متكاملة تشمل التوثيق وخدمات القيادة الحصرية</p>
 
@@ -127,30 +199,29 @@ include 'includes/header.php';
         <p class="text-amber-200 text-sm mt-1">دفعة واحدة — مدى الحياة</p>
       </div>
       <ul class="space-y-3 flex-1 mb-8">
-        <li class="flex items-center gap-2 text-sm text-white font-semibold"><i class="fa-solid fa-circle-check text-blue-300 w-4"></i> <span>شارة التوثيق الزرقاء <span class="text-xs text-blue-300 font-bold">(مشمولة)</span></span></li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-crown text-yellow-300 w-4"></i> شارة الرئيس التنفيذي الذهبية</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> صفحة شخصية مميزة VIP</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> ظهور أولوية قصوى في البحث</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> إدارة كاملة لمحتوى صفحتك</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> دعم مخصص على مدار الساعة</li>
-        <li class="flex items-center gap-2 text-sm text-white"><i class="fa-solid fa-check text-green-300 w-4"></i> تجديد مجاني مدى الحياة</li>
+        <li class="flex items-center gap-2 text-sm font-semibold"><i class="fa-solid fa-circle-check text-blue-300 w-4"></i> <span>شارة التوثيق الزرقاء <span class="text-xs text-blue-300">(مشمولة)</span></span></li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-yellow-300 w-4"></i> شارة الرئيس التنفيذي الذهبية</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> صفحة شخصية مميزة VIP</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> ظهور أولوية قصوى في البحث</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> إدارة كاملة لمحتوى صفحتك</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> دعم مخصص على مدار الساعة</li>
+        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> تجديد مجاني مدى الحياة</li>
       </ul>
-      <!-- Countdown -->
       <div class="rounded-2xl mb-4 p-3" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);">
         <p class="text-xs font-bold text-amber-200 text-center mb-2">⏳ سعر الإطلاق ينتهي خلال</p>
         <div class="flex justify-center gap-2">
-          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-d">00</div><div class="text-xs text-amber-300 font-semibold">يوم</div></div>
+          <div class="text-center"><div class="text-2xl font-black" id="me-cd-d">00</div><div class="text-xs text-amber-300 font-semibold">يوم</div></div>
           <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
-          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-h">00</div><div class="text-xs text-amber-300 font-semibold">ساعة</div></div>
+          <div class="text-center"><div class="text-2xl font-black" id="me-cd-h">00</div><div class="text-xs text-amber-300 font-semibold">ساعة</div></div>
           <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
-          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-m">00</div><div class="text-xs text-amber-300 font-semibold">دقيقة</div></div>
+          <div class="text-center"><div class="text-2xl font-black" id="me-cd-m">00</div><div class="text-xs text-amber-300 font-semibold">دقيقة</div></div>
           <div class="text-2xl font-black text-amber-300 mt-0.5">:</div>
-          <div class="text-center"><div class="text-2xl font-black text-white" id="me-cd-s">00</div><div class="text-xs text-amber-300 font-semibold">ثانية</div></div>
+          <div class="text-center"><div class="text-2xl font-black" id="me-cd-s">00</div><div class="text-xs text-amber-300 font-semibold">ثانية</div></div>
         </div>
       </div>
       <button onclick="choosePlan('lifetime','executive')"
-        class="w-full py-3.5 font-black rounded-xl hover:opacity-90 transition text-amber-900 bg-yellow-300 hover:bg-yellow-200">
+        class="w-full py-3.5 font-black rounded-xl hover:brightness-110 transition text-amber-900 bg-yellow-300">
         اشترك الآن
       </button>
     </div>
@@ -158,42 +229,190 @@ include 'includes/header.php';
 </div>
 
 <?php else: ?>
-<!-- ====== VERIFIED HERO ====== -->
-<section class="hero-bg py-20 text-white">
+
+<!-- ═══════ VERIFIED PAGE ═══════ -->
+
+<!-- HERO -->
+<section class="hero-bg py-20 text-white" style="position:relative;overflow:hidden;">
   <div class="hero-glow"></div>
-  <div class="hero-glow-2"></div>
   <div class="max-w-3xl mx-auto px-4 text-center relative z-10">
-    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200">
+    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-bold mb-6 text-purple-200">
       <i class="fa-solid fa-circle-check text-blue-300 text-xs"></i> شارة التوثيق الرسمية
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">عضويتك الموثقة</h1>
-    <p class="text-purple-200 text-lg font-medium">تحكم بما يعرفه الناس عنك — بشكل رسمي وموثق</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">ماذا تستفيد من<br>العضوية الموثقة؟</h1>
+    <p class="text-purple-200 text-lg font-medium mb-10">تحكم بما يعرفه الناس عنك — بشكل رسمي وموثق</p>
+
+    <!-- Type switcher -->
+    <div class="flex justify-center mb-2">
+      <div class="flex bg-white/10 border border-white/20 rounded-2xl p-1 gap-1">
+        <span class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-white/20">
+          <i class="fa-solid fa-circle-check text-blue-300"></i> التوثيق فقط
+        </span>
+        <a href="membership.php?type=executive"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-purple-200 hover:text-white hover:bg-white/10 transition">
+          <i class="fa-solid fa-crown text-yellow-400"></i> رئيس تنفيذي
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- Type switcher -->
-<div class="max-w-xl mx-auto px-4 py-6 flex justify-center">
-  <div class="flex bg-gray-100 rounded-2xl p-1 gap-1">
-    <span class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
-      <i class="fa-solid fa-circle-check text-blue-300"></i> التوثيق فقط
-    </span>
-    <a href="membership.php?type=executive"
-      class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-gray-500 hover:text-amber-700 transition">
-      <i class="fa-solid fa-crown text-yellow-500"></i> رئيس تنفيذي
-    </a>
+<!-- BENEFITS GRID -->
+<section class="py-14 bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <?php
+      $benefits = [
+        ['fa-arrow-up-right-dots','text-purple-600','bg-purple-50','border-purple-100','ظهور في القوائم','تصدّر نتائج البحث وقوائم التصنيفات أمام ملايين الزوار'],
+        ['fa-circle-check','text-blue-600','bg-blue-50','border-blue-100','توثيق الملف الشخصي','شارة زرقاء رسمية تؤكد هويتك وتميزك عن الآخرين'],
+        ['fa-building','text-indigo-600','bg-indigo-50','border-indigo-100','توثيق الشركة','ربط ملفك بمؤسستك مع إبراز دورك القيادي داخلها'],
+        ['fa-headset','text-green-600','bg-green-50','border-green-100','مدير حساب','مدير حساب مخصص يساعدك في إعداد وتحديث ملفك باستمرار'],
+        ['fa-chart-bar','text-orange-600','bg-orange-50','border-orange-100','تقرير أداء','تقرير شهري بمرات الظهور والوصول والتفاعل مع ملفك'],
+        ['fa-shield-halved','text-rose-600','bg-rose-50','border-rose-100','حماية هويتك الرقمية','منع أي شخص آخر من انتحال صفتك أو ادعاء هويتك'],
+      ];
+      foreach ($benefits as [$icon,$tc,$bg,$bc,$title,$desc]):
+      ?>
+      <div class="rounded-2xl p-6 border-2 <?= $bg ?> <?= $bc ?>">
+        <div class="w-11 h-11 rounded-xl <?= $bg ?> border <?= $bc ?> flex items-center justify-center mb-4">
+          <i class="fa-solid <?= $icon ?> <?= $tc ?> text-lg"></i>
+        </div>
+        <h3 class="font-black text-gray-800 mb-2 text-sm"><?= $title ?></h3>
+        <p class="text-gray-500 text-xs leading-relaxed"><?= $desc ?></p>
+      </div>
+      <?php endforeach; ?>
+    </div>
   </div>
-</div>
+</section>
 
-<!-- Pricing Cards — Verified -->
-<div id="pricing-section" class="max-w-4xl mx-auto px-4 pb-16">
+<!-- STATS -->
+<section class="py-12" style="background:linear-gradient(135deg,#1e0a3c 0%,#5B1494 60%,#8829C8 100%);">
+  <div class="max-w-4xl mx-auto px-4">
+    <h2 class="text-white font-black text-2xl text-center mb-10">من هم في أرقام</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div class="bg-white/10 border border-white/15 rounded-2xl p-5">
+        <p class="text-4xl font-black text-white"><?= number_format($total_p) ?></p>
+        <p class="text-purple-300 text-sm font-semibold mt-1">شخصية موثقة</p>
+      </div>
+      <div class="bg-white/10 border border-white/15 rounded-2xl p-5">
+        <p class="text-4xl font-black text-white"><?= number_format($total_i) ?></p>
+        <p class="text-purple-300 text-sm font-semibold mt-1">مؤسسة</p>
+      </div>
+      <div class="bg-white/10 border border-white/15 rounded-2xl p-5">
+        <p class="text-4xl font-black text-white"><?= $total_countries ?>+</p>
+        <p class="text-purple-300 text-sm font-semibold mt-1">دولة عربية</p>
+      </div>
+      <div class="bg-white/10 border border-white/15 rounded-2xl p-5">
+        <p class="text-4xl font-black text-white"><?= $total_views > 0 ? number_format($total_views) : '100K' ?>+</p>
+        <p class="text-purple-300 text-sm font-semibold mt-1">مشاهدة</p>
+      </div>
+    </div>
+    <div class="mt-10 text-center">
+      <a href="#pricing-section" onclick="event.preventDefault();document.getElementById('pricing-section').scrollIntoView({behavior:'smooth'})"
+        class="inline-flex items-center gap-2 px-10 py-4 font-black text-base rounded-2xl hover:opacity-90 transition"
+        style="background:linear-gradient(135deg,#8829C8,#5B1494);border:2px solid rgba(255,255,255,.3);color:#fff;">
+        <i class="fa-solid fa-circle-check"></i> وثّق ملفك الآن
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF: People -->
+<?php if (!empty($verified_people)): ?>
+<section class="py-14 bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">أفراد وثّقوا ملفاتهم</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">انضم إلى نخبة الأفراد الموثقين على المنصة</p>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <?php foreach ($verified_people as $p): ?>
+      <a href="profile.php?id=<?= $p['p_id'] ?>" class="text-center group">
+        <?php if (!empty($p['p_photo'])): ?>
+          <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
+            class="w-16 h-16 rounded-full mx-auto mb-2 object-cover border-2 border-blue-200 group-hover:border-blue-400 transition">
+        <?php else: ?>
+          <div class="w-16 h-16 rounded-full pi-gradient flex items-center justify-center mx-auto mb-2">
+            <span class="text-white font-black text-xl"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
+          </div>
+        <?php endif; ?>
+        <p class="text-xs font-bold text-gray-700 leading-tight"><?= htmlspecialchars(mb_substr($p['p_name_ar'],0,12)) ?></p>
+        <?php if (!empty($p['p_title'])): ?>
+          <p class="text-xs text-gray-400 truncate px-1"><?= htmlspecialchars(mb_substr($p['p_title'],0,20)) ?></p>
+        <?php endif; ?>
+        <span class="inline-flex items-center gap-0.5 text-xs text-blue-500 font-bold mt-0.5"><i class="fa-solid fa-circle-check text-xs"></i></span>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
+<!-- SOCIAL PROOF: Institutions -->
+<?php if (!empty($verified_insts)): ?>
+<section class="py-12 bg-gray-50 border-y border-gray-100">
+  <div class="max-w-5xl mx-auto px-4">
+    <h2 class="text-xl font-black text-gray-800 text-center mb-8">شركات وثّقت ملفاتها</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-5">
+      <?php foreach ($verified_insts as $inst): ?>
+      <a href="institution.php?id=<?= $inst['inst_id'] ?>"
+        class="bg-white rounded-2xl p-4 flex flex-col items-center gap-3 shadow-sm hover:shadow-md transition border border-gray-100">
+        <?php if (!empty($inst['inst_logo'])): ?>
+          <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" alt="<?= htmlspecialchars($inst['inst_name_ar']) ?>"
+            class="h-10 max-w-full object-contain">
+        <?php else: ?>
+          <div class="w-12 h-12 rounded-xl pi-gradient flex items-center justify-center">
+            <span class="text-white font-black text-lg"><?= mb_substr($inst['inst_name_ar'],0,1) ?></span>
+          </div>
+        <?php endif; ?>
+        <p class="text-xs font-bold text-gray-600 text-center leading-tight"><?= htmlspecialchars(mb_substr($inst['inst_name_ar'],0,25)) ?></p>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
+<!-- WHO USES -->
+<section class="py-14 bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">من يستخدم المنصة لتعزيز حضوره الرقمي؟</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">فئات متنوعة تجد في التوثيق قيمة حقيقية</p>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <?php
+      $types = [
+        ['fa-briefcase','text-purple-600','bg-purple-50','رجال وسيدات أعمال'],
+        ['fa-graduation-cap','text-blue-600','bg-blue-50','أكاديميون وباحثون'],
+        ['fa-landmark','text-indigo-600','bg-indigo-50','أفراد في المؤسسات الحكومية والعالمية'],
+        ['fa-microphone','text-rose-600','bg-rose-50','أستاريون'],
+        ['fa-building','text-amber-600','bg-amber-50','محامون'],
+      ];
+      foreach ($types as [$icon,$tc,$bg,$label]):
+      ?>
+      <div class="<?= $bg ?> rounded-2xl p-5 text-center border border-transparent hover:shadow-sm transition">
+        <div class="w-12 h-12 rounded-xl <?= $bg ?> flex items-center justify-center mx-auto mb-3 border border-gray-200">
+          <i class="fa-solid <?= $icon ?> <?= $tc ?> text-xl"></i>
+        </div>
+        <p class="text-xs font-bold text-gray-700 leading-tight"><?= $label ?></p>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <div class="text-center mt-8">
+      <a href="#pricing-section" onclick="event.preventDefault();document.getElementById('pricing-section').scrollIntoView({behavior:'smooth'})"
+        class="inline-flex items-center gap-2 px-8 py-3 pi-primary-bg text-white font-black rounded-xl hover:opacity-90 transition">
+        وثّق ملفك الآن <i class="fa-solid fa-arrow-left mr-1"></i>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING CARDS -->
+<div id="pricing-section" class="max-w-4xl mx-auto px-4 py-16">
   <h2 class="text-3xl font-black text-gray-800 text-center mb-3">اختر باقتك</h2>
   <p class="text-gray-400 text-center mb-10 font-medium">استثمر في حضورك الرقمي الموثق</p>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-    <!-- Monthly Verified -->
+    <!-- Monthly -->
     <div class="bg-white rounded-2xl shadow-sm border-2 border-gray-100 p-8 flex flex-col">
       <div class="mb-6">
-        <p class="text-gray-500 font-semibold text-sm mb-1">الباقة الشهرية</p>
+        <p class="text-gray-500 font-semibold text-sm mb-1">الباقة الأساسية</p>
         <div class="flex items-end gap-1">
           <span class="text-5xl font-black text-gray-800">$90</span>
           <span class="text-gray-400 font-semibold mb-1">/ شهر</span>
@@ -212,7 +431,7 @@ include 'includes/header.php';
       </button>
     </div>
 
-    <!-- Lifetime Verified -->
+    <!-- Lifetime -->
     <div class="bg-white rounded-2xl shadow-lg border-2 p-8 flex flex-col relative overflow-hidden" style="border-color:#8829C8">
       <div class="absolute top-4 left-4">
         <span class="px-3 py-1 text-xs font-black text-white rounded-full" style="background:linear-gradient(135deg,#8829C8,#5B1494)">الأكثر طلباً ⭐</span>
@@ -237,7 +456,6 @@ include 'includes/header.php';
         <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> دعم مدى الحياة</li>
         <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> أولوية في المراجعة</li>
       </ul>
-      <!-- Countdown -->
       <div class="rounded-2xl mb-4 p-3" style="background:rgba(136,41,200,.07);border:1px solid rgba(136,41,200,.2);">
         <p class="text-xs font-bold text-center mb-2" style="color:#8829C8;">⏳ سعر الإطلاق ينتهي خلال</p>
         <div class="flex justify-center gap-2">
@@ -257,10 +475,8 @@ include 'includes/header.php';
     </div>
   </div>
 </div>
-<?php endif; ?>
 
-<!-- Upgrade Banner (shown on verified page) -->
-<?php if ($mem_type === 'verified'): ?>
+<!-- Upgrade Banner -->
 <div class="max-w-3xl mx-auto px-4 pb-16">
   <div class="rounded-2xl p-6 flex items-center justify-between gap-4 flex-wrap" style="background:linear-gradient(135deg,#78350f,#b45309)">
     <div class="flex items-center gap-4">
@@ -278,9 +494,10 @@ include 'includes/header.php';
     </a>
   </div>
 </div>
+
 <?php endif; ?>
 
-<!-- Step 2: Contact Form -->
+<!-- CONTACT FORM -->
 <div id="contact-section" class="max-w-2xl mx-auto px-4 pb-16 hidden">
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
     <div class="flex items-center gap-3 mb-6">
@@ -336,11 +553,12 @@ var _planLabels = {
 };
 function choosePlan(plan, type) {
   document.getElementById('pricing-section').classList.add('hidden');
-  document.getElementById('contact-section').classList.remove('hidden');
+  var cs = document.getElementById('contact-section');
+  cs.classList.remove('hidden');
   document.getElementById('mem_plan_input').value = plan;
   document.getElementById('mem_type_input').value = type;
   document.getElementById('plan_display').textContent = _planLabels[plan+'_'+type] || plan;
-  window.scrollTo({top: document.getElementById('contact-section').offsetTop - 80, behavior:'smooth'});
+  window.scrollTo({top: cs.offsetTop - 80, behavior:'smooth'});
 }
 function goBack() {
   document.getElementById('contact-section').classList.add('hidden');
@@ -354,7 +572,6 @@ document.addEventListener('DOMContentLoaded',function(){
 </script>
 
 <script>
-// ── Cycling 4-day countdown ──
 (function() {
   var CYCLE = 4 * 24 * 60 * 60 * 1000;
   var REF   = 1735689600000;
@@ -363,8 +580,8 @@ document.addEventListener('DOMContentLoaded',function(){
     var remaining = CYCLE - ((Date.now() - REF) % CYCLE);
     var d = Math.floor(remaining / 86400000);
     var h = Math.floor((remaining % 86400000) / 3600000);
-    var m = Math.floor((remaining % 3600000)  / 60000);
-    var s = Math.floor((remaining % 60000)    / 1000);
+    var m = Math.floor((remaining % 3600000) / 60000);
+    var s = Math.floor((remaining % 60000) / 1000);
     ['mv-cd-d','mv-cd-h','mv-cd-m','mv-cd-s',
      'me-cd-d','me-cd-h','me-cd-m','me-cd-s'].forEach(function(id,i){
       var el = document.getElementById(id);

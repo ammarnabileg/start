@@ -275,6 +275,18 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         ?>
       </a>
 
+      <a href="admin.php?p=complaints" class="nav-link <?= $p=='complaints'?'active':'' ?>">
+        <i class="fa-solid fa-pen-to-square"></i>
+        <span>الشكاوي والملاحظات</span>
+        <?php
+        $cmp_rc = $mysqli->query("SHOW TABLES LIKE 'pi_complaints'");
+        if ($cmp_rc && $cmp_rc->num_rows) {
+            $cmp_r = $mysqli->query("SELECT COUNT(*) c FROM pi_complaints WHERE cmp_status='new'");
+            if ($cmp_r) { $cn=(int)$cmp_r->fetch_assoc()['c']; if($cn>0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$cn.'</span>'; }
+        }
+        ?>
+      </a>
+
       <a href="admin.php?p=submissions" class="nav-link <?= $p=='submissions'?'active':'' ?>">
         <i class="fa-solid fa-inbox"></i>
         <span>مقترحات المستخدمين</span>
@@ -375,6 +387,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       elseif ($p === 'advertise')     include 'admin/advertise.php';
       elseif ($p === 'settings')      include 'admin/settings.php';
       elseif ($p === 'memberships')   include 'admin/memberships.php';
+      elseif ($p === 'complaints')    include 'admin/complaints.php';
       else include 'admin/dashboard.php';
       ?>
     </main>

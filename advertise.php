@@ -36,6 +36,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $success = true;
     }
 }
+
+// Fetch sponsors
+$sponsors = [];
+$r = $mysqli->query("SELECT * FROM pi_sponsors WHERE sp_active=1 ORDER BY sp_order,sp_id LIMIT 12");
+if ($r) while ($row=$r->fetch_assoc()) $sponsors[] = $row;
+
+$total_p = pi_count_personalities();
+$total_i = pi_count_institutions();
+$rr = $mysqli->query("SELECT COUNT(DISTINCT p_country_id) c FROM pi_personalities WHERE p_active=1 AND p_country_id > 0");
+$total_countries = $rr ? max((int)$rr->fetch_assoc()['c'], 12) : 12;
+
 include 'includes/header.php';
 ?>
 
@@ -44,38 +55,48 @@ include 'includes/header.php';
   <div class="hero-glow"></div>
   <div class="absolute inset-0 opacity-20" style="background-image:radial-gradient(circle at 10% 80%,#a855f7 0%,transparent 40%),radial-gradient(circle at 90% 20%,#7c3aed 0%,transparent 40%);pointer-events:none;"></div>
   <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
-    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200">
+    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-bold mb-6 text-purple-200">
       <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> شراكة إعلانية حصرية
     </div>
     <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">علامتك التجارية<br>في قلب قرارات العرب</h1>
-    <p class="text-purple-200 text-lg font-medium max-w-2xl mx-auto">شعارك يصل يومياً إلى آلاف رجال الأعمال والشخصيات المؤثرة عبر منشوراتنا على جميع منصات التواصل الاجتماعي</p>
-    <div class="flex items-center justify-center gap-8 mt-10 flex-wrap">
+    <p class="text-purple-200 text-lg font-medium max-w-2xl mx-auto mb-10">شعارك يصل يومياً إلى آلاف رجال الأعمال والشخصيات المؤثرة عبر منشوراتنا على جميع منصات التواصل الاجتماعي</p>
+
+    <!-- Stats -->
+    <div class="flex items-center justify-center gap-6 md:gap-12 flex-wrap">
       <div class="text-center">
-        <p class="text-3xl font-black">+<?= number_format(pi_count_personalities()) ?></p>
+        <p class="text-4xl font-black"><?= number_format($total_p) ?>+</p>
         <p class="text-purple-300 text-sm font-semibold mt-1">شخصية موثقة</p>
       </div>
-      <div class="w-px h-10 bg-white/20"></div>
+      <div class="w-px h-10 bg-white/20 hidden md:block"></div>
       <div class="text-center">
-        <p class="text-3xl font-black">+<?= number_format(pi_count_institutions()) ?></p>
+        <p class="text-4xl font-black"><?= number_format($total_i) ?>+</p>
         <p class="text-purple-300 text-sm font-semibold mt-1">مؤسسة وشركة</p>
       </div>
-      <div class="w-px h-10 bg-white/20"></div>
+      <div class="w-px h-10 bg-white/20 hidden md:block"></div>
       <div class="text-center">
-        <p class="text-3xl font-black">17+</p>
+        <p class="text-4xl font-black"><?= $total_countries ?>+</p>
         <p class="text-purple-300 text-sm font-semibold mt-1">دولة عربية</p>
       </div>
+    </div>
+
+    <div class="mt-10">
+      <a href="#pricing" onclick="event.preventDefault();document.getElementById('pricing').scrollIntoView({behavior:'smooth'})"
+        class="inline-flex items-center gap-2 px-10 py-4 font-black text-base rounded-2xl hover:brightness-110 transition text-purple-900"
+        style="background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 4px 24px rgba(251,191,36,.4)">
+        <i class="fa-solid fa-handshake"></i> ابدأ شراكتك الآن
+      </a>
     </div>
   </div>
 </section>
 
 <?php if ($success): ?>
 <div class="max-w-xl mx-auto px-4 py-16 text-center">
-  <div class="bg-green-50 border border-green-200 rounded-2xl p-12">
-    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-      <i class="fa-solid fa-circle-check text-green-500 text-4xl"></i>
+  <div class="bg-green-50 border border-green-200 rounded-3xl p-14">
+    <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <i class="fa-solid fa-circle-check text-green-500 text-5xl"></i>
     </div>
     <h2 class="text-2xl font-black text-green-800 mb-3">تم استلام طلبك!</h2>
-    <p class="text-green-600 mb-6">سيتواصل معك فريقنا خلال 24 ساعة لإتمام الشراكة</p>
+    <p class="text-green-600 mb-6 font-medium">سيتواصل معك فريقنا خلال 24 ساعة لإتمام الشراكة</p>
     <a href="index.php" class="inline-block px-8 py-3 pi-primary-bg text-white font-bold rounded-xl hover:opacity-90 transition">العودة للرئيسية</a>
   </div>
 </div>
@@ -83,7 +104,7 @@ include 'includes/header.php';
 <?php endif; ?>
 
 <!-- ═══════ WHAT YOU GET ═══════ -->
-<section class="py-14 bg-white border-b border-gray-100">
+<section class="py-14 bg-white">
   <div class="max-w-5xl mx-auto px-4">
     <h2 class="text-2xl font-black text-gray-800 text-center mb-2">ماذا يعني أن تكون شريكنا؟</h2>
     <p class="text-gray-400 text-center mb-10 font-medium">وصولك المباشر إلى أصحاب القرار والنخب العربية</p>
@@ -113,15 +134,64 @@ include 'includes/header.php';
   </div>
 </section>
 
+<!-- ═══════ CURRENT SPONSORS ═══════ -->
+<?php if (!empty($sponsors)): ?>
+<section class="py-12 bg-gray-50 border-y border-gray-100">
+  <div class="max-w-5xl mx-auto px-4">
+    <p class="text-gray-400 text-sm font-semibold text-center mb-8">شركاؤنا الحاليون</p>
+    <div class="flex flex-wrap items-center justify-center gap-8">
+      <?php foreach ($sponsors as $sp): ?>
+      <a href="<?= htmlspecialchars($sp['sp_url'] ?? '#') ?>" target="_blank" rel="noopener"
+        class="grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100">
+        <?php if (!empty($sp['sp_logo'])): ?>
+          <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" alt="<?= htmlspecialchars($sp['sp_name']) ?>"
+            class="h-10 max-w-32 object-contain">
+        <?php else: ?>
+          <span class="text-gray-600 font-bold text-sm"><?= htmlspecialchars($sp['sp_name']) ?></span>
+        <?php endif; ?>
+      </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
+<!-- ═══════ WHO YOU REACH ═══════ -->
+<section class="py-14 bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">من تصل إليه إعلاناتك؟</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">جمهورنا من النخب العربية في مختلف القطاعات</p>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <?php
+      $segments = [
+        ['fa-briefcase','text-purple-600','bg-purple-50','رجال وسيدات أعمال'],
+        ['fa-crown','text-amber-600','bg-amber-50','رؤساء تنفيذيون'],
+        ['fa-landmark','text-indigo-600','bg-indigo-50','قادة حكوميون'],
+        ['fa-microphone','text-rose-600','bg-rose-50','إعلاميون ومؤثرون'],
+        ['fa-graduation-cap','text-green-600','bg-green-50','أكاديميون وباحثون'],
+      ];
+      foreach ($segments as [$icon,$tc,$bg,$label]):
+      ?>
+      <div class="<?= $bg ?> rounded-2xl p-5 text-center">
+        <div class="w-12 h-12 rounded-xl <?= $bg ?> flex items-center justify-center mx-auto mb-3 border border-white shadow-sm">
+          <i class="fa-solid <?= $icon ?> <?= $tc ?> text-xl"></i>
+        </div>
+        <p class="text-xs font-bold text-gray-700 leading-tight"><?= $label ?></p>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════ PRICING ═══════ -->
-<section class="py-16 bg-gray-50">
+<section id="pricing" class="py-16 bg-gray-50">
   <div class="max-w-5xl mx-auto px-4">
     <h2 class="text-3xl font-black text-gray-800 text-center mb-2">اختر شراكتك</h2>
     <p class="text-gray-400 text-center mb-12 font-medium">باقتان فقط — لضمان حصرية كاملة لكل شريك</p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
 
-      <!-- ── MONTHLY ── -->
+      <!-- MONTHLY -->
       <div class="bg-white rounded-3xl shadow-md border-2 border-gray-100 p-8 flex flex-col">
         <div class="mb-2">
           <span class="text-xs font-black text-gray-400 tracking-widest uppercase">الباقة الشهرية</span>
@@ -159,19 +229,14 @@ include 'includes/header.php';
         </button>
       </div>
 
-      <!-- ── YEARLY (PREMIUM) ── -->
+      <!-- YEARLY -->
       <div class="rounded-3xl shadow-2xl p-8 flex flex-col relative overflow-hidden text-white"
         style="background:linear-gradient(145deg,#1e0a3c 0%,#3b0d6e 40%,#5B1494 75%,#8829C8 100%);">
-
-        <!-- Glow orbs -->
         <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(168,85,247,.25);filter:blur(40px);pointer-events:none;"></div>
         <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:rgba(139,92,246,.2);filter:blur(30px);pointer-events:none;"></div>
-
-        <!-- Badge -->
         <div class="absolute top-5 left-5">
           <span class="px-3 py-1 text-xs font-black rounded-full bg-yellow-300 text-purple-900">الأوفر ✦ وفّر $33,501</span>
         </div>
-
         <div class="mt-8 mb-2 relative z-10">
           <span class="text-xs font-black text-purple-300 tracking-widest uppercase">الباقة السنوية</span>
         </div>
@@ -180,76 +245,41 @@ include 'includes/header.php';
           <span class="text-purple-300 font-bold mb-2">/ سنة</span>
         </div>
         <p class="text-purple-300 text-sm mb-1 relative z-10 line-through">$36,000 / سنة</p>
-        <p class="text-green-300 text-xs font-black mb-5 relative z-10">⬇ وفّر 93% — بدلاً من $10,000 كل 4 أشهر</p>
+        <p class="text-green-300 text-xs font-black mb-5 relative z-10">⬇ وفّر 93%</p>
 
-        <!-- Countdown -->
         <div class="rounded-2xl mb-6 p-4 relative z-10" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);">
           <p class="text-xs text-purple-300 font-bold text-center mb-2">⏳ العرض ينتهي خلال</p>
-          <div class="flex justify-center gap-3" id="adv-countdown">
-            <div class="text-center">
-              <div class="text-3xl font-black text-white" id="adv-cd-d">00</div>
-              <div class="text-xs text-purple-300 font-semibold mt-0.5">يوم</div>
-            </div>
+          <div class="flex justify-center gap-3">
+            <div class="text-center"><div class="text-3xl font-black text-white" id="adv-cd-d">00</div><div class="text-xs text-purple-300 font-semibold mt-0.5">يوم</div></div>
             <div class="text-3xl font-black text-purple-300 mt-0.5">:</div>
-            <div class="text-center">
-              <div class="text-3xl font-black text-white" id="adv-cd-h">00</div>
-              <div class="text-xs text-purple-300 font-semibold mt-0.5">ساعة</div>
-            </div>
+            <div class="text-center"><div class="text-3xl font-black text-white" id="adv-cd-h">00</div><div class="text-xs text-purple-300 font-semibold mt-0.5">ساعة</div></div>
             <div class="text-3xl font-black text-purple-300 mt-0.5">:</div>
-            <div class="text-center">
-              <div class="text-3xl font-black text-white" id="adv-cd-m">00</div>
-              <div class="text-xs text-purple-300 font-semibold mt-0.5">دقيقة</div>
-            </div>
+            <div class="text-center"><div class="text-3xl font-black text-white" id="adv-cd-m">00</div><div class="text-xs text-purple-300 font-semibold mt-0.5">دقيقة</div></div>
             <div class="text-3xl font-black text-purple-300 mt-0.5">:</div>
-            <div class="text-center">
-              <div class="text-3xl font-black text-white" id="adv-cd-s">00</div>
-              <div class="text-xs text-purple-300 font-semibold mt-0.5">ثانية</div>
-            </div>
+            <div class="text-center"><div class="text-3xl font-black text-white" id="adv-cd-s">00</div><div class="text-xs text-purple-300 font-semibold mt-0.5">ثانية</div></div>
           </div>
         </div>
 
         <ul class="space-y-3 flex-1 mb-8 relative z-10">
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-crown text-yellow-300 mt-0.5 flex-shrink-0"></i>
-            <span><strong>شعارك الحصري</strong> في كل منشورات السوشيال ميديا طوال العام</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i>
-            <span>ظهور دائم في شريط "تحت الضوء" على كل صفحات المنصة</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i>
-            <span>وصول لأكثر من <strong>مليون ظهور</strong> سنوي أمام النخب العربية</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i>
-            <span>إشارة مميزة لشركتك في المحتوى الإعلامي الشهري</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i>
-            <span>مدير حساب مخصص لمتابعة حضورك الإعلاني</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i>
-            <span>تقرير أداء <strong>أسبوعي</strong> بالأرقام التفصيلية</span>
-          </li>
-          <li class="flex items-start gap-3 text-sm text-white">
-            <i class="fa-solid fa-star text-yellow-300 mt-0.5 flex-shrink-0"></i>
-            <span>بوست ترحيبي خاص لإطلاق الشراكة على حساباتنا</span>
-          </li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-crown text-yellow-300 mt-0.5 flex-shrink-0"></i><span><strong>شعارك الحصري</strong> في كل منشورات السوشيال ميديا طوال العام</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i><span>ظهور دائم في شريط "تحت الضوء" على كل صفحات المنصة</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i><span>وصول لأكثر من <strong>مليون ظهور</strong> سنوي أمام النخب العربية</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i><span>إشارة مميزة لشركتك في المحتوى الإعلامي الشهري</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i><span>مدير حساب مخصص لمتابعة حضورك الإعلاني</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-circle-check text-green-300 mt-0.5 flex-shrink-0"></i><span>تقرير أداء <strong>أسبوعي</strong> بالأرقام التفصيلية</span></li>
+          <li class="flex items-start gap-3 text-sm"><i class="fa-solid fa-star text-yellow-300 mt-0.5 flex-shrink-0"></i><span>بوست ترحيبي خاص لإطلاق الشراكة على حساباتنا</span></li>
         </ul>
         <button onclick="chooseAdPlan('yearly')"
-          class="w-full py-4 font-black rounded-2xl transition text-purple-900 text-base relative z-10"
+          class="w-full py-4 font-black rounded-2xl transition text-purple-900 text-base relative z-10 hover:brightness-110"
           style="background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 4px 24px rgba(251,191,36,.4);">
           <i class="fa-solid fa-crown ml-2"></i> ابدأ الشراكة السنوية
         </button>
       </div>
-
     </div>
   </div>
 </section>
 
-<!-- ═══════ SOCIAL PROOF ═══════ -->
+<!-- SOCIAL PLATFORMS -->
 <section class="py-12 bg-white border-y border-gray-100">
   <div class="max-w-4xl mx-auto px-4 text-center">
     <p class="text-gray-400 text-sm font-semibold mb-6">منصات التواصل التي يظهر فيها شعارك</p>
@@ -263,7 +293,7 @@ include 'includes/header.php';
   </div>
 </section>
 
-<!-- ═══════ CONTACT FORM ═══════ -->
+<!-- CONTACT FORM -->
 <div id="adv-form-section" class="max-w-2xl mx-auto px-4 py-14 hidden">
   <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-8">
     <div class="flex items-center gap-3 mb-6">
@@ -314,17 +344,15 @@ include 'includes/header.php';
 </div>
 
 <script>
-// ── Cycling 4-day countdown (same for everyone, same moment) ──
 (function() {
   var CYCLE = 4 * 24 * 60 * 60 * 1000;
-  var REF   = 1735689600000; // fixed epoch anchor — Mon Jan 1 2024 00:00 UTC
-
+  var REF   = 1735689600000;
   function tick() {
     var remaining = CYCLE - ((Date.now() - REF) % CYCLE);
     var d = Math.floor(remaining / 86400000);
     var h = Math.floor((remaining % 86400000) / 3600000);
-    var m = Math.floor((remaining % 3600000)  / 60000);
-    var s = Math.floor((remaining % 60000)    / 1000);
+    var m = Math.floor((remaining % 3600000) / 60000);
+    var s = Math.floor((remaining % 60000) / 1000);
     var pad = function(n){ return String(n).padStart(2,'0'); };
     var dEl = document.getElementById('adv-cd-d');
     if (dEl) {
@@ -337,13 +365,12 @@ include 'includes/header.php';
   tick();
   setInterval(tick, 1000);
 })();
-
 function chooseAdPlan(plan) {
   document.getElementById('adv_plan_input').value = plan;
   document.getElementById('adv-plan-display').textContent = plan === 'yearly' ? 'السنوية — $2,499' : 'الشهرية — $3,000 / شهر';
-  document.getElementById('adv-form-section').classList.remove('hidden');
-  setTimeout(function(){ document.getElementById('adv-form-section').scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
+  var fs = document.getElementById('adv-form-section');
+  fs.classList.remove('hidden');
+  setTimeout(function(){ fs.scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
 }
 </script>
-
 <?php include 'includes/footer.php'; ?>

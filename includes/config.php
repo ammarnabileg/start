@@ -169,6 +169,66 @@ function pi_escape($str) {
     return $mysqli->real_escape_string($str);
 }
 
+// ── User auth ──────────────────────────────────────────────────────────────
+function pi_create_user_tables() {
+    global $mysqli;
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_users (
+        u_id INT AUTO_INCREMENT PRIMARY KEY,
+        u_name VARCHAR(200) NOT NULL,
+        u_email VARCHAR(200) NOT NULL UNIQUE,
+        u_password VARCHAR(255) NOT NULL,
+        u_phone VARCHAR(50),
+        u_nationality VARCHAR(100),
+        u_company VARCHAR(200),
+        u_birthdate DATE,
+        u_job VARCHAR(200),
+        u_gender ENUM('male','female','') DEFAULT '',
+        u_photo VARCHAR(500),
+        u_plan ENUM('free','verified','executive') DEFAULT 'free',
+        u_active TINYINT DEFAULT 1,
+        u_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_complaints (
+        cmp_id INT AUTO_INCREMENT PRIMARY KEY,
+        cmp_user_id INT DEFAULT NULL,
+        cmp_type ENUM('complaint','suggestion','feedback','request') DEFAULT 'complaint',
+        cmp_subject VARCHAR(300) NOT NULL,
+        cmp_message TEXT NOT NULL,
+        cmp_name VARCHAR(200),
+        cmp_email VARCHAR(200),
+        cmp_status ENUM('new','read','resolved') DEFAULT 'new',
+        cmp_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+pi_create_user_tables();
+// Add user tracking columns if missing
+$mysqli->query("ALTER TABLE pi_personalities ADD COLUMN IF NOT EXISTS p_added_by_user INT DEFAULT NULL");
+$mysqli->query("ALTER TABLE pi_institutions ADD COLUMN IF NOT EXISTS inst_added_by_user INT DEFAULT NULL");
+
+function pi_user_logged_in() {
+    return !empty($_SESSION['pi_user_id']);
+}
+
+function pi_current_user() {
+    global $mysqli;
+    if (empty($_SESSION['pi_user_id'])) return null;
+    static $cache = null;
+    if ($cache) return $cache;
+    $id = (int)$_SESSION['pi_user_id'];
+    $r = $mysqli->query("SELECT * FROM pi_users WHERE u_id=$id AND u_active=1");
+    $cache = ($r && $r->num_rows) ? $r->fetch_assoc() : null;
+    if (!$cache) { unset($_SESSION['pi_user_id']); }
+    return $cache;
+}
+
+function pi_require_user() {
+    if (!pi_user_logged_in()) {
+        header('Location: user_login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+        exit;
+    }
+}
+
 function pi_get_categories() {
     global $mysqli;
     $r = $mysqli->query("SELECT c.*, l.label_name, l.label_color FROM pi_categories c LEFT JOIN pi_labels l ON c.cat_label_id=l.label_id WHERE c.cat_active=1 ORDER BY c.cat_order,c.cat_id");
