@@ -4,13 +4,14 @@ require_once 'includes/config.php';
 
 $success = false;
 $errors  = [];
+$_cur_user = pi_current_user();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ar   = trim($_POST['inst_name_ar']     ?? '');
     $name_en   = trim($_POST['inst_name_en']     ?? '');
     $desc      = trim($_POST['inst_description'] ?? '');
-    $submitter = trim($_POST['submitter_name']   ?? '');
-    $sub_email = trim($_POST['submitter_email']  ?? '');
+    $submitter = $_cur_user ? $_cur_user['u_name']  : trim($_POST['submitter_name']   ?? '');
+    $sub_email = $_cur_user ? $_cur_user['u_email'] : trim($_POST['submitter_email']  ?? '');
     $cats      = $_POST['categories'] ?? [];
 
     $logo = '';
@@ -29,10 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $data   = json_encode(['inst_name_ar'=>$name_ar,'inst_name_en'=>$name_en,
             'inst_description'=>$desc,'inst_logo'=>$logo,'categories'=>$cats]);
+        $mysqli->query("ALTER TABLE pi_submissions ADD COLUMN IF NOT EXISTS sub_user_id INT DEFAULT NULL");
         $data_e      = pi_escape($data);
         $submitter_e = pi_escape($submitter);
         $sub_email_e = pi_escape($sub_email);
-        $mysqli->query("INSERT INTO pi_submissions (sub_type,sub_data,sub_submitter_name,sub_submitter_email) VALUES ('institution','$data_e','$submitter_e','$sub_email_e')");
+        $uid_val     = $_cur_user ? (int)$_cur_user['u_id'] : 'NULL';
+        $mysqli->query("INSERT INTO pi_submissions (sub_type,sub_data,sub_submitter_name,sub_submitter_email,sub_user_id) VALUES ('institution','$data_e','$submitter_e','$sub_email_e',$uid_val)");
         $success = true;
     }
 }
@@ -179,6 +182,17 @@ include 'includes/header.php';
     </div>
 
     <!-- بطاقة مقدم الاقتراح -->
+    <?php if ($_cur_user): ?>
+    <div class="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full pi-gradient flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-circle-check text-white text-sm"></i>
+      </div>
+      <div>
+        <p class="font-black text-purple-800 text-sm">سيُربط الاقتراح بحسابك تلقائياً</p>
+        <p class="text-purple-600 text-xs"><?= htmlspecialchars($_cur_user['u_name']) ?> — <?= htmlspecialchars($_cur_user['u_email']) ?></p>
+      </div>
+    </div>
+    <?php else: ?>
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
       <h2 class="font-black text-gray-800 text-base mb-4 flex items-center gap-2">
         <span class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-circle-user text-gray-500 text-xs"></i></span>
@@ -195,6 +209,7 @@ include 'includes/header.php';
         </div>
       </div>
     </div>
+    <?php endif; ?>
 
     <button type="submit" class="w-full py-4 pi-primary-bg text-white font-black text-base rounded-2xl hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg">
       <i class="fa-solid fa-paper-plane"></i> إرسال الاقتراح للمراجعة

@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $status_filter = $_GET['status'] ?? 'pending';
 $submissions   = [];
-$r = $mysqli->query("SELECT * FROM pi_submissions WHERE sub_status='$status_filter' ORDER BY sub_created DESC LIMIT 50");
+$r = $mysqli->query("SELECT s.*, u.u_name, u.u_email FROM pi_submissions s LEFT JOIN pi_users u ON s.sub_user_id=u.u_id WHERE s.sub_status='$status_filter' ORDER BY s.sub_created DESC LIMIT 50");
 if ($r) while ($row = $r->fetch_assoc()) $submissions[] = $row;
 
 $counts = [];
@@ -159,7 +159,11 @@ if ($rc) while ($c = $rc->fetch_assoc()) $all_cats[] = $c;
           <?= $is_person?'شخصية':'مؤسسة' ?>
         </span>
         <span class="text-gray-400 text-xs"><?= date('d/m/Y H:i', strtotime($sub['sub_created'])) ?></span>
-        <?php if ($sub['sub_submitter_name']): ?>
+        <?php if ($sub['u_name']): ?>
+        <span class="text-purple-600 text-xs font-bold flex items-center gap-1">
+          <i class="fa-solid fa-circle-user"></i> <?= htmlspecialchars($sub['u_name']) ?>
+        </span>
+        <?php elseif ($sub['sub_submitter_name']): ?>
         <span class="text-gray-500 text-xs">بواسطة: <?= htmlspecialchars($sub['sub_submitter_name']) ?></span>
         <?php endif; ?>
       </div>
@@ -206,7 +210,12 @@ if ($rc) while ($c = $rc->fetch_assoc()) $all_cats[] = $c;
       <?php if ($data['p_name_en'] ?? null): ?><div><span class="text-gray-400 text-xs block">الاسم الإنجليزي</span><p class="font-semibold" dir="ltr"><?= htmlspecialchars($data['p_name_en']) ?></p></div><?php endif; ?>
       <?php if ($data['p_nationality'] ?? null): ?><div><span class="text-gray-400 text-xs block">الجنسية</span><p class="font-semibold"><?= htmlspecialchars($data['p_nationality']) ?></p></div><?php endif; ?>
       <?php if ($data['p_residence'] ?? null): ?><div><span class="text-gray-400 text-xs block">بلد الإقامة</span><p class="font-semibold"><?= htmlspecialchars($data['p_residence']) ?></p></div><?php endif; ?>
-      <?php if ($sub['sub_submitter_email']): ?><div><span class="text-gray-400 text-xs block">البريد</span><p class="font-semibold text-xs" dir="ltr"><?= htmlspecialchars($sub['sub_submitter_email']) ?></p></div><?php endif; ?>
+      <?php $display_email = $sub['u_email'] ?: $sub['sub_submitter_email']; if ($display_email): ?>
+      <div>
+        <span class="text-gray-400 text-xs block">البريد<?= $sub['u_name'] ? ' (حساب مسجل)' : '' ?></span>
+        <p class="font-semibold text-xs <?= $sub['u_name'] ? 'text-purple-600' : '' ?>" dir="ltr"><?= htmlspecialchars($display_email) ?></p>
+      </div>
+      <?php endif; ?>
     </div>
     <?php if ($bio): ?>
     <div>
