@@ -81,8 +81,8 @@ include 'includes/header.php';
     <div class="inline-flex items-center gap-2 bg-white/10 border border-yellow-300/30 rounded-full px-5 py-2 text-sm font-bold mb-6 text-yellow-200">
       <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> صوتك القيادي يستحق منصة تليق به
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">باقة الرؤساء التنفيذيين</h1>
-    <p class="text-amber-200 text-lg font-medium mb-8 max-w-xl mx-auto leading-relaxed">كل يوم يبحث مستثمر أو صحفي أو شريك محتمل عن اسمك — السؤال هو: ماذا سيجد؟ هذه الباقة تضمن أنه سيجد الصورة التي تريدها أنت، لا أي صورة أخرى.</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">ملفك التنفيذي يُقرأ<br>قبل أي اجتماع يُعقد</h1>
+    <p class="text-amber-200 text-lg font-medium mb-8 max-w-xl mx-auto leading-relaxed">قبل أن يجلس معك مستثمر أو صحفي أو شريك محتمل، سيبحث عنك. ما يجده في تلك الدقيقة يصنع انطباعاً لا يمحوه اللقاء — باقتنا تضمن أنه يجد ما تريده أنت.</p>
     <div class="flex flex-wrap items-center justify-center gap-4">
       <a href="#pricing-section" onclick="event.preventDefault();document.getElementById('pricing-section').scrollIntoView({behavior:'smooth'})"
         class="inline-flex items-center gap-2 px-8 py-4 font-black rounded-2xl text-amber-900 hover:brightness-110 transition"
@@ -238,8 +238,8 @@ include 'includes/header.php';
     <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-bold mb-6 text-purple-200">
       <i class="fa-solid fa-circle-check text-blue-300 text-xs"></i> شارة التوثيق الرسمية
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">ماذا يتغير في حياتك<br>بعد التوثيق؟</h1>
-    <p class="text-purple-200 text-lg font-medium mb-10">أنت تبني سمعتك كل يوم — التوثيق يجعلها رسمية وموثوقة</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">اسمك يُبحث عنه الآن —<br>التوثيق يتحكم فيما يجدونه</h1>
+    <p class="text-purple-200 text-lg font-medium mb-10">وجودك الرقمي لا يتوقف على معرفتك بالتقنية — يتوقف على وجود ملف موثق يروي قصتك بصوتك</p>
 
     <!-- Type switcher -->
     <div class="flex justify-center mb-2">

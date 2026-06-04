@@ -58,8 +58,8 @@ include 'includes/header.php';
     <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-bold mb-6 text-purple-200">
       <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> شراكة إعلانية حصرية
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">علامتك التجارية<br>في قلب قرارات العرب</h1>
-    <p class="text-purple-200 text-lg font-medium max-w-2xl mx-auto mb-10">شعارك يصل يومياً إلى آلاف رجال الأعمال والشخصيات المؤثرة عبر منشوراتنا على جميع منصات التواصل الاجتماعي</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">علامتك التجارية<br>أمام من يتخذ القرار — يومياً</h1>
+    <p class="text-purple-200 text-lg font-medium max-w-2xl mx-auto mb-10">جمهورنا ليس عاماً — هم رجال أعمال ومديرون وشخصيات مؤثرة. وصولك إليهم عبر منصتنا يعني وصولك إلى من يُنفق ويُقرر ويُوصي</p>
 
     <!-- Stats -->
     <div class="flex items-center justify-center gap-6 md:gap-12 flex-wrap">
@@ -106,8 +106,8 @@ include 'includes/header.php';
 <!-- ═══════ WHAT YOU GET ═══════ -->
 <section class="py-14 bg-white">
   <div class="max-w-5xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">ماذا يعني أن تكون شريكنا؟</h2>
-    <p class="text-gray-400 text-center mb-10 font-medium">وصولك المباشر إلى أصحاب القرار والنخب العربية</p>
+    <h2 class="pi-reveal text-2xl font-black text-gray-800 text-center mb-2">ماذا تحصل عليه كشريك في المنصة؟</h2>
+    <p class="pi-reveal pi-delay-1 text-gray-400 text-center mb-10 font-medium">ليس مجرد إعلان — بل حضور يومي أمام أصحاب القرار العرب في كل مكان يرونها</p>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div class="text-center p-6 rounded-2xl bg-purple-50 border border-purple-100">
         <div class="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center mx-auto mb-4">
@@ -159,8 +159,8 @@ include 'includes/header.php';
 <!-- ═══════ WHO YOU REACH ═══════ -->
 <section class="py-14 bg-white">
   <div class="max-w-5xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">من تصل إليه إعلاناتك؟</h2>
-    <p class="text-gray-400 text-center mb-10 font-medium">جمهورنا من النخب العربية في مختلف القطاعات</p>
+    <h2 class="pi-reveal text-2xl font-black text-gray-800 text-center mb-2">من هو جمهورك على منصتنا؟</h2>
+    <p class="pi-reveal pi-delay-1 text-gray-400 text-center mb-10 font-medium">ليس الجمهور العام — هم النخبة التي يصعب الوصول إليها بالإعلانات التقليدية</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
       <?php
       $segments = [

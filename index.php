@@ -66,9 +66,9 @@ include 'includes/header.php';
       المنصة العربية الأولى للحضور الموثق
     </div>
     <h1 class="hero-animate-2 text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight pi-shimmer-text">
-      <?= htmlspecialchars($_S['hero_title'] ?? $_S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>
+      <?= htmlspecialchars($_S['hero_title'] ?? $_S['site_tagline'] ?? 'السجل العربي الأول للشخصيات والمؤسسات المؤثرة') ?>
     </h1>
-    <p class="hero-animate-3 text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['hero_subtitle'] ?? $_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
+    <p class="hero-animate-3 text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['hero_subtitle'] ?? $_S['site_description'] ?? 'حيث يجد الإعلام والأعمال والباحثون من يبحثون عنه في العالم العربي — بمعلومات موثّقة ودقيقة') ?></p>
 
     <div class="hero-animate-4">
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
@@ -153,6 +153,47 @@ include 'includes/header.php';
       class="inline-flex items-center gap-2 px-8 py-3 border-2 border-purple-400 text-purple-600 font-bold rounded-full hover:bg-purple-50 transition">
       تصفح كل الشخصيات <i class="fa-solid fa-arrow-left"></i>
     </a>
+  </div>
+</section>
+
+<!-- WHO USES THE PLATFORM -->
+<section class="bg-white border-t border-gray-100 py-16">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <div>
+        <p class="pi-reveal text-xs font-black text-purple-600 tracking-widest uppercase mb-3">من يستخدم المنصة</p>
+        <h2 class="pi-reveal pi-delay-1 text-3xl font-black text-gray-900 leading-tight mb-6">
+          جهات وأفراد يعتمدون علينا<br>
+          <span style="color:#8829C8">كل يوم</span>
+        </h2>
+        <p class="pi-reveal pi-delay-2 text-gray-600 text-base leading-8 mb-5">
+          تستخدم منصتنا عدد كبير من المؤسسات الإعلامية، المؤسسات الحكومية، ولجان الترشيح للجوائز — حيث تساعدهم المعلومات الموثقة على التحقق من هوية الشخصيات واتخاذ قرارات أكثر ثقة.
+        </p>
+        <p class="pi-reveal pi-delay-3 text-gray-600 text-base leading-8">
+          وعلى المستوى الدولي، تلجأ مؤسسات التحقق <strong>KYC</strong> ومراكز البحث إلى ملفاتنا للحصول على معلومات دقيقة وموثوقة عن الشخصيات والمؤسسات العربية — في ثوانٍ لا ساعات.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <?php
+        $use_cases = [
+          ['fa-newspaper','text-purple-600','bg-purple-50','border-purple-100','الإعلام والصحافة','التحقق من الشخصيات قبل المقابلات والتغطيات'],
+          ['fa-landmark','text-blue-600','bg-blue-50','border-blue-100','المؤسسات الحكومية','مرجع رسمي للملفات الموثقة لأصحاب المناصب'],
+          ['fa-trophy','text-amber-600','bg-amber-50','border-amber-100','لجان الجوائز','التحقق من أهلية المرشحين بمعلومات موثقة'],
+          ['fa-shield-halved','text-green-600','bg-green-50','border-green-100','KYC والامتثال','التحقق من الهوية للمؤسسات المالية والدولية'],
+        ];
+        foreach ($use_cases as $i => list($icon,$tc,$bg,$bc,$title,$desc)):
+          $dl = ['','pi-delay-1','pi-delay-2','pi-delay-3'][$i];
+        ?>
+        <div class="pi-reveal <?= $dl ?> <?= $bg ?> border <?= $bc ?> rounded-2xl p-5">
+          <div class="w-10 h-10 rounded-xl <?= $bg ?> flex items-center justify-center mb-3 border border-white shadow-sm">
+            <i class="fa-solid <?= $icon ?> <?= $tc ?> text-lg"></i>
+          </div>
+          <h3 class="font-black text-gray-800 text-sm mb-1"><?= $title ?></h3>
+          <p class="text-gray-500 text-xs leading-relaxed"><?= $desc ?></p>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
   </div>
 </section>
 
