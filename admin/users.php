@@ -142,7 +142,7 @@ if ($view_uid) {
         $er = $mysqli->query("SELECT er.*,
           CASE WHEN er.er_entity_type='personality' THEN (SELECT p_name_ar FROM pi_personalities WHERE p_id=er.er_entity_id)
                ELSE (SELECT inst_name_ar FROM pi_institutions WHERE inst_id=er.er_entity_id) END AS entity_name
-          FROM pi_edit_requests er WHERE er.er_user_id=$view_uid ORDER BY er.er_created DESC LIMIT 20");
+          FROM pi_edit_requests er WHERE er.er_user_id=$view_uid AND er.er_req_type='edit' ORDER BY er.er_created DESC LIMIT 20");
         if ($er) while ($row=$er->fetch_assoc()) $view_edit_reqs[] = $row;
         $cr = $mysqli->query("SELECT cmp_id,cmp_type,cmp_subject,cmp_status,cmp_created FROM pi_complaints WHERE cmp_user_id=$view_uid ORDER BY cmp_created DESC LIMIT 20");
         if ($cr) while ($row=$cr->fetch_assoc()) $view_cmps[] = $row;
@@ -304,12 +304,11 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
     </div>
 
     <!-- KPI Bar -->
-    <div class="grid grid-cols-3 md:grid-cols-6 border-t border-white/10">
+    <div class="grid grid-cols-3 md:grid-cols-5 border-t border-white/10">
       <?php
       $kpis = [
         ['label'=>'الاقتراحات',       'val'=>count($view_subs),         'icon'=>'fa-inbox',           'color'=>'text-violet-300'],
         ['label'=>'طلبات التعديل',    'val'=>$edit_reqs_count,          'icon'=>'fa-pen-to-square',   'color'=>'text-amber-300'],
-        ['label'=>'طلبات الترقية',    'val'=>$upgrade_reqs_count,       'icon'=>'fa-crown',           'color'=>'text-yellow-300'],
         ['label'=>'الشكاوى',          'val'=>count($view_cmps),         'icon'=>'fa-message',         'color'=>'text-blue-300'],
         ['label'=>'الصفحات المرتبطة', 'val'=>$linked_total,             'icon'=>'fa-id-card',         'color'=>'text-emerald-300'],
         ['label'=>'معلق للمراجعة',    'val'=>$pending_items,            'icon'=>'fa-clock',           'color'=>$pending_items?'text-red-300':'text-purple-300'],
@@ -622,18 +621,6 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
             </span>
             <?php endif; ?>
           </button>
-          <button @click="tab='upgrades'"
-            :class="tab==='upgrades' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
-            class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
-            <i class="fa-solid fa-crown text-xs"></i>
-            طلبات الترقية
-            <?php if ($upgrade_reqs_count): ?>
-            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black"
-              :class="tab==='upgrades' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-600'">
-              <?= $upgrade_reqs_count ?>
-            </span>
-            <?php endif; ?>
-          </button>
           <button @click="tab='cmps'"
             :class="tab==='cmps' ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
             class="flex items-center gap-2 px-5 py-4 text-sm font-bold whitespace-nowrap transition border-b-2 border-transparent">
@@ -737,41 +724,6 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
               <i class="fa-solid fa-note-sticky mt-0.5"></i>
               <span><?= htmlspecialchars($er['er_notes']) ?></span>
             </div>
-            <?php endif; ?>
-          </div>
-          <?php endforeach; endif; ?>
-        </div>
-
-        <!-- Tab: Upgrade Requests -->
-        <div x-show="tab==='upgrades'" class="divide-y divide-gray-50">
-          <?php if (empty($upgrade_reqs_list)): ?>
-          <div class="py-16 text-center">
-            <i class="fa-solid fa-crown text-5xl text-gray-200 block mb-3"></i>
-            <p class="text-gray-400 font-semibold">لا توجد طلبات ترقية</p>
-          </div>
-          <?php else: foreach ($upgrade_reqs_list as $er):
-            $erst = $er_status_map[$er['er_status']];
-            $is_exec = $er['er_upgrade_to'] === 'executive';
-          ?>
-          <div class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 <?= $is_exec ? 'bg-amber-100' : 'bg-blue-100' ?>">
-              <i class="fa-solid <?= $is_exec ? 'fa-crown text-amber-500' : 'fa-circle-check text-blue-500' ?> text-base"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-0.5">
-                <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($er['entity_name'] ?? 'محذوف') ?></p>
-                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $erst['class'] ?>"><?= $erst['text'] ?></span>
-              </div>
-              <p class="text-xs text-gray-400">
-                طلب ترقية إلى
-                <span class="font-bold <?= $is_exec ? 'text-amber-600' : 'text-blue-600' ?>"><?= $is_exec ? 'تنفيذي' : 'موثق' ?></span>
-                · <?= date('d/m/Y', strtotime($er['er_created'])) ?>
-              </p>
-            </div>
-            <?php if ($er['er_status']==='pending'): ?>
-            <a href="admin.php?p=edit_requests" class="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition flex-shrink-0">
-              مراجعة <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i>
-            </a>
             <?php endif; ?>
           </div>
           <?php endforeach; endif; ?>

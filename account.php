@@ -130,19 +130,35 @@ $r = $mysqli->query("SELECT p_id,p_name_ar,p_name_en,p_title,p_nationality,p_res
 if ($r) while ($row=$r->fetch_assoc()) $my_personalities[] = $row;
 $r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_name_en,inst_description,inst_logo,inst_active,inst_verified,inst_views,inst_membership_type FROM pi_institutions WHERE inst_added_by_user=" . (int)$user['u_id'] . " ORDER BY inst_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_institutions[] = $row;
-// Load pending/rejected submissions still awaiting review
-$my_pending_subs = [];
-$r = $mysqli->query("SELECT sub_id,sub_type,sub_data,sub_status,sub_created FROM pi_submissions WHERE sub_user_id=" . (int)$user['u_id'] . " AND sub_status IN ('pending','rejected') ORDER BY sub_id DESC");
+// Load all submissions by user (all statuses)
+$my_all_subs = [];
+$r = $mysqli->query("SELECT sub_id,sub_type,sub_data,sub_status,sub_created FROM pi_submissions WHERE sub_user_id=" . (int)$user['u_id'] . " ORDER BY sub_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) {
     $d = json_decode($row['sub_data'] ?? '{}', true);
-    $row['_name'] = $row['sub_type'] === 'personality' ? ($d['p_name_ar'] ?? '') : ($d['inst_name_ar'] ?? '');
-    $row['_photo'] = $row['sub_type'] === 'personality' ? ($d['p_photo'] ?? '') : ($d['inst_logo'] ?? '');
-    $my_pending_subs[] = $row;
+    $row['_name']  = $row['sub_type'] === 'personality' ? ($d['p_name_ar'] ?? '') : ($d['inst_name_ar'] ?? '');
+    $row['_photo'] = $row['sub_type'] === 'personality' ? ($d['p_photo']  ?? '') : ($d['inst_logo']   ?? '');
+    // For approved ones, try to find the actual entity's verification status
+    $row['_verified']  = false;
+    $row['_mem_type']  = 'standard';
+    if ($row['sub_status'] === 'approved' && $row['_name']) {
+        $ename = pi_escape($row['_name']);
+        if ($row['sub_type'] === 'personality') {
+            $ev = $mysqli->query("SELECT p_verified,p_membership_type FROM pi_personalities WHERE p_name_ar='$ename' LIMIT 1");
+        } else {
+            $ev = $mysqli->query("SELECT inst_verified AS p_verified,inst_membership_type AS p_membership_type FROM pi_institutions WHERE inst_name_ar='$ename' LIMIT 1");
+        }
+        if ($ev && $ev->num_rows) {
+            $evr = $ev->fetch_assoc();
+            $row['_verified'] = (bool)$evr['p_verified'];
+            $row['_mem_type'] = $evr['p_membership_type'] ?? 'standard';
+        }
+    }
+    $my_all_subs[] = $row;
 }
 
-// Load my edit requests
+// Load my edit requests (type='edit' only — upgrade requests are in memberships tab)
 $my_requests = [];
-$r = $mysqli->query("SELECT * FROM pi_edit_requests WHERE er_user_id=" . (int)$user['u_id'] . " ORDER BY er_created DESC LIMIT 20");
+$r = $mysqli->query("SELECT * FROM pi_edit_requests WHERE er_user_id=" . (int)$user['u_id'] . " AND er_req_type='edit' ORDER BY er_created DESC LIMIT 20");
 if ($r) while ($row=$r->fetch_assoc()) $my_requests[] = $row;
 
 // Load complaints
@@ -429,102 +445,77 @@ include 'includes/header.php';
 
         <?php
         $sub_filter = $_GET['stype'] ?? 'all';
-        $sub_tabs = ['all'=>'الكل','verified'=>'موثقة','unverified'=>'غير موثقة','pending'=>'قيد التدقيق','rejected'=>'تم الرفض'];
+        $sub_tabs   = ['all'=>'الكل','pending'=>'قيد المراجعة','approved'=>'مقبول','rejected'=>'مرفوض'];
+        // Count per status for badges
+        $sub_counts = ['all'=>count($my_all_subs),'pending'=>0,'approved'=>0,'rejected'=>0];
+        foreach ($my_all_subs as $s) { if (isset($sub_counts[$s['sub_status']])) $sub_counts[$s['sub_status']]++; }
+        // Apply filter
+        $filtered_subs = $sub_filter === 'all' ? $my_all_subs : array_filter($my_all_subs, function($s) use ($sub_filter){ return $s['sub_status'] === $sub_filter; });
         ?>
-        <div class="flex gap-2 flex-wrap mb-4">
+        <div class="flex gap-2 flex-wrap mb-5">
           <?php foreach ($sub_tabs as $sk => $sl): ?>
           <a href="account.php?tab=submissions&stype=<?= $sk ?>"
-            class="px-3 py-1.5 text-xs font-bold rounded-lg transition <?= $sub_filter === $sk ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition <?= $sub_filter === $sk ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
             <?= $sl ?>
+            <?php if ($sub_counts[$sk]): ?>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-black <?= $sub_filter === $sk ? 'bg-white/30 text-white' : 'bg-gray-300 text-gray-600' ?>"><?= $sub_counts[$sk] ?></span>
+            <?php endif; ?>
           </a>
           <?php endforeach; ?>
         </div>
 
-        <?php
-        $all_subs = array_merge(
-            array_map(function($p){ return array_merge($p, ['_type'=>'personality','_src'=>'published']); }, $my_personalities),
-            array_map(function($i){ return array_merge($i, ['_type'=>'institution','_src'=>'published']); }, $my_institutions)
-        );
-        $has_anything = !empty($all_subs) || !empty($my_pending_subs);
-        if (!$has_anything):
-        ?>
+        <?php if (empty($my_all_subs)): ?>
         <div class="text-center py-16 text-gray-300">
           <i class="fa-solid fa-pen-to-square text-5xl mb-4"></i>
-          <p class="font-semibold text-gray-400">عفواً لا يوجد شخصيات أو شركات تم إضافتها</p>
+          <p class="font-semibold text-gray-400">لم تقترح أي شخصية أو مؤسسة بعد</p>
+        </div>
+        <?php elseif (empty($filtered_subs)): ?>
+        <div class="text-center py-10 text-gray-300">
+          <i class="fa-solid fa-filter text-3xl mb-3"></i>
+          <p class="font-semibold text-gray-400 text-sm">لا توجد اقتراحات في هذه الحالة</p>
         </div>
         <?php else: ?>
-
-        <?php if (!empty($my_pending_subs)): ?>
-        <div class="mb-5">
-          <h3 class="text-sm font-black text-gray-500 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-clock text-yellow-500"></i> قيد المراجعة / مرفوضة
-          </h3>
-          <div class="space-y-2">
-          <?php foreach ($my_pending_subs as $ps):
-            $ps_is_p = $ps['sub_type'] === 'personality';
-            $ps_pending = $ps['sub_status'] === 'pending';
-          ?>
-          <div class="flex items-center gap-3 p-3 rounded-xl border <?= $ps_pending ? 'border-yellow-200 bg-yellow-50' : 'border-red-100 bg-red-50' ?> transition">
-            <?php if ($ps['_photo']): ?>
-              <img src="<?= htmlspecialchars($ps['_photo']) ?>" class="w-10 h-10 rounded-xl object-cover flex-shrink-0">
-            <?php else: ?>
-              <div class="w-10 h-10 rounded-xl <?= $ps_pending ? 'bg-yellow-200' : 'bg-red-200' ?> flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-<?= $ps_is_p ? 'user' : 'building' ?> text-<?= $ps_pending ? 'yellow' : 'red' ?>-600 text-sm"></i>
-              </div>
-            <?php endif; ?>
-            <div class="flex-1 min-w-0">
-              <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($ps['_name'] ?: '(بدون اسم)') ?></p>
-              <div class="flex items-center gap-2 mt-0.5">
-                <span class="text-xs px-2 py-0.5 rounded-full <?= $ps_is_p ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' ?> font-bold">
-                  <?= $ps_is_p ? 'شخصية' : 'شركة' ?>
-                </span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $ps_pending ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-700' ?>">
-                  <?= $ps_pending ? 'قيد المراجعة' : 'تم الرفض' ?>
-                </span>
-              </div>
-            </div>
-          </div>
-          <?php endforeach; ?>
-          </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if (!empty($all_subs)): ?>
         <div class="space-y-3">
-          <?php foreach ($all_subs as $item):
-            $is_p = $item['_type'] === 'personality';
-            $name  = $is_p ? $item['p_name_ar']  : $item['inst_name_ar'];
-            $photo = $is_p ? ($item['p_photo']??'') : ($item['inst_logo']??'');
-            $link  = $is_p ? "profile.php?id={$item['p_id']}" : "institution.php?id={$item['inst_id']}";
-            $active = $is_p ? $item['p_active'] : $item['inst_active'];
-            $verified = $is_p ? $item['p_verified'] : $item['inst_verified'];
+          <?php foreach ($filtered_subs as $sub):
+            $sub_is_p = $sub['sub_type'] === 'personality';
+            // Status styles
+            $sstyles = [
+              'pending'  => ['text'=>'قيد المراجعة', 'cls'=>'bg-yellow-100 text-yellow-700', 'icon'=>'fa-clock'],
+              'approved' => ['text'=>'مقبول',         'cls'=>'bg-green-100 text-green-700',  'icon'=>'fa-circle-check'],
+              'rejected' => ['text'=>'مرفوض',         'cls'=>'bg-red-100 text-red-700',      'icon'=>'fa-xmark'],
+            ];
+            $ss = $sstyles[$sub['sub_status']] ?? $sstyles['pending'];
+            // Membership badge for approved
+            $mem_badge = ''; $mem_cls = '';
+            if ($sub['sub_status'] === 'approved') {
+              if ($sub['_mem_type'] === 'executive') { $mem_badge='تنفيذي'; $mem_cls='bg-amber-100 text-amber-700'; }
+              elseif ($sub['_mem_type'] === 'verified' || $sub['_verified']) { $mem_badge='موثق'; $mem_cls='bg-blue-100 text-blue-700'; }
+              else { $mem_badge='عادي'; $mem_cls='bg-gray-100 text-gray-500'; }
+            }
           ?>
           <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition">
-            <?php if ($photo): ?>
-              <img src="<?= htmlspecialchars($photo) ?>" class="w-10 h-10 rounded-xl object-cover border border-gray-100 flex-shrink-0">
+            <?php if ($sub['_photo']): ?>
+            <img src="<?= htmlspecialchars($sub['_photo']) ?>" class="w-10 h-10 <?= $sub_is_p ? 'rounded-full' : 'rounded-xl' ?> object-cover border border-gray-100 flex-shrink-0">
             <?php else: ?>
-              <div class="w-10 h-10 rounded-xl pi-gradient flex items-center justify-center flex-shrink-0">
-                <span class="text-white font-black text-sm"><?= mb_substr($name,0,1) ?></span>
-              </div>
+            <div class="w-10 h-10 <?= $sub_is_p ? 'rounded-full' : 'rounded-xl' ?> <?= $sub_is_p ? 'bg-purple-100' : 'bg-indigo-100' ?> flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid <?= $sub_is_p ? 'fa-user text-purple-500' : 'fa-building text-indigo-500' ?> text-sm"></i>
+            </div>
             <?php endif; ?>
             <div class="flex-1 min-w-0">
-              <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($name) ?></p>
-              <div class="flex items-center gap-2 mt-0.5">
-                <span class="text-xs px-2 py-0.5 rounded-full <?= $is_p ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' ?> font-bold">
-                  <?= $is_p ? 'شخصية' : 'شركة' ?>
+              <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($sub['_name'] ?: '(بدون اسم)') ?></p>
+              <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $sub_is_p ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' ?>">
+                  <?= $sub_is_p ? 'شخصية' : 'مؤسسة' ?>
                 </span>
-                <?php if ($verified): ?>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">موثقة</span>
-                <?php elseif ($active): ?>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">نشطة</span>
-                <?php else: ?>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">غير نشطة</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $ss['cls'] ?>">
+                  <i class="fa-solid <?= $ss['icon'] ?> ml-0.5"></i><?= $ss['text'] ?>
+                </span>
+                <?php if ($mem_badge): ?>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <?= $mem_cls ?>"><?= $mem_badge ?></span>
                 <?php endif; ?>
+                <span class="text-[10px] text-gray-400"><?= date('d/m/Y', strtotime($sub['sub_created'])) ?></span>
               </div>
             </div>
-            <a href="<?= $link ?>" class="text-xs font-bold text-purple-600 hover:text-purple-800 whitespace-nowrap">
-              عرض <i class="fa-solid fa-arrow-left text-xs"></i>
-            </a>
           </div>
           <?php endforeach; ?>
         </div>
@@ -822,14 +813,31 @@ include 'includes/header.php';
                 // Toggle plan boxes
                 ['plan-verified-monthly','plan-verified-lifetime'].forEach(function(id){ var e=document.getElementById(id); if(e) e.classList.toggle('hidden',isExec); });
                 ['plan-executive-monthly','plan-executive-lifetime'].forEach(function(id){ var e=document.getElementById(id); if(e) e.classList.toggle('hidden',!isExec); });
-                // Auto-select lifetime plan
+                // Auto-select lifetime plan and highlight it
+                document.querySelectorAll('#upgrade-plan-boxes label').forEach(function(lb){
+                  lb.classList.remove('border-purple-500','bg-purple-50','border-amber-500','bg-amber-50');
+                  lb.classList.add('border-gray-200');
+                });
                 var lv = isExec ? document.getElementById('plan-executive-lifetime') : document.getElementById('plan-verified-lifetime');
-                if (lv) { var ri = lv.querySelector('input'); if(ri) ri.checked = true; }
+                if (lv) {
+                  var ri = lv.querySelector('input'); if(ri) ri.checked = true;
+                  lv.classList.remove('border-gray-200');
+                  lv.classList.add(isExec ? 'border-amber-500' : 'border-purple-500', isExec ? 'bg-amber-50' : 'bg-purple-50');
+                }
               }
               document.querySelectorAll('#upgrade-plan-boxes label').forEach(function(lbl){
-                lbl.addEventListener('click',function(){
+                lbl.addEventListener('click', function(){
                   var ri = this.querySelector('input[type=radio]');
-                  if(ri) ri.checked=true;
+                  if(ri) ri.checked = true;
+                  // Update visual highlight: remove from all, add to clicked
+                  var isExec = (document.querySelector('input[name="upgrade_to"]:checked') || {}).value === 'executive';
+                  var color  = isExec ? ['amber-500','amber-50'] : ['purple-500','purple-50'];
+                  document.querySelectorAll('#upgrade-plan-boxes label').forEach(function(lb){
+                    lb.classList.remove('border-purple-500','bg-purple-50','border-amber-500','bg-amber-50');
+                    lb.classList.add('border-gray-200');
+                  });
+                  this.classList.remove('border-gray-200');
+                  this.classList.add('border-'+color[0], 'bg-'+color[1]);
                 });
               });
               </script>
@@ -870,24 +878,28 @@ include 'includes/header.php';
         // Pre-fill current values
         var d = (_entityData[type] || {})[id] || {};
         if (reqType === 'edit') {
-          if (type === 'personality') {
-            document.querySelector('[name=name_ar]').value     = d.name_ar   || '';
-            document.querySelector('[name=name_en]').value     = d.name_en   || '';
-            document.querySelector('[name=title]').value       = d.title     || '';
-            document.querySelector('[name=nationality]').value = d.nationality|| '';
-            document.querySelector('[name=residence]').value   = d.residence || '';
-            document.querySelector('[name=bio]').value         = d.bio ? d.bio.replace(/<[^>]+>/g,'') : '';
-            // Show current photo preview
-            var pp = document.getElementById('edit-photo-prev-p');
-            if (d.photo && pp) { pp.src = d.photo; pp.classList.remove('hidden'); }
-            else if (pp) pp.classList.add('hidden');
-          } else {
-            document.querySelector('[name=name_ar]').value      = d.name_ar    || '';
-            document.querySelector('[name=name_en]').value      = d.name_en    || '';
-            document.querySelector('[name=description]').value  = d.description ? d.description.replace(/<[^>]+>/g,'') : '';
-            var pi = document.getElementById('edit-photo-prev-i');
-            if (d.photo && pi) { pi.src = d.photo; pi.classList.remove('hidden'); }
-            else if (pi) pi.classList.add('hidden');
+          // Use scoped querySelector to avoid selecting wrong section's inputs
+          var sec = document.getElementById(type === 'personality' ? 'personality-edit-fields' : 'institution-edit-fields');
+          if (sec) {
+            var q = function(n){ return sec.querySelector('[name='+n+']'); };
+            if (type === 'personality') {
+              if(q('name_ar'))     q('name_ar').value     = d.name_ar    || '';
+              if(q('name_en'))     q('name_en').value     = d.name_en    || '';
+              if(q('title'))       q('title').value       = d.title      || '';
+              if(q('nationality')) q('nationality').value = d.nationality || '';
+              if(q('residence'))   q('residence').value   = d.residence  || '';
+              if(q('bio'))         q('bio').value         = d.bio ? d.bio.replace(/<[^>]+>/g,'') : '';
+              var pp = document.getElementById('edit-photo-prev-p');
+              if (d.photo && pp) { pp.src = d.photo; pp.classList.remove('hidden'); }
+              else if (pp) pp.classList.add('hidden');
+            } else {
+              if(q('name_ar'))     q('name_ar').value     = d.name_ar     || '';
+              if(q('name_en'))     q('name_en').value     = d.name_en     || '';
+              if(q('description')) q('description').value = d.description ? d.description.replace(/<[^>]+>/g,'') : '';
+              var pi = document.getElementById('edit-photo-prev-i');
+              if (d.photo && pi) { pi.src = d.photo; pi.classList.remove('hidden'); }
+              else if (pi) pi.classList.add('hidden');
+            }
           }
         }
         // Reset file inputs
