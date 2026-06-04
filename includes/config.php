@@ -117,6 +117,31 @@ define('PERM', [
     'manage_submissions'  => 35,
     'manage_edit_requests'=> 36,
     'manage_lists'        => 37,
+    // Granular additions
+    'add_sponsor'         => 38,
+    'edit_sponsor'        => 39,
+    'delete_sponsor'      => 40,
+    'add_timeline'        => 41,
+    'edit_timeline'       => 42,
+    'delete_timeline'     => 43,
+    'view_countries'      => 44,
+    'add_country'         => 45,
+    'edit_country'        => 46,
+    'delete_country'      => 47,
+    'view_labels'         => 48,
+    'add_label'           => 49,
+    'edit_label'          => 50,
+    'delete_label'        => 51,
+    'view_lists'          => 52,
+    'add_list'            => 53,
+    'edit_list'           => 54,
+    'delete_list'         => 55,
+    'view_users'          => 56,
+    'view_advertise'      => 57,
+    'view_memberships'    => 58,
+    'view_complaints'     => 59,
+    'view_submissions'    => 60,
+    'view_edit_requests'  => 61,
 ]);
 
 function pi_has_perm($perm_key) {
@@ -125,8 +150,21 @@ function pi_has_perm($perm_key) {
     return in_array($perm_id, $pi_user_permissions ?? []);
 }
 
+// Returns true if user has ANY of the given permission keys
+function pi_has_any_perm(...$keys) {
+    foreach ($keys as $k) { if (pi_has_perm($k)) return true; }
+    return false;
+}
+
 function pi_require_perm($perm_key) {
     if (!pi_has_perm($perm_key)) {
+        header('Location: admin.php?p=dashboard');
+        exit;
+    }
+}
+
+function pi_require_any_perm(...$keys) {
+    if (!pi_has_any_perm(...$keys)) {
         header('Location: admin.php?p=dashboard');
         exit;
     }

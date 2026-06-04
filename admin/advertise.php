@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_advertise');
+pi_require_any_perm('manage_advertise','view_advertise');
 // Ensure table exists
 $mysqli->query("CREATE TABLE IF NOT EXISTS pi_advertise (
   adv_id INT AUTO_INCREMENT PRIMARY KEY,

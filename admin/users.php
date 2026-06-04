@@ -1,6 +1,6 @@
 <?php
 pi_require_login();
-pi_require_perm('manage_users');
+pi_require_any_perm('manage_users','view_users');
 
 $msg = '';
 $msg_type = 'green';

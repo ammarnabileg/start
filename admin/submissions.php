@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_submissions');
+pi_require_any_perm('manage_submissions','view_submissions');
 $msg = '';
 $msg_type = 'green';
 $all_countries = pi_get_countries();

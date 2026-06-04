@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_memberships');
+pi_require_any_perm('manage_memberships','view_memberships');
 $mysqli->query("CREATE TABLE IF NOT EXISTS pi_memberships (
   mem_id INT AUTO_INCREMENT PRIMARY KEY,
   mem_type ENUM('verified','executive') DEFAULT 'verified',

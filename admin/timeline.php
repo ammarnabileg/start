@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('view_timeline');
+pi_require_any_perm('view_timeline','manage_timeline','add_timeline','edit_timeline','delete_timeline');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
@@ -17,16 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $order   = (int)($_POST['tl_order'] ?? 0);
 
         if ($id) {
-            pi_require_perm('manage_timeline');
+            pi_require_any_perm('manage_timeline','add_timeline','edit_timeline','delete_timeline');
             $mysqli->query("UPDATE pi_timeline SET tl_p_id=$p_id,tl_type='$type',tl_title='$title',tl_institution='$inst',tl_institution_id=".($inst_id?:0).",tl_year_start='$y_start',tl_year_end='$y_end',tl_order=$order WHERE tl_id=$id");
         } else {
-            pi_require_perm('manage_timeline');
+            pi_require_any_perm('manage_timeline','add_timeline','edit_timeline','delete_timeline');
             $mysqli->query("INSERT INTO pi_timeline (tl_p_id,tl_type,tl_title,tl_institution,tl_institution_id,tl_year_start,tl_year_end,tl_order) VALUES ($p_id,'$type','$title','$inst',".($inst_id?:0).",'$y_start','$y_end',$order)");
         }
         $msg = 'تم الحفظ'; $action = 'list';
     }
     if ($act === 'delete_timeline') {
-        pi_require_perm('manage_timeline');
+        pi_require_any_perm('manage_timeline','add_timeline','edit_timeline','delete_timeline');
         $id = (int)($_POST['tl_id'] ?? 0);
         $mysqli->query("DELETE FROM pi_timeline WHERE tl_id=$id");
         $msg = 'تم الحذف';
@@ -89,7 +89,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
 <?php if ($msg): ?><div class="bg-green-50 border border-green-200 text-green-700 rounded-xl px-5 py-3 mb-5 font-bold text-sm"><i class="fa-solid fa-circle-check mr-2"></i><?= htmlspecialchars($msg) ?></div><?php endif; ?>
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-xl font-black text-gray-800">المحطات الزمنية (<?= count($list) ?>)</h2>
-  <?php if (pi_has_perm('manage_timeline')): ?>
+  <?php if (pi_has_any_perm('manage_timeline','add_timeline','edit_timeline','delete_timeline')): ?>
   <a href="admin.php?p=timeline&action=add" class="btn-primary flex items-center gap-2"><i class="fa-solid fa-plus"></i> إضافة محطة</a>
   <?php endif; ?>
 </div>
@@ -105,7 +105,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
         <td class="text-gray-500 text-xs"><?= htmlspecialchars($tl['tl_institution']??'—') ?></td>
         <td class="text-gray-400 text-xs"><?= $tl['tl_year_start'] ?><?= $tl['tl_year_end']?' — '.$tl['tl_year_end']:'' ?></td>
         <td><div class="flex gap-2">
-          <?php if (pi_has_perm('manage_timeline')): ?>
+          <?php if (pi_has_any_perm('manage_timeline','add_timeline','edit_timeline','delete_timeline')): ?>
           <a href="admin.php?p=timeline&action=edit&id=<?= $tl['tl_id'] ?>" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition"><i class="fa-solid fa-pen text-xs"></i></a>
           <form method="POST" onsubmit="return confirm('حذف؟')"><input type="hidden" name="action" value="delete_timeline"><input type="hidden" name="tl_id" value="<?= $tl['tl_id'] ?>"><button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-trash text-xs"></i></button></form>
           <?php endif; ?>

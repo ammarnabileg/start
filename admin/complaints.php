@@ -1,6 +1,6 @@
 <?php
 pi_require_login();
-pi_require_perm('manage_complaints');
+pi_require_any_perm('manage_complaints','view_complaints');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 

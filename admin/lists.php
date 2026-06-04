@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_lists');
+pi_require_any_perm('manage_lists','view_lists','add_list','edit_list','delete_list');
 
 // Migrate: add list_sponsors_json column if missing
 try { $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsors_json TEXT DEFAULT NULL"); } catch(Exception $e) { /* already exists */ }

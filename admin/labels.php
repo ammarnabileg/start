@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('view_categories');
+pi_require_any_perm('view_categories','view_labels','add_label','edit_label','delete_label');
 
 // Ensure table exists
 $mysqli->query("CREATE TABLE IF NOT EXISTS pi_labels (

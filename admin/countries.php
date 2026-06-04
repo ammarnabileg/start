@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_countries');
+pi_require_any_perm('manage_countries','view_countries','add_country','edit_country','delete_country');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 

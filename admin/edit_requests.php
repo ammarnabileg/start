@@ -1,5 +1,5 @@
 <?php
-pi_require_perm('manage_edit_requests');
+pi_require_any_perm('manage_edit_requests','view_edit_requests');
 $msg = '';
 
 /* ── Word-level diff helper ────────────────────────────────────────── */

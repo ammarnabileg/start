@@ -1,12 +1,12 @@
 <?php
-pi_require_perm('view_sponsors');
+pi_require_any_perm('view_sponsors','manage_sponsors','add_sponsor','edit_sponsor','delete_sponsor');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';
     if ($act === 'save_sponsor') {
-        pi_require_perm('manage_sponsors');
+        pi_require_any_perm('manage_sponsors','add_sponsor','edit_sponsor');
         $id    = (int)($_POST['sp_id'] ?? 0);
         $name  = pi_escape($_POST['sp_name'] ?? '');
         $url   = pi_escape($_POST['sp_url'] ?? '');
@@ -58,13 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg = 'تم الحفظ'; $action = 'list';
     }
     if ($act === 'delete_sponsor') {
-        pi_require_perm('manage_sponsors');
+        pi_require_any_perm('manage_sponsors','delete_sponsor');
         $id = (int)($_POST['sp_id'] ?? 0);
         $mysqli->query("DELETE FROM pi_sponsors WHERE sp_id=$id");
         $msg = 'تم الحذف';
     }
     if ($act === 'toggle_sponsor') {
-        pi_require_perm('manage_sponsors');
+        pi_require_any_perm('manage_sponsors','edit_sponsor');
         $id = (int)($_POST['sp_id'] ?? 0);
         $mysqli->query("UPDATE pi_sponsors SET sp_active=!sp_active WHERE sp_id=$id");
     }
@@ -162,7 +162,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
 <?php endif; ?>
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-xl font-black text-gray-800">الرعاة (<?= count($list) ?>)</h2>
-  <?php if (pi_has_perm('manage_sponsors')): ?>
+  <?php if (pi_has_any_perm('manage_sponsors','add_sponsor','edit_sponsor','delete_sponsor')): ?>
   <a href="admin.php?p=sponsors&action=add" class="btn-primary flex items-center gap-2"><i class="fa-solid fa-plus"></i> إضافة راعي</a>
   <?php endif; ?>
 </div>
@@ -186,7 +186,7 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
           <?= $sp['sp_active']?'نشط':'معطل' ?>
         </button>
       </form>
-      <?php if (pi_has_perm('manage_sponsors')): ?>
+      <?php if (pi_has_any_perm('manage_sponsors','add_sponsor','edit_sponsor','delete_sponsor')): ?>
       <a href="admin.php?p=sponsors&action=edit&id=<?= $sp['sp_id'] ?>"
         class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition">
         <i class="fa-solid fa-pen text-xs"></i>
