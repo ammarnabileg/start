@@ -161,7 +161,7 @@ if ($r) while ($row=$r->fetch_assoc()) {
 $my_sponsors = [];
 $sr = $mysqli->query("SELECT s.sp_id, s.sp_name, s.sp_logo, s.sp_url,
     (SELECT COUNT(*) FROM pi_lists WHERE list_sponsor_id=s.sp_id AND list_active=1) AS lists_count,
-    (SELECT COALESCE(SUM(list_views),0) FROM pi_lists WHERE list_sponsor_id=s.sp_id) AS total_views
+    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id) AS total_views
     FROM pi_sponsors s WHERE s.sp_user_id=" . (int)$user['u_id']);
 if ($sr) while ($row=$sr->fetch_assoc()) $my_sponsors[] = $row;
 
