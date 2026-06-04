@@ -105,32 +105,39 @@ include 'includes/header.php';
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
     <?php if (empty($personalities)): ?>
       <?php for ($i=0; $i<10; $i++): ?>
-      <div class="bg-white rounded-2xl p-4 shadow-sm text-center animate-pulse">
-        <div class="w-20 h-20 rounded-full bg-gray-200 mx-auto mb-3"></div>
-        <div class="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-        <div class="h-3 bg-gray-100 rounded w-1/2 mx-auto"></div>
+      <div class="bg-white rounded-2xl shadow-sm overflow-hidden animate-pulse">
+        <div class="w-full bg-gray-200" style="aspect-ratio:3/4"></div>
+        <div class="p-3"><div class="h-4 bg-gray-200 rounded w-3/4 mb-1"></div><div class="h-3 bg-gray-100 rounded w-1/2"></div></div>
       </div>
       <?php endfor; ?>
     <?php else: ?>
       <?php foreach ($personalities as $i => $p): ?>
       <a href="profile.php?id=<?= $p['p_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-        class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center block relative">
+        class="bg-white rounded-2xl shadow-sm card-hover block relative overflow-hidden">
         <?php if ($cid && ($p['p_country_id']??0) == $cid): ?>
-        <span class="absolute top-2 left-2 w-2 h-2 bg-purple-500 rounded-full" title="من الدولة المختارة"></span>
+        <span class="absolute top-2 left-2 w-2 h-2 bg-purple-500 rounded-full z-10" title="من الدولة المختارة"></span>
         <?php endif; ?>
-        <?php if ($p['p_photo']): ?>
-          <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
-            class="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-purple-100">
-        <?php else: ?>
-          <div class="w-20 h-20 rounded-full mx-auto mb-3 bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center">
-            <span class="text-white font-bold text-2xl"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
-          </div>
-        <?php endif; ?>
-        <h3 class="font-bold text-gray-800 text-sm leading-tight mb-1">
-          <?= htmlspecialchars($p['p_name_ar']) ?>
-          <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-        </h3>
-        <p class="text-gray-400 text-xs"><?= htmlspecialchars($p['p_title'] ?? '') ?></p>
+        <!-- Portrait photo -->
+        <div style="aspect-ratio:3/4;overflow:hidden;background:#f3f4f6;">
+          <?php if ($p['p_photo']): ?>
+            <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
+              style="width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(20%);transition:filter .3s,transform .3s;"
+              onmouseover="this.style.filter='grayscale(0)';this.style.transform='scale(1.03)'"
+              onmouseout="this.style.filter='grayscale(20%)';this.style.transform='scale(1)'">
+          <?php else: ?>
+            <div style="width:100%;height:100%;background:linear-gradient(135deg,#6d28d9,#1d4ed8);display:flex;align-items:center;justify-content:center;">
+              <span style="color:#fff;font-weight:900;font-size:2.5rem;"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
+            </div>
+          <?php endif; ?>
+        </div>
+        <!-- Info -->
+        <div class="p-3">
+          <h3 class="font-bold text-gray-800 text-sm leading-snug mb-0.5">
+            <?= htmlspecialchars($p['p_name_ar']) ?>
+            <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
+          </h3>
+          <p class="text-gray-400 text-xs leading-snug"><?= htmlspecialchars($p['p_title'] ?? '') ?></p>
+        </div>
       </a>
       <?php endforeach; ?>
     <?php endif; ?>

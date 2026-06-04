@@ -4,22 +4,28 @@ require_once 'includes/config.php';
 
 function render_person_card($p) {
     ob_start(); ?>
-    <a href="profile.php?id=<?= $p['p_id'] ?>" class="bg-white rounded-2xl p-3 shadow-sm card-hover text-center block">
-      <?php if (!empty($p['p_photo'])): ?>
-        <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
-          class="w-14 h-14 rounded-full mx-auto mb-2 object-cover border-2 border-purple-100">
-      <?php else: ?>
-        <div class="w-14 h-14 rounded-full pi-gradient flex items-center justify-center mx-auto mb-2">
-          <span class="text-white font-black text-lg"><?= mb_substr($p['p_name_ar'], 0, 1) ?></span>
-        </div>
-      <?php endif; ?>
-      <h3 class="font-bold text-gray-800 text-xs leading-tight">
-        <?= htmlspecialchars($p['p_name_ar']) ?>
-        <?php if (!empty($p['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-      </h3>
-      <?php if (!empty($p['p_title'])): ?>
-        <p class="text-gray-400 text-xs mt-0.5 truncate"><?= htmlspecialchars($p['p_title']) ?></p>
-      <?php endif; ?>
+    <a href="profile.php?id=<?= $p['p_id'] ?>" class="bg-white rounded-2xl shadow-sm card-hover block overflow-hidden">
+      <div style="aspect-ratio:3/4;overflow:hidden;background:#f3f4f6;">
+        <?php if (!empty($p['p_photo'])): ?>
+          <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
+            style="width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(20%);transition:filter .3s,transform .3s;"
+            onmouseover="this.style.filter='grayscale(0)';this.style.transform='scale(1.03)'"
+            onmouseout="this.style.filter='grayscale(20%)';this.style.transform='scale(1)'">
+        <?php else: ?>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#6d28d9,#1d4ed8);display:flex;align-items:center;justify-content:center;">
+            <span style="color:#fff;font-weight:900;font-size:2rem;"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
+          </div>
+        <?php endif; ?>
+      </div>
+      <div class="p-2.5">
+        <h3 class="font-bold text-gray-800 text-xs leading-snug">
+          <?= htmlspecialchars($p['p_name_ar']) ?>
+          <?php if (!empty($p['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
+        </h3>
+        <?php if (!empty($p['p_title'])): ?>
+          <p class="text-gray-400 text-xs mt-0.5 leading-snug"><?= htmlspecialchars($p['p_title']) ?></p>
+        <?php endif; ?>
+      </div>
     </a>
     <?php return ob_get_clean();
 }

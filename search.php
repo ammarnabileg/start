@@ -65,19 +65,26 @@ include 'includes/header.php';
   <h3 class="font-black text-gray-700 text-lg mb-4"><i class="fa-solid fa-users text-blue-400 mr-2"></i>الشخصيات</h3>
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
     <?php foreach ($personalities as $p): ?>
-    <a href="profile.php?id=<?= $p['p_id'] ?>" class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center block">
-      <?php if ($p['p_photo']): ?>
-        <img src="<?= htmlspecialchars($p['p_photo']) ?>" class="w-16 h-16 rounded-full mx-auto mb-2 object-cover">
-      <?php else: ?>
-        <div class="w-16 h-16 rounded-full mx-auto mb-2 pi-gradient flex items-center justify-center text-white font-bold text-xl">
-          <?= mb_substr($p['p_name_ar'],0,1) ?>
-        </div>
-      <?php endif; ?>
-      <p class="font-bold text-gray-800 text-xs leading-tight">
-        <?= htmlspecialchars($p['p_name_ar']) ?>
-        <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-      </p>
-      <p class="text-gray-400 text-xs mt-0.5"><?= htmlspecialchars($p['p_title']??'') ?></p>
+    <a href="profile.php?id=<?= $p['p_id'] ?>" class="bg-white rounded-2xl shadow-sm card-hover block overflow-hidden">
+      <div style="aspect-ratio:3/4;overflow:hidden;background:#f3f4f6;">
+        <?php if ($p['p_photo']): ?>
+          <img src="<?= htmlspecialchars($p['p_photo']) ?>"
+            style="width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(20%);transition:filter .3s,transform .3s;"
+            onmouseover="this.style.filter='grayscale(0)';this.style.transform='scale(1.03)'"
+            onmouseout="this.style.filter='grayscale(20%)';this.style.transform='scale(1)'">
+        <?php else: ?>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#6d28d9,#1d4ed8);display:flex;align-items:center;justify-content:center;">
+            <span style="color:#fff;font-weight:900;font-size:2rem;"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
+          </div>
+        <?php endif; ?>
+      </div>
+      <div class="p-2.5">
+        <p class="font-bold text-gray-800 text-xs leading-snug">
+          <?= htmlspecialchars($p['p_name_ar']) ?>
+          <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
+        </p>
+        <p class="text-gray-400 text-xs mt-0.5 leading-snug"><?= htmlspecialchars($p['p_title']??'') ?></p>
+      </div>
     </a>
     <?php endforeach; ?>
   </div>

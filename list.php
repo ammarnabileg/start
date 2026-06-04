@@ -372,58 +372,54 @@ if (!empty($all_sponsors)):
           $col1_val  = ($col1['source']??'manual')==='profile' ? profile_col($item,$col1['key']) : ($item['_data'][$col1['key']]??'');
       }
     ?>
-    <a href="<?= $info['link'] ?>" style="flex:1;min-width:180px;max-width:<?= $is_first?'260px':'230px' ?>;
+    <a href="<?= $info['link'] ?>" style="flex:1;min-width:160px;max-width:<?= $is_first?'240px':'210px' ?>;
       background:#fff;border-radius:20px;border:2px solid <?= $cfg['border'] ?>;
       box-shadow:0 8px 32px <?= $cfg['glow'] ?>,0 2px 8px rgba(0,0,0,.06);
-      text-decoration:none;display:flex;flex-direction:column;align-items:center;
-      padding:24px 16px 20px;position:relative;transition:transform .2s,box-shadow .2s;
-      <?= $is_first ? 'transform:translateY(-12px);' : '' ?>"
-      onmouseover="this.style.transform='translateY(<?= $is_first?'-16px':'-4px' ?>)'"
-      onmouseout="this.style.transform='translateY(<?= $is_first?'-12px':'0' ?>)'">
+      text-decoration:none;display:flex;flex-direction:column;overflow:hidden;
+      position:relative;transition:transform .2s,box-shadow .2s;
+      <?= $is_first ? 'transform:translateY(-14px);' : '' ?>"
+      onmouseover="this.style.transform='translateY(<?= $is_first?'-18px':'-4px' ?>)'"
+      onmouseout="this.style.transform='translateY(<?= $is_first?'-14px':'0' ?>)'">
 
-      <!-- Medal emoji -->
-      <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);
-        background:<?= $cfg['grad'] ?>;color:#fff;width:<?= $is_first?'42px':'36px' ?>;height:<?= $is_first?'42px':'36px' ?>;
+      <!-- Medal badge (top-left corner) -->
+      <div style="position:absolute;top:10px;right:10px;z-index:2;
+        background:<?= $cfg['grad'] ?>;color:#fff;width:32px;height:32px;
         border-radius:50%;display:flex;align-items:center;justify-content:center;
-        font-size:<?= $is_first?'20px':'17px' ?>;font-weight:900;border:3px solid #fff;
-        box-shadow:0 4px 12px <?= $cfg['glow'] ?>;">
+        font-size:15px;font-weight:900;border:2px solid rgba(255,255,255,.8);
+        box-shadow:0 2px 8px <?= $cfg['glow'] ?>;">
         <?= $rank ?>
       </div>
 
-      <!-- Photo -->
-      <div style="margin-top:10px;margin-bottom:14px;">
+      <!-- Portrait Photo -->
+      <div style="width:100%;aspect-ratio:<?= $info['is_p']?'3/4':'1/1' ?>;overflow:hidden;background:#f3f4f6;flex-shrink:0;">
         <?php if ($info['photo']): ?>
         <img src="<?= htmlspecialchars($info['photo']) ?>" alt=""
-          style="width:<?= $is_first?'90px':'72px' ?>;height:<?= $is_first?'90px':'72px' ?>;
-          border-radius:<?= $info['is_p']?'50%':'16px' ?>;object-fit:cover;
-          border:3px solid <?= $cfg['border'] ?>;box-shadow:0 4px 16px <?= $cfg['glow'] ?>;">
+          style="width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(15%);transition:filter .3s,transform .3s;"
+          onmouseover="this.style.filter='grayscale(0)';this.style.transform='scale(1.04)'"
+          onmouseout="this.style.filter='grayscale(15%)';this.style.transform='scale(1)'">
         <?php else: ?>
-        <div style="width:<?= $is_first?'90px':'72px' ?>;height:<?= $is_first?'90px':'72px' ?>;
-          border-radius:<?= $info['is_p']?'50%':'16px' ?>;background:<?= $cfg['grad'] ?>;
-          display:flex;align-items:center;justify-content:center;color:#fff;
-          font-weight:900;font-size:<?= $is_first?'32px':'26px' ?>;
-          border:3px solid <?= $cfg['border'] ?>;">
+        <div style="width:100%;height:100%;background:<?= $cfg['grad'] ?>;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:<?= $is_first?'3rem':'2.5rem' ?>;">
           <?= mb_substr($info['name'],0,1) ?>
         </div>
         <?php endif; ?>
       </div>
 
-      <!-- Name -->
-      <p style="font-weight:900;font-size:<?= $is_first?'16px':'14px' ?>;color:#111827;margin:0 0 4px;text-align:center;line-height:1.3;">
-        <?= htmlspecialchars($info['name']) ?>
-        <?php if ($info['verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:12px;margin-right:3px;"></i><?php endif; ?>
-      </p>
-      <?php if ($info['title']): ?>
-      <p style="font-size:11px;color:#9ca3af;font-weight:700;margin:0 0 12px;text-align:center;"><?= htmlspecialchars($info['title']) ?></p>
-      <?php endif; ?>
-
-      <!-- First column value -->
-      <?php if ($col1_val !== ''): ?>
-      <div style="background:#f9fafb;border-radius:10px;padding:7px 14px;margin-top:4px;text-align:center;">
-        <?php if ($col1_lbl): ?><span style="font-size:9px;color:#9ca3af;font-weight:800;display:block;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;"><?= htmlspecialchars($col1_lbl) ?></span><?php endif; ?>
-        <?= fmt_col($col1_val, $col1_type) ?>
+      <!-- Name & info -->
+      <div style="padding:12px 14px 14px;">
+        <p style="font-weight:900;font-size:<?= $is_first?'15px':'13px' ?>;color:#111827;margin:0 0 3px;line-height:1.3;">
+          <?= htmlspecialchars($info['name']) ?>
+          <?php if ($info['verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:11px;margin-right:3px;"></i><?php endif; ?>
+        </p>
+        <?php if ($info['title']): ?>
+        <p style="font-size:11px;color:#9ca3af;font-weight:600;margin:0 0 8px;line-height:1.3;"><?= htmlspecialchars($info['title']) ?></p>
+        <?php endif; ?>
+        <?php if ($col1_val !== ''): ?>
+        <div style="background:#f9fafb;border-radius:8px;padding:6px 10px;display:inline-block;">
+          <?php if ($col1_lbl): ?><span style="font-size:9px;color:#9ca3af;font-weight:800;display:block;letter-spacing:.5px;margin-bottom:2px;"><?= htmlspecialchars($col1_lbl) ?></span><?php endif; ?>
+          <?= fmt_col($col1_val, $col1_type) ?>
+        </div>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </a>
     <?php endforeach; ?>
   </div>
@@ -473,12 +469,13 @@ if (!empty($all_sponsors)):
               <a href="<?= $info['link'] ?>" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
                 <?php if ($info['photo']): ?>
                 <img src="<?= htmlspecialchars($info['photo']) ?>" alt=""
-                  style="width:42px;height:42px;border-radius:<?= $info['is_p']?'50%':'10px' ?>;object-fit:cover;
-                  border:1.5px solid #ede9fe;flex-shrink:0;">
+                  style="width:<?= $info['is_p']?'34px':'42px' ?>;height:<?= $info['is_p']?'44px':'42px' ?>;
+                  border-radius:<?= $info['is_p']?'8px':'10px' ?>;object-fit:cover;object-position:top;
+                  border:1.5px solid #ede9fe;flex-shrink:0;filter:grayscale(15%);">
                 <?php else: ?>
-                <div style="width:42px;height:42px;border-radius:<?= $info['is_p']?'50%':'10px' ?>;
+                <div style="width:34px;height:44px;border-radius:8px;
                   background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;
-                  justify-content:center;color:#fff;font-weight:900;font-size:15px;flex-shrink:0;">
+                  justify-content:center;color:#fff;font-weight:900;font-size:14px;flex-shrink:0;">
                   <?= mb_substr($info['name'],0,1) ?>
                 </div>
                 <?php endif; ?>
