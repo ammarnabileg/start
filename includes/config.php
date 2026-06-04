@@ -237,9 +237,11 @@ function pi_create_user_tables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 pi_create_user_tables();
-// Add user tracking columns if missing
-$mysqli->query("ALTER TABLE pi_personalities ADD COLUMN IF NOT EXISTS p_added_by_user INT DEFAULT NULL");
-$mysqli->query("ALTER TABLE pi_institutions ADD COLUMN IF NOT EXISTS inst_added_by_user INT DEFAULT NULL");
+// Add user tracking columns if missing (safe for all MySQL/MariaDB versions)
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_added_by_user'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_added_by_user INT DEFAULT NULL");
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_institutions LIKE 'inst_added_by_user'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_institutions ADD COLUMN inst_added_by_user INT DEFAULT NULL");
 
 function pi_user_logged_in() {
     return !empty($_SESSION['pi_user_id']);
@@ -272,6 +274,20 @@ function pi_get_categories() {
     return $cats;
 }
 
+// ── Edit requests table ────────────────────────────────────────────────────
+$mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
+    er_id INT AUTO_INCREMENT PRIMARY KEY,
+    er_user_id INT NOT NULL,
+    er_entity_type ENUM('personality','institution') DEFAULT 'personality',
+    er_entity_id INT NOT NULL,
+    er_edit_data TEXT,
+    er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    er_admin_note TEXT,
+    er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_er_user (er_user_id),
+    INDEX idx_er_status (er_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // ── Lists feature tables ───────────────────────────────────────────────────
 function pi_create_list_tables() {
     global $mysqli;
@@ -284,7 +300,7 @@ function pi_create_list_tables() {
         list_cover VARCHAR(500) DEFAULT '',
         list_logo VARCHAR(500) DEFAULT '',
         list_year VARCHAR(10) DEFAULT '',
-        list_columns JSON,
+        list_columns TEXT,
         list_active TINYINT DEFAULT 1,
         list_order INT DEFAULT 0,
         list_views INT DEFAULT 0,
@@ -298,7 +314,7 @@ function pi_create_list_tables() {
         li_entity_type ENUM('personality','institution') NOT NULL,
         li_entity_id INT NOT NULL,
         li_rank INT DEFAULT 0,
-        li_data JSON,
+        li_data TEXT,
         li_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_list (li_list_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -314,10 +330,13 @@ function pi_create_list_tables() {
 }
 pi_create_list_tables();
 
-// ── Lists: add sponsor + spotlight columns if missing ──────────────────────
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_id INT DEFAULT NULL");
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_img VARCHAR(500) DEFAULT ''");
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_url VARCHAR(500) DEFAULT ''");
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_sponsor_name VARCHAR(300) DEFAULT ''");
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_spotlight JSON");
-$mysqli->query("ALTER TABLE pi_lists ADD COLUMN IF NOT EXISTS list_criteria TEXT DEFAULT ''");
+// ── Lists: add sponsor + spotlight columns if missing (safe for all versions) ─
+$r = $mysqli->query("SHOW COLUMNS FROM pi_lists LIKE 'list_sponsor_id'");
+if ($r && $r->num_rows === 0) {
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_id INT DEFAULT NULL");
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_img VARCHAR(500) DEFAULT ''");
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_url VARCHAR(500) DEFAULT ''");
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_sponsor_name VARCHAR(300) DEFAULT ''");
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_spotlight TEXT DEFAULT NULL");
+    $mysqli->query("ALTER TABLE pi_lists ADD COLUMN list_criteria TEXT DEFAULT NULL");
+}

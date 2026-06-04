@@ -18,14 +18,14 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visits (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // ── Visit stats ───────────────────────────────────────────────────────────────
-$v_total  = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
-$v_unique = (int)$mysqli->query("SELECT COUNT(DISTINCT v_ip) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
-$v_today  = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=CURDATE()")->fetch_assoc()['c'];
-$v_yesterday = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(DISTINCT v_ip) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_unique = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=CURDATE()"); $v_today = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)"); $v_yesterday = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $v_trend = $v_yesterday > 0 ? round((($v_today - $v_yesterday) / $v_yesterday) * 100) : ($v_today > 0 ? 100 : 0);
 
 // prev period comparison
-$v_prev = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL ".($period*2)." DAY) AND v_created < DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL ".($period*2)." DAY) AND v_created < DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_prev = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $v_growth = $v_prev > 0 ? round((($v_total - $v_prev) / $v_prev) * 100) : ($v_total > 0 ? 100 : 0);
 
 // ── Chart data: visits per day ────────────────────────────────────────────────
@@ -48,21 +48,21 @@ $rp = $mysqli->query("SELECT v_page, COUNT(*) c FROM pi_visits WHERE v_created >
 if ($rp) while ($row=$rp->fetch_assoc()) $top_pages[] = $row;
 
 // ── Content counts ────────────────────────────────────────────────────────────
-$count_p       = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1")->fetch_assoc()['c'];
-$count_inst    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_active=1")->fetch_assoc()['c'];
-$count_cats    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_categories WHERE cat_active=1")->fetch_assoc()['c'];
-$count_arts    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_articles WHERE art_active=1")->fetch_assoc()['c'];
-$count_verified= (int)$mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_verified=1 AND p_active=1")->fetch_assoc()['c'];
-$count_exec    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_membership_type='executive' AND p_active=1")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1");   $count_p = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_active=1"); $count_inst = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_categories WHERE cat_active=1");    $count_cats = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_articles WHERE art_active=1");      $count_arts = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_verified=1 AND p_active=1"); $count_verified = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_membership_type='executive' AND p_active=1"); $count_exec = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // new this period
-$new_p    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
-$new_inst = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $new_p = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $new_inst = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // ── Users ─────────────────────────────────────────────────────────────────────
-$count_users   = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=1")->fetch_assoc()['c'];
-$new_users     = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)")->fetch_assoc()['c'];
-$blocked_users = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=0")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=1");       $count_users   = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $new_users = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=0");       $blocked_users = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // ── Pending actions ───────────────────────────────────────────────────────────
 $pending_subs = 0; $r = $mysqli->query("SHOW TABLES LIKE 'pi_submissions'"); if ($r&&$r->num_rows) $pending_subs = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_submissions WHERE sub_status='pending'")->fetch_assoc()['c'];
@@ -89,9 +89,9 @@ $r = $mysqli->query("SELECT u_name,u_email,u_plan,u_created FROM pi_users ORDER 
 if ($r) while ($row=$r->fetch_assoc()) $recent_users[] = $row;
 
 // ── Plan distribution ─────────────────────────────────────────────────────────
-$plan_free     = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='free'")->fetch_assoc()['c'];
-$plan_verified = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='verified'")->fetch_assoc()['c'];
-$plan_exec     = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='executive'")->fetch_assoc()['c'];
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='free'");        $plan_free     = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='verified'");    $plan_verified = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='executive'");   $plan_exec     = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // ── Hourly visits today (for bar chart) ──────────────────────────────────────
 $hourly = array_fill(0, 24, 0);
