@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $r && $r->num_rows ? $r->fetch_assoc() : null;
         if ($user && password_verify($pass, $user['u_password'])) {
             $_SESSION['pi_user_id'] = $user['u_id'];
-            $dest = ($red && strpos($red, 'http') === false) ? $red : 'account.php';
+            $dest = ($red && strpos($red, 'http') === false && strpos($red, '//') === false && strpos($red, 'javascript') === false) ? $red : 'account.php';
             header('Location: ' . $dest);
             exit;
         } else {

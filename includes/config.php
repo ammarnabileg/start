@@ -283,13 +283,23 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
     er_user_id INT NOT NULL,
     er_entity_type ENUM('personality','institution') DEFAULT 'personality',
     er_entity_id INT NOT NULL,
+    er_req_type ENUM('edit','upgrade') NOT NULL DEFAULT 'edit',
+    er_upgrade_to ENUM('verified','executive','') DEFAULT '',
     er_edit_data TEXT,
+    er_notes TEXT,
     er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
     er_admin_note TEXT,
     er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_er_user (er_user_id),
     INDEX idx_er_status (er_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+// Add missing columns to pi_edit_requests if table already exists without them
+$_er_cols = $mysqli->query("SHOW COLUMNS FROM pi_edit_requests LIKE 'er_req_type'");
+if ($_er_cols && $_er_cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_edit_requests ADD COLUMN er_req_type ENUM('edit','upgrade') NOT NULL DEFAULT 'edit'");
+$_er_cols = $mysqli->query("SHOW COLUMNS FROM pi_edit_requests LIKE 'er_upgrade_to'");
+if ($_er_cols && $_er_cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_edit_requests ADD COLUMN er_upgrade_to ENUM('verified','executive','') DEFAULT ''");
+$_er_cols = $mysqli->query("SHOW COLUMNS FROM pi_edit_requests LIKE 'er_notes'");
+if ($_er_cols && $_er_cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_edit_requests ADD COLUMN er_notes TEXT");
 
 // ── Lists feature tables ───────────────────────────────────────────────────
 function pi_create_list_tables() {

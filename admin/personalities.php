@@ -433,7 +433,7 @@ if ($filter === 'executive') $where .= " AND p_membership_type='executive'";
 $page_num = max(1,(int)($_GET['page']??1));
 $per_page = 20;
 $offset   = ($page_num-1)*$per_page;
-$total    = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE $where")->fetch_assoc()['c'];
+$_tr = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE $where"); $total = $_tr ? (int)$_tr->fetch_assoc()['c'] : 0;
 $total_pages = max(1,ceil($total/$per_page));
 
 $list = [];

@@ -308,7 +308,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         <?php
         $adv_rc = $mysqli->query("SHOW TABLES LIKE 'pi_advertise'");
         if ($adv_rc && $adv_rc->num_rows) {
-            $adv_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_advertise WHERE adv_status='new'")->fetch_assoc()['c'];
+            $adv_r2 = $mysqli->query("SELECT COUNT(*) c FROM pi_advertise WHERE adv_status='new'"); $adv_new = $adv_r2 ? (int)$adv_r2->fetch_assoc()['c'] : 0;
             if ($adv_new > 0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$adv_new.'</span>';
         }
         ?>
@@ -322,7 +322,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         <?php
         $mem_rc = $mysqli->query("SHOW TABLES LIKE 'pi_memberships'");
         if ($mem_rc && $mem_rc->num_rows) {
-            $mem_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_memberships WHERE mem_status='pending'")->fetch_assoc()['c'];
+            $mem_r2 = $mysqli->query("SELECT COUNT(*) c FROM pi_memberships WHERE mem_status='pending'"); $mem_new = $mem_r2 ? (int)$mem_r2->fetch_assoc()['c'] : 0;
             if ($mem_new > 0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$mem_new.'</span>';
         }
         ?>

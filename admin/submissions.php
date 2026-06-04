@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$status_filter = $_GET['status'] ?? 'pending';
+$status_filter = in_array($_GET['status'] ?? '', ['pending','approved','rejected']) ? $_GET['status'] : 'pending';
 $submissions   = [];
 $r = $mysqli->query("SELECT s.*, u.u_name, u.u_email FROM pi_submissions s LEFT JOIN pi_users u ON s.sub_user_id=u.u_id WHERE s.sub_status='$status_filter' ORDER BY s.sub_created DESC LIMIT 50");
 if ($r) while ($row = $r->fetch_assoc()) $submissions[] = $row;
