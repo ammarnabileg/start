@@ -418,7 +418,7 @@ function openApplyModal(dataStr) {
   }
 
   var fieldDefs = isP
-    ? [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'title',l:'المسمى الوظيفي',type:'text'},{k:'nationality',l:'الجنسية',type:'select'},{k:'residence',l:'الإقامة',type:'select'},{k:'bio',l:'السيرة الذاتية',type:'textarea'}]
+    ? [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'title',l:'المسمى الوظيفي',type:'text'},{k:'nationality',l:'الجنسية',type:'select'},{k:'residence',l:'الإقامة',type:'text'},{k:'bio',l:'السيرة الذاتية',type:'textarea'}]
     : [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'country',l:'الدولة',type:'select'},{k:'description',l:'الوصف',type:'textarea'}];
 
   var html = '';

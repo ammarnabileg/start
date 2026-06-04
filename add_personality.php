@@ -171,14 +171,7 @@ include 'includes/header.php';
         </div>
         <div>
           <label class="add-form-label">بلد الإقامة</label>
-          <select name="p_residence" class="add-form-input">
-            <option value="">— اختر البلد —</option>
-            <?php foreach ($all_countries as $cn): ?>
-            <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($_POST['p_residence']??'')===$cn['c_name']?'selected':'' ?>>
-              <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
-            </option>
-            <?php endforeach; ?>
-          </select>
+          <input type="text" name="p_residence" class="add-form-input" placeholder="مثال: دبي، لندن، القاهرة..." value="<?= htmlspecialchars($_POST['p_residence']??'') ?>">
         </div>
 
         <!-- صورة شخصية - رفع فقط -->

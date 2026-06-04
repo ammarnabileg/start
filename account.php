@@ -734,12 +734,7 @@ include 'includes/header.php';
                     </div>
                     <div>
                       <label class="block text-xs font-bold text-gray-600 mb-1">بلد الإقامة</label>
-                      <select name="residence" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
-                        <option value="">— اختر —</option>
-                        <?php foreach ($all_countries as $cn): ?>
-                        <option value="<?= htmlspecialchars($cn['c_name']) ?>"><?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?></option>
-                        <?php endforeach; ?>
-                      </select>
+                      <input type="text" name="residence" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" placeholder="مثال: دبي، لندن...">
                     </div>
                   </div>
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">النبذة / السيرة الذاتية</label><textarea name="bio" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أكتب التعديل المطلوب..."></textarea></div>

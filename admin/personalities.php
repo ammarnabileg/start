@@ -123,14 +123,7 @@ if ($action === 'add' || $action === 'edit') {
       </div>
       <div>
         <label class="form-label">بلد الإقامة</label>
-        <select name="p_residence" class="form-input">
-          <option value="">— اختر —</option>
-          <?php foreach ($all_countries as $cn): ?>
-          <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($edit_p['p_residence']??'')==$cn['c_name']?'selected':'' ?>>
-            <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
-          </option>
-          <?php endforeach; ?>
-        </select>
+        <input type="text" name="p_residence" class="form-input" placeholder="مثال: دبي، لندن، القاهرة..." value="<?= htmlspecialchars($edit_p['p_residence']??'') ?>">
       </div>
       </div>
       <div>
