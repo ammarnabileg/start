@@ -10,14 +10,38 @@ $r = $mysqli->query("SELECT a.*, p.p_id, p.p_name_ar, p.p_photo, p.p_title AS p_
                      WHERE a.art_id=$art_id AND a.art_active=1");
 if (!$r || !$r->num_rows) { header('Location: blog.php'); exit; }
 $art = $r->fetch_assoc();
+$has_author = !empty($art['p_id']);
 
 $pageTitle = htmlspecialchars($art['art_title']) . ' - PioneerIcons';
 $total_count = pi_count_personalities() + pi_count_institutions();
 
 // Related articles from same personality
 $related = [];
-$r = $mysqli->query("SELECT * FROM pi_articles WHERE art_p_id={$art['art_p_id']} AND art_id!=$art_id AND art_active=1 ORDER BY art_id DESC LIMIT 4");
-if ($r) while ($row = $r->fetch_assoc()) $related[] = $row;
+if ($has_author) {
+    $r = $mysqli->query("SELECT * FROM pi_articles WHERE art_p_id={$art['art_p_id']} AND art_id!=$art_id AND art_active=1 ORDER BY art_id DESC LIMIT 4");
+    if ($r) while ($row = $r->fetch_assoc()) $related[] = $row;
+}
+
+// "قد تهمك" — other articles excluding current
+$suggested = [];
+$exc = $has_author ? "AND (art_p_id!={$art['art_p_id']} OR art_p_id IS NULL)" : '';
+$r = $mysqli->query("SELECT a.*, p.p_name_ar FROM pi_articles a LEFT JOIN pi_personalities p ON a.art_p_id=p.p_id WHERE a.art_active=1 AND a.art_id!=$art_id $exc ORDER BY a.art_id DESC LIMIT 6");
+if ($r) while ($row = $r->fetch_assoc()) $suggested[] = $row;
+
+// Sidebar: verified personalities
+$sidebar_verified = [];
+$r = $mysqli->query("SELECT p_id,p_name_ar,p_photo,p_title,p_verified FROM pi_personalities WHERE p_active=1 AND p_verified=1 ORDER BY p_views DESC LIMIT 5");
+if ($r) while ($row=$r->fetch_assoc()) $sidebar_verified[] = $row;
+
+// Sidebar: executive personalities
+$sidebar_exec = [];
+$r = $mysqli->query("SELECT p_id,p_name_ar,p_photo,p_title FROM pi_personalities WHERE p_active=1 AND p_membership_type='executive' ORDER BY p_views DESC LIMIT 5");
+if ($r) while ($row=$r->fetch_assoc()) $sidebar_exec[] = $row;
+
+// Sidebar: verified institutions
+$sidebar_inst = [];
+$r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_verified FROM pi_institutions WHERE inst_active=1 AND inst_verified=1 ORDER BY inst_views DESC LIMIT 5");
+if ($r) while ($row=$r->fetch_assoc()) $sidebar_inst[] = $row;
 
 include 'includes/header.php';
 ?>
@@ -102,21 +126,50 @@ include 'includes/header.php';
       <?php if (!empty($related)): ?>
       <div class="bg-white rounded-2xl shadow-sm p-6">
         <h3 class="font-black text-gray-800 mb-4">مقالات أخرى عن <?= htmlspecialchars($art['p_name_ar']) ?></h3>
-        <div class="space-y-4">
+        <div class="space-y-3">
           <?php foreach ($related as $rel): ?>
           <a href="article.php?id=<?= $rel['art_id'] ?>" class="flex gap-4 p-3 rounded-xl hover:bg-purple-50 transition">
             <?php if (!empty($rel['art_image'])): ?>
-              <img src="<?= htmlspecialchars($rel['art_image']) ?>" class="w-20 h-16 rounded-lg object-cover flex-shrink-0">
+              <img src="<?= htmlspecialchars($rel['art_image']) ?>" class="w-20 h-14 rounded-lg object-cover flex-shrink-0">
             <?php else: ?>
-              <div class="w-20 h-16 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-newspaper text-white"></i>
+              <div class="w-20 h-14 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-newspaper text-white text-sm"></i>
               </div>
             <?php endif; ?>
-            <div>
+            <div class="flex-1 min-w-0">
               <?php if (!empty($rel['art_source'])): ?>
-                <p class="text-xs text-gray-400 font-semibold mb-1"><?= htmlspecialchars($rel['art_source']) ?></p>
+                <p class="text-xs text-purple-600 font-bold mb-1"><?= htmlspecialchars($rel['art_source']) ?></p>
               <?php endif; ?>
-              <p class="font-bold text-gray-800 text-sm leading-snug"><?= htmlspecialchars($rel['art_title']) ?></p>
+              <p class="font-bold text-gray-800 text-sm leading-snug line-clamp-2"><?= htmlspecialchars($rel['art_title']) ?></p>
+            </div>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Suggested articles -->
+      <?php if (!empty($suggested)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-6">
+        <h3 class="font-black text-gray-800 mb-5">مقالات قد تهمك</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <?php foreach ($suggested as $sg): ?>
+          <a href="article.php?id=<?= $sg['art_id'] ?>" class="flex gap-3 p-3 rounded-xl hover:bg-gray-50 border border-gray-100 hover:border-purple-100 transition group">
+            <?php if (!empty($sg['art_image'])): ?>
+              <img src="<?= htmlspecialchars($sg['art_image']) ?>" class="w-16 h-14 rounded-lg object-cover flex-shrink-0">
+            <?php else: ?>
+              <div class="w-16 h-14 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-newspaper text-white text-xs"></i>
+              </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <?php if (!empty($sg['art_source'])): ?>
+                <p class="text-xs text-purple-600 font-bold mb-1"><?= htmlspecialchars($sg['art_source']) ?></p>
+              <?php endif; ?>
+              <p class="font-bold text-gray-800 text-xs leading-snug line-clamp-2 group-hover:text-purple-700 transition"><?= htmlspecialchars($sg['art_title']) ?></p>
+              <?php if (!empty($sg['p_name_ar'])): ?>
+                <p class="text-gray-400 text-xs mt-1"><?= htmlspecialchars($sg['p_name_ar']) ?></p>
+              <?php endif; ?>
             </div>
           </a>
           <?php endforeach; ?>
@@ -126,8 +179,11 @@ include 'includes/header.php';
 
     </div>
 
-    <!-- RIGHT SIDEBAR: Personality card -->
-    <div class="space-y-6">
+    <!-- RIGHT SIDEBAR -->
+    <div class="space-y-5">
+
+      <!-- Author card — only if article has a linked personality -->
+      <?php if ($has_author): ?>
       <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
         <p class="text-xs text-gray-400 font-semibold mb-4 uppercase tracking-wide">صاحب المقال</p>
         <a href="profile.php?id=<?= $art['p_id'] ?>">
@@ -160,6 +216,7 @@ include 'includes/header.php';
           عرض الملف الشخصي
         </a>
       </div>
+      <?php endif; ?>
 
       <!-- Share -->
       <div class="bg-white rounded-2xl shadow-sm p-5">
@@ -179,6 +236,102 @@ include 'includes/header.php';
           </a>
         </div>
       </div>
+
+      <!-- Verified personalities -->
+      <?php if (!empty($sidebar_verified)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-black text-gray-800 text-sm">شخصيات موثقة</h3>
+          <a href="personalities.php" class="text-xs text-purple-600 font-bold hover:underline">عرض الكل</a>
+        </div>
+        <div class="space-y-3">
+          <?php foreach ($sidebar_verified as $sp): ?>
+          <a href="profile.php?id=<?= $sp['p_id'] ?>" class="flex items-center gap-3 hover:bg-purple-50 rounded-xl p-2 transition group">
+            <?php if (!empty($sp['p_photo'])): ?>
+              <img src="<?= htmlspecialchars($sp['p_photo']) ?>" class="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-purple-100">
+            <?php else: ?>
+              <div class="w-10 h-10 rounded-full pi-gradient flex items-center justify-center flex-shrink-0">
+                <span class="text-white font-black text-sm"><?= mb_substr($sp['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-xs leading-snug group-hover:text-purple-700 transition truncate">
+                <?= htmlspecialchars($sp['p_name_ar']) ?>
+                <i class="fa-solid fa-circle-check verified-badge text-xs"></i>
+              </p>
+              <?php if (!empty($sp['p_title'])): ?>
+                <p class="text-gray-400 text-xs truncate"><?= htmlspecialchars($sp['p_title']) ?></p>
+              <?php endif; ?>
+            </div>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Executive personalities -->
+      <?php if (!empty($sidebar_exec)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-black text-gray-800 text-sm">شخصيات تنفيذية</h3>
+          <a href="personalities.php" class="text-xs text-purple-600 font-bold hover:underline">عرض الكل</a>
+        </div>
+        <div class="space-y-3">
+          <?php foreach ($sidebar_exec as $ep): ?>
+          <a href="profile.php?id=<?= $ep['p_id'] ?>" class="flex items-center gap-3 hover:bg-amber-50 rounded-xl p-2 transition group">
+            <?php if (!empty($ep['p_photo'])): ?>
+              <img src="<?= htmlspecialchars($ep['p_photo']) ?>" class="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-amber-100">
+            <?php else: ?>
+              <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+                <span class="text-white font-black text-sm"><?= mb_substr($ep['p_name_ar'],0,1) ?></span>
+              </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-xs leading-snug group-hover:text-amber-700 transition truncate flex items-center gap-1">
+                <i class="fa-solid fa-crown text-amber-500 text-xs flex-shrink-0"></i>
+                <?= htmlspecialchars($ep['p_name_ar']) ?>
+              </p>
+              <?php if (!empty($ep['p_title'])): ?>
+                <p class="text-gray-400 text-xs truncate"><?= htmlspecialchars($ep['p_title']) ?></p>
+              <?php endif; ?>
+            </div>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Verified institutions -->
+      <?php if (!empty($sidebar_inst)): ?>
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-black text-gray-800 text-sm">مؤسسات موثقة</h3>
+          <a href="all_institutions.php" class="text-xs text-purple-600 font-bold hover:underline">عرض الكل</a>
+        </div>
+        <div class="space-y-3">
+          <?php foreach ($sidebar_inst as $inst): ?>
+          <a href="institution.php?id=<?= $inst['inst_id'] ?>" class="flex items-center gap-3 hover:bg-blue-50 rounded-xl p-2 transition group">
+            <?php if (!empty($inst['inst_logo'])): ?>
+              <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" class="w-10 h-10 rounded-lg object-contain flex-shrink-0 border border-gray-100 bg-gray-50 p-1">
+            <?php else: ?>
+              <div class="w-10 h-10 rounded-lg pi-gradient flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-building text-white text-xs"></i>
+              </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-xs group-hover:text-blue-700 transition truncate">
+                <?= htmlspecialchars($inst['inst_name_ar']) ?>
+                <?php if (!empty($inst['inst_verified'])): ?>
+                  <i class="fa-solid fa-circle-check verified-badge text-xs"></i>
+                <?php endif; ?>
+              </p>
+            </div>
+          </a>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+
     </div>
   </div>
 </div>
