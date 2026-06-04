@@ -1425,12 +1425,24 @@ function toggleEdit(field) {
   }
 }
 function showStatsTab(which) {
-  document.getElementById('stats-personalities').classList.toggle('hidden', which !== 'personalities');
-  document.getElementById('stats-companies').classList.toggle('hidden', which !== 'companies');
-  document.getElementById('stats-sponsors').classList.toggle('hidden', which !== 'sponsors');
-  document.getElementById('st-p').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='personalities' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
-  document.getElementById('st-c').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='companies' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
-  document.getElementById('st-s').className = 'pb-3 text-sm font-bold border-b-2 ' + (which==='sponsors' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400') + ' transition';
+  var tabs = ['personalities','companies','sponsors'];
+  tabs.forEach(function(t) {
+    var el = document.getElementById('stats-' + t);
+    if (el) el.style.display = (t === which) ? 'block' : 'none';
+  });
+  // Active tab button styles
+  var btns = {'personalities':'st-p','companies':'st-c','sponsors':'st-s'};
+  Object.keys(btns).forEach(function(t) {
+    var btn = document.getElementById(btns[t]);
+    if (!btn) return;
+    if (t === which) {
+      btn.style.borderBottom = '3px solid #7c3aed';
+      btn.style.color = '#7c3aed';
+    } else {
+      btn.style.borderBottom = '3px solid transparent';
+      btn.style.color = '#9ca3af';
+    }
+  });
 }
 <?php if (isset($_GET['sent'])): ?>
 document.addEventListener('DOMContentLoaded', function(){
