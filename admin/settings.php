@@ -20,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fields = [
         'site_name','site_name_ar','site_tagline','site_description','site_keywords',
         'footer_about','social_whatsapp','social_linkedin','social_twitter',
+        'social_instagram','social_facebook','social_youtube','social_tiktok',
+        'social_snapchat','social_telegram','social_threads','social_pinterest',
         'primary_color','admin_email','copyright_text','google_analytics','default_country',
         'hero_title','hero_subtitle',
     ];
@@ -210,19 +212,29 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
         </div>
         روابط السوشيال ميديا
       </h3>
-      <div class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <?php
+        $socials_cfg = [
+          ['social_whatsapp',  'fab fa-whatsapp',      'text-green-500',  'واتساب',          'https://wa.me/...'],
+          ['social_instagram',  'fab fa-instagram',     'text-pink-500',   'إنستجرام',         'https://instagram.com/...'],
+          ['social_facebook',   'fab fa-facebook-f',    'text-blue-600',   'فيسبوك',           'https://facebook.com/...'],
+          ['social_twitter',    'fa-brands fa-x-twitter','text-gray-900',  'إكس (تويتر)',      'https://x.com/...'],
+          ['social_linkedin',   'fab fa-linkedin-in',   'text-blue-700',   'لينكدان',          'https://linkedin.com/...'],
+          ['social_youtube',    'fab fa-youtube',       'text-red-600',    'يوتيوب',           'https://youtube.com/@...'],
+          ['social_tiktok',     'fab fa-tiktok',        'text-gray-900',   'تيك توك',          'https://tiktok.com/@...'],
+          ['social_snapchat',   'fab fa-snapchat',      'text-yellow-400', 'سناب شات',         'https://snapchat.com/add/...'],
+          ['social_telegram',   'fab fa-telegram',      'text-sky-500',    'تيليجرام',         'https://t.me/...'],
+          ['social_threads',    'fab fa-threads',       'text-gray-800',   'ثريدز',            'https://threads.net/@...'],
+          ['social_pinterest',  'fab fa-pinterest',     'text-red-500',    'بينتريست',         'https://pinterest.com/...'],
+        ];
+        foreach ($socials_cfg as list($key, $icon, $color, $label, $ph)):
+        ?>
         <div>
-          <label class="form-label"><i class="fab fa-whatsapp text-green-500 mr-2"></i>واتساب</label>
-          <input type="url" name="social_whatsapp" class="form-input" dir="ltr" value="<?= htmlspecialchars($S['social_whatsapp'] ?? '') ?>" placeholder="https://wa.me/...">
+          <label class="form-label"><i class="<?= $icon ?> <?= $color ?> ml-1"></i><?= $label ?></label>
+          <input type="url" name="<?= $key ?>" class="form-input" dir="ltr"
+            value="<?= htmlspecialchars($S[$key] ?? '') ?>" placeholder="<?= $ph ?>">
         </div>
-        <div>
-          <label class="form-label"><i class="fab fa-linkedin-in text-blue-600 mr-2"></i>لينكدان</label>
-          <input type="url" name="social_linkedin" class="form-input" dir="ltr" value="<?= htmlspecialchars($S['social_linkedin'] ?? '') ?>" placeholder="https://linkedin.com/...">
-        </div>
-        <div>
-          <label class="form-label"><i class="fa-brands fa-x-twitter text-gray-900 mr-2"></i>إكس (تويتر)</label>
-          <input type="url" name="social_twitter" class="form-input" dir="ltr" value="<?= htmlspecialchars($S['social_twitter'] ?? '') ?>" placeholder="https://x.com/...">
-        </div>
+        <?php endforeach; ?>
       </div>
     </div>
 

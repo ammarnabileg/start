@@ -20,34 +20,29 @@ $_S_f = pi_get_settings();
         </div>
         <p class="text-gray-400 text-sm leading-7 mb-5"><?= htmlspecialchars($_S_f['footer_about'] ?? '') ?></p>
         <p class="text-gray-500 text-sm font-semibold mb-3">تابعنا الآن</p>
-        <div class="flex gap-3">
-          <?php if ($_S_f['social_whatsapp']): ?>
-          <a href="<?= htmlspecialchars($_S_f['social_whatsapp']) ?>" class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center hover:bg-green-600 transition">
-            <i class="fab fa-whatsapp"></i>
+        <div class="flex flex-wrap gap-2">
+          <?php
+          $footer_socials = [
+            ['social_whatsapp',  'fab fa-whatsapp',       'hover:bg-green-600'],
+            ['social_instagram',  'fab fa-instagram',      'hover:bg-gradient-to-br hover:from-pink-500 hover:to-yellow-400'],
+            ['social_facebook',   'fab fa-facebook-f',     'hover:bg-blue-600'],
+            ['social_twitter',    'fa-brands fa-x-twitter','hover:bg-gray-600'],
+            ['social_linkedin',   'fab fa-linkedin-in',    'hover:bg-blue-700'],
+            ['social_youtube',    'fab fa-youtube',        'hover:bg-red-600'],
+            ['social_tiktok',     'fab fa-tiktok',         'hover:bg-gray-700'],
+            ['social_snapchat',   'fab fa-snapchat',       'hover:bg-yellow-400 hover:text-gray-900'],
+            ['social_telegram',   'fab fa-telegram',       'hover:bg-sky-500'],
+            ['social_threads',    'fab fa-threads',        'hover:bg-gray-700'],
+            ['social_pinterest',  'fab fa-pinterest',      'hover:bg-red-600'],
+          ];
+          foreach ($footer_socials as list($key, $icon, $hover)):
+            if (empty($_S_f[$key])) continue;
+          ?>
+          <a href="<?= htmlspecialchars($_S_f[$key]) ?>" target="_blank" rel="noopener"
+            class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center <?= $hover ?> transition text-sm">
+            <i class="<?= $icon ?>"></i>
           </a>
-          <?php else: ?>
-          <span class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center opacity-40 cursor-not-allowed">
-            <i class="fab fa-whatsapp"></i>
-          </span>
-          <?php endif; ?>
-          <?php if ($_S_f['social_linkedin']): ?>
-          <a href="<?= htmlspecialchars($_S_f['social_linkedin']) ?>" class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-700 transition">
-            <i class="fab fa-linkedin-in"></i>
-          </a>
-          <?php else: ?>
-          <span class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center opacity-40 cursor-not-allowed">
-            <i class="fab fa-linkedin-in"></i>
-          </span>
-          <?php endif; ?>
-          <?php if ($_S_f['social_twitter']): ?>
-          <a href="<?= htmlspecialchars($_S_f['social_twitter']) ?>" class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-600 transition">
-            <i class="fa-brands fa-x-twitter"></i>
-          </a>
-          <?php else: ?>
-          <span class="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center opacity-40 cursor-not-allowed">
-            <i class="fa-brands fa-x-twitter"></i>
-          </span>
-          <?php endif; ?>
+          <?php endforeach; ?>
         </div>
       </div>
 
