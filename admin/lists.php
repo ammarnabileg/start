@@ -209,8 +209,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $msg = 'تم الحفظ بنجاح';
         $msg_type = 'green';
-        header("Location: admin.php?p=lists&edit=$id&saved=1");
-        exit;
     }
 
     // ── Delete list ────────────────────────────────────────────────────────
@@ -221,8 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mysqli->query("DELETE FROM pi_list_blocks WHERE lb_list_id=$id");
             $mysqli->query("DELETE FROM pi_lists WHERE list_id=$id");
         }
-        header('Location: admin.php?p=lists&deleted=1');
-        exit;
+        $msg = 'تم حذف القائمة';
+        $msg_type = 'red';
     }
 
     // ── Toggle active ──────────────────────────────────────────────────────
