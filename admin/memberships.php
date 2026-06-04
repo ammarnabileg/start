@@ -57,7 +57,7 @@ $plan_label = function($plan, $type) {
     if ($type === 'executive') return $plan === 'monthly' ? 'شهري $210' : 'مدى الحياة $250';
     return $plan === 'monthly' ? 'شهري $90' : 'مدى الحياة $99';
 };
-$plan_color = fn($t) => $t === 'executive' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700';
+$plan_color = function($t){ return $t === 'executive' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'; };
 ?>
 
 <!-- ══════════════════════════════════════════════

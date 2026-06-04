@@ -344,8 +344,8 @@ if (($_GET['tl_edit'] ?? '') && is_numeric($_GET['tl_edit'])) {
   <?php else: ?>
 
   <?php
-  $work_items = array_filter($tl_items, fn($i) => $i['tl_type'] === 'work');
-  $edu_items  = array_filter($tl_items, fn($i) => $i['tl_type'] === 'education');
+  $work_items = array_filter($tl_items, function($i){ return $i['tl_type'] === 'work'; });
+  $edu_items  = array_filter($tl_items, function($i){ return $i['tl_type'] === 'education'; });
   $sections   = [];
   if ($work_items) $sections['work']      = ['label'=>'💼 مسيرة العمل',   'items'=>$work_items, 'color'=>'#8829C8'];
   if ($edu_items)  $sections['education'] = ['label'=>'🎓 التعليم',        'items'=>$edu_items,  'color'=>'#2563eb'];

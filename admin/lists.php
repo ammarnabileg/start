@@ -928,7 +928,7 @@ function renderResults(items) {
   box.classList.remove('hidden');
 }
 
-var addedEntityIds = new Set(<?= json_encode(array_map(fn($i)=>$i['li_entity_type'].'-'.$i['li_entity_id'], $list_items)) ?>);
+var addedEntityIds = new Set(<?= json_encode(array_map(function($i){ return $i['li_entity_type'].'-'.$i['li_entity_id']; }, $list_items)) ?>);
 
 function addEntity(item) {
   document.getElementById('entity_results').classList.add('hidden');

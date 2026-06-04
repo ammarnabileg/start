@@ -520,7 +520,7 @@ new Chart(document.getElementById('visitsChart'), {
 new Chart(document.getElementById('hourlyChart'), {
   type: 'bar',
   data: {
-    labels: <?= json_encode(array_map(fn($h)=>$h.':00', range(0,23))) ?>,
+    labels: <?= json_encode(array_map(function($h){ return $h.':00'; }, range(0,23))) ?>,
     datasets: [{
       label: 'زيارات',
       data: <?= json_encode(array_values($hourly)) ?>,

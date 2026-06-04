@@ -69,7 +69,7 @@ if (!$sponsor && !empty($list['list_sponsor_img'])) {
 }
 
 // Filterable columns
-$filterable_cols = array_values(array_filter($list_columns, fn($c) => ($c['filterable']??0) && ($c['source']??'manual')==='manual'));
+$filterable_cols = array_values(array_filter($list_columns, function($c){ return ($c['filterable']??0) && ($c['source']??'manual')==='manual'; }));
 $filter_values = [];
 foreach ($filterable_cols as $col) {
     $vals = [];

@@ -450,8 +450,8 @@ include 'includes/header.php';
 
         <?php
         $all_subs = array_merge(
-            array_map(fn($p) => array_merge($p, ['_type'=>'personality']), $my_personalities),
-            array_map(fn($i) => array_merge($i, ['_type'=>'institution']), $my_institutions)
+            array_map(function($p){ return array_merge($p, ['_type'=>'personality']); }, $my_personalities),
+            array_map(function($i){ return array_merge($i, ['_type'=>'institution']); }, $my_institutions)
         );
         if (empty($all_subs)):
         ?>
