@@ -83,7 +83,7 @@ include 'includes/header.php';
       <i class="fa-solid fa-crown text-yellow-300 text-xs"></i> صوتك القيادي يستحق منصة تليق به
     </div>
     <h1 class="text-4xl md:text-5xl font-black mb-5 leading-tight">باقة الرؤساء التنفيذيين</h1>
-    <p class="text-amber-200 text-lg font-medium mb-8 max-w-xl mx-auto leading-relaxed">في عالم الأعمال اليوم، لا تقتصر القيادة على الإنجازات داخل الشركة، بل تمتد إلى الحضور الرقمي الذي يعبر عنك. كل يوم، يبحث المستثمرون، والشركاء، والإعلاميون عن اسمك.</p>
+    <p class="text-amber-200 text-lg font-medium mb-8 max-w-xl mx-auto leading-relaxed">كل يوم يبحث مستثمر أو صحفي أو شريك محتمل عن اسمك — السؤال هو: ماذا سيجد؟ هذه الباقة تضمن أنه سيجد الصورة التي تريدها أنت، لا أي صورة أخرى.</p>
     <div class="flex flex-wrap items-center justify-center gap-4">
       <a href="#pricing-section" onclick="event.preventDefault();document.getElementById('pricing-section').scrollIntoView({behavior:'smooth'})"
         class="inline-flex items-center gap-2 px-8 py-4 font-black rounded-2xl text-amber-900 hover:brightness-110 transition"
@@ -100,29 +100,29 @@ include 'includes/header.php';
 <!-- KEY BENEFITS -->
 <section class="py-14 bg-white">
   <div class="max-w-5xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">ماذا يتضمن باقة الرؤساء التنفيذيين؟</h2>
-    <p class="text-gray-400 text-center mb-10 font-medium">حضور رقمي متكامل يليق بمكانتك القيادية</p>
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">ما الذي سيتغير بعد انضمامك؟</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">نتائج ملموسة — لا وعود فارغة</p>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div class="rounded-2xl p-6 border-2 border-amber-100 bg-amber-50">
         <div class="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-4">
           <i class="fa-solid fa-crown text-white text-lg"></i>
         </div>
-        <h3 class="font-black text-gray-800 mb-2">سيرة ذاتية احترافية</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">سيرة ذاتية مصممة خصيصاً لتعكس مسيرتك القيادية بشكل استثنائي ومؤثر</p>
+        <h3 class="font-black text-gray-800 mb-2">يجدك الناس بصورتك التي تريدها</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">قصتك القيادية مكتوبة بشكل احترافي — أنت من يحدد ما يعرفه الآخرون عنك، لا محرك البحث</p>
       </div>
       <div class="rounded-2xl p-6 border-2 border-purple-100 bg-purple-50">
         <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style="background:linear-gradient(135deg,#8829C8,#5B1494)">
           <i class="fa-solid fa-star text-white text-lg"></i>
         </div>
-        <h3 class="font-black text-gray-800 mb-2">حضور رقمي مميز</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">ملفك يتصدر قسم الرؤساء التنفيذيين في كل الصفحات والبحث والتصنيفات</p>
+        <h3 class="font-black text-gray-800 mb-2">تتصدر النتائج قبل أي منافس</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">كل باحث عن اسمك أو مجالك يصل إليك أولاً — لأن ملفك مُعطى أولوية في البحث والتصنيفات</p>
       </div>
       <div class="rounded-2xl p-6 border-2 border-blue-100 bg-blue-50">
         <div class="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center mb-4">
           <i class="fa-solid fa-building text-white text-lg"></i>
         </div>
-        <h3 class="font-black text-gray-800 mb-2">حضور خاص في منصات مجرة</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">مثل مقابلة ضمن هارفارد بزنس ريفيو وإم آي تي تكنولوجي ريفيو العربية وغيرها</p>
+        <h3 class="font-black text-gray-800 mb-2">تفتح أبواباً لم تكن متاحة</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">حضور في منصات إعلامية عربية كبرى — فرص للتعرف عليك من جمهور لم يكن يعلم بوجودك</p>
       </div>
     </div>
   </div>
@@ -168,13 +168,13 @@ include 'includes/header.php';
         </div>
       </div>
       <ul class="space-y-3 flex-1 mb-8">
-        <li class="flex items-center gap-2 text-sm text-gray-700 font-semibold"><i class="fa-solid fa-circle-check text-blue-500 w-4"></i> <span>شارة التوثيق الزرقاء <span class="text-xs text-blue-500 font-bold">(مشمولة)</span></span></li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-crown text-yellow-500 w-4"></i> شارة الرئيس التنفيذي الذهبية</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> صفحة شخصية مميزة VIP</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> ظهور أولوية قصوى في البحث</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> إدارة كاملة لمحتوى صفحتك</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> دعم مخصص على مدار الساعة</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 font-semibold"><i class="fa-solid fa-circle-check text-blue-500 w-4 mt-0.5"></i> <span>يثق بك الجمهور فوراً <span class="text-xs text-blue-500 font-bold">(شارة موثق مشمولة)</span></span></li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-crown text-yellow-500 w-4 mt-0.5"></i> يعرف الجميع أنك في مستوى القيادة التنفيذية</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> صفحتك تنطق بثقلك — تصميم VIP لا يشبه أي ملف عادي</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> تظهر أولاً لكل من يبحث في مجالك</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> أنت من يتحكم في قصتك — تعدّل وقتما تشاء</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> بطاقتك الرسمية جاهزة للتحميل في أي اجتماع</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> فريقنا بجانبك متى احتجت — لا تنتظر</li>
       </ul>
       <button onclick="choosePlan('monthly','executive')"
         class="w-full py-3.5 font-black rounded-xl hover:opacity-90 transition text-white" style="background:linear-gradient(135deg,#92400e,#b45309)">
@@ -199,14 +199,14 @@ include 'includes/header.php';
         <p class="text-amber-200 text-sm mt-1">دفعة واحدة — مدى الحياة</p>
       </div>
       <ul class="space-y-3 flex-1 mb-8">
-        <li class="flex items-center gap-2 text-sm font-semibold"><i class="fa-solid fa-circle-check text-blue-300 w-4"></i> <span>شارة التوثيق الزرقاء <span class="text-xs text-blue-300">(مشمولة)</span></span></li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-yellow-300 w-4"></i> شارة الرئيس التنفيذي الذهبية</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> صفحة شخصية مميزة VIP</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> ظهور أولوية قصوى في البحث</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> إدارة كاملة لمحتوى صفحتك</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> دعم مخصص على مدار الساعة</li>
-        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4"></i> تجديد مجاني مدى الحياة</li>
+        <li class="flex items-start gap-2 text-sm font-semibold"><i class="fa-solid fa-circle-check text-blue-300 w-4 mt-0.5"></i> <span>يثق بك الجمهور فوراً <span class="text-xs text-blue-300">(شارة موثق مشمولة)</span></span></li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-crown text-yellow-300 w-4 mt-0.5"></i> يعرف الجميع أنك في مستوى القيادة التنفيذية</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> صفحتك تنطق بثقلك — تصميم VIP لا يشبه أي ملف عادي</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> تظهر أولاً لكل من يبحث في مجالك</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> أنت من يتحكم في قصتك — تعدّل وقتما تشاء</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> بطاقتك الرسمية جاهزة للتحميل في أي اجتماع</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> فريقنا بجانبك متى احتجت — لا تنتظر</li>
+        <li class="flex items-start gap-2 text-sm"><i class="fa-solid fa-check text-green-300 w-4 mt-0.5"></i> تجديد تلقائي مجاني — لا تقلق بشأن الانتهاء</li>
       </ul>
       <div class="rounded-2xl mb-4 p-3" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);">
         <p class="text-xs font-bold text-amber-200 text-center mb-2">⏳ سعر الإطلاق ينتهي خلال</p>
@@ -239,8 +239,8 @@ include 'includes/header.php';
     <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-bold mb-6 text-purple-200">
       <i class="fa-solid fa-circle-check text-blue-300 text-xs"></i> شارة التوثيق الرسمية
     </div>
-    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">ماذا تستفيد من<br>العضوية الموثقة؟</h1>
-    <p class="text-purple-200 text-lg font-medium mb-10">تحكم بما يعرفه الناس عنك — بشكل رسمي وموثق</p>
+    <h1 class="text-4xl md:text-5xl font-black mb-4 leading-tight">ماذا يتغير في حياتك<br>بعد التوثيق؟</h1>
+    <p class="text-purple-200 text-lg font-medium mb-10">أنت تبني سمعتك كل يوم — التوثيق يجعلها رسمية وموثوقة</p>
 
     <!-- Type switcher -->
     <div class="flex justify-center mb-2">
@@ -263,12 +263,12 @@ include 'includes/header.php';
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
       <?php
       $benefits = [
-        ['fa-arrow-up-right-dots','text-purple-600','bg-purple-50','border-purple-100','ظهور في القوائم','تصدّر نتائج البحث وقوائم التصنيفات أمام ملايين الزوار'],
-        ['fa-circle-check','text-blue-600','bg-blue-50','border-blue-100','توثيق الملف الشخصي','شارة زرقاء رسمية تؤكد هويتك وتميزك عن الآخرين'],
-        ['fa-building','text-indigo-600','bg-indigo-50','border-indigo-100','توثيق الشركة','ربط ملفك بمؤسستك مع إبراز دورك القيادي داخلها'],
-        ['fa-headset','text-green-600','bg-green-50','border-green-100','مدير حساب','مدير حساب مخصص يساعدك في إعداد وتحديث ملفك باستمرار'],
-        ['fa-chart-bar','text-orange-600','bg-orange-50','border-orange-100','تقرير أداء','تقرير شهري بمرات الظهور والوصول والتفاعل مع ملفك'],
-        ['fa-shield-halved','text-rose-600','bg-rose-50','border-rose-100','حماية هويتك الرقمية','منع أي شخص آخر من انتحال صفتك أو ادعاء هويتك'],
+        ['fa-arrow-up-right-dots','text-purple-600','bg-purple-50','border-purple-100','يجدك من يبحث عنك أولاً','كل مستثمر أو إعلامي يكتب اسمك يصل إليك قبل أي نتيجة أخرى'],
+        ['fa-circle-check','text-blue-600','bg-blue-50','border-blue-100','يثق بك الناس قبل أن يكلموك','الشارة الزرقاء تقول عنك في ثانية ما تحتاج ساعة لإثباته'],
+        ['fa-building','text-indigo-600','bg-indigo-50','border-indigo-100','دورك يظهر بوضوح داخل مؤسستك','لا أحد يتساءل عن موقعك — صفحتك تجيب عن كل شيء'],
+        ['fa-headset','text-green-600','bg-green-50','border-green-100','لست وحدك في إدارة ملفك','مدير حساب مخصص يتولى الإعداد والتحديث حتى تركّز أنت على عملك'],
+        ['fa-chart-bar','text-orange-600','bg-orange-50','border-orange-100','تعرف من اهتم بك هذا الشهر','أرقام حقيقية عن من شاهد ملفك — تساعدك تقيّم حضورك وتحسّنه'],
+        ['fa-shield-halved','text-rose-600','bg-rose-50','border-rose-100','لا أحد ينتحل هويتك','ملفك الموثق يحميك من أي محاولة لانتحال صفتك على الإنترنت'],
       ];
       foreach ($benefits as [$icon,$tc,$bg,$bc,$title,$desc]):
       ?>
@@ -373,8 +373,8 @@ include 'includes/header.php';
 <!-- WHO USES -->
 <section class="py-14 bg-white">
   <div class="max-w-5xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">من يستخدم المنصة لتعزيز حضوره الرقمي؟</h2>
-    <p class="text-gray-400 text-center mb-10 font-medium">فئات متنوعة تجد في التوثيق قيمة حقيقية</p>
+    <h2 class="text-2xl font-black text-gray-800 text-center mb-2">من يستفيد أكثر من التوثيق؟</h2>
+    <p class="text-gray-400 text-center mb-10 font-medium">كل من يريد أن يُعرَف بالصورة التي يستحقها</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
       <?php
       $types = [
@@ -419,11 +419,11 @@ include 'includes/header.php';
         </div>
       </div>
       <ul class="space-y-3 flex-1 mb-8">
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-circle-check text-blue-500 w-4"></i> شارة التوثيق الزرقاء</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> صفحة شخصية مميزة</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> ظهور أولوية في البحث</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> إدارة محتوى صفحتك</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-circle-check text-blue-500 w-4 mt-0.5"></i> يثق بك الناس فوراً بمجرد رؤية شارتك</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> صفحتك تعكس احترافيتك بتصميم لا يشبه غيره</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> تسبق المنافسين في نتائج البحث</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> أنت من يتحكم في ما يعرفه الناس عنك</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> اترك أثراً في كل اجتماع ببطاقتك الرسمية</li>
       </ul>
       <button onclick="choosePlan('monthly','verified')"
         class="w-full py-3.5 border-2 border-purple-500 text-purple-600 font-black rounded-xl hover:bg-purple-50 transition">
@@ -448,13 +448,13 @@ include 'includes/header.php';
         <p class="text-gray-500 text-sm mt-1">دفعة واحدة — مدى الحياة</p>
       </div>
       <ul class="space-y-3 flex-1 mb-8">
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-circle-check text-blue-500 w-4"></i> شارة التوثيق الزرقاء</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> صفحة شخصية مميزة</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> ظهور أولوية في البحث</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> إدارة محتوى صفحتك</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4"></i> بطاقة تعريفية قابلة للتحميل</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> دعم مدى الحياة</li>
-        <li class="flex items-center gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4" style="color:#8829C8"></i> أولوية في المراجعة</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-circle-check text-blue-500 w-4 mt-0.5"></i> يثق بك الناس فوراً بمجرد رؤية شارتك</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> صفحتك تعكس احترافيتك بتصميم لا يشبه غيره</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> تسبق المنافسين في نتائج البحث</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> أنت من يتحكم في ما يعرفه الناس عنك</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check text-green-500 w-4 mt-0.5"></i> اترك أثراً في كل اجتماع ببطاقتك الرسمية</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4 mt-0.5" style="color:#8829C8"></i> فريق الدعم بجانبك للأبد — لا تدفع مجدداً</li>
+        <li class="flex items-start gap-2 text-sm text-gray-700"><i class="fa-solid fa-check w-4 mt-0.5" style="color:#8829C8"></i> طلبك يُعالج بأولوية — لا تنتظر في الدور</li>
       </ul>
       <div class="rounded-2xl mb-4 p-3" style="background:rgba(136,41,200,.07);border:1px solid rgba(136,41,200,.2);">
         <p class="text-xs font-bold text-center mb-2" style="color:#8829C8;">⏳ سعر الإطلاق ينتهي خلال</p>
@@ -485,7 +485,7 @@ include 'includes/header.php';
       </div>
       <div>
         <p class="text-white font-black text-lg">هل أنت رئيس تنفيذي؟</p>
-        <p class="text-amber-200 text-sm">احصل على باقة القيادة الشاملة بالتوثيق وكل الخدمات</p>
+        <p class="text-amber-200 text-sm">حضورك يستحق أكثر من التوثيق — اكتشف ما يميزك فعلاً</p>
       </div>
     </div>
     <a href="membership.php?type=executive"
