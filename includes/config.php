@@ -110,6 +110,7 @@ define('PERM', [
     'manage_timeline'     => 28,
     'manage_countries'    => 29,
     'manage_settings'     => 30,
+    'manage_users'        => 31,
 ]);
 
 function pi_has_perm($perm_key) {

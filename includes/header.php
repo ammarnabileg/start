@@ -133,6 +133,20 @@ if (isset($pageTitle)) {
 </head>
 <body class="bg-gray-50">
 
+<?php if (!empty($_SESSION['pi_impersonate_admin_id'])): ?>
+<!-- Impersonation banner -->
+<?php
+$_imp_user = pi_current_user();
+?>
+<div style="background:#7c3aed;color:#fff;text-align:center;padding:10px 16px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:9999;">
+  <i class="fa-solid fa-eye"></i>
+  <span>أنت تعاين حساب: <strong><?= htmlspecialchars($_imp_user['u_name'] ?? 'مستخدم') ?></strong></span>
+  <a href="admin_return.php" style="background:rgba(255,255,255,0.25);color:#fff;padding:4px 14px;border-radius:8px;font-weight:800;text-decoration:none;border:1px solid rgba(255,255,255,0.4);">
+    <i class="fa-solid fa-right-from-bracket ml-1"></i> العودة للوحة التحكم
+  </a>
+</div>
+<?php endif; ?>
+
 <!-- NAVBAR -->
 <nav class="bg-white shadow-md sticky top-0 z-50" x-data="{mobileOpen:false}">
   <div class="max-w-7xl mx-auto px-4">

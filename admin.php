@@ -4,6 +4,21 @@ pi_load_user();
 
 $p = $_GET['p'] ?? 'dashboard';
 
+// Handle user impersonation before any output
+if ($p === 'users' && isset($_GET['impersonate'])) {
+    pi_require_login();
+    $iid = (int)$_GET['impersonate'];
+    $ir  = $mysqli->query("SELECT u_id FROM pi_users WHERE u_id=$iid AND u_active=1");
+    if ($ir && $ir->num_rows) {
+        $_SESSION['pi_impersonate_admin_id'] = $_SESSION['pi_admin_id'];
+        $_SESSION['pi_user_id'] = $iid;
+        header('Location: account.php');
+        exit;
+    }
+    header('Location: admin.php?p=users');
+    exit;
+}
+
 // Redirect logged-in users away from login page
 if ($p === 'login' && !empty($_SESSION['pi_admin_id'])) {
     header('Location: admin.php?p=dashboard');
@@ -94,6 +109,10 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
 
     /* Card */
     .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 24px; }
+
+    /* Shared gradient helpers */
+    .pi-primary-bg { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
+    .pi-gradient   { background: linear-gradient(135deg, #8829C8 0%, #5B1494 100%); }
 
     /* Upload zone */
     .pi-upload-zone {
@@ -242,6 +261,20 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       </a>
       <?php endif; ?>
 
+      <?php if (pi_has_perm('manage_users')): ?>
+      <a href="admin.php?p=users" class="nav-link <?= $p=='users'?'active':'' ?>">
+        <i class="fa-solid fa-user-group"></i>
+        <span>مستخدمو الموقع</span>
+        <?php
+        $usr_r = $mysqli->query("SHOW TABLES LIKE 'pi_users'");
+        if ($usr_r && $usr_r->num_rows) {
+            $usr_new = (int)$mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_active=1 AND u_created >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetch_assoc()['c'];
+            if ($usr_new > 0) echo '<span style="background:#8b5cf6;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">+'.$usr_new.'</span>';
+        }
+        ?>
+      </a>
+      <?php endif; ?>
+
       <?php if (pi_has_perm('view_admin_users')): ?>
       <a href="admin.php?p=admin_users" class="nav-link <?= $p=='admin_users'?'active':'' ?>">
         <i class="fa-solid fa-user-gear"></i>
@@ -353,7 +386,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>
@@ -388,6 +421,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       elseif ($p === 'settings')      include 'admin/settings.php';
       elseif ($p === 'memberships')   include 'admin/memberships.php';
       elseif ($p === 'complaints')    include 'admin/complaints.php';
+      elseif ($p === 'users')         include 'admin/users.php';
       else include 'admin/dashboard.php';
       ?>
     </main>
