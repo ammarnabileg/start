@@ -168,12 +168,12 @@ $status_map = [
       <div class="mt-3 bg-gray-50 rounded-xl p-3 space-y-1">
         <?php
         $field_labels = ['name_ar'=>'الاسم بالعربي','name_en'=>'الاسم بالإنجليزي','title'=>'المسمى','nationality'=>'الجنسية','bio'=>'السيرة','description'=>'الوصف','photo'=>'الصورة'];
-        foreach ($edit_data as $k => $v) if ($v): ?>
+        foreach ($edit_data as $k => $v): if (!$v) continue; ?>
         <div class="flex gap-2 text-xs">
           <span class="font-bold text-gray-500 w-24 flex-shrink-0"><?= $field_labels[$k] ?? $k ?>:</span>
           <span class="text-gray-700 truncate"><?= htmlspecialchars(mb_substr(strip_tags($v), 0, 80)) ?></span>
         </div>
-        <?php endif; endforeach; ?>
+        <?php endforeach; ?>
       </div>
       <?php endif; ?>
 
