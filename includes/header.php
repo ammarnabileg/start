@@ -120,6 +120,101 @@ if (isset($pageTitle)) {
       vertical-align: middle;
     }
     [x-cloak] { display: none !important; }
+
+    /* ══ TEXT REVEAL ANIMATIONS ══ */
+    @keyframes pi-rise {
+      from { opacity:0; transform:translateY(32px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    @keyframes pi-rise-strong {
+      from { opacity:0; transform:translateY(56px) scale(.97); }
+      to   { opacity:1; transform:translateY(0)   scale(1); }
+    }
+    @keyframes pi-slide-right {
+      from { opacity:0; transform:translateX(40px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    @keyframes pi-slide-left {
+      from { opacity:0; transform:translateX(-40px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    @keyframes pi-fade-in {
+      from { opacity:0; }
+      to   { opacity:1; }
+    }
+    @keyframes pi-reveal-up {
+      from { opacity:0; transform:translateY(80px) rotateX(8deg); }
+      to   { opacity:1; transform:translateY(0)    rotateX(0); }
+    }
+    @keyframes pi-word-pop {
+      0%   { opacity:0; transform:translateY(20px) scale(.9); }
+      60%  { transform:translateY(-4px) scale(1.02); }
+      100% { opacity:1; transform:translateY(0) scale(1); }
+    }
+    @keyframes pi-line-grow {
+      from { width:0; opacity:0; }
+      to   { width:60px; opacity:1; }
+    }
+    @keyframes pi-shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    /* Base reveal class — triggered by JS IntersectionObserver */
+    .pi-reveal        { opacity:0; }
+    .pi-reveal.active { animation: pi-rise .7s cubic-bezier(.22,.68,0,1.2) forwards; }
+
+    .pi-reveal-strong        { opacity:0; }
+    .pi-reveal-strong.active { animation: pi-rise-strong .75s cubic-bezier(.22,.68,0,1.3) forwards; }
+
+    .pi-reveal-left        { opacity:0; }
+    .pi-reveal-left.active { animation: pi-slide-left .65s cubic-bezier(.22,.68,0,1.2) forwards; }
+
+    .pi-reveal-right        { opacity:0; }
+    .pi-reveal-right.active { animation: pi-slide-right .65s cubic-bezier(.22,.68,0,1.2) forwards; }
+
+    .pi-reveal-fade        { opacity:0; }
+    .pi-reveal-fade.active { animation: pi-fade-in .8s ease forwards; }
+
+    /* Stagger delays */
+    .pi-delay-1 { animation-delay: .1s !important; }
+    .pi-delay-2 { animation-delay: .2s !important; }
+    .pi-delay-3 { animation-delay: .35s !important; }
+    .pi-delay-4 { animation-delay: .5s !important; }
+    .pi-delay-5 { animation-delay: .65s !important; }
+    .pi-delay-6 { animation-delay: .8s !important; }
+
+    /* Hero text — always animate on load */
+    .hero-animate-1 { animation: pi-reveal-up .8s cubic-bezier(.22,.68,0,1.2) .1s both; }
+    .hero-animate-2 { animation: pi-rise-strong .85s cubic-bezier(.22,.68,0,1.25) .25s both; }
+    .hero-animate-3 { animation: pi-rise .7s cubic-bezier(.22,.68,0,1.2) .45s both; }
+    .hero-animate-4 { animation: pi-rise .65s ease .6s both; }
+    .hero-animate-5 { animation: pi-fade-in .8s ease .8s both; }
+
+    /* Shimmer text effect for hero title */
+    .pi-shimmer-text {
+      background: linear-gradient(90deg, #fff 0%, #d8b4fe 30%, #fff 50%, #a78bfa 70%, #fff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: pi-shimmer 4s linear infinite;
+    }
+
+    /* Section heading underline animate */
+    .pi-section-head { position:relative; display:inline-block; }
+    .pi-section-head::after {
+      content:'';
+      display:block;
+      height:3px;
+      border-radius:999px;
+      background:linear-gradient(90deg,#8829C8,#a855f7);
+      width:0;
+      opacity:0;
+      transition: width .6s cubic-bezier(.22,.68,0,1.2), opacity .4s ease;
+      margin-top:4px;
+    }
+    .pi-section-head.active::after { width:60px; opacity:1; }
     /* Global upload zone */
     .pi-upload-zone {
       border: 2px dashed #d1d5db;

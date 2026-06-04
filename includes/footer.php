@@ -140,5 +140,47 @@ $_S_f = pi_get_settings();
   obs.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
+
+<script>
+// ══ PioneerIcons Text Reveal Engine ══
+(function(){
+  var classes = ['pi-reveal','pi-reveal-strong','pi-reveal-left','pi-reveal-right','pi-reveal-fade','pi-section-head'];
+  var selector = classes.map(function(c){ return '.'+c; }).join(',');
+
+  function activate(el) {
+    el.classList.add('active');
+  }
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) {
+          // Respect delay classes
+          var delay = 0;
+          if (e.target.classList.contains('pi-delay-1')) delay = 100;
+          else if (e.target.classList.contains('pi-delay-2')) delay = 200;
+          else if (e.target.classList.contains('pi-delay-3')) delay = 350;
+          else if (e.target.classList.contains('pi-delay-4')) delay = 500;
+          else if (e.target.classList.contains('pi-delay-5')) delay = 650;
+          else if (e.target.classList.contains('pi-delay-6')) delay = 800;
+          if (delay) {
+            setTimeout(function(){ activate(e.target); }, delay);
+          } else {
+            activate(e.target);
+          }
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll(selector).forEach(function(el){
+      io.observe(el);
+    });
+  } else {
+    // Fallback: activate all immediately
+    document.querySelectorAll(selector).forEach(activate);
+  }
+})();
+</script>
 </body>
 </html>
