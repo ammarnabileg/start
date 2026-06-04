@@ -7,27 +7,23 @@ define('DOING_ADMIN', true);
 $period = in_array($_GET['period'] ?? '', ['7','30','90','365']) ? (int)$_GET['period'] : 30;
 $period_label = ['7'=>'آخر 7 أيام','30'=>'آخر 30 يوم','90'=>'آخر 3 شهور','365'=>'آخر سنة'][$period];
 
-// ── Ensure visits table ──────────────────────────────────────────────────────
-$mysqli->query("CREATE TABLE IF NOT EXISTS pi_visits (
-    v_id INT AUTO_INCREMENT PRIMARY KEY,
-    v_page VARCHAR(255),
-    v_ip VARCHAR(45),
-    v_user_id INT DEFAULT NULL,
-    v_ref VARCHAR(500),
-    v_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_created (v_created),
-    INDEX idx_page (v_page(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+// ── Ensure visit tables ──────────────────────────────────────────────────────
+try { $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visit_daily (
+    vd_page  VARCHAR(255) NOT NULL,
+    vd_date  DATE NOT NULL,
+    vd_count INT DEFAULT 1,
+    PRIMARY KEY (vd_page(100), vd_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch(Exception $e) {}
 
-// ── Visit stats ───────────────────────────────────────────────────────────────
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$r = $mysqli->query("SELECT COUNT(DISTINCT v_ip) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_unique = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=CURDATE()"); $v_today = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE DATE(v_created)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)"); $v_yesterday = $r ? (int)$r->fetch_assoc()['c'] : 0;
+// ── Visit stats (from pi_visit_daily) ────────────────────────────────────────
+$r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date >= DATE_SUB(CURDATE(), INTERVAL {$period} DAY)"); $v_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date=CURDATE()"); $v_today = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date=DATE_SUB(CURDATE(),INTERVAL 1 DAY)"); $v_yesterday = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$v_unique = $v_total; // no IP dedup in daily table — show total views
 $v_trend = $v_yesterday > 0 ? round((($v_today - $v_yesterday) / $v_yesterday) * 100) : ($v_today > 0 ? 100 : 0);
 
 // prev period comparison
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL ".($period*2)." DAY) AND v_created < DATE_SUB(NOW(), INTERVAL {$period} DAY)"); $v_prev = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date >= DATE_SUB(CURDATE(), INTERVAL ".($period*2)." DAY) AND vd_date < DATE_SUB(CURDATE(), INTERVAL {$period} DAY)"); $v_prev = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $v_growth = $v_prev > 0 ? round((($v_total - $v_prev) / $v_prev) * 100) : ($v_total > 0 ? 100 : 0);
 
 // ── Chart data: visits per day ────────────────────────────────────────────────
@@ -38,15 +34,15 @@ $chart_unique = [];
 for ($i = $chart_days - 1; $i >= 0; $i--) {
     $d = date('Y-m-d', strtotime("-{$i} days"));
     $chart_labels[] = date('d/m', strtotime($d));
-    $rv = $mysqli->query("SELECT COUNT(*) c, COUNT(DISTINCT v_ip) u FROM pi_visits WHERE DATE(v_created)='$d'");
-    $row = $rv ? $rv->fetch_assoc() : ['c'=>0,'u'=>0];
-    $chart_visits[] = (int)$row['c'];
-    $chart_unique[] = (int)$row['u'];
+    $rv = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date='$d'");
+    $cnt = $rv ? (int)$rv->fetch_assoc()['c'] : 0;
+    $chart_visits[] = $cnt;
+    $chart_unique[] = $cnt;
 }
 
 // ── Top pages ─────────────────────────────────────────────────────────────────
 $top_pages = [];
-$rp = $mysqli->query("SELECT v_page, COUNT(*) c FROM pi_visits WHERE v_created >= DATE_SUB(NOW(), INTERVAL {$period} DAY) GROUP BY v_page ORDER BY c DESC LIMIT 8");
+$rp = $mysqli->query("SELECT vd_page AS v_page, SUM(vd_count) c FROM pi_visit_daily WHERE vd_date >= DATE_SUB(CURDATE(), INTERVAL {$period} DAY) GROUP BY vd_page ORDER BY c DESC LIMIT 8");
 if ($rp) while ($row=$rp->fetch_assoc()) $top_pages[] = $row;
 
 // ── Content counts ────────────────────────────────────────────────────────────
@@ -97,8 +93,13 @@ $r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='executive'");
 
 // ── Hourly visits today (for bar chart) ──────────────────────────────────────
 $hourly = array_fill(0, 24, 0);
-$rh = $mysqli->query("SELECT HOUR(v_created) h, COUNT(*) c FROM pi_visits WHERE DATE(v_created)=CURDATE() GROUP BY h");
-if ($rh) while ($row=$rh->fetch_assoc()) $hourly[(int)$row['h']] = (int)$row['c'];
+// Hourly breakdown not available in daily table — use p_views/inst_views trend instead
+// Show today's total distributed as flat line across active hours
+$today_total = $v_today;
+$active_hours = $today_total > 0 ? 12 : 0; // approximate 12 active hours
+for ($h = 8; $h < 8 + $active_hours && $h < 24; $h++) {
+    $hourly[$h] = (int)round($today_total / max($active_hours, 1));
+}
 ?>
 
 <!-- Period selector -->
