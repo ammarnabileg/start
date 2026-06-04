@@ -1,6 +1,6 @@
 -- ============================================================
 --  PioneerIcons — Full Schema + Seed Data
---  Version: 2.0  (June 2026)
+--  Version: 3.0  (June 2026)
 --  Run once on a FRESH / empty database
 --  Compatible with MySQL 5.7+ / MariaDB 10.3+
 -- ============================================================
@@ -35,6 +35,7 @@ DROP TABLE IF EXISTS `pi_institutions`;
 DROP TABLE IF EXISTS `pi_personalities`;
 DROP TABLE IF EXISTS `pi_categories`;
 DROP TABLE IF EXISTS `pi_countries`;
+DROP TABLE IF EXISTS `pi_visit_daily`;
 DROP TABLE IF EXISTS `pi_visits`;
 DROP TABLE IF EXISTS `pi_settings`;
 
@@ -200,12 +201,13 @@ CREATE TABLE `pi_daily_personality` (
 
 -- ──────────────────────────────────────────
 CREATE TABLE `pi_sponsors` (
-  `sp_id`     INT          NOT NULL AUTO_INCREMENT,
-  `sp_name`   VARCHAR(200) NOT NULL,
-  `sp_logo`   VARCHAR(500) DEFAULT NULL,
-  `sp_url`    VARCHAR(500) DEFAULT NULL,
-  `sp_active` TINYINT(1)   DEFAULT 1,
-  `sp_order`  INT          DEFAULT 0,
+  `sp_id`      INT          NOT NULL AUTO_INCREMENT,
+  `sp_name`    VARCHAR(200) NOT NULL,
+  `sp_logo`    VARCHAR(500) DEFAULT NULL,
+  `sp_url`     VARCHAR(500) DEFAULT NULL,
+  `sp_active`  TINYINT(1)   DEFAULT 1,
+  `sp_order`   INT          DEFAULT 0,
+  `sp_user_id` INT          DEFAULT NULL,
   PRIMARY KEY (`sp_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -253,6 +255,14 @@ CREATE TABLE `pi_visits` (
   PRIMARY KEY (`v_id`),
   KEY `idx_v_created` (`v_created`),
   KEY `idx_v_page`    (`v_page`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Daily aggregated visit counts (replaces raw pi_visits rows) ──
+CREATE TABLE `pi_visit_daily` (
+  `vd_page`  VARCHAR(255) NOT NULL,
+  `vd_date`  DATE         NOT NULL,
+  `vd_count` INT          DEFAULT 1,
+  PRIMARY KEY (`vd_page`(100), `vd_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ──────────────────────────────────────────
@@ -561,6 +571,7 @@ DROP TABLE IF EXISTS `pi_institutions`;
 DROP TABLE IF EXISTS `pi_personalities`;
 DROP TABLE IF EXISTS `pi_categories`;
 DROP TABLE IF EXISTS `pi_countries`;
+DROP TABLE IF EXISTS `pi_visit_daily`;
 DROP TABLE IF EXISTS `pi_visits`;
 DROP TABLE IF EXISTS `pi_settings`;
 
@@ -726,12 +737,13 @@ CREATE TABLE `pi_daily_personality` (
 
 -- ──────────────────────────────────────────
 CREATE TABLE `pi_sponsors` (
-  `sp_id`     INT          NOT NULL AUTO_INCREMENT,
-  `sp_name`   VARCHAR(200) NOT NULL,
-  `sp_logo`   VARCHAR(500) DEFAULT NULL,
-  `sp_url`    VARCHAR(500) DEFAULT NULL,
-  `sp_active` TINYINT(1)   DEFAULT 1,
-  `sp_order`  INT          DEFAULT 0,
+  `sp_id`      INT          NOT NULL AUTO_INCREMENT,
+  `sp_name`    VARCHAR(200) NOT NULL,
+  `sp_logo`    VARCHAR(500) DEFAULT NULL,
+  `sp_url`     VARCHAR(500) DEFAULT NULL,
+  `sp_active`  TINYINT(1)   DEFAULT 1,
+  `sp_order`   INT          DEFAULT 0,
+  `sp_user_id` INT          DEFAULT NULL,
   PRIMARY KEY (`sp_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -779,6 +791,14 @@ CREATE TABLE `pi_visits` (
   PRIMARY KEY (`v_id`),
   KEY `idx_v_created` (`v_created`),
   KEY `idx_v_page`    (`v_page`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Daily aggregated visit counts (replaces raw pi_visits rows) ──
+CREATE TABLE `pi_visit_daily` (
+  `vd_page`  VARCHAR(255) NOT NULL,
+  `vd_date`  DATE         NOT NULL,
+  `vd_count` INT          DEFAULT 1,
+  PRIMARY KEY (`vd_page`(100), `vd_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ──────────────────────────────────────────
@@ -898,8 +918,9 @@ CREATE TABLE `pi_lists` (
   `list_sponsor_img`  VARCHAR(500) DEFAULT NULL,
   `list_sponsor_url`  VARCHAR(500) DEFAULT NULL,
   `list_sponsor_name` VARCHAR(300) DEFAULT NULL,
-  `list_spotlight`    TEXT         DEFAULT NULL,
-  `list_created`      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `list_spotlight`      TEXT         DEFAULT NULL,
+  `list_sponsors_json`  TEXT         DEFAULT NULL,
+  `list_created`        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`list_id`),
   KEY `idx_list_active` (`list_active`),
   KEY `idx_list_slug`   (`list_slug`(100))
@@ -1003,11 +1024,18 @@ ON DUPLICATE KEY UPDATE cat_name=VALUES(cat_name);
 --  29  manage_countries      30  manage_settings     31  manage_users       32  manage_advertise
 --  33  manage_memberships    34  manage_complaints   35  manage_submissions 36  manage_edit_requests
 --  37  manage_lists
+--  38  add_sponsor           39  edit_sponsor        40  delete_sponsor
+--  41  add_timeline          42  edit_timeline       43  delete_timeline
+--  44  view_countries        45  add_country         46  edit_country       47  delete_country
+--  48  view_labels           49  add_label           50  edit_label         51  delete_label
+--  52  view_lists            53  add_list            54  edit_list          55  delete_list
+--  56  view_users            57  view_advertise      58  view_memberships   59  view_complaints
+--  60  view_submissions      61  view_edit_requests
 INSERT INTO `pi_roles` (`role_id`, `role_name`, `role_permissions`) VALUES
-  (1, 'مدير النظام',   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37'),
-  (2, 'محرر محتوى',    '1,2,3,5,6,7,9,13,14,15,27,28'),
-  (3, 'مشرف عام',      '1,2,3,5,6,7,9,10,11,13,14,15,25,27,28'),
-  (4, 'مراجع مقترحات', '1,5,9,13,35')
+  (1, 'مدير النظام',   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61'),
+  (2, 'محرر محتوى',    '1,2,3,5,6,7,9,13,14,15,27,41,42,48,49,50,52'),
+  (3, 'مشرف عام',      '1,2,3,5,6,7,9,10,11,13,14,15,25,27,41,42,44,48,49,50,52,53,54,56,57,58,59,60,61'),
+  (4, 'مراجع مقترحات', '1,5,9,13,35,60,61')
 ON DUPLICATE KEY UPDATE role_name=VALUES(role_name), role_permissions=VALUES(role_permissions);
 
 -- ── Admin Users ───────────────────────────────────────────────
