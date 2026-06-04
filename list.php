@@ -293,55 +293,76 @@ if (!empty($all_sponsors)):
 <?php if (!empty($items)): ?>
 <div>
 
-  <!-- Section header + filter -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-    <h2 style="font-size:18px;font-weight:900;color:#111827;margin:0;display:flex;align-items:center;gap:8px;">
-      <i class="fa-solid fa-ranking-star" style="color:#7c3aed;"></i>
+  <!-- Section header + filters -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+    <h2 style="font-size:19px;font-weight:900;color:#111827;margin:0;display:flex;align-items:center;gap:10px;">
+      <i class="fa-solid fa-ranking-star" style="color:#7c3aed;font-size:20px;"></i>
       <?= $is_ar?'قائمة التصنيف':'Rankings' ?>
-      <span style="background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;"><?= count($items) ?></span>
+      <span style="background:#f3e8ff;color:#7c3aed;font-size:12px;font-weight:800;padding:3px 12px;border-radius:999px;"><?= count($items) ?></span>
     </h2>
     <?php if (!empty($filter_values)): ?>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="filter-bar">
-      <i class="fa-solid fa-sliders" style="color:#9ca3af;font-size:13px;"></i>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <?php foreach ($filterable_cols as $col):
         if (empty($filter_values[$col['key']])) continue;
         $label = $is_ar ? ($col['label']??$col['key']) : ($col['label_en']??$col['label']??$col['key']);
       ?>
       <select onchange="applyFilters()" data-filter-key="<?= htmlspecialchars($col['key']) ?>" class="filter-pill">
-        <option value=""><?= $is_ar?'الكل':'All' ?> <?= htmlspecialchars($label) ?></option>
+        <option value=""><?= htmlspecialchars($label) ?> — <?= $is_ar?'الكل':'All' ?></option>
         <?php foreach ($filter_values[$col['key']] as $fv): ?>
         <option value="<?= htmlspecialchars($fv) ?>"><?= htmlspecialchars($fv) ?></option>
         <?php endforeach; ?>
       </select>
       <?php endforeach; ?>
-      <button onclick="clearFilters()" style="padding:7px 14px;border-radius:999px;font-size:11px;font-weight:700;border:1.5px solid #e5e7eb;background:#fff;color:#9ca3af;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#9ca3af'">
-        <i class="fa-solid fa-xmark"></i> <?= $is_ar?'مسح':'Clear' ?>
+      <button onclick="clearFilters()" class="filter-pill" style="color:#ef4444;border-color:#fecaca;">
+        <i class="fa-solid fa-xmark" style="margin-<?= $is_ar?'left':'right' ?>:4px;"></i><?= $is_ar?'مسح':'Clear' ?>
       </button>
     </div>
     <?php endif; ?>
   </div>
 
-  <!-- Top 3 podium cards -->
-  <?php if (!empty($top3)): ?>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px;">
-    <?php foreach ($top3 as $item):
+  <?php
+  // Helper to extract entity info
+  function item_info($item, $is_ar) {
       $ent = $item['entity'];
-      if (!$ent) continue;
-      $is_p   = $item['li_entity_type'] === 'personality';
-      $ename  = $is_ar || empty($ent[$is_p?'p_name_en':'inst_name_en'])
-              ? ($is_p?$ent['p_name_ar']:$ent['inst_name_ar'])
-              : ($is_p?$ent['p_name_en']:$ent['inst_name_en']);
-      $ephoto = $is_p ? ($ent['p_photo']??'') : ($ent['inst_logo']??'');
-      $elink  = $is_p ? "profile.php?id={$ent['p_id']}" : "institution.php?id={$ent['inst_id']}";
-      $etitle = $is_p ? ($ent['p_title']??'') : '';
-      $verified = $is_p && ($ent['p_verified']??0);
-      $rank = (int)($item['li_rank'] ?: 999);
-      $medal_styles = ['1'=>'background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;','2'=>'background:linear-gradient(135deg,#94a3b8,#64748b);color:#fff;','3'=>'background:linear-gradient(135deg,#c2763a,#a85d2a);color:#fff;'];
-      $border_styles = ['1'=>'border-top:4px solid #f59e0b;','2'=>'border-top:4px solid #94a3b8;','3'=>'border-top:4px solid #c2763a;'];
-      $ms = $medal_styles[$rank] ?? 'background:#f3f4f6;color:#6b7280;';
-      $bs = $border_styles[$rank] ?? '';
+      if (!$ent) return null;
+      $is_p = $item['li_entity_type'] === 'personality';
+      $name_ar = $is_p ? ($ent['p_name_ar']??'') : ($ent['inst_name_ar']??'');
+      $name_en = $is_p ? ($ent['p_name_en']??'') : ($ent['inst_name_en']??'');
+      return [
+          'name'     => ($is_ar || empty($name_en)) ? $name_ar : $name_en,
+          'photo'    => $is_p ? ($ent['p_photo']??'') : ($ent['inst_logo']??''),
+          'link'     => $is_p ? "profile.php?id={$ent['p_id']}" : "institution.php?id={$ent['inst_id']}",
+          'title'    => $is_p ? ($ent['p_title']??'') : '',
+          'verified' => $is_p && ($ent['p_verified']??0),
+          'is_p'     => $is_p,
+      ];
+  }
+  ?>
 
-      // First custom column value for card
+  <!-- ══ TOP 3 PODIUM CARDS ══ -->
+  <?php if (!empty($top3)):
+    $top3_arr = array_values($top3);
+    // Podium order: 2, 1, 3 (visually) — only if all 3 exist
+    if (count($top3_arr) === 3) {
+        $podium = [$top3_arr[1], $top3_arr[0], $top3_arr[2]]; // 2nd | 1st | 3rd
+    } else {
+        $podium = $top3_arr;
+    }
+    $medal_cfg = [
+        1 => ['grad'=>'linear-gradient(135deg,#f59e0b,#d97706)', 'border'=>'#f59e0b', 'glow'=>'rgba(245,158,11,.2)', 'icon'=>'🥇', 'h'=>'220px'],
+        2 => ['grad'=>'linear-gradient(135deg,#9ca3af,#6b7280)', 'border'=>'#9ca3af', 'glow'=>'rgba(156,163,175,.15)', 'icon'=>'🥈', 'h'=>'200px'],
+        3 => ['grad'=>'linear-gradient(135deg,#cd7f32,#a0522d)', 'border'=>'#cd7f32', 'glow'=>'rgba(205,127,50,.15)', 'icon'=>'🥉', 'h'=>'190px'],
+    ];
+  ?>
+  <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:24px;justify-content:center;flex-wrap:wrap;">
+    <?php foreach ($podium as $item):
+      $info = item_info($item, $is_ar);
+      if (!$info) continue;
+      $rank = (int)($item['li_rank'] ?: 999);
+      $cfg  = $medal_cfg[$rank] ?? ['grad'=>'linear-gradient(135deg,#7c3aed,#4c1d95)','border'=>'#7c3aed','glow'=>'rgba(124,58,237,.15)','icon'=>'#'.$rank,'h'=>'180px'];
+      $is_first = ($rank === 1);
+
+      // First column value
       $col1_val = ''; $col1_lbl = ''; $col1_type = 'text';
       if (!empty($list_columns)) {
           $col1 = $list_columns[0];
@@ -350,59 +371,74 @@ if (!empty($all_sponsors)):
           $col1_val  = ($col1['source']??'manual')==='profile' ? profile_col($item,$col1['key']) : ($item['_data'][$col1['key']]??'');
       }
     ?>
-    <a href="<?= $elink ?>" class="top3-card" style="<?= $bs ?>text-decoration:none;">
-      <!-- Rank badge -->
-      <div style="padding:16px 20px 0;display:flex;justify-content:space-between;align-items:center;">
-        <span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;<?= $ms ?>">
-          <?= $rank ?>
-        </span>
-        <?php if ($verified): ?>
-        <span style="font-size:11px;background:#eff6ff;color:#2563eb;padding:2px 9px;border-radius:999px;font-weight:700;">
-          <i class="fa-solid fa-circle-check"></i> <?= $is_ar?'موثّق':'Verified' ?>
-        </span>
-        <?php endif; ?>
+    <a href="<?= $info['link'] ?>" style="flex:1;min-width:180px;max-width:<?= $is_first?'260px':'230px' ?>;
+      background:#fff;border-radius:20px;border:2px solid <?= $cfg['border'] ?>;
+      box-shadow:0 8px 32px <?= $cfg['glow'] ?>,0 2px 8px rgba(0,0,0,.06);
+      text-decoration:none;display:flex;flex-direction:column;align-items:center;
+      padding:24px 16px 20px;position:relative;transition:transform .2s,box-shadow .2s;
+      <?= $is_first ? 'transform:translateY(-12px);' : '' ?>"
+      onmouseover="this.style.transform='translateY(<?= $is_first?'-16px':'-4px' ?>)'"
+      onmouseout="this.style.transform='translateY(<?= $is_first?'-12px':'0' ?>)'">
+
+      <!-- Medal emoji -->
+      <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);
+        background:<?= $cfg['grad'] ?>;color:#fff;width:<?= $is_first?'42px':'36px' ?>;height:<?= $is_first?'42px':'36px' ?>;
+        border-radius:50%;display:flex;align-items:center;justify-content:center;
+        font-size:<?= $is_first?'20px':'17px' ?>;font-weight:900;border:3px solid #fff;
+        box-shadow:0 4px 12px <?= $cfg['glow'] ?>;">
+        <?= $rank ?>
       </div>
+
       <!-- Photo -->
-      <div style="display:flex;justify-content:center;padding:16px 0 12px;">
-        <?php if ($ephoto): ?>
-        <img src="<?= htmlspecialchars($ephoto) ?>" alt="" style="width:80px;height:80px;border-radius:<?= $is_p?'50%':'16px' ?>;object-fit:cover;border:3px solid #f3f4f6;box-shadow:0 4px 16px rgba(0,0,0,.1);">
+      <div style="margin-top:10px;margin-bottom:14px;">
+        <?php if ($info['photo']): ?>
+        <img src="<?= htmlspecialchars($info['photo']) ?>" alt=""
+          style="width:<?= $is_first?'90px':'72px' ?>;height:<?= $is_first?'90px':'72px' ?>;
+          border-radius:<?= $info['is_p']?'50%':'16px' ?>;object-fit:cover;
+          border:3px solid <?= $cfg['border'] ?>;box-shadow:0 4px 16px <?= $cfg['glow'] ?>;">
         <?php else: ?>
-        <div style="width:80px;height:80px;border-radius:<?= $is_p?'50%':'16px' ?>;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:28px;box-shadow:0 4px 16px rgba(124,58,237,.25);">
-          <?= mb_substr($ename,0,1) ?>
+        <div style="width:<?= $is_first?'90px':'72px' ?>;height:<?= $is_first?'90px':'72px' ?>;
+          border-radius:<?= $info['is_p']?'50%':'16px' ?>;background:<?= $cfg['grad'] ?>;
+          display:flex;align-items:center;justify-content:center;color:#fff;
+          font-weight:900;font-size:<?= $is_first?'32px':'26px' ?>;
+          border:3px solid <?= $cfg['border'] ?>;">
+          <?= mb_substr($info['name'],0,1) ?>
         </div>
         <?php endif; ?>
       </div>
+
       <!-- Name -->
-      <div style="text-align:center;padding:0 16px 16px;">
-        <p style="font-weight:900;font-size:15px;color:#111827;margin:0 0 4px;"><?= htmlspecialchars($ename) ?></p>
-        <?php if ($etitle): ?>
-        <p style="font-size:11px;color:#6b7280;font-weight:700;margin:0 0 10px;"><?= htmlspecialchars($etitle) ?></p>
-        <?php endif; ?>
-        <?php if ($col1_val !== ''): ?>
-        <div style="background:#f9fafb;border-radius:10px;padding:8px 12px;display:inline-block;">
-          <?php if ($col1_lbl): ?><span style="font-size:10px;color:#9ca3af;font-weight:700;display:block;margin-bottom:2px;"><?= htmlspecialchars($col1_lbl) ?></span><?php endif; ?>
-          <?= fmt_col($col1_val, $col1_type) ?>
-        </div>
-        <?php endif; ?>
+      <p style="font-weight:900;font-size:<?= $is_first?'16px':'14px' ?>;color:#111827;margin:0 0 4px;text-align:center;line-height:1.3;">
+        <?= htmlspecialchars($info['name']) ?>
+        <?php if ($info['verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:12px;margin-right:3px;"></i><?php endif; ?>
+      </p>
+      <?php if ($info['title']): ?>
+      <p style="font-size:11px;color:#9ca3af;font-weight:700;margin:0 0 12px;text-align:center;"><?= htmlspecialchars($info['title']) ?></p>
+      <?php endif; ?>
+
+      <!-- First column value -->
+      <?php if ($col1_val !== ''): ?>
+      <div style="background:#f9fafb;border-radius:10px;padding:7px 14px;margin-top:4px;text-align:center;">
+        <?php if ($col1_lbl): ?><span style="font-size:9px;color:#9ca3af;font-weight:800;display:block;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;"><?= htmlspecialchars($col1_lbl) ?></span><?php endif; ?>
+        <?= fmt_col($col1_val, $col1_type) ?>
       </div>
+      <?php endif; ?>
     </a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
 
-  <!-- Rest of list table -->
+  <!-- ══ REST TABLE ══ -->
   <?php if (!empty($rest)): ?>
-  <div style="background:#fff;border-radius:18px;border:1px solid #f0f0f0;overflow:hidden;">
+  <div style="background:#fff;border-radius:18px;border:1px solid #f0f0f0;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);">
     <div style="overflow-x:auto;">
-      <table class="lp-table" style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;">
         <thead>
-          <tr style="background:#f9fafb;border-bottom:2px solid #f0f0f0;">
-            <th style="padding:11px 18px;text-align:<?= $is_ar?'right':'left' ?>;font-size:10px;font-weight:900;color:#9ca3af;letter-spacing:.5px;text-transform:uppercase;width:56px;">#</th>
-            <th style="padding:11px 18px;text-align:<?= $is_ar?'right':'left' ?>;font-size:10px;font-weight:900;color:#9ca3af;letter-spacing:.5px;text-transform:uppercase;">
-              <?= $is_ar?'الاسم':'Name' ?>
-            </th>
+          <tr style="background:#fafafa;border-bottom:1px solid #f0f0f0;">
+            <th style="padding:12px 20px;text-align:<?= $is_ar?'right':'left' ?>;font-size:11px;font-weight:800;color:#9ca3af;letter-spacing:.3px;width:60px;"><?= $is_ar?'#':'#' ?></th>
+            <th style="padding:12px 20px;text-align:<?= $is_ar?'right':'left' ?>;font-size:11px;font-weight:800;color:#9ca3af;letter-spacing:.3px;"><?= $is_ar?'الاسم':'Name' ?></th>
             <?php foreach ($list_columns as $col): ?>
-            <th style="padding:11px 18px;text-align:<?= $is_ar?'right':'left' ?>;font-size:10px;font-weight:900;color:#9ca3af;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">
+            <th style="padding:12px 20px;text-align:<?= $is_ar?'right':'left' ?>;font-size:11px;font-weight:800;color:#9ca3af;letter-spacing:.3px;white-space:nowrap;">
               <?= htmlspecialchars($is_ar ? ($col['label']??$col['key']) : ($col['label_en']??$col['label']??$col['key'])) ?>
             </th>
             <?php endforeach; ?>
@@ -412,14 +448,8 @@ if (!empty($all_sponsors)):
           <?php foreach ($rest as $item):
             $ent = $item['entity'];
             if (!$ent) continue;
-            $is_p   = $item['li_entity_type'] === 'personality';
-            $ename  = $is_ar || empty($ent[$is_p?'p_name_en':'inst_name_en'])
-                    ? ($is_p?$ent['p_name_ar']:$ent['inst_name_ar'])
-                    : ($is_p?$ent['p_name_en']:$ent['inst_name_en']);
-            $ephoto = $is_p ? ($ent['p_photo']??'') : ($ent['inst_logo']??'');
-            $elink  = $is_p ? "profile.php?id={$ent['p_id']}" : "institution.php?id={$ent['inst_id']}";
-            $etitle = $is_p ? ($ent['p_title']??'') : '';
-            $verified = $is_p && ($ent['p_verified']??0);
+            $info = item_info($item, $is_ar);
+            if (!$info) continue;
             $rank = (int)($item['li_rank'] ?: 999);
 
             $data_attrs = '';
@@ -429,25 +459,36 @@ if (!empty($all_sponsors)):
                 $data_attrs .= ' data-col-'.htmlspecialchars($key).'="'.htmlspecialchars($val).'"';
             }
           ?>
-          <tr class="item-row" <?= $data_attrs ?> style="border-top:1px solid #f5f5f7;">
-            <td style="padding:13px 18px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-weight:900;font-size:12px;background:#f3f4f6;color:#6b7280;">
+          <tr class="item-row" <?= $data_attrs ?>
+            style="border-top:1px solid #f5f5f7;transition:background .12s;"
+            onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background=''">
+            <td style="padding:14px 20px;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+                border-radius:50%;font-weight:900;font-size:13px;background:#f3f4f6;color:#6b7280;">
                 <?= $rank ?>
               </span>
             </td>
-            <td style="padding:13px 18px;">
-              <a href="<?= $elink ?>" style="display:flex;align-items:center;gap:11px;text-decoration:none;">
-                <?php if ($ephoto): ?>
-                <img src="<?= htmlspecialchars($ephoto) ?>" alt="" style="width:38px;height:38px;border-radius:<?= $is_p?'50%':'9px' ?>;object-fit:cover;border:1.5px solid #e9d5ff;flex-shrink:0;">
+            <td style="padding:14px 20px;">
+              <a href="<?= $info['link'] ?>" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
+                <?php if ($info['photo']): ?>
+                <img src="<?= htmlspecialchars($info['photo']) ?>" alt=""
+                  style="width:42px;height:42px;border-radius:<?= $info['is_p']?'50%':'10px' ?>;object-fit:cover;
+                  border:1.5px solid #ede9fe;flex-shrink:0;">
                 <?php else: ?>
-                <div style="width:38px;height:38px;border-radius:<?= $is_p?'50%':'9px' ?>;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:14px;flex-shrink:0;"><?= mb_substr($ename,0,1) ?></div>
+                <div style="width:42px;height:42px;border-radius:<?= $info['is_p']?'50%':'10px' ?>;
+                  background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;
+                  justify-content:center;color:#fff;font-weight:900;font-size:15px;flex-shrink:0;">
+                  <?= mb_substr($info['name'],0,1) ?>
+                </div>
                 <?php endif; ?>
                 <div>
-                  <span style="font-weight:800;font-size:14px;color:#111827;display:flex;align-items:center;gap:4px;">
-                    <?= htmlspecialchars($ename) ?>
-                    <?php if ($verified): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:11px;"></i><?php endif; ?>
+                  <span style="font-weight:800;font-size:14px;color:#111827;display:flex;align-items:center;gap:5px;">
+                    <?= htmlspecialchars($info['name']) ?>
+                    <?php if ($info['verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:11px;"></i><?php endif; ?>
                   </span>
-                  <?php if ($etitle): ?><span style="font-size:11px;color:#9ca3af;font-weight:600;"><?= htmlspecialchars($etitle) ?></span><?php endif; ?>
+                  <?php if ($info['title']): ?>
+                  <span style="font-size:11px;color:#9ca3af;font-weight:600;"><?= htmlspecialchars($info['title']) ?></span>
+                  <?php endif; ?>
                 </div>
               </a>
             </td>
@@ -457,15 +498,15 @@ if (!empty($all_sponsors)):
               $type = $col['type']??'text';
               $val  = $src==='profile' ? profile_col($item,$key) : ($item['_data'][$key]??'');
             ?>
-            <td style="padding:13px 18px;white-space:nowrap;"><?= fmt_col($val,$type) ?></td>
+            <td style="padding:14px 20px;white-space:nowrap;"><?= fmt_col($val,$type) ?></td>
             <?php endforeach; ?>
           </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
     </div>
-    <div id="no-results" style="display:none;text-align:center;padding:48px;color:#9ca3af;">
-      <i class="fa-solid fa-magnifying-glass" style="font-size:32px;margin-bottom:12px;opacity:.25;display:block;"></i>
+    <div id="no-results" style="display:none;text-align:center;padding:56px;color:#9ca3af;">
+      <i class="fa-solid fa-magnifying-glass" style="font-size:36px;margin-bottom:14px;opacity:.2;display:block;"></i>
       <p style="font-weight:700;"><?= $is_ar?'لا توجد نتائج تطابق التصفية':'No results match your filters' ?></p>
     </div>
   </div>
@@ -473,9 +514,9 @@ if (!empty($all_sponsors)):
 
 </div>
 <?php else: ?>
-<div style="text-align:center;padding:64px;background:#fff;border-radius:20px;border:1px solid #f0f0f0;color:#9ca3af;">
-  <i class="fa-solid fa-users" style="font-size:48px;opacity:.15;display:block;margin-bottom:16px;"></i>
-  <p style="font-weight:700;"><?= $is_ar?'لم يتم إضافة أعضاء لهذه القائمة بعد':'No entries added yet' ?></p>
+<div style="text-align:center;padding:72px;background:#fff;border-radius:20px;border:1px solid #f0f0f0;color:#9ca3af;">
+  <i class="fa-solid fa-users" style="font-size:52px;opacity:.12;display:block;margin-bottom:18px;"></i>
+  <p style="font-weight:700;font-size:15px;"><?= $is_ar?'لم يتم إضافة أعضاء لهذه القائمة بعد':'No entries added yet' ?></p>
 </div>
 <?php endif; ?>
 
