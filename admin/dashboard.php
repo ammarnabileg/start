@@ -97,9 +97,11 @@ $r = $mysqli->query("SELECT u_name,u_email,u_plan,u_created FROM pi_users ORDER 
 if ($r) while ($row=$r->fetch_assoc()) $recent_users[] = $row;
 
 // ── Plan distribution ─────────────────────────────────────────────────────────
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='free'");        $plan_free     = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='verified'");    $plan_verified = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$r = $mysqli->query("SELECT COUNT(*) c FROM pi_users WHERE u_plan='executive'");   $plan_exec     = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1 AND p_verified=0 AND (p_membership_type IS NULL OR p_membership_type='free')"); $plan_free     = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1 AND p_verified=1 AND p_membership_type!='executive'"); $plan_verified = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_personalities WHERE p_active=1 AND p_membership_type='executive'"); $plan_exec     = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_institutions WHERE inst_active=1 AND inst_verified=1"); $inst_verified_count = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$inst_free_count = $count_inst - $inst_verified_count;
 
 // ── Hourly visits today (for bar chart) ──────────────────────────────────────
 $hourly = array_fill(0, 24, 0);
@@ -319,37 +321,46 @@ for ($h = 8; $h < 8 + $active_hours && $h < 24; $h++) {
     <?php endforeach; endif; ?>
   </div>
 
-  <!-- Users plan doughnut + recent users -->
+  <!-- Personalities & institutions distribution -->
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
     <h3 class="font-black text-gray-800 mb-4 flex items-center gap-2">
-      <i class="fa-solid fa-user-group text-purple-500"></i> توزيع المستخدمين
+      <i class="fa-solid fa-chart-pie text-purple-500"></i> توزيع الصفحات
     </h3>
     <div class="flex items-center gap-4 mb-4">
       <canvas id="planChart" width="100" height="100"></canvas>
       <div class="space-y-2 flex-1">
+        <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">الشخصيات</p>
         <div class="flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block"></span>مجاني</span>
+          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block"></span>عادية</span>
           <span class="font-black text-gray-800 text-sm"><?= number_format($plan_free) ?></span>
         </div>
         <div class="flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>موثق</span>
+          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>موثقة</span>
           <span class="font-black text-gray-800 text-sm"><?= number_format($plan_verified) ?></span>
         </div>
         <div class="flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span>تنفيذي</span>
+          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span>تنفيذية</span>
           <span class="font-black text-gray-800 text-sm"><?= number_format($plan_exec) ?></span>
         </div>
-        <?php if ($blocked_users): ?>
+        <p class="text-xs font-black text-gray-400 uppercase tracking-widest mt-2 mb-1">المؤسسات</p>
         <div class="flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>محظور</span>
-          <span class="font-black text-red-600 text-sm"><?= number_format($blocked_users) ?></span>
+          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-amber-300 inline-block"></span>عادية</span>
+          <span class="font-black text-gray-800 text-sm"><?= number_format(max(0,$inst_free_count)) ?></span>
         </div>
-        <?php endif; ?>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>موثقة</span>
+          <span class="font-black text-gray-800 text-sm"><?= number_format($inst_verified_count) ?></span>
+        </div>
       </div>
     </div>
-    <a href="admin.php?p=users" class="block w-full py-2 text-center text-xs font-black text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition">
-      إدارة المستخدمين ←
-    </a>
+    <div class="flex gap-2">
+      <a href="admin.php?p=personalities" class="flex-1 py-2 text-center text-xs font-black text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition">
+        الشخصيات ←
+      </a>
+      <a href="admin.php?p=institutions" class="flex-1 py-2 text-center text-xs font-black text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition">
+        المؤسسات ←
+      </a>
+    </div>
   </div>
 
   <!-- Top personalities -->
@@ -552,14 +563,14 @@ new Chart(document.getElementById('hourlyChart'), {
   }
 });
 
-// ── Plan doughnut
+// ── Pages distribution doughnut
 new Chart(document.getElementById('planChart'), {
   type: 'doughnut',
   data: {
-    labels: ['مجاني', 'موثق', 'تنفيذي'],
+    labels: ['شخصية عادية', 'شخصية موثقة', 'شخصية تنفيذية', 'مؤسسة عادية', 'مؤسسة موثقة'],
     datasets: [{
-      data: [<?= $plan_free ?>, <?= $plan_verified ?>, <?= $plan_exec ?>],
-      backgroundColor: ['#d1d5db','#60a5fa','#8829C8'],
+      data: [<?= $plan_free ?>, <?= $plan_verified ?>, <?= $plan_exec ?>, <?= max(0,$inst_free_count) ?>, <?= $inst_verified_count ?>],
+      backgroundColor: ['#d1d5db','#60a5fa','#8829C8','#fcd34d','#34d399'],
       borderWidth: 0,
       hoverOffset: 4
     }]
