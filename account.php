@@ -157,13 +157,56 @@ if ($r) while ($row=$r->fetch_assoc()) {
     $my_all_subs[] = $row;
 }
 
-// Load sponsors linked to this user
+// Load sponsors linked to this user + their lists with views
 $my_sponsors = [];
 $sr = $mysqli->query("SELECT s.sp_id, s.sp_name, s.sp_logo, s.sp_url,
     (SELECT COUNT(*) FROM pi_lists WHERE list_sponsor_id=s.sp_id AND list_active=1) AS lists_count,
-    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id) AS total_views
+    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id) AS total_views,
+    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)) AS views_30d,
+    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 7 DAY)) AS views_7d
     FROM pi_sponsors s WHERE s.sp_user_id=" . (int)$user['u_id']);
-if ($sr) while ($row=$sr->fetch_assoc()) $my_sponsors[] = $row;
+if ($sr) while ($row=$sr->fetch_assoc()) {
+    // Load linked lists for this sponsor
+    $row['_lists'] = [];
+    $lr = $mysqli->query("SELECT l.list_id,l.list_title,l.list_views,
+        COALESCE((SELECT SUM(vd_count) FROM pi_visit_daily WHERE vd_page=CONCAT('list/',l.list_id) AND vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)),0) AS views_30d
+        FROM pi_lists l WHERE l.list_sponsor_id=".(int)$row['sp_id']." AND l.list_active=1 ORDER BY l.list_views DESC");
+    if ($lr) while ($lr_row=$lr->fetch_assoc()) $row['_lists'][] = $lr_row;
+    $my_sponsors[] = $row;
+}
+
+// Per-entity 30/7 day views from pi_visit_daily
+$p_views_30d = []; $p_views_7d = [];
+$i_views_30d = []; $i_views_7d = [];
+if (!empty($my_personalities)) {
+    $pids = implode(',', array_column($my_personalities,'p_id'));
+    $rvp = $mysqli->query("SELECT vd_page, SUM(CASE WHEN vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) THEN vd_count ELSE 0 END) v30,
+        SUM(CASE WHEN vd_date>=DATE_SUB(CURDATE(),INTERVAL 7 DAY) THEN vd_count ELSE 0 END) v7
+        FROM pi_visit_daily WHERE vd_page IN (".implode(',',array_map(function($id){ return "'profile/$id'"; },array_column($my_personalities,'p_id'))).") GROUP BY vd_page");
+    if ($rvp) while ($row=$rvp->fetch_assoc()) {
+        $id = (int)str_replace('profile/','',$row['vd_page']);
+        $p_views_30d[$id] = (int)$row['v30'];
+        $p_views_7d[$id]  = (int)$row['v7'];
+    }
+}
+if (!empty($my_institutions)) {
+    $rvp = $mysqli->query("SELECT vd_page, SUM(CASE WHEN vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) THEN vd_count ELSE 0 END) v30,
+        SUM(CASE WHEN vd_date>=DATE_SUB(CURDATE(),INTERVAL 7 DAY) THEN vd_count ELSE 0 END) v7
+        FROM pi_visit_daily WHERE vd_page IN (".implode(',',array_map(function($id){ return "'institution/$id'"; },array_column($my_institutions,'inst_id'))).") GROUP BY vd_page");
+    if ($rvp) while ($row=$rvp->fetch_assoc()) {
+        $id = (int)str_replace('institution/','',$row['vd_page']);
+        $i_views_30d[$id] = (int)$row['v30'];
+        $i_views_7d[$id]  = (int)$row['v7'];
+    }
+}
+
+// Summary totals for stats header
+$total_p_views    = array_sum(array_column($my_personalities,'p_views'));
+$total_i_views    = array_sum(array_column($my_institutions,'inst_views'));
+$total_sp_views   = array_sum(array_column($my_sponsors,'total_views'));
+$total_views_all  = $total_p_views + $total_i_views + $total_sp_views;
+$total_pages      = count($my_personalities) + count($my_institutions);
+$total_30d        = array_sum($p_views_30d) + array_sum($i_views_30d) + array_sum(array_column($my_sponsors,'views_30d'));
 
 $all_countries = pi_get_countries();
 
@@ -363,105 +406,225 @@ include 'includes/header.php';
 
       <!-- ──────────── STATS TAB ──────────── -->
       <?php elseif ($tab === 'stats'): ?>
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 class="font-black text-gray-800 text-lg mb-6">
-          <i class="fa-solid fa-chart-bar text-purple-500 ml-2"></i> الإحصائيات
-        </h2>
-        <!-- Tabs within stats -->
-        <div class="flex border-b border-gray-100 mb-6 gap-4">
-          <button onclick="showStatsTab('personalities')" id="st-p"
-            class="pb-3 text-sm font-bold border-b-2 border-purple-600 text-purple-600 transition">الشخصيات</button>
-          <button onclick="showStatsTab('companies')" id="st-c"
-            class="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 transition">الشركات</button>
-          <button onclick="showStatsTab('sponsors')" id="st-s"
-            class="pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 transition">الرعايات</button>
+      <div class="space-y-5">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <?php
+          $sum_cards = [
+            ['icon'=>'fa-eye','label'=>'إجمالي المشاهدات','val'=>number_format($total_views_all),'color'=>'#7c3aed','bg'=>'#f5f3ff'],
+            ['icon'=>'fa-calendar-day','label'=>'آخر 30 يوم','val'=>number_format($total_30d),'color'=>'#2563eb','bg'=>'#eff6ff'],
+            ['icon'=>'fa-id-badge','label'=>'الصفحات المُدارة','val'=>$total_pages,'color'=>'#059669','bg'=>'#f0fdf4'],
+            ['icon'=>'fa-handshake','label'=>'مشاهدات الرعايات','val'=>number_format($total_sp_views),'color'=>'#d97706','bg'=>'#fffbeb'],
+          ];
+          foreach ($sum_cards as $sc):
+          ?>
+          <div style="background:#fff;border-radius:18px;padding:18px 20px;border:1px solid #f0f0f0;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+            <div style="width:40px;height:40px;border-radius:12px;background:<?= $sc['bg'] ?>;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+              <i class="fa-solid <?= $sc['icon'] ?>" style="color:<?= $sc['color'] ?>;font-size:16px;"></i>
+            </div>
+            <p style="font-size:22px;font-weight:900;color:#111827;line-height:1;margin-bottom:4px;"><?= $sc['val'] ?></p>
+            <p style="font-size:11px;color:#6b7280;font-weight:600;"><?= $sc['label'] ?></p>
+          </div>
+          <?php endforeach; ?>
         </div>
 
-        <div id="stats-personalities">
-          <?php if (empty($my_personalities)): ?>
-          <div class="text-center py-16 text-gray-300">
-            <i class="fa-solid fa-pen-to-square text-5xl mb-4"></i>
-            <p class="font-semibold text-gray-400">عفواً لا توجد شخصيات يتم إداراتها من قبلكم لعرضها.</p>
+        <!-- Tabs -->
+        <div style="background:#fff;border-radius:18px;border:1px solid #f0f0f0;box-shadow:0 2px 8px rgba(0,0,0,.04);overflow:hidden;">
+          <div style="display:flex;border-bottom:1px solid #f0f0f0;padding:0 20px;gap:4px;">
+            <button onclick="showStatsTab('personalities')" id="st-p"
+              style="padding:16px 18px;font-size:13px;font-weight:800;border:none;background:none;cursor:pointer;border-bottom:3px solid #7c3aed;color:#7c3aed;margin-bottom:-1px;font-family:inherit;">
+              <i class="fa-solid fa-user ml-1"></i>الشخصيات
+              <?php if (!empty($my_personalities)): ?><span style="background:#f3e8ff;color:#7c3aed;font-size:10px;font-weight:900;padding:2px 7px;border-radius:999px;margin-right:4px;"><?= count($my_personalities) ?></span><?php endif; ?>
+            </button>
+            <button onclick="showStatsTab('companies')" id="st-c"
+              style="padding:16px 18px;font-size:13px;font-weight:800;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:#9ca3af;margin-bottom:-1px;font-family:inherit;">
+              <i class="fa-solid fa-building ml-1"></i>الشركات
+              <?php if (!empty($my_institutions)): ?><span style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:900;padding:2px 7px;border-radius:999px;margin-right:4px;"><?= count($my_institutions) ?></span><?php endif; ?>
+            </button>
+            <button onclick="showStatsTab('sponsors')" id="st-s"
+              style="padding:16px 18px;font-size:13px;font-weight:800;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:#9ca3af;margin-bottom:-1px;font-family:inherit;">
+              <i class="fa-solid fa-handshake ml-1"></i>الرعايات
+              <?php if (!empty($my_sponsors)): ?><span style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:900;padding:2px 7px;border-radius:999px;margin-right:4px;"><?= count($my_sponsors) ?></span><?php endif; ?>
+            </button>
           </div>
-          <?php else: ?>
-          <div class="space-y-3">
-            <?php foreach ($my_personalities as $p): ?>
-            <a href="profile.php?id=<?= $p['p_id'] ?>" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition">
-              <?php if (!empty($p['p_photo'])): ?>
-                <img src="<?= htmlspecialchars($p['p_photo']) ?>" class="w-10 h-10 rounded-full object-cover border border-purple-100">
-              <?php else: ?>
-                <div class="w-10 h-10 rounded-full pi-gradient flex items-center justify-center flex-shrink-0">
-                  <span class="text-white font-black text-sm"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
-                </div>
-              <?php endif; ?>
-              <div class="flex-1 min-w-0">
-                <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($p['p_name_ar']) ?>
-                  <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-                </p>
-                <p class="text-xs text-gray-400"><?= htmlspecialchars($p['p_title'] ?? '') ?></p>
-              </div>
-              <span class="text-xs text-gray-400"><i class="fa-solid fa-eye ml-1"></i><?= number_format($p['p_views']) ?></span>
-            </a>
-            <?php endforeach; ?>
-          </div>
-          <?php endif; ?>
-        </div>
 
-        <div id="stats-sponsors" class="hidden">
-          <?php if (empty($my_sponsors)): ?>
-          <div class="text-center py-16 text-gray-300">
-            <i class="fa-solid fa-handshake text-5xl mb-4"></i>
-            <p class="font-semibold text-gray-400">لا توجد رعايات مرتبطة بحسابك.</p>
-          </div>
-          <?php else: ?>
-          <div class="space-y-3">
-            <?php foreach ($my_sponsors as $sp): ?>
-            <a href="<?= htmlspecialchars($sp['sp_url'] ?: '#') ?>" target="_blank" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition">
-              <?php if (!empty($sp['sp_logo'])): ?>
-                <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" class="w-10 h-10 rounded-xl object-contain border border-gray-100">
-              <?php else: ?>
-                <div class="w-10 h-10 rounded-xl pi-gradient flex items-center justify-center flex-shrink-0">
-                  <i class="fa-solid fa-handshake text-white text-sm"></i>
+          <!-- ── Personalities ── -->
+          <div id="stats-personalities" style="padding:20px;">
+            <?php if (empty($my_personalities)): ?>
+            <div style="text-align:center;padding:48px;color:#9ca3af;">
+              <i class="fa-solid fa-user-slash" style="font-size:40px;opacity:.2;display:block;margin-bottom:12px;"></i>
+              <p style="font-weight:700;">لا توجد شخصيات مرتبطة بحسابك</p>
+            </div>
+            <?php else: ?>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <?php foreach ($my_personalities as $p):
+                $v30 = $p_views_30d[$p['p_id']] ?? 0;
+                $v7  = $p_views_7d[$p['p_id']]  ?? 0;
+              ?>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 12px;border-radius:14px;transition:background .15s;"
+                onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background=''">
+                <!-- Avatar -->
+                <a href="profile.php?id=<?= $p['p_id'] ?>" style="flex-shrink:0;">
+                  <?php if (!empty($p['p_photo'])): ?>
+                  <img src="<?= htmlspecialchars($p['p_photo']) ?>" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #ede9fe;">
+                  <?php else: ?>
+                  <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;">
+                    <?= mb_substr($p['p_name_ar'],0,1) ?>
+                  </div>
+                  <?php endif; ?>
+                </a>
+                <!-- Name -->
+                <div style="flex:1;min-width:0;">
+                  <a href="profile.php?id=<?= $p['p_id'] ?>" style="font-weight:800;font-size:14px;color:#111827;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                    <?= htmlspecialchars($p['p_name_ar']) ?>
+                    <?php if ($p['p_verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:11px;"></i><?php endif; ?>
+                  </a>
+                  <p style="font-size:11px;color:#9ca3af;font-weight:600;margin-top:2px;"><?= htmlspecialchars($p['p_title']??'') ?></p>
                 </div>
-              <?php endif; ?>
-              <div class="flex-1 min-w-0">
-                <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($sp['sp_name']) ?></p>
-                <p class="text-xs text-gray-400"><i class="fa-solid fa-list ml-1"></i><?= (int)$sp['lists_count'] ?> قوائم</p>
+                <!-- Stats -->
+                <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;">
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#111827;line-height:1;"><?= number_format($p['p_views']) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">إجمالي</p>
+                  </div>
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format($v30) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">30 يوم</p>
+                  </div>
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#059669;line-height:1;"><?= number_format($v7) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">7 أيام</p>
+                  </div>
+                  <span style="background:<?= $p['p_verified']?'#eff6ff':'#f3f4f6' ?>;color:<?= $p['p_verified']?'#2563eb':'#9ca3af' ?>;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;">
+                    <?= $p['p_verified'] ? 'موثّق' : 'عادي' ?>
+                  </span>
+                </div>
               </div>
-              <span class="text-xs text-gray-400"><i class="fa-solid fa-eye ml-1"></i><?= number_format((int)$sp['total_views']) ?></span>
-            </a>
-            <?php endforeach; ?>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
           </div>
-          <?php endif; ?>
-        </div>
 
-        <div id="stats-companies" class="hidden">
-          <?php if (empty($my_institutions)): ?>
-          <div class="text-center py-16 text-gray-300">
-            <i class="fa-solid fa-pen-to-square text-5xl mb-4"></i>
-            <p class="font-semibold text-gray-400">عفواً لا توجد شركات يتم إداراتها من قبلكم لعرضها.</p>
-          </div>
-          <?php else: ?>
-          <div class="space-y-3">
-            <?php foreach ($my_institutions as $inst): ?>
-            <a href="institution.php?id=<?= $inst['inst_id'] ?>" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition">
-              <?php if (!empty($inst['inst_logo'])): ?>
-                <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" class="w-10 h-10 rounded-xl object-cover border border-gray-100">
-              <?php else: ?>
-                <div class="w-10 h-10 rounded-xl pi-gradient flex items-center justify-center flex-shrink-0">
-                  <span class="text-white font-black text-sm"><?= mb_substr($inst['inst_name_ar'],0,1) ?></span>
+          <!-- ── Companies ── -->
+          <div id="stats-companies" style="padding:20px;display:none;">
+            <?php if (empty($my_institutions)): ?>
+            <div style="text-align:center;padding:48px;color:#9ca3af;">
+              <i class="fa-solid fa-building" style="font-size:40px;opacity:.2;display:block;margin-bottom:12px;"></i>
+              <p style="font-weight:700;">لا توجد شركات مرتبطة بحسابك</p>
+            </div>
+            <?php else: ?>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <?php foreach ($my_institutions as $inst):
+                $v30 = $i_views_30d[$inst['inst_id']] ?? 0;
+                $v7  = $i_views_7d[$inst['inst_id']]  ?? 0;
+              ?>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 12px;border-radius:14px;transition:background .15s;"
+                onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background=''">
+                <a href="institution.php?id=<?= $inst['inst_id'] ?>" style="flex-shrink:0;">
+                  <?php if (!empty($inst['inst_logo'])): ?>
+                  <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" style="width:48px;height:48px;border-radius:12px;object-fit:contain;border:2px solid #ede9fe;">
+                  <?php else: ?>
+                  <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;">
+                    <?= mb_substr($inst['inst_name_ar'],0,1) ?>
+                  </div>
+                  <?php endif; ?>
+                </a>
+                <div style="flex:1;min-width:0;">
+                  <a href="institution.php?id=<?= $inst['inst_id'] ?>" style="font-weight:800;font-size:14px;color:#111827;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                    <?= htmlspecialchars($inst['inst_name_ar']) ?>
+                    <?php if ($inst['inst_verified']): ?><i class="fa-solid fa-circle-check" style="color:#3b82f6;font-size:11px;"></i><?php endif; ?>
+                  </a>
                 </div>
-              <?php endif; ?>
-              <div class="flex-1 min-w-0">
-                <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($inst['inst_name_ar']) ?>
-                  <?php if ($inst['inst_verified']): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-                </p>
+                <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;">
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#111827;line-height:1;"><?= number_format($inst['inst_views']) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">إجمالي</p>
+                  </div>
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format($v30) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">30 يوم</p>
+                  </div>
+                  <div style="text-align:center;">
+                    <p style="font-size:16px;font-weight:900;color:#059669;line-height:1;"><?= number_format($v7) ?></p>
+                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">7 أيام</p>
+                  </div>
+                  <span style="background:<?= $inst['inst_verified']?'#eff6ff':'#f3f4f6' ?>;color:<?= $inst['inst_verified']?'#2563eb':'#9ca3af' ?>;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;">
+                    <?= $inst['inst_verified'] ? 'موثّقة' : 'عادية' ?>
+                  </span>
+                </div>
               </div>
-              <span class="text-xs text-gray-400"><i class="fa-solid fa-eye ml-1"></i><?= number_format($inst['inst_views']) ?></span>
-            </a>
-            <?php endforeach; ?>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
           </div>
-          <?php endif; ?>
+
+          <!-- ── Sponsors ── -->
+          <div id="stats-sponsors" style="padding:20px;display:none;">
+            <?php if (empty($my_sponsors)): ?>
+            <div style="text-align:center;padding:48px;color:#9ca3af;">
+              <i class="fa-solid fa-handshake" style="font-size:40px;opacity:.2;display:block;margin-bottom:12px;"></i>
+              <p style="font-weight:700;">لا توجد رعايات مرتبطة بحسابك</p>
+              <p style="font-size:12px;margin-top:6px;">تواصل مع الإدارة لربط رعايتك بحسابك</p>
+            </div>
+            <?php else: ?>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <?php foreach ($my_sponsors as $sp): ?>
+              <div style="border:1px solid #f0f0f0;border-radius:16px;overflow:hidden;">
+                <!-- Sponsor header -->
+                <div style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:#fafafa;">
+                  <?php if (!empty($sp['sp_logo'])): ?>
+                  <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" style="width:52px;height:52px;border-radius:12px;object-fit:contain;background:#fff;border:1px solid #e5e7eb;flex-shrink:0;">
+                  <?php else: ?>
+                  <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:20px;flex-shrink:0;">
+                    <?= mb_substr($sp['sp_name'],0,1) ?>
+                  </div>
+                  <?php endif; ?>
+                  <div style="flex:1;">
+                    <p style="font-weight:900;font-size:15px;color:#111827;"><?= htmlspecialchars($sp['sp_name']) ?></p>
+                    <p style="font-size:11px;color:#9ca3af;font-weight:600;margin-top:2px;">
+                      <i class="fa-solid fa-list" style="margin-left:4px;"></i><?= (int)$sp['lists_count'] ?> قائمة
+                    </p>
+                  </div>
+                  <!-- View stats -->
+                  <div style="display:flex;gap:16px;">
+                    <div style="text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 16px;">
+                      <p style="font-size:20px;font-weight:900;color:#7c3aed;line-height:1;"><?= number_format((int)$sp['total_views']) ?></p>
+                      <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">إجمالي المشاهدات</p>
+                    </div>
+                    <div style="text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 16px;">
+                      <p style="font-size:20px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format((int)$sp['views_30d']) ?></p>
+                      <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">آخر 30 يوم</p>
+                    </div>
+                    <div style="text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 16px;">
+                      <p style="font-size:20px;font-weight:900;color:#059669;line-height:1;"><?= number_format((int)$sp['views_7d']) ?></p>
+                      <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">آخر 7 أيام</p>
+                    </div>
+                  </div>
+                </div>
+                <!-- Linked lists -->
+                <?php if (!empty($sp['_lists'])): ?>
+                <div style="padding:0 18px 12px;">
+                  <p style="font-size:10px;font-weight:800;color:#9ca3af;letter-spacing:.5px;padding:12px 0 8px;">القوائم المرتبطة</p>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <?php foreach ($sp['_lists'] as $lst): ?>
+                    <a href="list.php?id=<?= $lst['list_id'] ?>" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border:1px solid #f0f0f0;border-radius:10px;text-decoration:none;transition:border-color .15s;"
+                      onmouseover="this.style.borderColor='#c4b5fd'" onmouseout="this.style.borderColor='#f0f0f0'">
+                      <span style="font-size:13px;font-weight:700;color:#374151;"><?= htmlspecialchars($lst['list_title']) ?></span>
+                      <div style="display:flex;gap:14px;">
+                        <span style="font-size:12px;color:#7c3aed;font-weight:800;"><i class="fa-solid fa-eye" style="margin-left:4px;"></i><?= number_format((int)$lst['list_views']) ?> إجمالي</span>
+                        <span style="font-size:12px;color:#2563eb;font-weight:800;"><i class="fa-solid fa-calendar-day" style="margin-left:4px;"></i><?= number_format((int)$lst['views_30d']) ?> هذا الشهر</span>
+                      </div>
+                    </a>
+                    <?php endforeach; ?>
+                  </div>
+                </div>
+                <?php endif; ?>
+              </div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+          </div>
         </div>
       </div>
 

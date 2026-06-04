@@ -5,6 +5,30 @@ $msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';
+
+    // Edit views for a specific list linked to this sponsor
+    if ($act === 'edit_views') {
+        pi_require_any_perm('manage_sponsors','edit_sponsor');
+        $lid   = (int)($_POST['list_id'] ?? 0);
+        $views = max(0, (int)($_POST['list_views'] ?? 0));
+        if ($lid) {
+            $mysqli->query("UPDATE pi_lists SET list_views=$views WHERE list_id=$lid");
+            // Sync pi_visit_daily: set today's count to reflect adjustment
+            $existing = 0;
+            $re = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_page='list/$lid'");
+            if ($re) $existing = (int)$re->fetch_assoc()['c'];
+            $diff = $views - $existing;
+            if ($diff > 0) {
+                $mysqli->query("INSERT INTO pi_visit_daily (vd_page,vd_date,vd_count) VALUES ('list/$lid',CURDATE(),$diff) ON DUPLICATE KEY UPDATE vd_count=vd_count+$diff");
+            } elseif ($diff < 0) {
+                $abs = abs($diff);
+                $mysqli->query("UPDATE pi_visit_daily SET vd_count=GREATEST(1,vd_count-$abs) WHERE vd_page='list/$lid' AND vd_date=CURDATE()");
+            }
+        }
+        $msg = 'تم تحديث عدد المشاهدات';
+        $action = 'list';
+    }
+
     if ($act === 'save_sponsor') {
         pi_require_any_perm('manage_sponsors','add_sponsor','edit_sponsor');
         $id    = (int)($_POST['sp_id'] ?? 0);
@@ -170,8 +194,17 @@ function previewSpLogo(input) {
 
 <?php } else {
 $list = [];
-$r = $mysqli->query("SELECT s.*, u.u_name AS linked_user_name FROM pi_sponsors s LEFT JOIN pi_users u ON s.sp_user_id=u.u_id ORDER BY s.sp_order,s.sp_id");
-if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
+$r = $mysqli->query("SELECT s.*, u.u_name AS linked_user_name,
+    (SELECT COALESCE(SUM(l.list_views),0) FROM pi_lists l WHERE l.list_sponsor_id=s.sp_id) AS total_views,
+    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)) AS views_30d
+    FROM pi_sponsors s LEFT JOIN pi_users u ON s.sp_user_id=u.u_id ORDER BY s.sp_order,s.sp_id");
+if ($r) while ($row=$r->fetch_assoc()) {
+    // Fetch linked lists for this sponsor
+    $row['_lists'] = [];
+    $lr = $mysqli->query("SELECT list_id, list_title, list_views FROM pi_lists WHERE list_sponsor_id=".(int)$row['sp_id']." ORDER BY list_id");
+    if ($lr) while ($lr_row=$lr->fetch_assoc()) $row['_lists'][] = $lr_row;
+    $list[] = $row;
+}
 ?>
 <?php if ($msg): ?>
 <div class="bg-green-50 border border-green-200 text-green-700 rounded-xl px-5 py-3 mb-5 font-bold text-sm">
@@ -184,49 +217,107 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
   <a href="admin.php?p=sponsors&action=add" class="btn-primary flex items-center gap-2"><i class="fa-solid fa-plus"></i> إضافة راعي</a>
   <?php endif; ?>
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+<div class="space-y-4">
   <?php foreach ($list as $sp): ?>
-  <div class="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3">
-    <?php if ($sp['sp_logo']): ?>
-      <img src="<?= htmlspecialchars($sp['sp_logo']) ?>"
-        style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;display:block;">
-    <?php else: ?>
-      <div style="height:48px;display:flex;align-items:center;">
-        <i class="fa-solid fa-handshake text-gray-300 text-3xl"></i>
-      </div>
-    <?php endif; ?>
-    <p class="font-bold text-gray-800"><?= htmlspecialchars($sp['sp_name']) ?></p>
-    <?php if (!empty($sp['linked_user_name'])): ?>
-    <p class="text-xs text-purple-600 font-semibold"><i class="fa-solid fa-user-link ml-1"></i><?= htmlspecialchars($sp['linked_user_name']) ?></p>
-    <?php endif; ?>
-    <div class="flex gap-2 mt-auto">
-      <form method="POST" class="inline">
-        <input type="hidden" name="action" value="toggle_sponsor">
-        <input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>">
-        <button type="submit" class="<?= $sp['sp_active']?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500' ?> px-3 py-1 rounded-full text-xs font-bold hover:opacity-80 transition">
-          <?= $sp['sp_active']?'نشط':'معطل' ?>
-        </button>
-      </form>
-      <?php if (pi_has_any_perm('manage_sponsors','add_sponsor','edit_sponsor','delete_sponsor')): ?>
-      <a href="admin.php?p=sponsors&action=edit&id=<?= $sp['sp_id'] ?>"
-        class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition">
-        <i class="fa-solid fa-pen text-xs"></i>
-      </a>
-      <form method="POST" onsubmit="return confirm('حذف؟')">
-        <input type="hidden" name="action" value="delete_sponsor">
-        <input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>">
-        <button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition">
-          <i class="fa-solid fa-trash text-xs"></i>
-        </button>
-      </form>
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <!-- Sponsor Header -->
+    <div class="flex items-center gap-4 p-5">
+      <?php if ($sp['sp_logo']): ?>
+        <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" style="width:64px;height:64px;object-fit:contain;border-radius:14px;border:1px solid #f0f0f0;flex-shrink:0;background:#fafafa;">
+      <?php else: ?>
+        <div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#4c1d95);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-handshake text-white text-2xl"></i>
+        </div>
       <?php endif; ?>
+
+      <div class="flex-1 min-w-0">
+        <p class="font-black text-gray-800 text-base"><?= htmlspecialchars($sp['sp_name']) ?></p>
+        <?php if (!empty($sp['linked_user_name'])): ?>
+        <p class="text-xs text-purple-600 font-semibold mt-1"><i class="fa-solid fa-user-link ml-1"></i><?= htmlspecialchars($sp['linked_user_name']) ?></p>
+        <?php endif; ?>
+      </div>
+
+      <!-- View stats -->
+      <div class="flex gap-3 items-center">
+        <div class="text-center px-4 py-2 bg-purple-50 rounded-xl">
+          <p class="text-xl font-black text-purple-700"><?= number_format((int)$sp['total_views']) ?></p>
+          <p class="text-xs text-purple-400 font-semibold">إجمالي</p>
+        </div>
+        <div class="text-center px-4 py-2 bg-blue-50 rounded-xl">
+          <p class="text-xl font-black text-blue-700"><?= number_format((int)$sp['views_30d']) ?></p>
+          <p class="text-xs text-blue-400 font-semibold">30 يوم</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2 items-center">
+        <form method="POST" class="inline">
+          <input type="hidden" name="action" value="toggle_sponsor">
+          <input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>">
+          <button type="submit" class="<?= $sp['sp_active']?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500' ?> px-3 py-1.5 rounded-xl text-xs font-bold hover:opacity-80 transition">
+            <?= $sp['sp_active']?'نشط':'معطل' ?>
+          </button>
+        </form>
+        <?php if (pi_has_any_perm('manage_sponsors','add_sponsor','edit_sponsor','delete_sponsor')): ?>
+        <a href="admin.php?p=sponsors&action=edit&id=<?= $sp['sp_id'] ?>"
+          class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition">
+          <i class="fa-solid fa-pen text-xs"></i>
+        </a>
+        <form method="POST" onsubmit="return confirm('حذف؟')">
+          <input type="hidden" name="action" value="delete_sponsor">
+          <input type="hidden" name="sp_id" value="<?= $sp['sp_id'] ?>">
+          <button type="submit" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition">
+            <i class="fa-solid fa-trash text-xs"></i>
+          </button>
+        </form>
+        <?php endif; ?>
+      </div>
     </div>
+
+    <!-- Linked lists with editable views -->
+    <?php if (!empty($sp['_lists'])): ?>
+    <div class="border-t border-gray-50 px-5 pb-4">
+      <p class="text-xs font-black text-gray-400 uppercase tracking-widest py-3">القوائم المرتبطة</p>
+      <div class="space-y-2">
+        <?php foreach ($sp['_lists'] as $lst): ?>
+        <div class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+          <i class="fa-solid fa-list text-gray-300 text-sm flex-shrink-0"></i>
+          <a href="list.php?id=<?= $lst['list_id'] ?>" target="_blank"
+            class="flex-1 text-sm font-bold text-gray-700 hover:text-purple-600 transition truncate">
+            <?= htmlspecialchars($lst['list_title']) ?>
+          </a>
+          <form method="POST" class="flex items-center gap-2">
+            <input type="hidden" name="action" value="edit_views">
+            <input type="hidden" name="list_id" value="<?= $lst['list_id'] ?>">
+            <i class="fa-solid fa-eye text-gray-400 text-xs"></i>
+            <input type="number" name="list_views" value="<?= (int)$lst['list_views'] ?>" min="0"
+              style="width:80px;border:1.5px solid #e5e7eb;border-radius:8px;padding:4px 8px;font-size:13px;font-weight:800;text-align:center;font-family:inherit;outline:none;"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'">
+            <button type="submit"
+              style="padding:4px 12px;background:#f3e8ff;color:#7c3aed;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s;"
+              onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f3e8ff'">
+              حفظ
+            </button>
+          </form>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
   <?php endforeach; ?>
   <?php if (empty($list)): ?>
-  <div class="col-span-3 text-center py-16 text-gray-400">
-    <i class="fa-solid fa-handshake text-5xl mb-4 block"></i>لا يوجد رعاة بعد
+  <div class="text-center py-16 text-gray-400">
+    <i class="fa-solid fa-handshake text-5xl mb-4 block opacity-20"></i>
+    <p class="font-semibold">لا يوجد رعاة بعد</p>
   </div>
   <?php endif; ?>
 </div>
+
+<?php if ($msg): ?>
+<div class="fixed bottom-6 left-6 bg-green-600 text-white px-5 py-3 rounded-2xl shadow-xl font-bold text-sm z-50 flex items-center gap-2">
+  <i class="fa-solid fa-circle-check"></i><?= htmlspecialchars($msg) ?>
+</div>
+<script>setTimeout(function(){ document.querySelector('.fixed.bottom-6')?.remove(); }, 3000);</script>
+<?php endif; ?>
 <?php } ?>

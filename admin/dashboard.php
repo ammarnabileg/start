@@ -14,13 +14,21 @@ try { $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visit_daily (
     vd_count INT DEFAULT 1,
     PRIMARY KEY (vd_page(100), vd_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch(Exception $e) {}
+try { $mysqli->query("CREATE TABLE IF NOT EXISTS pi_unique_daily (
+    ud_ip   VARCHAR(45) NOT NULL,
+    ud_date DATE        NOT NULL,
+    PRIMARY KEY (ud_ip(45), ud_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch(Exception $e) {}
 
 // ── Visit stats (from pi_visit_daily) ────────────────────────────────────────
 $r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date >= DATE_SUB(CURDATE(), INTERVAL {$period} DAY)"); $v_total = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date=CURDATE()"); $v_today = $r ? (int)$r->fetch_assoc()['c'] : 0;
 $r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date=DATE_SUB(CURDATE(),INTERVAL 1 DAY)"); $v_yesterday = $r ? (int)$r->fetch_assoc()['c'] : 0;
-$v_unique = $v_total; // no IP dedup in daily table — show total views
 $v_trend = $v_yesterday > 0 ? round((($v_today - $v_yesterday) / $v_yesterday) * 100) : ($v_today > 0 ? 100 : 0);
+
+// Unique visitors from pi_unique_daily
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_unique_daily WHERE ud_date >= DATE_SUB(CURDATE(), INTERVAL {$period} DAY)"); $v_unique = $r ? (int)$r->fetch_assoc()['c'] : 0;
+$r = $mysqli->query("SELECT COUNT(*) c FROM pi_unique_daily WHERE ud_date=CURDATE()"); $v_unique_today = $r ? (int)$r->fetch_assoc()['c'] : 0;
 
 // prev period comparison
 $r = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date >= DATE_SUB(CURDATE(), INTERVAL ".($period*2)." DAY) AND vd_date < DATE_SUB(CURDATE(), INTERVAL {$period} DAY)"); $v_prev = $r ? (int)$r->fetch_assoc()['c'] : 0;
@@ -37,7 +45,9 @@ for ($i = $chart_days - 1; $i >= 0; $i--) {
     $rv = $mysqli->query("SELECT COALESCE(SUM(vd_count),0) c FROM pi_visit_daily WHERE vd_date='$d'");
     $cnt = $rv ? (int)$rv->fetch_assoc()['c'] : 0;
     $chart_visits[] = $cnt;
-    $chart_unique[] = $cnt;
+    // Unique per day from pi_unique_daily
+    $ru = $mysqli->query("SELECT COUNT(*) c FROM pi_unique_daily WHERE ud_date='$d'");
+    $chart_unique[] = $ru ? (int)$ru->fetch_assoc()['c'] : 0;
 }
 
 // ── Top pages ─────────────────────────────────────────────────────────────────

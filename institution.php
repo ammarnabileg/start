@@ -10,6 +10,11 @@ $inst = $r->fetch_assoc();
 
 // Increment views
 $mysqli->query("UPDATE pi_institutions SET inst_views=inst_views+1 WHERE inst_id=$inst_id");
+$_vi = 'vi_i_'.$inst_id;
+if (empty($_SESSION[$_vi]) || (time()-$_SESSION[$_vi])>1800) {
+    $_SESSION[$_vi]=time();
+    $mysqli->query("INSERT INTO pi_visit_daily (vd_page,vd_date,vd_count) VALUES ('institution/$inst_id',CURDATE(),1) ON DUPLICATE KEY UPDATE vd_count=vd_count+1");
+}
 
 $pageTitle = htmlspecialchars($inst['inst_name_ar']) . ' - ' . pi_setting('site_name');
 $total_count = pi_count_personalities() + pi_count_institutions();

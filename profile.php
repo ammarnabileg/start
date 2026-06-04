@@ -9,6 +9,11 @@ if (!$r || !$r->num_rows) { header('Location: index.php'); exit; }
 $p = $r->fetch_assoc();
 
 $mysqli->query("UPDATE pi_personalities SET p_views=p_views+1 WHERE p_id=$p_id");
+$_vi = 'vi_p_'.$p_id;
+if (empty($_SESSION[$_vi]) || (time()-$_SESSION[$_vi])>1800) {
+    $_SESSION[$_vi]=time();
+    $mysqli->query("INSERT INTO pi_visit_daily (vd_page,vd_date,vd_count) VALUES ('profile/$p_id',CURDATE(),1) ON DUPLICATE KEY UPDATE vd_count=vd_count+1");
+}
 
 $pageTitle = htmlspecialchars($p['p_name_ar']) . ' - ' . pi_setting('site_name');
 $total_count = pi_count_personalities() + pi_count_institutions();

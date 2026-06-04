@@ -242,6 +242,13 @@ function pi_track_visit() {
         PRIMARY KEY (vd_page(100), vd_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // Unique visitors table (IP per day)
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_unique_daily (
+        ud_ip   VARCHAR(45) NOT NULL,
+        ud_date DATE        NOT NULL,
+        PRIMARY KEY (ud_ip(45), ud_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     $page = mb_substr(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/', 0, 200);
 
     // Session-based dedup: only count if not visited in last 30 minutes
@@ -255,9 +262,17 @@ function pi_track_visit() {
     $page_esc = pi_escape($page);
     $mysqli->query("INSERT INTO pi_visit_daily (vd_page, vd_date, vd_count) VALUES ('$page_esc', CURDATE(), 1) ON DUPLICATE KEY UPDATE vd_count=vd_count+1");
 
+    // Track unique visitor by IP (INSERT IGNORE keeps one row per IP per day)
+    $ip = pi_escape($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
+    $ip = pi_escape(trim(explode(',', $ip)[0]));
+    if ($ip) {
+        $mysqli->query("INSERT IGNORE INTO pi_unique_daily (ud_ip, ud_date) VALUES ('$ip', CURDATE())");
+    }
+
     // Auto-purge old records with 1% probability
     if (rand(1, 100) === 1) {
         $mysqli->query("DELETE FROM pi_visit_daily WHERE vd_date < DATE_SUB(CURDATE(), INTERVAL 365 DAY)");
+        $mysqli->query("DELETE FROM pi_unique_daily WHERE ud_date < DATE_SUB(CURDATE(), INTERVAL 365 DAY)");
     }
 }
 
