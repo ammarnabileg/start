@@ -115,6 +115,7 @@ define('PERM', [
     'manage_memberships'  => 33,
     'manage_complaints'   => 34,
     'manage_submissions'  => 35,
+    'manage_edit_requests'=> 36,
 ]);
 
 function pi_has_perm($perm_key) {

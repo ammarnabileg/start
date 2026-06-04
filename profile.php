@@ -259,7 +259,7 @@ include 'includes/header.php';
       <!-- Bio -->
       <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:16px;padding:24px;">
         <h2 style="font-size:17px;font-weight:900;color:#111827;margin:0 0 16px;">السيرة الذاتية</h2>
-        <?php if ($p['p_bio_platform']): ?>
+        <?php if (!empty($p['p_bio_platform']) && trim(strip_tags($p['p_bio_platform'])) !== ''): ?>
         <div style="background:#faf5ff;border-right:4px solid #8829C8;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.9;" class="pi-rich-content">
           <p style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:6px;">معلومات مضافة من منصة "<?= pi_setting('site_name_ar') ?>"</p>
           <?= $p['p_bio_platform'] ?>

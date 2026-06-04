@@ -48,6 +48,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($act === 'send_edit_request') {
+        $entity_type = in_array($_POST['entity_type'] ?? '', ['personality','institution']) ? pi_escape($_POST['entity_type']) : '';
+        $entity_id   = (int)($_POST['entity_id'] ?? 0);
+        $req_type    = in_array($_POST['req_type'] ?? '', ['edit','upgrade']) ? pi_escape($_POST['req_type']) : '';
+        $upgrade_to  = in_array($_POST['upgrade_to'] ?? '', ['verified','executive','']) ? pi_escape($_POST['upgrade_to']) : '';
+        $notes       = pi_escape(trim($_POST['req_notes'] ?? ''));
+        $uid         = (int)$user['u_id'];
+
+        // Verify entity belongs to this user
+        $owner = false;
+        if ($entity_type === 'personality') {
+            $chk = $mysqli->query("SELECT p_id FROM pi_personalities WHERE p_id=$entity_id AND p_added_by_user=$uid");
+            $owner = $chk && $chk->num_rows;
+        } elseif ($entity_type === 'institution') {
+            $chk = $mysqli->query("SELECT inst_id FROM pi_institutions WHERE inst_id=$entity_id AND inst_added_by_user=$uid");
+            $owner = $chk && $chk->num_rows;
+        }
+
+        if ($owner && $entity_type && $req_type) {
+            // Collect edit fields into JSON
+            $edit_data = [];
+            if ($req_type === 'edit') {
+                foreach (['name_ar','name_en','title','bio','nationality','residence','website','description'] as $f) {
+                    if (isset($_POST[$f]) && trim($_POST[$f]) !== '') $edit_data[$f] = trim($_POST[$f]);
+                }
+            }
+            $mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
+                er_id INT AUTO_INCREMENT PRIMARY KEY,
+                er_user_id INT NOT NULL,
+                er_entity_type ENUM('personality','institution') NOT NULL,
+                er_entity_id INT NOT NULL,
+                er_req_type ENUM('edit','upgrade') NOT NULL,
+                er_upgrade_to ENUM('verified','executive','') DEFAULT '',
+                er_edit_data TEXT,
+                er_notes TEXT,
+                er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+                er_admin_note TEXT,
+                er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (er_user_id),
+                INDEX idx_status (er_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $edit_json = pi_escape(json_encode($edit_data, JSON_UNESCAPED_UNICODE));
+            $mysqli->query("INSERT INTO pi_edit_requests (er_user_id,er_entity_type,er_entity_id,er_req_type,er_upgrade_to,er_edit_data,er_notes)
+                VALUES($uid,'$entity_type',$entity_id,'$req_type','$upgrade_to','$edit_json','$notes')");
+            header("Location: account.php?tab=accounts&req_sent=1"); exit;
+        } else {
+            $msg = 'حدث خطأ، يرجى المحاولة مجدداً'; $msg_type = 'error';
+        }
+    }
+
     if ($act === 'send_complaint') {
         $type    = in_array($_POST['cmp_type'] ?? '', ['complaint','suggestion','feedback','request']) ? pi_escape($_POST['cmp_type']) : 'complaint';
         $subject = pi_escape(trim($_POST['cmp_subject'] ?? ''));
@@ -73,6 +123,28 @@ $r = $mysqli->query("SELECT p_id,p_name_ar,p_title,p_photo,p_active,p_verified,p
 if ($r) while ($row=$r->fetch_assoc()) $my_personalities[] = $row;
 $r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_active,inst_verified,inst_views FROM pi_institutions WHERE inst_added_by_user=" . (int)$user['u_id'] . " ORDER BY inst_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_institutions[] = $row;
+
+// Create edit_requests table if needed
+$mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
+    er_id INT AUTO_INCREMENT PRIMARY KEY,
+    er_user_id INT NOT NULL,
+    er_entity_type ENUM('personality','institution') NOT NULL,
+    er_entity_id INT NOT NULL,
+    er_req_type ENUM('edit','upgrade') NOT NULL,
+    er_upgrade_to ENUM('verified','executive','') DEFAULT '',
+    er_edit_data TEXT,
+    er_notes TEXT,
+    er_status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    er_admin_note TEXT,
+    er_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user (er_user_id),
+    INDEX idx_status (er_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// Load my edit requests
+$my_requests = [];
+$r = $mysqli->query("SELECT * FROM pi_edit_requests WHERE er_user_id=" . (int)$user['u_id'] . " ORDER BY er_created DESC LIMIT 20");
+if ($r) while ($row=$r->fetch_assoc()) $my_requests[] = $row;
 
 // Load complaints
 $my_complaints = [];
@@ -201,46 +273,47 @@ include 'includes/header.php';
           foreach ($fields as [$fname, $flabel, $ftype, $fval]):
             $isEmail = $fname === 'u_email';
           ?>
-          <div class="flex items-center justify-between py-4 border-b border-gray-50 gap-4">
-            <span class="text-sm font-bold text-gray-500 w-28 flex-shrink-0"><?= $flabel ?></span>
-            <span class="flex-1 text-sm text-gray-800 font-semibold">
-              <?= $fval ? htmlspecialchars($fval) : '<span class="text-gray-300 font-normal">لم يتم التحديد</span>' ?>
-            </span>
-            <?php if (!$isEmail): ?>
-            <button type="button" onclick="toggleEdit('<?= $fname ?>')"
-              class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 whitespace-nowrap">
-              <i class="fa-solid fa-pen text-xs"></i> تعديل
-            </button>
-            <?php endif; ?>
-          </div>
-          <div id="edit_<?= $fname ?>" class="hidden py-3 border-b border-gray-50">
-            <?php if ($fname === 'u_job'): ?>
-            <!-- Gender field next -->
-            <?php endif; ?>
-            <input type="<?= $ftype ?>" name="<?= $fname ?>"
-              value="<?= htmlspecialchars($fval) ?>"
-              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400 transition"
-              <?= $ftype === 'tel' || $ftype === 'date' ? 'dir="ltr"' : '' ?>>
+          <div class="border-b border-gray-50">
+            <div class="flex items-center justify-between py-4 gap-4">
+              <span class="text-sm font-bold text-gray-500 w-28 flex-shrink-0"><?= $flabel ?></span>
+              <span class="flex-1 text-sm text-gray-800 font-semibold field-val-<?= $fname ?>">
+                <?= $fval ? htmlspecialchars($fval) : '<span class="text-gray-300 font-normal">لم يتم التحديد</span>' ?>
+              </span>
+              <?php if (!$isEmail): ?>
+              <button type="button" id="btn_<?= $fname ?>" onclick="toggleEdit('<?= $fname ?>')"
+                class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-lg hover:bg-purple-50 transition">
+                <i class="fa-solid fa-pen text-xs"></i> <span>تعديل</span>
+              </button>
+              <?php endif; ?>
+            </div>
+            <div id="edit_<?= $fname ?>" class="hidden pb-4 edit-input-row">
+              <input type="<?= $ftype ?>" name="<?= $fname ?>"
+                value="<?= htmlspecialchars($fval) ?>"
+                class="w-full border-2 border-purple-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-500 bg-purple-50 transition"
+                <?= $ftype === 'tel' || $ftype === 'date' ? 'dir="ltr"' : '' ?>>
+            </div>
           </div>
           <?php endforeach; ?>
 
           <!-- Gender -->
-          <div class="flex items-center justify-between py-4 border-b border-gray-50 gap-4">
-            <span class="text-sm font-bold text-gray-500 w-28 flex-shrink-0">الجنس</span>
-            <span class="flex-1 text-sm text-gray-800 font-semibold">
-              <?= $user['u_gender'] === 'male' ? 'ذكر' : ($user['u_gender'] === 'female' ? 'أنثى' : '<span class="text-gray-300 font-normal">لم يتم التحديد</span>') ?>
-            </span>
-            <button type="button" onclick="toggleEdit('u_gender')"
-              class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 whitespace-nowrap">
-              <i class="fa-solid fa-pen text-xs"></i> تعديل
-            </button>
-          </div>
-          <div id="edit_u_gender" class="hidden py-3 border-b border-gray-50">
-            <select name="u_gender" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400">
-              <option value="">اختر</option>
-              <option value="male" <?= $user['u_gender']==='male'?'selected':'' ?>>ذكر</option>
-              <option value="female" <?= $user['u_gender']==='female'?'selected':'' ?>>أنثى</option>
-            </select>
+          <div class="border-b border-gray-50">
+            <div class="flex items-center justify-between py-4 gap-4">
+              <span class="text-sm font-bold text-gray-500 w-28 flex-shrink-0">الجنس</span>
+              <span class="flex-1 text-sm text-gray-800 font-semibold">
+                <?= $user['u_gender'] === 'male' ? 'ذكر' : ($user['u_gender'] === 'female' ? 'أنثى' : '<span class="text-gray-300 font-normal">لم يتم التحديد</span>') ?>
+              </span>
+              <button type="button" id="btn_u_gender" onclick="toggleEdit('u_gender')"
+                class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-lg hover:bg-purple-50 transition">
+                <i class="fa-solid fa-pen text-xs"></i> <span>تعديل</span>
+              </button>
+            </div>
+            <div id="edit_u_gender" class="hidden pb-4 edit-input-row">
+              <select name="u_gender" class="w-full border-2 border-purple-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-500 bg-purple-50">
+                <option value="">اختر</option>
+                <option value="male" <?= $user['u_gender']==='male'?'selected':'' ?>>ذكر</option>
+                <option value="female" <?= $user['u_gender']==='female'?'selected':'' ?>>أنثى</option>
+              </select>
+            </div>
           </div>
 
           <div class="pt-5">
@@ -430,15 +503,254 @@ include 'includes/header.php';
 
       <!-- ──────────── ACCOUNTS TAB ──────────── -->
       <?php elseif ($tab === 'accounts'): ?>
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 class="font-black text-gray-800 text-lg mb-6">
-          <i class="fa-solid fa-gear text-purple-500 ml-2"></i> إدارة الحسابات
+
+      <?php if (isset($_GET['req_sent'])): ?>
+      <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 text-green-700 text-sm font-semibold flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-lg"></i> تم إرسال طلبك بنجاح — سيراجعه فريقنا قريباً
+      </div>
+      <?php endif; ?>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+        <h2 class="font-black text-gray-800 text-lg mb-1">
+          <i class="fa-solid fa-gear text-purple-500 ml-2"></i> الحسابات المرتبطة بك
         </h2>
-        <div class="text-center py-16 text-gray-300">
+        <p class="text-gray-400 text-sm mb-6">الشخصيات والمؤسسات التي أضفتها — يمكنك اقتراح تعديل أو طلب ترقية</p>
+
+        <?php if (empty($my_personalities) && empty($my_institutions)): ?>
+        <div class="text-center py-12 text-gray-300">
           <i class="fa-solid fa-user-gear text-5xl mb-4"></i>
-          <p class="font-semibold text-gray-400">عفواً لا يوجد حسابات مدارة</p>
+          <p class="font-semibold text-gray-400 mb-3">لا توجد حسابات مرتبطة بعد</p>
+          <div class="flex gap-3 justify-center">
+            <a href="add_personality.php" class="px-5 py-2 pi-primary-bg text-white text-sm font-black rounded-xl hover:opacity-90 transition">
+              <i class="fa-solid fa-user-plus ml-1"></i> اقتراح شخصية
+            </a>
+            <a href="add_institution.php" class="px-5 py-2 bg-indigo-500 text-white text-sm font-black rounded-xl hover:opacity-90 transition">
+              <i class="fa-solid fa-building ml-1"></i> اقتراح مؤسسة
+            </a>
+          </div>
+        </div>
+        <?php else: ?>
+
+        <!-- Personalities -->
+        <?php if (!empty($my_personalities)): ?>
+        <h3 class="font-bold text-gray-600 text-sm mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-users text-blue-500"></i> الشخصيات (<?= count($my_personalities) ?>)
+        </h3>
+        <div class="space-y-3 mb-6">
+          <?php foreach ($my_personalities as $ep): ?>
+          <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <?php if ($ep['p_photo']): ?>
+            <img src="<?= htmlspecialchars($ep['p_photo']) ?>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+            <?php else: ?>
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-black flex-shrink-0">
+              <?= mb_substr($ep['p_name_ar'],0,1) ?>
+            </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-black text-gray-800 text-sm"><?= htmlspecialchars($ep['p_name_ar']) ?></p>
+                <?php if ($ep['p_verified']): ?>
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-circle-check ml-0.5"></i> موثق</span>
+                <?php endif; ?>
+                <?php if (!$ep['p_active']): ?>
+                <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">قيد المراجعة</span>
+                <?php endif; ?>
+              </div>
+              <p class="text-gray-400 text-xs mt-0.5"><?= htmlspecialchars($ep['p_title'] ?? '') ?></p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="openReqModal('personality',<?= $ep['p_id'] ?>,'<?= htmlspecialchars(addslashes($ep['p_name_ar'])) ?>','edit')"
+                class="px-3 py-1.5 text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 rounded-xl hover:bg-purple-100 transition">
+                <i class="fa-solid fa-pen ml-1"></i> تعديل
+              </button>
+              <?php if (!$ep['p_verified']): ?>
+              <button onclick="openReqModal('personality',<?= $ep['p_id'] ?>,'<?= htmlspecialchars(addslashes($ep['p_name_ar'])) ?>','upgrade')"
+                class="px-3 py-1.5 text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 rounded-xl hover:bg-amber-100 transition">
+                <i class="fa-solid fa-crown ml-1"></i> ترقية
+              </button>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Institutions -->
+        <?php if (!empty($my_institutions)): ?>
+        <h3 class="font-bold text-gray-600 text-sm mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-building text-indigo-500"></i> المؤسسات (<?= count($my_institutions) ?>)
+        </h3>
+        <div class="space-y-3">
+          <?php foreach ($my_institutions as $ei): ?>
+          <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <?php if ($ei['inst_logo']): ?>
+            <img src="<?= htmlspecialchars($ei['inst_logo']) ?>" class="w-12 h-12 rounded-xl object-contain flex-shrink-0">
+            <?php else: ?>
+            <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-black flex-shrink-0">
+              <?= mb_substr($ei['inst_name_ar'],0,1) ?>
+            </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-black text-gray-800 text-sm"><?= htmlspecialchars($ei['inst_name_ar']) ?></p>
+                <?php if ($ei['inst_verified']): ?>
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-circle-check ml-0.5"></i> موثقة</span>
+                <?php endif; ?>
+                <?php if (!$ei['inst_active']): ?>
+                <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">قيد المراجعة</span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="openReqModal('institution',<?= $ei['inst_id'] ?>,'<?= htmlspecialchars(addslashes($ei['inst_name_ar'])) ?>','edit')"
+                class="px-3 py-1.5 text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 rounded-xl hover:bg-purple-100 transition">
+                <i class="fa-solid fa-pen ml-1"></i> تعديل
+              </button>
+              <?php if (!$ei['inst_verified']): ?>
+              <button onclick="openReqModal('institution',<?= $ei['inst_id'] ?>,'<?= htmlspecialchars(addslashes($ei['inst_name_ar'])) ?>','upgrade')"
+                class="px-3 py-1.5 text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 rounded-xl hover:bg-amber-100 transition">
+                <i class="fa-solid fa-crown ml-1"></i> ترقية
+              </button>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php endif; ?>
+      </div>
+
+      <!-- My requests history -->
+      <?php if (!empty($my_requests)): ?>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 class="font-black text-gray-800 mb-4"><i class="fa-solid fa-clock-rotate-left text-gray-400 ml-2"></i> سجل طلباتي</h3>
+        <div class="space-y-3">
+          <?php
+          $req_status_map = [
+            'pending'  => ['text'=>'قيد المراجعة','class'=>'bg-yellow-100 text-yellow-700'],
+            'approved' => ['text'=>'تم القبول',   'class'=>'bg-green-100 text-green-700'],
+            'rejected' => ['text'=>'مرفوض',       'class'=>'bg-red-100 text-red-700'],
+          ];
+          foreach ($my_requests as $rq):
+            // Get entity name
+            if ($rq['er_entity_type'] === 'personality') {
+              $er = $mysqli->query("SELECT p_name_ar FROM pi_personalities WHERE p_id={$rq['er_entity_id']}");
+              $ename = $er && $er->num_rows ? $er->fetch_assoc()['p_name_ar'] : 'محذوف';
+            } else {
+              $er = $mysqli->query("SELECT inst_name_ar FROM pi_institutions WHERE inst_id={$rq['er_entity_id']}");
+              $ename = $er && $er->num_rows ? $er->fetch_assoc()['inst_name_ar'] : 'محذوف';
+            }
+          ?>
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($ename) ?></p>
+                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                  <?= $rq['er_req_type'] === 'edit' ? 'تعديل' : 'طلب ترقية' ?>
+                  <?php if ($rq['er_req_type'] === 'upgrade' && $rq['er_upgrade_to']): ?>
+                  — <?= $rq['er_upgrade_to'] === 'executive' ? 'تنفيذي' : 'موثق' ?>
+                  <?php endif; ?>
+                </span>
+              </div>
+              <?php if ($rq['er_admin_note']): ?>
+              <p class="text-xs text-gray-500 mt-0.5"><i class="fa-solid fa-comment ml-1"></i><?= htmlspecialchars($rq['er_admin_note']) ?></p>
+              <?php endif; ?>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $req_status_map[$rq['er_status']]['class'] ?>">
+                <?= $req_status_map[$rq['er_status']]['text'] ?>
+              </span>
+              <span class="text-xs text-gray-400"><?= date('d/m/Y', strtotime($rq['er_created'])) ?></span>
+            </div>
+          </div>
+          <?php endforeach; ?>
         </div>
       </div>
+      <?php endif; ?>
+
+      <!-- Request Modal -->
+      <div id="req-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,.5)">
+        <div class="flex items-center justify-center min-h-screen p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg" dir="rtl">
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 class="font-black text-gray-800" id="modal-title">إرسال طلب</h3>
+              <button onclick="closeReqModal()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <form method="POST" class="p-6 space-y-4">
+              <input type="hidden" name="_action" value="send_edit_request">
+              <input type="hidden" name="entity_type" id="modal-entity-type">
+              <input type="hidden" name="entity_id" id="modal-entity-id">
+              <input type="hidden" name="req_type" id="modal-req-type">
+
+              <!-- Edit fields (shown for edit type) -->
+              <div id="edit-fields" class="space-y-3 hidden">
+                <p class="text-sm text-gray-500 font-semibold">اذكر التعديلات التي تريد إجراؤها — اترك الحقول الفارغة إذا لم ترد تغييرها</p>
+                <div id="personality-edit-fields">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالعربي</label><input type="text" name="name_ar" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالإنجليزي</label><input type="text" name="name_en" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr"></div>
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">المسمى الوظيفي</label><input type="text" name="title" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الجنسية</label><input type="text" name="nationality" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                  </div>
+                  <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">النبذة / السيرة الذاتية</label><textarea name="bio" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أكتب التعديل المطلوب..."></textarea></div>
+                  <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">رابط الصورة الشخصية <span class="text-gray-400 font-normal">(اختياري)</span></label><input type="text" name="photo" dir="ltr" placeholder="https://..." class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                </div>
+                <div id="institution-edit-fields" class="hidden">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالعربي</label><input type="text" name="name_ar" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالإنجليزي</label><input type="text" name="name_en" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr"></div>
+                  </div>
+                  <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">الوصف</label><textarea name="description" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"></textarea></div>
+                </div>
+              </div>
+
+              <!-- Upgrade fields (shown for upgrade type) -->
+              <div id="upgrade-fields" class="space-y-3 hidden">
+                <p class="text-sm text-gray-500 font-semibold">اختر نوع الترقية المطلوبة</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                    <input type="radio" name="upgrade_to" value="verified" class="accent-blue-500">
+                    <div><p class="font-black text-sm text-gray-800">توثيق</p><p class="text-xs text-gray-400">شارة زرقاء</p></div>
+                  </label>
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                    <input type="radio" name="upgrade_to" value="executive" class="accent-amber-500">
+                    <div><p class="font-black text-sm text-gray-800">تنفيذي</p><p class="text-xs text-gray-400">شارة ذهبية</p></div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Notes always visible -->
+              <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">ملاحظات إضافية <span class="text-gray-400 font-normal">(اختياري)</span></label>
+                <textarea name="req_notes" rows="2" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أي معلومات تريد إضافتها..."></textarea>
+              </div>
+
+              <button type="submit" class="w-full py-3 pi-primary-bg text-white font-black rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i> إرسال الطلب
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <script>
+      function openReqModal(type, id, name, reqType) {
+        document.getElementById('modal-entity-type').value = type;
+        document.getElementById('modal-entity-id').value   = id;
+        document.getElementById('modal-req-type').value    = reqType;
+        document.getElementById('modal-title').textContent = (reqType === 'edit' ? 'اقتراح تعديل: ' : 'طلب ترقية: ') + name;
+        document.getElementById('edit-fields').classList.toggle('hidden', reqType !== 'edit');
+        document.getElementById('upgrade-fields').classList.toggle('hidden', reqType !== 'upgrade');
+        document.getElementById('personality-edit-fields').classList.toggle('hidden', type !== 'personality');
+        document.getElementById('institution-edit-fields').classList.toggle('hidden', type !== 'institution');
+        document.getElementById('req-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeReqModal() {
+        document.getElementById('req-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+      document.getElementById('req-modal').addEventListener('click', function(e){ if(e.target===this) closeReqModal(); });
+      </script>
 
       <!-- ──────────── MEMBERSHIP TAB ──────────── -->
       <?php elseif ($tab === 'membership'): ?>
@@ -576,10 +888,33 @@ include 'includes/header.php';
   </div><!-- /flex -->
 </div>
 
+<style>
+.edit-input-row { animation: slideDown .18s ease; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+</style>
 <script>
 function toggleEdit(field) {
-  var el = document.getElementById('edit_' + field);
-  if (el) el.classList.toggle('hidden');
+  var el  = document.getElementById('edit_' + field);
+  var btn = document.getElementById('btn_' + field);
+  if (!el) return;
+  var opening = el.classList.contains('hidden');
+  el.classList.toggle('hidden', !opening);
+  if (btn) {
+    var icon = btn.querySelector('i');
+    var lbl  = btn.querySelector('span');
+    if (opening) {
+      btn.classList.remove('text-purple-600','hover:bg-purple-50');
+      btn.classList.add('text-red-500','hover:bg-red-50','bg-red-50');
+      if (icon) { icon.className = 'fa-solid fa-xmark text-xs'; }
+      if (lbl)  lbl.textContent = 'إلغاء';
+    } else {
+      btn.classList.add('text-purple-600','hover:bg-purple-50');
+      btn.classList.remove('text-red-500','hover:bg-red-50','bg-red-50');
+      if (icon) { icon.className = 'fa-solid fa-pen text-xs'; }
+      if (lbl)  lbl.textContent = 'تعديل';
+    }
+    if (opening) { var inp = el.querySelector('input,select'); if(inp) inp.focus(); }
+  }
 }
 function showStatsTab(which) {
   document.getElementById('stats-personalities').classList.toggle('hidden', which !== 'personalities');

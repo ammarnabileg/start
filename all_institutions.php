@@ -128,9 +128,8 @@ include 'includes/header.php';
         <?php if ($search): ?><input type="hidden" name="q" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"><?php endif; ?>
         <?php if ($sort && $sort !== 'views'): ?><input type="hidden" name="sort" value="<?= $sort ?>"><?php endif; ?>
         <?php if ($cat_filter): ?><input type="hidden" name="cat" value="<?= $cat_filter ?>"><?php endif; ?>
-        <i class="fa-solid fa-earth-americas text-purple-400 text-sm"></i>
         <select name="country" onchange="this.form.submit()"
-          class="border-0 bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer pr-1">
+          class="border-0 bg-transparent text-xs font-bold text-gray-600 focus:outline-none cursor-pointer">
           <option value="0" <?= !$cid?'selected':'' ?>>كل الدول</option>
           <?php foreach ($countries as $c): ?>
           <option value="<?= $c['c_id'] ?>" <?= $cid==$c['c_id']?'selected':'' ?>>
@@ -138,7 +137,6 @@ include 'includes/header.php';
           </option>
           <?php endforeach; ?>
         </select>
-        <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
       </form>
       <?php endif; ?>
 
@@ -182,9 +180,9 @@ include 'includes/header.php';
           <?php endif; ?>
         </div>
       </div>
-      <?php if (!empty($inst['inst_description'])): ?>
+      <?php $plain_desc = trim(strip_tags($inst['inst_description'] ?? '')); if ($plain_desc): ?>
         <p class="text-gray-500 text-xs leading-relaxed line-clamp-2">
-          <?= htmlspecialchars(mb_substr($inst['inst_description'], 0, 100)) ?>...
+          <?= htmlspecialchars(mb_substr($plain_desc, 0, 120)) ?>
         </p>
       <?php endif; ?>
       <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 text-xs text-gray-400">

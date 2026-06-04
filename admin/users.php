@@ -95,6 +95,12 @@ if ($view_uid) {
         $view_user = $vr->fetch_assoc();
         $sr = $mysqli->query("SELECT sub_id,sub_type,sub_status,sub_created,sub_data FROM pi_submissions WHERE sub_user_id=$view_uid ORDER BY sub_created DESC LIMIT 20");
         if ($sr) while ($row=$sr->fetch_assoc()) $view_subs[] = $row;
+        $view_edit_reqs = [];
+        $er = $mysqli->query("SELECT er.*,
+          CASE WHEN er.er_entity_type='personality' THEN (SELECT p_name_ar FROM pi_personalities WHERE p_id=er.er_entity_id)
+               ELSE (SELECT inst_name_ar FROM pi_institutions WHERE inst_id=er.er_entity_id) END AS entity_name
+          FROM pi_edit_requests er WHERE er.er_user_id=$view_uid ORDER BY er.er_created DESC LIMIT 20");
+        if ($er) while ($row=$er->fetch_assoc()) $view_edit_reqs[] = $row;
         $cr = $mysqli->query("SELECT cmp_id,cmp_type,cmp_subject,cmp_status,cmp_created FROM pi_complaints WHERE cmp_user_id=$view_uid ORDER BY cmp_created DESC LIMIT 20");
         if ($cr) while ($row=$cr->fetch_assoc()) $view_cmps[] = $row;
     }
@@ -308,6 +314,34 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
           </div>
           <?php endif; ?>
         </div>
+
+        <?php if (!empty($view_edit_reqs)): ?>
+        <div>
+          <h3 class="font-black text-gray-700 text-sm mb-3"><i class="fa-solid fa-pen-to-square text-amber-500 ml-1"></i>طلبات التعديل والترقية (<?= count($view_edit_reqs) ?>)</h3>
+          <div class="space-y-2">
+            <?php
+            $er_status_map = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow-100 text-yellow-700'],'approved'=>['text'=>'مقبول','class'=>'bg-green-100 text-green-700'],'rejected'=>['text'=>'مرفوض','class'=>'bg-red-100 text-red-700']];
+            foreach ($view_edit_reqs as $er): ?>
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($er['entity_name'] ?? 'محذوف') ?></p>
+                  <p class="text-xs text-gray-400 mt-0.5">
+                    <?= $er['er_entity_type']==='personality'?'شخصية':'مؤسسة' ?> ·
+                    <?= $er['er_req_type']==='edit'?'تعديل':'ترقية '.($er['er_upgrade_to']==='executive'?'تنفيذي':'موثق') ?> ·
+                    <?= date('Y/m/d', strtotime($er['er_created'])) ?>
+                  </p>
+                </div>
+                <a href="admin.php?p=edit_requests&view=<?= $er['er_id'] ?>"
+                   class="text-xs px-2 py-0.5 rounded-full font-bold <?= $er_status_map[$er['er_status']]['class'] ?>">
+                  <?= $er_status_map[$er['er_status']]['text'] ?>
+                </a>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
 
         <div>
           <h3 class="font-black text-gray-700 text-sm mb-3"><i class="fa-solid fa-message text-blue-500 ml-1"></i>الشكاوي (<?= count($view_cmps) ?>)</h3>

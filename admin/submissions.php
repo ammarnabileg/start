@@ -62,10 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $data['p_nationality'] = trim($_POST['p_nationality'] ?? '');
                 $data['p_residence']   = trim($_POST['p_residence']   ?? '');
                 $data['p_bio']         = trim($_POST['p_bio']         ?? '');
+                if (trim($_POST['p_photo'] ?? '') !== '') $data['p_photo'] = trim($_POST['p_photo']);
             } else {
                 $data['inst_name_ar']     = trim($_POST['inst_name_ar']     ?? '');
                 $data['inst_name_en']     = trim($_POST['inst_name_en']     ?? '');
                 $data['inst_description'] = trim($_POST['inst_description'] ?? '');
+                if (trim($_POST['inst_logo'] ?? '') !== '') $data['inst_logo'] = trim($_POST['inst_logo']);
             }
             $data['categories'] = array_map('intval', (array)($_POST['categories'] ?? []));
             $json = pi_escape(json_encode($data, JSON_UNESCAPED_UNICODE));
@@ -161,9 +163,9 @@ if ($rc) while ($c = $rc->fetch_assoc()) $all_cats[] = $c;
         </span>
         <span class="text-gray-400 text-xs"><?= date('d/m/Y H:i', strtotime($sub['sub_created'])) ?></span>
         <?php if ($sub['u_name']): ?>
-        <span class="text-purple-600 text-xs font-bold flex items-center gap-1">
+        <a href="admin.php?p=users&view=<?= $sub['sub_user_id'] ?>" class="text-purple-600 text-xs font-bold flex items-center gap-1 hover:underline">
           <i class="fa-solid fa-circle-user"></i> <?= htmlspecialchars($sub['u_name']) ?>
-        </span>
+        </a>
         <?php elseif ($sub['sub_submitter_name']): ?>
         <span class="text-gray-500 text-xs">بواسطة: <?= htmlspecialchars($sub['sub_submitter_name']) ?></span>
         <?php endif; ?>
@@ -363,6 +365,15 @@ _subs[<?= $sid ?>] = {
         <div id="edit-bio-editor" style="min-height:130px;"></div>
         <textarea name="p_bio" id="edit-bio-hidden" class="hidden"></textarea>
       </div>
+      <div class="mt-4">
+        <label class="block text-xs font-bold text-gray-500 mb-1">رابط الصورة الشخصية</label>
+        <div class="flex gap-3 items-center">
+          <input type="text" name="p_photo" id="edit-p-photo" dir="ltr" placeholder="https://..."
+            class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+            oninput="updatePhotoPreview('p-photo-preview',this.value)">
+          <img id="p-photo-preview" src="" class="w-10 h-10 rounded-full object-cover border border-gray-200 hidden">
+        </div>
+      </div>
     </div>
 
     <!-- Institution fields -->
@@ -383,6 +394,15 @@ _subs[<?= $sid ?>] = {
         <label class="block text-xs font-bold text-gray-500 mb-1">وصف المؤسسة</label>
         <div id="edit-desc-editor" style="min-height:130px;"></div>
         <textarea name="inst_description" id="edit-desc-hidden" class="hidden"></textarea>
+      </div>
+      <div class="mt-4">
+        <label class="block text-xs font-bold text-gray-500 mb-1">رابط شعار المؤسسة</label>
+        <div class="flex gap-3 items-center">
+          <input type="text" name="inst_logo" id="edit-inst-logo" dir="ltr" placeholder="https://..."
+            class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+            oninput="updatePhotoPreview('inst-logo-preview',this.value)">
+          <img id="inst-logo-preview" src="" class="w-10 h-10 rounded-xl object-cover border border-gray-200 hidden">
+        </div>
       </div>
     </div>
 
@@ -481,10 +501,14 @@ function openEdit(sid) {
     document.getElementById('edit-p-title').value       = s.p_title       || '';
     document.getElementById('edit-p-nationality').value = s.p_nationality  || '';
     document.getElementById('edit-p-residence').value   = s.p_residence    || '';
+    document.getElementById('edit-p-photo').value       = s.photo          || '';
+    updatePhotoPreview('p-photo-preview', s.photo || '');
     _bioQuill.root.innerHTML  = s.p_bio || '<p></p>';
   } else {
     document.getElementById('edit-inst-name-ar').value = s.inst_name_ar     || '';
     document.getElementById('edit-inst-name-en').value = s.inst_name_en     || '';
+    document.getElementById('edit-inst-logo').value    = s.photo             || '';
+    updatePhotoPreview('inst-logo-preview', s.photo || '');
     _descQuill.root.innerHTML = s.inst_description || '<p></p>';
   }
 
@@ -503,4 +527,10 @@ document.getElementById('edit-form').addEventListener('submit', function() {
 });
 
 function esc(s){ var d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
+function updatePhotoPreview(id, url) {
+  var img = document.getElementById(id);
+  if (!img) return;
+  if (url) { img.src = url.startsWith('http') ? url : '../' + url; img.classList.remove('hidden'); }
+  else img.classList.add('hidden');
+}
 </script>

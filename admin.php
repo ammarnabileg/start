@@ -359,6 +359,20 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       </a>
       <?php endif; ?>
 
+      <?php if (pi_has_perm('manage_edit_requests')): ?>
+      <a href="admin.php?p=edit_requests" class="nav-link <?= $p=='edit_requests'?'active':'' ?>">
+        <i class="fa-solid fa-pen-ruler"></i>
+        <span>طلبات التعديل</span>
+        <?php
+        $er_rc = $mysqli->query("SHOW TABLES LIKE 'pi_edit_requests'");
+        if ($er_rc && $er_rc->num_rows) {
+            $er_r = $mysqli->query("SELECT COUNT(*) c FROM pi_edit_requests WHERE er_status='pending'");
+            if ($er_r) { $ec=(int)$er_r->fetch_assoc()['c']; if($ec>0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$ec.'</span>'; }
+        }
+        ?>
+      </a>
+      <?php endif; ?>
+
       <?php if (pi_has_perm('manage_countries')): ?>
       <a href="admin.php?p=countries" class="nav-link <?= $p=='countries'?'active':'' ?>">
         <i class="fa-solid fa-globe"></i>
@@ -410,7 +424,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع','edit_requests'=>'طلبات التعديل والترقية',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>
@@ -446,6 +460,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
       elseif ($p === 'memberships')   include 'admin/memberships.php';
       elseif ($p === 'complaints')    include 'admin/complaints.php';
       elseif ($p === 'users')         include 'admin/users.php';
+      elseif ($p === 'edit_requests') include 'admin/edit_requests.php';
       else include 'admin/dashboard.php';
       ?>
     </main>
