@@ -1,4 +1,7 @@
 <?php
+// Track visit
+pi_track_visit();
+
 // Load settings & countries
 $_S  = pi_get_settings();
 $_countries = pi_get_countries();

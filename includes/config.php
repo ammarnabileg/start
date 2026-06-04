@@ -174,6 +174,34 @@ function pi_escape($str) {
     return $mysqli->real_escape_string($str);
 }
 
+// ── Visit tracking ─────────────────────────────────────────────────────────
+function pi_track_visit() {
+    global $mysqli;
+    // Skip admin, bots, CLI
+    if (defined('DOING_ADMIN') || php_sapi_name() === 'cli') return;
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    if (preg_match('/bot|crawl|spider|slurp|mediapartners|facebookexternalhit/i', $ua)) return;
+
+    $mysqli->query("CREATE TABLE IF NOT EXISTS pi_visits (
+        v_id INT AUTO_INCREMENT PRIMARY KEY,
+        v_page VARCHAR(255),
+        v_ip VARCHAR(45),
+        v_user_id INT DEFAULT NULL,
+        v_ref VARCHAR(500),
+        v_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_created (v_created),
+        INDEX idx_page (v_page(50))
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $page    = pi_escape(mb_substr(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/', 0, 200));
+    $ip      = pi_escape($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
+    $ip      = pi_escape(explode(',', $ip)[0]);
+    $uid     = !empty($_SESSION['pi_user_id']) ? (int)$_SESSION['pi_user_id'] : 'NULL';
+    $ref     = pi_escape(mb_substr($_SERVER['HTTP_REFERER'] ?? '', 0, 400));
+
+    $mysqli->query("INSERT INTO pi_visits (v_page,v_ip,v_user_id,v_ref) VALUES ('$page','$ip',$uid,'$ref')");
+}
+
 // ── User auth ──────────────────────────────────────────────────────────────
 function pi_create_user_tables() {
     global $mysqli;

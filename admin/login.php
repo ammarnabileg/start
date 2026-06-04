@@ -1,19 +1,5 @@
 <?php
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email    = pi_escape($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    $r = $mysqli->query("SELECT * FROM pi_admin_users WHERE au_email='$email' AND au_active=1");
-    if ($r && $r->num_rows) {
-        $user = $r->fetch_assoc();
-        if (password_verify($password, $user['au_password'])) {
-            $_SESSION['pi_admin_id'] = $user['au_id'];
-            header('Location: admin.php?p=dashboard');
-            exit;
-        }
-    }
-    $login_error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-}
+// POST is handled early in admin.php before output — $login_error is set there if credentials fail
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
