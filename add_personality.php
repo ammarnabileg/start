@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $all_cats = pi_get_categories();
+$all_countries = pi_get_countries();
 include 'includes/header.php';
 ?>
 
@@ -159,11 +160,25 @@ include 'includes/header.php';
         </div>
         <div>
           <label class="add-form-label">الجنسية</label>
-          <input type="text" name="p_nationality" class="add-form-input" value="<?= htmlspecialchars($_POST['p_nationality']??'') ?>">
+          <select name="p_nationality" class="add-form-input">
+            <option value="">— اختر الجنسية —</option>
+            <?php foreach ($all_countries as $cn): ?>
+            <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($_POST['p_nationality']??'')===$cn['c_name']?'selected':'' ?>>
+              <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+            </option>
+            <?php endforeach; ?>
+          </select>
         </div>
         <div>
           <label class="add-form-label">بلد الإقامة</label>
-          <input type="text" name="p_residence" class="add-form-input" value="<?= htmlspecialchars($_POST['p_residence']??'') ?>">
+          <select name="p_residence" class="add-form-input">
+            <option value="">— اختر البلد —</option>
+            <?php foreach ($all_countries as $cn): ?>
+            <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($_POST['p_residence']??'')===$cn['c_name']?'selected':'' ?>>
+              <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+            </option>
+            <?php endforeach; ?>
+          </select>
         </div>
 
         <!-- صورة شخصية - رفع فقط -->

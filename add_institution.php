@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ar   = trim($_POST['inst_name_ar']     ?? '');
     $name_en   = trim($_POST['inst_name_en']     ?? '');
     $desc      = trim($_POST['inst_description'] ?? '');
+    $country   = trim($_POST['inst_country']     ?? '');
     $submitter = $_cur_user ? $_cur_user['u_name']  : trim($_POST['submitter_name']   ?? '');
     $sub_email = $_cur_user ? $_cur_user['u_email'] : trim($_POST['submitter_email']  ?? '');
     $cats      = $_POST['categories'] ?? [];
@@ -29,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $data   = json_encode(['inst_name_ar'=>$name_ar,'inst_name_en'=>$name_en,
-            'inst_description'=>$desc,'inst_logo'=>$logo,'categories'=>$cats]);
+            'inst_description'=>$desc,'inst_logo'=>$logo,'inst_country'=>$country,'categories'=>$cats]);
         $_cs = $mysqli->query("SHOW COLUMNS FROM pi_submissions LIKE 'sub_user_id'");
         if ($_cs && $_cs->num_rows === 0) $mysqli->query("ALTER TABLE pi_submissions ADD COLUMN sub_user_id INT DEFAULT NULL");
         $data_e      = pi_escape($data);
@@ -42,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $all_cats = pi_get_categories();
+$all_countries = pi_get_countries();
 include 'includes/header.php';
 ?>
 
@@ -136,6 +138,18 @@ include 'includes/header.php';
         <div>
           <label class="add-form-label">الاسم بالإنجليزي</label>
           <input type="text" name="inst_name_en" class="add-form-input" dir="ltr" value="<?= htmlspecialchars($_POST['inst_name_en']??'') ?>">
+        </div>
+
+        <div>
+          <label class="add-form-label">الدولة</label>
+          <select name="inst_country" class="add-form-input">
+            <option value="">— اختر الدولة —</option>
+            <?php foreach ($all_countries as $cn): ?>
+            <option value="<?= htmlspecialchars($cn['c_name']) ?>" <?= ($_POST['inst_country']??'')===$cn['c_name']?'selected':'' ?>>
+              <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+            </option>
+            <?php endforeach; ?>
+          </select>
         </div>
 
         <!-- شعار - رفع فقط -->

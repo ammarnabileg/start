@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Collect edit fields into JSON
             $edit_data = [];
             if ($req_type === 'edit') {
-                foreach (['name_ar','name_en','title','bio','nationality','residence','website','description'] as $f) {
+                foreach (['name_ar','name_en','title','bio','nationality','residence','website','description','country'] as $f) {
                     if (isset($_POST[$f])) $edit_data[$f] = trim($_POST[$f]);
                 }
                 // Handle photo upload
@@ -155,6 +155,8 @@ if ($r) while ($row=$r->fetch_assoc()) {
     }
     $my_all_subs[] = $row;
 }
+
+$all_countries = pi_get_countries();
 
 // Load my edit requests (type='edit' only — upgrade requests are in memberships tab)
 $my_requests = [];
@@ -721,7 +723,24 @@ include 'includes/header.php';
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالعربي</label><input type="text" name="name_ar" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالإنجليزي</label><input type="text" name="name_en" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr"></div>
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">المسمى الوظيفي</label><input type="text" name="title" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
-                    <div><label class="block text-xs font-bold text-gray-600 mb-1">الجنسية</label><input type="text" name="nationality" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">الجنسية</label>
+                      <select name="nationality" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
+                        <option value="">— اختر —</option>
+                        <?php foreach ($all_countries as $cn): ?>
+                        <option value="<?= htmlspecialchars($cn['c_name']) ?>"><?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">بلد الإقامة</label>
+                      <select name="residence" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
+                        <option value="">— اختر —</option>
+                        <?php foreach ($all_countries as $cn): ?>
+                        <option value="<?= htmlspecialchars($cn['c_name']) ?>"><?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
                   </div>
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">النبذة / السيرة الذاتية</label><textarea name="bio" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أكتب التعديل المطلوب..."></textarea></div>
               <div class="mt-3">
@@ -741,6 +760,15 @@ include 'includes/header.php';
                   <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالعربي</label><input type="text" name="name_ar" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"></div>
                     <div><label class="block text-xs font-bold text-gray-600 mb-1">الاسم بالإنجليزي</label><input type="text" name="name_en" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr"></div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">الدولة</label>
+                      <select name="country" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
+                        <option value="">— اختر الدولة —</option>
+                        <?php foreach ($all_countries as $cn): ?>
+                        <option value="<?= htmlspecialchars($cn['c_name']) ?>"><?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
                   </div>
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">الوصف</label><textarea name="description" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"></textarea></div>
                 <div class="mt-3">

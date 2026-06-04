@@ -27,16 +27,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($req['er_req_type'] === 'edit' && !empty($edit_data)) {
                 if ($req['er_entity_type'] === 'personality') {
                     $sets = [];
-                    $map = ['name_ar'=>'p_name_ar','name_en'=>'p_name_en','title'=>'p_title','nationality'=>'p_nationality','bio'=>'p_bio','photo'=>'p_photo'];
+                    $map = ['name_ar'=>'p_name_ar','name_en'=>'p_name_en','title'=>'p_title','nationality'=>'p_nationality','residence'=>'p_residence','bio'=>'p_bio','photo'=>'p_photo'];
                     foreach ($map as $key => $col) {
-                        if (!empty($edit_data[$key])) $sets[] = "$col='" . pi_escape($edit_data[$key]) . "'";
+                        if (array_key_exists($key, $edit_data) && $edit_data[$key] !== '') $sets[] = "$col='" . pi_escape($edit_data[$key]) . "'";
                     }
                     if ($sets) $mysqli->query("UPDATE pi_personalities SET " . implode(',', $sets) . " WHERE p_id={$req['er_entity_id']}");
                 } else {
                     $sets = [];
                     $map = ['name_ar'=>'inst_name_ar','name_en'=>'inst_name_en','description'=>'inst_description','photo'=>'inst_logo'];
                     foreach ($map as $key => $col) {
-                        if (!empty($edit_data[$key])) $sets[] = "$col='" . pi_escape($edit_data[$key]) . "'";
+                        if (array_key_exists($key, $edit_data) && $edit_data[$key] !== '') $sets[] = "$col='" . pi_escape($edit_data[$key]) . "'";
+                    }
+                    if (!empty($edit_data['country'])) {
+                        $cn_esc = pi_escape($edit_data['country']);
+                        $cnr = $mysqli->query("SELECT c_id FROM pi_countries WHERE c_name='$cn_esc' LIMIT 1");
+                        if ($cnr && $cnr->num_rows) {
+                            $cid = (int)$cnr->fetch_assoc()['c_id'];
+                            $sets[] = "inst_country_id=$cid";
+                        }
                     }
                     if ($sets) $mysqli->query("UPDATE pi_institutions SET " . implode(',', $sets) . " WHERE inst_id={$req['er_entity_id']}");
                 }
@@ -57,10 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $req = $r->fetch_assoc();
             $is_p = $req['er_entity_type'] === 'personality';
             if ($is_p) {
-                $map = ['name_ar'=>'p_name_ar','name_en'=>'p_name_en','title'=>'p_title','nationality'=>'p_nationality','residence'=>'p_residence','bio'=>'p_bio'];
+                $map = ['name_ar'=>'p_name_ar','name_en'=>'p_name_en','title'=>'p_title','nationality'=>'p_nationality','residence'=>'p_residence','bio'=>'p_bio','photo'=>'p_photo'];
                 $sets = [];
                 foreach ($map as $key => $col) {
-                    if (isset($_POST[$key])) $sets[] = "$col='" . pi_escape(trim($_POST[$key])) . "'";
+                    if (array_key_exists($key, $_POST) && $key !== 'photo') $sets[] = "$col='" . pi_escape(trim($_POST[$key])) . "'";
                 }
                 if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
                     $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
@@ -79,6 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($map as $key => $col) {
                     if (isset($_POST[$key])) $sets[] = "$col='" . pi_escape(trim($_POST[$key])) . "'";
                 }
+                // Country: look up c_id by name
+                if (!empty($_POST['country'])) {
+                    $cn_esc = pi_escape(trim($_POST['country']));
+                    $cnr = $mysqli->query("SELECT c_id FROM pi_countries WHERE c_name='$cn_esc' LIMIT 1");
+                    if ($cnr && $cnr->num_rows) {
+                        $cid = (int)$cnr->fetch_assoc()['c_id'];
+                        $sets[] = "inst_country_id=$cid";
+                    }
+                }
                 if (!empty($_FILES['photo_file']['name']) && $_FILES['photo_file']['error'] === UPLOAD_ERR_OK) {
                     $ext = strtolower(pathinfo($_FILES['photo_file']['name'], PATHINFO_EXTENSION));
                     if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) {
@@ -96,6 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$all_countries = pi_get_countries();
 
 // Filters
 $status_filter = $_GET['status'] ?? 'pending';
@@ -232,7 +251,7 @@ $status_map = [
   <?php
   $all_fields = $is_p
     ? ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','title'=>'المسمى','nationality'=>'الجنسية','residence'=>'الإقامة','bio'=>'السيرة','photo'=>'الصورة']
-    : ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','description'=>'الوصف','photo'=>'الصورة'];
+    : ['name_ar'=>'الاسم عربي','name_en'=>'الاسم إنجليزي','country'=>'الدولة','description'=>'الوصف','photo'=>'الصورة'];
   foreach ($all_fields as $fk => $fl):
     $cur_val = $current[$fk] ?? '';
     $new_val = array_key_exists($fk, $edit_data) ? ($edit_data[$fk] ?? '') : null;
@@ -390,9 +409,17 @@ function openApplyModal(dataStr) {
   document.getElementById('apply-er-id').value = d.er_id;
 
   var isP = d.is_p;
+  var countryOptions = <?= json_encode(array_map(function($c){ return ['v'=>$c['c_name'],'l'=>$c['c_flag'].' '.$c['c_name']]; }, $all_countries), JSON_UNESCAPED_UNICODE) ?>;
+
+  function makeSelectOpts(val) {
+    var opts = '<option value="">— اختر —</option>';
+    countryOptions.forEach(function(o){ opts += '<option value="'+esc(o.v)+'"'+(o.v===val?' selected':'')+'>'+esc(o.l)+'</option>'; });
+    return opts;
+  }
+
   var fieldDefs = isP
-    ? [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'title',l:'المسمى الوظيفي',type:'text'},{k:'nationality',l:'الجنسية',type:'text'},{k:'residence',l:'الإقامة',type:'text'},{k:'bio',l:'السيرة الذاتية',type:'textarea'}]
-    : [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'description',l:'الوصف',type:'textarea'}];
+    ? [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'title',l:'المسمى الوظيفي',type:'text'},{k:'nationality',l:'الجنسية',type:'select'},{k:'residence',l:'الإقامة',type:'select'},{k:'bio',l:'السيرة الذاتية',type:'textarea'}]
+    : [{k:'name_ar',l:'الاسم بالعربي',type:'text'},{k:'name_en',l:'الاسم بالإنجليزي',type:'text',dir:'ltr'},{k:'country',l:'الدولة',type:'select'},{k:'description',l:'الوصف',type:'textarea'}];
 
   var html = '';
   fieldDefs.forEach(function(f) {
@@ -401,11 +428,17 @@ function openApplyModal(dataStr) {
     var changed = reqVal !== '' && reqVal !== curVal;
     var dir = f.dir ? ' dir="ltr"' : '';
     var highlight = changed ? ' border-purple-400 bg-purple-50' : ' border-gray-200';
+    var labelHtml = f.l + (changed ? ' <span class="text-purple-500 text-xs">(مُعدَّل)</span>' : '');
     if (f.type === 'textarea') {
-      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + f.l + (changed ? ' <span class="text-purple-500 text-xs">(مُعدَّل)</span>' : '') + '</label>' +
+      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + labelHtml + '</label>' +
         '<textarea name="'+f.k+'" rows="3" class="w-full border'+highlight+' rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"'+dir+'>'+esc(reqVal || curVal)+'</textarea></div>';
+    } else if (f.type === 'select') {
+      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + labelHtml + '</label>' +
+        '<select name="'+f.k+'" class="w-full border'+highlight+' rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">'+makeSelectOpts(reqVal || curVal)+'</select>' +
+        (changed && curVal ? '<p class="text-xs text-gray-400 mt-0.5">الحالي: <span class="line-through">'+esc(curVal)+'</span></p>' : '') +
+        '</div>';
     } else {
-      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + f.l + (changed ? ' <span class="text-purple-500 text-xs">(مُعدَّل)</span>' : '') + '</label>' +
+      html += '<div><label class="block text-xs font-bold text-gray-600 mb-1">' + labelHtml + '</label>' +
         '<input type="text" name="'+f.k+'" class="w-full border'+highlight+' rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400"'+dir+' value="'+esc(reqVal || curVal)+'">' +
         (changed && curVal ? '<p class="text-xs text-gray-400 mt-0.5">الحالي: <span class="line-through">' + esc(curVal) + '</span></p>' : '') +
         '</div>';
