@@ -150,25 +150,33 @@ include 'includes/header.php';
     <?php endif; ?>
   </div>
   <?php else: ?>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-    <?php foreach ($personalities as $p): ?>
-    <a href="profile.php?id=<?= $p['p_id'] ?>" class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center block">
-      <?php if (!empty($p['p_photo'])): ?>
-        <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
-          class="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-purple-100">
-      <?php else: ?>
-        <div class="w-20 h-20 rounded-full pi-gradient flex items-center justify-center mx-auto mb-3">
-          <span class="text-white font-black text-2xl"><?= mb_substr($p['p_name_ar'], 0, 1) ?></span>
-        </div>
-      <?php endif; ?>
-      <h3 class="font-bold text-gray-800 text-sm mb-0.5 leading-tight">
-        <?= htmlspecialchars($p['p_name_ar']) ?>
-        <?php if (!empty($p['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
-      </h3>
-      <?php if (!empty($p['p_title'])): ?>
-        <p class="text-gray-400 text-xs leading-tight"><?= htmlspecialchars($p['p_title']) ?></p>
-      <?php endif; ?>
-      <p class="text-gray-300 text-xs mt-2"><i class="fa-solid fa-eye text-xs ml-1"></i><?= number_format($p['p_views'] ?? 0) ?></p>
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <?php foreach ($personalities as $idx => $p):
+      $delays = ['','pi-delay-1','pi-delay-2','pi-delay-3','pi-delay-4','pi-delay-5'];
+      $dl = $delays[$idx % 6];
+    ?>
+    <a href="profile.php?id=<?= $p['p_id'] ?>" class="pi-reveal <?= $dl ?> bg-white rounded-2xl shadow-sm card-hover block relative overflow-hidden">
+      <!-- Portrait photo -->
+      <div style="aspect-ratio:3/4;overflow:hidden;background:#f3f4f6;">
+        <?php if (!empty($p['p_photo'])): ?>
+          <img src="<?= htmlspecialchars($p['p_photo']) ?>" alt="<?= htmlspecialchars($p['p_name_ar']) ?>"
+            style="width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(20%);transition:filter .3s,transform .3s;"
+            onmouseover="this.style.filter='grayscale(0)';this.style.transform='scale(1.03)'"
+            onmouseout="this.style.filter='grayscale(20%)';this.style.transform='scale(1)'">
+        <?php else: ?>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#6d28d9,#1d4ed8);display:flex;align-items:center;justify-content:center;">
+            <span style="color:#fff;font-weight:900;font-size:2.5rem;"><?= mb_substr($p['p_name_ar'],0,1) ?></span>
+          </div>
+        <?php endif; ?>
+      </div>
+      <!-- Info -->
+      <div class="p-3">
+        <h3 class="font-bold text-gray-800 text-sm leading-snug mb-0.5">
+          <?= htmlspecialchars($p['p_name_ar']) ?>
+          <?php if (!empty($p['p_verified'])): ?><i class="fa-solid fa-circle-check verified-badge text-xs"></i><?php endif; ?>
+        </h3>
+        <p class="text-gray-400 text-xs leading-snug"><?= htmlspecialchars($p['p_title'] ?? '') ?></p>
+      </div>
     </a>
     <?php endforeach; ?>
   </div>
