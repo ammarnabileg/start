@@ -47,30 +47,45 @@ $_S_f = pi_get_settings();
       </div>
 
       <!-- Col 2: Links -->
+      <?php
+      $footer_links_raw = $_S_f['footer_links'] ?? '';
+      $footer_links = $footer_links_raw ? json_decode($footer_links_raw, true) : null;
+      if (!$footer_links) $footer_links = [
+        ['label'=>'التصنيفات',        'url'=>'categories.php'],
+        ['label'=>'إدارة الحسابات',   'url'=>'admin.php'],
+        ['label'=>'عن '.($_S_f['site_name_ar']??'المنصة'), 'url'=>'about.php'],
+        ['label'=>'شكاوي وملاحظات',   'url'=>'complaints.php'],
+        ['label'=>'سياسة الخصوصية',   'url'=>'privacy.php'],
+        ['label'=>'شروط الاستخدام',   'url'=>'terms.php'],
+      ];
+      $footer_col2_title = $_S_f['footer_col2_title'] ?? ('حول '.($_S_f['site_name_ar']??'المنصة'));
+      ?>
       <div>
-        <h4 class="text-white font-bold text-lg mb-5">حول <?= htmlspecialchars($_S_f['site_name_ar'] ?? 'من هم') ?></h4>
+        <h4 class="text-white font-bold text-lg mb-5"><?= htmlspecialchars($footer_col2_title) ?></h4>
         <ul class="space-y-2.5 text-sm">
-          <li><a href="categories.php" class="hover:text-purple-400 transition">التصنيفات</a></li>
-          <li><a href="admin.php" class="hover:text-purple-400 transition">إدارة الحسابات</a></li>
-          <li><a href="about.php" class="hover:text-purple-400 transition">عن <?= htmlspecialchars($_S_f['site_name_ar'] ?? 'من هم') ?></a></li>
-          <li><a href="complaints.php" class="hover:text-purple-400 transition">شكاوي وملاحظات</a></li>
-          <li><a href="about_majara.php" class="hover:text-purple-400 transition">عن مجرة</a></li>
-          <li><a href="privacy.php" class="hover:text-purple-400 transition">سياسة الخصوصية</a></li>
-          <li><a href="terms.php" class="hover:text-purple-400 transition">شروط الاستخدام</a></li>
+          <?php foreach ($footer_links as $fl): ?>
+          <li><a href="<?= htmlspecialchars($fl['url']??'#') ?>" class="hover:text-purple-400 transition"><?= htmlspecialchars($fl['label']??'') ?></a></li>
+          <?php endforeach; ?>
         </ul>
       </div>
 
       <!-- Col 3: Other sites -->
+      <?php
+      $footer_sites_raw = $_S_f['footer_sites'] ?? '';
+      $footer_sites = $footer_sites_raw ? json_decode($footer_sites_raw, true) : null;
+      if (!$footer_sites) $footer_sites = [];
+      $footer_col3_title = $_S_f['footer_col3_title'] ?? 'مواقع شقيقة';
+      ?>
+      <?php if (!empty($footer_sites)): ?>
       <div>
-        <h4 class="text-white font-bold text-lg mb-5">مواقع أخرى من مجرة</h4>
+        <h4 class="text-white font-bold text-lg mb-5"><?= htmlspecialchars($footer_col3_title) ?></h4>
         <ul class="space-y-2.5 text-sm">
-          <li><a href="#" class="hover:text-purple-400 transition">هارفارد بزنس ريفيو</a></li>
-          <li><a href="#" class="hover:text-purple-400 transition">MIT Technology Review</a></li>
-          <li><a href="#" class="hover:text-purple-400 transition">نفسيتي</a></li>
-          <li><a href="#" class="hover:text-purple-400 transition">العلوم للعموم</a></li>
-          <li><a href="#" class="hover:text-purple-400 transition">ستانفورد للابتكار الاجتماعي</a></li>
+          <?php foreach ($footer_sites as $fs): ?>
+          <li><a href="<?= htmlspecialchars($fs['url']??'#') ?>" target="_blank" rel="noopener" class="hover:text-purple-400 transition"><?= htmlspecialchars($fs['label']??'') ?></a></li>
+          <?php endforeach; ?>
         </ul>
       </div>
+      <?php endif; ?>
     </div>
   </div>
 

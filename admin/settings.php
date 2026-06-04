@@ -19,7 +19,8 @@ function pi_upload_logo($file) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fields = [
         'site_name','site_name_ar','site_tagline','site_description','site_keywords',
-        'footer_about','hero_pill','social_whatsapp','social_linkedin','social_twitter',
+        'footer_about','footer_col2_title','footer_col3_title','footer_links','footer_sites',
+        'hero_pill','social_whatsapp','social_linkedin','social_twitter',
         'social_instagram','social_facebook','social_youtube','social_tiktok',
         'social_snapchat','social_telegram','social_threads','social_pinterest',
         'primary_color','admin_email','copyright_text','google_analytics','default_country',
@@ -206,6 +207,61 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
           <label class="form-label">نص حقوق الملكية</label>
           <input type="text" name="copyright_text" class="form-input" value="<?= htmlspecialchars($S['copyright_text'] ?? '') ?>" placeholder="جميع الحقوق محفوظة لـ PioneerIcons">
         </div>
+
+        <!-- Footer links col2 -->
+        <?php
+        $fl_saved = json_decode($S['footer_links'] ?? '[]', true) ?: [
+          ['label'=>'التصنيفات','url'=>'categories.php'],
+          ['label'=>'إدارة الحسابات','url'=>'admin.php'],
+          ['label'=>'عن المنصة','url'=>'about.php'],
+          ['label'=>'شكاوي وملاحظات','url'=>'complaints.php'],
+          ['label'=>'سياسة الخصوصية','url'=>'privacy.php'],
+          ['label'=>'شروط الاستخدام','url'=>'terms.php'],
+        ];
+        $fs_saved = json_decode($S['footer_sites'] ?? '[]', true) ?: [];
+        ?>
+        <div class="border-t border-gray-100 pt-4">
+          <label class="form-label mb-1">عنوان العمود الثاني</label>
+          <input type="text" name="footer_col2_title" class="form-input mb-4" value="<?= htmlspecialchars($S['footer_col2_title'] ?? '') ?>" placeholder="حول المنصة">
+
+          <label class="form-label mb-2">روابط العمود الثاني <span class="text-gray-400 font-normal text-xs">(الروابط الداخلية مثل about.php)</span></label>
+          <div id="footer_links_list" class="space-y-2 mb-2">
+            <?php foreach ($fl_saved as $fi => $fl): ?>
+            <div class="fl-row flex gap-2 items-center">
+              <input type="text" name="fl_label[]" class="form-input flex-1 text-sm" value="<?= htmlspecialchars($fl['label']??'') ?>" placeholder="الاسم">
+              <input type="text" name="fl_url[]" class="form-input flex-1 text-sm" dir="ltr" value="<?= htmlspecialchars($fl['url']??'') ?>" placeholder="about.php أو https://...">
+              <button type="button" onclick="this.closest('.fl-row').remove()" class="text-red-400 hover:text-red-600 text-sm px-2"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <button type="button" onclick="addFooterLink('footer_links_list','fl_label[]','fl_url[]')" class="btn-secondary text-xs px-3 py-1.5">
+            <i class="fa-solid fa-plus ml-1"></i> إضافة رابط
+          </button>
+        </div>
+
+        <!-- Footer sites col3 -->
+        <div class="border-t border-gray-100 pt-4">
+          <label class="form-label mb-1">عنوان العمود الثالث</label>
+          <input type="text" name="footer_col3_title" class="form-input mb-4" value="<?= htmlspecialchars($S['footer_col3_title'] ?? '') ?>" placeholder="مواقع شقيقة">
+
+          <label class="form-label mb-2">روابط العمود الثالث <span class="text-gray-400 font-normal text-xs">(مواقع خارجية)</span></label>
+          <div id="footer_sites_list" class="space-y-2 mb-2">
+            <?php foreach ($fs_saved as $fsi => $fs): ?>
+            <div class="fs-row flex gap-2 items-center">
+              <input type="text" name="fs_label[]" class="form-input flex-1 text-sm" value="<?= htmlspecialchars($fs['label']??'') ?>" placeholder="اسم الموقع">
+              <input type="text" name="fs_url[]" class="form-input flex-1 text-sm" dir="ltr" value="<?= htmlspecialchars($fs['url']??'') ?>" placeholder="https://...">
+              <button type="button" onclick="this.closest('.fs-row').remove()" class="text-red-400 hover:text-red-600 text-sm px-2"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <button type="button" onclick="addFooterLink('footer_sites_list','fs_label[]','fs_url[]')" class="btn-secondary text-xs px-3 py-1.5">
+            <i class="fa-solid fa-plus ml-1"></i> إضافة موقع
+          </button>
+        </div>
+
+        <!-- Hidden JSON inputs built before submit -->
+        <input type="hidden" name="footer_links" id="footer_links_json">
+        <input type="hidden" name="footer_sites" id="footer_sites_json">
       </div>
     </div>
 
@@ -250,6 +306,32 @@ if ($r) while ($row=$r->fetch_assoc()) $countries_list[] = $row;
 </div>
 
 <script>
+// ── Footer links builder
+function addFooterLink(listId, nameField, urlField) {
+  var list = document.getElementById(listId);
+  var rowClass = listId === 'footer_links_list' ? 'fl-row' : 'fs-row';
+  var div = document.createElement('div');
+  div.className = rowClass + ' flex gap-2 items-center';
+  div.innerHTML = '<input type="text" name="' + nameField + '" class="form-input flex-1 text-sm" placeholder="الاسم">'
+    + '<input type="text" name="' + urlField + '" class="form-input flex-1 text-sm" dir="ltr" placeholder="https://...">'
+    + '<button type="button" onclick="this.closest(\'.' + rowClass + '\').remove()" class="text-red-400 hover:text-red-600 text-sm px-2"><i class="fa-solid fa-trash"></i></button>';
+  list.appendChild(div);
+}
+document.querySelector('form')?.addEventListener('submit', function() {
+  // Build footer_links JSON
+  var flLabels = [...document.querySelectorAll('#footer_links_list [name="fl_label[]"]')].map(function(i){return i.value.trim();});
+  var flUrls   = [...document.querySelectorAll('#footer_links_list [name="fl_url[]"]')].map(function(i){return i.value.trim();});
+  var fl = [];
+  for (var i=0; i<flLabels.length; i++) { if (flLabels[i]) fl.push({label:flLabels[i],url:flUrls[i]||'#'}); }
+  document.getElementById('footer_links_json').value = JSON.stringify(fl);
+  // Build footer_sites JSON
+  var fsLabels = [...document.querySelectorAll('#footer_sites_list [name="fs_label[]"]')].map(function(i){return i.value.trim();});
+  var fsUrls   = [...document.querySelectorAll('#footer_sites_list [name="fs_url[]"]')].map(function(i){return i.value.trim();});
+  var fs = [];
+  for (var j=0; j<fsLabels.length; j++) { if (fsLabels[j]) fs.push({label:fsLabels[j],url:fsUrls[j]||'#'}); }
+  document.getElementById('footer_sites_json').value = JSON.stringify(fs);
+});
+
 document.getElementById('color_picker')?.addEventListener('input', function() {
   document.getElementById('primary_hex').value = this.value;
 });
