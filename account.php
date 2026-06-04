@@ -409,13 +409,12 @@ include 'includes/header.php';
       <div class="space-y-5">
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <?php
           $sum_cards = [
             ['icon'=>'fa-eye','label'=>'إجمالي المشاهدات','val'=>number_format($total_views_all),'color'=>'#7c3aed','bg'=>'#f5f3ff'],
             ['icon'=>'fa-calendar-day','label'=>'آخر 30 يوم','val'=>number_format($total_30d),'color'=>'#2563eb','bg'=>'#eff6ff'],
             ['icon'=>'fa-id-badge','label'=>'الصفحات المُدارة','val'=>$total_pages,'color'=>'#059669','bg'=>'#f0fdf4'],
-            ['icon'=>'fa-handshake','label'=>'مشاهدات الرعايات','val'=>number_format($total_sp_views),'color'=>'#d97706','bg'=>'#fffbeb'],
           ];
           foreach ($sum_cards as $sc):
           ?>
