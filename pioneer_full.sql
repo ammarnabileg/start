@@ -199,6 +199,7 @@ CREATE TABLE IF NOT EXISTS `pi_submissions` (
   `sub_status`          enum('pending','approved','rejected') DEFAULT 'pending',
   `sub_submitter_name`  varchar(200) DEFAULT NULL,
   `sub_submitter_email` varchar(200) DEFAULT NULL,
+  `sub_user_id`         int(11)      DEFAULT NULL,
   `sub_note`            text      DEFAULT NULL,
   `sub_created`         timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`sub_id`),
@@ -327,6 +328,111 @@ CREATE TABLE IF NOT EXISTS `pi_labels` (
   `label_active`  TINYINT(1)   DEFAULT 1,
   `label_created` TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_users` (
+  `user_id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `user_name`       VARCHAR(200) NOT NULL,
+  `user_email`      VARCHAR(200) NOT NULL,
+  `user_password`   VARCHAR(255) NOT NULL,
+  `user_phone`      VARCHAR(50)  DEFAULT NULL,
+  `user_photo`      VARCHAR(500) DEFAULT NULL,
+  `user_active`     TINYINT(1)   DEFAULT 1,
+  `user_verified`   TINYINT(1)   DEFAULT 0,
+  `user_created`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uq_user_email` (`user_email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_complaints` (
+  `comp_id`      INT AUTO_INCREMENT PRIMARY KEY,
+  `comp_user_id` INT          DEFAULT NULL,
+  `comp_name`    VARCHAR(200) DEFAULT NULL,
+  `comp_email`   VARCHAR(200) DEFAULT NULL,
+  `comp_type`    VARCHAR(100) DEFAULT NULL,
+  `comp_message` TEXT         NOT NULL,
+  `comp_status`  ENUM('new','reviewed','closed') DEFAULT 'new',
+  `comp_created` TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_edit_requests` (
+  `er_id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `er_user_id`     INT          NOT NULL,
+  `er_entity_type` ENUM('personality','institution') DEFAULT 'personality',
+  `er_entity_id`   INT          NOT NULL,
+  `er_edit_data`   TEXT         DEFAULT NULL,
+  `er_status`      ENUM('pending','approved','rejected') DEFAULT 'pending',
+  `er_admin_note`  TEXT         DEFAULT NULL,
+  `er_created`     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_er_user`   (`er_user_id`),
+  KEY `idx_er_entity` (`er_entity_type`, `er_entity_id`),
+  KEY `idx_er_status` (`er_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_lists` (
+  `list_id`           INT AUTO_INCREMENT PRIMARY KEY,
+  `list_title`        VARCHAR(500) NOT NULL,
+  `list_title_en`     VARCHAR(500) DEFAULT NULL,
+  `list_slug`         VARCHAR(300) DEFAULT NULL,
+  `list_description`  TEXT         DEFAULT NULL,
+  `list_criteria`     TEXT         DEFAULT NULL,
+  `list_cover`        VARCHAR(500) DEFAULT NULL,
+  `list_logo`         VARCHAR(500) DEFAULT NULL,
+  `list_year`         VARCHAR(10)  DEFAULT NULL,
+  `list_columns`      TEXT         DEFAULT NULL,
+  `list_active`       TINYINT(1)   DEFAULT 1,
+  `list_order`        INT          DEFAULT 0,
+  `list_views`        INT          DEFAULT 0,
+  `list_sponsor_id`   INT          DEFAULT NULL,
+  `list_sponsor_img`  VARCHAR(500) DEFAULT NULL,
+  `list_sponsor_url`  VARCHAR(500) DEFAULT NULL,
+  `list_sponsor_name` VARCHAR(300) DEFAULT NULL,
+  `list_spotlight`    TEXT         DEFAULT NULL,
+  `list_created`      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_list_active` (`list_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_list_items` (
+  `li_id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `li_list_id`     INT  NOT NULL,
+  `li_entity_type` ENUM('personality','institution') DEFAULT 'personality',
+  `li_entity_id`   INT  NOT NULL,
+  `li_rank`        INT  DEFAULT 0,
+  `li_data`        TEXT DEFAULT NULL,
+  KEY `idx_li_list`   (`li_list_id`),
+  KEY `idx_li_entity` (`li_entity_type`, `li_entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `pi_list_blocks` (
+  `lb_id`       INT AUTO_INCREMENT PRIMARY KEY,
+  `lb_list_id`  INT  NOT NULL,
+  `lb_type`     ENUM('text','image','video') DEFAULT 'text',
+  `lb_content`  TEXT DEFAULT NULL,
+  `lb_order`    INT  DEFAULT 0,
+  KEY `idx_lb_list` (`lb_list_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ──────────────────────────────────────────
+-- Extra columns added to existing tables
+-- ──────────────────────────────────────────
+ALTER TABLE `pi_personalities`
+  ADD COLUMN IF NOT EXISTS `p_added_by_user` INT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `p_position`      VARCHAR(300) DEFAULT NULL;
+
+ALTER TABLE `pi_institutions`
+  ADD COLUMN IF NOT EXISTS `inst_added_by_user` INT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `inst_country`        VARCHAR(100) DEFAULT NULL;
+
+-- ─────────────────────────────────────────────────────────────
+--  Roles — updated with new permissions (31-37)
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO `pi_roles` (`role_id`, `role_name`, `role_permissions`) VALUES
+  (1, 'مدير النظام', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37')
+ON DUPLICATE KEY UPDATE role_permissions=VALUES(role_permissions);
 
 -- ─────────────────────────────────────────────────────────────
 --  DONE
