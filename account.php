@@ -409,11 +409,10 @@ include 'includes/header.php';
       <div class="space-y-5">
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-2 gap-4">
           <?php
           $sum_cards = [
             ['icon'=>'fa-eye','label'=>'إجمالي المشاهدات','val'=>number_format($total_views_all),'color'=>'#7c3aed','bg'=>'#f5f3ff'],
-            ['icon'=>'fa-calendar-day','label'=>'آخر 30 يوم','val'=>number_format($total_30d),'color'=>'#2563eb','bg'=>'#eff6ff'],
             ['icon'=>'fa-id-badge','label'=>'الصفحات المُدارة','val'=>$total_pages,'color'=>'#059669','bg'=>'#f0fdf4'],
           ];
           foreach ($sum_cards as $sc):
@@ -487,14 +486,6 @@ include 'includes/header.php';
                     <p style="font-size:16px;font-weight:900;color:#111827;line-height:1;"><?= number_format($p['p_views']) ?></p>
                     <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">إجمالي</p>
                   </div>
-                  <div style="text-align:center;">
-                    <p style="font-size:16px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format($v30) ?></p>
-                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">30 يوم</p>
-                  </div>
-                  <div style="text-align:center;">
-                    <p style="font-size:16px;font-weight:900;color:#059669;line-height:1;"><?= number_format($v7) ?></p>
-                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">7 أيام</p>
-                  </div>
                   <span style="background:<?= $p['p_verified']?'#eff6ff':'#f3f4f6' ?>;color:<?= $p['p_verified']?'#2563eb':'#9ca3af' ?>;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;">
                     <?= $p['p_verified'] ? 'موثّق' : 'عادي' ?>
                   </span>
@@ -539,14 +530,6 @@ include 'includes/header.php';
                   <div style="text-align:center;">
                     <p style="font-size:16px;font-weight:900;color:#111827;line-height:1;"><?= number_format($inst['inst_views']) ?></p>
                     <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">إجمالي</p>
-                  </div>
-                  <div style="text-align:center;">
-                    <p style="font-size:16px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format($v30) ?></p>
-                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">30 يوم</p>
-                  </div>
-                  <div style="text-align:center;">
-                    <p style="font-size:16px;font-weight:900;color:#059669;line-height:1;"><?= number_format($v7) ?></p>
-                    <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:2px;">7 أيام</p>
                   </div>
                   <span style="background:<?= $inst['inst_verified']?'#eff6ff':'#f3f4f6' ?>;color:<?= $inst['inst_verified']?'#2563eb':'#9ca3af' ?>;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;">
                     <?= $inst['inst_verified'] ? 'موثّقة' : 'عادية' ?>
