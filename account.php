@@ -210,16 +210,9 @@ include 'includes/header.php';
         <?php endif; ?>
         <p class="text-xs text-gray-400 font-semibold mb-0.5">مرحباً بك</p>
         <p class="font-black text-gray-800 text-sm leading-tight"><?= htmlspecialchars($user['u_name']) ?></p>
-        <?php if ($user['u_plan'] !== 'free'): ?>
-        <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 text-xs font-bold rounded-full <?= $user['u_plan'] === 'executive' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700' ?>">
-          <i class="fa-solid <?= $user['u_plan'] === 'executive' ? 'fa-crown' : 'fa-circle-check' ?> text-xs"></i>
-          <?= $user['u_plan'] === 'executive' ? 'رئيس تنفيذي' : 'موثق' ?>
+        <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-700">
+          <i class="fa-solid fa-circle-check text-xs"></i> مستخدم نشط
         </span>
-        <?php else: ?>
-        <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 text-xs font-bold rounded-full bg-gray-100 text-gray-500">
-          الخطة المجانية
-        </span>
-        <?php endif; ?>
       </div>
 
       <!-- Nav menu -->
@@ -803,35 +796,66 @@ include 'includes/header.php';
       <!-- ──────────── MEMBERSHIP TAB ──────────── -->
       <?php elseif ($tab === 'membership'): ?>
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 class="font-black text-gray-800 text-lg mb-6">
+        <h2 class="font-black text-gray-800 text-lg mb-2">
           <i class="fa-solid fa-gem text-purple-500 ml-2"></i> اشتراكاتي
         </h2>
-        <div class="rounded-2xl p-6 border-2 <?= $user['u_plan'] !== 'free' ? 'border-purple-200 bg-purple-50' : 'border-gray-100 bg-gray-50' ?>">
-          <div class="flex items-center gap-4 mb-4">
-            <div class="w-12 h-12 rounded-xl pi-gradient flex items-center justify-center">
-              <i class="fa-solid <?= $user['u_plan'] === 'executive' ? 'fa-crown' : ($user['u_plan'] === 'verified' ? 'fa-circle-check' : 'fa-star') ?> text-white text-lg"></i>
-            </div>
-            <div>
-              <p class="font-black text-gray-800">
-                <?= $user['u_plan'] === 'executive' ? 'باقة الرؤساء التنفيذيين' : ($user['u_plan'] === 'verified' ? 'العضوية الموثقة' : 'الخطة المجانية') ?>
-              </p>
-              <p class="text-gray-400 text-sm"><?= $user['u_plan'] === 'free' ? 'ترقية للاستفادة من مميزات التوثيق' : 'اشتراك فعّال' ?></p>
-            </div>
+        <p class="text-gray-400 text-sm mb-6">التوثيق يكون على الشخصيات والمؤسسات التي تديرها، وليس على حسابك الشخصي</p>
+
+        <?php if (empty($my_personalities) && empty($my_institutions)): ?>
+        <div class="text-center py-12 bg-gray-50 rounded-2xl">
+          <i class="fa-solid fa-id-card text-4xl text-gray-300 mb-3 block"></i>
+          <p class="text-gray-500 font-semibold mb-4">لا توجد صفحات مرتبطة بحسابك بعد</p>
+          <div class="flex gap-3 justify-center">
+            <a href="add_personality.php" class="px-5 py-2 pi-primary-bg text-white text-sm font-black rounded-xl hover:opacity-90 transition">اقتراح شخصية</a>
+            <a href="add_institution.php" class="px-5 py-2 bg-indigo-600 text-white text-sm font-black rounded-xl hover:opacity-90 transition">اقتراح مؤسسة</a>
           </div>
-          <?php if ($user['u_plan'] === 'free'): ?>
-          <div class="flex gap-3">
-            <a href="membership.php?type=verified"
-              class="px-5 py-2.5 pi-primary-bg text-white font-black rounded-xl hover:opacity-90 transition text-sm">
-              ترقية للتوثيق
-            </a>
-            <a href="membership.php?type=executive"
-              class="px-5 py-2.5 text-amber-900 font-black rounded-xl hover:brightness-110 transition text-sm"
-              style="background:linear-gradient(135deg,#fde68a,#f59e0b)">
-              <i class="fa-solid fa-crown ml-1"></i> رئيس تنفيذي
-            </a>
-          </div>
-          <?php endif; ?>
         </div>
+        <?php else: ?>
+        <div class="space-y-3">
+          <?php foreach ($my_personalities as $mp):
+            $mem = $mp['p_membership_type'] ?? 'standard';
+            if ($mem === 'executive') { $badge = 'تنفيذي'; $bcls = 'bg-amber-100 text-amber-800 border-amber-200'; $icn = 'fa-crown'; }
+            elseif ($mem === 'verified' || $mp['p_verified']) { $badge = 'موثق'; $bcls = 'bg-blue-100 text-blue-700 border-blue-200'; $icn = 'fa-circle-check'; }
+            else { $badge = 'غير موثق'; $bcls = 'bg-gray-100 text-gray-500 border-gray-200'; $icn = 'fa-circle'; }
+          ?>
+          <div class="flex items-center gap-4 p-4 rounded-2xl border-2 <?= $bcls ?>">
+            <?php if ($mp['p_photo']): ?><img src="<?= htmlspecialchars($mp['p_photo']) ?>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+            <?php else: ?><div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-purple-500"></i></div><?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-black text-gray-800"><?= htmlspecialchars($mp['p_name_ar']) ?></p>
+              <p class="text-gray-400 text-xs"><?= htmlspecialchars($mp['p_title'] ?? '') ?></p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $bcls ?>"><i class="fa-solid <?= $icn ?> ml-1 text-xs"></i><?= $badge ?></span>
+              <?php if ($mem === 'standard' && !$mp['p_verified']): ?>
+              <a href="membership.php?type=verified" class="text-xs px-3 py-1 pi-primary-bg text-white font-bold rounded-lg hover:opacity-90 transition">طلب توثيق</a>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+          <?php foreach ($my_institutions as $mi):
+            $mem = $mi['inst_membership_type'] ?? 'standard';
+            if ($mem === 'executive') { $badge = 'تنفيذي'; $bcls = 'bg-amber-100 text-amber-800 border-amber-200'; $icn = 'fa-crown'; }
+            elseif ($mem === 'verified' || $mi['inst_verified']) { $badge = 'موثقة'; $bcls = 'bg-blue-100 text-blue-700 border-blue-200'; $icn = 'fa-circle-check'; }
+            else { $badge = 'غير موثقة'; $bcls = 'bg-gray-100 text-gray-500 border-gray-200'; $icn = 'fa-circle'; }
+          ?>
+          <div class="flex items-center gap-4 p-4 rounded-2xl border-2 <?= $bcls ?>">
+            <?php if ($mi['inst_logo']): ?><img src="<?= htmlspecialchars($mi['inst_logo']) ?>" class="w-12 h-12 rounded-xl object-cover flex-shrink-0">
+            <?php else: ?><div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-indigo-500"></i></div><?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-black text-gray-800"><?= htmlspecialchars($mi['inst_name_ar']) ?></p>
+              <p class="text-xs text-indigo-500 font-bold">مؤسسة</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $bcls ?>"><i class="fa-solid <?= $icn ?> ml-1 text-xs"></i><?= $badge ?></span>
+              <?php if ($mem === 'standard' && !$mi['inst_verified']): ?>
+              <a href="membership.php?type=verified" class="text-xs px-3 py-1 pi-primary-bg text-white font-bold rounded-lg hover:opacity-90 transition">طلب توثيق</a>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
       </div>
 
       <!-- ──────────── COMPLAINTS TAB ──────────── -->

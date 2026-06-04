@@ -76,11 +76,10 @@ if ($r) while ($row = $r->fetch_assoc()) $users[] = $row;
 
 // Stats
 $stats = [];
-foreach (['total'=>'SELECT COUNT(*) c FROM pi_users',
-          'active'=>'SELECT COUNT(*) c FROM pi_users WHERE u_active=1',
-          'blocked'=>'SELECT COUNT(*) c FROM pi_users WHERE u_active=0',
-          'verified'=>"SELECT COUNT(*) c FROM pi_users WHERE u_plan='verified'",
-          'executive'=>"SELECT COUNT(*) c FROM pi_users WHERE u_plan='executive'"] as $k=>$q) {
+foreach (['total'  => 'SELECT COUNT(*) c FROM pi_users',
+          'active' => 'SELECT COUNT(*) c FROM pi_users WHERE u_active=1',
+          'blocked'=> 'SELECT COUNT(*) c FROM pi_users WHERE u_active=0',
+          'new7'   => "SELECT COUNT(*) c FROM pi_users WHERE u_created >= DATE_SUB(NOW(),INTERVAL 7 DAY)"] as $k=>$q) {
     $sr = $mysqli->query($q);
     $stats[$k] = $sr ? (int)$sr->fetch_assoc()['c'] : 0;
 }
@@ -89,10 +88,18 @@ foreach (['total'=>'SELECT COUNT(*) c FROM pi_users',
 $view_user = null;
 $view_subs = [];
 $view_cmps = [];
+$view_personalities = [];
+$view_institutions  = [];
 if ($view_uid) {
     $vr = $mysqli->query("SELECT * FROM pi_users WHERE u_id=$view_uid");
     if ($vr && $vr->num_rows) {
         $view_user = $vr->fetch_assoc();
+        // Personalities managed by this user
+        $vpr = $mysqli->query("SELECT p_id,p_name_ar,p_title,p_photo,p_verified,p_membership_type,p_active FROM pi_personalities WHERE p_added_by_user=$view_uid ORDER BY p_id DESC");
+        if ($vpr) while ($row=$vpr->fetch_assoc()) $view_personalities[] = $row;
+        // Institutions managed by this user
+        $vir = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_verified,inst_membership_type,inst_active FROM pi_institutions WHERE inst_added_by_user=$view_uid ORDER BY inst_id DESC");
+        if ($vir) while ($row=$vir->fetch_assoc()) $view_institutions[] = $row;
         $sr = $mysqli->query("SELECT sub_id,sub_type,sub_status,sub_created,sub_data FROM pi_submissions WHERE sub_user_id=$view_uid ORDER BY sub_created DESC LIMIT 20");
         if ($sr) while ($row=$sr->fetch_assoc()) $view_subs[] = $row;
         $view_edit_reqs = [];
@@ -106,9 +113,6 @@ if ($view_uid) {
     }
 }
 
-$plan_map   = ['free'=>['text'=>'مجاني','class'=>'bg-gray-100 text-gray-600'],
-               'verified'=>['text'=>'موثق','class'=>'bg-blue-100 text-blue-700'],
-               'executive'=>['text'=>'تنفيذي','class'=>'bg-purple-100 text-purple-700']];
 $status_map = ['new'=>['text'=>'جديدة','class'=>'bg-yellow-100 text-yellow-800'],
                'read'=>['text'=>'مقروءة','class'=>'bg-blue-100 text-blue-800'],
                'resolved'=>['text'=>'محلولة','class'=>'bg-green-100 text-green-800']];
@@ -136,8 +140,7 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
       ['label'=>'إجمالي','val'=>$stats['total'],'color'=>'purple','icon'=>'users'],
       ['label'=>'نشطون','val'=>$stats['active'],'color'=>'green','icon'=>'circle-check'],
       ['label'=>'محظورون','val'=>$stats['blocked'],'color'=>'red','icon'=>'ban'],
-      ['label'=>'موثقون','val'=>$stats['verified'],'color'=>'blue','icon'=>'badge-check'],
-      ['label'=>'تنفيذيون','val'=>$stats['executive'],'color'=>'indigo','icon'=>'crown'],
+      ['label'=>'جدد (7 أيام)','val'=>$stats['new7'],'color'=>'blue','icon'=>'user-plus'],
     ];
     foreach ($stat_cards as $sc): ?>
     <div class="bg-<?= $sc['color'] ?>-50 border border-<?= $sc['color'] ?>-200 rounded-2xl p-4 text-center">
@@ -165,8 +168,9 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
       <div class="flex-1">
         <div class="flex items-center gap-2 flex-wrap">
           <h2 class="font-black text-gray-800 text-lg"><?= htmlspecialchars($view_user['u_name']) ?></h2>
-          <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $plan_map[$view_user['u_plan']]['class'] ?>"><?= $plan_map[$view_user['u_plan']]['text'] ?></span>
-          <?php if (!$view_user['u_active']): ?>
+          <?php if ($view_user['u_active']): ?>
+          <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700"><i class="fa-solid fa-circle-check ml-1"></i>نشط</span>
+          <?php else: ?>
           <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-700"><i class="fa-solid fa-ban ml-1"></i>محظور</span>
           <?php endif; ?>
         </div>
@@ -271,22 +275,49 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
           </form>
         </details>
 
-        <!-- Change plan -->
-        <details class="border border-gray-100 rounded-xl">
-          <summary class="px-4 py-3 font-bold text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded-xl">
-            <i class="fa-solid fa-crown ml-2 text-purple-500"></i>تغيير الخطة
-          </summary>
-          <form method="POST" class="p-4 flex gap-2 flex-wrap border-t border-gray-100">
-            <input type="hidden" name="act" value="change_plan">
-            <input type="hidden" name="uid" value="<?= $view_user['u_id'] ?>">
-            <?php foreach (['free'=>'مجاني','verified'=>'موثق','executive'=>'تنفيذي'] as $pv=>$pl): ?>
-            <button name="plan" value="<?= $pv ?>"
-              class="px-5 py-2 text-sm font-black rounded-xl border transition <?= $view_user['u_plan']===$pv ? 'pi-primary-bg text-white border-transparent' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' ?>">
-              <?= $pl ?>
-            </button>
-            <?php endforeach; ?>
-          </form>
-        </details>
+        <!-- Personalities & Institutions managed by user -->
+        <?php if (!empty($view_personalities) || !empty($view_institutions)): ?>
+        <div class="border border-gray-100 rounded-xl overflow-hidden">
+          <div class="px-4 py-3 bg-gray-50 font-bold text-sm text-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-id-card text-purple-500"></i>الصفحات المدارة
+          </div>
+          <div class="p-4 space-y-2">
+          <?php foreach ($view_personalities as $vp):
+            $mem = $vp['p_membership_type'];
+            $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vp['p_verified']?['موثق','bg-blue-100 text-blue-700']:['غير موثق','bg-gray-100 text-gray-500']);
+          ?>
+          <a href="admin.php?p=personalities&edit=<?= $vp['p_id'] ?>" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition">
+            <?php if ($vp['p_photo']): ?><img src="../<?= htmlspecialchars($vp['p_photo']) ?>" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
+            <?php else: ?><div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-purple-500 text-xs"></i></div><?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vp['p_name_ar']) ?></p>
+              <p class="text-xs text-gray-400"><?= htmlspecialchars($vp['p_title'] ?? '') ?></p>
+            </div>
+            <div class="flex gap-1 flex-shrink-0">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700">شخصية</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+            </div>
+          </a>
+          <?php endforeach; ?>
+          <?php foreach ($view_institutions as $vi):
+            $mem = $vi['inst_membership_type'];
+            $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vi['inst_verified']?['موثقة','bg-blue-100 text-blue-700']:['غير موثقة','bg-gray-100 text-gray-500']);
+          ?>
+          <a href="admin.php?p=institutions&edit=<?= $vi['inst_id'] ?>" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition">
+            <?php if ($vi['inst_logo']): ?><img src="../<?= htmlspecialchars($vi['inst_logo']) ?>" class="w-8 h-8 rounded-xl object-cover flex-shrink-0">
+            <?php else: ?><div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-indigo-500 text-xs"></i></div><?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vi['inst_name_ar']) ?></p>
+            </div>
+            <div class="flex gap-1 flex-shrink-0">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">مؤسسة</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+            </div>
+          </a>
+          <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
       </div>
 
       <!-- Submissions & Complaints -->
@@ -375,12 +406,6 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
     <input type="hidden" name="p" value="users">
     <input type="text" name="q" value="<?= htmlspecialchars($_GET['q']??'') ?>" placeholder="بحث بالاسم أو البريد أو الهاتف..."
       class="flex-1 min-w-48 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-purple-400">
-    <select name="plan" class="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
-      <option value="">كل الخطط</option>
-      <option value="free" <?= $filter_plan==='free'?'selected':'' ?>>مجاني</option>
-      <option value="verified" <?= $filter_plan==='verified'?'selected':'' ?>>موثق</option>
-      <option value="executive" <?= $filter_plan==='executive'?'selected':'' ?>>تنفيذي</option>
-    </select>
     <select name="status" class="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400">
       <option value="">كل الحالات</option>
       <option value="active" <?= $filter_stat==='active'?'selected':'' ?>>نشط</option>
@@ -403,7 +428,6 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
         <tr>
           <th>#</th>
           <th>المستخدم</th>
-          <th>الخطة</th>
           <th>الحالة</th>
           <th>تاريخ التسجيل</th>
           <th>الاقتراحات</th>
@@ -431,11 +455,6 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
                 <p class="text-gray-400 text-xs"><?= htmlspecialchars($u['u_email']) ?></p>
               </div>
             </div>
-          </td>
-          <td>
-            <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $plan_map[$u['u_plan']]['class'] ?>">
-              <?= $plan_map[$u['u_plan']]['text'] ?>
-            </span>
           </td>
           <td>
             <?php if ($u['u_active']): ?>
