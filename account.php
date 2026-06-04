@@ -116,13 +116,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if (isset($_GET['saved'])) $msg = 'تم تحديث البيانات بنجاح';
 
-// Load submissions
+// Load approved personalities/institutions added by user
 $my_personalities = [];
 $my_institutions  = [];
 $r = $mysqli->query("SELECT p_id,p_name_ar,p_title,p_photo,p_active,p_verified,p_views FROM pi_personalities WHERE p_added_by_user=" . (int)$user['u_id'] . " ORDER BY p_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_personalities[] = $row;
 $r = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_active,inst_verified,inst_views FROM pi_institutions WHERE inst_added_by_user=" . (int)$user['u_id'] . " ORDER BY inst_id DESC");
 if ($r) while ($row=$r->fetch_assoc()) $my_institutions[] = $row;
+// Load pending/rejected submissions still awaiting review
+$my_pending_subs = [];
+$r = $mysqli->query("SELECT sub_id,sub_type,sub_data,sub_status,sub_created FROM pi_submissions WHERE sub_user_id=" . (int)$user['u_id'] . " AND sub_status IN ('pending','rejected') ORDER BY sub_id DESC");
+if ($r) while ($row=$r->fetch_assoc()) {
+    $d = json_decode($row['sub_data'] ?? '{}', true);
+    $row['_name'] = $row['sub_type'] === 'personality' ? ($d['p_name_ar'] ?? '') : ($d['inst_name_ar'] ?? '');
+    $row['_photo'] = $row['sub_type'] === 'personality' ? ($d['p_photo'] ?? '') : ($d['inst_logo'] ?? '');
+    $my_pending_subs[] = $row;
+}
 
 // Create edit_requests table if needed
 $mysqli->query("CREATE TABLE IF NOT EXISTS pi_edit_requests (
@@ -450,16 +459,54 @@ include 'includes/header.php';
 
         <?php
         $all_subs = array_merge(
-            array_map(function($p){ return array_merge($p, ['_type'=>'personality']); }, $my_personalities),
-            array_map(function($i){ return array_merge($i, ['_type'=>'institution']); }, $my_institutions)
+            array_map(function($p){ return array_merge($p, ['_type'=>'personality','_src'=>'published']); }, $my_personalities),
+            array_map(function($i){ return array_merge($i, ['_type'=>'institution','_src'=>'published']); }, $my_institutions)
         );
-        if (empty($all_subs)):
+        $has_anything = !empty($all_subs) || !empty($my_pending_subs);
+        if (!$has_anything):
         ?>
         <div class="text-center py-16 text-gray-300">
           <i class="fa-solid fa-pen-to-square text-5xl mb-4"></i>
           <p class="font-semibold text-gray-400">عفواً لا يوجد شخصيات أو شركات تم إضافتها</p>
         </div>
         <?php else: ?>
+
+        <?php if (!empty($my_pending_subs)): ?>
+        <div class="mb-5">
+          <h3 class="text-sm font-black text-gray-500 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-clock text-yellow-500"></i> قيد المراجعة / مرفوضة
+          </h3>
+          <div class="space-y-2">
+          <?php foreach ($my_pending_subs as $ps):
+            $ps_is_p = $ps['sub_type'] === 'personality';
+            $ps_pending = $ps['sub_status'] === 'pending';
+          ?>
+          <div class="flex items-center gap-3 p-3 rounded-xl border <?= $ps_pending ? 'border-yellow-200 bg-yellow-50' : 'border-red-100 bg-red-50' ?> transition">
+            <?php if ($ps['_photo']): ?>
+              <img src="<?= htmlspecialchars($ps['_photo']) ?>" class="w-10 h-10 rounded-xl object-cover flex-shrink-0">
+            <?php else: ?>
+              <div class="w-10 h-10 rounded-xl <?= $ps_pending ? 'bg-yellow-200' : 'bg-red-200' ?> flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-<?= $ps_is_p ? 'user' : 'building' ?> text-<?= $ps_pending ? 'yellow' : 'red' ?>-600 text-sm"></i>
+              </div>
+            <?php endif; ?>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-gray-800 text-sm truncate"><?= htmlspecialchars($ps['_name'] ?: '(بدون اسم)') ?></p>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs px-2 py-0.5 rounded-full <?= $ps_is_p ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700' ?> font-bold">
+                  <?= $ps_is_p ? 'شخصية' : 'شركة' ?>
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $ps_pending ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-700' ?>">
+                  <?= $ps_pending ? 'قيد المراجعة' : 'تم الرفض' ?>
+                </span>
+              </div>
+            </div>
+          </div>
+          <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($all_subs)): ?>
         <div class="space-y-3">
           <?php foreach ($all_subs as $item):
             $is_p = $item['_type'] === 'personality';
@@ -488,7 +535,7 @@ include 'includes/header.php';
                 <?php elseif ($active): ?>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">نشطة</span>
                 <?php else: ?>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">قيد المراجعة</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold">غير نشطة</span>
                 <?php endif; ?>
               </div>
             </div>
@@ -498,6 +545,7 @@ include 'includes/header.php';
           </div>
           <?php endforeach; ?>
         </div>
+        <?php endif; ?>
         <?php endif; ?>
       </div>
 
