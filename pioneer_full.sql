@@ -272,6 +272,7 @@ CREATE TABLE `pi_submissions` (
 -- ──────────────────────────────────────────
 CREATE TABLE `pi_memberships` (
   `mem_id`          INT          NOT NULL AUTO_INCREMENT,
+  `mem_type`        ENUM('verified','executive') DEFAULT 'verified',
   `mem_plan`        ENUM('monthly','lifetime') NOT NULL,
   `mem_name`        VARCHAR(200) NOT NULL,
   `mem_phone`       VARCHAR(50)  NOT NULL,
