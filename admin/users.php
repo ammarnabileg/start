@@ -48,6 +48,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg_type = 'red';
         }
     }
+    // Link a personality/institution to this user
+    if ($act === 'link_page' && $uid) {
+        $etype = ($_POST['etype'] ?? '') === 'institution' ? 'institution' : 'personality';
+        $eid   = (int)($_POST['eid'] ?? 0);
+        if ($eid) {
+            if ($etype === 'personality') {
+                $mysqli->query("UPDATE pi_personalities SET p_added_by_user=$uid WHERE p_id=$eid");
+            } else {
+                $mysqli->query("UPDATE pi_institutions SET inst_added_by_user=$uid WHERE inst_id=$eid");
+            }
+            $msg = 'تم ربط الصفحة بالمستخدم';
+        }
+    }
+    // Unlink a personality/institution from this user
+    if ($act === 'unlink_page' && $uid) {
+        $etype = ($_POST['etype'] ?? '') === 'institution' ? 'institution' : 'personality';
+        $eid   = (int)($_POST['eid'] ?? 0);
+        if ($eid) {
+            if ($etype === 'personality') {
+                $mysqli->query("UPDATE pi_personalities SET p_added_by_user=NULL WHERE p_id=$eid AND p_added_by_user=$uid");
+            } else {
+                $mysqli->query("UPDATE pi_institutions SET inst_added_by_user=NULL WHERE inst_id=$eid AND inst_added_by_user=$uid");
+            }
+            $msg = 'تم إلغاء ربط الصفحة';
+            $msg_type = 'red';
+        }
+    }
 }
 
 // ── Filters ─────────────────────────────────────────────────────────────────
@@ -100,6 +127,15 @@ if ($view_uid) {
         // Institutions managed by this user
         $vir = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_verified,inst_membership_type,inst_active FROM pi_institutions WHERE inst_added_by_user=$view_uid ORDER BY inst_id DESC");
         if ($vir) while ($row=$vir->fetch_assoc()) $view_institutions[] = $row;
+        // All personalities (for link dropdown - exclude already linked to this user)
+        $linked_p_ids = array_column($view_personalities, 'p_id');
+        $all_personalities_flat = [];
+        $apr = $mysqli->query("SELECT p_id,p_name_ar,p_title FROM pi_personalities WHERE p_active=1 ORDER BY p_name_ar ASC LIMIT 500");
+        if ($apr) while ($row=$apr->fetch_assoc()) $all_personalities_flat[] = $row;
+        // All institutions (for link dropdown)
+        $all_institutions_flat = [];
+        $air = $mysqli->query("SELECT inst_id,inst_name_ar FROM pi_institutions WHERE inst_active=1 ORDER BY inst_name_ar ASC LIMIT 500");
+        if ($air) while ($row=$air->fetch_assoc()) $all_institutions_flat[] = $row;
         $sr = $mysqli->query("SELECT sub_id,sub_type,sub_status,sub_created,sub_data FROM pi_submissions WHERE sub_user_id=$view_uid ORDER BY sub_created DESC LIMIT 20");
         if ($sr) while ($row=$sr->fetch_assoc()) $view_subs[] = $row;
         $view_edit_reqs = [];
@@ -276,48 +312,115 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
         </details>
 
         <!-- Personalities & Institutions managed by user -->
-        <?php if (!empty($view_personalities) || !empty($view_institutions)): ?>
         <div class="border border-gray-100 rounded-xl overflow-hidden">
-          <div class="px-4 py-3 bg-gray-50 font-bold text-sm text-gray-700 flex items-center gap-2">
-            <i class="fa-solid fa-id-card text-purple-500"></i>الصفحات المدارة
+          <div class="px-4 py-3 bg-gray-50 font-bold text-sm text-gray-700 flex items-center justify-between">
+            <span><i class="fa-solid fa-id-card text-purple-500 ml-1"></i>الصفحات المدارة</span>
+            <button onclick="document.getElementById('link-page-form-<?= $view_uid ?>').classList.toggle('hidden')"
+              class="px-3 py-1 text-xs font-black bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+              <i class="fa-solid fa-plus ml-1"></i>ربط صفحة
+            </button>
           </div>
+
+          <!-- Link form -->
+          <div id="link-page-form-<?= $view_uid ?>" class="hidden border-b border-gray-100 p-4 bg-purple-50">
+            <form method="POST" class="flex gap-2 flex-wrap items-end">
+              <input type="hidden" name="uid" value="<?= $view_uid ?>">
+              <input type="hidden" name="act" value="link_page">
+              <div class="flex-1 min-w-48">
+                <label class="block text-xs font-bold text-gray-600 mb-1">النوع</label>
+                <select name="etype" id="link-etype-<?= $view_uid ?>" onchange="updateLinkSelect(<?= $view_uid ?>)"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                  <option value="personality">شخصية</option>
+                  <option value="institution">مؤسسة</option>
+                </select>
+              </div>
+              <div class="flex-1 min-w-48">
+                <label class="block text-xs font-bold text-gray-600 mb-1">الصفحة</label>
+                <select name="eid" id="link-eid-p-<?= $view_uid ?>"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                  <?php foreach ($all_personalities_flat as $ap): ?>
+                  <option value="<?= $ap['p_id'] ?>"><?= htmlspecialchars($ap['p_name_ar']) ?><?= $ap['p_title'] ? ' — '.htmlspecialchars($ap['p_title']) : '' ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <select name="eid" id="link-eid-i-<?= $view_uid ?>" class="hidden w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400 bg-white">
+                  <?php foreach ($all_institutions_flat as $ai): ?>
+                  <option value="<?= $ai['inst_id'] ?>"><?= htmlspecialchars($ai['inst_name_ar']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <button type="submit" class="px-4 py-2 text-xs font-black bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                <i class="fa-solid fa-link ml-1"></i>ربط
+              </button>
+            </form>
+          </div>
+
           <div class="p-4 space-y-2">
+          <?php if (empty($view_personalities) && empty($view_institutions)): ?>
+          <p class="text-gray-400 text-sm text-center py-4">لا توجد صفحات مرتبطة بعد</p>
+          <?php endif; ?>
           <?php foreach ($view_personalities as $vp):
             $mem = $vp['p_membership_type'];
             $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vp['p_verified']?['موثق','bg-blue-100 text-blue-700']:['غير موثق','bg-gray-100 text-gray-500']);
           ?>
-          <a href="admin.php?p=personalities&edit=<?= $vp['p_id'] ?>" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition">
+          <div class="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
             <?php if ($vp['p_photo']): ?><img src="../<?= htmlspecialchars($vp['p_photo']) ?>" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
             <?php else: ?><div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-user text-purple-500 text-xs"></i></div><?php endif; ?>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vp['p_name_ar']) ?></p>
               <p class="text-xs text-gray-400"><?= htmlspecialchars($vp['p_title'] ?? '') ?></p>
             </div>
-            <div class="flex gap-1 flex-shrink-0">
+            <div class="flex gap-1 items-center flex-shrink-0">
               <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700">شخصية</span>
               <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+              <form method="POST" class="inline">
+                <input type="hidden" name="uid" value="<?= $view_uid ?>">
+                <input type="hidden" name="act" value="unlink_page">
+                <input type="hidden" name="etype" value="personality">
+                <input type="hidden" name="eid" value="<?= $vp['p_id'] ?>">
+                <button type="submit" onclick="return confirm('إلغاء الربط؟')" class="text-red-400 hover:text-red-600 transition px-1" title="إلغاء الربط">
+                  <i class="fa-solid fa-link-slash text-xs"></i>
+                </button>
+              </form>
             </div>
-          </a>
+          </div>
           <?php endforeach; ?>
           <?php foreach ($view_institutions as $vi):
             $mem = $vi['inst_membership_type'];
             $badge = $mem==='executive'?['تنفيذي','bg-amber-100 text-amber-700']:($mem==='verified'||$vi['inst_verified']?['موثقة','bg-blue-100 text-blue-700']:['غير موثقة','bg-gray-100 text-gray-500']);
           ?>
-          <a href="admin.php?p=institutions&edit=<?= $vi['inst_id'] ?>" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition">
+          <div class="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
             <?php if ($vi['inst_logo']): ?><img src="../<?= htmlspecialchars($vi['inst_logo']) ?>" class="w-8 h-8 rounded-xl object-cover flex-shrink-0">
             <?php else: ?><div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-indigo-500 text-xs"></i></div><?php endif; ?>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-gray-800 truncate"><?= htmlspecialchars($vi['inst_name_ar']) ?></p>
             </div>
-            <div class="flex gap-1 flex-shrink-0">
+            <div class="flex gap-1 items-center flex-shrink-0">
               <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">مؤسسة</span>
               <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $badge[1] ?>"><?= $badge[0] ?></span>
+              <form method="POST" class="inline">
+                <input type="hidden" name="uid" value="<?= $view_uid ?>">
+                <input type="hidden" name="act" value="unlink_page">
+                <input type="hidden" name="etype" value="institution">
+                <input type="hidden" name="eid" value="<?= $vi['inst_id'] ?>">
+                <button type="submit" onclick="return confirm('إلغاء الربط؟')" class="text-red-400 hover:text-red-600 transition px-1" title="إلغاء الربط">
+                  <i class="fa-solid fa-link-slash text-xs"></i>
+                </button>
+              </form>
             </div>
-          </a>
+          </div>
           <?php endforeach; ?>
           </div>
         </div>
-        <?php endif; ?>
+        <script>
+        function updateLinkSelect(uid) {
+          var t = document.getElementById('link-etype-'+uid).value;
+          document.getElementById('link-eid-p-'+uid).classList.toggle('hidden', t !== 'personality');
+          document.getElementById('link-eid-i-'+uid).classList.toggle('hidden', t !== 'institution');
+          document.getElementById('link-eid-p-'+uid).disabled = (t !== 'personality');
+          document.getElementById('link-eid-i-'+uid).disabled = (t !== 'institution');
+        }
+        updateLinkSelect(<?= $view_uid ?>);
+        </script>
       </div>
 
       <!-- Submissions & Complaints -->

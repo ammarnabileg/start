@@ -32,14 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mtype      = ($_POST['p_executive'] ?? '') ? 'executive' : 'standard';
         $country_id = (int)($_POST['p_country_id'] ?? 0);
         $cats       = $_POST['categories'] ?? [];
+        $manager_uid = $_POST['p_added_by_user'] !== '' ? (int)$_POST['p_added_by_user'] : 'NULL';
 
         if ($id) {
             pi_require_perm('edit_personality');
-            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id WHERE p_id=$id");
+            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id,p_added_by_user=$manager_uid WHERE p_id=$id");
             $mysqli->query("DELETE FROM pi_personality_categories WHERE p_id=$id");
         } else {
             pi_require_perm('add_personality');
-            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_photo,p_verified,p_membership_type,p_country_id) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$photo',$verified,'$mtype',$country_id)");
+            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_photo,p_verified,p_membership_type,p_country_id,p_added_by_user) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$photo',$verified,'$mtype',$country_id,$manager_uid)");
             $id = $mysqli->insert_id;
         }
         foreach ($cats as $cat_id) {
@@ -172,6 +173,22 @@ if ($action === 'add' || $action === 'edit') {
           <?php foreach ($all_countries as $cn): ?>
           <option value="<?= $cn['c_id'] ?>" <?= ($edit_p['p_country_id']??0)==$cn['c_id']?'selected':'' ?>>
             <?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">المدير / صاحب الحساب <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
+        <?php
+        $all_users_p = [];
+        $pur = $mysqli->query("SELECT u_id,u_name,u_email FROM pi_users WHERE u_active=1 ORDER BY u_name ASC LIMIT 500");
+        if ($pur) while ($row=$pur->fetch_assoc()) $all_users_p[] = $row;
+        ?>
+        <select name="p_added_by_user" class="form-input">
+          <option value="">— بدون مدير —</option>
+          <?php foreach ($all_users_p as $pu): ?>
+          <option value="<?= $pu['u_id'] ?>" <?= ($edit_p['p_added_by_user']??'')==$pu['u_id']?'selected':'' ?>>
+            <?= htmlspecialchars($pu['u_name'].' ('.$pu['u_email'].')') ?>
           </option>
           <?php endforeach; ?>
         </select>

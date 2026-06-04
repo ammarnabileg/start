@@ -25,13 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $verified   = (int)($_POST['inst_verified'] ?? 0);
         $country_id = (int)($_POST['inst_country_id'] ?? 0);
         $cats       = $_POST['categories'] ?? [];
+        $manager_uid = $_POST['inst_added_by_user'] !== '' ? (int)$_POST['inst_added_by_user'] : 'NULL';
 
         if ($id) {
             pi_require_perm('edit_institution');
-            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified,inst_country_id=$country_id WHERE inst_id=$id");
+            $mysqli->query("UPDATE pi_institutions SET inst_name_ar='$name_ar',inst_name_en='$name_en',inst_logo='$logo',inst_description='$desc',inst_verified=$verified,inst_country_id=$country_id,inst_added_by_user=$manager_uid WHERE inst_id=$id");
         } else {
             pi_require_perm('add_institution');
-            $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified,inst_country_id) VALUES ('$name_ar','$name_en','$logo','$desc',$verified,$country_id)");
+            $mysqli->query("INSERT INTO pi_institutions (inst_name_ar,inst_name_en,inst_logo,inst_description,inst_verified,inst_country_id,inst_added_by_user) VALUES ('$name_ar','$name_en','$logo','$desc',$verified,$country_id,$manager_uid)");
             $id = $mysqli->insert_id;
         }
         // Sync categories
@@ -113,6 +114,22 @@ if ($action === 'add' || $action === 'edit') {
     <div class="flex items-center gap-2">
       <input type="checkbox" name="inst_verified" value="1" id="inst_v" <?= ($ei['inst_verified']??0)?'checked':'' ?> class="w-5 h-5 accent-blue-500">
       <label for="inst_v" class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-circle-check text-blue-500 mr-1"></i> موثقة</label>
+    </div>
+    <div>
+      <label class="form-label">المدير / صاحب الحساب <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
+      <?php
+      $all_users_i = [];
+      $iur = $mysqli->query("SELECT u_id,u_name,u_email FROM pi_users WHERE u_active=1 ORDER BY u_name ASC LIMIT 500");
+      if ($iur) while ($row=$iur->fetch_assoc()) $all_users_i[] = $row;
+      ?>
+      <select name="inst_added_by_user" class="form-input">
+        <option value="">— بدون مدير —</option>
+        <?php foreach ($all_users_i as $iu): ?>
+        <option value="<?= $iu['u_id'] ?>" <?= ($ei['inst_added_by_user']??'')==$iu['u_id']?'selected':'' ?>>
+          <?= htmlspecialchars($iu['u_name'].' ('.$iu['u_email'].')') ?>
+        </option>
+        <?php endforeach; ?>
+      </select>
     </div>
 
     <?php if (!empty($all_cats)): ?>
