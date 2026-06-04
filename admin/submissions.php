@@ -2,6 +2,7 @@
 pi_require_perm('manage_submissions');
 $msg = '';
 $msg_type = 'green';
+$all_countries = pi_get_countries();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act    = $_POST['action'] ?? '';
@@ -375,8 +376,13 @@ _subs[<?= $sid ?>] = {
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-1">الجنسية</label>
-          <input type="text" name="p_nationality" id="edit-p-nationality"
+          <select name="p_nationality" id="edit-p-nationality"
             class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100">
+            <option value="">— اختر —</option>
+            <?php foreach ($all_countries as $cn): ?>
+            <option value="<?= htmlspecialchars($cn['c_name']) ?>"><?= htmlspecialchars($cn['c_flag'].' '.$cn['c_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-1">بلد الإقامة</label>
@@ -529,7 +535,9 @@ function openEdit(sid) {
     document.getElementById('edit-p-name-ar').value     = s.p_name_ar     || '';
     document.getElementById('edit-p-name-en').value     = s.p_name_en     || '';
     document.getElementById('edit-p-title').value       = s.p_title       || '';
-    document.getElementById('edit-p-nationality').value = s.p_nationality  || '';
+    var natSel = document.getElementById('edit-p-nationality');
+    natSel.value = s.p_nationality || '';
+    if (natSel.value === '' && s.p_nationality) { var opt = document.createElement('option'); opt.value = s.p_nationality; opt.text = s.p_nationality; natSel.appendChild(opt); natSel.value = s.p_nationality; }
     document.getElementById('edit-p-residence').value   = s.p_residence    || '';
     var pprev = document.getElementById('p-photo-preview');
     if (pprev && s.photo) { pprev.src = s.photo.startsWith('http') ? s.photo : '../'+s.photo; pprev.classList.remove('hidden'); } else if (pprev) pprev.classList.add('hidden');
