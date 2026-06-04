@@ -253,7 +253,8 @@ include 'includes/header.php';
       $delays3 = ['','pi-delay-1','pi-delay-2','pi-delay-3','pi-delay-4','pi-delay-5'];
       $dl3 = $delays3[$ci % 6];
     ?>
-    <div class="pi-reveal <?= $dl3 ?> bg-white rounded-2xl p-4 shadow-sm card-hover text-center relative">
+    <a href="categories.php?cat=<?= $cat['cat_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
+      class="pi-reveal <?= $dl3 ?> bg-white rounded-2xl p-4 shadow-sm card-hover text-center relative block">
       <?php if ($label_hex && $label_name): ?>
       <div class="absolute top-2 left-2">
         <span style="background:<?= htmlspecialchars($label_hex) ?>" class="text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
@@ -265,12 +266,8 @@ include 'includes/header.php';
         style="background:<?= htmlspecialchars($label_hex ?? '#8829C8') ?>">
         <i class="fa-solid <?= htmlspecialchars($cat['cat_icon']) ?> text-white text-lg"></i>
       </div>
-      <h3 class="font-bold text-gray-800 text-xs mb-3 leading-tight"><?= htmlspecialchars($cat['cat_name']) ?></h3>
-      <a href="categories.php?cat=<?= $cat['cat_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-        class="inline-block px-3 py-1 pi-primary-bg text-white text-xs font-bold rounded-full hover:opacity-90 transition">
-        عرض
-      </a>
-    </div>
+      <h3 class="font-bold text-gray-800 text-xs leading-tight"><?= htmlspecialchars($cat['cat_name']) ?></h3>
+    </a>
     <?php endforeach; ?>
   </div>
 
