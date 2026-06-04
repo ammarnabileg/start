@@ -1213,7 +1213,6 @@ include 'includes/header.php';
         var parts = s.split(' ')[0].split('-');
         return parts[2]+'/'+parts[1]+'/'+parts[0];
       }
-      document.getElementById('view-req-modal').addEventListener('click', function(e){ if(e.target===this) closeViewReqModal(); });
       </script>
 
       <!-- View Edit Request Popup -->
@@ -1228,6 +1227,9 @@ include 'includes/header.php';
           </div>
         </div>
       </div>
+      <script>
+      document.getElementById('view-req-modal').addEventListener('click', function(e){ if(e.target===this) closeViewReqModal(); });
+      </script>
 
       <!-- ──────────── MEMBERSHIP TAB ──────────── -->
       <?php elseif ($tab === 'membership'): ?>

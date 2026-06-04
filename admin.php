@@ -386,7 +386,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
         <?php
         $er_rc = $mysqli->query("SHOW TABLES LIKE 'pi_edit_requests'");
         if ($er_rc && $er_rc->num_rows) {
-            $er_r = $mysqli->query("SELECT COUNT(*) c FROM pi_edit_requests WHERE er_status='pending'");
+            $er_r = $mysqli->query("SELECT COUNT(*) c FROM pi_edit_requests WHERE er_status='pending' AND er_req_type='edit'");
             if ($er_r) { $ec=(int)$er_r->fetch_assoc()['c']; if($ec>0) echo '<span style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;margin-right:auto;">'.$ec.'</span>'; }
         }
         ?>
@@ -444,7 +444,7 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
           'dashboard'=>'لوحة التحكم','personalities'=>'الشخصيات','institutions'=>'المؤسسات',
           'categories'=>'التصنيفات','articles'=>'المقالات','timeline'=>'المحطات الزمنية',
           'sponsors'=>'الرعاة','roles'=>'الأدوار والصلاحيات','admin_users'=>'مستخدمو الإدارة',
-          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع','edit_requests'=>'طلبات التعديل والترقية','lists'=>'إدارة القوائم',
+          'submissions'=>'مقترحات المستخدمين','countries'=>'إدارة الدول','settings'=>'إعدادات الموقع','labels'=>'إعدادات الليبلات','advertise'=>'طلبات الإعلان','memberships'=>'طلبات العضوية','users'=>'مستخدمو الموقع','edit_requests'=>'طلبات التعديل','lists'=>'إدارة القوائم',
         ];
         echo $titles[$p] ?? 'لوحة التحكم';
         ?>

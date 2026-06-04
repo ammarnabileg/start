@@ -159,11 +159,9 @@ foreach ($allowed_statuses as $s) {
 }
 
 $requests = [];
-$r = $mysqli->query("SELECT er.*,
-    u.u_name, u.u_email, u.u_id AS uid
-    FROM pi_edit_requests er
-    LEFT JOIN pi_users u ON er.er_user_id=u.u_id
-    $where ORDER BY er.er_created DESC LIMIT 100");
+$fetch_sql = "SELECT er.*, u.u_name, u.u_email, u.u_id AS uid FROM pi_edit_requests er LEFT JOIN pi_users u ON er.er_user_id=u.u_id $where ORDER BY er.er_created DESC LIMIT 100";
+$r = $mysqli->query($fetch_sql);
+$fetch_error = $r === false ? $mysqli->error : '';
 if ($r) while ($row=$r->fetch_assoc()) $requests[] = $row;
 
 $status_map = [
@@ -209,10 +207,13 @@ ins.diff-add.diff-block,del.diff-del.diff-block{display:block;padding:2px 4px;ma
   <button type="submit" class="px-5 py-2 pi-primary-bg text-white font-bold rounded-xl text-sm hover:opacity-90 transition">فلتر</button>
 </form>
 
+<?php if ($fetch_error): ?>
+<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-3 mb-5 text-sm font-mono"><?= htmlspecialchars($fetch_error) ?></div>
+<?php endif; ?>
 <?php if (empty($requests)): ?>
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-16 text-gray-300">
   <i class="fa-solid fa-inbox text-5xl mb-4 block"></i>
-  <p class="font-semibold text-gray-400">لا توجد طلبات</p>
+  <p class="font-semibold text-gray-400">لا توجد طلبات <?= $status_filter === 'pending' ? 'قيد المراجعة' : '' ?></p>
 </div>
 <?php else: ?>
 <div class="space-y-5">
