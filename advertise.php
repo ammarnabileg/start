@@ -136,21 +136,57 @@ include 'includes/header.php';
 
 <!-- ═══════ CURRENT SPONSORS ═══════ -->
 <?php if (!empty($sponsors)): ?>
-<section class="py-12 bg-gray-50 border-y border-gray-100">
+<section class="py-16 bg-white border-y border-gray-100 overflow-hidden">
   <div class="max-w-5xl mx-auto px-4">
-    <p class="text-gray-400 text-sm font-semibold text-center mb-8">شركاؤنا الحاليون</p>
-    <div class="flex flex-wrap items-center justify-center gap-8">
+    <!-- Heading -->
+    <div class="text-center mb-10">
+      <span class="inline-block px-4 py-1 bg-purple-50 text-purple-600 text-xs font-black rounded-full border border-purple-100 mb-3">شركاؤنا الحاليون</span>
+      <h2 class="text-2xl font-black text-gray-800 mb-2">علامات تجارية تثق بنا</h2>
+      <p class="text-gray-400 text-sm font-medium">انضموا إلينا ووصلوا إلى أصحاب القرار العرب يومياً</p>
+    </div>
+
+    <!-- Sponsor cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 mb-10">
       <?php foreach ($sponsors as $sp): ?>
       <a href="<?= htmlspecialchars($sp['sp_url'] ?? '#') ?>" target="_blank" rel="noopener"
-        class="grayscale hover:grayscale-0 transition opacity-60 hover:opacity-100">
+        class="group bg-gray-50 border border-gray-100 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 hover:border-purple-200 hover:bg-purple-50 hover:shadow-md transition-all duration-200">
         <?php if (!empty($sp['sp_logo'])): ?>
           <img src="<?= htmlspecialchars($sp['sp_logo']) ?>" alt="<?= htmlspecialchars($sp['sp_name']) ?>"
-            class="h-10 max-w-32 object-contain">
+            class="h-12 max-w-full object-contain grayscale group-hover:grayscale-0 transition duration-300">
         <?php else: ?>
-          <span class="text-gray-600 font-bold text-sm"><?= htmlspecialchars($sp['sp_name']) ?></span>
+          <div class="w-12 h-12 rounded-xl pi-gradient flex items-center justify-center">
+            <i class="fa-solid fa-handshake text-white text-lg"></i>
+          </div>
         <?php endif; ?>
+        <p class="text-xs font-black text-gray-500 group-hover:text-purple-700 transition text-center leading-snug">
+          <?= htmlspecialchars($sp['sp_name']) ?>
+        </p>
       </a>
       <?php endforeach; ?>
+
+      <!-- CTA card -->
+      <a href="#pricing" onclick="event.preventDefault();document.getElementById('pricing').scrollIntoView({behavior:'smooth'})"
+        class="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-dashed border-purple-300 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:border-purple-500 hover:shadow-md transition-all duration-200 group">
+        <div class="w-10 h-10 rounded-xl bg-purple-200 group-hover:bg-purple-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-plus text-purple-600 text-base"></i>
+        </div>
+        <p class="text-xs font-black text-purple-500 text-center">كن شريكنا القادم</p>
+      </a>
+    </div>
+
+    <!-- Social proof bar -->
+    <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+      <span class="flex items-center gap-2 font-semibold">
+        <i class="fa-solid fa-shield-halved text-purple-400"></i> شراكة موثوقة ومعتمدة
+      </span>
+      <span class="w-px h-4 bg-gray-200 hidden sm:block"></span>
+      <span class="flex items-center gap-2 font-semibold">
+        <i class="fa-solid fa-chart-line text-green-400"></i> تقارير أداء شهرية
+      </span>
+      <span class="w-px h-4 bg-gray-200 hidden sm:block"></span>
+      <span class="flex items-center gap-2 font-semibold">
+        <i class="fa-solid fa-headset text-blue-400"></i> مدير حساب مخصص
+      </span>
     </div>
   </div>
 </section>
