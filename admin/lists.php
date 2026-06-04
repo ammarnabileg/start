@@ -240,7 +240,7 @@ if ($edit_id !== null) {
                 $row['entity'] = ($er && $er->num_rows) ? $er->fetch_assoc() : null;
             } else {
                 $eid = (int)$row['li_entity_id'];
-                $er = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_country FROM pi_institutions WHERE inst_id=$eid");
+                $er = $mysqli->query("SELECT inst_id,inst_name_ar,inst_logo,inst_country_id FROM pi_institutions WHERE inst_id=$eid");
                 $row['entity'] = ($er && $er->num_rows) ? $er->fetch_assoc() : null;
             }
             $list_items[] = $row;

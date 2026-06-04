@@ -30,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $data   = json_encode(['inst_name_ar'=>$name_ar,'inst_name_en'=>$name_en,
             'inst_description'=>$desc,'inst_logo'=>$logo,'categories'=>$cats]);
-        $mysqli->query("ALTER TABLE pi_submissions ADD COLUMN IF NOT EXISTS sub_user_id INT DEFAULT NULL");
+        $_cs = $mysqli->query("SHOW COLUMNS FROM pi_submissions LIKE 'sub_user_id'");
+        if ($_cs && $_cs->num_rows === 0) $mysqli->query("ALTER TABLE pi_submissions ADD COLUMN sub_user_id INT DEFAULT NULL");
         $data_e      = pi_escape($data);
         $submitter_e = pi_escape($submitter);
         $sub_email_e = pi_escape($sub_email);

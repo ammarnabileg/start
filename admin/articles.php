@@ -3,9 +3,11 @@ pi_require_perm('view_articles');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
-// Add art_body column if not exists
-$mysqli->query("ALTER TABLE pi_articles ADD COLUMN IF NOT EXISTS art_body LONGTEXT AFTER art_title");
-$mysqli->query("ALTER TABLE pi_articles ADD COLUMN IF NOT EXISTS art_image_upload VARCHAR(500) AFTER art_image");
+// Add art_body column if not exists (safe for all MySQL/MariaDB versions)
+$_c1 = $mysqli->query("SHOW COLUMNS FROM pi_articles LIKE 'art_body'");
+if ($_c1 && $_c1->num_rows === 0) $mysqli->query("ALTER TABLE pi_articles ADD COLUMN art_body LONGTEXT");
+$_c2 = $mysqli->query("SHOW COLUMNS FROM pi_articles LIKE 'art_image_upload'");
+if ($_c2 && $_c2->num_rows === 0) $mysqli->query("ALTER TABLE pi_articles ADD COLUMN art_image_upload VARCHAR(500) DEFAULT NULL");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';

@@ -13,7 +13,7 @@ $mysqli->query("CREATE TABLE IF NOT EXISTS pi_advertise (
   adv_status ENUM('new','contacted','done') DEFAULT 'new',
   adv_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-$mysqli->query("ALTER TABLE pi_advertise ADD COLUMN IF NOT EXISTS adv_plan VARCHAR(20) DEFAULT 'monthly' AFTER adv_email");
+// adv_plan is already defined in CREATE TABLE above — no ALTER needed here
 
 $success = false;
 $errors  = [];

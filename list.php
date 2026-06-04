@@ -36,7 +36,7 @@ if ($ri) while ($row=$ri->fetch_assoc()) {
         $row['entity'] = ($er && $er->num_rows) ? $er->fetch_assoc() : null;
     } else {
         $eid = (int)$row['li_entity_id'];
-        $er = $mysqli->query("SELECT inst_id,inst_name_ar,inst_name_en,inst_logo,inst_country FROM pi_institutions WHERE inst_id=$eid AND inst_active=1");
+        $er = $mysqli->query("SELECT inst_id,inst_name_ar,inst_name_en,inst_logo,inst_country_id FROM pi_institutions WHERE inst_id=$eid AND inst_active=1");
         $row['entity'] = ($er && $er->num_rows) ? $er->fetch_assoc() : null;
     }
     if ($row['entity']) $items[] = $row;

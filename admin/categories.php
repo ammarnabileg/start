@@ -3,9 +3,12 @@ pi_require_perm('view_categories');
 $action = $_GET['action'] ?? 'list';
 $msg = '';
 
-// Add cat_label_id column if not exists, drop old badge color column
-$mysqli->query("ALTER TABLE pi_categories ADD COLUMN IF NOT EXISTS cat_label_id INT DEFAULT NULL");
-$mysqli->query("ALTER TABLE pi_categories DROP COLUMN IF EXISTS cat_badge_color");
+// Add cat_label_id column if not exists (safe for all MySQL/MariaDB versions)
+$_c1 = $mysqli->query("SHOW COLUMNS FROM pi_categories LIKE 'cat_label_id'");
+if ($_c1 && $_c1->num_rows === 0) $mysqli->query("ALTER TABLE pi_categories ADD COLUMN cat_label_id INT DEFAULT NULL");
+// Drop old badge color column if it still exists
+$_c2 = $mysqli->query("SHOW COLUMNS FROM pi_categories LIKE 'cat_badge_color'");
+if ($_c2 && $_c2->num_rows > 0) $mysqli->query("ALTER TABLE pi_categories DROP COLUMN cat_badge_color");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';
