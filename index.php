@@ -61,15 +61,16 @@ include 'includes/header.php';
   <div class="hero-glow"></div>
   <div class="hero-glow-2"></div>
   <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
-    <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200 backdrop-blur-sm">
+    <div class="hero-animate-1 inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-semibold mb-6 text-purple-200 backdrop-blur-sm">
       <i class="fa-solid fa-circle-check text-purple-300 text-xs"></i>
       المنصة العربية الأولى للحضور الموثق
     </div>
-    <h1 class="text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight">
+    <h1 class="hero-animate-2 text-4xl md:text-6xl font-black mb-5 leading-tight tracking-tight pi-shimmer-text">
       <?= htmlspecialchars($_S['hero_title'] ?? $_S['site_tagline'] ?? 'منصة الحضور العربي الموثق') ?>
     </h1>
-    <p class="text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['hero_subtitle'] ?? $_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
+    <p class="hero-animate-3 text-lg text-purple-200 mb-10 font-medium max-w-xl mx-auto leading-relaxed"><?= htmlspecialchars($_S['hero_subtitle'] ?? $_S['site_description'] ?? 'تحكم بما يعرفه الناس عنك') ?></p>
 
+    <div class="hero-animate-4">
     <form action="search.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl max-w-2xl mx-auto border border-white/10 backdrop-blur-sm">
       <?php if ($cid): ?><input type="hidden" name="country" value="<?= $cid ?>"><?php endif; ?>
       <input name="q" type="text"
@@ -80,8 +81,9 @@ include 'includes/header.php';
         ابحث الآن
       </button>
     </form>
+    </div>
 
-    <div class="flex items-center justify-center gap-8 mt-10 text-purple-300 text-sm font-semibold">
+    <div class="hero-animate-5 flex items-center justify-center gap-8 mt-10 text-purple-300 text-sm font-semibold">
       <span class="flex items-center gap-2"><i class="fa-solid fa-users"></i> <?= number_format(pi_count_personalities()) ?> شخصية</span>
       <span class="w-px h-4 bg-white/20"></span>
       <span class="flex items-center gap-2"><i class="fa-solid fa-building"></i> <?= number_format(pi_count_institutions()) ?> مؤسسة</span>
@@ -95,7 +97,7 @@ include 'includes/header.php';
 <section class="max-w-7xl mx-auto px-4 py-16">
   <div class="flex items-center justify-between mb-8">
     <div>
-      <h2 class="text-2xl font-black text-gray-800 section-dot">
+      <h2 class="pi-reveal pi-section-head text-2xl font-black text-gray-800 section-dot">
         الشخصيات الأكثر زيارة
       </h2>
       <?php if ($cid): ?><p class="text-sm text-gray-400 mt-1">مع أولوية الدولة المختارة</p><?php endif; ?>
@@ -111,9 +113,12 @@ include 'includes/header.php';
       </div>
       <?php endfor; ?>
     <?php else: ?>
-      <?php foreach ($personalities as $i => $p): ?>
+      <?php foreach ($personalities as $i => $p):
+        $delays = ['','pi-delay-1','pi-delay-2','pi-delay-3','pi-delay-4','pi-delay-5'];
+        $dl = $delays[$i % 6];
+      ?>
       <a href="profile.php?id=<?= $p['p_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-        class="bg-white rounded-2xl shadow-sm card-hover block relative overflow-hidden">
+        class="pi-reveal <?= $dl ?> bg-white rounded-2xl shadow-sm card-hover block relative overflow-hidden">
         <?php if ($cid && ($p['p_country_id']??0) == $cid): ?>
         <span class="absolute top-2 left-2 w-2 h-2 bg-purple-500 rounded-full z-10" title="من الدولة المختارة"></span>
         <?php endif; ?>
@@ -154,7 +159,7 @@ include 'includes/header.php';
 <!-- MOST VISITED INSTITUTIONS -->
 <section class="bg-gray-50 py-16 border-t border-gray-100">
   <div class="max-w-7xl mx-auto px-4">
-    <h2 class="text-2xl font-black text-gray-800 mb-8 section-dot">المؤسسات الأكثر زيارة</h2>
+    <h2 class="pi-reveal pi-section-head text-2xl font-black text-gray-800 mb-8 section-dot">المؤسسات الأكثر زيارة</h2>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       <?php if (empty($institutions)): ?>
         <?php for ($i=0; $i<5; $i++): ?>
@@ -164,9 +169,12 @@ include 'includes/header.php';
         </div>
         <?php endfor; ?>
       <?php else: ?>
-        <?php foreach ($institutions as $inst): ?>
+        <?php foreach ($institutions as $ii => $inst):
+          $delays2 = ['','pi-delay-1','pi-delay-2','pi-delay-3','pi-delay-4'];
+          $dl2 = $delays2[$ii % 5];
+        ?>
         <a href="institution.php?id=<?= $inst['inst_id'] ?><?= $cid ? '&country='.$cid : '' ?>"
-          class="bg-white rounded-2xl p-5 shadow-sm card-hover text-center block">
+          class="pi-reveal <?= $dl2 ?> bg-white rounded-2xl p-5 shadow-sm card-hover text-center block">
           <?php if ($inst['inst_logo']): ?>
             <img src="<?= htmlspecialchars($inst['inst_logo']) ?>" class="w-16 h-16 rounded-xl mx-auto mb-3 object-contain">
           <?php else: ?>
@@ -194,15 +202,17 @@ include 'includes/header.php';
 
 <!-- CATEGORIES -->
 <section class="max-w-7xl mx-auto px-4 py-16">
-  <h2 class="text-2xl font-black text-gray-800 mb-8 text-center section-dot">استكشف التصنيفات</h2>
+  <h2 class="pi-reveal pi-section-head text-2xl font-black text-gray-800 mb-8 text-center section-dot">استكشف التصنيفات</h2>
 
   <!-- grid: mobile 3 cols (3 rows of ~3), desktop 5 cols (2 rows of 5) — show up to 10 -->
   <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8">
-    <?php foreach ($feat_cats as $cat):
+    <?php foreach ($feat_cats as $ci => $cat):
       $label_hex  = $cat['label_color'] ?? null;
       $label_name = $cat['label_name']  ?? null;
+      $delays3 = ['','pi-delay-1','pi-delay-2','pi-delay-3','pi-delay-4','pi-delay-5'];
+      $dl3 = $delays3[$ci % 6];
     ?>
-    <div class="bg-white rounded-2xl p-4 shadow-sm card-hover text-center relative">
+    <div class="pi-reveal <?= $dl3 ?> bg-white rounded-2xl p-4 shadow-sm card-hover text-center relative">
       <?php if ($label_hex && $label_name): ?>
       <div class="absolute top-2 left-2">
         <span style="background:<?= htmlspecialchars($label_hex) ?>" class="text-white text-xs font-bold px-2 py-0.5 rounded-full leading-none">
@@ -236,15 +246,18 @@ include 'includes/header.php';
 <section class="bg-gray-50 border-t border-gray-100 py-16">
   <div class="max-w-7xl mx-auto px-4">
     <div class="flex items-center justify-between mb-8">
-      <h2 class="text-2xl font-black text-gray-800 section-dot">آخر المقالات</h2>
+      <h2 class="pi-reveal pi-section-head text-2xl font-black text-gray-800 section-dot">آخر المقالات</h2>
       <a href="blog.php" class="flex items-center gap-2 text-sm font-bold text-purple-600 hover:text-purple-800 transition">
         عرض الكل <i class="fa-solid fa-arrow-left text-xs"></i>
       </a>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <?php foreach ($latest_articles as $art): ?>
-      <a href="article.php?id=<?= $art['art_id'] ?>" class="bg-white rounded-2xl shadow-sm card-hover overflow-hidden block group">
+      <?php foreach ($latest_articles as $ai => $art):
+        $delays4 = ['','pi-delay-1','pi-delay-2'];
+        $dl4 = $delays4[$ai % 3];
+      ?>
+      <a href="article.php?id=<?= $art['art_id'] ?>" class="pi-reveal <?= $dl4 ?> bg-white rounded-2xl shadow-sm card-hover overflow-hidden block group">
         <?php if (!empty($art['art_image'])): ?>
           <div class="h-44 overflow-hidden">
             <img src="<?= htmlspecialchars($art['art_image']) ?>" alt="<?= htmlspecialchars($art['art_title']) ?>"

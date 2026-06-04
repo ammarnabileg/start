@@ -32,15 +32,15 @@ include 'includes/header.php';
 <!-- HERO / SEARCH -->
 <section class="hero-bg py-14 text-white">
   <div class="max-w-3xl mx-auto px-4 text-center">
-    <h1 class="text-3xl font-black mb-3">المقالات والأخبار</h1>
-    <p class="text-purple-200 mb-8 font-medium">اطّلع على آخر المقالات والأخبار حول الشخصيات العربية</p>
-    <form action="blog.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
+    <h1 class="hero-animate-2 text-3xl font-black mb-3">المقالات والأخبار</h1>
+    <p class="hero-animate-3 text-purple-200 mb-8 font-medium">اطّلع على آخر المقالات والأخبار حول الشخصيات العربية</p>
+    <div class="hero-animate-4"><form action="blog.php" method="GET" class="flex rounded-2xl overflow-hidden shadow-2xl">
       <div class="flex items-center bg-white px-4"><i class="fa-solid fa-magnifying-glass text-gray-400 text-lg"></i></div>
       <input name="q" type="text" placeholder="ابحث في المقالات..."
         value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
         class="flex-1 px-4 py-3.5 text-gray-800 outline-none font-semibold placeholder-gray-400">
       <button type="submit" class="pi-primary-bg px-8 py-3.5 text-white font-bold hover:opacity-90 transition">ابحث</button>
-    </form>
+    </form></div>
   </div>
 </section>
 
@@ -72,8 +72,11 @@ include 'includes/header.php';
   </div>
   <?php else: ?>
   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    <?php foreach ($articles as $art): ?>
-    <a href="article.php?id=<?= $art['art_id'] ?>" class="bg-white rounded-2xl shadow-sm card-hover overflow-hidden block">
+    <?php foreach ($articles as $ai => $art):
+      $delays_b = ['','pi-delay-1','pi-delay-2','pi-delay-3'];
+      $dl_b = $delays_b[$ai % 4];
+    ?>
+    <a href="article.php?id=<?= $art['art_id'] ?>" class="pi-reveal <?= $dl_b ?> bg-white rounded-2xl shadow-sm card-hover overflow-hidden block">
       <?php if (!empty($art['art_image'])): ?>
         <img src="<?= htmlspecialchars($art['art_image']) ?>" alt="<?= htmlspecialchars($art['art_title']) ?>"
           class="w-full h-44 object-cover">
