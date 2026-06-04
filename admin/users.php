@@ -503,7 +503,12 @@ $sub_status = ['pending'=>['text'=>'قيد المراجعة','class'=>'bg-yellow
                   <?= $sub_status[$vs['sub_status']]['text'] ?>
                 </span>
               </div>
-              <p class="text-xs text-gray-400 mt-1"><?= $vs['sub_type']==='personality'?'شخصية':'مؤسسة' ?> · <?= date('Y/m/d', strtotime($vs['sub_created'])) ?></p>
+              <div class="flex items-center justify-between mt-2">
+                <p class="text-xs text-gray-400"><?= $vs['sub_type']==='personality'?'شخصية':'مؤسسة' ?> · <?= date('Y/m/d', strtotime($vs['sub_created'])) ?></p>
+                <a href="admin.php?p=submissions&highlight=<?= $vs['sub_id'] ?>" class="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg font-bold hover:bg-purple-100 transition flex items-center gap-1">
+                  <i class="fa-solid fa-eye text-[10px]"></i> عرض وتعديل
+                </a>
+              </div>
             </div>
             <?php endforeach; ?>
           </div>

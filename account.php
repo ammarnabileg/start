@@ -762,60 +762,70 @@ include 'includes/header.php';
               <div id="upgrade-fields" class="space-y-4 hidden">
                 <p class="text-sm text-gray-600 font-bold">اختر نوع الترقية</p>
                 <div class="grid grid-cols-2 gap-3">
-                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 transition">
-                    <input type="radio" name="upgrade_to" value="verified" class="accent-blue-500">
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 transition" id="upgrade-type-verified-label">
+                    <input type="radio" name="upgrade_to" value="verified" class="accent-blue-500" onchange="onUpgradeTypeChange(this)">
                     <div><p class="font-black text-sm text-gray-800"><i class="fa-solid fa-circle-check text-blue-500 ml-1"></i>توثيق</p><p class="text-xs text-gray-400">شارة زرقاء</p></div>
                   </label>
-                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition">
-                    <input type="radio" name="upgrade_to" value="executive" class="accent-amber-500">
+                  <label class="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition" id="upgrade-type-executive-label">
+                    <input type="radio" name="upgrade_to" value="executive" class="accent-amber-500" onchange="onUpgradeTypeChange(this)">
                     <div><p class="font-black text-sm text-gray-800"><i class="fa-solid fa-crown text-amber-500 ml-1"></i>تنفيذي</p><p class="text-xs text-gray-400">شارة ذهبية</p></div>
                   </label>
                 </div>
-                <p class="text-sm text-gray-600 font-bold mt-1">اختر الباقة</p>
-                <div class="grid grid-cols-2 gap-3" id="upgrade-plan-boxes">
-                  <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-purple-400 transition" id="plan-verified-monthly">
-                    <input type="radio" name="mem_plan" value="monthly" class="accent-purple-500 hidden">
-                    <p class="font-black text-sm text-gray-800">شهري — توثيق</p>
-                    <p class="text-purple-600 font-black text-lg">$90<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
-                  </label>
-                  <label class="flex flex-col gap-1 p-3 border-2 border-purple-500 rounded-xl cursor-pointer hover:border-purple-600 transition bg-purple-50" id="plan-verified-lifetime">
-                    <input type="radio" name="mem_plan" value="lifetime" class="accent-purple-500 hidden" checked>
-                    <p class="font-black text-sm text-gray-800">مدى الحياة — توثيق ⭐</p>
-                    <p class="text-purple-600 font-black text-lg">$99</p>
-                  </label>
-                  <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition hidden" id="plan-executive-monthly">
-                    <input type="radio" name="mem_plan" value="monthly" class="accent-amber-500 hidden">
-                    <p class="font-black text-sm text-gray-800">شهري — تنفيذي</p>
-                    <p class="text-amber-600 font-black text-lg">$210<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
-                  </label>
-                  <label class="flex flex-col gap-1 p-3 border-2 border-amber-500 rounded-xl cursor-pointer hover:border-amber-600 transition bg-amber-50 hidden" id="plan-executive-lifetime">
-                    <input type="radio" name="mem_plan" value="lifetime" class="accent-amber-500 hidden" checked>
-                    <p class="font-black text-sm text-gray-800">مدى الحياة — تنفيذي 👑</p>
-                    <p class="text-amber-600 font-black text-lg">$250</p>
-                  </label>
-                </div>
-                <div class="grid grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">الاسم الكامل <span class="text-red-500">*</span></label>
-                    <input type="text" name="mem_name" id="mem-name-field" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" value="<?= htmlspecialchars($user['u_name'] ?? '') ?>">
+                <!-- Plan boxes + contact: hidden until type selected -->
+                <div id="upgrade-plan-section" class="hidden space-y-4">
+                  <p class="text-sm text-gray-600 font-bold">اختر الباقة</p>
+                  <div class="grid grid-cols-2 gap-3" id="upgrade-plan-boxes">
+                    <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-purple-400 transition" id="plan-verified-monthly">
+                      <input type="radio" name="mem_plan" value="monthly" class="accent-purple-500 hidden">
+                      <p class="font-black text-sm text-gray-800">شهري — توثيق</p>
+                      <p class="text-purple-600 font-black text-lg">$90<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
+                    </label>
+                    <label class="flex flex-col gap-1 p-3 border-2 border-purple-500 rounded-xl cursor-pointer hover:border-purple-600 transition bg-purple-50" id="plan-verified-lifetime">
+                      <input type="radio" name="mem_plan" value="lifetime" class="accent-purple-500 hidden">
+                      <p class="font-black text-sm text-gray-800">مدى الحياة — توثيق ⭐</p>
+                      <p class="text-purple-600 font-black text-lg">$99</p>
+                    </label>
+                    <label class="flex flex-col gap-1 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-amber-400 transition hidden" id="plan-executive-monthly">
+                      <input type="radio" name="mem_plan" value="monthly" class="accent-amber-500 hidden">
+                      <p class="font-black text-sm text-gray-800">شهري — تنفيذي</p>
+                      <p class="text-amber-600 font-black text-lg">$210<span class="text-xs text-gray-400 font-normal">/شهر</span></p>
+                    </label>
+                    <label class="flex flex-col gap-1 p-3 border-2 border-amber-500 rounded-xl cursor-pointer hover:border-amber-600 transition bg-amber-50 hidden" id="plan-executive-lifetime">
+                      <input type="radio" name="mem_plan" value="lifetime" class="accent-amber-500 hidden">
+                      <p class="font-black text-sm text-gray-800">مدى الحياة — تنفيذي 👑</p>
+                      <p class="text-amber-600 font-black text-lg">$250</p>
+                    </label>
                   </div>
-                  <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">رقم الجوال <span class="text-red-500">*</span></label>
-                    <input type="tel" name="mem_phone" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr" value="<?= htmlspecialchars($user['u_phone'] ?? '') ?>">
+                  <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">الاسم الكامل <span class="text-red-500">*</span></label>
+                      <input type="text" name="mem_name" id="mem-name-field" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" value="<?= htmlspecialchars($user['u_name'] ?? '') ?>">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">رقم الجوال <span class="text-red-500">*</span></label>
+                      <input type="tel" name="mem_phone" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400" dir="ltr" value="<?= htmlspecialchars($user['u_phone'] ?? '') ?>">
+                    </div>
                   </div>
                 </div>
               </div>
               <script>
-              document.querySelectorAll('input[name="upgrade_to"]').forEach(function(r){
-                r.addEventListener('change',function(){
-                  var isExec = this.value==='executive';
-                  ['plan-verified-monthly','plan-verified-lifetime'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('hidden',isExec); });
-                  ['plan-executive-monthly','plan-executive-lifetime'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('hidden',!isExec); });
-                  // check the first visible lifetime radio
-                  var lv = isExec ? document.getElementById('plan-executive-lifetime') : document.getElementById('plan-verified-lifetime');
-                  if (lv) { var ri = lv.querySelector('input'); if(ri) ri.checked=true; }
-                });
-              });
+              function onUpgradeTypeChange(radio) {
+                var isExec = radio.value === 'executive';
+                // Highlight selected type label
+                var vl = document.getElementById('upgrade-type-verified-label');
+                var el = document.getElementById('upgrade-type-executive-label');
+                if (vl) vl.classList.toggle('border-blue-500', !isExec);
+                if (el) el.classList.toggle('border-amber-500', isExec);
+                // Show plan section
+                var ps = document.getElementById('upgrade-plan-section');
+                if (ps) ps.classList.remove('hidden');
+                // Toggle plan boxes
+                ['plan-verified-monthly','plan-verified-lifetime'].forEach(function(id){ var e=document.getElementById(id); if(e) e.classList.toggle('hidden',isExec); });
+                ['plan-executive-monthly','plan-executive-lifetime'].forEach(function(id){ var e=document.getElementById(id); if(e) e.classList.toggle('hidden',!isExec); });
+                // Auto-select lifetime plan
+                var lv = isExec ? document.getElementById('plan-executive-lifetime') : document.getElementById('plan-verified-lifetime');
+                if (lv) { var ri = lv.querySelector('input'); if(ri) ri.checked = true; }
+              }
               document.querySelectorAll('#upgrade-plan-boxes label').forEach(function(lbl){
                 lbl.addEventListener('click',function(){
                   var ri = this.querySelector('input[type=radio]');
@@ -885,6 +895,16 @@ include 'includes/header.php';
         var fi = document.getElementById('edit-photo-file-i');
         if (fp) { fp.value = ''; document.getElementById('edit-photo-name-p').textContent = 'اختر صورة...'; }
         if (fi) { fi.value = ''; document.getElementById('edit-photo-name-i').textContent = 'اختر صورة...'; }
+        // Reset upgrade type selection and hide plan section
+        if (reqType === 'upgrade') {
+          document.querySelectorAll('input[name="upgrade_to"]').forEach(function(r){ r.checked = false; });
+          var ps = document.getElementById('upgrade-plan-section');
+          if (ps) ps.classList.add('hidden');
+          var vl = document.getElementById('upgrade-type-verified-label');
+          var el = document.getElementById('upgrade-type-executive-label');
+          if (vl) vl.classList.remove('border-blue-500');
+          if (el) el.classList.remove('border-amber-500');
+        }
         document.getElementById('req-modal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
       }
@@ -940,7 +960,7 @@ include 'includes/header.php';
             <div class="flex items-center gap-2 flex-shrink-0">
               <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $bcls ?>"><i class="fa-solid <?= $icn ?> ml-1 text-xs"></i><?= $badge ?></span>
               <?php if ($mem === 'standard' && !$mp['p_verified']): ?>
-              <a href="membership.php?type=verified" class="text-xs px-3 py-1 pi-primary-bg text-white font-bold rounded-lg hover:opacity-90 transition">طلب توثيق</a>
+              <span class="text-xs text-gray-400">— اذهب لإدارة الحسابات لطلب الترقية</span>
               <?php endif; ?>
             </div>
           </div>
@@ -961,7 +981,7 @@ include 'includes/header.php';
             <div class="flex items-center gap-2 flex-shrink-0">
               <span class="text-xs px-2.5 py-1 rounded-full font-bold <?= $bcls ?>"><i class="fa-solid <?= $icn ?> ml-1 text-xs"></i><?= $badge ?></span>
               <?php if ($mem === 'standard' && !$mi['inst_verified']): ?>
-              <a href="membership.php?type=verified" class="text-xs px-3 py-1 pi-primary-bg text-white font-bold rounded-lg hover:opacity-90 transition">طلب توثيق</a>
+              <span class="text-xs text-gray-400">— اذهب لإدارة الحسابات لطلب الترقية</span>
               <?php endif; ?>
             </div>
           </div>

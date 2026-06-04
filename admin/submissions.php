@@ -95,8 +95,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$highlight_id  = (int)($_GET['highlight'] ?? 0);
 $status_filter = in_array($_GET['status'] ?? '', ['pending','approved','rejected']) ? $_GET['status'] : 'pending';
 $submissions   = [];
+// If a specific submission is highlighted, switch to its status tab
+if ($highlight_id) {
+    $hr = $mysqli->query("SELECT sub_status FROM pi_submissions WHERE sub_id=$highlight_id");
+    if ($hr && $hr->num_rows) { $status_filter = $hr->fetch_assoc()['sub_status']; }
+}
 $r = $mysqli->query("SELECT s.*, u.u_name, u.u_email FROM pi_submissions s LEFT JOIN pi_users u ON s.sub_user_id=u.u_id WHERE s.sub_status='$status_filter' ORDER BY s.sub_created DESC LIMIT 50");
 if ($r) while ($row = $r->fetch_assoc()) $submissions[] = $row;
 
@@ -159,7 +165,7 @@ if ($rc) while ($c = $rc->fetch_assoc()) $all_cats[] = $c;
     $sid       = $sub['sub_id'];
 ?>
 
-<div class="bg-white rounded-2xl shadow-sm p-5" x-data="{open:false}">
+<div id="sub-card-<?= $sid ?>" class="bg-white rounded-2xl shadow-sm p-5 <?= $highlight_id === $sid ? 'ring-2 ring-purple-400' : '' ?>" x-data="{open:false}">
   <div class="flex items-start gap-4">
 
     <!-- Thumbnail -->
@@ -563,4 +569,7 @@ function previewSubPhoto(input, prevId, nameId) {
     if (nm) nm.textContent = input.files[0].name;
   }
 }
+<?php if ($highlight_id): ?>
+window.addEventListener('load', function(){ openEdit(<?= $highlight_id ?>); });
+<?php endif; ?>
 </script>
