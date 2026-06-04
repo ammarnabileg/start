@@ -1,5 +1,11 @@
 <?php
 require_once 'includes/config.php';
+
+if (pi_user_logged_in()) {
+    header('Location: account.php?tab=complaints');
+    exit;
+}
+
 $pageTitle = 'الشكاوي والملاحظات - PioneerIcons';
 
 $success = false;
