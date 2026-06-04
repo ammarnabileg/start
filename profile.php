@@ -485,29 +485,45 @@ include 'includes/header.php';
       <?php if (!empty($articles)): ?>
       <div style="background:#fff;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:24px;" x-data="{showAll:false}">
         <h3 style="font-size:15px;font-weight:900;color:#111827;margin:0 0 16px;">مقالات تمثلك</h3>
-        <?php foreach ($articles as $idx => $art): ?>
-        <div x-show="showAll || <?= $idx ?> < 3" style="display:flex;gap:14px;padding:12px 0;<?= $idx > 0 ? 'border-top:1px solid #f9fafb;' : '' ?>">
-          <?php if ($art['art_image']): ?>
-            <img src="<?= htmlspecialchars($art['art_image']) ?>" style="width:80px;height:60px;border-radius:10px;object-fit:cover;flex-shrink:0;">
-          <?php elseif ($art['art_body']??''): ?>
-            <div style="width:80px;height:60px;border-radius:10px;background:#f5f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:18px;"></i>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;">
+        <?php foreach ($articles as $idx => $art):
+          $art_link = !empty($art['art_url']) ? $art['art_url'] : 'article.php?id='.$art['art_id'];
+          $art_external = !empty($art['art_url']);
+        ?>
+        <a href="<?= htmlspecialchars($art_link) ?>"
+          <?= $art_external ? 'target="_blank" rel="noopener nofollow"' : '' ?>
+          x-show="showAll || <?= $idx ?> < 4"
+          style="display:block;border-radius:14px;overflow:hidden;border:1px solid #f3f4f6;text-decoration:none;transition:box-shadow .2s,transform .2s;"
+          onmouseover="this.style.boxShadow='0 4px 16px rgba(136,41,200,.12)';this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+          <?php if (!empty($art['art_image'])): ?>
+            <img src="<?= htmlspecialchars($art['art_image']) ?>"
+              style="width:100%;height:130px;object-fit:cover;display:block;"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div style="display:none;width:100%;height:130px;background:#f5f0ff;align-items:center;justify-content:center;">
+              <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:28px;opacity:.5;"></i>
+            </div>
+          <?php else: ?>
+            <div style="width:100%;height:130px;background:#f5f0ff;display:flex;align-items:center;justify-content:center;">
+              <i class="fa-solid fa-newspaper" style="color:#8829C8;font-size:28px;opacity:.5;"></i>
             </div>
           <?php endif; ?>
-          <div style="flex:1;min-width:0;">
-            <?php if ($art['art_source']): ?>
-            <p style="font-size:11px;color:#9ca3af;font-weight:700;margin:0 0 4px;"><?= htmlspecialchars($art['art_source']) ?></p>
+          <div style="padding:10px 12px 12px;">
+            <?php if (!empty($art['art_source'])): ?>
+            <p style="font-size:10px;color:#8829C8;font-weight:800;margin:0 0 4px;letter-spacing:.3px;"><?= htmlspecialchars($art['art_source']) ?></p>
             <?php endif; ?>
-            <a href="<?= htmlspecialchars($art['art_url']??'article.php?id='.$art['art_id']) ?>" target="_blank"
-              style="font-size:13px;font-weight:800;color:#111827;text-decoration:none;display:block;line-height:1.5;transition:color .15s;"
-              onmouseover="this.style.color='#8829C8'" onmouseout="this.style.color='#111827'">
+            <p style="font-size:12px;font-weight:800;color:#111827;margin:0;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
               <?= htmlspecialchars($art['art_title']) ?>
-            </a>
+            </p>
+            <?php if ($art_external): ?>
+            <p style="font-size:10px;color:#9ca3af;margin:6px 0 0;font-weight:600;"><i class="fa-solid fa-external-link-alt" style="font-size:9px;"></i> المصدر الأصلي</p>
+            <?php endif; ?>
           </div>
-        </div>
+        </a>
         <?php endforeach; ?>
-        <?php if (count($articles) > 3): ?>
-        <div style="text-align:center;margin-top:12px;">
+        </div>
+        <?php if (count($articles) > 4): ?>
+        <div style="text-align:center;margin-top:14px;">
           <button @click="showAll=!showAll"
             style="padding:8px 24px;background:linear-gradient(135deg,#8829C8,#5B1494);color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;"
             x-text="showAll ? 'عرض أقل' : 'عرض المزيد'"></button>
