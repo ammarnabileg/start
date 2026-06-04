@@ -1,6 +1,6 @@
 -- ============================================================
 --  PioneerIcons — Full Schema + Seed Data
---  Version: 3.0  (June 2026)
+--  Version: 3.1  (June 2026)
 --  Run once on a FRESH / empty database
 --  Compatible with MySQL 5.7+ / MariaDB 10.3+
 -- ============================================================
@@ -35,6 +35,7 @@ DROP TABLE IF EXISTS `pi_institutions`;
 DROP TABLE IF EXISTS `pi_personalities`;
 DROP TABLE IF EXISTS `pi_categories`;
 DROP TABLE IF EXISTS `pi_countries`;
+DROP TABLE IF EXISTS `pi_unique_daily`;
 DROP TABLE IF EXISTS `pi_visit_daily`;
 DROP TABLE IF EXISTS `pi_visits`;
 DROP TABLE IF EXISTS `pi_settings`;
@@ -263,6 +264,14 @@ CREATE TABLE `pi_visit_daily` (
   `vd_date`  DATE         NOT NULL,
   `vd_count` INT          DEFAULT 1,
   PRIMARY KEY (`vd_page`(100), `vd_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ── Unique visitors per day (IP dedup) ──
+CREATE TABLE `pi_unique_daily` (
+  `ud_ip`   VARCHAR(45) NOT NULL,
+  `ud_date` DATE        NOT NULL,
+  PRIMARY KEY (`ud_ip`(45), `ud_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ──────────────────────────────────────────
@@ -571,6 +580,7 @@ DROP TABLE IF EXISTS `pi_institutions`;
 DROP TABLE IF EXISTS `pi_personalities`;
 DROP TABLE IF EXISTS `pi_categories`;
 DROP TABLE IF EXISTS `pi_countries`;
+DROP TABLE IF EXISTS `pi_unique_daily`;
 DROP TABLE IF EXISTS `pi_visit_daily`;
 DROP TABLE IF EXISTS `pi_visits`;
 DROP TABLE IF EXISTS `pi_settings`;
@@ -799,6 +809,14 @@ CREATE TABLE `pi_visit_daily` (
   `vd_date`  DATE         NOT NULL,
   `vd_count` INT          DEFAULT 1,
   PRIMARY KEY (`vd_page`(100), `vd_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ── Unique visitors per day (IP dedup) ──
+CREATE TABLE `pi_unique_daily` (
+  `ud_ip`   VARCHAR(45) NOT NULL,
+  `ud_date` DATE        NOT NULL,
+  PRIMARY KEY (`ud_ip`(45), `ud_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ──────────────────────────────────────────
