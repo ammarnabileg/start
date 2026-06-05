@@ -191,13 +191,11 @@ function uploadImageToQuill() {
 <script>
 function previewArtImg(input) {
   if (input.files && input.files[0]) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = document.getElementById('art_img_prev');
-      img.src = e.target.result;
-      img.classList.remove('hidden');
-    };
-    reader.readAsDataURL(input.files[0]);
+    const img = document.getElementById('art_img_prev');
+    if (img._objUrl) URL.revokeObjectURL(img._objUrl);
+    img._objUrl = URL.createObjectURL(input.files[0]);
+    img.src = img._objUrl;
+    img.classList.remove('hidden');
   }
 }
 </script>

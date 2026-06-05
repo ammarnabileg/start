@@ -994,16 +994,15 @@ document.querySelectorAll('input[type=file][data-preview]').forEach(function(inp
   inp.addEventListener('change', function() {
     var file = this.files[0];
     if (!file) return;
-    var reader = new FileReader();
-    var previewId = this.getAttribute('data-preview');
-    var phId = this.getAttribute('data-placeholder');
-    reader.onload = function(e) {
-      var img = document.getElementById(previewId);
-      var ph  = document.getElementById(phId);
-      if (img) { img.src = e.target.result; img.classList.remove('hidden'); }
-      if (ph)  { ph.style.display = 'none'; }
-    };
-    reader.readAsDataURL(file);
+    var img = document.getElementById(this.getAttribute('data-preview'));
+    var ph  = document.getElementById(this.getAttribute('data-placeholder'));
+    if (img) {
+      if (img._objUrl) URL.revokeObjectURL(img._objUrl);
+      img._objUrl = URL.createObjectURL(file);
+      img.src = img._objUrl;
+      img.classList.remove('hidden');
+    }
+    if (ph) ph.style.display = 'none';
   });
 });
 
@@ -1011,14 +1010,15 @@ document.querySelectorAll('input[type=file][data-preview]').forEach(function(inp
 document.getElementById('logo_file').addEventListener('change', function() {
   var file = this.files[0];
   if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var img = document.getElementById('logo_preview');
-    var ph  = document.getElementById('logo_ph');
-    if (img) { img.src = e.target.result; img.classList.remove('hidden'); }
-    if (ph)  { ph.style.display = 'none'; }
-  };
-  reader.readAsDataURL(file);
+  var img = document.getElementById('logo_preview');
+  var ph  = document.getElementById('logo_ph');
+  if (img) {
+    if (img._objUrl) URL.revokeObjectURL(img._objUrl);
+    img._objUrl = URL.createObjectURL(file);
+    img.src = img._objUrl;
+    img.classList.remove('hidden');
+  }
+  if (ph) ph.style.display = 'none';
 });
 
 // ── Sponsor select ────────────────────────────────────────────────────────

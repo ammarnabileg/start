@@ -103,18 +103,22 @@ $_S_f = pi_get_settings();
       if (!this.files || !this.files[0]) return;
       var prevId = this.getAttribute('data-preview');
       var phId   = this.getAttribute('data-placeholder');
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        if (prevId) {
-          var img = document.getElementById(prevId);
-          if (img) { img.src = e.target.result; img.classList.remove('hidden'); img.style.display = ''; }
+      var file   = this.files[0];
+      var url    = URL.createObjectURL(file);
+      if (prevId) {
+        var img = document.getElementById(prevId);
+        if (img) {
+          if (img._objUrl) URL.revokeObjectURL(img._objUrl);
+          img._objUrl = url;
+          img.src = url;
+          img.classList.remove('hidden');
+          img.style.display = '';
         }
-        if (phId) {
-          var ph = document.getElementById(phId);
-          if (ph) { ph.style.display = 'none'; ph.classList.add('hidden'); }
-        }
-      };
-      reader.readAsDataURL(this.files[0]);
+      }
+      if (phId) {
+        var ph = document.getElementById(phId);
+        if (ph) { ph.style.display = 'none'; ph.classList.add('hidden'); }
+      }
     });
     // Drag & drop support on parent zone
     var zone = input.closest('.pi-upload-zone');
@@ -135,9 +139,7 @@ $_S_f = pi_get_settings();
       });
     }
   }
-  // Init all existing upload inputs with data-preview
   document.querySelectorAll('input[type="file"][data-preview]').forEach(initUploadZone);
-  // Watch for any dynamically added inputs
   var obs = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       m.addedNodes.forEach(function(n) {

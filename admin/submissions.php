@@ -571,9 +571,12 @@ function previewSubPhoto(input, prevId, nameId) {
   var prev = document.getElementById(prevId);
   var nm   = document.getElementById(nameId);
   if (input.files && input.files[0]) {
-    var r = new FileReader();
-    r.onload = function(e) { if (prev) { prev.src = e.target.result; prev.classList.remove('hidden'); } };
-    r.readAsDataURL(input.files[0]);
+    if (prev) {
+      if (prev._objUrl) URL.revokeObjectURL(prev._objUrl);
+      prev._objUrl = URL.createObjectURL(input.files[0]);
+      prev.src = prev._objUrl;
+      prev.classList.remove('hidden');
+    }
     if (nm) nm.textContent = input.files[0].name;
   }
 }

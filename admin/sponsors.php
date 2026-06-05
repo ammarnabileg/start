@@ -190,17 +190,15 @@ if ($action === 'add' || $action === 'edit') {
 <script>
 function previewSpLogo(input) {
   if (input.files && input.files[0]) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var img = document.getElementById('sp_logo_prev');
-      img.src = e.target.result;
-      img.style.display = 'block';
-      var ph = document.getElementById('sp_logo_placeholder');
-      if (ph) ph.style.display = 'none';
-      var hint = document.getElementById('sp_logo_hint');
-      if (hint) hint.textContent = 'اضغط لتغيير الشعار';
-    };
-    reader.readAsDataURL(input.files[0]);
+    var img = document.getElementById('sp_logo_prev');
+    if (img._objUrl) URL.revokeObjectURL(img._objUrl);
+    img._objUrl = URL.createObjectURL(input.files[0]);
+    img.src = img._objUrl;
+    img.style.display = 'block';
+    var ph = document.getElementById('sp_logo_placeholder');
+    if (ph) ph.style.display = 'none';
+    var hint = document.getElementById('sp_logo_hint');
+    if (hint) hint.textContent = 'اضغط لتغيير الشعار';
   }
 }
 </script>
