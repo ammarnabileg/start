@@ -835,7 +835,7 @@ include 'includes/header.php';
             }
           ?>
           <?php
-          $rq_data_json = htmlspecialchars(json_encode([
+          $rq_data_b64 = base64_encode(json_encode([
             'entity_name' => $ename,
             'entity_type' => $rq['er_entity_type'],
             'req_type'    => $rq['er_req_type'],
@@ -843,7 +843,7 @@ include 'includes/header.php';
             'created'     => $rq['er_created'],
             'admin_note'  => $rq['er_admin_note'] ?? '',
             'edit_data'   => json_decode($rq['er_edit_data'] ?? '{}', true) ?: [],
-          ], JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+          ], JSON_UNESCAPED_UNICODE));
           ?>
           <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
             <div class="flex-1">
@@ -856,8 +856,7 @@ include 'includes/header.php';
               <?php endif; ?>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <button onclick="viewEditRequest('<?= $rq_data_json ?>')"
-                class="text-xs px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold transition border border-purple-200">
+              <button class="view-req-btn text-xs px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold transition border border-purple-200" data-rq="<?= htmlspecialchars($rq_data_b64) ?>">
                 <i class="fa-solid fa-eye ml-1"></i> عرض
               </button>
               <span class="text-xs px-2 py-0.5 rounded-full font-bold <?= $req_status_map[$rq['er_status']]['class'] ?>">
@@ -1138,8 +1137,12 @@ include 'includes/header.php';
         nationality:'الجنسية', residence:'الإقامة', bio:'السيرة الذاتية',
         description:'الوصف', website:'الموقع الإلكتروني', photo:'الصورة'
       };
-      function viewEditRequest(jsonStr) {
-        var d = JSON.parse(jsonStr);
+      document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.view-req-btn');
+        if (btn) viewEditRequest(btn.getAttribute('data-rq'));
+      });
+      function viewEditRequest(b64) {
+        var d = JSON.parse(atob(b64));
         var statusMap = {pending:'قيد المراجعة', approved:'تم القبول', rejected:'مرفوض'};
         var statusColor = {pending:'bg-yellow-100 text-yellow-700', approved:'bg-green-100 text-green-700', rejected:'bg-red-100 text-red-700'};
 

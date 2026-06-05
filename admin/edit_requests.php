@@ -159,10 +159,17 @@ foreach ($allowed_statuses as $s) {
 }
 
 $requests = [];
-$fetch_sql = "SELECT er.*, u.u_name, u.u_email, u.u_id AS uid FROM pi_edit_requests er LEFT JOIN pi_users u ON er.er_user_id=u.u_id $where ORDER BY er.er_created DESC LIMIT 100";
+$fetch_sql = "SELECT er.* FROM pi_edit_requests er $where ORDER BY er.er_created DESC LIMIT 100";
 $r = $mysqli->query($fetch_sql);
 $fetch_error = $r === false ? $mysqli->error : '';
-if ($r) while ($row=$r->fetch_assoc()) $requests[] = $row;
+if ($r) while ($row=$r->fetch_assoc()) {
+    // Load user info separately to avoid JOIN issues
+    $ur = $mysqli->query("SELECT u_name,u_email FROM pi_users WHERE u_id=".(int)$row['er_user_id']." LIMIT 1");
+    if ($ur && $ur->num_rows) { $urow=$ur->fetch_assoc(); $row['u_name']=$urow['u_name']; $row['u_email']=$urow['u_email']; }
+    else { $row['u_name']=''; $row['u_email']=''; }
+    $row['uid'] = $row['er_user_id'];
+    $requests[] = $row;
+}
 
 $status_map = [
     'pending'  => ['text'=>'قيد المراجعة','class'=>'bg-yellow-100 text-yellow-700'],
