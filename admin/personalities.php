@@ -130,15 +130,14 @@ if ($action === 'add' || $action === 'edit') {
       </div>
       <div>
         <label class="form-label">الصورة الشخصية</label>
-        <div class="pi-upload-zone" onclick="document.getElementById('p_photo_file').click()">
-          <input type="file" id="p_photo_file" name="p_photo_file" accept="image/*" class="hidden" data-preview="p_photo_prev" data-placeholder="p_photo_ph">
-          <img id="p_photo_prev" src="<?= htmlspecialchars($edit_p['p_photo']??'') ?>"
-            class="<?= ($edit_p['p_photo']??'')?'':'hidden' ?> w-20 h-20 rounded-full object-cover mx-auto mb-2">
-          <div id="p_photo_ph" <?= ($edit_p['p_photo']??'')?'style="display:none"':'' ?>>
-            <i class="fa-solid fa-camera" style="font-size:24px;color:#9ca3af;display:block;margin-bottom:6px;"></i>
-            <p style="font-size:13px;font-weight:700;color:#6b7280;">اضغط لرفع صورة</p>
-            <p style="font-size:11px;color:#9ca3af;margin-top:3px;">JPG, PNG, WebP</p>
+        <div class="pi-upload-zone <?= ($edit_p['p_photo']??'') ? 'has-preview' : '' ?>" onclick="document.getElementById('p_photo_file').click()">
+          <input type="file" id="p_photo_file" name="p_photo_file" accept="image/jpeg,image/png,image/webp" class="hidden" data-preview="p_photo_prev" data-placeholder="p_photo_ph">
+          <div id="p_photo_ph" <?= ($edit_p['p_photo']??'') ? 'style="display:none"' : '' ?>>
+            <div style="width:52px;height:52px;border-radius:14px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fa-solid fa-camera" style="font-size:20px;color:#9ca3af;"></i></div>
+            <p style="font-size:13px;font-weight:800;color:#374151;margin-bottom:3px;">اضغط لرفع صورة</p>
+            <p style="font-size:11px;color:#9ca3af;">JPG, PNG, WebP — حتى 5MB</p>
           </div>
+          <img id="p_photo_prev" src="<?= htmlspecialchars($edit_p['p_photo']??'') ?>" class="<?= ($edit_p['p_photo']??'') ? '' : 'hidden' ?>" style="width:90px;height:90px;object-fit:cover;border-radius:50%;margin:0 auto;display:<?= ($edit_p['p_photo']??'') ? 'block' : 'none' ?>;border:3px solid #e9d5ff;">
         </div>
         <input type="hidden" name="p_photo" value="<?= htmlspecialchars($edit_p['p_photo']??'') ?>">
       </div>

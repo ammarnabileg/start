@@ -910,14 +910,14 @@ include 'includes/header.php';
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">النبذة / السيرة الذاتية</label><textarea name="bio" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none" placeholder="أكتب التعديل المطلوب..."></textarea></div>
               <div class="mt-3">
                 <label class="block text-xs font-bold text-gray-600 mb-1">الصورة الشخصية <span class="text-gray-400 font-normal">(اختياري)</span></label>
-                <div class="flex items-center gap-3">
-                  <img id="edit-photo-prev-p" src="" class="w-12 h-12 rounded-full object-cover border border-gray-200 hidden flex-shrink-0">
-                  <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
-                    <i class="fa-solid fa-image text-gray-400"></i>
-                    <span id="edit-photo-name-p" class="text-xs text-gray-400 truncate">اختر صورة...</span>
-                    <input type="file" name="photo_file" id="edit-photo-file-p" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
-                      onchange="previewEditPhoto(this,'edit-photo-prev-p','edit-photo-name-p')">
-                  </label>
+                <div class="pi-upload-zone" onclick="document.getElementById('edit-photo-file-p').click()">
+                  <input type="file" name="photo_file" id="edit-photo-file-p" accept="image/jpeg,image/png,image/webp" class="hidden" data-preview="edit-photo-prev-p" data-placeholder="edit-photo-ph-p">
+                  <div id="edit-photo-ph-p">
+                    <div style="width:52px;height:52px;border-radius:14px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fa-solid fa-camera" style="font-size:20px;color:#9ca3af;"></i></div>
+                    <p style="font-size:13px;font-weight:800;color:#374151;margin-bottom:3px;">اضغط لرفع صورة</p>
+                    <p style="font-size:11px;color:#9ca3af;">JPG, PNG, WebP — حتى 5MB</p>
+                  </div>
+                  <img id="edit-photo-prev-p" src="" class="hidden" style="width:90px;height:90px;object-fit:cover;border-radius:50%;margin:0 auto;display:none;border:3px solid #e9d5ff;">
                 </div>
               </div>
                 </div>
@@ -938,14 +938,14 @@ include 'includes/header.php';
                   <div class="mt-3"><label class="block text-xs font-bold text-gray-600 mb-1">الوصف</label><textarea name="description" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-purple-400 resize-none"></textarea></div>
                 <div class="mt-3">
                   <label class="block text-xs font-bold text-gray-600 mb-1">شعار المؤسسة <span class="text-gray-400 font-normal">(اختياري)</span></label>
-                  <div class="flex items-center gap-3">
-                    <img id="edit-photo-prev-i" src="" class="w-12 h-12 rounded-xl object-cover border border-gray-200 hidden flex-shrink-0">
-                    <label class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:border-purple-400 transition bg-white">
-                      <i class="fa-solid fa-image text-gray-400"></i>
-                      <span id="edit-photo-name-i" class="text-xs text-gray-400 truncate">اختر صورة...</span>
-                      <input type="file" name="photo_file" id="edit-photo-file-i" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
-                        onchange="previewEditPhoto(this,'edit-photo-prev-i','edit-photo-name-i')">
-                    </label>
+                  <div class="pi-upload-zone" onclick="document.getElementById('edit-photo-file-i').click()">
+                    <input type="file" name="photo_file" id="edit-photo-file-i" accept="image/jpeg,image/png,image/webp" class="hidden" data-preview="edit-photo-prev-i" data-placeholder="edit-photo-ph-i">
+                    <div id="edit-photo-ph-i">
+                      <div style="width:52px;height:52px;border-radius:14px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fa-solid fa-camera" style="font-size:20px;color:#9ca3af;"></i></div>
+                      <p style="font-size:13px;font-weight:800;color:#374151;margin-bottom:3px;">اضغط لرفع صورة</p>
+                      <p style="font-size:11px;color:#9ca3af;">JPG, PNG, WebP — حتى 5MB</p>
+                    </div>
+                    <img id="edit-photo-prev-i" src="" class="hidden" style="width:90px;height:90px;object-fit:cover;border-radius:12px;margin:0 auto;display:none;border:2px solid #e9d5ff;">
                   </div>
                 </div>
                 </div>

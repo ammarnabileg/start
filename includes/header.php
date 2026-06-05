@@ -217,16 +217,18 @@ if (isset($pageTitle)) {
     .pi-section-head.active::after { width:60px; opacity:1; }
     /* Global upload zone */
     .pi-upload-zone {
-      border: 2px dashed #d1d5db;
-      border-radius: 14px;
-      padding: 20px 16px;
+      border: 2px dashed #e5e7eb;
+      border-radius: 16px;
+      padding: 24px 16px;
       text-align: center;
       cursor: pointer;
       background: #fafafa;
       transition: border-color .2s, background .2s;
+      position: relative;
     }
     .pi-upload-zone:hover { border-color: #8829C8; background: #f5f0ff; }
-    .pi-upload-zone.drag-over { border-color: #8829C8; background: #ede9fe; }
+    .pi-upload-zone.drag-over { border-color: #8829C8; background: #ede9fe; transform: scale(1.01); }
+    .pi-upload-zone.has-preview { border-style: solid; border-color: #c4b5fd; background: #faf5ff; padding: 12px; }
   </style>
 </head>
 <body class="bg-gray-50">

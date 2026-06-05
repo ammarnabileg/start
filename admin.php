@@ -144,19 +144,18 @@ $pageTitle = 'لوحة التحكم - ' . pi_setting('site_name');
 
     /* Upload zone */
     .pi-upload-zone {
-      border: 2px dashed #e5e7eb; border-radius: 14px; padding: 20px;
-      text-align: center; cursor: pointer; transition: border .2s, background .2s;
-      background: #fafafa; position: relative; overflow: hidden;
+      border: 2px dashed #e5e7eb;
+      border-radius: 16px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: border-color .2s, background .2s;
+      position: relative;
     }
-    .pi-upload-zone:hover { border-color: #a855f7; background: #faf5ff; }
-    .pi-upload-zone .preview-img {
-      width: 90px; height: 90px; border-radius: 12px; object-fit: cover;
-      margin: 0 auto 10px; display: block; border: 2px solid #e9d5ff;
-    }
-    .pi-upload-zone .preview-img.rounded-full { border-radius: 50%; }
-    .pi-upload-zone .preview-label {
-      font-size: 12px; font-weight: 600; color: #9ca3af; margin-top: 6px;
-    }
+    .pi-upload-zone:hover { border-color: #8829C8; background: #f5f0ff; }
+    .pi-upload-zone.drag-over { border-color: #8829C8; background: #ede9fe; transform: scale(1.01); }
+    .pi-upload-zone.has-preview { border-style: solid; border-color: #c4b5fd; background: #faf5ff; padding: 12px; }
 
     /* Quill editor improvements */
     .ql-toolbar.ql-snow {

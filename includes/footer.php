@@ -112,13 +112,15 @@ $_S_f = pi_get_settings();
           img._objUrl = url;
           img.src = url;
           img.classList.remove('hidden');
-          img.style.display = '';
+          img.style.display = 'block';
         }
       }
       if (phId) {
         var ph = document.getElementById(phId);
         if (ph) { ph.style.display = 'none'; ph.classList.add('hidden'); }
       }
+      var zone = this.closest('.pi-upload-zone');
+      if (zone) { zone.classList.add('has-preview'); }
     });
     // Drag & drop support on parent zone
     var zone = input.closest('.pi-upload-zone');

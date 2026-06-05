@@ -134,25 +134,14 @@ if ($action === 'add' || $action === 'edit') {
 
     <div>
       <label class="form-label">شعار الشركة <span class="text-gray-400 font-normal text-xs">(حد أقصى 300×300 بكسل)</span></label>
-      <div style="border:2px dashed #e5e7eb;border-radius:14px;padding:20px;text-align:center;cursor:pointer;background:#fafafa;transition:border-color .2s,background .2s;"
-        id="sp_drop_zone" onclick="document.getElementById('sp_logo_file').click()"
-        onmouseover="this.style.borderColor='#8829C8';this.style.background='#f5f0ff'"
-        onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fafafa'">
-        <input type="file" id="sp_logo_file" name="sp_logo_file" accept="image/*" class="hidden" data-preview="sp_logo_prev" data-placeholder="sp_logo_placeholder">
-        <?php if (!empty($es['sp_logo'])): ?>
-          <img id="sp_logo_prev" src="<?= htmlspecialchars($es['sp_logo']) ?>"
-            style="max-width:200px;max-height:120px;object-fit:contain;margin:0 auto 10px;display:block;border-radius:10px;">
-          <p id="sp_logo_hint" style="font-size:12px;color:#9ca3af;">اضغط لتغيير الشعار</p>
-        <?php else: ?>
-          <img id="sp_logo_prev" style="max-width:200px;max-height:120px;object-fit:contain;margin:0 auto 10px;display:none;border-radius:10px;">
-          <div id="sp_logo_placeholder">
-            <div style="width:48px;height:48px;border-radius:12px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
-              <i class="fa-solid fa-image" style="color:#9ca3af;font-size:20px;"></i>
-            </div>
-            <p style="font-size:14px;font-weight:700;color:#6b7280;">اضغط لرفع الشعار</p>
-            <p style="font-size:12px;color:#9ca3af;margin-top:4px;">PNG, JPG, SVG, WebP</p>
-          </div>
-        <?php endif; ?>
+      <div class="pi-upload-zone <?= !empty($es['sp_logo']) ? 'has-preview' : '' ?>" onclick="document.getElementById('sp_logo_file').click()">
+        <input type="file" id="sp_logo_file" name="sp_logo_file" accept="image/jpeg,image/png,image/webp" class="hidden" data-preview="sp_logo_prev" data-placeholder="sp_logo_placeholder">
+        <div id="sp_logo_placeholder" <?= !empty($es['sp_logo']) ? 'style="display:none"' : '' ?>>
+          <div style="width:52px;height:52px;border-radius:14px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fa-solid fa-camera" style="font-size:20px;color:#9ca3af;"></i></div>
+          <p style="font-size:13px;font-weight:800;color:#374151;margin-bottom:3px;">اضغط لرفع صورة</p>
+          <p style="font-size:11px;color:#9ca3af;">JPG, PNG, WebP — حتى 5MB</p>
+        </div>
+        <img id="sp_logo_prev" src="<?= htmlspecialchars($es['sp_logo']??'') ?>" class="<?= !empty($es['sp_logo']) ? '' : 'hidden' ?>" style="width:90px;height:90px;object-fit:cover;border-radius:12px;margin:0 auto;display:<?= !empty($es['sp_logo']) ? 'block' : 'none' ?>;border:2px solid #e9d5ff;">
       </div>
     </div>
 
