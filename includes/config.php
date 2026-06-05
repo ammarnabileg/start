@@ -461,8 +461,11 @@ function pi_create_list_tables() {
 }
 pi_create_list_tables();
 
-// ── Add sp_user_id to pi_sponsors if missing ──────────────────────────────
-try { $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_user_id INT DEFAULT NULL"); } catch(Exception $e) {}
+// ── Add sp_user_id and sp_views to pi_sponsors if missing ─────────────────
+$_sc = $mysqli->query("SHOW COLUMNS FROM pi_sponsors LIKE 'sp_user_id'");
+if ($_sc && $_sc->num_rows === 0) $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_user_id INT DEFAULT NULL");
+$_sc = $mysqli->query("SHOW COLUMNS FROM pi_sponsors LIKE 'sp_views'");
+if ($_sc && $_sc->num_rows === 0) $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_views INT DEFAULT 0");
 
 // ── Lists: add missing columns one-by-one (safe for all versions) ─────────
 $_lc = function($col, $def) use ($mysqli) {
