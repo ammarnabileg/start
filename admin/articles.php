@@ -242,12 +242,19 @@ if ($r) while ($row=$r->fetch_assoc()) $list[] = $row;
     <tbody>
       <?php foreach ($list as $art): ?>
       <tr class="hover:bg-gray-50 transition">
-        <td style="max-width:300px;">
-          <?php if ($art['art_image']): ?>
-          <img src="<?= htmlspecialchars($art['art_image']) ?>" style="width:48px;height:36px;object-fit:cover;border-radius:8px;float:right;margin-left:10px;">
-          <?php endif; ?>
-          <p class="font-bold text-gray-800 text-sm" style="overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"><?= htmlspecialchars($art['art_title']) ?></p>
-          <?php if ($art['art_body']??''): ?><p style="font-size:11px;color:#9ca3af;margin-top:2px;">يحتوي على محتوى غني</p><?php endif; ?>
+        <td style="max-width:340px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <?php if ($art['art_image']): ?>
+            <img src="<?= htmlspecialchars($art['art_image']) ?>" style="width:72px;height:54px;object-fit:cover;border-radius:10px;flex-shrink:0;">
+            <?php endif; ?>
+            <div style="min-width:0;">
+              <p class="font-bold text-gray-800 text-sm" style="overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px;"><?= htmlspecialchars($art['art_title']) ?></p>
+              <?php
+                $excerpt = mb_substr(strip_tags($art['art_body'] ?? ''), 0, 120);
+                if ($excerpt):
+              ?><p style="font-size:11px;color:#9ca3af;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"><?= htmlspecialchars($excerpt) ?></p><?php endif; ?>
+            </div>
+          </div>
         </td>
         <td class="text-gray-500 text-sm"><?= htmlspecialchars($art['p_name_ar']??'—') ?></td>
         <td class="text-gray-400 text-xs"><?= htmlspecialchars($art['art_source']??'—') ?></td>
