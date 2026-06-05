@@ -87,6 +87,14 @@ if ($r && $r->num_rows) $daily = $r->fetch_assoc();
 $sponsors = [];
 $r = $mysqli->query("SELECT * FROM pi_sponsors WHERE sp_active=1 ORDER BY sp_order LIMIT 6");
 if ($r) while ($row=$r->fetch_assoc()) $sponsors[] = $row;
+// Count sponsor impressions (once per session per sponsor)
+foreach ($sponsors as $sp) {
+    $sk = 'sp_imp_'.$sp['sp_id'];
+    if (empty($_SESSION[$sk])) {
+        $mysqli->query("UPDATE pi_sponsors SET sp_views=COALESCE(sp_views,0)+1 WHERE sp_id=".(int)$sp['sp_id']);
+        $_SESSION[$sk] = 1;
+    }
+}
 
 include 'includes/header.php';
 ?>

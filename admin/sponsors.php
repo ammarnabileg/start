@@ -209,8 +209,7 @@ function previewSpLogo(input) {
 $list = [];
 try { $mysqli->query("ALTER TABLE pi_sponsors ADD COLUMN sp_views INT DEFAULT 0"); } catch(Exception $e) {}
 $r = $mysqli->query("SELECT s.*, u.u_name AS linked_user_name,
-    COALESCE(s.sp_views,0) + (SELECT COALESCE(SUM(l.list_views),0) FROM pi_lists l WHERE l.list_sponsor_id=s.sp_id) AS total_views,
-    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)) AS views_30d
+    COALESCE(s.sp_views,0) AS total_views
     FROM pi_sponsors s LEFT JOIN pi_users u ON s.sp_user_id=u.u_id ORDER BY s.sp_order,s.sp_id");
 if ($r) while ($row=$r->fetch_assoc()) {
     // Fetch linked lists for this sponsor

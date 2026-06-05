@@ -161,15 +161,12 @@ if ($r) while ($row=$r->fetch_assoc()) {
 $my_sponsors = [];
 $sr = $mysqli->query("SELECT s.sp_id, s.sp_name, s.sp_logo, s.sp_url,
     (SELECT COUNT(*) FROM pi_lists WHERE list_sponsor_id=s.sp_id AND list_active=1) AS lists_count,
-    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id) AS total_views,
-    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)) AS views_30d,
-    (SELECT COALESCE(SUM(vd.vd_count),0) FROM pi_visit_daily vd INNER JOIN pi_lists l ON vd.vd_page=CONCAT('list/',l.list_id) WHERE l.list_sponsor_id=s.sp_id AND vd.vd_date>=DATE_SUB(CURDATE(),INTERVAL 7 DAY)) AS views_7d
+    COALESCE(s.sp_views,0) AS total_views
     FROM pi_sponsors s WHERE s.sp_user_id=" . (int)$user['u_id']);
 if ($sr) while ($row=$sr->fetch_assoc()) {
     // Load linked lists for this sponsor
     $row['_lists'] = [];
-    $lr = $mysqli->query("SELECT l.list_id,l.list_title,l.list_views,
-        COALESCE((SELECT SUM(vd_count) FROM pi_visit_daily WHERE vd_page=CONCAT('list/',l.list_id) AND vd_date>=DATE_SUB(CURDATE(),INTERVAL 30 DAY)),0) AS views_30d
+    $lr = $mysqli->query("SELECT l.list_id,l.list_title,l.list_views
         FROM pi_lists l WHERE l.list_sponsor_id=".(int)$row['sp_id']." AND l.list_active=1 ORDER BY l.list_views DESC");
     if ($lr) while ($lr_row=$lr->fetch_assoc()) $row['_lists'][] = $lr_row;
     $my_sponsors[] = $row;
@@ -574,14 +571,6 @@ include 'includes/header.php';
                       <p style="font-size:20px;font-weight:900;color:#7c3aed;line-height:1;"><?= number_format((int)$sp['total_views']) ?></p>
                       <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">إجمالي المشاهدات</p>
                     </div>
-                    <div style="text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 16px;">
-                      <p style="font-size:20px;font-weight:900;color:#2563eb;line-height:1;"><?= number_format((int)$sp['views_30d']) ?></p>
-                      <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">آخر 30 يوم</p>
-                    </div>
-                    <div style="text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 16px;">
-                      <p style="font-size:20px;font-weight:900;color:#059669;line-height:1;"><?= number_format((int)$sp['views_7d']) ?></p>
-                      <p style="font-size:10px;color:#9ca3af;font-weight:600;margin-top:3px;">آخر 7 أيام</p>
-                    </div>
                   </div>
                 </div>
                 <!-- Linked lists -->
@@ -593,10 +582,7 @@ include 'includes/header.php';
                     <a href="list.php?id=<?= $lst['list_id'] ?>" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border:1px solid #f0f0f0;border-radius:10px;text-decoration:none;transition:border-color .15s;"
                       onmouseover="this.style.borderColor='#c4b5fd'" onmouseout="this.style.borderColor='#f0f0f0'">
                       <span style="font-size:13px;font-weight:700;color:#374151;"><?= htmlspecialchars($lst['list_title']) ?></span>
-                      <div style="display:flex;gap:14px;">
-                        <span style="font-size:12px;color:#7c3aed;font-weight:800;"><i class="fa-solid fa-eye" style="margin-left:4px;"></i><?= number_format((int)$lst['list_views']) ?> إجمالي</span>
-                        <span style="font-size:12px;color:#2563eb;font-weight:800;"><i class="fa-solid fa-calendar-day" style="margin-left:4px;"></i><?= number_format((int)$lst['views_30d']) ?> هذا الشهر</span>
-                      </div>
+                      <span style="font-size:12px;color:#7c3aed;font-weight:800;"><i class="fa-solid fa-eye" style="margin-left:4px;"></i><?= number_format((int)$lst['list_views']) ?> مشاهدة</span>
                     </a>
                     <?php endforeach; ?>
                   </div>

@@ -14,6 +14,10 @@ $is_ar = $lang === 'ar';
 if (empty($_SESSION['viewed_list_'.$list_id])) {
     $mysqli->query("UPDATE pi_lists SET list_views=list_views+1 WHERE list_id=$list_id");
     $mysqli->query("INSERT INTO pi_visit_daily (vd_page, vd_date, vd_count) VALUES ('list/$list_id', CURDATE(), 1) ON DUPLICATE KEY UPDATE vd_count=vd_count+1");
+    // Count sponsor impression
+    if (!empty($list['list_sponsor_id'])) {
+        $mysqli->query("UPDATE pi_sponsors SET sp_views=COALESCE(sp_views,0)+1 WHERE sp_id=".(int)$list['list_sponsor_id']);
+    }
     $_SESSION['viewed_list_'.$list_id] = 1;
 }
 
