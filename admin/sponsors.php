@@ -243,10 +243,6 @@ if ($r) while ($row=$r->fetch_assoc()) {
           <p class="text-xl font-black text-purple-700"><?= number_format((int)$sp['total_views']) ?></p>
           <p class="text-xs text-purple-400 font-semibold">إجمالي</p>
         </div>
-        <div class="text-center px-4 py-2 bg-blue-50 rounded-xl">
-          <p class="text-xl font-black text-blue-700"><?= number_format((int)$sp['views_30d']) ?></p>
-          <p class="text-xs text-blue-400 font-semibold">30 يوم</p>
-        </div>
         <!-- Inline views editor -->
         <div>
           <button type="button" @click="editing=!editing"

@@ -203,7 +203,7 @@ $total_i_views    = array_sum(array_column($my_institutions,'inst_views'));
 $total_sp_views   = array_sum(array_column($my_sponsors,'total_views'));
 $total_views_all  = $total_p_views + $total_i_views + $total_sp_views;
 $total_pages      = count($my_personalities) + count($my_institutions);
-$total_30d        = array_sum($p_views_30d) + array_sum($i_views_30d) + array_sum(array_column($my_sponsors,'views_30d'));
+$total_30d        = array_sum($p_views_30d) + array_sum($i_views_30d);
 
 $all_countries = pi_get_countries();
 

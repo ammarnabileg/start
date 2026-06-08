@@ -346,6 +346,9 @@ if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities
 // Ensure p_residence column exists in pi_personalities
 $cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_residence'");
 if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_residence VARCHAR(100) DEFAULT NULL");
+// Ensure p_website column exists in pi_personalities
+$cols = $mysqli->query("SHOW COLUMNS FROM pi_personalities LIKE 'p_website'");
+if ($cols && $cols->num_rows === 0) $mysqli->query("ALTER TABLE pi_personalities ADD COLUMN p_website VARCHAR(500) DEFAULT NULL");
 // Ensure inst_membership_type column exists in pi_institutions (used in edit_requests approval)
 $cols = $mysqli->query("SHOW TABLES LIKE 'pi_institutions'");
 if ($cols && $cols->num_rows) {

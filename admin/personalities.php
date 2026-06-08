@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $residence = pi_escape($_POST['p_residence'] ?? '');
         $bio       = pi_escape($_POST['p_bio'] ?? '');
         $bio_plat  = pi_escape($_POST['p_bio_platform'] ?? '');
+        $website   = pi_escape($_POST['p_website'] ?? '');
         $photo     = pi_escape($_POST['p_photo'] ?? '');
         if (!empty($_FILES['p_photo_file']['name']) && $_FILES['p_photo_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['p_photo_file']['name'], PATHINFO_EXTENSION));
@@ -38,11 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id) {
             pi_require_perm('edit_personality');
             $views_sql = $p_views_val !== null ? ",p_views=$p_views_val" : '';
-            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id,p_added_by_user=$manager_uid$views_sql WHERE p_id=$id");
+            $mysqli->query("UPDATE pi_personalities SET p_name_ar='$name_ar',p_name_en='$name_en',p_title='$title',p_nationality='$national',p_residence='$residence',p_bio='$bio',p_bio_platform='$bio_plat',p_website='$website',p_photo='$photo',p_verified=$verified,p_membership_type='$mtype',p_country_id=$country_id,p_added_by_user=$manager_uid$views_sql WHERE p_id=$id");
             $mysqli->query("DELETE FROM pi_personality_categories WHERE p_id=$id");
         } else {
             pi_require_perm('add_personality');
-            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_photo,p_verified,p_membership_type,p_country_id,p_added_by_user) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$photo',$verified,'$mtype',$country_id,$manager_uid)");
+            $mysqli->query("INSERT INTO pi_personalities (p_name_ar,p_name_en,p_title,p_nationality,p_residence,p_bio,p_bio_platform,p_website,p_photo,p_verified,p_membership_type,p_country_id,p_added_by_user) VALUES ('$name_ar','$name_en','$title','$national','$residence','$bio','$bio_plat','$website','$photo',$verified,'$mtype',$country_id,$manager_uid)");
             $id = $mysqli->insert_id;
         }
         foreach ($cats as $cat_id) {
@@ -126,6 +127,10 @@ if ($action === 'add' || $action === 'edit') {
       <div>
         <label class="form-label">بلد الإقامة</label>
         <input type="text" name="p_residence" class="form-input" placeholder="مثال: دبي، لندن، القاهرة..." value="<?= htmlspecialchars($edit_p['p_residence']??'') ?>">
+      </div>
+      <div>
+        <label class="form-label">الموقع الإلكتروني</label>
+        <input type="url" name="p_website" class="form-input" dir="ltr" placeholder="https://example.com" value="<?= htmlspecialchars($edit_p['p_website']??'') ?>">
       </div>
       </div>
       <div>

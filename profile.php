@@ -22,6 +22,8 @@ $total_count = pi_count_personalities() + pi_count_institutions();
 $socials = [];
 $r = $mysqli->query("SELECT * FROM pi_social_links WHERE sl_entity_type='personality' AND sl_entity_id=$p_id");
 if ($r) while ($row=$r->fetch_assoc()) $socials[$row['sl_platform']] = $row['sl_url'];
+// Fallback: use p_website column if not in social_links
+if (empty($socials['website']) && !empty($p['p_website'])) $socials['website'] = $p['p_website'];
 
 // Categories
 $p_cats = [];
