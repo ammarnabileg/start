@@ -1,0 +1,361 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:loyalty_core/loyalty_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// 1.7 — نسيت كلمة المرور.
+/// التدفّق: إدخال رقم الجوال → OTP → كلمة مرور جديدة → نجاح → رجوع للدخول.
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+enum _Step { phone, otp, newPassword, done }
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  _Step _step = _Step.phone;
+
+  final _phoneCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+
+  bool _obscure = true;
+  bool _loading = false;
+  String? _error;
+
+  Timer? _timer;
+  int _secondsLeft = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [_phoneCtrl, _codeCtrl, _passwordCtrl, _confirmCtrl]) {
+      c.addListener(() => setState(() {}));
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _phoneCtrl.dispose();
+    _codeCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _digits => _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+
+  bool get _phoneValid {
+    final d = _digits;
+    if (d.length == 10 && d.startsWith('05')) return true;
+    if (d.length == 9 && d.startsWith('5')) return true;
+    return false;
+  }
+
+  String get _e164Phone {
+    var d = _digits;
+    if (d.startsWith('0')) d = d.substring(1);
+    return '+966$d';
+  }
+
+  bool get _canResend => _secondsLeft == 0;
+
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() => _secondsLeft = 30);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_secondsLeft <= 1) {
+        t.cancel();
+        setState(() => _secondsLeft = 0);
+      } else {
+        setState(() => _secondsLeft--);
+      }
+    });
+  }
+
+  String get _countdownLabel {
+    final s = _secondsLeft.toString().padLeft(2, '0');
+    return 'إعادة الإرسال خلال 00:$s';
+  }
+
+  // ===== خطوة 1: إرسال OTP =====
+  Future<void> _sendOtp() async {
+    if (!_phoneValid || _loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.auth.signInWithOtp(phone: _e164Phone);
+      _startCountdown();
+      setState(() => _step = _Step.otp);
+    } on AuthException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'تعذّر إرسال الرمز، حاول مرة أخرى.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ===== خطوة 2: التحقق من OTP =====
+  Future<void> _verifyOtp() async {
+    if (_codeCtrl.text.length < 4 || _loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        type: OtpType.sms,
+        phone: _e164Phone,
+        token: _codeCtrl.text,
+      );
+      setState(() => _step = _Step.newPassword);
+    } on AuthException {
+      setState(() => _error = 'رمز التحقق غير صحيح.');
+    } catch (_) {
+      setState(() => _error = 'حدث خطأ، حاول مرة أخرى.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ===== خطوة 3: كلمة مرور جديدة =====
+  bool get _passwordsValid =>
+      _passwordCtrl.text.length >= 8 &&
+      _passwordCtrl.text == _confirmCtrl.text;
+
+  Future<void> _setNewPassword() async {
+    if (!_passwordsValid || _loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: _passwordCtrl.text),
+      );
+      // إنهاء جلسة استعادة الباسورد للرجوع لتسجيل الدخول.
+      await Supabase.instance.client.auth.signOut();
+      setState(() => _step = _Step.done);
+    } on AuthException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'تعذّر تحديث كلمة المرور، حاول مرة أخرى.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('استعادة كلمة المرور'),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: switch (_step) {
+          _Step.phone => _buildPhoneStep(),
+          _Step.otp => _buildOtpStep(),
+          _Step.newPassword => _buildPasswordStep(),
+          _Step.done => _buildDoneStep(),
+        },
+      ),
+    );
+  }
+
+  Widget _buildPhoneStep() {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 8),
+        Text('أدخل رقم جوالك', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 8),
+        Text(
+          'سنرسل لك رمز تحقق لإعادة تعيين كلمة المرور.',
+          style:
+              theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+          textDirection: TextDirection.ltr,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+            LengthLimitingTextInputFormatter(10),
+          ],
+          decoration: const InputDecoration(
+            hintText: '5XXXXXXXX',
+            prefixIcon: Padding(
+              padding: EdgeInsetsDirectional.only(start: 14, end: 6),
+              child: Align(
+                alignment: Alignment.center,
+                widthFactor: 1,
+                child: Text('+966  ',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.error)),
+        ],
+        const SizedBox(height: 24),
+        PrimaryButton(
+          label: 'إرسال الرمز',
+          loading: _loading,
+          onPressed: _phoneValid ? _sendOtp : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtpStep() {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 8),
+        Text('أدخل رمز التحقق', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 8),
+        Text(
+          'أرسلنا رمزًا إلى $_e164Phone',
+          style:
+              theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _codeCtrl,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+          maxLength: 6,
+          style: theme.textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 8),
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            counterText: '',
+            hintText: '——————',
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: _canResend
+              ? TextButton(
+                  onPressed: _loading ? null : _sendOtp,
+                  child: const Text('إعادة إرسال الرمز'),
+                )
+              : Text(_countdownLabel,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.textSecondary)),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.error)),
+        ],
+        const SizedBox(height: 16),
+        PrimaryButton(
+          label: 'تأكيد',
+          loading: _loading,
+          onPressed: _codeCtrl.text.length >= 4 ? _verifyOtp : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordStep() {
+    final theme = Theme.of(context);
+    final mismatch = _confirmCtrl.text.isNotEmpty &&
+        _confirmCtrl.text != _passwordCtrl.text;
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 8),
+        Text('كلمة مرور جديدة', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _passwordCtrl,
+          obscureText: _obscure,
+          decoration: InputDecoration(
+            hintText: '8 أحرف على الأقل',
+            suffixIcon: IconButton(
+              icon: Icon(_obscure
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _confirmCtrl,
+          obscureText: _obscure,
+          decoration: InputDecoration(
+            hintText: 'تأكيد كلمة المرور',
+            errorText: mismatch ? 'كلمتا المرور غير متطابقتين' : null,
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.error)),
+        ],
+        const SizedBox(height: 24),
+        PrimaryButton(
+          label: 'حفظ كلمة المرور',
+          loading: _loading,
+          onPressed: _passwordsValid ? _setNewPassword : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDoneStep() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircleAvatar(
+            radius: 56,
+            backgroundColor: AppColors.primaryLight,
+            child: Icon(Icons.check_rounded,
+                size: 56, color: AppColors.success),
+          ),
+          const SizedBox(height: 24),
+          Text('تم تغيير كلمة المرور',
+              style: theme.textTheme.displayLarge, textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(
+            'يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.',
+            style: theme.textTheme.bodyLarge
+                ?.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          PrimaryButton(
+            label: 'العودة لتسجيل الدخول',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+}

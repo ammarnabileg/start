@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
+import 'login_screen.dart';
+import 'register_screen.dart';
+
 /// شاشة الترحيب (Auth Hub). شاشات التسجيل/الدخول/OTP تُبنى تحت features/auth/.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -29,11 +32,19 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
               PrimaryButton(
                 label: 'إنشاء حساب جديد',
-                onPressed: () {/* TODO: → RegisterScreen */},
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const RegisterScreen(),
+                  ));
+                },
               ),
               const SizedBox(height: 12),
               TextButton(
-                  onPressed: () {/* TODO: → LoginScreen */},
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const LoginScreen(),
+                    ));
+                  },
                   child: const Text('تسجيل الدخول')),
               const SizedBox(height: 8),
             ],

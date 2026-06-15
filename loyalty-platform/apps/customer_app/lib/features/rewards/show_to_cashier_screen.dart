@@ -1,0 +1,216 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:loyalty_core/loyalty_core.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// شاشة الاستلام (Show to Cashier) — راجع CUSTOMER_APP.md 1.14.
+/// تعرض QR لعملية الاستبدال + عداد صلاحية + حالة لحظية (confirmed/expired).
+class ShowToCashierScreen extends StatefulWidget {
+  /// نتيجة دالة redeem-reward:
+  /// {redemption_id, reward_name, points_cost, expires_at}
+  final Map<String, dynamic> redemption;
+  const ShowToCashierScreen({super.key, required this.redemption});
+
+  @override
+  State<ShowToCashierScreen> createState() => _ShowToCashierScreenState();
+}
+
+enum _RedemptionStatus { pending, confirmed, expired }
+
+class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
+  late final String _redemptionId;
+  late final String _rewardName;
+  late final DateTime _expiresAt;
+
+  _RedemptionStatus _status = _RedemptionStatus.pending;
+  Timer? _ticker;
+  Timer? _poller;
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _redemptionId = widget.redemption['redemption_id'] as String;
+    _rewardName = widget.redemption['reward_name'] as String? ?? 'المكافأة';
+    _expiresAt =
+        DateTime.parse(widget.redemption['expires_at'] as String).toLocal();
+    _tick();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _subscribe();
+    // احتياط: polling كل 3 ثوانٍ في حال لم يصل الحدث اللحظي.
+    _poller =
+        Timer.periodic(const Duration(seconds: 3), (_) => _pollStatus());
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _poller?.cancel();
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _tick() {
+    final now = DateTime.now();
+    final diff = _expiresAt.difference(now);
+    if (diff.isNegative) {
+      if (_status == _RedemptionStatus.pending) {
+        setState(() {
+          _remaining = Duration.zero;
+          _status = _RedemptionStatus.expired;
+        });
+      }
+      _ticker?.cancel();
+      _poller?.cancel();
+    } else {
+      setState(() => _remaining = diff);
+    }
+  }
+
+  void _subscribe() {
+    final client = Supabase.instance.client;
+    _sub = client
+        .from('reward_redemptions')
+        .stream(primaryKey: ['id'])
+        .eq('id', _redemptionId)
+        .listen((rows) {
+      if (rows.isEmpty) return;
+      _applyStatus(rows.first['status'] as String?);
+    });
+  }
+
+  Future<void> _pollStatus() async {
+    if (_status != _RedemptionStatus.pending) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('reward_redemptions')
+          .select('status')
+          .eq('id', _redemptionId)
+          .maybeSingle();
+      _applyStatus(row?['status'] as String?);
+    } catch (_) {
+      // تجاهل أخطاء الـ polling المؤقتة.
+    }
+  }
+
+  void _applyStatus(String? status) {
+    if (!mounted) return;
+    if (status == 'confirmed' && _status != _RedemptionStatus.confirmed) {
+      setState(() => _status = _RedemptionStatus.confirmed);
+      _ticker?.cancel();
+      _poller?.cancel();
+    } else if (status == 'expired' || status == 'cancelled') {
+      if (_status == _RedemptionStatus.pending) {
+        setState(() => _status = _RedemptionStatus.expired);
+        _ticker?.cancel();
+        _poller?.cancel();
+      }
+    }
+  }
+
+  String get _countdownText {
+    final m = _remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('استلام المكافأة'), centerTitle: true),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: switch (_status) {
+            _RedemptionStatus.confirmed => _ResultView(
+                icon: Icons.check_circle,
+                color: AppColors.success,
+                title: 'تم الاستلام بنجاح ✓',
+                message: 'استمتع بـ $_rewardName!',
+              ),
+            _RedemptionStatus.expired => _ResultView(
+                icon: Icons.timer_off_outlined,
+                color: AppColors.error,
+                title: 'انتهت الصلاحية',
+                message: 'لم يتم تأكيد الاستلام في الوقت المحدد. لم تُخصم نقاطك.',
+              ),
+            _RedemptionStatus.pending => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_rewardName, style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: QrImageView(
+                      data: _redemptionId,
+                      size: 220,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('صالح لمدة $_countdownText',
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(color: AppColors.primaryDark)),
+                  const SizedBox(height: 12),
+                  Text('اطلب من الكاشير تأكيد الاستلام.',
+                      style: theme.textTheme.bodyMedium,
+                      textAlign: TextAlign.center),
+                ],
+              ),
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultView extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String message;
+  const _ResultView({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 80, color: color),
+        const SizedBox(height: 20),
+        Text(title,
+            style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),
+        const SizedBox(height: 10),
+        Text(message,
+            style: theme.textTheme.bodyMedium, textAlign: TextAlign.center),
+        const SizedBox(height: 28),
+        PrimaryButton(
+          label: 'تم',
+          expanded: false,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+}
