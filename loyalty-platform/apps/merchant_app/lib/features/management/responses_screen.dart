@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -39,13 +40,13 @@ class QuestionResponsesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('الإجابات')),
       body: questionAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(count: 4),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل السؤال',
           onRetry: () => ref.invalidate(_questionDetailProvider(questionId)),
         ),
         data: (question) => responsesAsync.when(
-          loading: () => const LoadingView(),
+          loading: () => const SkeletonList(count: 4),
           error: (e, _) => ErrorView(
             message: 'تعذّر تحميل الإجابات',
             onRetry: () => ref.invalidate(_responsesProvider(questionId)),
@@ -61,19 +62,45 @@ class QuestionResponsesScreen extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(question.title,
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 4),
-                Text('${responses.length} إجابة',
-                    style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 16),
+                AppCard(
+                  gradient: AppColors.goldGradient,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(question.title,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(color: AppColors.onPrimary)),
+                            const SizedBox(height: 4),
+                            Text('${responses.length} إجابة',
+                                style: TextStyle(
+                                    color: AppColors.onPrimary
+                                        .withValues(alpha: .85))),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.insights_rounded,
+                          size: 32, color: AppColors.onPrimary),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SectionHeader(
+                    title: question.type.isChoice
+                        ? 'توزيع الإجابات'
+                        : 'الإجابات النصية'),
+                const SizedBox(height: 8),
                 if (question.type.isChoice)
                   _ChoiceDistribution(
                       question: question, responses: responses)
                 else
                   _TextAnswers(responses: responses),
               ],
-            );
+            ).animate().fadeIn(duration: 300.ms).slideY(begin: .04, end: 0);
           },
         ),
       ),
@@ -102,17 +129,27 @@ class _ChoiceDistribution extends StatelessWidget {
       }
     }
     final total = counts.values.fold<int>(0, (a, b) => a + b);
+    const palette = [
+      AppColors.primaryDark,
+      AppColors.info,
+      AppColors.success,
+      AppColors.warning,
+      AppColors.error,
+      AppColors.bronze,
+    ];
 
+    final options = question.options;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final o in question.options)
+        for (var i = 0; i < options.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: _DistributionBar(
-              label: o.label,
-              count: counts[o.id] ?? 0,
+              label: options[i].label,
+              count: counts[options[i].id] ?? 0,
               total: total,
+              color: palette[i % palette.length],
             ),
           ),
       ],
@@ -124,8 +161,12 @@ class _DistributionBar extends StatelessWidget {
   final String label;
   final int count;
   final int total;
+  final Color color;
   const _DistributionBar(
-      {required this.label, required this.count, required this.total});
+      {required this.label,
+      required this.count,
+      required this.total,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -140,18 +181,25 @@ class _DistributionBar extends StatelessWidget {
                 child: Text(label,
                     style: Theme.of(context).textTheme.bodyMedium)),
             Text('$count ($pct%)',
-                style: Theme.of(context).textTheme.bodySmall),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w700, color: color)),
           ],
         ),
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 10,
-            backgroundColor: AppColors.surfaceCream,
-            valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: fraction),
+            duration: AppDurations.slow,
+            curve: Curves.easeOutCubic,
+            builder: (_, v, __) => LinearProgressIndicator(
+              value: v,
+              minHeight: 12,
+              backgroundColor: AppColors.surfaceCream,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
         ),
       ],
@@ -183,8 +231,18 @@ class _TextAnswers extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: AppCard(
-              child: Text(t!,
-                  style: Theme.of(context).textTheme.bodyMedium),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.format_quote_rounded,
+                      color: AppColors.primaryDark, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(t!,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ),
+                ],
+              ),
             ),
           ),
       ],

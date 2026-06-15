@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -78,15 +79,12 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
         setState(() => _status = status);
       } else {
         setState(() => _status = status);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('طلبك ما زال قيد المراجعة')),
-        );
+        AppFeedback.toast(context, 'طلبك ما زال قيد المراجعة');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر تحديث الحالة، تحقق من الاتصال')),
-        );
+        AppFeedback.toast(context, 'تعذّر تحديث الحالة، تحقق من الاتصال',
+            error: true);
       }
     } finally {
       if (mounted) setState(() => _checking = false);
@@ -101,28 +99,18 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 56,
-                backgroundColor: rejected
-                    ? AppColors.error.withValues(alpha: 0.12)
-                    : AppColors.surfaceCream,
-                child: Icon(
-                  rejected ? Icons.cancel_outlined : Icons.access_time_rounded,
-                  size: 56,
-                  color: rejected ? AppColors.error : AppColors.primaryDark,
-                ),
-              ),
-              const SizedBox(height: 28),
+              _WaitingMascot(rejected: rejected),
+              const SizedBox(height: AppSpacing.xxl),
               Text(
                 rejected ? 'تم رفض الطلب' : 'طلبك قيد المراجعة',
                 style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 rejected
                     ? 'عذرًا، لم تتم الموافقة على طلبك. تواصل معنا لمزيد من التفاصيل.'
@@ -131,7 +119,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                     text.bodyLarge?.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: AppSpacing.xxxl),
               if (!rejected)
                 PrimaryButton(
                   label: 'تحديث الحالة',
@@ -140,9 +128,54 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                   onPressed: _checking ? null : _refreshStatus,
                 ),
             ],
-          ),
+          ).animate().fadeIn(duration: 350.ms).slideY(begin: .05, end: 0),
         ),
       ),
     );
+  }
+}
+
+/// دائرة الانتظار — تنبض بلطف أثناء المراجعة، وتتحوّل لحالة رفض ثابتة عند الرفض.
+class _WaitingMascot extends StatelessWidget {
+  final bool rejected;
+  const _WaitingMascot({required this.rejected});
+
+  @override
+  Widget build(BuildContext context) {
+    final circle = Container(
+      width: 132,
+      height: 132,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: rejected ? null : AppColors.goldGradient,
+        color: rejected ? AppColors.errorBg : null,
+        boxShadow: rejected
+            ? null
+            : const [
+                BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 28,
+                  offset: Offset(0, 12),
+                ),
+              ],
+      ),
+      child: Icon(
+        rejected ? Icons.cancel_outlined : Icons.hourglass_top_rounded,
+        size: 60,
+        color: rejected ? AppColors.error : AppColors.onPrimary,
+      ),
+    );
+
+    if (rejected) {
+      return circle
+          .animate()
+          .scale(duration: 400.ms, curve: Curves.easeOutBack)
+          .fadeIn();
+    }
+
+    // نبض لطيف مستمر يعطي إحساس "قيد المعالجة".
+    return circle
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .scaleXY(begin: 1, end: 1.06, duration: 1400.ms, curve: Curves.easeInOut);
   }
 }

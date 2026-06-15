@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:share_plus/share_plus.dart';
@@ -39,47 +40,50 @@ class ReferralScreen extends ConsumerWidget {
             message: 'تعذّر تحميل كود الإحالة',
             onRetry: () => ref.invalidate(currentUserProvider)),
         data: (user) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: AppSpacing.screen,
           children: [
             AppCard(
-              color: AppColors.surfaceCream,
+              gradient: AppColors.goldGradient,
               child: Column(
                 children: [
                   Text('كود الإحالة الخاص بك',
-                      style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 10),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.onPrimary)),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     user.referralCode,
                     style: theme.textTheme.displayLarge?.copyWith(
                           letterSpacing: 4,
                           fontWeight: FontWeight.w900,
+                          color: AppColors.onPrimary,
                         ) ??
                         const TextStyle(
                             fontSize: 40,
                             letterSpacing: 4,
-                            fontWeight: FontWeight.w900),
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.onPrimary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
+                        child: PrimaryButton(
+                          label: 'نسخ',
+                          icon: Icons.copy_rounded,
+                          variant: AppButtonVariant.secondary,
                           onPressed: () {
                             Clipboard.setData(
                                 ClipboardData(text: user.referralCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('تم نسخ الكود')),
-                            );
+                            AppFeedback.toast(context, 'تم نسخ الكود');
                           },
-                          icon: const Icon(Icons.copy_rounded),
-                          label: const Text('نسخ'),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: PrimaryButton(
                           label: 'مشاركة',
                           icon: Icons.share_rounded,
+                          variant: AppButtonVariant.secondary,
                           onPressed: () => Share.share(
                             'انضم إليّ في تطبيق الولاء واستخدم كود الإحالة الخاص بي: ${user.referralCode}',
                             subject: 'دعوة للانضمام',
@@ -90,14 +94,18 @@ class ReferralScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
+            ).animate().fadeIn(duration: 300.ms).scale(
+                begin: const Offset(.97, .97),
+                end: const Offset(1, 1),
+                curve: Curves.easeOut),
+            AppSpacing.gapLg,
             AppCard(
+              color: AppColors.infoBg,
               child: Row(
                 children: [
-                  const Icon(Icons.card_giftcard_outlined,
+                  const Icon(Icons.card_giftcard_rounded,
                       color: AppColors.primaryDark),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
                       'ادعُ صديقًا، وعند أول زيارة له تحصل أنت على مكافأتك.',
@@ -107,13 +115,18 @@ class ReferralScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            Text('إحالاتك', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
+            AppSpacing.gapXl,
+            const SectionHeader(title: 'إحالاتك'),
+            AppSpacing.gapMd,
             referralsAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: LoadingView(),
+              loading: () => Column(
+                children: List.generate(
+                  3,
+                  (i) => const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _ReferralSkeleton(),
+                  ),
+                ),
               ),
               error: (e, _) => ErrorView(
                   message: 'تعذّر تحميل الإحالات',
@@ -128,10 +141,14 @@ class ReferralScreen extends ConsumerWidget {
                 }
                 return Column(
                   children: [
-                    for (final r in list)
+                    for (var i = 0; i < list.length; i++)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ReferralRow(referral: r),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _ReferralRow(referral: list[i])
+                            .animate()
+                            .fadeIn(
+                                delay: (60 * i).ms, duration: 280.ms)
+                            .slideY(begin: .1, end: 0),
                       ),
                   ],
                 );
@@ -139,6 +156,26 @@ class ReferralScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReferralSkeleton extends StatelessWidget {
+  const _ReferralSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: const [
+          Skeleton(height: 36, width: 36, radius: AppRadii.pill),
+          SizedBox(width: 14),
+          Expanded(child: Skeleton(height: 14, width: 120)),
+          SizedBox(width: 14),
+          Skeleton(height: 24, width: 72, radius: AppRadii.md),
+        ],
       ),
     );
   }

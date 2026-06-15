@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,6 +27,12 @@ const _typeLabels = {
   QuestionType.text: 'نص حر',
 };
 
+const _typeIcons = {
+  QuestionType.singleChoice: Icons.radio_button_checked_rounded,
+  QuestionType.multiChoice: Icons.check_box_rounded,
+  QuestionType.text: Icons.short_text_rounded,
+};
+
 /// 2.10.ز — الأسئلة.
 class QuestionsScreen extends ConsumerWidget {
   const QuestionsScreen({super.key});
@@ -42,7 +49,7 @@ class QuestionsScreen extends ConsumerWidget {
         label: const Text('سؤال جديد'),
       ),
       body: async.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل الأسئلة',
           onRetry: () => ref.invalidate(questionsProvider),
@@ -69,6 +76,17 @@ class QuestionsScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
+                        Container(
+                          height: 44,
+                          width: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.info.withValues(alpha: .15),
+                            borderRadius: BorderRadius.circular(AppRadii.md),
+                          ),
+                          child: Icon(_typeIcons[q.type],
+                              color: AppColors.info, size: 22),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(q.title,
                               style: Theme.of(context).textTheme.titleMedium),
@@ -76,12 +94,22 @@ class QuestionsScreen extends ConsumerWidget {
                         PointsBadge(points: q.pointsReward),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${_typeLabels[q.type]}'
-                      '${q.active ? ' • مفعّل' : ' • متوقف'}'
-                      '${q.required ? ' • إجباري' : ''}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _Tag(label: _typeLabels[q.type] ?? ''),
+                        _Tag(
+                          label: q.active ? 'مفعّل' : 'متوقف',
+                          color: q.active
+                              ? AppColors.success
+                              : AppColors.textSecondary,
+                        ),
+                        if (q.required)
+                          const _Tag(
+                              label: 'إجباري', color: AppColors.warning),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -106,7 +134,10 @@ class QuestionsScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              );
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                  .slideY(begin: .06, end: 0);
             },
           );
         },
@@ -123,6 +154,24 @@ class QuestionsScreen extends ConsumerWidget {
     );
     if (saved == true) ref.invalidate(questionsProvider);
   }
+}
+
+/// شارة صغيرة لوسم حالة/نوع السؤال.
+class _Tag extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Tag({required this.label, this.color = AppColors.info});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+      );
 }
 
 class _QuestionEditor extends ConsumerStatefulWidget {
@@ -183,8 +232,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
         .where((t) => t.isNotEmpty)
         .toList();
     if (_type.isChoice && labels.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('أضِف خيارين على الأقل')));
+      AppFeedback.toast(context, 'أضِف خيارين على الأقل', error: true);
       return;
     }
     setState(() => _busy = true);
@@ -232,11 +280,13 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
             }
         ]);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ السؤال');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }
@@ -274,26 +324,36 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                     const InputDecoration(labelText: 'وصف (اختياري)'),
                 maxLines: 2,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<QuestionType>(
-                value: _type,
-                decoration: const InputDecoration(labelText: 'النوع'),
-                items: _typeLabels.entries
-                    .map((e) => DropdownMenuItem(
-                        value: e.key, child: Text(e.value)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() {
-                    _type = v;
-                    if (_type.isChoice && _options.isEmpty) {
-                      _options = [
-                        TextEditingController(),
-                        TextEditingController()
-                      ];
-                    }
-                  });
-                },
+              const SizedBox(height: 16),
+              Text('نوع السؤال',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _typeLabels.entries.map((e) {
+                  final selected = _type == e.key;
+                  return ChoiceChip(
+                    label: Text(e.value),
+                    avatar: Icon(_typeIcons[e.key],
+                        size: 18,
+                        color: selected
+                            ? AppColors.onPrimary
+                            : AppColors.textSecondary),
+                    selected: selected,
+                    selectedColor: AppColors.primary,
+                    onSelected: (_) {
+                      setState(() {
+                        _type = e.key;
+                        if (_type.isChoice && _options.isEmpty) {
+                          _options = [
+                            TextEditingController(),
+                            TextEditingController()
+                          ];
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 12),
               TextFormField(

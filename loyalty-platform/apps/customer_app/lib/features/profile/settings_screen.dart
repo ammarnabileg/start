@@ -75,9 +75,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) context.go('/welcome');
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر حذف الحساب، حاول مرة أخرى.')),
-        );
+        AppFeedback.toast(context, 'تعذّر حذف الحساب، حاول مرة أخرى.',
+            error: true);
         setState(() => _busy = false);
       }
     }
@@ -91,97 +90,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       appBar:
           AppBar(title: const Text('الإشعارات والخصوصية'), centerTitle: true),
       body: userAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(count: 5),
         error: (e, _) => ErrorView(
             message: 'تعذّر تحميل الإعدادات',
             onRetry: () => ref.invalidate(currentUserProvider)),
         data: (user) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: AppSpacing.screen,
           children: [
-            _SectionTitle('الإشعارات'),
-            SwitchListTile(
-              title: const Text('إشعارات عامة'),
-              subtitle: const Text('تنبيهات عند حصولك على نقاط أو مكافآت.'),
-              value: user.pushOptIn,
-              onChanged: _busy
-                  ? null
-                  : (v) => _updateFlag('push_opt_in', v),
-            ),
-            SwitchListTile(
-              title: const Text('إشعارات القرب (الموقع)'),
-              subtitle:
-                  const Text('تنبيه عندما تكون قريبًا من أحد متاجرك.'),
-              value: user.proximityOptIn,
-              onChanged: _busy
-                  ? null
-                  : (v) => _onProximityChanged(v, !user.proximityOptIn),
-            ),
-            const Divider(height: 32),
-            _SectionTitle('الخصوصية'),
-            SwitchListTile(
-              title: const Text('الظهور في لوحات الصدارة'),
-              subtitle: const Text(
-                  'عند الإيقاف، لن يظهر اسمك أو مركزك لأي مستخدم.'),
-              value: user.leaderboardOptIn,
-              onChanged: _busy
-                  ? null
-                  : (v) => _updateFlag('leaderboard_opt_in', v),
-            ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('سياسة الخصوصية'),
-              trailing: const Icon(Icons.chevron_left_rounded),
-              onTap: () => launchUrl(
-                Uri.parse('https://wataddigital.com/privacy'),
-                mode: LaunchMode.externalApplication,
+            const SectionHeader(title: 'الإشعارات'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('إشعارات عامة'),
+                    subtitle:
+                        const Text('تنبيهات عند حصولك على نقاط أو مكافآت.'),
+                    value: user.pushOptIn,
+                    onChanged:
+                        _busy ? null : (v) => _updateFlag('push_opt_in', v),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  SwitchListTile(
+                    title: const Text('إشعارات القرب (الموقع)'),
+                    subtitle:
+                        const Text('تنبيه عندما تكون قريبًا من أحد متاجرك.'),
+                    value: user.proximityOptIn,
+                    onChanged: _busy
+                        ? null
+                        : (v) => _onProximityChanged(v, !user.proximityOptIn),
+                  ),
+                ],
               ),
             ),
-            const Divider(height: 32),
-            _SectionTitle('اللغة'),
-            ListTile(
-              leading: const Icon(Icons.language_rounded),
-              title: const Text('اللغة'),
-              subtitle: const Text('العربية'),
-              trailing: const Text('العربية / English'),
-              // TODO: تبديل اللغة (ar/en) عبر مزوّد الـ locale.
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('تبديل اللغة سيتوفر قريبًا.')),
-                );
-              },
+            AppSpacing.gapLg,
+            const SectionHeader(title: 'الخصوصية'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('الظهور في لوحات الصدارة'),
+                    subtitle: const Text(
+                        'عند الإيقاف، لن يظهر اسمك أو مركزك لأي مستخدم.'),
+                    value: user.leaderboardOptIn,
+                    onChanged: _busy
+                        ? null
+                        : (v) => _updateFlag('leaderboard_opt_in', v),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('سياسة الخصوصية'),
+                    trailing: const Icon(Icons.chevron_left_rounded),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://wataddigital.com/privacy'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Divider(height: 32),
-            _SectionTitle('الحساب'),
-            ListTile(
-              leading: const Icon(Icons.delete_outline_rounded,
-                  color: AppColors.error),
-              title: Text('حذف الحساب',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: AppColors.error)),
-              trailing: const Icon(Icons.chevron_left_rounded),
-              onTap: _busy ? null : _confirmDelete,
+            AppSpacing.gapLg,
+            const SectionHeader(title: 'اللغة'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: ListTile(
+                leading: const Icon(Icons.language_rounded),
+                title: const Text('اللغة'),
+                subtitle: const Text('العربية'),
+                trailing: const Text('العربية / English'),
+                // TODO: تبديل اللغة (ar/en) عبر مزوّد الـ locale.
+                onTap: () =>
+                    AppFeedback.toast(context, 'تبديل اللغة سيتوفر قريبًا.'),
+              ),
+            ),
+            AppSpacing.gapLg,
+            const SectionHeader(title: 'الحساب'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: ListTile(
+                leading: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.error),
+                title: Text('حذف الحساب',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: AppColors.error)),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: _busy ? null : _confirmDelete,
+              ),
             ),
           ],
-        ),
+        ).animate().fadeIn(duration: 300.ms).slideY(begin: .04, end: 0),
       ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Text(text,
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(color: AppColors.textSecondary)),
     );
   }
 }

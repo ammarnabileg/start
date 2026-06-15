@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,6 +36,12 @@ const _roleLabels = {
   'branch_manager': 'مدير فرع',
 };
 
+const _roleColors = {
+  'manager': AppColors.primaryDark,
+  'cashier': AppColors.info,
+  'branch_manager': AppColors.success,
+};
+
 /// 2.10.و — الموظفين.
 class StaffScreen extends ConsumerWidget {
   const StaffScreen({super.key});
@@ -51,7 +58,7 @@ class StaffScreen extends ConsumerWidget {
         label: const Text('موظف جديد'),
       ),
       body: async.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل الموظفين',
           onRetry: () => ref.invalidate(staffListProvider),
@@ -72,15 +79,16 @@ class StaffScreen extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, i) {
               final s = rows[i];
+              final role = s['role'] as String?;
+              final roleColor = _roleColors[role] ?? AppColors.primaryDark;
               return AppCard(
                 onTap: () => _openEditor(context, ref, s),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 22,
-                      backgroundColor: AppColors.surfaceCream,
-                      child: Icon(Icons.person_outline,
-                          color: AppColors.primaryDark),
+                      backgroundColor: roleColor.withValues(alpha: .15),
+                      child: Icon(Icons.person_outline, color: roleColor),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -89,18 +97,36 @@ class StaffScreen extends ConsumerWidget {
                         children: [
                           Text(s['name'] as String? ?? '—',
                               style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${_roleLabels[s['role']] ?? s['role'] ?? ''}'
-                            '${s['phone'] != null ? ' • ${s['phone']}' : ''}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                          if (s['phone'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text('${s['phone']}',
+                                style:
+                                    Theme.of(context).textTheme.bodySmall),
+                          ],
                         ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: roleColor.withValues(alpha: .15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        _roleLabels[role] ?? role ?? '',
+                        style: TextStyle(
+                            color: roleColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12),
                       ),
                     ),
                   ],
                 ),
-              );
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                  .slideY(begin: .06, end: 0);
             },
           );
         },
@@ -172,11 +198,13 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
             .update(payload)
             .eq('id', widget.existing!['id'] as String);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ الموظف');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }

@@ -245,7 +245,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 validator: (v) =>
                     (v == null || v.length < 6) ? '6 أحرف على الأقل' : null,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               CheckboxListTile(
                 value: _agreedTerms,
                 onChanged: (v) => setState(() => _agreedTerms = v ?? false),
@@ -253,7 +253,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('أوافق على الشروط والأحكام وسياسة الخصوصية'),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
                 label: 'إرسال الطلب',
                 loading: _busy,

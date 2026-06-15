@@ -19,7 +19,7 @@ class ProfileScreen extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     return Scaffold(
       body: userAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SafeArea(child: SkeletonList(count: 5)),
         error: (e, _) => const ErrorView(message: 'تعذّر تحميل الملف'),
         data: (user) => ListView(
           padding: EdgeInsets.zero,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -65,7 +66,7 @@ class _PlansScreenState extends State<PlansScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    AppFeedback.toast(context, m, error: true);
   }
 
   @override
@@ -75,14 +76,21 @@ class _PlansScreenState extends State<PlansScreen> {
       appBar: AppBar(title: const Text('اختر باقتك')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl, vertical: AppSpacing.md),
           children: [
             Text(
               'ابدأ مجانًا، وطوّر متجرك متى شئت',
               style: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'كل الباقات تفتح المزايا كاملة — اختر ما يناسبك.',
+              style: text.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xxl),
             _PlanCard(
               featured: true,
               title: 'تجربة مجانية',
@@ -96,8 +104,11 @@ class _PlansScreenState extends State<PlansScreen> {
               actionLabel: 'ابدأ التجربة المجانية',
               loading: _busy,
               onAction: _busy ? null : _startTrial,
-            ),
-            const SizedBox(height: 16),
+            )
+                .animate()
+                .fadeIn(duration: 350.ms)
+                .slideY(begin: .08, end: 0),
+            const SizedBox(height: AppSpacing.lg),
             _PlanCard(
               title: 'الباقة الشهرية',
               price: r'$9',
@@ -109,8 +120,11 @@ class _PlansScreenState extends State<PlansScreen> {
               ],
               actionLabel: 'اشترك',
               onAction: _busy ? null : () => _showPaidInfo('الشهرية'),
-            ),
-            const SizedBox(height: 16),
+            )
+                .animate()
+                .fadeIn(duration: 350.ms, delay: 80.ms)
+                .slideY(begin: .08, end: 0),
+            const SizedBox(height: AppSpacing.lg),
             _PlanCard(
               title: 'الباقة السنوية',
               price: r'$99',
@@ -123,7 +137,10 @@ class _PlansScreenState extends State<PlansScreen> {
               ],
               actionLabel: 'اشترك',
               onAction: _busy ? null : () => _showPaidInfo('السنوية'),
-            ),
+            )
+                .animate()
+                .fadeIn(duration: 350.ms, delay: 160.ms)
+                .slideY(begin: .08, end: 0),
           ],
         ),
       ),
@@ -157,8 +174,18 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final onFeatured = AppColors.onPrimary;
+    final titleColor = featured ? onFeatured : null;
+    final periodColor =
+        featured ? onFeatured.withValues(alpha: .7) : AppColors.textSecondary;
+    final perkColor = featured ? onFeatured : null;
+    final checkColor = featured ? AppColors.onPrimary : AppColors.success;
+
     return AppCard(
-      color: featured ? AppColors.surfaceCream : null,
+      gradient: featured ? AppColors.goldGradient : null,
+      border: featured
+          ? null
+          : Border.all(color: AppColors.divider, width: 1.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -166,14 +193,14 @@ class _PlanCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(title,
-                    style:
-                        text.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                    style: text.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800, color: titleColor)),
               ),
               if (featured)
                 _Pill(
                     label: 'الأكثر شيوعًا',
-                    bg: AppColors.primary,
-                    fg: AppColors.onPrimary)
+                    bg: AppColors.onPrimary,
+                    fg: AppColors.primary)
               else if (badge != null)
                 _Pill(
                     label: badge!,
@@ -181,38 +208,41 @@ class _PlanCard extends StatelessWidget {
                     fg: Colors.white),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(price,
-                  style: text.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w900)),
-              const SizedBox(width: 8),
+                  style: text.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900, color: titleColor)),
+              const SizedBox(width: AppSpacing.sm),
               Text(period,
-                  style: text.bodyMedium
-                      ?.copyWith(color: AppColors.textSecondary)),
+                  style: text.bodyMedium?.copyWith(color: periodColor)),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           ...perks.map(
             (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded,
-                      size: 20, color: AppColors.success),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(p, style: text.bodyMedium)),
+                  Icon(Icons.check_circle_rounded,
+                      size: 20, color: checkColor),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                      child: Text(p,
+                          style: text.bodyMedium?.copyWith(color: perkColor))),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           PrimaryButton(
             label: actionLabel,
             loading: loading,
+            variant:
+                featured ? AppButtonVariant.primary : AppButtonVariant.secondary,
             onPressed: onAction,
           ),
         ],
