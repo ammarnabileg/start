@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'app_spacing.dart';
 import 'app_typography.dart';
 
 /// ثيم Hatchy: حواف دائرية كبيرة، ظلال ناعمة، أزرار pill صفرا.
@@ -71,8 +72,82 @@ class AppTheme {
         unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
+        elevation: 0,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
       ),
+      appBarTheme: AppBarTheme(
+        backgroundColor:
+            isDark ? AppColors.darkBg : (isDark ? null : AppColors.background),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        scrolledUnderElevation: 0.5,
+        titleTextStyle: AppTypography.textTheme(brightness).titleLarge,
+        iconTheme: IconThemeData(
+            color: isDark ? Colors.white : AppColors.textPrimary),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? AppColors.onPrimary : Colors.white),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.divider),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceCream,
+        selectedColor: AppColors.primary,
+        labelStyle: const TextStyle(
+            color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.pill)),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.primaryDark,
+        unselectedLabelColor: AppColors.textSecondary,
+        indicatorColor: AppColors.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: Colors.transparent,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.textPrimary,
+        contentTextStyle:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md)),
+        insetPadding: const EdgeInsets.all(16),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
+        ),
+        showDragHandle: true,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.xl)),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        elevation: 2,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      }),
       dividerColor: AppColors.divider,
+      splashFactory: InkSparkle.splashFactory,
     );
   }
 }

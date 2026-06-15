@@ -38,10 +38,42 @@ class AppColors {
 
   static const divider = Color(0xFFEDE4D3);
 
+  // طبقات/ظلال — للعمق الناعم بستايل Hatchy
+  static const shadow = Color(0x14000000); // 8% أسود
+  static const shadowSoft = Color(0x0A000000); // 4% أسود
+  static const scrim = Color(0x66000000);
+
+  // ألوان دلالية فاتحة (لخلفيات الشارات/التنبيهات)
+  static const successBg = Color(0xFFE7F8EC);
+  static const warningBg = Color(0xFFFFF3E0);
+  static const errorBg = Color(0xFFFFEBEA);
+  static const infoBg = Color(0xFFE6F4FF);
+
   /// تدرّج الهيدر الأصفر (زي الهيرو في الصور).
   static const heroGradient = LinearGradient(
     begin: Alignment.topRight,
     end: Alignment.bottomLeft,
     colors: [Color(0xFFFFD23F), Color(0xFFFFB800)],
+  );
+
+  /// تدرّج زرّ أساسي ألمع وأكثر حيوية.
+  static const buttonGradient = LinearGradient(
+    begin: Alignment.topRight,
+    end: Alignment.bottomLeft,
+    colors: [Color(0xFFFFD23F), Color(0xFFFFB300)],
+  );
+
+  /// تدرّج ذهبي (للمكافآت/المستويات/الصدارة).
+  static const goldGradient = LinearGradient(
+    begin: Alignment.topRight,
+    end: Alignment.bottomLeft,
+    colors: [Color(0xFFFFE08A), Color(0xFFE6B422)],
+  );
+
+  /// تدرّج داكن فخم (داشبورد التاجر).
+  static const darkGradient = LinearGradient(
+    begin: Alignment.topRight,
+    end: Alignment.bottomLeft,
+    colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
   );
 }

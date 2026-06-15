@@ -1,0 +1,468 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_core/loyalty_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/merchant_providers.dart';
+
+/// فترة التحليلات.
+enum AnalyticsPeriod { day, week, month }
+
+extension on AnalyticsPeriod {
+  String get label => switch (this) {
+        AnalyticsPeriod.day => 'اليوم',
+        AnalyticsPeriod.week => 'الأسبوع',
+        AnalyticsPeriod.month => 'الشهر',
+      };
+
+  /// بداية الفترة من الآن.
+  DateTime get since {
+    final now = DateTime.now();
+    return switch (this) {
+      AnalyticsPeriod.day => DateTime(now.year, now.month, now.day),
+      AnalyticsPeriod.week => now.subtract(const Duration(days: 7)),
+      AnalyticsPeriod.month => now.subtract(const Duration(days: 30)),
+    };
+  }
+
+  int get days => switch (this) {
+        AnalyticsPeriod.day => 1,
+        AnalyticsPeriod.week => 7,
+        AnalyticsPeriod.month => 30,
+      };
+}
+
+/// تجميع بيانات التحليلات. يعتمد على استعلامات مجمّعة بسيطة.
+/// TODO: استبدالها بـ Materialized Views على Postgres لأداء أفضل.
+class AnalyticsData {
+  final int newCustomers;
+  final int totalCustomers;
+  final double returnRate; // 0..1
+  final List<int> visitsPerDay; // طول = period.days
+  final int pointsDistributed;
+  final int pointsRedeemed;
+  final List<MapEntry<String, int>> topRewards;
+
+  const AnalyticsData({
+    required this.newCustomers,
+    required this.totalCustomers,
+    required this.returnRate,
+    required this.visitsPerDay,
+    required this.pointsDistributed,
+    required this.pointsRedeemed,
+    required this.topRewards,
+  });
+
+  bool get isEmpty =>
+      totalCustomers == 0 &&
+      pointsDistributed == 0 &&
+      visitsPerDay.every((v) => v == 0);
+}
+
+class AnalyticsFilter {
+  final AnalyticsPeriod period;
+  final String? branchId;
+  const AnalyticsFilter({required this.period, this.branchId});
+}
+
+final analyticsFilterProvider = StateProvider<AnalyticsFilter>(
+    (ref) => const AnalyticsFilter(period: AnalyticsPeriod.week));
+
+final analyticsProvider =
+    FutureProvider.autoDispose<AnalyticsData>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final filter = ref.watch(analyticsFilterProvider);
+  final client = Supabase.instance.client;
+  final mid = staff.merchantId;
+  final sinceIso = filter.period.since.toIso8601String();
+
+  // الزيارات خلال الفترة.
+  var visitsQuery = client
+      .from('user_visits')
+      .select('user_id, visit_date, created_at, branch_id')
+      .eq('merchant_id', mid)
+      .gte('created_at', sinceIso);
+  if (filter.branchId != null) {
+    visitsQuery = visitsQuery.eq('branch_id', filter.branchId!);
+  }
+  final visits = List<Map<String, dynamic>>.from(await visitsQuery);
+
+  // إجمالي العملاء (محافظ المتجر).
+  var storesQuery =
+      client.from('user_stores').select('user_id').eq('merchant_id', mid);
+  if (filter.branchId != null) {
+    storesQuery = storesQuery.eq('branch_id', filter.branchId!);
+  }
+  final stores = List<Map<String, dynamic>>.from(await storesQuery);
+  final totalCustomers =
+      stores.map((s) => s['user_id']).toSet().length;
+
+  // عملاء جدد خلال الفترة.
+  var newStoresQuery = client
+      .from('user_stores')
+      .select('user_id')
+      .eq('merchant_id', mid)
+      .gte('created_at', sinceIso);
+  if (filter.branchId != null) {
+    newStoresQuery = newStoresQuery.eq('branch_id', filter.branchId!);
+  }
+  final newStores = List<Map<String, dynamic>>.from(await newStoresQuery);
+  final newCustomers = newStores.map((s) => s['user_id']).toSet().length;
+
+  // معدّل العودة: نسبة من زاروا مرتين فأكثر.
+  final visitsByUser = <Object?, int>{};
+  for (final v in visits) {
+    final u = v['user_id'];
+    visitsByUser[u] = (visitsByUser[u] ?? 0) + 1;
+  }
+  final returners =
+      visitsByUser.values.where((c) => c >= 2).length;
+  final returnRate =
+      visitsByUser.isEmpty ? 0.0 : returners / visitsByUser.length;
+
+  // الزيارات لكل يوم على مدار الفترة.
+  final days = filter.period.days;
+  final visitsPerDay = List<int>.filled(days, 0);
+  final start = filter.period.since;
+  for (final v in visits) {
+    final created = DateTime.tryParse(v['created_at'] as String? ?? '');
+    if (created == null) continue;
+    final idx = created.difference(start).inDays;
+    if (idx >= 0 && idx < days) visitsPerDay[idx]++;
+  }
+
+  // النقاط الموزّعة مقابل المُستبدلة.
+  final pointsTx = List<Map<String, dynamic>>.from(await client
+      .from('points_transactions')
+      .select('type, points, branch_id')
+      .eq('merchant_id', mid)
+      .gte('created_at', sinceIso));
+  int distributed = 0;
+  int redeemed = 0;
+  for (final t in pointsTx) {
+    if (filter.branchId != null && t['branch_id'] != filter.branchId) {
+      continue;
+    }
+    final p = (t['points'] as num?)?.toInt() ?? 0;
+    if (t['type'] == 'earn') distributed += p;
+    if (t['type'] == 'redeem') redeemed += p.abs();
+  }
+
+  // أكثر المكافآت استبدالًا (top 5).
+  var redemptionsQuery = client
+      .from('reward_redemptions')
+      .select('reward_id, rewards(name), branch_id')
+      .eq('merchant_id', mid)
+      .gte('created_at', sinceIso);
+  if (filter.branchId != null) {
+    redemptionsQuery = redemptionsQuery.eq('branch_id', filter.branchId!);
+  }
+  final redemptions =
+      List<Map<String, dynamic>>.from(await redemptionsQuery);
+  final rewardCounts = <String, int>{};
+  for (final r in redemptions) {
+    final name = (r['rewards'] as Map?)?['name'] as String? ?? 'مكافأة';
+    rewardCounts[name] = (rewardCounts[name] ?? 0) + 1;
+  }
+  final topRewards = rewardCounts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  return AnalyticsData(
+    newCustomers: newCustomers,
+    totalCustomers: totalCustomers,
+    returnRate: returnRate,
+    visitsPerDay: visitsPerDay,
+    pointsDistributed: distributed,
+    pointsRedeemed: redeemed,
+    topRewards: topRewards.take(5).toList(),
+  );
+});
+
+/// فروع التاجر لفلتر التحليلات.
+final _analyticsBranchesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final rows = await Supabase.instance.client
+      .from('branches')
+      .select('id, name')
+      .eq('merchant_id', staff.merchantId)
+      .order('name');
+  return List<Map<String, dynamic>>.from(rows);
+});
+
+/// 2.11 — التحليلات.
+class AnalyticsScreen extends ConsumerWidget {
+  const AnalyticsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(analyticsFilterProvider);
+    final async = ref.watch(analyticsProvider);
+    final branchesAsync = ref.watch(_analyticsBranchesProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('التحليلات')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<AnalyticsPeriod>(
+                    segments: AnalyticsPeriod.values
+                        .map((p) => ButtonSegment(
+                            value: p, label: Text(p.label)))
+                        .toList(),
+                    selected: {filter.period},
+                    onSelectionChanged: (s) => ref
+                        .read(analyticsFilterProvider.notifier)
+                        .state = AnalyticsFilter(
+                            period: s.first, branchId: filter.branchId),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          branchesAsync.maybeWhen(
+            data: (branches) => branches.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: DropdownButtonFormField<String?>(
+                      value: filter.branchId,
+                      decoration:
+                          const InputDecoration(labelText: 'الفرع'),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                            value: null, child: Text('كل الفروع')),
+                        ...branches.map((b) => DropdownMenuItem<String?>(
+                              value: b['id'] as String,
+                              child: Text(b['name'] as String? ?? '—'),
+                            )),
+                      ],
+                      onChanged: (v) => ref
+                          .read(analyticsFilterProvider.notifier)
+                          .state = AnalyticsFilter(
+                              period: filter.period, branchId: v),
+                    ),
+                  ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: async.when(
+              loading: () => const LoadingView(),
+              error: (e, _) => ErrorView(
+                message: 'تعذّر تحميل التحليلات',
+                onRetry: () => ref.invalidate(analyticsProvider),
+              ),
+              data: (data) {
+                if (data.isEmpty) {
+                  return const EmptyView(
+                    icon: Icons.insights_rounded,
+                    title: 'لا توجد بيانات بعد',
+                    message: 'ستظهر تحليلاتك هنا بمجرد بدء نشاط عملائك.',
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _StatRow(data: data),
+                    const SizedBox(height: 20),
+                    Text('الزيارات على مدار الوقت',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    AppCard(
+                      child: SizedBox(
+                        height: 200,
+                        child: _VisitsChart(visits: data.visitsPerDay),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text('النقاط: الموزّعة مقابل المُستبدلة',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    _PointsCompare(
+                      distributed: data.pointsDistributed,
+                      redeemed: data.pointsRedeemed,
+                    ),
+                    const SizedBox(height: 20),
+                    Text('أكثر المكافآت استبدالًا',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    if (data.topRewards.isEmpty)
+                      const AppCard(child: Text('لا توجد استبدالات بعد.'))
+                    else
+                      ...data.topRewards.map((e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: AppCard(
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text(e.key)),
+                                  PointsBadge(
+                                      points: e.value, suffix: 'مرة'),
+                                ],
+                              ),
+                            ),
+                          )),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final AnalyticsData data;
+  const _StatRow({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+            child: _StatCard(
+                label: 'عملاء جدد', value: '${data.newCustomers}')),
+        const SizedBox(width: 12),
+        Expanded(
+            child: _StatCard(
+                label: 'إجمالي العملاء', value: '${data.totalCustomers}')),
+        const SizedBox(width: 12),
+        Expanded(
+            child: _StatCard(
+                label: 'معدّل العودة',
+                value: '${(data.returnRate * 100).round()}%')),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  const _StatCard({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(color: AppColors.primaryDark)),
+          const SizedBox(height: 4),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _VisitsChart extends StatelessWidget {
+  final List<int> visits;
+  const _VisitsChart({required this.visits});
+
+  @override
+  Widget build(BuildContext context) {
+    final spots = [
+      for (var i = 0; i < visits.length; i++)
+        FlSpot(i.toDouble(), visits[i].toDouble()),
+    ];
+    final maxY = visits.isEmpty
+        ? 1.0
+        : (visits.reduce((a, b) => a > b ? a : b).toDouble() + 1);
+    return LineChart(
+      LineChartData(
+        minY: 0,
+        maxY: maxY,
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        titlesData: const FlTitlesData(
+          leftTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28)),
+          rightTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: AppColors.primary,
+            barWidth: 3,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppColors.primary.withValues(alpha: .15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PointsCompare extends StatelessWidget {
+  final int distributed;
+  final int redeemed;
+  const _PointsCompare({required this.distributed, required this.redeemed});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        children: [
+          _PointsRow(
+              label: 'النقاط الموزّعة',
+              value: distributed,
+              color: AppColors.success),
+          const SizedBox(height: 12),
+          _PointsRow(
+              label: 'النقاط المُستبدلة',
+              value: redeemed,
+              color: AppColors.warning),
+        ],
+      ),
+    );
+  }
+}
+
+class _PointsRow extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color color;
+  const _PointsRow(
+      {required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Text(label)),
+        Text('$value',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}

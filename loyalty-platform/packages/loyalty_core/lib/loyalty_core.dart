@@ -5,6 +5,7 @@ library loyalty_core;
 export 'src/theme/app_colors.dart';
 export 'src/theme/app_typography.dart';
 export 'src/theme/app_theme.dart';
+export 'src/theme/app_spacing.dart';
 
 // Config
 export 'src/config/env.dart';
@@ -26,3 +27,7 @@ export 'src/widgets/primary_button.dart';
 export 'src/widgets/app_card.dart';
 export 'src/widgets/state_views.dart';
 export 'src/widgets/points_badge.dart';
+export 'src/widgets/section_header.dart';
+export 'src/widgets/stat_card.dart';
+export 'src/widgets/hero_header.dart';
+export 'src/widgets/feedback.dart';

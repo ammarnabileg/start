@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -110,7 +111,13 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                         _CountdownRing(remaining: _remaining),
                       ],
                     ),
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .scale(
+                          begin: const Offset(.96, .96),
+                          end: const Offset(1, 1),
+                          curve: Curves.easeOutBack),
                   const Spacer(),
                   Text('يتجدّد الرمز تلقائيًا للحفاظ على أمان حسابك',
                       textAlign: TextAlign.center,

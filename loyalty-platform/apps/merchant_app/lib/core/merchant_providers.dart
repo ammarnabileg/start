@@ -17,8 +17,9 @@ class StaffContext {
     this.branchId,
   });
 
-  bool get isManager => role == 'manager' || role == 'owner';
+  bool get isManager => role == 'merchant_owner' || role == 'manager';
   bool get isBranchManager => role == 'branch_manager';
+  bool get isCashier => role == 'cashier';
 }
 
 /// يجلب صف الموظف الحالي من merchant_staff حسب user_id.
