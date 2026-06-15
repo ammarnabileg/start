@@ -13,6 +13,9 @@ export 'src/config/env.dart';
 // QR
 export 'src/qr/qr_token.dart';
 
+// Logic
+export 'src/logic/loyalty_rules.dart';
+
 // Models
 export 'src/models/app_user.dart';
 export 'src/models/user_store.dart';
