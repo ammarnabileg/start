@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../qr/qr_providers.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../referral/referral_screen.dart';
+import '../wheel/my_prizes_screen.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
 
@@ -69,6 +70,15 @@ class ProfileScreen extends ConsumerWidget {
                         const Divider(height: 1, indent: 16, endIndent: 16),
                         _Tile(
                           icon: Icons.card_giftcard_outlined,
+                          label: 'هداياي',
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const MyPrizesScreen(),
+                          )),
+                        ),
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                        _Tile(
+                          icon: Icons.group_add_outlined,
                           label: 'دعوة صديق (إحالة)',
                           onTap: () =>
                               Navigator.of(context).push(MaterialPageRoute(
