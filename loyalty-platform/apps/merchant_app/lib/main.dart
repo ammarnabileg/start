@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'features/scanner/scanner_screen.dart';
+import 'features/splash/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +34,8 @@ class MerchantApp extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: child!,
       ),
-      // نقطة البداية فعليًا تمر بـ Splash/Auth/Pending — مبسّطة هنا للماسح.
-      home: const ScannerScreen(),
+      // نقطة البداية: Splash يقرّر التوجيه (لوحة التحكم أو الترحيب).
+      home: const SplashScreen(),
     );
   }
 }

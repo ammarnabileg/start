@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'store_detail_screen.dart';
+
 /// متاجري — المحافظ المرتبطة بالعميل (محفظة لكل فرع/تاجر حسب الإعداد).
 final myStoresProvider = FutureProvider<List<UserStore>>((ref) async {
   final client = Supabase.instance.client;
@@ -72,9 +74,9 @@ class _StoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      onTap: () {
-        // TODO: انتقال لصفحة المتجر (Store Detail) بالتابات الداخلية.
-      },
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => StoreDetailScreen(store: store),
+      )),
       child: Row(
         children: [
           ClipRRect(

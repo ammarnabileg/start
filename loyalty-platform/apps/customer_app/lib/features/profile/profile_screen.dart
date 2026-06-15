@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../qr/qr_providers.dart';
 import '../leaderboard/leaderboard_screen.dart';
+import '../referral/referral_screen.dart';
+import 'edit_profile_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -22,6 +25,9 @@ class ProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           children: [
             AppCard(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const EditProfileScreen(),
+              )),
               child: Row(
                 children: [
                   CircleAvatar(
@@ -42,6 +48,8 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  const Icon(Icons.edit_outlined,
+                      color: AppColors.textSecondary),
                 ],
               ),
             ),
@@ -54,9 +62,20 @@ class ProfileScreen extends ConsumerWidget {
                     args: LeaderboardArgs(title: 'لوحة الصدارة')),
               )),
             ),
-            _Tile(icon: Icons.card_giftcard_outlined, label: 'دعوة صديق (إحالة)'),
-            _Tile(icon: Icons.notifications_none_rounded, label: 'الإشعارات والخصوصية'),
-            _Tile(icon: Icons.language_rounded, label: 'اللغة'),
+            _Tile(
+              icon: Icons.card_giftcard_outlined,
+              label: 'دعوة صديق (إحالة)',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const ReferralScreen(),
+              )),
+            ),
+            _Tile(
+              icon: Icons.notifications_none_rounded,
+              label: 'الإشعارات والخصوصية',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SettingsScreen(),
+              )),
+            ),
             const Divider(height: 32),
             _Tile(
                 icon: Icons.logout_rounded,

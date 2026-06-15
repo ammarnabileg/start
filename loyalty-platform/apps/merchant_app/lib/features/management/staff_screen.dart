@@ -1,0 +1,254 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_core/loyalty_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/merchant_providers.dart';
+
+/// قائمة الموظفين من جدول merchant_staff.
+final staffListProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final rows = await Supabase.instance.client
+      .from('merchant_staff')
+      .select()
+      .eq('merchant_id', staff.merchantId)
+      .order('created_at');
+  return List<Map<String, dynamic>>.from(rows);
+});
+
+/// فروع التاجر لربط الموظف (id → name).
+final branchOptionsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final rows = await Supabase.instance.client
+      .from('branches')
+      .select('id, name')
+      .eq('merchant_id', staff.merchantId)
+      .order('name');
+  return List<Map<String, dynamic>>.from(rows);
+});
+
+const _roleLabels = {
+  'manager': 'مدير',
+  'cashier': 'كاشير',
+  'branch_manager': 'مدير فرع',
+};
+
+/// 2.10.و — الموظفين.
+class StaffScreen extends ConsumerWidget {
+  const StaffScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(staffListProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('الموظفين')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openEditor(context, ref, null),
+        icon: const Icon(Icons.add),
+        label: const Text('موظف جديد'),
+      ),
+      body: async.when(
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorView(
+          message: 'تعذّر تحميل الموظفين',
+          onRetry: () => ref.invalidate(staffListProvider),
+        ),
+        data: (rows) {
+          if (rows.isEmpty) {
+            return EmptyView(
+              icon: Icons.badge_outlined,
+              title: 'لا يوجد موظفون بعد',
+              message: 'أضِف الكاشير ومديري الفروع وحدّد صلاحياتهم.',
+              actionLabel: 'إضافة موظف',
+              onAction: () => _openEditor(context, ref, null),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: rows.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, i) {
+              final s = rows[i];
+              return AppCard(
+                onTap: () => _openEditor(context, ref, s),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppColors.surfaceCream,
+                      child: Icon(Icons.person_outline,
+                          color: AppColors.primaryDark),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s['name'] as String? ?? '—',
+                              style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_roleLabels[s['role']] ?? s['role'] ?? ''}'
+                            '${s['phone'] != null ? ' • ${s['phone']}' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditor(BuildContext context, WidgetRef ref,
+      Map<String, dynamic>? existing) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _StaffEditor(existing: existing),
+    );
+    if (saved == true) ref.invalidate(staffListProvider);
+  }
+}
+
+class _StaffEditor extends ConsumerStatefulWidget {
+  final Map<String, dynamic>? existing;
+  const _StaffEditor({this.existing});
+  @override
+  ConsumerState<_StaffEditor> createState() => _StaffEditorState();
+}
+
+class _StaffEditorState extends ConsumerState<_StaffEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _phone;
+  String _role = 'cashier';
+  String? _branchId;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _name = TextEditingController(text: e?['name'] as String? ?? '');
+    _phone = TextEditingController(text: e?['phone'] as String? ?? '');
+    _role = e?['role'] as String? ?? 'cashier';
+    _branchId = e?['branch_id'] as String?;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _busy = true);
+    try {
+      final staff = await ref.read(currentStaffProvider.future);
+      final payload = {
+        'merchant_id': staff.merchantId,
+        'name': _name.text.trim(),
+        'phone': _phone.text.trim(),
+        'role': _role,
+        'branch_id': _branchId,
+      };
+      final client = Supabase.instance.client;
+      if (widget.existing == null) {
+        await client.from('merchant_staff').insert(payload);
+      } else {
+        await client
+            .from('merchant_staff')
+            .update(payload)
+            .eq('id', widget.existing!['id'] as String);
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final branchesAsync = ref.watch(branchOptionsProvider);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(widget.existing == null ? 'موظف جديد' : 'تعديل الموظف',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'الاسم'),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'رقم الجوال'),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _role,
+              decoration: const InputDecoration(labelText: 'الدور'),
+              items: _roleLabels.entries
+                  .map((e) =>
+                      DropdownMenuItem(value: e.key, child: Text(e.value)))
+                  .toList(),
+              onChanged: (v) => setState(() => _role = v ?? 'cashier'),
+            ),
+            const SizedBox(height: 12),
+            branchesAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (branches) => DropdownButtonFormField<String?>(
+                value: _branchId,
+                decoration:
+                    const InputDecoration(labelText: 'الفرع المرتبط'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('بدون فرع محدّد')),
+                  ...branches.map((b) => DropdownMenuItem<String?>(
+                        value: b['id'] as String,
+                        child: Text(b['name'] as String? ?? '—'),
+                      )),
+                ],
+                onChanged: (v) => setState(() => _branchId = v),
+              ),
+            ),
+            const SizedBox(height: 16),
+            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+          ],
+        ),
+      ),
+    );
+  }
+}
