@@ -34,3 +34,5 @@ export 'src/widgets/section_header.dart';
 export 'src/widgets/stat_card.dart';
 export 'src/widgets/hero_header.dart';
 export 'src/widgets/feedback.dart';
+export 'src/widgets/app_bottom_nav.dart';
+export 'src/widgets/levels_journey.dart';

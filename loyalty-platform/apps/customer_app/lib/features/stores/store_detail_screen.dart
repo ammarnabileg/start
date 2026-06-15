@@ -346,7 +346,7 @@ class _CampaignCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('مكافأتك جاهزة! 🎁', style: theme.textTheme.titleLarge),
+            Text('مكافأتك جاهزة!', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text('أرِ رمزك للكاشير لاستلامها.',
                 style: theme.textTheme.bodyMedium),
@@ -420,7 +420,7 @@ class _DayChip extends StatelessWidget {
     } else {
       bg = AppColors.surfaceCream;
       child = isReward
-          ? const Text('🎁', style: TextStyle(fontSize: 20))
+          ? const Icon(Icons.card_giftcard_rounded, size: 20, color: AppColors.primaryDark)
           : Text('$day',
               style: const TextStyle(
                   color: AppColors.textSecondary, fontWeight: FontWeight.w700));
@@ -665,117 +665,15 @@ class _LevelsTab extends ConsumerWidget {
             title: 'لا توجد مستويات',
           );
         }
-        // المستوى الحالي = أعلى عتبة وصلها الـ lifetime.
-        final lifetime = store.lifetimePoints;
-        var currentIndex = 0;
-        for (var i = 0; i < levels.length; i++) {
-          if (lifetime >= levels[i].thresholdLifetimePoints) currentIndex = i;
-        }
-        final hasNext = currentIndex < levels.length - 1;
-        final next = hasNext ? levels[currentIndex + 1] : null;
-        final remaining =
-            next == null ? 0 : next.thresholdLifetimePoints - lifetime;
-
-        return ListView(
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          children: [
-            if (next != null) ...[
-              AppCard(
-                color: AppColors.surfaceCream,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('متبقٍ $remaining نقطة للوصول إلى ${next.name}',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: next.thresholdLifetimePoints == 0
-                            ? 1
-                            : (lifetime / next.thresholdLifetimePoints)
-                                .clamp(0.0, 1.0),
-                        minHeight: 10,
-                        backgroundColor: AppColors.divider,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.primary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            for (var i = 0; i < levels.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _LevelRow(
-                  level: levels[i],
-                  isCurrent: i == currentIndex,
-                ),
-              ),
-          ],
+          child: LevelsJourney(
+            levels: levels,
+            lifetimePoints: store.lifetimePoints,
+            title: 'رحلة مستوياتك',
+          ),
         );
       },
-    );
-  }
-}
-
-class _LevelRow extends StatelessWidget {
-  final LoyaltyLevel level;
-  final bool isCurrent;
-  const _LevelRow({required this.level, required this.isCurrent});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AppCard(
-      color: isCurrent ? AppColors.primaryLight : null,
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: level.color,
-            child: const Icon(Icons.workspace_premium,
-                color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(level.name, style: theme.textTheme.titleMedium),
-                    if (isCurrent) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryDark,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text('الحالي',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  level.rewardDescription ??
-                      'العتبة: ${level.thresholdLifetimePoints} نقطة',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -995,7 +893,7 @@ class _QuestionCardState extends State<_QuestionCard> {
       if (!mounted) return;
       AppFeedback.success(
         context,
-        title: 'أحسنت! 🎉',
+        title: 'أحسنت!',
         message: 'حصلت على $awarded نقطة',
       );
       widget.onAnswered();

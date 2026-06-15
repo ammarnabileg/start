@@ -1,7 +1,6 @@
 // يرندر واجهات تمثيلية (بمكوّنات الـ Design System الحقيقية + بيانات نموذجية)
 // ويصدّرها كصور PNG. شغّله: flutter test test/screenshots/screenshot_test.dart
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -107,6 +106,17 @@ class _QrHomeMock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 0,
+        onTap: (_) {},
+        items: const [
+          AppBottomNavItem(icon: Icons.qr_code_2_rounded, label: 'الرئيسية'),
+          AppBottomNavItem(icon: Icons.storefront_outlined, label: 'متاجري'),
+          AppBottomNavItem(
+              icon: Icons.notifications_none_rounded, label: 'الإشعارات'),
+          AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'حسابي'),
+        ],
+      ),
       body: Column(
         children: [
           const HeroHeader(
@@ -130,7 +140,7 @@ class _QrHomeMock extends StatelessWidget {
                     const Text('عضوية: 8F3A2C9D',
                         style: TextStyle(color: AppColors.textSecondary)),
                     const SizedBox(height: 14),
-                    Row(mainAxisSize: MainAxisSize.min, children: const [
+                    const Row(mainAxisSize: MainAxisSize.min, children: [
                       SizedBox(
                           height: 20,
                           width: 20,
@@ -224,7 +234,7 @@ class _StoreDetailMock extends StatelessWidget {
               children: [
                 const SectionHeader(title: 'حالتك'),
                 const SizedBox(height: 8),
-                Row(children: const [
+                const Row(children: [
                   Expanded(
                       child: StatCard(
                           icon: Icons.military_tech_rounded,
@@ -289,10 +299,10 @@ class _LeaderboardMock extends StatelessWidget {
   const _LeaderboardMock();
   @override
   Widget build(BuildContext context) {
-    Widget pillar(String medal, String name, int pts, double h, Gradient g) =>
+    Widget pillar(Color medal, String name, int pts, double h, Gradient g) =>
         Expanded(
           child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-            Text(medal, style: const TextStyle(fontSize: 28)),
+            Icon(Icons.workspace_premium_rounded, color: medal, size: 30),
             const SizedBox(height: 4),
             Text(name,
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -321,12 +331,12 @@ class _LeaderboardMock extends StatelessWidget {
       appBar: AppBar(title: const Text('لوحة الصدارة'), centerTitle: true),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          pillar('🥈', 'سارة', 1820, 120,
+          pillar(AppColors.silver, 'سارة', 1820, 120,
               const LinearGradient(colors: [AppColors.silver, Color(0xFFCED4DA)])),
           const SizedBox(width: 10),
-          pillar('🥇', 'أحمد', 2540, 165, AppColors.goldGradient),
+          pillar(AppColors.goldTier, 'أحمد', 2540, 165, AppColors.goldGradient),
           const SizedBox(width: 10),
-          pillar('🥉', 'محمد', 1450, 100,
+          pillar(AppColors.bronze, 'محمد', 1450, 100,
               const LinearGradient(colors: [AppColors.bronze, Color(0xFFB07A4A)])),
         ]),
         const SizedBox(height: 16),
@@ -364,6 +374,20 @@ class _DashboardMock extends StatelessWidget {
       ('مكافآت', '318', Icons.card_giftcard_rounded),
     ];
     return Scaffold(
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 0,
+        onTap: (_) {},
+        items: const [
+          AppBottomNavItem(
+              icon: Icons.dashboard_outlined, label: 'لوحة التحكم'),
+          AppBottomNavItem(
+              icon: Icons.qr_code_scanner_rounded,
+              label: 'مسح',
+              prominent: true),
+          AppBottomNavItem(icon: Icons.tune_rounded, label: 'الإدارة'),
+          AppBottomNavItem(icon: Icons.storefront_outlined, label: 'حسابي'),
+        ],
+      ),
       body: ListView(padding: EdgeInsets.zero, children: [
         const HeroHeader(
             title: 'لوحة التحكم',
@@ -450,14 +474,14 @@ class _CustomerProfileMock extends StatelessWidget {
               decoration: BoxDecoration(
                   color: AppColors.successBg,
                   borderRadius: BorderRadius.circular(16)),
-              child: const Text('عميل جديد 🎉',
+              child: const Text('عميل جديد',
                   style: TextStyle(
                       color: AppColors.success, fontWeight: FontWeight.w700)),
             ),
           ]),
         ),
         const SizedBox(height: 16),
-        Row(children: const [
+        const Row(children: [
           Expanded(
               child: StatCard(
                   icon: Icons.stars_rounded,
@@ -600,7 +624,7 @@ class _AnnouncementsMock extends StatelessWidget {
         const SizedBox(height: 16),
         AppCard(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: const [
+            const Row(children: [
               Icon(Icons.notifications_active_outlined,
                   color: AppColors.primaryDark),
               SizedBox(width: 8),

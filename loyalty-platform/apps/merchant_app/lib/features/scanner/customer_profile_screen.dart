@@ -100,7 +100,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: .15),
                             borderRadius: BorderRadius.circular(AppRadii.md)),
-                        child: const Text('عميل جديد 🎉',
+                        child: const Text('عميل جديد',
                             style: TextStyle(
                                 color: AppColors.success,
                                 fontWeight: FontWeight.w700)),

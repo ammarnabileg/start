@@ -802,3 +802,128 @@ create index if not exists idx_redemptions_merchant
   on public.reward_redemptions(merchant_id);
 create index if not exists idx_visits_merchant_user
   on public.user_visits(merchant_id, user_id);
+
+-- =====================================================================
+-- 14) الأدوار والصلاحيات (RBAC) — أدوار مخصّصة لكل تاجر
+-- صاحب المتجر ينشئ أدوارًا بصلاحيات دقيقة (view/create/edit/delete/manage)
+-- لكل مورد، ويربط كل موظف بدور.
+-- =====================================================================
+create table public.merchant_roles (
+  id          uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  name        text not null,
+  -- permissions: { "resource": ["view","create","edit","delete"], ... }  أو  {"owner": true}
+  permissions jsonb not null default '{}'::jsonb,
+  is_system   boolean not null default false,   -- أدوار افتراضية لا تُحذف
+  created_at  timestamptz not null default now(),
+  unique (merchant_id, name)
+);
+
+-- ربط الموظف بدور + صلاحية تفعيل الهدايا (للجزء الـ gamification).
+alter table public.merchant_staff
+  add column if not exists role_id uuid references public.merchant_roles(id) on delete set null;
+alter table public.merchant_staff
+  add column if not exists can_redeem_prizes boolean not null default true;
+
+-- فحص صلاحية موظف على مورد/إجراء (يُستخدم في Edge Functions + إخفاء عناصر الواجهة).
+create or replace function public.staff_can(p_staff uuid, p_resource text, p_action text)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from public.merchant_staff s
+    left join public.merchant_roles r on r.id = s.role_id
+    where s.id = p_staff and s.status = 'active' and (
+      s.role = 'merchant_owner'
+      or (r.permissions ->> 'owner')::boolean is true
+      or (r.permissions -> p_resource) ? p_action
+      or (r.permissions -> p_resource) ? 'manage'
+    )
+  );
+$$;
+
+-- يزرع الأدوار الافتراضية لتاجر (يُستدعى بعد الموافقة).
+create or replace function public.seed_default_roles(p_merchant uuid)
+returns void language plpgsql security definer as $$
+begin
+  insert into public.merchant_roles (merchant_id, name, permissions, is_system) values
+    (p_merchant, 'مالك', '{"owner": true}'::jsonb, true),
+    (p_merchant, 'مدير', '{"customers":["view"],"rewards":["view","create","edit","delete"],"campaigns":["view","create","edit","delete"],"levels":["view","create","edit","delete"],"coupons":["view","create","edit","delete"],"wheel":["view","create","edit","delete"],"analytics":["view"],"announcements":["view","create"],"points":["create"],"prizes":["redeem"]}'::jsonb, true),
+    (p_merchant, 'كاشير', '{"points":["create"],"visits":["create"],"prizes":["redeem"],"customers":["view"]}'::jsonb, true)
+  on conflict (merchant_id, name) do nothing;
+end;
+$$;
+
+alter table public.merchant_roles enable row level security;
+create policy roles_read on public.merchant_roles
+  for select using (public.is_merchant_member(merchant_id));
+create policy roles_manage on public.merchant_roles
+  for all using (public.is_merchant_member(merchant_id))
+  with check (public.is_merchant_member(merchant_id));
+
+-- =====================================================================
+-- 15) Gamification — عجلة الحظ + الهدايا القابلة للتفعيل بـ QR متغيّر
+-- =====================================================================
+create table public.lucky_wheels (
+  id          uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  name        text not null,
+  spin_cost_points integer not null default 50,   -- سعر اللفّة (يحدّده التاجر)
+  max_spins_per_day integer not null default 0,    -- 0 = غير محدود
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+
+create table public.wheel_segments (
+  id          uuid primary key default gen_random_uuid(),
+  wheel_id    uuid not null references public.lucky_wheels(id) on delete cascade,
+  label       text not null,
+  kind        text not null check (kind in ('reward','coupon','points','nothing')),
+  reward_id   uuid references public.rewards(id) on delete set null,
+  points_value integer not null default 0,
+  weight      integer not null default 1,          -- احتمالية النصيب (وزن)
+  color_hex   text,
+  stock       integer,                              -- null = غير محدود
+  sort_order  integer not null default 0
+);
+
+-- الهدايا التي يملكها العميل (مكاسب العجلة وغيرها) — كل هدية لها QR متغيّر.
+create table public.user_prizes (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.users(id) on delete cascade,
+  merchant_id  uuid not null references public.merchants(id) on delete cascade,
+  source       text not null default 'wheel' check (source in ('wheel','reward','manual')),
+  source_ref   uuid,
+  title        text not null,
+  description  text,
+  kind         text not null check (kind in ('reward','coupon','points','nothing')),
+  points_value integer not null default 0,
+  status       text not null default 'won' check (status in ('won','redeemed','expired','canceled')),
+  branch_scope uuid references public.branches(id) on delete set null, -- الفرع المؤهّل (لو مقيّد)
+  claim_secret text not null default encode(gen_random_bytes(20), 'base64'), -- لتوليد QR متغيّر
+  expires_at   timestamptz,
+  redeemed_at  timestamptz,
+  redeemed_by_staff uuid references public.merchant_staff(id),
+  redeemed_branch   uuid references public.branches(id),
+  created_at   timestamptz not null default now()
+);
+create index idx_user_prizes_user on public.user_prizes(user_id) where status = 'won';
+create index idx_user_prizes_merchant on public.user_prizes(merchant_id);
+
+alter table public.lucky_wheels  enable row level security;
+alter table public.wheel_segments enable row level security;
+alter table public.user_prizes    enable row level security;
+
+create policy wheels_read on public.lucky_wheels
+  for select using (active or public.is_merchant_member(merchant_id));
+create policy wheels_manage on public.lucky_wheels
+  for all using (public.is_merchant_member(merchant_id))
+  with check (public.is_merchant_member(merchant_id));
+
+create policy segments_read on public.wheel_segments
+  for select using (true);
+create policy segments_manage on public.wheel_segments
+  for all using (exists (
+    select 1 from public.lucky_wheels w
+    where w.id = wheel_id and public.is_merchant_member(w.merchant_id)));
+
+create policy prizes_self on public.user_prizes
+  for select using (user_id = auth.uid() or public.is_merchant_member(merchant_id));

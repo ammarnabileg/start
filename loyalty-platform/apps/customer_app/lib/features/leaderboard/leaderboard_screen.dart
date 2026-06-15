@@ -137,12 +137,6 @@ class _PodiumPillar extends StatelessWidget {
   const _PodiumPillar(
       {required this.entry, required this.isMe, required this.height});
 
-  String get _medal => switch (entry.rank) {
-        1 => '🥇',
-        2 => '🥈',
-        _ => '🥉',
-      };
-
   Color get _accent => switch (entry.rank) {
         1 => AppColors.goldTier,
         2 => AppColors.silver,
@@ -156,7 +150,7 @@ class _PodiumPillar extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Text(_medal, style: const TextStyle(fontSize: 30)),
+        Icon(Icons.workspace_premium_rounded, color: _accent, size: 34),
         const SizedBox(height: 6),
         Text(
           isMe ? '${entry.displayName} (أنت)' : entry.displayName,

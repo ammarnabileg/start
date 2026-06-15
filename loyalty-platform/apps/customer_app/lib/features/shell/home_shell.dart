@@ -10,42 +10,27 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: shell,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-                color: AppColors.shadow, blurRadius: 20, offset: Offset(0, -4)),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: shell.currentIndex,
-          onTap: (i) =>
-              shell.goBranch(i, initialLocation: i == shell.currentIndex),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: AppColors.primaryDark,
-          unselectedItemColor: AppColors.textSecondary,
-          showUnselectedLabels: true,
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.qr_code_2_rounded), label: 'الرئيسية'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.storefront_outlined),
-                activeIcon: Icon(Icons.storefront_rounded),
-                label: 'متاجري'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.notifications_none_rounded),
-                activeIcon: Icon(Icons.notifications_rounded),
-                label: 'الإشعارات'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline_rounded),
-                activeIcon: Icon(Icons.person_rounded),
-                label: 'حسابي'),
-          ],
-        ),
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: shell.currentIndex,
+        onTap: (i) =>
+            shell.goBranch(i, initialLocation: i == shell.currentIndex),
+        items: const [
+          AppBottomNavItem(icon: Icons.qr_code_2_rounded, label: 'الرئيسية'),
+          AppBottomNavItem(
+              icon: Icons.storefront_outlined,
+              activeIcon: Icons.storefront_rounded,
+              label: 'متاجري'),
+          AppBottomNavItem(
+              icon: Icons.notifications_none_rounded,
+              activeIcon: Icons.notifications_rounded,
+              label: 'الإشعارات'),
+          AppBottomNavItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'حسابي'),
+        ],
       ),
     );
   }
