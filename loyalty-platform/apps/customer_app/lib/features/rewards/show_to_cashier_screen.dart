@@ -170,7 +170,8 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
                       ],
                     ),
                     child: QrImageView(
-                      data: _redemptionId,
+                      // بادئة r1. عشان الـ Scanner يفرّق رمز استلام المكافأة.
+                      data: 'r1.$_redemptionId',
                       size: 220,
                       backgroundColor: Colors.white,
                     ),

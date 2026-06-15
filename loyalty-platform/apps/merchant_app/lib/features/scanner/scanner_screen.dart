@@ -48,6 +48,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
         return;
       }
 
+      // رمز استلام مكافأة (يبدأ بـ r1.) → تأكيد الاستبدال عبر confirm-redemption.
+      if (payload.startsWith('r1.')) {
+        final res = await Supabase.instance.client.functions.invoke(
+          'confirm-redemption',
+          body: {'redemption_id': payload.substring(3)},
+        );
+        final data = res.data as Map<String, dynamic>?;
+        if (data?['error'] != null) {
+          _snack(data!['error'] as String);
+          return;
+        }
+        if (!mounted) return;
+        await AppFeedback.success(context, title: 'تم تسليم المكافأة');
+        return;
+      }
+
       final res = await Supabase.instance.client.functions
           .invoke('verify-qr', body: {'payload': payload});
       if (res.data?['error'] != null) {

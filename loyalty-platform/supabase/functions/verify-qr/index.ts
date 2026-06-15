@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
 
     return json({
       user: { id: user.id, name: user.name, avatar_url: user.avatar_url },
+      merchant_id: staff.merchantId,
       wallet_id: wallet.id,
       branch_id: wallet.branch_id,
       available_points: wallet.available_points,

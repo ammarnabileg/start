@@ -57,6 +57,71 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
+  /// استبدال مكافأة من قائمة مكافآت المتجر (يخضع لإعداد تأكيد الطرفين).
+  Future<void> _redeemReward() async {
+    final client = Supabase.instance.client;
+    final merchantId = d['merchant_id'] as String?;
+    List<dynamic> rewards;
+    try {
+      var q = client
+          .from('rewards')
+          .select('id, name, points_cost')
+          .eq('active', true);
+      if (merchantId != null) q = q.eq('merchant_id', merchantId);
+      rewards = await q.order('points_cost');
+    } catch (_) {
+      _snack('تعذّر تحميل المكافآت');
+      return;
+    }
+    if (!mounted) return;
+    final rewardId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('اختر مكافأة', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          for (final r in rewards)
+            ListTile(
+              title: Text(r['name'] as String),
+              trailing: Text('${r['points_cost']} نقطة'),
+              onTap: () => Navigator.pop(context, r['id'] as String),
+            ),
+        ],
+      ),
+    );
+    if (rewardId == null) return;
+    await _call('staff-redeem', {'user_id': _userId, 'reward_id': rewardId},
+        okMsg: 'تم الاستبدال');
+  }
+
+  /// تطبيق كوبون بإدخال الكود.
+  Future<void> _applyCoupon() async {
+    final ctrl = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تطبيق كوبون'),
+        content: TextField(
+          controller: ctrl,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(labelText: 'كود الكوبون'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('تطبيق')),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty) return;
+    await _call('apply-coupon', {'user_id': _userId, 'code': code},
+        okMsg: 'تم تطبيق الكوبون');
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = d['user'] as Map<String, dynamic>;
@@ -168,11 +233,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   _ActionTile(
                       icon: Icons.redeem_rounded,
                       label: 'استبدال مكافأة',
-                      onTap: () {/* TODO: اختيار مكافأة → confirm-redemption */}),
+                      onTap: _redeemReward),
                   _ActionTile(
                       icon: Icons.confirmation_num_outlined,
                       label: 'تطبيق كوبون',
-                      onTap: () {/* TODO: apply-coupon */}),
+                      onTap: _applyCoupon),
                 ]
                     .animate(interval: 60.ms)
                     .fadeIn(duration: 300.ms)
