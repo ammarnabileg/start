@@ -17,7 +17,8 @@ class HomeShell extends StatelessWidget {
         onTap: (i) =>
             shell.goBranch(i, initialLocation: i == shell.currentIndex),
         items: const [
-          AppBottomNavItem(icon: Icons.qr_code_2_rounded, label: 'الرئيسية'),
+          AppBottomNavItem(
+              icon: Icons.qr_code_2_rounded, label: 'رمزي', prominent: true),
           AppBottomNavItem(
               icon: Icons.storefront_outlined,
               activeIcon: Icons.storefront_rounded,

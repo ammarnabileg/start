@@ -24,6 +24,9 @@ export 'src/models/loyalty_level.dart';
 export 'src/models/merchant_settings.dart';
 export 'src/models/merchant_question.dart';
 export 'src/models/leaderboard_entry.dart';
+export 'src/models/merchant_role.dart';
+export 'src/models/lucky_wheel.dart';
+export 'src/models/user_prize.dart';
 
 // Widgets
 export 'src/widgets/primary_button.dart';
@@ -36,3 +39,4 @@ export 'src/widgets/hero_header.dart';
 export 'src/widgets/feedback.dart';
 export 'src/widgets/app_bottom_nav.dart';
 export 'src/widgets/levels_journey.dart';
+export 'src/widgets/lucky_wheel_view.dart';

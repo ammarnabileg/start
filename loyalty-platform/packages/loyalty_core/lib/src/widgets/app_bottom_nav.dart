@@ -9,7 +9,7 @@ class AppBottomNavItem {
   final IconData? activeIcon;
   final String label;
 
-  /// عنصر بارز (زر دائري متدرّج) — مثل زر المسح عند التاجر.
+  /// عنصر بارز (زر دائري متدرّج في نص الشريط) — مثل الـ QR/المسح.
   final bool prominent;
 
   const AppBottomNavItem({
@@ -21,8 +21,7 @@ class AppBottomNavItem {
 }
 
 /// شريط تنقّل سفلي عائم بهوية Hatchy:
-/// حواف دائرية + ظل ناعم + مؤشّر pill متحرّك للعنصر النشط + اهتزاز خفيف.
-/// مشترك بين تطبيقَي العميل والتاجر لتجربة موحّدة.
+/// حواف دائرية + ظل ناعم + مؤشّر pill متحرّك + زر بارز **في النص** يطفو فوق الشريط.
 class AppBottomNav extends StatelessWidget {
   final List<AppBottomNavItem> items;
   final int currentIndex;
@@ -39,89 +38,109 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = dark ? AppColors.darkSurface : AppColors.surface;
+    final prominentIndex = items.indexWhere((i) => i.prominent);
+    if (prominentIndex < 0) return _simpleBar();
+
+    // العناصر العادية (بدون البارز) مع فهارسها الأصلية.
+    final others = <MapEntry<int, AppBottomNavItem>>[
+      for (var i = 0; i < items.length; i++)
+        if (!items[i].prominent) MapEntry(i, items[i]),
+    ];
+    final half = (others.length / 2).ceil();
+    final left = others.sublist(0, half);
+    final right = others.sublist(half);
+    // نوازن الجانبين بإضافة خانات فارغة للجانب الأقصر ليبقى الزر في النص تمامًا.
+    final pad = left.length - right.length;
+
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-          boxShadow: const [
-            BoxShadow(color: AppColors.shadow, blurRadius: 24, offset: Offset(0, 8)),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: SizedBox(
+        height: 78,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            for (var i = 0; i < items.length; i++)
-              _Slot(
-                item: items[i],
-                selected: i == currentIndex,
-                dark: dark,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onTap(i);
-                },
+            // الشريط
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 8,
+              child: Container(
+                height: 64,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: _barDecoration(),
+                child: Row(
+                  children: [
+                    for (final e in left)
+                      Expanded(child: _slot(e.key, e.value)),
+                    const SizedBox(width: 72), // فراغ للزر البارز
+                    for (final e in right)
+                      Expanded(child: _slot(e.key, e.value)),
+                    for (var i = 0; i < pad; i++)
+                      const Expanded(child: SizedBox.shrink()),
+                  ],
+                ),
               ),
+            ),
+            // الزر البارز في النص (يطفو فوق الشريط)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: Center(
+                child: _ProminentButton(
+                  item: items[prominentIndex],
+                  selected: currentIndex == prominentIndex,
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    onTap(prominentIndex);
+                  },
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
 
-class _Slot extends StatelessWidget {
-  final AppBottomNavItem item;
-  final bool selected;
-  final bool dark;
-  final VoidCallback onTap;
-
-  const _Slot({
-    required this.item,
-    required this.selected,
-    required this.dark,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // زر بارز (دائري متدرّج) — مثل المسح.
-    if (item.prominent) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 54,
-          width: 54,
-          decoration: BoxDecoration(
-            gradient: AppColors.buttonGradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: .45),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Icon(item.activeIcon ?? item.icon,
-              color: AppColors.onPrimary, size: 28),
+  Widget _simpleBar() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: _barDecoration(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (var i = 0; i < items.length; i++) _slot(i, items[i]),
+          ],
         ),
+      ),
+    );
+  }
+
+  BoxDecoration _barDecoration() => BoxDecoration(
+        color: dark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        boxShadow: const [
+          BoxShadow(color: AppColors.shadow, blurRadius: 24, offset: Offset(0, 8)),
+        ],
       );
-    }
 
+  Widget _slot(int index, AppBottomNavItem item) {
+    final selected = index == currentIndex;
     final activeColor = dark ? AppColors.gold : AppColors.primaryDark;
-    final idle = AppColors.textSecondary;
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap(index);
+      },
       child: AnimatedContainer(
         duration: AppDurations.normal,
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-            horizontal: selected ? 16 : 14, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 8, vertical: 10),
         decoration: BoxDecoration(
           color: selected
               ? (dark
@@ -132,26 +151,63 @@ class _Slot extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(selected ? (item.activeIcon ?? item.icon) : item.icon,
-                color: selected ? activeColor : idle, size: 24),
-            // الاسم يظهر فقط للعنصر النشط (شكل أنظف).
+                color: selected ? activeColor : AppColors.textSecondary, size: 24),
             AnimatedSize(
               duration: AppDurations.normal,
               curve: Curves.easeOutCubic,
               child: selected
                   ? Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: 6),
                       child: Text(item.label,
+                          overflow: TextOverflow.clip,
+                          softWrap: false,
                           style: TextStyle(
                               color: activeColor,
                               fontWeight: FontWeight.w700,
-                              fontSize: 13)),
+                              fontSize: 12)),
                     )
                   : const SizedBox.shrink(),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ProminentButton extends StatelessWidget {
+  final AppBottomNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ProminentButton(
+      {required this.item, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppDurations.normal,
+        curve: Curves.easeOutBack,
+        height: 60,
+        width: 60,
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.surface, width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: selected ? .6 : .4),
+              blurRadius: selected ? 20 : 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Icon(item.activeIcon ?? item.icon,
+            color: AppColors.onPrimary, size: 28),
       ),
     );
   }

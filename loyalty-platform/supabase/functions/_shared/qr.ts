@@ -24,14 +24,15 @@ export function verifyQr(
   secret: string,
   windowSeconds = 30,
   tolerance = 1,
+  version = "v1",
 ): string | null {
   const parts = payload.split(".");
-  if (parts.length !== 4 || parts[0] !== "v1") return null;
-  const userId = parts[1];
+  if (parts.length !== 4 || parts[0] !== version) return null;
+  const id = parts[1];
   const got = parts[3];
   const current = Math.floor(Date.now() / 1000 / windowSeconds);
   for (let w = current - tolerance; w <= current + tolerance; w++) {
-    if (constEq(code(userId, secret, w), got)) return userId;
+    if (constEq(code(id, secret, w), got)) return id;
   }
   return null;
 }

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../leaderboard/leaderboard_screen.dart';
 import '../rewards/reward_detail_screen.dart';
+import '../wheel/wheel_screen.dart';
 
 /// صفحة المتجر (Store Detail) — راجع CUSTOMER_APP.md 1.12.
 /// تابات داخلية: نظرة عامة · الزيارات · النقاط · المكافآت · المستويات ·
@@ -244,6 +245,7 @@ class _OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -291,6 +293,39 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
           )),
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          gradient: AppColors.goldGradient,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => WheelScreen(
+              merchantId: store.merchantId,
+              merchantName: store.merchantName,
+            ),
+          )),
+          child: Row(
+            children: [
+              const Icon(Icons.casino_rounded,
+                  color: AppColors.onPrimary, size: 28),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('عجلة الحظ',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: AppColors.onPrimary)),
+                    const SizedBox(height: 2),
+                    Text('لِف واربح هدايا ونقاط',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.onPrimary.withValues(alpha: .85))),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_left_rounded,
+                  color: AppColors.onPrimary),
+            ],
+          ),
         ),
       ],
     );

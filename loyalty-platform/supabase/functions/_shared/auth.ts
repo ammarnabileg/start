@@ -15,6 +15,7 @@ export interface StaffContext {
   merchantId: string;
   branchId: string | null;
   role: string;
+  canRedeemPrizes: boolean;
 }
 
 /**
@@ -34,7 +35,7 @@ export async function requireStaff(
 
   const { data: staff } = await svc
     .from("merchant_staff")
-    .select("id, user_id, merchant_id, branch_id, role, status")
+    .select("id, user_id, merchant_id, branch_id, role, status, can_redeem_prizes")
     .eq("user_id", user.id)
     .eq("status", "active")
     .maybeSingle();
@@ -47,6 +48,7 @@ export async function requireStaff(
     merchantId: staff.merchant_id,
     branchId: staff.branch_id,
     role: staff.role,
+    canRedeemPrizes: staff.can_redeem_prizes ?? true,
   };
 }
 
@@ -61,6 +63,21 @@ export async function requireUser(
   const { data: { user }, error } = await svc.auth.getUser(token);
   if (error || !user) throw new Error("جلسة غير صالحة");
   return user.id;
+}
+
+/** يتحقّق من صلاحية موظف على مورد/إجراء عبر دالة staff_can في الـ DB. */
+export async function staffCan(
+  svc: SupabaseClient,
+  staffId: string,
+  resource: string,
+  action: string,
+): Promise<boolean> {
+  const { data } = await svc.rpc("staff_can", {
+    p_staff: staffId,
+    p_resource: resource,
+    p_action: action,
+  });
+  return data === true;
 }
 
 /** يجلب إعدادات التاجر (مع defaults آمنة لو الصف مش موجود). */
