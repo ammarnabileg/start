@@ -234,6 +234,13 @@ class AppColors {
 
 **لوحات الصدارة (دوال):** `global_leaderboard()` (كل التطبيق) · `store_leaderboard(merchant, branch)` (الستور كامل لو branch=NULL أو فرع محدد) · `my_global_rank()`. تحترم `users.leaderboard_opt_in`.
 
+**عرض العملاء + الإشعارات بحد أقصى (يحدّده مالك النظام):**
+- التاجر يعرض عملاءه بكل خصائصهم عبر `merchant_customers(merchant, search, limit, offset)` (محمي بعضوية التاجر، مجمّع عبر الفروع).
+- إرسال إشعار جماعي عبر `send-announcement` — يفرض **حدًّا شهريًا** يحدّده مالك المنصة في `platform_settings.default_notifications_monthly_quota` (افتراضي عام) أو `merchant_limits.notifications_monthly_quota` (override لكل تاجر). جدولان **يكتب فيهما الأدمن فقط** (service_role)، والتاجر يقرأ حدّه فقط.
+- الاستهلاك المتبقّي: `merchant_notification_usage(merchant)` ويُسجّل كل إرسال في `notification_campaigns`.
+
+**أداء:** `dashboard_summary(merchant, branch)` يحسب كل مقاييس لوحة التحكم في **استدعاء واحد** بدل ~10 round-trips (تجميع على السيرفر بدل سحب كل الصفوف للعميل). شاشة الـ QR تعيد توليد الكود فقط عند تغيّر النافذة الزمنية (مش كل ثانية). فهارس إضافية لأنماط الاستعلام الفعلية.
+
 ### منطق النقاط (Source of Truth)
 - `earn` → يزوّد `available_points` **و** `lifetime_points` بنفس القيمة.
 - `redeem` → يخصم من `available_points` **فقط** (lifetime ثابت).
@@ -295,6 +302,7 @@ create policy "merchant_owns_rewards" on rewards
 | `redeem-reward` | يبدأ استبدال (ينشئ كود مؤقت 5 دقائق) | تطبيق العميل |
 | `confirm-redemption` | الكاشير يأكّد → الخصم الفعلي يحصل هنا (المحفظة حسب فرعه) | تطبيق التاجر |
 | `answer-question` | العميل يجاوب سؤال التاجر → ياخد النقاط المحدّدة | تطبيق العميل |
+| `send-announcement` | التاجر يبعت إشعار جماعي لعملائه — **يفرض الحد الشهري** اللي حدّده مالك المنصة | تطبيق التاجر |
 | `apply-coupon` | يتحقق ويطبّق كوبون | تطبيق التاجر |
 | `link-store` | ربط العميل بالتاجر تلقائيًا أول مسح | داخل `verify-qr` |
 | `process-referral` | يفعّل مكافأة الإحالة بعد الحدث المؤهّل | trigger داخلي |

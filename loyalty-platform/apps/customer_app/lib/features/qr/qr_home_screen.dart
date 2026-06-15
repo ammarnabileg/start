@@ -19,7 +19,10 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
     with WidgetsBindingObserver {
   Timer? _timer;
   String _payload = '';
-  int _remaining = QrToken.defaultWindowSeconds;
+  int _window = -1;
+  // العدّاد يتحدّث كل ثانية عبر notifier — يعيد بناء الحلقة فقط، مش الـ QR.
+  final ValueNotifier<int> _remaining =
+      ValueNotifier<int>(QrToken.defaultWindowSeconds);
   double? _prevBrightness;
 
   @override
@@ -33,6 +36,7 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _remaining.dispose();
     _restoreBrightness();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -62,10 +66,14 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
   void _tick() {
     final user = ref.read(currentUserProvider).valueOrNull;
     if (user == null) return;
-    setState(() {
-      _payload = QrToken.generate(user.id, user.qrSecret);
-      _remaining = QrToken.secondsRemaining();
-    });
+    final secs = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final window = secs ~/ QrToken.defaultWindowSeconds;
+    // نعيد توليد الـ QR (ونعيد بناء الكارت) فقط عند تغيّر النافذة الزمنية.
+    if (window != _window) {
+      _window = window;
+      setState(() => _payload = QrToken.generate(user.id, user.qrSecret));
+    }
+    _remaining.value = QrToken.secondsRemaining();
   }
 
   @override
@@ -82,6 +90,8 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
           data: (user) {
             // أول توليد فوري (من غير ما نستنى أول tick)
             if (_payload.isEmpty) {
+              final secs = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+              _window = secs ~/ QrToken.defaultWindowSeconds;
               _payload = QrToken.generate(user.id, user.qrSecret);
             }
             final firstName = user.name.split(' ').first;
@@ -149,7 +159,11 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                                       .textTheme
                                       .titleMedium),
                               const SizedBox(height: 16),
-                              _CountdownRing(remaining: _remaining),
+                              ValueListenableBuilder<int>(
+                                valueListenable: _remaining,
+                                builder: (_, value, __) =>
+                                    _CountdownRing(remaining: value),
+                              ),
                             ],
                           ),
                         )

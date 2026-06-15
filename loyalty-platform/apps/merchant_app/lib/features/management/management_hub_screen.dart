@@ -10,6 +10,7 @@ import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
 import 'branches_screen.dart';
 import 'campaigns_screen.dart';
+import 'customers_screen.dart';
 import 'coupons_screen.dart';
 import 'levels_screen.dart';
 import 'questions_screen.dart';
@@ -33,6 +34,13 @@ class ManagementHubScreen extends ConsumerWidget {
         ),
         data: (settings) {
           final tiles = <_HubTile>[
+            _HubTile(
+              icon: Icons.groups_2_outlined,
+              accent: AppColors.info,
+              title: 'العملاء',
+              subtitle: 'اعرض عملاءك وأرسل لهم إشعارات',
+              builder: (_) => const CustomersScreen(),
+            ),
             if (settings.enableVisits)
               _HubTile(
                 icon: Icons.repeat_rounded,

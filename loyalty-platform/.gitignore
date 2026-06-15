@@ -16,3 +16,6 @@ pubspec.lock
 **/google-services.json
 **/GoogleService-Info.plist
 **/firebase_options.dart
+
+# Generated screenshots
+test/screenshots/out/

@@ -594,3 +594,211 @@ create policy qresponses_self on public.question_responses
 
 -- ملاحظة: super_admin يُدار بدور منفصل (custom claim) أو عبر لوحة الأدمن
 -- بمفتاح service_role. الموافقة على التجار وتفعيل الاشتراك تتم من هناك.
+
+-- =====================================================================
+-- 12) عرض العملاء + الإشعارات الجماعية بحد أقصى يحدّده مالك المنصة
+-- التاجر يشوف عملاءه (المرتبطين بيه) ويبعتلهم إشعارات، لكن بحد شهري
+-- يحدّده مالك النظام (super admin) — مش التاجر.
+-- =====================================================================
+
+-- إعدادات المنصة (صف واحد) — يتحكّم فيها مالك النظام فقط (service_role/admin).
+create table public.platform_settings (
+  id boolean primary key default true check (id),       -- يضمن صفًّا واحدًا
+  default_notifications_monthly_quota integer not null default 2000,
+  default_customers_view_enabled      boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+insert into public.platform_settings (id) values (true) on conflict (id) do nothing;
+
+-- حدود لكل تاجر — يحدّدها مالك النظام (override للافتراضي). NULL = الافتراضي.
+create table public.merchant_limits (
+  merchant_id uuid primary key references public.merchants(id) on delete cascade,
+  notifications_monthly_quota integer,   -- NULL → افتراضي المنصة
+  customers_view_enabled      boolean,   -- NULL → افتراضي المنصة
+  updated_at timestamptz not null default now()
+);
+
+-- سجل حملات الإشعارات (لقياس الاستهلاك مقابل الحد الشهري).
+create table public.notification_campaigns (
+  id              uuid primary key default gen_random_uuid(),
+  merchant_id     uuid not null references public.merchants(id) on delete cascade,
+  title           text not null,
+  body            text,
+  audience_count  integer not null default 0,
+  created_by_staff uuid references public.merchant_staff(id),
+  created_at      timestamptz not null default now()
+);
+create index idx_campaigns_merchant_month
+  on public.notification_campaigns(merchant_id, created_at desc);
+
+-- الحد الشهري الفعّال للتاجر (override ثم افتراضي المنصة).
+create or replace function public.merchant_notification_quota(p_merchant uuid)
+returns integer language sql security definer stable as $$
+  select coalesce(
+    (select notifications_monthly_quota from public.merchant_limits where merchant_id = p_merchant),
+    (select default_notifications_monthly_quota from public.platform_settings where id),
+    2000
+  );
+$$;
+
+-- استهلاك الشهر الحالي + المتبقّي.
+create or replace function public.merchant_notification_usage(p_merchant uuid)
+returns table(quota integer, used integer, remaining integer)
+language sql security definer stable as $$
+  with q as (select public.merchant_notification_quota(p_merchant) as quota),
+       u as (
+         select coalesce(sum(audience_count), 0)::int as used
+         from public.notification_campaigns
+         where merchant_id = p_merchant
+           and created_at >= date_trunc('month', now())
+       )
+  select q.quota, u.used, greatest(q.quota - u.used, 0)
+  from q, u;
+$$;
+
+-- عرض عملاء التاجر مع كل خصائصهم (مجمّعة عبر فروعه). محمي بعضوية التاجر.
+create or replace function public.merchant_customers(
+  p_merchant uuid,
+  p_search   text default null,
+  p_limit    int  default 50,
+  p_offset   int  default 0
+) returns table(
+  user_id          uuid,
+  name             text,
+  phone            text,
+  avatar_url       text,
+  available_points bigint,
+  lifetime_points  bigint,
+  level_name       text,
+  visits           bigint,
+  push_opt_in      boolean,
+  first_linked     timestamptz,
+  last_activity    timestamptz
+) language plpgsql security definer stable as $$
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'غير مصرّح';
+  end if;
+  return query
+  select
+    u.id, u.name, u.phone, u.avatar_url,
+    sum(us.available_points)::bigint,
+    sum(us.lifetime_points)::bigint,
+    (array_agg(l.name order by l.threshold_lifetime_points desc)
+       filter (where l.name is not null))[1],
+    (select count(*) from public.user_visits v
+       where v.user_id = u.id and v.merchant_id = p_merchant),
+    u.push_opt_in,
+    min(us.first_linked_at),
+    (select max(pt.created_at) from public.points_transactions pt
+       join public.user_stores us2 on us2.id = pt.user_store_id
+       where us2.user_id = u.id and us2.merchant_id = p_merchant)
+  from public.user_stores us
+  join public.users u on u.id = us.user_id
+  left join public.loyalty_levels l on l.id = us.current_level_id
+  where us.merchant_id = p_merchant
+    and (p_search is null or p_search = ''
+         or u.name ilike '%' || p_search || '%'
+         or u.phone ilike '%' || p_search || '%')
+  group by u.id, u.name, u.phone, u.avatar_url, u.push_opt_in
+  order by min(us.first_linked_at) desc
+  limit p_limit offset p_offset;
+end;
+$$;
+
+-- RLS للجداول الجديدة
+alter table public.platform_settings     enable row level security; -- لا سياسات → admin فقط
+alter table public.merchant_limits        enable row level security;
+alter table public.notification_campaigns enable row level security;
+
+-- التاجر يقرأ حدوده وسجلّ حملاته (للقراءة فقط؛ الكتابة عبر Edge/Admin).
+create policy limits_read on public.merchant_limits
+  for select using (public.is_merchant_member(merchant_id));
+create policy campaigns_read on public.notification_campaigns
+  for select using (public.is_merchant_member(merchant_id));
+
+-- =====================================================================
+-- 13) أداء: ملخّص لوحة التحكم في استدعاء واحد (بدل ~10 round-trips)
+-- يحسب كل مقاييس اللوحة على السيرفر ويرجّعها jsonb واحد.
+-- =====================================================================
+create or replace function public.dashboard_summary(
+  p_merchant uuid, p_branch uuid default null
+) returns jsonb language plpgsql security definer stable as $$
+declare
+  v jsonb;
+  v_customers     int;
+  v_today         int;
+  v_week          int;
+  v_points        bigint;
+  v_redemptions   int;
+  v_distinct      int;
+  v_returners     int;
+  v_trial_days    int;
+  v_activity      jsonb;
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'غير مصرّح';
+  end if;
+
+  select count(*) into v_customers from public.user_stores
+   where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch);
+
+  select count(*) into v_today from public.user_visits
+   where merchant_id = p_merchant and visit_date = current_date
+     and (p_branch is null or branch_id = p_branch);
+
+  select count(*) into v_week from public.user_visits
+   where merchant_id = p_merchant and visit_date >= current_date - 7
+     and (p_branch is null or branch_id = p_branch);
+
+  select coalesce(sum(points),0) into v_points from public.points_transactions
+   where merchant_id = p_merchant and type = 'earn'
+     and (p_branch is null or branch_id = p_branch);
+
+  select count(*) into v_redemptions from public.reward_redemptions
+   where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch);
+
+  -- معدّل العودة: عملاء بزيارتين فأكثر ÷ إجمالي العملاء الزائرين.
+  with per_user as (
+    select user_id, count(*) c from public.user_visits
+     where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch)
+     group by user_id
+  )
+  select count(*), count(*) filter (where c >= 2) into v_distinct, v_returners
+  from per_user;
+
+  select greatest(extract(day from (trial_ends_at - now()))::int, 0)
+    into v_trial_days
+  from public.subscriptions
+  where merchant_id = p_merchant and status = 'trial' and trial_ends_at is not null
+  limit 1;
+
+  select coalesce(jsonb_agg(a), '[]'::jsonb) into v_activity from (
+    select jsonb_build_object('type', type, 'points', points, 'created_at', created_at) a
+    from public.points_transactions
+    where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch)
+    order by created_at desc limit 8
+  ) t;
+
+  v := jsonb_build_object(
+    'customers', v_customers,
+    'visits_today', v_today,
+    'visits_week', v_week,
+    'points_awarded', v_points,
+    'redemptions', v_redemptions,
+    'return_rate', case when v_distinct = 0 then 0
+                        else round((v_returners::numeric / v_distinct) * 100, 1) end,
+    'trial_days_left', v_trial_days,
+    'recent_activity', v_activity
+  );
+  return v;
+end;
+$$;
+
+-- فهارس أداء إضافية لأنماط الاستعلام الفعلية.
+create index if not exists idx_points_merchant_created
+  on public.points_transactions(merchant_id, created_at desc);
+create index if not exists idx_redemptions_merchant
+  on public.reward_redemptions(merchant_id);
+create index if not exists idx_visits_merchant_user
+  on public.user_visits(merchant_id, user_id);

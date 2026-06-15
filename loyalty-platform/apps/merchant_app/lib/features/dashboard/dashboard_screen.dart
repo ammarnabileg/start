@@ -387,135 +387,20 @@ final _branchesProvider =
 /// تجميع أرقام اللوحة. يحترم فلتر الفرع لو مُحدّد.
 final _dashboardDataProvider =
     FutureProvider.family<_DashboardData, _DashKey>((ref, key) async {
-  final client = Supabase.instance.client;
-  final merchantId = key.merchantId;
-  final branchId = key.branchId;
+  // استدعاء واحد يحسب كل المقاييس على السيرفر (بدل ~10 round-trips).
+  final res = await Supabase.instance.client.rpc('dashboard_summary', params: {
+    'p_merchant': key.merchantId,
+    'p_branch': key.branchId,
+  });
+  final m = res as Map<String, dynamic>;
 
-  final now = DateTime.now();
-  final todayStr = DateFormat('yyyy-MM-dd').format(now);
-  final weekAgo = now.subtract(const Duration(days: 7));
-
-  // عدد العملاء (محافظ user_stores) — أحد مفاتيح اللوحة.
-  var storesQuery = client
-      .from('user_stores')
-      .select('user_id')
-      .eq('merchant_id', merchantId)
-      .count(CountOption.exact);
-  if (branchId != null) {
-    storesQuery = client
-        .from('user_stores')
-        .select('user_id')
-        .eq('merchant_id', merchantId)
-        .eq('branch_id', branchId)
-        .count(CountOption.exact);
-  }
-  final storesRes = await storesQuery;
-  final customers = storesRes.count;
-
-  // زيارات اليوم.
-  final visitsToday = await _count(
-    client,
-    table: 'user_visits',
-    merchantId: merchantId,
-    branchId: branchId,
-    extra: (q) => q.eq('visit_date', todayStr),
-  );
-
-  // زيارات الأسبوع.
-  final visitsWeek = await _count(
-    client,
-    table: 'user_visits',
-    merchantId: merchantId,
-    branchId: branchId,
-    extra: (q) => q.gte('visit_date', DateFormat('yyyy-MM-dd').format(weekAgo)),
-  );
-
-  // إجمالي النقاط الموزّعة (earn).
-  var pointsQuery = client
-      .from('points_transactions')
-      .select('points')
-      .eq('merchant_id', merchantId)
-      .eq('type', 'earn');
-  if (branchId != null) {
-    pointsQuery = client
-        .from('points_transactions')
-        .select('points')
-        .eq('merchant_id', merchantId)
-        .eq('type', 'earn')
-        .eq('branch_id', branchId);
-  }
-  final pointsRows = await pointsQuery;
-  final pointsAwarded = (pointsRows as List)
-      .fold<int>(0, (sum, r) => sum + ((r['points'] as num?)?.toInt() ?? 0));
-
-  // المكافآت المُستبدلة.
-  final redemptions = await _count(
-    client,
-    table: 'reward_redemptions',
-    merchantId: merchantId,
-    branchId: branchId,
-  );
-
-  // معدّل العودة: نسبة العملاء بزيارتين فأكثر إلى إجمالي العملاء.
-  var returningQuery = client
-      .from('user_visits')
-      .select('user_id')
-      .eq('merchant_id', merchantId);
-  if (branchId != null) {
-    returningQuery = client
-        .from('user_visits')
-        .select('user_id')
-        .eq('merchant_id', merchantId)
-        .eq('branch_id', branchId);
-  }
-  final visitRows = await returningQuery;
-  final counts = <String, int>{};
-  for (final r in visitRows as List) {
-    final uid = r['user_id'] as String?;
-    if (uid != null) counts[uid] = (counts[uid] ?? 0) + 1;
-  }
-  final returners = counts.values.where((c) => c >= 2).length;
-  final returnRate =
-      counts.isEmpty ? 0.0 : (returners / counts.length) * 100.0;
-
-  // تنبيه التجربة.
-  int? trialDaysLeft;
-  final sub = await client
-      .from('subscriptions')
-      .select('status, trial_ends_at')
-      .eq('merchant_id', merchantId)
-      .maybeSingle();
-  if (sub != null && sub['status'] == 'trial' && sub['trial_ends_at'] != null) {
-    final ends = DateTime.tryParse(sub['trial_ends_at'] as String);
-    if (ends != null) {
-      final diff = ends.difference(now).inDays;
-      trialDaysLeft = diff < 0 ? 0 : diff;
-    }
-  }
-
-  // آخر النشاطات (آخر 8 عمليات نقاط).
-  var activityQuery = client
-      .from('points_transactions')
-      .select('type, points, reason, created_at')
-      .eq('merchant_id', merchantId);
-  if (branchId != null) {
-    activityQuery = client
-        .from('points_transactions')
-        .select('type, points, reason, created_at')
-        .eq('merchant_id', merchantId)
-        .eq('branch_id', branchId);
-  }
-  final actRows =
-      await activityQuery.order('created_at', ascending: false).limit(8);
-  final recent = (actRows as List).map((r) {
+  final recent = ((m['recent_activity'] as List?) ?? []).map((r) {
     final type = r['type'] as String? ?? 'earn';
     final pts = (r['points'] as num?)?.toInt() ?? 0;
     final created = DateTime.tryParse(r['created_at'] as String? ?? '');
     final isRedeem = type == 'redeem';
     return _Activity(
-      title: isRedeem
-          ? 'استبدال مكافأة بـ $pts نقطة'
-          : 'إضافة $pts نقطة لعميل',
+      title: isRedeem ? 'استبدال مكافأة بـ $pts نقطة' : 'إضافة $pts نقطة لعميل',
       icon: isRedeem
           ? Icons.card_giftcard_rounded
           : Icons.add_circle_outline_rounded,
@@ -524,32 +409,16 @@ final _dashboardDataProvider =
   }).toList();
 
   return _DashboardData(
-    customers: customers,
-    visitsToday: visitsToday,
-    visitsWeek: visitsWeek,
-    pointsAwarded: pointsAwarded,
-    redemptions: redemptions,
-    returnRate: returnRate,
-    trialDaysLeft: trialDaysLeft,
+    customers: (m['customers'] as num?)?.toInt() ?? 0,
+    visitsToday: (m['visits_today'] as num?)?.toInt() ?? 0,
+    visitsWeek: (m['visits_week'] as num?)?.toInt() ?? 0,
+    pointsAwarded: (m['points_awarded'] as num?)?.toInt() ?? 0,
+    redemptions: (m['redemptions'] as num?)?.toInt() ?? 0,
+    returnRate: (m['return_rate'] as num?)?.toDouble() ?? 0.0,
+    trialDaysLeft: (m['trial_days_left'] as num?)?.toInt(),
     recentActivity: recent,
   );
 });
-
-/// عدّاد عام يفلتر بالتاجر والفرع مع شرط إضافي اختياري.
-Future<int> _count(
-  SupabaseClient client, {
-  required String table,
-  required String merchantId,
-  String? branchId,
-  PostgrestFilterBuilder Function(PostgrestFilterBuilder q)? extra,
-}) async {
-  PostgrestFilterBuilder query =
-      client.from(table).select('id').eq('merchant_id', merchantId);
-  if (branchId != null) query = query.eq('branch_id', branchId);
-  if (extra != null) query = extra(query);
-  final res = await query.count(CountOption.exact);
-  return res.count;
-}
 
 String _relativeTime(DateTime t) {
   final diff = DateTime.now().difference(t);
