@@ -52,7 +52,8 @@ loyalty-platform/
 
 # انشر الـ Edge Functions:
 supabase functions deploy verify-qr add-points record-visit \
-  redeem-reward confirm-redemption answer-question
+  redeem-reward confirm-redemption answer-question send-announcement \
+  spin-wheel redeem-prize claim-staff
 ```
 
 ### 2) الحزمة المشتركة + التطبيقات

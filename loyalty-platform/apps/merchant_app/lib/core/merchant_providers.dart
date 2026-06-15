@@ -65,3 +65,30 @@ final merchantSettingsProvider = FutureProvider<MerchantSettings>((ref) async {
   }
   return MerchantSettings.fromJson(row);
 });
+
+/// صلاحيات الموظف الحالي (مشتقّة من دوره). owner = كل شيء.
+class Permissions {
+  final MerchantRole? role;
+  final String legacyRole;
+  const Permissions({this.role, required this.legacyRole});
+
+  bool can(String resource, String action) {
+    if (legacyRole == 'merchant_owner') return true;
+    return role?.can(resource, action) ?? false;
+  }
+}
+
+/// يجلب دور الموظف الحالي وصلاحياته.
+final permissionsProvider = FutureProvider<Permissions>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final row = await Supabase.instance.client
+      .from('merchant_staff')
+      .select('role_id, merchant_roles(*)')
+      .eq('id', staff.staffId)
+      .maybeSingle();
+  final roleJson = row?['merchant_roles'] as Map<String, dynamic>?;
+  return Permissions(
+    role: roleJson == null ? null : MerchantRole.fromJson(roleJson),
+    legacyRole: staff.role,
+  );
+});

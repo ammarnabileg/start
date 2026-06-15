@@ -1,6 +1,6 @@
 // add-points: الكاشير يضيف نقاط (earn). يفرض السقوف ويحدّث المستوى.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
-import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
+import { serviceClient, requireStaff, merchantSettings, staffCan } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -12,6 +12,12 @@ Deno.serve(async (req) => {
 
     if (!user_id || !Number.isInteger(pts) || pts <= 0) {
       return badRequest("قيمة النقاط غير صحيحة");
+    }
+
+    // صلاحية إضافة النقاط (owner يتجاوز).
+    if (staff.role !== "merchant_owner" &&
+        !(await staffCan(svc, staff.staffId, "points", "create"))) {
+      return badRequest("ليس لديك صلاحية إضافة النقاط", 403);
     }
 
     const s = await merchantSettings(svc, staff.merchantId);

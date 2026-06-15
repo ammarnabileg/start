@@ -26,6 +26,7 @@ class ManagementHubScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(merchantSettingsProvider);
+    final perms = ref.watch(permissionsProvider).valueOrNull;
 
     return Scaffold(
       body: settingsAsync.when(
@@ -42,6 +43,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'العملاء',
               subtitle: 'اعرض عملاءك وأرسل لهم إشعارات',
               builder: (_) => const CustomersScreen(),
+              resource: 'customers',
             ),
             if (settings.enableVisits)
               _HubTile(
@@ -50,6 +52,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 title: 'حملات الزيارة',
                 subtitle: 'كافئ العملاء على تكرار الزيارة',
                 builder: (_) => const CampaignsScreen(),
+                resource: 'campaigns',
               ),
             if (settings.enableRewards)
               _HubTile(
@@ -58,6 +61,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 title: 'المكافآت',
                 subtitle: 'الجوائز القابلة للاستبدال بالنقاط',
                 builder: (_) => const RewardsManagementScreen(),
+                resource: 'rewards',
               ),
             if (settings.enableLevels)
               _HubTile(
@@ -66,6 +70,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 title: 'المستويات',
                 subtitle: 'مستويات الولاء حسب إجمالي النقاط',
                 builder: (_) => const LevelsScreen(),
+                resource: 'levels',
               ),
             if (settings.enableCoupons)
               _HubTile(
@@ -74,6 +79,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 title: 'الكوبونات',
                 subtitle: 'أكواد خصم ومنتجات مجانية',
                 builder: (_) => const CouponsScreen(),
+                resource: 'coupons',
               ),
             _HubTile(
               icon: Icons.store_mall_directory_outlined,
@@ -81,6 +87,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الفروع',
               subtitle: 'مواقع المتجر ونطاق إشعار القرب',
               builder: (_) => const BranchesScreen(),
+              resource: 'branches',
             ),
             _HubTile(
               icon: Icons.badge_outlined,
@@ -88,6 +95,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الموظفين',
               subtitle: 'الكاشير ومديرو الفروع وأدوارهم',
               builder: (_) => const StaffScreen(),
+              resource: 'staff',
             ),
             _HubTile(
               icon: Icons.quiz_outlined,
@@ -102,6 +110,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'عجلة الحظ',
               subtitle: 'صمّم عجلة الجوائز ومقاطعها',
               builder: (_) => const WheelManagementScreen(),
+              resource: 'wheel',
             ),
             _HubTile(
               icon: Icons.admin_panel_settings_outlined,
@@ -109,6 +118,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الأدوار والصلاحيات',
               subtitle: 'أدوار مخصّصة وصلاحيات الموظفين',
               builder: (_) => const RolesScreen(),
+              resource: 'roles',
             ),
             _HubTile(
               icon: Icons.insights_rounded,
@@ -116,6 +126,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'التحليلات',
               subtitle: 'الزيارات والنقاط ومعدّل العودة',
               builder: (_) => const AnalyticsScreen(),
+              resource: 'analytics',
             ),
             _HubTile(
               icon: Icons.leaderboard_rounded,
@@ -130,6 +141,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الإعدادات',
               subtitle: 'نطاق النقاط والميزات وحدود الأمان',
               builder: (_) => const MerchantSettingsScreen(),
+              resource: 'settings',
             ),
             if (settings.enableAnnouncements)
               _HubTile(
@@ -138,7 +150,14 @@ class ManagementHubScreen extends ConsumerWidget {
                 title: 'الإعلانات',
                 subtitle: 'أرسل إشعارًا لكل عملائك',
                 builder: (_) => const AnnouncementsScreen(),
+                resource: 'announcements',
               ),
+          ];
+
+          final visible = [
+            for (final t in tiles)
+              if (t.resource == null || perms == null || perms.can(t.resource!, 'view'))
+                t,
           ];
 
           return CustomScrollView(
@@ -161,7 +180,7 @@ class ManagementHubScreen extends ConsumerWidget {
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
-                      final t = tiles[i];
+                      final t = visible[i];
                       return AppCard(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: t.builder),
@@ -196,7 +215,7 @@ class ManagementHubScreen extends ConsumerWidget {
                           .fadeIn(duration: 300.ms, delay: (40 * i).ms)
                           .slideY(begin: .06, end: 0);
                     },
-                    childCount: tiles.length,
+                    childCount: visible.length,
                   ),
                 ),
               ),
@@ -214,11 +233,13 @@ class _HubTile {
   final String title;
   final String subtitle;
   final WidgetBuilder builder;
+  final String? resource; // مورد الصلاحية (null = متاح للكل)
   const _HubTile({
     required this.icon,
     required this.accent,
     required this.title,
     required this.subtitle,
     required this.builder,
+    this.resource,
   });
 }

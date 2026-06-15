@@ -4,6 +4,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import 'login_screen.dart';
 import 'register_business_screen.dart';
+import 'staff_login_screen.dart';
 
 /// 2.2 — شاشة الترحيب. لوجو + شعار + زرّي تسجيل نشاط جديد / تسجيل الدخول.
 class MerchantWelcomeScreen extends StatelessWidget {
@@ -80,6 +81,16 @@ class MerchantWelcomeScreen extends StatelessWidget {
                   .animate()
                   .fadeIn(duration: 400.ms, delay: 320.ms)
                   .slideY(begin: .12, end: 0),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const StaffLoginScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.badge_outlined, size: 20),
+                label: const Text('دخول موظف'),
+              ).animate().fadeIn(duration: 400.ms, delay: 440.ms),
               const Spacer(),
             ],
           ),
