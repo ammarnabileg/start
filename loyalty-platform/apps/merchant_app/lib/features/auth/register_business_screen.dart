@@ -71,7 +71,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
       _lat = 24.7136;
       _lng = 46.6753;
     });
-    _snack('تم تحديد موقع مبدئي — اختيار الخريطة قيد الإضافة');
+    _snack('تم تحديد موقع مبدئي — اختيار الخريطة قيد الإضافة', error: false);
   }
 
   Future<void> _submit() async {
@@ -114,9 +114,9 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
     }
   }
 
-  void _snack(String m) {
+  void _snack(String m, {bool error = true}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    AppFeedback.toast(context, m, error: error);
   }
 
   @override
@@ -127,10 +127,13 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md,
+                AppSpacing.xl, AppSpacing.xxxl),
             children: [
               _logoPicker(),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
+              const SectionHeader(title: 'بيانات النشاط'),
+              const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _nameCtrl,
                 textInputAction: TextInputAction.next,
@@ -141,7 +144,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               DropdownButtonFormField<String>(
                 value: _businessType,
                 decoration: const InputDecoration(
@@ -157,7 +160,9 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 onChanged: (v) =>
                     setState(() => _businessType = v ?? _businessType),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.xl),
+              const SectionHeader(title: 'بيانات التواصل'),
+              const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
@@ -170,7 +175,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 validator: (v) =>
                     (v == null || v.trim().length < 9) ? 'رقم غير صالح' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               TextFormField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
@@ -185,7 +190,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               TextFormField(
                 controller: _crCtrl,
                 keyboardType: TextInputType.number,
@@ -195,7 +200,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                   prefixIcon: Icon(Icons.assignment_outlined),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               TextFormField(
                 controller: _addressCtrl,
                 maxLines: 2,
@@ -208,7 +213,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
                 onPressed: _pickLocation,
                 icon: const Icon(Icons.map_outlined),
@@ -218,11 +223,13 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.xl),
+              const SectionHeader(title: 'الأمان'),
+              const SizedBox(height: AppSpacing.md),
               TextFormField(
                 controller: _passwordCtrl,
                 obscureText: _obscure,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
@@ -28,9 +29,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(currentUserProvider);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذّر حفظ الإعداد، حاول مرة أخرى.')),
-        );
+        AppFeedback.toast(context, 'تعذّر حفظ الإعداد، حاول مرة أخرى.',
+            error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

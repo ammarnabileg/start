@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscure = true;
   bool _loading = false;
-  String? _error;
 
   @override
   void initState() {
@@ -59,10 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         phone: _e164Phone,
@@ -71,9 +67,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       context.go('/');
     } on AuthException {
-      setState(() => _error = 'رقم الجوال أو كلمة المرور غير صحيحة');
+      if (mounted) {
+        AppFeedback.toast(context, 'رقم الجوال أو كلمة المرور غير صحيحة',
+            error: true);
+      }
     } catch (_) {
-      setState(() => _error = 'حدث خطأ غير متوقع، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'حدث خطأ غير متوقع، حاول مرة أخرى.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -86,9 +88,20 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(title: const Text('تسجيل الدخول'), centerTitle: true),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
+            Text('أهلًا بعودتك', style: theme.textTheme.displayLarge)
+                .animate()
+                .fadeIn(duration: 350.ms)
+                .slideY(begin: .12, end: 0),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'سجّل دخولك للوصول إلى نقاطك ومكافآتك.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
             // رقم الجوال
             _Label('رقم الجوال'),
             TextField(
@@ -113,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.lg),
 
             // كلمة المرور
             _Label('كلمة المرور'),
@@ -145,16 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style:
-                    theme.textTheme.bodyMedium?.copyWith(color: AppColors.error),
-              ),
-            ],
-
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             PrimaryButton(
               label: 'تسجيل الدخول',
               loading: _loading,

@@ -24,7 +24,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscure = true;
   bool _acceptedTerms = false;
   bool _loading = false;
-  String? _error;
 
   @override
   void initState() {
@@ -106,10 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     final phone = _e164Phone;
     try {
       await Supabase.instance.client.auth.signInWithOtp(phone: phone);
@@ -129,9 +125,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ));
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) AppFeedback.toast(context, e.message, error: true);
     } catch (_) {
-      setState(() => _error = 'حدث خطأ غير متوقع، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'حدث خطأ غير متوقع، حاول مرة أخرى.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -144,8 +143,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(title: const Text('إنشاء حساب جديد'), centerTitle: true),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
+            Text(
+              'لننشئ حسابك ونبدأ بجمع النقاط.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+
             // الاسم الكامل
             _Label('الاسم الكامل'),
             TextField(
@@ -267,20 +273,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
 
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.error)),
-            ],
-
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             PrimaryButton(
               label: 'إنشاء الحساب',
               loading: _loading,
               onPressed: _canSubmit ? _submit : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
       ),

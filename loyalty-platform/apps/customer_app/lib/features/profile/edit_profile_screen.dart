@@ -21,7 +21,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   bool _initialized = false;
   bool _saving = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -59,10 +58,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _save() async {
     if (!_nameValid || !_emailValid) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+    setState(() => _saving = true);
     try {
       final client = Supabase.instance.client;
       final uid = client.auth.currentUser!.id;
@@ -75,12 +71,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }).eq('id', uid);
       ref.invalidate(currentUserProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ التغييرات')),
-      );
+      AppFeedback.toast(context, 'تم حفظ التغييرات');
       Navigator.of(context).pop();
     } catch (_) {
-      setState(() => _error = 'تعذّر حفظ التغييرات، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر حفظ التغييرات، حاول مرة أخرى.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -101,18 +98,31 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         data: (user) {
           _seed(user);
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             children: [
               Center(
                 child: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 44,
-                      backgroundColor: AppColors.primaryLight,
+                    Container(
+                      height: 96,
+                      width: 96,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        gradient: AppColors.goldGradient,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                              color: AppColors.shadow,
+                              blurRadius: 18,
+                              offset: Offset(0, 8)),
+                        ],
+                      ),
                       child: Text(
                         user.name.characters.first,
                         style: const TextStyle(
-                            fontSize: 32, fontWeight: FontWeight.w800),
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onPrimary),
                       ),
                     ),
                     Positioned(
@@ -127,13 +137,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           icon: const Icon(Icons.camera_alt_outlined,
                               color: AppColors.onPrimary),
                           // TODO: storage — اختيار ورفع صورة شخصية.
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('رفع الصورة سيتوفر قريبًا.')),
-                            );
-                          },
+                          onPressed: () => AppFeedback.toast(
+                              context, 'رفع الصورة سيتوفر قريبًا.'),
                         ),
                       ),
                     ),
@@ -190,15 +195,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                 ),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(_error!,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.error)),
-              ],
-              const SizedBox(height: 28),
+              const SizedBox(height: AppSpacing.xxxl),
               PrimaryButton(
                 label: 'حفظ',
+                icon: Icons.check_rounded,
                 loading: _saving,
                 onPressed: (_nameValid && _emailValid) ? _save : null,
               ),

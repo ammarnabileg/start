@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,7 +34,7 @@ class BranchesScreen extends ConsumerWidget {
         label: const Text('فرع جديد'),
       ),
       body: async.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل الفروع',
           onRetry: () => ref.invalidate(branchesProvider),
@@ -58,11 +59,15 @@ class BranchesScreen extends ConsumerWidget {
                 onTap: () => _openEditor(context, ref, b),
                 child: Row(
                   children: [
-                    const CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppColors.surfaceCream,
-                      child: Icon(Icons.location_on_outlined,
-                          color: AppColors.primaryDark),
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: .15),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: const Icon(Icons.location_on_outlined,
+                          color: AppColors.success),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -80,7 +85,10 @@ class BranchesScreen extends ConsumerWidget {
                     _ActiveChip(active: b['active'] == true),
                   ],
                 ),
-              );
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                  .slideY(begin: .06, end: 0);
             },
           );
         },
@@ -180,11 +188,13 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
             .update(payload)
             .eq('id', widget.existing!['id'] as String);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ الفرع');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }
@@ -224,8 +234,8 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
             // TODO: اختيار الموقع على الخريطة لتحديد lat/lng.
             OutlinedButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('اختيار الموقع على الخريطة — قريبًا')));
+                AppFeedback.toast(
+                    context, 'اختيار الموقع على الخريطة — قريبًا');
               },
               icon: const Icon(Icons.map_outlined),
               label: Text(_lat == null || _lng == null

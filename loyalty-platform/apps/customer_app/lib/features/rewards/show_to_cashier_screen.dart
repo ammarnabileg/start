@@ -102,6 +102,11 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
       setState(() => _status = _RedemptionStatus.confirmed);
       _ticker?.cancel();
       _poller?.cancel();
+      AppFeedback.success(
+        context,
+        title: 'تم الاستلام بنجاح',
+        message: 'استمتع بـ $_rewardName!',
+      );
     } else if (status == 'expired' || status == 'cancelled') {
       if (_status == _RedemptionStatus.pending) {
         setState(() => _status = _RedemptionStatus.expired);
@@ -127,14 +132,16 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
           padding: const EdgeInsets.all(24),
           child: switch (_status) {
             _RedemptionStatus.confirmed => _ResultView(
-                icon: Icons.check_circle,
+                icon: Icons.check_rounded,
                 color: AppColors.success,
+                bg: AppColors.successBg,
                 title: 'تم الاستلام بنجاح ✓',
                 message: 'استمتع بـ $_rewardName!',
               ),
             _RedemptionStatus.expired => _ResultView(
                 icon: Icons.timer_off_outlined,
                 color: AppColors.error,
+                bg: AppColors.errorBg,
                 title: 'انتهت الصلاحية',
                 message: 'لم يتم تأكيد الاستلام في الوقت المحدد. لم تُخصم نقاطك.',
               ),
@@ -142,12 +149,18 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(_rewardName, style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 8),
+                  Text('أرِ هذا الرمز للكاشير',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(AppTheme.radius),
+                      border: Border.all(
+                          color: AppColors.primaryLight, width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.05),
@@ -163,10 +176,26 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('صالح لمدة $_countdownText',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(color: AppColors.primaryDark)),
-                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceCream,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer_outlined,
+                            size: 20, color: AppColors.primaryDark),
+                        const SizedBox(width: 8),
+                        Text('صالح لمدة $_countdownText',
+                            style: theme.textTheme.titleLarge
+                                ?.copyWith(color: AppColors.primaryDark)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   Text('اطلب من الكاشير تأكيد الاستلام.',
                       style: theme.textTheme.bodyMedium,
                       textAlign: TextAlign.center),
@@ -182,11 +211,13 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
 class _ResultView extends StatelessWidget {
   final IconData icon;
   final Color color;
+  final Color bg;
   final String title;
   final String message;
   const _ResultView({
     required this.icon,
     required this.color,
+    required this.bg,
     required this.title,
     required this.message,
   });
@@ -197,7 +228,12 @@ class _ResultView extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 80, color: color),
+        Container(
+          height: 100,
+          width: 100,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Icon(icon, size: 56, color: color),
+        ),
         const SizedBox(height: 20),
         Text(title,
             style: theme.textTheme.headlineSmall, textAlign: TextAlign.center),

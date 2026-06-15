@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,7 +41,7 @@ class MyStoresScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('متاجري'), centerTitle: true),
       body: stores.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorView(
             message: 'تعذّر تحميل المتاجر',
             onRetry: () => ref.invalidate(myStoresProvider)),
@@ -58,7 +59,10 @@ class MyStoresScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               itemCount: list.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) => _StoreCard(store: list[i]),
+              itemBuilder: (_, i) => _StoreCard(store: list[i])
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (i * 60).ms)
+                  .slideY(begin: .08, end: 0, curve: Curves.easeOut),
             ),
           );
         },
@@ -93,23 +97,59 @@ class _StoreCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(store.merchantName ?? 'متجر',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  [
-                    if (store.branchName != null) store.branchName!,
-                    if (store.currentLevelName != null) store.currentLevelName!,
-                  ].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (store.branchName != null)
+                      Text(store.branchName!,
+                          style: Theme.of(context).textTheme.bodySmall),
+                    if (store.currentLevelName != null) _LevelChip(store.currentLevelName!),
+                  ],
                 ),
+                const SizedBox(height: 10),
+                PointsBadge(points: store.availablePoints),
               ],
             ),
           ),
-          PointsBadge(points: store.availablePoints),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_left_rounded,
+              color: AppColors.textSecondary),
         ],
       ),
     );
   }
+}
+
+class _LevelChip extends StatelessWidget {
+  final String label;
+  const _LevelChip(this.label);
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCream,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.workspace_premium_outlined,
+                size: 14, color: AppColors.primaryDark),
+            const SizedBox(width: 4),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark)),
+          ],
+        ),
+      );
 }
 
 class _LogoFallback extends StatelessWidget {

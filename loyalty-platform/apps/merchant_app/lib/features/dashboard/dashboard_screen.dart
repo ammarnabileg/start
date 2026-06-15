@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
@@ -25,9 +26,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final staffAsync = ref.watch(currentStaffProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('لوحة التحكم')),
       body: staffAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(count: 5),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل بيانات الحساب',
           onRetry: () => ref.invalidate(currentStaffProvider),
@@ -46,7 +46,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ref.invalidate(_branchesProvider(staff.merchantId));
             },
             child: dataAsync.when(
-              loading: () => const LoadingView(),
+              loading: () => const SkeletonList(count: 5),
               error: (e, _) => ListView(
                 children: [
                   const SizedBox(height: 120),
@@ -72,38 +72,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     _DashboardData data,
   ) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: EdgeInsets.zero,
       children: [
-        if (data.trialDaysLeft != null && data.trialDaysLeft! <= 5)
-          _TrialBanner(daysLeft: data.trialDaysLeft!),
-        _BranchFilter(
-          merchantId: staff.merchantId,
-          selected: _branchId,
-          onChanged: (v) => setState(() => _branchId = v),
-        ),
-        const SizedBox(height: 16),
-        _StatsGrid(data: data),
-        const SizedBox(height: 20),
-        // زرار كبير "مسح رمز العميل".
-        PrimaryButton(
-          label: 'مسح رمز العميل',
-          icon: Icons.qr_code_scanner_rounded,
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const ScannerScreen()),
+        HeroHeader(
+          title: 'لوحة التحكم',
+          subtitle: 'نظرة سريعة على أداء متجرك اليوم',
+          gradient: AppColors.darkGradient,
+          trailing: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: const Icon(Icons.storefront_rounded,
+                color: AppColors.gold, size: 26),
           ),
         ),
-        const SizedBox(height: 24),
-        Text('آخر النشاطات',
-            style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
-        if (data.recentActivity.isEmpty)
-          const EmptyView(
-            title: 'لا يوجد نشاط بعد',
-            message: 'ستظهر هنا آخر عمليات النقاط والاستبدال.',
-            icon: Icons.history_rounded,
-          )
-        else
-          ...data.recentActivity.map((a) => _ActivityTile(activity: a)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (data.trialDaysLeft != null && data.trialDaysLeft! <= 5)
+                _TrialBanner(daysLeft: data.trialDaysLeft!),
+              _BranchFilter(
+                merchantId: staff.merchantId,
+                selected: _branchId,
+                onChanged: (v) => setState(() => _branchId = v),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _StatsGrid(data: data),
+              const SizedBox(height: AppSpacing.xl),
+              // زرار كبير "مسح رمز العميل".
+              PrimaryButton(
+                label: 'مسح رمز العميل',
+                icon: Icons.qr_code_scanner_rounded,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const ScannerScreen()),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              const SectionHeader(title: 'آخر النشاطات'),
+              const SizedBox(height: AppSpacing.md),
+              if (data.recentActivity.isEmpty)
+                const EmptyView(
+                  title: 'لا يوجد نشاط بعد',
+                  message: 'ستظهر هنا آخر عمليات النقاط والاستبدال.',
+                  icon: Icons.history_rounded,
+                )
+              else
+                ...data.recentActivity.asMap().entries.map(
+                      (e) => _ActivityTile(activity: e.value)
+                          .animate()
+                          .fadeIn(duration: 300.ms, delay: (e.key * 40).ms)
+                          .slideY(begin: .06, end: 0),
+                    ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -118,78 +146,67 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = <Widget>[
-      _StatCard(
+      const StatCard(
         icon: Icons.people_alt_rounded,
         label: 'عدد العملاء',
-        value: '${data.customers}',
+        value: '',
       ),
-      _StatCard(
+      const StatCard(
         icon: Icons.today_rounded,
         label: 'زيارات اليوم',
-        value: '${data.visitsToday}',
+        value: '',
       ),
-      _StatCard(
+      const StatCard(
         icon: Icons.date_range_rounded,
         label: 'زيارات الأسبوع',
-        value: '${data.visitsWeek}',
+        value: '',
       ),
-      _StatCard(
+      const StatCard(
         icon: Icons.stars_rounded,
         label: 'النقاط الموزّعة',
-        value: NumberFormat.decimalPattern('ar').format(data.pointsAwarded),
+        value: '',
       ),
-      _StatCard(
+      const StatCard(
         icon: Icons.card_giftcard_rounded,
         label: 'المكافآت المُستبدلة',
-        value: '${data.redemptions}',
+        value: '',
       ),
-      _StatCard(
+      const StatCard(
         icon: Icons.replay_rounded,
         label: 'معدّل العودة',
-        value: '${data.returnRate.toStringAsFixed(0)}%',
+        value: '',
       ),
+    ];
+
+    // قيم البطاقات بالترتيب نفسه أعلاه.
+    final values = <String>[
+      '${data.customers}',
+      '${data.visitsToday}',
+      '${data.visitsWeek}',
+      NumberFormat.decimalPattern('ar').format(data.pointsAwarded),
+      '${data.redemptions}',
+      '${data.returnRate.toStringAsFixed(0)}%',
     ];
 
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: cards,
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _StatCard(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.surfaceCream,
-            child: Icon(icon, size: 20, color: AppColors.primaryDark),
-          ),
-          Text(value,
-              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-          Text(label,
-              style:
-                  text.bodySmall?.copyWith(color: AppColors.textSecondary)),
-        ],
-      ),
+      mainAxisSpacing: AppSpacing.md,
+      crossAxisSpacing: AppSpacing.md,
+      childAspectRatio: 1.45,
+      children: [
+        for (var i = 0; i < cards.length; i++)
+          StatCard(
+            icon: (cards[i] as StatCard).icon,
+            label: (cards[i] as StatCard).label,
+            value: values[i],
+            highlight: i == 0,
+          )
+              .animate()
+              .fadeIn(duration: 300.ms, delay: (i * 60).ms)
+              .slideY(begin: .08, end: 0),
+      ],
     );
   }
 }

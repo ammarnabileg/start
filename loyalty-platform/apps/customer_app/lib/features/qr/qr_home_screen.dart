@@ -73,6 +73,7 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
     final userAsync = ref.watch(currentUserProvider);
     return Scaffold(
       body: SafeArea(
+        top: false,
         child: userAsync.when(
           loading: () => const LoadingView(),
           error: (e, _) => ErrorView(
@@ -83,48 +84,112 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
             if (_payload.isEmpty) {
               _payload = QrToken.generate(user.id, user.qrSecret);
             }
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  Text('أرِ هذا الرمز للكاشير',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 28),
-                  AppCard(
-                    padding: const EdgeInsets.all(28),
+            final firstName = user.name.split(' ').first;
+            return Column(
+              children: [
+                HeroHeader(
+                  title: 'أهلاً، $firstName',
+                  subtitle: 'أرِ هذا الرمز للكاشير عند الدفع',
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.onPrimary.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
+                    ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        QrImageView(
-                          data: _payload,
-                          version: QrVersions.auto,
-                          size: 240,
-                          backgroundColor: Colors.white,
-                        ),
-                        const SizedBox(height: 20),
-                        Text(user.name,
-                            style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 4),
-                        Text('عضوية: ${user.id.substring(0, 8).toUpperCase()}',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(height: 18),
-                        _CountdownRing(remaining: _remaining),
+                        const Text('عضوية',
+                            style: TextStyle(
+                                color: AppColors.onPrimary, fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(user.id.substring(0, 8).toUpperCase(),
+                            style: const TextStyle(
+                                color: AppColors.onPrimary,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1)),
                       ],
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 400.ms)
-                      .scale(
-                          begin: const Offset(.96, .96),
-                          end: const Offset(1, 1),
-                          curve: Curves.easeOutBack),
-                  const Spacer(),
-                  Text('يتجدّد الرمز تلقائيًا للحفاظ على أمان حسابك',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall),
-                  const SizedBox(height: 12),
-                ],
-              ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                    child: Column(
+                      children: [
+                        const Spacer(),
+                        AppCard(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadii.md),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: AppColors.shadowSoft,
+                                        blurRadius: 12,
+                                        offset: Offset(0, 4)),
+                                  ],
+                                ),
+                                child: QrImageView(
+                                  data: _payload,
+                                  version: QrVersions.auto,
+                                  size: 230,
+                                  backgroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(user.name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium),
+                              const SizedBox(height: 16),
+                              _CountdownRing(remaining: _remaining),
+                            ],
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .scale(
+                                begin: const Offset(.96, .96),
+                                end: const Offset(1, 1),
+                                curve: Curves.easeOutBack),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceCream,
+                            borderRadius:
+                                BorderRadius.circular(AppRadii.pill),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.lock_outline_rounded,
+                                  size: 16, color: AppColors.textSecondary),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                    'يتجدّد الرمز تلقائيًا للحفاظ على أمان حسابك',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),

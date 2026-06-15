@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import 'login_screen.dart';
@@ -13,22 +14,43 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
             children: [
               const Spacer(),
               // استبدل بالكتكوت يلوّح
-              const CircleAvatar(
-                  radius: 56,
-                  backgroundColor: AppColors.primaryLight,
-                  child: Icon(Icons.egg_alt_rounded,
-                      size: 56, color: AppColors.primaryDark)),
-              const SizedBox(height: 24),
+              Container(
+                height: 140,
+                width: 140,
+                decoration: const BoxDecoration(
+                  gradient: AppColors.goldGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: AppColors.shadow,
+                        blurRadius: 24,
+                        offset: Offset(0, 10)),
+                  ],
+                ),
+                child: const Icon(Icons.egg_alt_rounded,
+                    size: 72, color: AppColors.onPrimary),
+              )
+                  .animate()
+                  .scale(duration: 500.ms, curve: Curves.easeOutBack)
+                  .fadeIn(),
+              const SizedBox(height: AppSpacing.xxl),
               Text('أهلًا بك',
-                  style: Theme.of(context).textTheme.displayLarge),
-              const SizedBox(height: 8),
+                      style: Theme.of(context).textTheme.displayLarge,
+                      textAlign: TextAlign.center)
+                  .animate()
+                  .fadeIn(delay: 150.ms, duration: 400.ms)
+                  .slideY(begin: .2, end: 0),
+              const SizedBox(height: AppSpacing.sm),
               Text('كل برامج الولاء في مكان واحد',
-                  style: Theme.of(context).textTheme.bodyLarge),
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center)
+                  .animate()
+                  .fadeIn(delay: 250.ms, duration: 400.ms),
               const Spacer(),
               PrimaryButton(
                 label: 'إنشاء حساب جديد',
@@ -37,16 +59,18 @@ class WelcomeScreen extends StatelessWidget {
                     builder: (_) => const RegisterScreen(),
                   ));
                 },
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const LoginScreen(),
-                    ));
-                  },
-                  child: const Text('تسجيل الدخول')),
-              const SizedBox(height: 8),
+              ).animate().fadeIn(delay: 350.ms).slideY(begin: .3, end: 0),
+              const SizedBox(height: AppSpacing.md),
+              PrimaryButton(
+                label: 'تسجيل الدخول',
+                variant: AppButtonVariant.ghost,
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const LoginScreen(),
+                  ));
+                },
+              ).animate().fadeIn(delay: 450.ms).slideY(begin: .3, end: 0),
+              const SizedBox(height: AppSpacing.sm),
             ],
           ),
         ),

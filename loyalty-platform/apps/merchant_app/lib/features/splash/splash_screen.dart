@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -60,7 +61,10 @@ class _SplashScreenState extends State<SplashScreen> {
                 // الأصل النهائي: شعار/كتكوت Hatchy (assets/mascot/wave.png).
                 child: const Icon(Icons.storefront_rounded,
                     size: 64, color: AppColors.primaryDark),
-              ),
+              )
+                  .animate()
+                  .scale(duration: 500.ms, curve: Curves.easeOutBack)
+                  .fadeIn(),
               const SizedBox(height: 24),
               const Text(
                 'Hatchy',
@@ -69,7 +73,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   fontWeight: FontWeight.w800,
                   color: AppColors.onPrimary,
                 ),
-              ),
+              ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(
+                  begin: .2, end: 0, curve: Curves.easeOut),
               const SizedBox(height: 6),
               const Text(
                 'برنامج الولاء لمتجرك',
@@ -78,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   fontWeight: FontWeight.w600,
                   color: AppColors.onPrimary,
                 ),
-              ),
+              ).animate().fadeIn(duration: 400.ms, delay: 320.ms),
               const SizedBox(height: 36),
               const SizedBox(
                 width: 26,

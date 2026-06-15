@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -94,15 +95,15 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
   Future<void> _resend() async {
     try {
       await Supabase.instance.client.auth.signInWithOtp(phone: widget.phone);
-      _snack('تم إرسال رمز جديد');
+      _snack('تم إرسال رمز جديد', error: false);
     } catch (_) {
       _snack('تعذّر إعادة الإرسال');
     }
   }
 
-  void _snack(String m) {
+  void _snack(String m, {bool error = true}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    AppFeedback.toast(context, m, error: error);
   }
 
   @override
@@ -112,27 +113,35 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
       appBar: AppBar(title: const Text('تأكيد رقم الجوال')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
           children: [
-            const SizedBox(height: 12),
-            const Center(
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: AppColors.surfaceCream,
-                child: Icon(Icons.sms_outlined,
-                    size: 40, color: AppColors.primaryDark),
-              ),
+            const SizedBox(height: AppSpacing.md),
+            Center(
+              child: Container(
+                width: 88,
+                height: 88,
+                decoration: const BoxDecoration(
+                  gradient: AppColors.heroGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.sms_outlined,
+                    size: 44, color: AppColors.onPrimary),
+              )
+                  .animate()
+                  .scale(duration: 450.ms, curve: Curves.easeOutBack)
+                  .fadeIn(),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Text('أدخل رمز التحقق',
                 style: text.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'أرسلنا رمزًا مكوّنًا من 6 أرقام إلى ${widget.phone}',
               style: text.bodyMedium?.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: AppSpacing.xxl),
             TextField(
               controller: _codeCtrl,
               keyboardType: TextInputType.number,
@@ -144,15 +153,17 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
               decoration: const InputDecoration(
                 counterText: '',
                 hintText: '------',
+                filled: true,
+                fillColor: AppColors.surfaceCream,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             PrimaryButton(
               label: 'تأكيد',
               loading: _busy,
               onPressed: _busy ? null : _verify,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             TextButton(
               onPressed: _busy ? null : _resend,
               child: const Text('إعادة إرسال الرمز'),

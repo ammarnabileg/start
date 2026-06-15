@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,7 +27,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   bool _obscure = true;
   bool _loading = false;
-  String? _error;
 
   Timer? _timer;
   int _secondsLeft = 30;
@@ -87,18 +87,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ===== خطوة 1: إرسال OTP =====
   Future<void> _sendOtp() async {
     if (!_phoneValid || _loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth.signInWithOtp(phone: _e164Phone);
       _startCountdown();
       setState(() => _step = _Step.otp);
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) AppFeedback.toast(context, e.message, error: true);
     } catch (_) {
-      setState(() => _error = 'تعذّر إرسال الرمز، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر إرسال الرمز، حاول مرة أخرى.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -107,10 +107,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ===== خطوة 2: التحقق من OTP =====
   Future<void> _verifyOtp() async {
     if (_codeCtrl.text.length < 4 || _loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth.verifyOTP(
         type: OtpType.sms,
@@ -119,9 +116,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
       setState(() => _step = _Step.newPassword);
     } on AuthException {
-      setState(() => _error = 'رمز التحقق غير صحيح.');
+      if (mounted) {
+        AppFeedback.toast(context, 'رمز التحقق غير صحيح.', error: true);
+      }
     } catch (_) {
-      setState(() => _error = 'حدث خطأ، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'حدث خطأ، حاول مرة أخرى.', error: true);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -134,10 +135,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _setNewPassword() async {
     if (!_passwordsValid || _loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _passwordCtrl.text),
@@ -146,9 +144,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await Supabase.instance.client.auth.signOut();
       setState(() => _step = _Step.done);
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) AppFeedback.toast(context, e.message, error: true);
     } catch (_) {
-      setState(() => _error = 'تعذّر تحديث كلمة المرور، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر تحديث كلمة المرور، حاول مرة أخرى.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -207,13 +208,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.error)),
-        ],
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         PrimaryButton(
           label: 'إرسال الرمز',
           loading: _loading,
@@ -262,13 +257,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: AppColors.textSecondary)),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.error)),
-        ],
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         PrimaryButton(
           label: 'تأكيد',
           loading: _loading,
@@ -310,13 +299,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             errorText: mismatch ? 'كلمتا المرور غير متطابقتين' : null,
           ),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.error)),
-        ],
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         PrimaryButton(
           label: 'حفظ كلمة المرور',
           loading: _loading,
@@ -333,16 +316,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircleAvatar(
-            radius: 56,
-            backgroundColor: AppColors.primaryLight,
-            child: Icon(Icons.check_rounded,
-                size: 56, color: AppColors.success),
-          ),
-          const SizedBox(height: 24),
+          Container(
+            height: 112,
+            width: 112,
+            decoration: const BoxDecoration(
+                color: AppColors.successBg, shape: BoxShape.circle),
+            child: const Icon(Icons.check_rounded,
+                size: 60, color: AppColors.success),
+          )
+              .animate()
+              .scale(duration: 460.ms, curve: Curves.easeOutBack)
+              .fadeIn(),
+          const SizedBox(height: AppSpacing.xxl),
           Text('تم تغيير كلمة المرور',
               style: theme.textTheme.displayLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.',
             style: theme.textTheme.bodyLarge

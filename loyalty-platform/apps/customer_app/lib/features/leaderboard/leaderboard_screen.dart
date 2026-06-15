@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -51,18 +52,165 @@ class LeaderboardScreen extends ConsumerWidget {
               message: 'كن أول من يتصدّر القائمة بجمع النقاط!',
             );
           }
+          final top = list.take(3).toList();
+          final rest = list.length > 3 ? list.sublist(3) : <LeaderboardEntry>[];
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(leaderboardProvider(args)),
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) =>
-                  _RankRow(entry: list[i], isMe: list[i].userId == myId),
+              children: [
+                _Podium(top: top, myId: myId)
+                    .animate()
+                    .fadeIn(duration: 350.ms)
+                    .slideY(begin: .08, end: 0, curve: Curves.easeOut),
+                if (rest.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const SectionHeader(title: 'بقية القائمة'),
+                  const SizedBox(height: 4),
+                  for (var i = 0; i < rest.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _RankRow(
+                              entry: rest[i], isMe: rest[i].userId == myId)
+                          .animate()
+                          .fadeIn(duration: 300.ms, delay: (i * 50).ms)
+                          .slideY(begin: .08, end: 0, curve: Curves.easeOut),
+                    ),
+                ],
+              ],
             ),
           );
         },
       ),
+    );
+  }
+}
+
+/// منصّة المتصدّرين (Top 3) — ميداليات وتدرّجات ذهبية.
+class _Podium extends StatelessWidget {
+  final List<LeaderboardEntry> top;
+  final String? myId;
+  const _Podium({required this.top, required this.myId});
+
+  @override
+  Widget build(BuildContext context) {
+    LeaderboardEntry? at(int rank) {
+      for (final e in top) {
+        if (e.rank == rank) return e;
+      }
+      return null;
+    }
+
+    final first = at(1);
+    final second = at(2);
+    final third = at(3);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+            child: second == null
+                ? const SizedBox.shrink()
+                : _PodiumPillar(
+                    entry: second, isMe: second.userId == myId, height: 130)),
+        const SizedBox(width: 10),
+        Expanded(
+            child: first == null
+                ? const SizedBox.shrink()
+                : _PodiumPillar(
+                    entry: first, isMe: first.userId == myId, height: 168)),
+        const SizedBox(width: 10),
+        Expanded(
+            child: third == null
+                ? const SizedBox.shrink()
+                : _PodiumPillar(
+                    entry: third, isMe: third.userId == myId, height: 112)),
+      ],
+    );
+  }
+}
+
+class _PodiumPillar extends StatelessWidget {
+  final LeaderboardEntry entry;
+  final bool isMe;
+  final double height;
+  const _PodiumPillar(
+      {required this.entry, required this.isMe, required this.height});
+
+  String get _medal => switch (entry.rank) {
+        1 => '🥇',
+        2 => '🥈',
+        _ => '🥉',
+      };
+
+  Color get _accent => switch (entry.rank) {
+        1 => AppColors.goldTier,
+        2 => AppColors.silver,
+        _ => AppColors.bronze,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isFirst = entry.rank == 1;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(_medal, style: const TextStyle(fontSize: 30)),
+        const SizedBox(height: 6),
+        Text(
+          isMe ? '${entry.displayName} (أنت)' : entry.displayName,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(fontWeight: FontWeight.w700),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: height,
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: isFirst
+                ? AppColors.goldGradient
+                : LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _accent.withValues(alpha: .85),
+                      _accent.withValues(alpha: .55),
+                    ],
+                  ),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+            border: isMe
+                ? Border.all(color: AppColors.primaryDark, width: 2)
+                : null,
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadow, blurRadius: 14, offset: Offset(0, 6)),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('${entry.rank}',
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(color: AppColors.onPrimary)),
+              const SizedBox(height: 4),
+              Text('${entry.totalPoints}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.onPrimary)),
+              Text('نقطة',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.onPrimary.withValues(alpha: .8))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

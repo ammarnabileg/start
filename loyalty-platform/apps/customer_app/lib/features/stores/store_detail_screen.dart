@@ -182,24 +182,53 @@ class StoreDetailScreen extends StatelessWidget {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(store.merchantName ?? 'المتجر'),
-          centerTitle: true,
-          bottom: TabBar(
-            isScrollable: true,
-            tabs: [for (final t in tabs) Tab(text: t)],
-          ),
-        ),
-        body: TabBarView(
+        body: Column(
           children: [
+            HeroHeader(
+              title: store.merchantName ?? 'المتجر',
+              subtitle: store.branchName ??
+                  (store.currentLevelName != null
+                      ? 'مستوى ${store.currentLevelName}'
+                      : null),
+              trailing: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                child: store.merchantLogoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: store.merchantLogoUrl!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover)
+                    : Container(
+                        width: 56,
+                        height: 56,
+                        color: AppColors.onPrimary.withValues(alpha: .12),
+                        child: const Icon(Icons.storefront,
+                            color: AppColors.onPrimary),
+                      ),
+              ),
+              bottom: PointsBadge(points: store.availablePoints),
+            ),
+            Material(
+              color: AppColors.surface,
+              child: TabBar(
+                isScrollable: true,
+                tabs: [for (final t in tabs) Tab(text: t)],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
             _OverviewTab(store: store),
             _VisitsTab(store: store),
             _PointsTab(store: store),
             _RewardsTab(store: store),
             _LevelsTab(store: store),
             _CouponsTab(store: store),
-            _QuestionsTab(store: store),
-            _HistoryTab(store: store),
+                  _QuestionsTab(store: store),
+                  _HistoryTab(store: store),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -215,69 +244,39 @@ class _OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const SectionHeader(title: 'حالتك في المتجر'),
+        const SizedBox(height: 8),
+        // بطاقة الحالة السريعة: المستوى + النقاط المتاحة + إجمالي النقاط.
         Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: store.merchantLogoUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: store.merchantLogoUrl!,
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover)
-                  : Container(
-                      width: 72,
-                      height: 72,
-                      color: AppColors.surfaceCream,
-                      child: const Icon(Icons.storefront,
-                          color: AppColors.primaryDark, size: 34),
-                    ),
-            ),
-            const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(store.merchantName ?? 'المتجر',
-                      style: theme.textTheme.titleLarge),
-                  if (store.branchName != null) ...[
-                    const SizedBox(height: 4),
-                    Text(store.branchName!, style: theme.textTheme.bodySmall),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // بطاقة الحالة السريعة: المستوى + النقاط المتاحة + الزيارات.
-        AppCard(
-          color: AppColors.surfaceCream,
-          child: Row(
-            children: [
-              _QuickStat(
+              child: StatCard(
                 icon: Icons.workspace_premium_outlined,
                 label: 'المستوى',
                 value: store.currentLevelName ?? '—',
+                highlight: true,
               ),
-              const _StatDivider(),
-              _QuickStat(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatCard(
                 icon: Icons.star_rounded,
                 label: 'النقاط المتاحة',
                 value: '${store.availablePoints}',
               ),
-              const _StatDivider(),
-              _QuickStat(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatCard(
                 icon: Icons.event_available_outlined,
                 label: 'إجمالي النقاط',
                 value: '${store.lifetimePoints}',
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: 20),
         PrimaryButton(
@@ -296,40 +295,6 @@ class _OverviewTab extends StatelessWidget {
       ],
     );
   }
-}
-
-class _QuickStat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _QuickStat(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.primaryDark, size: 24),
-          const SizedBox(height: 8),
-          Text(value,
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center),
-          const SizedBox(height: 2),
-          Text(label,
-              style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatDivider extends StatelessWidget {
-  const _StatDivider();
-  @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 44, color: AppColors.divider);
 }
 
 // ===================== الزيارات =====================
@@ -1028,8 +993,10 @@ class _QuestionCardState extends State<_QuestionCard> {
       }
       final awarded = (data?['points_awarded'] as int?) ?? q.pointsReward;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حصلت على $awarded نقطة')),
+      AppFeedback.success(
+        context,
+        title: 'أحسنت! 🎉',
+        message: 'حصلت على $awarded نقطة',
       );
       widget.onAnswered();
     } catch (_) {

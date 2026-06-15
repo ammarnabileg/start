@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -59,7 +60,7 @@ class LevelsScreen extends ConsumerWidget {
           ),
           Expanded(
             child: async.when(
-              loading: () => const LoadingView(),
+              loading: () => const SkeletonList(),
               error: (e, _) => ErrorView(
                 message: 'تعذّر تحميل المستويات',
                 onRetry: () => ref.invalidate(levelsProvider),
@@ -82,8 +83,20 @@ class LevelsScreen extends ConsumerWidget {
                     final lvl = levels[i];
                     return AppCard(
                       onTap: () => _openEditor(context, ref, lvl),
+                      border: Border.all(
+                          color: lvl.color.withValues(alpha: .35), width: 1.5),
                       child: Row(
                         children: [
+                          // درجة السلّم: مؤشّر رتبة + ميدالية بلون المستوى.
+                          Container(
+                            width: 6,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: lvl.color,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
                           CircleAvatar(
                             radius: 22,
                             backgroundColor: lvl.color.withValues(alpha: .2),
@@ -113,7 +126,10 @@ class LevelsScreen extends ConsumerWidget {
                           PointsBadge(points: lvl.thresholdLifetimePoints),
                         ],
                       ),
-                    );
+                    )
+                        .animate()
+                        .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                        .slideY(begin: .06, end: 0);
                   },
                 );
               },
@@ -189,11 +205,13 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
             .update(payload)
             .eq('id', widget.existing!.id);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ المستوى');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }

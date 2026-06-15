@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,7 +39,6 @@ class _OtpScreenState extends State<OtpScreen> {
   int _secondsLeft = 30;
   bool _loading = false;
   bool _resending = false;
-  String? _error;
 
   String get _code => _controllers.map((c) => c.text).join();
   bool get _codeComplete => _code.length == _codeLength;
@@ -93,7 +93,6 @@ class _OtpScreenState extends State<OtpScreen> {
         _focusNodes[index].unfocus();
       }
     }
-    setState(() => _error = null);
     if (_codeComplete) _verify();
   }
 
@@ -104,7 +103,6 @@ class _OtpScreenState extends State<OtpScreen> {
     }
     final next = min(digits.length, _codeLength - 1);
     _focusNodes[next].requestFocus();
-    setState(() => _error = null);
     if (_codeComplete) _verify();
   }
 
@@ -123,10 +121,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _verify() async {
     if (!_codeComplete || _loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() => _loading = true);
     final client = Supabase.instance.client;
     try {
       await client.auth.verifyOTP(
@@ -172,10 +167,13 @@ class _OtpScreenState extends State<OtpScreen> {
         context.go('/');
       }
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) AppFeedback.toast(context, e.message, error: true);
       _clearCode();
     } catch (_) {
-      setState(() => _error = 'رمز التحقق غير صحيح، حاول مرة أخرى.');
+      if (mounted) {
+        AppFeedback.toast(context, 'رمز التحقق غير صحيح، حاول مرة أخرى.',
+            error: true);
+      }
       _clearCode();
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -191,17 +189,18 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _resend() async {
     if (!_canResend || _resending) return;
-    setState(() {
-      _resending = true;
-      _error = null;
-    });
+    setState(() => _resending = true);
     try {
       await Supabase.instance.client.auth.signInWithOtp(phone: widget.phone);
       _startCountdown();
+      if (mounted) AppFeedback.toast(context, 'أرسلنا رمزًا جديدًا');
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) AppFeedback.toast(context, e.message, error: true);
     } catch (_) {
-      setState(() => _error = 'تعذّر إعادة الإرسال، حاول لاحقًا.');
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر إعادة الإرسال، حاول لاحقًا.',
+            error: true);
+      }
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -214,9 +213,25 @@ class _OtpScreenState extends State<OtpScreen> {
       appBar: AppBar(centerTitle: true),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
+            Center(
+              child: Container(
+                height: 96,
+                width: 96,
+                decoration: const BoxDecoration(
+                  gradient: AppColors.goldGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.sms_outlined,
+                    size: 44, color: AppColors.onPrimary),
+              )
+                  .animate()
+                  .scale(duration: 420.ms, curve: Curves.easeOutBack)
+                  .fadeIn(),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
             Text(
               'أدخل رمز التحقق',
               style: theme.textTheme.displayLarge,
@@ -247,16 +262,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     )),
               ),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.error),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            const SizedBox(height: 28),
+            const SizedBox(height: AppSpacing.xxl),
             PrimaryButton(
               label: 'تأكيد',
               loading: _loading,

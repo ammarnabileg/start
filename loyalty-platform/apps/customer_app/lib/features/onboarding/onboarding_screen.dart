@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
@@ -97,11 +98,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             _Dots(count: _pages.length, index: _index),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.xxl),
               child: PrimaryButton(
                 label: _isLast ? 'ابدأ الآن' : 'التالي',
+                icon: _isLast ? Icons.rocket_launch_rounded : null,
                 onPressed: _next,
               ),
             ),
@@ -119,28 +122,42 @@ class _OnboardingPageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // استبدل برسمة الكتكوت المعبّرة (assets/mascot/*.png).
-          CircleAvatar(
-            radius: 72,
-            backgroundColor: AppColors.primaryLight,
-            child: Icon(page.icon, size: 72, color: AppColors.primaryDark),
-          ),
-          const SizedBox(height: 40),
+          Container(
+            height: 156,
+            width: 156,
+            decoration: const BoxDecoration(
+              gradient: AppColors.goldGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 24,
+                    offset: Offset(0, 10)),
+              ],
+            ),
+            child: Icon(page.icon, size: 76, color: AppColors.onPrimary),
+          )
+              .animate()
+              .scale(duration: 460.ms, curve: Curves.easeOutBack)
+              .fadeIn(),
+          const SizedBox(height: AppSpacing.xxxl),
           Text(
             page.title,
             style: Theme.of(context).textTheme.headlineMedium,
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
+          ).animate().fadeIn(delay: 120.ms, duration: 360.ms).slideY(
+              begin: .12, end: 0),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             page.line,
             style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
-          ),
+          ).animate().fadeIn(delay: 220.ms, duration: 360.ms),
         ],
       ),
     );

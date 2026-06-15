@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
@@ -66,7 +67,7 @@ class CouponsScreen extends ConsumerWidget {
           ),
           Expanded(
             child: async.when(
-              loading: () => const LoadingView(),
+              loading: () => const SkeletonList(),
               error: (e, _) => ErrorView(
                 message: 'تعذّر تحميل الكوبونات',
                 onRetry: () => ref.invalidate(couponsProvider),
@@ -96,44 +97,66 @@ class CouponsScreen extends ConsumerWidget {
                     }
                     return AppCard(
                       onTap: () => _openEditor(context, ref, c),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(c['code'] as String? ?? '—',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryLight,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  _couponTypeLabels[c['type']] ??
-                                      (c['type'] as String? ?? ''),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                      color: AppColors.onPrimary),
-                                ),
-                              ),
-                            ],
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
+                            ),
+                            child: const Icon(
+                                Icons.confirmation_num_outlined,
+                                color: AppColors.error),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'القيمة: ${c['value'] ?? '-'}'
-                            '${validity.isEmpty ? '' : '  •  $validity'}',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(c['code'] as String? ?? '—',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        borderRadius:
+                                            BorderRadius.circular(16),
+                                      ),
+                                      child: Text(
+                                        _couponTypeLabels[c['type']] ??
+                                            (c['type'] as String? ?? ''),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                            color: AppColors.onPrimary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'القيمة: ${c['value'] ?? '-'}'
+                                  '${validity.isEmpty ? '' : '  •  $validity'}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    );
+                    )
+                        .animate()
+                        .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                        .slideY(begin: .06, end: 0);
                   },
                 );
               },
@@ -244,11 +267,13 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
             .update(payload)
             .eq('id', widget.existing!['id'] as String);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ الكوبون');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -63,7 +64,10 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
     }
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(id);
-      _snack('أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك');
+      if (mounted) {
+        AppFeedback.toast(
+            context, 'أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك');
+      }
     } catch (_) {
       _snack('تعذّر إرسال رابط إعادة التعيين');
     }
@@ -71,7 +75,7 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    AppFeedback.toast(context, m, error: true);
   }
 
   @override
@@ -83,21 +87,29 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
             children: [
-              const SizedBox(height: 12),
-              const Center(
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.surfaceCream,
-                  child: Icon(Icons.storefront_rounded,
-                      size: 40, color: AppColors.primaryDark),
-                ),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: Container(
+                  width: 88,
+                  height: 88,
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.heroGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.storefront_rounded,
+                      size: 44, color: AppColors.onPrimary),
+                )
+                    .animate()
+                    .scale(duration: 450.ms, curve: Curves.easeOutBack)
+                    .fadeIn(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
               Text('أهلًا بعودتك',
                   style: text.titleLarge, textAlign: TextAlign.center),
-              const SizedBox(height: 28),
+              const SizedBox(height: AppSpacing.xxl),
               TextFormField(
                 controller: _identifierCtrl,
                 keyboardType: TextInputType.emailAddress,

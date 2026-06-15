@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,7 +34,7 @@ class RewardsManagementScreen extends ConsumerWidget {
         label: const Text('مكافأة جديدة'),
       ),
       body: async.when(
-        loading: () => const LoadingView(),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorView(
           message: 'تعذّر تحميل المكافآت',
           onRetry: () => ref.invalidate(rewardsProvider),
@@ -93,7 +94,10 @@ class RewardsManagementScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              );
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                  .slideY(begin: .06, end: 0);
             },
           );
         },
@@ -195,11 +199,13 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
             .update(payload)
             .eq('id', widget.existing!['id'] as String);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ المكافأة');
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
         setState(() => _busy = false);
       }
     }

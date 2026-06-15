@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
@@ -40,16 +41,38 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppColors.heroGradient),
+        decoration: const BoxDecoration(gradient: AppColors.heroGradient),
         child: Center(
-          // استبدل بالكتكوت: assets/mascot/wave.png
-          child: Text('Hatchy',
-              style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.onPrimary)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // استبدل بالكتكوت: assets/mascot/wave.png
+              Container(
+                height: 120,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.egg_alt_rounded,
+                    size: 64, color: AppColors.onPrimary),
+              )
+                  .animate()
+                  .scale(duration: 500.ms, curve: Curves.easeOutBack)
+                  .fadeIn(),
+              const SizedBox(height: AppSpacing.xl),
+              const Text('Hatchy',
+                      style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onPrimary))
+                  .animate()
+                  .fadeIn(delay: 200.ms, duration: 400.ms)
+                  .slideY(begin: .3, end: 0),
+            ],
+          ),
         ),
       ),
     );
