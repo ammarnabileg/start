@@ -18,4 +18,4 @@ pubspec.lock
 **/firebase_options.dart
 
 # Generated screenshots
-test/screenshots/out/
+**/test/screenshots/out/
