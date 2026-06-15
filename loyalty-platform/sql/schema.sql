@@ -1073,3 +1073,29 @@ create or replace function public.nearest_branches(
   order by distance_m asc
   limit p_limit;
 $$;
+
+-- =====================================================================
+-- 20) التخزين (Storage) — صور الشعارات/المكافآت/الأفاتار
+-- =====================================================================
+insert into storage.buckets (id, name, public) values
+  ('merchant-media', 'merchant-media', true),
+  ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+-- قراءة عامة للصور (الباقتان عامتان)
+create policy "media public read" on storage.objects
+  for select using (bucket_id in ('merchant-media', 'avatars'));
+
+-- رفع/تعديل صور التاجر (أي مستخدم مصادق؛ التطبيق يتحكّم بالمسارات = merchant_id/..)
+create policy "merchant media insert" on storage.objects
+  for insert to authenticated with check (bucket_id = 'merchant-media');
+create policy "merchant media update" on storage.objects
+  for update to authenticated using (bucket_id = 'merchant-media');
+create policy "merchant media delete" on storage.objects
+  for delete to authenticated using (bucket_id = 'merchant-media');
+
+-- أفاتار العميل: مجلده باسم معرّفه فقط
+create policy "avatar manage own" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);

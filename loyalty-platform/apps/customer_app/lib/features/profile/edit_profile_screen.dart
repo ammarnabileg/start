@@ -1,9 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/avatar_storage.dart';
 import '../qr/qr_providers.dart';
 
 /// تعديل الملف (Edit Profile) — راجع CUSTOMER_APP.md 1.17.
@@ -18,9 +20,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   DateTime? _dob;
+  String? _avatarUrl;
 
   bool _initialized = false;
   bool _saving = false;
+  bool _uploadingAvatar = false;
 
   @override
   void dispose() {
@@ -34,7 +38,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameCtrl.text = user.name;
     _emailCtrl.text = user.email ?? '';
     _dob = user.dateOfBirth;
+    _avatarUrl = user.avatarUrl;
     _initialized = true;
+  }
+
+  Future<void> _pickAvatar() async {
+    if (_uploadingAvatar) return;
+    setState(() => _uploadingAvatar = true);
+    try {
+      final url = await AvatarStorage.pickAndUpload();
+      if (!mounted) return;
+      if (url != null) {
+        setState(() => _avatarUrl = url);
+        AppFeedback.toast(context, 'تم اختيار الصورة، احفظ التغييرات لتطبيقها.');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر رفع الصورة، حاول مرة أخرى.',
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   bool get _nameValid => _nameCtrl.text.trim().length >= 2;
@@ -67,7 +92,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         'date_of_birth':
             _dob == null ? null : DateFormat('yyyy-MM-dd').format(_dob!),
-        // TODO: storage — رفع الصورة الشخصية (avatar_url) لاحقًا.
+        'avatar_url': _avatarUrl,
       }).eq('id', uid);
       ref.invalidate(currentUserProvider);
       if (!mounted) return;
@@ -103,26 +128,52 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               Center(
                 child: Stack(
                   children: [
-                    Container(
-                      height: 96,
-                      width: 96,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        gradient: AppColors.goldGradient,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                              color: AppColors.shadow,
-                              blurRadius: 18,
-                              offset: Offset(0, 8)),
-                        ],
-                      ),
-                      child: Text(
-                        user.name.characters.first,
-                        style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.onPrimary),
+                    GestureDetector(
+                      onTap: _uploadingAvatar ? null : _pickAvatar,
+                      child: Container(
+                        height: 96,
+                        width: 96,
+                        alignment: Alignment.center,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: const BoxDecoration(
+                          gradient: AppColors.goldGradient,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                                color: AppColors.shadow,
+                                blurRadius: 18,
+                                offset: Offset(0, 8)),
+                          ],
+                        ),
+                        child: _uploadingAvatar
+                            ? const SizedBox(
+                                height: 28,
+                                width: 28,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: AppColors.onPrimary),
+                              )
+                            : (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                                ? CachedNetworkImage(
+                                    imageUrl: _avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    height: 96,
+                                    width: 96,
+                                    errorWidget: (_, __, ___) => Text(
+                                      user.name.characters.first,
+                                      style: const TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.onPrimary),
+                                    ),
+                                  )
+                                : Text(
+                                    user.name.characters.first,
+                                    style: const TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.onPrimary),
+                                  ),
                       ),
                     ),
                     Positioned(
@@ -136,9 +187,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           iconSize: 18,
                           icon: const Icon(Icons.camera_alt_outlined,
                               color: AppColors.onPrimary),
-                          // TODO: storage — اختيار ورفع صورة شخصية.
-                          onPressed: () => AppFeedback.toast(
-                              context, 'رفع الصورة سيتوفر قريبًا.'),
+                          onPressed: _uploadingAvatar ? null : _pickAvatar,
                         ),
                       ),
                     ),
