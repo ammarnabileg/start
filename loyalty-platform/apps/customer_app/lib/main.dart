@@ -12,7 +12,7 @@ Future<void> main() async {
   // Supabase (Auth + DB + Storage + Functions)
   await Supabase.initialize(
     url: Env.supabaseUrl,
-    anonKey: Env.supabaseAnonKey,
+    publishableKey: Env.supabaseAnonKey,
   );
 
   // ملاحظة: تهيئة Firebase (Messaging/Analytics/Crashlytics) تتم هنا أيضًا

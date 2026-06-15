@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/merchant_providers.dart';
 
 /// بيانات السؤال + خياراته (لعرض التوزيع بالأسماء).
 final _questionDetailProvider = FutureProvider.autoDispose
