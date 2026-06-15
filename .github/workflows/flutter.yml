@@ -72,8 +72,9 @@ jobs:
           channel: stable
           cache: true
 
-      # ملاحظة: الـ build يحتاج google-services.json (Firebase). في الـ CI
-      # مرّره عبر Secret أو placeholder. هنا نبني تطبيق العميل كمثال.
+      # ملاحظة: التطبيقات تستعمل Firebase لكن لا تُهيّئه في الكود بعد (TODO)،
+      # فالبناء ينجح بدون google-services.json. عند تفعيل Firebase فعليًا
+      # مرّر google-services.json عبر Secret. مفاتيح Supabase اختيارية للبناء.
       - name: customer_app — build debug APK
         working-directory: loyalty-platform/apps/customer_app
         run: |
@@ -81,3 +82,20 @@ jobs:
           flutter build apk --debug \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: merchant_app — build debug APK
+        working-directory: loyalty-platform/apps/merchant_app
+        run: |
+          flutter pub get
+          flutter build apk --debug \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: |
+            loyalty-platform/apps/customer_app/build/app/outputs/flutter-apk/app-debug.apk
+            loyalty-platform/apps/merchant_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: warn

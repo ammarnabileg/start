@@ -121,6 +121,13 @@ flutter run \
 
 ---
 
+## ✅ البناء والتحقق (CI)
+- `flutter analyze` نظيف للحزم الثلاث (loyalty_core / customer_app / merchant_app).
+- اختبارات وحدة: **13 ناجحة** — `QrToken` (التوكن المتغيّر) و`LoyaltyRules` (منطق النقاط/المستويات). شغّلها: `cd packages/loyalty_core && flutter test`.
+- **GitHub Actions** (`.github/workflows/flutter.yml`): يشغّل analyze + test على كل push، ويبني **APK** للتطبيقين (job منفصل) ويرفعهم كـ artifacts.
+- مجلدات `android/ios` مولّدة (`flutter create`) فالمشروع جاهز للبناء. `minSdk = 23` (متطلّب Firebase/mobile_scanner).
+- بناء الـ APK يتم في CI لأن مضيف Android SDK (`dl.google.com`) غير مسموح في بيئة التطوير دي.
+
 ## 🗺️ حالة التنفيذ (Scaffold)
 هذا أساس عملي (scaffold) جاهز للبناء عليه — مش تطبيق نهائي:
 - ✅ الحزمة المشتركة (theme/models/widgets/QR) — كاملة.
