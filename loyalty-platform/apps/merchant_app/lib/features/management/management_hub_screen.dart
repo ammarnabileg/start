@@ -15,7 +15,9 @@ import 'coupons_screen.dart';
 import 'levels_screen.dart';
 import 'questions_screen.dart';
 import 'rewards_screen.dart';
+import 'roles_screen.dart';
 import 'staff_screen.dart';
+import 'wheel_screen.dart';
 
 /// تاب الإدارة — مدخل لكل أقسام الإعداد. يخفي البلاطة لو الميزة معطّلة.
 class ManagementHubScreen extends ConsumerWidget {
@@ -93,6 +95,20 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الأسئلة',
               subtitle: 'اجمع آراء عملائك مقابل نقاط',
               builder: (_) => const QuestionsScreen(),
+            ),
+            _HubTile(
+              icon: Icons.casino_rounded,
+              accent: AppColors.goldTier,
+              title: 'عجلة الحظ',
+              subtitle: 'صمّم عجلة الجوائز ومقاطعها',
+              builder: (_) => const WheelManagementScreen(),
+            ),
+            _HubTile(
+              icon: Icons.admin_panel_settings_outlined,
+              accent: AppColors.primaryDark,
+              title: 'الأدوار والصلاحيات',
+              subtitle: 'أدوار مخصّصة وصلاحيات الموظفين',
+              builder: (_) => const RolesScreen(),
             ),
             _HubTile(
               icon: Icons.insights_rounded,

@@ -30,6 +30,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() => _busy = true);
 
     try {
+      // رمز هدية (يبدأ بـ p1.) → تفعيله عبر redeem-prize.
+      if (payload.startsWith('p1.')) {
+        final res = await Supabase.instance.client.functions
+            .invoke('redeem-prize', body: {'payload': payload});
+        final data = res.data as Map<String, dynamic>?;
+        if (data?['error'] != null) {
+          _snack(data!['error'] as String);
+          return;
+        }
+        if (!mounted) return;
+        await AppFeedback.success(
+          context,
+          title: 'تم تفعيل الهدية',
+          message: data?['title'] as String?,
+        );
+        return;
+      }
+
       final res = await Supabase.instance.client.functions
           .invoke('verify-qr', body: {'payload': payload});
       if (res.data?['error'] != null) {

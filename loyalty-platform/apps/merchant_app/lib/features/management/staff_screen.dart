@@ -30,6 +30,18 @@ final branchOptionsProvider =
   return List<Map<String, dynamic>>.from(rows);
 });
 
+/// أدوار التاجر لربطها بالموظف (id → name).
+final staffRoleOptionsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final rows = await Supabase.instance.client
+      .from('merchant_roles')
+      .select('id, name')
+      .eq('merchant_id', staff.merchantId)
+      .order('name');
+  return List<Map<String, dynamic>>.from(rows);
+});
+
 const _roleLabels = {
   'manager': 'مدير',
   'cashier': 'كاشير',
@@ -158,6 +170,8 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
   late final TextEditingController _phone;
   String _role = 'cashier';
   String? _branchId;
+  String? _roleId;
+  bool _canRedeemPrizes = false;
   bool _busy = false;
 
   @override
@@ -168,6 +182,8 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
     _phone = TextEditingController(text: e?['phone'] as String? ?? '');
     _role = e?['role'] as String? ?? 'cashier';
     _branchId = e?['branch_id'] as String?;
+    _roleId = e?['role_id'] as String?;
+    _canRedeemPrizes = e?['can_redeem_prizes'] as bool? ?? false;
   }
 
   @override
@@ -188,6 +204,8 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
         'phone': _phone.text.trim(),
         'role': _role,
         'branch_id': _branchId,
+        'role_id': _roleId,
+        'can_redeem_prizes': _canRedeemPrizes,
       };
       final client = Supabase.instance.client;
       if (widget.existing == null) {
@@ -213,6 +231,7 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
   @override
   Widget build(BuildContext context) {
     final branchesAsync = ref.watch(branchOptionsProvider);
+    final rolesAsync = ref.watch(staffRoleOptionsProvider);
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -220,14 +239,15 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.existing == null ? 'موظف جديد' : 'تعديل الموظف',
-                style: Theme.of(context).textTheme.titleLarge),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.existing == null ? 'موظف جديد' : 'تعديل الموظف',
+                  style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextFormField(
               controller: _name,
@@ -272,9 +292,37 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
                 onChanged: (v) => setState(() => _branchId = v),
               ),
             ),
+            const SizedBox(height: 12),
+            rolesAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (roles) => DropdownButtonFormField<String?>(
+                value: roles.any((r) => r['id'] == _roleId) ? _roleId : null,
+                decoration:
+                    const InputDecoration(labelText: 'الدور والصلاحيات'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('بدون دور محدّد')),
+                  ...roles.map((r) => DropdownMenuItem<String?>(
+                        value: r['id'] as String,
+                        child: Text(r['name'] as String? ?? '—'),
+                      )),
+                ],
+                onChanged: (v) => setState(() => _roleId = v),
+              ),
+            ),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _canRedeemPrizes,
+              title: const Text('تفعيل الهدايا'),
+              subtitle: const Text('السماح للموظف بتفعيل هدايا العملاء'),
+              onChanged: (v) => setState(() => _canRedeemPrizes = v),
+            ),
             const SizedBox(height: 16),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
-          ],
+            ],
+          ),
         ),
       ),
     );
