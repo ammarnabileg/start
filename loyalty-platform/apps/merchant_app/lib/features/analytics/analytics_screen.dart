@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -228,28 +229,45 @@ class AnalyticsScreen extends ConsumerWidget {
           branchesAsync.maybeWhen(
             data: (branches) => branches.isEmpty
                 ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: DropdownButtonFormField<String?>(
-                      value: filter.branchId,
-                      decoration:
-                          const InputDecoration(labelText: 'الفرع'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                            value: null, child: Text('كل الفروع')),
-                        ...branches.map((b) => DropdownMenuItem<String?>(
-                              value: b['id'] as String,
-                              child: Text(b['name'] as String? ?? '—'),
-                            )),
+                : SizedBox(
+                    height: 44,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ChoiceChip(
+                            label: const Text('كل الفروع'),
+                            selected: filter.branchId == null,
+                            selectedColor: AppColors.primary,
+                            onSelected: (_) => ref
+                                .read(analyticsFilterProvider.notifier)
+                                .state = AnalyticsFilter(
+                                    period: filter.period, branchId: null),
+                          ),
+                        ),
+                        ...branches.map((b) {
+                          final id = b['id'] as String;
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: ChoiceChip(
+                              label: Text(b['name'] as String? ?? '—'),
+                              selected: filter.branchId == id,
+                              selectedColor: AppColors.primary,
+                              onSelected: (_) => ref
+                                  .read(analyticsFilterProvider.notifier)
+                                  .state = AnalyticsFilter(
+                                      period: filter.period, branchId: id),
+                            ),
+                          );
+                        }),
                       ],
-                      onChanged: (v) => ref
-                          .read(analyticsFilterProvider.notifier)
-                          .state = AnalyticsFilter(
-                              period: filter.period, branchId: v),
                     ),
                   ),
             orElse: () => const SizedBox.shrink(),
           ),
+          const SizedBox(height: 4),
           Expanded(
             child: async.when(
               loading: () => const LoadingView(),
@@ -269,9 +287,8 @@ class AnalyticsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   children: [
                     _StatRow(data: data),
-                    const SizedBox(height: 20),
-                    Text('الزيارات على مدار الوقت',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    const SectionHeader(title: 'الزيارات على مدار الوقت'),
                     const SizedBox(height: 12),
                     AppCard(
                       child: SizedBox(
@@ -279,17 +296,16 @@ class AnalyticsScreen extends ConsumerWidget {
                         child: _VisitsChart(visits: data.visitsPerDay),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Text('النقاط: الموزّعة مقابل المُستبدلة',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    const SectionHeader(
+                        title: 'النقاط: الموزّعة مقابل المُستبدلة'),
                     const SizedBox(height: 12),
                     _PointsCompare(
                       distributed: data.pointsDistributed,
                       redeemed: data.pointsRedeemed,
                     ),
-                    const SizedBox(height: 20),
-                    Text('أكثر المكافآت استبدالًا',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    const SectionHeader(title: 'أكثر المكافآت استبدالًا'),
                     const SizedBox(height: 12),
                     if (data.topRewards.isEmpty)
                       const AppCard(child: Text('لا توجد استبدالات بعد.'))
@@ -299,6 +315,9 @@ class AnalyticsScreen extends ConsumerWidget {
                             child: AppCard(
                               child: Row(
                                 children: [
+                                  const Icon(Icons.card_giftcard_rounded,
+                                      color: AppColors.primaryDark, size: 20),
+                                  const SizedBox(width: 10),
                                   Expanded(child: Text(e.key)),
                                   PointsBadge(
                                       points: e.value, suffix: 'مرة'),
@@ -307,7 +326,7 @@ class AnalyticsScreen extends ConsumerWidget {
                             ),
                           )),
                   ],
-                );
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: .04, end: 0);
               },
             ),
           ),
@@ -326,43 +345,27 @@ class _StatRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: _StatCard(
-                label: 'عملاء جدد', value: '${data.newCustomers}')),
+            child: StatCard(
+                label: 'عملاء جدد',
+                value: '${data.newCustomers}',
+                icon: Icons.person_add_alt_1_rounded,
+                accent: AppColors.info)),
         const SizedBox(width: 12),
         Expanded(
-            child: _StatCard(
-                label: 'إجمالي العملاء', value: '${data.totalCustomers}')),
+            child: StatCard(
+                label: 'إجمالي العملاء',
+                value: '${data.totalCustomers}',
+                icon: Icons.groups_rounded,
+                accent: AppColors.primaryDark)),
         const SizedBox(width: 12),
         Expanded(
-            child: _StatCard(
+            child: StatCard(
                 label: 'معدّل العودة',
-                value: '${(data.returnRate * 100).round()}%')),
+                value: '${(data.returnRate * 100).round()}%',
+                icon: Icons.repeat_rounded,
+                accent: AppColors.success,
+                highlight: true)),
       ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatCard({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(color: AppColors.primaryDark)),
-          const SizedBox(height: 4),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -65,7 +66,7 @@ class StoreLeaderboardScreen extends ConsumerWidget {
             ),
           Expanded(
             child: async.when(
-              loading: () => const LoadingView(),
+              loading: () => const SkeletonList(),
               error: (e, _) => ErrorView(
                 message: 'تعذّر تحميل لوحة الصدارة',
                 onRetry: () => ref.invalidate(storeLeaderboardProvider),
@@ -79,27 +80,41 @@ class StoreLeaderboardScreen extends ConsumerWidget {
                         'سيظهر ترتيب عملائك هنا بمجرد تجميعهم للنقاط.',
                   );
                 }
-                return ListView.separated(
+                final top = entries.take(3).toList();
+                final rest = entries.skip(3).toList();
+                return ListView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: entries.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) {
-                    final e = entries[i];
-                    return AppCard(
-                      child: Row(
-                        children: [
-                          _RankBadge(rank: e.rank),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(e.displayName,
-                                style:
-                                    Theme.of(context).textTheme.titleMedium),
-                          ),
-                          PointsBadge(points: e.totalPoints),
-                        ],
-                      ),
-                    );
-                  },
+                  children: [
+                    _Podium(top: top),
+                    if (rest.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const SectionHeader(title: 'بقية الترتيب'),
+                      const SizedBox(height: 8),
+                      for (var i = 0; i < rest.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: AppCard(
+                            child: Row(
+                              children: [
+                                _RankBadge(rank: rest[i].rank),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(rest[i].displayName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                ),
+                                PointsBadge(points: rest[i].totalPoints),
+                              ],
+                            ),
+                          )
+                              .animate()
+                              .fadeIn(
+                                  duration: 300.ms, delay: (40 * i).ms)
+                              .slideX(begin: .06, end: 0),
+                        ),
+                    ],
+                  ],
                 );
               },
             ),

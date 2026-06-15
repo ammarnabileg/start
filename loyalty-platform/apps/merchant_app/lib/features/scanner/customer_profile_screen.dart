@@ -18,7 +18,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   String get _userId => (d['user']['id']) as String;
 
   Future<void> _call(String fn, Map<String, dynamic> body,
-      {required String okMsg}) async {
+      {required String okMsg, String? okDetail}) async {
     setState(() => _busy = true);
     try {
       final res = await Supabase.instance.client.functions
@@ -26,9 +26,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       if (res.data?['error'] != null) {
         _snack(res.data['error'] as String);
       } else {
-        _snack(okMsg);
         if (res.data?['available_points'] != null) {
           setState(() => d['available_points'] = res.data['available_points']);
+        }
+        if (mounted) {
+          await AppFeedback.success(context, title: okMsg, message: okDetail);
         }
       }
     } catch (_) {
@@ -38,8 +40,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     }
   }
 
-  void _snack(String m) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(m)));
+  void _snack(String m) {
+    if (!mounted) return;
+    AppFeedback.toast(context, m, error: true);
+  }
 
   Future<void> _addPoints() async {
     final pts = await showModalBottomSheet<int>(
@@ -48,7 +52,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     );
     if (pts != null) {
       await _call('add-points', {'user_id': _userId, 'points': pts},
-          okMsg: 'تمت إضافة $pts نقطة');
+          okMsg: 'تمت إضافة $pts نقطة',
+          okDetail: 'أُضيفت النقاط إلى رصيد العميل بنجاح.');
     }
   }
 
@@ -63,74 +68,99 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       body: Stack(
         children: [
           ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               AppCard(
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                            radius: 26,
-                            backgroundColor: AppColors.primaryLight,
-                            child: Text(
-                                (user['name'] as String).characters.first,
-                                style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.w800))),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(user['name'] as String,
-                                  style:
-                                      Theme.of(context).textTheme.titleLarge),
-                              if (d['level_name'] != null)
-                                Text(d['level_name'] as String,
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall),
-                            ],
-                          ),
-                        ),
-                        if (isNew)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                                color: AppColors.success.withValues(alpha: .15),
-                                borderRadius: BorderRadius.circular(16)),
-                            child: const Text('عميل جديد 🎉',
-                                style: TextStyle(
-                                    color: AppColors.success,
-                                    fontWeight: FontWeight.w700)),
-                          ),
-                      ],
+                    CircleAvatar(
+                        radius: 26,
+                        backgroundColor: AppColors.primaryLight,
+                        child: Text(
+                            (user['name'] as String).characters.first,
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w800))),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user['name'] as String,
+                              style: Theme.of(context).textTheme.titleLarge),
+                          if (d['level_name'] != null)
+                            Text(d['level_name'] as String,
+                                style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _Stat('النقاط المتاحة', '${d['available_points']}'),
-                        _Stat('زيارة اليوم', visited ? 'تم' : 'لم تُسجّل'),
-                      ],
-                    ),
+                    if (isNew)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: .15),
+                            borderRadius: BorderRadius.circular(AppRadii.md)),
+                        child: const Text('عميل جديد 🎉',
+                            style: TextStyle(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w700)),
+                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
+              ).animate().fadeIn(duration: 300.ms).slideY(begin: .06, end: 0),
+              const SizedBox(height: AppSpacing.lg),
+              // حالة العميل كصفّ بطاقات إحصائية.
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      icon: Icons.stars_rounded,
+                      label: 'النقاط المتاحة',
+                      value: '${d['available_points']}',
+                      highlight: true,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: StatCard(
+                      icon: Icons.military_tech_rounded,
+                      label: 'المستوى',
+                      value: (d['level_name'] as String?) ?? '—',
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: StatCard(
+                      icon: visited
+                          ? Icons.event_available_rounded
+                          : Icons.event_busy_rounded,
+                      label: 'زيارة اليوم',
+                      value: visited ? 'تم' : 'لم تُسجّل',
+                      accent: visited ? AppColors.success : null,
+                    ),
+                  ),
+                ],
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: 80.ms)
+                  .slideY(begin: .06, end: 0),
+              const SizedBox(height: AppSpacing.xl),
+              const SectionHeader(title: 'إجراءات'),
+              const SizedBox(height: AppSpacing.md),
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
+                mainAxisSpacing: AppSpacing.md,
+                crossAxisSpacing: AppSpacing.md,
                 childAspectRatio: 1.6,
                 children: [
                   _ActionTile(
                       icon: Icons.event_available_rounded,
                       label: 'تسجيل زيارة',
                       onTap: () => _call('record-visit', {'user_id': _userId},
-                          okMsg: 'تم تسجيل الزيارة')),
+                          okMsg: 'تم تسجيل الزيارة',
+                          okDetail: 'سُجّلت زيارة العميل لهذا اليوم.')),
                   _ActionTile(
                       icon: Icons.add_circle_outline_rounded,
                       label: 'إضافة نقاط',
@@ -143,7 +173,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                       icon: Icons.confirmation_num_outlined,
                       label: 'تطبيق كوبون',
                       onTap: () {/* TODO: apply-coupon */}),
-                ],
+                ]
+                    .animate(interval: 60.ms)
+                    .fadeIn(duration: 300.ms)
+                    .slideY(begin: .08, end: 0),
               ),
             ],
           ),
@@ -152,18 +185,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       ),
     );
   }
-}
-
-class _Stat extends StatelessWidget {
-  final String label, value;
-  const _Stat(this.label, this.value);
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Text(value, style: Theme.of(context).textTheme.headlineMedium),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
 }
 
 class _ActionTile extends StatelessWidget {
@@ -175,12 +196,23 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppCard(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Icon(icon, size: 30, color: AppColors.primaryDark),
-            const SizedBox(height: 8),
-            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCream,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: Icon(icon, size: 24, color: AppColors.primaryDark),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(label,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ),
           ],
         ),
       );
@@ -191,18 +223,40 @@ class _QuickPointsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('إضافة نقاط', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.sm),
+          Text('اختر عدد النقاط لإضافتها لرصيد العميل',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary)),
+          const SizedBox(height: AppSpacing.lg),
           Wrap(
-            spacing: 12,
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.md,
+            alignment: WrapAlignment.center,
             children: [10, 20, 50, 100]
-                .map((p) => ActionChip(
-                      label: Text('+$p'),
-                      onPressed: () => Navigator.pop(context, p),
+                .map((p) => InkWell(
+                      onTap: () => Navigator.pop(context, p),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl, vertical: AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
+                        ),
+                        child: Text('+$p',
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.onPrimary)),
+                      ),
                     ))
                 .toList(),
           ),
