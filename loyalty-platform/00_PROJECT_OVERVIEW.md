@@ -12,7 +12,7 @@
 ## 0. القرار الأهم: تعدّد المستأجرين (Multi-Tenant)
 
 - النقاط والمستويات **منفصلة لكل تاجر** — مش رصيد واحد على مستوى المنصة. العميل عنده محفظة ومستوى عند **كل تاجر لوحده**.
-- ده بيأثّر على الـ schema كله: المفتاح الأساسي للمحفظة هو `(user_id, merchant_id)`.
+- ده بيأثّر على الـ schema كله: المفتاح الأساسي للمحفظة هو `(user_id, merchant_id, branch_id)` — **المحفظة منفصلة لكل فرع** (قرار متخذ).
 - عزل التجار **مفروض على مستوى الداتابيز نفسه** عن طريق Supabase **Row Level Security (RLS)** — مش مجرد فلترة في الكود.
 
 ---
@@ -213,7 +213,7 @@ class AppColors {
 | `branches` | الفروع | `merchant_id` · `lat`/`lng` · `geofence_radius_m` (افتراضي 150) · `active` |
 | `subscriptions` | الاشتراكات (تُملأ يدويًا) | `merchant_id` · `plan` (trial/monthly/yearly) · `status` · `trial_ends_at` · `current_period_end` |
 | `merchant_staff` | الموظفين | `merchant_id` · `branch_id` · `role` (manager/cashier/branch_manager) · `status` |
-| `user_stores` ⭐ | **محفظة العميل عند كل تاجر** | `(user_id, merchant_id)` **فريد** · `available_points` · `lifetime_points` (لا تُخصم أبدًا → تحدد المستوى) · `current_level_id` |
+| `user_stores` ⭐ | **محفظة العميل عند كل فرع** | `(user_id, merchant_id, branch_id)` **فريد** · `available_points` · `lifetime_points` (لا تُخصم أبدًا → تحدد المستوى) · `current_level_id` |
 | `visit_campaigns` | حملات الزيارة | `required_visits` · `reward_name`/`reward_image_url` · `active` |
 | `user_visits` | سجل الزيارات | `(user_id, merchant_id, visit_date)` **فريد** (يمنع زيارتين في اليوم) · `branch_id` · `source` (qr_scan/gps_checkin) · `scanned_by_staff_id` |
 | `points_transactions` | سجل النقاط | `user_store_id` · `type` (earn/redeem/adjust) · `points` · `staff_id` · `reason` · `branch_id` |
@@ -225,6 +225,14 @@ class AppColors {
 | `referrals` | الإحالات | `referrer_id` · `referee_id` · `status` (pending/qualified/rewarded) · `qualifying_event` · `reward_granted_at` |
 | `proximity_notifications_log` | منع تكرار إشعار القرب | `user_id`/`merchant_id`/`branch_id` · `last_notified_at` (للـ cooldown) |
 | `notifications` | الإشعارات داخل التطبيق | `user_id` · `type` · `title` · `body` · `data` (jsonb) · `read_at` |
+| `merchant_settings` ⭐ | **كل خيارات التاجر** (White-Label) | `points_scope` (merchant/branch) · `enable_*` (تفعيل الميزات) · السقوف · `qr_rotation_seconds` · `primary_color_hex` |
+| `merchant_questions` | أسئلة التاجر (بنقاط) | `type` (single_choice/multi_choice/text) · `points_reward` · `active` |
+| `question_options` | خيارات السؤال | `question_id` · `label` |
+| `question_responses` | إجابات العملاء | `(question_id, user_id)` **فريد** · `answer_text` / `selected_option_ids` · `points_awarded` |
+
+**خيارات التاجر (`merchant_settings`):** التاجر يتحكّم في كل حاجة — نطاق النقاط (مشترك/منفصل لكل فرع)، تفعيل/تعطيل أي ميزة، حدود الأمان، تجدّد الـ QR، والعلامة. الدالة `get_or_create_wallet()` تحلّ المحفظة الصحيحة حسب `points_scope`.
+
+**لوحات الصدارة (دوال):** `global_leaderboard()` (كل التطبيق) · `store_leaderboard(merchant, branch)` (الستور كامل لو branch=NULL أو فرع محدد) · `my_global_rank()`. تحترم `users.leaderboard_opt_in`.
 
 ### منطق النقاط (Source of Truth)
 - `earn` → يزوّد `available_points` **و** `lifetime_points` بنفس القيمة.
@@ -232,10 +240,10 @@ class AppColors {
 - `adjust` → تعديل يدوي بصلاحية.
 - **حساب المستوى:** بعد كل `earn` يقارن `lifetime_points` بالعتبات → لو عدّى عتبة جديدة يطلّعه مستوى أعلى **بدون خصم**.
 
-### قرار الفروع (لازم يتحدد مع صاحب المتجر)
-- المحفظة **مشتركة على مستوى التاجر** (الوضع الافتراضي، مفتاح = `(user, merchant)`)
-- أو **منفصلة لكل فرع** (مفتاح = `(user, merchant, branch)`).
-- الـ schema الافتراضي مشترك. لو اخترنا منفصل → نضيف `branch_id` لمفتاح `user_stores`.
+### قرار الفروع ✅ (مُتخذ: منفصلة لكل فرع)
+- المحفظة **منفصلة لكل فرع** — مفتاح = `(user_id, merchant_id, branch_id)`.
+- يعني العميل عنده رصيد ومستوى مختلف عند كل فرع للتاجر نفسه. الزيارة والنقاط والاستبدال بتتقيّد كلها بـ `branch_id` بتاع الفرع اللي حصلت فيه.
+- **نتيجة مهمة:** كل مسح QR لازم يحدّد الفرع الحالي للكاشير (من `merchant_staff.branch_id`) قبل أي عملية. ولو العميل أول مرة في الفرع ده → تتعمل محفظة جديدة (`user_stores` صف جديد) حتى لو عنده محفظة في فرع تاني لنفس التاجر.
 
 > ملف SQL كامل للجداول + الفهارس + RLS جاهز في `sql/schema.sql` — يُنفّذ مباشرة على Supabase (SQL Editor). راجع المخطط البصري على dbdiagram.io.
 
@@ -285,7 +293,8 @@ create policy "merchant_owns_rewards" on rewards
 | `record-visit` | يسجّل زيارة (يفرض قاعدة زيارة/يوم) | تطبيق التاجر |
 | `add-points` | يضيف نقاط (يفرض السقوف + يحدّث المستوى) | تطبيق التاجر |
 | `redeem-reward` | يبدأ استبدال (ينشئ كود مؤقت 5 دقائق) | تطبيق العميل |
-| `confirm-redemption` | الكاشير يأكّد → الخصم الفعلي يحصل هنا | تطبيق التاجر |
+| `confirm-redemption` | الكاشير يأكّد → الخصم الفعلي يحصل هنا (المحفظة حسب فرعه) | تطبيق التاجر |
+| `answer-question` | العميل يجاوب سؤال التاجر → ياخد النقاط المحدّدة | تطبيق العميل |
 | `apply-coupon` | يتحقق ويطبّق كوبون | تطبيق التاجر |
 | `link-store` | ربط العميل بالتاجر تلقائيًا أول مسح | داخل `verify-qr` |
 | `process-referral` | يفعّل مكافأة الإحالة بعد الحدث المؤهّل | trigger داخلي |
