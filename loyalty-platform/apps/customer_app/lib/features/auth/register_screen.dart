@@ -153,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: AppSpacing.xxl),
 
             // الاسم الكامل
-            _Label('الاسم الكامل'),
+            const _Label('الاسم الكامل'),
             TextField(
               controller: _nameCtrl,
               textInputAction: TextInputAction.next,
@@ -162,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 18),
 
             // رقم الجوال
-            _Label('رقم الجوال'),
+            const _Label('رقم الجوال'),
             TextField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -188,7 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 18),
 
             // البريد الإلكتروني (اختياري)
-            _Label('البريد الإلكتروني (اختياري)'),
+            const _Label('البريد الإلكتروني (اختياري)'),
             TextField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
@@ -202,7 +202,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 18),
 
             // كلمة المرور
-            _Label('كلمة المرور'),
+            const _Label('كلمة المرور'),
             TextField(
               controller: _passwordCtrl,
               obscureText: _obscure,
@@ -223,7 +223,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 18),
 
             // تاريخ الميلاد (اختياري)
-            _Label('تاريخ الميلاد (اختياري)'),
+            const _Label('تاريخ الميلاد (اختياري)'),
             InkWell(
               onTap: _pickDob,
               borderRadius: BorderRadius.circular(16),

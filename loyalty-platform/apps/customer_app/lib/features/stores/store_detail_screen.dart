@@ -1029,8 +1029,8 @@ class _QuestionCardState extends State<_QuestionCard> {
           ],
           const SizedBox(height: 12),
           if (q.answeredByMe)
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.check_circle, color: AppColors.success, size: 20),
                 SizedBox(width: 8),
                 Text('تمت الإجابة ✓',

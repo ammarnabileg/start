@@ -138,7 +138,7 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
                 title: 'تم الاستلام بنجاح ✓',
                 message: 'استمتع بـ $_rewardName!',
               ),
-            _RedemptionStatus.expired => _ResultView(
+            _RedemptionStatus.expired => const _ResultView(
                 icon: Icons.timer_off_outlined,
                 color: AppColors.error,
                 bg: AppColors.errorBg,

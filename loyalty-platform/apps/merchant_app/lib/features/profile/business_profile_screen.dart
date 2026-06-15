@@ -48,7 +48,6 @@ class BusinessProfileScreen extends ConsumerWidget {
     final merchantAsync = ref.watch(_merchantProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('حسابي')),
       body: merchantAsync.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -56,114 +55,126 @@ class BusinessProfileScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(_merchantProvider),
         ),
         data: (merchant) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.zero,
           children: [
-            _businessSection(context, merchant),
-            const SizedBox(height: 20),
-            _SectionLabel('الاشتراك'),
-            _subscriptionSection(context, ref),
-            const SizedBox(height: 20),
-            _SectionLabel('روابط سريعة'),
-            AppCard(
-              padding: EdgeInsets.zero,
+            _businessHeader(context, merchant),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg,
+                  AppSpacing.lg, AppSpacing.xxl),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _NavTile(
-                    icon: Icons.insights_rounded,
-                    title: 'التحليلات',
-                    onTap: () => _push(context, const AnalyticsScreen()),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // TODO: شاشة تعديل بيانات المتجر (الاسم/النوع/الوصف/اللوجو/العنوان/التواصل).
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('تعديل بيانات المتجر — قريبًا')));
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('تعديل بيانات المتجر'),
+                    ),
                   ),
-                  const Divider(height: 1),
-                  _NavTile(
-                    icon: Icons.leaderboard_rounded,
-                    title: 'لوحة الصدارة',
-                    onTap: () =>
-                        _push(context, const StoreLeaderboardScreen()),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(title: 'الاشتراك'),
+                  const SizedBox(height: AppSpacing.sm),
+                  _subscriptionSection(context, ref),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(title: 'النشاط'),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        _NavTile(
+                          icon: Icons.insights_rounded,
+                          title: 'التحليلات',
+                          onTap: () =>
+                              _push(context, const AnalyticsScreen()),
+                        ),
+                        const Divider(height: 1),
+                        _NavTile(
+                          icon: Icons.leaderboard_rounded,
+                          title: 'لوحة الصدارة',
+                          onTap: () =>
+                              _push(context, const StoreLeaderboardScreen()),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(title: 'الإعدادات'),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        _NavTile(
+                          icon: Icons.settings_outlined,
+                          title: 'الإعدادات المتقدمة',
+                          onTap: () =>
+                              _push(context, const MerchantSettingsScreen()),
+                        ),
+                        const Divider(height: 1),
+                        _NavTile(
+                          icon: Icons.language_outlined,
+                          title: 'اللغة',
+                          subtitle: 'العربية',
+                          onTap: () {
+                            // TODO: تبديل اللغة (عربي/إنجليزي) — يقلب الـ layout.
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('تبديل اللغة — قريبًا')));
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SectionHeader(title: 'الحساب'),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: _NavTile(
+                      icon: Icons.logout_rounded,
+                      title: 'تسجيل الخروج',
+                      color: AppColors.error,
+                      onTap: () => _signOut(context),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            _SectionLabel('الإعدادات'),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _NavTile(
-                    icon: Icons.settings_outlined,
-                    title: 'الإعدادات المتقدمة',
-                    onTap: () =>
-                        _push(context, const MerchantSettingsScreen()),
-                  ),
-                  const Divider(height: 1),
-                  _NavTile(
-                    icon: Icons.language_outlined,
-                    title: 'اللغة',
-                    subtitle: 'العربية',
-                    onTap: () {
-                      // TODO: تبديل اللغة (عربي/إنجليزي) — يقلب الـ layout.
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تبديل اللغة — قريبًا')));
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _SectionLabel('الحساب'),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: _NavTile(
-                icon: Icons.logout_rounded,
-                title: 'تسجيل الخروج',
-                color: AppColors.error,
-                onTap: () => _signOut(context),
-              ),
-            ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _businessSection(
+  Widget _businessHeader(
       BuildContext context, Map<String, dynamic>? merchant) {
-    return AppCard(
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.surfaceCream,
-                // TODO: عرض اللوجو من logo_url.
-                child: const Icon(Icons.storefront_rounded,
-                    color: AppColors.primaryDark, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  merchant?['business_name'] as String? ?? 'متجري',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: شاشة تعديل بيانات المتجر (الاسم/النوع/الوصف/اللوجو/العنوان/التواصل).
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('تعديل بيانات المتجر — قريبًا')));
-              },
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('تعديل بيانات المتجر'),
-            ),
-          ),
-        ],
+    final logoUrl = merchant?['logo_url'] as String?;
+    return HeroHeader(
+      title: merchant?['business_name'] as String? ?? 'متجري',
+      subtitle: 'إدارة حسابك وإعدادات متجرك',
+      gradient: AppColors.darkGradient,
+      trailing: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .12),
+          shape: BoxShape.circle,
+          image: (logoUrl != null && logoUrl.isNotEmpty)
+              ? DecorationImage(
+                  image: NetworkImage(logoUrl), fit: BoxFit.cover)
+              : null,
+        ),
+        child: (logoUrl != null && logoUrl.isNotEmpty)
+            ? null
+            : const Icon(Icons.storefront_rounded,
+                color: AppColors.gold, size: 30),
       ),
     );
   }
@@ -262,16 +273,6 @@ class BusinessProfileScreen extends ConsumerWidget {
       await Supabase.instance.client.auth.signOut();
     }
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10, right: 4),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
 }
 
 class _NavTile extends StatelessWidget {

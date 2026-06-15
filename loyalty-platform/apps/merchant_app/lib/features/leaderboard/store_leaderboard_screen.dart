@@ -57,11 +57,25 @@ class StoreLeaderboardScreen extends ConsumerWidget {
             ),
           ),
           if (isMerchantScope && !allBranches)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'نطاق النقاط "مشترك" — قد يكون عرض الفرع فارغًا، الأنسب "كل الفروع".',
-                style: Theme.of(context).textTheme.bodySmall,
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warningBg,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline,
+                      color: AppColors.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'نطاق النقاط "مشترك" — قد يكون عرض الفرع فارغًا، الأنسب "كل الفروع".',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
               ),
             ),
           Expanded(
@@ -122,6 +136,124 @@ class StoreLeaderboardScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// منصّة تتويج لأفضل ثلاثة (1 في المنتصف وأعلى، 2 يسار، 3 يمين).
+class _Podium extends StatelessWidget {
+  final List<LeaderboardEntry> top;
+  const _Podium({required this.top});
+
+  @override
+  Widget build(BuildContext context) {
+    LeaderboardEntry? at(int rank) {
+      for (final e in top) {
+        if (e.rank == rank) return e;
+      }
+      return null;
+    }
+
+    final first = at(1);
+    final second = at(2);
+    final third = at(3);
+
+    return AppCard(
+      gradient: AppColors.goldGradient,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+              child: _PodiumSpot(entry: second, rank: 2, height: 92)),
+          Expanded(
+              child: _PodiumSpot(entry: first, rank: 1, height: 120)),
+          Expanded(
+              child: _PodiumSpot(entry: third, rank: 3, height: 76)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PodiumSpot extends StatelessWidget {
+  final LeaderboardEntry? entry;
+  final int rank;
+  final double height;
+  const _PodiumSpot(
+      {required this.entry, required this.rank, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry == null) return const SizedBox.shrink();
+    final medalColor = switch (rank) {
+      1 => AppColors.goldTier,
+      2 => AppColors.silver,
+      _ => AppColors.bronze,
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              CircleAvatar(
+                radius: rank == 1 ? 28 : 22,
+                backgroundColor: AppColors.surface,
+                child: Icon(Icons.emoji_events_rounded,
+                    color: medalColor, size: rank == 1 ? 32 : 26),
+              ),
+              if (rank == 1)
+                const Positioned(
+                  top: -16,
+                  child: Icon(Icons.workspace_premium_rounded,
+                      color: AppColors.surface, size: 22),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            entry!.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: AppColors.onPrimary, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            height: height,
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: .35),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Column(
+              children: [
+                Text('$rank',
+                    style: TextStyle(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: rank == 1 ? 24 : 18)),
+                const SizedBox(height: 4),
+                Text('${entry!.totalPoints}',
+                    style: const TextStyle(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 350.ms, delay: (rank * 80).ms)
+        .slideY(begin: .15, end: 0, curve: Curves.easeOutBack);
   }
 }
 

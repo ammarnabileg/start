@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: AppSpacing.xxl),
             // رقم الجوال
-            _Label('رقم الجوال'),
+            const _Label('رقم الجوال'),
             TextField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: AppSpacing.lg),
 
             // كلمة المرور
-            _Label('كلمة المرور'),
+            const _Label('كلمة المرور'),
             TextField(
               controller: _passwordCtrl,
               obscureText: _obscure,

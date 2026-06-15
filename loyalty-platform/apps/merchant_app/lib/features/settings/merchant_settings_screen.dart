@@ -151,13 +151,15 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
 
       ref.invalidate(merchantSettingsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم حفظ الإعدادات')));
+        await AppFeedback.success(
+          context,
+          title: 'تم حفظ الإعدادات',
+          message: 'طُبّقت تغييراتك على المتجر.',
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تعذّر الحفظ')));
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -172,7 +174,8 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
         padding: const EdgeInsets.all(16),
         children: [
           // --- نطاق النقاط ---
-          _SectionTitle('نطاق النقاط'),
+          const SectionHeader(title: 'نطاق النقاط'),
+          const SizedBox(height: 8),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -195,11 +198,12 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
                   subtitle:
                       const Text('رصيد ومستوى مستقل للعميل عند كل فرع.'),
                 ),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.warningBg,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                   child: Row(
                     children: [
@@ -220,7 +224,8 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
           ),
 
           // --- الميزات ---
-          _SectionTitle('تفعيل الميزات'),
+          const SectionHeader(title: 'تفعيل الميزات'),
+          const SizedBox(height: 8),
           AppCard(
             child: Column(
               children: [
@@ -250,7 +255,8 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
           ),
 
           // --- حدود الأمان ---
-          _SectionTitle('حدود الأمان'),
+          const SectionHeader(title: 'حدود الأمان'),
+          const SizedBox(height: 8),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -286,7 +292,8 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
           ),
 
           // --- الاكتساب ---
-          _SectionTitle('الاكتساب'),
+          const SectionHeader(title: 'الاكتساب'),
+          const SizedBox(height: 8),
           AppCard(
             child: _NumField(
               controller: _earnRate,
@@ -296,7 +303,8 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
           ),
 
           // --- العلامة ---
-          _SectionTitle('العلامة (White-Label)'),
+          const SectionHeader(title: 'العلامة (White-Label)'),
+          const SizedBox(height: 8),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -325,16 +333,6 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
       ),
     );
   }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle(this.title);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
-        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-      );
 }
 
 class _FeatureSwitch extends StatelessWidget {

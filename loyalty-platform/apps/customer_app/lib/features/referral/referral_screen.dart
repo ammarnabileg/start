@@ -166,10 +166,10 @@ class _ReferralSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return const AppCard(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        children: const [
+        children: [
           Skeleton(height: 36, width: 36, radius: AppRadii.pill),
           SizedBox(width: 14),
           Expanded(child: Skeleton(height: 14, width: 120)),

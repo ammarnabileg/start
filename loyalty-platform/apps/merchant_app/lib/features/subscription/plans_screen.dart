@@ -174,7 +174,7 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final onFeatured = AppColors.onPrimary;
+    const onFeatured = AppColors.onPrimary;
     final titleColor = featured ? onFeatured : null;
     final periodColor =
         featured ? onFeatured.withValues(alpha: .7) : AppColors.textSecondary;
@@ -197,7 +197,7 @@ class _PlanCard extends StatelessWidget {
                         fontWeight: FontWeight.w800, color: titleColor)),
               ),
               if (featured)
-                _Pill(
+                const _Pill(
                     label: 'الأكثر شيوعًا',
                     bg: AppColors.onPrimary,
                     fg: AppColors.primary)

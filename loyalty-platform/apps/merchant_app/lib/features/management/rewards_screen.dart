@@ -60,11 +60,11 @@ class RewardsManagementScreen extends ConsumerWidget {
                 onTap: () => _openEditor(context, ref, r),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.surfaceCream,
                       // TODO: عرض صورة المكافأة من image_url لو متوفّرة.
-                      child: const Icon(Icons.card_giftcard_rounded,
+                      child: Icon(Icons.card_giftcard_rounded,
                           color: AppColors.primaryDark),
                     ),
                     const SizedBox(width: 16),

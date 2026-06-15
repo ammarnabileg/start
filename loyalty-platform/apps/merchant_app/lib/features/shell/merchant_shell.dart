@@ -30,18 +30,37 @@ class _MerchantShellState extends State<MerchantShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
-      // زر المسح الكبير في النص.
-      floatingActionButton: FloatingActionButton.large(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        onPressed: () => setState(() => _index = 1),
-        shape: const CircleBorder(),
-        child: const Icon(Icons.qr_code_scanner_rounded, size: 34),
+      // زر المسح الكبير في النص — بتدرّج وظل بارز.
+      floatingActionButton: Container(
+        width: 68,
+        height: 68,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppColors.buttonGradient,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: .45),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.large(
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.onPrimary,
+          elevation: 0,
+          highlightElevation: 0,
+          onPressed: () => setState(() => _index = 1),
+          shape: const CircleBorder(),
+          child: const Icon(Icons.qr_code_scanner_rounded, size: 34),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
+        color: AppColors.surface,
+        elevation: 12,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -96,13 +115,24 @@ class _NavItem extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 24),
+              AnimatedContainer(
+                duration: AppDurations.fast,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppColors.surfaceCream
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
               const SizedBox(height: 2),
               Text(
                 label,
