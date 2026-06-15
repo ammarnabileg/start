@@ -3,13 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
+import '../../core/push_service.dart';
+
 /// 1.8 — تمهيد إذن الإشعارات (Priming).
 class NotificationsPrimingScreen extends StatelessWidget {
   const NotificationsPrimingScreen({super.key});
 
   Future<void> _enable(BuildContext context) async {
-    // TODO: استدعِ FirebaseMessaging.instance.requestPermission() هنا،
-    // ثم سجّل توكن FCM في جدول device_tokens مع push_opt_in = true.
+    // طلب إذن الإشعارات وتسجيل توكن FCM في جدول device_tokens (أفضل جهد).
+    await PushService.registerForUser();
     if (!context.mounted) return;
     context.go('/');
   }

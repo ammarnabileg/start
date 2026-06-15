@@ -6,6 +6,8 @@ import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/proximity_service.dart';
+import '../../core/push_service.dart';
 import '../auth/location_priming_screen.dart';
 import '../qr/qr_providers.dart';
 
@@ -37,6 +39,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _onPushChanged(bool value) async {
+    await _updateFlag('push_opt_in', value);
+    if (value) {
+      // عند التفعيل → اطلب الإذن وسجّل توكن FCM (أفضل جهد).
+      await PushService.registerForUser();
+    }
+  }
+
   Future<void> _onProximityChanged(bool value, bool currentlyOff) async {
     if (value && currentlyOff) {
       // أول تفعيل → شاشة تمهيد الإذن قبل طلبه.
@@ -45,6 +55,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ));
     }
     await _updateFlag('proximity_opt_in', value);
+    // بعد حفظ التفضيل، شغّل/أوقف خدمة القرب (أفضل جهد).
+    if (value) {
+      await ProximityService.instance.start();
+    } else {
+      await ProximityService.instance.stop();
+    }
   }
 
   Future<void> _confirmDelete() async {
@@ -107,8 +123,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     subtitle:
                         const Text('تنبيهات عند حصولك على نقاط أو مكافآت.'),
                     value: user.pushOptIn,
-                    onChanged:
-                        _busy ? null : (v) => _updateFlag('push_opt_in', v),
+                    onChanged: _busy ? null : (v) => _onPushChanged(v),
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   SwitchListTile(

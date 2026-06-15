@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/push_service.dart';
 import 'router.dart';
 
 Future<void> main() async {
@@ -17,6 +18,9 @@ Future<void> main() async {
 
   // ملاحظة: تهيئة Firebase (Messaging/Analytics/Crashlytics) تتم هنا أيضًا
   // بعد إضافة ملفات google-services. راجع README.
+  //
+  // تهيئة الإشعارات (FCM) — آمنة عند غياب إعداد Firebase.
+  await PushService.init();
 
   runApp(const ProviderScope(child: CustomerApp()));
 }
