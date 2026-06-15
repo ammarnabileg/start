@@ -13,7 +13,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 const _w = 390.0;
 const _h = 844.0;
-const _scale = 2.0;
+const _scale = 1.0;
 
 Future<void> _loadFonts() async {
   final loader = FontLoader('Tajawal');
