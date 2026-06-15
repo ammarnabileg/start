@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/map_picker_screen.dart';
 import '../../core/merchant_providers.dart';
 
 /// قائمة الفروع من جدول branches.
@@ -164,6 +165,20 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
     super.dispose();
   }
 
+  Future<void> _pickLocation() async {
+    final result = await Navigator.of(context).push<PickedLocation>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(initialLat: _lat, initialLng: _lng),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _lat = result.lat;
+        _lng = result.lng;
+      });
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
@@ -173,7 +188,6 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
         'merchant_id': staff.merchantId,
         'name': _name.text.trim(),
         'address': _address.text.trim(),
-        // TODO: اختيار الموقع من الخريطة لتعبئة lat/lng.
         'lat': _lat,
         'lng': _lng,
         'geofence_radius_m': int.tryParse(_radius.text.trim()) ?? 150,
@@ -231,15 +245,11 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            // TODO: اختيار الموقع على الخريطة لتحديد lat/lng.
             OutlinedButton.icon(
-              onPressed: () {
-                AppFeedback.toast(
-                    context, 'اختيار الموقع على الخريطة — قريبًا');
-              },
+              onPressed: _pickLocation,
               icon: const Icon(Icons.map_outlined),
               label: Text(_lat == null || _lng == null
-                  ? 'تحديد الموقع على الخريطة'
+                  ? 'اختيار الموقع على الخريطة'
                   : 'الموقع: ${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}'),
             ),
             const SizedBox(height: 12),

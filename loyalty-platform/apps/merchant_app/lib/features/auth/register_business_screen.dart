@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/map_picker_screen.dart';
+import '../../core/media_storage.dart';
 import 'otp_screen.dart';
 
 /// 2.3 — تسجيل النشاط. يجمع بيانات المتجر ثم يرسل OTP لرقم الجوال.
@@ -36,7 +35,8 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
   };
   String _businessType = 'restaurant';
 
-  XFile? _logoFile;
+  String? _logoUrl;
+  bool _uploadingLogo = false;
   double? _lat;
   double? _lng;
   bool _agreedTerms = false;
@@ -54,24 +54,39 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
     super.dispose();
   }
 
-  Future<void> _pickLogo() async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) {
-      setState(() => _logoFile = picked);
-      // TODO: ضغط الصورة (flutter_image_compress) ورفعها لـ Supabase Storage
-      // والحصول على logo_url قبل/بعد إنشاء صف التاجر.
+  Future<void> _uploadLogo() async {
+    setState(() => _uploadingLogo = true);
+    try {
+      final url = await MediaStorage.pickAndUpload(
+        bucket: 'merchant-media',
+        folder: 'logos',
+      );
+      if (!mounted) return;
+      if (url != null) {
+        setState(() => _logoUrl = url);
+        _snack('تم رفع الشعار', error: false);
+      } else {
+        _snack('تعذّر رفع الشعار');
+      }
+    } catch (_) {
+      _snack('تعذّر رفع الشعار');
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
     }
   }
 
   Future<void> _pickLocation() async {
-    // TODO: فتح خريطة (google_maps_flutter أو بديل أخف) لاختيار lat/lng.
-    // مؤقتًا نخزّن قيمة افتراضية للتوضيح.
-    setState(() {
-      _lat = 24.7136;
-      _lng = 46.6753;
-    });
-    _snack('تم تحديد موقع مبدئي — اختيار الخريطة قيد الإضافة', error: false);
+    final result = await Navigator.of(context).push<PickedLocation>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(initialLat: _lat, initialLng: _lng),
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _lat = result.lat;
+        _lng = result.lng;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -93,8 +108,8 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
         'phone': phone,
         'email': _emailCtrl.text.trim(),
         'cr_number': _crCtrl.text.trim().isEmpty ? null : _crCtrl.text.trim(),
-        'logo_url': null, // TODO: يُملأ بعد رفع الشعار للـ Storage
-        'logo_local_path': _logoFile?.path,
+        'logo_url': _logoUrl,
+        'logo_local_path': null,
         'address': _addressCtrl.text.trim(),
         'lat': _lat,
         'lng': _lng,
@@ -131,6 +146,20 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 AppSpacing.xl, AppSpacing.xxxl),
             children: [
               _logoPicker(),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _uploadingLogo ? null : _uploadLogo,
+                  icon: _uploadingLogo
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.upload_outlined),
+                  label: const Text('رفع الشعار'),
+                ),
+              ),
               const SizedBox(height: AppSpacing.xl),
               const SectionHeader(title: 'بيانات النشاط'),
               const SizedBox(height: AppSpacing.md),
@@ -267,9 +296,10 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
   }
 
   Widget _logoPicker() {
+    final hasLogo = _logoUrl != null && _logoUrl!.isNotEmpty;
     return Center(
       child: GestureDetector(
-        onTap: _pickLogo,
+        onTap: _uploadingLogo ? null : _uploadLogo,
         child: Container(
           width: 110,
           height: 110,
@@ -277,14 +307,14 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
             color: AppColors.surfaceCream,
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.divider, width: 1.5),
-            image: _logoFile != null
+            image: hasLogo
                 ? DecorationImage(
-                    image: FileImage(File(_logoFile!.path)),
+                    image: NetworkImage(_logoUrl!),
                     fit: BoxFit.cover,
                   )
                 : null,
           ),
-          child: _logoFile != null
+          child: hasLogo
               ? null
               : const Column(
                   mainAxisAlignment: MainAxisAlignment.center,

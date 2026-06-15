@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
 
 /// قائمة حملات الزيارة من جدول visit_campaigns.
@@ -128,6 +129,57 @@ class _ActiveChip extends StatelessWidget {
       );
 }
 
+/// حقل اختيار صورة مع معاينة، يُستخدم في محرّر الحملة.
+class _ImagePickerField extends StatelessWidget {
+  final String? imageUrl;
+  final bool uploading;
+  final VoidCallback onPick;
+  const _ImagePickerField({
+    required this.imageUrl,
+    required this.uploading,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCream,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            image: hasImage
+                ? DecorationImage(
+                    image: NetworkImage(imageUrl!), fit: BoxFit.cover)
+                : null,
+          ),
+          child: hasImage
+              ? null
+              : const Icon(Icons.image_outlined,
+                  color: AppColors.textSecondary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: uploading ? null : onPick,
+            icon: uploading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.photo_library_outlined),
+            label: const Text('اختيار صورة'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CampaignEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
   const _CampaignEditor({this.existing});
@@ -142,6 +194,8 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
   late final TextEditingController _rewardName;
   late final TextEditingController _rewardDesc;
   late bool _active;
+  String? _imageUrl;
+  bool _uploading = false;
   bool _busy = false;
 
   @override
@@ -156,6 +210,29 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
     _rewardDesc =
         TextEditingController(text: e?['reward_description'] as String? ?? '');
     _active = e?['active'] as bool? ?? true;
+    _imageUrl = e?['reward_image_url'] as String?;
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _uploading = true);
+    try {
+      final staff = await ref.read(currentStaffProvider.future);
+      final url = await MediaStorage.pickAndUpload(
+        bucket: 'merchant-media',
+        folder: staff.merchantId,
+      );
+      if (!mounted) return;
+      if (url != null) {
+        setState(() => _imageUrl = url);
+        AppFeedback.toast(context, 'تم رفع الصورة');
+      } else {
+        AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
+      }
+    } catch (_) {
+      if (mounted) AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   @override
@@ -178,7 +255,7 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
         'required_visits': int.tryParse(_visits.text.trim()) ?? 0,
         'reward_name': _rewardName.text.trim(),
         'reward_description': _rewardDesc.text.trim(),
-        // TODO: رفع صورة المكافأة عبر image_picker + flutter_image_compress → reward_image_url
+        'reward_image_url': _imageUrl,
         'active': _active,
       };
       final client = Supabase.instance.client;
@@ -246,11 +323,16 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
                   (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: 12),
-            // TODO: زر اختيار صورة المكافأة (image_picker).
             TextFormField(
               controller: _rewardDesc,
               decoration: const InputDecoration(labelText: 'وصف المكافأة'),
               maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            _ImagePickerField(
+              imageUrl: _imageUrl,
+              uploading: _uploading,
+              onPick: _pickImage,
             ),
             const SizedBox(height: 8),
             SwitchListTile(

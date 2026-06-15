@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
 
 /// قائمة المكافآت من جدول rewards.
@@ -56,16 +57,21 @@ class RewardsManagementScreen extends ConsumerWidget {
             itemBuilder: (context, i) {
               final r = rows[i];
               final stock = r['stock_qty'];
+              final imageUrl = r['image_url'] as String?;
               return AppCard(
                 onTap: () => _openEditor(context, ref, r),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.surfaceCream,
-                      // TODO: عرض صورة المكافأة من image_url لو متوفّرة.
-                      child: Icon(Icons.card_giftcard_rounded,
-                          color: AppColors.primaryDark),
+                      backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                          ? NetworkImage(imageUrl)
+                          : null,
+                      child: (imageUrl != null && imageUrl.isNotEmpty)
+                          ? null
+                          : const Icon(Icons.card_giftcard_rounded,
+                              color: AppColors.primaryDark),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -135,6 +141,57 @@ class _ActiveChip extends StatelessWidget {
       );
 }
 
+/// حقل اختيار صورة مع معاينة، يُستخدم في محرّر المكافأة.
+class _ImagePickerField extends StatelessWidget {
+  final String? imageUrl;
+  final bool uploading;
+  final VoidCallback onPick;
+  const _ImagePickerField({
+    required this.imageUrl,
+    required this.uploading,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCream,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            image: hasImage
+                ? DecorationImage(
+                    image: NetworkImage(imageUrl!), fit: BoxFit.cover)
+                : null,
+          ),
+          child: hasImage
+              ? null
+              : const Icon(Icons.image_outlined,
+                  color: AppColors.textSecondary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: uploading ? null : onPick,
+            icon: uploading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.photo_library_outlined),
+            label: const Text('اختيار صورة'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _RewardEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
   const _RewardEditor({this.existing});
@@ -150,6 +207,8 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
   late final TextEditingController _stock;
   late bool _unlimited;
   late bool _active;
+  String? _imageUrl;
+  bool _uploading = false;
   bool _busy = false;
 
   @override
@@ -164,6 +223,29 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
     _unlimited = stock == null;
     _stock = TextEditingController(text: stock?.toString() ?? '');
     _active = e?['active'] as bool? ?? true;
+    _imageUrl = e?['image_url'] as String?;
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _uploading = true);
+    try {
+      final staff = await ref.read(currentStaffProvider.future);
+      final url = await MediaStorage.pickAndUpload(
+        bucket: 'merchant-media',
+        folder: staff.merchantId,
+      );
+      if (!mounted) return;
+      if (url != null) {
+        setState(() => _imageUrl = url);
+        AppFeedback.toast(context, 'تم رفع الصورة');
+      } else {
+        AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
+      }
+    } catch (_) {
+      if (mounted) AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   @override
@@ -187,7 +269,7 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
         'points_cost': int.tryParse(_pointsCost.text.trim()) ?? 0,
         'stock_qty':
             _unlimited ? null : (int.tryParse(_stock.text.trim()) ?? 0),
-        // TODO: رفع صورة المكافأة عبر image_picker + flutter_image_compress → image_url
+        'image_url': _imageUrl,
         'active': _active,
       };
       final client = Supabase.instance.client;
@@ -229,7 +311,12 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
             Text(widget.existing == null ? 'مكافأة جديدة' : 'تعديل المكافأة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            // TODO: زر اختيار صورة المكافأة (image_picker).
+            _ImagePickerField(
+              imageUrl: _imageUrl,
+              uploading: _uploading,
+              onPick: _pickImage,
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'اسم الجائزة'),
