@@ -1,6 +1,7 @@
 // add-points: الكاشير يضيف نقاط (earn). يفرض السقوف ويحدّث المستوى.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings, staffCan } from "../_shared/auth.ts";
+import { sendPush } from "../_shared/push.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -76,12 +77,15 @@ Deno.serve(async (req) => {
       reason: reason ?? null,
     });
 
-    // إشعار للعميل (best-effort)
+    // إشعار للعميل (داخل التطبيق + Push)
     await svc.from("notifications").insert({
       user_id, type: "points",
       title: "حصلت على نقاط",
       body: `حصلت على ${pts} نقطة`,
       data: { merchant_id: staff.merchantId },
+    });
+    await sendPush(svc, [user_id], {
+      title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
     });
 
     return json({

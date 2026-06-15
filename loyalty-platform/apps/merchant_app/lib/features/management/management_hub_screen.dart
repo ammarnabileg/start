@@ -13,6 +13,7 @@ import 'campaigns_screen.dart';
 import 'customers_screen.dart';
 import 'coupons_screen.dart';
 import 'levels_screen.dart';
+import 'pos_screen.dart';
 import 'questions_screen.dart';
 import 'rewards_screen.dart';
 import 'roles_screen.dart';
@@ -134,6 +135,14 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'لوحة الصدارة',
               subtitle: 'ترتيب عملاء المتجر بالنقاط',
               builder: (_) => const StoreLeaderboardScreen(),
+            ),
+            _HubTile(
+              icon: Icons.point_of_sale_rounded,
+              accent: AppColors.success,
+              title: 'تكامل POS',
+              subtitle: 'API لربط نظام الكاشير ومفاتيحه',
+              builder: (_) => const PosIntegrationScreen(),
+              resource: 'settings',
             ),
             _HubTile(
               icon: Icons.settings_outlined,

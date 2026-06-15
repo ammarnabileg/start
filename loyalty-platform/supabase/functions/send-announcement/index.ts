@@ -2,6 +2,7 @@
 // يفرض الحد الشهري الأقصى اللي حدّده مالك النظام (merchant_limits / platform_settings).
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
+import { sendPush } from "../_shared/push.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -59,7 +60,10 @@ Deno.serve(async (req) => {
       await svc.from("notifications").insert(notifRows.slice(i, i + 500));
     }
 
-    // TODO(FCM): إرسال Push للأجهزة المشتركة (device_tokens مع push_opt_in).
+    // إرسال Push للأجهزة المفعّلة (best-effort).
+    await sendPush(svc, recipients, {
+      title, body: body ?? "", data: { merchant_id: staff.merchantId },
+    });
 
     // تسجيل الحملة (لقياس الاستهلاك).
     await svc.from("notification_campaigns").insert({

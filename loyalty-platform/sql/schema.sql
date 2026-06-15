@@ -927,3 +927,149 @@ create policy segments_manage on public.wheel_segments
 
 create policy prizes_self on public.user_prizes
   for select using (user_id = auth.uid() or public.is_merchant_member(merchant_id));
+
+-- =====================================================================
+-- 16) POS Integration — API لأنظمة الكاشير (Server-to-Server)
+-- التاجر يولّد مفاتيح API، وأنظمة الـ POS تستدعي pos-api بالمفتاح.
+-- =====================================================================
+create table public.pos_api_keys (
+  id          uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  branch_id   uuid references public.branches(id) on delete set null, -- مفتاح خاص بفرع (اختياري)
+  name        text not null,
+  key_prefix  text not null,          -- أول أحرف للعرض/التعريف
+  key_hash    text not null,          -- sha256 للمفتاح الكامل (لا يُخزَّن المفتاح نفسه)
+  active      boolean not null default true,
+  last_used_at timestamptz,
+  created_at  timestamptz not null default now()
+);
+create index idx_pos_keys_merchant on public.pos_api_keys(merchant_id);
+create unique index idx_pos_keys_hash on public.pos_api_keys(key_hash);
+
+alter table public.pos_api_keys enable row level security;
+-- التاجر يقرأ مفاتيحه ويعطّلها؛ الإنشاء عبر Edge Function (service_role).
+create policy pos_keys_read on public.pos_api_keys
+  for select using (public.is_merchant_member(merchant_id));
+create policy pos_keys_update on public.pos_api_keys
+  for update using (public.is_merchant_member(merchant_id))
+  with check (public.is_merchant_member(merchant_id));
+
+-- =====================================================================
+-- 17) المهام المجدولة (pg_cron): مكافآت الميلاد + انتهاء الكوبونات
+-- =====================================================================
+
+-- إعداد مكافأة الميلاد لكل تاجر (اختياري).
+alter table public.merchant_settings
+  add column if not exists birthday_reward_points integer not null default 0;
+alter table public.merchant_settings
+  add column if not exists birthday_reward_title text;
+
+-- يمنح هدايا الميلاد: لكل عميل عيد ميلاده اليوم وله محفظة عند تاجر مفعّل الميزة.
+create or replace function public.grant_birthday_rewards()
+returns void language plpgsql security definer as $$
+declare r record;
+begin
+  for r in
+    select distinct u.id as user_id, us.merchant_id,
+           ms.birthday_reward_points, coalesce(ms.birthday_reward_title,'هدية عيد ميلادك') as title
+    from public.users u
+    join public.user_stores us on us.user_id = u.id
+    join public.merchant_settings ms on ms.merchant_id = us.merchant_id
+    where ms.enable_birthday
+      and u.date_of_birth is not null
+      and extract(month from u.date_of_birth) = extract(month from current_date)
+      and extract(day   from u.date_of_birth) = extract(day   from current_date)
+  loop
+    -- لا نكرّر هدية الميلاد لنفس العميل/التاجر في نفس السنة.
+    if not exists (
+      select 1 from public.user_prizes p
+      where p.user_id = r.user_id and p.merchant_id = r.merchant_id
+        and p.source = 'manual' and p.kind = 'reward'
+        and p.title = r.title
+        and date_trunc('year', p.created_at) = date_trunc('year', now())
+    ) then
+      insert into public.user_prizes (user_id, merchant_id, source, title, kind, points_value, expires_at)
+      values (r.user_id, r.merchant_id, 'manual', r.title, 'reward',
+              r.birthday_reward_points, now() + interval '14 days');
+      insert into public.notifications (user_id, type, title, body, data)
+      values (r.user_id, 'birthday', 'كل سنة وأنت طيب!', r.title,
+              jsonb_build_object('merchant_id', r.merchant_id));
+    end if;
+  end loop;
+end;
+$$;
+
+-- يعطّل الكوبونات المنتهية.
+create or replace function public.expire_coupons()
+returns void language sql security definer as $$
+  update public.coupons set active = false
+  where active and valid_to is not null and valid_to < now();
+$$;
+
+-- جدولة يومية (تتطلب امتداد pg_cron مفعّلًا في المشروع).
+-- ملاحظة: نفّذ هذه الأسطر مرة واحدة (تتجاهل التكرار لو الوظيفة موجودة).
+select cron.schedule('birthday-rewards', '0 6 * * *', $$select public.grant_birthday_rewards();$$)
+  where not exists (select 1 from cron.job where jobname = 'birthday-rewards');
+select cron.schedule('expire-coupons', '15 0 * * *', $$select public.expire_coupons();$$)
+  where not exists (select 1 from cron.job where jobname = 'expire-coupons');
+
+-- =====================================================================
+-- 18) معالجة الإحالة تلقائيًا — عند أول زيارة مؤكّدة للمُحال
+-- (مكافأة الإحالة لا تُصرف إلا بعد حدث حقيقي + تأكيد الجوال عند التسجيل).
+-- =====================================================================
+create or replace function public.process_referral_on_visit()
+returns trigger language plpgsql security definer as $$
+declare v_first_visit boolean; v_ref record;
+begin
+  -- أول زيارة للعميل على الإطلاق؟
+  select count(*) = 1 into v_first_visit
+  from public.user_visits where user_id = new.user_id;
+  if not v_first_visit then return new; end if;
+
+  -- هل هو مُحال بإحالة معلّقة؟
+  select * into v_ref from public.referrals
+  where referee_id = new.user_id and status = 'pending' limit 1;
+  if not found then return new; end if;
+
+  update public.referrals
+  set status = 'rewarded', qualifying_event = 'first_visit', reward_granted_at = now()
+  where id = v_ref.id;
+
+  -- إشعار الطرفين (المكافأة الفعلية قرار منصّة — تُمنح هنا أو عبر Admin).
+  insert into public.notifications (user_id, type, title, body)
+  values
+    (v_ref.referrer_id, 'referral', 'تمت إحالتك بنجاح!', 'صديقك أتمّ أول زيارة — مكافأتك في الطريق.'),
+    (v_ref.referee_id, 'referral', 'مرحبًا بك!', 'لقد انضممت عبر دعوة صديق.');
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_referral_on_visit on public.user_visits;
+create trigger trg_referral_on_visit
+  after insert on public.user_visits
+  for each row execute function public.process_referral_on_visit();
+
+-- =====================================================================
+-- 19) Proximity — أقرب الفروع لموقع العميل (لمراقبة geofence ديناميكيًا)
+-- ترجّع أقرب N فرعًا من متاجر العميل المرتبط بها فقط.
+-- =====================================================================
+create or replace function public.nearest_branches(
+  p_user uuid, p_lat double precision, p_lng double precision, p_limit int default 20
+) returns table(
+  branch_id uuid, merchant_id uuid, name text,
+  lat double precision, lng double precision, radius_m int, distance_m double precision
+) language sql security definer stable as $$
+  select b.id, b.merchant_id, b.name, b.lat, b.lng, b.geofence_radius_m,
+    (6371000 * acos(least(1,
+        cos(radians(p_lat)) * cos(radians(b.lat)) *
+        cos(radians(b.lng) - radians(p_lng))
+        + sin(radians(p_lat)) * sin(radians(b.lat))))) as distance_m
+  from public.branches b
+  where b.active and b.lat is not null and b.lng is not null
+    and exists (
+      select 1 from public.user_stores us
+      where us.user_id = p_user and us.merchant_id = b.merchant_id
+    )
+  order by distance_m asc
+  limit p_limit;
+$$;
