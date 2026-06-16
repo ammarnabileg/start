@@ -6,6 +6,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/locale_controller.dart';
 import '../../core/proximity_service.dart';
 import '../../core/push_service.dart';
 import '../auth/location_priming_screen.dart';
@@ -173,11 +174,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: ListTile(
                 leading: const Icon(Icons.language_rounded),
                 title: const Text('اللغة'),
-                subtitle: const Text('العربية'),
-                trailing: const Text('العربية / English'),
-                // TODO: تبديل اللغة (ar/en) عبر مزوّد الـ locale.
-                onTap: () =>
-                    AppFeedback.toast(context, 'تبديل اللغة سيتوفر قريبًا.'),
+                subtitle:
+                    Text(ref.watch(localeProvider).languageCode == 'ar'
+                        ? 'العربية'
+                        : 'English'),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  builder: (_) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        title: const Text('العربية'),
+                        trailing:
+                            ref.read(localeProvider).languageCode == 'ar'
+                                ? const Icon(Icons.check, color: AppColors.success)
+                                : null,
+                        onTap: () {
+                          ref
+                              .read(localeProvider.notifier)
+                              .setLocale(const Locale('ar'));
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        title: const Text('English'),
+                        trailing:
+                            ref.read(localeProvider).languageCode == 'en'
+                                ? const Icon(Icons.check, color: AppColors.success)
+                                : null,
+                        onTap: () {
+                          ref
+                              .read(localeProvider.notifier)
+                              .setLocale(const Locale('en'));
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             AppSpacing.gapLg,

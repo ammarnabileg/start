@@ -1099,3 +1099,86 @@ create policy "avatar manage own" on storage.objects
   for all to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =====================================================================
+-- 21) Analytics — Materialized View + ملخّص في استدعاء واحد
+-- يحسّن أداء التحليلات (تجميع مسبق + تحديث يومي).
+-- =====================================================================
+create materialized view if not exists public.mv_daily_visits as
+  select merchant_id, branch_id, visit_date as day, count(*)::int as visits
+  from public.user_visits
+  group by merchant_id, branch_id, visit_date;
+create index if not exists idx_mv_daily_visits
+  on public.mv_daily_visits(merchant_id, day);
+
+create or replace function public.refresh_analytics()
+returns void language sql security definer as $$
+  refresh materialized view public.mv_daily_visits;
+$$;
+
+-- ملخّص تحليلات التاجر للفترة (افتراضي آخر 30 يومًا) في jsonb واحد.
+create or replace function public.analytics_summary(
+  p_merchant uuid, p_branch uuid default null, p_since date default null
+) returns jsonb language plpgsql security definer stable as $$
+declare
+  v_since date := coalesce(p_since, current_date - 30);
+  v_new int; v_total int; v_distinct int; v_returners int;
+  v_earned bigint; v_redeemed bigint;
+  v_top jsonb; v_series jsonb;
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'غير مصرّح';
+  end if;
+
+  select count(*) into v_total from public.user_stores
+   where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch);
+
+  select count(*) into v_new from public.user_stores
+   where merchant_id = p_merchant and first_linked_at >= v_since
+     and (p_branch is null or branch_id = p_branch);
+
+  with per_user as (
+    select user_id, count(*) c from public.user_visits
+     where merchant_id = p_merchant and visit_date >= v_since
+       and (p_branch is null or branch_id = p_branch)
+     group by user_id
+  )
+  select count(*), count(*) filter (where c >= 2) into v_distinct, v_returners
+  from per_user;
+
+  select coalesce(sum(points) filter (where type='earn'),0),
+         coalesce(abs(sum(points) filter (where type='redeem')),0)
+    into v_earned, v_redeemed
+  from public.points_transactions
+  where merchant_id = p_merchant and created_at >= v_since
+    and (p_branch is null or branch_id = p_branch);
+
+  select coalesce(jsonb_agg(t),'[]'::jsonb) into v_top from (
+    select r.name, count(*) as redemptions
+    from public.reward_redemptions rr
+    join public.rewards r on r.id = rr.reward_id
+    where rr.merchant_id = p_merchant and rr.created_at >= v_since
+      and (p_branch is null or rr.branch_id = p_branch)
+    group by r.name order by redemptions desc limit 5
+  ) t;
+
+  select coalesce(jsonb_agg(jsonb_build_object('day', day, 'visits', visits) order by day),'[]'::jsonb)
+    into v_series
+  from public.mv_daily_visits
+  where merchant_id = p_merchant and day >= v_since
+    and (p_branch is null or branch_id = p_branch);
+
+  return jsonb_build_object(
+    'new_customers', v_new,
+    'total_customers', v_total,
+    'return_rate', case when v_distinct=0 then 0 else round((v_returners::numeric/v_distinct)*100,1) end,
+    'points_distributed', v_earned,
+    'points_redeemed', v_redeemed,
+    'top_rewards', v_top,
+    'visits_series', v_series
+  );
+end;
+$$;
+
+select cron.schedule('refresh-analytics', '30 0 * * *', $$select public.refresh_analytics();$$)
+  where not exists (select 1 from cron.job where jobname = 'refresh-analytics');

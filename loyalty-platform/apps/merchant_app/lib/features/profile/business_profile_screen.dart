@@ -4,10 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/locale_controller.dart';
 import '../../core/merchant_providers.dart';
 import '../analytics/analytics_screen.dart';
 import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
+import '../subscription/manage_subscription_screen.dart';
+import 'edit_business_screen.dart';
 
 /// بيانات النشاط (merchants).
 final _merchantProvider =
@@ -67,12 +70,8 @@ class BusinessProfileScreen extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: شاشة تعديل بيانات المتجر (الاسم/النوع/الوصف/اللوجو/العنوان/التواصل).
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('تعديل بيانات المتجر — قريبًا')));
-                      },
+                      onPressed: () => _push(
+                          context, const EditBusinessProfileScreen()),
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('تعديل بيانات المتجر'),
                     ),
@@ -121,13 +120,35 @@ class BusinessProfileScreen extends ConsumerWidget {
                         _NavTile(
                           icon: Icons.language_outlined,
                           title: 'اللغة',
-                          subtitle: 'العربية',
-                          onTap: () {
-                            // TODO: تبديل اللغة (عربي/إنجليزي) — يقلب الـ layout.
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('تبديل اللغة — قريبًا')));
-                          },
+                          subtitle: ref.watch(localeProvider).languageCode == 'ar'
+                              ? 'العربية'
+                              : 'English',
+                          onTap: () => showModalBottomSheet<void>(
+                            context: context,
+                            builder: (_) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  title: const Text('العربية'),
+                                  onTap: () {
+                                    ref
+                                        .read(localeProvider.notifier)
+                                        .setLocale(const Locale('ar'));
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: const Text('English'),
+                                  onTap: () {
+                                    ref
+                                        .read(localeProvider.notifier)
+                                        .setLocale(const Locale('en'));
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -233,12 +254,8 @@ class BusinessProfileScreen extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: شاشة إدارة الاشتراك (مملوكة لوكيل آخر).
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('إدارة الاشتراك — قريبًا')));
-                  },
+                  onPressed: () =>
+                      _push(context, const ManageSubscriptionScreen()),
                   icon: const Icon(Icons.credit_card_outlined),
                   label: const Text('إدارة الاشتراك'),
                 ),
