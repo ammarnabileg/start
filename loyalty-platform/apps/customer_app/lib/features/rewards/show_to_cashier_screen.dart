@@ -1,25 +1,28 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/repositories/rewards_repository.dart';
 
 /// شاشة الاستلام (Show to Cashier) — راجع CUSTOMER_APP.md 1.14.
 /// تعرض QR لعملية الاستبدال + عداد صلاحية + حالة لحظية (confirmed/expired).
-class ShowToCashierScreen extends StatefulWidget {
+class ShowToCashierScreen extends ConsumerStatefulWidget {
   /// نتيجة دالة redeem-reward:
   /// {redemption_id, reward_name, points_cost, expires_at}
   final Map<String, dynamic> redemption;
   const ShowToCashierScreen({super.key, required this.redemption});
 
   @override
-  State<ShowToCashierScreen> createState() => _ShowToCashierScreenState();
+  ConsumerState<ShowToCashierScreen> createState() =>
+      _ShowToCashierScreenState();
 }
 
 enum _RedemptionStatus { pending, confirmed, expired }
 
-class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
+class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
   late final String _redemptionId;
   late final String _rewardName;
   late final DateTime _expiresAt;
@@ -71,11 +74,9 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
   }
 
   void _subscribe() {
-    final client = Supabase.instance.client;
-    _sub = client
-        .from('reward_redemptions')
-        .stream(primaryKey: ['id'])
-        .eq('id', _redemptionId)
+    _sub = ref
+        .read(rewardsRepoProvider)
+        .redemptionStream(_redemptionId)
         .listen((rows) {
       if (rows.isEmpty) return;
       _applyStatus(rows.first['status'] as String?);
@@ -85,11 +86,8 @@ class _ShowToCashierScreenState extends State<ShowToCashierScreen> {
   Future<void> _pollStatus() async {
     if (_status != _RedemptionStatus.pending) return;
     try {
-      final row = await Supabase.instance.client
-          .from('reward_redemptions')
-          .select('status')
-          .eq('id', _redemptionId)
-          .maybeSingle();
+      final row =
+          await ref.read(rewardsRepoProvider).redemptionStatus(_redemptionId);
       _applyStatus(row?['status'] as String?);
     } catch (_) {
       // تجاهل أخطاء الـ polling المؤقتة.

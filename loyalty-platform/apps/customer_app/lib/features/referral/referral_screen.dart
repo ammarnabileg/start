@@ -4,21 +4,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/referral_repository.dart';
 import '../qr/qr_providers.dart';
 
 /// إحالات العميل (مَن دعاهم + حالتهم).
 final myReferralsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-  final rows = await client
-      .from('referrals')
-      .select()
-      .eq('referrer_id', uid)
-      .order('created_at', ascending: false);
-  return (rows as List).cast<Map<String, dynamic>>();
+  return ref.read(referralRepoProvider).myReferrals();
 });
 
 /// الإحالة (Referral) — راجع CUSTOMER_APP.md 1.16.

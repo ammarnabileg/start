@@ -1,21 +1,23 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/repositories/wheel_repository.dart';
 
 /// شاشة QR متغيّر لتفعيل هدية عند الكاشير.
 /// الـ QR يتجدّد كل ثانية (نافذة TOTP-style) ويُلغى عند تحوّل الحالة لـ redeemed.
-class PrizeQrScreen extends StatefulWidget {
+class PrizeQrScreen extends ConsumerStatefulWidget {
   final UserPrize prize;
   const PrizeQrScreen({super.key, required this.prize});
 
   @override
-  State<PrizeQrScreen> createState() => _PrizeQrScreenState();
+  ConsumerState<PrizeQrScreen> createState() => _PrizeQrScreenState();
 }
 
-class _PrizeQrScreenState extends State<PrizeQrScreen> {
+class _PrizeQrScreenState extends ConsumerState<PrizeQrScreen> {
   Timer? _timer;
   String _payload = '';
   int _remaining = QrToken.defaultWindowSeconds;
@@ -44,10 +46,9 @@ class _PrizeQrScreenState extends State<PrizeQrScreen> {
   }
 
   void _subscribeStatus() {
-    _statusSub = Supabase.instance.client
-        .from('user_prizes')
-        .stream(primaryKey: ['id'])
-        .eq('id', widget.prize.id)
+    _statusSub = ref
+        .read(wheelRepoProvider)
+        .prizeStatusStream(widget.prize.id)
         .listen((rows) {
       if (rows.isEmpty) return;
       final status = rows.first['status'] as String?;

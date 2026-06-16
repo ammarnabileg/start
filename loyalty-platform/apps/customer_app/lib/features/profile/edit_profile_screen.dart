@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
 import '../../core/avatar_storage.dart';
 import '../qr/qr_providers.dart';
 
@@ -85,15 +85,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (!_nameValid || !_emailValid) return;
     setState(() => _saving = true);
     try {
-      final client = Supabase.instance.client;
-      final uid = client.auth.currentUser!.id;
-      await client.from('users').update({
+      await ref.read(userRepoProvider).updateProfile({
         'name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         'date_of_birth':
             _dob == null ? null : DateFormat('yyyy-MM-dd').format(_dob!),
         'avatar_url': _avatarUrl,
-      }).eq('id', uid);
+      });
       ref.invalidate(currentUserProvider);
       if (!mounted) return;
       AppFeedback.toast(context, 'تم حفظ التغييرات');

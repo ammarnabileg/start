@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
 import 'forgot_password_screen.dart';
 
 /// 1.6 — تسجيل الدخول (Login).
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
@@ -61,10 +63,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_canSubmit) return;
     setState(() => _loading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        phone: _e164Phone,
-        password: _passwordCtrl.text,
-      );
+      await ref.read(userRepoProvider).signInWithPassword(
+            phone: _e164Phone,
+            password: _passwordCtrl.text,
+          );
       if (!mounted) return;
       context.go('/');
     } on AuthException {

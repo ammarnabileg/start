@@ -2,24 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/wheel_repository.dart';
 import 'my_prizes_screen.dart';
 import 'prize_qr_screen.dart';
 
 /// عجلة حظ التاجر النشطة (إن وُجدت).
 final activeWheelProvider =
     FutureProvider.autoDispose.family<LuckyWheel?, String>((ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final row = await client
-      .from('lucky_wheels')
-      .select('*, wheel_segments(*)')
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
-      .limit(1)
-      .maybeSingle();
-  if (row == null) return null;
-  return LuckyWheel.fromJson(row);
+  return ref.read(wheelRepoProvider).activeWheel(merchantId);
 });
 
 /// شاشة عجلة الحظ — يلِفّ العميل بنقاطه ويربح هدايا/نقاط.
@@ -40,9 +31,7 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
     if (_spinning) return;
     setState(() => _spinning = true);
     try {
-      final res = await Supabase.instance.client.functions
-          .invoke('spin-wheel', body: {'wheel_id': wheel.id});
-      final data = res.data as Map<String, dynamic>?;
+      final data = await ref.read(wheelRepoProvider).spinWheel(wheel.id);
       if (data == null) {
         if (mounted) {
           AppFeedback.toast(context, 'تعذّر اللفّ، حاول مرة أخرى.', error: true);
@@ -80,7 +69,7 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
           if (prizeJson != null) {
             final prize = UserPrize.fromJson({
               ...prizeJson,
-              'user_id': Supabase.instance.client.auth.currentUser!.id,
+              'user_id': ref.read(wheelRepoProvider).currentUserId!,
               'merchant_id': widget.merchantId,
               'merchant_name': widget.merchantName,
               'kind': prizeJson['kind'] ?? 'reward',

@@ -4,14 +4,16 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
 import 'notifications_priming_screen.dart';
 
 /// 1.5 — تأكيد الجوال (OTP).
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
   final bool isRegister;
   final Map<String, dynamic>? draft;
@@ -24,10 +26,10 @@ class OtpScreen extends StatefulWidget {
   });
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   static const int _codeLength = 6;
 
   final List<TextEditingController> _controllers =
@@ -122,22 +124,18 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verify() async {
     if (!_codeComplete || _loading) return;
     setState(() => _loading = true);
-    final client = Supabase.instance.client;
+    final repo = ref.read(userRepoProvider);
     try {
-      await client.auth.verifyOTP(
-        type: OtpType.sms,
-        phone: widget.phone,
-        token: _code,
-      );
+      await repo.verifyOtp(phone: widget.phone, token: _code);
 
       if (widget.isRegister) {
         final draft = widget.draft ?? const {};
-        final user = client.auth.currentUser;
-        if (user != null) {
+        final userId = repo.currentUserId;
+        if (userId != null) {
           final name = (draft['name'] as String?)?.trim() ?? '';
           // تسجيل صف الملف في جدول users.
-          await client.from('users').upsert({
-            'id': user.id,
+          await repo.upsertProfile({
+            'id': userId,
             'name': name,
             'phone': widget.phone,
             'email': draft['email'],
@@ -149,7 +147,7 @@ class _OtpScreenState extends State<OtpScreen> {
           final password = draft['password'] as String?;
           if (password != null && password.isNotEmpty) {
             try {
-              await client.auth.updateUser(UserAttributes(password: password));
+              await repo.updatePassword(password);
             } catch (_) {
               // غير حرج لإكمال التسجيل.
             }
@@ -191,7 +189,7 @@ class _OtpScreenState extends State<OtpScreen> {
     if (!_canResend || _resending) return;
     setState(() => _resending = true);
     try {
-      await Supabase.instance.client.auth.signInWithOtp(phone: widget.phone);
+      await ref.read(userRepoProvider).signInWithOtp(phone: widget.phone);
       _startCountdown();
       if (mounted) AppFeedback.toast(context, 'أرسلنا رمزًا جديدًا');
     } on AuthException catch (e) {

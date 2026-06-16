@@ -3,28 +3,18 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/paginated_notifier.dart';
+import '../../data/repositories/wheel_repository.dart';
 import 'prize_qr_screen.dart';
 
-/// هدايا العميل المكسوبة (status = won).
-final myPrizesProvider = FutureProvider.autoDispose<List<UserPrize>>((ref) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-  final rows = await client
-      .from('user_prizes')
-      .select('*, merchants(business_name)')
-      .eq('user_id', uid)
-      .eq('status', 'won')
-      .order('created_at', ascending: false);
-  return (rows as List).map((r) {
-    final m = r as Map<String, dynamic>;
-    final merchant = m['merchants'] as Map<String, dynamic>?;
-    return UserPrize.fromJson({
-      ...m,
-      'merchant_name': merchant?['business_name'],
-    });
-  }).toList();
+/// هدايا العميل المكسوبة (status = won) — مرقّمة.
+final myPrizesProvider = StateNotifierProvider.autoDispose<
+    PaginatedNotifier<UserPrize>, PaginatedState<UserPrize>>((ref) {
+  final repo = ref.read(wheelRepoProvider);
+  return PaginatedNotifier<UserPrize>(
+    (offset, limit) => repo.myPrizes(offset: offset, limit: limit),
+  );
 });
 
 /// شاشة "هداياي" — قائمة الهدايا المكسوبة القابلة للتفعيل عند الكاشير.
@@ -33,36 +23,22 @@ class MyPrizesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(myPrizesProvider);
+    final state = ref.watch(myPrizesProvider);
+    final notifier = ref.read(myPrizesProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('هداياي'), centerTitle: true),
-      body: data.when(
-        loading: () => const SkeletonList(),
-        error: (e, _) => ErrorView(
-          message: 'تعذّر تحميل الهدايا',
-          onRetry: () => ref.invalidate(myPrizesProvider),
-        ),
-        data: (prizes) {
-          if (prizes.isEmpty) {
-            return const EmptyView(
-              icon: Icons.card_giftcard_outlined,
-              title: 'لا توجد هدايا بعد',
-              message: 'جرّب حظك في عجلة الحظ لتربح هدايا!',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myPrizesProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: prizes.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) => _PrizeCard(prize: prizes[i])
-                  .animate()
-                  .fadeIn(duration: 300.ms, delay: (i * 50).ms)
-                  .slideY(begin: .06, end: 0, curve: Curves.easeOut),
-            ),
-          );
-        },
+      body: PaginatedListView<UserPrize>(
+        state: state,
+        onLoadMore: notifier.loadMore,
+        onRefresh: notifier.refresh,
+        emptyIcon: Icons.card_giftcard_outlined,
+        emptyTitle: 'لا توجد هدايا بعد',
+        emptyMessage: 'جرّب حظك في عجلة الحظ لتربح هدايا!',
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, prize, i) => _PrizeCard(prize: prize)
+            .animate()
+            .fadeIn(duration: 300.ms, delay: (i * 50).ms)
+            .slideY(begin: .06, end: 0, curve: Curves.easeOut),
       ),
     );
   }

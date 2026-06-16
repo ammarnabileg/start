@@ -3,9 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/repositories/user_repository.dart';
 import '../../core/locale_controller.dart';
 import '../../core/proximity_service.dart';
 import '../../core/push_service.dart';
@@ -26,9 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _updateFlag(String column, bool value) async {
     setState(() => _busy = true);
     try {
-      final client = Supabase.instance.client;
-      final uid = client.auth.currentUser!.id;
-      await client.from('users').update({column: value}).eq('id', uid);
+      await ref.read(userRepoProvider).updateFlag(column, value);
       ref.invalidate(currentUserProvider);
     } catch (_) {
       if (mounted) {
@@ -87,8 +85,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true) return;
     setState(() => _busy = true);
     try {
-      await Supabase.instance.client.functions.invoke('delete-account');
-      await Supabase.instance.client.auth.signOut();
+      await ref.read(userRepoProvider).deleteAccount();
       if (mounted) context.go('/welcome');
     } catch (_) {
       if (mounted) {

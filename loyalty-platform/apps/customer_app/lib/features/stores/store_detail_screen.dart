@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/paginated_notifier.dart';
+import '../../data/repositories/stores_repository.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../rewards/reward_detail_screen.dart';
 import '../wheel/wheel_screen.dart';
@@ -18,148 +19,43 @@ import '../wheel/wheel_screen.dart';
 /// مكافآت التاجر النشطة.
 final storeRewardsProvider =
     FutureProvider.autoDispose.family<List<Reward>, String>((ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final rows = await client
-      .from('rewards')
-      .select()
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
-      .order('points_cost');
-  return (rows as List)
-      .map((r) => Reward.fromJson(r as Map<String, dynamic>))
-      .toList();
+  return ref.read(storesRepoProvider).rewards(merchantId);
 });
 
 /// مستويات الولاء للتاجر مرتّبة.
 final storeLevelsProvider =
     FutureProvider.autoDispose.family<List<LoyaltyLevel>, String>((ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final rows = await client
-      .from('loyalty_levels')
-      .select()
-      .eq('merchant_id', merchantId)
-      .order('sort_order');
-  return (rows as List)
-      .map((r) => LoyaltyLevel.fromJson(r as Map<String, dynamic>))
-      .toList();
+  return ref.read(storesRepoProvider).levels(merchantId);
 });
-
-/// الحملات الحالية للتاجر مع عدد زيارات العميل فيها.
-class CampaignProgress {
-  final String id;
-  final String rewardName;
-  final String? rewardImageUrl;
-  final int requiredVisits;
-  final int currentVisits;
-  const CampaignProgress({
-    required this.id,
-    required this.rewardName,
-    required this.requiredVisits,
-    required this.currentVisits,
-    this.rewardImageUrl,
-  });
-
-  bool get completed => currentVisits >= requiredVisits;
-  int get remaining =>
-      (requiredVisits - currentVisits) < 0 ? 0 : requiredVisits - currentVisits;
-}
 
 final storeVisitsProvider =
     FutureProvider.autoDispose.family<List<CampaignProgress>, UserStore>((ref, store) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-
-  final campaigns = await client
-      .from('visit_campaigns')
-      .select()
-      .eq('merchant_id', store.merchantId)
-      .eq('active', true);
-
-  // عدد زيارات العميل عند هذا الفرع/التاجر.
-  var visitsQuery = client
-      .from('user_visits')
-      .select('visit_date')
-      .eq('user_id', uid)
-      .eq('merchant_id', store.merchantId);
-  if (store.branchId != null) {
-    visitsQuery = visitsQuery.eq('branch_id', store.branchId!);
-  }
-  final visits = await visitsQuery;
-  final visitCount = (visits as List).length;
-
-  return (campaigns as List).map((c) {
-    final m = c as Map<String, dynamic>;
-    final required = m['required_visits'] as int? ?? 0;
-    // الزيارات تُحسب ضمن دورة الحملة الحالية.
-    final inCycle = required == 0 ? 0 : visitCount % required;
-    final current = (visitCount > 0 && inCycle == 0) ? required : inCycle;
-    return CampaignProgress(
-      id: m['id'] as String,
-      rewardName: m['reward_name'] as String? ?? 'مكافأة',
-      rewardImageUrl: m['reward_image_url'] as String?,
-      requiredVisits: required,
-      currentVisits: current,
-    );
-  }).toList();
+  return ref.read(storesRepoProvider).visits(store);
 });
 
-/// سجل حركات النقاط في هذا المتجر.
-final storeHistoryProvider =
-    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
-        (ref, userStoreId) async {
-  final client = Supabase.instance.client;
-  final rows = await client
-      .from('points_transactions')
-      .select()
-      .eq('user_store_id', userStoreId)
-      .order('created_at', ascending: false)
-      .limit(100);
-  return (rows as List).cast<Map<String, dynamic>>();
+/// سجل حركات النقاط في هذا المتجر (مرقّم).
+final storeHistoryProvider = StateNotifierProvider.autoDispose
+    .family<PaginatedNotifier<Map<String, dynamic>>,
+        PaginatedState<Map<String, dynamic>>, String>((ref, userStoreId) {
+  final repo = ref.read(storesRepoProvider);
+  return PaginatedNotifier<Map<String, dynamic>>(
+    (offset, limit) =>
+        repo.history(userStoreId, offset: offset, limit: limit),
+  );
 });
 
 /// الكوبونات المتاحة للتاجر.
 final storeCouponsProvider =
     FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
         (ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final rows = await client
-      .from('coupons')
-      .select()
-      .eq('merchant_id', merchantId)
-      .order('valid_to', ascending: true);
-  return (rows as List).cast<Map<String, dynamic>>();
+  return ref.read(storesRepoProvider).coupons(merchantId);
 });
 
 /// أسئلة التاجر (بنقاط) + خياراتها + هل أجابها العميل.
 final storeQuestionsProvider =
     FutureProvider.autoDispose.family<List<MerchantQuestion>, String>(
         (ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-
-  final rows = await client
-      .from('merchant_questions')
-      .select('*, question_options(*)')
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
-      .order('created_at');
-
-  // معرفات الأسئلة المُجاب عليها مسبقًا.
-  final responses = await client
-      .from('question_responses')
-      .select('question_id')
-      .eq('user_id', uid);
-  final answeredIds = (responses as List)
-      .map((r) => (r as Map<String, dynamic>)['question_id'] as String)
-      .toSet();
-
-  return (rows as List).map((r) {
-    final m = r as Map<String, dynamic>;
-    return MerchantQuestion.fromJson({
-      ...m,
-      'answered_by_me': answeredIds.contains(m['id']),
-    });
-  }).toList();
+  return ref.read(storesRepoProvider).questions(merchantId);
 });
 
 // ===================== Screen =====================
@@ -870,16 +766,16 @@ class _QuestionsTab extends ConsumerWidget {
   }
 }
 
-class _QuestionCard extends StatefulWidget {
+class _QuestionCard extends ConsumerStatefulWidget {
   final MerchantQuestion question;
   final VoidCallback onAnswered;
   const _QuestionCard({required this.question, required this.onAnswered});
 
   @override
-  State<_QuestionCard> createState() => _QuestionCardState();
+  ConsumerState<_QuestionCard> createState() => _QuestionCardState();
 }
 
-class _QuestionCardState extends State<_QuestionCard> {
+class _QuestionCardState extends ConsumerState<_QuestionCard> {
   String? _singleChoice;
   final Set<String> _multiChoice = {};
   final _textCtrl = TextEditingController();
@@ -917,9 +813,8 @@ class _QuestionCardState extends State<_QuestionCard> {
       } else {
         body['selected_option_ids'] = _multiChoice.toList();
       }
-      final res = await Supabase.instance.client.functions
-          .invoke('answer-question', body: body);
-      final data = res.data as Map<String, dynamic>?;
+      final data =
+          await ref.read(storesRepoProvider).answerQuestion(body);
       if (data != null && data['error'] != null) {
         setState(() => _error = data['error'] as String);
         return;
@@ -1044,29 +939,16 @@ class _HistoryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(storeHistoryProvider(store.id));
-    return data.when(
-      loading: () => const LoadingView(),
-      error: (e, _) => ErrorView(
-          message: 'تعذّر تحميل السجل',
-          onRetry: () => ref.invalidate(storeHistoryProvider(store.id))),
-      data: (rows) {
-        if (rows.isEmpty) {
-          return const EmptyView(
-            icon: Icons.history_rounded,
-            title: 'لا توجد حركات بعد',
-          );
-        }
-        return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(storeHistoryProvider(store.id)),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: rows.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _HistoryRow(tx: rows[i]),
-          ),
-        );
-      },
+    final state = ref.watch(storeHistoryProvider(store.id));
+    final notifier = ref.read(storeHistoryProvider(store.id).notifier);
+    return PaginatedListView<Map<String, dynamic>>(
+      state: state,
+      onLoadMore: notifier.loadMore,
+      onRefresh: notifier.refresh,
+      emptyIcon: Icons.history_rounded,
+      emptyTitle: 'لا توجد حركات بعد',
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, tx, __) => _HistoryRow(tx: tx),
     );
   }
 }

@@ -3,8 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
 import '../qr/qr_providers.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../referral/referral_screen.dart';
@@ -110,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
                           icon: Icons.logout_rounded,
                           label: 'تسجيل الخروج',
                           onTap: () async {
-                            await Supabase.instance.client.auth.signOut();
+                            await ref.read(userRepoProvider).signOut();
                             if (context.mounted) context.go('/welcome');
                           },
                         ),

@@ -3,33 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/stores_repository.dart';
 import 'store_detail_screen.dart';
 
 /// متاجري — المحافظ المرتبطة بالعميل (محفظة لكل فرع/تاجر حسب الإعداد).
 final myStoresProvider = FutureProvider.autoDispose<List<UserStore>>((ref) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-  final rows = await client
-      .from('user_stores')
-      .select(
-          '*, merchants(business_name, logo_url), loyalty_levels(name), branches(name)')
-      .eq('user_id', uid)
-      .order('first_linked_at', ascending: false);
-
-  return (rows as List).map((r) {
-    final m = r['merchants'] as Map<String, dynamic>?;
-    final lvl = r['loyalty_levels'] as Map<String, dynamic>?;
-    final br = r['branches'] as Map<String, dynamic>?;
-    return UserStore.fromJson({
-      ...r,
-      'merchant_name': m?['business_name'],
-      'merchant_logo_url': m?['logo_url'],
-      'current_level_name': lvl?['name'],
-      'branch_name': br?['name'],
-    });
-  }).toList();
+  return ref.read(storesRepoProvider).myStores();
 });
 
 class MyStoresScreen extends ConsumerWidget {

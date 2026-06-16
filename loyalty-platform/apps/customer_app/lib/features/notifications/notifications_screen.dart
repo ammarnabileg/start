@@ -2,30 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-final notificationsProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final client = Supabase.instance.client;
-  final uid = client.auth.currentUser!.id;
-  final rows = await client
-      .from('notifications')
-      .select()
-      .eq('user_id', uid)
-      .order('created_at', ascending: false)
-      .limit(50);
-  // عند تحميل الشاشة، علّم الإشعارات غير المقروءة كمقروءة (أفضل جهد).
+import '../../data/paginated_notifier.dart';
+import '../../data/repositories/notifications_repository.dart';
+
+/// قائمة الإشعارات (مرقّمة، الأحدث أولًا).
+/// عند أول تحميل، تُعلَّم الإشعارات غير المقروءة كمقروءة (أفضل جهد).
+final notificationsProvider = StateNotifierProvider.autoDispose<
+    PaginatedNotifier<Map<String, dynamic>>,
+    PaginatedState<Map<String, dynamic>>>((ref) {
+  final repo = ref.read(notificationsRepoProvider);
   // ملاحظة: تبقى ستايلات "غير مقروء" كما هي لهذا البناء (البيانات الحالية).
-  try {
-    await client
-        .from('notifications')
-        .update({'read_at': DateTime.now().toIso8601String()})
-        .eq('user_id', uid)
-        .isFilter('read_at', null);
-  } catch (_) {
+  repo.markAllRead().catchError((_) {
     // غير حرج.
-  }
-  return (rows as List).cast<Map<String, dynamic>>();
+  });
+  return PaginatedNotifier<Map<String, dynamic>>(
+    (offset, limit) => repo.list(offset: offset, limit: limit),
+  );
 });
 
 class NotificationsScreen extends ConsumerWidget {
@@ -33,33 +26,22 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(notificationsProvider);
+    final state = ref.watch(notificationsProvider);
+    final notifier = ref.read(notificationsProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('الإشعارات'), centerTitle: true),
-      body: data.when(
-        loading: () => const SkeletonList(),
-        error: (e, _) => ErrorView(
-            message: 'تعذّر تحميل الإشعارات',
-            onRetry: () => ref.invalidate(notificationsProvider)),
-        data: (list) {
-          if (list.isEmpty) {
-            return const EmptyView(
-                icon: Icons.notifications_none_rounded,
-                title: 'لا توجد إشعارات بعد');
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(notificationsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _NotificationCard(notification: list[i])
-                  .animate()
-                  .fadeIn(duration: 300.ms, delay: (i * 50).ms)
-                  .slideY(begin: .08, end: 0, curve: Curves.easeOut),
-            ),
-          );
-        },
+      body: PaginatedListView<Map<String, dynamic>>(
+        state: state,
+        onLoadMore: notifier.loadMore,
+        onRefresh: notifier.refresh,
+        emptyIcon: Icons.notifications_none_rounded,
+        emptyTitle: 'لا توجد إشعارات بعد',
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, notification, i) =>
+            _NotificationCard(notification: notification)
+                .animate()
+                .fadeIn(duration: 300.ms, delay: (i * 50).ms)
+                .slideY(begin: .08, end: 0, curve: Curves.easeOut),
       ),
     );
   }

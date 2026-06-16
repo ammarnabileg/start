@@ -1,12 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/rewards_repository.dart';
 import 'show_to_cashier_screen.dart';
 
 /// تفاصيل المكافأة (Reward Detail) — راجع CUSTOMER_APP.md 1.13.
-class RewardDetailScreen extends StatefulWidget {
+class RewardDetailScreen extends ConsumerStatefulWidget {
   final Reward reward;
   final int availablePoints;
   const RewardDetailScreen({
@@ -16,10 +17,11 @@ class RewardDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<RewardDetailScreen> createState() => _RewardDetailScreenState();
+  ConsumerState<RewardDetailScreen> createState() =>
+      _RewardDetailScreenState();
 }
 
-class _RewardDetailScreenState extends State<RewardDetailScreen> {
+class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
   bool _loading = false;
 
   bool get _affordable =>
@@ -50,9 +52,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
 
     setState(() => _loading = true);
     try {
-      final res = await Supabase.instance.client.functions
-          .invoke('redeem-reward', body: {'reward_id': reward.id});
-      final data = res.data as Map<String, dynamic>?;
+      final data = await ref.read(rewardsRepoProvider).redeemReward(reward.id);
       if (data == null || data['error'] != null) {
         _showError(
             (data?['error'] as String?) ?? 'تعذّر بدء الاستبدال، حاول مرة أخرى.');

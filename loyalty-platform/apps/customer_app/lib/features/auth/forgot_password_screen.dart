@@ -3,21 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
+
 /// 1.7 — نسيت كلمة المرور.
 /// التدفّق: إدخال رقم الجوال → OTP → كلمة مرور جديدة → نجاح → رجوع للدخول.
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 enum _Step { phone, otp, newPassword, done }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   _Step _step = _Step.phone;
 
   final _phoneCtrl = TextEditingController();
@@ -89,7 +93,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_phoneValid || _loading) return;
     setState(() => _loading = true);
     try {
-      await Supabase.instance.client.auth.signInWithOtp(phone: _e164Phone);
+      await ref.read(userRepoProvider).signInWithOtp(phone: _e164Phone);
       _startCountdown();
       setState(() => _step = _Step.otp);
     } on AuthException catch (e) {
@@ -109,11 +113,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_codeCtrl.text.length < 4 || _loading) return;
     setState(() => _loading = true);
     try {
-      await Supabase.instance.client.auth.verifyOTP(
-        type: OtpType.sms,
-        phone: _e164Phone,
-        token: _codeCtrl.text,
-      );
+      await ref.read(userRepoProvider).verifyOtp(
+            phone: _e164Phone,
+            token: _codeCtrl.text,
+          );
       setState(() => _step = _Step.newPassword);
     } on AuthException {
       if (mounted) {
@@ -137,11 +140,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_passwordsValid || _loading) return;
     setState(() => _loading = true);
     try {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: _passwordCtrl.text),
-      );
+      final repo = ref.read(userRepoProvider);
+      await repo.updatePassword(_passwordCtrl.text);
       // إنهاء جلسة استعادة الباسورد للرجوع لتسجيل الدخول.
-      await Supabase.instance.client.auth.signOut();
+      await repo.signOut();
       setState(() => _step = _Step.done);
     } on AuthException catch (e) {
       if (mounted) AppFeedback.toast(context, e.message, error: true);

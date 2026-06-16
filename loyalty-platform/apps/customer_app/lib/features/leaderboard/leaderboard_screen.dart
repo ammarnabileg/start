@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/repositories/leaderboard_repository.dart';
 
 /// مصدر اللوحة: عامة (كل التطبيق) أو ستور معيّن (فرع/كامل).
 class LeaderboardArgs {
@@ -14,18 +15,10 @@ class LeaderboardArgs {
 
 final leaderboardProvider = FutureProvider.autoDispose.family<List<LeaderboardEntry>, LeaderboardArgs>(
   (ref, args) async {
-    final client = Supabase.instance.client;
-    final List<dynamic> rows;
-    if (args.merchantId == null) {
-      rows = await client.rpc('global_leaderboard', params: {'p_limit': 50});
-    } else {
-      rows = await client.rpc('store_leaderboard', params: {
-        'p_merchant': args.merchantId,
-        'p_branch': args.branchId,
-        'p_limit': 50,
-      });
-    }
-    return rows.map((r) => LeaderboardEntry.fromJson(r)).toList();
+    return ref.read(leaderboardRepoProvider).leaderboard(
+          merchantId: args.merchantId,
+          branchId: args.branchId,
+        );
   },
 );
 
@@ -36,7 +29,7 @@ class LeaderboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(leaderboardProvider(args));
-    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final myId = ref.read(leaderboardRepoProvider).currentUserId;
     return Scaffold(
       appBar: AppBar(title: Text(args.title), centerTitle: true),
       body: data.when(

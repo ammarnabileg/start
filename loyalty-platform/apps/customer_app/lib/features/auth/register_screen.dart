@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/user_repository.dart';
 import 'otp_screen.dart';
 
 /// إنشاء حساب جديد (Register) — راجع CUSTOMER_APP.md 1.4.
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -108,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _loading = true);
     final phone = _e164Phone;
     try {
-      await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+      await ref.read(userRepoProvider).signInWithOtp(phone: phone);
       if (!mounted) return;
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => OtpScreen(
