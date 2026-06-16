@@ -75,9 +75,11 @@ class _LuckyWheelViewState extends State<LuckyWheelView>
 
   @override
   Widget build(BuildContext context) {
+    // يتقلّص تلقائيًا على الشاشات الضيقة (يمنع الـ overflow).
+    final size = context.cappedSize(widget.size);
     return SizedBox(
-      width: widget.size,
-      height: widget.size + 24,
+      width: size,
+      height: size + 24,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
@@ -90,7 +92,7 @@ class _LuckyWheelViewState extends State<LuckyWheelView>
                 return Transform.rotate(
                   angle: angle,
                   child: CustomPaint(
-                    size: Size.square(widget.size),
+                    size: Size.square(size),
                     painter: _WheelPainter(widget.segments, _palette),
                   ),
                 );
@@ -105,7 +107,7 @@ class _LuckyWheelViewState extends State<LuckyWheelView>
           ),
           // محور المنتصف
           Positioned(
-            top: 24 + widget.size / 2 - 26,
+            top: 24 + size / 2 - 26,
             child: Container(
               width: 52,
               height: 52,

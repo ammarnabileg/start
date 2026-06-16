@@ -1182,3 +1182,94 @@ $$;
 
 select cron.schedule('refresh-analytics', '30 0 * * *', $$select public.refresh_analytics();$$)
   where not exists (select 1 from cron.job where jobname = 'refresh-analytics');
+
+-- =====================================================================
+-- 22) AUDIT FIXES — RLS gaps, storage scoping, leaderboard materialization
+-- =====================================================================
+
+-- [CRITICAL] تفعيل RLS على الجدولين المكشوفين + سياسات عزل.
+alter table public.coupon_redemptions       enable row level security;
+alter table public.proximity_notifications_log enable row level security;
+
+create policy coupon_redemptions_visible on public.coupon_redemptions
+  for select using (
+    user_id = auth.uid()
+    or exists (select 1 from public.coupons c
+               where c.id = coupon_id and public.is_merchant_member(c.merchant_id))
+  );
+create policy proximity_log_self on public.proximity_notifications_log
+  for select using (user_id = auth.uid());
+-- (الكتابة على الجدولين تتم عبر Edge Functions بمفتاح service_role فقط.)
+
+-- [HIGH] قصر الكتابة في تخزين صور التاجر على مجلد تاجره (أو مجلد logos المؤقت).
+drop policy if exists "merchant media insert" on storage.objects;
+drop policy if exists "merchant media update" on storage.objects;
+drop policy if exists "merchant media delete" on storage.objects;
+create policy "merchant media write" on storage.objects
+  for all to authenticated
+  using (
+    bucket_id = 'merchant-media' and (
+      (storage.foldername(name))[1] = 'logos'
+      or exists (select 1 from public.merchant_staff s
+                 where s.user_id = auth.uid() and s.status = 'active'
+                   and s.merchant_id::text = (storage.foldername(name))[1])
+    )
+  )
+  with check (
+    bucket_id = 'merchant-media' and (
+      (storage.foldername(name))[1] = 'logos'
+      or exists (select 1 from public.merchant_staff s
+                 where s.user_id = auth.uid() and s.status = 'active'
+                   and s.merchant_id::text = (storage.foldername(name))[1])
+    )
+  );
+
+-- [HIGH] ماتيرياليزد فيو لدرجات الصدارة العامة (بدل تجميع حيّ كل مرة).
+create materialized view if not exists public.mv_global_scores as
+  select us.user_id, sum(us.lifetime_points)::bigint as total_points
+  from public.user_stores us
+  group by us.user_id;
+create unique index if not exists idx_mv_global_scores on public.mv_global_scores(user_id);
+
+-- إعادة تعريف دوال الصدارة العامة لتقرأ من الـ MV (أداء O(N) → O(log N)).
+create or replace function public.global_leaderboard(p_limit int default 50)
+returns table(rank bigint, user_id uuid, display_name text, total_points bigint)
+language sql security definer stable as $$
+  select row_number() over (order by s.total_points desc) as rank,
+         u.id, u.name, s.total_points
+  from public.mv_global_scores s
+  join public.users u on u.id = s.user_id
+  where u.leaderboard_opt_in and s.total_points > 0
+  order by s.total_points desc
+  limit p_limit;
+$$;
+
+create or replace function public.my_global_rank()
+returns table(rank bigint, total_points bigint)
+language sql security definer stable as $$
+  with ranked as (
+    select s.user_id, s.total_points,
+           row_number() over (order by s.total_points desc) as rnk
+    from public.mv_global_scores s
+    join public.users u on u.id = s.user_id
+    where u.leaderboard_opt_in
+  )
+  select rnk, total_points from ranked where user_id = auth.uid();
+$$;
+
+-- ضمّ تحديث درجات الصدارة لمهمة التحديث اليومية.
+create or replace function public.refresh_analytics()
+returns void language sql security definer as $$
+  refresh materialized view public.mv_daily_visits;
+  refresh materialized view public.mv_global_scores;
+$$;
+
+-- [MEDIUM-DB] فهارس مركّبة تدعم التحليلات والسجلات.
+create index if not exists idx_pt_merchant_type_created
+  on public.points_transactions(merchant_id, type, created_at desc);
+create index if not exists idx_rr_merchant_created
+  on public.reward_redemptions(merchant_id, created_at desc);
+
+-- [MEDIUM] فهرس لتسريع مطابقة دعوات الموظفين بالجوال (claim-staff).
+create index if not exists idx_staff_pending_phone
+  on public.merchant_staff(phone) where user_id is null;

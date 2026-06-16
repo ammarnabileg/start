@@ -32,9 +32,11 @@ Deno.serve(async (req) => {
       return json({ linked: true, merchant_id: existing.merchant_id, role: existing.role });
     }
 
-    // دعوات معلّقة (بدون user_id)
+    // دعوات معلّقة مطابقة لآخر 9 أرقام (مفلترة في الـ DB بدل تحميل الكل).
     const { data: invites } = await svc.from("merchant_staff")
-      .select("id, merchant_id, role, phone").is("user_id", null);
+      .select("id, merchant_id, role, phone")
+      .is("user_id", null)
+      .ilike("phone", `%${suffix}`);
     const match = (invites ?? []).find((s) => digits(s.phone ?? "") === suffix);
     if (!match) {
       return badRequest("لا توجد دعوة موظف بهذا الرقم. تواصل مع صاحب المتجر.", 404);

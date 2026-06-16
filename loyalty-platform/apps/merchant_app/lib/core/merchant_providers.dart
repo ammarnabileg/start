@@ -24,7 +24,7 @@ class StaffContext {
 
 /// يجلب صف الموظف الحالي من merchant_staff حسب user_id.
 /// يرمي استثناء لو المستخدم غير مرتبط بأي تاجر.
-final currentStaffProvider = FutureProvider<StaffContext>((ref) async {
+final currentStaffProvider = FutureProvider.autoDispose<StaffContext>((ref) async {
   final client = Supabase.instance.client;
   final user = client.auth.currentUser;
   if (user == null) {
@@ -50,7 +50,7 @@ final currentStaffProvider = FutureProvider<StaffContext>((ref) async {
 });
 
 /// إعدادات التاجر الحالية. لو ما فيش صف، يرجّع الافتراضي.
-final merchantSettingsProvider = FutureProvider<MerchantSettings>((ref) async {
+final merchantSettingsProvider = FutureProvider.autoDispose<MerchantSettings>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
   final client = Supabase.instance.client;
 
@@ -79,7 +79,7 @@ class Permissions {
 }
 
 /// يجلب دور الموظف الحالي وصلاحياته.
-final permissionsProvider = FutureProvider<Permissions>((ref) async {
+final permissionsProvider = FutureProvider.autoDispose<Permissions>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
   final row = await Supabase.instance.client
       .from('merchant_staff')
