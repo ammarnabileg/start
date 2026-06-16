@@ -118,6 +118,7 @@ void main() {
 
   // ===== STORE DETAIL + FEATURES =====
   testWidgets('c16 store detail', (t) => _shot(t, 'c16_store_detail', const _StoreDetail()));
+  testWidgets('c16b store levels', (t) => _shot(t, 'c16b_store_levels', const _StoreDetailLevels()));
   testWidgets('c17 reward detail', (t) => _shot(t, 'c17_reward_detail', const _RewardDetail()));
   testWidgets('c18 show to cashier', (t) => _shot(t, 'c18_show_cashier', const _ShowCashier()));
   testWidgets('c19 wheel', (t) => _shot(t, 'c19_wheel', const _Wheel()));
@@ -727,6 +728,56 @@ class _StoreDetail extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _StoreDetailLevels extends StatelessWidget {
+  const _StoreDetailLevels();
+  @override
+  Widget build(BuildContext context) {
+    const tabs = ['نظرة عامة', 'الزيارات', 'النقاط', 'المكافآت', 'المستويات', 'الكوبونات'];
+    LoyaltyLevel lvl(String id, String name, int th, int order, String reward) =>
+        LoyaltyLevel(
+          id: id,
+          merchantId: 'm1',
+          name: name,
+          thresholdLifetimePoints: th,
+          rewardDescription: reward,
+          sortOrder: order,
+        );
+    final levels = [
+      lvl('1', 'برونزي', 0, 0, 'خصم 5% على كل طلب'),
+      lvl('2', 'فضي', 500, 1, 'قهوة مجانية شهريًا'),
+      lvl('3', 'ذهبي', 1500, 2, 'خصم 15% + هدية عيد الميلاد'),
+      lvl('4', 'بلاتيني', 3000, 3, 'خصم 25% + أولوية الخدمة'),
+    ];
+    return DefaultTabController(
+      length: tabs.length,
+      initialIndex: 4,
+      child: Scaffold(
+        body: Column(children: [
+          const HeroHeader(title: 'مقهى الرواق', subtitle: 'مقهى · فرع العليا'),
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppColors.primaryDark,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
+            tabs: [for (final t in tabs) Tab(text: t)],
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: LevelsJourney(
+                levels: levels,
+                lifetimePoints: 1850,
+                title: 'رحلة مستوياتك',
+              ),
             ),
           ),
         ]),
