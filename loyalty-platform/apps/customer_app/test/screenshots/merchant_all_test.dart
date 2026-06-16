@@ -100,14 +100,7 @@ Widget _rowCard(IconData icon, String title, String sub, {Widget? trailing}) =>
     AppCard(
       margin: const EdgeInsets.only(bottom: 10),
       child: Row(children: [
-        Container(
-          height: 44,
-          width: 44,
-          decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(12)),
-          child: AppIcon(icon, color: AppColors.primaryDark),
-        ),
+        AppIconBadge(icon, size: 44),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -516,13 +509,7 @@ class _CustomerProfile extends StatelessWidget {
             for (final a in actions)
               AppCard(
                 child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                        color: AppColors.surfaceCream,
-                        borderRadius: BorderRadius.circular(AppRadii.sm)),
-                    child: AppIcon(a.$2, color: AppColors.primaryDark),
-                  ),
+                  AppIconBadge(a.$2, size: 44, iconSize: 24),
                   const SizedBox(width: 12),
                   Expanded(
                       child: Text(a.$1,

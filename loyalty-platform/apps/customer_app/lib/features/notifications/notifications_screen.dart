@@ -51,34 +51,19 @@ class _NotificationCard extends StatelessWidget {
   final Map<String, dynamic> notification;
   const _NotificationCard({required this.notification});
 
-  ({IconData icon, Color color, Color bg}) _style() {
+  // badge == null ⇒ شارة ذهبية متدرّجة (الاستايل الموحّد)، وإلا لون دلالي صلب.
+  ({IconData icon, Color? badge}) _style() {
     final type = (notification['type'] as String?)?.toLowerCase() ?? '';
     if (type.contains('reward') || type.contains('redeem')) {
-      return (
-        icon: Icons.card_giftcard_rounded,
-        color: AppColors.primaryDark,
-        bg: AppColors.surfaceCream
-      );
+      return (icon: Icons.card_giftcard_rounded, badge: null);
     }
     if (type.contains('level') || type.contains('tier')) {
-      return (
-        icon: Icons.workspace_premium_rounded,
-        color: AppColors.primaryDark,
-        bg: AppColors.warningBg
-      );
+      return (icon: Icons.workspace_premium_rounded, badge: null);
     }
     if (type.contains('point')) {
-      return (
-        icon: Icons.star_rounded,
-        color: AppColors.primaryDark,
-        bg: AppColors.surfaceCream
-      );
+      return (icon: Icons.star_rounded, badge: null);
     }
-    return (
-      icon: Icons.notifications_rounded,
-      color: AppColors.info,
-      bg: AppColors.infoBg
-    );
+    return (icon: Icons.notifications_rounded, badge: AppColors.info);
   }
 
   @override
@@ -91,14 +76,7 @@ class _NotificationCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: s.bg,
-              borderRadius: BorderRadius.circular(AppRadii.sm),
-            ),
-            child: AppIcon(s.icon, color: s.color, size: 22),
-          ),
+          AppIconBadge(s.icon, size: 44, iconSize: 22, color: s.badge),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -276,14 +276,7 @@ class _ActionTile extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceCream,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-              ),
-              child: AppIcon(icon, size: 24, color: AppColors.primaryDark),
-            ),
+            AppIconBadge(icon, size: 44, iconSize: 24),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(label,

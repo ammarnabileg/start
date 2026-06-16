@@ -492,14 +492,7 @@ class _Notifications extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 10),
             child: AppCard(
               child: Row(children: [
-                Container(
-                  height: 44,
-                  width: 44,
-                  decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: AppIcon(n.$1, color: AppColors.primaryDark),
-                ),
+                AppIconBadge(n.$1, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

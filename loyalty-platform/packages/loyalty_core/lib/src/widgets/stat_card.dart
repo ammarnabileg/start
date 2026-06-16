@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_icon.dart';
+import 'app_icon_badge.dart';
 
 /// كارت إحصائية مدمج (رقم + عنوان + أيقونة) — للوحات التحكم وبطاقات الحالة.
 class StatCard extends StatelessWidget {
@@ -22,7 +23,6 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = accent ?? AppColors.primaryDark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -36,16 +36,19 @@ class StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: highlight
-                  ? Colors.white.withValues(alpha: .4)
-                  : AppColors.surfaceCream,
-              borderRadius: BorderRadius.circular(AppRadii.sm),
-            ),
-            child: AppIcon(icon, size: 20, color: c),
-          ),
+          if (highlight)
+            // على بطاقة ذهبية: شارة بيضاء بأيقونة ذهبية (تباين عكسي).
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .85),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: AppIcon(icon, size: 20, color: AppColors.primaryDark),
+            )
+          else
+            // الوضع العادي: شارة ذهبية متدرّجة + أيقونة بيضاء (استايل موحّد).
+            AppIconBadge(icon, size: 40, iconSize: 20, color: accent),
           const SizedBox(height: 12),
           Text(value,
               style: Theme.of(context)
