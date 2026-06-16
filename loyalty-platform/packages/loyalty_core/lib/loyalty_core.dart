@@ -17,6 +17,9 @@ export 'src/qr/qr_token.dart';
 // Logic
 export 'src/logic/loyalty_rules.dart';
 
+// Utils
+export 'src/utils/idempotency.dart';
+
 // Models
 export 'src/models/app_user.dart';
 export 'src/models/user_store.dart';

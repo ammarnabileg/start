@@ -17,6 +17,9 @@ class UserStore {
   final String? currentLevelName;
   final String? branchName;
 
+  /// حالة المتجر (approved/suspended/…) — لعرض "غير متاح حاليًا".
+  final String? merchantStatus;
+
   const UserStore({
     required this.id,
     required this.userId,
@@ -29,7 +32,12 @@ class UserStore {
     this.merchantLogoUrl,
     this.currentLevelName,
     this.branchName,
+    this.merchantStatus,
   });
+
+  /// المتجر متاح للتعامل (غير معلّق).
+  bool get merchantAvailable =>
+      merchantStatus == null || merchantStatus == 'approved';
 
   factory UserStore.fromJson(Map<String, dynamic> j) => UserStore(
         id: j['id'] as String,
@@ -43,5 +51,6 @@ class UserStore {
         merchantLogoUrl: j['merchant_logo_url'] as String?,
         currentLevelName: j['current_level_name'] as String?,
         branchName: j['branch_name'] as String?,
+        merchantStatus: j['merchant_status'] as String?,
       );
 }
