@@ -35,7 +35,7 @@ class StoresRepository {
     final rows = await _client
         .from('user_stores')
         .select(
-            '*, merchants(business_name, logo_url), loyalty_levels(name), branches(name)')
+            '*, merchants(business_name, logo_url, status), loyalty_levels(name), branches(name)')
         .eq('user_id', uid)
         .order('first_linked_at', ascending: false);
 
@@ -47,10 +47,18 @@ class StoresRepository {
         ...r,
         'merchant_name': m?['business_name'],
         'merchant_logo_url': m?['logo_url'],
+        'merchant_status': m?['status'],
         'current_level_name': lvl?['name'],
         'branch_name': br?['name'],
       });
     }).toList();
+  }
+
+  /// بثّ حيّ لمحافظ العميل — يُستخدم لتحديث النقاط/المستوى لحظيًا.
+  Stream<List<Map<String, dynamic>>> watchUserStores(String uid) {
+    return _client
+        .from('user_stores')
+        .stream(primaryKey: ['id']).eq('user_id', uid);
   }
 
   /// مكافآت التاجر النشطة.

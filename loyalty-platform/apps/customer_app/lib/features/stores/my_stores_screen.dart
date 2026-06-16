@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../data/repositories/stores_repository.dart';
+import '../../data/supabase_providers.dart';
 import 'store_detail_screen.dart';
 
 /// متاجري — المحافظ المرتبطة بالعميل (محفظة لكل فرع/تاجر حسب الإعداد).
@@ -12,11 +13,25 @@ final myStoresProvider = FutureProvider.autoDispose<List<UserStore>>((ref) async
   return ref.read(storesRepoProvider).myStores();
 });
 
+/// بثّ حيّ لتغيّرات محافظ العميل (نقاط/مستوى) — يُبطل [myStoresProvider] عند أي تغيّر
+/// ليُحدّث الكاشير النقاط لحظيًا.
+final userStoresChangesProvider =
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final uid = client.auth.currentUser?.id;
+  if (uid == null) return const Stream.empty();
+  return ref.read(storesRepoProvider).watchUserStores(uid);
+});
+
 class MyStoresScreen extends ConsumerWidget {
   const MyStoresScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // تحديث حيّ: عند تغيّر محافظ العميل، أعد تحميل القائمة.
+    ref.listen(userStoresChangesProvider, (_, __) {
+      ref.invalidate(myStoresProvider);
+    });
     final stores = ref.watch(myStoresProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('متاجري'), centerTitle: true),
@@ -57,53 +72,75 @@ class _StoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => StoreDetailScreen(store: store),
-      )),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: store.merchantLogoUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: store.merchantLogoUrl!,
-                    width: 56, height: 56, fit: BoxFit.cover)
-                : const _LogoFallback(),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(store.merchantName ?? 'متجر',
-                    style: Theme.of(context).textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (store.branchName != null)
-                      Text(store.branchName!,
-                          style: Theme.of(context).textTheme.bodySmall),
-                    if (store.currentLevelName != null) _LevelChip(store.currentLevelName!),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                PointsBadge(points: store.availablePoints),
-              ],
+    final unavailable = !store.merchantAvailable;
+    return Opacity(
+      opacity: unavailable ? 0.6 : 1,
+      child: AppCard(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => StoreDetailScreen(store: store),
+        )),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: store.merchantLogoUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: store.merchantLogoUrl!,
+                      width: 56, height: 56, fit: BoxFit.cover)
+                  : const _LogoFallback(),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_left_rounded,
-              color: AppColors.textSecondary),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(store.merchantName ?? 'متجر',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (store.branchName != null)
+                        Text(store.branchName!,
+                            style: Theme.of(context).textTheme.bodySmall),
+                      if (store.currentLevelName != null) _LevelChip(store.currentLevelName!),
+                      if (unavailable) const _UnavailableBadge(),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  PointsBadge(points: store.availablePoints),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_left_rounded,
+                color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _UnavailableBadge extends StatelessWidget {
+  const _UnavailableBadge();
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.textSecondary.withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Text('غير متاح حاليًا',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary)),
+      );
 }
 
 class _LevelChip extends StatelessWidget {

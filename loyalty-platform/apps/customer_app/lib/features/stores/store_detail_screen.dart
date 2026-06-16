@@ -105,6 +105,7 @@ class StoreDetailScreen extends StatelessWidget {
               ),
               bottom: PointsBadge(points: store.availablePoints),
             ),
+            if (!store.merchantAvailable) const _UnavailableBanner(),
             Material(
               color: AppColors.surface,
               child: TabBar(
@@ -131,6 +132,33 @@ class StoreDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// لافتة علوية تُعرض عندما يكون المتجر معلّقًا/غير متاح.
+class _UnavailableBanner extends StatelessWidget {
+  const _UnavailableBanner();
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        color: AppColors.warning,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('هذا المتجر غير متاح حاليًا',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+}
+
+/// رسالة موحّدة عند محاولة التفاعل مع متجر غير متاح.
+void _notifyUnavailable(BuildContext context) {
+  AppFeedback.toast(context, 'المتجر غير متاح حاليًا', error: true);
 }
 
 // ===================== نظرة عامة =====================
@@ -193,12 +221,14 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: 12),
         AppCard(
           gradient: AppColors.goldGradient,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => WheelScreen(
-              merchantId: store.merchantId,
-              merchantName: store.merchantName,
-            ),
-          )),
+          onTap: () => store.merchantAvailable
+              ? Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => WheelScreen(
+                    merchantId: store.merchantId,
+                    merchantName: store.merchantName,
+                  ),
+                ))
+              : _notifyUnavailable(context),
           child: Row(
             children: [
               const Icon(Icons.casino_rounded,
@@ -466,6 +496,7 @@ class _RewardsTab extends ConsumerWidget {
             itemBuilder: (_, i) => _RewardCard(
               reward: rewards[i],
               availablePoints: store.availablePoints,
+              available: store.merchantAvailable,
             ),
           ),
         );
@@ -477,7 +508,11 @@ class _RewardsTab extends ConsumerWidget {
 class _RewardCard extends StatelessWidget {
   final Reward reward;
   final int availablePoints;
-  const _RewardCard({required this.reward, required this.availablePoints});
+  final bool available;
+  const _RewardCard(
+      {required this.reward,
+      required this.availablePoints,
+      required this.available});
 
   @override
   Widget build(BuildContext context) {
@@ -485,7 +520,7 @@ class _RewardCard extends StatelessWidget {
     final affordable = reward.affordableWith(availablePoints);
     final outOfStock = !reward.inStock;
     final missing = reward.pointsCost - availablePoints;
-    final dim = !affordable || outOfStock;
+    final dim = !affordable || outOfStock || !available;
 
     return Opacity(
       opacity: dim ? 0.55 : 1,
@@ -493,12 +528,14 @@ class _RewardCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         onTap: outOfStock
             ? null
-            : () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => RewardDetailScreen(
-                    reward: reward,
-                    availablePoints: availablePoints,
-                  ),
-                )),
+            : !available
+                ? () => _notifyUnavailable(context)
+                : () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => RewardDetailScreen(
+                        reward: reward,
+                        availablePoints: availablePoints,
+                      ),
+                    )),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -556,12 +593,14 @@ class _RewardCard extends StatelessWidget {
                 width: double.infinity,
                 child: PrimaryButton(
                   label: 'استبدال',
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => RewardDetailScreen(
-                      reward: reward,
-                      availablePoints: availablePoints,
-                    ),
-                  )),
+                  onPressed: !available
+                      ? () => _notifyUnavailable(context)
+                      : () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => RewardDetailScreen(
+                              reward: reward,
+                              availablePoints: availablePoints,
+                            ),
+                          )),
                 ),
               )
             else
@@ -638,7 +677,8 @@ class _CouponsTab extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             itemCount: coupons.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, i) => _CouponCard(coupon: coupons[i]),
+            itemBuilder: (_, i) => _CouponCard(
+                coupon: coupons[i], available: store.merchantAvailable),
           ),
         );
       },
@@ -648,7 +688,8 @@ class _CouponsTab extends ConsumerWidget {
 
 class _CouponCard extends StatelessWidget {
   final Map<String, dynamic> coupon;
-  const _CouponCard({required this.coupon});
+  final bool available;
+  const _CouponCard({required this.coupon, required this.available});
 
   String _valueLabel() {
     final type = coupon['type'] as String?;
@@ -690,7 +731,9 @@ class _CouponCard extends StatelessWidget {
           PrimaryButton(
             label: 'استخدام',
             expanded: false,
-            onPressed: () => _showCouponDialog(context),
+            onPressed: available
+                ? () => _showCouponDialog(context)
+                : () => _notifyUnavailable(context),
           ),
         ],
       ),
@@ -755,6 +798,7 @@ class _QuestionsTab extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (_, i) => _QuestionCard(
               question: questions[i],
+              available: store.merchantAvailable,
               onAnswered: () {
                 ref.invalidate(storeQuestionsProvider(store.merchantId));
               },
@@ -768,8 +812,12 @@ class _QuestionsTab extends ConsumerWidget {
 
 class _QuestionCard extends ConsumerStatefulWidget {
   final MerchantQuestion question;
+  final bool available;
   final VoidCallback onAnswered;
-  const _QuestionCard({required this.question, required this.onAnswered});
+  const _QuestionCard(
+      {required this.question,
+      required this.available,
+      required this.onAnswered});
 
   @override
   ConsumerState<_QuestionCard> createState() => _QuestionCardState();
@@ -878,7 +926,9 @@ class _QuestionCardState extends ConsumerState<_QuestionCard> {
             PrimaryButton(
               label: 'إرسال الإجابة',
               loading: _loading,
-              onPressed: _canSubmit ? _submit : null,
+              onPressed: !widget.available
+                  ? () => _notifyUnavailable(context)
+                  : (_canSubmit ? _submit : null),
             ),
           ],
         ],
