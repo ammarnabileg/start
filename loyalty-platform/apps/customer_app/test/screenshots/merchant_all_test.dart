@@ -118,7 +118,10 @@ Widget _rowCard(IconData icon, String title, String sub, {Widget? trailing}) =>
 Widget _fab() => FloatingActionButton(
     onPressed: () {},
     backgroundColor: AppColors.primary,
-    child: const AppIcon(Icons.add, color: AppColors.onPrimary));
+    foregroundColor: Colors.white,
+    elevation: 4,
+    shape: const CircleBorder(),
+    child: const AppIcon(Icons.add, color: Colors.white, size: 28));
 
 void main() {
   setUpAll(_loadFonts);
@@ -141,6 +144,7 @@ void main() {
   testWidgets('m16 campaigns', (t) => _shot(t, 'm16_campaigns', const _Campaigns()));
   testWidgets('m17 rewards', (t) => _shot(t, 'm17_rewards', const _Rewards()));
   testWidgets('m18 levels', (t) => _shot(t, 'm18_levels', const _Levels()));
+  testWidgets('m18b levels editor', (t) => _shot(t, 'm18b_levels_editor', const _LevelsEditor()));
   testWidgets('m19 wheel config', (t) => _shot(t, 'm19_wheel', const _WheelCfg()));
   testWidgets('m20 coupons', (t) => _shot(t, 'm20_coupons', const _Coupons()));
   testWidgets('m21 questions', (t) => _shot(t, 'm21_questions', const _Questions()));
@@ -740,30 +744,132 @@ class _Levels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final levels = [
-      ('برونزي', 0, AppColors.bronze),
-      ('فضي', 500, AppColors.silver),
-      ('ذهبي', 1500, AppColors.goldTier),
-      ('بلاتيني', 3000, AppColors.primaryDark),
+      ('برونزي', 0, 'خصم 5% على كل طلب', AppColors.bronze),
+      ('فضي', 500, 'قهوة مجانية شهريًا', AppColors.silver),
+      ('ذهبي', 1500, 'خصم 15% + هدية ميلاد', AppColors.goldTier),
+      ('بلاتيني', 3000, 'خصم 25% + أولوية', AppColors.primaryDark),
     ];
-    return _listScaffold(
-      'المستويات',
-      [
+    return Scaffold(
+      appBar: AppBar(title: const Text('المستويات')),
+      floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {},
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          icon: const AppIcon(Icons.add, color: Colors.white),
+          label: const Text('مستوى جديد',
+              style: TextStyle(color: Colors.white))),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: AppColors.surfaceCream,
+              borderRadius: BorderRadius.circular(16)),
+          child: Row(children: const [
+            AppIcon(Icons.info_outline, color: AppColors.primaryDark),
+            SizedBox(width: 10),
+            Expanded(
+                child: Text(
+                    'المستويات تعتمد على إجمالي النقاط (Lifetime) ولا تُخصم عند الوصول.',
+                    style: TextStyle(fontSize: 12))),
+          ]),
+        ),
+        const SizedBox(height: 12),
         for (final l in levels)
           AppCard(
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.only(bottom: 12),
+            border: Border.all(color: l.$4.withValues(alpha: .35), width: 1.5),
             child: Row(children: [
-              AppIcon(Icons.workspace_premium_rounded, color: l.$3, size: 32),
+              Container(
+                  width: 6,
+                  height: 48,
+                  decoration: BoxDecoration(
+                      color: l.$4, borderRadius: BorderRadius.circular(4))),
+              const SizedBox(width: 12),
+              CircleAvatar(
+                  radius: 22,
+                  backgroundColor: l.$4.withValues(alpha: .2),
+                  child: AppIcon(Icons.workspace_premium_rounded, color: l.$4)),
               const SizedBox(width: 14),
               Expanded(
-                  child: Text(l.$1,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 16))),
-              Text('${l.$2}+ نقطة',
-                  style: const TextStyle(color: AppColors.textSecondary)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.$1,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16)),
+                    const SizedBox(height: 2),
+                    Text(l.$3,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                  ],
+                ),
+              ),
+              PointsBadge(points: l.$2),
             ]),
           ),
-      ],
-      fab: _fab(),
+      ]),
+    );
+  }
+}
+
+/// محرّر المستوى — يوضّح إن الأدمن بيحدّد الاسم + النقاط المطلوبة لكل مستوى.
+class _LevelsEditor extends StatelessWidget {
+  const _LevelsEditor();
+  @override
+  Widget build(BuildContext context) {
+    Widget field(String label, String value, {IconData? icon}) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: InputDecorator(
+            decoration: InputDecoration(
+                labelText: label,
+                prefixIcon: icon == null ? null : AppIcon(icon)),
+            child: Text(value,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 16)),
+          ),
+        );
+    return Scaffold(
+      appBar: AppBar(title: const Text('المستويات')),
+      backgroundColor: Colors.black.withValues(alpha: .25),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(3)),
+                ),
+              ),
+              Text('تعديل المستوى',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              field('اسم المستوى (برونزي/فضي…)', 'ذهبي',
+                  icon: Icons.workspace_premium_outlined),
+              field('العتبة (إجمالي النقاط Lifetime)', '1500',
+                  icon: Icons.stars_rounded),
+              field('وصف المكافأة', 'خصم 15% + هدية عيد الميلاد',
+                  icon: Icons.card_giftcard_outlined),
+              const SizedBox(height: 6),
+              const PrimaryButton(
+                  label: 'حفظ', icon: Icons.check_rounded, onPressed: _noop),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -973,10 +1079,11 @@ class _Staff extends StatelessWidget {
         fab: FloatingActionButton.extended(
             onPressed: () {},
             backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             icon: const AppIcon(Icons.person_add_alt_1_rounded,
-                color: AppColors.onPrimary),
+                color: Colors.white),
             label: const Text('إضافة موظف',
-                style: TextStyle(color: AppColors.onPrimary))),
+                style: TextStyle(color: Colors.white))),
       );
 }
 

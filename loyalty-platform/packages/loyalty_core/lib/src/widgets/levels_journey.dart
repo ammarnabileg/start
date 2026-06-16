@@ -161,8 +161,8 @@ class _NodeCircle extends StatelessWidget {
         reached || isCurrent
             ? Icons.workspace_premium_rounded
             : Icons.lock_outline_rounded,
-        color: reached || isCurrent ? AppColors.onPrimary : AppColors.textSecondary,
-        size: size * 0.42,
+        color: reached || isCurrent ? Colors.white : AppColors.textSecondary,
+        size: size * 0.44,
       ),
     );
   }
@@ -305,18 +305,19 @@ class _PathPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
-    // الريبون الأساسي
+    // الريبون الأساسي — تدرّج ذهبي أوضح من الأصفر الباهت.
     canvas.drawPath(
       path,
       Paint()
-        ..color = AppColors.primaryLight
+        ..shader = AppColors.goldGradient.createShader(
+            Rect.fromLTWH(0, 0, size.width, size.height))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 26
         ..strokeCap = StrokeCap.round,
     );
-    // خط منقّط داخلي (إحساس "المسار")
+    // خط منقّط داخلي أبيض (إحساس "المسار")
     final dashed = Paint()
-      ..color = AppColors.onPrimary.withValues(alpha: .35)
+      ..color = Colors.white.withValues(alpha: .65)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
