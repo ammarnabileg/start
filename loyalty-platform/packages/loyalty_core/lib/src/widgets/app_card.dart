@@ -7,6 +7,7 @@ import '../theme/app_spacing.dart';
 class AppCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   final Color? color;
   final Gradient? gradient;
@@ -17,6 +18,7 @@ class AppCard extends StatefulWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(18),
+    this.margin,
     this.onTap,
     this.color,
     this.gradient,
@@ -63,14 +65,18 @@ class _AppCardState extends State<AppCard> {
       ),
     );
 
-    if (!tappable) return card;
+    final wrapped = widget.margin == null
+        ? card
+        : Padding(padding: widget.margin!, child: card);
+
+    if (!tappable) return wrapped;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
-      child: card,
+      child: wrapped,
     );
   }
 }
