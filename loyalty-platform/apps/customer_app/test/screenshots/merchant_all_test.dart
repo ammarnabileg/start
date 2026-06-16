@@ -764,7 +764,7 @@ class _Levels extends StatelessWidget {
           decoration: BoxDecoration(
               color: AppColors.surfaceCream,
               borderRadius: BorderRadius.circular(16)),
-          child: Row(children: const [
+          child: const Row(children: [
             AppIcon(Icons.info_outline, color: AppColors.primaryDark),
             SizedBox(width: 10),
             Expanded(
