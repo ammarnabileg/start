@@ -42,6 +42,14 @@ export async function requireStaff(
 
   if (!staff) throw new Error("هذا الحساب غير مرتبط بمتجر نشط");
 
+  // فرض الأهلية: المتجر معتمد وغير معلّق واشتراكه/تجربته سارية.
+  const { data: entitled } = await svc.rpc("merchant_entitled", {
+    p_merchant: staff.merchant_id,
+  });
+  if (entitled !== true) {
+    throw new Error("المتجر غير متاح حاليًا (معلّق أو انتهى اشتراكه)");
+  }
+
   return {
     staffId: staff.id,
     userId: staff.user_id,

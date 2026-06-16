@@ -54,7 +54,7 @@ loyalty-platform/
 supabase functions deploy verify-qr add-points record-visit \
   redeem-reward confirm-redemption staff-redeem apply-coupon answer-question \
   send-announcement spin-wheel redeem-prize claim-staff delete-account \
-  proximity-hit pos-api pos-keys
+  proximity-hit pos-api pos-keys admin-merchant
 ```
 
 ### 2) الحزمة المشتركة + التطبيقات

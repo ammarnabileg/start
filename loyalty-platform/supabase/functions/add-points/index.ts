@@ -2,13 +2,14 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings, staffCan } from "../_shared/auth.ts";
 import { sendPush } from "../_shared/push.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { user_id, points, reason } = await req.json();
+    const { user_id, points, reason, idempotency_key } = await req.json();
     const pts = Number(points);
 
     if (!user_id || !Number.isInteger(pts) || pts <= 0) {
@@ -41,59 +42,62 @@ Deno.serve(async (req) => {
       return badRequest("تم تجاوز الحد اليومي المسموح للموظف", 422);
     }
 
-    // حلّ المحفظة الصحيحة (حسب نطاق النقاط) + إضافة earn ذرّيًا
-    const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-      p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
-    }).single();
+    // المعاملة محمية بـ idempotency (إعادة الإرسال لا تضاعف النقاط).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "add-points", userId: user_id, merchantId: staff.merchantId },
+      async () => {
+        const { data: wallet } = await svc.rpc("get_or_create_wallet", {
+          p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
+        }).single();
 
-    const newAvailable = wallet.available_points + pts;
-    const newLifetime = wallet.lifetime_points + pts;
+        const newAvailable = wallet.available_points + pts;
+        const newLifetime = wallet.lifetime_points + pts;
 
-    // تحديث المستوى حسب lifetime
-    let levelId = wallet.current_level_id;
-    if (s.enable_levels) {
-      const { data: lvl } = await svc
-        .from("loyalty_levels")
-        .select("id")
-        .eq("merchant_id", staff.merchantId)
-        .lte("threshold_lifetime_points", newLifetime)
-        .order("threshold_lifetime_points", { ascending: false })
-        .limit(1).maybeSingle();
-      if (lvl) levelId = lvl.id;
+        let levelId = wallet.current_level_id;
+        if (s.enable_levels) {
+          const { data: lvl } = await svc
+            .from("loyalty_levels").select("id")
+            .eq("merchant_id", staff.merchantId)
+            .lte("threshold_lifetime_points", newLifetime)
+            .order("threshold_lifetime_points", { ascending: false })
+            .limit(1).maybeSingle();
+          if (lvl) levelId = lvl.id;
+        }
+
+        await svc.from("user_stores").update({
+          available_points: newAvailable,
+          lifetime_points: newLifetime,
+          current_level_id: levelId,
+        }).eq("id", wallet.id);
+
+        await svc.from("points_transactions").insert({
+          user_store_id: wallet.id, branch_id: staff.branchId,
+          type: "earn", points: pts, staff_id: staff.staffId, reason: reason ?? null,
+        });
+
+        await svc.from("notifications").insert({
+          user_id, type: "points", title: "حصلت على نقاط",
+          body: `حصلت على ${pts} نقطة`, data: { merchant_id: staff.merchantId },
+        });
+        await sendPush(svc, [user_id], {
+          title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
+        });
+
+        return {
+          available_points: newAvailable,
+          lifetime_points: newLifetime,
+          level_id: levelId,
+          leveled_up: levelId !== wallet.current_level_id,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
     }
-
-    await svc.from("user_stores").update({
-      available_points: newAvailable,
-      lifetime_points: newLifetime,
-      current_level_id: levelId,
-    }).eq("id", wallet.id);
-
-    await svc.from("points_transactions").insert({
-      user_store_id: wallet.id,
-      branch_id: staff.branchId,
-      type: "earn",
-      points: pts,
-      staff_id: staff.staffId,
-      reason: reason ?? null,
-    });
-
-    // إشعار للعميل (داخل التطبيق + Push)
-    await svc.from("notifications").insert({
-      user_id, type: "points",
-      title: "حصلت على نقاط",
-      body: `حصلت على ${pts} نقطة`,
-      data: { merchant_id: staff.merchantId },
-    });
-    await sendPush(svc, [user_id], {
-      title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
-    });
-
-    return json({
-      available_points: newAvailable,
-      lifetime_points: newLifetime,
-      level_id: levelId,
-      leveled_up: levelId !== wallet.current_level_id,
-    });
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

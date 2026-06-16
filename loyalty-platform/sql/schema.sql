@@ -1273,3 +1273,113 @@ create index if not exists idx_rr_merchant_created
 -- [MEDIUM] فهرس لتسريع مطابقة دعوات الموظفين بالجوال (claim-staff).
 create index if not exists idx_staff_pending_phone
   on public.merchant_staff(phone) where user_id is null;
+
+-- =====================================================================
+-- 23) SPRINT 1 — Entitlement (F1) · Super-Admin & Audit (F3) ·
+--     Idempotency (F4) · Subscription/Trial enforcement · Dormant store
+-- =====================================================================
+
+-- F1 · هل التاجر "متاح" الآن؟ (معتمد + غير معلّق + اشتراك/تجربة سارية).
+create or replace function public.merchant_entitled(p_merchant uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from public.merchants m
+    left join public.subscriptions s on s.merchant_id = m.id
+    where m.id = p_merchant
+      and m.status = 'approved'
+      and (
+        (s.status = 'active' and (s.current_period_end is null or s.current_period_end > now()))
+        or (s.status = 'trial' and (s.trial_ends_at is null or s.trial_ends_at > now()))
+      )
+  );
+$$;
+
+-- F3 · هوية مالك المنصّة + سجل تدقيق عام.
+create table if not exists public.super_admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create or replace function public.is_super_admin()
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from public.super_admins where user_id = auth.uid());
+$$;
+
+create table if not exists public.audit_log (
+  id          uuid primary key default gen_random_uuid(),
+  actor_id    uuid,
+  actor_role  text,
+  action      text not null,
+  entity      text,
+  entity_id   text,
+  merchant_id uuid,
+  details     jsonb,
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_audit_merchant on public.audit_log(merchant_id, created_at desc);
+create index if not exists idx_audit_action on public.audit_log(action, created_at desc);
+alter table public.audit_log enable row level security;
+create policy audit_admin_read on public.audit_log
+  for select using (public.is_super_admin());
+create policy audit_merchant_read on public.audit_log
+  for select using (merchant_id is not null and public.is_merchant_member(merchant_id));
+
+-- F4 · مفاتيح منع التكرار (Idempotency). الوصول عبر service_role فقط.
+create table if not exists public.idempotency_keys (
+  key          text primary key,
+  endpoint     text not null,
+  user_id      uuid,
+  merchant_id  uuid,
+  request_hash text,
+  status       text not null default 'in_progress' check (status in ('in_progress','done')),
+  response     jsonb,
+  created_at   timestamptz not null default now(),
+  expires_at   timestamptz not null default now() + interval '48 hours'
+);
+create index if not exists idx_idem_expires on public.idempotency_keys(expires_at);
+alter table public.idempotency_keys enable row level security; -- لا سياسات → service_role فقط
+create or replace function public.purge_idempotency()
+returns void language sql security definer as $$
+  delete from public.idempotency_keys where expires_at < now();
+$$;
+
+-- Subscription/Trial enforcement (cron يومي يقلب الحالات المنتهية).
+create or replace function public.expire_subscriptions()
+returns void language sql security definer as $$
+  update public.subscriptions set status = 'expired'
+   where status = 'trial' and trial_ends_at is not null and trial_ends_at < now();
+  update public.subscriptions set status = 'past_due'
+   where status = 'active' and current_period_end is not null and current_period_end < now();
+$$;
+
+-- نظرة عامة على المنصّة (للأدمن فقط).
+create or replace function public.platform_overview()
+returns jsonb language plpgsql security definer stable as $$
+begin
+  if not public.is_super_admin() then raise exception 'forbidden'; end if;
+  return jsonb_build_object(
+    'merchants_total',     (select count(*) from public.merchants),
+    'merchants_pending',   (select count(*) from public.merchants where status='pending'),
+    'merchants_active',    (select count(*) from public.merchants where status='approved'),
+    'merchants_suspended', (select count(*) from public.merchants where status='suspended'),
+    'customers_total',     (select count(*) from public.users),
+    'active_subscriptions',(select count(*) from public.subscriptions where status in ('active','trial')),
+    'redemptions_30d',     (select count(*) from public.reward_redemptions where created_at > now()-interval '30 days'),
+    'points_issued_30d',   (select coalesce(sum(points),0) from public.points_transactions where type='earn' and created_at > now()-interval '30 days')
+  );
+end; $$;
+
+-- سياسات أدمن: مالك المنصّة يقرأ/يدير كل التجار والاشتراكات والحدود.
+create policy merchants_admin_all on public.merchants
+  for all using (public.is_super_admin()) with check (public.is_super_admin());
+create policy subs_admin_all on public.subscriptions
+  for all using (public.is_super_admin()) with check (public.is_super_admin());
+create policy limits_admin_all on public.merchant_limits
+  for all using (public.is_super_admin()) with check (public.is_super_admin());
+create policy platform_admin_all on public.platform_settings
+  for all using (public.is_super_admin()) with check (public.is_super_admin());
+
+-- جدولة Sprint-1
+select cron.schedule('expire-subscriptions','0 1 * * *', $$select public.expire_subscriptions();$$)
+  where not exists (select 1 from cron.job where jobname='expire-subscriptions');
+select cron.schedule('purge-idempotency','30 * * * *', $$select public.purge_idempotency();$$)
+  where not exists (select 1 from cron.job where jobname='purge-idempotency');

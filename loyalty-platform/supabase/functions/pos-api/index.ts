@@ -23,6 +23,14 @@ Deno.serve(async (req) => {
 
     const merchantId = key.merchant_id as string;
     const branchId = key.branch_id as string | null;
+
+    // فرض الأهلية: المتجر متاح واشتراكه سارٍ.
+    const { data: entitled } = await svc.rpc("merchant_entitled", {
+      p_merchant: merchantId,
+    });
+    if (entitled !== true) {
+      return badRequest("المتجر غير متاح حاليًا أو انتهى اشتراكه", 403);
+    }
     const body = await req.json();
     const action = body.action as string;
 
