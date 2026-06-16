@@ -66,6 +66,15 @@ final merchantSettingsProvider = FutureProvider.autoDispose<MerchantSettings>((r
   return MerchantSettings.fromJson(row);
 });
 
+/// هل التاجر مستحقّ للخدمة حاليًا؟ (غير معلّق + اشتراك/تجربة سارية).
+/// يعتمد على دالة قاعدة البيانات `merchant_entitled`.
+final merchantEntitledProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  final res = await Supabase.instance.client
+      .rpc('merchant_entitled', params: {'p_merchant': staff.merchantId});
+  return res == true;
+});
+
 /// صلاحيات الموظف الحالي (مشتقّة من دوره). owner = كل شيء.
 class Permissions {
   final MerchantRole? role;

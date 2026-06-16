@@ -24,8 +24,16 @@ class ScanRepository {
   }
 
   /// استدعاء عام لدوال إجراءات العميل (add-points/record-visit/staff-redeem/apply-coupon).
-  Future<FunctionResponse> invoke(String fn, Map<String, dynamic> body) {
-    return _client.functions.invoke(fn, body: body);
+  /// لو مرّ [idempotencyKey] يُضاف إلى الجسم لمنع الازدواج عند إعادة المحاولة.
+  Future<FunctionResponse> invoke(
+    String fn,
+    Map<String, dynamic> body, {
+    String? idempotencyKey,
+  }) {
+    final payload = idempotencyKey == null
+        ? body
+        : {...body, 'idempotency_key': idempotencyKey};
+    return _client.functions.invoke(fn, body: payload);
   }
 }
 

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
+import '../../core/merchant_providers.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../management/management_hub_screen.dart';
 import '../profile/business_profile_screen.dart';
 import '../scanner/scanner_screen.dart';
+import '../subscription/merchant_unavailable_screen.dart';
 
 /// الهيكل الرئيسي لتطبيق التاجر — شريط تنقّل موحّد مع زر مسح بارز.
-class MerchantShell extends StatefulWidget {
+class MerchantShell extends ConsumerStatefulWidget {
   const MerchantShell({super.key});
 
   @override
-  State<MerchantShell> createState() => _MerchantShellState();
+  ConsumerState<MerchantShell> createState() => _MerchantShellState();
 }
 
-class _MerchantShellState extends State<MerchantShell> {
+class _MerchantShellState extends ConsumerState<MerchantShell> {
   int _index = 0;
 
   // ترتيب التابات: لوحة التحكم · المسح (بارز) · الإدارة · حسابي.
@@ -27,6 +30,19 @@ class _MerchantShellState extends State<MerchantShell> {
 
   @override
   Widget build(BuildContext context) {
+    // بوّابة الاستحقاق: لو المتجر معلّق أو انتهى الاشتراك/التجربة نعرض شاشة
+    // "غير متاح" بدل الهيكل. (حالة "بانتظار الموافقة" تُعالَج في مكان آخر.)
+    final entitled = ref.watch(merchantEntitledProvider);
+    return entitled.when(
+      loading: () => const Scaffold(body: LoadingView()),
+      // fail-open: لو فشل فحص الأهلية (خطأ شبكة عابر) نعرض الهيكل — السيرفر
+      // يفرض الأهلية على كل عملية كتابة، فمفيش ثغرة، وبنتجنّب قفل تاجر شرعي.
+      error: (_, __) => _buildShell(context),
+      data: (ok) => ok ? _buildShell(context) : const MerchantUnavailableScreen(),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return Scaffold(
       extendBody: true,
       body: IndexedStack(index: _index, children: _tabs),

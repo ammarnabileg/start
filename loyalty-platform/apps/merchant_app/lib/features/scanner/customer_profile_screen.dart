@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/repositories/rewards_repository.dart';
 import '../../data/repositories/scan_repository.dart';
@@ -22,10 +23,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   String get _userId => (d['user']['id']) as String;
 
   Future<void> _call(String fn, Map<String, dynamic> body,
-      {required String okMsg, String? okDetail}) async {
+      {required String okMsg, String? okDetail, String? idempotencyKey}) async {
     setState(() => _busy = true);
     try {
-      final res = await ref.read(scanRepoProvider).invoke(fn, body);
+      final res = await ref
+          .read(scanRepoProvider)
+          .invoke(fn, body, idempotencyKey: idempotencyKey);
       if (res.data?['error'] != null) {
         _snack(res.data['error'] as String);
       } else {
@@ -35,6 +38,13 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         if (mounted) {
           await AppFeedback.success(context, title: okMsg, message: okDetail);
         }
+      }
+    } on FunctionException catch (e) {
+      // 409: عملية بنفس مفتاح الازدواج قيد المعالجة — لا نعيد الإرسال.
+      if (e.status == 409) {
+        _snack('عملية قيد المعالجة');
+      } else {
+        _snack('تعذّر تنفيذ العملية، تحقق من الاتصال');
       }
     } catch (_) {
       _snack('تعذّر تنفيذ العملية، تحقق من الاتصال');
@@ -54,9 +64,13 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
       builder: (_) => const _QuickPointsSheet(),
     );
     if (pts != null) {
+      // مفتاح ازدواج واحد يُولَّد لحظة تأكيد المبلغ (قبل أي await للشبكة)،
+      // ويُعاد استخدامه لو حصلت إعادة محاولة لمنع الخصم/الإضافة المزدوجة.
+      final idempotencyKey = genIdempotencyKey();
       await _call('add-points', {'user_id': _userId, 'points': pts},
           okMsg: 'تمت إضافة $pts نقطة',
-          okDetail: 'أُضيفت النقاط إلى رصيد العميل بنجاح.');
+          okDetail: 'أُضيفت النقاط إلى رصيد العميل بنجاح.',
+          idempotencyKey: idempotencyKey);
     }
   }
 
