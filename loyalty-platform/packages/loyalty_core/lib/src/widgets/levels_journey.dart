@@ -72,9 +72,9 @@ class LevelsJourney extends StatelessWidget {
                   Positioned.fill(
                     child: CustomPaint(painter: _PathPainter(centers)),
                   ),
-                  // العُقد
+                  // العُقد (الدائرة + لافتتها) — كل عنصر مثبّت داخل الحدود.
                   for (var i = 0; i < n; i++)
-                    _node(context, ordered[i], centers[i],
+                    ..._nodeWidgets(context, ordered[i], centers[i], width,
                         sorted.length - 1 - i, currentIndex),
                 ],
               ),
@@ -85,39 +85,40 @@ class LevelsJourney extends StatelessWidget {
     );
   }
 
-  Widget _node(BuildContext context, LoyaltyLevel level, Offset center,
-      int realIndex, int currentIndex) {
+  List<Widget> _nodeWidgets(BuildContext context, LoyaltyLevel level,
+      Offset center, double width, int realIndex, int currentIndex) {
     final reached = level.thresholdLifetimePoints <= lifetimePoints;
     final isCurrent = realIndex == currentIndex;
     final size = isCurrent ? 78.0 : 60.0;
+    // العقدة على النصف الأيسر → اللافتة تتّجه يمينًا؛ وعلى النصف الأيمن → يسارًا،
+    // أي دائمًا ناحية الداخل فلا تخرج عن حافة الشاشة.
+    final onLeft = center.dx < width / 2;
+    const gap = 8.0;
 
-    return Positioned(
+    final circle = Positioned(
       left: center.dx - size / 2,
       top: center.dy - size / 2,
-      child: SizedBox(
-        width: size + 130, // مساحة للّافتة بجانب العقدة
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _NodeCircle(
-                level: level,
-                size: size,
-                reached: reached,
-                isCurrent: isCurrent),
-            const SizedBox(width: 8),
-            if (isCurrent)
-              _Pill(text: 'أنت هنا', strong: true)
-            else if (reached)
-              _Pill(text: level.name)
-            else
-              _Pill(
-                  text:
-                      'باقٍ ${level.thresholdLifetimePoints - lifetimePoints}',
-                  muted: true),
-          ],
-        ),
-      ),
+      child: _NodeCircle(
+          level: level, size: size, reached: reached, isCurrent: isCurrent),
     );
+
+    final pill = isCurrent
+        ? _Pill(text: 'أنت هنا', strong: true)
+        : reached
+            ? _Pill(text: level.name)
+            : _Pill(
+                text:
+                    'باقٍ ${level.thresholdLifetimePoints - lifetimePoints}',
+                muted: true);
+
+    final pillPositioned = Positioned(
+      top: center.dy - 17,
+      left: onLeft ? center.dx + size / 2 + gap : null,
+      right: onLeft ? null : width - (center.dx - size / 2) + gap,
+      child: pill,
+    );
+
+    return [circle, pillPositioned];
   }
 }
 
@@ -188,8 +189,14 @@ class _Pill extends StatelessWidget {
           BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
-      child: Text(text,
-          style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 150),
+        child: Text(text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+                TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13)),
+      ),
     );
   }
 }
