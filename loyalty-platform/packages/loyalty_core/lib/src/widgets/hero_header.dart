@@ -20,6 +20,8 @@ class HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // لون النص يتكيّف مع سطوع التدرّج: أبيض فوق الخلفيات الداكنة، وداكن فوق الذهبي.
+    final fg = _foreground();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -49,13 +51,13 @@ class HeroHeader extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium
-                              ?.copyWith(color: AppColors.onPrimary)),
+                              ?.copyWith(
+                                  color: fg, fontWeight: FontWeight.w800)),
                       if (subtitle != null) ...[
                         const SizedBox(height: 4),
                         Text(subtitle!,
                             style: TextStyle(
-                                color: AppColors.onPrimary
-                                    .withValues(alpha: .8))),
+                                color: fg.withValues(alpha: .82))),
                       ],
                     ],
                   ),
@@ -68,5 +70,18 @@ class HeroHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// يختار لون نص مقروء حسب سطوع تدرّج الخلفية.
+  Color _foreground() {
+    final g = gradient;
+    if (g is LinearGradient && g.colors.isNotEmpty) {
+      final avg = g.colors
+              .map((c) => c.computeLuminance())
+              .reduce((a, b) => a + b) /
+          g.colors.length;
+      if (avg < 0.4) return Colors.white;
+    }
+    return AppColors.onPrimary;
   }
 }

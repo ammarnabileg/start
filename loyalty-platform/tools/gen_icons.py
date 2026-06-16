@@ -42,7 +42,7 @@ G = {
  "headset": '<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="3" height="6" rx="1.2"/><rect x="18" y="13" width="3" height="6" rx="1.2"/><path d="M20 19a3 3 0 0 1-3 3h-3"/>',
  "help": '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.4c-.8.4-1.1.9-1.1 1.7"/><circle cx="11.8" cy="16.5" r=".7" fill="#000"/>',
  "qr": '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h3v3M20 14v6h-6"/>',
- "qrScan": '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/>',
+ "qrScan": '<path d="M4 9V7a3 3 0 0 1 3-3h2"/><path d="M15 4h2a3 3 0 0 1 3 3v2"/><path d="M20 15v2a3 3 0 0 1-3 3h-2"/><path d="M9 20H7a3 3 0 0 1-3-3v-2"/><path d="M4 12h16"/>',
  "person": '<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>',
  "people": '<circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6"/><path d="M21 19a6 6 0 0 0-3.5-5.5"/>',
  "personAdd": '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 8v6M15 11h6"/>',

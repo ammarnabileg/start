@@ -70,10 +70,10 @@ class AppColors {
     colors: [Color(0xFFFFE08A), Color(0xFFE6B422)],
   );
 
-  /// تدرّج داكن فخم (داشبورد التاجر).
+  /// تدرّج داكن دافئ فخم (داشبورد التاجر) — بنّي إسبريسو بدل الأسود القاسي.
   static const darkGradient = LinearGradient(
     begin: Alignment.topRight,
     end: Alignment.bottomLeft,
-    colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
+    colors: [Color(0xFF4A3320), Color(0xFF2A1B11)],
   );
 }
