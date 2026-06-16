@@ -9,7 +9,7 @@ import 'prize_qr_screen.dart';
 
 /// عجلة حظ التاجر النشطة (إن وُجدت).
 final activeWheelProvider =
-    FutureProvider.family<LuckyWheel?, String>((ref, merchantId) async {
+    FutureProvider.autoDispose.family<LuckyWheel?, String>((ref, merchantId) async {
   final client = Supabase.instance.client;
   final row = await client
       .from('lucky_wheels')
@@ -164,7 +164,7 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
                         child: LuckyWheelView(
                           segments: wheel.segments,
                           controller: _controller,
-                          size: 300,
+                          size: context.cappedSize(300),
                         ),
                       )
                           .animate()

@@ -88,7 +88,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('تسجيل الدخول'), centerTitle: true),
       body: SafeArea(
-        child: ListView(
+        child: ResponsiveCenter(
+          child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
             const SizedBox(height: AppSpacing.sm),
@@ -139,6 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: InputDecoration(
                 hintText: 'كلمة المرور',
                 suffixIcon: IconButton(
+                  tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
                   icon: Icon(_obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined),
@@ -166,6 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _canSubmit ? _submit : null,
             ),
           ],
+        ),
         ),
       ),
     );

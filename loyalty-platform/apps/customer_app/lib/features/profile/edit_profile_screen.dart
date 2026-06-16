@@ -122,13 +122,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onRetry: () => ref.invalidate(currentUserProvider)),
         data: (user) {
           _seed(user);
-          return ListView(
+          return ResponsiveCenter(
+            child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xxl),
             children: [
               Center(
                 child: Stack(
                   children: [
-                    GestureDetector(
+                    Semantics(
+                      label: 'تغيير الصورة الشخصية',
+                      button: true,
+                      child: GestureDetector(
                       onTap: _uploadingAvatar ? null : _pickAvatar,
                       child: Container(
                         height: 96,
@@ -176,6 +180,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   ),
                       ),
                     ),
+                    ),
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -183,6 +188,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         radius: 16,
                         backgroundColor: AppColors.primary,
                         child: IconButton(
+                          tooltip: 'تغيير الصورة الشخصية',
                           padding: EdgeInsets.zero,
                           iconSize: 18,
                           icon: const Icon(Icons.camera_alt_outlined,
@@ -252,6 +258,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 onPressed: (_nameValid && _emailValid) ? _save : null,
               ),
             ],
+          ),
           );
         },
       ),

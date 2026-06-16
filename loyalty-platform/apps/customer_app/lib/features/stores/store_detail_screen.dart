@@ -17,7 +17,7 @@ import '../wheel/wheel_screen.dart';
 
 /// مكافآت التاجر النشطة.
 final storeRewardsProvider =
-    FutureProvider.family<List<Reward>, String>((ref, merchantId) async {
+    FutureProvider.autoDispose.family<List<Reward>, String>((ref, merchantId) async {
   final client = Supabase.instance.client;
   final rows = await client
       .from('rewards')
@@ -32,7 +32,7 @@ final storeRewardsProvider =
 
 /// مستويات الولاء للتاجر مرتّبة.
 final storeLevelsProvider =
-    FutureProvider.family<List<LoyaltyLevel>, String>((ref, merchantId) async {
+    FutureProvider.autoDispose.family<List<LoyaltyLevel>, String>((ref, merchantId) async {
   final client = Supabase.instance.client;
   final rows = await client
       .from('loyalty_levels')
@@ -65,7 +65,7 @@ class CampaignProgress {
 }
 
 final storeVisitsProvider =
-    FutureProvider.family<List<CampaignProgress>, UserStore>((ref, store) async {
+    FutureProvider.autoDispose.family<List<CampaignProgress>, UserStore>((ref, store) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
 
@@ -105,7 +105,7 @@ final storeVisitsProvider =
 
 /// سجل حركات النقاط في هذا المتجر.
 final storeHistoryProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>(
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
         (ref, userStoreId) async {
   final client = Supabase.instance.client;
   final rows = await client
@@ -119,7 +119,7 @@ final storeHistoryProvider =
 
 /// الكوبونات المتاحة للتاجر.
 final storeCouponsProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>(
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
         (ref, merchantId) async {
   final client = Supabase.instance.client;
   final rows = await client
@@ -132,7 +132,7 @@ final storeCouponsProvider =
 
 /// أسئلة التاجر (بنقاط) + خياراتها + هل أجابها العميل.
 final storeQuestionsProvider =
-    FutureProvider.family<List<MerchantQuestion>, String>(
+    FutureProvider.autoDispose.family<List<MerchantQuestion>, String>(
         (ref, merchantId) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
@@ -560,8 +560,8 @@ class _RewardsTab extends ConsumerWidget {
               ref.invalidate(storeRewardsProvider(store.merchantId)),
           child: GridView.builder(
             padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.responsive(mobile: 2, tablet: 3),
               mainAxisSpacing: 14,
               crossAxisSpacing: 14,
               childAspectRatio: 0.72,

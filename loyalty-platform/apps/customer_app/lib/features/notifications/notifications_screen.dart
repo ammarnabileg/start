@@ -5,7 +5,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final notificationsProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
   final rows = await client
@@ -14,6 +14,17 @@ final notificationsProvider =
       .eq('user_id', uid)
       .order('created_at', ascending: false)
       .limit(50);
+  // عند تحميل الشاشة، علّم الإشعارات غير المقروءة كمقروءة (أفضل جهد).
+  // ملاحظة: تبقى ستايلات "غير مقروء" كما هي لهذا البناء (البيانات الحالية).
+  try {
+    await client
+        .from('notifications')
+        .update({'read_at': DateTime.now().toIso8601String()})
+        .eq('user_id', uid)
+        .isFilter('read_at', null);
+  } catch (_) {
+    // غير حرج.
+  }
   return (rows as List).cast<Map<String, dynamic>>();
 });
 

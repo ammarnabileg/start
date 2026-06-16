@@ -95,7 +95,7 @@ void main() {
                           const Text('عضوية: 8F3A2C9D',
                               style: TextStyle(color: AppColors.textSecondary)),
                           const SizedBox(height: 14),
-                          Row(mainAxisSize: MainAxisSize.min, children: const [
+                          const Row(mainAxisSize: MainAxisSize.min, children: [
                             SizedBox(
                                 height: 18,
                                 width: 18,

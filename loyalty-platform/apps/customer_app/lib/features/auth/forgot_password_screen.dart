@@ -163,12 +163,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: switch (_step) {
-          _Step.phone => _buildPhoneStep(),
-          _Step.otp => _buildOtpStep(),
-          _Step.newPassword => _buildPasswordStep(),
-          _Step.done => _buildDoneStep(),
-        },
+        child: ResponsiveCenter(
+          child: switch (_step) {
+            _Step.phone => _buildPhoneStep(),
+            _Step.otp => _buildOtpStep(),
+            _Step.newPassword => _buildPasswordStep(),
+            _Step.done => _buildDoneStep(),
+          },
+        ),
       ),
     );
   }
@@ -283,6 +285,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           decoration: InputDecoration(
             hintText: '8 أحرف على الأقل',
             suffixIcon: IconButton(
+              tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
               icon: Icon(_obscure
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined),
@@ -311,9 +314,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Widget _buildDoneStep() {
     final theme = Theme.of(context);
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
+      shrinkWrap: true,
+      children: [
+        Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
@@ -343,7 +348,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
-      ),
+        ),
+      ],
     );
   }
 }

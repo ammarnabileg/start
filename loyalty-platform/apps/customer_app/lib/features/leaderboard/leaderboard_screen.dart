@@ -12,7 +12,7 @@ class LeaderboardArgs {
   const LeaderboardArgs({this.merchantId, this.branchId, required this.title});
 }
 
-final leaderboardProvider = FutureProvider.family<List<LeaderboardEntry>, LeaderboardArgs>(
+final leaderboardProvider = FutureProvider.autoDispose.family<List<LeaderboardEntry>, LeaderboardArgs>(
   (ref, args) async {
     final client = Supabase.instance.client;
     final List<dynamic> rows;

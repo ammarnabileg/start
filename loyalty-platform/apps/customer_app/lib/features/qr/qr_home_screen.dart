@@ -124,9 +124,13 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                   ),
                 ),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                    child: Column(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight - 48),
+                        child: Column(
                       children: [
                         const Spacer(),
                         AppCard(
@@ -149,7 +153,7 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                                 child: QrImageView(
                                   data: _payload,
                                   version: QrVersions.auto,
-                                  size: 230,
+                                  size: context.cappedSize(220),
                                   backgroundColor: Colors.white,
                                 ),
                               ),
@@ -200,6 +204,8 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                           ),
                         ),
                       ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

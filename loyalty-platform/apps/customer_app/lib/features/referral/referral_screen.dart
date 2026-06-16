@@ -10,7 +10,7 @@ import '../qr/qr_providers.dart';
 
 /// إحالات العميل (مَن دعاهم + حالتهم).
 final myReferralsProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
   final rows = await client

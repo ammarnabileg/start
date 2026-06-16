@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'store_detail_screen.dart';
 
 /// متاجري — المحافظ المرتبطة بالعميل (محفظة لكل فرع/تاجر حسب الإعداد).
-final myStoresProvider = FutureProvider<List<UserStore>>((ref) async {
+final myStoresProvider = FutureProvider.autoDispose<List<UserStore>>((ref) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
   final rows = await client

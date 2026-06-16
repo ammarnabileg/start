@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'prize_qr_screen.dart';
 
 /// هدايا العميل المكسوبة (status = won).
-final myPrizesProvider = FutureProvider<List<UserPrize>>((ref) async {
+final myPrizesProvider = FutureProvider.autoDispose<List<UserPrize>>((ref) async {
   final client = Supabase.instance.client;
   final uid = client.auth.currentUser!.id;
   final rows = await client

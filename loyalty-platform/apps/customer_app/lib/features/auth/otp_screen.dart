@@ -212,7 +212,8 @@ class _OtpScreenState extends State<OtpScreen> {
     return Scaffold(
       appBar: AppBar(centerTitle: true),
       body: SafeArea(
-        child: ListView(
+        child: ResponsiveCenter(
+          child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
             const SizedBox(height: AppSpacing.sm),
@@ -282,6 +283,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
             ),
           ],
+        ),
         ),
       ),
     );

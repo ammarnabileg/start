@@ -142,7 +142,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('إنشاء حساب جديد'), centerTitle: true),
       body: SafeArea(
-        child: ListView(
+        child: ResponsiveCenter(
+          child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xxl),
           children: [
             Text(
@@ -209,6 +210,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               decoration: InputDecoration(
                 hintText: '8 أحرف على الأقل',
                 suffixIcon: IconButton(
+                  tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
                   icon: Icon(_obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined),
@@ -281,6 +283,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
+        ),
         ),
       ),
     );

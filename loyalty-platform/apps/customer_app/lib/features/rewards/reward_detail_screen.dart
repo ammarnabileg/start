@@ -138,7 +138,8 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
+            child: ResponsiveCenter(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(reward.name, style: theme.textTheme.headlineSmall),
@@ -185,6 +186,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
                   onPressed: _affordable ? _confirmAndRedeem : null,
                 ),
               ],
+            ),
             ),
           ),
         ],

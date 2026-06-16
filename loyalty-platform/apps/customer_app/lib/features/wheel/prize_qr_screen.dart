@@ -89,9 +89,13 @@ class _PrizeQrScreenState extends State<PrizeQrScreen> {
                       message: 'لم تعُد هذه الهدية قابلة للتفعيل.',
                     ),
                   )
-                : Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
+                : LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight - 48),
+                        child: Column(
                       children: [
                         const Spacer(),
                         AppCard(
@@ -114,7 +118,7 @@ class _PrizeQrScreenState extends State<PrizeQrScreen> {
                                 child: QrImageView(
                                   data: _payload,
                                   version: QrVersions.auto,
-                                  size: 230,
+                                  size: context.cappedSize(220),
                                   backgroundColor: Colors.white,
                                 ),
                               ),
@@ -163,6 +167,8 @@ class _PrizeQrScreenState extends State<PrizeQrScreen> {
                           ),
                         ),
                       ],
+                        ),
+                      ),
                     ),
                   ),
       ),
