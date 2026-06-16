@@ -2,13 +2,14 @@
 // المحفظة تتحدّد بفرع الكاشير (مهم لنطاق النقاط المنفصل لكل فرع).
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff } from "../_shared/auth.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { redemption_id } = await req.json();
+    const { redemption_id, idempotency_key } = await req.json();
     if (!redemption_id) return badRequest("redemption_id مفقود");
 
     const { data: r } = await svc.from("reward_redemptions")
@@ -31,34 +32,47 @@ Deno.serve(async (req) => {
       return badRequest("رصيد العميل في هذا الفرع غير كافٍ", 422);
     }
 
-    // خصم من available فقط (lifetime ثابت) + خصم المخزون + تأكيد
-    await svc.from("user_stores").update({
-      available_points: wallet.available_points - r.points_spent,
-    }).eq("id", wallet.id);
+    // المعاملة محمية بـ idempotency (تأكيد مكرّر لا يخصم مرتين).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "confirm-redemption", userId: r.user_id, merchantId: staff.merchantId },
+      async () => {
+        // خصم من available فقط (lifetime ثابت) + خصم المخزون + تأكيد
+        await svc.from("user_stores").update({
+          available_points: wallet.available_points - r.points_spent,
+        }).eq("id", wallet.id);
 
-    await svc.from("points_transactions").insert({
-      user_store_id: wallet.id,
-      branch_id: staff.branchId,
-      type: "redeem",
-      points: -r.points_spent,
-      staff_id: staff.staffId,
-      reason: "reward_redemption",
-    });
+        await svc.from("points_transactions").insert({
+          user_store_id: wallet.id,
+          branch_id: staff.branchId,
+          type: "redeem",
+          points: -r.points_spent,
+          staff_id: staff.staffId,
+          reason: "reward_redemption",
+        });
 
-    await svc.from("reward_redemptions").update({
-      status: "confirmed",
-      branch_id: staff.branchId,
-      staff_id: staff.staffId,
-      confirmed_at: new Date().toISOString(),
-    }).eq("id", r.id);
+        await svc.from("reward_redemptions").update({
+          status: "confirmed",
+          branch_id: staff.branchId,
+          staff_id: staff.staffId,
+          confirmed_at: new Date().toISOString(),
+        }).eq("id", r.id);
 
-    // إنقاص المخزون لو محدود
-    await svc.rpc("decrement_stock", { p_reward: r.reward_id }).then(() => {}, () => {});
+        // إنقاص المخزون لو محدود
+        await svc.rpc("decrement_stock", { p_reward: r.reward_id }).then(() => {}, () => {});
 
-    return json({
-      confirmed: true,
-      remaining_points: wallet.available_points - r.points_spent,
-    });
+        return {
+          confirmed: true,
+          remaining_points: wallet.available_points - r.points_spent,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

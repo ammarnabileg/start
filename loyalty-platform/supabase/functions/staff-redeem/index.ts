@@ -3,13 +3,14 @@
 // ويطلب أن يبدأ العميل الاستبدال من تطبيقه (تأكيد الطرفين).
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings, staffCan } from "../_shared/auth.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { user_id, reward_id } = await req.json();
+    const { user_id, reward_id, idempotency_key } = await req.json();
     if (!user_id || !reward_id) return badRequest("user_id و reward_id مطلوبان");
 
     // صلاحية الاستبدال (owner يتجاوز).
@@ -44,27 +45,40 @@ Deno.serve(async (req) => {
       return badRequest("نقاط العميل غير كافية", 422);
     }
 
-    await svc.from("user_stores").update({
-      available_points: wallet.available_points - reward.points_cost,
-    }).eq("id", wallet.id);
-    await svc.from("points_transactions").insert({
-      user_store_id: wallet.id, branch_id: staff.branchId,
-      type: "redeem", points: -reward.points_cost, staff_id: staff.staffId,
-      reason: "reward_redemption",
-    });
-    await svc.from("reward_redemptions").insert({
-      user_id, merchant_id: staff.merchantId, reward_id: reward.id,
-      branch_id: staff.branchId, points_spent: reward.points_cost,
-      staff_id: staff.staffId, status: "confirmed",
-      confirmed_at: new Date().toISOString(),
-    });
-    await svc.rpc("decrement_stock", { p_reward: reward.id }).then(() => {}, () => {});
+    // المعاملة محمية بـ idempotency (إعادة الإرسال لا تخصم النقاط مرتين).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "staff-redeem", userId: user_id, merchantId: staff.merchantId },
+      async () => {
+        await svc.from("user_stores").update({
+          available_points: wallet.available_points - reward.points_cost,
+        }).eq("id", wallet.id);
+        await svc.from("points_transactions").insert({
+          user_store_id: wallet.id, branch_id: staff.branchId,
+          type: "redeem", points: -reward.points_cost, staff_id: staff.staffId,
+          reason: "reward_redemption",
+        });
+        await svc.from("reward_redemptions").insert({
+          user_id, merchant_id: staff.merchantId, reward_id: reward.id,
+          branch_id: staff.branchId, points_spent: reward.points_cost,
+          staff_id: staff.staffId, status: "confirmed",
+          confirmed_at: new Date().toISOString(),
+        });
+        await svc.rpc("decrement_stock", { p_reward: reward.id }).then(() => {}, () => {});
 
-    return json({
-      redeemed: true,
-      reward_name: reward.name,
-      remaining_points: wallet.available_points - reward.points_cost,
-    });
+        return {
+          redeemed: true,
+          reward_name: reward.name,
+          remaining_points: wallet.available_points - reward.points_cost,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

@@ -3,13 +3,14 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, staffCan } from "../_shared/auth.ts";
 import { verifyQr } from "../_shared/qr.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { payload } = await req.json();
+    const { payload, idempotency_key } = await req.json();
     if (!payload) return badRequest("payload مفقود");
 
     // صلاحية تفعيل الهدايا: علم الموظف + صلاحية الدور (prizes:redeem).
@@ -57,27 +58,40 @@ Deno.serve(async (req) => {
       return badRequest("هذه الهدية تُفعَّل في فرع آخر فقط", 403);
     }
 
-    // تفعيل
-    await svc.from("user_prizes").update({
-      status: "redeemed",
-      redeemed_at: new Date().toISOString(),
-      redeemed_by_staff: staff.staffId,
-      redeemed_branch: staff.branchId,
-    }).eq("id", prize.id);
+    // المعاملة محمية بـ idempotency (تفعيل مكرّر لا يُسجَّل مرتين).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "redeem-prize", userId: prize.user_id, merchantId: staff.merchantId },
+      async () => {
+        // تفعيل
+        await svc.from("user_prizes").update({
+          status: "redeemed",
+          redeemed_at: new Date().toISOString(),
+          redeemed_by_staff: staff.staffId,
+          redeemed_branch: staff.branchId,
+        }).eq("id", prize.id);
 
-    // إشعار العميل
-    await svc.from("notifications").insert({
-      user_id: prize.user_id, type: "prize_redeemed",
-      title: "تم استلام هديتك",
-      body: prize.title,
-      data: { merchant_id: prize.merchant_id, prize_id: prize.id },
-    });
+        // إشعار العميل
+        await svc.from("notifications").insert({
+          user_id: prize.user_id, type: "prize_redeemed",
+          title: "تم استلام هديتك",
+          body: prize.title,
+          data: { merchant_id: prize.merchant_id, prize_id: prize.id },
+        });
 
-    return json({
-      redeemed: true,
-      title: prize.title,
-      kind: prize.kind,
-    });
+        return {
+          redeemed: true,
+          title: prize.title,
+          kind: prize.kind,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

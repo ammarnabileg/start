@@ -8,10 +8,13 @@ class RewardsRepository {
   RewardsRepository(this._client);
   final SupabaseClient _client;
 
-  /// بدء استبدال مكافأة عبر دالة الحافة.
-  Future<Map<String, dynamic>?> redeemReward(String rewardId) async {
-    final res = await _client.functions
-        .invoke('redeem-reward', body: {'reward_id': rewardId});
+  /// بدء استبدال مكافأة عبر دالة الحافة. [idempotencyKey] يمنع إنشاء كودَي استلام.
+  Future<Map<String, dynamic>?> redeemReward(String rewardId,
+      {String? idempotencyKey}) async {
+    final res = await _client.functions.invoke('redeem-reward', body: {
+      'reward_id': rewardId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+    });
     return res.data as Map<String, dynamic>?;
   }
 

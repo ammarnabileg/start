@@ -33,7 +33,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     try {
       // رمز هدية (يبدأ بـ p1.) → تفعيله عبر redeem-prize.
       if (payload.startsWith('p1.')) {
-        final res = await ref.read(scanRepoProvider).redeemPrize(payload);
+        final res = await ref
+            .read(scanRepoProvider)
+            .redeemPrize(payload, idempotencyKey: genIdempotencyKey());
         final data = res.data as Map<String, dynamic>?;
         if (data?['error'] != null) {
           _snack(data!['error'] as String);
@@ -52,7 +54,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (payload.startsWith('r1.')) {
         final res = await ref
             .read(scanRepoProvider)
-            .confirmRedemption(payload.substring(3));
+            .confirmRedemption(payload.substring(3),
+                idempotencyKey: genIdempotencyKey());
         final data = res.data as Map<String, dynamic>?;
         if (data?['error'] != null) {
           _snack(data!['error'] as String);

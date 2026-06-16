@@ -24,10 +24,13 @@ class WheelRepository {
     return LuckyWheel.fromJson(row);
   }
 
-  /// لفّ العجلة عبر دالة الحافة.
-  Future<Map<String, dynamic>?> spinWheel(String wheelId) async {
-    final res = await _client.functions
-        .invoke('spin-wheel', body: {'wheel_id': wheelId});
+  /// لفّ العجلة عبر دالة الحافة. [idempotencyKey] يمنع خصم/منح مزدوج عند الإعادة.
+  Future<Map<String, dynamic>?> spinWheel(String wheelId,
+      {String? idempotencyKey}) async {
+    final res = await _client.functions.invoke('spin-wheel', body: {
+      'wheel_id': wheelId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+    });
     return res.data as Map<String, dynamic>?;
   }
 

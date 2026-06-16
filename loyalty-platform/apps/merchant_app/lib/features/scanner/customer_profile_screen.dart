@@ -106,7 +106,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     );
     if (rewardId == null) return;
     await _call('staff-redeem', {'user_id': _userId, 'reward_id': rewardId},
-        okMsg: 'تم الاستبدال');
+        okMsg: 'تم الاستبدال', idempotencyKey: genIdempotencyKey());
   }
 
   /// تطبيق كوبون بإدخال الكود.
@@ -132,7 +132,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     );
     if (code == null || code.isEmpty) return;
     await _call('apply-coupon', {'user_id': _userId, 'code': code},
-        okMsg: 'تم تطبيق الكوبون');
+        okMsg: 'تم تطبيق الكوبون', idempotencyKey: genIdempotencyKey());
   }
 
   @override

@@ -52,7 +52,9 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
 
     setState(() => _loading = true);
     try {
-      final data = await ref.read(rewardsRepoProvider).redeemReward(reward.id);
+      final data = await ref
+          .read(rewardsRepoProvider)
+          .redeemReward(reward.id, idempotencyKey: genIdempotencyKey());
       if (data == null || data['error'] != null) {
         _showError(
             (data?['error'] as String?) ?? 'تعذّر بدء الاستبدال، حاول مرة أخرى.');

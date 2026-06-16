@@ -1,13 +1,14 @@
 // apply-coupon: الكاشير يطبّق كوبونًا لعميل — يتحقق من الصلاحية والحدود ويسجّل الاستخدام.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { user_id, code } = await req.json();
+    const { user_id, code, idempotency_key } = await req.json();
     if (!user_id || !code) return badRequest("user_id و code مطلوبان");
 
     const s = await merchantSettings(svc, staff.merchantId);
@@ -43,15 +44,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    await svc.from("coupon_redemptions").insert({
-      coupon_id: coupon.id, user_id, staff_id: staff.staffId,
-    });
+    // المعاملة محمية بـ idempotency (تطبيق مكرّر لا يُسجَّل استخدامين).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "apply-coupon", userId: user_id, merchantId: staff.merchantId },
+      async () => {
+        await svc.from("coupon_redemptions").insert({
+          coupon_id: coupon.id, user_id, staff_id: staff.staffId,
+        });
 
-    return json({
-      applied: true,
-      type: coupon.type, // percent / fixed / free_item
-      value: coupon.value,
-    });
+        return {
+          applied: true,
+          type: coupon.type, // percent / fixed / free_item
+          value: coupon.value,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

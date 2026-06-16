@@ -9,14 +9,19 @@ class ScanRepository {
   ScanRepository(this._client);
   final SupabaseClient _client;
 
-  Future<FunctionResponse> redeemPrize(String payload) {
-    return _client.functions
-        .invoke('redeem-prize', body: {'payload': payload});
+  Future<FunctionResponse> redeemPrize(String payload, {String? idempotencyKey}) {
+    return _client.functions.invoke('redeem-prize', body: {
+      'payload': payload,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+    });
   }
 
-  Future<FunctionResponse> confirmRedemption(String redemptionId) {
-    return _client.functions
-        .invoke('confirm-redemption', body: {'redemption_id': redemptionId});
+  Future<FunctionResponse> confirmRedemption(String redemptionId,
+      {String? idempotencyKey}) {
+    return _client.functions.invoke('confirm-redemption', body: {
+      'redemption_id': redemptionId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+    });
   }
 
   Future<FunctionResponse> verifyQr(String payload) {

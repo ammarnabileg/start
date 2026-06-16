@@ -31,7 +31,9 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
     if (_spinning) return;
     setState(() => _spinning = true);
     try {
-      final data = await ref.read(wheelRepoProvider).spinWheel(wheel.id);
+      final data = await ref
+          .read(wheelRepoProvider)
+          .spinWheel(wheel.id, idempotencyKey: genIdempotencyKey());
       if (data == null) {
         if (mounted) {
           AppFeedback.toast(context, 'تعذّر اللفّ، حاول مرة أخرى.', error: true);

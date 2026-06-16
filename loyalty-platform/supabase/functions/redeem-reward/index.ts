@@ -2,13 +2,14 @@
 // الخصم الفعلي ما بيحصلش هنا — بيحصل في confirm-redemption لما الكاشير يأكّد.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireUser, merchantSettings } from "../_shared/auth.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const userId = await requireUser(req, svc);
-    const { reward_id } = await req.json();
+    const { reward_id, idempotency_key } = await req.json();
     if (!reward_id) return badRequest("reward_id مفقود");
 
     const { data: reward } = await svc.from("rewards")
@@ -31,23 +32,36 @@ Deno.serve(async (req) => {
     );
     if (!canAfford) return badRequest("النقاط غير كافية", 422);
 
-    const expires = new Date(Date.now() + s.redemption_window_minutes * 60_000);
-    const { data: redemption } = await svc.from("reward_redemptions").insert({
-      user_id: userId,
-      merchant_id: reward.merchant_id,
-      reward_id: reward.id,
-      points_spent: reward.points_cost,
-      status: "pending",
-      expires_at: expires.toISOString(),
-    }).select("id").single();
+    // المعاملة محمية بـ idempotency (إعادة الإرسال لا تنشئ كودَي استلام).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "redeem-reward", userId, merchantId: reward.merchant_id },
+      async () => {
+        const expires = new Date(Date.now() + s.redemption_window_minutes * 60_000);
+        const { data: redemption } = await svc.from("reward_redemptions").insert({
+          user_id: userId,
+          merchant_id: reward.merchant_id,
+          reward_id: reward.id,
+          points_spent: reward.points_cost,
+          status: "pending",
+          expires_at: expires.toISOString(),
+        }).select("id").single();
 
-    return json({
-      redemption_id: redemption.id,
-      reward_name: reward.name,
-      points_cost: reward.points_cost,
-      expires_at: expires.toISOString(),
-      requires_confirmation: true, // العميل يعرض الكود والكاشير يأكّد
-    });
+        return {
+          redemption_id: redemption.id,
+          reward_name: reward.name,
+          points_cost: reward.points_cost,
+          expires_at: expires.toISOString(),
+          requires_confirmation: true, // العميل يعرض الكود والكاشير يأكّد
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

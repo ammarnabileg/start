@@ -4,6 +4,7 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, merchantSettings } from "../_shared/auth.ts";
 import { sha256Hex } from "../_shared/hash.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -33,6 +34,8 @@ Deno.serve(async (req) => {
     }
     const body = await req.json();
     const action = body.action as string;
+    // مفتاح ازدواج اختياري من نظام الكاشير (نفس رقم الإيصال مثلًا).
+    const idempotencyKey = body.idempotency_key as string | undefined;
 
     // إيجاد العميل (بالجوال أو المعرّف)
     async function findUser(): Promise<{ id: string; name: string } | null> {
@@ -82,35 +85,45 @@ Deno.serve(async (req) => {
       if (!Number.isInteger(pts) || pts <= 0) return badRequest("قيمة غير صحيحة");
       if (pts > s.max_points_per_txn) pts = s.max_points_per_txn; // سقف العملية
 
-      const newLifetime = wallet.lifetime_points + pts;
-      let levelId = wallet.current_level_id;
-      if (s.enable_levels) {
-        const { data: lvl } = await svc.from("loyalty_levels").select("id")
-          .eq("merchant_id", merchantId)
-          .lte("threshold_lifetime_points", newLifetime)
-          .order("threshold_lifetime_points", { ascending: false })
-          .limit(1).maybeSingle();
-        if (lvl) levelId = lvl.id;
-      }
-      await svc.from("user_stores").update({
-        available_points: wallet.available_points + pts,
-        lifetime_points: newLifetime,
-        current_level_id: levelId,
-      }).eq("id", wallet.id);
-      await svc.from("points_transactions").insert({
-        user_store_id: wallet.id, branch_id: branchId,
-        type: "earn", points: pts, reason: "pos",
-      });
-      await svc.from("notifications").insert({
-        user_id: user.id, type: "points",
-        title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
-        data: { merchant_id: merchantId },
-      });
-      return json({
-        earned: pts,
-        available_points: wallet.available_points + pts,
-        lifetime_points: newLifetime,
-      });
+      // المعاملة محمية بـ idempotency (إعادة إرسال نفس الإيصال لا تضاعف النقاط).
+      const idem = await withIdempotency(
+        svc,
+        idempotencyKey,
+        { endpoint: "pos-api:earn", userId: user.id, merchantId },
+        async () => {
+          const newLifetime = wallet.lifetime_points + pts;
+          let levelId = wallet.current_level_id;
+          if (s.enable_levels) {
+            const { data: lvl } = await svc.from("loyalty_levels").select("id")
+              .eq("merchant_id", merchantId)
+              .lte("threshold_lifetime_points", newLifetime)
+              .order("threshold_lifetime_points", { ascending: false })
+              .limit(1).maybeSingle();
+            if (lvl) levelId = lvl.id;
+          }
+          await svc.from("user_stores").update({
+            available_points: wallet.available_points + pts,
+            lifetime_points: newLifetime,
+            current_level_id: levelId,
+          }).eq("id", wallet.id);
+          await svc.from("points_transactions").insert({
+            user_store_id: wallet.id, branch_id: branchId,
+            type: "earn", points: pts, reason: "pos",
+          });
+          await svc.from("notifications").insert({
+            user_id: user.id, type: "points",
+            title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
+            data: { merchant_id: merchantId },
+          });
+          return {
+            earned: pts,
+            available_points: wallet.available_points + pts,
+            lifetime_points: newLifetime,
+          };
+        },
+      );
+      if ("conflict" in idem) return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+      return json(idem.data);
     }
 
     if (action === "visit") {
@@ -133,22 +146,32 @@ Deno.serve(async (req) => {
       if (wallet.available_points < reward.points_cost) {
         return badRequest("النقاط غير كافية", 422);
       }
-      await svc.from("user_stores").update({
-        available_points: wallet.available_points - reward.points_cost,
-      }).eq("id", wallet.id);
-      await svc.from("points_transactions").insert({
-        user_store_id: wallet.id, branch_id: branchId,
-        type: "redeem", points: -reward.points_cost, reason: "pos_redeem",
-      });
-      await svc.from("reward_redemptions").insert({
-        user_id: user.id, merchant_id: merchantId, reward_id: reward.id,
-        branch_id: branchId, points_spent: reward.points_cost, status: "confirmed",
-        confirmed_at: new Date().toISOString(),
-      });
-      return json({
-        redeemed: true,
-        remaining_points: wallet.available_points - reward.points_cost,
-      });
+      // المعاملة محمية بـ idempotency (إعادة الإرسال لا تخصم مرتين).
+      const idem = await withIdempotency(
+        svc,
+        idempotencyKey,
+        { endpoint: "pos-api:redeem", userId: user.id, merchantId },
+        async () => {
+          await svc.from("user_stores").update({
+            available_points: wallet.available_points - reward.points_cost,
+          }).eq("id", wallet.id);
+          await svc.from("points_transactions").insert({
+            user_store_id: wallet.id, branch_id: branchId,
+            type: "redeem", points: -reward.points_cost, reason: "pos_redeem",
+          });
+          await svc.from("reward_redemptions").insert({
+            user_id: user.id, merchant_id: merchantId, reward_id: reward.id,
+            branch_id: branchId, points_spent: reward.points_cost, status: "confirmed",
+            confirmed_at: new Date().toISOString(),
+          });
+          return {
+            redeemed: true,
+            remaining_points: wallet.available_points - reward.points_cost,
+          };
+        },
+      );
+      if ("conflict" in idem) return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+      return json(idem.data);
     }
 
     return badRequest("action غير معروف");
