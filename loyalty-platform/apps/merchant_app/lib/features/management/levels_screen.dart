@@ -2,22 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/levels_repository.dart';
 
 /// قائمة المستويات من جدول loyalty_levels مرتّبة تصاعديًا بالعتبة.
 final levelsProvider =
     FutureProvider.autoDispose<List<LoyaltyLevel>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('loyalty_levels')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('threshold_lifetime_points');
-  return List<Map<String, dynamic>>.from(rows)
-      .map(LoyaltyLevel.fromJson)
-      .toList();
+  final rows = await ref.read(levelsRepoProvider).fetchLevels(staff.merchantId);
+  return rows.map(LoyaltyLevel.fromJson).toList();
 });
 
 /// 2.10.ج — المستويات.
@@ -196,14 +190,11 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
         'reward_description': _rewardDesc.text.trim(),
         'sort_order': threshold, // الترتيب يتبع العتبة
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(levelsRepoProvider);
       if (widget.existing == null) {
-        await client.from('loyalty_levels').insert(payload);
+        await repo.insertLevel(payload);
       } else {
-        await client
-            .from('loyalty_levels')
-            .update(payload)
-            .eq('id', widget.existing!.id);
+        await repo.updateLevel(widget.existing!.id, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

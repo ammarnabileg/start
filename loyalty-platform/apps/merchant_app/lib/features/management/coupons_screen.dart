@@ -3,20 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/coupons_repository.dart';
 
 /// قائمة الكوبونات من جدول coupons.
 final couponsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('coupons')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(couponsRepoProvider).fetchCoupons(staff.merchantId);
 });
 
 const _couponTypeLabels = {
@@ -258,14 +253,11 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
         'usage_limit': int.tryParse(_usageLimit.text.trim()),
         'per_user_limit': int.tryParse(_perUserLimit.text.trim()),
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(couponsRepoProvider);
       if (widget.existing == null) {
-        await client.from('coupons').insert(payload);
+        await repo.insertCoupon(payload);
       } else {
-        await client
-            .from('coupons')
-            .update(payload)
-            .eq('id', widget.existing!['id'] as String);
+        await repo.updateCoupon(widget.existing!['id'] as String, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/merchant_repository.dart';
 
 /// تسميات الخطط بالعربية.
 const _planLabels = {
@@ -28,11 +28,7 @@ const _statusLabels = {
 final _manageSubscriptionProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  return Supabase.instance.client
-      .from('subscriptions')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .maybeSingle();
+  return ref.read(merchantRepoProvider).fetchSubscription(staff.merchantId);
 });
 
 /// خيار خطة معروض كبطاقة.

@@ -2,22 +2,25 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/merchant_repository.dart';
 import '../subscription/plans_screen.dart';
 
 /// 2.4 — قيد المراجعة. يراقب حالة صف التاجر (realtime + زرار تحديث يدوي).
 /// عند الموافقة (status == 'approved') → اختيار الباقة.
-class PendingApprovalScreen extends StatefulWidget {
+class PendingApprovalScreen extends ConsumerStatefulWidget {
   final String merchantId;
   const PendingApprovalScreen({super.key, required this.merchantId});
 
   @override
-  State<PendingApprovalScreen> createState() => _PendingApprovalScreenState();
+  ConsumerState<PendingApprovalScreen> createState() =>
+      _PendingApprovalScreenState();
 }
 
-class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
+class _PendingApprovalScreenState
+    extends ConsumerState<PendingApprovalScreen> {
   bool _checking = false;
   String _status = 'pending';
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
@@ -36,10 +39,9 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
   /// اشتراك realtime على صف التاجر — أول ما الأدمن يوافق تتحوّل الشاشة تلقائيًا.
   void _subscribeRealtime() {
-    _sub = Supabase.instance.client
-        .from('merchants')
-        .stream(primaryKey: ['id'])
-        .eq('id', widget.merchantId)
+    _sub = ref
+        .read(merchantRepoProvider)
+        .watchMerchant(widget.merchantId)
         .listen((rows) {
       if (rows.isEmpty) return;
       final status = rows.first['status'] as String? ?? 'pending';
@@ -66,11 +68,9 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   Future<void> _refreshStatus() async {
     setState(() => _checking = true);
     try {
-      final row = await Supabase.instance.client
-          .from('merchants')
-          .select('status')
-          .eq('id', widget.merchantId)
-          .maybeSingle();
+      final row = await ref
+          .read(merchantRepoProvider)
+          .fetchMerchantStatus(widget.merchantId);
       final status = row?['status'] as String? ?? 'pending';
       if (!mounted) return;
       if (status == 'approved') {

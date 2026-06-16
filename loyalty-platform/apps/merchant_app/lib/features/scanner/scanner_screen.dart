@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/scan_repository.dart';
 import 'customer_profile_screen.dart';
 
 /// الماسح — أكتر شاشة الكاشير هيستخدمها. يمسح كود العميل ويستدعي verify-qr.
-class ScannerScreen extends StatefulWidget {
+class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
+  ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final _controller = MobileScannerController();
   bool _busy = false;
 
@@ -32,8 +33,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     try {
       // رمز هدية (يبدأ بـ p1.) → تفعيله عبر redeem-prize.
       if (payload.startsWith('p1.')) {
-        final res = await Supabase.instance.client.functions
-            .invoke('redeem-prize', body: {'payload': payload});
+        final res = await ref.read(scanRepoProvider).redeemPrize(payload);
         final data = res.data as Map<String, dynamic>?;
         if (data?['error'] != null) {
           _snack(data!['error'] as String);
@@ -50,10 +50,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       // رمز استلام مكافأة (يبدأ بـ r1.) → تأكيد الاستبدال عبر confirm-redemption.
       if (payload.startsWith('r1.')) {
-        final res = await Supabase.instance.client.functions.invoke(
-          'confirm-redemption',
-          body: {'redemption_id': payload.substring(3)},
-        );
+        final res = await ref
+            .read(scanRepoProvider)
+            .confirmRedemption(payload.substring(3));
         final data = res.data as Map<String, dynamic>?;
         if (data?['error'] != null) {
           _snack(data!['error'] as String);
@@ -64,8 +63,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         return;
       }
 
-      final res = await Supabase.instance.client.functions
-          .invoke('verify-qr', body: {'payload': payload});
+      final res = await ref.read(scanRepoProvider).verifyQr(payload);
       if (res.data?['error'] != null) {
         _snack(res.data['error'] as String);
         return;

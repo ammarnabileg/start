@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/campaigns_repository.dart';
 
 /// قائمة حملات الزيارة من جدول visit_campaigns.
 final campaignsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('visit_campaigns')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(campaignsRepoProvider).fetchCampaigns(staff.merchantId);
 });
 
 /// 2.10.أ — حملات الزيارة.
@@ -258,14 +253,11 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
         'reward_image_url': _imageUrl,
         'active': _active,
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(campaignsRepoProvider);
       if (widget.existing == null) {
-        await client.from('visit_campaigns').insert(payload);
+        await repo.insertCampaign(payload);
       } else {
-        await client
-            .from('visit_campaigns')
-            .update(payload)
-            .eq('id', widget.existing!['id'] as String);
+        await repo.updateCampaign(widget.existing!['id'] as String, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

@@ -2,29 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/questions_repository.dart';
 
 /// بيانات السؤال + خياراته (لعرض التوزيع بالأسماء).
 final _questionDetailProvider = FutureProvider.autoDispose
     .family<MerchantQuestion, String>((ref, questionId) async {
-  final row = await Supabase.instance.client
-      .from('merchant_questions')
-      .select('*, question_options(*)')
-      .eq('id', questionId)
-      .single();
+  final row = await ref.read(questionsRepoProvider).fetchQuestion(questionId);
   return MerchantQuestion.fromJson(row);
 });
 
 /// إجابات السؤال من question_responses (مع فلتر فرع اختياري).
 final _responsesProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, questionId) async {
-  final rows = await Supabase.instance.client
-      .from('question_responses')
-      .select('answer_text, selected_option_ids, branch_id, created_at')
-      .eq('question_id', questionId)
-      .order('created_at', ascending: false);
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(questionsRepoProvider).fetchResponses(questionId);
 });
 
 /// 2.10.ز — عرض إجابات سؤال.

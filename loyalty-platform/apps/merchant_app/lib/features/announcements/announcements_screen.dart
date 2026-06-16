@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/announcements_repository.dart';
 
 /// الحد الشهري للإشعارات (يحدّده مالك النظام) + المستهلَك + المتبقّي.
 final notificationUsageProvider =
     FutureProvider.autoDispose<({int quota, int used, int remaining})>(
         (ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final res = await Supabase.instance.client
-      .rpc('merchant_notification_usage', params: {'p_merchant': staff.merchantId})
-      .single();
+  final res = await ref
+      .read(announcementsRepoProvider)
+      .notificationUsage(staff.merchantId);
   return (
     quota: (res['quota'] as num).toInt(),
     used: (res['used'] as num).toInt(),
@@ -48,10 +48,10 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     setState(() => _busy = true);
     try {
       // الإرسال الفعلي عبر Edge Function — يفرض الحد الشهري على السيرفر.
-      final res = await Supabase.instance.client.functions.invoke(
-        'send-announcement',
-        body: {'title': _title.text.trim(), 'body': _body.text.trim()},
-      );
+      final res = await ref.read(announcementsRepoProvider).sendAnnouncement(
+            title: _title.text.trim(),
+            body: _body.text.trim(),
+          );
       final data = res.data as Map<String, dynamic>?;
       if (data?['error'] != null) {
         if (mounted) AppFeedback.toast(context, data!['error'] as String, error: true);

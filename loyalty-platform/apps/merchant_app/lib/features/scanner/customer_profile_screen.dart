@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/repositories/rewards_repository.dart';
+import '../../data/repositories/scan_repository.dart';
 
 /// ملف العميل بعد المسح — قلب شغل الكاشير. الأزرار الأربعة تستدعي Edge Functions.
-class CustomerProfileScreen extends StatefulWidget {
+class CustomerProfileScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> data; // ناتج verify-qr
   const CustomerProfileScreen({super.key, required this.data});
   @override
-  State<CustomerProfileScreen> createState() => _CustomerProfileScreenState();
+  ConsumerState<CustomerProfileScreen> createState() =>
+      _CustomerProfileScreenState();
 }
 
-class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
+class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   late Map<String, dynamic> d = widget.data;
   bool _busy = false;
 
@@ -21,8 +25,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       {required String okMsg, String? okDetail}) async {
     setState(() => _busy = true);
     try {
-      final res = await Supabase.instance.client.functions
-          .invoke(fn, body: body);
+      final res = await ref.read(scanRepoProvider).invoke(fn, body);
       if (res.data?['error'] != null) {
         _snack(res.data['error'] as String);
       } else {
@@ -59,16 +62,12 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   /// استبدال مكافأة من قائمة مكافآت المتجر (يخضع لإعداد تأكيد الطرفين).
   Future<void> _redeemReward() async {
-    final client = Supabase.instance.client;
     final merchantId = d['merchant_id'] as String?;
     List<dynamic> rewards;
     try {
-      var q = client
-          .from('rewards')
-          .select('id, name, points_cost')
-          .eq('active', true);
-      if (merchantId != null) q = q.eq('merchant_id', merchantId);
-      rewards = await q.order('points_cost');
+      rewards = await ref
+          .read(rewardsRepoProvider)
+          .fetchActiveRewards(merchantId: merchantId);
     } catch (_) {
       _snack('تعذّر تحميل المكافآت');
       return;

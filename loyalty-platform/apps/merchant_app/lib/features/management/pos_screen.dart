@@ -4,18 +4,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/pos_repository.dart';
 
 final _posKeysProvider = FutureProvider.autoDispose<List<PosApiKey>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('pos_api_keys')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at', ascending: false);
-  return (rows as List)
+  final rows = await ref.read(posRepoProvider).fetchKeys(staff.merchantId);
+  return rows
       .map((r) => PosApiKey.fromJson(r as Map<String, dynamic>))
       .toList();
 });
@@ -130,8 +126,7 @@ class PosIntegrationScreen extends ConsumerWidget {
     );
     if (name == null || name.isEmpty) return;
     try {
-      final res = await Supabase.instance.client.functions
-          .invoke('pos-keys', body: {'action': 'create', 'name': name});
+      final res = await ref.read(posRepoProvider).createKey(name);
       final data = res.data as Map<String, dynamic>?;
       if (data?['key'] == null) {
         if (context.mounted) {
@@ -209,8 +204,7 @@ class _KeyCard extends StatelessWidget {
             tooltip: 'إلغاء',
             icon: const Icon(Icons.block_rounded, color: AppColors.error),
             onPressed: () async {
-              await Supabase.instance.client.functions.invoke('pos-keys',
-                  body: {'action': 'revoke', 'key_id': k.id});
+              await ref.read(posRepoProvider).revokeKey(k.id);
               ref.invalidate(_posKeysProvider);
               if (context.mounted) AppFeedback.toast(context, 'تم إلغاء المفتاح');
             },

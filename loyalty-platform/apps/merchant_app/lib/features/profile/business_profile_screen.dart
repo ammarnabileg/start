@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/locale_controller.dart';
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/merchant_repository.dart';
 import '../analytics/analytics_screen.dart';
 import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
@@ -16,24 +17,14 @@ import 'edit_business_screen.dart';
 final _merchantProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  return Supabase.instance.client
-      .from('merchants')
-      .select()
-      .eq('id', staff.merchantId)
-      .maybeSingle();
+  return ref.read(merchantRepoProvider).fetchMerchant(staff.merchantId);
 });
 
 /// الاشتراك الحالي (subscriptions).
 final _subscriptionProvider =
     FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  return Supabase.instance.client
-      .from('subscriptions')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at', ascending: false)
-      .limit(1)
-      .maybeSingle();
+  return ref.read(merchantRepoProvider).fetchLatestSubscription(staff.merchantId);
 });
 
 const _planLabels = {
@@ -162,7 +153,7 @@ class BusinessProfileScreen extends ConsumerWidget {
                       icon: Icons.logout_rounded,
                       title: 'تسجيل الخروج',
                       color: AppColors.error,
-                      onTap: () => _signOut(context),
+                      onTap: () => _signOut(context, ref),
                     ),
                   ),
                 ],
@@ -274,7 +265,7 @@ class BusinessProfileScreen extends ConsumerWidget {
   void _push(BuildContext context, Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
-  Future<void> _signOut(BuildContext context) async {
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -291,7 +282,7 @@ class BusinessProfileScreen extends ConsumerWidget {
       ),
     );
     if (confirm == true) {
-      await Supabase.instance.client.auth.signOut();
+      await ref.read(authRepoProvider).signOut();
     }
   }
 }

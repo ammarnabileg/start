@@ -2,44 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/staff_repository.dart';
 
 /// قائمة الموظفين من جدول merchant_staff.
 final staffListProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('merchant_staff')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(staffRepoProvider).fetchStaff(staff.merchantId);
 });
 
 /// فروع التاجر لربط الموظف (id → name).
 final branchOptionsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('branches')
-      .select('id, name')
-      .eq('merchant_id', staff.merchantId)
-      .order('name');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(staffRepoProvider).fetchBranchOptions(staff.merchantId);
 });
 
 /// أدوار التاجر لربطها بالموظف (id → name).
 final staffRoleOptionsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('merchant_roles')
-      .select('id, name')
-      .eq('merchant_id', staff.merchantId)
-      .order('name');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(staffRepoProvider).fetchRoleOptions(staff.merchantId);
 });
 
 const _roleLabels = {
@@ -207,14 +192,11 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
         'role_id': _roleId,
         'can_redeem_prizes': _canRedeemPrizes,
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(staffRepoProvider);
       if (widget.existing == null) {
-        await client.from('merchant_staff').insert(payload);
+        await repo.insertStaff(payload);
       } else {
-        await client
-            .from('merchant_staff')
-            .update(payload)
-            .eq('id', widget.existing!['id'] as String);
+        await repo.updateStaff(widget.existing!['id'] as String, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

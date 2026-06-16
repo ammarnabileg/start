@@ -3,9 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/branches_repository.dart';
+import '../../data/repositories/merchant_repository.dart';
 import '../scanner/scanner_screen.dart';
 
 /// 2.7 — لوحة التحكم ⭐. فلتر الفرع + بطاقات الأرقام + زر مسح كبير
@@ -372,14 +373,10 @@ class _DashboardData {
 /// فروع التاجر — لملء فلتر الفرع.
 final _branchesProvider =
     FutureProvider.autoDispose.family<List<_Branch>, String>((ref, merchantId) async {
-  final client = Supabase.instance.client;
-  final rows = await client
-      .from('branches')
-      .select('id, name')
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
-      .order('name');
-  return (rows as List)
+  final rows = await ref
+      .read(branchesRepoProvider)
+      .fetchActiveBranchOptions(merchantId);
+  return rows
       .map((r) => _Branch(r['id'] as String, (r['name'] as String?) ?? 'فرع'))
       .toList();
 });
@@ -388,11 +385,10 @@ final _branchesProvider =
 final _dashboardDataProvider =
     FutureProvider.autoDispose.family<_DashboardData, _DashKey>((ref, key) async {
   // استدعاء واحد يحسب كل المقاييس على السيرفر (بدل ~10 round-trips).
-  final res = await Supabase.instance.client.rpc('dashboard_summary', params: {
-    'p_merchant': key.merchantId,
-    'p_branch': key.branchId,
-  });
-  final m = res as Map<String, dynamic>;
+  final m = await ref.read(merchantRepoProvider).dashboardSummary(
+        merchantId: key.merchantId,
+        branchId: key.branchId,
+      );
 
   final recent = ((m['recent_activity'] as List?) ?? []).map((r) {
     final type = r['type'] as String? ?? 'earn';

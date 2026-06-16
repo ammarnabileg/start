@@ -2,23 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/questions_repository.dart';
 import 'responses_screen.dart';
 
 /// قائمة الأسئلة مع خياراتها من merchant_questions + question_options.
 final questionsProvider =
     FutureProvider.autoDispose<List<MerchantQuestion>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('merchant_questions')
-      .select('*, question_options(*)')
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows)
-      .map(MerchantQuestion.fromJson)
-      .toList();
+  final rows =
+      await ref.read(questionsRepoProvider).fetchQuestions(staff.merchantId);
+  return rows.map(MerchantQuestion.fromJson).toList();
 });
 
 const _typeLabels = {
@@ -238,7 +233,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
     setState(() => _busy = true);
     try {
       final staff = await ref.read(currentStaffProvider.future);
-      final client = Supabase.instance.client;
+      final repo = ref.read(questionsRepoProvider);
       final payload = {
         'merchant_id': staff.merchantId,
         'title': _title.text.trim(),
@@ -251,27 +246,16 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
 
       String questionId;
       if (widget.existing == null) {
-        final inserted = await client
-            .from('merchant_questions')
-            .insert(payload)
-            .select('id')
-            .single();
-        questionId = inserted['id'] as String;
+        questionId = await repo.insertQuestion(payload);
       } else {
         questionId = widget.existing!.id;
-        await client
-            .from('merchant_questions')
-            .update(payload)
-            .eq('id', questionId);
+        await repo.updateQuestion(questionId, payload);
         // إعادة بناء الخيارات: حذف القديم ثم إدراج الجديد.
-        await client
-            .from('question_options')
-            .delete()
-            .eq('question_id', questionId);
+        await repo.deleteOptions(questionId);
       }
 
       if (_type.isChoice && labels.isNotEmpty) {
-        await client.from('question_options').insert([
+        await repo.insertOptions([
           for (var i = 0; i < labels.length; i++)
             {
               'question_id': questionId,

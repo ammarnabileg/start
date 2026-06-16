@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/leaderboard_repository.dart';
 
 /// مبدّل العرض: الفرع الحالي أو كل الفروع.
 final leaderboardScopeProvider = StateProvider<bool>((ref) => true); // true = كل الفروع
@@ -15,14 +15,12 @@ final storeLeaderboardProvider =
   final allBranches = ref.watch(leaderboardScopeProvider);
   final pBranch = allBranches ? null : staff.branchId;
 
-  final rows = await Supabase.instance.client.rpc('store_leaderboard', params: {
-    'p_merchant': staff.merchantId,
-    'p_branch': pBranch,
-    'p_limit': 50,
-  });
-  return List<Map<String, dynamic>>.from(rows as List)
-      .map(LeaderboardEntry.fromJson)
-      .toList();
+  final rows = await ref.read(leaderboardRepoProvider).storeLeaderboard(
+        merchantId: staff.merchantId,
+        branchId: pBranch,
+        limit: 50,
+      );
+  return rows.map(LeaderboardEntry.fromJson).toList();
 });
 
 /// 2.15 — لوحة صدارة المتجر.

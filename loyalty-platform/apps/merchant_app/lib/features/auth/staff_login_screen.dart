@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/auth_repository.dart';
 import '../shell/merchant_shell.dart';
 
 /// دخول الموظف: صاحب المتجر يضيفه برقم جواله، والموظف يسجّل دخوله بنفس الرقم.
 /// بعد التحقق نربط حسابه بالدعوة عبر claim-staff ويحصل على دوره وصلاحياته.
-class StaffLoginScreen extends StatefulWidget {
+class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
   @override
-  State<StaffLoginScreen> createState() => _StaffLoginScreenState();
+  ConsumerState<StaffLoginScreen> createState() => _StaffLoginScreenState();
 }
 
-class _StaffLoginScreenState extends State<StaffLoginScreen> {
+class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
   final _phone = TextEditingController(text: '+966');
   final _otp = TextEditingController();
   bool _sent = false;
@@ -35,7 +36,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
     }
     setState(() => _busy = true);
     try {
-      await Supabase.instance.client.auth.signInWithOtp(phone: _normalizedPhone);
+      await ref.read(authRepoProvider).signInWithOtp(_normalizedPhone);
       if (mounted) setState(() => _sent = true);
     } catch (_) {
       if (mounted) AppFeedback.toast(context, 'تعذّر إرسال الرمز', error: true);
@@ -48,14 +49,10 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
     if (_otp.text.trim().length < 4) return;
     setState(() => _busy = true);
     try {
-      final client = Supabase.instance.client;
-      await client.auth.verifyOTP(
-        type: OtpType.sms,
-        phone: _normalizedPhone,
-        token: _otp.text.trim(),
-      );
+      final auth = ref.read(authRepoProvider);
+      await auth.verifyOtp(_normalizedPhone, _otp.text.trim());
       // ربط الدعوة
-      final res = await client.functions.invoke('claim-staff');
+      final res = await auth.claimStaff();
       final data = res.data as Map<String, dynamic>?;
       if (data?['linked'] == true) {
         if (mounted) {
@@ -65,7 +62,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
           );
         }
       } else {
-        await client.auth.signOut();
+        await auth.signOut();
         if (mounted) {
           AppFeedback.toast(
             context,

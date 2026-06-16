@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/auth_repository.dart';
 import '../auth/welcome_screen.dart';
 import '../shell/merchant_shell.dart';
 
 /// 2.1 — Splash. توكن صالح → لوحة التحكم (MerchantShell)، وإلا → شاشة الترحيب.
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
@@ -26,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
-    final loggedIn = Supabase.instance.client.auth.currentUser != null;
+    final loggedIn = ref.read(authRepoProvider).isLoggedIn;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) =>

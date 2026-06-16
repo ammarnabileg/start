@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/merchant_repository.dart';
 import 'pending_approval_screen.dart';
 
 /// شاشة OTP لتسجيل النشاط. بعد التحقق تُنشأ صفوف merchants + merchant_staff owner
 /// ثم ننتقل لشاشة "قيد المراجعة".
-class MerchantOtpScreen extends StatefulWidget {
+class MerchantOtpScreen extends ConsumerStatefulWidget {
   final String phone;
   final Map<String, dynamic>? draft;
 
   const MerchantOtpScreen({super.key, required this.phone, this.draft});
 
   @override
-  State<MerchantOtpScreen> createState() => _MerchantOtpScreenState();
+  ConsumerState<MerchantOtpScreen> createState() => _MerchantOtpScreenState();
 }
 
-class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
+class _MerchantOtpScreenState extends ConsumerState<MerchantOtpScreen> {
   final _codeCtrl = TextEditingController();
   bool _busy = false;
 
@@ -35,15 +38,12 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
       return;
     }
     setState(() => _busy = true);
-    final client = Supabase.instance.client;
+    final auth = ref.read(authRepoProvider);
+    final merchantRepo = ref.read(merchantRepoProvider);
     try {
-      await client.auth.verifyOTP(
-        type: OtpType.sms,
-        phone: widget.phone,
-        token: token,
-      );
+      await auth.verifyOtp(widget.phone, token);
 
-      final uid = client.auth.currentUser?.id;
+      final uid = auth.currentUserId;
       if (uid == null) {
         _snack('تعذّر التحقق من الجلسة، حاول مرة أخرى');
         return;
@@ -52,25 +52,21 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
       final draft = widget.draft ?? const <String, dynamic>{};
 
       // إنشاء صف التاجر بحالة pending.
-      final merchant = await client
-          .from('merchants')
-          .insert({
-            'business_name': draft['business_name'],
-            'business_type': draft['business_type'],
-            'phone': draft['phone'] ?? widget.phone,
-            'email': draft['email'],
-            'cr_number': draft['cr_number'],
-            'logo_url': draft['logo_url'],
-            'address': draft['address'],
-            'status': 'pending',
-          })
-          .select()
-          .single();
+      final merchant = await merchantRepo.insertMerchant({
+        'business_name': draft['business_name'],
+        'business_type': draft['business_type'],
+        'phone': draft['phone'] ?? widget.phone,
+        'email': draft['email'],
+        'cr_number': draft['cr_number'],
+        'logo_url': draft['logo_url'],
+        'address': draft['address'],
+        'status': 'pending',
+      });
 
       final merchantId = merchant['id'] as String;
 
       // ربط المستخدم الحالي كمالك للمتجر.
-      await client.from('merchant_staff').insert({
+      await merchantRepo.insertStaff({
         'user_id': uid,
         'merchant_id': merchantId,
         'role': 'merchant_owner',
@@ -94,7 +90,7 @@ class _MerchantOtpScreenState extends State<MerchantOtpScreen> {
 
   Future<void> _resend() async {
     try {
-      await Supabase.instance.client.auth.signInWithOtp(phone: widget.phone);
+      await ref.read(authRepoProvider).signInWithOtp(widget.phone);
       _snack('تم إرسال رمز جديد', error: false);
     } catch (_) {
       _snack('تعذّر إعادة الإرسال');

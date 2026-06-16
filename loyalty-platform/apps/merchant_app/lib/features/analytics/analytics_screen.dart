@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/analytics_repository.dart';
 
 /// فترة التحليلات.
 enum AnalyticsPeriod { day, week, month }
@@ -68,18 +68,16 @@ final analyticsProvider =
     FutureProvider.autoDispose<AnalyticsData>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
   final filter = ref.watch(analyticsFilterProvider);
-  final client = Supabase.instance.client;
   final merchantId = staff.merchantId;
   final sinceDateIsoOrNull = filter.period.since.toIso8601String();
   final branchOrNull = filter.branchId;
 
   // استدعاء واحد يحسب كل المقاييس على السيرفر (بدل عدّة استعلامات مجمّعة).
-  final res = await client.rpc('analytics_summary', params: {
-    'p_merchant': merchantId,
-    'p_branch': branchOrNull,
-    'p_since': sinceDateIsoOrNull,
-  });
-  final m = res as Map<String, dynamic>;
+  final m = await ref.read(analyticsRepoProvider).summary(
+        merchantId: merchantId,
+        branchId: branchOrNull,
+        since: sinceDateIsoOrNull,
+      );
 
   final topRewards = ((m['top_rewards'] as List?) ?? [])
       .map((r) => MapEntry(
@@ -108,12 +106,7 @@ final analyticsProvider =
 final _analyticsBranchesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('branches')
-      .select('id, name')
-      .eq('merchant_id', staff.merchantId)
-      .order('name');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(analyticsRepoProvider).fetchBranches(staff.merchantId);
 });
 
 /// 2.11 — التحليلات.

@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/wheel_repository.dart';
 
 /// عجلة التاجر (مع مقاطعها) أو null لو لم تُنشأ بعد.
 final wheelProvider = FutureProvider.autoDispose<LuckyWheel?>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final row = await Supabase.instance.client
-      .from('lucky_wheels')
-      .select('*, wheel_segments(*)')
-      .eq('merchant_id', staff.merchantId)
-      .maybeSingle();
+  final row = await ref.read(wheelRepoProvider).fetchWheel(staff.merchantId);
   if (row == null) return null;
   return LuckyWheel.fromJson(row);
 });
@@ -121,7 +117,7 @@ class _WheelManagementScreenState
     setState(() => _busy = true);
     try {
       final staff = await ref.read(currentStaffProvider.future);
-      final client = Supabase.instance.client;
+      final repo = ref.read(wheelRepoProvider);
 
       final wheelPayload = {
         'merchant_id': staff.merchantId,
@@ -133,27 +129,16 @@ class _WheelManagementScreenState
 
       String wheelId;
       if (_wheelId == null) {
-        final inserted = await client
-            .from('lucky_wheels')
-            .insert(wheelPayload)
-            .select('id')
-            .single();
-        wheelId = inserted['id'] as String;
+        wheelId = await repo.insertWheel(wheelPayload);
         _wheelId = wheelId;
       } else {
         wheelId = _wheelId!;
-        await client
-            .from('lucky_wheels')
-            .update(wheelPayload)
-            .eq('id', wheelId);
+        await repo.updateWheel(wheelId, wheelPayload);
       }
 
       // حذف المقاطع المُزالة.
       if (_removedIds.isNotEmpty) {
-        await client
-            .from('wheel_segments')
-            .delete()
-            .inFilter('id', _removedIds);
+        await repo.deleteSegments(_removedIds);
         _removedIds.clear();
       }
 
@@ -166,7 +151,7 @@ class _WheelManagementScreenState
         }
         rows.add(json);
       }
-      await client.from('wheel_segments').upsert(rows);
+      await repo.upsertSegments(rows);
 
       if (mounted) {
         ref.invalidate(wheelProvider);

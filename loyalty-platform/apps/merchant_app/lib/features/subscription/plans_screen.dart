@@ -1,38 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/merchant_repository.dart';
 import '../shell/merchant_shell.dart';
 
 /// 2.6 — اختيار الباقة. تجربة مجانية 30 يوم (مميّزة) / شهري $9 / سنوي $99.
 /// الدفع يدوي في النسخة الأولى: الزرار يبدأ التجربة، والمدفوع يفعّله الأدمن.
-class PlansScreen extends StatefulWidget {
+class PlansScreen extends ConsumerStatefulWidget {
   final String merchantId;
   const PlansScreen({super.key, required this.merchantId});
 
   @override
-  State<PlansScreen> createState() => _PlansScreenState();
+  ConsumerState<PlansScreen> createState() => _PlansScreenState();
 }
 
-class _PlansScreenState extends State<PlansScreen> {
+class _PlansScreenState extends ConsumerState<PlansScreen> {
   bool _busy = false;
 
   Future<void> _startTrial() async {
     setState(() => _busy = true);
-    final client = Supabase.instance.client;
     final trialEnds = DateTime.now().toUtc().add(const Duration(days: 30));
     try {
       // إنشاء/تحديث اشتراك التجربة. upsert على merchant_id لتجنّب التكرار.
-      await client.from('subscriptions').upsert(
-        {
-          'merchant_id': widget.merchantId,
-          'plan': 'trial',
-          'status': 'trial',
-          'trial_ends_at': trialEnds.toIso8601String(),
-        },
-        onConflict: 'merchant_id',
-      );
+      await ref.read(merchantRepoProvider).upsertSubscription({
+        'merchant_id': widget.merchantId,
+        'plan': 'trial',
+        'status': 'trial',
+        'trial_ends_at': trialEnds.toIso8601String(),
+      });
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => const MerchantShell()),

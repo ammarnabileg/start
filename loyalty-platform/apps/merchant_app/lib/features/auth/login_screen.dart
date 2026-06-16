@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
+import '../../data/repositories/auth_repository.dart';
 import '../shell/merchant_shell.dart';
 
 /// 2.5 — تسجيل الدخول. رقم الجوال/البريد + كلمة المرور.
 /// عند النجاح → MerchantShell.
-class MerchantLoginScreen extends StatefulWidget {
+class MerchantLoginScreen extends ConsumerStatefulWidget {
   const MerchantLoginScreen({super.key});
 
   @override
-  State<MerchantLoginScreen> createState() => _MerchantLoginScreenState();
+  ConsumerState<MerchantLoginScreen> createState() =>
+      _MerchantLoginScreenState();
 }
 
-class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
+class _MerchantLoginScreenState extends ConsumerState<MerchantLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -33,14 +36,14 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
-    final client = Supabase.instance.client;
+    final auth = ref.read(authRepoProvider);
     final id = _identifierCtrl.text.trim();
     final password = _passwordCtrl.text;
     try {
       if (_looksLikeEmail) {
-        await client.auth.signInWithPassword(email: id, password: password);
+        await auth.signInWithPasswordEmail(id, password);
       } else {
-        await client.auth.signInWithPassword(phone: id, password: password);
+        await auth.signInWithPasswordPhone(id, password);
       }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -63,7 +66,7 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
       return;
     }
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(id);
+      await ref.read(authRepoProvider).resetPasswordForEmail(id);
       if (mounted) {
         AppFeedback.toast(
             context, 'أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك');

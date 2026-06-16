@@ -3,9 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/paginated_notifier.dart';
+import '../../data/repositories/customers_repository.dart';
 import '../announcements/announcements_screen.dart';
 
 /// عميل التاجر (مجمّع من RPC merchant_customers).
@@ -38,21 +39,25 @@ class MerchantCustomer {
             : DateTime.parse(j['last_activity'] as String);
 }
 
-final _customersProvider =
-    FutureProvider.autoDispose.family<List<MerchantCustomer>, String>(
-  (ref, search) async {
-    final staff = await ref.watch(currentStaffProvider.future);
-    final rows = await Supabase.instance.client.rpc('merchant_customers', params: {
-      'p_merchant': staff.merchantId,
-      'p_search': search,
-      'p_limit': 100,
-      'p_offset': 0,
-    });
-    return (rows as List)
+/// قائمة عملاء مرقّمة لكل نص بحث (notifier جديد لكل استعلام).
+final _customersProvider = StateNotifierProvider.autoDispose.family<
+    PaginatedNotifier<MerchantCustomer>,
+    PaginatedState<MerchantCustomer>,
+    String>((ref, search) {
+  final repo = ref.read(customersRepoProvider);
+  return PaginatedNotifier<MerchantCustomer>((offset, limit) async {
+    final staff = await ref.read(currentStaffProvider.future);
+    final rows = await repo.fetchCustomers(
+      merchantId: staff.merchantId,
+      search: search,
+      limit: limit,
+      offset: offset,
+    );
+    return rows
         .map((r) => MerchantCustomer.fromJson(r as Map<String, dynamic>))
         .toList();
-  },
-);
+  });
+});
 
 class CustomersScreen extends ConsumerStatefulWidget {
   const CustomersScreen({super.key});
@@ -65,7 +70,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(_customersProvider(_search));
+    final state = ref.watch(_customersProvider(_search));
+    final notifier = ref.read(_customersProvider(_search).notifier);
     return Scaffold(
       appBar: AppBar(
         title: const Text('العملاء'),
@@ -92,35 +98,20 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             ),
           ),
           Expanded(
-            child: data.when(
-              loading: () => const SkeletonList(),
-              error: (e, _) => ErrorView(
-                message: 'تعذّر تحميل العملاء',
-                onRetry: () => ref.invalidate(_customersProvider(_search)),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return const EmptyView(
-                    icon: Icons.groups_2_outlined,
-                    title: 'لا يوجد عملاء بعد',
-                    message: 'سيظهر العملاء هنا فور مسح أكوادهم أول مرة.',
-                  );
-                }
-                return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(_customersProvider(_search)),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
-                    itemCount: list.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _CustomerCard(c: list[i])
-                        .animate()
-                        .fadeIn(duration: 250.ms, delay: (i * 30).ms)
-                        .slideY(begin: .06, end: 0),
-                  ),
-                );
-              },
+            child: PaginatedListView<MerchantCustomer>(
+              state: state,
+              onLoadMore: notifier.loadMore,
+              onRefresh: notifier.refresh,
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+              emptyIcon: Icons.groups_2_outlined,
+              emptyTitle: 'لا يوجد عملاء بعد',
+              emptyMessage: 'سيظهر العملاء هنا فور مسح أكوادهم أول مرة.',
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, c, i) => _CustomerCard(c: c)
+                  .animate()
+                  .fadeIn(duration: 250.ms, delay: (i * 30).ms)
+                  .slideY(begin: .06, end: 0),
             ),
           ),
         ],

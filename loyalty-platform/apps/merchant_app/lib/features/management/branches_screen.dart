@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/map_picker_screen.dart';
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/branches_repository.dart';
 
 /// قائمة الفروع من جدول branches.
 final branchesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('branches')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(branchesRepoProvider).fetchBranches(staff.merchantId);
 });
 
 /// 2.10.هـ — الفروع.
@@ -193,14 +188,11 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
         'geofence_radius_m': int.tryParse(_radius.text.trim()) ?? 150,
         'active': _active,
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(branchesRepoProvider);
       if (widget.existing == null) {
-        await client.from('branches').insert(payload);
+        await repo.insertBranch(payload);
       } else {
-        await client
-            .from('branches')
-            .update(payload)
-            .eq('id', widget.existing!['id'] as String);
+        await repo.updateBranch(widget.existing!['id'] as String, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

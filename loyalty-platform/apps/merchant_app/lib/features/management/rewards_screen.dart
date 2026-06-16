@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/rewards_repository.dart';
 
 /// قائمة المكافآت من جدول rewards.
 final rewardsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await Supabase.instance.client
-      .from('rewards')
-      .select()
-      .eq('merchant_id', staff.merchantId)
-      .order('created_at');
-  return List<Map<String, dynamic>>.from(rows);
+  return ref.read(rewardsRepoProvider).fetchRewards(staff.merchantId);
 });
 
 /// 2.10.ب — المكافآت.
@@ -272,14 +267,11 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
         'image_url': _imageUrl,
         'active': _active,
       };
-      final client = Supabase.instance.client;
+      final repo = ref.read(rewardsRepoProvider);
       if (widget.existing == null) {
-        await client.from('rewards').insert(payload);
+        await repo.insertReward(payload);
       } else {
-        await client
-            .from('rewards')
-            .update(payload)
-            .eq('id', widget.existing!['id'] as String);
+        await repo.updateReward(widget.existing!['id'] as String, payload);
       }
       if (mounted) {
         Navigator.pop(context, true);

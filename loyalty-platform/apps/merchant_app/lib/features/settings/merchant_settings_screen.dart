@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/merchant_repository.dart';
 
 /// 2.14 — الإعدادات المتقدمة (Merchant Settings) — "أوبشن في كل حاجة".
 class MerchantSettingsScreen extends ConsumerWidget {
@@ -145,9 +145,7 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
             _brandName.text.trim().isEmpty ? null : _brandName.text.trim(),
       );
 
-      await Supabase.instance.client
-          .from('merchant_settings')
-          .upsert(settings.toJson(), onConflict: 'merchant_id');
+      await ref.read(merchantRepoProvider).upsertSettings(settings.toJson());
 
       ref.invalidate(merchantSettingsProvider);
       if (mounted) {

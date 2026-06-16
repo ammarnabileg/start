@@ -2,31 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/staff_repository.dart';
 
 /// أدوار التاجر. لو فارغة، نزرع الأدوار الافتراضية ثم نعيد التحميل.
 final rolesProvider =
     FutureProvider.autoDispose<List<MerchantRole>>((ref) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final client = Supabase.instance.client;
+  final repo = ref.read(staffRepoProvider);
   Future<List<MerchantRole>> fetch() async {
-    final rows = await client
-        .from('merchant_roles')
-        .select()
-        .eq('merchant_id', staff.merchantId)
-        .order('is_system', ascending: false)
-        .order('name');
-    return List<Map<String, dynamic>>.from(rows)
-        .map(MerchantRole.fromJson)
-        .toList();
+    final rows = await repo.fetchRoles(staff.merchantId);
+    return rows.map(MerchantRole.fromJson).toList();
   }
 
   var roles = await fetch();
   if (roles.isEmpty) {
-    await client.rpc('seed_default_roles',
-        params: {'p_merchant': staff.merchantId});
+    await repo.seedDefaultRoles(staff.merchantId);
     roles = await fetch();
   }
   return roles;
@@ -205,7 +197,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
     setState(() => _busy = true);
     try {
       final staff = await ref.read(currentStaffProvider.future);
-      final client = Supabase.instance.client;
+      final repo = ref.read(staffRepoProvider);
       final role = MerchantRole(
         id: widget.existing?.id ?? '',
         merchantId: staff.merchantId,
@@ -214,12 +206,9 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
         isSystem: widget.existing?.isSystem ?? false,
       );
       if (widget.existing == null) {
-        await client.from('merchant_roles').insert(role.toJson());
+        await repo.insertRole(role.toJson());
       } else {
-        await client
-            .from('merchant_roles')
-            .update(role.toJson())
-            .eq('id', widget.existing!.id);
+        await repo.updateRole(widget.existing!.id, role.toJson());
       }
       if (mounted) {
         Navigator.pop(context, true);
@@ -253,10 +242,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
     if (confirmed != true) return;
     setState(() => _busy = true);
     try {
-      await Supabase.instance.client
-          .from('merchant_roles')
-          .delete()
-          .eq('id', widget.existing!.id);
+      await ref.read(staffRepoProvider).deleteRole(widget.existing!.id);
       if (mounted) {
         Navigator.pop(context, true);
         AppFeedback.toast(context, 'تم حذف الدور');

@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/map_picker_screen.dart';
 import '../../core/media_storage.dart';
+import '../../data/repositories/auth_repository.dart';
 import 'otp_screen.dart';
 
 /// 2.3 — تسجيل النشاط. يجمع بيانات المتجر ثم يرسل OTP لرقم الجوال.
 /// عند التحقق (شاشة OTP) يُنشأ صف merchants + merchant_staff owner.
-class RegisterBusinessScreen extends StatefulWidget {
+class RegisterBusinessScreen extends ConsumerStatefulWidget {
   const RegisterBusinessScreen({super.key});
 
   @override
-  State<RegisterBusinessScreen> createState() => _RegisterBusinessScreenState();
+  ConsumerState<RegisterBusinessScreen> createState() =>
+      _RegisterBusinessScreenState();
 }
 
-class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
+class _RegisterBusinessScreenState
+    extends ConsumerState<RegisterBusinessScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameCtrl = TextEditingController();
@@ -99,7 +102,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
     final phone = _phoneCtrl.text.trim();
     try {
       // إرسال رمز التحقق لرقم الجوال.
-      await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+      await ref.read(authRepoProvider).signInWithOtp(phone);
 
       // مسوّدة بيانات التاجر تُمرّر لشاشة OTP لإنشاء الصفوف بعد التحقق.
       final draft = <String, dynamic>{
