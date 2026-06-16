@@ -141,10 +141,11 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
       body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md,
-                AppSpacing.xl, AppSpacing.xxxl),
-            children: [
+          child: ResponsiveCenter(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md,
+                  AppSpacing.xl, AppSpacing.xxxl),
+              children: [
               _logoPicker(),
               const SizedBox(height: AppSpacing.md),
               Center(
@@ -266,6 +267,7 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                   labelText: 'كلمة المرور',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
+                    tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
                     icon: Icon(
                         _obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
@@ -288,7 +290,8 @@ class _RegisterBusinessScreenState extends State<RegisterBusinessScreen> {
                 loading: _busy,
                 onPressed: _busy ? null : _submit,
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

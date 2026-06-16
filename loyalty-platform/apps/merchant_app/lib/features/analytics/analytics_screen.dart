@@ -26,12 +26,6 @@ extension on AnalyticsPeriod {
       AnalyticsPeriod.month => now.subtract(const Duration(days: 30)),
     };
   }
-
-  int get days => switch (this) {
-        AnalyticsPeriod.day => 1,
-        AnalyticsPeriod.week => 7,
-        AnalyticsPeriod.month => 30,
-      };
 }
 
 /// تجميع بيانات التحليلات. يعتمد على استعلامات مجمّعة بسيطة.
@@ -75,108 +69,38 @@ final analyticsProvider =
   final staff = await ref.watch(currentStaffProvider.future);
   final filter = ref.watch(analyticsFilterProvider);
   final client = Supabase.instance.client;
-  final mid = staff.merchantId;
-  final sinceIso = filter.period.since.toIso8601String();
+  final merchantId = staff.merchantId;
+  final sinceDateIsoOrNull = filter.period.since.toIso8601String();
+  final branchOrNull = filter.branchId;
 
-  // الزيارات خلال الفترة.
-  var visitsQuery = client
-      .from('user_visits')
-      .select('user_id, visit_date, created_at, branch_id')
-      .eq('merchant_id', mid)
-      .gte('created_at', sinceIso);
-  if (filter.branchId != null) {
-    visitsQuery = visitsQuery.eq('branch_id', filter.branchId!);
-  }
-  final visits = List<Map<String, dynamic>>.from(await visitsQuery);
+  // استدعاء واحد يحسب كل المقاييس على السيرفر (بدل عدّة استعلامات مجمّعة).
+  final res = await client.rpc('analytics_summary', params: {
+    'p_merchant': merchantId,
+    'p_branch': branchOrNull,
+    'p_since': sinceDateIsoOrNull,
+  });
+  final m = res as Map<String, dynamic>;
 
-  // إجمالي العملاء (محافظ المتجر).
-  var storesQuery =
-      client.from('user_stores').select('user_id').eq('merchant_id', mid);
-  if (filter.branchId != null) {
-    storesQuery = storesQuery.eq('branch_id', filter.branchId!);
-  }
-  final stores = List<Map<String, dynamic>>.from(await storesQuery);
-  final totalCustomers =
-      stores.map((s) => s['user_id']).toSet().length;
+  final topRewards = ((m['top_rewards'] as List?) ?? [])
+      .map((r) => MapEntry(
+            (r['name'] as String?) ?? 'مكافأة',
+            (r['redemptions'] as num?)?.toInt() ?? 0,
+          ))
+      .toList();
 
-  // عملاء جدد خلال الفترة.
-  var newStoresQuery = client
-      .from('user_stores')
-      .select('user_id')
-      .eq('merchant_id', mid)
-      .gte('created_at', sinceIso);
-  if (filter.branchId != null) {
-    newStoresQuery = newStoresQuery.eq('branch_id', filter.branchId!);
-  }
-  final newStores = List<Map<String, dynamic>>.from(await newStoresQuery);
-  final newCustomers = newStores.map((s) => s['user_id']).toSet().length;
-
-  // معدّل العودة: نسبة من زاروا مرتين فأكثر.
-  final visitsByUser = <Object?, int>{};
-  for (final v in visits) {
-    final u = v['user_id'];
-    visitsByUser[u] = (visitsByUser[u] ?? 0) + 1;
-  }
-  final returners =
-      visitsByUser.values.where((c) => c >= 2).length;
-  final returnRate =
-      visitsByUser.isEmpty ? 0.0 : returners / visitsByUser.length;
-
-  // الزيارات لكل يوم على مدار الفترة.
-  final days = filter.period.days;
-  final visitsPerDay = List<int>.filled(days, 0);
-  final start = filter.period.since;
-  for (final v in visits) {
-    final created = DateTime.tryParse(v['created_at'] as String? ?? '');
-    if (created == null) continue;
-    final idx = created.difference(start).inDays;
-    if (idx >= 0 && idx < days) visitsPerDay[idx]++;
-  }
-
-  // النقاط الموزّعة مقابل المُستبدلة.
-  final pointsTx = List<Map<String, dynamic>>.from(await client
-      .from('points_transactions')
-      .select('type, points, branch_id')
-      .eq('merchant_id', mid)
-      .gte('created_at', sinceIso));
-  int distributed = 0;
-  int redeemed = 0;
-  for (final t in pointsTx) {
-    if (filter.branchId != null && t['branch_id'] != filter.branchId) {
-      continue;
-    }
-    final p = (t['points'] as num?)?.toInt() ?? 0;
-    if (t['type'] == 'earn') distributed += p;
-    if (t['type'] == 'redeem') redeemed += p.abs();
-  }
-
-  // أكثر المكافآت استبدالًا (top 5).
-  var redemptionsQuery = client
-      .from('reward_redemptions')
-      .select('reward_id, rewards(name), branch_id')
-      .eq('merchant_id', mid)
-      .gte('created_at', sinceIso);
-  if (filter.branchId != null) {
-    redemptionsQuery = redemptionsQuery.eq('branch_id', filter.branchId!);
-  }
-  final redemptions =
-      List<Map<String, dynamic>>.from(await redemptionsQuery);
-  final rewardCounts = <String, int>{};
-  for (final r in redemptions) {
-    final name = (r['rewards'] as Map?)?['name'] as String? ?? 'مكافأة';
-    rewardCounts[name] = (rewardCounts[name] ?? 0) + 1;
-  }
-  final topRewards = rewardCounts.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  // سلسلة الزيارات اليومية بالترتيب الزمني.
+  final visitsPerDay = ((m['visits_series'] as List?) ?? [])
+      .map((e) => (e['visits'] as num?)?.toInt() ?? 0)
+      .toList();
 
   return AnalyticsData(
-    newCustomers: newCustomers,
-    totalCustomers: totalCustomers,
-    returnRate: returnRate,
+    newCustomers: (m['new_customers'] as num?)?.toInt() ?? 0,
+    totalCustomers: (m['total_customers'] as num?)?.toInt() ?? 0,
+    returnRate: (m['return_rate'] as num?)?.toDouble() ?? 0.0,
     visitsPerDay: visitsPerDay,
-    pointsDistributed: distributed,
-    pointsRedeemed: redeemed,
-    topRewards: topRewards.take(5).toList(),
+    pointsDistributed: (m['points_distributed'] as num?)?.toInt() ?? 0,
+    pointsRedeemed: (m['points_redeemed'] as num?)?.toInt() ?? 0,
+    topRewards: topRewards,
   );
 });
 

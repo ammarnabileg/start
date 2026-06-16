@@ -149,9 +149,10 @@ class _EditFormState extends ConsumerState<_EditForm> {
 
     return Form(
       key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
+      child: ResponsiveCenter(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: [
           // --- الشعار ---
           Center(
             child: Column(
@@ -261,7 +262,8 @@ class _EditFormState extends ConsumerState<_EditForm> {
           const SizedBox(height: AppSpacing.xxl),
           PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           const SizedBox(height: AppSpacing.lg),
-        ],
+          ],
+        ),
       ),
     );
   }

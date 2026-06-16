@@ -189,7 +189,7 @@ class _StatsGrid extends StatelessWidget {
     ];
 
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: context.responsive(mobile: 2, tablet: 3),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: AppSpacing.md,
@@ -371,7 +371,7 @@ class _DashboardData {
 
 /// فروع التاجر — لملء فلتر الفرع.
 final _branchesProvider =
-    FutureProvider.family<List<_Branch>, String>((ref, merchantId) async {
+    FutureProvider.autoDispose.family<List<_Branch>, String>((ref, merchantId) async {
   final client = Supabase.instance.client;
   final rows = await client
       .from('branches')
@@ -386,7 +386,7 @@ final _branchesProvider =
 
 /// تجميع أرقام اللوحة. يحترم فلتر الفرع لو مُحدّد.
 final _dashboardDataProvider =
-    FutureProvider.family<_DashboardData, _DashKey>((ref, key) async {
+    FutureProvider.autoDispose.family<_DashboardData, _DashKey>((ref, key) async {
   // استدعاء واحد يحسب كل المقاييس على السيرفر (بدل ~10 round-trips).
   final res = await Supabase.instance.client.rpc('dashboard_summary', params: {
     'p_merchant': key.merchantId,

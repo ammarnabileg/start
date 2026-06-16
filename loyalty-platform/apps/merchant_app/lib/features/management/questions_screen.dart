@@ -385,6 +385,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                           ),
                         ),
                         IconButton(
+                          tooltip: 'حذف الخيار',
                           onPressed: _options.length > 2
                               ? () => _removeOption(i)
                               : null,

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/lucky_wheel.dart';
 import '../theme/app_colors.dart';
+import '../theme/responsive.dart';
 
 /// تحكّم في العجلة من الخارج: استدعِ spinTo(index) بعد ما السيرفر يحدّد النصيب.
 class LuckyWheelController {

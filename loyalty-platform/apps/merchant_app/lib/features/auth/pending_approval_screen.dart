@@ -98,7 +98,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

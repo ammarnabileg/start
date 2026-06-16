@@ -86,9 +86,10 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('دخول موظف')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: [
           const SizedBox(height: 12),
           Container(
             height: 84,
@@ -136,7 +137,8 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                 onPressed: _busy ? null : () => setState(() => _sent = false),
                 child: const Text('تغيير الرقم')),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

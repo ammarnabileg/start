@@ -181,8 +181,8 @@ class ManagementHubScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 sliver: SliverGrid(
                   gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                      SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: context.responsive(mobile: 2, tablet: 3),
                     mainAxisSpacing: AppSpacing.md,
                     crossAxisSpacing: AppSpacing.md,
                     childAspectRatio: 0.95,

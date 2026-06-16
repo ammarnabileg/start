@@ -226,13 +226,14 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.existing == null ? 'مستوى جديد' : 'تعديل المستوى',
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.existing == null ? 'مستوى جديد' : 'تعديل المستوى',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextFormField(
@@ -263,6 +264,7 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
             const SizedBox(height: 16),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
+        ),
         ),
       ),
     );

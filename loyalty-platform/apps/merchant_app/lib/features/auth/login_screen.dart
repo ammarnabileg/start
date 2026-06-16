@@ -86,10 +86,11 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
       body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
-            children: [
+          child: ResponsiveCenter(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
+              children: [
               const SizedBox(height: AppSpacing.md),
               Center(
                 child: Container(
@@ -129,6 +130,7 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
                   labelText: 'كلمة المرور',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
+                    tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
                     icon: Icon(
                         _obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
@@ -150,7 +152,8 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
                 loading: _busy,
                 onPressed: _busy ? null : _login,
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -383,6 +383,7 @@ class _SegmentEditorCard extends StatelessWidget {
                 ),
                 if (onRemove != null)
                   IconButton(
+                    tooltip: 'حذف',
                     onPressed: onRemove,
                     icon: const Icon(Icons.delete_outline,
                         color: AppColors.error),

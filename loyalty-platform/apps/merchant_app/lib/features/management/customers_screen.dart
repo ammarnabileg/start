@@ -185,7 +185,8 @@ class _CustomerDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -242,6 +243,7 @@ class _CustomerDetailSheet extends StatelessWidget {
           _row('أول ارتباط', _date(c.firstLinked)),
           _row('آخر نشاط', _date(c.lastActivity)),
         ],
+        ),
       ),
     );
   }
@@ -252,7 +254,13 @@ class _CustomerDetailSheet extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(k, style: const TextStyle(color: AppColors.textSecondary)),
-            Text(v, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Flexible(
+              child: Text(v,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  textAlign: TextAlign.end),
+            ),
           ],
         ),
       );

@@ -237,11 +237,15 @@ class BusinessProfileScreen extends ConsumerWidget {
                   const Icon(Icons.workspace_premium_outlined,
                       color: AppColors.primaryDark),
                   const SizedBox(width: 10),
-                  Text(
-                    plan == null
-                        ? 'لا يوجد اشتراك نشط'
-                        : 'الخطة: ${_planLabels[plan] ?? plan}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Expanded(
+                    child: Text(
+                      plan == null
+                          ? 'لا يوجد اشتراك نشط'
+                          : 'الخطة: ${_planLabels[plan] ?? plan}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),

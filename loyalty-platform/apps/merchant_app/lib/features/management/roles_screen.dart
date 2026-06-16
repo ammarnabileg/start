@@ -299,6 +299,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
                   ),
                   if (canDelete)
                     IconButton(
+                      tooltip: 'حذف',
                       onPressed: _busy ? null : _delete,
                       icon: const Icon(Icons.delete_outline,
                           color: AppColors.error),

@@ -288,13 +288,14 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.existing == null ? 'حملة جديدة' : 'تعديل الحملة',
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.existing == null ? 'حملة جديدة' : 'تعديل الحملة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextFormField(
@@ -344,6 +345,7 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
             const SizedBox(height: 8),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
+        ),
         ),
       ),
     );

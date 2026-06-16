@@ -213,7 +213,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               const SectionHeader(title: 'إجراءات'),
               const SizedBox(height: AppSpacing.md),
               GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: context.responsive(mobile: 2, tablet: 3),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: AppSpacing.md,

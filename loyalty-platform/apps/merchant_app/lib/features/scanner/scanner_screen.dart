@@ -93,6 +93,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         title: const Text('مسح رمز العميل'),
         actions: [
           IconButton(
+              tooltip: 'تشغيل/إطفاء الفلاش',
               onPressed: () => _controller.toggleTorch(),
               icon: const Icon(Icons.flash_on)),
         ],

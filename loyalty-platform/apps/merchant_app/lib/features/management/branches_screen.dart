@@ -223,13 +223,14 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.existing == null ? 'فرع جديد' : 'تعديل الفرع',
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.existing == null ? 'فرع جديد' : 'تعديل الفرع',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextFormField(
@@ -273,6 +274,7 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
             const SizedBox(height: 8),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
+        ),
         ),
       ),
     );
