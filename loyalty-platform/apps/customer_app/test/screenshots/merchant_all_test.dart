@@ -366,7 +366,7 @@ class _Dashboard extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
+              childAspectRatio: 1.1,
               children: [
                 for (final s in stats)
                   StatCard(icon: s.$3, label: s.$1, value: s.$2),
@@ -401,19 +401,25 @@ class _Scanner extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         bottomNavigationBar: _nav(1),
         appBar: AppBar(title: const Text('مسح رمز العميل')),
-        body: Container(
-          color: Colors.black87,
-          child: Stack(alignment: Alignment.center, children: [
-            Container(
-              height: 250,
-              width: 250,
-              decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.primary, width: 4),
-                  borderRadius: BorderRadius.circular(24)),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: Colors.black87),
+            Center(
+              child: Container(
+                height: 250,
+                width: 250,
+                decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.primary, width: 4),
+                    borderRadius: BorderRadius.circular(24)),
+              ),
             ),
             Positioned(
               bottom: 80,
-              child: Container(
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 decoration: BoxDecoration(
@@ -429,7 +435,8 @@ class _Scanner extends StatelessWidget {
                 ]),
               ),
             ),
-          ]),
+          ),
+          ],
         ),
       );
 }
@@ -711,7 +718,7 @@ class _Rewards extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.25,
+          childAspectRatio: 1.05,
           children: [
             for (final r in [
               ('قهوة مجانية', 100, true),

@@ -132,46 +132,31 @@ class AppBottomNav extends StatelessWidget {
   Widget _slot(int index, AppBottomNavItem item) {
     final selected = index == currentIndex;
     final activeColor = dark ? AppColors.gold : AppColors.primaryDark;
+    final color = selected ? activeColor : AppColors.textSecondary;
+    // تصميم عمودي (أيقونة فوق نص) — يتقلّص النص بأمان داخل الخانة فلا يطفح أبدًا.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         HapticFeedback.selectionClick();
         onTap(index);
       },
-      child: AnimatedContainer(
-        duration: AppDurations.normal,
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? (dark
-                  ? AppColors.gold.withValues(alpha: .18)
-                  : AppColors.primaryLight)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AppIcon(selected ? (item.activeIcon ?? item.icon) : item.icon,
-                color: selected ? activeColor : AppColors.textSecondary, size: 24),
-            AnimatedSize(
-              duration: AppDurations.normal,
-              curve: Curves.easeOutCubic,
-              child: selected
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Text(item.label,
-                          overflow: TextOverflow.clip,
-                          softWrap: false,
-                          style: TextStyle(
-                              color: activeColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12)),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+                color: color, size: 24),
+            const SizedBox(height: 3),
+            Text(item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: color,
+                    fontSize: 10.5,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600)),
           ],
         ),
       ),
