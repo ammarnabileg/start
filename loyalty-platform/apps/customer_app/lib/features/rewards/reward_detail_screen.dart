@@ -94,7 +94,7 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
                         imageUrl: reward.imageUrl!, fit: BoxFit.cover)
                     : Container(
                         color: AppColors.surfaceCream,
-                        child: const Icon(Icons.card_giftcard,
+                        child: const AppIcon(Icons.card_giftcard,
                             size: 64, color: AppColors.primaryDark),
                       ),
               ),
@@ -157,7 +157,7 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet_outlined,
+                          const AppIcon(Icons.account_balance_wallet_outlined,
                               color: AppColors.primaryDark, size: 22),
                           const SizedBox(width: 8),
                           Text('رصيدك', style: theme.textTheme.titleMedium),

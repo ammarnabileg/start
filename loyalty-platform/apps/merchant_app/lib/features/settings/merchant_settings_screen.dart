@@ -205,7 +205,7 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded,
+                      const AppIcon(Icons.warning_amber_rounded,
                           color: AppColors.warning, size: 20),
                       const SizedBox(width: 8),
                       Expanded(

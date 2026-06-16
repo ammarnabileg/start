@@ -78,7 +78,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         actions: [
           IconButton(
             tooltip: 'إرسال إشعار',
-            icon: const Icon(Icons.campaign_outlined),
+            icon: const AppIcon(Icons.campaign_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
             ),
@@ -92,7 +92,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             child: TextField(
               decoration: const InputDecoration(
                 hintText: 'ابحث بالاسم أو رقم الجوال',
-                prefixIcon: Icon(Icons.search_rounded),
+                prefixIcon: AppIcon(Icons.search_rounded),
               ),
               onChanged: (v) => setState(() => _search = v.trim()),
             ),

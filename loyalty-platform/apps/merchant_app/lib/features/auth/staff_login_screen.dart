@@ -93,7 +93,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
             width: 84,
             decoration: const BoxDecoration(
                 gradient: AppColors.goldGradient, shape: BoxShape.circle),
-            child: const Icon(Icons.badge_rounded,
+            child: const AppIcon(Icons.badge_rounded,
                 size: 40, color: AppColors.onPrimary),
           ),
           const SizedBox(height: 16),

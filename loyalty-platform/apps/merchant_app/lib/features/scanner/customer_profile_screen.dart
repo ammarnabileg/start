@@ -282,7 +282,7 @@ class _ActionTile extends StatelessWidget {
                 color: AppColors.surfaceCream,
                 borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
-              child: Icon(icon, size: 24, color: AppColors.primaryDark),
+              child: AppIcon(icon, size: 24, color: AppColors.primaryDark),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(

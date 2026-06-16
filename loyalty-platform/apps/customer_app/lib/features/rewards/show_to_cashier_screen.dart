@@ -185,7 +185,7 @@ class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.timer_outlined,
+                        const AppIcon(Icons.timer_outlined,
                             size: 20, color: AppColors.primaryDark),
                         const SizedBox(width: 8),
                         Text('صالح لمدة $_countdownText',
@@ -231,7 +231,7 @@ class _ResultView extends StatelessWidget {
           height: 100,
           width: 100,
           decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          child: Icon(icon, size: 56, color: color),
+          child: AppIcon(icon, size: 56, color: color),
         ),
         const SizedBox(height: 20),
         Text(title,

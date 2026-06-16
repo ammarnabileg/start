@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'app_icon.dart';
 
 enum AppButtonVariant { primary, secondary, ghost }
 
@@ -51,7 +52,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (widget.icon != null) ...[
-                Icon(widget.icon, size: 20, color: fg),
+                AppIcon(widget.icon!, size: 20, color: fg),
                 const SizedBox(width: 8),
               ],
               Text(widget.label,

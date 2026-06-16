@@ -96,7 +96,7 @@ class ReferralScreen extends ConsumerWidget {
               color: AppColors.infoBg,
               child: Row(
                 children: [
-                  const Icon(Icons.card_giftcard_rounded,
+                  const AppIcon(Icons.card_giftcard_rounded,
                       color: AppColors.primaryDark),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -198,7 +198,7 @@ class _ReferralRow extends StatelessWidget {
           const CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.primaryLight,
-            child: Icon(Icons.person_outline, color: AppColors.primaryDark),
+            child: AppIcon(Icons.person_outline, color: AppColors.primaryDark),
           ),
           const SizedBox(width: 14),
           Expanded(

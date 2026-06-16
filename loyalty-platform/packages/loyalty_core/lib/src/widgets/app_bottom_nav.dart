@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'app_icon.dart';
 
 /// عنصر في شريط التنقّل.
 class AppBottomNavItem {
@@ -153,7 +154,7 @@ class AppBottomNav extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(selected ? (item.activeIcon ?? item.icon) : item.icon,
+            AppIcon(selected ? (item.activeIcon ?? item.icon) : item.icon,
                 color: selected ? activeColor : AppColors.textSecondary, size: 24),
             AnimatedSize(
               duration: AppDurations.normal,
@@ -206,7 +207,7 @@ class _ProminentButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(item.activeIcon ?? item.icon,
+        child: AppIcon(item.activeIcon ?? item.icon,
             color: AppColors.onPrimary, size: 28),
       ),
     );

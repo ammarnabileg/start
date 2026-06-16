@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'app_icon.dart';
 
 /// شارة نقاط صغيرة بهوية Hatchy.
 class PointsBadge extends StatelessWidget {
@@ -19,7 +20,7 @@ class PointsBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, size: 16, color: AppColors.primaryDark),
+          AppIcon(Icons.star_rounded, size: 16, color: AppColors.primaryDark),
           const SizedBox(width: 4),
           Text('$points $suffix',
               style: const TextStyle(

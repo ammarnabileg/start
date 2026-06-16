@@ -60,7 +60,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   ],
                 ),
                 // الأصل النهائي: شعار/كتكوت Hatchy (assets/mascot/wave.png).
-                child: const Icon(Icons.storefront_rounded,
+                child: const AppIcon(Icons.storefront_rounded,
                     size: 64, color: AppColors.primaryDark),
               )
                   .animate()

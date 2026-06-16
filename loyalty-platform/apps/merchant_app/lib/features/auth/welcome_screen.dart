@@ -35,7 +35,7 @@ class MerchantWelcomeScreen extends StatelessWidget {
                   ],
                 ),
                 // الأصل النهائي: كتكوت Hatchy يلوّح.
-                child: const Icon(Icons.storefront_rounded,
+                child: const AppIcon(Icons.storefront_rounded,
                     size: 72, color: AppColors.onPrimary),
               )
                   .animate()
@@ -88,7 +88,7 @@ class MerchantWelcomeScreen extends StatelessWidget {
                     builder: (_) => const StaffLoginScreen(),
                   ),
                 ),
-                icon: const Icon(Icons.badge_outlined, size: 20),
+                icon: const AppIcon(Icons.badge_outlined, size: 20),
                 label: const Text('دخول موظف'),
               ).animate().fadeIn(duration: 400.ms, delay: 440.ms),
               const Spacer(),

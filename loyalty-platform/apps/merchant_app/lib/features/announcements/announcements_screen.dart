@@ -96,7 +96,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                       color: AppColors.surface.withValues(alpha: .35),
                       borderRadius: BorderRadius.circular(AppRadii.md),
                     ),
-                    child: const Icon(Icons.campaign_rounded,
+                    child: const AppIcon(Icons.campaign_rounded,
                         color: AppColors.onPrimary),
                   ),
                   const SizedBox(width: 14),
@@ -181,7 +181,7 @@ class _QuotaBanner extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.notifications_active_outlined,
+                  AppIcon(Icons.notifications_active_outlined,
                       color: low ? AppColors.warning : AppColors.primaryDark),
                   const SizedBox(width: 8),
                   Expanded(

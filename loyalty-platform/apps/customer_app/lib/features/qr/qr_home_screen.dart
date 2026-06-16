@@ -189,7 +189,7 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.lock_outline_rounded,
+                              const AppIcon(Icons.lock_outline_rounded,
                                   size: 16, color: AppColors.textSecondary),
                               const SizedBox(width: 6),
                               Flexible(

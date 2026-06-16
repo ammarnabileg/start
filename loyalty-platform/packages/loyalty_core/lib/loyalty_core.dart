@@ -34,6 +34,7 @@ export 'src/models/user_prize.dart';
 export 'src/models/pos_api_key.dart';
 
 // Widgets
+export 'src/widgets/app_icon.dart';
 export 'src/widgets/primary_button.dart';
 export 'src/widgets/app_card.dart';
 export 'src/widgets/state_views.dart';

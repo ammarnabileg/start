@@ -232,7 +232,7 @@ class AnalyticsScreen extends ConsumerWidget {
                             child: AppCard(
                               child: Row(
                                 children: [
-                                  const Icon(Icons.card_giftcard_rounded,
+                                  const AppIcon(Icons.card_giftcard_rounded,
                                       color: AppColors.primaryDark, size: 20),
                                   const SizedBox(width: 10),
                                   Expanded(child: Text(e.key)),

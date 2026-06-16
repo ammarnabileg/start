@@ -68,7 +68,7 @@ class _PrizeCard extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: AppColors.primaryLight,
-            child: Icon(_kindIcon, color: AppColors.primaryDark),
+            child: AppIcon(_kindIcon, color: AppColors.primaryDark),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -96,7 +96,7 @@ class _PrizeCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_left_rounded),
+          const AppIcon(Icons.chevron_left_rounded),
         ],
       ),
     );

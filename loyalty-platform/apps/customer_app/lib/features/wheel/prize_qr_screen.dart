@@ -154,7 +154,7 @@ class _PrizeQrScreenState extends ConsumerState<PrizeQrScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.lock_outline_rounded,
+                              const AppIcon(Icons.lock_outline_rounded,
                                   size: 16, color: AppColors.textSecondary),
                               const SizedBox(width: 6),
                               Flexible(
@@ -195,7 +195,7 @@ class _RedeemedState extends StatelessWidget {
               width: 96,
               decoration: const BoxDecoration(
                   color: AppColors.successBg, shape: BoxShape.circle),
-              child: const Icon(Icons.check_rounded,
+              child: const AppIcon(Icons.check_rounded,
                   size: 52, color: AppColors.success),
             ).animate().scale(
                 duration: 420.ms, curve: Curves.easeOutBack).fadeIn(),

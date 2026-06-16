@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/lucky_wheel.dart';
 import '../theme/app_colors.dart';
 import '../theme/responsive.dart';
+import 'app_icon.dart';
 
 /// تحكّم في العجلة من الخارج: استدعِ spinTo(index) بعد ما السيرفر يحدّد النصيب.
 class LuckyWheelController {
@@ -121,7 +122,7 @@ class _LuckyWheelViewState extends State<LuckyWheelView>
                       color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4)),
                 ],
               ),
-              child: const Icon(Icons.casino_rounded,
+              child: AppIcon(Icons.casino_rounded,
                   color: AppColors.onPrimary, size: 24),
             ),
           ),

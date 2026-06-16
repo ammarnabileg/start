@@ -43,7 +43,7 @@ class LocationPrimingScreen extends StatelessWidget {
                         offset: Offset(0, 10)),
                   ],
                 ),
-                child: const Icon(Icons.location_on_rounded,
+                child: const AppIcon(Icons.location_on_rounded,
                     size: 72, color: AppColors.onPrimary),
               )
                   .animate()

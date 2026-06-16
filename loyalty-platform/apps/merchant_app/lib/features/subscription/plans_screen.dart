@@ -224,7 +224,7 @@ class _PlanCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded,
+                  AppIcon(Icons.check_circle_rounded,
                       size: 20, color: checkColor),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

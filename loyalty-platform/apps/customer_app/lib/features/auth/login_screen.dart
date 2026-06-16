@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 hintText: 'كلمة المرور',
                 suffixIcon: IconButton(
                   tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
-                  icon: Icon(_obscure
+                  icon: AppIcon(_obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscure = !_obscure),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'app_icon.dart';
 
 /// كارت إحصائية مدمج (رقم + عنوان + أيقونة) — للوحات التحكم وبطاقات الحالة.
 class StatCard extends StatelessWidget {
@@ -43,7 +44,7 @@ class StatCard extends StatelessWidget {
                   : AppColors.surfaceCream,
               borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
-            child: Icon(icon, size: 20, color: c),
+            child: AppIcon(icon, size: 20, color: c),
           ),
           const SizedBox(height: 12),
           Text(value,

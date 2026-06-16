@@ -26,7 +26,7 @@ class CampaignsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('حملات الزيارة')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('حملة جديدة'),
       ),
       body: async.when(
@@ -62,7 +62,7 @@ class CampaignsScreen extends ConsumerWidget {
                         color: AppColors.info.withValues(alpha: .15),
                         borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
-                      child: const Icon(Icons.repeat_rounded,
+                      child: const AppIcon(Icons.repeat_rounded,
                           color: AppColors.info),
                     ),
                     const SizedBox(width: 16),
@@ -153,7 +153,7 @@ class _ImagePickerField extends StatelessWidget {
           ),
           child: hasImage
               ? null
-              : const Icon(Icons.image_outlined,
+              : const AppIcon(Icons.image_outlined,
                   color: AppColors.textSecondary),
         ),
         const SizedBox(width: 12),
@@ -166,7 +166,7 @@ class _ImagePickerField extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.photo_library_outlined),
+                : const AppIcon(Icons.photo_library_outlined),
             label: const Text('اختيار صورة'),
           ),
         ),

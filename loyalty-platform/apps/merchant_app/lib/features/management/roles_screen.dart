@@ -40,7 +40,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
       appBar: AppBar(title: const Text('الأدوار والصلاحيات')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('دور جديد'),
       ),
       body: async.when(
@@ -74,7 +74,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                     CircleAvatar(
                       radius: 22,
                       backgroundColor: accent.withValues(alpha: .15),
-                      child: Icon(
+                      child: AppIcon(
                         r.isOwner
                             ? Icons.workspace_premium_outlined
                             : Icons.shield_outlined,
@@ -287,7 +287,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
                     IconButton(
                       tooltip: 'حذف',
                       onPressed: _busy ? null : _delete,
-                      icon: const Icon(Icons.delete_outline,
+                      icon: const AppIcon(Icons.delete_outline,
                           color: AppColors.error),
                     ),
                 ],
@@ -302,7 +302,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.lock_outline,
+                      const AppIcon(Icons.lock_outline,
                           color: AppColors.primaryDark),
                       const SizedBox(width: 10),
                       Expanded(

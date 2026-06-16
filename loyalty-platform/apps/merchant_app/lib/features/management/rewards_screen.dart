@@ -26,7 +26,7 @@ class RewardsManagementScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('المكافآت')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('مكافأة جديدة'),
       ),
       body: async.when(
@@ -65,7 +65,7 @@ class RewardsManagementScreen extends ConsumerWidget {
                           : null,
                       child: (imageUrl != null && imageUrl.isNotEmpty)
                           ? null
-                          : const Icon(Icons.card_giftcard_rounded,
+                          : const AppIcon(Icons.card_giftcard_rounded,
                               color: AppColors.primaryDark),
                     ),
                     const SizedBox(width: 16),
@@ -165,7 +165,7 @@ class _ImagePickerField extends StatelessWidget {
           ),
           child: hasImage
               ? null
-              : const Icon(Icons.image_outlined,
+              : const AppIcon(Icons.image_outlined,
                   color: AppColors.textSecondary),
         ),
         const SizedBox(width: 12),
@@ -178,7 +178,7 @@ class _ImagePickerField extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.photo_library_outlined),
+                : const AppIcon(Icons.photo_library_outlined),
             label: const Text('اختيار صورة'),
           ),
         ),

@@ -153,9 +153,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   ListTile(
-                    leading: const Icon(Icons.privacy_tip_outlined),
+                    leading: const AppIcon(Icons.privacy_tip_outlined),
                     title: const Text('سياسة الخصوصية'),
-                    trailing: const Icon(Icons.chevron_left_rounded),
+                    trailing: const AppIcon(Icons.chevron_left_rounded),
                     onTap: () => launchUrl(
                       Uri.parse('https://wataddigital.com/privacy'),
                       mode: LaunchMode.externalApplication,
@@ -169,13 +169,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: ListTile(
-                leading: const Icon(Icons.language_rounded),
+                leading: const AppIcon(Icons.language_rounded),
                 title: const Text('اللغة'),
                 subtitle:
                     Text(ref.watch(localeProvider).languageCode == 'ar'
                         ? 'العربية'
                         : 'English'),
-                trailing: const Icon(Icons.chevron_left_rounded),
+                trailing: const AppIcon(Icons.chevron_left_rounded),
                 onTap: () => showModalBottomSheet<void>(
                   context: context,
                   builder: (_) => Column(
@@ -185,7 +185,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         title: const Text('العربية'),
                         trailing:
                             ref.read(localeProvider).languageCode == 'ar'
-                                ? const Icon(Icons.check, color: AppColors.success)
+                                ? const AppIcon(Icons.check, color: AppColors.success)
                                 : null,
                         onTap: () {
                           ref
@@ -198,7 +198,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         title: const Text('English'),
                         trailing:
                             ref.read(localeProvider).languageCode == 'en'
-                                ? const Icon(Icons.check, color: AppColors.success)
+                                ? const AppIcon(Icons.check, color: AppColors.success)
                                 : null,
                         onTap: () {
                           ref
@@ -217,12 +217,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
+                leading: const AppIcon(Icons.delete_outline_rounded,
                     color: AppColors.error),
                 title: Text('حذف الحساب',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppColors.error)),
-                trailing: const Icon(Icons.chevron_left_rounded),
+                trailing: const AppIcon(Icons.chevron_left_rounded),
                 onTap: _busy ? null : _confirmDelete,
               ),
             ),

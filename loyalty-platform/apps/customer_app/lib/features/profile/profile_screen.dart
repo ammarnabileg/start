@@ -145,9 +145,9 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = danger ? AppColors.error : AppColors.textPrimary;
     return ListTile(
-      leading: Icon(icon, color: color),
+      leading: AppIcon(icon, color: color),
       title: Text(label, style: TextStyle(color: color)),
-      trailing: const Icon(Icons.chevron_left_rounded),
+      trailing: const AppIcon(Icons.chevron_left_rounded),
       onTap: onTap,
     );
   }

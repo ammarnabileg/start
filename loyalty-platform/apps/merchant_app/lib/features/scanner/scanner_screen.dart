@@ -96,7 +96,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           IconButton(
               tooltip: 'تشغيل/إطفاء الفلاش',
               onPressed: () => _controller.toggleTorch(),
-              icon: const Icon(Icons.flash_on)),
+              icon: const AppIcon(Icons.flash_on)),
         ],
       ),
       body: Stack(
@@ -157,7 +157,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.qr_code_2_rounded,
+                  AppIcon(Icons.qr_code_2_rounded,
                       color: AppColors.primary, size: 20),
                   SizedBox(width: AppSpacing.sm),
                   Text('وجّه الكاميرا نحو رمز العميل',

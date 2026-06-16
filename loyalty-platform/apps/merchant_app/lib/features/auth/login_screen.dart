@@ -103,7 +103,7 @@ class _MerchantLoginScreenState extends ConsumerState<MerchantLoginScreen> {
                     gradient: AppColors.heroGradient,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.storefront_rounded,
+                  child: const AppIcon(Icons.storefront_rounded,
                       size: 44, color: AppColors.onPrimary),
                 )
                     .animate()
@@ -120,7 +120,7 @@ class _MerchantLoginScreenState extends ConsumerState<MerchantLoginScreen> {
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'رقم الجوال أو البريد الإلكتروني',
-                  prefixIcon: Icon(Icons.person_outline),
+                  prefixIcon: AppIcon(Icons.person_outline),
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
@@ -131,10 +131,10 @@ class _MerchantLoginScreenState extends ConsumerState<MerchantLoginScreen> {
                 obscureText: _obscure,
                 decoration: InputDecoration(
                   labelText: 'كلمة المرور',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  prefixIcon: const AppIcon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
-                    icon: Icon(
+                    icon: AppIcon(
                         _obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),

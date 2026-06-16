@@ -26,7 +26,7 @@ class LevelsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('المستويات')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('مستوى جديد'),
       ),
       body: Column(
@@ -41,7 +41,7 @@ class LevelsScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: AppColors.primaryDark),
+                const AppIcon(Icons.info_outline, color: AppColors.primaryDark),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -94,7 +94,7 @@ class LevelsScreen extends ConsumerWidget {
                           CircleAvatar(
                             radius: 22,
                             backgroundColor: lvl.color.withValues(alpha: .2),
-                            child: Icon(Icons.workspace_premium_rounded,
+                            child: AppIcon(Icons.workspace_premium_rounded,
                                 color: lvl.color),
                           ),
                           const SizedBox(width: 16),

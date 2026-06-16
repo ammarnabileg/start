@@ -223,7 +223,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   gradient: AppColors.goldGradient,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.sms_outlined,
+                child: const AppIcon(Icons.sms_outlined,
                     size: 44, color: AppColors.onPrimary),
               )
                   .animate()

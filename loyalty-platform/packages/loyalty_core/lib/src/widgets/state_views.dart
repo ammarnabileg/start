@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'primary_button.dart';
+import 'app_icon.dart';
 
 /// حالات الشاشة الموحّدة (إجبارية في كل شاشة بتجيب داتا).
 
@@ -108,7 +109,7 @@ class EmptyView extends StatelessWidget {
               width: 96,
               decoration: const BoxDecoration(
                   gradient: AppColors.goldGradient, shape: BoxShape.circle),
-              child: Icon(icon, size: 44, color: AppColors.onPrimary),
+              child: AppIcon(icon, size: 44, color: AppColors.onPrimary),
             )
                 .animate()
                 .scale(duration: 400.ms, curve: Curves.easeOutBack)
@@ -154,7 +155,7 @@ class ErrorView extends StatelessWidget {
               width: 80,
               decoration: const BoxDecoration(
                   color: AppColors.errorBg, shape: BoxShape.circle),
-              child: const Icon(Icons.cloud_off_rounded,
+              child: AppIcon(Icons.cloud_off_rounded,
                   size: 40, color: AppColors.error),
             ),
             const SizedBox(height: 16),

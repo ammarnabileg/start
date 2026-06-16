@@ -51,7 +51,7 @@ class StaffScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('الموظفين')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('موظف جديد'),
       ),
       body: async.when(
@@ -85,7 +85,7 @@ class StaffScreen extends ConsumerWidget {
                     CircleAvatar(
                       radius: 22,
                       backgroundColor: roleColor.withValues(alpha: .15),
-                      child: Icon(Icons.person_outline, color: roleColor),
+                      child: AppIcon(Icons.person_outline, color: roleColor),
                     ),
                     const SizedBox(width: 16),
                     Expanded(

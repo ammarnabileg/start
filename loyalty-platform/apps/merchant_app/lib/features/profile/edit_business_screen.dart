@@ -168,7 +168,7 @@ class _EditFormState extends ConsumerState<_EditForm> {
                   ),
                   child: hasLogo
                       ? null
-                      : const Icon(Icons.storefront_rounded,
+                      : const AppIcon(Icons.storefront_rounded,
                           size: 48, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -180,7 +180,7 @@ class _EditFormState extends ConsumerState<_EditForm> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2.2),
                         )
-                      : const Icon(Icons.image_outlined),
+                      : const AppIcon(Icons.image_outlined),
                   label: const Text('تغيير الشعار'),
                 ),
               ],

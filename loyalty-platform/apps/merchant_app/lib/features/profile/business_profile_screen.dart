@@ -63,7 +63,7 @@ class BusinessProfileScreen extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => _push(
                           context, const EditBusinessProfileScreen()),
-                      icon: const Icon(Icons.edit_outlined),
+                      icon: const AppIcon(Icons.edit_outlined),
                       label: const Text('تعديل بيانات المتجر'),
                     ),
                   ),
@@ -185,7 +185,7 @@ class BusinessProfileScreen extends ConsumerWidget {
         ),
         child: (logoUrl != null && logoUrl.isNotEmpty)
             ? null
-            : const Icon(Icons.storefront_rounded,
+            : const AppIcon(Icons.storefront_rounded,
                 color: AppColors.gold, size: 30),
       ),
     );
@@ -225,7 +225,7 @@ class BusinessProfileScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.workspace_premium_outlined,
+                  const AppIcon(Icons.workspace_premium_outlined,
                       color: AppColors.primaryDark),
                   const SizedBox(width: 10),
                   Expanded(
@@ -251,7 +251,7 @@ class BusinessProfileScreen extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   onPressed: () =>
                       _push(context, const ManageSubscriptionScreen()),
-                  icon: const Icon(Icons.credit_card_outlined),
+                  icon: const AppIcon(Icons.credit_card_outlined),
                   label: const Text('إدارة الاشتراك'),
                 ),
               ),
@@ -302,11 +302,11 @@ class _NavTile extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon, color: color ?? AppColors.primaryDark),
+        leading: AppIcon(icon, color: color ?? AppColors.primaryDark),
         title: Text(title, style: TextStyle(color: color)),
         subtitle: subtitle == null ? null : Text(subtitle!),
         trailing:
-            const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+            const AppIcon(Icons.chevron_left, color: AppColors.textSecondary),
         onTap: onTap,
       );
 }

@@ -57,7 +57,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   color: Colors.white.withValues(alpha: .25),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.egg_alt_rounded,
+                child: const AppIcon(Icons.egg_alt_rounded,
                     size: 64, color: AppColors.onPrimary),
               )
                   .animate()

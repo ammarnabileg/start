@@ -32,7 +32,7 @@ class WelcomeScreen extends StatelessWidget {
                         offset: Offset(0, 10)),
                   ],
                 ),
-                child: const Icon(Icons.egg_alt_rounded,
+                child: const AppIcon(Icons.egg_alt_rounded,
                     size: 72, color: AppColors.onPrimary),
               )
                   .animate()

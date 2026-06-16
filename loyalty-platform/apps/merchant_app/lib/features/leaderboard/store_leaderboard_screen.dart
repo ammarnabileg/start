@@ -64,7 +64,7 @@ class StoreLeaderboardScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline,
+                  const AppIcon(Icons.info_outline,
                       color: AppColors.warning, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
@@ -199,13 +199,13 @@ class _PodiumSpot extends StatelessWidget {
               CircleAvatar(
                 radius: rank == 1 ? 28 : 22,
                 backgroundColor: AppColors.surface,
-                child: Icon(Icons.emoji_events_rounded,
+                child: AppIcon(Icons.emoji_events_rounded,
                     color: medalColor, size: rank == 1 ? 32 : 26),
               ),
               if (rank == 1)
                 const Positioned(
                   top: -16,
-                  child: Icon(Icons.workspace_premium_rounded,
+                  child: AppIcon(Icons.workspace_premium_rounded,
                       color: AppColors.surface, size: 22),
                 ),
             ],
@@ -271,7 +271,7 @@ class _RankBadge extends StatelessWidget {
       return CircleAvatar(
         radius: 18,
         backgroundColor: medalColor.withValues(alpha: .25),
-        child: Icon(Icons.emoji_events_rounded, color: medalColor, size: 22),
+        child: AppIcon(Icons.emoji_events_rounded, color: medalColor, size: 22),
       );
     }
     return CircleAvatar(

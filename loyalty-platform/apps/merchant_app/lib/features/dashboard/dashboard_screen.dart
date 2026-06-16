@@ -85,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               color: Colors.white.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
-            child: const Icon(Icons.storefront_rounded,
+            child: const AppIcon(Icons.storefront_rounded,
                 color: AppColors.gold, size: 26),
           ),
         ),
@@ -238,7 +238,7 @@ class _BranchFilter extends ConsumerWidget {
             child: DropdownButton<String?>(
               isExpanded: true,
               value: selected,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              icon: const AppIcon(Icons.keyboard_arrow_down_rounded),
               items: [
                 const DropdownMenuItem<String?>(
                   value: null,
@@ -279,7 +279,7 @@ class _TrialBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.timer_outlined, color: AppColors.warning),
+          const AppIcon(Icons.timer_outlined, color: AppColors.warning),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -312,7 +312,7 @@ class _ActivityTile extends StatelessWidget {
             CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.surfaceCream,
-              child: Icon(activity.icon,
+              child: AppIcon(activity.icon,
                   size: 20, color: AppColors.primaryDark),
             ),
             const SizedBox(width: 12),

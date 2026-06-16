@@ -117,7 +117,7 @@ class _StoreCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_left_rounded,
+            const AppIcon(Icons.chevron_left_rounded,
                 color: AppColors.textSecondary),
           ],
         ),
@@ -156,7 +156,7 @@ class _LevelChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.workspace_premium_outlined,
+            const AppIcon(Icons.workspace_premium_outlined,
                 size: 14, color: AppColors.primaryDark),
             const SizedBox(width: 4),
             Text(label,
@@ -176,6 +176,6 @@ class _LogoFallback extends StatelessWidget {
         width: 56,
         height: 56,
         color: AppColors.surfaceCream,
-        child: const Icon(Icons.storefront, color: AppColors.primaryDark),
+        child: const AppIcon(Icons.storefront, color: AppColors.primaryDark),
       );
 }

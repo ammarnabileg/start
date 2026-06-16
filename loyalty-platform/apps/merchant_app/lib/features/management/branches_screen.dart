@@ -26,7 +26,7 @@ class BranchesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('الفروع')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('فرع جديد'),
       ),
       body: async.when(
@@ -62,7 +62,7 @@ class BranchesScreen extends ConsumerWidget {
                         color: AppColors.success.withValues(alpha: .15),
                         borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
-                      child: const Icon(Icons.location_on_outlined,
+                      child: const AppIcon(Icons.location_on_outlined,
                           color: AppColors.success),
                     ),
                     const SizedBox(width: 16),
@@ -240,7 +240,7 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _pickLocation,
-              icon: const Icon(Icons.map_outlined),
+              icon: const AppIcon(Icons.map_outlined),
               label: Text(_lat == null || _lng == null
                   ? 'اختيار الموقع على الخريطة'
                   : 'الموقع: ${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}'),

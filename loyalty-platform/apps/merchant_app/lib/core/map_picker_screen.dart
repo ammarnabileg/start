@@ -70,7 +70,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   alignment: Alignment.center,
                   child: Padding(
                     padding: EdgeInsets.only(bottom: 40),
-                    child: Icon(
+                    child: AppIcon(
                       Icons.location_on,
                       size: 48,
                       color: AppColors.primaryDark,

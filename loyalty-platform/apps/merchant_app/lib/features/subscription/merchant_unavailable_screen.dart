@@ -30,7 +30,7 @@ class MerchantUnavailableScreen extends StatelessWidget {
                         color: AppColors.surfaceCream,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: const AppIcon(
                         Icons.storefront_outlined,
                         size: 48,
                         color: AppColors.primaryDark,
@@ -71,7 +71,7 @@ class MerchantUnavailableScreen extends StatelessWidget {
                     color: AppColors.infoBg,
                     child: Row(
                       children: [
-                        const Icon(Icons.support_agent_outlined,
+                        const AppIcon(Icons.support_agent_outlined,
                             color: AppColors.info),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(

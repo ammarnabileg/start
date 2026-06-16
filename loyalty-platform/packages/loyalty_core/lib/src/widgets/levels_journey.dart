@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/loyalty_level.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'app_icon.dart';
 
 /// مسار المستويات بشكل "طريق متعرّج" (Journey) بهوية Hatchy.
 /// كل عقدة = مستوى؛ المكتمل مضيء، الحالي بارز بعلامة "أنت هنا"، المقفول باهت.
@@ -155,7 +156,7 @@ class _NodeCircle extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(
+      child: AppIcon(
         reached || isCurrent
             ? Icons.workspace_premium_rounded
             : Icons.lock_outline_rounded,
@@ -228,7 +229,7 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.emoji_events_rounded,
+              AppIcon(Icons.emoji_events_rounded,
                   color: AppColors.onPrimary, size: 22),
               const SizedBox(width: 8),
               Expanded(

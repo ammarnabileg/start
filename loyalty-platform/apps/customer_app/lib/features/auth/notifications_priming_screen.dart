@@ -44,7 +44,7 @@ class NotificationsPrimingScreen extends StatelessWidget {
                         offset: Offset(0, 10)),
                   ],
                 ),
-                child: const Icon(Icons.notifications_active_rounded,
+                child: const AppIcon(Icons.notifications_active_rounded,
                     size: 72, color: AppColors.onPrimary),
               )
                   .animate()

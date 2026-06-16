@@ -74,7 +74,7 @@ class QuestionResponsesScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const Icon(Icons.insights_rounded,
+                      const AppIcon(Icons.insights_rounded,
                           size: 32, color: AppColors.onPrimary),
                     ],
                   ),
@@ -225,7 +225,7 @@ class _TextAnswers extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.format_quote_rounded,
+                  const AppIcon(Icons.format_quote_rounded,
                       color: AppColors.primaryDark, size: 20),
                   const SizedBox(width: 10),
                   Expanded(

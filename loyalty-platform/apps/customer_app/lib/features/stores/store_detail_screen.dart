@@ -99,7 +99,7 @@ class StoreDetailScreen extends StatelessWidget {
                         width: 56,
                         height: 56,
                         color: AppColors.onPrimary.withValues(alpha: .12),
-                        child: const Icon(Icons.storefront,
+                        child: const AppIcon(Icons.storefront,
                             color: AppColors.onPrimary),
                       ),
               ),
@@ -144,7 +144,7 @@ class _UnavailableBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: const Row(
           children: [
-            Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            AppIcon(Icons.info_outline_rounded, color: Colors.white, size: 20),
             SizedBox(width: 8),
             Expanded(
               child: Text('هذا المتجر غير متاح حاليًا',
@@ -231,7 +231,7 @@ class _OverviewTab extends StatelessWidget {
               : _notifyUnavailable(context),
           child: Row(
             children: [
-              const Icon(Icons.casino_rounded,
+              const AppIcon(Icons.casino_rounded,
                   color: AppColors.onPrimary, size: 28),
               const SizedBox(width: 14),
               Expanded(
@@ -248,7 +248,7 @@ class _OverviewTab extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_left_rounded,
+              const AppIcon(Icons.chevron_left_rounded,
                   color: AppColors.onPrimary),
             ],
           ),
@@ -372,7 +372,7 @@ class _DayChip extends StatelessWidget {
     final Widget child;
     if (done) {
       bg = AppColors.success;
-      child = const Icon(Icons.check_rounded, color: Colors.white, size: 22);
+      child = const AppIcon(Icons.check_rounded, color: Colors.white, size: 22);
     } else if (current) {
       bg = AppColors.primary;
       child = Text('$day',
@@ -381,7 +381,7 @@ class _DayChip extends StatelessWidget {
     } else {
       bg = AppColors.surfaceCream;
       child = isReward
-          ? const Icon(Icons.card_giftcard_rounded, size: 20, color: AppColors.primaryDark)
+          ? const AppIcon(Icons.card_giftcard_rounded, size: 20, color: AppColors.primaryDark)
           : Text('$day',
               style: const TextStyle(
                   color: AppColors.textSecondary, fontWeight: FontWeight.w700));
@@ -550,7 +550,7 @@ class _RewardCard extends StatelessWidget {
                               imageUrl: reward.imageUrl!, fit: BoxFit.cover)
                           : Container(
                               color: AppColors.surfaceCream,
-                              child: const Icon(Icons.card_giftcard,
+                              child: const AppIcon(Icons.card_giftcard,
                                   size: 40, color: AppColors.primaryDark),
                             ),
                     ),
@@ -907,7 +907,7 @@ class _QuestionCardState extends ConsumerState<_QuestionCard> {
           if (q.answeredByMe)
             const Row(
               children: [
-                Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                AppIcon(Icons.check_circle, color: AppColors.success, size: 20),
                 SizedBox(width: 8),
                 Text('تمت الإجابة ✓',
                     style: TextStyle(
@@ -1028,7 +1028,7 @@ class _HistoryRow extends StatelessWidget {
             radius: 18,
             backgroundColor:
                 earn ? AppColors.primaryLight : AppColors.surfaceCream,
-            child: Icon(
+            child: AppIcon(
               earn ? Icons.add_rounded : Icons.remove_rounded,
               color: AppColors.primaryDark,
             ),

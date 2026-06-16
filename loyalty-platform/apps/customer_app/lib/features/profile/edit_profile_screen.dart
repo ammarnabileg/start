@@ -189,7 +189,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           tooltip: 'تغيير الصورة الشخصية',
                           padding: EdgeInsets.zero,
                           iconSize: 18,
-                          icon: const Icon(Icons.camera_alt_outlined,
+                          icon: const AppIcon(Icons.camera_alt_outlined,
                               color: AppColors.onPrimary),
                           onPressed: _uploadingAvatar ? null : _pickAvatar,
                         ),
@@ -231,7 +231,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   decoration: const InputDecoration(),
                   child: Row(
                     children: [
-                      const Icon(Icons.cake_outlined,
+                      const AppIcon(Icons.cake_outlined,
                           size: 20, color: AppColors.textSecondary),
                       const SizedBox(width: 10),
                       Text(

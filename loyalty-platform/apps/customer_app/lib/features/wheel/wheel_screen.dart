@@ -141,7 +141,7 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
                         builder: (_) => const MyPrizesScreen(),
                       ),
                     ),
-                    icon: const Icon(Icons.card_giftcard_outlined,
+                    icon: const AppIcon(Icons.card_giftcard_outlined,
                         color: AppColors.onPrimary),
                     label: const Text('هداياي',
                         style: TextStyle(color: AppColors.onPrimary)),
@@ -169,7 +169,7 @@ class _WheelScreenState extends ConsumerState<WheelScreen> {
                         color: AppColors.primaryLight,
                         child: Row(
                           children: [
-                            const Icon(Icons.star_rounded,
+                            const AppIcon(Icons.star_rounded,
                                 color: AppColors.primaryDark),
                             const SizedBox(width: 12),
                             Expanded(

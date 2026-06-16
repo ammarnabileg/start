@@ -213,7 +213,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 hintText: '8 أحرف على الأقل',
                 suffixIcon: IconButton(
                   tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
-                  icon: Icon(_obscure
+                  icon: AppIcon(_obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscure = !_obscure),
@@ -235,7 +235,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 decoration: const InputDecoration(),
                 child: Row(
                   children: [
-                    const Icon(Icons.cake_outlined,
+                    const AppIcon(Icons.cake_outlined,
                         size: 20, color: AppColors.textSecondary),
                     const SizedBox(width: 10),
                     Text(

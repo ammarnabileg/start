@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 import 'primary_button.dart';
+import 'app_icon.dart';
 
 /// تغذية راجعة موحّدة للنجاح/الخطأ (toast + شيت نجاح بحركة لطيفة).
 class AppFeedback {
@@ -14,7 +15,7 @@ class AppFeedback {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Row(children: [
-          Icon(error ? Icons.error_outline : Icons.check_circle_outline,
+          AppIcon(error ? Icons.error_outline : Icons.check_circle_outline,
               color: error ? AppColors.error : AppColors.success, size: 20),
           const SizedBox(width: 10),
           Expanded(child: Text(message)),
@@ -43,7 +44,7 @@ class AppFeedback {
               width: 84,
               decoration: const BoxDecoration(
                   color: AppColors.successBg, shape: BoxShape.circle),
-              child: const Icon(Icons.check_rounded,
+              child: AppIcon(Icons.check_rounded,
                   size: 48, color: AppColors.success),
             ).animate().scale(
                 duration: 420.ms, curve: Curves.easeOutBack).fadeIn(),

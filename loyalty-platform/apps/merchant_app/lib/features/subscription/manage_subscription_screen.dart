@@ -150,7 +150,7 @@ class _SubscriptionBody extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.workspace_premium_rounded,
+                  const AppIcon(Icons.workspace_premium_rounded,
                       color: AppColors.onPrimary),
                   const SizedBox(width: 10),
                   Expanded(
@@ -187,7 +187,7 @@ class _SubscriptionBody extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
-                    const Icon(Icons.event_outlined,
+                    const AppIcon(Icons.event_outlined,
                         size: 18, color: AppColors.onPrimary),
                     const SizedBox(width: 6),
                     Text(
@@ -224,7 +224,7 @@ class _SubscriptionBody extends StatelessWidget {
                       color: AppColors.surfaceCream,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(p.icon, color: AppColors.primaryDark),
+                    child: AppIcon(p.icon, color: AppColors.primaryDark),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -239,7 +239,7 @@ class _SubscriptionBody extends StatelessWidget {
                                     .titleMedium),
                             if (isCurrent) ...[
                               const SizedBox(width: 8),
-                              const Icon(Icons.check_circle,
+                              const AppIcon(Icons.check_circle,
                                   size: 18, color: AppColors.success),
                             ],
                           ],
@@ -268,7 +268,7 @@ class _SubscriptionBody extends StatelessWidget {
           color: AppColors.infoBg,
           child: Row(
             children: [
-              const Icon(Icons.support_agent_outlined,
+              const AppIcon(Icons.support_agent_outlined,
                   color: AppColors.info),
               const SizedBox(width: AppSpacing.md),
               Expanded(

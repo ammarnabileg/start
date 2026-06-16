@@ -40,7 +40,7 @@ class QuestionsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('الأسئلة')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('سؤال جديد'),
       ),
       body: async.when(
@@ -78,7 +78,7 @@ class QuestionsScreen extends ConsumerWidget {
                             color: AppColors.info.withValues(alpha: .15),
                             borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
-                          child: Icon(_typeIcons[q.type],
+                          child: AppIcon(_typeIcons[q.type],
                               color: AppColors.info, size: 22),
                         ),
                         const SizedBox(width: 12),
@@ -117,12 +117,12 @@ class QuestionsScreen extends ConsumerWidget {
                                   QuestionResponsesScreen(questionId: q.id),
                             ),
                           ),
-                          icon: const Icon(Icons.bar_chart_rounded, size: 18),
+                          icon: const AppIcon(Icons.bar_chart_rounded, size: 18),
                           label: const Text('عرض الإجابات'),
                         ),
                         TextButton.icon(
                           onPressed: () => _openEditor(context, ref, q),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          icon: const AppIcon(Icons.edit_outlined, size: 18),
                           label: const Text('تعديل'),
                         ),
                       ],
@@ -318,7 +318,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                   final selected = _type == e.key;
                   return ChoiceChip(
                     label: Text(e.value),
-                    avatar: Icon(_typeIcons[e.key],
+                    avatar: AppIcon(_typeIcons[e.key],
                         size: 18,
                         color: selected
                             ? AppColors.onPrimary
@@ -373,7 +373,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                           onPressed: _options.length > 2
                               ? () => _removeOption(i)
                               : null,
-                          icon: const Icon(Icons.remove_circle_outline),
+                          icon: const AppIcon(Icons.remove_circle_outline),
                           color: AppColors.error,
                         ),
                       ],
@@ -383,7 +383,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                   alignment: AlignmentDirectional.centerStart,
                   child: TextButton.icon(
                     onPressed: _addOption,
-                    icon: const Icon(Icons.add),
+                    icon: const AppIcon(Icons.add),
                     label: const Text('إضافة خيار'),
                   ),
                 ),

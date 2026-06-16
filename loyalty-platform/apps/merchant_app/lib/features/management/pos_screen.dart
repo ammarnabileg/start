@@ -30,7 +30,7 @@ class PosIntegrationScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('تكامل POS')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createKey(context, ref),
-        icon: const Icon(Icons.add_rounded),
+        icon: const AppIcon(Icons.add_rounded),
         label: const Text('مفتاح جديد'),
       ),
       body: ListView(
@@ -45,7 +45,7 @@ class PosIntegrationScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                     color: AppColors.surface.withValues(alpha: .35),
                     borderRadius: BorderRadius.circular(AppRadii.md)),
-                child: const Icon(Icons.point_of_sale_rounded,
+                child: const AppIcon(Icons.point_of_sale_rounded,
                     color: AppColors.onPrimary),
               ),
               const SizedBox(width: 14),
@@ -165,7 +165,7 @@ class PosIntegrationScreen extends ConsumerWidget {
               Navigator.pop(ctx);
               AppFeedback.toast(context, 'تم نسخ المفتاح');
             },
-            icon: const Icon(Icons.copy_rounded),
+            icon: const AppIcon(Icons.copy_rounded),
             label: const Text('نسخ وإغلاق'),
           ),
         ],
@@ -183,7 +183,7 @@ class _KeyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       child: Row(children: [
-        Icon(k.active ? Icons.vpn_key_rounded : Icons.key_off_rounded,
+        AppIcon(k.active ? Icons.vpn_key_rounded : Icons.key_off_rounded,
             color: k.active ? AppColors.primaryDark : AppColors.textSecondary),
         const SizedBox(width: 12),
         Expanded(
@@ -202,7 +202,7 @@ class _KeyCard extends StatelessWidget {
         if (k.active)
           IconButton(
             tooltip: 'إلغاء',
-            icon: const Icon(Icons.block_rounded, color: AppColors.error),
+            icon: const AppIcon(Icons.block_rounded, color: AppColors.error),
             onPressed: () async {
               await ref.read(posRepoProvider).revokeKey(k.id);
               ref.invalidate(_posKeysProvider);
@@ -239,7 +239,7 @@ class _CopyRow extends StatelessWidget {
         Expanded(
             child: Text(value,
                 style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
-        const Icon(Icons.copy_rounded, size: 18, color: AppColors.textSecondary),
+        const AppIcon(Icons.copy_rounded, size: 18, color: AppColors.textSecondary),
       ]),
     );
   }

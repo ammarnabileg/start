@@ -205,7 +205,7 @@ class ManagementHubScreen extends ConsumerWidget {
                                 borderRadius:
                                     BorderRadius.circular(AppRadii.md),
                               ),
-                              child: Icon(t.icon, color: t.accent, size: 26),
+                              child: AppIcon(t.icon, color: t.accent, size: 26),
                             ),
                             const Spacer(),
                             Text(t.title,

@@ -288,7 +288,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             hintText: '8 أحرف على الأقل',
             suffixIcon: IconButton(
               tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
-              icon: Icon(_obscure
+              icon: AppIcon(_obscure
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined),
               onPressed: () => setState(() => _obscure = !_obscure),
@@ -328,7 +328,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             width: 112,
             decoration: const BoxDecoration(
                 color: AppColors.successBg, shape: BoxShape.circle),
-            child: const Icon(Icons.check_rounded,
+            child: const AppIcon(Icons.check_rounded,
                 size: 60, color: AppColors.success),
           )
               .animate()

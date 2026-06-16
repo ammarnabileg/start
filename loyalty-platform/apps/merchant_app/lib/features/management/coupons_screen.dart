@@ -33,7 +33,7 @@ class CouponsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('الكوبونات')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
+        icon: const AppIcon(Icons.add),
         label: const Text('كوبون جديد'),
       ),
       body: Column(
@@ -48,7 +48,7 @@ class CouponsScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.lightbulb_outline,
+                const AppIcon(Icons.lightbulb_outline,
                     color: AppColors.primaryDark),
                 const SizedBox(width: 10),
                 Expanded(
@@ -101,7 +101,7 @@ class CouponsScreen extends ConsumerWidget {
                               color: AppColors.error.withValues(alpha: .12),
                               borderRadius: BorderRadius.circular(AppRadii.md),
                             ),
-                            child: const Icon(
+                            child: const AppIcon(
                                 Icons.confirmation_num_outlined,
                                 color: AppColors.error),
                           ),
@@ -326,7 +326,7 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _pickDate(isFrom: true),
-                      icon: const Icon(Icons.calendar_today, size: 18),
+                      icon: const AppIcon(Icons.calendar_today, size: 18),
                       label: Text(
                           _from == null ? 'من تاريخ' : df.format(_from!)),
                     ),
@@ -335,7 +335,7 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _pickDate(isFrom: false),
-                      icon: const Icon(Icons.event, size: 18),
+                      icon: const AppIcon(Icons.event, size: 18),
                       label:
                           Text(_to == null ? 'إلى تاريخ' : df.format(_to!)),
                     ),

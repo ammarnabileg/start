@@ -159,7 +159,7 @@ class _WaitingMascot extends StatelessWidget {
                 ),
               ],
       ),
-      child: Icon(
+      child: AppIcon(
         rejected ? Icons.cancel_outlined : Icons.hourglass_top_rounded,
         size: 60,
         color: rejected ? AppColors.error : AppColors.onPrimary,

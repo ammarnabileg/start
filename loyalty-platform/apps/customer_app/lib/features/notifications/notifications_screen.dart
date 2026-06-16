@@ -97,7 +97,7 @@ class _NotificationCard extends StatelessWidget {
               color: s.bg,
               borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
-            child: Icon(s.icon, color: s.color, size: 22),
+            child: AppIcon(s.icon, color: s.color, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(

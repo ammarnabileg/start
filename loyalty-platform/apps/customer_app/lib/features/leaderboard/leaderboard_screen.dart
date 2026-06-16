@@ -143,7 +143,7 @@ class _PodiumPillar extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(Icons.workspace_premium_rounded, color: _accent, size: 34),
+        AppIcon(Icons.workspace_premium_rounded, color: _accent, size: 34),
         const SizedBox(height: 6),
         Text(
           isMe ? '${entry.displayName} (أنت)' : entry.displayName,

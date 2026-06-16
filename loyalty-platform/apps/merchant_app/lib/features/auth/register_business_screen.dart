@@ -160,7 +160,7 @@ class _RegisterBusinessScreenState
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.upload_outlined),
+                      : const AppIcon(Icons.upload_outlined),
                   label: const Text('رفع الشعار'),
                 ),
               ),
@@ -172,7 +172,7 @@ class _RegisterBusinessScreenState
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'اسم المتجر / النشاط',
-                  prefixIcon: Icon(Icons.storefront_outlined),
+                  prefixIcon: AppIcon(Icons.storefront_outlined),
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
@@ -182,7 +182,7 @@ class _RegisterBusinessScreenState
                 value: _businessType,
                 decoration: const InputDecoration(
                   labelText: 'نوع النشاط',
-                  prefixIcon: Icon(Icons.category_outlined),
+                  prefixIcon: AppIcon(Icons.category_outlined),
                 ),
                 items: _businessTypes.entries
                     .map((e) => DropdownMenuItem<String>(
@@ -203,7 +203,7 @@ class _RegisterBusinessScreenState
                 decoration: const InputDecoration(
                   labelText: 'رقم الجوال',
                   hintText: '+9665XXXXXXXX',
-                  prefixIcon: Icon(Icons.phone_outlined),
+                  prefixIcon: AppIcon(Icons.phone_outlined),
                 ),
                 validator: (v) =>
                     (v == null || v.trim().length < 9) ? 'رقم غير صالح' : null,
@@ -215,7 +215,7 @@ class _RegisterBusinessScreenState
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'البريد الإلكتروني',
-                  prefixIcon: Icon(Icons.email_outlined),
+                  prefixIcon: AppIcon(Icons.email_outlined),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'مطلوب';
@@ -230,7 +230,7 @@ class _RegisterBusinessScreenState
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'رقم السجل التجاري (اختياري)',
-                  prefixIcon: Icon(Icons.assignment_outlined),
+                  prefixIcon: AppIcon(Icons.assignment_outlined),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -240,7 +240,7 @@ class _RegisterBusinessScreenState
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'عنوان المتجر',
-                  prefixIcon: Icon(Icons.location_on_outlined),
+                  prefixIcon: AppIcon(Icons.location_on_outlined),
                   alignLabelWithHint: true,
                 ),
                 validator: (v) =>
@@ -249,7 +249,7 @@ class _RegisterBusinessScreenState
               const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
                 onPressed: _pickLocation,
-                icon: const Icon(Icons.map_outlined),
+                icon: const AppIcon(Icons.map_outlined),
                 label: Text(_lat == null
                     ? 'اختيار من الخريطة'
                     : 'تم تحديد الموقع (${_lat!.toStringAsFixed(3)}, ${_lng!.toStringAsFixed(3)})'),
@@ -268,10 +268,10 @@ class _RegisterBusinessScreenState
                 obscureText: _obscure,
                 decoration: InputDecoration(
                   labelText: 'كلمة المرور',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  prefixIcon: const AppIcon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     tooltip: _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
-                    icon: Icon(
+                    icon: AppIcon(
                         _obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
@@ -325,7 +325,7 @@ class _RegisterBusinessScreenState
               : const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined,
+                    AppIcon(Icons.add_a_photo_outlined,
                         color: AppColors.primaryDark),
                     SizedBox(height: 4),
                     Text('شعار المتجر',

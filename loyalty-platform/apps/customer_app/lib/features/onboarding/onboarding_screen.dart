@@ -140,7 +140,7 @@ class _OnboardingPageView extends StatelessWidget {
                     offset: Offset(0, 10)),
               ],
             ),
-            child: Icon(page.icon, size: 76, color: AppColors.onPrimary),
+            child: AppIcon(page.icon, size: 76, color: AppColors.onPrimary),
           )
               .animate()
               .scale(duration: 460.ms, curve: Curves.easeOutBack)
