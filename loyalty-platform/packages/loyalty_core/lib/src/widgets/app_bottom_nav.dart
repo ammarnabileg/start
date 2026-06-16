@@ -180,6 +180,7 @@ class _ProminentButton extends StatelessWidget {
         curve: Curves.easeOutBack,
         height: 60,
         width: 60,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: AppColors.buttonGradient,
           shape: BoxShape.circle,
@@ -193,7 +194,7 @@ class _ProminentButton extends StatelessWidget {
           ],
         ),
         child: AppIcon(item.activeIcon ?? item.icon,
-            color: AppColors.onPrimary, size: 28),
+            color: Colors.white, size: 24),
       ),
     );
   }
