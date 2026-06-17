@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/branches_repository.dart';
 import '../../data/repositories/merchant_repository.dart';
 
@@ -440,7 +441,10 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
           ),
 
           const SizedBox(height: 24),
-          PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+          if (ref.permCan(PermResource.settings, PermAction.edit))
+            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save)
+          else
+            const ReadOnlyNotice(),
           const SizedBox(height: 16),
         ],
       ),

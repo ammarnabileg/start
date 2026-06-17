@@ -16,10 +16,13 @@ class PermResource {
   static const settings = 'settings';
   static const analytics = 'analytics';
   static const announcements = 'announcements';
+  static const questions = 'questions';
+  static const reports = 'reports';
 
   static const all = [
     customers, rewards, campaigns, levels, coupons, branches, staff, roles,
     wheel, prizes, points, visits, settings, analytics, announcements,
+    questions, reports,
   ];
 
   static String label(String r) => switch (r) {
@@ -38,6 +41,8 @@ class PermResource {
         settings => 'الإعدادات',
         analytics => 'التحليلات',
         announcements => 'الإعلانات',
+        questions => 'الأسئلة',
+        reports => 'البلاغات',
         _ => r,
       };
 }

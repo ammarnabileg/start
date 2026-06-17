@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/paginated_notifier.dart';
 import '../../data/repositories/customers_repository.dart';
 import '../announcements/announcements_screen.dart';
@@ -76,13 +77,14 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
       appBar: AppBar(
         title: const Text('العملاء'),
         actions: [
-          IconButton(
-            tooltip: 'إرسال إشعار',
-            icon: const AppIcon(Icons.campaign_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+          if (ref.permCan(PermResource.announcements, PermAction.create))
+            IconButton(
+              tooltip: 'إرسال إشعار',
+              icon: const AppIcon(Icons.campaign_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+              ),
             ),
-          ),
         ],
       ),
       body: Column(

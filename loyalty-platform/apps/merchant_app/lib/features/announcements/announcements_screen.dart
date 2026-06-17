@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/announcements_repository.dart';
 
 /// الحد الشهري للإشعارات (يحدّده مالك النظام) + المستهلَك + المتبقّي.
@@ -149,12 +150,15 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            PrimaryButton(
-              label: 'إرسال',
-              icon: Icons.send_rounded,
-              loading: _busy,
-              onPressed: _send,
-            ),
+            if (ref.permCan(PermResource.announcements, PermAction.create))
+              PrimaryButton(
+                label: 'إرسال',
+                icon: Icons.send_rounded,
+                loading: _busy,
+                onPressed: _send,
+              )
+            else
+              const ReadOnlyNotice(),
           ],
         ).animate().fadeIn(duration: 300.ms).slideY(begin: .04, end: 0),
       ),

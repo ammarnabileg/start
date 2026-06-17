@@ -53,7 +53,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'البلاغات',
               subtitle: 'بلاغات العملاء (عرض فقط)',
               builder: (_) => const ReportsScreen(),
-              resource: 'customers',
+              resource: 'reports',
             ),
             if (settings.enableVisits)
               _HubTile(
@@ -113,6 +113,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الأسئلة',
               subtitle: 'اجمع آراء عملائك مقابل نقاط',
               builder: (_) => const QuestionsScreen(),
+              resource: 'questions',
             ),
             _HubTile(
               icon: Icons.casino_rounded,
@@ -144,6 +145,7 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'لوحة الصدارة',
               subtitle: 'ترتيب عملاء المتجر بالنقاط',
               builder: (_) => const StoreLeaderboardScreen(),
+              resource: 'customers',
             ),
             _HubTile(
               icon: Icons.point_of_sale_rounded,

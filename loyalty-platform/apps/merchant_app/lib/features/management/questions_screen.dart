@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/questions_repository.dart';
 import 'responses_screen.dart';
 
@@ -38,10 +39,10 @@ class QuestionsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('الأسئلة')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.questions,
+        label: 'سؤال جديد',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('سؤال جديد'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -56,7 +57,9 @@ class QuestionsScreen extends ConsumerWidget {
               title: 'لا توجد أسئلة بعد',
               message: 'اطرح أسئلة على عملائك واجمع آراءهم مقابل نقاط.',
               actionLabel: 'إنشاء سؤال',
-              onAction: () => _openEditor(context, ref, null),
+              onAction: ref.permCan(PermResource.questions, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
             );
           }
           return ListView.separated(
@@ -142,10 +145,12 @@ class QuestionsScreen extends ConsumerWidget {
 
   Future<void> _openEditor(
       BuildContext context, WidgetRef ref, MerchantQuestion? existing) async {
+    final readOnly = existing != null &&
+        !ref.permCan(PermResource.questions, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _QuestionEditor(existing: existing),
+      builder: (_) => _QuestionEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(questionsProvider);
   }
@@ -171,7 +176,8 @@ class _Tag extends StatelessWidget {
 
 class _QuestionEditor extends ConsumerStatefulWidget {
   final MerchantQuestion? existing;
-  const _QuestionEditor({this.existing});
+  final bool readOnly;
+  const _QuestionEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_QuestionEditor> createState() => _QuestionEditorState();
 }
@@ -295,6 +301,7 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
               Text(widget.existing == null ? 'سؤال جديد' : 'تعديل السؤال',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
+              if (widget.readOnly) const ReadOnlyNotice(),
               TextFormField(
                 controller: _title,
                 decoration: const InputDecoration(labelText: 'نص السؤال'),
@@ -401,7 +408,8 @@ class _QuestionEditorState extends ConsumerState<_QuestionEditor> {
                 onChanged: (v) => setState(() => _active = v),
               ),
               const SizedBox(height: 8),
-              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+              if (!widget.readOnly)
+                PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
             ],
           ),
         ),

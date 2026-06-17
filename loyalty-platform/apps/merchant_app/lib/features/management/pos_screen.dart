@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/pos_repository.dart';
 
 final _posKeysProvider = FutureProvider.autoDispose<List<PosApiKey>>((ref) async {
@@ -28,11 +29,14 @@ class PosIntegrationScreen extends ConsumerWidget {
     final keys = ref.watch(_posKeysProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('تكامل POS')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createKey(context, ref),
-        icon: const AppIcon(Icons.add_rounded),
-        label: const Text('مفتاح جديد'),
-      ),
+      floatingActionButton:
+          ref.permCan(PermResource.settings, PermAction.edit)
+              ? FloatingActionButton.extended(
+                  onPressed: () => _createKey(context, ref),
+                  icon: const AppIcon(Icons.add_rounded),
+                  label: const Text('مفتاح جديد'),
+                )
+              : null,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -199,7 +203,7 @@ class _KeyCard extends StatelessWidget {
             ],
           ),
         ),
-        if (k.active)
+        if (k.active && ref.permCan(PermResource.settings, PermAction.edit))
           IconButton(
             tooltip: 'إلغاء',
             icon: const AppIcon(Icons.block_rounded, color: AppColors.error),

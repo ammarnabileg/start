@@ -42,7 +42,18 @@ void main() {
       const p = Permissions(legacyRole: 'manager');
       expect(p.can('rewards', 'create'), isTrue);
       expect(p.can('rewards', 'delete'), isTrue);
+      expect(p.can('questions', 'create'), isTrue);
+      expect(p.can('reports', 'view'), isTrue);
       expect(p.can('staff', 'create'), isFalse); // الموظفون للمالك فقط
+      expect(p.can('roles', 'create'), isFalse); // الأدوار للمالك فقط
+    });
+
+    test('كل الموارد لها صلاحيات في محرّر الأدوار', () {
+      // أي مورد معروف يجب أن يقبل صلاحية «عرض» في دور مخصّص.
+      for (final res in PermResource.all) {
+        final p = Permissions(legacyRole: 'x', role: role({res: ['view']}));
+        expect(p.can(res, 'view'), isTrue, reason: 'المورد $res غير مغطّى');
+      }
     });
 
     test('احتياطي الكاشير: إجراءات الماسح فقط', () {

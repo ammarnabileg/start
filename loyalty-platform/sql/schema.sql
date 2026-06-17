@@ -460,9 +460,9 @@ create or replace function public.legacy_role_can(
   select case
     when p_role = 'merchant_owner' then true
     when p_role in ('manager','branch_manager') then
-      (p_resource in ('rewards','campaigns','levels','coupons','wheel')
+      (p_resource in ('rewards','campaigns','levels','coupons','wheel','questions')
          and p_action in ('view','create','edit','delete'))
-      or (p_resource in ('customers','analytics') and p_action = 'view')
+      or (p_resource in ('customers','analytics','reports') and p_action = 'view')
       or (p_resource = 'announcements' and p_action in ('view','create'))
       or (p_resource = 'points' and p_action = 'create')
       or (p_resource = 'visits' and p_action = 'create')
@@ -893,17 +893,28 @@ create policy settings_delete on public.merchant_settings
 -- التاجر يدير أسئلته ويشوف كل إجابات عملائه في لوحته.
 create policy questions_read on public.merchant_questions
   for select using (active or public.is_merchant_member(merchant_id));
-create policy questions_manage on public.merchant_questions
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy questions_insert on public.merchant_questions
+  for insert with check (public.current_staff_can(merchant_id, 'questions', 'create'));
+create policy questions_update on public.merchant_questions
+  for update using (public.current_staff_can(merchant_id, 'questions', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'questions', 'edit'));
+create policy questions_delete on public.merchant_questions
+  for delete using (public.current_staff_can(merchant_id, 'questions', 'delete'));
 
 create policy options_read on public.question_options
   for select using (true);
-create policy options_manage on public.question_options
-  for all using (exists (
+create policy options_insert on public.question_options
+  for insert with check (exists (
     select 1 from public.merchant_questions q
-    where q.id = question_id and public.is_merchant_member(q.merchant_id)
-  ));
+    where q.id = question_id and public.current_staff_can(q.merchant_id, 'questions', 'create')));
+create policy options_update on public.question_options
+  for update using (exists (
+    select 1 from public.merchant_questions q
+    where q.id = question_id and public.current_staff_can(q.merchant_id, 'questions', 'edit')));
+create policy options_delete on public.question_options
+  for delete using (exists (
+    select 1 from public.merchant_questions q
+    where q.id = question_id and public.current_staff_can(q.merchant_id, 'questions', 'edit')));
 
 create policy qresponses_self on public.question_responses
   for select using (user_id = auth.uid() or public.is_merchant_member(merchant_id));
@@ -1167,7 +1178,7 @@ returns void language plpgsql security definer as $$
 begin
   insert into public.merchant_roles (merchant_id, name, permissions, is_system) values
     (p_merchant, 'مالك', '{"owner": true}'::jsonb, true),
-    (p_merchant, 'مدير', '{"customers":["view"],"rewards":["view","create","edit","delete"],"campaigns":["view","create","edit","delete"],"levels":["view","create","edit","delete"],"coupons":["view","create","edit","delete"],"wheel":["view","create","edit","delete"],"analytics":["view"],"announcements":["view","create"],"points":["create"],"prizes":["redeem"]}'::jsonb, true),
+    (p_merchant, 'مدير', '{"customers":["view"],"rewards":["view","create","edit","delete"],"campaigns":["view","create","edit","delete"],"levels":["view","create","edit","delete"],"coupons":["view","create","edit","delete"],"wheel":["view","create","edit","delete"],"questions":["view","create","edit","delete"],"reports":["view"],"analytics":["view"],"announcements":["view","create"],"points":["create"],"prizes":["redeem"]}'::jsonb, true),
     (p_merchant, 'كاشير', '{"points":["create"],"visits":["create"],"prizes":["redeem"],"customers":["view"]}'::jsonb, true)
   on conflict (merchant_id, name) do nothing;
 end;
@@ -1287,7 +1298,8 @@ create policy reports_insert on public.reports
 create policy reports_read_own on public.reports
   for select using (
     user_id = auth.uid()
-    or (merchant_id is not null and public.is_merchant_member(merchant_id)));
+    or (merchant_id is not null
+        and public.current_staff_can(merchant_id, 'reports', 'view')));
 -- الأدمن (بانل المنصة الرئيسي) يقرأ كل البلاغات ويعدّل حالتها.
 create policy reports_admin_all on public.reports
   for all using (public.is_super_admin())

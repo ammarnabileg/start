@@ -91,13 +91,16 @@ class Permissions {
 
   /// احتياطي الأدوار القديمة — مطابق لـ public.legacy_role_can في SQL.
   static bool _legacyCan(String role, String res, String action) {
-    const writeRes = ['rewards', 'campaigns', 'levels', 'coupons', 'wheel'];
+    const writeRes = [
+      'rewards', 'campaigns', 'levels', 'coupons', 'wheel', 'questions'
+    ];
     const crud = ['view', 'create', 'edit', 'delete'];
     switch (role) {
       case 'manager':
       case 'branch_manager':
         if (writeRes.contains(res) && crud.contains(action)) return true;
-        if ((res == 'customers' || res == 'analytics') && action == 'view') {
+        if ((res == 'customers' || res == 'analytics' || res == 'reports') &&
+            action == 'view') {
           return true;
         }
         if (res == 'announcements' &&
