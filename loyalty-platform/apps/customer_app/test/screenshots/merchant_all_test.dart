@@ -135,6 +135,7 @@ void main() {
   testWidgets('m07 pending approval', (t) => _shot(t, 'm07_pending', const _Pending()));
   testWidgets('m08 dashboard', (t) => _shot(t, 'm08_dashboard', const _Dashboard()));
   testWidgets('m09 scanner', (t) => _shot(t, 'm09_scanner', const _Scanner()));
+  testWidgets('m09b prize deliver', (t) => _shot(t, 'm09b_prize_deliver', const _PrizeDeliver()));
   testWidgets('m10 customer profile', (t) => _shot(t, 'm10_customer_profile', const _CustomerProfile()));
   testWidgets('m11 management hub', (t) => _shot(t, 'm11_management', const _Management()));
   testWidgets('m12 business profile', (t) => _shot(t, 'm12_business_profile', const _BizProfile()));
@@ -439,6 +440,80 @@ class _Scanner extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// شيت الكاشير: تفاصيل الهدية اللي بيسلّمها + انتظار تأكيد العميل.
+class _PrizeDeliver extends StatelessWidget {
+  const _PrizeDeliver();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: Colors.black.withValues(alpha: .35),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(3))),
+            const AppIconBadge(Icons.card_giftcard_rounded,
+                size: 84, iconSize: 42, circle: true),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                  color: AppColors.surfaceCream,
+                  borderRadius: BorderRadius.circular(AppRadii.pill)),
+              child: const Text('مكافأة',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark)),
+            ),
+            const SizedBox(height: 10),
+            const Text('سلّم للعميل'),
+            const SizedBox(height: 2),
+            Text('قهوة مجانية',
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            const Text('كوب قهوة من اختيار العميل',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 18),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                  color: AppColors.warningBg,
+                  borderRadius: BorderRadius.circular(AppRadii.md)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                AppIcon(Icons.hourglass_top_rounded,
+                    size: 18, color: AppColors.warning),
+                SizedBox(width: 8),
+                Text('بانتظار تأكيد العميل من شاشته',
+                    style: TextStyle(
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w700)),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            const PrimaryButton(label: 'تم', onPressed: _noop),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _CustomerProfile extends StatelessWidget {

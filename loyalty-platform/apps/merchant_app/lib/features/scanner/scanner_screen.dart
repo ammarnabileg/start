@@ -42,10 +42,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           return;
         }
         if (!mounted) return;
-        await AppFeedback.success(
-          context,
-          title: 'سلّم: ${data?['title'] ?? 'الهدية'}',
-          message: 'بانتظار تأكيد العميل من شاشته.',
+        // نعرض للكاشير تفاصيل الهدية بوضوح ليسلّمها (نوعها + اسمها + وصفها).
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _PrizeDeliverSheet(
+            title: data?['title'] as String? ?? 'الهدية',
+            kind: data?['kind'] as String? ?? 'reward',
+            description: data?['description'] as String?,
+          ),
         );
         return;
       }
@@ -231,4 +236,87 @@ class _ScanFramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// شيت يعرض للكاشير الهدية اللي العميل بيستلمها (نوعها + اسمها + وصفها)
+/// مع حالة انتظار تأكيد العميل.
+class _PrizeDeliverSheet extends StatelessWidget {
+  final String title;
+  final String kind; // reward / coupon / points
+  final String? description;
+  const _PrizeDeliverSheet(
+      {required this.title, required this.kind, this.description});
+
+  (IconData, String) get _kind => switch (kind) {
+        'coupon' => (Icons.confirmation_num_outlined, 'كوبون'),
+        'points' => (Icons.stars_rounded, 'نقاط'),
+        _ => (Icons.card_giftcard_rounded, 'مكافأة'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label) = _kind;
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 44,
+            height: 5,
+            margin: const EdgeInsets.only(bottom: 18),
+            decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(3)),
+          ),
+          AppIconBadge(icon, size: 84, iconSize: 42, circle: true),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+                color: AppColors.surfaceCream,
+                borderRadius: BorderRadius.circular(AppRadii.pill)),
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark)),
+          ),
+          const SizedBox(height: 10),
+          Text('سلّم للعميل', style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 2),
+          Text(title,
+              style: theme.textTheme.headlineSmall,
+              textAlign: TextAlign.center),
+          if (description != null && description!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(description!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary)),
+          ],
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+                color: AppColors.warningBg,
+                borderRadius: BorderRadius.circular(AppRadii.md)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              AppIcon(Icons.hourglass_top_rounded,
+                  size: 18, color: AppColors.warning),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text('بانتظار تأكيد العميل من شاشته',
+                    style: TextStyle(
+                        color: AppColors.warning, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+              label: 'تم',
+              onPressed: () => Navigator.pop(context)),
+        ]),
+      ),
+    );
+  }
 }
