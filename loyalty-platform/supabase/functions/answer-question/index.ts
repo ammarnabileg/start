@@ -2,12 +2,16 @@
 // كل عميل يجاوب السؤال مرة واحدة (قيد فريد). الإجابة تظهر في لوحة التاجر.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireUser, merchantSettings } from "../_shared/auth.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const userId = await requireUser(req, svc);
+    if (!await rateLimit(svc, `answer:${userId}`, 60, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { question_id, answer_text, selected_option_ids } = await req.json();
     if (!question_id) return badRequest("question_id مفقود");
 

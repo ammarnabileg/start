@@ -5,6 +5,7 @@ import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, merchantSettings } from "../_shared/auth.ts";
 import { sha256Hex } from "../_shared/hash.ts";
 import { withIdempotency } from "../_shared/idempotency.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -19,6 +20,10 @@ Deno.serve(async (req) => {
       .select("id, merchant_id, branch_id, active")
       .eq("key_hash", hash).maybeSingle();
     if (!key || !key.active) return badRequest("مفتاح API غير صالح", 401);
+    // حدّ معدّل لكل مفتاح — يمنع إساءة استخدام مفتاح مسرّب.
+    if (!await rateLimit(svc, `pos:${key.id}`, 300, 60)) {
+      return badRequest("تجاوزت حدّ الطلبات، حاول لاحقًا", 429);
+    }
     await svc.from("pos_api_keys")
       .update({ last_used_at: new Date().toISOString() }).eq("id", key.id);
 

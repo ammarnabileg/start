@@ -4,12 +4,16 @@ import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, staffCan } from "../_shared/auth.ts";
 import { verifyQr } from "../_shared/qr.ts";
 import { withIdempotency } from "../_shared/idempotency.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
+    if (!await rateLimit(svc, `prize:${staff.staffId}`, 100, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { payload, idempotency_key } = await req.json();
     if (!payload) return badRequest("payload مفقود");
 

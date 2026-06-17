@@ -1,12 +1,16 @@
 // record-visit: تسجيل زيارة. يفرض قاعدة زيارة واحدة في اليوم على مستوى الـ DB.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings, staffCan } from "../_shared/auth.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
+    if (!await rateLimit(svc, `visit:${staff.staffId}`, 150, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { user_id, campaign_id, source } = await req.json();
     if (!user_id) return badRequest("user_id مفقود");
 

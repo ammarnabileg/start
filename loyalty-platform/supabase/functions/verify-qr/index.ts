@@ -3,12 +3,16 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
 import { verifyQr } from "../_shared/qr.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
+    if (!await rateLimit(svc, `verify:${staff.staffId}`, 200, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { payload } = await req.json();
     if (!payload) return badRequest("payload مفقود");
 

@@ -17,10 +17,34 @@ Deno.serve(async (req) => {
     const { merchant_id, branch_id, prize_id, message, video_url } =
       await req.json();
     if (!message && !video_url) return badRequest("أضف رسالة أو فيديو");
+    if (message && String(message).length > 2000) {
+      return badRequest("الرسالة طويلة جدًا");
+    }
+    if (video_url &&
+        (typeof video_url !== "string" || !video_url.startsWith("https://") ||
+         video_url.length > 1000)) {
+      return badRequest("رابط الفيديو غير صالح");
+    }
+
+    // التحقق من الملكية: الهدية المُبلّغ عنها لازم تخصّ العميل، ونشتقّ منها التاجر.
+    let m: string | null = merchant_id ?? null;
+    if (prize_id) {
+      const { data: prize } = await svc.from("user_prizes")
+        .select("merchant_id, user_id").eq("id", prize_id).maybeSingle();
+      if (!prize || prize.user_id !== userId) {
+        return badRequest("هدية غير صالحة", 403);
+      }
+      m = prize.merchant_id as string;
+    } else if (m) {
+      // بلاغ عن متجر بدون هدية → لازم تكون للعميل علاقة (محفظة) به.
+      const { data: rel } = await svc.from("user_stores")
+        .select("id").eq("user_id", userId).eq("merchant_id", m).maybeSingle();
+      if (!rel) return badRequest("لا علاقة لك بهذا المتجر", 403);
+    }
 
     const { data } = await svc.from("reports").insert({
       user_id: userId,
-      merchant_id: merchant_id ?? null,
+      merchant_id: m,
       branch_id: branch_id ?? null,
       prize_id: prize_id ?? null,
       message: message ?? null,

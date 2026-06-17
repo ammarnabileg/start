@@ -2,12 +2,16 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
 import { withIdempotency } from "../_shared/idempotency.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
+    if (!await rateLimit(svc, `coupon:${staff.staffId}`, 100, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { user_id, code, idempotency_key } = await req.json();
     if (!user_id || !code) return badRequest("user_id و code مطلوبان");
 
