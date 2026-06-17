@@ -1,3 +1,7 @@
 tags:
   screenshot:
-    # مولّدات السكرين شوت (تستدعي exit(0)) — تُستثنى من CI، تُشغّل يدويًا.
+    # مولّدات السكرين شوت (كل اختبار يستدعي exit(0) ويُشغَّل كعملية منفصلة).
+    # تُستبعَد من التشغيل العادي (flutter test) حتى لا تُعلّقه أو تبطّئه لساعات.
+    # للتوليد اليدوي: flutter test --run-skipped --tags screenshot
+    # أو لصورة واحدة:  flutter test --run-skipped --plain-name "c01 splash"
+    skip: "لقطات شاشة تُولَّد يدويًا؛ شغّلها بـ --run-skipped --tags screenshot"
