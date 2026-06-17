@@ -41,6 +41,15 @@ class StoresRepository {
         .stream(primaryKey: ['id']).eq('user_id', uid);
   }
 
+  /// تبديل "مشاركة معلوماتي مع هذا المتجر" (خصوصية لكل متجر).
+  /// عبر RPC آمنة (لا تمنح العميل صلاحية UPDATE عامة على user_stores).
+  Future<void> setVisibility(String merchantId, bool visible) async {
+    await _client.rpc('set_store_visibility', params: {
+      'p_merchant': merchantId,
+      'p_visible': visible,
+    });
+  }
+
   /// خريطة استهداف الفروع لنوع عناصر معيّن: id → فروعه (فارغ = موحّد).
   Future<Map<String, Set<String>>> _branchTargets(
       String type, String merchantId) async {

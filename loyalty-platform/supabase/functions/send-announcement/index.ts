@@ -25,11 +25,13 @@ Deno.serve(async (req) => {
       return badRequest("الإعلانات غير مفعّلة لهذا المتجر");
     }
 
-    // الجمهور: العملاء المرتبطون بالتاجر (مميّزون).
+    // الجمهور: العملاء المرتبطون بالتاجر (مميّزون) — باستثناء من عطّل المشاركة
+    // (الخصوصية: "لا يمكن للتاجر التواصل معي"). svc يتجاوز RLS فنُرشّح صراحةً.
     const { data: rows } = await svc
       .from("user_stores")
       .select("user_id")
-      .eq("merchant_id", staff.merchantId);
+      .eq("merchant_id", staff.merchantId)
+      .eq("visible", true);
     const recipients = [...new Set((rows ?? []).map((r) => r.user_id as string))];
     if (recipients.length === 0) {
       return badRequest("لا يوجد عملاء لإرسال الإشعار إليهم", 409);

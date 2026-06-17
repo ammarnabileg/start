@@ -11,6 +11,10 @@ class UserStore {
   final int lifetimePoints;
   final String? currentLevelId;
 
+  /// خصوصية لكل متجر: true = يشارك معلوماته مع هذا التاجر (الافتراضي).
+  /// false = مخفي عن هذا التاجر (قوائمه/بحثه/صدارته) — لكن النقاط/الزيارات تستمر.
+  final bool visible;
+
   // حقول للعرض (تيجي من join — اختيارية)
   final String? merchantName;
   final String? merchantLogoUrl;
@@ -26,6 +30,7 @@ class UserStore {
     required this.merchantId,
     required this.availablePoints,
     required this.lifetimePoints,
+    this.visible = true,
     this.branchId,
     this.currentLevelId,
     this.merchantName,
@@ -46,6 +51,7 @@ class UserStore {
         branchId: j['branch_id'] as String?,
         availablePoints: j['available_points'] as int? ?? 0,
         lifetimePoints: j['lifetime_points'] as int? ?? 0,
+        visible: j['visible'] as bool? ?? true,
         currentLevelId: j['current_level_id'] as String?,
         merchantName: j['merchant_name'] as String?,
         merchantLogoUrl: j['merchant_logo_url'] as String?,

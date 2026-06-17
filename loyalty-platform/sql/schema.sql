@@ -175,6 +175,10 @@ create table public.user_stores (
   available_points integer not null default 0,     -- القابل للصرف
   lifetime_points  integer not null default 0,      -- لا يُخصم أبدًا → يحدد المستوى
   current_level_id uuid references public.loyalty_levels(id),
+  -- خصوصية لكل متجر (Customer Visibility): true = يشارك معلوماته مع هذا التاجر
+  -- ويظهر في قوائمه/صدارته. false = مخفي عن هذا التاجر فقط (النقاط/الزيارات
+  -- تستمر). مستوى الربط (مستقل لكل تاجر، ومع branch_id يدعم لاحقًا التخصيص للفرع).
+  visible          boolean not null default true,
   first_linked_at  timestamptz not null default now()
 );
 
@@ -423,6 +427,7 @@ language sql security definer stable as $$
   join public.users u on u.id = us.user_id
   where us.merchant_id = p_merchant
     and u.leaderboard_opt_in
+    and us.visible                              -- إخفاء من عطّل المشاركة مع هذا المتجر
     and (p_branch is null or us.branch_id = p_branch)
   group by u.id, u.name
   order by total_points desc
@@ -1049,14 +1054,21 @@ $$;
 
 -- عرض عملاء التاجر مع كل خصائصهم (مجمّعة عبر فروعه). محمي بعضوية التاجر.
 create or replace function public.merchant_customers(
-  p_merchant uuid,
-  p_search   text default null,
-  p_limit    int  default 50,
-  p_offset   int  default 0
+  p_merchant   uuid,
+  p_search     text    default null,
+  p_branch     uuid    default null,   -- عملاء زاروا هذا الفرع
+  p_level      text    default null,   -- اسم المستوى الحالي
+  p_min_points int     default null,   -- نطاق النقاط المتاحة (حد أدنى)
+  p_max_points int     default null,   -- نطاق النقاط المتاحة (حد أقصى)
+  p_min_visits int     default null,   -- أقل عدد زيارات
+  p_active     boolean default null,   -- true=نشِط آخر ٣٠ يوم، false=غير نشِط، null=الكل
+  p_limit      int     default 50,
+  p_offset     int     default 0
 ) returns table(
   user_id          uuid,
   name             text,
   phone            text,
+  email            text,
   avatar_url       text,
   available_points bigint,
   lifetime_points  bigint,
@@ -1065,34 +1077,52 @@ create or replace function public.merchant_customers(
   push_opt_in      boolean,
   first_linked     timestamptz,
   last_activity    timestamptz
-) language plpgsql security definer stable as $$
+) language plpgsql security definer stable
+  set search_path = public, pg_temp as $$
 begin
   if not public.is_merchant_member(p_merchant) then
     raise exception 'غير مصرّح';
   end if;
   return query
-  select
-    u.id, u.name, u.phone, u.avatar_url,
-    sum(us.available_points)::bigint,
-    sum(us.lifetime_points)::bigint,
-    (array_agg(l.name order by l.threshold_lifetime_points desc)
-       filter (where l.name is not null))[1],
-    (select count(*) from public.user_visits v
-       where v.user_id = u.id and v.merchant_id = p_merchant),
-    u.push_opt_in,
-    min(us.first_linked_at),
-    (select max(pt.created_at) from public.points_transactions pt
-       join public.user_stores us2 on us2.id = pt.user_store_id
-       where us2.user_id = u.id and us2.merchant_id = p_merchant)
-  from public.user_stores us
-  join public.users u on u.id = us.user_id
-  left join public.loyalty_levels l on l.id = us.current_level_id
-  where us.merchant_id = p_merchant
-    and (p_search is null or p_search = ''
-         or u.name ilike '%' || p_search || '%'
-         or u.phone ilike '%' || p_search || '%')
-  group by u.id, u.name, u.phone, u.avatar_url, u.push_opt_in
-  order by min(us.first_linked_at) desc
+  with agg as (
+    select
+      u.id as uid, u.name as uname, u.phone as uphone, u.email as uemail,
+      u.avatar_url as uavatar, u.push_opt_in as upush,
+      sum(us.available_points)::bigint as avail,
+      sum(us.lifetime_points)::bigint  as life,
+      (array_agg(l.name order by l.threshold_lifetime_points desc)
+         filter (where l.name is not null))[1] as lvl,
+      (select count(*) from public.user_visits v
+         where v.user_id = u.id and v.merchant_id = p_merchant)::bigint as vis,
+      min(us.first_linked_at) as linked,
+      (select max(pt.created_at) from public.points_transactions pt
+         join public.user_stores us2 on us2.id = pt.user_store_id
+         where us2.user_id = u.id and us2.merchant_id = p_merchant) as last_act
+    from public.user_stores us
+    join public.users u on u.id = us.user_id
+    left join public.loyalty_levels l on l.id = us.current_level_id
+    where us.merchant_id = p_merchant
+      and us.visible                            -- العملاء المخفيون لا يظهرون في قائمة/بحث التاجر
+      and (p_search is null or p_search = ''
+           or u.name  ilike '%' || p_search || '%'
+           or u.phone ilike '%' || p_search || '%'
+           or u.email ilike '%' || p_search || '%')
+      and (p_branch is null or exists (
+            select 1 from public.user_visits v
+             where v.user_id = u.id and v.merchant_id = p_merchant
+               and v.branch_id = p_branch))
+    group by u.id, u.name, u.phone, u.email, u.avatar_url, u.push_opt_in
+  )
+  select uid, uname, uphone, uemail, uavatar, avail, life, lvl, vis, upush, linked, last_act
+  from agg
+  where (p_level      is null or lvl   = p_level)
+    and (p_min_points is null or avail >= p_min_points)
+    and (p_max_points is null or avail <= p_max_points)
+    and (p_min_visits is null or vis   >= p_min_visits)
+    and (p_active is null
+         or (p_active     and last_act >= now() - interval '30 days')
+         or (not p_active and (last_act is null or last_act < now() - interval '30 days')))
+  order by linked desc
   limit p_limit offset p_offset;
 end;
 $$;
@@ -1701,6 +1731,7 @@ create policy "merchant media write" on storage.objects
 create materialized view if not exists public.mv_global_scores as
   select us.user_id, sum(us.lifetime_points)::bigint as total_points
   from public.user_stores us
+  where us.visible                              -- لا تُحتسب المتاجر المخفية في الترتيب العام
   group by us.user_id;
 create unique index if not exists idx_mv_global_scores on public.mv_global_scores(user_id);
 
@@ -1948,3 +1979,35 @@ select cron.schedule('purge-rate-limits','*/15 * * * *', $$select public.purge_r
 select cron.schedule('purge-old-reports','45 1 * * *',
   $$delete from public.reports where created_at < now() - interval '90 days';$$)
   where not exists (select 1 from cron.job where jobname='purge-old-reports');
+
+-- =====================================================================
+-- 24) ميزة خصوصية العميل وإدارة التواصل (Customer Visibility & Contact)
+--     عمود user_stores.visible (مُعرّف أعلاه في جدول user_stores).
+--     • كل ربط (عميل↔تاجر) له visibility مستقلّة → "ظاهر في متجر، مخفي في آخر".
+--     • التجميعات (الإحصاءات) تظل تحتسب المخفيين؛ التقارير المُعرِّفة بالهوية لا.
+-- =====================================================================
+
+-- فهرس جزئي يسرّع قوائم/صدارة العملاء الظاهرين لكل تاجر.
+create index if not exists idx_user_stores_merchant_visible
+  on public.user_stores(merchant_id) where visible;
+
+-- RLS: طاقم التاجر يقرأ مباشرةً صفوف عملائه "الظاهرين فقط". هذا يضمن على مستوى
+-- قاعدة البيانات (وليس الواجهة) أن العملاء المخفيين لا تُرجَع صفوفهم إطلاقًا —
+-- لا في الاستعلام المباشر ولا في اشتراكات الـ Realtime.
+drop policy if exists stores_merchant_read on public.user_stores;
+create policy stores_merchant_read on public.user_stores
+  for select using (visible and public.is_merchant_member(merchant_id));
+
+-- تبديل الخصوصية لمتجر معيّن (العميل فقط على صفوفه). SECURITY DEFINER كي يحدّث
+-- العمود دون منح العميل صلاحية UPDATE عامة على user_stores (تمنع تلاعب النقاط).
+create or replace function public.set_store_visibility(
+  p_merchant uuid, p_visible boolean
+) returns void language plpgsql security definer
+  set search_path = public, pg_temp as $$
+begin
+  update public.user_stores
+     set visible = p_visible
+   where user_id = auth.uid() and merchant_id = p_merchant;
+end;
+$$;
+grant execute on function public.set_store_visibility(uuid, boolean) to authenticated;

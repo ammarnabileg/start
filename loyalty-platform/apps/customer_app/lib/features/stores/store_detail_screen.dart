@@ -270,7 +270,88 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 20),
+        const SectionHeader(title: 'الخصوصية'),
+        const SizedBox(height: 8),
+        _SharingCard(store: store),
       ],
+    );
+  }
+}
+
+/// تبديل "مشاركة معلوماتي مع هذا المتجر" (خصوصية لكل متجر). تحديث متفائل +
+/// لحظي: التبديل يستدعي RPC ثم يُبطل myStoresProvider، والبثّ الحيّ يعكس الحالة.
+class _SharingCard extends ConsumerStatefulWidget {
+  final UserStore store;
+  const _SharingCard({required this.store});
+  @override
+  ConsumerState<_SharingCard> createState() => _SharingCardState();
+}
+
+class _SharingCardState extends ConsumerState<_SharingCard> {
+  bool? _pending; // قيمة متفائلة أثناء الحفظ
+  bool _busy = false;
+
+  Future<void> _toggle(bool v) async {
+    setState(() {
+      _pending = v;
+      _busy = true;
+    });
+    final name = widget.store.merchantName ?? 'المتجر';
+    try {
+      await ref.read(storesRepoProvider).setVisibility(widget.store.merchantId, v);
+      ref.invalidate(myStoresProvider);
+      if (mounted) {
+        AppFeedback.toast(
+            context,
+            v
+                ? 'تمت مشاركة معلوماتك مع $name'
+                : 'تم إخفاء معلوماتك عن $name');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _pending = null); // تراجع
+        AppFeedback.toast(context, 'تعذّر تحديث الإعداد، حاول مجددًا',
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final value = _pending ?? widget.store.visible;
+    return AppCard(
+      child: Row(
+        children: [
+          AppIconBadge(
+              value ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+              size: 44,
+              iconSize: 22,
+              color: value ? null : AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('مشاركة معلوماتي مع هذا المتجر',
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(
+                  value
+                      ? 'هذا المتجر يستطيع رؤية ملفك والتواصل معك.'
+                      : 'أنت مخفي عن قوائم وصدارة هذا المتجر. نقاطك وزياراتك ومكافآتك تستمر كالمعتاد.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(value: value, onChanged: _busy ? null : _toggle),
+        ],
+      ),
     );
   }
 }
