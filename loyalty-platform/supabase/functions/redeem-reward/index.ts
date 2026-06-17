@@ -46,10 +46,11 @@ Deno.serve(async (req) => {
           points_spent: reward.points_cost,
           status: "pending",
           expires_at: expires.toISOString(),
-        }).select("id").single();
+        }).select("id, claim_secret").single();
 
         return {
           redemption_id: redemption.id,
+          claim_secret: redemption.claim_secret, // لتوليد QR متغيّر موقّع (r1)
           reward_name: reward.name,
           points_cost: reward.points_cost,
           expires_at: expires.toISOString(),

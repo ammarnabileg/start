@@ -24,6 +24,7 @@ enum _RedemptionStatus { pending, confirmed, expired }
 
 class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
   late final String _redemptionId;
+  late final String _claimSecret;
   late final String _rewardName;
   late final DateTime _expiresAt;
 
@@ -32,14 +33,17 @@ class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
   Timer? _poller;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
   Duration _remaining = Duration.zero;
+  String _payload = '';
 
   @override
   void initState() {
     super.initState();
     _redemptionId = widget.redemption['redemption_id'] as String;
+    _claimSecret = widget.redemption['claim_secret'] as String? ?? '';
     _rewardName = widget.redemption['reward_name'] as String? ?? 'المكافأة';
     _expiresAt =
         DateTime.parse(widget.redemption['expires_at'] as String).toLocal();
+    _regenerate();
     _tick();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _subscribe();
@@ -56,6 +60,11 @@ class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
     super.dispose();
   }
 
+  /// QR متغيّر موقّع (r1) — يتجدّد كل نافذة زمنية لمنع إعادة استخدام لقطة شاشة.
+  void _regenerate() {
+    _payload = QrToken.generate(_redemptionId, _claimSecret, version: 'r1');
+  }
+
   void _tick() {
     final now = DateTime.now();
     final diff = _expiresAt.difference(now);
@@ -69,7 +78,10 @@ class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
       _ticker?.cancel();
       _poller?.cancel();
     } else {
-      setState(() => _remaining = diff);
+      setState(() {
+        _remaining = diff;
+        _regenerate();
+      });
     }
   }
 
@@ -168,8 +180,9 @@ class _ShowToCashierScreenState extends ConsumerState<ShowToCashierScreen> {
                       ],
                     ),
                     child: QrImageView(
-                      // بادئة r1. عشان الـ Scanner يفرّق رمز استلام المكافأة.
-                      data: 'r1.$_redemptionId',
+                      // رمز متغيّر موقّع (r1.<id>.<window>.<code>) — غير قابل لإعادة
+                      // الاستخدام من لقطة شاشة قديمة (يُتحقّق منه في الخادم).
+                      data: _payload,
                       size: context.cappedSize(220),
                       backgroundColor: Colors.white,
                     ),

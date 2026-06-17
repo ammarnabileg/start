@@ -71,21 +71,13 @@ Deno.serve(async (req) => {
         p_user: userId, p_merchant: q.merchant_id, p_staff_branch: anyWallet.branch_id,
       }).single();
 
-      const newLifetime = wallet.lifetime_points + q.points_reward;
-      let levelId = wallet.current_level_id;
-      if (s.enable_levels) {
-        const { data: lid } = await svc.rpc("level_for", {
-          p_merchant: q.merchant_id,
-          p_branch: wallet.branch_id,
-          p_lifetime: newLifetime,
-        });
-        if (lid) levelId = lid as string;
-      }
-      await svc.from("user_stores").update({
-        available_points: wallet.available_points + q.points_reward,
-        lifetime_points: newLifetime,
-        current_level_id: levelId,
-      }).eq("id", wallet.id);
+      const { error: applyErr } = await svc.rpc("wallet_apply", {
+        p_wallet: wallet.id,
+        p_available_delta: q.points_reward,
+        p_lifetime_delta: q.points_reward,
+        p_recompute_level: s.enable_levels,
+      });
+      if (applyErr) throw applyErr;
       await svc.from("points_transactions").insert({
         user_store_id: wallet.id, branch_id: anyWallet.branch_id,
         type: "earn", points: q.points_reward, reason: "question_answer",

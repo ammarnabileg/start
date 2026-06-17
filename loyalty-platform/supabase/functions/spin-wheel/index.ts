@@ -72,9 +72,11 @@ Deno.serve(async (req) => {
       idempotency_key,
       { endpoint: "spin-wheel", userId, merchantId: wheel.merchant_id },
       async () => {
-        await svc.from("user_stores")
-          .update({ available_points: wallet.available_points - cost })
-          .eq("id", wallet.id);
+        // خصم ذرّي لسعر اللفّة — يمنع الصرف المزدوج تحت التزامن.
+        const { error: debErr } = await svc.rpc("wallet_apply", {
+          p_wallet: wallet.id, p_available_delta: -cost,
+        });
+        if (debErr) return { error: "النقاط غير كافية للّفّة" };
         await svc.from("points_transactions").insert({
           user_store_id: wallet.id, branch_id: wallet.branch_id,
           type: "redeem", points: -cost, reason: "wheel_spin",
@@ -109,10 +111,10 @@ Deno.serve(async (req) => {
         // النصيب "نقاط" → نعيدها مباشرة (earn)
         if (chosen.kind === "points") {
           const pts = chosen.points_value ?? 0;
-          // الرصيد بعد خصم سعر اللفّة + نقاط الجائزة (lifetime لا يتغيّر هنا).
-          await svc.from("user_stores").update({
-            available_points: wallet.available_points - cost + pts,
-          }).eq("id", wallet.id);
+          // إضافة ذرّية لنقاط الجائزة (lifetime لا يتغيّر في جوائز العجلة).
+          await svc.rpc("wallet_apply", {
+            p_wallet: wallet.id, p_available_delta: pts,
+          });
           await svc.from("points_transactions").insert({
             user_store_id: wallet.id, branch_id: wallet.branch_id,
             type: "earn", points: pts, reason: "wheel_points",

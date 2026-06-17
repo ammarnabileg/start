@@ -3,19 +3,26 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireStaff } from "../_shared/auth.ts";
 import { withIdempotency } from "../_shared/idempotency.ts";
+import { verifyQr } from "../_shared/qr.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const staff = await requireStaff(req, svc);
-    const { redemption_id, idempotency_key } = await req.json();
-    if (!redemption_id) return badRequest("redemption_id مفقود");
+    const { payload, idempotency_key } = await req.json();
+    if (!payload || typeof payload !== "string") return badRequest("رمز الاستلام مفقود");
+    const redemptionId = payload.split(".")[1];
+    if (!redemptionId) return badRequest("رمز غير صالح");
 
     const { data: r } = await svc.from("reward_redemptions")
-      .select("id, user_id, merchant_id, reward_id, points_spent, status, expires_at")
-      .eq("id", redemption_id).maybeSingle();
+      .select("id, user_id, merchant_id, reward_id, points_spent, status, expires_at, claim_secret")
+      .eq("id", redemptionId).maybeSingle();
     if (!r) return badRequest("عملية الاستبدال غير موجودة");
+    // تحقّق توقيع الـ QR المتغيّر (r1) — يمنع إعادة استخدام لقطة شاشة قديمة.
+    if (verifyQr(payload, r.claim_secret, 30, 1, "r1") !== redemptionId) {
+      return badRequest("رمز غير صالح أو منتهي، اطلب من العميل تحديث الكود", 403);
+    }
     if (r.merchant_id !== staff.merchantId) return badRequest("غير مصرّح", 403);
     if (r.status !== "pending") return badRequest("العملية غير قابلة للتأكيد", 409);
     // استهداف الفروع: المكافأة لازم تكون متاحة في فرع الكاشير.
@@ -43,10 +50,15 @@ Deno.serve(async (req) => {
       idempotency_key,
       { endpoint: "confirm-redemption", userId: r.user_id, merchantId: staff.merchantId },
       async () => {
-        // خصم من available فقط (lifetime ثابت) + خصم المخزون + تأكيد
-        await svc.from("user_stores").update({
-          available_points: wallet.available_points - r.points_spent,
-        }).eq("id", wallet.id);
+        // خصم ذرّي من available فقط (lifetime ثابت) — يمنع الصرف المزدوج.
+        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
+          p_wallet: wallet.id,
+          p_available_delta: -r.points_spent,
+        });
+        if (applyErr) {
+          // INSUFFICIENT_POINTS من الدالة الذرّية (سباق رصيد).
+          return { error: "رصيد العميل في هذا الفرع غير كافٍ" };
+        }
 
         await svc.from("points_transactions").insert({
           user_store_id: wallet.id,
@@ -69,7 +81,7 @@ Deno.serve(async (req) => {
 
         return {
           confirmed: true,
-          remaining_points: wallet.available_points - r.points_spent,
+          remaining_points: applied.available_points,
         };
       },
     );

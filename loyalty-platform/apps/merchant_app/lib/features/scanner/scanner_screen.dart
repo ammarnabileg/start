@@ -56,10 +56,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       }
 
       // رمز استلام مكافأة (يبدأ بـ r1.) → تأكيد الاستبدال عبر confirm-redemption.
+      // نمرّر الرمز الكامل ليُتحقّق من توقيعه المتغيّر في الخادم.
       if (payload.startsWith('r1.')) {
         final res = await ref
             .read(scanRepoProvider)
-            .confirmRedemption(payload.substring(3),
+            .confirmRedemption(payload,
                 idempotencyKey: genIdempotencyKey());
         final data = res.data as Map<String, dynamic>?;
         if (data?['error'] != null) {

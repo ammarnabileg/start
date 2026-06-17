@@ -56,9 +56,12 @@ Deno.serve(async (req) => {
       idempotency_key,
       { endpoint: "staff-redeem", userId: user_id, merchantId: staff.merchantId },
       async () => {
-        await svc.from("user_stores").update({
-          available_points: wallet.available_points - reward.points_cost,
-        }).eq("id", wallet.id);
+        // خصم ذرّي — يمنع الصرف المزدوج تحت التزامن.
+        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
+          p_wallet: wallet.id,
+          p_available_delta: -reward.points_cost,
+        });
+        if (applyErr) return { error: "نقاط العميل غير كافية" };
         await svc.from("points_transactions").insert({
           user_store_id: wallet.id, branch_id: staff.branchId,
           type: "redeem", points: -reward.points_cost, staff_id: staff.staffId,
@@ -75,7 +78,7 @@ Deno.serve(async (req) => {
         return {
           redeemed: true,
           reward_name: reward.name,
-          remaining_points: wallet.available_points - reward.points_cost,
+          remaining_points: applied.available_points,
         };
       },
     );

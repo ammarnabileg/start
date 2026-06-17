@@ -91,21 +91,13 @@ Deno.serve(async (req) => {
         idempotencyKey,
         { endpoint: "pos-api:earn", userId: user.id, merchantId },
         async () => {
-          const newLifetime = wallet.lifetime_points + pts;
-          let levelId = wallet.current_level_id;
-          if (s.enable_levels) {
-            const { data: lid } = await svc.rpc("level_for", {
-              p_merchant: merchantId,
-              p_branch: wallet.branch_id,
-              p_lifetime: newLifetime,
-            });
-            if (lid) levelId = lid as string;
-          }
-          await svc.from("user_stores").update({
-            available_points: wallet.available_points + pts,
-            lifetime_points: newLifetime,
-            current_level_id: levelId,
-          }).eq("id", wallet.id);
+          const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
+            p_wallet: wallet.id,
+            p_available_delta: pts,
+            p_lifetime_delta: pts,
+            p_recompute_level: s.enable_levels,
+          });
+          if (applyErr) throw applyErr;
           await svc.from("points_transactions").insert({
             user_store_id: wallet.id, branch_id: branchId,
             type: "earn", points: pts, reason: "pos",
@@ -117,8 +109,8 @@ Deno.serve(async (req) => {
           });
           return {
             earned: pts,
-            available_points: wallet.available_points + pts,
-            lifetime_points: newLifetime,
+            available_points: applied.available_points,
+            lifetime_points: applied.lifetime_points,
           };
         },
       );
@@ -158,9 +150,10 @@ Deno.serve(async (req) => {
         idempotencyKey,
         { endpoint: "pos-api:redeem", userId: user.id, merchantId },
         async () => {
-          await svc.from("user_stores").update({
-            available_points: wallet.available_points - reward.points_cost,
-          }).eq("id", wallet.id);
+          const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
+            p_wallet: wallet.id, p_available_delta: -reward.points_cost,
+          });
+          if (applyErr) return { error: "النقاط غير كافية" };
           await svc.from("points_transactions").insert({
             user_store_id: wallet.id, branch_id: branchId,
             type: "redeem", points: -reward.points_cost, reason: "pos_redeem",
@@ -172,7 +165,7 @@ Deno.serve(async (req) => {
           });
           return {
             redeemed: true,
-            remaining_points: wallet.available_points - reward.points_cost,
+            remaining_points: applied.available_points,
           };
         },
       );

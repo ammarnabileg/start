@@ -16,10 +16,12 @@ class ScanRepository {
     });
   }
 
-  Future<FunctionResponse> confirmRedemption(String redemptionId,
+  /// [payload] هو رمز الـ QR الكامل المتغيّر (r1.<id>.<window>.<code>) —
+  /// يُتحقّق من توقيعه في الخادم لمنع إعادة استخدام لقطة شاشة قديمة.
+  Future<FunctionResponse> confirmRedemption(String payload,
       {String? idempotencyKey}) {
     return _client.functions.invoke('confirm-redemption', body: {
-      'redemption_id': redemptionId,
+      'payload': payload,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
     });
   }

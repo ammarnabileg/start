@@ -263,6 +263,7 @@ create table public.reward_redemptions (
                check (status in ('pending','confirmed','expired','canceled')),
   expires_at   timestamptz,                         -- كود الاستلام (5 دقائق)
   confirmed_at timestamptz,
+  claim_secret text not null default encode(gen_random_bytes(20), 'base64'), -- لتوقيع QR متغيّر
   created_at   timestamptz not null default now()
 );
 
@@ -548,6 +549,60 @@ begin
   values (p_user, p_merchant, v_branch)
   returning * into v_wallet;
   return v_wallet;
+end;
+$$;
+
+-- تطبيق ذرّي على رصيد المحفظة — يمنع فقدان التحديثات والصرف المزدوج تحت التزامن.
+-- الخصم والتحقق من الكفاية يتمّان في عبارة UPDATE واحدة (قفل صف ضمني).
+-- p_available_delta: موجب = إضافة، سالب = خصم. p_lifetime_delta يزيد فقط (لا ينقص).
+-- p_recompute_level: يعيد حساب مستوى الولاء من lifetime. يرمي INSUFFICIENT_POINTS
+-- عند عدم كفاية الرصيد. يرجّع الحالة الجديدة + هل تغيّر المستوى.
+create or replace function public.wallet_apply(
+  p_wallet uuid,
+  p_available_delta integer,
+  p_lifetime_delta integer default 0,
+  p_recompute_level boolean default false
+) returns jsonb language plpgsql security definer as $$
+declare
+  r record;
+  v_level uuid;
+  v_prev_level uuid;
+begin
+  select current_level_id into v_prev_level
+    from public.user_stores where id = p_wallet;
+
+  update public.user_stores
+     set available_points = available_points + p_available_delta,
+         lifetime_points  = lifetime_points + greatest(p_lifetime_delta, 0)
+   where id = p_wallet
+     and available_points + p_available_delta >= 0
+   returning id, merchant_id, branch_id, available_points, lifetime_points,
+             current_level_id
+   into r;
+
+  if not found then
+    raise exception 'INSUFFICIENT_POINTS' using errcode = 'P0001';
+  end if;
+
+  v_level := r.current_level_id;
+  if p_recompute_level then
+    select public.level_for(r.merchant_id, r.branch_id, r.lifetime_points)
+      into v_level;
+    if v_level is not null and v_level is distinct from r.current_level_id then
+      update public.user_stores set current_level_id = v_level
+        where id = p_wallet;
+    else
+      v_level := r.current_level_id;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'wallet_id', r.id,
+    'available_points', r.available_points,
+    'lifetime_points', r.lifetime_points,
+    'current_level_id', v_level,
+    'leveled_up', (v_level is distinct from v_prev_level)
+  );
 end;
 $$;
 
@@ -1685,6 +1740,18 @@ $$;
 -- [MEDIUM-DB] فهارس مركّبة تدعم التحليلات والسجلات.
 create index if not exists idx_pt_store_type_created
   on public.points_transactions(user_store_id, type, created_at desc);
+
+-- [PERF] فهارس مفاتيح أجنبية/استعلامات متكرّرة كانت ناقصة (تجنّب seq scans).
+create index if not exists idx_pt_staff           on public.points_transactions(staff_id);
+create index if not exists idx_rr_user            on public.reward_redemptions(user_id);
+create index if not exists idx_rr_reward          on public.reward_redemptions(reward_id);
+create index if not exists idx_rr_staff           on public.reward_redemptions(staff_id);
+create index if not exists idx_coupon_redemptions_coupon on public.coupon_redemptions(coupon_id);
+create index if not exists idx_coupon_redemptions_user   on public.coupon_redemptions(user_id);
+create index if not exists idx_user_prizes_spin   on public.user_prizes(user_id, merchant_id, source, created_at);
+create index if not exists idx_reports_prize      on public.reports(prize_id);
+create index if not exists idx_ncamp_staff        on public.notification_campaigns(created_by_staff);
+create index if not exists idx_visits_scanned_by  on public.user_visits(scanned_by_staff_id);
 create index if not exists idx_rr_merchant_created
   on public.reward_redemptions(merchant_id, created_at desc);
 

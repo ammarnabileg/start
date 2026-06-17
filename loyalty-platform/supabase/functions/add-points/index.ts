@@ -52,25 +52,14 @@ Deno.serve(async (req) => {
           p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
         }).single();
 
-        const newAvailable = wallet.available_points + pts;
-        const newLifetime = wallet.lifetime_points + pts;
-
-        let levelId = wallet.current_level_id;
-        if (s.enable_levels) {
-          // المستوى حسب النطاق: مستويات الفرع أو الستور (تبعًا لإعداد التاجر).
-          const { data: lid } = await svc.rpc("level_for", {
-            p_merchant: staff.merchantId,
-            p_branch: wallet.branch_id,
-            p_lifetime: newLifetime,
-          });
-          if (lid) levelId = lid as string;
-        }
-
-        await svc.from("user_stores").update({
-          available_points: newAvailable,
-          lifetime_points: newLifetime,
-          current_level_id: levelId,
-        }).eq("id", wallet.id);
+        // تطبيق ذرّي للرصيد (يمنع فقدان التحديثات تحت التزامن).
+        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
+          p_wallet: wallet.id,
+          p_available_delta: pts,
+          p_lifetime_delta: pts,
+          p_recompute_level: s.enable_levels,
+        });
+        if (applyErr) throw applyErr;
 
         await svc.from("points_transactions").insert({
           user_store_id: wallet.id, branch_id: staff.branchId,
@@ -86,10 +75,10 @@ Deno.serve(async (req) => {
         });
 
         return {
-          available_points: newAvailable,
-          lifetime_points: newLifetime,
-          level_id: levelId,
-          leveled_up: levelId !== wallet.current_level_id,
+          available_points: applied.available_points,
+          lifetime_points: applied.lifetime_points,
+          level_id: applied.current_level_id,
+          leveled_up: applied.leveled_up,
         };
       },
     );
