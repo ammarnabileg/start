@@ -94,12 +94,12 @@ Deno.serve(async (req) => {
           const newLifetime = wallet.lifetime_points + pts;
           let levelId = wallet.current_level_id;
           if (s.enable_levels) {
-            const { data: lvl } = await svc.from("loyalty_levels").select("id")
-              .eq("merchant_id", merchantId)
-              .lte("threshold_lifetime_points", newLifetime)
-              .order("threshold_lifetime_points", { ascending: false })
-              .limit(1).maybeSingle();
-            if (lvl) levelId = lvl.id;
+            const { data: lid } = await svc.rpc("level_for", {
+              p_merchant: merchantId,
+              p_branch: wallet.branch_id,
+              p_lifetime: newLifetime,
+            });
+            if (lid) levelId = lid as string;
           }
           await svc.from("user_stores").update({
             available_points: wallet.available_points + pts,

@@ -57,13 +57,13 @@ Deno.serve(async (req) => {
 
         let levelId = wallet.current_level_id;
         if (s.enable_levels) {
-          const { data: lvl } = await svc
-            .from("loyalty_levels").select("id")
-            .eq("merchant_id", staff.merchantId)
-            .lte("threshold_lifetime_points", newLifetime)
-            .order("threshold_lifetime_points", { ascending: false })
-            .limit(1).maybeSingle();
-          if (lvl) levelId = lvl.id;
+          // المستوى حسب النطاق: مستويات الفرع أو الستور (تبعًا لإعداد التاجر).
+          const { data: lid } = await svc.rpc("level_for", {
+            p_merchant: staff.merchantId,
+            p_branch: wallet.branch_id,
+            p_lifetime: newLifetime,
+          });
+          if (lid) levelId = lid as string;
         }
 
         await svc.from("user_stores").update({

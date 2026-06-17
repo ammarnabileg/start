@@ -74,13 +74,13 @@ class StoresRepository {
         .toList();
   }
 
-  /// مستويات الولاء للتاجر مرتّبة.
-  Future<List<LoyaltyLevel>> levels(String merchantId) async {
-    final rows = await _client
-        .from('loyalty_levels')
-        .select()
-        .eq('merchant_id', merchantId)
-        .order('sort_order');
+  /// مستويات الولاء المطبّقة على محفظة العميل (مستويات الفرع أو الستور — حسب
+  /// إعداد نطاق النقاط عند التاجر). [branchId] = فرع محفظة العميل (قد يكون null).
+  Future<List<LoyaltyLevel>> levels(String merchantId, {String? branchId}) async {
+    final rows = await _client.rpc('levels_for', params: {
+      'p_merchant': merchantId,
+      'p_branch': branchId,
+    });
     return (rows as List)
         .map((r) => LoyaltyLevel.fromJson(r as Map<String, dynamic>))
         .toList();

@@ -136,6 +136,10 @@ create table public.merchant_staff (
 create table public.loyalty_levels (
   id          uuid primary key default gen_random_uuid(),
   merchant_id uuid not null references public.merchants(id) on delete cascade,
+  -- نطاق المستوى يتبع إعداد نطاق النقاط (merchant_settings.points_scope):
+  --   • NULL        → مستوى على مستوى الستور كله (للوضع المشترك 'merchant').
+  --   • branch_id   → مستوى خاص بفرع محدّد (للوضع المنفصل 'branch').
+  branch_id   uuid references public.branches(id) on delete cascade,
   name        text not null,                       -- Bronze / Silver / Gold ...
   threshold_lifetime_points integer not null,      -- أقل lifetime للوصول
   reward_description text,
@@ -465,6 +469,63 @@ begin
   values (p_user, p_merchant, v_branch)
   returning * into v_wallet;
   return v_wallet;
+end;
+$$;
+
+-- =====================================================================
+-- المستويات حسب النطاق: لو نطاق النقاط 'branch' والفرع له مستويات خاصة
+-- نستخدمها، وإلا نرجع لمستويات الستور العامة (branch_id = NULL).
+-- p_branch = فرع المحفظة (NULL في الوضع المشترك).
+-- =====================================================================
+create or replace function public.levels_scope_branch(
+  p_merchant uuid, p_branch uuid
+) returns uuid language plpgsql stable security definer
+set search_path = public as $$
+declare v_scope text;
+begin
+  select points_scope into v_scope
+  from public.merchant_settings where merchant_id = p_merchant;
+  v_scope := coalesce(v_scope, 'branch');
+  if v_scope = 'branch' and p_branch is not null and exists (
+       select 1 from public.loyalty_levels
+       where merchant_id = p_merchant and branch_id = p_branch) then
+    return p_branch;           -- استخدم مستويات هذا الفرع
+  end if;
+  return null;                 -- استخدم مستويات الستور العامة
+end;
+$$;
+
+-- يرجّع معرّف المستوى المناسب لرصيد lifetime معيّن (حسب النطاق/الفرع).
+create or replace function public.level_for(
+  p_merchant uuid, p_branch uuid, p_lifetime integer
+) returns uuid language plpgsql stable security definer
+set search_path = public as $$
+declare v_use uuid; v_level uuid;
+begin
+  v_use := public.levels_scope_branch(p_merchant, p_branch);
+  select id into v_level
+  from public.loyalty_levels
+  where merchant_id = p_merchant
+    and branch_id is not distinct from v_use
+    and threshold_lifetime_points <= p_lifetime
+  order by threshold_lifetime_points desc
+  limit 1;
+  return v_level;
+end;
+$$;
+
+-- يرجّع قائمة المستويات المطبّقة على فرع/ستور (للعرض في تطبيق العميل).
+create or replace function public.levels_for(
+  p_merchant uuid, p_branch uuid
+) returns setof public.loyalty_levels language plpgsql stable security definer
+set search_path = public as $$
+declare v_use uuid;
+begin
+  v_use := public.levels_scope_branch(p_merchant, p_branch);
+  return query
+    select * from public.loyalty_levels
+    where merchant_id = p_merchant and branch_id is not distinct from v_use
+    order by threshold_lifetime_points;
 end;
 $$;
 

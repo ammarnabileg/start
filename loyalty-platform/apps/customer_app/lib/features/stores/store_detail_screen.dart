@@ -22,10 +22,12 @@ final storeRewardsProvider =
   return ref.read(storesRepoProvider).rewards(merchantId);
 });
 
-/// مستويات الولاء للتاجر مرتّبة.
+/// مستويات الولاء المطبّقة على محفظة العميل (فرعها أو الستور حسب الإعداد).
 final storeLevelsProvider =
-    FutureProvider.autoDispose.family<List<LoyaltyLevel>, String>((ref, merchantId) async {
-  return ref.read(storesRepoProvider).levels(merchantId);
+    FutureProvider.autoDispose.family<List<LoyaltyLevel>, UserStore>((ref, store) async {
+  return ref
+      .read(storesRepoProvider)
+      .levels(store.merchantId, branchId: store.branchId);
 });
 
 final storeVisitsProvider =
@@ -622,12 +624,12 @@ class _LevelsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(storeLevelsProvider(store.merchantId));
+    final data = ref.watch(storeLevelsProvider(store));
     return data.when(
       loading: () => const LoadingView(),
       error: (e, _) => ErrorView(
           message: 'تعذّر تحميل المستويات',
-          onRetry: () => ref.invalidate(storeLevelsProvider(store.merchantId))),
+          onRetry: () => ref.invalidate(storeLevelsProvider(store))),
       data: (levels) {
         if (levels.isEmpty) {
           return const EmptyView(

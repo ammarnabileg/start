@@ -8,12 +8,15 @@ class LevelsRepository {
   LevelsRepository(this._client);
   final SupabaseClient _client;
 
-  Future<List<Map<String, dynamic>>> fetchLevels(String merchantId) async {
-    final rows = await _client
-        .from('loyalty_levels')
-        .select()
-        .eq('merchant_id', merchantId)
-        .order('threshold_lifetime_points');
+  /// مستويات الستور (branchId = null) أو مستويات فرع محدّد.
+  Future<List<Map<String, dynamic>>> fetchLevels(String merchantId,
+      {String? branchId}) async {
+    final base =
+        _client.from('loyalty_levels').select().eq('merchant_id', merchantId);
+    final filtered = branchId == null
+        ? base.isFilter('branch_id', null)
+        : base.eq('branch_id', branchId);
+    final rows = await filtered.order('threshold_lifetime_points');
     return List<Map<String, dynamic>>.from(rows);
   }
 

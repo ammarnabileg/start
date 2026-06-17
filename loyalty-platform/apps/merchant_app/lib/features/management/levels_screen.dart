@@ -4,24 +4,153 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/branches_repository.dart';
 import '../../data/repositories/levels_repository.dart';
 
-/// قائمة المستويات من جدول loyalty_levels مرتّبة تصاعديًا بالعتبة.
+/// المستويات حسب النطاق: لو [branchId] = null فهي مستويات الستور كله،
+/// وإلا مستويات فرع محدّد (في وضع النقاط المنفصل لكل فرع).
 final levelsProvider =
-    FutureProvider.autoDispose<List<LoyaltyLevel>>((ref) async {
+    FutureProvider.autoDispose.family<List<LoyaltyLevel>, String?>(
+        (ref, branchId) async {
   final staff = await ref.watch(currentStaffProvider.future);
-  final rows = await ref.read(levelsRepoProvider).fetchLevels(staff.merchantId);
+  final rows = await ref
+      .read(levelsRepoProvider)
+      .fetchLevels(staff.merchantId, branchId: branchId);
   return rows.map(LoyaltyLevel.fromJson).toList();
 });
 
-/// 2.10.ج — المستويات.
-class LevelsScreen extends ConsumerWidget {
+/// فروع التاجر (id, name) لاختيار الفرع في وضع المستويات المنفصلة.
+final _branchOptionsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  return ref.read(branchesRepoProvider).fetchActiveBranchOptions(staff.merchantId);
+});
+
+/// 2.10.ج — المستويات (لكل الستور أو لكل فرع حسب إعداد نطاق النقاط).
+class LevelsScreen extends ConsumerStatefulWidget {
   const LevelsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(levelsProvider);
+  ConsumerState<LevelsScreen> createState() => _LevelsScreenState();
+}
 
+class _LevelsScreenState extends ConsumerState<LevelsScreen> {
+  String? _branchId; // الفرع المختار (وضع منفصل) — null = الستور كله
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(merchantSettingsProvider);
+    return settings.when(
+      loading: () => const Scaffold(body: LoadingView()),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(title: const Text('المستويات')),
+        body: ErrorView(
+            message: 'تعذّر تحميل الإعدادات',
+            onRetry: () => ref.invalidate(merchantSettingsProvider)),
+      ),
+      data: (s) {
+        final perBranch = s.pointsScope == PointsScope.branch;
+        if (!perBranch) {
+          // الستور كله — مستويات واحدة تنطبق على كل الفروع.
+          return const _LevelsBody(branchId: null, perBranch: false, branchPicker: null);
+        }
+        // منفصل لكل فرع — نختار الفرع ونعرض مستوياته.
+        final opts = ref.watch(_branchOptionsProvider);
+        return opts.when(
+          loading: () => const Scaffold(body: LoadingView()),
+          error: (e, _) => Scaffold(
+            appBar: AppBar(title: const Text('المستويات')),
+            body: ErrorView(
+                message: 'تعذّر تحميل الفروع',
+                onRetry: () => ref.invalidate(_branchOptionsProvider)),
+          ),
+          data: (branches) {
+            if (branches.isEmpty) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('المستويات')),
+                body: const EmptyView(
+                  icon: Icons.store_mall_directory_outlined,
+                  title: 'لا توجد فروع بعد',
+                  message:
+                      'النقاط مضبوطة كمنفصلة لكل فرع — أضف فرعًا أولًا لتحديد مستوياته.',
+                ),
+              );
+            }
+            final selected = _branchId ?? branches.first['id'] as String;
+            return _LevelsBody(
+              branchId: selected,
+              perBranch: true,
+              branchPicker: _BranchPicker(
+                branches: branches,
+                value: selected,
+                onChanged: (v) => setState(() => _branchId = v),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _BranchPicker extends StatelessWidget {
+  final List<Map<String, dynamic>> branches;
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _BranchPicker(
+      {required this.branches, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const AppIcon(Icons.store_mall_directory_outlined,
+              color: AppColors.primaryDark),
+          const SizedBox(width: 8),
+          const Text('الفرع:', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: value,
+                items: [
+                  for (final b in branches)
+                    DropdownMenuItem(
+                      value: b['id'] as String,
+                      child: Text(b['name'] as String? ?? 'فرع'),
+                    ),
+                ],
+                onChanged: (v) {
+                  if (v != null) onChanged(v);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelsBody extends ConsumerWidget {
+  final String? branchId;
+  final bool perBranch;
+  final Widget? branchPicker;
+  const _LevelsBody(
+      {required this.branchId, required this.perBranch, this.branchPicker});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(levelsProvider(branchId));
     return Scaffold(
       appBar: AppBar(title: const Text('المستويات')),
       floatingActionButton: FloatingActionButton.extended(
@@ -31,6 +160,7 @@ class LevelsScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          if (branchPicker != null) branchPicker!,
           Container(
             width: double.infinity,
             margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -45,7 +175,9 @@ class LevelsScreen extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'المستويات تعتمد على إجمالي النقاط (Lifetime) ولا تُخصم عند الوصول.',
+                    perBranch
+                        ? 'النقاط منفصلة لكل فرع — هذه المستويات تخصّ الفرع المختار فقط.'
+                        : 'النقاط مشتركة بين الفروع — هذه المستويات تنطبق على الستور كله.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -57,14 +189,15 @@ class LevelsScreen extends ConsumerWidget {
               loading: () => const SkeletonList(),
               error: (e, _) => ErrorView(
                 message: 'تعذّر تحميل المستويات',
-                onRetry: () => ref.invalidate(levelsProvider),
+                onRetry: () => ref.invalidate(levelsProvider(branchId)),
               ),
               data: (levels) {
                 if (levels.isEmpty) {
                   return EmptyView(
                     icon: Icons.military_tech_rounded,
                     title: 'لا توجد مستويات بعد',
-                    message: 'أنشئ مستويات الولاء لتحفيز عملائك على تجميع النقاط.',
+                    message:
+                        'أنشئ مستويات الولاء لتحفيز عملائك على تجميع النقاط.',
                     actionLabel: 'إنشاء مستوى',
                     onAction: () => _openEditor(context, ref, null),
                   );
@@ -81,7 +214,6 @@ class LevelsScreen extends ConsumerWidget {
                           color: lvl.color.withValues(alpha: .35), width: 1.5),
                       child: Row(
                         children: [
-                          // درجة السلّم: مؤشّر رتبة + ميدالية بلون المستوى.
                           Container(
                             width: 6,
                             height: 48,
@@ -139,15 +271,16 @@ class LevelsScreen extends ConsumerWidget {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _LevelEditor(existing: existing),
+      builder: (_) => _LevelEditor(existing: existing, branchId: branchId),
     );
-    if (saved == true) ref.invalidate(levelsProvider);
+    if (saved == true) ref.invalidate(levelsProvider(branchId));
   }
 }
 
 class _LevelEditor extends ConsumerStatefulWidget {
   final LoyaltyLevel? existing;
-  const _LevelEditor({this.existing});
+  final String? branchId;
+  const _LevelEditor({this.existing, this.branchId});
   @override
   ConsumerState<_LevelEditor> createState() => _LevelEditorState();
 }
@@ -185,6 +318,7 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
       final threshold = int.tryParse(_threshold.text.trim()) ?? 0;
       final payload = {
         'merchant_id': staff.merchantId,
+        'branch_id': widget.branchId, // null = الستور كله
         'name': _name.text.trim(),
         'threshold_lifetime_points': threshold,
         'reward_description': _rewardDesc.text.trim(),
@@ -225,37 +359,37 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(widget.existing == null ? 'مستوى جديد' : 'تعديل المستوى',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _name,
-              decoration: const InputDecoration(
-                  labelText: 'اسم المستوى (برونزي/فضي…)'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _threshold,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'العتبة (إجمالي النقاط Lifetime)'),
-              validator: (v) {
-                final n = int.tryParse(v?.trim() ?? '');
-                if (n == null || n < 0) return 'أدخل رقمًا صحيحًا';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _rewardDesc,
-              decoration: const InputDecoration(labelText: 'وصف المكافأة'),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
-          ],
-        ),
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(
+                    labelText: 'اسم المستوى (برونزي/فضي…)'),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _threshold,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'العتبة (إجمالي النقاط Lifetime)'),
+                validator: (v) {
+                  final n = int.tryParse(v?.trim() ?? '');
+                  if (n == null || n < 0) return 'أدخل رقمًا صحيحًا';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _rewardDesc,
+                decoration: const InputDecoration(labelText: 'وصف المكافأة'),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            ],
+          ),
         ),
       ),
     );

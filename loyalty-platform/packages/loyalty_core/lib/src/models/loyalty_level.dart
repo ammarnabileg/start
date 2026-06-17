@@ -5,6 +5,9 @@ import '../theme/app_colors.dart';
 class LoyaltyLevel {
   final String id;
   final String merchantId;
+
+  /// فرع المستوى — null يعني على مستوى الستور كله (الوضع المشترك).
+  final String? branchId;
   final String name;
   final int thresholdLifetimePoints;
   final String? rewardDescription;
@@ -15,6 +18,7 @@ class LoyaltyLevel {
     required this.merchantId,
     required this.name,
     required this.thresholdLifetimePoints,
+    this.branchId,
     this.rewardDescription,
     this.sortOrder = 0,
   });
@@ -30,6 +34,7 @@ class LoyaltyLevel {
   factory LoyaltyLevel.fromJson(Map<String, dynamic> j) => LoyaltyLevel(
         id: j['id'] as String,
         merchantId: j['merchant_id'] as String,
+        branchId: j['branch_id'] as String?,
         name: j['name'] as String,
         thresholdLifetimePoints: j['threshold_lifetime_points'] as int,
         rewardDescription: j['reward_description'] as String?,

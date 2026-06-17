@@ -759,6 +759,25 @@ class _Levels extends StatelessWidget {
           label: const Text('مستوى جديد',
               style: TextStyle(color: Colors.white))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        // اختيار الفرع — يظهر فقط لما النقاط منفصلة لكل فرع.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider)),
+          child: Row(children: const [
+            AppIcon(Icons.store_mall_directory_outlined,
+                color: AppColors.primaryDark),
+            SizedBox(width: 8),
+            Text('الفرع:', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(width: 8),
+            Expanded(child: Text('الفرع الرئيسي')),
+            AppIcon(Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textSecondary),
+          ]),
+        ),
+        const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -769,7 +788,7 @@ class _Levels extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
                 child: Text(
-                    'المستويات تعتمد على إجمالي النقاط (Lifetime) ولا تُخصم عند الوصول.',
+                    'النقاط منفصلة لكل فرع — هذه المستويات تخصّ الفرع المختار فقط.',
                     style: TextStyle(fontSize: 12))),
           ]),
         ),
