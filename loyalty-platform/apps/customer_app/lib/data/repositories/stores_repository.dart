@@ -4,26 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_providers.dart';
 
-/// تقدّم العميل في حملة زيارات (للعرض في تاب الزيارات).
-class CampaignProgress {
-  final String id;
-  final String rewardName;
-  final String? rewardImageUrl;
-  final int requiredVisits;
-  final int currentVisits;
-  const CampaignProgress({
-    required this.id,
-    required this.rewardName,
-    required this.requiredVisits,
-    required this.currentVisits,
-    this.rewardImageUrl,
-  });
-
-  bool get completed => currentVisits >= requiredVisits;
-  int get remaining =>
-      (requiredVisits - currentVisits) < 0 ? 0 : requiredVisits - currentVisits;
-}
-
 /// مستودع المتاجر: محافظ العميل + بيانات التاجر (مكافآت/مستويات/حملات/كوبونات/أسئلة/سجل).
 class StoresRepository {
   StoresRepository(this._client);
@@ -113,8 +93,8 @@ class StoresRepository {
         .toList();
   }
 
-  /// الحملات الحالية للتاجر مع عدد زيارات العميل فيها.
-  Future<List<CampaignProgress>> visits(UserStore store) async {
+  /// حملات بطاقة الأختام للتاجر مع تقدّم العميل فيها.
+  Future<List<StampCampaign>> visits(UserStore store) async {
     final uid = _client.auth.currentUser!.id;
 
     final campaignsRaw = await _client
@@ -129,7 +109,7 @@ class StoresRepository {
             targets, (c as Map<String, dynamic>)['id'] as String, store.branchId))
         .toList();
 
-    // عدد زيارات العميل عند هذا الفرع/التاجر.
+    // أختام/زيارات العميل عند هذا الفرع/التاجر (بتاريخها).
     var visitsQuery = _client
         .from('user_visits')
         .select('visit_date')
@@ -138,22 +118,24 @@ class StoresRepository {
     if (store.branchId != null) {
       visitsQuery = visitsQuery.eq('branch_id', store.branchId!);
     }
-    final visits = await visitsQuery;
-    final visitCount = (visits as List).length;
+    final visits = await visitsQuery.order('visit_date', ascending: true);
+    final dates = (visits as List)
+        .map((v) => DateTime.tryParse((v['visit_date'] ?? '').toString()))
+        .whereType<DateTime>()
+        .toList();
+    final visitCount = dates.length;
 
     return campaigns.map((c) {
       final m = c as Map<String, dynamic>;
-      final required = m['required_visits'] as int? ?? 0;
-      // الزيارات تُحسب ضمن دورة الحملة الحالية.
+      final required = m['required_visits'] as int? ?? 1;
+      // الأختام تُحسب ضمن دورة الحملة الحالية.
       final inCycle = required == 0 ? 0 : visitCount % required;
       final current = (visitCount > 0 && inCycle == 0) ? required : inCycle;
-      return CampaignProgress(
-        id: m['id'] as String,
-        rewardName: m['reward_name'] as String? ?? 'مكافأة',
-        rewardImageUrl: m['reward_image_url'] as String?,
-        requiredVisits: required,
-        currentVisits: current,
-      );
+      // أحدث [current] تواريخ كأختام الدورة الحالية.
+      final cycleDates =
+          dates.length >= current ? dates.sublist(dates.length - current) : dates;
+      return StampCampaign.fromJson(m,
+          currentStamps: current, stampDates: cycleDates);
     }).toList();
   }
 

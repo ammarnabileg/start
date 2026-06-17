@@ -25,11 +25,11 @@ class CampaignsScreen extends ConsumerWidget {
     final async = ref.watch(campaignsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('حملات الزيارة')),
+      appBar: AppBar(title: const Text('بطاقات الأختام')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref, null),
         icon: const AppIcon(Icons.add),
-        label: const Text('حملة جديدة'),
+        label: const Text('بطاقة جديدة'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -41,8 +41,8 @@ class CampaignsScreen extends ConsumerWidget {
           if (rows.isEmpty) {
             return EmptyView(
               icon: Icons.repeat_rounded,
-              title: 'لا توجد حملات بعد',
-              message: 'أنشئ أول حملة زيارات لتشجيع عملائك على العودة.',
+              title: 'لا توجد بطاقات بعد',
+              message: 'أنشئ أول بطاقة أختام (شراء/تبرّع) لمكافأة عملائك على التكرار.',
               actionLabel: 'إنشاء حملة',
               onAction: () => _openEditor(context, ref, null),
             );
@@ -76,7 +76,7 @@ class CampaignsScreen extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 4),
                           Text(
-                            '${c['required_visits'] ?? 0} زيارة → ${c['reward_name'] ?? ''}',
+                            '${c['required_visits'] ?? 0} ختم → ${c['reward_name'] ?? ''}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -187,12 +187,19 @@ class _CampaignEditor extends ConsumerStatefulWidget {
 class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
+  late final TextEditingController _description;
   late final TextEditingController _visits;
+  late final TextEditingController _actionLabel;
+  late final TextEditingController _pointsPerStamp;
+  late final TextEditingController _rewardPoints;
   late final TextEditingController _rewardName;
   late final TextEditingController _rewardDesc;
+  String _actionType = 'purchase';
   late bool _active;
-  String? _imageUrl;
-  bool _uploading = false;
+  String? _imageUrl; // صورة المكافأة (آخر ختم)
+  String? _stampImageUrl; // صورة الختم
+  String? _bannerImageUrl; // بنر الهيدر (اختياري)
+  String? _uploadingWhich; // أي صورة تُرفع الآن
   bool _busy = false;
   final BranchTargetController _branchTarget = BranchTargetController();
   bool _targetLoaded = false;
@@ -207,18 +214,29 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
       _loadTarget(e['id'] as String);
     }
     _name = TextEditingController(text: e?['name'] as String? ?? '');
+    _description =
+        TextEditingController(text: e?['description'] as String? ?? '');
     _visits =
         TextEditingController(text: (e?['required_visits'] ?? '').toString());
+    _actionLabel =
+        TextEditingController(text: e?['action_label'] as String? ?? '');
+    _pointsPerStamp = TextEditingController(
+        text: (e?['points_per_stamp'] ?? 0).toString());
+    _rewardPoints =
+        TextEditingController(text: (e?['reward_points'] ?? 0).toString());
     _rewardName =
         TextEditingController(text: e?['reward_name'] as String? ?? '');
     _rewardDesc =
         TextEditingController(text: e?['reward_description'] as String? ?? '');
+    _actionType = e?['action_type'] as String? ?? 'purchase';
     _active = e?['active'] as bool? ?? true;
     _imageUrl = e?['reward_image_url'] as String?;
+    _stampImageUrl = e?['stamp_image_url'] as String?;
+    _bannerImageUrl = e?['banner_image_url'] as String?;
   }
 
-  Future<void> _pickImage() async {
-    setState(() => _uploading = true);
+  Future<void> _pickInto(String which, ValueChanged<String?> set) async {
+    setState(() => _uploadingWhich = which);
     try {
       final staff = await ref.read(currentStaffProvider.future);
       final url = await MediaStorage.pickAndUpload(
@@ -227,7 +245,7 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
       );
       if (!mounted) return;
       if (url != null) {
-        setState(() => _imageUrl = url);
+        setState(() => set(url));
         AppFeedback.toast(context, 'تم رفع الصورة');
       } else {
         AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
@@ -235,14 +253,18 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
     } catch (_) {
       if (mounted) AppFeedback.toast(context, 'تعذّر رفع الصورة', error: true);
     } finally {
-      if (mounted) setState(() => _uploading = false);
+      if (mounted) setState(() => _uploadingWhich = null);
     }
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _description.dispose();
     _visits.dispose();
+    _actionLabel.dispose();
+    _pointsPerStamp.dispose();
+    _rewardPoints.dispose();
     _rewardName.dispose();
     _rewardDesc.dispose();
     super.dispose();
@@ -268,10 +290,17 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
       final payload = {
         'merchant_id': staff.merchantId,
         'name': _name.text.trim(),
-        'required_visits': int.tryParse(_visits.text.trim()) ?? 0,
+        'description': _description.text.trim(),
+        'action_type': _actionType,
+        'action_label': _actionLabel.text.trim(),
+        'required_visits': int.tryParse(_visits.text.trim()) ?? 1,
+        'points_per_stamp': int.tryParse(_pointsPerStamp.text.trim()) ?? 0,
+        'reward_points': int.tryParse(_rewardPoints.text.trim()) ?? 0,
         'reward_name': _rewardName.text.trim(),
         'reward_description': _rewardDesc.text.trim(),
         'reward_image_url': _imageUrl,
+        'stamp_image_url': _stampImageUrl,
+        'banner_image_url': _bannerImageUrl,
         'active': _active,
       };
       final repo = ref.read(campaignsRepoProvider);
@@ -315,23 +344,82 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
               Text(widget.existing == null ? 'حملة جديدة' : 'تعديل الحملة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
+            // بنر الهيدر (اختياري)
+            const _ImgLabel('بنر الهيدر (اختياري)'),
+            _ImagePickerField(
+              imageUrl: _bannerImageUrl,
+              uploading: _uploadingWhich == 'banner',
+              onPick: () =>
+                  _pickInto('banner', (u) => _bannerImageUrl = u),
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'اسم الحملة'),
+              decoration: const InputDecoration(labelText: 'اسم البطاقة'),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
+              controller: _description,
+              decoration: const InputDecoration(labelText: 'الوصف'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _actionType,
+              decoration: const InputDecoration(labelText: 'نوع التكرار'),
+              items: const [
+                DropdownMenuItem(value: 'purchase', child: Text('شراء')),
+                DropdownMenuItem(value: 'donation', child: Text('تبرّع')),
+                DropdownMenuItem(value: 'visit', child: Text('زيارة')),
+                DropdownMenuItem(value: 'custom', child: Text('مخصّص')),
+              ],
+              onChanged: (v) => setState(() => _actionType = v ?? 'purchase'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _actionLabel,
+              decoration: const InputDecoration(
+                  labelText: 'وصف التكرار (مثال: شراء قهوة)'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
               controller: _visits,
               keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: 'عدد الزيارات المطلوبة'),
+              decoration: const InputDecoration(labelText: 'عدد التكرارات'),
               validator: (v) {
                 final n = int.tryParse(v?.trim() ?? '');
                 if (n == null || n <= 0) return 'أدخل رقمًا صحيحًا';
                 return null;
               },
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _pointsPerStamp,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'نقاط لكل ختم'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _rewardPoints,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'نقاط المكافأة'),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            const _ImgLabel('صورة الختم (افتراضي: شعار التطبيق)'),
+            _ImagePickerField(
+              imageUrl: _stampImageUrl,
+              uploading: _uploadingWhich == 'stamp',
+              onPick: () => _pickInto('stamp', (u) => _stampImageUrl = u),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -347,10 +435,11 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
+            const _ImgLabel('صورة المكافأة (الخانة الأخيرة)'),
             _ImagePickerField(
               imageUrl: _imageUrl,
-              uploading: _uploading,
-              onPick: _pickImage,
+              uploading: _uploadingWhich == 'reward',
+              onPick: () => _pickInto('reward', (u) => _imageUrl = u),
             ),
             const SizedBox(height: 8),
             SwitchListTile(
@@ -373,4 +462,19 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
       ),
     );
   }
+}
+
+/// عنوان صغير فوق منتقي صورة.
+class _ImgLabel extends StatelessWidget {
+  final String text;
+  const _ImgLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: AppColors.textSecondary)),
+      );
 }

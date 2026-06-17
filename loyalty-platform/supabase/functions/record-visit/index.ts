@@ -19,9 +19,9 @@ Deno.serve(async (req) => {
     if (!s.enable_visits) return badRequest("الزيارات غير مفعّلة لهذا المتجر");
 
     // نضمن وجود المحفظة (ربط العميل لو جديد)
-    await svc.rpc("get_or_create_wallet", {
+    const { data: wallet } = await svc.rpc("get_or_create_wallet", {
       p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
-    });
+    }).single();
 
     // القيد الفريد (user, merchant, visit_date) يمنع زيارتين في اليوم
     const { error } = await svc.from("user_visits").insert({
@@ -41,29 +41,62 @@ Deno.serve(async (req) => {
       throw error;
     }
 
-    // هل أكمل حملة؟ (عدّ زياراته للحملة)
+    // هل أكمل البطاقة؟ + منح نقاط الختم/الإكمال.
     let rewardReady = false;
+    let awarded = 0;
     if (campaign_id) {
       const { data: camp } = await svc.from("visit_campaigns")
-        .select("required_visits, reward_name").eq("id", campaign_id).maybeSingle();
+        .select("required_visits, reward_name, points_per_stamp, reward_points")
+        .eq("id", campaign_id).maybeSingle();
       if (camp) {
         const { count } = await svc.from("user_visits")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user_id).eq("merchant_id", staff.merchantId)
           .eq("campaign_id", campaign_id);
-        rewardReady = (count ?? 0) >= camp.required_visits;
+        const stamps = count ?? 0;
+        // الإكمال عند كل دورة (عدد الأختام يقبل القسمة على المطلوب).
+        rewardReady = stamps > 0 && stamps % camp.required_visits === 0;
+
+        // منح النقاط: نقاط لكل ختم + نقاط الإكمال (تحترم تفعيل النقاط).
+        if (s.enable_points && wallet) {
+          awarded = (camp.points_per_stamp ?? 0) +
+            (rewardReady ? (camp.reward_points ?? 0) : 0);
+          if (awarded > 0) {
+            const newLifetime = wallet.lifetime_points + awarded;
+            let levelId = wallet.current_level_id;
+            if (s.enable_levels) {
+              const { data: lid } = await svc.rpc("level_for", {
+                p_merchant: staff.merchantId,
+                p_branch: wallet.branch_id,
+                p_lifetime: newLifetime,
+              });
+              if (lid) levelId = lid as string;
+            }
+            await svc.from("user_stores").update({
+              available_points: wallet.available_points + awarded,
+              lifetime_points: newLifetime,
+              current_level_id: levelId,
+            }).eq("id", wallet.id);
+            await svc.from("points_transactions").insert({
+              user_store_id: wallet.id, branch_id: staff.branchId,
+              type: "earn", points: awarded, staff_id: staff.staffId,
+              reason: "stamp",
+            });
+          }
+        }
+
         if (rewardReady) {
           await svc.from("notifications").insert({
             user_id, type: "reward_ready",
             title: "مكافأتك جاهزة! 🎁",
-            body: `أكملت زياراتك للحصول على ${camp.reward_name}`,
+            body: `أكملت بطاقتك للحصول على ${camp.reward_name}`,
             data: { merchant_id: staff.merchantId, campaign_id },
           });
         }
       }
     }
 
-    return json({ recorded: true, reward_ready: rewardReady });
+    return json({ recorded: true, reward_ready: rewardReady, points_awarded: awarded });
   } catch (e) {
     return badRequest((e as Error).message, 401);
   }

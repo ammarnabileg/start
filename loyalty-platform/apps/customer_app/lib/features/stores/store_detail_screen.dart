@@ -33,7 +33,7 @@ final storeLevelsProvider =
 });
 
 final storeVisitsProvider =
-    FutureProvider.autoDispose.family<List<CampaignProgress>, UserStore>((ref, store) async {
+    FutureProvider.autoDispose.family<List<StampCampaign>, UserStore>((ref, store) async {
   return ref.read(storesRepoProvider).visits(store);
 });
 
@@ -74,7 +74,7 @@ class StoreDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const tabs = [
       'نظرة عامة',
-      'الزيارات',
+      'بطاقاتي',
       'النقاط',
       'المكافآت',
       'المستويات',
@@ -281,9 +281,9 @@ class _VisitsTab extends ConsumerWidget {
       data: (campaigns) {
         if (campaigns.isEmpty) {
           return const EmptyView(
-            icon: Icons.local_cafe_outlined,
-            title: 'لا توجد حملات زيارة حاليًا',
-            message: 'تابع المتجر — قد تظهر حملات جديدة قريبًا.',
+            icon: Icons.card_giftcard_outlined,
+            title: 'لا توجد بطاقات أختام حاليًا',
+            message: 'تابع المتجر — قد تظهر بطاقات جديدة قريبًا.',
           );
         }
         return RefreshIndicator(
@@ -292,123 +292,13 @@ class _VisitsTab extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             itemCount: campaigns.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (_, i) => _CampaignCard(campaign: campaigns[i]),
+            itemBuilder: (_, i) => StampCard(campaign: campaigns[i]),
           ),
         );
       },
     );
   }
 }
-
-class _CampaignCard extends StatelessWidget {
-  final CampaignProgress campaign;
-  const _CampaignCard({required this.campaign});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (campaign.completed) {
-      return AppCard(
-        color: AppColors.primaryLight,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('مكافأتك جاهزة!', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('أرِ رمزك للكاشير لاستلامها.',
-                style: theme.textTheme.bodyMedium),
-          ],
-        ),
-      );
-    }
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'زُر ${campaign.requiredVisits} مرات واحصل على ${campaign.rewardName}',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 16),
-          // شريط التقدّم البصري: يوم 1 ✓ ... يوم N 🎁.
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (var day = 1; day <= campaign.requiredVisits; day++)
-                _DayChip(
-                  day: day,
-                  total: campaign.requiredVisits,
-                  done: day <= campaign.currentVisits,
-                  current: day == campaign.currentVisits + 1,
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            campaign.remaining == 1
-                ? 'زيارة واحدة متبقية للحصول على مكافأتك.'
-                : campaign.remaining == 2
-                    ? 'زيارتان متبقيتان للحصول على مكافأتك.'
-                    : '${campaign.remaining} زيارات متبقية للحصول على مكافأتك.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DayChip extends StatelessWidget {
-  final int day;
-  final int total;
-  final bool done;
-  final bool current;
-  const _DayChip(
-      {required this.day,
-      required this.total,
-      required this.done,
-      required this.current});
-
-  @override
-  Widget build(BuildContext context) {
-    final isReward = day == total;
-    final Color bg;
-    final Widget child;
-    if (done) {
-      bg = AppColors.success;
-      child = const AppIcon(Icons.check_rounded, color: Colors.white, size: 22);
-    } else if (current) {
-      bg = AppColors.primary;
-      child = Text('$day',
-          style: const TextStyle(
-              color: AppColors.onPrimary, fontWeight: FontWeight.w800));
-    } else {
-      bg = AppColors.surfaceCream;
-      child = isReward
-          ? const AppIcon(Icons.card_giftcard_rounded, size: 20, color: AppColors.primaryDark)
-          : Text('$day',
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontWeight: FontWeight.w700));
-    }
-    return Container(
-      width: 48,
-      height: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: bg,
-        shape: BoxShape.circle,
-        border: current
-            ? Border.all(color: AppColors.primaryDark, width: 2)
-            : null,
-      ),
-      child: child,
-    );
-  }
-}
-
-// ===================== النقاط =====================
 
 class _PointsTab extends StatelessWidget {
   final UserStore store;

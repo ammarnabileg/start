@@ -53,7 +53,14 @@ Future<void> _shot(WidgetTester t, String name, Widget child) async {
       home: Directionality(textDirection: TextDirection.rtl, child: child),
     ),
   ));
-  await t.pumpAndSettle(const Duration(seconds: 1));
+  // settle محدود: الشاشات الساكنة تستقر فورًا؛ المتحرّكة (أنيميشن لا نهائي)
+  // تُلتقط بعد 3 ثوانٍ بدل التعليق.
+  try {
+    await t.pumpAndSettle(const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
+  } catch (_) {
+    await t.pump(const Duration(milliseconds: 300));
+  }
   final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
   final image = await boundary.toImage(pixelRatio: 1.0);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -880,38 +887,38 @@ class _TabVisits extends StatelessWidget {
   const _TabVisits();
   @override
   Widget build(BuildContext context) {
-    Widget campaign(String title, int cur, int total) => AppCard(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const AppIconBadge(Icons.event_repeat_rounded, size: 44),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.w800))),
-              Text('$cur/$total',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primaryDark)),
-            ]),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                  value: cur / total,
-                  minHeight: 10,
-                  backgroundColor: AppColors.surfaceCream,
-                  color: AppColors.primary),
-            ),
-            const SizedBox(height: 6),
-            Text('باقي ${total - cur} زيارات للحصول على مكافأتك.',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12)),
-          ]),
-        );
+    List<DateTime> d(int n) =>
+        [for (var i = n; i > 0; i--) DateTime(2026, 6, 30 - i * 3)];
     return ListView(padding: const EdgeInsets.all(16), children: [
-      campaign('5 زيارات → قهوة مجانية', 3, 5),
-      campaign('10 زيارات → خصم 30%', 6, 10),
+      StampCard(
+        campaign: StampCampaign(
+          id: '1',
+          name: 'اشترِ 9 قهوة، العاشرة مجانًا',
+          description: 'بطاقة ولاء القهوة — اجمع أختامك واستمتع.',
+          actionType: 'purchase',
+          actionLabel: 'قهوة',
+          requiredCount: 10,
+          pointsPerStamp: 5,
+          rewardName: 'قهوة مجانية',
+          currentStamps: 7,
+          stampDates: d(7),
+        ),
+      ),
+      const SizedBox(height: 14),
+      StampCard(
+        campaign: StampCampaign(
+          id: '2',
+          name: 'تبرّع 5 مرات، واحصل على شارة',
+          description: 'ساهم معنا في دعم المجتمع.',
+          actionType: 'donation',
+          actionLabel: 'تبرّع',
+          requiredCount: 5,
+          pointsPerStamp: 20,
+          rewardName: 'هدية خاصة',
+          currentStamps: 5,
+          stampDates: d(5),
+        ),
+      ),
     ]);
   }
 }

@@ -195,10 +195,19 @@ create table public.visit_campaigns (
   id               uuid primary key default gen_random_uuid(),
   merchant_id      uuid not null references public.merchants(id) on delete cascade,
   name             text not null,
-  required_visits  integer not null check (required_visits > 0),
+  description      text,                                    -- وصف الحملة
+  -- بطاقة الأختام: التكرار قد يكون زيارة/شراء/تبرّع/مخصّص.
+  action_type      text not null default 'visit'
+                     check (action_type in ('visit','purchase','donation','custom')),
+  action_label     text,                                    -- مثال: "شراء قهوة"
+  required_visits  integer not null check (required_visits > 0), -- عدد التكرارات
+  points_per_stamp integer not null default 0,              -- نقاط مع كل ختم
+  reward_points    integer not null default 0,              -- نقاط مكافأة الإكمال
   reward_name      text,
-  reward_image_url text,
+  reward_image_url text,                                    -- صورة المكافأة (آخر خانة)
   reward_description text,
+  stamp_image_url  text,                                    -- صورة الختم
+  banner_image_url text,                                    -- بنر الهيدر (اختياري)
   active           boolean not null default true,
   created_at       timestamptz not null default now()
 );
