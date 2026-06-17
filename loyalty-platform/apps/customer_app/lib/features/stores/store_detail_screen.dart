@@ -37,6 +37,12 @@ final storeVisitsProvider =
   return ref.read(storesRepoProvider).visits(store);
 });
 
+/// إعدادات التاجر — تحدّد التبويبات الظاهرة (تحترم ما فعّله التاجر).
+final storeSettingsProvider = FutureProvider.autoDispose
+    .family<MerchantSettings, String>((ref, merchantId) async {
+  return ref.read(storesRepoProvider).merchantSettings(merchantId);
+});
+
 /// سجل حركات النقاط في هذا المتجر (مرقّم).
 final storeHistoryProvider = StateNotifierProvider.autoDispose
     .family<PaginatedNotifier<Map<String, dynamic>>,
@@ -66,24 +72,28 @@ final storeQuestionsProvider =
 
 // ===================== Screen =====================
 
-class StoreDetailScreen extends StatelessWidget {
+class StoreDetailScreen extends ConsumerWidget {
   final UserStore store;
   const StoreDetailScreen({super.key, required this.store});
 
   @override
-  Widget build(BuildContext context) {
-    const tabs = [
-      'نظرة عامة',
-      'بطاقاتي',
-      'النقاط',
-      'المكافآت',
-      'المستويات',
-      'الكوبونات',
-      'الأسئلة',
-      'السجل',
+  Widget build(BuildContext context, WidgetRef ref) {
+    // الإعدادات تحدّد التبويبات الظاهرة. أثناء التحميل نُظهر الكل ثم نطوي المعطّل.
+    final settings = ref.watch(storeSettingsProvider(store.merchantId)).valueOrNull;
+    bool on(bool Function(MerchantSettings) f) => settings == null ? true : f(settings);
+
+    final sections = <({String label, Widget view})>[
+      (label: 'نظرة عامة', view: _OverviewTab(store: store)),
+      if (on((s) => s.enableVisits)) (label: 'بطاقاتي', view: _VisitsTab(store: store)),
+      (label: 'النقاط', view: _PointsTab(store: store)),
+      if (on((s) => s.enableRewards)) (label: 'المكافآت', view: _RewardsTab(store: store)),
+      if (on((s) => s.enableLevels)) (label: 'المستويات', view: _LevelsTab(store: store)),
+      if (on((s) => s.enableCoupons)) (label: 'الكوبونات', view: _CouponsTab(store: store)),
+      (label: 'الأسئلة', view: _QuestionsTab(store: store)),
+      (label: 'السجل', view: _HistoryTab(store: store)),
     ];
     return DefaultTabController(
-      length: tabs.length,
+      length: sections.length,
       child: Scaffold(
         body: Column(
           children: [
@@ -116,21 +126,12 @@ class StoreDetailScreen extends StatelessWidget {
               color: AppColors.surface,
               child: TabBar(
                 isScrollable: true,
-                tabs: [for (final t in tabs) Tab(text: t)],
+                tabs: [for (final s in sections) Tab(text: s.label)],
               ),
             ),
             Expanded(
               child: TabBarView(
-                children: [
-            _OverviewTab(store: store),
-            _VisitsTab(store: store),
-            _PointsTab(store: store),
-            _RewardsTab(store: store),
-            _LevelsTab(store: store),
-            _CouponsTab(store: store),
-                  _QuestionsTab(store: store),
-                  _HistoryTab(store: store),
-                ],
+                children: [for (final s in sections) s.view],
               ),
             ),
           ],

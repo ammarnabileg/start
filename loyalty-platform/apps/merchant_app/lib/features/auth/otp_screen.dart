@@ -51,27 +51,8 @@ class _MerchantOtpScreenState extends ConsumerState<MerchantOtpScreen> {
 
       final draft = widget.draft ?? const <String, dynamic>{};
 
-      // إنشاء صف التاجر بحالة pending.
-      final merchant = await merchantRepo.insertMerchant({
-        'business_name': draft['business_name'],
-        'business_type': draft['business_type'],
-        'phone': draft['phone'] ?? widget.phone,
-        'email': draft['email'],
-        'cr_number': draft['cr_number'],
-        'logo_url': draft['logo_url'],
-        'address': draft['address'],
-        'status': 'pending',
-      });
-
-      final merchantId = merchant['id'] as String;
-
-      // ربط المستخدم الحالي كمالك للمتجر.
-      await merchantRepo.insertStaff({
-        'user_id': uid,
-        'merchant_id': merchantId,
-        'role': 'merchant_owner',
-        'status': 'active',
-      });
+      // إنشاء التاجر (pending) وربط المستخدم كمالك ذرّيًا عبر دالة آمنة.
+      final merchantId = await merchantRepo.registerMerchant(draft, widget.phone);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(

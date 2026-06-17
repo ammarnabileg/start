@@ -40,13 +40,20 @@ class MerchantRepository {
     return _client.from('merchants').update(payload).eq('id', merchantId);
   }
 
-  /// إنشاء صف تاجر جديد (يرجّع الصف مع المعرّف).
-  Future<Map<String, dynamic>> insertMerchant(Map<String, dynamic> payload) {
-    return _client.from('merchants').insert(payload).select().single();
-  }
-
-  Future<void> insertStaff(Map<String, dynamic> payload) {
-    return _client.from('merchant_staff').insert(payload);
+  /// تسجيل تاجر جديد ذاتيًا عبر دالة آمنة (security definer) تنشئ صف التاجر
+  /// وتربط المستخدم كمالك في معاملة واحدة — لأن RLS يمنع الإدراج المباشر في
+  /// merchants ولأن المالك الجديد ليس عضوًا بعد. يرجّع معرّف التاجر الجديد.
+  Future<String> registerMerchant(Map<String, dynamic> draft, String phone) async {
+    final id = await _client.rpc('register_merchant', params: {
+      'p_business_name': draft['business_name'],
+      'p_business_type': draft['business_type'],
+      'p_phone': draft['phone'] ?? phone,
+      'p_email': draft['email'],
+      'p_cr_number': draft['cr_number'],
+      'p_logo_url': draft['logo_url'],
+      'p_address': draft['address'],
+    });
+    return id as String;
   }
 
   // ----- الاشتراكات -----

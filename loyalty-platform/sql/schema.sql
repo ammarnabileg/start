@@ -783,6 +783,15 @@ create policy stores_self_read on public.user_stores
 create policy visits_self_read on public.user_visits
   for select using (user_id = auth.uid() or public.is_merchant_member(merchant_id));
 
+-- العميل يقرأ حركات نقاطه (عبر ملكيته للمحفظة)، والتاجر يقرأ حركات متجره.
+-- بدون هذه السياسة كان سجل النقاط فارغًا تمامًا للعميل (RLS يرفض الكل).
+create policy points_tx_read on public.points_transactions
+  for select using (
+    exists (select 1 from public.user_stores us
+              where us.id = user_store_id
+                and (us.user_id = auth.uid()
+                     or public.is_merchant_member(us.merchant_id))));
+
 create policy notifications_self on public.notifications
   for select using (user_id = auth.uid());
 create policy notifications_self_upd on public.notifications
@@ -1078,9 +1087,11 @@ begin
    where merchant_id = p_merchant and visit_date >= current_date - 7
      and (p_branch is null or branch_id = p_branch);
 
-  select coalesce(sum(points),0) into v_points from public.points_transactions
-   where merchant_id = p_merchant and type = 'earn'
-     and (p_branch is null or branch_id = p_branch);
+  select coalesce(sum(pt.points),0) into v_points
+   from public.points_transactions pt
+   join public.user_stores us on us.id = pt.user_store_id
+   where us.merchant_id = p_merchant and pt.type = 'earn'
+     and (p_branch is null or pt.branch_id = p_branch);
 
   select count(*) into v_redemptions from public.reward_redemptions
    where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch);
@@ -1101,10 +1112,11 @@ begin
   limit 1;
 
   select coalesce(jsonb_agg(a), '[]'::jsonb) into v_activity from (
-    select jsonb_build_object('type', type, 'points', points, 'created_at', created_at) a
-    from public.points_transactions
-    where merchant_id = p_merchant and (p_branch is null or branch_id = p_branch)
-    order by created_at desc limit 8
+    select jsonb_build_object('type', pt.type, 'points', pt.points, 'created_at', pt.created_at) a
+    from public.points_transactions pt
+    join public.user_stores us on us.id = pt.user_store_id
+    where us.merchant_id = p_merchant and (p_branch is null or pt.branch_id = p_branch)
+    order by pt.created_at desc limit 8
   ) t;
 
   v := jsonb_build_object(
@@ -1123,8 +1135,8 @@ end;
 $$;
 
 -- فهارس أداء إضافية لأنماط الاستعلام الفعلية.
-create index if not exists idx_points_merchant_created
-  on public.points_transactions(merchant_id, created_at desc);
+create index if not exists idx_points_store_created
+  on public.points_transactions(user_store_id, created_at desc);
 create index if not exists idx_redemptions_merchant
   on public.reward_redemptions(merchant_id);
 create index if not exists idx_visits_merchant_user
@@ -1551,12 +1563,13 @@ begin
   select count(*), count(*) filter (where c >= 2) into v_distinct, v_returners
   from per_user;
 
-  select coalesce(sum(points) filter (where type='earn'),0),
-         coalesce(abs(sum(points) filter (where type='redeem')),0)
+  select coalesce(sum(pt.points) filter (where pt.type='earn'),0),
+         coalesce(abs(sum(pt.points) filter (where pt.type='redeem')),0)
     into v_earned, v_redeemed
-  from public.points_transactions
-  where merchant_id = p_merchant and created_at >= v_since
-    and (p_branch is null or branch_id = p_branch);
+  from public.points_transactions pt
+  join public.user_stores us on us.id = pt.user_store_id
+  where us.merchant_id = p_merchant and pt.created_at >= v_since
+    and (p_branch is null or pt.branch_id = p_branch);
 
   select coalesce(jsonb_agg(t),'[]'::jsonb) into v_top from (
     select r.name, count(*) as redemptions
@@ -1670,8 +1683,8 @@ returns void language sql security definer as $$
 $$;
 
 -- [MEDIUM-DB] فهارس مركّبة تدعم التحليلات والسجلات.
-create index if not exists idx_pt_merchant_type_created
-  on public.points_transactions(merchant_id, type, created_at desc);
+create index if not exists idx_pt_store_type_created
+  on public.points_transactions(user_store_id, type, created_at desc);
 create index if not exists idx_rr_merchant_created
   on public.reward_redemptions(merchant_id, created_at desc);
 
@@ -1693,10 +1706,51 @@ returns boolean language sql security definer stable as $$
     where m.id = p_merchant
       and m.status = 'approved'
       and (
-        (s.status = 'active' and (s.current_period_end is null or s.current_period_end > now()))
-        or (s.status = 'trial' and (s.trial_ends_at is null or s.trial_ends_at > now()))
+        (s.status = 'active' and s.current_period_end is not null and s.current_period_end > now())
+        or (s.status = 'trial' and s.trial_ends_at is not null and s.trial_ends_at > now())
       )
   );
+$$;
+
+-- F2 · تسجيل تاجر جديد ذاتيًا: ينشئ صف التاجر (pending) ويربط المستخدم الحالي
+-- كمالك في معاملة واحدة وبصلاحية مرتفعة (يتجاوز RLS) — لأنه لا توجد سياسة INSERT
+-- على merchants، والمالك الجديد ليس عضوًا بعد ليُدرج صف موظفه. يحلّ مشكلة البيضة والدجاجة.
+create or replace function public.register_merchant(
+  p_business_name text,
+  p_business_type text default null,
+  p_phone text default null,
+  p_email text default null,
+  p_cr_number text default null,
+  p_logo_url text default null,
+  p_address text default null
+) returns uuid language plpgsql security definer as $$
+declare
+  v_uid uuid := auth.uid();
+  v_merchant uuid;
+begin
+  if v_uid is null then
+    raise exception 'يجب تسجيل الدخول أولًا';
+  end if;
+  if p_business_name is null or length(trim(p_business_name)) = 0 then
+    raise exception 'اسم النشاط مطلوب';
+  end if;
+  if exists (select 1 from public.merchant_staff
+              where user_id = v_uid and status = 'active') then
+    raise exception 'هذا الحساب مرتبط بتاجر بالفعل';
+  end if;
+
+  insert into public.merchants
+    (business_name, business_type, phone, email, cr_number, logo_url, address, status)
+  values
+    (trim(p_business_name), p_business_type, p_phone, p_email, p_cr_number,
+     p_logo_url, p_address, 'pending')
+  returning id into v_merchant;
+
+  insert into public.merchant_staff (user_id, merchant_id, name, role, status)
+  values (v_uid, v_merchant, trim(p_business_name), 'merchant_owner', 'active');
+
+  return v_merchant;
+end;
 $$;
 
 -- F3 · هوية مالك المنصّة + سجل تدقيق عام.
@@ -1704,6 +1758,8 @@ create table if not exists public.super_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
+-- لا سياسات → يُقرأ فقط عبر is_super_admin() (security definer). يمنع كشف هوية الأدمن.
+alter table public.super_admins enable row level security;
 create or replace function public.is_super_admin()
 returns boolean language sql security definer stable as $$
   select exists (select 1 from public.super_admins where user_id = auth.uid());

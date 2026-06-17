@@ -154,6 +154,18 @@ class StoresRepository {
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
+  /// إعدادات التاجر (الميزات المفعّلة + الهوية) — لإخفاء التبويبات المعطّلة
+  /// في تطبيق العميل بحيث يعكس ما فعّله التاجر فعلًا.
+  Future<MerchantSettings> merchantSettings(String merchantId) async {
+    final row = await _client
+        .from('merchant_settings')
+        .select()
+        .eq('merchant_id', merchantId)
+        .maybeSingle();
+    if (row == null) return MerchantSettings(merchantId: merchantId);
+    return MerchantSettings.fromJson(row);
+  }
+
   /// الكوبونات المتاحة للتاجر في فرع محفظة العميل.
   Future<List<Map<String, dynamic>>> coupons(String merchantId,
       {String? branchId}) async {

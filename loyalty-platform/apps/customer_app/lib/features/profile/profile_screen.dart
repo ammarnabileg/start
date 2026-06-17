@@ -15,6 +15,38 @@ import 'settings_screen.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  /// حذف الحساب نهائيًا (PDPL) — بتأكيد صريح ثم استدعاء دالة الحذف وتسجيل الخروج.
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف الحساب'),
+        content: const Text('سيتم حذف بياناتك ونقاطك نهائيًا. لا يمكن التراجع.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('حذف نهائيًا'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(userRepoProvider).deleteAccount();
+      if (context.mounted) context.go('/welcome');
+    } catch (_) {
+      if (context.mounted) {
+        AppFeedback.toast(context, 'تعذّر حذف الحساب، حاول مرة أخرى.',
+            error: true);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
@@ -115,10 +147,11 @@ class ProfileScreen extends ConsumerWidget {
                           },
                         ),
                         const Divider(height: 1, indent: 16, endIndent: 16),
-                        const _Tile(
+                        _Tile(
                           icon: Icons.delete_outline_rounded,
                           label: 'حذف الحساب',
                           danger: true,
+                          onTap: () => _confirmDeleteAccount(context, ref),
                         ),
                       ],
                     ),

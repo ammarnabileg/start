@@ -35,9 +35,9 @@ class UserStore {
     this.merchantStatus,
   });
 
-  /// المتجر متاح للتعامل (غير معلّق).
-  bool get merchantAvailable =>
-      merchantStatus == null || merchantStatus == 'approved';
+  /// المتجر متاح للتعامل: معتمد صراحةً فقط. أي حالة أخرى — أو غياب الحالة لأن
+  /// صف التاجر محجوب بـ RLS عند التعليق — تُعدّ "غير متاح" (fail-closed).
+  bool get merchantAvailable => merchantStatus == 'approved';
 
   factory UserStore.fromJson(Map<String, dynamic> j) => UserStore(
         id: j['id'] as String,

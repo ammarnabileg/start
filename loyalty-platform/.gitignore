@@ -17,5 +17,10 @@ pubspec.lock
 **/GoogleService-Info.plist
 **/firebase_options.dart
 
+# Android release signing secrets (per-developer — never commit)
+**/key.properties
+*.jks
+*.keystore
+
 # Generated screenshots
 **/test/screenshots/out/

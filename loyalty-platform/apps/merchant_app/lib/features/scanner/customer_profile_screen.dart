@@ -40,8 +40,14 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         }
       }
     } on FunctionException catch (e) {
-      // 409: عملية بنفس مفتاح الازدواج قيد المعالجة — لا نعيد الإرسال.
-      if (e.status == 409) {
+      // نُظهر رسالة الخادم الفعلية (نقاط غير كافية / لا صلاحية / تحتاج تأكيد العميل)
+      // بدل رسالة عامة، فهي الأكثر فائدة للكاشير.
+      final body = e.details;
+      final serverMsg =
+          (body is Map && body['error'] is String) ? body['error'] as String : null;
+      if (serverMsg != null && serverMsg.isNotEmpty) {
+        _snack(serverMsg);
+      } else if (e.status == 409) {
         _snack('عملية قيد المعالجة');
       } else {
         _snack('تعذّر تنفيذ العملية، تحقق من الاتصال');
