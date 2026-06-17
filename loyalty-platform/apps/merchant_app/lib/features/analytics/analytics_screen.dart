@@ -278,7 +278,8 @@ class _StatRow extends StatelessWidget {
         Expanded(
             child: StatCard(
                 label: 'معدّل العودة',
-                value: '${(data.returnRate * 100).round()}%',
+                // analytics_summary يُرجِع النسبة مئويًّا (0..100) أصلًا.
+                value: '${data.returnRate.round()}%',
                 icon: Icons.repeat_rounded,
                 accent: AppColors.success,
                 highlight: true)),

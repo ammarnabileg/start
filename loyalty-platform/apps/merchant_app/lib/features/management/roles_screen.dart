@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/staff_repository.dart';
 
 /// أدوار التاجر. لو فارغة، نزرع الأدوار الافتراضية ثم نعيد التحميل.
@@ -38,10 +39,10 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
     final async = ref.watch(rolesProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('الأدوار والصلاحيات')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.roles,
+        label: 'دور جديد',
         onPressed: () => _openEditor(null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('دور جديد'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -138,10 +139,13 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
   }
 
   Future<void> _openEditor(MerchantRole? role) async {
+    // فتح دور موجود بدون صلاحية تعديل الأدوار → وضع عرض فقط.
+    final readOnly =
+        role != null && !ref.permCan(PermResource.roles, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _RoleEditor(existing: role),
+      builder: (_) => _RoleEditor(existing: role, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(rolesProvider);
   }
@@ -149,7 +153,8 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
 
 class _RoleEditor extends ConsumerStatefulWidget {
   final MerchantRole? existing;
-  const _RoleEditor({this.existing});
+  final bool readOnly;
+  const _RoleEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_RoleEditor> createState() => _RoleEditorState();
 }
@@ -165,7 +170,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
   // («تفعيل/redeem» مستقلّة لأنها صلاحية كاشير عبر الماسح لا تتطلّب عرضًا.)
   static const _writes = {PermAction.create, PermAction.edit, PermAction.delete};
 
-  bool get _readOnly => widget.existing?.isOwner ?? false;
+  bool get _readOnly => widget.readOnly || (widget.existing?.isOwner ?? false);
 
   @override
   void initState() {
@@ -297,8 +302,9 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final canDelete =
-        widget.existing != null && !widget.existing!.isSystem;
+    final canDelete = widget.existing != null &&
+        !widget.existing!.isSystem &&
+        ref.permCan(PermResource.roles, PermAction.delete);
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
