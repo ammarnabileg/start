@@ -1,8 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:loyalty_core/loyalty_core.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/repositories/user_repository.dart';
@@ -59,6 +63,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ProximityService.instance.start();
     } else {
       await ProximityService.instance.stop();
+    }
+  }
+
+  Future<void> _exportData() async {
+    setState(() => _busy = true);
+    try {
+      final data = await ref.read(userRepoProvider).exportData();
+      final pretty =
+          const JsonEncoder.withIndent('  ').convert(data);
+      final bytes = Uint8List.fromList(utf8.encode(pretty));
+      final file = XFile.fromData(
+        bytes,
+        name: 'hatchy-my-data.json',
+        mimeType: 'application/json',
+      );
+      if (!mounted) return;
+      await Share.shareXFiles([file], subject: 'نسخة من بياناتي');
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر تصدير بياناتك، حاول مرة أخرى.',
+            error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -216,14 +244,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SectionHeader(title: 'الحساب'),
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: ListTile(
-                leading: const AppIcon(Icons.delete_outline_rounded,
-                    color: AppColors.error),
-                title: Text('حذف الحساب',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(color: AppColors.error)),
-                trailing: const AppIcon(Icons.chevron_left_rounded),
-                onTap: _busy ? null : _confirmDelete,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const AppIcon(Icons.download_rounded),
+                    title: const Text('تصدير بياناتي'),
+                    subtitle: const Text(
+                        'احصل على نسخة من بياناتك ونقاطك ومعاملاتك.'),
+                    trailing: const AppIcon(Icons.chevron_left_rounded),
+                    onTap: _busy ? null : _exportData,
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const AppIcon(Icons.delete_outline_rounded,
+                        color: AppColors.error),
+                    title: Text('حذف الحساب',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: AppColors.error)),
+                    trailing: const AppIcon(Icons.chevron_left_rounded),
+                    onTap: _busy ? null : _confirmDelete,
+                  ),
+                ],
               ),
             ),
           ],

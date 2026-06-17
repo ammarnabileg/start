@@ -37,14 +37,14 @@ jobs:
         run: |
           flutter pub get
           flutter analyze
-          flutter test --exclude-tags golden
+          flutter test --exclude-tags screenshot
 
       - name: merchant_app — get / analyze / test
         working-directory: loyalty-platform/apps/merchant_app
         run: |
           flutter pub get
           flutter analyze
-          flutter test --exclude-tags golden
+          flutter test --exclude-tags screenshot
 
   # ── بناء APK لكل تطبيق (Artifacts) ──
   build-apk:

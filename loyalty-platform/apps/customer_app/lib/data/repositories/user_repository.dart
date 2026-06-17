@@ -42,6 +42,12 @@ class UserRepository {
     await _client.auth.signOut();
   }
 
+  /// تصدير بيانات المستخدم (حق الوصول — PDPL). يعيد JSON بكل صفوف المستخدم.
+  Future<Map<String, dynamic>> exportData() async {
+    final res = await _client.functions.invoke('export-data');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
   // ===== المصادقة =====
 
   Future<void> signInWithOtp({required String phone}) =>

@@ -54,7 +54,7 @@ loyalty-platform/
 supabase functions deploy verify-qr add-points record-visit \
   redeem-reward confirm-redemption staff-redeem apply-coupon answer-question \
   send-announcement spin-wheel redeem-prize confirm-prize submit-report \
-  claim-staff delete-account proximity-hit pos-api pos-keys admin-merchant
+  claim-staff delete-account export-data proximity-hit pos-api pos-keys admin-merchant
 
 # Storage buckets المطلوبة: avatars · merchant-media · reports (للبلاغات/الفيديو)
 ```
