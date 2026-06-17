@@ -157,6 +157,7 @@ void main() {
   testWidgets('m28 analytics', (t) => _shot(t, 'm28_analytics', const _Analytics()));
   testWidgets('m29 announcements', (t) => _shot(t, 'm29_announcements', const _Announcements()));
   testWidgets('m30 settings', (t) => _shot(t, 'm30_settings', const _MSettings()));
+  testWidgets('m30b scope switch', (t) => _shot(t, 'm30b_scope_switch', const _ScopeSwitch()));
   testWidgets('m31 plans', (t) => _shot(t, 'm31_plans', const _Plans()));
   testWidgets('m32 subscription', (t) => _shot(t, 'm32_subscription', const _Subscription()));
   testWidgets('m33 unavailable', (t) => _shot(t, 'm33_unavailable', const _Unavailable()));
@@ -766,7 +767,7 @@ class _Levels extends StatelessWidget {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.divider)),
-          child: Row(children: const [
+          child: const Row(children: [
             AppIcon(Icons.store_mall_directory_outlined,
                 color: AppColors.primaryDark),
             SizedBox(width: 8),
@@ -1415,6 +1416,77 @@ class _MSettings extends StatelessWidget {
         toggle(Icons.shield_outlined, 'تأكيد الطرفين للاستبدال', true),
         toggle(Icons.groups_rounded, 'الإحالات', false),
       ]),
+    );
+  }
+}
+
+/// حوار تبديل النطاق (منفصل → عام): تبنّي فرع أو البدء من جديد.
+class _ScopeSwitch extends StatelessWidget {
+  const _ScopeSwitch();
+  @override
+  Widget build(BuildContext context) {
+    const branches = ['الفرع الرئيسي', 'فرع النخيل', 'فرع الورود'];
+    return Scaffold(
+      backgroundColor: Colors.black.withValues(alpha: .25),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(3)),
+                ),
+              ),
+              Text('توحيد النقاط للستور كله',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              const Text(
+                  'النقاط دلوقتي منفصلة لكل فرع. اختار تبدأ إعدادات مشتركة جديدة، '
+                  'أو تتبنّى إعدادات فرع معيّن (نقاطه ومستوياته) كأساس. بيانات باقي '
+                  'الفروع تفضل محفوظة للرجوع لاحقًا.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              const SectionHeader(title: 'تبنّى إعدادات فرع'),
+              const SizedBox(height: 8),
+              for (final b in branches)
+                AppCard(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    const AppIconBadge(Icons.store_mall_directory_outlined,
+                        size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(b,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700))),
+                    const AppIcon(Icons.chevron_left_rounded,
+                        color: AppColors.textSecondary),
+                  ]),
+                ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const AppIcon(Icons.refresh, color: AppColors.primaryDark),
+                label: const Text('ابدأ إعدادات مشتركة جديدة'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

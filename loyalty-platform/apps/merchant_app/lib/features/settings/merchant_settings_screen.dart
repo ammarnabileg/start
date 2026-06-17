@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/branches_repository.dart';
 import '../../data/repositories/merchant_repository.dart';
 
 /// 2.14 — الإعدادات المتقدمة (Merchant Settings) — "أوبشن في كل حاجة".
@@ -110,8 +111,46 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // تبديل نطاق النقاط = هجرة بيانات حسّاسة (محافظ/مستويات) — نتعامل معها بأمان.
+    final scopeChanged = _scope != widget.initial.pointsScope;
+    String migMode = 'fresh';
+    String? migSource;
+    if (scopeChanged) {
+      final branches = await ref
+          .read(branchesRepoProvider)
+          .fetchActiveBranchOptions(widget.initial.merchantId);
+      if (!mounted) return;
+      if (_scope == PointsScope.branch) {
+        // عام → منفصل: كل البيانات الحالية تنتقل لأول فرع.
+        if (branches.isEmpty) {
+          AppFeedback.toast(context,
+              'أضف فرعًا واحدًا على الأقل قبل فصل النقاط لكل فرع', error: true);
+          return;
+        }
+        final primary = branches.first;
+        final ok = await _confirmToBranch(primary['name'] as String? ?? 'الفرع');
+        if (ok != true) return;
+        migSource = primary['id'] as String;
+      } else {
+        // منفصل → عام: نسأل التاجر يتبنّى فرعًا أو يبدأ من جديد.
+        final choice = await _chooseToMerchant(branches);
+        if (choice == null) return;
+        migMode = choice.$1;
+        migSource = choice.$2;
+      }
+    }
+
     setState(() => _busy = true);
     try {
+      if (scopeChanged) {
+        await ref.read(merchantRepoProvider).applyPointsScope(
+              merchantId: widget.initial.merchantId,
+              newScope: _scope.value,
+              mode: migMode,
+              sourceBranch: migSource,
+            );
+      }
       final settings = MerchantSettings(
         merchantId: widget.initial.merchantId,
         pointsScope: _scope,
@@ -162,6 +201,82 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// تأكيد التحويل (عام → منفصل): كل البيانات الحالية تنتقل لأول فرع.
+  Future<bool?> _confirmToBranch(String primaryName) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('فصل النقاط لكل فرع'),
+        content: Text(
+            'كل النقاط والمستويات الحالية (المشتركة) هتنتقل لفرع «$primaryName». '
+            'باقي الفروع تبدأ من جديد. لا يُحذف أي شيء، وتقدر ترجع للوضع المشترك لاحقًا.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('متابعة')),
+        ],
+      ),
+    );
+  }
+
+  /// اختيار طريقة التحويل (منفصل → عام): تبنّي فرع كأساس أو البدء من جديد.
+  /// يرجّع (mode, sourceBranchId?) أو null عند الإلغاء.
+  Future<(String, String?)?> _chooseToMerchant(
+      List<Map<String, dynamic>> branches) {
+    return showModalBottomSheet<(String, String?)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('توحيد النقاط للستور كله',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              const Text(
+                  'النقاط دلوقتي منفصلة لكل فرع. اختار تبدأ إعدادات مشتركة جديدة، '
+                  'أو تتبنّى إعدادات فرع معيّن (نقاطه ومستوياته) كأساس. بيانات باقي '
+                  'الفروع تفضل محفوظة للرجوع لاحقًا.',
+                  style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              const SectionHeader(title: 'تبنّى إعدادات فرع'),
+              const SizedBox(height: 8),
+              for (final b in branches)
+                AppCard(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  onTap: () =>
+                      Navigator.pop(ctx, ('adopt', b['id'] as String)),
+                  child: Row(children: [
+                    const AppIconBadge(Icons.store_mall_directory_outlined,
+                        size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(b['name'] as String? ?? 'فرع',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700))),
+                    const AppIcon(Icons.chevron_left_rounded,
+                        color: AppColors.textSecondary),
+                  ]),
+                ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(ctx, ('fresh', null)),
+                icon: const AppIcon(Icons.refresh, color: AppColors.primaryDark),
+                label: const Text('ابدأ إعدادات مشتركة جديدة'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

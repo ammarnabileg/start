@@ -83,6 +83,22 @@ class MerchantRepository {
         .upsert(payload, onConflict: 'merchant_id');
   }
 
+  /// تبديل نطاق النقاط بأمان (هجرة المحافظ والمستويات حسب الاتجاه).
+  /// mode: 'adopt' أو 'fresh' (يُستخدم عند التحويل لـ merchant).
+  Future<void> applyPointsScope({
+    required String merchantId,
+    required String newScope,
+    String mode = 'fresh',
+    String? sourceBranch,
+  }) {
+    return _client.rpc('apply_points_scope', params: {
+      'p_merchant': merchantId,
+      'p_new_scope': newScope,
+      'p_mode': mode,
+      'p_source_branch': sourceBranch,
+    });
+  }
+
   // ----- ملخّص اللوحة -----
 
   Future<Map<String, dynamic>> dashboardSummary({

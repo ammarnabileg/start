@@ -530,6 +530,84 @@ end;
 $$;
 
 -- =====================================================================
+-- تبديل نطاق النقاط بأمان (بدون فقدان بيانات / تيتيم محافظ).
+-- البيانات المعتمدة على النطاق = المحافظ (user_stores) + المستويات (loyalty_levels).
+-- (المكافآت/الكوبونات/الحملات/العجلة على مستوى الستور دائمًا — لا تتأثّر.)
+--
+-- عام → منفصل  : كل بيانات الستور العامة (NULL) تنتقل لأول فرع (أو الفرع المحدّد).
+-- منفصل → عام  : mode='adopt' → بيانات الفرع المصدر تصبح العامة، وباقي الفروع
+--                تبقى محفوظة (خاملة) للرجوع. mode='fresh' → لا نلمس أي بيانات.
+-- =====================================================================
+create or replace function public.apply_points_scope(
+  p_merchant uuid,
+  p_new_scope text,
+  p_mode text default 'fresh',
+  p_source_branch uuid default null
+) returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_old text;
+  v_primary uuid;
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'forbidden';
+  end if;
+  if p_new_scope not in ('merchant','branch') then
+    raise exception 'bad_scope';
+  end if;
+
+  select points_scope into v_old from public.merchant_settings
+    where merchant_id = p_merchant;
+  v_old := coalesce(v_old, 'branch');
+
+  if v_old = p_new_scope then
+    return; -- لا تغيير
+  end if;
+
+  if p_new_scope = 'branch' then
+    -- (عام → منفصل): البيانات العامة تروح لأول فرع.
+    v_primary := coalesce(
+      p_source_branch,
+      (select id from public.branches
+         where merchant_id = p_merchant and active
+         order by created_at limit 1),
+      (select id from public.branches
+         where merchant_id = p_merchant order by created_at limit 1));
+    if v_primary is null then
+      raise exception 'no_branch'; -- لازم فرع واحد على الأقل
+    end if;
+    update public.user_stores set branch_id = v_primary
+      where merchant_id = p_merchant and branch_id is null;
+    update public.loyalty_levels set branch_id = v_primary
+      where merchant_id = p_merchant and branch_id is null;
+
+  else
+    -- (منفصل → عام)
+    if p_mode = 'adopt' and p_source_branch is not null then
+      -- المحافظ: ندمج محافظ الفرع المصدر كمحافظ مشتركة (NULL).
+      -- (تنظيف دفاعي لأي محفظة مشتركة شاذّة لنفس العميل قبل النقل.)
+      delete from public.user_stores us
+        where us.merchant_id = p_merchant and us.branch_id is null
+          and exists (select 1 from public.user_stores b
+                      where b.merchant_id = p_merchant
+                        and b.branch_id = p_source_branch
+                        and b.user_id = us.user_id);
+      update public.user_stores set branch_id = null
+        where merchant_id = p_merchant and branch_id = p_source_branch;
+      -- المستويات: مستويات الفرع المصدر تصبح عامة (تنظيف دفاعي للعامة الشاذّة).
+      delete from public.loyalty_levels
+        where merchant_id = p_merchant and branch_id is null;
+      update public.loyalty_levels set branch_id = null
+        where merchant_id = p_merchant and branch_id = p_source_branch;
+    end if;
+    -- mode='fresh': لا نلمس المحافظ/المستويات (تبدأ العامة فارغة، والفروع محفوظة).
+  end if;
+
+  update public.merchant_settings set points_scope = p_new_scope
+    where merchant_id = p_merchant;
+end;
+$$;
+
+-- =====================================================================
 -- 9) RLS — تفعيل + سياسات العزل
 -- القاعدة: العميل يشوف بياناته هو. التاجر يشوف بيانات تاجره فقط.
 -- الكتابة الحسّاسة (نقاط/زيارات/استبدال) تتم عبر Edge Functions
