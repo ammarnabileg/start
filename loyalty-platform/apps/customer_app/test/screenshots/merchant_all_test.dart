@@ -142,6 +142,7 @@ void main() {
   testWidgets('m14 map picker', (t) => _shot(t, 'm14_map_picker', const _MapPicker()));
   testWidgets('m15 branches', (t) => _shot(t, 'm15_branches', const _Branches()));
   testWidgets('m16 campaigns', (t) => _shot(t, 'm16_campaigns', const _Campaigns()));
+  testWidgets('m16b campaign editor', (t) => _shot(t, 'm16b_campaign_editor', const _CampaignEditor()));
   testWidgets('m17 rewards', (t) => _shot(t, 'm17_rewards', const _Rewards()));
   testWidgets('m18 levels', (t) => _shot(t, 'm18_levels', const _Levels()));
   testWidgets('m18b levels editor', (t) => _shot(t, 'm18b_levels_editor', const _LevelsEditor()));
@@ -697,6 +698,100 @@ class _Campaigns extends StatelessWidget {
         ],
         fab: _fab(),
       );
+}
+
+/// محرّر حملة الزيارات (إعداداتها) — متضمّنًا تحكّم استهداف الفروع.
+class _CampaignEditor extends StatelessWidget {
+  const _CampaignEditor();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('حملات الزيارات')),
+      body: ListView(padding: const EdgeInsets.all(20), children: [
+        Text('تعديل الحملة', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        Container(
+          height: 110,
+          decoration: BoxDecoration(
+              color: AppColors.surfaceCream,
+              borderRadius: BorderRadius.circular(AppRadii.lg)),
+          child: const Center(
+              child: AppIcon(Icons.add_a_photo_outlined,
+                  size: 36, color: AppColors.primaryDark)),
+        ),
+        const SizedBox(height: 14),
+        _field('اسم الحملة', icon: Icons.event_repeat_rounded,
+            value: 'اجمع 5 زيارات'),
+        _field('عدد الزيارات المطلوبة', icon: Icons.event_available_rounded,
+            value: '5'),
+        _field('اسم المكافأة', icon: Icons.card_giftcard_outlined,
+            value: 'قهوة مجانية'),
+        _field('وصف المكافأة', icon: Icons.short_text_rounded,
+            value: 'كوب قهوة من اختيارك', maxLines: 2),
+        const SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('مفعّلة'),
+          value: true,
+          onChanged: null,
+        ),
+        const Divider(height: 24),
+        // ===== تحكّم استهداف الفروع (موحّد / فروع محدّدة) =====
+        const SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Row(children: [
+            AppIcon(Icons.store_mall_directory_outlined,
+                size: 20, color: AppColors.primaryDark),
+            SizedBox(width: 6),
+            Text('الإتاحة في الفروع',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ]),
+          subtitle: Text('متاح في 2 فرع/فروع مختارة'),
+          value: false,
+          onChanged: null,
+        ),
+        const SizedBox(height: 6),
+        const SectionHeader(title: 'استقطب الفروع'),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final b in const [
+            ('الفرع الرئيسي', true),
+            ('فرع النخيل', true),
+            ('فرع الورود', false),
+          ])
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: b.$2 ? AppColors.primaryLight : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                border: Border.all(
+                    color: b.$2 ? AppColors.primary : AppColors.divider,
+                    width: 1.5),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                AppIcon(b.$2 ? Icons.check_circle_rounded : Icons.add,
+                    size: 16,
+                    color:
+                        b.$2 ? AppColors.primaryDark : AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Text(b.$1,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: b.$2
+                            ? AppColors.primaryDark
+                            : AppColors.textPrimary)),
+              ]),
+            ),
+        ]),
+        const SizedBox(height: 6),
+        const Text(
+            'استقطب نفس العرض لأي فرع، أو ابنِ عنصرًا خاصًا بفرع من الصفر.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        const SizedBox(height: 18),
+        const PrimaryButton(
+            label: 'حفظ', icon: Icons.check_rounded, onPressed: _noop),
+      ]),
+    );
+  }
 }
 
 class _Rewards extends StatelessWidget {
