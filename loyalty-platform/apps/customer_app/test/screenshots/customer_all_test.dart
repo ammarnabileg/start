@@ -142,6 +142,146 @@ void main() {
   testWidgets('c21 prize qr', (t) => _shot(t, 'c21_prize_qr', const _PrizeQr()));
   testWidgets('c22 leaderboard', (t) => _shot(t, 'c22_leaderboard', const _Leaderboard()));
   testWidgets('c23 referral', (t) => _shot(t, 'c23_referral', const _Referral()));
+  testWidgets('c24 deliver confirm', (t) => _shot(t, 'c24_deliver_confirm', const _DeliverConfirm()));
+  testWidgets('c25 report', (t) => _shot(t, 'c25_report', const _ReportForm()));
+}
+
+/// نافذة تأكيد استلام الهدية — موافق / إلغاء / إبلاغ.
+class _DeliverConfirm extends StatelessWidget {
+  const _DeliverConfirm();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withValues(alpha: .35),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(3))),
+            Container(
+              height: 84,
+              width: 84,
+              decoration: const BoxDecoration(
+                  gradient: AppColors.goldGradient, shape: BoxShape.circle),
+              child: const AppIcon(Icons.card_giftcard_rounded,
+                  size: 44, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            const Text('يتم تسليمك'),
+            const SizedBox(height: 4),
+            Text('قهوة مجانية',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            const Text('من عجلة الحظ · مقهى الرواق',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            const SizedBox(height: 22),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                    onPressed: () {},
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('إلغاء')),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                    onPressed: () {},
+                    style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('موافق')),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            TextButton.icon(
+                onPressed: () {},
+                icon: const AppIcon(Icons.warning_amber_rounded,
+                    size: 18, color: AppColors.error),
+                label: const Text('إبلاغ عن مشكلة',
+                    style: TextStyle(color: AppColors.error))),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// نموذج الإبلاغ — فيديو + المتجر تلقائيًا + رسالة + إرسال.
+class _ReportForm extends StatelessWidget {
+  const _ReportForm();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withValues(alpha: .35),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('إبلاغ عن مشكلة',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                AppCard(
+                  child: Row(children: const [
+                    AppIcon(Icons.storefront_rounded,
+                        color: AppColors.primaryDark),
+                    SizedBox(width: 10),
+                    Expanded(
+                        child: Text('مقهى الرواق',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                    Text('تلقائي',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                AppCard(
+                  child: Row(children: const [
+                    AppIconBadge(Icons.check_rounded,
+                        size: 44, color: AppColors.success),
+                    SizedBox(width: 12),
+                    Expanded(
+                        child: Text('تم إرفاق الفيديو — اضغط لإعادة التسجيل',
+                            style: TextStyle(fontWeight: FontWeight.w600))),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                const TextField(
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                      labelText: 'رسالتك (اختياري)',
+                      alignLabelWithHint: true),
+                ),
+                const SizedBox(height: 16),
+                const PrimaryButton(
+                    label: 'إرسال',
+                    icon: Icons.send_rounded,
+                    onPressed: _noop),
+              ]),
+        ),
+      ),
+    );
+  }
 }
 
 // ============================ FACSIMILES ============================
