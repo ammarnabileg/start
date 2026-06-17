@@ -1192,12 +1192,21 @@ class _Reports extends StatelessWidget {
                     color: AppColors.primaryDark)),
           ]),
         );
+    Widget statusChip(String label, Color color) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: .15),
+              borderRadius: BorderRadius.circular(AppRadii.pill)),
+          child: Text(label,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+        );
     Widget card(String name, String phone, String email, String date,
-            String msg, String branch, String prize) =>
+            String msg, String branch, String prize, Widget status) =>
         AppCard(
           margin: const EdgeInsets.only(bottom: 12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               CircleAvatar(
                   radius: 22,
                   backgroundColor: AppColors.primaryLight,
@@ -1214,7 +1223,11 @@ class _Reports extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(date, style: Theme.of(context).textTheme.bodySmall),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                status,
+                const SizedBox(height: 4),
+                Text(date, style: Theme.of(context).textTheme.bodySmall),
+              ]),
             ]),
             const SizedBox(height: 10),
             Wrap(spacing: 8, runSpacing: 6, children: [
@@ -1242,9 +1255,13 @@ class _Reports extends StatelessWidget {
       body: ListView(padding: const EdgeInsets.all(16), children: [
         card('أحمد', '05xxxxxxxx', 'ahmed@mail.com', '2026/6/17',
             'الهدية وصلتني ناقصة، برجاء المراجعة.', 'الفرع الرئيسي',
-            'قهوة مجانية'),
+            'قهوة مجانية', statusChip('مفتوح', AppColors.warning)),
         card('سارة', '05xxxxxxxx', 'sara@mail.com', '2026/6/16',
-            'في تأخير في تسليم المكافأة.', 'فرع النخيل', 'خصم 20%'),
+            'في تأخير في تسليم المكافأة.', 'فرع النخيل', 'خصم 20%',
+            statusChip('قيد المراجعة', AppColors.info)),
+        card('محمد', '05xxxxxxxx', 'm@mail.com', '2026/6/15',
+            'تم حل المشكلة، شكرًا.', 'فرع الورود', 'كيكة',
+            statusChip('تم الحل', AppColors.success)),
       ]),
     );
   }

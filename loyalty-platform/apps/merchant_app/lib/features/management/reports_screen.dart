@@ -100,9 +100,17 @@ class _ReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (created != null)
-                Text('${created.year}/${created.month}/${created.day}',
-                    style: theme.textTheme.bodySmall),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _StatusChip(report['status'] as String? ?? 'open'),
+                  if (created != null) ...[
+                    const SizedBox(height: 4),
+                    Text('${created.year}/${created.month}/${created.day}',
+                        style: theme.textTheme.bodySmall),
+                  ],
+                ],
+              ),
             ],
           ),
           if (branch != null || prize != null) ...[
@@ -137,6 +145,33 @@ class _ReportCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// حالة البلاغ (للعرض فقط — التعديل من بانل الأدمن).
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip(this.status);
+
+  (String, Color) get _style => switch (status) {
+        'resolved' => ('تم الحل', AppColors.success),
+        'reviewing' => ('قيد المراجعة', AppColors.info),
+        _ => ('مفتوح', AppColors.warning),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = _style;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .15),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.w800, fontSize: 12)),
     );
   }
 }

@@ -1147,6 +1147,10 @@ create policy reports_read_own on public.reports
   for select using (
     user_id = auth.uid()
     or (merchant_id is not null and public.is_merchant_member(merchant_id)));
+-- الأدمن (بانل المنصة الرئيسي) يقرأ كل البلاغات ويعدّل حالتها.
+create policy reports_admin_all on public.reports
+  for all using (public.is_super_admin())
+  with check (public.is_super_admin());
 
 create policy wheels_read on public.lucky_wheels
   for select using (active or public.is_merchant_member(merchant_id));
