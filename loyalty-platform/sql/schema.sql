@@ -1135,6 +1135,34 @@ create table public.reports (
 create index idx_reports_merchant on public.reports(merchant_id);
 create index idx_reports_user on public.reports(user_id);
 
+-- حدّ المعدّل (Rate limiting) لدوال الحافة — عدّاد لكل نافذة زمنية.
+create table public.rate_limits (
+  bucket     text primary key,
+  count      integer not null default 0,
+  expires_at timestamptz not null
+);
+
+-- يزيد العدّاد ويرجّع true لو ضمن الحد، false لو تجاوزه (يُستدعى بـ service_role).
+create or replace function public.rate_limit_hit(
+  p_key text, p_max integer, p_window_seconds integer
+) returns boolean language plpgsql security definer set search_path = public as $$
+declare v_bucket text; v_count integer;
+begin
+  v_bucket := p_key || ':' ||
+    (floor(extract(epoch from now()) / p_window_seconds))::bigint::text;
+  insert into public.rate_limits (bucket, count, expires_at)
+    values (v_bucket, 1, now() + make_interval(secs => p_window_seconds))
+  on conflict (bucket)
+    do update set count = public.rate_limits.count + 1
+    returning count into v_count;
+  return v_count <= p_max;
+end $$;
+
+create or replace function public.purge_rate_limits()
+returns void language sql security definer set search_path = public as $$
+  delete from public.rate_limits where expires_at < now();
+$$;
+
 alter table public.lucky_wheels  enable row level security;
 alter table public.wheel_segments enable row level security;
 alter table public.user_prizes    enable row level security;
@@ -1623,3 +1651,10 @@ select cron.schedule('expire-subscriptions','0 1 * * *', $$select public.expire_
   where not exists (select 1 from cron.job where jobname='expire-subscriptions');
 select cron.schedule('purge-idempotency','30 * * * *', $$select public.purge_idempotency();$$)
   where not exists (select 1 from cron.job where jobname='purge-idempotency');
+-- تنظيف عدّادات حدّ المعدّل + بلاغات/فيديوهات قديمة (احتفاظ ٩٠ يوم — PDPL).
+alter table public.rate_limits enable row level security;
+select cron.schedule('purge-rate-limits','*/15 * * * *', $$select public.purge_rate_limits();$$)
+  where not exists (select 1 from cron.job where jobname='purge-rate-limits');
+select cron.schedule('purge-old-reports','45 1 * * *',
+  $$delete from public.reports where created_at < now() - interval '90 days';$$)
+  where not exists (select 1 from cron.job where jobname='purge-old-reports');

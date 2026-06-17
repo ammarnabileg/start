@@ -3,12 +3,17 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireUser } from "../_shared/auth.ts";
 import { withIdempotency } from "../_shared/idempotency.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const userId = await requireUser(req, svc);
+    // حدّ اندفاع: 10 لفّات/دقيقة كحماية (بالإضافة للحد اليومي على العجلة).
+    if (!await rateLimit(svc, `spin:${userId}`, 10, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
     const { wheel_id, idempotency_key } = await req.json();
     if (!wheel_id) return badRequest("wheel_id مفقود");
 

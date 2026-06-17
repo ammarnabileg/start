@@ -1,12 +1,19 @@
 // submit-report: العميل يرسل بلاغًا (رسالة + فيديو توثيق اختياري) عن متجر/فرع.
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireUser } from "../_shared/auth.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const svc = serviceClient();
     const userId = await requireUser(req, svc);
+
+    // حدّ معدّل: 5 بلاغات/ساعة لكل مستخدم (منع السبام).
+    if (!await rateLimit(svc, `submit-report:${userId}`, 5, 3600)) {
+      return badRequest("لقد أرسلت بلاغات كثيرة، حاول لاحقًا", 429);
+    }
+
     const { merchant_id, branch_id, prize_id, message, video_url } =
       await req.json();
     if (!message && !video_url) return badRequest("أضف رسالة أو فيديو");
