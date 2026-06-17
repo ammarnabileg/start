@@ -1350,13 +1350,20 @@ class _Customers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = [
-      ('أحمد خالد', 'ذهبي · 24 زيارة', 1240),
-      ('سارة العتيبي', 'فضي · 11 زيارة', 430),
-      ('محمد القحطاني', 'برونزي · 3 زيارات', 90),
-      ('نورة السبيعي', 'فضي · 8 زيارات', 360),
+      ('أحمد خالد', 'ذهبي · فرع العليا · 24 زيارة', 1240),
+      ('سارة العتيبي', 'فضي · فرع الملقا · 11 زيارة', 430),
+      ('محمد القحطاني', 'برونزي · 3 زيارات · غير نشِط', 90),
+      ('نورة السبيعي', 'فضي · فرع العليا · 8 زيارات', 360),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('العملاء'), actions: const [
+        Padding(
+          padding: EdgeInsetsDirectional.only(end: 4),
+          child: Badge(
+            label: Text('2'),
+            child: AppIcon(Icons.tune_rounded),
+          ),
+        ),
         Padding(
             padding: EdgeInsetsDirectional.only(end: 8),
             child: AppIcon(Icons.campaign_outlined)),
@@ -1366,7 +1373,7 @@ class _Customers extends StatelessWidget {
           padding: EdgeInsets.all(16),
           child: TextField(
             decoration: InputDecoration(
-                hintText: 'ابحث بالاسم أو رقم الجوال',
+                hintText: 'ابحث بالاسم أو الجوال أو البريد',
                 prefixIcon: AppIcon(Icons.search_rounded)),
           ),
         ),
@@ -1403,6 +1410,7 @@ class _Customers extends StatelessWidget {
           ),
         ),
       ]),
+      bottomNavigationBar: _nav(2),
     );
   }
 }
