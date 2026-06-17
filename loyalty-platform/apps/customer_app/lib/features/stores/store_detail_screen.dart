@@ -542,15 +542,84 @@ class _LevelsTab extends ConsumerWidget {
             title: 'لا توجد مستويات',
           );
         }
+        // مستويات لها وصف مزايا — نعرضها كبطاقات تحت الرحلة (كانت تُحفظ ولا تظهر).
+        final withPerks = [
+          for (final l in levels)
+            if ((l.rewardDescription ?? '').trim().isNotEmpty) l,
+        ]..sort((a, b) =>
+            a.thresholdLifetimePoints.compareTo(b.thresholdLifetimePoints));
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: LevelsJourney(
-            levels: levels,
-            lifetimePoints: store.lifetimePoints,
-            title: 'رحلة مستوياتك',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LevelsJourney(
+                levels: levels,
+                lifetimePoints: store.lifetimePoints,
+                title: 'رحلة مستوياتك',
+              ),
+              if (withPerks.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'مزايا المستويات'),
+                const SizedBox(height: 8),
+                for (final l in withPerks)
+                  _LevelPerkCard(
+                    level: l,
+                    unlocked: l.thresholdLifetimePoints <= store.lifetimePoints,
+                  ),
+              ],
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+/// بطاقة ميزة مستوى — تُظهر وصف المزايا التي يحدّدها التاجر (مفتوحة/مقفلة).
+class _LevelPerkCard extends StatelessWidget {
+  final LoyaltyLevel level;
+  final bool unlocked;
+  const _LevelPerkCard({required this.level, required this.unlocked});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppIcon(
+              unlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+              color: unlocked ? AppColors.success : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(level.name,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(level.rewardDescription ?? '',
+                      style: Theme.of(context).textTheme.bodySmall),
+                  if (!unlocked) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'تُفتح عند ${level.thresholdLifetimePoints} نقطة كليّة',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
