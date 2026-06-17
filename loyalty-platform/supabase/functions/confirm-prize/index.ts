@@ -14,7 +14,8 @@ Deno.serve(async (req) => {
     }
 
     const { data: prize } = await svc.from("user_prizes")
-      .select("id, user_id, status, title").eq("id", prize_id).maybeSingle();
+      .select("id, user_id, status, title, kind, points_value, merchant_id, redeemed_branch")
+      .eq("id", prize_id).maybeSingle();
     if (!prize) return badRequest("الهدية غير موجودة", 404);
     if (prize.user_id !== userId) return badRequest("غير مصرّح", 403);
     if (prize.status !== "delivering") {
@@ -26,6 +27,33 @@ Deno.serve(async (req) => {
         status: "redeemed",
         redeemed_at: new Date().toISOString(),
       }).eq("id", prize.id);
+
+      // هدية من نوع "نقاط" → تُضاف فعليًا لرصيد العميل عند التأكيد.
+      if (prize.kind === "points" && (prize.points_value ?? 0) > 0) {
+        const { data: wallet } = await svc.rpc("get_or_create_wallet", {
+          p_user: userId,
+          p_merchant: prize.merchant_id,
+          p_staff_branch: prize.redeemed_branch,
+        }).single();
+        if (wallet) {
+          const pts = prize.points_value as number;
+          const newLifetime = wallet.lifetime_points + pts;
+          const { data: lid } = await svc.rpc("level_for", {
+            p_merchant: prize.merchant_id,
+            p_branch: wallet.branch_id,
+            p_lifetime: newLifetime,
+          });
+          await svc.from("user_stores").update({
+            available_points: wallet.available_points + pts,
+            lifetime_points: newLifetime,
+            current_level_id: lid ?? wallet.current_level_id,
+          }).eq("id", wallet.id);
+          await svc.from("points_transactions").insert({
+            user_store_id: wallet.id, branch_id: wallet.branch_id,
+            type: "earn", points: pts, reason: "prize_points",
+          });
+        }
+      }
       return json({ status: "redeemed", title: prize.title });
     }
     // إلغاء → ترجع الهدية متاحة، ونمسح بيانات الكاشير.

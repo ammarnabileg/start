@@ -1102,7 +1102,7 @@ create table public.user_prizes (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references public.users(id) on delete cascade,
   merchant_id  uuid not null references public.merchants(id) on delete cascade,
-  source       text not null default 'wheel' check (source in ('wheel','reward','manual')),
+  source       text not null default 'wheel' check (source in ('wheel','reward','manual','campaign')),
   source_ref   uuid,
   title        text not null,
   description  text,

@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     let awarded = 0;
     if (campaign_id) {
       const { data: camp } = await svc.from("visit_campaigns")
-        .select("required_visits, reward_name, points_per_stamp, reward_points")
+        .select("required_visits, reward_name, reward_description, reward_image_url, points_per_stamp, reward_points")
         .eq("id", campaign_id).maybeSingle();
       if (camp) {
         const { count } = await svc.from("user_visits")
@@ -86,10 +86,23 @@ Deno.serve(async (req) => {
         }
 
         if (rewardReady) {
+          // إنشاء هدية قابلة للاستلام بنفس آلية الـ QR (p1) — مثل أي هدية.
+          const expires = new Date(Date.now() + 30 * 24 * 3600_000);
+          await svc.from("user_prizes").insert({
+            user_id,
+            merchant_id: staff.merchantId,
+            source: "campaign",
+            source_ref: campaign_id,
+            title: camp.reward_name ?? "مكافأة بطاقتك",
+            description: camp.reward_description ?? null,
+            kind: "reward",
+            branch_scope: staff.branchId,
+            expires_at: expires.toISOString(),
+          });
           await svc.from("notifications").insert({
             user_id, type: "reward_ready",
             title: "مكافأتك جاهزة! 🎁",
-            body: `أكملت بطاقتك للحصول على ${camp.reward_name}`,
+            body: `أكملت بطاقتك — استلم ${camp.reward_name} من "هداياي"`,
             data: { merchant_id: staff.merchantId, campaign_id },
           });
         }
