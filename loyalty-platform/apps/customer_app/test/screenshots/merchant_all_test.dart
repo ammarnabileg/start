@@ -497,7 +497,7 @@ class _PrizeDeliver extends StatelessWidget {
               decoration: BoxDecoration(
                   color: AppColors.warningBg,
                   borderRadius: BorderRadius.circular(AppRadii.md)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
                 AppIcon(Icons.hourglass_top_rounded,
                     size: 18, color: AppColors.warning),
                 SizedBox(width: 8),

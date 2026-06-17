@@ -279,8 +279,8 @@ class _ReportForm extends StatelessWidget {
                 Text('إبلاغ عن مشكلة',
                     style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
-                AppCard(
-                  child: Row(children: const [
+                const AppCard(
+                  child: Row(children: [
                     AppIcon(Icons.storefront_rounded,
                         color: AppColors.primaryDark),
                     SizedBox(width: 10),
@@ -293,8 +293,8 @@ class _ReportForm extends StatelessWidget {
                   ]),
                 ),
                 const SizedBox(height: 12),
-                AppCard(
-                  child: Row(children: const [
+                const AppCard(
+                  child: Row(children: [
                     AppIconBadge(Icons.check_rounded,
                         size: 44, color: AppColors.success),
                     SizedBox(width: 12),

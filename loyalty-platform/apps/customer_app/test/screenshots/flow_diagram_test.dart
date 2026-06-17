@@ -162,7 +162,7 @@ class _StepRow extends StatelessWidget {
               width: 36,
               height: 36,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                   gradient: AppColors.buttonGradient, shape: BoxShape.circle),
               child: Text('${index + 1}',
                   style: const TextStyle(
