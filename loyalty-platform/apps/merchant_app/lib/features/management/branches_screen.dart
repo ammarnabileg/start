@@ -273,6 +273,13 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
             const SizedBox(height: 8),
             if (!widget.readOnly)
               PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (widget.existing != null)
+              DeleteActionButton(
+                resource: PermResource.branches,
+                onDelete: () => ref
+                    .read(branchesRepoProvider)
+                    .deleteBranch(widget.existing!['id'] as String),
+              ),
           ],
         ),
         ),

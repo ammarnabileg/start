@@ -26,6 +26,10 @@ class CouponsRepository {
   Future<void> updateCoupon(String id, Map<String, dynamic> payload) {
     return _client.from('coupons').update(payload).eq('id', id);
   }
+
+  Future<void> deleteCoupon(String id) {
+    return _client.from('coupons').delete().eq('id', id);
+  }
 }
 
 final couponsRepoProvider = Provider<CouponsRepository>(

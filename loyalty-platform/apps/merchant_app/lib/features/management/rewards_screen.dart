@@ -404,6 +404,13 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
             const SizedBox(height: 16),
             if (!widget.readOnly)
               PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (widget.existing != null)
+              DeleteActionButton(
+                resource: PermResource.rewards,
+                onDelete: () => ref
+                    .read(rewardsRepoProvider)
+                    .deleteReward(widget.existing!['id'] as String),
+              ),
           ],
         ),
       ),

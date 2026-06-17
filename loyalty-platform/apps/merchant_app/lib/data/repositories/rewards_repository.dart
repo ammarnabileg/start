@@ -36,6 +36,10 @@ class RewardsRepository {
   Future<void> updateReward(String id, Map<String, dynamic> payload) {
     return _client.from('rewards').update(payload).eq('id', id);
   }
+
+  Future<void> deleteReward(String id) {
+    return _client.from('rewards').delete().eq('id', id);
+  }
 }
 
 final rewardsRepoProvider = Provider<RewardsRepository>(

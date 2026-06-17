@@ -397,6 +397,13 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
               const SizedBox(height: 16),
               if (!widget.readOnly)
                 PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+              if (widget.existing != null)
+                DeleteActionButton(
+                  resource: PermResource.levels,
+                  onDelete: () => ref
+                      .read(levelsRepoProvider)
+                      .deleteLevel(widget.existing!.id),
+                ),
             ],
           ),
         ),

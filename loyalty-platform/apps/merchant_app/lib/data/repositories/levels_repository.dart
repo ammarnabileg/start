@@ -27,6 +27,10 @@ class LevelsRepository {
   Future<void> updateLevel(String id, Map<String, dynamic> payload) {
     return _client.from('loyalty_levels').update(payload).eq('id', id);
   }
+
+  Future<void> deleteLevel(String id) {
+    return _client.from('loyalty_levels').delete().eq('id', id);
+  }
 }
 
 final levelsRepoProvider = Provider<LevelsRepository>(

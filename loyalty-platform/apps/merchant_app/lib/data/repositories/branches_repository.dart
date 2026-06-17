@@ -48,6 +48,10 @@ class BranchesRepository {
   Future<void> updateBranch(String id, Map<String, dynamic> payload) {
     return _client.from('branches').update(payload).eq('id', id);
   }
+
+  Future<void> deleteBranch(String id) {
+    return _client.from('branches').delete().eq('id', id);
+  }
 }
 
 final branchesRepoProvider = Provider<BranchesRepository>(

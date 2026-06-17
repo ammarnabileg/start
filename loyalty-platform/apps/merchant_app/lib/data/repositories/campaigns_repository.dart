@@ -29,6 +29,10 @@ class CampaignsRepository {
   Future<void> updateCampaign(String id, Map<String, dynamic> payload) {
     return _client.from('visit_campaigns').update(payload).eq('id', id);
   }
+
+  Future<void> deleteCampaign(String id) {
+    return _client.from('visit_campaigns').delete().eq('id', id);
+  }
 }
 
 final campaignsRepoProvider = Provider<CampaignsRepository>(

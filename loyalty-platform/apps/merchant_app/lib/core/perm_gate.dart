@@ -65,3 +65,65 @@ class ReadOnlyNotice extends StatelessWidget {
     );
   }
 }
+
+/// زر حذف موحّد — يظهر فقط لمن يملك صلاحية الحذف، ويؤكّد قبل التنفيذ، ويغلق
+/// المحرّر مع true عند النجاح (لتحديث القائمة). يعرض رسالة واضحة لو منعت قيود
+/// السلامة الحذف (سجل مرتبط) — اقتراح الإيقاف بدلًا من الحذف.
+class DeleteActionButton extends ConsumerWidget {
+  final String resource;
+  final String confirmMessage;
+  final Future<void> Function() onDelete;
+  const DeleteActionButton({
+    super.key,
+    required this.resource,
+    required this.onDelete,
+    this.confirmMessage = 'سيتم الحذف نهائيًا. لا يمكن التراجع.',
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.permCan(resource, PermAction.delete)) {
+      return const SizedBox.shrink();
+    }
+    return TextButton.icon(
+      onPressed: () async {
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('تأكيد الحذف'),
+            content: Text(confirmMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('إلغاء'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('حذف'),
+              ),
+            ],
+          ),
+        );
+        if (ok != true) return;
+        try {
+          await onDelete();
+          if (context.mounted) {
+            Navigator.pop(context, true);
+            AppFeedback.toast(context, 'تم الحذف');
+          }
+        } catch (_) {
+          if (context.mounted) {
+            AppFeedback.toast(
+              context,
+              'تعذّر الحذف — قد يكون له سجل مرتبط. يمكنك إيقافه بدلًا من حذفه.',
+              error: true,
+            );
+          }
+        }
+      },
+      icon: const AppIcon(Icons.delete_outline, color: AppColors.error),
+      label: const Text('حذف', style: TextStyle(color: AppColors.error)),
+    );
+  }
+}

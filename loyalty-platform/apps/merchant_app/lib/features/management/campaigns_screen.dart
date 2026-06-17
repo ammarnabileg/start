@@ -464,6 +464,13 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
             const SizedBox(height: 16),
             if (!widget.readOnly)
               PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (widget.existing != null)
+              DeleteActionButton(
+                resource: PermResource.campaigns,
+                onDelete: () => ref
+                    .read(campaignsRepoProvider)
+                    .deleteCampaign(widget.existing!['id'] as String),
+              ),
           ],
         ),
         ),
