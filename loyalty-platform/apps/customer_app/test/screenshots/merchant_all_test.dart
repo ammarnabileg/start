@@ -705,29 +705,76 @@ class _CampaignEditor extends StatelessWidget {
   const _CampaignEditor();
   @override
   Widget build(BuildContext context) {
+    Widget imgRow(String label, IconData icon) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.textSecondary)),
+            ),
+            Row(children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                    color: AppColors.surfaceCream,
+                    borderRadius: BorderRadius.circular(AppRadii.md)),
+                child: AppIcon(icon, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: OutlinedButton(
+                    onPressed: _noop, child: Text('اختيار صورة')),
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
+        );
     return Scaffold(
-      appBar: AppBar(title: const Text('حملات الزيارات')),
+      appBar: AppBar(title: const Text('بطاقات الأختام')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
-        Text('تعديل الحملة', style: Theme.of(context).textTheme.titleLarge),
+        Text('تعديل البطاقة', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 16),
-        Container(
-          height: 110,
-          decoration: BoxDecoration(
-              color: AppColors.surfaceCream,
-              borderRadius: BorderRadius.circular(AppRadii.lg)),
-          child: const Center(
-              child: AppIcon(Icons.add_a_photo_outlined,
-                  size: 36, color: AppColors.primaryDark)),
+        imgRow('بنر الهيدر (اختياري)', Icons.image_outlined),
+        _field('اسم البطاقة', icon: Icons.card_giftcard_outlined,
+            value: 'اشترِ 9 قهوة، العاشرة مجانًا'),
+        _field('الوصف', icon: Icons.short_text_rounded,
+            value: 'بطاقة ولاء القهوة', maxLines: 2),
+        const InputDecorator(
+          decoration: InputDecoration(
+              labelText: 'نوع التكرار',
+              prefixIcon: AppIcon(Icons.repeat_rounded)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('شراء', style: TextStyle(fontWeight: FontWeight.w700)),
+              AppIcon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textSecondary),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
-        _field('اسم الحملة', icon: Icons.event_repeat_rounded,
-            value: 'اجمع 5 زيارات'),
-        _field('عدد الزيارات المطلوبة', icon: Icons.event_available_rounded,
-            value: '5'),
+        _field('وصف التكرار (مثال: شراء قهوة)',
+            icon: Icons.local_cafe_outlined, value: 'قهوة'),
+        _field('عدد التكرارات', icon: Icons.tune_rounded, value: '10'),
+        Row(children: [
+          Expanded(
+              child: _field('نقاط لكل ختم',
+                  icon: Icons.star_rounded, value: '5')),
+          const SizedBox(width: 12),
+          Expanded(
+              child: _field('نقاط المكافأة',
+                  icon: Icons.redeem_rounded, value: '0')),
+        ]),
+        imgRow('صورة الختم (افتراضي: شعار التطبيق)', Icons.egg_alt_rounded),
         _field('اسم المكافأة', icon: Icons.card_giftcard_outlined,
             value: 'قهوة مجانية'),
-        _field('وصف المكافأة', icon: Icons.short_text_rounded,
-            value: 'كوب قهوة من اختيارك', maxLines: 2),
+        imgRow('صورة المكافأة (الخانة الأخيرة)',
+            Icons.card_giftcard_rounded),
         const SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text('مفعّلة'),
