@@ -5,11 +5,14 @@ import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/locale_controller.dart';
+import 'core/push_service.dart';
 import 'features/splash/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: Env.supabaseUrl, publishableKey: Env.supabaseAnonKey);
+  // تهيئة الإشعارات/تقرير الأعطال — آمنة عند غياب إعداد Firebase.
+  await PushService.init();
   runApp(const ProviderScope(child: MerchantApp()));
 }
 

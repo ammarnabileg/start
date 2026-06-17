@@ -23,6 +23,16 @@ class NotificationsRepository {
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
+  /// بثّ حيّ لإشعارات العميل (الأحدث أولًا) — للتحديث اللحظي + شارة غير المقروء.
+  Stream<List<Map<String, dynamic>>> watch() {
+    final uid = _client.auth.currentUser!.id;
+    return _client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', uid)
+        .order('created_at', ascending: false);
+  }
+
   /// تعليم كل الإشعارات غير المقروءة كمقروءة (أفضل جهد).
   Future<void> markAllRead() async {
     final uid = _client.auth.currentUser!.id;
@@ -36,3 +46,18 @@ class NotificationsRepository {
 
 final notificationsRepoProvider = Provider<NotificationsRepository>(
     (ref) => NotificationsRepository(ref.read(supabaseClientProvider)));
+
+/// بثّ الإشعارات الحيّ (يُبقي الشارة والقائمة محدّثتين لحظيًا).
+final notificationsStreamProvider =
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>(
+        (ref) => ref.read(notificationsRepoProvider).watch());
+
+/// عدد الإشعارات غير المقروءة — لشارة تبويب الإشعارات (لحظي).
+final unreadNotificationsProvider = Provider.autoDispose<int>((ref) {
+  return ref
+          .watch(notificationsStreamProvider)
+          .valueOrNull
+          ?.where((n) => n['read_at'] == null)
+          .length ??
+      0;
+});

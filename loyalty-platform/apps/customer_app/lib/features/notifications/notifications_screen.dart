@@ -28,6 +28,8 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(notificationsProvider);
     final notifier = ref.read(notificationsProvider.notifier);
+    // تحديث القائمة لحظيًا عند وصول/تغيّر إشعار (بثّ حيّ).
+    ref.listen(notificationsStreamProvider, (_, __) => notifier.refresh());
     return Scaffold(
       appBar: AppBar(title: const Text('الإشعارات'), centerTitle: true),
       body: PaginatedListView<Map<String, dynamic>>(

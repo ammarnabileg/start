@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/push_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../management/management_hub_screen.dart';
 import '../profile/business_profile_screen.dart';
@@ -19,6 +20,13 @@ class MerchantShell extends ConsumerStatefulWidget {
 
 class _MerchantShellState extends ConsumerState<MerchantShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // تسجيل توكن الإشعارات للموظف بعد تأكيد الجلسة (آمن بدون إعداد Firebase).
+    PushService.registerForUser();
+  }
 
   // ترتيب التابات: لوحة التحكم · المسح (بارز) · الإدارة · حسابي.
   static const _tabs = <Widget>[

@@ -13,11 +13,15 @@ class AppBottomNavItem {
   /// عنصر بارز (زر دائري متدرّج في نص الشريط) — مثل الـ QR/المسح.
   final bool prominent;
 
+  /// عدّاد شارة فوق الأيقونة (0 = بدون شارة).
+  final int badgeCount;
+
   const AppBottomNavItem({
     required this.icon,
     required this.label,
     this.activeIcon,
     this.prominent = false,
+    this.badgeCount = 0,
   });
 }
 
@@ -129,6 +133,40 @@ class AppBottomNav extends StatelessWidget {
         ],
       );
 
+  /// أيقونة مع شارة عدّاد حمراء صغيرة (للإشعارات غير المقروءة مثلًا).
+  Widget _iconWithBadge(IconData icon, Color color, int badge) {
+    final ic = AppIcon(icon, color: color, size: 24);
+    if (badge <= 0) return ic;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ic,
+        Positioned(
+          right: -7,
+          top: -5,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            constraints: const BoxConstraints(minWidth: 16),
+            decoration: BoxDecoration(
+              color: AppColors.error,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              border: Border.all(color: AppColors.surface, width: 1.5),
+            ),
+            child: Text(
+              badge > 9 ? '9+' : '$badge',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _slot(int index, AppBottomNavItem item) {
     final selected = index == currentIndex;
     final activeColor = dark ? AppColors.gold : AppColors.primaryDark;
@@ -146,8 +184,10 @@ class AppBottomNav extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AppIcon(selected ? (item.activeIcon ?? item.icon) : item.icon,
-                color: color, size: 24),
+            _iconWithBadge(
+                selected ? (item.activeIcon ?? item.icon) : item.icon,
+                color,
+                item.badgeCount),
             const SizedBox(height: 3),
             Text(item.label,
                 maxLines: 1,
