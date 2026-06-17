@@ -5,6 +5,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/campaigns_repository.dart';
 import '../../data/repositories/entity_branches_repository.dart';
 import 'branch_target_field.dart';
@@ -26,10 +27,10 @@ class CampaignsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('بطاقات الأختام')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.campaigns,
+        label: 'بطاقة جديدة',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('بطاقة جديدة'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -44,7 +45,9 @@ class CampaignsScreen extends ConsumerWidget {
               title: 'لا توجد بطاقات بعد',
               message: 'أنشئ أول بطاقة أختام (شراء/تبرّع) لمكافأة عملائك على التكرار.',
               actionLabel: 'إنشاء حملة',
-              onAction: () => _openEditor(context, ref, null),
+              onAction: ref.permCan(PermResource.campaigns, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
             );
           }
           return ListView.separated(
@@ -98,10 +101,12 @@ class CampaignsScreen extends ConsumerWidget {
 
   Future<void> _openEditor(
       BuildContext context, WidgetRef ref, Map<String, dynamic>? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.campaigns, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _CampaignEditor(existing: existing),
+      builder: (_) => _CampaignEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(campaignsProvider);
   }
@@ -179,7 +184,8 @@ class _ImagePickerField extends StatelessWidget {
 
 class _CampaignEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
-  const _CampaignEditor({this.existing});
+  final bool readOnly;
+  const _CampaignEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_CampaignEditor> createState() => _CampaignEditorState();
 }
@@ -344,6 +350,7 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
               Text(widget.existing == null ? 'حملة جديدة' : 'تعديل الحملة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
+            if (widget.readOnly) const ReadOnlyNotice(),
             // بنر الهيدر (اختياري)
             const _ImgLabel('بنر الهيدر (اختياري)'),
             _ImagePickerField(
@@ -455,7 +462,8 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
               const Padding(
                   padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
             const SizedBox(height: 16),
-            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (!widget.readOnly)
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
         ),
         ),

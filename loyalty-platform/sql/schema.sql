@@ -452,7 +452,60 @@ returns boolean language sql security definer stable as $$
   );
 $$;
 
--- يحلّ المحفظة الصحيحة حسب نطاق نقاط التاجر، وينشئها لو مش موجودة.
+-- صلاحيات الأدوار القديمة (legacy) كاحتياطي عندما لا يكون لموظف دور مخصّص.
+-- تطابق الأدوار الافتراضية المزروعة (مالك/مدير/كاشير) — لضمان التوافق الرجعي.
+create or replace function public.legacy_role_can(
+  p_role text, p_resource text, p_action text
+) returns boolean language sql immutable as $$
+  select case
+    when p_role = 'merchant_owner' then true
+    when p_role in ('manager','branch_manager') then
+      (p_resource in ('rewards','campaigns','levels','coupons','wheel')
+         and p_action in ('view','create','edit','delete'))
+      or (p_resource in ('customers','analytics') and p_action = 'view')
+      or (p_resource = 'announcements' and p_action in ('view','create'))
+      or (p_resource = 'points' and p_action = 'create')
+      or (p_resource = 'visits' and p_action = 'create')
+      or (p_resource = 'prizes' and p_action = 'redeem')
+    when p_role = 'cashier' then
+      (p_resource = 'points' and p_action = 'create')
+      or (p_resource = 'visits' and p_action = 'create')
+      or (p_resource = 'prizes' and p_action = 'redeem')
+      or (p_resource = 'customers' and p_action = 'view')
+    else false
+  end;
+$$;
+
+-- هل يملك المستخدم الحالي (auth.uid()) صلاحية إجراء على مورد عند تاجر معيّن؟
+-- تُستخدم في سياسات RLS لفرض صلاحيات الدور على الكتابة المباشرة في الجداول.
+-- القاعدة: المالك يمرّ دائمًا؛ لو للموظف دور مخصّص (role_id) فصلاحياته وحدها
+-- هي الفيصل (فدور «عرض فقط» يمنع الإضافة/التعديل/الحذف فعليًا)؛ وإلا نرجع
+-- لصلاحيات الدور القديم. plpgsql لتأجيل التحقق من merchant_roles (يُنشأ لاحقًا).
+create or replace function public.current_staff_can(
+  p_merchant uuid, p_resource text, p_action text
+) returns boolean language plpgsql security definer stable as $$
+declare ok boolean;
+begin
+  select exists (
+    select 1 from public.merchant_staff s
+    left join public.merchant_roles r on r.id = s.role_id
+    where s.merchant_id = p_merchant
+      and s.user_id = auth.uid()
+      and s.status = 'active' and (
+        s.role = 'merchant_owner'
+        or (r.permissions ->> 'owner')::boolean is true
+        or (s.role_id is not null and (
+              (r.permissions -> p_resource) ? p_action
+              or (r.permissions -> p_resource) ? 'manage'))
+        or (s.role_id is null
+              and public.legacy_role_can(s.role, p_resource, p_action))
+      )
+  ) into ok;
+  return ok;
+end;
+$$;
+
+
 -- لو points_scope = 'merchant' → branch_id يتجاهل (محفظة مشتركة، branch_id = NULL).
 -- لو points_scope = 'branch'  → محفظة منفصلة لفرع الكاشير.
 -- تُستدعى من Edge Functions (بمفتاح service_role) قبل أي earn/redeem/visit.
@@ -761,21 +814,38 @@ create policy levels_read on public.loyalty_levels
 create policy merchants_manage on public.merchants
   for update using (public.is_merchant_member(id));
 
-create policy branches_manage on public.branches
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+-- إدارة مقيّدة بالصلاحيات: الإضافة/التعديل/الحذف لكلٍّ منها حسب صلاحية الدور.
+create policy branches_insert on public.branches
+  for insert with check (public.current_staff_can(merchant_id, 'branches', 'create'));
+create policy branches_update on public.branches
+  for update using (public.current_staff_can(merchant_id, 'branches', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'branches', 'edit'));
+create policy branches_delete on public.branches
+  for delete using (public.current_staff_can(merchant_id, 'branches', 'delete'));
 
-create policy rewards_manage on public.rewards
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy rewards_insert on public.rewards
+  for insert with check (public.current_staff_can(merchant_id, 'rewards', 'create'));
+create policy rewards_update on public.rewards
+  for update using (public.current_staff_can(merchant_id, 'rewards', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'rewards', 'edit'));
+create policy rewards_delete on public.rewards
+  for delete using (public.current_staff_can(merchant_id, 'rewards', 'delete'));
 
-create policy campaigns_manage on public.visit_campaigns
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy campaigns_insert on public.visit_campaigns
+  for insert with check (public.current_staff_can(merchant_id, 'campaigns', 'create'));
+create policy campaigns_update on public.visit_campaigns
+  for update using (public.current_staff_can(merchant_id, 'campaigns', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'campaigns', 'edit'));
+create policy campaigns_delete on public.visit_campaigns
+  for delete using (public.current_staff_can(merchant_id, 'campaigns', 'delete'));
 
-create policy levels_manage on public.loyalty_levels
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy levels_insert on public.loyalty_levels
+  for insert with check (public.current_staff_can(merchant_id, 'levels', 'create'));
+create policy levels_update on public.loyalty_levels
+  for update using (public.current_staff_can(merchant_id, 'levels', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'levels', 'edit'));
+create policy levels_delete on public.loyalty_levels
+  for delete using (public.current_staff_can(merchant_id, 'levels', 'delete'));
 
 -- استهداف الفروع: التاجر يدير استهداف عناصره، والجميع يقرأ (للعرض والفلترة).
 create policy entity_branches_read on public.entity_branches
@@ -784,13 +854,25 @@ create policy entity_branches_manage on public.entity_branches
   for all using (public.is_merchant_member(merchant_id))
   with check (public.is_merchant_member(merchant_id));
 
-create policy coupons_manage on public.coupons
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy coupons_read on public.coupons
+  for select using (public.is_merchant_member(merchant_id));
+create policy coupons_insert on public.coupons
+  for insert with check (public.current_staff_can(merchant_id, 'coupons', 'create'));
+create policy coupons_update on public.coupons
+  for update using (public.current_staff_can(merchant_id, 'coupons', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'coupons', 'edit'));
+create policy coupons_delete on public.coupons
+  for delete using (public.current_staff_can(merchant_id, 'coupons', 'delete'));
 
-create policy staff_manage on public.merchant_staff
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy staff_read on public.merchant_staff
+  for select using (public.is_merchant_member(merchant_id));
+create policy staff_insert on public.merchant_staff
+  for insert with check (public.current_staff_can(merchant_id, 'staff', 'create'));
+create policy staff_update on public.merchant_staff
+  for update using (public.current_staff_can(merchant_id, 'staff', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'staff', 'edit'));
+create policy staff_delete on public.merchant_staff
+  for delete using (public.current_staff_can(merchant_id, 'staff', 'delete'));
 
 create policy subs_read on public.subscriptions
   for select using (public.is_merchant_member(merchant_id));
@@ -798,9 +880,14 @@ create policy subs_read on public.subscriptions
 -- إعدادات التاجر: العميل يقرأها (عشان يعرف الميزات المفعّلة)، التاجر يعدّلها.
 create policy settings_read on public.merchant_settings
   for select using (true);
-create policy settings_manage on public.merchant_settings
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy settings_insert on public.merchant_settings
+  for insert with check (public.current_staff_can(merchant_id, 'settings', 'create')
+    or public.current_staff_can(merchant_id, 'settings', 'edit'));
+create policy settings_update on public.merchant_settings
+  for update using (public.current_staff_can(merchant_id, 'settings', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'settings', 'edit'));
+create policy settings_delete on public.merchant_settings
+  for delete using (public.current_staff_can(merchant_id, 'settings', 'delete'));
 
 -- الأسئلة: العميل يقرأ الأسئلة المفعّلة ويشوف إجاباته هو فقط.
 -- التاجر يدير أسئلته ويشوف كل إجابات عملائه في لوحته.
@@ -1055,6 +1142,8 @@ alter table public.merchant_staff
   add column if not exists can_redeem_prizes boolean not null default true;
 
 -- فحص صلاحية موظف على مورد/إجراء (يُستخدم في Edge Functions + إخفاء عناصر الواجهة).
+-- صلاحيات موظف (تُستدعى من Edge Functions). الدور المخصّص — إن وُجد — هو الفيصل،
+-- وإلا نرجع لصلاحيات الدور القديم. المالك يمرّ دائمًا.
 create or replace function public.staff_can(p_staff uuid, p_resource text, p_action text)
 returns boolean language sql security definer stable as $$
   select exists (
@@ -1063,8 +1152,11 @@ returns boolean language sql security definer stable as $$
     where s.id = p_staff and s.status = 'active' and (
       s.role = 'merchant_owner'
       or (r.permissions ->> 'owner')::boolean is true
-      or (r.permissions -> p_resource) ? p_action
-      or (r.permissions -> p_resource) ? 'manage'
+      or (s.role_id is not null and (
+            (r.permissions -> p_resource) ? p_action
+            or (r.permissions -> p_resource) ? 'manage'))
+      or (s.role_id is null
+            and public.legacy_role_can(s.role, p_resource, p_action))
     )
   );
 $$;
@@ -1084,9 +1176,13 @@ $$;
 alter table public.merchant_roles enable row level security;
 create policy roles_read on public.merchant_roles
   for select using (public.is_merchant_member(merchant_id));
-create policy roles_manage on public.merchant_roles
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy roles_insert on public.merchant_roles
+  for insert with check (public.current_staff_can(merchant_id, 'roles', 'create'));
+create policy roles_update on public.merchant_roles
+  for update using (public.current_staff_can(merchant_id, 'roles', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'roles', 'edit'));
+create policy roles_delete on public.merchant_roles
+  for delete using (public.current_staff_can(merchant_id, 'roles', 'delete'));
 
 -- =====================================================================
 -- 15) Gamification — عجلة الحظ + الهدايا القابلة للتفعيل بـ QR متغيّر
@@ -1199,16 +1295,28 @@ create policy reports_admin_all on public.reports
 
 create policy wheels_read on public.lucky_wheels
   for select using (active or public.is_merchant_member(merchant_id));
-create policy wheels_manage on public.lucky_wheels
-  for all using (public.is_merchant_member(merchant_id))
-  with check (public.is_merchant_member(merchant_id));
+create policy wheels_insert on public.lucky_wheels
+  for insert with check (public.current_staff_can(merchant_id, 'wheel', 'create'));
+create policy wheels_update on public.lucky_wheels
+  for update using (public.current_staff_can(merchant_id, 'wheel', 'edit'))
+  with check (public.current_staff_can(merchant_id, 'wheel', 'edit'));
+create policy wheels_delete on public.lucky_wheels
+  for delete using (public.current_staff_can(merchant_id, 'wheel', 'delete'));
 
 create policy segments_read on public.wheel_segments
   for select using (true);
-create policy segments_manage on public.wheel_segments
-  for all using (exists (
+create policy segments_insert on public.wheel_segments
+  for insert with check (exists (
     select 1 from public.lucky_wheels w
-    where w.id = wheel_id and public.is_merchant_member(w.merchant_id)));
+    where w.id = wheel_id and public.current_staff_can(w.merchant_id, 'wheel', 'create')));
+create policy segments_update on public.wheel_segments
+  for update using (exists (
+    select 1 from public.lucky_wheels w
+    where w.id = wheel_id and public.current_staff_can(w.merchant_id, 'wheel', 'edit')));
+create policy segments_delete on public.wheel_segments
+  for delete using (exists (
+    select 1 from public.lucky_wheels w
+    where w.id = wheel_id and public.current_staff_can(w.merchant_id, 'wheel', 'delete')));
 
 create policy prizes_self on public.user_prizes
   for select using (user_id = auth.uid() or public.is_merchant_member(merchant_id));

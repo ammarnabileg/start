@@ -5,6 +5,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/map_picker_screen.dart';
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/branches_repository.dart';
 
 /// قائمة الفروع من جدول branches.
@@ -24,10 +25,10 @@ class BranchesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('الفروع')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.branches,
+        label: 'فرع جديد',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('فرع جديد'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -42,7 +43,9 @@ class BranchesScreen extends ConsumerWidget {
               title: 'لا توجد فروع بعد',
               message: 'أضِف فروع متجرك لتفعيل تقارير الفروع وإشعار القرب.',
               actionLabel: 'إضافة فرع',
-              onAction: () => _openEditor(context, ref, null),
+              onAction: ref.permCan(PermResource.branches, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
             );
           }
           return ListView.separated(
@@ -94,10 +97,12 @@ class BranchesScreen extends ConsumerWidget {
 
   Future<void> _openEditor(BuildContext context, WidgetRef ref,
       Map<String, dynamic>? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.branches, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _BranchEditor(existing: existing),
+      builder: (_) => _BranchEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(branchesProvider);
   }
@@ -124,7 +129,8 @@ class _ActiveChip extends StatelessWidget {
 
 class _BranchEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
-  const _BranchEditor({this.existing});
+  final bool readOnly;
+  const _BranchEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_BranchEditor> createState() => _BranchEditorState();
 }
@@ -225,6 +231,7 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
               Text(widget.existing == null ? 'فرع جديد' : 'تعديل الفرع',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
+            if (widget.readOnly) const ReadOnlyNotice(),
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'اسم الفرع'),
@@ -264,7 +271,8 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
               onChanged: (v) => setState(() => _active = v),
             ),
             const SizedBox(height: 8),
-            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (!widget.readOnly)
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
         ),
         ),

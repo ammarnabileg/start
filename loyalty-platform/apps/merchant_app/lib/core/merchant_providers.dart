@@ -76,6 +76,8 @@ final merchantEntitledProvider = FutureProvider.autoDispose<bool>((ref) async {
 });
 
 /// صلاحيات الموظف الحالي (مشتقّة من دوره). owner = كل شيء.
+/// لو للموظف دور مخصّص (role) فهو الفيصل (دور «عرض فقط» يمنع الكتابة فعليًا)،
+/// وإلا نرجع لصلاحيات الدور القديم. مطابقة لدالة current_staff_can في الخادم.
 class Permissions {
   final MerchantRole? role;
   final String legacyRole;
@@ -83,7 +85,38 @@ class Permissions {
 
   bool can(String resource, String action) {
     if (legacyRole == 'merchant_owner') return true;
-    return role?.can(resource, action) ?? false;
+    if (role != null) return role!.can(resource, action);
+    return _legacyCan(legacyRole, resource, action);
+  }
+
+  /// احتياطي الأدوار القديمة — مطابق لـ public.legacy_role_can في SQL.
+  static bool _legacyCan(String role, String res, String action) {
+    const writeRes = ['rewards', 'campaigns', 'levels', 'coupons', 'wheel'];
+    const crud = ['view', 'create', 'edit', 'delete'];
+    switch (role) {
+      case 'manager':
+      case 'branch_manager':
+        if (writeRes.contains(res) && crud.contains(action)) return true;
+        if ((res == 'customers' || res == 'analytics') && action == 'view') {
+          return true;
+        }
+        if (res == 'announcements' &&
+            (action == 'view' || action == 'create')) {
+          return true;
+        }
+        if (res == 'points' && action == 'create') return true;
+        if (res == 'visits' && action == 'create') return true;
+        if (res == 'prizes' && action == 'redeem') return true;
+        return false;
+      case 'cashier':
+        if (res == 'points' && action == 'create') return true;
+        if (res == 'visits' && action == 'create') return true;
+        if (res == 'prizes' && action == 'redeem') return true;
+        if (res == 'customers' && action == 'view') return true;
+        return false;
+      default:
+        return false;
+    }
   }
 }
 

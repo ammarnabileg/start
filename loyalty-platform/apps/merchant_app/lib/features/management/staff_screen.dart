@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/staff_repository.dart';
 
 /// قائمة الموظفين من جدول merchant_staff.
@@ -49,10 +50,10 @@ class StaffScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('الموظفين')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.staff,
+        label: 'موظف جديد',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('موظف جديد'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -67,7 +68,9 @@ class StaffScreen extends ConsumerWidget {
               title: 'لا يوجد موظفون بعد',
               message: 'أضِف الكاشير ومديري الفروع وحدّد صلاحياتهم.',
               actionLabel: 'إضافة موظف',
-              onAction: () => _openEditor(context, ref, null),
+              onAction: ref.permCan(PermResource.staff, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
             );
           }
           return ListView.separated(
@@ -133,10 +136,12 @@ class StaffScreen extends ConsumerWidget {
 
   Future<void> _openEditor(BuildContext context, WidgetRef ref,
       Map<String, dynamic>? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.staff, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _StaffEditor(existing: existing),
+      builder: (_) => _StaffEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(staffListProvider);
   }
@@ -144,7 +149,8 @@ class StaffScreen extends ConsumerWidget {
 
 class _StaffEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
-  const _StaffEditor({this.existing});
+  final bool readOnly;
+  const _StaffEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_StaffEditor> createState() => _StaffEditorState();
 }
@@ -231,6 +237,7 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
               Text(widget.existing == null ? 'موظف جديد' : 'تعديل الموظف',
                   style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
+            if (widget.readOnly) const ReadOnlyNotice(),
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'الاسم'),
@@ -302,7 +309,8 @@ class _StaffEditorState extends ConsumerState<_StaffEditor> {
               onChanged: (v) => setState(() => _canRedeemPrizes = v),
             ),
             const SizedBox(height: 16),
-            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (!widget.readOnly)
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
             ],
           ),
         ),

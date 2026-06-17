@@ -5,6 +5,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/entity_branches_repository.dart';
 import '../../data/repositories/rewards_repository.dart';
 import 'branch_target_field.dart';
@@ -26,10 +27,10 @@ class RewardsManagementScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('المكافآت')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.rewards,
+        label: 'مكافأة جديدة',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('مكافأة جديدة'),
       ),
       body: async.when(
         loading: () => const SkeletonList(),
@@ -44,7 +45,9 @@ class RewardsManagementScreen extends ConsumerWidget {
               title: 'لا توجد مكافآت بعد',
               message: 'أضِف أول مكافأة يمكن لعملائك استبدالها بنقاطهم.',
               actionLabel: 'إنشاء مكافأة',
-              onAction: () => _openEditor(context, ref, null),
+              onAction: ref.permCan(PermResource.rewards, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
             );
           }
           return ListView.separated(
@@ -110,10 +113,13 @@ class RewardsManagementScreen extends ConsumerWidget {
 
   Future<void> _openEditor(BuildContext context, WidgetRef ref,
       Map<String, dynamic>? existing) async {
+    // عند فتح عنصر موجود بدون صلاحية تعديل → وضع عرض فقط.
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.rewards, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _RewardEditor(existing: existing),
+      builder: (_) => _RewardEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(rewardsProvider);
   }
@@ -191,7 +197,8 @@ class _ImagePickerField extends StatelessWidget {
 
 class _RewardEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
-  const _RewardEditor({this.existing});
+  final bool readOnly;
+  const _RewardEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_RewardEditor> createState() => _RewardEditorState();
 }
@@ -333,6 +340,7 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
             Text(widget.existing == null ? 'مكافأة جديدة' : 'تعديل المكافأة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
+            if (widget.readOnly) const ReadOnlyNotice(),
             _ImagePickerField(
               imageUrl: _imageUrl,
               uploading: _uploading,
@@ -394,7 +402,8 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
               const Padding(
                   padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
             const SizedBox(height: 16),
-            PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (!widget.readOnly)
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
         ),
       ),

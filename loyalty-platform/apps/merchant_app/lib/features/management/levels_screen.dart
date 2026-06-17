@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/branches_repository.dart';
 import '../../data/repositories/levels_repository.dart';
 
@@ -153,10 +154,10 @@ class _LevelsBody extends ConsumerWidget {
     final async = ref.watch(levelsProvider(branchId));
     return Scaffold(
       appBar: AppBar(title: const Text('المستويات')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.levels,
+        label: 'مستوى جديد',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('مستوى جديد'),
       ),
       body: Column(
         children: [
@@ -199,7 +200,9 @@ class _LevelsBody extends ConsumerWidget {
                     message:
                         'أنشئ مستويات الولاء لتحفيز عملائك على تجميع النقاط.',
                     actionLabel: 'إنشاء مستوى',
-                    onAction: () => _openEditor(context, ref, null),
+                    onAction: ref.permCan(PermResource.levels, PermAction.create)
+                        ? () => _openEditor(context, ref, null)
+                        : null,
                   );
                 }
                 return ListView.separated(
@@ -268,10 +271,13 @@ class _LevelsBody extends ConsumerWidget {
 
   Future<void> _openEditor(
       BuildContext context, WidgetRef ref, LoyaltyLevel? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.levels, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _LevelEditor(existing: existing, branchId: branchId),
+      builder: (_) =>
+          _LevelEditor(existing: existing, branchId: branchId, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(levelsProvider(branchId));
   }
@@ -280,7 +286,8 @@ class _LevelsBody extends ConsumerWidget {
 class _LevelEditor extends ConsumerStatefulWidget {
   final LoyaltyLevel? existing;
   final String? branchId;
-  const _LevelEditor({this.existing, this.branchId});
+  final bool readOnly;
+  const _LevelEditor({this.existing, this.branchId, this.readOnly = false});
   @override
   ConsumerState<_LevelEditor> createState() => _LevelEditorState();
 }
@@ -361,6 +368,7 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
               Text(widget.existing == null ? 'مستوى جديد' : 'تعديل المستوى',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
+              if (widget.readOnly) const ReadOnlyNotice(),
               TextFormField(
                 controller: _name,
                 decoration: const InputDecoration(
@@ -387,7 +395,8 @@ class _LevelEditorState extends ConsumerState<_LevelEditor> {
                 maxLines: 2,
               ),
               const SizedBox(height: 16),
-              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+              if (!widget.readOnly)
+                PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
             ],
           ),
         ),

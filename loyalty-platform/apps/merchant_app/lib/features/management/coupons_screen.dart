@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/coupons_repository.dart';
 import '../../data/repositories/entity_branches_repository.dart';
 import 'branch_target_field.dart';
@@ -33,10 +34,10 @@ class CouponsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('الكوبونات')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: PermFab(
+        resource: PermResource.coupons,
+        label: 'كوبون جديد',
         onPressed: () => _openEditor(context, ref, null),
-        icon: const AppIcon(Icons.add),
-        label: const Text('كوبون جديد'),
       ),
       body: Column(
         children: [
@@ -76,7 +77,9 @@ class CouponsScreen extends ConsumerWidget {
                     title: 'لا توجد كوبونات بعد',
                     message: 'أنشئ كوبون خصم لجذب عملائك وتشجيعهم على الشراء.',
                     actionLabel: 'إنشاء كوبون',
-                    onAction: () => _openEditor(context, ref, null),
+                    onAction: ref.permCan(PermResource.coupons, PermAction.create)
+                        ? () => _openEditor(context, ref, null)
+                        : null,
                   );
                 }
                 return ListView.separated(
@@ -166,10 +169,12 @@ class CouponsScreen extends ConsumerWidget {
 
   Future<void> _openEditor(BuildContext context, WidgetRef ref,
       Map<String, dynamic>? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.coupons, PermAction.edit);
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _CouponEditor(existing: existing),
+      builder: (_) => _CouponEditor(existing: existing, readOnly: readOnly),
     );
     if (saved == true) ref.invalidate(couponsProvider);
   }
@@ -177,7 +182,8 @@ class CouponsScreen extends ConsumerWidget {
 
 class _CouponEditor extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existing;
-  const _CouponEditor({this.existing});
+  final bool readOnly;
+  const _CouponEditor({this.existing, this.readOnly = false});
   @override
   ConsumerState<_CouponEditor> createState() => _CouponEditorState();
 }
@@ -315,6 +321,7 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
               Text(widget.existing == null ? 'كوبون جديد' : 'تعديل الكوبون',
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
+              if (widget.readOnly) const ReadOnlyNotice(),
               TextFormField(
                 controller: _code,
                 decoration: const InputDecoration(labelText: 'الكود'),
@@ -388,7 +395,8 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
                     padding: EdgeInsets.all(8),
                     child: LinearProgressIndicator()),
               const SizedBox(height: 16),
-              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+              if (!widget.readOnly)
+                PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
             ],
           ),
         ),

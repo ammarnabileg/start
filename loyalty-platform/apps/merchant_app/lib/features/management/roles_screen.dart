@@ -161,6 +161,10 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
   final Map<String, Set<String>> _matrix = {};
   bool _busy = false;
 
+  // إجراءات الكتابة. «عرض» شرط أساسي لها: بدون «عرض» لا إضافة/تعديل/حذف.
+  // («تفعيل/redeem» مستقلّة لأنها صلاحية كاشير عبر الماسح لا تتطلّب عرضًا.)
+  static const _writes = {PermAction.create, PermAction.edit, PermAction.delete};
+
   bool get _readOnly => widget.existing?.isOwner ?? false;
 
   @override
@@ -174,8 +178,40 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
       for (final a in actions) {
         if (e != null && e.can(res, a)) selected.add(a);
       }
+      // توحيد: أي صلاحية كتابة تستلزم «عرض» لتبقى الحالة متّسقة.
+      if (selected.any(_writes.contains)) selected.add(PermAction.view);
       _matrix[res] = selected;
     }
+  }
+
+  /// تبديل صلاحية مع فرض الترابط: «عرض» شرط أساسي للإضافة/التعديل/الحذف.
+  void _toggle(String res, String action, bool value) {
+    final set = _matrix[res]!;
+    setState(() {
+      if (action == PermAction.view) {
+        if (value) {
+          set.add(PermAction.view);
+        } else {
+          // إلغاء «عرض» يُلغي معه الإضافة/التعديل/الحذف (تبقى «تفعيل» مستقلّة).
+          set.remove(PermAction.view);
+          set.removeAll(_writes);
+        }
+      } else if (_writes.contains(action)) {
+        if (value) {
+          set.add(action);
+          set.add(PermAction.view); // الكتابة تستلزم «عرض» تلقائيًا
+        } else {
+          set.remove(action);
+        }
+      } else {
+        // صلاحيات مستقلّة (مثل «تفعيل»).
+        if (value) {
+          set.add(action);
+        } else {
+          set.remove(action);
+        }
+      }
+    });
   }
 
   @override
@@ -187,7 +223,11 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
   Map<String, dynamic> _buildPermissions() {
     final perms = <String, dynamic>{};
     _matrix.forEach((res, actions) {
-      if (actions.isNotEmpty) perms[res] = actions.toList();
+      if (actions.isEmpty) return;
+      // ضمان أخير للترابط: أي صلاحية كتابة لا تُحفظ بدون «عرض».
+      final coherent = {...actions};
+      if (coherent.any(_writes.contains)) coherent.add(PermAction.view);
+      perms[res] = coherent.toList();
     });
     return perms;
   }
@@ -326,6 +366,16 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
               ),
               const SizedBox(height: 16),
               const SectionHeader(title: 'الصلاحيات'),
+              if (!_readOnly) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'صلاحية «عرض» شرط أساسي؛ بدونها لا يمكن منح الإضافة أو التعديل أو الحذف.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
               const SizedBox(height: 8),
               for (final res in PermResource.all)
                 _buildResourceRow(context, res),
@@ -346,6 +396,7 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
       if (res == PermResource.prizes) 'redeem',
     ];
     final selected = _readOnly ? null : _matrix[res]!;
+    final viewOn = selected?.contains(PermAction.view) ?? false;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -359,20 +410,13 @@ class _RoleEditorState extends ConsumerState<_RoleEditor> {
             runSpacing: 4,
             children: [
               for (final a in actions)
+                // إجراءات الكتابة معطّلة حتى يُفعّل «عرض» (فرض الترابط بصريًا).
                 FilterChip(
                   label: Text(PermAction.label(a)),
                   selected: _readOnly || (selected?.contains(a) ?? false),
-                  onSelected: _readOnly
+                  onSelected: (_readOnly || (_writes.contains(a) && !viewOn))
                       ? null
-                      : (v) {
-                          setState(() {
-                            if (v) {
-                              selected!.add(a);
-                            } else {
-                              selected!.remove(a);
-                            }
-                          });
-                        },
+                      : (v) => _toggle(res, a, v),
                 ),
             ],
           ),

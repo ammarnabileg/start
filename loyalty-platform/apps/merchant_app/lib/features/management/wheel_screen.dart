@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
 import '../../data/repositories/entity_branches_repository.dart';
 import '../../data/repositories/wheel_repository.dart';
 import 'branch_target_field.dart';
@@ -202,11 +203,16 @@ class _WheelManagementScreenState
         ),
         data: (wheel) {
           _hydrate(wheel);
+          // إنشاء عجلة جديدة يتطلّب صلاحية «إضافة»، وتعديل القائمة «تعديل».
+          final readOnly = wheel == null
+              ? !ref.permCan(PermResource.wheel, PermAction.create)
+              : !ref.permCan(PermResource.wheel, PermAction.edit);
           return Form(
             key: _formKey,
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
+                if (readOnly) const ReadOnlyNotice(),
                 Center(
                   child: LuckyWheelView(
                     segments: _previewSegments(),
@@ -260,7 +266,7 @@ class _WheelManagementScreenState
                 SectionHeader(
                   title: 'المقاطع (${_segments.length})',
                   actionLabel: 'إضافة',
-                  onAction: _addSegment,
+                  onAction: readOnly ? null : _addSegment,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 for (var i = 0; i < _segments.length; i++)
@@ -268,7 +274,7 @@ class _WheelManagementScreenState
                     key: ObjectKey(_segments[i]),
                     segment: _segments[i],
                     onChanged: () => setState(() {}),
-                    onRemove: _segments.length > 2
+                    onRemove: (!readOnly && _segments.length > 2)
                         ? () => _removeSegment(i)
                         : null,
                   ),
@@ -280,11 +286,12 @@ class _WheelManagementScreenState
                       padding: EdgeInsets.all(8),
                       child: LinearProgressIndicator()),
                 const SizedBox(height: AppSpacing.lg),
-                PrimaryButton(
-                  label: 'حفظ العجلة',
-                  loading: _busy,
-                  onPressed: _save,
-                ),
+                if (!readOnly)
+                  PrimaryButton(
+                    label: 'حفظ العجلة',
+                    loading: _busy,
+                    onPressed: _save,
+                  ),
                 const SizedBox(height: AppSpacing.lg),
               ],
             ),
