@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // Facsimile screenshots of EVERY customer screen (real DS widgets + SVG icons
 // + sample data), 390x844 RTL. Run: flutter test test/screenshots/customer_all_test.dart
 import 'dart:io';

@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // Verifies the Hatchy SVG icon set renders in the headless test runner and
 // emits a contact sheet PNG. Run: flutter test test/screenshots/icon_sheet_test.dart
 import 'dart:io';

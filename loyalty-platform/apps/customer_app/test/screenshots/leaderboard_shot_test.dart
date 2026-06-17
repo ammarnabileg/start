@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // لقطة مفردة للوحة الصدارة بعد استبدال الإيموجي بأيقونات.
 import 'dart:io';
 import 'dart:ui' as ui;

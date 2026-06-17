@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // لقطة مفردة لشاشة عجلة الحظ.
 import 'dart:io';
 import 'dart:ui' as ui;

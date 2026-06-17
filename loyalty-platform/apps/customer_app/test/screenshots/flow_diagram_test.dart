@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // يرسم دياجرام الطبقات لتدفّق "استلام هدية" ويصدّره كصورة.
 // flutter test test/screenshots/flow_diagram_test.dart
 import 'dart:io';

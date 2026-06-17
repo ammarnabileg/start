@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // لقطة لشاشة فيها الشريط السفلي (زر الـ QR البارز في النص).
 import 'dart:io';
 import 'dart:ui' as ui;

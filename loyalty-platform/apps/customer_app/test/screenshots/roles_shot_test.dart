@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // لقطة مفردة لشاشة الأدوار والصلاحيات (مصفوفة الصلاحيات).
 import 'dart:io';
 import 'dart:ui' as ui;

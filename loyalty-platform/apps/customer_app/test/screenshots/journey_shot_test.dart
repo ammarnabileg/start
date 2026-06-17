@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // لقطة مفردة لمسار المستويات (Levels Journey) بهوية Hatchy.
 import 'dart:io';
 import 'dart:ui' as ui;

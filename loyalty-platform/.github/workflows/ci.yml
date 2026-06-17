@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+env:
+  FLUTTER_VERSION: '3.29.3'
+
+jobs:
+  # ── جودة الكود: تحليل + اختبارات للحزمة المشتركة والتطبيقين ──
+  analyze-test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loyalty-platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: loyalty_core — get / analyze / test
+        working-directory: loyalty-platform/packages/loyalty_core
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: customer_app — get / analyze / test
+        working-directory: loyalty-platform/apps/customer_app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --exclude-tags golden
+
+      - name: merchant_app — get / analyze / test
+        working-directory: loyalty-platform/apps/merchant_app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --exclude-tags golden
+
+  # ── بناء APK لكل تطبيق (Artifacts) ──
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    needs: analyze-test
+    strategy:
+      matrix:
+        app: [customer_app, merchant_app]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build release APK
+        working-directory: loyalty-platform/apps/${{ matrix.app }}
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-release-apk
+          path: loyalty-platform/apps/${{ matrix.app }}/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

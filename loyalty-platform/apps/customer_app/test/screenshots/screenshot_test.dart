@@ -1,3 +1,6 @@
+@Tags(['screenshot'])
+library;
+
 // يرندر واجهات تمثيلية (بمكوّنات الـ Design System الحقيقية + بيانات نموذجية)
 // ويصدّرها كصور PNG. شغّله: flutter test test/screenshots/screenshot_test.dart
 import 'dart:io';
