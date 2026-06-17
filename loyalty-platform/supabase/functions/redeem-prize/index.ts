@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     if (!prizeId) return badRequest("الرمز غير صالح");
 
     const { data: prize } = await svc.from("user_prizes")
-      .select("id, user_id, merchant_id, title, kind, points_value, status, branch_scope, claim_secret, expires_at")
+      .select("id, user_id, merchant_id, title, description, kind, points_value, status, branch_scope, claim_secret, expires_at")
       .eq("id", prizeId).maybeSingle();
     if (!prize) return badRequest("الرمز غير صالح");
 
@@ -64,26 +64,26 @@ Deno.serve(async (req) => {
       idempotency_key,
       { endpoint: "redeem-prize", userId: prize.user_id, merchantId: staff.merchantId },
       async () => {
-        // تفعيل
+        // بدء التسليم: ننتقل لحالة "delivering" بانتظار تأكيد العميل (موافق/إلغاء).
         await svc.from("user_prizes").update({
-          status: "redeemed",
-          redeemed_at: new Date().toISOString(),
+          status: "delivering",
           redeemed_by_staff: staff.staffId,
           redeemed_branch: staff.branchId,
         }).eq("id", prize.id);
 
-        // إشعار العميل
+        // إشعار العميل ليؤكّد الاستلام من شاشته (تتحدّث لحظيًا أيضًا).
         await svc.from("notifications").insert({
-          user_id: prize.user_id, type: "prize_redeemed",
-          title: "تم استلام هديتك",
-          body: prize.title,
+          user_id: prize.user_id, type: "prize_delivering",
+          title: "بانتظار تأكيدك",
+          body: `يتم تسليمك: ${prize.title}`,
           data: { merchant_id: prize.merchant_id, prize_id: prize.id },
         });
 
         return {
-          redeemed: true,
+          delivering: true,
           title: prize.title,
           kind: prize.kind,
+          description: prize.description ?? null,
         };
       },
     );

@@ -63,6 +63,31 @@ class WheelRepository {
         .from('user_prizes')
         .stream(primaryKey: ['id']).eq('id', prizeId);
   }
+
+  /// تأكيد الاستلام (موافق) أو إلغاء التسليم.
+  Future<void> confirmPrize(String prizeId, {required bool confirm}) {
+    return _client.functions.invoke('confirm-prize', body: {
+      'prize_id': prizeId,
+      'action': confirm ? 'confirm' : 'cancel',
+    });
+  }
+
+  /// إرسال بلاغ (رسالة + فيديو توثيق اختياري) عن متجر/فرع/هدية.
+  Future<void> submitReport({
+    String? merchantId,
+    String? branchId,
+    String? prizeId,
+    String? message,
+    String? videoUrl,
+  }) {
+    return _client.functions.invoke('submit-report', body: {
+      'merchant_id': merchantId,
+      'branch_id': branchId,
+      'prize_id': prizeId,
+      'message': message,
+      'video_url': videoUrl,
+    });
+  }
 }
 
 final wheelRepoProvider = Provider<WheelRepository>(

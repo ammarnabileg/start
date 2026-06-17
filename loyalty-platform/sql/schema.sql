@@ -1084,7 +1084,7 @@ create table public.user_prizes (
   description  text,
   kind         text not null check (kind in ('reward','coupon','points','nothing')),
   points_value integer not null default 0,
-  status       text not null default 'won' check (status in ('won','redeemed','expired','canceled')),
+  status       text not null default 'won' check (status in ('won','delivering','redeemed','expired','canceled')),
   branch_scope uuid references public.branches(id) on delete set null, -- الفرع المؤهّل (لو مقيّد)
   claim_secret text not null default encode(gen_random_bytes(20), 'base64'), -- لتوليد QR متغيّر
   expires_at   timestamptz,
@@ -1096,9 +1096,33 @@ create table public.user_prizes (
 create index idx_user_prizes_user on public.user_prizes(user_id) where status = 'won';
 create index idx_user_prizes_merchant on public.user_prizes(merchant_id);
 
+-- بلاغات العملاء (إبلاغ عن مشكلة في التسليم) — مع فيديو توثيق اختياري.
+create table public.reports (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.users(id) on delete cascade,
+  merchant_id uuid references public.merchants(id) on delete set null,
+  branch_id   uuid references public.branches(id) on delete set null,
+  prize_id    uuid references public.user_prizes(id) on delete set null,
+  message     text,
+  video_url   text,
+  status      text not null default 'open' check (status in ('open','reviewing','resolved')),
+  created_at  timestamptz not null default now()
+);
+create index idx_reports_merchant on public.reports(merchant_id);
+create index idx_reports_user on public.reports(user_id);
+
 alter table public.lucky_wheels  enable row level security;
 alter table public.wheel_segments enable row level security;
 alter table public.user_prizes    enable row level security;
+alter table public.reports        enable row level security;
+
+-- البلاغات: العميل ينشئ/يقرأ بلاغاته، والتاجر يقرأ بلاغات متجره.
+create policy reports_insert on public.reports
+  for insert with check (user_id = auth.uid());
+create policy reports_read_own on public.reports
+  for select using (
+    user_id = auth.uid()
+    or (merchant_id is not null and public.is_merchant_member(merchant_id)));
 
 create policy wheels_read on public.lucky_wheels
   for select using (active or public.is_merchant_member(merchant_id));

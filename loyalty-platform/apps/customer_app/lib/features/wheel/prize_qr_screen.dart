@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/report_storage.dart';
 import '../../data/repositories/wheel_repository.dart';
 
 /// شاشة QR متغيّر لتفعيل هدية عند الكاشير.
@@ -22,6 +23,7 @@ class _PrizeQrScreenState extends ConsumerState<PrizeQrScreen> {
   String _payload = '';
   int _remaining = QrToken.defaultWindowSeconds;
   bool _redeemed = false;
+  bool _dialogOpen = false;
   StreamSubscription<List<Map<String, dynamic>>>? _statusSub;
 
   bool get _expired {
@@ -50,12 +52,66 @@ class _PrizeQrScreenState extends ConsumerState<PrizeQrScreen> {
         .read(wheelRepoProvider)
         .prizeStatusStream(widget.prize.id)
         .listen((rows) {
-      if (rows.isEmpty) return;
+      if (rows.isEmpty || !mounted) return;
       final status = rows.first['status'] as String?;
-      if (status == 'redeemed' && mounted) {
+      if (status == 'redeemed') {
+        if (_dialogOpen && Navigator.canPop(context)) Navigator.pop(context);
         setState(() => _redeemed = true);
+      } else if (status == 'delivering') {
+        // الكاشير بدأ التسليم → اطلب تأكيد العميل.
+        if (!_dialogOpen) _showDeliveringSheet();
+      } else if (_dialogOpen && Navigator.canPop(context)) {
+        // عاد للحالة المتاحة (إلغاء من الكاشير) → أغلق النافذة.
+        Navigator.pop(context);
       }
     });
+  }
+
+  /// نافذة تأكيد الاستلام: موافق / إلغاء / إبلاغ.
+  Future<void> _showDeliveringSheet() async {
+    _dialogOpen = true;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (ctx) => _DeliverSheet(prize: widget.prize),
+    );
+    _dialogOpen = false;
+    if (!mounted) return;
+    if (action == 'confirm') {
+      await _confirm(true);
+    } else if (action == 'cancel') {
+      await _confirm(false);
+    } else if (action == 'report') {
+      await _openReport();
+    }
+  }
+
+  Future<void> _confirm(bool confirm) async {
+    try {
+      await ref
+          .read(wheelRepoProvider)
+          .confirmPrize(widget.prize.id, confirm: confirm);
+      if (mounted && !confirm) {
+        AppFeedback.toast(context, 'تم إلغاء العملية');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر تنفيذ العملية', error: true);
+      }
+    }
+  }
+
+  /// الإبلاغ: يفتح كاميرا الفيديو مباشرة للتوثيق، ثم نموذج الإرسال.
+  Future<void> _openReport() async {
+    final videoUrl = await ReportStorage.recordAndUpload();
+    if (!mounted) return;
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ReportSheet(prize: widget.prize, videoUrl: videoUrl),
+    );
   }
 
   void _regenerate() {
@@ -215,6 +271,208 @@ class _RedeemedState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// نافذة "يتم تسليمك الهدية" — موافق / إلغاء / إبلاغ.
+class _DeliverSheet extends StatelessWidget {
+  final UserPrize prize;
+  const _DeliverSheet({required this.prize});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 18),
+              decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(3)),
+            ),
+            Container(
+              height: 84,
+              width: 84,
+              decoration: const BoxDecoration(
+                  gradient: AppColors.goldGradient, shape: BoxShape.circle),
+              child: const AppIcon(Icons.card_giftcard_rounded,
+                  size: 44, color: Colors.white),
+            ).animate().scale(
+                duration: 380.ms, curve: Curves.easeOutBack),
+            const SizedBox(height: 16),
+            Text('يتم تسليمك', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 4),
+            Text(prize.title,
+                style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            if (prize.description != null &&
+                prize.description!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(prize.description!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ],
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, 'cancel'),
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('إلغاء'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, 'confirm'),
+                    style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: const Text('موافق'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context, 'report'),
+              icon: const AppIcon(Icons.warning_amber_rounded,
+                  size: 18, color: AppColors.error),
+              label: const Text('إبلاغ عن مشكلة',
+                  style: TextStyle(color: AppColors.error)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// نموذج الإبلاغ — فيديو توثيق (مرفق تلقائيًا) + المتجر/الفرع + رسالة + إرسال.
+class _ReportSheet extends ConsumerStatefulWidget {
+  final UserPrize prize;
+  final String? videoUrl;
+  const _ReportSheet({required this.prize, this.videoUrl});
+  @override
+  ConsumerState<_ReportSheet> createState() => _ReportSheetState();
+}
+
+class _ReportSheetState extends ConsumerState<_ReportSheet> {
+  final _message = TextEditingController();
+  late String? _videoUrl = widget.videoUrl;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _message.dispose();
+    super.dispose();
+  }
+
+  Future<void> _recordAgain() async {
+    final url = await ReportStorage.recordAndUpload();
+    if (mounted && url != null) setState(() => _videoUrl = url);
+  }
+
+  Future<void> _send() async {
+    if (_videoUrl == null && _message.text.trim().isEmpty) {
+      AppFeedback.toast(context, 'أضف رسالة أو فيديو', error: true);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(wheelRepoProvider).submitReport(
+            merchantId: widget.prize.merchantId,
+            branchId: widget.prize.branchScope,
+            prizeId: widget.prize.id,
+            message: _message.text.trim(),
+            videoUrl: _videoUrl,
+          );
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم إرسال بلاغك، شكرًا لك');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر إرسال البلاغ', error: true);
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('إبلاغ عن مشكلة',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          // المتجر/الفرع يُختار تلقائيًا.
+          AppCard(
+            child: Row(children: [
+              const AppIcon(Icons.storefront_rounded,
+                  color: AppColors.primaryDark),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(widget.prize.merchantName ?? 'المتجر',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              const Text('تلقائي',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          // الفيديو
+          AppCard(
+            onTap: _recordAgain,
+            child: Row(children: [
+              AppIconBadge(
+                  _videoUrl == null ? Icons.camera_alt_outlined : Icons.check_rounded,
+                  size: 44,
+                  color: _videoUrl == null ? null : AppColors.success),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    _videoUrl == null
+                        ? 'تسجيل فيديو توثيق'
+                        : 'تم إرفاق الفيديو — اضغط لإعادة التسجيل',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _message,
+            maxLines: 3,
+            decoration: const InputDecoration(
+                labelText: 'رسالتك (اختياري)',
+                alignLabelWithHint: true),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+              label: 'إرسال',
+              icon: Icons.send_rounded,
+              loading: _busy,
+              onPressed: _send),
+        ],
       ),
     );
   }

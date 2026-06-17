@@ -44,8 +44,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         if (!mounted) return;
         await AppFeedback.success(
           context,
-          title: 'تم تفعيل الهدية',
-          message: data?['title'] as String?,
+          title: 'سلّم: ${data?['title'] ?? 'الهدية'}',
+          message: 'بانتظار تأكيد العميل من شاشته.',
         );
         return;
       }
