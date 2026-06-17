@@ -119,6 +119,15 @@ void main() {
   // ===== STORE DETAIL + FEATURES =====
   testWidgets('c16 store detail', (t) => _shot(t, 'c16_store_detail', const _StoreDetail()));
   testWidgets('c16b store levels', (t) => _shot(t, 'c16b_store_levels', const _StoreDetailLevels()));
+  // كل تابات صفحة المتجر:
+  testWidgets('st1 overview', (t) => _shot(t, 'store_tab_1_overview', const _StoreTab(0, _TabOverview())));
+  testWidgets('st2 visits', (t) => _shot(t, 'store_tab_2_visits', const _StoreTab(1, _TabVisits())));
+  testWidgets('st3 points', (t) => _shot(t, 'store_tab_3_points', const _StoreTab(2, _TabPoints())));
+  testWidgets('st4 rewards', (t) => _shot(t, 'store_tab_4_rewards', const _StoreTab(3, _TabRewards())));
+  testWidgets('st5 levels', (t) => _shot(t, 'store_tab_5_levels', const _StoreTab(4, _TabLevels())));
+  testWidgets('st6 coupons', (t) => _shot(t, 'store_tab_6_coupons', const _StoreTab(5, _TabCoupons())));
+  testWidgets('st7 questions', (t) => _shot(t, 'store_tab_7_questions', const _StoreTab(6, _TabQuestions())));
+  testWidgets('st8 history', (t) => _shot(t, 'store_tab_8_history', const _StoreTab(7, _TabHistory())));
   testWidgets('c17 reward detail', (t) => _shot(t, 'c17_reward_detail', const _RewardDetail()));
   testWidgets('c18 show to cashier', (t) => _shot(t, 'c18_show_cashier', const _ShowCashier()));
   testWidgets('c19 wheel', (t) => _shot(t, 'c19_wheel', const _Wheel()));
@@ -776,6 +785,378 @@ class _StoreDetailLevels extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ===== صفحة المتجر: غلاف موحّد (هيدر + تابات) + محتوى كل تاب =====
+const _storeTabs = [
+  'نظرة عامة', 'الزيارات', 'النقاط', 'المكافآت',
+  'المستويات', 'الكوبونات', 'الأسئلة', 'السجل',
+];
+
+class _StoreTab extends StatelessWidget {
+  final int index;
+  final Widget body;
+  const _StoreTab(this.index, this.body);
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: _storeTabs.length,
+      initialIndex: index,
+      child: Scaffold(
+        body: Column(children: [
+          const HeroHeader(
+              title: 'مقهى الرواق',
+              subtitle: 'مقهى · فرع العليا',
+              bottom: PointsBadge(points: 350)),
+          Material(
+            color: AppColors.surface,
+            child: TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: AppColors.primaryDark,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs: [for (final t in _storeTabs) Tab(text: t)],
+            ),
+          ),
+          Expanded(child: body),
+        ]),
+      ),
+    );
+  }
+}
+
+class _TabOverview extends StatelessWidget {
+  const _TabOverview();
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
+          SectionHeader(title: 'حالتك في المتجر'),
+          SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+                child: StatCard(
+                    icon: Icons.workspace_premium_outlined,
+                    label: 'المستوى',
+                    value: 'فضي',
+                    highlight: true)),
+            SizedBox(width: 12),
+            Expanded(
+                child: StatCard(
+                    icon: Icons.star_rounded,
+                    label: 'النقاط المتاحة',
+                    value: '350')),
+            SizedBox(width: 12),
+            Expanded(
+                child: StatCard(
+                    icon: Icons.event_available_outlined,
+                    label: 'إجمالي النقاط',
+                    value: '1,850')),
+          ]),
+          SizedBox(height: 20),
+          PrimaryButton(
+              label: 'لوحة صدارة المتجر',
+              icon: Icons.emoji_events_outlined,
+              onPressed: _noop),
+          SizedBox(height: 16),
+          AppCard(
+            child: Row(children: [
+              AppIconBadge(Icons.casino_rounded, size: 44),
+              SizedBox(width: 12),
+              Expanded(
+                  child: Text('جرّب عجلة الحظ',
+                      style: TextStyle(fontWeight: FontWeight.w700))),
+              AppIcon(Icons.chevron_left_rounded,
+                  color: AppColors.textSecondary),
+            ]),
+          ),
+        ],
+      );
+}
+
+class _TabVisits extends StatelessWidget {
+  const _TabVisits();
+  @override
+  Widget build(BuildContext context) {
+    Widget campaign(String title, int cur, int total) => AppCard(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const AppIconBadge(Icons.event_repeat_rounded, size: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w800))),
+              Text('$cur/$total',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark)),
+            ]),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                  value: cur / total,
+                  minHeight: 10,
+                  backgroundColor: AppColors.surfaceCream,
+                  color: AppColors.primary),
+            ),
+            const SizedBox(height: 6),
+            Text('باقي ${total - cur} زيارات للحصول على مكافأتك.',
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 12)),
+          ]),
+        );
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      campaign('5 زيارات → قهوة مجانية', 3, 5),
+      campaign('10 زيارات → خصم 30%', 6, 10),
+    ]);
+  }
+}
+
+class _TabPoints extends StatelessWidget {
+  const _TabPoints();
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const AppCard(
+            gradient: AppColors.goldGradient,
+            child: Column(children: [
+              Text('النقاط المتاحة',
+                  style: TextStyle(color: AppColors.onPrimary)),
+              SizedBox(height: 4),
+              Text('350',
+                  style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.onPrimary)),
+              Divider(height: 24, color: Colors.white54),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                _MiniStat(label: 'إجمالي مكتسب', value: '1,850'),
+                _MiniStat(label: 'تم استبداله', value: '1,500'),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          const SectionHeader(title: 'كيف تكسب نقاطًا؟'),
+          const SizedBox(height: 8),
+          for (final r in const [
+            (Icons.event_available_rounded, 'سجّل زيارة', '+10 نقاط'),
+            (Icons.quiz_outlined, 'أجب عن سؤال', '+20 نقطة'),
+            (Icons.share_rounded, 'ادعُ صديقًا', '+100 نقطة'),
+          ])
+            AppCard(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: Row(children: [
+                AppIconBadge(r.$1, size: 44),
+                const SizedBox(width: 12),
+                Expanded(child: Text(r.$2)),
+                Text(r.$3,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark)),
+              ]),
+            ),
+        ],
+      );
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label, value;
+  const _MiniStat({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        Text(value,
+            style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: AppColors.onPrimary)),
+        Text(label,
+            style: const TextStyle(color: AppColors.onPrimary, fontSize: 12)),
+      ]);
+}
+
+class _TabRewards extends StatelessWidget {
+  const _TabRewards();
+  @override
+  Widget build(BuildContext context) => GridView.count(
+        crossAxisCount: 2,
+        padding: const EdgeInsets.all(16),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.05,
+        children: [
+          for (final r in const [
+            ('قهوة مجانية', 100, true),
+            ('خصم 20%', 250, true),
+            ('كيكة', 400, false),
+            ('وجبة عشاء', 600, false),
+          ])
+            Opacity(
+              opacity: r.$3 ? 1 : .5,
+              child: AppCard(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AppIconBadge(Icons.card_giftcard_rounded, size: 46),
+                    const SizedBox(height: 8),
+                    Text(r.$1,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    PointsBadge(points: r.$2),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+}
+
+class _TabLevels extends StatelessWidget {
+  const _TabLevels();
+  @override
+  Widget build(BuildContext context) {
+    LoyaltyLevel lvl(String id, String n, int th, int o) => LoyaltyLevel(
+        id: id, merchantId: 'm', name: n, thresholdLifetimePoints: th, sortOrder: o);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: LevelsJourney(
+        levels: [
+          lvl('1', 'برونزي', 0, 0),
+          lvl('2', 'فضي', 500, 1),
+          lvl('3', 'ذهبي', 1500, 2),
+          lvl('4', 'بلاتيني', 3000, 3),
+        ],
+        lifetimePoints: 1850,
+        title: 'رحلة مستوياتك',
+      ),
+    );
+  }
+}
+
+class _TabCoupons extends StatelessWidget {
+  const _TabCoupons();
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          for (final c in const [
+            ('SUMMER20', 'خصم 20% على طلبك', 'تنتهي 5 أغسطس'),
+            ('WELCOME', 'هدية ترحيبية', 'تنتهي 20 يوليو'),
+          ])
+            AppCard(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Row(children: [
+                const AppIconBadge(Icons.confirmation_num_outlined, size: 46),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.$1,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                              letterSpacing: 1)),
+                      Text(c.$2,
+                          style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(height: 2),
+                      Text(c.$3,
+                          style: const TextStyle(
+                              color: AppColors.error, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const AppIcon(Icons.copy_rounded, color: AppColors.primaryDark),
+              ]),
+            ),
+        ],
+      );
+}
+
+class _TabQuestions extends StatelessWidget {
+  const _TabQuestions();
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          AppCard(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Row(children: [
+                AppIconBadge(Icons.quiz_outlined, size: 44),
+                SizedBox(width: 12),
+                Expanded(
+                    child: Text('ما رأيك في خدمتنا؟',
+                        style: TextStyle(fontWeight: FontWeight.w800))),
+                Text('+20',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark)),
+              ]),
+              const SizedBox(height: 12),
+              for (final o in const ['ممتازة', 'جيدة', 'تحتاج تحسين'])
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceCream,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Text(o),
+                ),
+            ]),
+          ),
+          const AppCard(
+            child: Row(children: [
+              AppIconBadge(Icons.short_text_rounded, size: 44),
+              SizedBox(width: 12),
+              Expanded(
+                  child: Text('اقتراحاتك لنا',
+                      style: TextStyle(fontWeight: FontWeight.w800))),
+              Text('تمت الإجابة',
+                  style: TextStyle(color: AppColors.success, fontSize: 12)),
+            ]),
+          ),
+        ],
+      );
+}
+
+class _TabHistory extends StatelessWidget {
+  const _TabHistory();
+  @override
+  Widget build(BuildContext context) {
+    Widget row(IconData i, String t, String date, String amt, Color c) => AppCard(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Row(children: [
+            AppIconBadge(i, size: 40, color: c),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(date, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            Text(amt,
+                style: TextStyle(fontWeight: FontWeight.w800, color: c)),
+          ]),
+        );
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      row(Icons.add, 'إضافة نقاط', 'اليوم 4:20 م', '+50', AppColors.success),
+      row(Icons.redeem_rounded, 'استبدال: قهوة مجانية', 'أمس', '-100',
+          AppColors.error),
+      row(Icons.event_available_rounded, 'تسجيل زيارة', 'منذ 3 أيام', '+10',
+          AppColors.success),
+      row(Icons.casino_rounded, 'لفّة عجلة الحظ', 'منذ أسبوع', '-50',
+          AppColors.error),
+    ]);
   }
 }
 
