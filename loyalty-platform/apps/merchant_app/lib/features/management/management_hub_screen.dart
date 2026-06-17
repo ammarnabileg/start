@@ -15,6 +15,7 @@ import 'coupons_screen.dart';
 import 'levels_screen.dart';
 import 'pos_screen.dart';
 import 'questions_screen.dart';
+import 'reports_screen.dart';
 import 'rewards_screen.dart';
 import 'roles_screen.dart';
 import 'staff_screen.dart';
@@ -44,6 +45,14 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'العملاء',
               subtitle: 'اعرض عملاءك وأرسل لهم إشعارات',
               builder: (_) => const CustomersScreen(),
+              resource: 'customers',
+            ),
+            _HubTile(
+              icon: Icons.flag_outlined,
+              accent: AppColors.error,
+              title: 'البلاغات',
+              subtitle: 'بلاغات العملاء (عرض فقط)',
+              builder: (_) => const ReportsScreen(),
               resource: 'customers',
             ),
             if (settings.enableVisits)

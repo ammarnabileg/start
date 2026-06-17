@@ -151,6 +151,7 @@ void main() {
   testWidgets('m21 questions', (t) => _shot(t, 'm21_questions', const _Questions()));
   testWidgets('m22 responses', (t) => _shot(t, 'm22_responses', const _Responses()));
   testWidgets('m23 customers', (t) => _shot(t, 'm23_customers', const _Customers()));
+  testWidgets('m23b reports', (t) => _shot(t, 'm23b_reports', const _Reports()));
   testWidgets('m24 staff', (t) => _shot(t, 'm24_staff', const _Staff()));
   testWidgets('m25 roles', (t) => _shot(t, 'm25_roles', const _Roles()));
   testWidgets('m26 pos', (t) => _shot(t, 'm26_pos', const _Pos()));
@@ -1159,6 +1160,94 @@ class _Responses extends StatelessWidget {
             ),
         ]),
       );
+}
+
+/// بلاغات العملاء (عرض فقط) — اسم أول + موبايل + إيميل.
+class _Reports extends StatelessWidget {
+  const _Reports();
+  @override
+  Widget build(BuildContext context) {
+    Widget info(IconData i, String t) => Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(children: [
+            AppIcon(i, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(t,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
+          ]),
+        );
+    Widget tag(IconData i, String t) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+              color: AppColors.surfaceCream,
+              borderRadius: BorderRadius.circular(AppRadii.pill)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            AppIcon(i, size: 14, color: AppColors.primaryDark),
+            const SizedBox(width: 5),
+            Text(t,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark)),
+          ]),
+        );
+    Widget card(String name, String phone, String email, String date,
+            String msg, String branch, String prize) =>
+        AppCard(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.primaryLight,
+                  child: Text(name.characters.first,
+                      style: const TextStyle(fontWeight: FontWeight.w800))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: Theme.of(context).textTheme.titleMedium),
+                    info(Icons.phone_outlined, phone),
+                    info(Icons.email_outlined, email),
+                  ],
+                ),
+              ),
+              Text(date, style: Theme.of(context).textTheme.bodySmall),
+            ]),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              tag(Icons.store_mall_directory_outlined, branch),
+              tag(Icons.card_giftcard_outlined, prize),
+            ]),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: AppColors.surfaceCream,
+                  borderRadius: BorderRadius.circular(AppRadii.md)),
+              child: Text(msg),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+                onPressed: () {},
+                icon: const AppIcon(Icons.videocam_outlined),
+                label: const Text('فيديو مرفق · نسخ الرابط')),
+          ]),
+        );
+    return Scaffold(
+      appBar: AppBar(title: const Text('البلاغات')),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        card('أحمد', '05xxxxxxxx', 'ahmed@mail.com', '2026/6/17',
+            'الهدية وصلتني ناقصة، برجاء المراجعة.', 'الفرع الرئيسي',
+            'قهوة مجانية'),
+        card('سارة', '05xxxxxxxx', 'sara@mail.com', '2026/6/16',
+            'في تأخير في تسليم المكافأة.', 'فرع النخيل', 'خصم 20%'),
+      ]),
+    );
+  }
 }
 
 class _Customers extends StatelessWidget {

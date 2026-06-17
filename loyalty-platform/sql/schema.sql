@@ -555,6 +555,30 @@ begin
 end;
 $$;
 
+-- بلاغات التاجر مع بيانات الراسل (الاسم الأول/الموبايل/الإيميل) — للعرض فقط.
+-- security definer لأن RLS يمنع التاجر من قراءة صفوف users مباشرة.
+create or replace function public.merchant_reports(p_merchant uuid)
+returns table (
+  id uuid, created_at timestamptz, status text, message text, video_url text,
+  branch_id uuid, branch_name text, prize_id uuid, prize_title text,
+  sender_name text, sender_phone text, sender_email text
+) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'forbidden';
+  end if;
+  return query
+    select r.id, r.created_at, r.status, r.message, r.video_url,
+           r.branch_id, b.name, r.prize_id, p.title,
+           u.name, u.phone, u.email
+    from public.reports r
+    left join public.branches b on b.id = r.branch_id
+    left join public.user_prizes p on p.id = r.prize_id
+    left join public.users u on u.id = r.user_id
+    where r.merchant_id = p_merchant
+    order by r.created_at desc;
+end $$;
+
 -- هل العنصر متاح في فرع معيّن؟ موحّد (بدون استهداف) = متاح في كل الفروع.
 -- لو مستهدَف لفروع: متاح فقط لو الفرع ضمنها (والفرع غير NULL).
 create or replace function public.entity_at_branch(
