@@ -25,6 +25,11 @@ create table public.users (
   push_opt_in     boolean not null default false,
   proximity_opt_in boolean not null default false,
   leaderboard_opt_in boolean not null default true,   -- يظهر اسمه في لوحات الصدارة
+  -- خصوصية عامة: مشاركة بيانات التواصل مع كل المتاجر المرتبط بها (الافتراضي true).
+  -- عند false: يختفي من دليل عملاء أي تاجر ومن كل لوحات الصدارة (المتجر/الفروع)
+  -- ولا يمكن للتاجر التواصل معه — مع بقاء النقاط/الزيارات/المكافآت/الربط كما هي.
+  -- يعمل بالتراكب مع user_stores.visible (تحكّم لكل متجر): الظهور = الاثنان معًا.
+  share_profile_with_merchants boolean not null default true,
   avatar_url      text,
   created_at      timestamptz not null default now()
 );
@@ -389,6 +394,7 @@ language sql security definer stable as $$
   from public.user_stores us
   join public.users u on u.id = us.user_id
   where u.leaderboard_opt_in
+    and u.share_profile_with_merchants          -- المنسحب عامًّا يخرج من الترتيب
   group by u.id, u.name
   order by total_points desc
   limit p_limit;
@@ -403,6 +409,7 @@ language sql security definer stable as $$
     from public.user_stores us
     join public.users u on u.id = us.user_id
     where u.leaderboard_opt_in
+      and u.share_profile_with_merchants
     group by us.user_id
   ), ranked as (
     select user_id, pts, row_number() over (order by pts desc) as rnk from scores
@@ -428,6 +435,7 @@ language sql security definer stable as $$
   where us.merchant_id = p_merchant
     and u.leaderboard_opt_in
     and us.visible                              -- إخفاء من عطّل المشاركة مع هذا المتجر
+    and u.share_profile_with_merchants          -- إخفاء من عطّل المشاركة العامة (الملف الشخصي)
     and (p_branch is null or us.branch_id = p_branch)
   group by u.id, u.name
   order by total_points desc
@@ -1075,6 +1083,7 @@ create or replace function public.merchant_customers(
   level_name       text,
   visits           bigint,
   push_opt_in      boolean,
+  branch_name      text,
   first_linked     timestamptz,
   last_activity    timestamptz
 ) language plpgsql security definer stable
@@ -1094,6 +1103,12 @@ begin
          filter (where l.name is not null))[1] as lvl,
       (select count(*) from public.user_visits v
          where v.user_id = u.id and v.merchant_id = p_merchant)::bigint as vis,
+      -- الفرع المرتبط: فرع آخر زيارة للعميل لدى هذا التاجر.
+      (select b.name from public.user_visits v
+         join public.branches b on b.id = v.branch_id
+        where v.user_id = u.id and v.merchant_id = p_merchant
+          and v.branch_id is not null
+        order by v.created_at desc limit 1) as branch_nm,
       min(us.first_linked_at) as linked,
       (select max(pt.created_at) from public.points_transactions pt
          join public.user_stores us2 on us2.id = pt.user_store_id
@@ -1102,7 +1117,8 @@ begin
     join public.users u on u.id = us.user_id
     left join public.loyalty_levels l on l.id = us.current_level_id
     where us.merchant_id = p_merchant
-      and us.visible                            -- العملاء المخفيون لا يظهرون في قائمة/بحث التاجر
+      and us.visible                            -- مخفي لكل متجر
+      and u.share_profile_with_merchants        -- مخفي عامًّا (إعداد الملف الشخصي)
       and (p_search is null or p_search = ''
            or u.name  ilike '%' || p_search || '%'
            or u.phone ilike '%' || p_search || '%'
@@ -1113,7 +1129,8 @@ begin
                and v.branch_id = p_branch))
     group by u.id, u.name, u.phone, u.email, u.avatar_url, u.push_opt_in
   )
-  select uid, uname, uphone, uemail, uavatar, avail, life, lvl, vis, upush, linked, last_act
+  select uid, uname, uphone, uemail, uavatar, avail, life, lvl, vis, upush,
+         branch_nm, linked, last_act
   from agg
   where (p_level      is null or lvl   = p_level)
     and (p_min_points is null or avail >= p_min_points)
@@ -1731,7 +1748,9 @@ create policy "merchant media write" on storage.objects
 create materialized view if not exists public.mv_global_scores as
   select us.user_id, sum(us.lifetime_points)::bigint as total_points
   from public.user_stores us
-  where us.visible                              -- لا تُحتسب المتاجر المخفية في الترتيب العام
+  join public.users u on u.id = us.user_id
+  where us.visible                              -- لا تُحتسب المتاجر المخفية لكل متجر
+    and u.share_profile_with_merchants          -- من عطّل المشاركة العامة يخرج من الترتيب
   group by us.user_id;
 create unique index if not exists idx_mv_global_scores on public.mv_global_scores(user_id);
 
@@ -2011,3 +2030,30 @@ begin
 end;
 $$;
 grant execute on function public.set_store_visibility(uuid, boolean) to authenticated;
+
+-- =====================================================================
+-- 25) خصوصية عامة على مستوى الملف الشخصي (share_profile_with_merchants)
+--     العمود مُعرّف أعلاه في جدول users. الإنفاذ في merchant_customers،
+--     store_leaderboard، mv_global_scores، و send-announcement.
+--     هنا: Trigger لجعل تبديل الإعداد ينعكس فورًا في دليل عملاء التاجر
+--     عبر الـ Realtime (يلمس صفوف user_stores للعميل — تبقى visible كما هي
+--     فيمرّ الحدث عبر سياسة stores_merchant_read، فيُحدّث التاجر قائمته ويُعيد
+--     استدعاء merchant_customers التي تستبعد العميل المخفي).
+-- =====================================================================
+create or replace function public.touch_user_stores_on_sharing_change()
+returns trigger language plpgsql
+  set search_path = public, pg_temp as $$
+begin
+  if new.share_profile_with_merchants is distinct from old.share_profile_with_merchants then
+    update public.user_stores
+       set first_linked_at = first_linked_at      -- لمسة بلا تغيير قيمة → إشارة Realtime
+     where user_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sharing_touch on public.users;
+create trigger trg_sharing_touch
+  after update of share_profile_with_merchants on public.users
+  for each row execute function public.touch_user_stores_on_sharing_change();

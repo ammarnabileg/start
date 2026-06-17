@@ -24,6 +24,7 @@ class MerchantCustomer {
   final String? levelName;
   final int visits;
   final bool pushOptIn;
+  final String? branchName;
   final DateTime? firstLinked;
   final DateTime? lastActivity;
 
@@ -37,6 +38,7 @@ class MerchantCustomer {
         levelName = j['level_name'] as String?,
         visits = (j['visits'] as num?)?.toInt() ?? 0,
         pushOptIn = j['push_opt_in'] as bool? ?? false,
+        branchName = j['branch_name'] as String?,
         firstLinked = j['first_linked'] == null
             ? null
             : DateTime.parse(j['first_linked'] as String),
@@ -319,6 +321,7 @@ class _CustomerDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             _row('المستوى', c.levelName ?? '—'),
             _row('البريد', c.email ?? '—'),
+            _row('الفرع', c.branchName ?? '—'),
             _row('الحالة', c.isActive ? 'نشِط' : 'غير نشِط'),
             _row('الإشعارات', c.pushOptIn ? 'مفعّلة' : 'غير مفعّلة'),
             _row('أول ارتباط', _date(c.firstLinked)),

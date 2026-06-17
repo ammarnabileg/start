@@ -180,6 +180,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : (v) => _updateFlag('leaderboard_opt_in', v),
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
+                  SwitchListTile(
+                    title: const Text('مشاركة بياناتي مع المتاجر'),
+                    subtitle: const Text(
+                        'السماح للمتاجر المرتبط بها بعرض بيانات تواصلك والتواصل '
+                        'معك. عند الإيقاف تختفي من قوائم العملاء وصدارة المتاجر '
+                        '(تبقى نقاطك وزياراتك ومكافآتك كما هي).'),
+                    value: user.shareProfileWithMerchants,
+                    onChanged: _busy
+                        ? null
+                        : (v) => _updateFlag('share_profile_with_merchants', v),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
                   ListTile(
                     leading: const AppIcon(Icons.privacy_tip_outlined),
                     title: const Text('سياسة الخصوصية'),

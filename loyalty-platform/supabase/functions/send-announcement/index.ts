@@ -26,12 +26,15 @@ Deno.serve(async (req) => {
     }
 
     // الجمهور: العملاء المرتبطون بالتاجر (مميّزون) — باستثناء من عطّل المشاركة
-    // (الخصوصية: "لا يمكن للتاجر التواصل معي"). svc يتجاوز RLS فنُرشّح صراحةً.
+    // (الخصوصية: "لا يمكن للتاجر التواصل معي"). svc يتجاوز RLS فنُرشّح صراحةً:
+    //  • user_stores.visible = إخفاء لكل متجر.
+    //  • users.share_profile_with_merchants = إخفاء عام (إعداد الملف الشخصي).
     const { data: rows } = await svc
       .from("user_stores")
-      .select("user_id")
+      .select("user_id, users!inner(share_profile_with_merchants)")
       .eq("merchant_id", staff.merchantId)
-      .eq("visible", true);
+      .eq("visible", true)
+      .eq("users.share_profile_with_merchants", true);
     const recipients = [...new Set((rows ?? []).map((r) => r.user_id as string))];
     if (recipients.length === 0) {
       return badRequest("لا يوجد عملاء لإرسال الإشعار إليهم", 409);

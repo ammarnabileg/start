@@ -10,6 +10,10 @@ class AppUser {
   final bool pushOptIn;
   final bool proximityOptIn;
   final bool leaderboardOptIn;
+
+  /// مشاركة بيانات التواصل مع المتاجر (عام). الافتراضي true.
+  /// عند false: يختفي من دليل عملاء أي تاجر ومن لوحات الصدارة، ولا يُتواصَل معه.
+  final bool shareProfileWithMerchants;
   final String? avatarUrl;
 
   const AppUser({
@@ -23,6 +27,7 @@ class AppUser {
     this.pushOptIn = false,
     this.proximityOptIn = false,
     this.leaderboardOptIn = true,
+    this.shareProfileWithMerchants = true,
     this.avatarUrl,
   });
 
@@ -39,6 +44,8 @@ class AppUser {
         pushOptIn: j['push_opt_in'] as bool? ?? false,
         proximityOptIn: j['proximity_opt_in'] as bool? ?? false,
         leaderboardOptIn: j['leaderboard_opt_in'] as bool? ?? true,
+        shareProfileWithMerchants:
+            j['share_profile_with_merchants'] as bool? ?? true,
         avatarUrl: j['avatar_url'] as String?,
       );
 }
