@@ -8,6 +8,7 @@ import '../../core/merchant_providers.dart';
 import '../../data/repositories/branches_repository.dart';
 import '../../data/repositories/merchant_repository.dart';
 import '../scanner/scanner_screen.dart';
+import 'setup_checklist.dart';
 
 /// 2.7 — لوحة التحكم ⭐. فلتر الفرع + بطاقات الأرقام + زر مسح كبير
 /// + آخر النشاطات + بانر تنبيه التجربة.
@@ -97,6 +98,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               if (data.trialDaysLeft != null && data.trialDaysLeft! <= 5)
                 _TrialBanner(daysLeft: data.trialDaysLeft!),
+              const SetupChecklist(),
               _BranchFilter(
                 merchantId: staff.merchantId,
                 selected: _branchId,

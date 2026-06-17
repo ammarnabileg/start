@@ -555,6 +555,23 @@ begin
 end;
 $$;
 
+-- حالة إعداد المتجر (لقائمة الإعداد الموجّهة في لوحة التحكم).
+create or replace function public.merchant_setup_status(p_merchant uuid)
+returns json language plpgsql stable security definer
+set search_path = public as $$
+begin
+  if not public.is_merchant_member(p_merchant) then
+    raise exception 'forbidden';
+  end if;
+  return json_build_object(
+    'has_branch', exists(select 1 from public.branches where merchant_id = p_merchant),
+    'has_reward', exists(select 1 from public.rewards where merchant_id = p_merchant),
+    'has_level',  exists(select 1 from public.loyalty_levels where merchant_id = p_merchant),
+    'has_staff',  (select count(*) from public.merchant_staff where merchant_id = p_merchant) > 1,
+    'has_logo',   exists(select 1 from public.merchants where id = p_merchant and logo_url is not null)
+  );
+end $$;
+
 -- بلاغات التاجر مع بيانات الراسل (الاسم الأول/الموبايل/الإيميل) — للعرض فقط.
 -- security definer لأن RLS يمنع التاجر من قراءة صفوف users مباشرة.
 create or replace function public.merchant_reports(p_merchant uuid)
