@@ -16,10 +16,12 @@ import '../wheel/wheel_screen.dart';
 
 // ===================== Providers (per-store) =====================
 
-/// مكافآت التاجر النشطة.
+/// مكافآت التاجر المتاحة في فرع محفظة العميل.
 final storeRewardsProvider =
-    FutureProvider.autoDispose.family<List<Reward>, String>((ref, merchantId) async {
-  return ref.read(storesRepoProvider).rewards(merchantId);
+    FutureProvider.autoDispose.family<List<Reward>, UserStore>((ref, store) async {
+  return ref
+      .read(storesRepoProvider)
+      .rewards(store.merchantId, branchId: store.branchId);
 });
 
 /// مستويات الولاء المطبّقة على محفظة العميل (فرعها أو الستور حسب الإعداد).
@@ -46,11 +48,13 @@ final storeHistoryProvider = StateNotifierProvider.autoDispose
   );
 });
 
-/// الكوبونات المتاحة للتاجر.
+/// الكوبونات المتاحة للتاجر في فرع محفظة العميل.
 final storeCouponsProvider =
-    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
-        (ref, merchantId) async {
-  return ref.read(storesRepoProvider).coupons(merchantId);
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, UserStore>(
+        (ref, store) async {
+  return ref
+      .read(storesRepoProvider)
+      .coupons(store.merchantId, branchId: store.branchId);
 });
 
 /// أسئلة التاجر (بنقاط) + خياراتها + هل أجابها العميل.
@@ -468,13 +472,13 @@ class _RewardsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(storeRewardsProvider(store.merchantId));
+    final data = ref.watch(storeRewardsProvider(store));
     return data.when(
       loading: () => const LoadingView(),
       error: (e, _) => ErrorView(
           message: 'تعذّر تحميل المكافآت',
           onRetry: () =>
-              ref.invalidate(storeRewardsProvider(store.merchantId))),
+              ref.invalidate(storeRewardsProvider(store))),
       data: (rewards) {
         if (rewards.isEmpty) {
           return const EmptyView(
@@ -485,7 +489,7 @@ class _RewardsTab extends ConsumerWidget {
         }
         return RefreshIndicator(
           onRefresh: () async =>
-              ref.invalidate(storeRewardsProvider(store.merchantId)),
+              ref.invalidate(storeRewardsProvider(store)),
           child: GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -658,13 +662,13 @@ class _CouponsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(storeCouponsProvider(store.merchantId));
+    final data = ref.watch(storeCouponsProvider(store));
     return data.when(
       loading: () => const LoadingView(),
       error: (e, _) => ErrorView(
           message: 'تعذّر تحميل الكوبونات',
           onRetry: () =>
-              ref.invalidate(storeCouponsProvider(store.merchantId))),
+              ref.invalidate(storeCouponsProvider(store))),
       data: (coupons) {
         if (coupons.isEmpty) {
           return const EmptyView(
@@ -674,7 +678,7 @@ class _CouponsTab extends ConsumerWidget {
         }
         return RefreshIndicator(
           onRefresh: () async =>
-              ref.invalidate(storeCouponsProvider(store.merchantId)),
+              ref.invalidate(storeCouponsProvider(store)),
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: coupons.length,

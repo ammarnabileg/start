@@ -18,6 +18,11 @@ Deno.serve(async (req) => {
       .select("id, type, value, valid_from, valid_to, usage_limit, per_user_limit, active")
       .eq("merchant_id", staff.merchantId).eq("code", code).maybeSingle();
     if (!coupon || !coupon.active) return badRequest("كوبون غير صالح");
+    // استهداف الفروع: الكوبون لازم يكون متاحًا في فرع الكاشير.
+    const { data: cAt } = await svc.rpc("entity_at_branch", {
+      p_type: "coupon", p_id: coupon.id, p_branch: staff.branchId,
+    });
+    if (cAt === false) return badRequest("هذا الكوبون غير متاح في فرعك", 403);
 
     const now = Date.now();
     if (coupon.valid_from && new Date(coupon.valid_from).getTime() > now) {

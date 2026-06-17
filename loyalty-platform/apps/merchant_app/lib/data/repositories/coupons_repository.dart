@@ -17,8 +17,10 @@ class CouponsRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> insertCoupon(Map<String, dynamic> payload) {
-    return _client.from('coupons').insert(payload);
+  Future<String> insertCoupon(Map<String, dynamic> payload) async {
+    final r =
+        await _client.from('coupons').insert(payload).select('id').single();
+    return r['id'] as String;
   }
 
   Future<void> updateCoupon(String id, Map<String, dynamic> payload) {

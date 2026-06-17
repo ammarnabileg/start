@@ -143,6 +143,12 @@ Deno.serve(async (req) => {
         .select("id, points_cost, stock_qty, active")
         .eq("id", body.reward_id).eq("merchant_id", merchantId).maybeSingle();
       if (!reward || !reward.active) return badRequest("المكافأة غير متاحة");
+      const { data: rAt } = await svc.rpc("entity_at_branch", {
+        p_type: "reward", p_id: reward.id, p_branch: branchId,
+      });
+      if (rAt === false) {
+        return badRequest("هذه المكافأة غير متاحة في هذا الفرع", 403);
+      }
       if (wallet.available_points < reward.points_cost) {
         return badRequest("النقاط غير كافية", 422);
       }

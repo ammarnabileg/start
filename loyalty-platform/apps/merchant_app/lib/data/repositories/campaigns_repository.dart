@@ -17,8 +17,13 @@ class CampaignsRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> insertCampaign(Map<String, dynamic> payload) {
-    return _client.from('visit_campaigns').insert(payload);
+  Future<String> insertCampaign(Map<String, dynamic> payload) async {
+    final r = await _client
+        .from('visit_campaigns')
+        .insert(payload)
+        .select('id')
+        .single();
+    return r['id'] as String;
   }
 
   Future<void> updateCampaign(String id, Map<String, dynamic> payload) {

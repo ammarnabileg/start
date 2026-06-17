@@ -61,16 +61,43 @@ class StoresRepository {
         .stream(primaryKey: ['id']).eq('user_id', uid);
   }
 
-  /// مكافآت التاجر النشطة.
-  Future<List<Reward>> rewards(String merchantId) async {
+  /// خريطة استهداف الفروع لنوع عناصر معيّن: id → فروعه (فارغ = موحّد).
+  Future<Map<String, Set<String>>> _branchTargets(
+      String type, String merchantId) async {
+    final rows = await _client
+        .from('entity_branches')
+        .select('entity_id, branch_id')
+        .eq('merchant_id', merchantId)
+        .eq('entity_type', type);
+    final map = <String, Set<String>>{};
+    for (final r in rows as List) {
+      (map[r['entity_id'] as String] ??= <String>{})
+          .add(r['branch_id'] as String);
+    }
+    return map;
+  }
+
+  /// هل العنصر متاح في فرع العميل؟ موحّد (بدون استهداف) = متاح دائمًا.
+  bool _availableAt(
+      Map<String, Set<String>> targets, String id, String? branchId) {
+    final t = targets[id];
+    if (t == null || t.isEmpty) return true; // موحّد
+    if (branchId == null) return true; // لا سياق فرع → لا نُخفي (يفرضه الكاشير)
+    return t.contains(branchId);
+  }
+
+  /// مكافآت التاجر النشطة المتاحة في فرع محفظة العميل.
+  Future<List<Reward>> rewards(String merchantId, {String? branchId}) async {
     final rows = await _client
         .from('rewards')
         .select()
         .eq('merchant_id', merchantId)
         .eq('active', true)
         .order('points_cost');
+    final targets = await _branchTargets('reward', merchantId);
     return (rows as List)
         .map((r) => Reward.fromJson(r as Map<String, dynamic>))
+        .where((r) => _availableAt(targets, r.id, branchId))
         .toList();
   }
 
@@ -90,11 +117,17 @@ class StoresRepository {
   Future<List<CampaignProgress>> visits(UserStore store) async {
     final uid = _client.auth.currentUser!.id;
 
-    final campaigns = await _client
+    final campaignsRaw = await _client
         .from('visit_campaigns')
         .select()
         .eq('merchant_id', store.merchantId)
         .eq('active', true);
+    // استهداف الفروع: نعرض فقط الحملات المتاحة في فرع العميل.
+    final targets = await _branchTargets('campaign', store.merchantId);
+    final campaigns = (campaignsRaw as List)
+        .where((c) => _availableAt(
+            targets, (c as Map<String, dynamic>)['id'] as String, store.branchId))
+        .toList();
 
     // عدد زيارات العميل عند هذا الفرع/التاجر.
     var visitsQuery = _client
@@ -108,7 +141,7 @@ class StoresRepository {
     final visits = await visitsQuery;
     final visitCount = (visits as List).length;
 
-    return (campaigns as List).map((c) {
+    return campaigns.map((c) {
       final m = c as Map<String, dynamic>;
       final required = m['required_visits'] as int? ?? 0;
       // الزيارات تُحسب ضمن دورة الحملة الحالية.
@@ -139,14 +172,19 @@ class StoresRepository {
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
-  /// الكوبونات المتاحة للتاجر.
-  Future<List<Map<String, dynamic>>> coupons(String merchantId) async {
+  /// الكوبونات المتاحة للتاجر في فرع محفظة العميل.
+  Future<List<Map<String, dynamic>>> coupons(String merchantId,
+      {String? branchId}) async {
     final rows = await _client
         .from('coupons')
         .select()
         .eq('merchant_id', merchantId)
         .order('valid_to', ascending: true);
-    return (rows as List).cast<Map<String, dynamic>>();
+    final targets = await _branchTargets('coupon', merchantId);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .where((c) => _availableAt(targets, c['id'] as String, branchId))
+        .toList();
   }
 
   /// أسئلة التاجر (بنقاط) + خياراتها + هل أجابها العميل.

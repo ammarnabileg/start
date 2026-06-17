@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/entity_branches_repository.dart';
 import '../../data/repositories/wheel_repository.dart';
+import 'branch_target_field.dart';
 
 /// عجلة التاجر (مع مقاطعها) أو null لو لم تُنشأ بعد.
 final wheelProvider = FutureProvider.autoDispose<LuckyWheel?>((ref) async {
@@ -51,6 +53,8 @@ class _WheelManagementScreenState
   bool _busy = false;
   bool _loaded = false;
   String? _wheelId;
+  final BranchTargetController _branchTarget = BranchTargetController();
+  bool _targetLoaded = false;
   final _previewController = LuckyWheelController();
 
   // مقاطع قيد التحرير + معرّفات المقاطع المحذوفة لمزامنتها مع السيرفر.
@@ -75,12 +79,25 @@ class _WheelManagementScreenState
       _maxSpins.text = wheel.maxSpinsPerDay.toString();
       _active = wheel.active;
       _segments = wheel.segments.map(_EditableSegment.fromModel).toList();
+      _loadTarget(wheel.id);
     } else {
       _name.text = 'عجلة الحظ';
       _segments = [
         _EditableSegment.create(label: 'جائزة', colorHex: _palette[0]),
         _EditableSegment.create(label: 'لا شيء', colorHex: _palette[1]),
       ];
+      _targetLoaded = true;
+    }
+  }
+
+  Future<void> _loadTarget(String id) async {
+    final ids =
+        await ref.read(entityBranchesRepoProvider).branchIdsFor('wheel', id);
+    if (mounted) {
+      setState(() {
+        _branchTarget.selected.addAll(ids);
+        _targetLoaded = true;
+      });
     }
   }
 
@@ -152,6 +169,10 @@ class _WheelManagementScreenState
         rows.add(json);
       }
       await repo.upsertSegments(rows);
+
+      // استهداف الفروع للعجلة (فارغ = موحّد).
+      await ref.read(entityBranchesRepoProvider).setBranches(
+          'wheel', wheelId, staff.merchantId, _branchTarget.branchIds);
 
       if (mounted) {
         ref.invalidate(wheelProvider);
@@ -251,6 +272,13 @@ class _WheelManagementScreenState
                         ? () => _removeSegment(i)
                         : null,
                   ),
+                const Divider(height: 28),
+                if (_targetLoaded)
+                  BranchTargetField(controller: _branchTarget)
+                else
+                  const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: LinearProgressIndicator()),
                 const SizedBox(height: AppSpacing.lg),
                 PrimaryButton(
                   label: 'حفظ العجلة',

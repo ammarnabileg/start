@@ -6,6 +6,8 @@ import 'package:loyalty_core/loyalty_core.dart';
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
 import '../../data/repositories/campaigns_repository.dart';
+import '../../data/repositories/entity_branches_repository.dart';
+import 'branch_target_field.dart';
 
 /// قائمة حملات الزيارة من جدول visit_campaigns.
 final campaignsProvider =
@@ -192,11 +194,18 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
   String? _imageUrl;
   bool _uploading = false;
   bool _busy = false;
+  final BranchTargetController _branchTarget = BranchTargetController();
+  bool _targetLoaded = false;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    if (e == null) {
+      _targetLoaded = true;
+    } else {
+      _loadTarget(e['id'] as String);
+    }
     _name = TextEditingController(text: e?['name'] as String? ?? '');
     _visits =
         TextEditingController(text: (e?['required_visits'] ?? '').toString());
@@ -239,6 +248,18 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
     super.dispose();
   }
 
+  Future<void> _loadTarget(String id) async {
+    final ids = await ref
+        .read(entityBranchesRepoProvider)
+        .branchIdsFor('campaign', id);
+    if (mounted) {
+      setState(() {
+        _branchTarget.selected.addAll(ids);
+        _targetLoaded = true;
+      });
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
@@ -254,11 +275,15 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
         'active': _active,
       };
       final repo = ref.read(campaignsRepoProvider);
+      final String campaignId;
       if (widget.existing == null) {
-        await repo.insertCampaign(payload);
+        campaignId = await repo.insertCampaign(payload);
       } else {
-        await repo.updateCampaign(widget.existing!['id'] as String, payload);
+        campaignId = widget.existing!['id'] as String;
+        await repo.updateCampaign(campaignId, payload);
       }
+      await ref.read(entityBranchesRepoProvider).setBranches(
+          'campaign', campaignId, staff.merchantId, _branchTarget.branchIds);
       if (mounted) {
         Navigator.pop(context, true);
         AppFeedback.toast(context, 'تم حفظ الحملة');
@@ -334,7 +359,13 @@ class _CampaignEditorState extends ConsumerState<_CampaignEditor> {
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),
-            const SizedBox(height: 8),
+            const Divider(height: 24),
+            if (_targetLoaded)
+              BranchTargetField(controller: _branchTarget)
+            else
+              const Padding(
+                  padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
+            const SizedBox(height: 16),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
         ),

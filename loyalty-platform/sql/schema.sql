@@ -146,6 +146,23 @@ create table public.loyalty_levels (
   sort_order  integer not null default 0
 );
 
+-- استهداف العناصر للفروع (مكافأة/كوبون/حملة/عجلة):
+--   • لا توجد صفوف لعنصر  → موحّد (متاح في كل الفروع).
+--   • توجد صفوف           → متاح فقط في الفروع المذكورة.
+-- التاجر يضيف/يشيل فرعًا من العنصر بسهولة (صفّ لكل فرع).
+create table public.entity_branches (
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  entity_type text not null
+    check (entity_type in ('reward','coupon','campaign','wheel')),
+  entity_id   uuid not null,
+  branch_id   uuid not null references public.branches(id) on delete cascade,
+  primary key (entity_type, entity_id, branch_id)
+);
+create index entity_branches_lookup
+  on public.entity_branches (entity_type, entity_id);
+create index entity_branches_branch
+  on public.entity_branches (branch_id);
+
 -- المحفظة تدعم الوضعين حسب إعداد التاجر (merchant_settings.points_scope):
 --   • scope = 'merchant' (مشترك): branch_id = NULL ، محفظة واحدة لكل (عميل, تاجر)
 --   • scope = 'branch'  (منفصل): branch_id = الفرع ، محفظة لكل (عميل, تاجر, فرع)
@@ -529,6 +546,21 @@ begin
 end;
 $$;
 
+-- هل العنصر متاح في فرع معيّن؟ موحّد (بدون استهداف) = متاح في كل الفروع.
+-- لو مستهدَف لفروع: متاح فقط لو الفرع ضمنها (والفرع غير NULL).
+create or replace function public.entity_at_branch(
+  p_type text, p_id uuid, p_branch uuid
+) returns boolean language sql stable security definer
+set search_path = public as $$
+  select
+    not exists (select 1 from public.entity_branches
+                where entity_type = p_type and entity_id = p_id)
+    or (p_branch is not null and exists (
+          select 1 from public.entity_branches
+          where entity_type = p_type and entity_id = p_id
+            and branch_id = p_branch));
+$$;
+
 -- =====================================================================
 -- تبديل نطاق النقاط بأمان (بدون فقدان بيانات / تيتيم محافظ).
 -- البيانات المعتمدة على النطاق = المحافظ (user_stores) + المستويات (loyalty_levels).
@@ -626,6 +658,7 @@ alter table public.branches             enable row level security;
 alter table public.rewards              enable row level security;
 alter table public.visit_campaigns      enable row level security;
 alter table public.loyalty_levels       enable row level security;
+alter table public.entity_branches      enable row level security;
 alter table public.coupons              enable row level security;
 alter table public.merchant_staff       enable row level security;
 alter table public.subscriptions        enable row level security;
@@ -691,6 +724,13 @@ create policy campaigns_manage on public.visit_campaigns
   with check (public.is_merchant_member(merchant_id));
 
 create policy levels_manage on public.loyalty_levels
+  for all using (public.is_merchant_member(merchant_id))
+  with check (public.is_merchant_member(merchant_id));
+
+-- استهداف الفروع: التاجر يدير استهداف عناصره، والجميع يقرأ (للعرض والفلترة).
+create policy entity_branches_read on public.entity_branches
+  for select using (true);
+create policy entity_branches_manage on public.entity_branches
   for all using (public.is_merchant_member(merchant_id))
   with check (public.is_merchant_member(merchant_id));
 

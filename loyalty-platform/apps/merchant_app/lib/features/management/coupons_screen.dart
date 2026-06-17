@@ -6,6 +6,8 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
 import '../../data/repositories/coupons_repository.dart';
+import '../../data/repositories/entity_branches_repository.dart';
+import 'branch_target_field.dart';
 
 /// قائمة الكوبونات من جدول coupons.
 final couponsProvider =
@@ -190,11 +192,18 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
   DateTime? _from;
   DateTime? _to;
   bool _busy = false;
+  final BranchTargetController _branchTarget = BranchTargetController();
+  bool _targetLoaded = false;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    if (e == null) {
+      _targetLoaded = true;
+    } else {
+      _loadTarget(e['id'] as String);
+    }
     _code = TextEditingController(text: e?['code'] as String? ?? '');
     _value = TextEditingController(text: (e?['value'] ?? '').toString());
     _usageLimit =
@@ -217,6 +226,17 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
     _usageLimit.dispose();
     _perUserLimit.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTarget(String id) async {
+    final ids =
+        await ref.read(entityBranchesRepoProvider).branchIdsFor('coupon', id);
+    if (mounted) {
+      setState(() {
+        _branchTarget.selected.addAll(ids);
+        _targetLoaded = true;
+      });
+    }
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -254,11 +274,15 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
         'per_user_limit': int.tryParse(_perUserLimit.text.trim()),
       };
       final repo = ref.read(couponsRepoProvider);
+      final String couponId;
       if (widget.existing == null) {
-        await repo.insertCoupon(payload);
+        couponId = await repo.insertCoupon(payload);
       } else {
-        await repo.updateCoupon(widget.existing!['id'] as String, payload);
+        couponId = widget.existing!['id'] as String;
+        await repo.updateCoupon(couponId, payload);
       }
+      await ref.read(entityBranchesRepoProvider).setBranches(
+          'coupon', couponId, staff.merchantId, _branchTarget.branchIds);
       if (mounted) {
         Navigator.pop(context, true);
         AppFeedback.toast(context, 'تم حفظ الكوبون');
@@ -356,6 +380,13 @@ class _CouponEditorState extends ConsumerState<_CouponEditor> {
                 decoration: const InputDecoration(
                     labelText: 'حد الاستخدام لكل عميل (اختياري)'),
               ),
+              const Divider(height: 24),
+              if (_targetLoaded)
+                BranchTargetField(controller: _branchTarget)
+              else
+                const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: LinearProgressIndicator()),
               const SizedBox(height: 16),
               PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
             ],

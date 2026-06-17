@@ -5,7 +5,9 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/media_storage.dart';
 import '../../core/merchant_providers.dart';
+import '../../data/repositories/entity_branches_repository.dart';
 import '../../data/repositories/rewards_repository.dart';
+import 'branch_target_field.dart';
 
 /// قائمة المكافآت من جدول rewards.
 final rewardsProvider =
@@ -205,6 +207,8 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
   String? _imageUrl;
   bool _uploading = false;
   bool _busy = false;
+  final BranchTargetController _branchTarget = BranchTargetController();
+  bool _targetLoaded = false;
 
   @override
   void initState() {
@@ -219,6 +223,23 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
     _stock = TextEditingController(text: stock?.toString() ?? '');
     _active = e?['active'] as bool? ?? true;
     _imageUrl = e?['image_url'] as String?;
+    if (e == null) {
+      _targetLoaded = true;
+    } else {
+      _loadTarget(e['id'] as String);
+    }
+  }
+
+  Future<void> _loadTarget(String id) async {
+    final ids = await ref
+        .read(entityBranchesRepoProvider)
+        .branchIdsFor('reward', id);
+    if (mounted) {
+      setState(() {
+        _branchTarget.selected.addAll(ids);
+        _targetLoaded = true;
+      });
+    }
   }
 
   Future<void> _pickImage() async {
@@ -268,11 +289,20 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
         'active': _active,
       };
       final repo = ref.read(rewardsRepoProvider);
+      final String rewardId;
       if (widget.existing == null) {
-        await repo.insertReward(payload);
+        rewardId = await repo.insertReward(payload);
       } else {
-        await repo.updateReward(widget.existing!['id'] as String, payload);
+        rewardId = widget.existing!['id'] as String;
+        await repo.updateReward(rewardId, payload);
       }
+      // حفظ استهداف الفروع (فارغ = موحّد على كل الفروع).
+      await ref.read(entityBranchesRepoProvider).setBranches(
+            'reward',
+            rewardId,
+            staff.merchantId,
+            _branchTarget.branchIds,
+          );
       if (mounted) {
         Navigator.pop(context, true);
         AppFeedback.toast(context, 'تم حفظ المكافأة');
@@ -357,7 +387,13 @@ class _RewardEditorState extends ConsumerState<_RewardEditor> {
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),
-            const SizedBox(height: 8),
+            const Divider(height: 24),
+            if (_targetLoaded)
+              BranchTargetField(controller: _branchTarget)
+            else
+              const Padding(
+                  padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
+            const SizedBox(height: 16),
             PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
           ],
         ),

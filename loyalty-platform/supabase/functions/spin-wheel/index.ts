@@ -16,6 +16,17 @@ Deno.serve(async (req) => {
       .select("id, merchant_id, spin_cost_points, max_spins_per_day, active")
       .eq("id", wheel_id).maybeSingle();
     if (!wheel || !wheel.active) return badRequest("العجلة غير متاحة");
+    // استهداف الفروع: العجلة لازم تكون متاحة في فرع محفظة العميل.
+    {
+      const { data: anyWallet } = await svc.from("user_stores")
+        .select("branch_id").eq("user_id", userId)
+        .eq("merchant_id", wheel.merchant_id)
+        .order("first_linked_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: wAt } = await svc.rpc("entity_at_branch", {
+        p_type: "wheel", p_id: wheel.id, p_branch: anyWallet?.branch_id ?? null,
+      });
+      if (wAt === false) return badRequest("العجلة غير متاحة في فرعك", 403);
+    }
 
     // حد اللفّات اليومي (لو مفعّل)
     if (wheel.max_spins_per_day > 0) {

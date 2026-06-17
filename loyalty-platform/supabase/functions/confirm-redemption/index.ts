@@ -18,6 +18,11 @@ Deno.serve(async (req) => {
     if (!r) return badRequest("عملية الاستبدال غير موجودة");
     if (r.merchant_id !== staff.merchantId) return badRequest("غير مصرّح", 403);
     if (r.status !== "pending") return badRequest("العملية غير قابلة للتأكيد", 409);
+    // استهداف الفروع: المكافأة لازم تكون متاحة في فرع الكاشير.
+    const { data: rAt } = await svc.rpc("entity_at_branch", {
+      p_type: "reward", p_id: r.reward_id, p_branch: staff.branchId,
+    });
+    if (rAt === false) return badRequest("هذه المكافأة غير متاحة في فرعك", 403);
     if (new Date(r.expires_at).getTime() < Date.now()) {
       await svc.from("reward_redemptions").update({ status: "expired" }).eq("id", r.id);
       return badRequest("انتهت صلاحية الكود، اطلب من العميل إعادة المحاولة", 410);

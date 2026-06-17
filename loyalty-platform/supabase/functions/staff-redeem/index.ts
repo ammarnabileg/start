@@ -27,6 +27,11 @@ Deno.serve(async (req) => {
     if (reward.stock_qty !== null && reward.stock_qty <= 0) {
       return badRequest("نفدت الكمية", 409);
     }
+    // استهداف الفروع: المكافأة لازم تكون متاحة في فرع الكاشير.
+    const { data: rAt } = await svc.rpc("entity_at_branch", {
+      p_type: "reward", p_id: reward.id, p_branch: staff.branchId,
+    });
+    if (rAt === false) return badRequest("هذه المكافأة غير متاحة في فرعك", 403);
 
     const s = await merchantSettings(svc, staff.merchantId);
     // تأكيد الطرفين للمكافآت القيّمة → اطلب من العميل البدء من تطبيقه.

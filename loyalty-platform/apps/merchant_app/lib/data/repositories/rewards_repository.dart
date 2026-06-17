@@ -27,8 +27,10 @@ class RewardsRepository {
     return await q.order('points_cost');
   }
 
-  Future<void> insertReward(Map<String, dynamic> payload) {
-    return _client.from('rewards').insert(payload);
+  Future<String> insertReward(Map<String, dynamic> payload) async {
+    final r =
+        await _client.from('rewards').insert(payload).select('id').single();
+    return r['id'] as String;
   }
 
   Future<void> updateReward(String id, Map<String, dynamic> payload) {
