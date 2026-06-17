@@ -26,7 +26,7 @@ class QrToken {
   }) {
     final ts = (now ?? DateTime.now()).toUtc();
     final window = ts.millisecondsSinceEpoch ~/ 1000 ~/ windowSeconds;
-    final code = _code(id, secret, window);
+    final code = _code(version, id, secret, window);
     return '$version.$id.$window.$code';
   }
 
@@ -56,14 +56,16 @@ class QrToken {
     final secs = (now ?? DateTime.now()).toUtc().millisecondsSinceEpoch ~/ 1000;
     final current = secs ~/ windowSeconds;
     for (var w = current - tolerance; w <= current + tolerance; w++) {
-      if (_constEq(_code(userId, secret, w), code)) return userId;
+      if (_constEq(_code(version, userId, secret, w), code)) return userId;
     }
     return null;
   }
 
-  static String _code(String userId, String secret, int window) {
+  // النسخة (version) مُضمَّنة في التوقيع نفسه — فلا يمكن إعادة استخدام كود
+  // نسخة (مثلاً v1) كنسخة أخرى (p1/r1) حتى لو تطابق السرّ والنافذة.
+  static String _code(String version, String userId, String secret, int window) {
     final hmac = Hmac(sha256, utf8.encode(secret));
-    final digest = hmac.convert(utf8.encode('$userId:$window'));
+    final digest = hmac.convert(utf8.encode('$version:$userId:$window'));
     // base64url مختصر (16 حرف) — كافي للأمان وقصير للـ QR.
     return base64Url.encode(digest.bytes).substring(0, 16);
   }

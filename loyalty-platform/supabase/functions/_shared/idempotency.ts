@@ -25,35 +25,21 @@ export async function withIdempotency<T extends Record<string, unknown>>(
     return { data: await run(), replayed: false };
   }
 
-  // محاولة حجز المفتاح ذرّيًا.
-  const { data: claimed } = await svc
-    .from("idempotency_keys")
-    .insert({
-      key,
-      endpoint: ctx.endpoint,
-      user_id: ctx.userId ?? null,
-      merchant_id: ctx.merchantId ?? null,
-      status: "in_progress",
-    })
-    .select("key")
-    .maybeSingle();
+  // حجز ذرّي عبر دالة DB: مفتاح واحد فقط يفوز بالتنفيذ (حتى لو كان عالقًا
+  // ومنتهي المهلة) — يمنع التنفيذ المزدوج/المتزامن لعمليات النقاط.
+  const { data: claim } = await svc.rpc("idem_claim", {
+    p_key: key,
+    p_endpoint: ctx.endpoint,
+    p_user: ctx.userId ?? null,
+    p_merchant: ctx.merchantId ?? null,
+  }).single();
 
-  if (!claimed) {
-    // المفتاح موجود → نقرأ حالته.
-    const { data: existing } = await svc
-      .from("idempotency_keys")
-      .select("status, response, created_at")
-      .eq("key", key)
-      .maybeSingle();
-
-    if (existing?.status === "done") {
-      return { data: (existing.response ?? {}) as T, replayed: true };
+  if (!claim?.claimed) {
+    if (claim?.status === "done") {
+      return { data: (claim.response ?? {}) as T, replayed: true };
     }
-    // in_progress: لو قديم (>2 دقيقة) نعتبره عالق ونعيد التنفيذ، وإلا 409.
-    const age = existing?.created_at
-      ? Date.now() - new Date(existing.created_at).getTime()
-      : 0;
-    if (age < 120_000) return { conflict: true };
+    // in_progress حديث (طلب شقيق شغّال) → 409.
+    return { conflict: true };
   }
 
   const result = await run();

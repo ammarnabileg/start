@@ -64,7 +64,7 @@ class ProfileScreen extends ConsumerWidget {
                 radius: 30,
                 backgroundColor: Colors.white.withValues(alpha: .35),
                 child: Text(
-                  user.name.characters.first,
+                  user.name.initialOrQuestion,
                   style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,

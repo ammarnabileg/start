@@ -1870,6 +1870,36 @@ returns void language sql security definer as $$
   delete from public.idempotency_keys where expires_at < now();
 $$;
 
+-- حجز مفتاح idempotency ذرّيًا (يستبدل قراءة-ثم-كتابة غير الذرّية في الحافة).
+-- يرجّع claimed=true لمن يفوز بالحجز (مفتاح جديد أو إعادة حجز مفتاح عالق منتهي
+-- المهلة)، وإلا claimed=false مع الحالة/الرد المخزّن. يمنع التنفيذ المزدوج
+-- لعملية عالقة أو متزامنة (لا يُعاد تشغيل الجسم مرتين).
+create or replace function public.idem_claim(
+  p_key text, p_endpoint text, p_user uuid, p_merchant uuid,
+  p_stale_seconds int default 120
+) returns table(claimed boolean, status text, response jsonb)
+language plpgsql security definer as $$
+declare v_claimed boolean := false;
+begin
+  insert into public.idempotency_keys(key, endpoint, user_id, merchant_id, status)
+  values (p_key, p_endpoint, p_user, p_merchant, 'in_progress')
+  on conflict (key) do update
+     set status = 'in_progress', created_at = now()
+     where public.idempotency_keys.status = 'in_progress'
+       and public.idempotency_keys.created_at
+           < now() - make_interval(secs => p_stale_seconds)
+  returning true into v_claimed;
+
+  if coalesce(v_claimed, false) then
+    return query select true, 'in_progress'::text, null::jsonb;
+  else
+    return query
+      select false, k.status, k.response
+      from public.idempotency_keys k where k.key = p_key;
+  end if;
+end;
+$$;
+
 -- Subscription/Trial enforcement (cron يومي يقلب الحالات المنتهية).
 create or replace function public.expire_subscriptions()
 returns void language sql security definer as $$

@@ -139,7 +139,7 @@ class _CustomerCard extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: AppColors.primaryLight,
-            child: Text(c.name.characters.first,
+            child: Text(c.name.initialOrQuestion,
                 style: const TextStyle(
                     fontWeight: FontWeight.w800, fontSize: 18)),
           ),
@@ -188,7 +188,7 @@ class _CustomerDetailSheet extends StatelessWidget {
               CircleAvatar(
                 radius: 26,
                 backgroundColor: AppColors.primaryLight,
-                child: Text(c.name.characters.first,
+                child: Text(c.name.initialOrQuestion,
                     style: const TextStyle(
                         fontWeight: FontWeight.w800, fontSize: 20)),
               ),

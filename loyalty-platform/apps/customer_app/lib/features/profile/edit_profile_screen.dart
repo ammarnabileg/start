@@ -162,7 +162,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                     height: 96,
                                     width: 96,
                                     errorWidget: (_, __, ___) => Text(
-                                      user.name.characters.first,
+                                      user.name.initialOrQuestion,
                                       style: const TextStyle(
                                           fontSize: 36,
                                           fontWeight: FontWeight.w800,
@@ -170,7 +170,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                     ),
                                   )
                                 : Text(
-                                    user.name.characters.first,
+                                    user.name.initialOrQuestion,
                                     style: const TextStyle(
                                         fontSize: 36,
                                         fontWeight: FontWeight.w800,

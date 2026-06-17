@@ -19,6 +19,7 @@ export 'src/logic/loyalty_rules.dart';
 
 // Utils
 export 'src/utils/idempotency.dart';
+export 'src/utils/strings.dart';
 
 // Models
 export 'src/models/app_user.dart';

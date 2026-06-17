@@ -1,9 +1,11 @@
 // تحقّق توكن الـ QR المتغيّر — نفس خوارزمية packages/loyalty_core/.../qr_token.dart
 import { createHmac } from "node:crypto";
 
-function code(userId: string, secret: string, window: number): string {
+function code(version: string, userId: string, secret: string, window: number): string {
   const h = createHmac("sha256", secret);
-  h.update(`${userId}:${window}`);
+  // النسخة مُضمَّنة في التوقيع (مطابق لـ qr_token.dart) — يمنع إعادة استخدام
+  // كود نسخة كنسخة أخرى حتى مع تطابق السرّ والنافذة.
+  h.update(`${version}:${userId}:${window}`);
   // base64url مختصر (16 حرف) زي جانب الـ Dart
   return h.digest("base64url").substring(0, 16);
 }
@@ -32,7 +34,7 @@ export function verifyQr(
   const got = parts[3];
   const current = Math.floor(Date.now() / 1000 / windowSeconds);
   for (let w = current - tolerance; w <= current + tolerance; w++) {
-    if (constEq(code(id, secret, w), got)) return id;
+    if (constEq(code(version, id, secret, w), got)) return id;
   }
   return null;
 }

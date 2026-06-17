@@ -6,6 +6,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../data/paginated_notifier.dart';
 import '../../data/repositories/stores_repository.dart';
+import 'my_stores_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../rewards/reward_detail_screen.dart';
 import '../wheel/wheel_screen.dart';
@@ -78,19 +79,28 @@ class StoreDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // محفظة حيّة: نتابع بثّ المحافظ فتتحدّث النقاط/المستوى لحظيًا بعد المسح حتى
+    // وشاشة التفاصيل مفتوحة (يحلّ مشكلة البيانات القديمة على هذه الشاشة).
+    ref.watch(userStoresChangesProvider);
+    final live = ref.watch(myStoresProvider).valueOrNull?.firstWhere(
+              (s) => s.id == store.id,
+              orElse: () => store,
+            ) ??
+        store;
+
     // الإعدادات تحدّد التبويبات الظاهرة. أثناء التحميل نُظهر الكل ثم نطوي المعطّل.
-    final settings = ref.watch(storeSettingsProvider(store.merchantId)).valueOrNull;
+    final settings = ref.watch(storeSettingsProvider(live.merchantId)).valueOrNull;
     bool on(bool Function(MerchantSettings) f) => settings == null ? true : f(settings);
 
     final sections = <({String label, Widget view})>[
-      (label: 'نظرة عامة', view: _OverviewTab(store: store)),
-      if (on((s) => s.enableVisits)) (label: 'بطاقاتي', view: _VisitsTab(store: store)),
-      (label: 'النقاط', view: _PointsTab(store: store)),
-      if (on((s) => s.enableRewards)) (label: 'المكافآت', view: _RewardsTab(store: store)),
-      if (on((s) => s.enableLevels)) (label: 'المستويات', view: _LevelsTab(store: store)),
-      if (on((s) => s.enableCoupons)) (label: 'الكوبونات', view: _CouponsTab(store: store)),
-      (label: 'الأسئلة', view: _QuestionsTab(store: store)),
-      (label: 'السجل', view: _HistoryTab(store: store)),
+      (label: 'نظرة عامة', view: _OverviewTab(store: live)),
+      if (on((s) => s.enableVisits)) (label: 'بطاقاتي', view: _VisitsTab(store: live)),
+      (label: 'النقاط', view: _PointsTab(store: live)),
+      if (on((s) => s.enableRewards)) (label: 'المكافآت', view: _RewardsTab(store: live)),
+      if (on((s) => s.enableLevels)) (label: 'المستويات', view: _LevelsTab(store: live)),
+      if (on((s) => s.enableCoupons)) (label: 'الكوبونات', view: _CouponsTab(store: live)),
+      (label: 'الأسئلة', view: _QuestionsTab(store: live)),
+      (label: 'السجل', view: _HistoryTab(store: live)),
     ];
     return DefaultTabController(
       length: sections.length,
@@ -98,16 +108,16 @@ class StoreDetailScreen extends ConsumerWidget {
         body: Column(
           children: [
             HeroHeader(
-              title: store.merchantName ?? 'المتجر',
-              subtitle: store.branchName ??
-                  (store.currentLevelName != null
-                      ? 'مستوى ${store.currentLevelName}'
+              title: live.merchantName ?? 'المتجر',
+              subtitle: live.branchName ??
+                  (live.currentLevelName != null
+                      ? 'مستوى ${live.currentLevelName}'
                       : null),
               trailing: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadii.md),
-                child: store.merchantLogoUrl != null
+                child: live.merchantLogoUrl != null
                     ? CachedNetworkImage(
-                        imageUrl: store.merchantLogoUrl!,
+                        imageUrl: live.merchantLogoUrl!,
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover)
@@ -119,9 +129,9 @@ class StoreDetailScreen extends ConsumerWidget {
                             color: AppColors.onPrimary),
                       ),
               ),
-              bottom: PointsBadge(points: store.availablePoints),
+              bottom: PointsBadge(points: live.availablePoints),
             ),
-            if (!store.merchantAvailable) const _UnavailableBanner(),
+            if (!live.merchantAvailable) const _UnavailableBanner(),
             Material(
               color: AppColors.surface,
               child: TabBar(

@@ -22,6 +22,10 @@ Deno.serve(async (req) => {
 
     const phone = user.phone ?? "";
     if (!phone) return badRequest("لا يوجد رقم جوال مرتبط بالحساب", 400);
+    // الجوال لازم يكون موثّقًا (OTP) — لا نربط دعوة بناءً على رقم غير مؤكَّد.
+    if (!user.phone_confirmed_at) {
+      return badRequest("لم يتم التحقق من رقم جوالك", 403);
+    }
     const suffix = digits(phone);
 
     // لو الموظف مربوط بالفعل
@@ -37,13 +41,24 @@ Deno.serve(async (req) => {
       .select("id, merchant_id, role, phone")
       .is("user_id", null)
       .ilike("phone", `%${suffix}`);
-    const match = (invites ?? []).find((s) => digits(s.phone ?? "") === suffix);
-    if (!match) {
+    const matches = (invites ?? []).filter((s) => digits(s.phone ?? "") === suffix);
+    if (matches.length === 0) {
       return badRequest("لا توجد دعوة موظف بهذا الرقم. تواصل مع صاحب المتجر.", 404);
     }
+    // أكثر من دعوة بنفس الرقم → غموض، لا نربط عشوائيًا (يمنع الربط بمتجر خاطئ).
+    if (matches.length > 1) {
+      return badRequest("توجد أكثر من دعوة بهذا الرقم، تواصل مع صاحب المتجر.", 409);
+    }
+    const match = matches[0];
 
-    await svc.from("merchant_staff")
-      .update({ user_id: user.id, status: "active" }).eq("id", match.id);
+    // ربط ذرّي: لا نربط إلا لو الدعوة ما زالت بدون حساب (يمنع سباق طلبين).
+    const { data: updated } = await svc.from("merchant_staff")
+      .update({ user_id: user.id, status: "active" })
+      .eq("id", match.id).is("user_id", null)
+      .select("id").maybeSingle();
+    if (!updated) {
+      return badRequest("تم استخدام هذه الدعوة بالفعل.", 409);
+    }
 
     return json({ linked: true, merchant_id: match.merchant_id, role: match.role });
   } catch (e) {

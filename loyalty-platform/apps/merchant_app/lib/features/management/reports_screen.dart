@@ -83,7 +83,7 @@ class _ReportCard extends StatelessWidget {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primaryLight,
-                child: Text(_firstName.characters.first,
+                child: Text(_firstName.initialOrQuestion,
                     style: const TextStyle(fontWeight: FontWeight.w800)),
               ),
               const SizedBox(width: 12),

@@ -161,7 +161,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                         radius: 26,
                         backgroundColor: AppColors.primaryLight,
                         child: Text(
-                            (user['name'] as String).characters.first,
+                            (user['name'] as String).initialOrQuestion,
                             style: const TextStyle(
                                 fontSize: 20, fontWeight: FontWeight.w800))),
                     const SizedBox(width: AppSpacing.md),

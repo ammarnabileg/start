@@ -15,6 +15,19 @@ void main() {
       expect(parts[3].length, 16); // كود مختصر 16 حرف
     });
 
+    test('version is bound into the signature (p1 token != v1 token)', () {
+      final now = DateTime.utc(2026, 1, 1, 12, 0, 0);
+      final v1 = QrToken.generate(userId, secret, version: 'v1', now: now);
+      final p1 = QrToken.generate(userId, secret, version: 'p1', now: now);
+      // نفس الـ id/secret/window لكن نسخة مختلفة → كود مختلف.
+      expect(v1.split('.')[3], isNot(p1.split('.')[3]));
+      // التحقّق بنسخة خاطئة يفشل.
+      expect(QrToken.verify(v1, secret, version: 'p1', now: now), isNull);
+      expect(QrToken.verify(p1, secret, version: 'v1', now: now), isNull);
+      // التحقّق بالنسخة الصحيحة ينجح.
+      expect(QrToken.verify(p1, secret, version: 'p1', now: now), userId);
+    });
+
     test('verify accepts a freshly generated token', () {
       final now = DateTime.utc(2026, 1, 1, 12, 0, 0);
       final p = QrToken.generate(userId, secret, now: now);
