@@ -144,6 +144,44 @@ void main() {
   testWidgets('c23 referral', (t) => _shot(t, 'c23_referral', const _Referral()));
   testWidgets('c24 deliver confirm', (t) => _shot(t, 'c24_deliver_confirm', const _DeliverConfirm()));
   testWidgets('c25 report', (t) => _shot(t, 'c25_report', const _ReportForm()));
+  testWidgets('c26 redeemed', (t) => _shot(t, 'c26_redeemed', const _RedeemedSuccess()));
+}
+
+/// شاشة نجاح استلام الهدية.
+class _RedeemedSuccess extends StatelessWidget {
+  const _RedeemedSuccess();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('قهوة مجانية'), centerTitle: true),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              height: 96,
+              width: 96,
+              decoration: const BoxDecoration(
+                  color: AppColors.successBg, shape: BoxShape.circle),
+              child: const AppIcon(Icons.check_rounded,
+                  size: 52, color: AppColors.success),
+            ),
+            const SizedBox(height: 20),
+            Text('تم استلام الهدية ✓',
+                style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text('قهوة مجانية',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            const PrimaryButton(label: 'تمام', expanded: false, onPressed: _noop),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 /// نافذة تأكيد استلام الهدية — موافق / إلغاء / إبلاغ.
