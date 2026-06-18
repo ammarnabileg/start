@@ -52,7 +52,7 @@ class ReviewsScreen extends ConsumerWidget {
                   const SizedBox(
                     height: 260,
                     child: EmptyView(
-                      icon: Icons.reviews_outlined,
+                      icon: Icons.format_quote_rounded,
                       title: 'لا توجد تقييمات بعد',
                       message: 'تقييمات عملائك ومراجعاتهم ستظهر هنا.',
                     ),
@@ -229,7 +229,7 @@ class _ReviewCard extends ConsumerWidget {
               icon: AppIcon(
                   review.hasReply
                       ? Icons.edit_outlined
-                      : Icons.reply_rounded,
+                      : Icons.send_rounded,
                   size: 18),
               label: Text(review.hasReply ? 'تعديل الردّ' : 'الردّ'),
             ),

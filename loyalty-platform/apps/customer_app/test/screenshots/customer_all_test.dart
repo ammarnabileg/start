@@ -137,7 +137,8 @@ void main() {
   testWidgets('st5 levels', (t) => _shot(t, 'store_tab_5_levels', const _StoreTab(4, _TabLevels())));
   testWidgets('st6 coupons', (t) => _shot(t, 'store_tab_6_coupons', const _StoreTab(5, _TabCoupons())));
   testWidgets('st7 questions', (t) => _shot(t, 'store_tab_7_questions', const _StoreTab(6, _TabQuestions())));
-  testWidgets('st8 history', (t) => _shot(t, 'store_tab_8_history', const _StoreTab(7, _TabHistory())));
+  testWidgets('st7b reviews', (t) => _shot(t, 'store_tab_7b_reviews', const _StoreTab(7, _TabReviews())));
+  testWidgets('st8 history', (t) => _shot(t, 'store_tab_8_history', const _StoreTab(8, _TabHistory())));
   testWidgets('c17 reward detail', (t) => _shot(t, 'c17_reward_detail', const _RewardDetail()));
   testWidgets('c18 show to cashier', (t) => _shot(t, 'c18_show_cashier', const _ShowCashier()));
   testWidgets('c19 wheel', (t) => _shot(t, 'c19_wheel', const _Wheel()));
@@ -1045,7 +1046,7 @@ class _StoreDetailLevels extends StatelessWidget {
 // ===== صفحة المتجر: غلاف موحّد (هيدر + تابات) + محتوى كل تاب =====
 const _storeTabs = [
   'نظرة عامة', 'الزيارات', 'النقاط', 'المكافآت',
-  'المستويات', 'الكوبونات', 'الأسئلة', 'السجل',
+  'المستويات', 'الكوبونات', 'الأسئلة', 'التقييمات', 'السجل',
 ];
 
 class _StoreTab extends StatelessWidget {
@@ -1329,6 +1330,132 @@ class _TabCoupons extends StatelessWidget {
             ),
         ],
       );
+}
+
+class _TabReviews extends StatelessWidget {
+  const _TabReviews();
+
+  Widget _stars(int n, {double size = 14}) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 1; i <= 5; i++)
+            AppIcon(Icons.star_rounded,
+                size: size,
+                color: i <= n
+                    ? AppColors.gold
+                    : AppColors.textSecondary.withValues(alpha: .3)),
+        ],
+      );
+
+  Widget _review(BuildContext context,
+      {required String name,
+      required int rating,
+      required String comment,
+      String? reply,
+      bool mine = false}) {
+    final theme = Theme.of(context);
+    return AppCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.surfaceCream,
+              child: Text(name.substring(0, 1),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark))),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(mine ? '$name (أنت)' : name, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 2),
+              _stars(rating),
+            ]),
+          ),
+          Text('2026/06/14',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary)),
+        ]),
+        const SizedBox(height: 10),
+        Text(comment, style: theme.textTheme.bodyMedium),
+        if (reply != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: AppColors.surfaceCream,
+                borderRadius: BorderRadius.circular(AppRadii.md)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const AppIcon(Icons.storefront_rounded,
+                    size: 16, color: AppColors.primaryDark),
+                const SizedBox(width: 6),
+                Text('ردّ المتجر',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark)),
+              ]),
+              const SizedBox(height: 4),
+              Text(reply, style: theme.textTheme.bodySmall),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppCard(
+          child: Row(children: [
+            Column(children: [
+              Text('4.5',
+                  style: theme.textTheme.displaySmall
+                      ?.copyWith(fontWeight: FontWeight.w900)),
+              _stars(5, size: 16),
+            ]),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('تقييم المتجر', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text('بناءً على 38 مراجعة',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        PrimaryButton(
+            label: 'قيّم هذا المتجر',
+            icon: Icons.star_rounded,
+            onPressed: () {}),
+        const SizedBox(height: 22),
+        const SectionHeader(title: 'آراء العملاء'),
+        const SizedBox(height: 8),
+        _review(context,
+            name: 'سارة',
+            rating: 5,
+            comment: 'قهوة ممتازة وخدمة سريعة، والمكان مريح جدًا للعمل.',
+            reply: 'شكرًا لكِ يا سارة 🌹 سعداء بزيارتك!',
+            mine: true),
+        _review(context,
+            name: 'خالد',
+            rating: 4,
+            comment: 'تجربة جيدة بشكل عام، بس الانتظار كان طويل وقت الذروة.'),
+      ],
+    );
+  }
 }
 
 class _TabQuestions extends StatelessWidget {

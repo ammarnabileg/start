@@ -57,7 +57,7 @@ class ManagementHubScreen extends ConsumerWidget {
               resource: 'reports',
             ),
             _HubTile(
-              icon: Icons.reviews_outlined,
+              icon: Icons.star_rounded,
               accent: AppColors.goldTier,
               title: 'التقييمات',
               subtitle: 'مراجعات عملائك — اعرض وردّ عليها',

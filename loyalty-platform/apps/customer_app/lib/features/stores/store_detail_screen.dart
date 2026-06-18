@@ -1077,7 +1077,7 @@ class _ReviewsTab extends ConsumerWidget {
           const SizedBox(height: 14),
           PrimaryButton(
             label: 'قيّم هذا المتجر',
-            icon: Icons.rate_review_outlined,
+            icon: Icons.star_rounded,
             onPressed: store.merchantAvailable
                 ? () => _openRatingSheet(context, ref, store)
                 : () => _notifyUnavailable(context),
@@ -1099,7 +1099,7 @@ class _ReviewsTab extends ConsumerWidget {
                 return const SizedBox(
                   height: 220,
                   child: EmptyView(
-                    icon: Icons.reviews_outlined,
+                    icon: Icons.format_quote_rounded,
                     title: 'لا توجد مراجعات بعد',
                     message: 'كن أول من يقيّم هذا المتجر.',
                   ),
@@ -1154,7 +1154,7 @@ class _RatingSummaryCard extends StatelessWidget {
       return AppCard(
         child: Row(
           children: [
-            const AppIcon(Icons.reviews_outlined,
+            const AppIcon(Icons.format_quote_rounded,
                 color: AppColors.primaryDark, size: 28),
             const SizedBox(width: 12),
             Expanded(
