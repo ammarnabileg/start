@@ -48,16 +48,31 @@ class MyStoresScreen extends ConsumerWidget {
               message: 'أرِ رمزك لأي متجر مشارك ليظهر هنا تلقائيًا.',
             );
           }
+          final totalPoints =
+              list.fold<int>(0, (sum, s) => sum + s.availablePoints);
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(myStoresProvider),
-            child: ListView.separated(
+            child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) => _StoreCard(store: list[i])
-                  .animate()
-                  .fadeIn(duration: 300.ms, delay: (i * 60).ms)
-                  .slideY(begin: .08, end: 0, curve: Curves.easeOut),
+              itemCount: list.length + 1,
+              itemBuilder: (_, idx) {
+                if (idx == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _SummaryHeader(
+                        stores: list.length, points: totalPoints),
+                  );
+                }
+                final i = idx - 1;
+                return Padding(
+                  padding:
+                      EdgeInsets.only(bottom: i == list.length - 1 ? 0 : 12),
+                  child: _StoreCard(store: list[i])
+                      .animate()
+                      .fadeIn(duration: 300.ms, delay: (i * 60).ms)
+                      .slideY(begin: .08, end: 0, curve: Curves.easeOut),
+                );
+              },
             ),
           );
         },
@@ -116,11 +131,113 @@ class _StoreCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            const AppIcon(Icons.chevron_left_rounded,
-                color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _FavStar(store: store),
+                const AppIcon(Icons.chevron_left_rounded,
+                    color: AppColors.textSecondary),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// نجمة "مفضّل" بتحديث متفائل لحظي.
+class _FavStar extends ConsumerStatefulWidget {
+  final UserStore store;
+  const _FavStar({required this.store});
+  @override
+  ConsumerState<_FavStar> createState() => _FavStarState();
+}
+
+class _FavStarState extends ConsumerState<_FavStar> {
+  bool? _optimistic;
+  bool _busy = false;
+
+  Future<void> _toggle() async {
+    final v = !(_optimistic ?? widget.store.isFavorite);
+    setState(() {
+      _optimistic = v;
+      _busy = true;
+    });
+    try {
+      await ref
+          .read(storesRepoProvider)
+          .setFavorite(widget.store.merchantId, v);
+      ref.invalidate(myStoresProvider);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _optimistic = null);
+        AppFeedback.toast(context, 'تعذّر تحديث المفضّلة', error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fav = _optimistic ?? widget.store.isFavorite;
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      onPressed: _busy ? null : _toggle,
+      tooltip: fav ? 'إزالة من المفضّلة' : 'إضافة للمفضّلة',
+      icon: AppIcon(
+        fav ? Icons.star_rounded : Icons.star_outline_rounded,
+        color: fav ? AppColors.gold : AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
+/// رأس "متاجري": إجمالي النقاط المتاحة عبر كل المتاجر + عددها.
+class _SummaryHeader extends StatelessWidget {
+  final int stores;
+  final int points;
+  const _SummaryHeader({required this.stores, required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    Color on(double a) => AppColors.onPrimary.withValues(alpha: a);
+    return AppCard(
+      gradient: AppColors.goldGradient,
+      child: Row(
+        children: [
+          const AppIcon(Icons.stars_rounded,
+              color: AppColors.onPrimary, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('إجمالي نقاطك المتاحة',
+                    style: t.textTheme.bodySmall?.copyWith(color: on(.85))),
+                Text('$points',
+                    style: t.textTheme.headlineSmall?.copyWith(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+          Column(
+            children: [
+              Text('$stores',
+                  style: t.textTheme.titleLarge?.copyWith(
+                      color: AppColors.onPrimary,
+                      fontWeight: FontWeight.w800)),
+              Text('متجر',
+                  style: t.textTheme.bodySmall?.copyWith(color: on(.85))),
+            ],
+          ),
+        ],
       ),
     );
   }

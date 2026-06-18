@@ -184,6 +184,8 @@ create table public.user_stores (
   -- ويظهر في قوائمه/صدارته. false = مخفي عن هذا التاجر فقط (النقاط/الزيارات
   -- تستمر). مستوى الربط (مستقل لكل تاجر، ومع branch_id يدعم لاحقًا التخصيص للفرع).
   visible          boolean not null default true,
+  -- متجر مفضّل لدى العميل (يظهر أعلى قائمته) — تفضيل خاص بالعميل.
+  is_favorite      boolean not null default false,
   first_linked_at  timestamptz not null default now()
 );
 
@@ -2057,3 +2059,19 @@ drop trigger if exists trg_sharing_touch on public.users;
 create trigger trg_sharing_touch
   after update of share_profile_with_merchants on public.users
   for each row execute function public.touch_user_stores_on_sharing_change();
+
+-- =====================================================================
+-- 26) المتاجر المفضّلة لدى العميل (Favorites)
+--     عمود user_stores.is_favorite (مُعرّف أعلاه). تبديل عبر RPC آمنة
+--     (لا تمنح العميل صلاحية UPDATE عامة على user_stores).
+-- =====================================================================
+create or replace function public.set_store_favorite(p_merchant uuid, p_fav boolean)
+returns void language plpgsql security definer
+  set search_path = public, pg_temp as $$
+begin
+  update public.user_stores
+     set is_favorite = p_fav
+   where user_id = auth.uid() and merchant_id = p_merchant;
+end;
+$$;
+grant execute on function public.set_store_favorite(uuid, boolean) to authenticated;

@@ -15,6 +15,9 @@ class UserStore {
   /// false = مخفي عن هذا التاجر (قوائمه/بحثه/صدارته) — لكن النقاط/الزيارات تستمر.
   final bool visible;
 
+  /// متجر مفضّل لدى العميل (يظهر أعلى القائمة).
+  final bool isFavorite;
+
   // حقول للعرض (تيجي من join — اختيارية)
   final String? merchantName;
   final String? merchantLogoUrl;
@@ -31,6 +34,7 @@ class UserStore {
     required this.availablePoints,
     required this.lifetimePoints,
     this.visible = true,
+    this.isFavorite = false,
     this.branchId,
     this.currentLevelId,
     this.merchantName,
@@ -52,6 +56,7 @@ class UserStore {
         availablePoints: j['available_points'] as int? ?? 0,
         lifetimePoints: j['lifetime_points'] as int? ?? 0,
         visible: j['visible'] as bool? ?? true,
+        isFavorite: j['is_favorite'] as bool? ?? false,
         currentLevelId: j['current_level_id'] as String?,
         merchantName: j['merchant_name'] as String?,
         merchantLogoUrl: j['merchant_logo_url'] as String?,

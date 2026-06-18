@@ -17,6 +17,7 @@ class StoresRepository {
         .select(
             '*, merchants(business_name, logo_url, status), loyalty_levels(name), branches(name)')
         .eq('user_id', uid)
+        .order('is_favorite', ascending: false)
         .order('first_linked_at', ascending: false);
 
     return (rows as List).map((r) {
@@ -47,6 +48,14 @@ class StoresRepository {
     await _client.rpc('set_store_visibility', params: {
       'p_merchant': merchantId,
       'p_visible': visible,
+    });
+  }
+
+  /// تبديل "متجر مفضّل" (يظهر أعلى القائمة) — عبر RPC آمنة.
+  Future<void> setFavorite(String merchantId, bool favorite) async {
+    await _client.rpc('set_store_favorite', params: {
+      'p_merchant': merchantId,
+      'p_fav': favorite,
     });
   }
 
