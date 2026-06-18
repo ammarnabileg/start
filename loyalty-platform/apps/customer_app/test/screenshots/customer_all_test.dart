@@ -611,15 +611,47 @@ class _Stores extends StatelessWidget {
   const _Stores();
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    // (اسم, وصف, نقاط, متاح, مفضّل) — المفضّل أعلى القائمة.
     final stores = [
-      ('مقهى الرواق', 'فرع العليا · فضي', 350, true),
-      ('مطعم بيتزا تايم', 'الفرع الرئيسي · ذهبي', 1240, true),
-      ('صالون لمسة', 'برونزي', 80, false),
+      ('مطعم بيتزا تايم', 'الفرع الرئيسي · ذهبي', 1240, true, true),
+      ('مقهى الرواق', 'فرع العليا · فضي', 350, true, false),
+      ('صالون لمسة', 'برونزي', 80, false, false),
     ];
+    Color on(double a) => AppColors.onPrimary.withValues(alpha: a);
     return Scaffold(
       bottomNavigationBar: _nav(1),
       appBar: AppBar(title: const Text('متاجري'), centerTitle: true),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        // رأس الملخّص الموحّد
+        AppCard(
+          gradient: AppColors.goldGradient,
+          child: Row(children: [
+            const AppIcon(Icons.stars_rounded,
+                color: AppColors.onPrimary, size: 30),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('إجمالي نقاطك المتاحة',
+                      style: t.textTheme.bodySmall?.copyWith(color: on(.85))),
+                  Text('1,670',
+                      style: t.textTheme.headlineSmall?.copyWith(
+                          color: AppColors.onPrimary,
+                          fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            Column(children: [
+              Text('3',
+                  style: t.textTheme.titleLarge?.copyWith(
+                      color: AppColors.onPrimary, fontWeight: FontWeight.w800)),
+              Text('متجر', style: t.textTheme.bodySmall?.copyWith(color: on(.85))),
+            ]),
+          ]),
+        ),
+        const SizedBox(height: 16),
         for (final s in stores)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -640,27 +672,30 @@ class _Stores extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(s.$1, style: Theme.of(context).textTheme.titleMedium),
+                        Text(s.$1, style: t.textTheme.titleMedium),
                         const SizedBox(height: 4),
-                        Text(s.$2, style: Theme.of(context).textTheme.bodySmall),
+                        Text(s.$2, style: t.textTheme.bodySmall),
+                        const SizedBox(height: 8),
+                        if (s.$4)
+                          PointsBadge(points: s.$3)
+                        else
+                          const Text('غير متاح حاليًا',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
-                  if (s.$4)
-                    PointsBadge(points: s.$3)
-                  else
-                    Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: AppColors.textSecondary.withValues(alpha: .15),
-                          borderRadius: BorderRadius.circular(20)),
-                      child: const Text('غير متاح حاليًا',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary)),
-                    ),
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    AppIcon(Icons.star_rounded,
+                        color: s.$5
+                            ? AppColors.gold
+                            : AppColors.textSecondary.withValues(alpha: .35)),
+                    const SizedBox(height: 6),
+                    const AppIcon(Icons.chevron_left_rounded,
+                        color: AppColors.textSecondary),
+                  ]),
                 ]),
               ),
             ),

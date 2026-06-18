@@ -190,8 +190,10 @@ class _FavStarState extends ConsumerState<_FavStar> {
       onPressed: _busy ? null : _toggle,
       tooltip: fav ? 'إزالة من المفضّلة' : 'إضافة للمفضّلة',
       icon: AppIcon(
-        fav ? Icons.star_rounded : Icons.star_outline_rounded,
-        color: fav ? AppColors.gold : AppColors.textSecondary,
+        Icons.star_rounded,
+        color: fav
+            ? AppColors.gold
+            : AppColors.textSecondary.withValues(alpha: .35),
       ),
     );
   }
