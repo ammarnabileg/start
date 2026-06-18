@@ -17,18 +17,17 @@ function navlink(string $file, string $res, string $label, string $icon, string 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title ?? 'Hatchy Admin') ?> · <?= e(cfg()['app_name']) ?></title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tailwind.css">
 <style>
-  body{font-family:'Tajawal',sans-serif}
   ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
 </style>
-<script>tailwind.config={theme:{extend:{colors:{brand:'<?= e($brand) ?>'}}}}</script>
 </head>
 <body class="bg-gray-100 text-gray-800">
+<!-- غطاء معتم للموبايل عند فتح القائمة -->
+<div id="ov" onclick="sb(false)" class="fixed inset-0 bg-black/40 z-20 hidden md:hidden"></div>
 <div class="flex min-h-screen">
   <!-- الشريط الجانبي -->
-  <aside class="w-64 bg-gray-900 text-white flex flex-col fixed inset-y-0 right-0 z-20">
+  <aside id="sidebar" class="w-64 bg-gray-900 text-white flex flex-col fixed inset-y-0 right-0 z-30 translate-x-full md:translate-x-0 transition-transform duration-200">
     <div class="px-5 py-5 border-b border-gray-700/60">
       <div class="text-2xl font-extrabold" style="color:<?= e($brand) ?>">Hatchy</div>
       <div class="text-xs text-gray-400">لوحة تحكم المنصّة</div>
@@ -66,12 +65,15 @@ function navlink(string $file, string $res, string $label, string $icon, string 
   </aside>
 
   <!-- المحتوى -->
-  <main class="flex-1 mr-64">
-    <header class="bg-white border-b px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
-      <h1 class="text-xl font-extrabold"><?= e($title ?? '') ?></h1>
-      <div class="text-sm text-gray-500"><?= date('Y-m-d') ?></div>
+  <main class="flex-1 md:mr-64 min-w-0">
+    <header class="bg-white border-b px-4 md:px-6 py-4 sticky top-0 z-10 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button onclick="sb(true)" class="md:hidden text-2xl leading-none" aria-label="القائمة">☰</button>
+        <h1 class="text-lg md:text-xl font-extrabold truncate"><?= e($title ?? '') ?></h1>
+      </div>
+      <div class="text-sm text-gray-500 whitespace-nowrap"><?= date('Y-m-d') ?></div>
     </header>
-    <div class="p-6">
+    <div class="p-4 md:p-6">
       <?php foreach (take_flash() as $f):
         $c = ['success'=>'bg-green-50 text-green-700 border-green-200','error'=>'bg-red-50 text-red-700 border-red-200','info'=>'bg-blue-50 text-blue-700 border-blue-200'][$f['t']] ?? 'bg-gray-50'; ?>
         <div class="mb-4 px-4 py-3 rounded-lg border <?= $c ?>"><?= e($f['m']) ?></div>

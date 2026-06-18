@@ -19,8 +19,10 @@ $top = all("select m.business_name, count(*) c from public.user_stores us join p
 ?>
 <!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>تقرير المنصّة · <?= date('Y-m-d') ?></title>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
+  @font-face{font-family:'Tajawal';font-weight:400;src:url('assets/fonts/Tajawal-Regular.ttf') format('truetype')}
+  @font-face{font-family:'Tajawal';font-weight:700;src:url('assets/fonts/Tajawal-Bold.ttf') format('truetype')}
+  @font-face{font-family:'Tajawal';font-weight:800;src:url('assets/fonts/Tajawal-Bold.ttf') format('truetype')}
   *{font-family:'Tajawal',sans-serif;box-sizing:border-box}
   body{margin:0;padding:32px;color:#222;background:#fff}
   .bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;border-bottom:3px solid #F4B400;padding-bottom:12px}
