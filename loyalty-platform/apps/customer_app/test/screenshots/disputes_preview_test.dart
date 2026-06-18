@@ -637,7 +637,7 @@ class _MobileInputBar extends StatelessWidget {
                         offset: const Offset(0, 3)),
                   ],
                 ),
-                child: const _SendIcon(size: 16, color: Colors.white),
+                child: const _SendIcon(size: 14, color: Colors.white),
               ),
             ]),
           ),
