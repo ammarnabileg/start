@@ -255,31 +255,23 @@ class _SendPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     final w = s.width, h = s.height;
-    // طيّارة ورقية أنيقة بطرفها لليسار (اتجاه الإرسال في RTL).
-    final fill = Paint()
+    // سهم لأعلى (إرسال) — نظيف وواضح.
+    final p = Paint()
       ..color = color
-      ..style = PaintingStyle.fill
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.13
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
+    // العمود
+    canvas.drawLine(Offset(w * 0.50, h * 0.80), Offset(w * 0.50, h * 0.24), p);
+    // رأس السهم
     canvas.drawPath(
         Path()
-          ..moveTo(w * 0.08, h * 0.50) // الطرف
-          ..lineTo(w * 0.94, h * 0.10) // ذيل علوي
-          ..lineTo(w * 0.40, h * 0.50) // الفجوة
-          ..lineTo(w * 0.94, h * 0.90) // ذيل سفلي
-          ..close(),
-        fill);
-    // خط الطيّة الأوسط (نفس اللون بشفافية = عمق بدون أسود).
-    final fold = Paint()
-      ..color = color.withValues(alpha: .30)
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-    canvas.drawPath(
-        Path()
-          ..moveTo(w * 0.40, h * 0.50)
-          ..lineTo(w * 0.94, h * 0.90)
-          ..lineTo(w * 0.52, h * 0.66)
-          ..close(),
-        fold);
+          ..moveTo(w * 0.26, h * 0.46)
+          ..lineTo(w * 0.50, h * 0.21)
+          ..lineTo(w * 0.74, h * 0.46),
+        p);
   }
 
   @override
@@ -645,7 +637,7 @@ class _MobileInputBar extends StatelessWidget {
                         offset: const Offset(0, 3)),
                   ],
                 ),
-                child: const _SendIcon(size: 19, color: Colors.white),
+                child: const _SendIcon(size: 16, color: Colors.white),
               ),
             ]),
           ),
