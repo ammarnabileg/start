@@ -75,17 +75,62 @@ class _Msg {
   final String name;
   final String text;
   final String time;
+  final String? staffRole; // for merchant senders: كاشير / مديرة الفرع …
+  final String? phone; // shown in the admin panel only
   final bool attachment;
-  const _Msg(this.role, this.name, this.text, this.time, {this.attachment = false});
+  final String? replyToName; // quoted message author
+  final String? replyToText; // quoted message snippet
+  const _Msg({
+    required this.role,
+    required this.name,
+    required this.text,
+    required this.time,
+    this.staffRole,
+    this.phone,
+    this.attachment = false,
+    this.replyToName,
+    this.replyToText,
+  });
 }
 
+// نفس النزاع — لاحظ أن طرف التاجر يبعت من أكثر من موظّف (أحمد/منى).
 const _thread = <_Msg>[
-  _Msg('customer', 'سارة', 'ما اتسجّلتش نقاط زيارتي النهاردة رغم إن معايا الفاتورة 🧾',
-      '10:02', attachment: true),
-  _Msg('merchant', 'مقهى الرواق', 'أهلًا سارة 👋 ممكن رقم الفاتورة؟ بنراجعها حالًا.', '10:15'),
-  _Msg('customer', 'سارة', 'INV-4471', '10:16'),
-  _Msg('merchant', 'مقهى الرواق', 'تمام! ضفنا 50 نقطة تعويض ✅', '10:20'),
-  _Msg('admin', 'إدارة المنصّة', 'تم التحقق من المعاملة وإغلاق النزاع. شكرًا للطرفين 🌟', '10:32'),
+  _Msg(
+      role: 'customer',
+      name: 'سارة',
+      phone: '0100 123 4567',
+      text: 'ما اتسجّلتش نقاط زيارتي النهاردة رغم إن معايا الفاتورة 🧾',
+      time: '10:02',
+      attachment: true),
+  _Msg(
+      role: 'merchant',
+      name: 'أحمد',
+      staffRole: 'كاشير',
+      phone: '0111 222 3344',
+      text: 'أهلًا سارة 👋 ممكن رقم الفاتورة؟ بنراجعها حالًا.',
+      time: '10:15'),
+  _Msg(
+      role: 'customer',
+      name: 'سارة',
+      phone: '0100 123 4567',
+      text: 'INV-4471',
+      time: '10:16',
+      replyToName: 'أحمد · المتجر',
+      replyToText: 'ممكن رقم الفاتورة؟ بنراجعها حالًا.'),
+  _Msg(
+      role: 'merchant',
+      name: 'منى',
+      staffRole: 'مديرة الفرع',
+      phone: '0122 555 6677',
+      text: 'تمام! ضفنا 50 نقطة تعويض ✅',
+      time: '10:20'),
+  _Msg(
+      role: 'admin',
+      name: 'إدارة المنصّة',
+      text: 'تم التحقق من المعاملة وإغلاق النزاع. شكرًا للطرفين 🌟',
+      time: '10:32',
+      replyToName: 'منى · المتجر',
+      replyToText: 'ضفنا 50 نقطة تعويض ✅'),
 ];
 
 ({String label, Color color, IconData icon}) _roleStyle(String role) => switch (role) {
@@ -114,8 +159,7 @@ Widget _attachmentChip(bool onDark) => Container(
       ]),
     );
 
-Widget _bubble(BuildContext c, _Msg m, String viewer) {
-  final theme = Theme.of(c);
+Widget _bubble(BuildContext c, _Msg m, String viewer, {bool showPhone = false}) {
   final me = m.role == viewer;
   final rs = _roleStyle(m.role);
   final bg = me
@@ -126,10 +170,16 @@ Widget _bubble(BuildContext c, _Msg m, String viewer) {
           _ => AppColors.surfaceCream,
         };
   final fg = me ? AppColors.onPrimary : AppColors.textPrimary;
+
+  // سطر الهوية: الاسم · الدور (+ دور الموظّف) [+ الموبايل في الأدمن فقط].
+  final header = StringBuffer('${m.name} · ${rs.label}');
+  if (m.staffRole != null) header.write(' (${m.staffRole})');
+  if (showPhone && m.phone != null) header.write('  ·  ${m.phone}');
+
   return Align(
     alignment: me ? AlignmentDirectional.centerStart : AlignmentDirectional.centerEnd,
     child: Container(
-      constraints: const BoxConstraints(maxWidth: 290),
+      constraints: const BoxConstraints(maxWidth: 320),
       margin: const EdgeInsets.symmetric(vertical: 5),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -137,16 +187,58 @@ Widget _bubble(BuildContext c, _Msg m, String viewer) {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
           AppIcon(rs.icon,
               size: 13, color: me ? AppColors.onPrimary.withValues(alpha: .9) : rs.color),
           const SizedBox(width: 4),
-          Text('${m.name} · ${rs.label}',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: me ? AppColors.onPrimary.withValues(alpha: .9) : rs.color)),
+          Flexible(
+            child: Text(header.toString(),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: me ? AppColors.onPrimary.withValues(alpha: .9) : rs.color)),
+          ),
+          if (!me) ...[
+            const SizedBox(width: 6),
+            AppIcon(Icons.format_quote_rounded,
+                size: 15, color: AppColors.textSecondary.withValues(alpha: .8)),
+          ],
         ]),
+        // اقتباس الرسالة المُردّ عليها (Reply)
+        if (m.replyToName != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+            decoration: BoxDecoration(
+              color: me ? Colors.white.withValues(alpha: .18) : Colors.black.withValues(alpha: .04),
+              borderRadius: BorderRadius.circular(8),
+              border: BorderDirectional(
+                start: BorderSide(
+                    color: me ? Colors.white70 : AppColors.primary, width: 3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(m.replyToName!,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: me ? AppColors.onPrimary : AppColors.primaryDark)),
+                const SizedBox(height: 1),
+                Text(m.replyToText ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: me
+                            ? AppColors.onPrimary.withValues(alpha: .85)
+                            : AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 6),
         Text(m.text, style: TextStyle(color: fg, height: 1.45, fontSize: 14)),
         if (m.attachment) ...[const SizedBox(height: 8), _attachmentChip(me)],
@@ -371,7 +463,10 @@ class _AdminChat extends StatelessWidget {
                       border: Border.all(color: const Color(0xFFE5E7EB))),
                   padding: const EdgeInsets.all(20),
                   child: ListView(
-                    children: [for (final m in _thread) _bubble(context, m, 'admin')],
+                    children: [
+                      for (final m in _thread)
+                        _bubble(context, m, 'admin', showPhone: true)
+                    ],
                   ),
                 ),
               ),
@@ -383,7 +478,44 @@ class _AdminChat extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFE5E7EB))),
                 padding: const EdgeInsets.all(14),
-                child: Row(children: [
+                child: Column(children: [
+                  // مؤشّر «ترد على رسالة معيّنة»
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceCream,
+                      borderRadius: BorderRadius.circular(10),
+                      border: const BorderDirectional(
+                          start: BorderSide(color: AppColors.primary, width: 3)),
+                    ),
+                    child: Row(children: [
+                      const AppIcon(Icons.format_quote_rounded,
+                          size: 16, color: AppColors.primaryDark),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('ترد على: منى · المتجر (مديرة الفرع) · 0122 555 6677',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primaryDark)),
+                            Text('ضفنا 50 نقطة تعويض ✅',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      const AppIcon(Icons.cancel_outlined,
+                          size: 18, color: AppColors.textSecondary),
+                    ]),
+                  ),
+                  Row(children: [
                   Expanded(
                     child: Container(
                       padding:
@@ -407,6 +539,7 @@ class _AdminChat extends StatelessWidget {
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.w800)),
                   ),
+                ]),
                 ]),
               ),
             ]),
