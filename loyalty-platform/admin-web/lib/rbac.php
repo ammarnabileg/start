@@ -19,10 +19,10 @@ const RESOURCES = [
   'roles'         => 'الأدوار والصلاحيات',
   'audit'         => 'سجلّ التدقيق',
 ];
-const ACTIONS = ['view' => 'مشاهدة', 'create' => 'إضافة', 'edit' => 'تعديل', 'delete' => 'حذف', 'approve' => 'اعتماد'];
+const ACTIONS = ['view' => 'مشاهدة', 'create' => 'إضافة', 'edit' => 'تعديل', 'delete' => 'حذف', 'approve' => 'اعتماد', 'reply' => 'ردّ'];
 
 // صلاحيات الكتابة تستلزم المشاهدة دائمًا.
-const WRITE_ACTIONS = ['create', 'edit', 'delete', 'approve'];
+const WRITE_ACTIONS = ['create', 'edit', 'delete', 'approve', 'reply'];
 
 function can(string $res, string $act = 'view'): bool {
   $a = current_admin();

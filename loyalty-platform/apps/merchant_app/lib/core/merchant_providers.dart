@@ -99,8 +99,10 @@ class Permissions {
       case 'manager':
       case 'branch_manager':
         if (writeRes.contains(res) && crud.contains(action)) return true;
-        if ((res == 'customers' || res == 'analytics' || res == 'reports') &&
-            action == 'view') {
+        if ((res == 'customers' || res == 'analytics') && action == 'view') {
+          return true;
+        }
+        if (res == 'reports' && (action == 'view' || action == 'reply')) {
           return true;
         }
         if (res == 'announcements' &&

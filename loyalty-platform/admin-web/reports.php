@@ -64,6 +64,7 @@ require __DIR__ . '/partials/header.php';
           <?php if ($r['video_url']): ?><a href="<?= e($r['video_url']) ?>" target="_blank" class="text-blue-600 text-sm">▶ فيديو مرفق</a><?php endif; ?>
         </div>
         <div class="flex flex-col gap-1 items-stretch min-w-[140px]">
+          <a href="report_view.php?id=<?= e($r['id']) ?>" class="bg-amber-500 text-white rounded-lg py-1.5 text-xs font-bold text-center">💬 فتح المحادثة</a>
           <?php if (can('reports','edit')): ?>
           <form method="post" class="flex gap-1"><?= csrf_field() ?><input type="hidden" name="action" value="status"><input type="hidden" name="id" value="<?= e($r['id']) ?>">
             <select name="status" class="border rounded-lg px-2 py-1 text-xs flex-1">
