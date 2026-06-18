@@ -16,6 +16,7 @@ import 'levels_screen.dart';
 import 'pos_screen.dart';
 import 'questions_screen.dart';
 import 'reports_screen.dart';
+import 'reviews_screen.dart';
 import 'rewards_screen.dart';
 import 'roles_screen.dart';
 import 'staff_screen.dart';
@@ -53,6 +54,14 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'البلاغات',
               subtitle: 'بلاغات العملاء (عرض فقط)',
               builder: (_) => const ReportsScreen(),
+              resource: 'reports',
+            ),
+            _HubTile(
+              icon: Icons.reviews_outlined,
+              accent: AppColors.goldTier,
+              title: 'التقييمات',
+              subtitle: 'مراجعات عملائك — اعرض وردّ عليها',
+              builder: (_) => const ReviewsScreen(),
               resource: 'reports',
             ),
             if (settings.enableVisits)
