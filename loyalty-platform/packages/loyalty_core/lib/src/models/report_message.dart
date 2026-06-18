@@ -12,6 +12,10 @@ class ReportMessage {
   final String? replyToBody;
   final bool isMine;
 
+  /// النص قبل أول تعديل (لو عُدّلت) — للشفافية.
+  final String? originalBody;
+  final DateTime? editedAt;
+
   const ReportMessage({
     required this.id,
     required this.senderRole,
@@ -24,10 +28,13 @@ class ReportMessage {
     this.replyToName,
     this.replyToBody,
     this.isMine = false,
+    this.originalBody,
+    this.editedAt,
   });
 
   bool get hasReply => replyToId != null;
   bool get hasAttachment => (attachmentUrl ?? '').isNotEmpty;
+  bool get isEdited => editedAt != null;
 
   factory ReportMessage.fromJson(Map<String, dynamic> j) => ReportMessage(
         id: j['id'] as String,
@@ -43,6 +50,10 @@ class ReportMessage {
         replyToName: j['reply_to_name'] as String?,
         replyToBody: j['reply_to_body'] as String?,
         isMine: j['is_mine'] as bool? ?? false,
+        originalBody: j['original_body'] as String?,
+        editedAt: j['edited_at'] == null
+            ? null
+            : DateTime.parse(j['edited_at'] as String),
       );
 }
 

@@ -2312,7 +2312,8 @@ create or replace function public.report_thread(p_report uuid)
 returns table (
   id uuid, sender_role text, sender_name text, staff_role text,
   body text, attachment_url text, created_at timestamptz,
-  reply_to_id uuid, reply_to_name text, reply_to_body text, is_mine boolean
+  reply_to_id uuid, reply_to_name text, reply_to_body text, is_mine boolean,
+  original_body text, edited_at timestamptz
 ) language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare v_report public.reports; v_uid uuid := auth.uid();
 begin
@@ -2328,7 +2329,8 @@ begin
     select m.id, m.sender_role, m.sender_name, ms.role,
            m.body, m.attachment_url, m.created_at,
            m.reply_to_id, rm.sender_name, rm.body,
-           (m.sender_user_id = v_uid)
+           (m.sender_user_id = v_uid),
+           m.original_body, m.edited_at
     from public.report_messages m
     left join public.merchant_staff ms on ms.id = m.sender_staff_id
     left join public.report_messages rm on rm.id = m.reply_to_id
@@ -2360,3 +2362,57 @@ select r.id, 'customer', r.user_id, u.name,
 from public.reports r
 left join public.users u on u.id = r.user_id
 where not exists (select 1 from public.report_messages m where m.report_id = r.id);
+
+-- =====================================================================
+-- 29) تدقيق رسائل الموظّفين — صاحب المتجر يرى رسائل موظّف معيّن داخل بلاغاته.
+--     (الأدمن يستعرضها من admin-web عبر PDO مباشرة.)
+-- =====================================================================
+create or replace function public.merchant_staff_messages(
+  p_merchant uuid, p_staff uuid default null
+) returns table (
+  message_id uuid, report_id uuid, staff_id uuid, staff_name text, staff_role text,
+  body text, hidden boolean, created_at timestamptz,
+  customer_name text, subject_label text
+) language plpgsql stable security definer set search_path = public, pg_temp as $$
+begin
+  -- صلاحية إدارة الموظّفين (المالك افتراضيًا) — تدقيق حسّاس.
+  if not public.current_staff_can(p_merchant, 'staff', 'view') then
+    raise exception 'forbidden';
+  end if;
+  return query
+    select m.id, m.report_id, m.sender_staff_id, ms.name, ms.role,
+           m.body, m.hidden, m.created_at, u.name, r.subject_label
+    from public.report_messages m
+    join public.reports r on r.id = m.report_id and r.merchant_id = p_merchant
+    left join public.merchant_staff ms on ms.id = m.sender_staff_id
+    left join public.users u on u.id = r.user_id
+    where m.sender_role = 'merchant'
+      and (p_staff is null or m.sender_staff_id = p_staff)
+    order by m.created_at desc;
+end $$;
+grant execute on function public.merchant_staff_messages(uuid, uuid) to authenticated;
+
+-- =====================================================================
+-- 30) تعديل رسالة مع شفافية — يحفظ النص الأصلي ويعلّم أنها عُدّلت (يراها الكل).
+-- =====================================================================
+alter table public.report_messages
+  add column if not exists original_body text,        -- النص قبل أول تعديل
+  add column if not exists edited_at timestamptz;     -- وقت آخر تعديل
+
+-- المُرسِل يعدّل رسالته (العميل/موظّف التاجر). الأدمن يعدّل من admin-web (PDO).
+create or replace function public.edit_report_message(p_message uuid, p_new_body text)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_msg public.report_messages; v_uid uuid := auth.uid();
+        v_clean text := nullif(btrim(p_new_body), '');
+begin
+  if v_clean is null or char_length(v_clean) > 4000 then raise exception 'invalid message'; end if;
+  select * into v_msg from public.report_messages where id = p_message;
+  if v_msg.id is null then raise exception 'message not found'; end if;
+  if v_msg.sender_user_id is distinct from v_uid then raise exception 'forbidden'; end if;
+  update public.report_messages
+     set original_body = coalesce(original_body, body),  -- احفظ الأصل أول مرة فقط
+         body = v_clean,
+         edited_at = now()
+   where id = p_message;
+end $$;
+grant execute on function public.edit_report_message(uuid, text) to authenticated;

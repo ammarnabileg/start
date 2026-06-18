@@ -34,6 +34,19 @@ if (is_post()) {
       audit('reply', 'report', $id);
       flash('تم إرسال ردّك.');
     }
+  } elseif ($act === 'edit_msg') {
+    require_perm('reports', 'edit');
+    $mid = (string) post('msg_id');
+    $body = trim((string) post('body'));
+    if ($body !== '') {
+      q("update public.report_messages
+            set original_body = coalesce(original_body, body),
+                body = :b, edited_at = now()
+          where id = :mid and report_id = :rid",
+        ['b' => $body, 'mid' => $mid, 'rid' => $id]);
+      audit('edit', 'report_message', $mid);
+      flash('تم تعديل الرسالة (مع الإبقاء على الأصل للأطراف).');
+    }
   } elseif ($act === 'hide' || $act === 'unhide') {
     require_perm('reports', 'edit');
     $mid = (string) post('msg_id');
@@ -126,6 +139,9 @@ require __DIR__ . '/partials/header.php';
           </div>
         <?php endif; ?>
         <div class="text-gray-800 whitespace-pre-line"><?= nl2br(e($m['body'])) ?></div>
+        <?php if (!empty($m['edited_at'])): ?>
+          <div class="mt-1 text-[11px] text-gray-400">✏️ مُعدّلة<?php if (trim((string)$m['original_body']) !== ''): ?> — <span class="line-through">الأصل: <?= e(mb_substr((string)$m['original_body'], 0, 120)) ?></span><?php endif; ?></div>
+        <?php endif; ?>
         <?php if ($m['attachment_url']): ?>
           <a href="<?= e($m['attachment_url']) ?>" target="_blank" class="text-blue-600 text-sm mt-1 inline-block">📎 مرفق</a>
         <?php endif; ?>
@@ -134,6 +150,14 @@ require __DIR__ . '/partials/header.php';
           <?php if ($canEdit && !$hidden): ?>
             <form method="post" onsubmit="return confirm('إخفاء هذه الرسالة عن الطرفين؟')"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="msg_id" value="<?= e($m['id']) ?>">
               <button class="text-red-500 hover:underline">إخفاء</button></form>
+          <?php endif; ?>
+          <?php if ($canEdit): ?>
+            <details class="inline"><summary class="text-blue-500 cursor-pointer hover:underline">تعديل</summary>
+              <form method="post" class="mt-1 flex gap-1"><?= csrf_field() ?><input type="hidden" name="action" value="edit_msg"><input type="hidden" name="msg_id" value="<?= e($m['id']) ?>">
+                <input name="body" value="<?= e($m['body']) ?>" class="border rounded px-2 py-0.5 text-xs w-64">
+                <button class="bg-gray-800 text-white rounded px-2 text-xs">حفظ</button>
+              </form>
+            </details>
           <?php endif; ?>
         </div>
       </div>

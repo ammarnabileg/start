@@ -51,6 +51,12 @@ class ReportChatScreen extends ConsumerWidget {
                 .postMessage(reportId, body, replyTo: replyTo);
             ref.invalidate(reportThreadProvider(reportId));
           },
+          onEdit: (messageId, newBody) async {
+            await ref
+                .read(reportsRepoProvider)
+                .editMessage(messageId, newBody);
+            ref.invalidate(reportThreadProvider(reportId));
+          },
         ),
       ),
     );

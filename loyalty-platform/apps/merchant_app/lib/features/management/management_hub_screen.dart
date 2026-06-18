@@ -19,6 +19,7 @@ import 'reports_screen.dart';
 import 'reviews_screen.dart';
 import 'rewards_screen.dart';
 import 'roles_screen.dart';
+import 'staff_messages_screen.dart';
 import 'staff_screen.dart';
 import 'wheel_screen.dart';
 
@@ -114,6 +115,14 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'الموظفين',
               subtitle: 'الكاشير ومديرو الفروع وأدوارهم',
               builder: (_) => const StaffScreen(),
+              resource: 'staff',
+            ),
+            _HubTile(
+              icon: Icons.sms_outlined,
+              accent: AppColors.info,
+              title: 'سجل رسائل الموظفين',
+              subtitle: 'راجع ردود موظّف معيّن على البلاغات',
+              builder: (_) => const StaffMessagesScreen(),
               resource: 'staff',
             ),
             _HubTile(

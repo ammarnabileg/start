@@ -31,6 +31,13 @@ class ReportsRepository {
       'p_reply_to': replyTo,
     });
   }
+
+  Future<void> editMessage(String messageId, String body) {
+    return _client.rpc('edit_report_message', params: {
+      'p_message': messageId,
+      'p_new_body': body,
+    });
+  }
 }
 
 final reportsRepoProvider = Provider<ReportsRepository>(

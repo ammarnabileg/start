@@ -21,6 +21,9 @@ class ReportChatView extends StatefulWidget {
   final String? disabledHint;
   final Future<void> Function(String body, String? replyToId) onSend;
 
+  /// تعديل رسالتي (اضغط مطوّلًا عليها). null = التعديل غير متاح.
+  final Future<void> Function(String messageId, String newBody)? onEdit;
+
   const ReportChatView({
     super.key,
     required this.title,
@@ -31,6 +34,7 @@ class ReportChatView extends StatefulWidget {
     this.subjectLabel,
     this.canReply = true,
     this.disabledHint,
+    this.onEdit,
   });
 
   @override
@@ -65,6 +69,39 @@ class _ReportChatViewState extends State<ReportChatView> {
     Timer(const Duration(milliseconds: 1600), () {
       if (mounted) setState(() => _highlightId = null);
     });
+  }
+
+  Future<void> _editMessage(ReportMessage m) async {
+    final ctrl = TextEditingController(text: m.body);
+    final newBody = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('تعديل الرسالة'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 4,
+          maxLength: 4000,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'عدّل نص رسالتك…'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
+              child: const Text('حفظ')),
+        ],
+      ),
+    );
+    if (newBody == null || newBody.isEmpty || newBody == m.body) return;
+    try {
+      await widget.onEdit!(m.id, newBody);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذّر تعديل الرسالة')));
+      }
+    }
   }
 
   Future<void> _send() async {
@@ -103,6 +140,7 @@ class _ReportChatViewState extends State<ReportChatView> {
               msg: m,
               highlighted: _highlightId == m.id,
               onReply: widget.canReply ? () => setState(() => _replyTo = m) : null,
+              onEdit: (widget.onEdit != null && m.isMine) ? () => _editMessage(m) : null,
               onTapQuote: m.replyToId == null ? null : () => _jumpTo(m.replyToId!),
             );
           },
@@ -243,12 +281,14 @@ class _Bubble extends StatelessWidget {
   final ReportMessage msg;
   final bool highlighted;
   final VoidCallback? onReply;
+  final VoidCallback? onEdit;
   final VoidCallback? onTapQuote;
   const _Bubble({
     super.key,
     required this.msg,
     required this.highlighted,
     this.onReply,
+    this.onEdit,
     this.onTapQuote,
   });
 
@@ -260,7 +300,7 @@ class _Bubble extends StatelessWidget {
     final header = StringBuffer(msg.senderName)..write(' · ${rs.label}');
     if (staffLabel != null) header.write(' ($staffLabel)');
 
-    final bubble = Container(
+    final bubbleInner = Container(
       constraints: const BoxConstraints(maxWidth: 250),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -332,6 +372,7 @@ class _Bubble extends StatelessWidget {
                 color: me ? AppColors.onPrimary : AppColors.textPrimary,
                 height: 1.45,
                 fontSize: 14.5)),
+        if (msg.isEdited) _EditedNote(msg: msg, onDark: me),
         if (msg.hasAttachment) ...[const SizedBox(height: 8), _Attachment(url: msg.attachmentUrl!, onDark: me)],
         const SizedBox(height: 4),
         Row(mainAxisSize: MainAxisSize.min, children: [
@@ -347,6 +388,11 @@ class _Bubble extends StatelessWidget {
         ]),
       ]),
     );
+
+    // اضغط مطوّلًا على رسالتي لتعديلها.
+    final bubble = onEdit == null
+        ? bubbleInner
+        : GestureDetector(onLongPress: onEdit, child: bubbleInner);
 
     final avatar = _Avatar(name: msg.senderName, color: rs.color);
     final replyBtn = onReply == null
@@ -385,6 +431,39 @@ class _Bubble extends StatelessWidget {
     final h = l.hour.toString().padLeft(2, '0');
     final m = l.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+}
+
+/// مؤشّر «مُعدّلة» + النص الأصلي (شفافية للأطراف كلها).
+class _EditedNote extends StatelessWidget {
+  final ReportMessage msg;
+  final bool onDark;
+  const _EditedNote({required this.msg, required this.onDark});
+  @override
+  Widget build(BuildContext context) {
+    final muted = onDark
+        ? AppColors.onPrimary.withValues(alpha: .75)
+        : AppColors.textSecondary;
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('✏️ مُعدّلة',
+              style: TextStyle(
+                  fontSize: 10.5, fontWeight: FontWeight.w700, color: muted)),
+          if ((msg.originalBody ?? '').trim().isNotEmpty)
+            Text('الأصل: ${msg.originalBody}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    decoration: TextDecoration.lineThrough,
+                    color: muted)),
+        ],
+      ),
+    );
   }
 }
 
