@@ -255,33 +255,19 @@ class _SendPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     final w = s.width, h = s.height;
-    // طيّارة ورقية بطرفها لليسار (اتجاه الإرسال في RTL) — جناحان لشكل أوضح.
-    final tipX = w * 0.06, tipY = h * 0.50;
-    final notchX = w * 0.34, notchY = h * 0.50;
-    final upper = Paint()
+    // طيّارة ورقية بطرفها لليسار (اتجاه الإرسال في RTL) — لون واحد صلب.
+    final fill = Paint()
       ..color = color
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
-    // الجناح العلوي (أفتح/كامل).
     canvas.drawPath(
         Path()
-          ..moveTo(tipX, tipY)
-          ..lineTo(w * 0.96, h * 0.07)
-          ..lineTo(notchX, notchY)
+          ..moveTo(w * 0.10, h * 0.50)
+          ..lineTo(w * 0.92, h * 0.12)
+          ..lineTo(w * 0.46, h * 0.50)
+          ..lineTo(w * 0.92, h * 0.88)
           ..close(),
-        upper);
-    // الجناح السفلي (أغمق قليلًا = طيّة).
-    final lower = Paint()
-      ..color = Color.lerp(color, Colors.black, .22)!
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-    canvas.drawPath(
-        Path()
-          ..moveTo(tipX, tipY)
-          ..lineTo(notchX, notchY)
-          ..lineTo(w * 0.96, h * 0.93)
-          ..close(),
-        lower);
+        fill);
   }
 
   @override
@@ -573,9 +559,12 @@ class _MobileInputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     // عند الردّ على رسالة معيّنة (بعد الضغط على سهم الرد) تظهر لوحة الاقتباس.
     final replyName = viewer == 'customer' ? 'أحمد · المتجر' : 'سارة · عميل';
-    return Material(
-      color: AppColors.surface,
-      elevation: 12,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+            top: BorderSide(color: AppColors.textSecondary.withValues(alpha: .12))),
+      ),
       child: SafeArea(
         top: false,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -622,15 +611,8 @@ class _MobileInputBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   alignment: AlignmentDirectional.centerStart,
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: AppColors.surfaceCream,
                     borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: AppColors.textSecondary.withValues(alpha: .22)),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: .04),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2)),
-                    ],
                   ),
                   child: const Text('اكتب رسالة…',
                       style: TextStyle(color: AppColors.textSecondary, fontSize: 14.5)),
@@ -651,7 +633,7 @@ class _MobileInputBar extends StatelessWidget {
                         offset: const Offset(0, 3)),
                   ],
                 ),
-                child: const _SendIcon(size: 22, color: AppColors.onPrimary),
+                child: const _SendIcon(size: 17, color: AppColors.onPrimary),
               ),
             ]),
           ),
