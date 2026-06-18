@@ -46,6 +46,7 @@ function navlink(string $file, string $res, string $label, string $icon, string 
         navlink('lists.php','lists','القوائم/الشرائح','◑',$cur);
         navlink('notifications.php','notifications','الإشعارات','🔔',$cur);
         navlink('reports.php','reports','الشكاوى والبلاغات','⚑',$cur);
+        navlink('reviews.php','reviews','التقييمات','⭐',$cur);
         navlink('content.php','content','مركز المحتوى','📝',$cur);
         navlink('health.php','health','صحة النظام','❤',$cur);
         echo '<div class="pt-3 mt-2 border-t border-gray-700/60"></div>';
