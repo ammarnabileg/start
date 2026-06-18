@@ -52,7 +52,7 @@ class ManagementHubScreen extends ConsumerWidget {
               icon: Icons.flag_outlined,
               accent: AppColors.error,
               title: 'البلاغات',
-              subtitle: 'بلاغات العملاء (عرض فقط)',
+              subtitle: 'حادِث عملاءك وردّ على بلاغاتهم',
               builder: (_) => const ReportsScreen(),
               resource: 'reports',
             ),

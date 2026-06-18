@@ -6,6 +6,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
 import '../../data/repositories/reports_repository.dart';
+import 'report_chat_screen.dart';
 
 final reportsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -74,6 +75,16 @@ class _ReportCard extends StatelessWidget {
     final created = DateTime.tryParse((report['created_at'] ?? '').toString());
 
     return AppCard(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ReportChatScreen(
+          reportId: report['id'] as String,
+          customerName: (report['sender_name'] as String?)?.trim().isNotEmpty == true
+              ? report['sender_name'] as String
+              : 'عميل',
+          subjectLabel: report['subject_label'] as String?,
+          status: report['status'] as String? ?? 'open',
+        ),
+      )),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
