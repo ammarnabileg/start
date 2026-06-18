@@ -66,6 +66,7 @@ require __DIR__ . '/partials/header.php';
     <?php endforeach; ?>
   </select>
   <button class="bg-gray-800 text-white rounded-lg px-5 py-2 font-bold">تصفية</button>
+  <a href="export.php?type=merchants" class="bg-green-600 text-white rounded-lg px-5 py-2 font-bold flex items-center">⬇ CSV</a>
 </form>
 
 <div class="bg-white rounded-xl border overflow-hidden">

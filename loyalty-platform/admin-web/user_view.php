@@ -49,10 +49,13 @@ require __DIR__ . '/partials/header.php';
   <div class="md:col-span-2 bg-white rounded-xl border p-5">
     <div class="flex items-center justify-between mb-4">
       <div class="font-bold">الملف الشخصي</div>
+      <div class="flex gap-3 items-center">
+      <?php if (can('points','create')): ?><a href="points.php?user=<?= e($id) ?>" class="text-amber-600 text-sm font-bold">⭐ منح/خصم نقاط</a><?php endif; ?>
       <?php if (can('users','delete')): ?>
       <form method="post" onsubmit="return confirm('حذف المستخدم نهائيًا؟')"><?= csrf_field() ?>
         <input type="hidden" name="action" value="delete"><button class="text-red-600 text-sm font-bold">حذف المستخدم</button></form>
       <?php endif; ?>
+      </div>
     </div>
     <form method="post" class="grid grid-cols-2 gap-4">
       <?= csrf_field() ?><input type="hidden" name="action" value="save">

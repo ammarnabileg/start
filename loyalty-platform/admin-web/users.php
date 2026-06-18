@@ -54,6 +54,7 @@ require __DIR__ . '/partials/header.php';
     <option value="hidden" <?= $filter==='hidden'?'selected':'' ?>>مخفي عن المتاجر</option>
   </select>
   <button class="bg-gray-800 text-white rounded-lg px-5 py-2 font-bold">تصفية</button>
+  <a href="export.php?type=users&<?= e(http_build_query(array_filter(['q'=>$qstr]))) ?>" class="bg-green-600 text-white rounded-lg px-5 py-2 font-bold flex items-center">⬇ CSV</a>
 </form>
 
 <form method="post" id="bulk">

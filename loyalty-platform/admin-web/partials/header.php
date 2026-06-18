@@ -36,15 +36,23 @@ function navlink(string $file, string $res, string $label, string $icon, string 
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <?php
         navlink('index.php','dashboard','لوحة التحكم','▣',$cur);
+        navlink('analytics.php','analytics','التحليلات','📈',$cur);
         navlink('merchants.php','merchants','التجار (CRM)','🏪',$cur);
+        navlink('finance.php','finance','المالية والاشتراكات','💳',$cur);
         navlink('users.php','users','المستخدمون','👥',$cur);
+        navlink('points.php','points','منح/خصم النقاط','⭐',$cur);
+        navlink('devices.php','devices','الأجهزة والحظر','🚫',$cur);
         navlink('lists.php','lists','القوائم/الشرائح','◑',$cur);
         navlink('notifications.php','notifications','الإشعارات','🔔',$cur);
         navlink('reports.php','reports','الشكاوى والبلاغات','⚑',$cur);
+        navlink('content.php','content','مركز المحتوى','📝',$cur);
         echo '<div class="pt-3 mt-2 border-t border-gray-700/60"></div>';
         navlink('admins.php','admins','حسابات المسؤولين','🛡',$cur);
         navlink('roles.php','roles','الأدوار والصلاحيات','🔑',$cur);
         navlink('audit.php','audit','سجلّ التدقيق','🗒',$cur);
+        // أمني شخصي (2FA) — متاح لكل مسؤول
+        $sa = str_starts_with($cur, 'security') ? 'bg-amber-500 text-white' : 'text-gray-300 hover:bg-gray-700/60';
+        echo '<a href="security.php" class="flex items-center gap-3 px-4 py-2.5 rounded-lg '.$sa.'"><span class="text-lg w-5 text-center">🔐</span><span>الأمان (2FA)</span></a>';
       ?>
     </nav>
     <div class="p-4 border-t border-gray-700/60 text-sm">

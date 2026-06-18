@@ -9,9 +9,22 @@ if (is_post()) {
     require_perm('lists', 'create');
     $name = trim((string)post('name'));
     if ($name !== '') {
-      q("insert into admin.user_lists (name, description, created_by) values (:n,:d,:c)",
-        ['n'=>$name,'d'=>trim((string)post('description')) ?: null,'c'=>current_admin()['id']]);
-      audit('create','list',null,['name'=>$name]); flash('تم إنشاء القائمة.');
+      $smart = post('is_smart') ? true : false;
+      $criteria = null;
+      if ($smart) {
+        $c = [];
+        foreach (['min_points','max_points','inactive_days','active_days'] as $k)
+          if (($v = trim((string)post($k))) !== '') $c[$k] = (int)$v;
+        if (($jd = trim((string)post('joined_after'))) !== '') $c['joined_after'] = $jd;
+        if (post('shared') === 'yes') $c['shared'] = true;
+        if (post('shared') === 'no')  $c['shared'] = false;
+        $criteria = json_encode($c, JSON_UNESCAPED_UNICODE);
+      }
+      q("insert into admin.user_lists (name, description, created_by, is_smart, criteria)
+         values (:n,:d,:c,:s,:cr)",
+        ['n'=>$name,'d'=>trim((string)post('description')) ?: null,'c'=>current_admin()['id'],
+         's'=>$smart?'true':'false','cr'=>$criteria]);
+      audit('create','list',null,['name'=>$name,'smart'=>$smart]); flash('تم إنشاء القائمة.');
     }
   } elseif ($act === 'delete') {
     require_perm('lists', 'delete');
@@ -21,8 +34,7 @@ if (is_post()) {
   redirect('lists.php');
 }
 
-$lists = all("select l.*, (select count(*) from admin.list_members m where m.list_id=l.id) members
-   from admin.user_lists l order by l.created_at desc");
+$lists = all("select * from admin.user_lists order by created_at desc");
 
 $title = 'القوائم / الشرائح';
 require __DIR__ . '/partials/header.php';
@@ -34,9 +46,22 @@ require __DIR__ . '/partials/header.php';
     <form method="post" class="space-y-3"><?= csrf_field() ?><input type="hidden" name="action" value="create">
       <input name="name" placeholder="اسم القائمة" required class="w-full border rounded-lg px-3 py-2">
       <textarea name="description" placeholder="وصف (اختياري)" class="w-full border rounded-lg px-3 py-2" rows="2"></textarea>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_smart" onclick="document.getElementById('sm').style.display=this.checked?'block':'none'"> قائمة ذكية (تتحدّث تلقائيًا)</label>
+      <div id="sm" style="display:none" class="space-y-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <div class="grid grid-cols-2 gap-2">
+          <input name="min_points" type="number" placeholder="نقاط ≥" class="border rounded-lg px-2 py-1.5 text-sm">
+          <input name="max_points" type="number" placeholder="نقاط ≤" class="border rounded-lg px-2 py-1.5 text-sm">
+          <input name="inactive_days" type="number" placeholder="غير نشِط منذ (يوم)" class="border rounded-lg px-2 py-1.5 text-sm">
+          <input name="active_days" type="number" placeholder="نشِط خلال (يوم)" class="border rounded-lg px-2 py-1.5 text-sm">
+        </div>
+        <label class="block text-xs text-gray-500">انضمّ بعد <input name="joined_after" type="date" class="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm"></label>
+        <select name="shared" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          <option value="">المشاركة: الكل</option><option value="yes">يشارك بياناته</option><option value="no">مخفي</option>
+        </select>
+      </div>
       <button class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg py-2">إنشاء</button>
     </form>
-    <p class="text-xs text-gray-400 mt-3">أضف المستخدمين للقوائم من صفحة «المستخدمون» (تحديد متعدّد) أو من ملف كل مستخدم.</p>
+    <p class="text-xs text-gray-400 mt-3">القائمة الثابتة: تضيف لها يدويًا من «المستخدمون». الذكية: تُحسب تلقائيًا من المعايير.</p>
   </div>
   <?php endif; ?>
 
@@ -49,8 +74,8 @@ require __DIR__ . '/partials/header.php';
       <tbody>
       <?php foreach ($lists as $l): ?>
         <tr class="border-t hover:bg-gray-50">
-          <td class="px-4 py-3"><div class="font-bold"><?= e($l['name']) ?></div><div class="text-xs text-gray-400"><?= e($l['description']) ?></div></td>
-          <td class="px-4 py-3"><b><?= n($l['members']) ?></b></td>
+          <td class="px-4 py-3"><div class="font-bold"><?= e($l['name']) ?> <?= $l['is_smart']?badge('ذكية','blue'):'' ?></div><div class="text-xs text-gray-400"><?= e($l['description']) ?></div></td>
+          <td class="px-4 py-3"><b><?= n(list_count($l)) ?></b></td>
           <td class="px-4 py-3 text-gray-500"><?= d($l['created_at']) ?></td>
           <td class="px-4 py-3">
             <div class="flex gap-1">

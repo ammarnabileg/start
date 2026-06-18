@@ -3,15 +3,19 @@
 
 const RESOURCES = [
   'dashboard'     => 'لوحة التحكم',
+  'analytics'     => 'التحليلات',
   'merchants'     => 'التجار (CRM)',
+  'finance'       => 'المالية والاشتراكات',
   'users'         => 'المستخدمون',
+  'points'        => 'منح/خصم النقاط',
+  'devices'       => 'الأجهزة والحظر',
   'lists'         => 'القوائم/الشرائح',
   'notifications' => 'الإشعارات',
   'reports'       => 'الشكاوى والبلاغات',
+  'content'       => 'مركز المحتوى',
   'admins'        => 'حسابات المسؤولين',
   'roles'         => 'الأدوار والصلاحيات',
   'audit'         => 'سجلّ التدقيق',
-  'settings'      => 'الإعدادات',
 ];
 const ACTIONS = ['view' => 'عرض', 'create' => 'إضافة', 'edit' => 'تعديل', 'delete' => 'حذف', 'approve' => 'اعتماد'];
 
