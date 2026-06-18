@@ -2075,3 +2075,131 @@ begin
 end;
 $$;
 grant execute on function public.set_store_favorite(uuid, boolean) to authenticated;
+
+-- =====================================================================
+-- 27) التقييمات والمراجعات (Ratings & Reviews)
+--     العميل يقيّم متجره المرتبط به (نجوم + تعليق، واحد لكل متجر، قابل للتعديل).
+--     التاجر يردّ على المراجعات. الأدمن يُشرف (إخفاء/إظهار) من admin-web.
+--     كل الكتابة عبر دوال definer (لا صلاحيات INSERT/UPDATE مباشرة للعميل/التاجر).
+-- =====================================================================
+create table public.reviews (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.users(id) on delete cascade,
+  merchant_id  uuid not null references public.merchants(id) on delete cascade,
+  rating       smallint not null check (rating between 1 and 5),
+  comment      text check (comment is null or char_length(comment) <= 500),
+  merchant_reply      text check (merchant_reply is null or char_length(merchant_reply) <= 500),
+  merchant_replied_at timestamptz,
+  -- إشراف الأدمن: visible (افتراضي) / hidden (مخفي عن الجمهور).
+  status        text not null default 'visible' check (status in ('visible','hidden')),
+  hidden_reason text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (user_id, merchant_id)                    -- مراجعة واحدة لكل عميل/تاجر
+);
+create index idx_reviews_merchant on public.reviews(merchant_id) where status = 'visible';
+create index idx_reviews_user on public.reviews(user_id);
+
+alter table public.reviews enable row level security;
+
+-- قراءة: المراجعات المرئية (عامة للمسجّلين) + صاحبها يراها دائمًا + التاجر يرى مراجعات متجره.
+create policy reviews_read on public.reviews for select to authenticated
+  using (
+    status = 'visible'
+    or user_id = auth.uid()
+    or public.is_merchant_member(merchant_id)
+  );
+
+-- العميل: إضافة/تعديل تقييمه لمتجر مرتبط به (upsert). يرجّع id المراجعة.
+create or replace function public.upsert_review(
+  p_merchant uuid, p_rating smallint, p_comment text default null
+) returns uuid language plpgsql security definer
+  set search_path = public, pg_temp as $$
+declare v_id uuid;
+begin
+  if p_rating is null or p_rating < 1 or p_rating > 5 then
+    raise exception 'rating must be between 1 and 5';
+  end if;
+  if not exists (select 1 from public.user_stores
+                 where user_id = auth.uid() and merchant_id = p_merchant) then
+    raise exception 'not a customer of this merchant';
+  end if;
+  insert into public.reviews (user_id, merchant_id, rating, comment)
+    values (auth.uid(), p_merchant, p_rating, nullif(btrim(p_comment), ''))
+  on conflict (user_id, merchant_id) do update
+    set rating = excluded.rating,
+        comment = excluded.comment,
+        updated_at = now()
+  returning id into v_id;
+  return v_id;
+end $$;
+grant execute on function public.upsert_review(uuid, smallint, text) to authenticated;
+
+-- العميل: حذف تقييمه.
+create or replace function public.delete_my_review(p_merchant uuid)
+returns void language sql security definer set search_path = public, pg_temp as $$
+  delete from public.reviews where user_id = auth.uid() and merchant_id = p_merchant;
+$$;
+grant execute on function public.delete_my_review(uuid) to authenticated;
+
+-- التاجر: الردّ على مراجعة لمتجره (تمرير نص فارغ = إزالة الردّ).
+create or replace function public.reply_to_review(p_review uuid, p_reply text)
+returns void language plpgsql security definer
+  set search_path = public, pg_temp as $$
+declare v_merchant uuid; v_clean text;
+begin
+  select merchant_id into v_merchant from public.reviews where id = p_review;
+  if v_merchant is null then raise exception 'review not found'; end if;
+  if not public.is_merchant_member(v_merchant) then raise exception 'forbidden'; end if;
+  v_clean := nullif(btrim(p_reply), '');
+  update public.reviews
+     set merchant_reply = v_clean,
+         merchant_replied_at = case when v_clean is null then null else now() end
+   where id = p_review;
+end $$;
+grant execute on function public.reply_to_review(uuid, text) to authenticated;
+
+-- ملخّص تقييم متجر (متوسط + عدد) — لعرضه في تطبيقَي العميل والتاجر.
+create or replace function public.merchant_rating(p_merchant uuid)
+returns table (avg_rating numeric, review_count bigint)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(round(avg(rating)::numeric, 2), 0), count(*)
+  from public.reviews where merchant_id = p_merchant and status = 'visible';
+$$;
+grant execute on function public.merchant_rating(uuid) to authenticated, anon;
+
+-- العميل: مراجعات متجر المرئية للعرض العام (مع اسم صاحبها، ومراجعتي أولًا).
+create or replace function public.store_reviews(p_merchant uuid, p_limit int default 20)
+returns table (
+  id uuid, rating smallint, comment text, merchant_reply text,
+  merchant_replied_at timestamptz, created_at timestamptz,
+  user_name text, is_mine boolean
+) language sql stable security definer set search_path = public, pg_temp as $$
+  select r.id, r.rating, r.comment, r.merchant_reply, r.merchant_replied_at,
+         r.created_at, u.name, (r.user_id = auth.uid())
+  from public.reviews r
+  left join public.users u on u.id = r.user_id
+  where r.merchant_id = p_merchant and r.status = 'visible'
+  order by (r.user_id = auth.uid()) desc, r.created_at desc
+  limit greatest(1, least(p_limit, 50));
+$$;
+grant execute on function public.store_reviews(uuid, int) to authenticated;
+
+-- التاجر: كل مراجعات متجره (بما فيها المخفية، مع الحالة) للعرض والردّ.
+create or replace function public.merchant_reviews(p_merchant uuid)
+returns table (
+  id uuid, rating smallint, comment text, merchant_reply text,
+  merchant_replied_at timestamptz, status text, created_at timestamptz,
+  user_name text
+) language plpgsql stable security definer set search_path = public, pg_temp as $$
+begin
+  if not public.is_merchant_member(p_merchant) then raise exception 'forbidden'; end if;
+  return query
+    select r.id, r.rating, r.comment, r.merchant_reply, r.merchant_replied_at,
+           r.status, r.created_at, u.name
+    from public.reviews r
+    left join public.users u on u.id = r.user_id
+    where r.merchant_id = p_merchant
+    order by r.created_at desc;
+end $$;
+grant execute on function public.merchant_reviews(uuid) to authenticated;
