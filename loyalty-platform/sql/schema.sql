@@ -478,7 +478,8 @@ create or replace function public.legacy_role_can(
     when p_role in ('manager','branch_manager') then
       (p_resource in ('rewards','campaigns','levels','coupons','wheel','questions')
          and p_action in ('view','create','edit','delete'))
-      or (p_resource in ('customers','analytics','reports') and p_action = 'view')
+      or (p_resource in ('customers','analytics') and p_action = 'view')
+      or (p_resource = 'reports' and p_action in ('view','reply'))
       or (p_resource = 'announcements' and p_action in ('view','create'))
       or (p_resource = 'points' and p_action = 'create')
       or (p_resource = 'visits' and p_action = 'create')
@@ -701,7 +702,8 @@ create or replace function public.merchant_reports(p_merchant uuid)
 returns table (
   id uuid, created_at timestamptz, status text, message text, video_url text,
   branch_id uuid, branch_name text, prize_id uuid, prize_title text,
-  sender_name text, sender_phone text, sender_email text
+  sender_name text, sender_phone text, sender_email text,
+  subject_label text, last_message_at timestamptz
 ) language plpgsql stable security definer set search_path = public as $$
 begin
   if not public.is_merchant_member(p_merchant) then
@@ -710,13 +712,14 @@ begin
   return query
     select r.id, r.created_at, r.status, r.message, r.video_url,
            r.branch_id, b.name, r.prize_id, p.title,
-           u.name, u.phone, u.email
+           u.name, u.phone, u.email,
+           r.subject_label, r.last_message_at
     from public.reports r
     left join public.branches b on b.id = r.branch_id
     left join public.user_prizes p on p.id = r.prize_id
     left join public.users u on u.id = r.user_id
     where r.merchant_id = p_merchant
-    order by r.created_at desc;
+    order by r.last_message_at desc;
 end $$;
 
 -- هل العنصر متاح في فرع معيّن؟ موحّد (بدون استهداف) = متاح في كل الفروع.
@@ -1294,7 +1297,7 @@ returns void language plpgsql security definer as $$
 begin
   insert into public.merchant_roles (merchant_id, name, permissions, is_system) values
     (p_merchant, 'مالك', '{"owner": true}'::jsonb, true),
-    (p_merchant, 'مدير', '{"customers":["view"],"rewards":["view","create","edit","delete"],"campaigns":["view","create","edit","delete"],"levels":["view","create","edit","delete"],"coupons":["view","create","edit","delete"],"wheel":["view","create","edit","delete"],"questions":["view","create","edit","delete"],"reports":["view"],"analytics":["view"],"announcements":["view","create"],"points":["create"],"prizes":["redeem"]}'::jsonb, true),
+    (p_merchant, 'مدير', '{"customers":["view"],"rewards":["view","create","edit","delete"],"campaigns":["view","create","edit","delete"],"levels":["view","create","edit","delete"],"coupons":["view","create","edit","delete"],"wheel":["view","create","edit","delete"],"questions":["view","create","edit","delete"],"reports":["view","reply"],"analytics":["view"],"announcements":["view","create"],"points":["create"],"prizes":["redeem"]}'::jsonb, true),
     (p_merchant, 'كاشير', '{"points":["create"],"visits":["create"],"prizes":["redeem"],"customers":["view"]}'::jsonb, true)
   on conflict (merchant_id, name) do nothing;
 end;
@@ -2203,3 +2206,157 @@ begin
     order by r.created_at desc;
 end $$;
 grant execute on function public.merchant_reviews(uuid) to authenticated;
+
+-- =====================================================================
+-- 28) محادثة البلاغات (Report conversations) — شات ثلاثي: عميل ↔ تاجر ↔ أدمن.
+--     يبني فوق public.reports: ربط عام (subject) + رسائل thread + رد على رسالة
+--     + إخفاء رسالة بإشراف الأدمن. الإرفاق على مستوى الرسالة (للأدمن من البانل).
+-- =====================================================================
+
+-- ربط عام: يفتح البلاغ/الشات عن أي عنصر (معاملة/مكافأة/جائزة/كوبون/فرع…).
+alter table public.reports
+  add column if not exists subject_type text,   -- transaction|reward|prize|coupon|branch|review|general
+  add column if not exists subject_id   uuid,
+  add column if not exists subject_label text,  -- نص للعرض (مثلاً رقم الفاتورة)
+  add column if not exists last_message_at timestamptz not null default now();
+
+create table if not exists public.report_messages (
+  id              uuid primary key default gen_random_uuid(),
+  report_id       uuid not null references public.reports(id) on delete cascade,
+  sender_role     text not null check (sender_role in ('customer','merchant','admin')),
+  sender_user_id  uuid references auth.users(id) on delete set null, -- مرسِل العميل/موظّف التاجر
+  sender_staff_id uuid references public.merchant_staff(id) on delete set null,
+  sender_name     text,                          -- اسم المُرسِل (denormalized، خاصةً الأدمن)
+  body            text not null check (char_length(body) between 1 and 4000),
+  attachment_url  text,                          -- إرفاق (للأدمن من البانل)
+  reply_to_id     uuid references public.report_messages(id) on delete set null, -- رد/اقتباس
+  hidden          boolean not null default false, -- أخفاها الأدمن عن الطرفين (تظهر له فقط)
+  created_at      timestamptz not null default now()
+);
+create index if not exists idx_report_messages_report
+  on public.report_messages(report_id, created_at);
+
+alter table public.report_messages enable row level security;
+
+-- قراءة: الأدمن يرى الكل؛ والطرفان يريان الرسائل غير المخفاة لبلاغاتهما فقط.
+create policy report_messages_read on public.report_messages for select using (
+  public.is_super_admin()
+  or (not hidden and exists (
+        select 1 from public.reports r
+        where r.id = report_id and (
+          r.user_id = auth.uid()
+          or (r.merchant_id is not null
+              and public.current_staff_can(r.merchant_id, 'reports', 'view')))))
+);
+-- لا سياسات كتابة: العميل/التاجر عبر RPC؛ الأدمن عبر service_role/PDO (يتجاوز RLS).
+
+-- العميل أو موظّف التاجر يرسل رسالة في بلاغ (نص فقط — لا إرفاق). يرجّع id الرسالة.
+create or replace function public.post_report_message(
+  p_report uuid, p_body text, p_reply_to uuid default null
+) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_uid uuid := auth.uid();
+  v_report public.reports;
+  v_role text; v_staff_id uuid; v_name text; v_msg uuid;
+  v_clean text := nullif(btrim(p_body), '');
+begin
+  if v_clean is null or char_length(v_clean) > 4000 then
+    raise exception 'invalid message';
+  end if;
+  select * into v_report from public.reports where id = p_report;
+  if v_report.id is null then raise exception 'report not found'; end if;
+
+  if v_report.user_id = v_uid then
+    v_role := 'customer';
+    select name into v_name from public.users where id = v_uid;
+  elsif v_report.merchant_id is not null
+        and public.current_staff_can(v_report.merchant_id, 'reports', 'reply') then
+    v_role := 'merchant';
+    select id, name into v_staff_id, v_name from public.merchant_staff
+      where merchant_id = v_report.merchant_id and user_id = v_uid and status = 'active'
+      limit 1;
+  else
+    raise exception 'forbidden';
+  end if;
+
+  -- هدف الرد لازم يكون رسالة في نفس البلاغ.
+  if p_reply_to is not null and not exists (
+      select 1 from public.report_messages where id = p_reply_to and report_id = p_report) then
+    p_reply_to := null;
+  end if;
+
+  insert into public.report_messages(
+      report_id, sender_role, sender_user_id, sender_staff_id, sender_name, body, reply_to_id)
+    values (p_report, v_role, v_uid, v_staff_id, v_name, v_clean, p_reply_to)
+    returning id into v_msg;
+
+  update public.reports
+     set last_message_at = now(),
+         status = case when status = 'resolved' then 'reviewing' else status end
+   where id = p_report;
+
+  -- إشعار داخل التطبيق: لو التاجر ردّ → بلّغ صاحب البلاغ.
+  if v_role = 'merchant' then
+    insert into public.notifications(user_id, type, title, body, data)
+      values (v_report.user_id, 'report_reply', 'رد جديد على بلاغك',
+              'لديك رد جديد على بلاغك من المتجر',
+              jsonb_build_object('report_id', p_report));
+  end if;
+
+  return v_msg;
+end $$;
+grant execute on function public.post_report_message(uuid, text, uuid) to authenticated;
+
+-- thread البلاغ (للعميل والتاجر) — مع هوية المُرسِل والرسالة المُقتبَسة، وإخفاء المخفي.
+create or replace function public.report_thread(p_report uuid)
+returns table (
+  id uuid, sender_role text, sender_name text, staff_role text,
+  body text, attachment_url text, created_at timestamptz,
+  reply_to_id uuid, reply_to_name text, reply_to_body text, is_mine boolean
+) language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare v_report public.reports; v_uid uuid := auth.uid();
+begin
+  select r.* into v_report from public.reports r where r.id = p_report;
+  if v_report.id is null then raise exception 'report not found'; end if;
+  if not (v_report.user_id = v_uid
+          or (v_report.merchant_id is not null
+              and public.current_staff_can(v_report.merchant_id, 'reports', 'view'))
+          or public.is_super_admin()) then
+    raise exception 'forbidden';
+  end if;
+  return query
+    select m.id, m.sender_role, m.sender_name, ms.role,
+           m.body, m.attachment_url, m.created_at,
+           m.reply_to_id, rm.sender_name, rm.body,
+           (m.sender_user_id = v_uid)
+    from public.report_messages m
+    left join public.merchant_staff ms on ms.id = m.sender_staff_id
+    left join public.report_messages rm on rm.id = m.reply_to_id
+    where m.report_id = p_report
+      and (not m.hidden or public.is_super_admin())
+    order by m.created_at;
+end $$;
+grant execute on function public.report_thread(uuid) to authenticated;
+
+-- قائمة بلاغات العميل (لا توجد شاشة سابقة) — مع اسم المتجر وآخر رسالة.
+create or replace function public.my_reports()
+returns table (id uuid, merchant_id uuid, merchant_name text, subject_label text,
+               status text, last_message_at timestamptz, created_at timestamptz)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select r.id, r.merchant_id, m.business_name, r.subject_label,
+         r.status, r.last_message_at, r.created_at
+  from public.reports r
+  left join public.merchants m on m.id = r.merchant_id
+  where r.user_id = auth.uid()
+  order by r.last_message_at desc;
+$$;
+grant execute on function public.my_reports() to authenticated;
+
+-- تعبئة رسالة الافتتاح للبلاغات الموجودة (البلاغ الأصلي = أول رسالة من العميل).
+insert into public.report_messages(report_id, sender_role, sender_user_id, sender_name,
+                                   body, attachment_url, created_at)
+select r.id, 'customer', r.user_id, u.name,
+       coalesce(nullif(btrim(r.message), ''), '(بلاغ بدون نص)'), r.video_url, r.created_at
+from public.reports r
+left join public.users u on u.id = r.user_id
+where not exists (select 1 from public.report_messages m where m.report_id = r.id);

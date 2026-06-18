@@ -14,8 +14,10 @@ Deno.serve(async (req) => {
       return badRequest("لقد أرسلت بلاغات كثيرة، حاول لاحقًا", 429);
     }
 
-    const { merchant_id, branch_id, prize_id, message, video_url } =
-      await req.json();
+    const {
+      merchant_id, branch_id, prize_id, message, video_url,
+      subject_type, subject_id, subject_label,
+    } = await req.json();
     if (!message && !video_url) return badRequest("أضف رسالة أو فيديو");
     if (message && String(message).length > 2000) {
       return badRequest("الرسالة طويلة جدًا");
@@ -49,7 +51,22 @@ Deno.serve(async (req) => {
       prize_id: prize_id ?? null,
       message: message ?? null,
       video_url: video_url ?? null,
+      subject_type: subject_type ?? null,
+      subject_id: subject_id ?? null,
+      subject_label: subject_label ?? null,
     }).select("id").single();
+
+    // رسالة الافتتاح في الـthread = البلاغ نفسه (أول رسالة من العميل).
+    const { data: me } = await svc.from("users")
+      .select("name").eq("id", userId).maybeSingle();
+    await svc.from("report_messages").insert({
+      report_id: data.id,
+      sender_role: "customer",
+      sender_user_id: userId,
+      sender_name: me?.name ?? null,
+      body: (message && String(message).trim()) || "(بلاغ بدون نص)",
+      attachment_url: video_url ?? null,
+    });
 
     return json({ id: data.id, submitted: true });
   } catch (e) {
