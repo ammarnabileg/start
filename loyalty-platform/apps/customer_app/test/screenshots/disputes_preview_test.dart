@@ -239,6 +239,55 @@ class _ReplyPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
+// أيقونة إرسال (طيّارة ورقية) مرسومة — نظيفة وموجّهة للبدء (RTL).
+class _SendIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _SendIcon({this.size = 22, required this.color});
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(width: size, height: size, child: CustomPaint(painter: _SendPainter(color)));
+}
+
+class _SendPainter extends CustomPainter {
+  final Color color;
+  _SendPainter(this.color);
+  @override
+  void paint(Canvas canvas, Size s) {
+    final w = s.width, h = s.height;
+    // طيّارة ورقية بطرفها لليسار (اتجاه الإرسال في RTL) — جناحان لشكل أوضح.
+    final tipX = w * 0.06, tipY = h * 0.50;
+    final notchX = w * 0.34, notchY = h * 0.50;
+    final upper = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    // الجناح العلوي (أفتح/كامل).
+    canvas.drawPath(
+        Path()
+          ..moveTo(tipX, tipY)
+          ..lineTo(w * 0.96, h * 0.07)
+          ..lineTo(notchX, notchY)
+          ..close(),
+        upper);
+    // الجناح السفلي (أغمق قليلًا = طيّة).
+    final lower = Paint()
+      ..color = Color.lerp(color, Colors.black, .22)!
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    canvas.drawPath(
+        Path()
+          ..moveTo(tipX, tipY)
+          ..lineTo(notchX, notchY)
+          ..lineTo(w * 0.96, h * 0.93)
+          ..close(),
+        lower);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
 // زر سهم الرد بجوار كل رسالة.
 Widget _replyArrow() => Container(
       width: 30,
@@ -602,7 +651,7 @@ class _MobileInputBar extends StatelessWidget {
                         offset: const Offset(0, 3)),
                   ],
                 ),
-                child: const AppIcon(Icons.send_rounded, color: AppColors.onPrimary),
+                child: const _SendIcon(size: 22, color: AppColors.onPrimary),
               ),
             ]),
           ),
