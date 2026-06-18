@@ -19,6 +19,11 @@ if (is_post()) {
       $perm = [];
       foreach ((array) post('perm', []) as $res => $acts) {
         $clean = array_values(array_intersect((array)$acts, array_keys(ACTIONS)));
+        // «مشاهدة» = عرض فقط، تتنافى مع الكتابة. لو فيه أي كتابة نُسقط علم العرض-فقط
+        // (المشاهدة مضمّنة ضمنيًا في can() لأي صلاحية كتابة).
+        if (array_intersect($clean, WRITE_ACTIONS)) {
+          $clean = array_values(array_diff($clean, ['view']));
+        }
         if ($clean) $perm[$res] = $clean;
       }
       q("update admin.roles set permissions=:p where id=:id", ['p'=>json_encode($perm, JSON_UNESCAPED_UNICODE),'id'=>$id]);
@@ -75,7 +80,7 @@ require __DIR__ . '/partials/header.php';
               $applicable = $applicable && !($a==='create' && in_array($res,['users','reports','audit','dashboard'])); ?>
               <td class="py-2 text-center">
                 <?php if ($applicable): ?>
-                  <input type="checkbox" name="perm[<?= e($res) ?>][]" value="<?= e($a) ?>" <?= in_array($a,$has,true)?'checked':'' ?>>
+                  <input type="checkbox" name="perm[<?= e($res) ?>][]" value="<?= e($a) ?>" onchange="permSync(this)" <?= in_array($a,$has,true)?'checked':'' ?>>
                 <?php else: ?><span class="text-gray-200">—</span><?php endif; ?>
               </td>
             <?php endforeach; ?>
@@ -88,4 +93,20 @@ require __DIR__ . '/partials/header.php';
     <?php endif; ?>
   </div>
 <?php endforeach; ?>
+<p class="text-xs text-gray-400 mt-2">«مشاهدة» = عرض فقط (يُلغى تلقائيًا عند اختيار أي صلاحية كتابة). أي صلاحية كتابة (إضافة/تعديل/حذف/اعتماد) تتضمّن المشاهدة ضمنيًا.</p>
+<script>
+// تنافٍ متبادل ضمن نفس الصف: «مشاهدة» (عرض فقط) × صلاحيات الكتابة.
+function permSync(cb){
+  var row = cb.closest('tr'); if(!row) return;
+  var boxes = row.querySelectorAll('input[type=checkbox]');
+  var view=null, writes=[];
+  boxes.forEach(function(b){ if(b.value==='view') view=b; else writes.push(b); });
+  if(!view) return;
+  if(cb.value==='view'){
+    if(cb.checked) writes.forEach(function(b){ b.checked=false; });   // عرض فقط → ألغِ كل الكتابة
+  } else if(cb.checked){
+    view.checked=false;                                               // اخترت كتابة → ألغِ «عرض فقط»
+  }
+}
+</script>
 <?php require __DIR__ . '/partials/footer.php'; ?>

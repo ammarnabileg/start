@@ -18,7 +18,10 @@ const RESOURCES = [
   'roles'         => 'الأدوار والصلاحيات',
   'audit'         => 'سجلّ التدقيق',
 ];
-const ACTIONS = ['view' => 'عرض', 'create' => 'إضافة', 'edit' => 'تعديل', 'delete' => 'حذف', 'approve' => 'اعتماد'];
+const ACTIONS = ['view' => 'مشاهدة', 'create' => 'إضافة', 'edit' => 'تعديل', 'delete' => 'حذف', 'approve' => 'اعتماد'];
+
+// صلاحيات الكتابة تستلزم المشاهدة دائمًا.
+const WRITE_ACTIONS = ['create', 'edit', 'delete', 'approve'];
 
 function can(string $res, string $act = 'view'): bool {
   $a = current_admin();
@@ -27,7 +30,10 @@ function can(string $res, string $act = 'view'): bool {
   // admins/roles مقصورة على Super Admin
   if (in_array($res, ['admins', 'roles'], true)) return false;
   $perms = $a['permissions'] ? json_decode($a['permissions'], true) : [];
-  return in_array($act, $perms[$res] ?? [], true);
+  $list = $perms[$res] ?? [];
+  // أي صلاحية على المورد تعني ضمنيًا المشاهدة (لا كتابة بلا مشاهدة).
+  if ($act === 'view') return $list !== [];
+  return in_array($act, $list, true);
 }
 
 function require_perm(string $res, string $act = 'view'): void {
