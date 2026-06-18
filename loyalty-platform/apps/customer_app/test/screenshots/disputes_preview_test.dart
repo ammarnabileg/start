@@ -101,8 +101,7 @@ const _thread = <_Msg>[
       name: 'سارة',
       phone: '0100 123 4567',
       text: 'ما اتسجّلتش نقاط زيارتي النهاردة رغم إن معايا الفاتورة 🧾',
-      time: '10:02',
-      attachment: true),
+      time: '10:02'),
   _Msg(
       role: 'merchant',
       name: 'أحمد',
@@ -137,6 +136,7 @@ const _thread = <_Msg>[
       name: 'إدارة المنصّة',
       text: 'تم التحقق من المعاملة وإغلاق النزاع. شكرًا للطرفين 🌟',
       time: '10:32',
+      attachment: true,
       replyToName: 'منى · المتجر',
       replyToText: 'ضفنا 50 نقطة تعويض ✅'),
 ];
@@ -566,19 +566,7 @@ class _MobileInputBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(children: [
-              // إرفاق
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                    color: AppColors.surfaceCream,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.textSecondary.withValues(alpha: .15))),
-                child: const AppIcon(Icons.camera_alt_outlined,
-                    size: 20, color: AppColors.primaryDark),
-              ),
-              const SizedBox(width: 8),
-              // حقل الكتابة
+              // حقل الكتابة (بدون إرفاق — الإرفاق من الأدمن فقط)
               Expanded(
                 child: Container(
                   height: 48,
@@ -764,6 +752,24 @@ class _AdminChat extends StatelessWidget {
                     ]),
                   ),
                   Row(children: [
+                    // إرفاق صورة — متاح للأدمن فقط
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: .4))),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        AppIcon(Icons.image_outlined, size: 18, color: AppColors.primaryDark),
+                        SizedBox(width: 8),
+                        Text('إرفاق صورة',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDark)),
+                      ]),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
