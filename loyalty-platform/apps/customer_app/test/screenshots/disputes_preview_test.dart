@@ -80,6 +80,7 @@ class _Msg {
   final bool attachment;
   final String? replyToName; // quoted message author
   final String? replyToText; // quoted message snippet
+  final bool hidden; // أخفاها الأدمن عن الطرفين (تظهر له فقط)
   const _Msg({
     required this.role,
     required this.name,
@@ -90,6 +91,7 @@ class _Msg {
     this.attachment = false,
     this.replyToName,
     this.replyToText,
+    this.hidden = false,
   });
 }
 
@@ -117,6 +119,13 @@ const _thread = <_Msg>[
       time: '10:16',
       replyToName: 'أحمد · المتجر',
       replyToText: 'ممكن رقم الفاتورة؟ بنراجعها حالًا.'),
+  _Msg(
+      role: 'customer',
+      name: 'سارة',
+      phone: '0100 123 4567',
+      text: 'طب انتو فين بقالي ساعة مستنية!! 😤',
+      time: '10:18',
+      hidden: true),
   _Msg(
       role: 'merchant',
       name: 'منى',
@@ -159,7 +168,8 @@ Widget _attachmentChip(bool onDark) => Container(
       ]),
     );
 
-Widget _bubble(BuildContext c, _Msg m, String viewer, {bool showPhone = false}) {
+Widget _bubble(BuildContext c, _Msg m, String viewer,
+    {bool showPhone = false, bool adminView = false, bool highlighted = false}) {
   final me = m.role == viewer;
   final rs = _roleStyle(m.role);
   final bg = me
@@ -178,13 +188,21 @@ Widget _bubble(BuildContext c, _Msg m, String viewer, {bool showPhone = false}) 
 
   return Align(
     alignment: me ? AlignmentDirectional.centerStart : AlignmentDirectional.centerEnd,
-    child: Container(
+    child: Opacity(
+      opacity: (adminView && m.hidden) ? .6 : 1,
+      child: Container(
       constraints: const BoxConstraints(maxWidth: 320),
       margin: const EdgeInsets.symmetric(vertical: 5),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
+        border: highlighted
+            ? Border.all(color: AppColors.warning, width: 2.5)
+            : null,
+        boxShadow: highlighted
+            ? [BoxShadow(color: AppColors.warning.withValues(alpha: .45), blurRadius: 16)]
+            : null,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -198,12 +216,46 @@ Widget _bubble(BuildContext c, _Msg m, String viewer, {bool showPhone = false}) 
                     fontWeight: FontWeight.w800,
                     color: me ? AppColors.onPrimary.withValues(alpha: .9) : rs.color)),
           ),
-          if (!me) ...[
+          if (adminView) ...[
+            const SizedBox(width: 6),
+            const AppIcon(Icons.format_quote_rounded,
+                size: 15, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            AppIcon(m.hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                size: 15,
+                color: m.hidden ? AppColors.success : AppColors.textSecondary),
+          ] else if (!me) ...[
             const SizedBox(width: 6),
             AppIcon(Icons.format_quote_rounded,
                 size: 15, color: AppColors.textSecondary.withValues(alpha: .8)),
           ],
         ]),
+        if (adminView && m.hidden) ...[
+          const SizedBox(height: 8),
+          Row(children: [
+            const AppIcon(Icons.visibility_off_outlined,
+                size: 14, color: AppColors.error),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text('مخفية عن الطرفين — تظهر لك فقط',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.error)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: .15),
+                  borderRadius: BorderRadius.circular(20)),
+              child: const Text('إلغاء الإخفاء',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success)),
+            ),
+          ]),
+        ],
         // اقتباس الرسالة المُردّ عليها (Reply)
         if (m.replyToName != null) ...[
           const SizedBox(height: 8),
@@ -251,6 +303,7 @@ Widget _bubble(BuildContext c, _Msg m, String viewer, {bool showPhone = false}) 
                   color: me ? AppColors.onPrimary.withValues(alpha: .75) : AppColors.textSecondary)),
         ),
       ]),
+    ),
     ),
   );
 }
@@ -313,7 +366,8 @@ Widget _inputBar(String hint) => Material(
 // ============ Mobile chat (customer / merchant) ============
 class _MobileChat extends StatelessWidget {
   final String viewer; // customer | merchant
-  const _MobileChat(this.viewer);
+  final String? highlightText; // الرسالة المُنتقَل إليها (بعد الضغط على الرد)
+  const _MobileChat(this.viewer, {this.highlightText});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -334,7 +388,13 @@ class _MobileChat extends StatelessWidget {
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            children: [for (final m in _thread) _bubble(context, m, viewer)],
+            // الأطراف لا ترى الرسائل المخفاة بإشراف الأدمن.
+            children: [
+              for (final m in _thread)
+                if (!m.hidden)
+                  _bubble(context, m, viewer,
+                      highlighted: highlightText != null && m.text == highlightText),
+            ],
           ),
         ),
         _inputBar('اكتب رسالة…'),
@@ -465,7 +525,8 @@ class _AdminChat extends StatelessWidget {
                   child: ListView(
                     children: [
                       for (final m in _thread)
-                        _bubble(context, m, 'admin', showPhone: true)
+                        _bubble(context, m, 'admin',
+                            showPhone: true, adminView: true)
                     ],
                   ),
                 ),
@@ -556,4 +617,9 @@ void main() {
   testWidgets('d2 merchant chat', (t) => _shot(t, 'dispute_2_merchant', const _MobileChat('merchant')));
   testWidgets('d3 admin chat',
       (t) => _shot(t, 'dispute_3_admin', const _AdminChat(), w: 1180, h: 820));
+  // عند الضغط على اقتباس الرد → ينتقل للرسالة الأصلية ويميّزها.
+  testWidgets(
+      'd4 jump to original',
+      (t) => _shot(t, 'dispute_4_jump',
+          const _MobileChat('customer', highlightText: 'أهلًا سارة 👋 ممكن رقم الفاتورة؟ بنراجعها حالًا.')));
 }
