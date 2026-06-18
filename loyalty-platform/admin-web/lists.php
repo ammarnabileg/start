@@ -79,6 +79,7 @@ require __DIR__ . '/partials/header.php';
           <td class="px-4 py-3 text-gray-500"><?= d($l['created_at']) ?></td>
           <td class="px-4 py-3">
             <div class="flex gap-1">
+              <a href="list_view.php?id=<?= e($l['id']) ?>" class="px-2.5 py-1 rounded bg-gray-100 hover:bg-gray-200 text-xs font-bold">👁 الأعضاء</a>
               <?php if (can('notifications','create')): ?><a href="notifications.php?list=<?= e($l['id']) ?>" class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-bold">إشعار</a><?php endif; ?>
               <?php if (can('lists','delete')): ?>
               <form method="post" class="inline" onsubmit="return confirm('حذف القائمة؟')"><?= csrf_field() ?>

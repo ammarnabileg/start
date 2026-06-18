@@ -41,11 +41,31 @@
 - 🔐 **2FA (TOTP)** لحسابات المسؤولين + **قفل بعد ٥ محاولات** + **سجلّ دخول**.
 - 📝 **مركز محتوى**: تعديل `platform_settings` (شروط/خصوصية/دعم/أدنى إصدار/صيانة).
 
+## أدوات إضافية (v3)
+- 👁 **معاينة الشريحة الذكية** (`list_view.php`) + **حفظ كلقطة ثابتة** (تجميد الأعضاء).
+- ⬆️ **استيراد CSV للقوائم**: ألصق/ارفع أرقامًا أو إيميلات → مطابقة وإضافة دفعة.
+- ⬇️ **تصدير Excel حقيقي** (XLSX/OOXML بدون مكتبات) بجانب CSV.
+- 🖨️ **تقرير PDF** للطباعة/الحفظ (RTL صحيح عبر المتصفّح) — `report.php`.
+- ⏰ **تقرير مجدول بالبريد** (XLSX مرفق) — `cron_report.php` + `report_recipients`.
+- 💰 **استرجاع الإيرادات (Dunning)**: متابعة `past_due/expired` + تذكيرات يدوية/تلقائية
+  (`dunning.php` + `cron_dunning.php`، بلا تكرار خلال ٧ أيام).
+- ❤ **صحة النظام** (`health.php`): أحجام الجداول، أجهزة Push، مهام cron وآخر تشغيل،
+  أخطاء جهة اللوحة (أخطاء دوال الحافة تبقى في Supabase Logs).
+
+### جدولة (cron)
+```cron
+0 7 * * 1  php /path/admin-web/cron_report.php     # تقرير أسبوعي بالبريد
+0 9 * * *  php /path/admin-web/cron_dunning.php    # تذكيرات تجديد يومية
+```
+> تصدير Excel يتطلّب امتداد `zip` · تقرير البريد يتطلّب MTA (sendmail/SMTP).
+> تقرير PDF بالعربية يُحفظ من المتصفّح؛ لـ PDF مرفق بالبريد استخدم مكتبة مثل mPDF.
+
 ## التثبيت
-1. **طبّق سكيمتَي الأدمن** على قاعدة البيانات:
+1. **طبّق سكيمات الأدمن** على قاعدة البيانات:
    ```bash
    psql "$SUPABASE_DB_URL" -f sql/admin_schema.sql
    psql "$SUPABASE_DB_URL" -f sql/admin_schema_v2.sql
+   psql "$SUPABASE_DB_URL" -f sql/admin_schema_v3.sql
    ```
    ولتفعيل Push: انشر دالة `admin-push` واضبط `ADMIN_PUSH_SECRET` و`FCM_SERVICE_ACCOUNT`
    في Supabase، ثم احفظ رابط الدالة والسر من صفحة «الإشعارات».

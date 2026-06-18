@@ -37,8 +37,10 @@ function navlink(string $file, string $res, string $label, string $icon, string 
       <?php
         navlink('index.php','dashboard','لوحة التحكم','▣',$cur);
         navlink('analytics.php','analytics','التحليلات','📈',$cur);
+        if (can('analytics','view')) echo '<a href="report.php" target="_blank" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/60"><span class="text-lg w-5 text-center">🖨️</span><span>تقرير PDF</span></a>';
         navlink('merchants.php','merchants','التجار (CRM)','🏪',$cur);
         navlink('finance.php','finance','المالية والاشتراكات','💳',$cur);
+        navlink('dunning.php','finance','استرجاع الإيرادات','💰',$cur);
         navlink('users.php','users','المستخدمون','👥',$cur);
         navlink('points.php','points','منح/خصم النقاط','⭐',$cur);
         navlink('devices.php','devices','الأجهزة والحظر','🚫',$cur);
@@ -46,6 +48,7 @@ function navlink(string $file, string $res, string $label, string $icon, string 
         navlink('notifications.php','notifications','الإشعارات','🔔',$cur);
         navlink('reports.php','reports','الشكاوى والبلاغات','⚑',$cur);
         navlink('content.php','content','مركز المحتوى','📝',$cur);
+        navlink('health.php','health','صحة النظام','❤',$cur);
         echo '<div class="pt-3 mt-2 border-t border-gray-700/60"></div>';
         navlink('admins.php','admins','حسابات المسؤولين','🛡',$cur);
         navlink('roles.php','roles','الأدوار والصلاحيات','🔑',$cur);

@@ -46,6 +46,7 @@ require __DIR__ . '/partials/header.php';
     <a href="?status=<?= $k ?>" class="px-4 py-1.5 rounded-lg text-sm font-bold <?= $cls ?>"><?= e($lbl) ?> (<?= n($c) ?>)</a>
   <?php endforeach; ?>
   <a href="export.php?type=reports" class="px-4 py-1.5 rounded-lg text-sm font-bold bg-green-600 text-white mr-auto">⬇ CSV</a>
+  <a href="export.php?format=xlsx&type=reports" class="px-4 py-1.5 rounded-lg text-sm font-bold bg-emerald-700 text-white">⬇ Excel</a>
 </div>
 
 <div class="space-y-3">
