@@ -34,6 +34,7 @@ export 'src/models/merchant_role.dart';
 export 'src/models/lucky_wheel.dart';
 export 'src/models/user_prize.dart';
 export 'src/models/pos_api_key.dart';
+export 'src/models/review.dart';
 
 // Widgets
 export 'src/widgets/app_icon.dart';

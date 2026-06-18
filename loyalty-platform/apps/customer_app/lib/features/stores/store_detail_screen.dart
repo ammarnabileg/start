@@ -71,6 +71,18 @@ final storeQuestionsProvider =
   return ref.read(storesRepoProvider).questions(merchantId);
 });
 
+/// ملخّص تقييم المتجر (متوسط + عدد).
+final storeRatingProvider = FutureProvider.autoDispose
+    .family<RatingSummary, String>((ref, merchantId) async {
+  return ref.read(storesRepoProvider).ratingSummary(merchantId);
+});
+
+/// مراجعات المتجر المرئية (مراجعتي أولًا).
+final storeReviewsProvider = FutureProvider.autoDispose
+    .family<List<Review>, String>((ref, merchantId) async {
+  return ref.read(storesRepoProvider).storeReviews(merchantId);
+});
+
 // ===================== Screen =====================
 
 class StoreDetailScreen extends ConsumerWidget {
@@ -100,6 +112,7 @@ class StoreDetailScreen extends ConsumerWidget {
       if (on((s) => s.enableLevels)) (label: 'المستويات', view: _LevelsTab(store: live)),
       if (on((s) => s.enableCoupons)) (label: 'الكوبونات', view: _CouponsTab(store: live)),
       (label: 'الأسئلة', view: _QuestionsTab(store: live)),
+      (label: 'التقييمات', view: _ReviewsTab(store: live)),
       (label: 'السجل', view: _HistoryTab(store: live)),
     ];
     return DefaultTabController(
@@ -1035,6 +1048,438 @@ class _QuestionCardState extends ConsumerState<_QuestionCard> {
           decoration: const InputDecoration(hintText: 'اكتب إجابتك هنا'),
         );
     }
+  }
+}
+
+// ===================== التقييمات =====================
+
+class _ReviewsTab extends ConsumerWidget {
+  final UserStore store;
+  const _ReviewsTab({required this.store});
+
+  void _refresh(WidgetRef ref) {
+    ref.invalidate(storeRatingProvider(store.merchantId));
+    ref.invalidate(storeReviewsProvider(store.merchantId));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary =
+        ref.watch(storeRatingProvider(store.merchantId)).valueOrNull ??
+            RatingSummary.empty;
+    final reviews = ref.watch(storeReviewsProvider(store.merchantId));
+    return RefreshIndicator(
+      onRefresh: () async => _refresh(ref),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _RatingSummaryCard(summary: summary),
+          const SizedBox(height: 14),
+          PrimaryButton(
+            label: 'قيّم هذا المتجر',
+            icon: Icons.rate_review_outlined,
+            onPressed: store.merchantAvailable
+                ? () => _openRatingSheet(context, ref, store)
+                : () => _notifyUnavailable(context),
+          ),
+          const SizedBox(height: 22),
+          const SectionHeader(title: 'آراء العملاء'),
+          const SizedBox(height: 8),
+          reviews.when(
+            loading: () => const SizedBox(
+                height: 200, child: Center(child: CircularProgressIndicator())),
+            error: (_, __) => SizedBox(
+              height: 200,
+              child: ErrorView(
+                  message: 'تعذّر تحميل المراجعات',
+                  onRetry: () => _refresh(ref)),
+            ),
+            data: (list) {
+              if (list.isEmpty) {
+                return const SizedBox(
+                  height: 220,
+                  child: EmptyView(
+                    icon: Icons.reviews_outlined,
+                    title: 'لا توجد مراجعات بعد',
+                    message: 'كن أول من يقيّم هذا المتجر.',
+                  ),
+                );
+              }
+              return Column(
+                children: [
+                  for (final r in list)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ReviewTile(review: r, store: store),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// صفّ نجوم للعرض (ممتلئة ذهبية حتى التقييم، والباقي رمادية).
+class _Stars extends StatelessWidget {
+  final double value;
+  final double size;
+  const _Stars({required this.value, this.size = 16});
+  @override
+  Widget build(BuildContext context) {
+    final filled = value.round().clamp(0, 5);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          AppIcon(Icons.star_rounded,
+              size: size,
+              color: i <= filled
+                  ? AppColors.gold
+                  : AppColors.textSecondary.withValues(alpha: .3)),
+      ],
+    );
+  }
+}
+
+class _RatingSummaryCard extends StatelessWidget {
+  final RatingSummary summary;
+  const _RatingSummaryCard({required this.summary});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!summary.hasRatings) {
+      return AppCard(
+        child: Row(
+          children: [
+            const AppIcon(Icons.reviews_outlined,
+                color: AppColors.primaryDark, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('لا توجد تقييمات بعد — رأيك يهمّنا!',
+                  style: theme.textTheme.titleMedium),
+            ),
+          ],
+        ),
+      );
+    }
+    return AppCard(
+      child: Row(
+        children: [
+          Column(
+            children: [
+              Text(summary.average.toStringAsFixed(1),
+                  style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w900) ??
+                      const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+              _Stars(value: summary.average, size: 16),
+            ],
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('تقييم المتجر', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text('بناءً على ${summary.count} مراجعة',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewTile extends ConsumerWidget {
+  final Review review;
+  final UserStore store;
+  const _ReviewTile({required this.review, required this.store});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final name = review.isMine ? '${review.reviewerName} (أنت)' : review.reviewerName;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.surfaceCream,
+                child: Text(
+                  review.reviewerName.trim().isEmpty
+                      ? '؟'
+                      : review.reviewerName.trim().substring(0, 1),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    _Stars(value: review.rating.toDouble(), size: 14),
+                  ],
+                ),
+              ),
+              Text(
+                DateFormat('yyyy/MM/dd').format(review.createdAt.toLocal()),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          if ((review.comment ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(review.comment!, style: theme.textTheme.bodyMedium),
+          ],
+          if (review.hasReply) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCream,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const AppIcon(Icons.storefront_rounded,
+                          size: 16, color: AppColors.primaryDark),
+                      const SizedBox(width: 6),
+                      Text('ردّ المتجر',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryDark)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(review.merchantReply!, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
+          if (review.isMine) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: store.merchantAvailable
+                      ? () => _openRatingSheet(context, ref, store,
+                          initialRating: review.rating,
+                          initialComment: review.comment)
+                      : () => _notifyUnavailable(context),
+                  icon: const AppIcon(Icons.edit_outlined, size: 18),
+                  label: const Text('تعديل'),
+                ),
+                TextButton.icon(
+                  onPressed: () => _confirmDelete(context, ref, store),
+                  icon: const AppIcon(Icons.delete_outline_rounded,
+                      size: 18, color: AppColors.error),
+                  label: const Text('حذف',
+                      style: TextStyle(color: AppColors.error)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _confirmDelete(
+    BuildContext context, WidgetRef ref, UserStore store) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('حذف تقييمك؟'),
+      content: const Text('سيُحذف تقييمك وتعليقك لهذا المتجر نهائيًا.'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء')),
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('حذف',
+                style: TextStyle(color: AppColors.error))),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await ref.read(storesRepoProvider).deleteMyReview(store.merchantId);
+    ref.invalidate(storeRatingProvider(store.merchantId));
+    ref.invalidate(storeReviewsProvider(store.merchantId));
+    if (context.mounted) AppFeedback.toast(context, 'تم حذف تقييمك');
+  } catch (_) {
+    if (context.mounted) {
+      AppFeedback.toast(context, 'تعذّر الحذف، حاول مجددًا', error: true);
+    }
+  }
+}
+
+Future<void> _openRatingSheet(
+  BuildContext context,
+  WidgetRef ref,
+  UserStore store, {
+  int? initialRating,
+  String? initialComment,
+}) async {
+  // إن لم تُمرّر قيمة مبدئية، نحاول جلب تقييمي الحالي لتعبئة المحرّر.
+  var rating = initialRating;
+  var comment = initialComment;
+  if (rating == null) {
+    try {
+      final mine = await ref.read(storesRepoProvider).myReview(store.merchantId);
+      if (mine != null) {
+        rating = mine.rating;
+        comment = mine.comment;
+      }
+    } catch (_) {/* تجاهل — نبدأ فارغًا */}
+  }
+  if (!context.mounted) return;
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => _RatingSheet(
+      store: store,
+      initialRating: rating ?? 0,
+      initialComment: comment,
+    ),
+  );
+}
+
+class _RatingSheet extends ConsumerStatefulWidget {
+  final UserStore store;
+  final int initialRating;
+  final String? initialComment;
+  const _RatingSheet(
+      {required this.store, required this.initialRating, this.initialComment});
+  @override
+  ConsumerState<_RatingSheet> createState() => _RatingSheetState();
+}
+
+class _RatingSheetState extends ConsumerState<_RatingSheet> {
+  late int _rating = widget.initialRating;
+  late final TextEditingController _ctrl =
+      TextEditingController(text: widget.initialComment ?? '');
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_rating < 1) {
+      AppFeedback.toast(context, 'اختر تقييمًا من 1 إلى 5 نجوم', error: true);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref.read(storesRepoProvider).upsertReview(
+            widget.store.merchantId,
+            _rating,
+            comment: _ctrl.text.trim().isEmpty ? null : _ctrl.text.trim(),
+          );
+      ref.invalidate(storeRatingProvider(widget.store.merchantId));
+      ref.invalidate(storeReviewsProvider(widget.store.merchantId));
+      if (mounted) {
+        Navigator.of(context).pop();
+        AppFeedback.success(context,
+            title: 'شكرًا لك!', message: 'تم نشر تقييمك للمتجر');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppFeedback.toast(context, 'تعذّر إرسال التقييم، حاول مجددًا',
+            error: true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withValues(alpha: .3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('قيّم ${widget.store.merchantName ?? "المتجر"}',
+              style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 1; i <= 5; i++)
+                IconButton(
+                  onPressed: () => setState(() => _rating = i),
+                  iconSize: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  constraints: const BoxConstraints(),
+                  icon: AppIcon(
+                    Icons.star_rounded,
+                    size: 40,
+                    color: i <= _rating
+                        ? AppColors.gold
+                        : AppColors.textSecondary.withValues(alpha: .3),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            maxLines: 3,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              hintText: 'شاركنا تجربتك (اختياري)',
+            ),
+          ),
+          const SizedBox(height: 8),
+          PrimaryButton(
+            label: 'نشر التقييم',
+            loading: _saving,
+            onPressed: _submit,
+          ),
+        ],
+      ),
+    );
   }
 }
 

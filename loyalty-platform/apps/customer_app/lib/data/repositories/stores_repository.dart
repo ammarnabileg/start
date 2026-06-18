@@ -59,6 +59,54 @@ class StoresRepository {
     });
   }
 
+  // ===================== التقييمات والمراجعات =====================
+
+  /// ملخّص تقييم المتجر (متوسط + عدد المراجعات المرئية).
+  Future<RatingSummary> ratingSummary(String merchantId) async {
+    final rows = await _client
+        .rpc('merchant_rating', params: {'p_merchant': merchantId});
+    final list = (rows as List?) ?? const [];
+    if (list.isEmpty) return RatingSummary.empty;
+    return RatingSummary.fromJson(list.first as Map<String, dynamic>);
+  }
+
+  /// مراجعات المتجر المرئية للعرض العام (مراجعتي أولًا).
+  Future<List<Review>> storeReviews(String merchantId, {int limit = 20}) async {
+    final rows = await _client.rpc('store_reviews',
+        params: {'p_merchant': merchantId, 'p_limit': limit});
+    return ((rows as List?) ?? const [])
+        .map((r) => Review.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// تقييمي الحالي لهذا المتجر (لتعبئة المحرّر) — أو null.
+  Future<({int rating, String? comment})?> myReview(String merchantId) async {
+    final uid = _client.auth.currentUser!.id;
+    final row = await _client
+        .from('reviews')
+        .select('rating, comment')
+        .eq('user_id', uid)
+        .eq('merchant_id', merchantId)
+        .maybeSingle();
+    if (row == null) return null;
+    return (rating: (row['rating'] as num).toInt(), comment: row['comment'] as String?);
+  }
+
+  /// إضافة/تعديل تقييمي (نجوم + تعليق) لمتجر مرتبط به — عبر RPC آمنة.
+  Future<void> upsertReview(String merchantId, int rating,
+      {String? comment}) async {
+    await _client.rpc('upsert_review', params: {
+      'p_merchant': merchantId,
+      'p_rating': rating,
+      'p_comment': comment,
+    });
+  }
+
+  /// حذف تقييمي لهذا المتجر — عبر RPC آمنة.
+  Future<void> deleteMyReview(String merchantId) async {
+    await _client.rpc('delete_my_review', params: {'p_merchant': merchantId});
+  }
+
   /// خريطة استهداف الفروع لنوع عناصر معيّن: id → فروعه (فارغ = موحّد).
   Future<Map<String, Set<String>>> _branchTargets(
       String type, String merchantId) async {
