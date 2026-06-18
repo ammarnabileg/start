@@ -8,6 +8,7 @@ import '../../data/repositories/user_repository.dart';
 import '../qr/qr_providers.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../referral/referral_screen.dart';
+import '../reports/reports_list_screen.dart';
 import '../wheel/my_prizes_screen.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
@@ -115,6 +116,15 @@ class ProfileScreen extends ConsumerWidget {
                           onTap: () =>
                               Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ReferralScreen(),
+                          )),
+                        ),
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                        _Tile(
+                          icon: Icons.flag_outlined,
+                          label: 'بلاغاتي',
+                          onTap: () =>
+                              Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const ReportsListScreen(),
                           )),
                         ),
                       ],

@@ -35,6 +35,7 @@ export 'src/models/lucky_wheel.dart';
 export 'src/models/user_prize.dart';
 export 'src/models/pos_api_key.dart';
 export 'src/models/review.dart';
+export 'src/models/report_message.dart';
 
 // Widgets
 export 'src/widgets/app_icon.dart';
@@ -47,6 +48,7 @@ export 'src/widgets/section_header.dart';
 export 'src/widgets/stat_card.dart';
 export 'src/widgets/hero_header.dart';
 export 'src/widgets/feedback.dart';
+export 'src/widgets/report_chat.dart';
 export 'src/widgets/app_bottom_nav.dart';
 export 'src/widgets/paginated_list_view.dart';
 export 'src/widgets/levels_journey.dart';

@@ -151,8 +151,8 @@ class _Role {
 
 _Role _role(String r) => switch (r) {
       'merchant' => const _Role('المتجر', Color(0xFF1AA47C), 'م'),
-      'admin' => _Role('إدارة المنصّة', AppColors.info, 'إ'),
-      _ => _Role('عميل', AppColors.primaryDark, 'ع'),
+      'admin' => const _Role('إدارة المنصّة', AppColors.info, 'إ'),
+      _ => const _Role('عميل', AppColors.primaryDark, 'ع'),
     };
 
 Widget _avatar(String name, Color color, {double size = 34}) => Container(
@@ -525,10 +525,10 @@ class _MobileChat extends StatelessWidget {
           width: double.infinity,
           color: AppColors.surfaceCream,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          child: Row(children: [
-            const AppIcon(Icons.confirmation_num_outlined, size: 17, color: AppColors.primaryDark),
-            const SizedBox(width: 8),
-            const Expanded(
+          child: const Row(children: [
+            AppIcon(Icons.confirmation_num_outlined, size: 17, color: AppColors.primaryDark),
+            SizedBox(width: 8),
+            Expanded(
               child: Text('عن: عملية نقاط — فاتورة INV-4471',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
             ),
@@ -776,14 +776,14 @@ class _AdminChat extends StatelessWidget {
                       border: const BorderDirectional(
                           start: BorderSide(color: AppColors.primary, width: 3)),
                     ),
-                    child: Row(children: [
-                      const _ReplyIcon(size: 16, color: AppColors.primaryDark),
-                      const SizedBox(width: 8),
-                      const Expanded(
+                    child: const Row(children: [
+                      _ReplyIcon(size: 16, color: AppColors.primaryDark),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: Text('ترد على: منى · المتجر (مديرة الفرع) · 0122 555 6677',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                       ),
-                      const AppIcon(Icons.cancel_outlined, size: 18, color: AppColors.textSecondary),
+                      AppIcon(Icons.cancel_outlined, size: 18, color: AppColors.textSecondary),
                     ]),
                   ),
                   Row(children: [
