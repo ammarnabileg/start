@@ -199,11 +199,65 @@ Widget _attachmentChip(bool onDark) => Container(
       ]),
     );
 
+// أيقونة «رد» مرسومة (CustomPaint) — مضمونة بلا اعتماد على خطّ أيقونات.
+class _ReplyIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _ReplyIcon({this.size = 18, required this.color});
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(width: size, height: size, child: CustomPaint(painter: _ReplyPainter(color)));
+}
+
+class _ReplyPainter extends CustomPainter {
+  final Color color;
+  _ReplyPainter(this.color);
+  @override
+  void paint(Canvas canvas, Size s) {
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s.width * 0.11
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final w = s.width, h = s.height;
+    canvas.drawPath(
+        Path()
+          ..moveTo(w * 0.46, h * 0.24)
+          ..lineTo(w * 0.16, h * 0.50)
+          ..lineTo(w * 0.46, h * 0.76),
+        p);
+    canvas.drawPath(
+        Path()
+          ..moveTo(w * 0.16, h * 0.50)
+          ..lineTo(w * 0.66, h * 0.50)
+          ..lineTo(w * 0.66, h * 0.28),
+        p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// زر سهم الرد بجوار كل رسالة.
+Widget _replyArrow() => Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCream,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.textSecondary.withValues(alpha: .18)),
+      ),
+      alignment: Alignment.center,
+      child: const _ReplyIcon(size: 16, color: AppColors.primaryDark),
+    );
+
 // فقاعة رسالة بأفاتار وذيل وظلال ناعمة.
 Widget _msgRow(BuildContext c, _Msg m, String viewer,
     {bool showPhone = false,
     bool adminView = false,
     bool highlighted = false,
+    bool showReply = false,
     double maxWidth = 290}) {
   final me = m.role == viewer;
   final r = _role(m.role);
@@ -318,7 +372,7 @@ Widget _msgRow(BuildContext c, _Msg m, String viewer,
         ],
         if (adminView) ...[
           const SizedBox(width: 10),
-          const AppIcon(Icons.format_quote_rounded, size: 14, color: AppColors.textSecondary),
+          const _ReplyIcon(size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 10),
           AppIcon(m.hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
               size: 14, color: m.hidden ? AppColors.success : AppColors.textSecondary),
@@ -335,56 +389,18 @@ Widget _msgRow(BuildContext c, _Msg m, String viewer,
       child: Opacity(
         opacity: opacity,
         child: me
-            ? bubble
-            : Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ? Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+                bubble,
+                if (showReply) ...[const SizedBox(width: 6), _replyArrow()],
+              ])
+            : Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+                if (showReply) ...[_replyArrow(), const SizedBox(width: 6)],
                 bubble,
                 const SizedBox(width: 8),
                 _avatar(m.name, r.color, size: 34),
               ]),
       ),
     ),
-  );
-}
-
-// ============ gamified status stepper ============
-Widget _stepper() {
-  Widget dot(bool done, bool current) => Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          gradient: done ? AppColors.goldGradient : null,
-          color: done ? null : AppColors.surfaceCream,
-          shape: BoxShape.circle,
-          border: current ? Border.all(color: AppColors.primaryDark, width: 2) : null,
-        ),
-        child: done
-            ? const AppIcon(Icons.check_rounded, size: 16, color: AppColors.onPrimary)
-            : null,
-      );
-  Widget line(bool done) => Expanded(
-        child: Container(
-            height: 3,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-                color: done ? AppColors.primary : AppColors.surfaceCream,
-                borderRadius: BorderRadius.circular(2))),
-      );
-  Widget label(String t, bool active) => Expanded(
-        child: Text(t,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: active ? FontWeight.w900 : FontWeight.w600,
-                color: active ? AppColors.primaryDark : AppColors.textSecondary)),
-      );
-  return Container(
-    color: AppColors.surface,
-    padding: const EdgeInsets.fromLTRB(28, 12, 28, 10),
-    child: Column(children: [
-      Row(children: [dot(true, false), line(true), dot(true, false), line(true), dot(true, true)]),
-      const SizedBox(height: 6),
-      Row(children: [label('فُتح', true), label('قيد المراجعة', true), label('تم الحل', true)]),
-    ]),
   );
 }
 
@@ -461,20 +477,10 @@ class _MobileChat extends StatelessWidget {
                         style: TextStyle(color: AppColors.onPrimary.withValues(alpha: .85), fontSize: 12)),
                   ]),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .22),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: const Text('⚡ رد خلال ٨ د',
-                      style: TextStyle(
-                          color: AppColors.onPrimary, fontSize: 11, fontWeight: FontWeight.w800)),
-                ),
               ]),
             ),
           ),
         ),
-        _stepper(),
         // subject chip
         Container(
           width: double.infinity,
@@ -497,42 +503,123 @@ class _MobileChat extends StatelessWidget {
               for (final m in _thread)
                 if (!m.hidden)
                   _msgRow(context, m, viewer,
+                      showReply: true,
+                      maxWidth: 248,
                       highlighted: highlightText != null && m.text == highlightText),
               _resolutionCard(),
             ],
           ),
         ),
-        // input bar
-        Material(
-          color: AppColors.surface,
-          elevation: 10,
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                        color: AppColors.surfaceCream, borderRadius: BorderRadius.circular(24)),
-                    child: const Text('اكتب رسالة…',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                      gradient: AppColors.goldGradient, shape: BoxShape.circle),
-                  child: const AppIcon(Icons.send_rounded, color: AppColors.onPrimary),
-                ),
-              ]),
-            ),
-          ),
-        ),
+        _MobileInputBar(viewer: viewer),
       ]),
+    );
+  }
+}
+
+// صندوق كتابة الرسالة (مع لوحة «ترد على…» + إرفاق + إرسال متدرّج).
+class _MobileInputBar extends StatelessWidget {
+  final String viewer;
+  const _MobileInputBar({required this.viewer});
+  @override
+  Widget build(BuildContext context) {
+    // عند الردّ على رسالة معيّنة (بعد الضغط على سهم الرد) تظهر لوحة الاقتباس.
+    final replyName = viewer == 'customer' ? 'أحمد · المتجر' : 'سارة · عميل';
+    return Material(
+      color: AppColors.surface,
+      elevation: 12,
+      child: SafeArea(
+        top: false,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // لوحة «ترد على…»
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceCream,
+              borderRadius: BorderRadius.circular(12),
+              border: const BorderDirectional(
+                  start: BorderSide(color: AppColors.primary, width: 3)),
+            ),
+            child: Row(children: [
+              const _ReplyIcon(size: 16, color: AppColors.primaryDark),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('ترد على $replyName',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDark)),
+                    const Text('ممكن رقم الفاتورة؟ بنراجعها حالًا.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const AppIcon(Icons.cancel_outlined, size: 18, color: AppColors.textSecondary),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Row(children: [
+              // إرفاق
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color: AppColors.surfaceCream,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.textSecondary.withValues(alpha: .15))),
+                child: const AppIcon(Icons.camera_alt_outlined,
+                    size: 20, color: AppColors.primaryDark),
+              ),
+              const SizedBox(width: 8),
+              // حقل الكتابة
+              Expanded(
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  alignment: AlignmentDirectional.centerStart,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: AppColors.textSecondary.withValues(alpha: .22)),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: .04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Text('اكتب رسالة…',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14.5)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // إرسال
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: AppColors.goldGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: AppColors.primary.withValues(alpha: .4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3)),
+                  ],
+                ),
+                child: const AppIcon(Icons.send_rounded, color: AppColors.onPrimary),
+              ),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -629,7 +716,7 @@ class _AdminChat extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 14),
-              // card with stepper + subject + conversation
+              // conversation card
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -637,21 +724,15 @@ class _AdminChat extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE5E7EB))),
                   clipBehavior: Clip.antiAlias,
-                  child: Column(children: [
-                    _stepper(),
-                    Container(height: 1, color: const Color(0xFFF0F0F0)),
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-                        children: [
-                          _dateChip('اليوم · ١٨ يونيو'),
-                          for (final m in _thread)
-                            _msgRow(context, m, 'admin',
-                                showPhone: true, adminView: true, maxWidth: 560),
-                        ],
-                      ),
-                    ),
-                  ]),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                    children: [
+                      _dateChip('اليوم · ١٨ يونيو'),
+                      for (final m in _thread)
+                        _msgRow(context, m, 'admin',
+                            showPhone: true, adminView: true, maxWidth: 560),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -673,7 +754,7 @@ class _AdminChat extends StatelessWidget {
                           start: BorderSide(color: AppColors.primary, width: 3)),
                     ),
                     child: Row(children: [
-                      const AppIcon(Icons.format_quote_rounded, size: 16, color: AppColors.primaryDark),
+                      const _ReplyIcon(size: 16, color: AppColors.primaryDark),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text('ترد على: منى · المتجر (مديرة الفرع) · 0122 555 6677',
