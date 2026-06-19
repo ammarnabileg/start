@@ -98,13 +98,18 @@ Widget _nav(int i) => AppBottomNav(
       ],
     );
 
-Widget _field(String label, {IconData? icon, String? value}) => Padding(
+Widget _field(String label,
+        {IconData? icon, String? value, IconData? trailing}) =>
+    Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
         controller: value == null ? null : TextEditingController(text: value),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon == null ? null : AppIcon(icon),
+          suffixIcon: trailing == null
+              ? null
+              : AppIcon(trailing, color: AppColors.textSecondary),
         ),
       ),
     );
@@ -457,16 +462,28 @@ class _Login extends StatelessWidget {
   const _Login();
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: const Text('تسجيل الدخول')),
         body: ListView(padding: const EdgeInsets.all(24), children: [
-          Text('تسجيل الدخول', style: Theme.of(context).textTheme.headlineSmall),
+          Text('أهلًا بعودتك', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 6),
-          const Text('أدخل رقم جوّالك لإرسال رمز التحقق',
+          const Text('أدخل رقم جوّالك وكلمة المرور للدخول',
               style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 28),
           _field('رقم الجوال', icon: Icons.phone_outlined, value: '05x xxx xxxx'),
-          const SizedBox(height: 8),
-          const PrimaryButton(label: 'إرسال الرمز', onPressed: _noop),
+          const SizedBox(height: 12),
+          _field('كلمة المرور',
+              icon: Icons.lock_outline_rounded,
+              value: '••••••••',
+              trailing: Icons.visibility_off_outlined),
+          const SizedBox(height: 6),
+          const Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text('نسيت كلمة المرور؟',
+                style: TextStyle(
+                    color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 16),
+          const PrimaryButton(label: 'تسجيل الدخول', onPressed: _noop),
         ]),
       );
 }
@@ -475,13 +492,41 @@ class _Register extends StatelessWidget {
   const _Register();
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('حساب جديد')),
+        appBar: AppBar(title: const Text('إنشاء حساب جديد')),
         body: ListView(padding: const EdgeInsets.all(24), children: [
           _field('الاسم', icon: Icons.person_outline, value: 'أحمد خالد'),
           _field('رقم الجوال', icon: Icons.phone_outlined, value: '05x xxx xxxx'),
+          _field('البريد الإلكتروني (اختياري)',
+              icon: Icons.mail_outline_rounded),
+          _field('كلمة المرور',
+              icon: Icons.lock_outline_rounded,
+              value: '••••••••',
+              trailing: Icons.visibility_off_outlined),
           _field('تاريخ الميلاد (اختياري)', icon: Icons.cake_outlined),
-          const SizedBox(height: 8),
-          const PrimaryButton(label: 'متابعة', onPressed: _noop),
+          Row(children: [
+            const SizedBox(
+                width: 22,
+                height: 22,
+                child: Checkbox(value: true, onChanged: _noopBool)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: RichText(
+                text: const TextSpan(
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  children: [
+                    TextSpan(text: 'أوافق على '),
+                    TextSpan(
+                        text: 'الشروط وسياسة الخصوصية',
+                        style: TextStyle(
+                            color: AppColors.primaryDark,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          const PrimaryButton(label: 'إنشاء الحساب', onPressed: _noop),
         ]),
       );
 }
@@ -501,10 +546,10 @@ class _Otp extends StatelessWidget {
             textDirection: TextDirection.ltr,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              for (final d in ['1', '2', '3', '4'])
+              for (final d in ['1', '2', '3', '4', '5', '6'])
                 Container(
-                  height: 64,
-                  width: 64,
+                  height: 56,
+                  width: 48,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                       color: Colors.white,
@@ -512,7 +557,7 @@ class _Otp extends StatelessWidget {
                       border: Border.all(color: AppColors.primaryLight, width: 2)),
                   child: Text(d,
                       style: const TextStyle(
-                          fontSize: 26, fontWeight: FontWeight.w800)),
+                          fontSize: 24, fontWeight: FontWeight.w800)),
                 ),
             ],
           ),
@@ -520,7 +565,7 @@ class _Otp extends StatelessWidget {
           const PrimaryButton(label: 'تأكيد', onPressed: _noop),
           const SizedBox(height: 12),
           Center(
-              child: Text('إعادة الإرسال خلال 0:42',
+              child: Text('إعادة الإرسال خلال 0:30',
                   style: Theme.of(context).textTheme.bodySmall)),
         ]),
       );
@@ -1912,3 +1957,4 @@ class _Referral extends StatelessWidget {
 }
 
 void _noop() {}
+void _noopBool(bool? _) {}
