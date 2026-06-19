@@ -79,6 +79,12 @@ Deno.serve(async (req) => {
       created_by_staff: staff.staffId,
     });
 
+    await svc.rpc("log_merchant_activity", {
+      p_merchant: staff.merchantId, p_action: "send_announcement",
+      p_entity_type: "announcement", p_summary: title,
+      p_meta: { count: recipients.length }, p_staff_id: staff.staffId,
+    }).then(() => {}, () => {});
+
     return json({
       sent: recipients.length,
       remaining: remaining - recipients.length,

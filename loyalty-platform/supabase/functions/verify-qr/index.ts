@@ -25,11 +25,23 @@ Deno.serve(async (req) => {
       .select("id, name, phone, qr_secret, avatar_url")
       .eq("id", claimedUserId)
       .maybeSingle();
-    if (!user) return badRequest("الرمز غير صالح");
+    if (!user) {
+      await svc.rpc("log_merchant_activity", {
+        p_merchant: staff.merchantId, p_action: "qr_failed", p_entity_type: "scan",
+        p_summary: "رمز غير صالح (مستخدم غير معروف)", p_meta: { claimed_user: claimedUserId },
+        p_staff_id: staff.staffId,
+      }).then(() => {}, () => {});
+      return badRequest("الرمز غير صالح");
+    }
 
     const settings = await merchantSettings(svc, staff.merchantId);
     const verifiedUserId = verifyQr(payload, user.qr_secret, settings.qr_rotation_seconds);
     if (verifiedUserId !== user.id) {
+      await svc.rpc("log_merchant_activity", {
+        p_merchant: staff.merchantId, p_action: "qr_failed", p_entity_type: "scan",
+        p_summary: "رمز منتهٍ أو غير صالح", p_meta: { user_id: user.id },
+        p_staff_id: staff.staffId,
+      }).then(() => {}, () => {});
       return badRequest("الرمز غير صالح، اطلب من العميل تحديث الشاشة.", 422);
     }
 

@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
         key_hash: hash,
       }).select("id, key_prefix").single();
       if (error) throw error;
+      await svc.rpc("log_merchant_activity", {
+        p_merchant: staff.merchantId, p_action: "create", p_entity_type: "pos_key",
+        p_entity_id: data.id, p_summary: name ?? "POS Key", p_staff_id: staff.staffId,
+      }).then(() => {}, () => {});
       // المفتاح الخام يُعرض مرة واحدة فقط.
       return json({ id: data.id, prefix: data.key_prefix, key: raw });
     }
@@ -36,6 +40,10 @@ Deno.serve(async (req) => {
       await svc.from("pos_api_keys")
         .update({ active: false })
         .eq("id", key_id).eq("merchant_id", staff.merchantId);
+      await svc.rpc("log_merchant_activity", {
+        p_merchant: staff.merchantId, p_action: "delete", p_entity_type: "pos_key",
+        p_entity_id: key_id, p_summary: "إلغاء مفتاح POS", p_staff_id: staff.staffId,
+      }).then(() => {}, () => {});
       return json({ revoked: true });
     }
 

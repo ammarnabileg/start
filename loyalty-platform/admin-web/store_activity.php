@@ -28,7 +28,8 @@ function al(string $a): string {
     'create' => 'أضاف', 'update' => 'عدّل', 'delete' => 'حذف',
     'grant_points' => 'منح نقاطًا', 'redeem_reward' => 'سلّم مكافأة',
     'redeem_prize' => 'سلّم جائزة', 'record_visit' => 'سجّل زيارة',
-    'apply_coupon' => 'طبّق كوبونًا',
+    'apply_coupon' => 'طبّق كوبونًا', 'qr_failed' => 'فشل قراءة',
+    'send_announcement' => 'أرسل',
   ][$a] ?? $a;
 }
 function el(?string $e): string {
@@ -36,7 +37,7 @@ function el(?string $e): string {
     'reward' => 'مكافأة', 'level' => 'مستوى', 'coupon' => 'كوبون', 'campaign' => 'حملة',
     'question' => 'سؤال', 'wheel' => 'عجلة الحظ', 'branch' => 'فرع', 'staff' => 'موظّف',
     'role' => 'دور', 'settings' => 'الإعدادات', 'points' => 'نقاط', 'prize' => 'جائزة',
-    'visit' => 'زيارة',
+    'visit' => 'زيارة', 'scan' => 'QR', 'announcement' => 'إعلان', 'pos_key' => 'مفتاح POS',
   ][$e] ?? (string) $e;
 }
 function rl(?string $r): string {

@@ -2491,6 +2491,9 @@ create or replace function public.tg_log_mgmt()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_j jsonb; v_mer uuid; v_id uuid; v_summary text;
 begin
+  -- نُسجّل أفعال الموظفين فقط (auth.uid موجود). كتابات النظام/الحافة (service_role
+  -- مثل decrement_stock وقت الاسترداد، أو الكرون) تُتجاهَل لتفادي الضوضاء.
+  if auth.uid() is null then return null; end if;
   v_j := to_jsonb(coalesce(NEW, OLD));
   v_mer := nullif(v_j->>'merchant_id','')::uuid;
   v_id  := nullif(v_j->>'id','')::uuid;

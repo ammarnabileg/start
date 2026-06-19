@@ -43,6 +43,8 @@ String _roleLabel(String? r) => switch (r) {
       'redeem_prize' => (label: 'سلّم جائزة', icon: Icons.casino_rounded, color: AppColors.goldTier),
       'record_visit' => (label: 'سجّل زيارة', icon: Icons.repeat_rounded, color: AppColors.info),
       'apply_coupon' => (label: 'طبّق كوبونًا', icon: Icons.confirmation_num_outlined, color: AppColors.error),
+      'qr_failed' => (label: 'فشل قراءة', icon: Icons.qr_code_scanner_rounded, color: AppColors.warning),
+      'send_announcement' => (label: 'أرسل', icon: Icons.campaign_outlined, color: AppColors.primaryDark),
       _ => (label: action, icon: Icons.bolt, color: AppColors.textSecondary),
     };
 
@@ -60,6 +62,9 @@ String _entityLabel(String? e) => switch (e) {
       'points' => 'نقاط',
       'prize' => 'جائزة',
       'visit' => 'زيارة',
+      'scan' => 'QR',
+      'announcement' => 'إعلان',
+      'pos_key' => 'مفتاح POS',
       _ => e ?? '',
     };
 
