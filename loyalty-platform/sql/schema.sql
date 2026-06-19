@@ -2428,3 +2428,131 @@ begin
    where id = p_message;
 end $$;
 grant execute on function public.edit_report_message(uuid, text) to authenticated;
+
+-- =====================================================================
+-- 31) سجل نشاط التاجر (Audit trail) — مين عمل كل أكشن (مهم مع تعدّد الموظفين).
+--     • تعديلات الإعداد (مكافآت/مستويات/كوبونات/حملات/أسئلة/عجلة/فروع/موظفين/
+--       أدوار/إعدادات) تُلتقط تلقائيًا عبر Trigger (الفاعل = auth.uid → موظّف).
+--     • العمليات (نقاط/استرداد/زيارة) تُسجَّل صراحةً من دوال الحافة (staff_id معروف).
+-- =====================================================================
+create table if not exists public.merchant_activity_log (
+  id          bigint generated always as identity primary key,
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  staff_id    uuid references public.merchant_staff(id) on delete set null,
+  staff_name  text,                 -- لقطة اسم الفاعل (يبقى ولو حُذف الموظّف)
+  actor_role  text,                 -- دور الفاعل وقتها (merchant_owner/manager/cashier) أو 'admin'
+  action      text not null,        -- create|update|delete|grant_points|redeem_reward|redeem_prize|record_visit|apply_coupon
+  entity_type text not null,        -- reward|level|coupon|campaign|question|wheel|branch|staff|role|settings|points|prize|visit|coupon_use
+  entity_id   uuid,
+  summary     text,                 -- نص للعرض
+  meta        jsonb,
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_mactivity_merchant_created
+  on public.merchant_activity_log(merchant_id, created_at desc);
+create index if not exists idx_mactivity_staff
+  on public.merchant_activity_log(staff_id, created_at desc);
+
+alter table public.merchant_activity_log enable row level security;
+-- قراءة: المالك (صلاحية staff) لمتجره؛ والأدمن عبر admin-web (PDO).
+create policy mactivity_read on public.merchant_activity_log for select using (
+  public.is_super_admin() or public.current_staff_can(merchant_id, 'staff', 'view')
+);
+-- لا كتابة مباشرة: عبر دالة definer فقط.
+
+-- تسجيل نشاط (يُستدعى من Trigger أو من دوال الحافة مع staff_id معروف).
+create or replace function public.log_merchant_activity(
+  p_merchant uuid, p_action text, p_entity_type text,
+  p_entity_id uuid default null, p_summary text default null,
+  p_meta jsonb default null, p_staff_id uuid default null
+) returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_sid uuid := p_staff_id; v_name text; v_role text;
+begin
+  if p_merchant is null then return; end if;
+  if v_sid is null then
+    select id, name, role into v_sid, v_name, v_role
+    from public.merchant_staff
+    where merchant_id = p_merchant and user_id = auth.uid() and status = 'active'
+    limit 1;
+  else
+    select name, role into v_name, v_role from public.merchant_staff where id = v_sid;
+  end if;
+  insert into public.merchant_activity_log(
+      merchant_id, staff_id, staff_name, actor_role, action, entity_type,
+      entity_id, summary, meta)
+    values (p_merchant, v_sid, v_name, v_role, p_action, p_entity_type,
+            p_entity_id, p_summary, p_meta);
+end $$;
+grant execute on function public.log_merchant_activity(uuid, text, text, uuid, text, jsonb, uuid)
+  to authenticated, service_role;
+
+-- Trigger عام لجداول الإعداد — يلتقط من/ماذا تلقائيًا (لا يُفشل العملية الأصلية أبدًا).
+create or replace function public.tg_log_mgmt()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_j jsonb; v_mer uuid; v_id uuid; v_summary text;
+begin
+  v_j := to_jsonb(coalesce(NEW, OLD));
+  v_mer := nullif(v_j->>'merchant_id','')::uuid;
+  v_id  := nullif(v_j->>'id','')::uuid;
+  v_summary := coalesce(v_j->>'name', v_j->>'title', v_j->>'code', v_j->>'business_name');
+  begin
+    perform public.log_merchant_activity(
+      v_mer, lower(TG_OP), TG_ARGV[0], v_id, v_summary, null, null);
+  exception when others then null; -- التسجيل أفضل جهد — لا يعطّل الكتابة الأصلية
+  end;
+  return null; -- AFTER trigger
+end $$;
+
+-- ربط الـTrigger بجداول الإعداد.
+create trigger log_activity after insert or update or delete on public.rewards
+  for each row execute function public.tg_log_mgmt('reward');
+create trigger log_activity after insert or update or delete on public.loyalty_levels
+  for each row execute function public.tg_log_mgmt('level');
+create trigger log_activity after insert or update or delete on public.coupons
+  for each row execute function public.tg_log_mgmt('coupon');
+create trigger log_activity after insert or update or delete on public.visit_campaigns
+  for each row execute function public.tg_log_mgmt('campaign');
+create trigger log_activity after insert or update or delete on public.merchant_questions
+  for each row execute function public.tg_log_mgmt('question');
+create trigger log_activity after insert or update or delete on public.lucky_wheels
+  for each row execute function public.tg_log_mgmt('wheel');
+create trigger log_activity after insert or update or delete on public.branches
+  for each row execute function public.tg_log_mgmt('branch');
+create trigger log_activity after insert or update or delete on public.merchant_staff
+  for each row execute function public.tg_log_mgmt('staff');
+create trigger log_activity after insert or update or delete on public.merchant_roles
+  for each row execute function public.tg_log_mgmt('role');
+create trigger log_activity after insert or update or delete on public.merchant_settings
+  for each row execute function public.tg_log_mgmt('settings');
+
+-- قائمة سجل النشاط للتاجر (مرقّمة، فلتر موظّف اختياري) — صلاحية staff (المالك).
+create or replace function public.merchant_activity(
+  p_merchant uuid, p_staff uuid default null,
+  p_limit int default 30, p_offset int default 0
+) returns table (
+  id bigint, staff_id uuid, staff_name text, actor_role text,
+  action text, entity_type text, entity_id uuid, summary text,
+  meta jsonb, created_at timestamptz
+) language plpgsql stable security definer set search_path = public, pg_temp as $$
+begin
+  if not public.current_staff_can(p_merchant, 'staff', 'view') then
+    raise exception 'forbidden';
+  end if;
+  return query
+    select a.id, a.staff_id, a.staff_name, a.actor_role, a.action, a.entity_type,
+           a.entity_id, a.summary, a.meta, a.created_at
+    from public.merchant_activity_log a
+    where a.merchant_id = p_merchant
+      and (p_staff is null or a.staff_id = p_staff)
+    order by a.created_at desc
+    limit greatest(1, least(p_limit, 100)) offset greatest(0, p_offset);
+end $$;
+grant execute on function public.merchant_activity(uuid, uuid, int, int) to authenticated;
+
+-- تنظيف دوري: احذف سجلات أقدم من سنة.
+create or replace function public.purge_activity_log() returns void
+language sql security definer set search_path = public as $$
+  delete from public.merchant_activity_log where created_at < now() - interval '365 days';
+$$;
+select cron.schedule('purge-activity-log','40 1 * * *', $$select public.purge_activity_log();$$)
+  where not exists (select 1 from cron.job where jobname = 'purge-activity-log');
