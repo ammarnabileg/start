@@ -85,12 +85,6 @@ final _customersProvider = StateNotifierProvider.autoDispose.family<
   });
 });
 
-/// بثّ حيّ لتغيّرات ربط العملاء (انضمام/نقاط/تبديل خصوصية) لتحديث القائمة لحظيًا.
-final _linksProvider =
-    StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
-        (ref, merchantId) =>
-            ref.read(customersRepoProvider).watchLinks(merchantId));
-
 /// خيارات الفروع لفلتر الفرع.
 final _branchOptionsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -113,12 +107,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     final q = _Query(_search, _filters);
     final state = ref.watch(_customersProvider(q));
     final notifier = ref.read(_customersProvider(q).notifier);
-
-    // Realtime: حدّث القائمة عند أي تغيّر على روابط عملاء هذا التاجر.
-    final merchantId = ref.watch(currentStaffProvider).valueOrNull?.merchantId;
-    if (merchantId != null) {
-      ref.listen(_linksProvider(merchantId), (_, __) => notifier.refresh());
-    }
+    // ملاحظة أداء: أُزيل البثّ الحيّ الكامل لـ user_stores (كان يبثّ كل عملاء
+    // المتجر) — التحديث الآن عبر السحب للتحديث (pull-to-refresh).
 
     return Scaffold(
       appBar: AppBar(

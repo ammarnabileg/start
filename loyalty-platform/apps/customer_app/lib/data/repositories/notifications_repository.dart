@@ -30,7 +30,8 @@ class NotificationsRepository {
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('user_id', uid)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(50); // الأحدث فقط — لا نبثّ كامل تاريخ الإشعارات
   }
 
   /// تعليم كل الإشعارات غير المقروءة كمقروءة (أفضل جهد).

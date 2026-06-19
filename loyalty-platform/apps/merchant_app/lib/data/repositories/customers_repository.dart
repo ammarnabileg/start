@@ -100,14 +100,6 @@ class CustomersRepository {
     });
     return rows as List;
   }
-
-  /// بثّ حيّ لتغيّرات ربط العملاء بهذا التاجر (انضمام/نقاط/تبديل خصوصية).
-  /// مسموح عبر سياسة RLS stores_merchant_read (الظاهرون فقط) فيتحدّث الـ Realtime.
-  Stream<List<Map<String, dynamic>>> watchLinks(String merchantId) {
-    return _client
-        .from('user_stores')
-        .stream(primaryKey: ['id']).eq('merchant_id', merchantId);
-  }
 }
 
 final customersRepoProvider = Provider<CustomersRepository>(

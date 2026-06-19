@@ -9,9 +9,13 @@ class ReportsRepository {
   ReportsRepository(this._client);
   final SupabaseClient _client;
 
-  Future<List<Map<String, dynamic>>> fetchReports(String merchantId) async {
-    final rows = await _client
-        .rpc('merchant_reports', params: {'p_merchant': merchantId});
+  Future<List<Map<String, dynamic>>> fetchReports(String merchantId,
+      {int limit = 30, int offset = 0}) async {
+    final rows = await _client.rpc('merchant_reports', params: {
+      'p_merchant': merchantId,
+      'p_limit': limit,
+      'p_offset': offset,
+    });
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
@@ -40,9 +44,13 @@ class ReportsRepository {
 
   /// تدقيق المالك: رسائل موظّفي المتجر (اختياريًا موظّف معيّن).
   Future<List<Map<String, dynamic>>> staffMessages(String merchantId,
-      {String? staffId}) async {
-    final rows = await _client.rpc('merchant_staff_messages',
-        params: {'p_merchant': merchantId, 'p_staff': staffId});
+      {String? staffId, int limit = 30, int offset = 0}) async {
+    final rows = await _client.rpc('merchant_staff_messages', params: {
+      'p_merchant': merchantId,
+      'p_staff': staffId,
+      'p_limit': limit,
+      'p_offset': offset,
+    });
     return List<Map<String, dynamic>>.from((rows as List?) ?? const []);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/paginated_notifier.dart';
 import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/staff_repository.dart';
 import 'report_chat_screen.dart';
@@ -14,13 +15,16 @@ final _staffListProvider =
   return ref.read(staffRepoProvider).fetchStaff(staff.merchantId);
 });
 
-/// رسائل موظّف معيّن (أو الكل) — تدقيق المالك.
-final _staffMessagesProvider = FutureProvider.autoDispose
-    .family<List<Map<String, dynamic>>, String?>((ref, staffId) async {
-  final staff = await ref.watch(currentStaffProvider.future);
-  return ref
-      .read(reportsRepoProvider)
-      .staffMessages(staff.merchantId, staffId: staffId);
+/// رسائل موظّف معيّن (أو الكل) — تدقيق المالك، مرقّمة.
+final _staffMessagesProvider = StateNotifierProvider.autoDispose.family<
+    PaginatedNotifier<Map<String, dynamic>>,
+    PaginatedState<Map<String, dynamic>>, String?>((ref, staffId) {
+  final repo = ref.read(reportsRepoProvider);
+  return PaginatedNotifier<Map<String, dynamic>>((offset, limit) async {
+    final staff = await ref.read(currentStaffProvider.future);
+    return repo.staffMessages(staff.merchantId,
+        staffId: staffId, limit: limit, offset: offset);
+  });
 });
 
 String _roleLabel(String? r) => switch (r) {
@@ -44,7 +48,8 @@ class _StaffMessagesScreenState extends ConsumerState<StaffMessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final staffList = ref.watch(_staffListProvider).valueOrNull ?? const [];
-    final async = ref.watch(_staffMessagesProvider(_staffId));
+    final state = ref.watch(_staffMessagesProvider(_staffId));
+    final notifier = ref.read(_staffMessagesProvider(_staffId).notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('سجل رسائل الموظفين')),
       body: Column(
@@ -72,30 +77,15 @@ class _StaffMessagesScreenState extends ConsumerState<StaffMessagesScreen> {
             ),
           ),
           Expanded(
-            child: async.when(
-              loading: () => const SkeletonList(),
-              error: (e, _) => ErrorView(
-                  message: 'تعذّر تحميل الرسائل',
-                  onRetry: () => ref.invalidate(_staffMessagesProvider(_staffId))),
-              data: (rows) {
-                if (rows.isEmpty) {
-                  return const EmptyView(
-                    icon: Icons.sms_outlined,
-                    title: 'لا توجد رسائل',
-                    message: 'ردود موظفيك على البلاغات ستظهر هنا.',
-                  );
-                }
-                return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(_staffMessagesProvider(_staffId)),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: rows.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _MessageCard(row: rows[i]),
-                  ),
-                );
-              },
+            child: PaginatedListView<Map<String, dynamic>>(
+              state: state,
+              onLoadMore: notifier.loadMore,
+              onRefresh: notifier.refresh,
+              emptyIcon: Icons.sms_outlined,
+              emptyTitle: 'لا توجد رسائل',
+              emptyMessage: 'ردود موظفيك على البلاغات ستظهر هنا.',
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, row, i) => _MessageCard(row: row),
             ),
           ),
         ],

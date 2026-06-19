@@ -5,50 +5,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/paginated_notifier.dart';
 import '../../data/repositories/reports_repository.dart';
 import 'report_chat_screen.dart';
 
-final reportsProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final staff = await ref.watch(currentStaffProvider.future);
-  return ref.read(reportsRepoProvider).fetchReports(staff.merchantId);
+/// بلاغات العميل (مرقّمة).
+final reportsProvider = StateNotifierProvider.autoDispose<
+    PaginatedNotifier<Map<String, dynamic>>,
+    PaginatedState<Map<String, dynamic>>>((ref) {
+  final repo = ref.read(reportsRepoProvider);
+  return PaginatedNotifier<Map<String, dynamic>>((offset, limit) async {
+    final staff = await ref.read(currentStaffProvider.future);
+    return repo.fetchReports(staff.merchantId, limit: limit, offset: offset);
+  });
 });
 
-/// بلاغات العملاء — عرض فقط (لا تعديل). يظهر بيانات الراسل: الاسم الأول + الموبايل + الإيميل.
+/// بلاغات العملاء — قائمة مرقّمة، النقر يفتح المحادثة.
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(reportsProvider);
+    final state = ref.watch(reportsProvider);
+    final notifier = ref.read(reportsProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('البلاغات')),
-      body: async.when(
-        loading: () => const SkeletonList(),
-        error: (e, _) => ErrorView(
-            message: 'تعذّر تحميل البلاغات',
-            onRetry: () => ref.invalidate(reportsProvider)),
-        data: (rows) {
-          if (rows.isEmpty) {
-            return const EmptyView(
-              icon: Icons.inbox_outlined,
-              title: 'لا توجد بلاغات',
-              message: 'بلاغات عملائك ستظهر هنا.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(reportsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: rows.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) => _ReportCard(report: rows[i])
-                  .animate()
-                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
-                  .slideY(begin: .06, end: 0),
-            ),
-          );
-        },
+      body: PaginatedListView<Map<String, dynamic>>(
+        state: state,
+        onLoadMore: notifier.loadMore,
+        onRefresh: notifier.refresh,
+        emptyIcon: Icons.inbox_outlined,
+        emptyTitle: 'لا توجد بلاغات',
+        emptyMessage: 'بلاغات عملائك ستظهر هنا.',
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, report, i) => _ReportCard(report: report)
+            .animate()
+            .fadeIn(duration: 300.ms, delay: (40 * (i % 10)).ms)
+            .slideY(begin: .06, end: 0),
       ),
     );
   }

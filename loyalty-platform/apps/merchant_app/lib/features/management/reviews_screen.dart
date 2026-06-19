@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../data/paginated_notifier.dart';
 import '../../data/repositories/reviews_repository.dart';
 
 /// ملخّص تقييم المتجر (متوسط + عدد).
@@ -13,81 +14,47 @@ final merchantRatingProvider =
   return ref.read(reviewsRepoProvider).ratingSummary(staff.merchantId);
 });
 
-/// كل مراجعات المتجر (مع المخفية).
-final merchantReviewsProvider =
-    FutureProvider.autoDispose<List<Review>>((ref) async {
-  final staff = await ref.watch(currentStaffProvider.future);
-  return ref.read(reviewsRepoProvider).fetchReviews(staff.merchantId);
+/// مراجعات المتجر (مرقّمة، مع المخفية).
+final merchantReviewsProvider = StateNotifierProvider.autoDispose<
+    PaginatedNotifier<Review>, PaginatedState<Review>>((ref) {
+  final repo = ref.read(reviewsRepoProvider);
+  return PaginatedNotifier<Review>((offset, limit) async {
+    final staff = await ref.read(currentStaffProvider.future);
+    return repo.fetchReviews(staff.merchantId, limit: limit, offset: offset);
+  });
 });
 
-/// شاشة التقييمات للتاجر — يعرض متوسط متجره ومراجعات عملائه ويردّ عليها.
+/// شاشة التقييمات للتاجر — يعرض متوسط متجره ومراجعات عملائه (مرقّمة) ويردّ عليها.
 class ReviewsScreen extends ConsumerWidget {
   const ReviewsScreen({super.key});
-
-  void _refresh(WidgetRef ref) {
-    ref.invalidate(merchantRatingProvider);
-    ref.invalidate(merchantReviewsProvider);
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(merchantRatingProvider).valueOrNull;
-    final async = ref.watch(merchantReviewsProvider);
+    final state = ref.watch(merchantReviewsProvider);
+    final notifier = ref.read(merchantReviewsProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('التقييمات')),
-      body: async.when(
-        loading: () => const SkeletonList(),
-        error: (e, _) => ErrorView(
-            message: 'تعذّر تحميل التقييمات',
-            onRetry: () => _refresh(ref)),
-        data: (rows) {
-          if (rows.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: () async => _refresh(ref),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (summary != null) _SummaryCard(summary: summary),
-                  const SizedBox(height: 16),
-                  const SizedBox(
-                    height: 260,
-                    child: EmptyView(
-                      icon: Icons.format_quote_rounded,
-                      title: 'لا توجد تقييمات بعد',
-                      message: 'تقييمات عملائك ومراجعاتهم ستظهر هنا.',
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-          // ListView.builder = بناء كسول (يتعامل مع آلاف المراجعات بكفاءة).
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(ref),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: rows.length + 1,
-              itemBuilder: (_, idx) {
-                if (idx == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: summary != null
-                        ? _SummaryCard(summary: summary)
-                        : const SizedBox.shrink(),
-                  );
-                }
-                final i = idx - 1;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ReviewCard(review: rows[i])
-                      .animate()
-                      .fadeIn(duration: 300.ms, delay: (40 * i).ms)
-                      .slideY(begin: .06, end: 0),
-                );
-              },
-            ),
-          );
+      body: PaginatedListView<Review>(
+        state: state,
+        onLoadMore: notifier.loadMore,
+        onRefresh: () async {
+          ref.invalidate(merchantRatingProvider);
+          await notifier.refresh();
         },
+        header: summary != null
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _SummaryCard(summary: summary))
+            : null,
+        emptyIcon: Icons.format_quote_rounded,
+        emptyTitle: 'لا توجد تقييمات بعد',
+        emptyMessage: 'تقييمات عملائك ومراجعاتهم ستظهر هنا.',
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, review, i) => _ReviewCard(review: review)
+            .animate()
+            .fadeIn(duration: 300.ms, delay: (40 * (i % 10)).ms)
+            .slideY(begin: .06, end: 0),
       ),
     );
   }

@@ -10,9 +10,13 @@ class ReviewsRepository {
   final SupabaseClient _client;
 
   /// كل مراجعات المتجر (بما فيها المخفية بإشراف الأدمن) مع حالتها.
-  Future<List<Review>> fetchReviews(String merchantId) async {
-    final rows = await _client
-        .rpc('merchant_reviews', params: {'p_merchant': merchantId});
+  Future<List<Review>> fetchReviews(String merchantId,
+      {int limit = 30, int offset = 0}) async {
+    final rows = await _client.rpc('merchant_reviews', params: {
+      'p_merchant': merchantId,
+      'p_limit': limit,
+      'p_offset': offset,
+    });
     return ((rows as List?) ?? const [])
         .map((r) => Review.fromJson(r as Map<String, dynamic>))
         .toList();

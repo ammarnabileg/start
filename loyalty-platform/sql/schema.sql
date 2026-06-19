@@ -697,8 +697,10 @@ begin
 end $$;
 
 -- بلاغات التاجر مع بيانات الراسل (الاسم الأول/الموبايل/الإيميل) — للعرض فقط.
--- security definer لأن RLS يمنع التاجر من قراءة صفوف users مباشرة.
-create or replace function public.merchant_reports(p_merchant uuid)
+-- security definer لأن RLS يمنع التاجر من قراءة صفوف users مباشرة. مرقّمة.
+drop function if exists public.merchant_reports(uuid);
+create or replace function public.merchant_reports(
+  p_merchant uuid, p_limit int default 30, p_offset int default 0)
 returns table (
   id uuid, created_at timestamptz, status text, message text, video_url text,
   branch_id uuid, branch_name text, prize_id uuid, prize_title text,
@@ -719,7 +721,8 @@ begin
     left join public.user_prizes p on p.id = r.prize_id
     left join public.users u on u.id = r.user_id
     where r.merchant_id = p_merchant
-    order by r.last_message_at desc;
+    order by r.last_message_at desc
+    limit greatest(1, least(p_limit, 100)) offset greatest(0, p_offset);
 end $$;
 
 -- هل العنصر متاح في فرع معيّن؟ موحّد (بدون استهداف) = متاح في كل الفروع.
@@ -1634,6 +1637,9 @@ create materialized view if not exists public.mv_daily_visits as
   group by merchant_id, branch_id, visit_date;
 create index if not exists idx_mv_daily_visits
   on public.mv_daily_visits(merchant_id, day);
+-- فهرس فريد يتيح REFRESH MATERIALIZED VIEW CONCURRENTLY (تحديث بلا قفل القرّاء).
+create unique index if not exists uq_mv_daily_visits
+  on public.mv_daily_visits(merchant_id, branch_id, day) nulls not distinct;
 
 create or replace function public.refresh_analytics()
 returns void language sql security definer as $$
@@ -2188,8 +2194,10 @@ returns table (
 $$;
 grant execute on function public.store_reviews(uuid, int) to authenticated;
 
--- التاجر: كل مراجعات متجره (بما فيها المخفية، مع الحالة) للعرض والردّ.
-create or replace function public.merchant_reviews(p_merchant uuid)
+-- التاجر: كل مراجعات متجره (بما فيها المخفية، مع الحالة) للعرض والردّ. مرقّمة.
+drop function if exists public.merchant_reviews(uuid);
+create or replace function public.merchant_reviews(
+  p_merchant uuid, p_limit int default 30, p_offset int default 0)
 returns table (
   id uuid, rating smallint, comment text, merchant_reply text,
   merchant_replied_at timestamptz, status text, created_at timestamptz,
@@ -2203,9 +2211,10 @@ begin
     from public.reviews r
     left join public.users u on u.id = r.user_id
     where r.merchant_id = p_merchant
-    order by r.created_at desc;
+    order by r.created_at desc
+    limit greatest(1, least(p_limit, 100)) offset greatest(0, p_offset);
 end $$;
-grant execute on function public.merchant_reviews(uuid) to authenticated;
+grant execute on function public.merchant_reviews(uuid, int, int) to authenticated;
 
 -- =====================================================================
 -- 28) محادثة البلاغات (Report conversations) — شات ثلاثي: عميل ↔ تاجر ↔ أدمن.
@@ -2367,8 +2376,10 @@ where not exists (select 1 from public.report_messages m where m.report_id = r.i
 -- 29) تدقيق رسائل الموظّفين — صاحب المتجر يرى رسائل موظّف معيّن داخل بلاغاته.
 --     (الأدمن يستعرضها من admin-web عبر PDO مباشرة.)
 -- =====================================================================
+drop function if exists public.merchant_staff_messages(uuid, uuid);
 create or replace function public.merchant_staff_messages(
-  p_merchant uuid, p_staff uuid default null
+  p_merchant uuid, p_staff uuid default null,
+  p_limit int default 30, p_offset int default 0
 ) returns table (
   message_id uuid, report_id uuid, staff_id uuid, staff_name text, staff_role text,
   body text, hidden boolean, created_at timestamptz,
@@ -2388,9 +2399,10 @@ begin
     left join public.users u on u.id = r.user_id
     where m.sender_role = 'merchant'
       and (p_staff is null or m.sender_staff_id = p_staff)
-    order by m.created_at desc;
+    order by m.created_at desc
+    limit greatest(1, least(p_limit, 100)) offset greatest(0, p_offset);
 end $$;
-grant execute on function public.merchant_staff_messages(uuid, uuid) to authenticated;
+grant execute on function public.merchant_staff_messages(uuid, uuid, int, int) to authenticated;
 
 -- =====================================================================
 -- 30) تعديل رسالة مع شفافية — يحفظ النص الأصلي ويعلّم أنها عُدّلت (يراها الكل).
