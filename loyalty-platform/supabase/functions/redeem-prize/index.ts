@@ -83,6 +83,12 @@ Deno.serve(async (req) => {
           data: { merchant_id: prize.merchant_id, prize_id: prize.id },
         });
 
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "redeem_prize",
+          p_entity_type: "prize", p_entity_id: prize.id, p_summary: prize.title,
+          p_meta: { user_id: prize.user_id }, p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
         return {
           delivering: true,
           title: prize.title,

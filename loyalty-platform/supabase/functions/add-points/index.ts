@@ -78,6 +78,13 @@ Deno.serve(async (req) => {
           title: "حصلت على نقاط", body: `حصلت على ${pts} نقطة`,
         });
 
+        // سجل النشاط: مين منح النقاط (أفضل جهد).
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "grant_points",
+          p_entity_type: "points", p_summary: `+${pts} نقطة`,
+          p_meta: { user_id, reason: reason ?? null }, p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
         return {
           available_points: applied.available_points,
           lifetime_points: applied.lifetime_points,

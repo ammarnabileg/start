@@ -79,6 +79,12 @@ Deno.serve(async (req) => {
         });
         await svc.rpc("decrement_stock", { p_reward: reward.id }).then(() => {}, () => {});
 
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "redeem_reward",
+          p_entity_type: "reward", p_entity_id: reward.id, p_summary: reward.name,
+          p_meta: { user_id }, p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
         return {
           redeemed: true,
           reward_name: reward.name,

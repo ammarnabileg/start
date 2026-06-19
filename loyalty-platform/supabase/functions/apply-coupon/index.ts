@@ -63,6 +63,13 @@ Deno.serve(async (req) => {
           coupon_id: coupon.id, user_id, staff_id: staff.staffId,
         });
 
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "apply_coupon",
+          p_entity_type: "coupon", p_entity_id: coupon.id, p_summary: "تطبيق كوبون",
+          p_meta: { user_id, type: coupon.type, value: coupon.value },
+          p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
         return {
           applied: true,
           type: coupon.type, // percent / fixed / free_item

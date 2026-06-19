@@ -105,6 +105,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    await svc.rpc("log_merchant_activity", {
+      p_merchant: staff.merchantId, p_action: "record_visit", p_entity_type: "visit",
+      p_summary: awarded > 0 ? `زيارة (+${awarded} نقطة)` : "زيارة",
+      p_meta: { user_id }, p_staff_id: staff.staffId,
+    }).then(() => {}, () => {});
+
     return json({ recorded: true, reward_ready: rewardReady, points_awarded: awarded });
   } catch (e) {
     return badRequest((e as Error).message, 401);

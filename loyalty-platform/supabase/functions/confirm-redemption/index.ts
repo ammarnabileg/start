@@ -83,6 +83,13 @@ Deno.serve(async (req) => {
         // إنقاص المخزون لو محدود
         await svc.rpc("decrement_stock", { p_reward: r.reward_id }).then(() => {}, () => {});
 
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "redeem_reward",
+          p_entity_type: "reward", p_entity_id: r.reward_id,
+          p_summary: "تأكيد استرداد مكافأة", p_meta: { user_id: r.user_id },
+          p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
         return {
           confirmed: true,
           remaining_points: applied.available_points,
