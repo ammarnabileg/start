@@ -40,7 +40,7 @@
   README.md                ← هذا الملف
   organize.py              ← سكربت ترقيم/ترتيب الصور
   Customer-App/
-    001-Splash.png ... 041-Dispute-Jump-To-Message.png
+    001-Splash.png ... 039-Dispute-Jump-To-Message.png
     REPORT.md              ← تقرير شاشة-بشاشة (الغرض/الإجراءات/UX/Bugs)
   Merchant-App/
     001-Splash.png ... 045-Review-Reply.png
@@ -74,7 +74,9 @@
 لقطات `m##`/`c##` **بدائل ساكنة (facsimiles)** تُبنى من نفس design-system؛ تمثّل الشكل بدقّة لكنها لا
 تُظهر تلقائيًا الحالات الديناميكية (فارغ/خطأ/بوّابات fail-open). التقارير تعتمد ملفات الميزات الحقيقية
 كمصدر-حقيقة. أُضيفت لقطات الشاشات الأربع العميقة في تطبيق التاجر (ReportChat، StaffMessages،
-ReferralProgram، SetupChecklist) فأصبح المجموع: العميل 41 شاشة، التاجر 45 شاشة.
+ReferralProgram، SetupChecklist). كما أُزيلت لقطتان مكرّرتان من تطبيق العميل
+(`Store-Detail`/`Store-Levels` كانتا تكرّران سلسلة تبويبات المتجر) وصُحِّحت بلاطات
+شاشة «الإدارة» في تطبيق التاجر لتطابق الكود الحالي. المجموع: العميل 39 شاشة، التاجر 45 شاشة.
 
 ### ما لم يُغطَّ بعد (لطلب لاحق)
 **متغيّرات الحالة المنفصلة** لكل شاشة (تحقّق نموذج خاطئ/صحيح، فارغ، خطأ+إعادة، كل Modal/Dropdown

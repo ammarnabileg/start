@@ -55,8 +55,6 @@ CUSTOMER = [
     ('c13_profile', 'الملف الشخصي'),
     ('c14_edit_profile', 'تعديل الملف'),
     ('c15_settings', 'الإعدادات'),
-    ('c16_store_detail', 'صفحة المتجر'),
-    ('c16b_store_levels', 'مستويات المتجر'),
     ('store_tab_1_overview', 'المتجر · نظرة عامة'),
     ('store_tab_2_visits', 'المتجر · الزيارات'),
     ('store_tab_3_points', 'المتجر · النقاط'),

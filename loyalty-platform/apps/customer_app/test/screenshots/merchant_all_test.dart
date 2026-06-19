@@ -627,45 +627,80 @@ class _Management extends StatelessWidget {
   const _Management();
   @override
   Widget build(BuildContext context) {
-    final items = [
-      ('المكافآت', Icons.card_giftcard_outlined),
-      ('المستويات', Icons.workspace_premium_outlined),
-      ('حملات الزيارات', Icons.event_repeat_rounded),
-      ('عجلة الحظ', Icons.casino_outlined),
-      ('الكوبونات', Icons.confirmation_num_outlined),
-      ('الأسئلة', Icons.quiz_outlined),
-      ('الفروع', Icons.store_mall_directory_outlined),
-      ('الموظفون', Icons.groups_2_outlined),
-      ('الأدوار', Icons.admin_panel_settings_outlined),
-      ('تكامل POS', Icons.point_of_sale_rounded),
-      ('التحليلات', Icons.insights_rounded),
-      ('الإعدادات', Icons.settings_outlined),
+    // مطابق لـ management_hub_screen.dart (كل البلاطات مع الميزات مفعّلة).
+    final items = <(String, String, IconData, Color)>[
+      ('العملاء', 'اعرض عملاءك وأرسل لهم إشعارات', Icons.groups_2_outlined, AppColors.info),
+      ('البلاغات', 'حادِث عملاءك وردّ على بلاغاتهم', Icons.flag_outlined, AppColors.error),
+      ('التقييمات', 'مراجعات عملائك — اعرض وردّ عليها', Icons.star_rounded, AppColors.goldTier),
+      ('حملات الزيارة', 'كافئ العملاء على تكرار الزيارة', Icons.repeat_rounded, AppColors.info),
+      ('المكافآت', 'الجوائز القابلة للاستبدال بالنقاط', Icons.card_giftcard_rounded, AppColors.primaryDark),
+      ('المستويات', 'مستويات الولاء حسب إجمالي النقاط', Icons.military_tech_rounded, AppColors.goldTier),
+      ('الكوبونات', 'أكواد خصم ومنتجات مجانية', Icons.confirmation_num_outlined, AppColors.error),
+      ('الفروع', 'مواقع المتجر ونطاق إشعار القرب', Icons.store_mall_directory_outlined, AppColors.success),
+      ('الموظفين', 'الكاشير ومديرو الفروع وأدوارهم', Icons.badge_outlined, AppColors.bronze),
+      ('سجل رسائل الموظفين', 'راجع ردود موظّف معيّن على البلاغات', Icons.sms_outlined, AppColors.info),
+      ('سجل النشاط', 'مين عمل كل أكشن في المتجر', Icons.history_rounded, AppColors.primaryDark),
+      ('الأسئلة', 'اجمع آراء عملائك مقابل نقاط', Icons.quiz_outlined, AppColors.info),
+      ('برنامج الإحالة', 'مسار مكافآت لمن يحيل أصدقاءه لمتجرك', Icons.group_add_outlined, AppColors.success),
+      ('عجلة الحظ', 'صمّم عجلة الجوائز ومقاطعها', Icons.casino_rounded, AppColors.goldTier),
+      ('الأدوار والصلاحيات', 'أدوار مخصّصة وصلاحيات الموظفين', Icons.admin_panel_settings_outlined, AppColors.primaryDark),
+      ('التحليلات', 'الزيارات والنقاط ومعدّل العودة', Icons.insights_rounded, AppColors.warning),
+      ('لوحة الصدارة', 'ترتيب عملاء المتجر بالنقاط', Icons.leaderboard_rounded, AppColors.goldTier),
+      ('تكامل POS', 'API لربط نظام الكاشير ومفاتيحه', Icons.point_of_sale_rounded, AppColors.success),
+      ('الإعدادات', 'نطاق النقاط والميزات وحدود الأمان', Icons.settings_outlined, AppColors.textSecondary),
+      ('الإعلانات', 'أرسل إشعارًا لكل عملائك', Icons.campaign_outlined, AppColors.primaryDark),
     ];
     return Scaffold(
       bottomNavigationBar: _nav(2),
-      appBar: AppBar(title: const Text('الإدارة'), centerTitle: true),
-      body: GridView.count(
-        crossAxisCount: 3,
-        padding: const EdgeInsets.all(16),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: .95,
-        children: [
-          for (final i in items)
-            AppCard(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AppIcon(i.$2, size: 28, color: AppColors.primaryDark),
-                  const SizedBox(height: 8),
-                  Text(i.$1,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
+      body: CustomScrollView(
+        slivers: [
+          const SliverToBoxAdapter(
+            child: HeroHeader(
+              title: 'الإدارة',
+              subtitle: 'كل أدوات متجرك في مكان واحد',
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: .95,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, idx) {
+                  final t = items[idx];
+                  return AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 52,
+                          width: 52,
+                          decoration: BoxDecoration(
+                            color: t.$4.withValues(alpha: .15),
+                            borderRadius: BorderRadius.circular(AppRadii.md),
+                          ),
+                          child: AppIcon(t.$3, color: t.$4, size: 26),
+                        ),
+                        const Spacer(),
+                        Text(t.$1,
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 4),
+                        Text(t.$2,
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  );
+                },
+                childCount: items.length,
               ),
             ),
+          ),
         ],
       ),
     );

@@ -24,8 +24,6 @@ CUSTOMER = [
     ('c13_profile', 'Profile'),
     ('c14_edit_profile', 'Edit-Profile'),
     ('c15_settings', 'Settings'),
-    ('c16_store_detail', 'Store-Detail'),
-    ('c16b_store_levels', 'Store-Levels'),
     ('store_tab_1_overview', 'Store-Tab-Overview'),
     ('store_tab_2_visits', 'Store-Tab-Visits'),
     ('store_tab_3_points', 'Store-Tab-Points'),

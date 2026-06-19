@@ -195,85 +195,80 @@
   قبل `_updateFlag` (سطور 56-60). ولأن زر التمهيد ميّت (#009) فالإذن لا يُطلب فعليًا وقد
   يعمل `ProximityService.start()` بلا إذن نظام.
 
-## 016 — Store Detail
+## 016–024 — Store Detail (تبويبات)
 - **Page Name:** صفحة المتجر / `StoreDetailScreen` (`stores/store_detail_screen.dart:95`)
-- **Route:** `push` من بطاقة المتجر
-- **Screenshot:** `016-Store-Detail.png`
+- **Route:** `push` من بطاقة المتجر — تفتح على تبويب «نظرة عامة».
 - **Purpose:** تفاصيل المتجر بتبويبات **ديناميكية** حسب `MerchantSettings` (حتى 9 تبويبات).
-- **Available Actions:** انظر تبويبات 018-026 أدناه.
 - **Modals/Sheets:** حوار كود الكوبون (920)؛ ورقة التقييم `_RatingSheet` (1464)؛ حوار حذف التقييم (1413).
 
-## 017 — Store Levels
-- **Page Name:** مستويات المتجر / `_LevelsTab` (`store_detail_screen.dart:727`)
-- **Screenshot:** `017-Store-Levels.png`
-- **Purpose:** رحلة المستويات + بطاقات المزايا (`LevelsJourney`).
+> ملاحظة: أُزيلت لقطتان مكرّرتان (`Store-Detail`/`Store-Levels` كنموذجين قديمين غير
+> متّسقين مع سلسلة التبويبات) — السلسلة أدناه هي التمثيل القانوني للشاشة.
 
-## 018–026 — Store Detail Tabs
 | # | الشاشة | الويدجت | إجراءات/حالات بارزة |
 |---|---|---|---|
-| 018 | نظرة عامة | `_OverviewTab` (203) | StatCards؛ «صدارة المتجر»؛ بطاقة عجلة الحظ؛ بطاقة تقدّم الإحالة؛ مفتاح المشاركة |
-| 019 | الزيارات | `_VisitsTab` (481) | loading/error+retry/empty/data؛ بطاقات أختام؛ سحب للتحديث |
-| 020 | النقاط | `_PointsTab` (515) | «استبدل نقاطك» → `animateTo(3)` |
-| 021 | المكافآت | `_RewardsTab` (571) | شبكة؛ «استبدال» → `RewardDetailScreen`؛ منطق متاح/نفد/غير متاح |
-| 022 | المستويات | `_LevelsTab` (727) | `LevelsJourney` + مزايا |
-| 023 | الكوبونات | `_CouponsTab` (830) | «استخدام» → حوار يعرض الكود للكاشير |
-| 024 | الأسئلة | `_QuestionsTab` (948) | نماذج single/multi/text → نقاط |
-| 025 | التقييمات | `_ReviewsTab` (1163) | ملخّص؛ «قيّم» → `_RatingSheet`؛ تعديل/حذف تقييمي |
-| 026 | السجل | `_HistoryTab` (1595) | معاملات مُرقّمة الصفحات |
+| 016 | نظرة عامة | `_OverviewTab` (203) | StatCards؛ «صدارة المتجر»؛ بطاقة عجلة الحظ؛ بطاقة تقدّم الإحالة؛ مفتاح المشاركة |
+| 017 | الزيارات | `_VisitsTab` (481) | loading/error+retry/empty/data؛ بطاقات أختام؛ سحب للتحديث |
+| 018 | النقاط | `_PointsTab` (515) | «استبدل نقاطك» → `animateTo(3)` |
+| 019 | المكافآت | `_RewardsTab` (571) | شبكة؛ «استبدال» → `RewardDetailScreen`؛ منطق متاح/نفد/غير متاح |
+| 020 | المستويات | `_LevelsTab` (727) | `LevelsJourney` + مزايا |
+| 021 | الكوبونات | `_CouponsTab` (830) | «استخدام» → حوار يعرض الكود للكاشير |
+| 022 | الأسئلة | `_QuestionsTab` (948) | نماذج single/multi/text → نقاط |
+| 023 | التقييمات | `_ReviewsTab` (1163) | ملخّص؛ «قيّم» → `_RatingSheet`؛ تعديل/حذف تقييمي |
+| 024 | السجل | `_HistoryTab` (1595) | معاملات مُرقّمة الصفحات |
 
 - **Forms/Validation:** `_QuestionCard`: single=اختيار، multi=≥1، text=غير فارغ؛ خطأ الخادم في
   `_error`؛ بعد الإجابة «تمت الإجابة ✓». `_RatingSheet`: تقييم ≥1 نجمة («اختر تقييمًا من 1 إلى 5»).
 - **Potential Bugs (مهم):**
-  - **020 «استبدل نقاطك» يثبّت `animateTo(3)`** بينما التبويبات شرطية؛ عند تعطيل الزيارات
-    يصبح الفهرس 3 = المستويات/الكوبونات لا المكافآت → **يقفز للتبويب الخطأ** (سطر 561).
+  - **تبويب النقاط (018) «استبدل نقاطك» يثبّت `animateTo(3)`** بينما التبويبات شرطية؛ عند
+    تعطيل الزيارات يصبح الفهرس 3 = المستويات/الكوبونات لا المكافآت → **يقفز للتبويب الخطأ** (سطر 561).
   - `DateTime.parse(validTo)` للكوبون (900) بلا حماية — يرمي عند تاريخ مشوّه من الخادم.
   - نقرة «عجلة الحظ» تنتقل حتى دون عجلة فعّالة (نقرة بلا أثر مرئي قبل الـEmptyView).
 
-## 027 — Reward Detail
+## 025 — Reward Detail
 - **Page Name:** تفاصيل المكافأة / `RewardDetailScreen` (`rewards/reward_detail_screen.dart:10`)
-- **Screenshot:** `027-Reward-Detail.png`
+- **Screenshot:** `025-Reward-Detail.png`
 - **Available Actions:** «استبدال الآن» → حوار تأكيد → `redeemReward` (مع idempotency) → `ShowToCashierScreen`.
 - **States:** متاح/نفد/«تحتاج X نقطة إضافية».
 - **Potential Bugs:** يعالج `data==null || data['error']` (سطر 58)؛ `mounted` سليم.
 
-## 028 — Show QR To Cashier
+## 026 — Show QR To Cashier
 - **Page Name:** عرض للكاشير / `ShowToCashierScreen` (`rewards/show_to_cashier_screen.dart:12`)
-- **Screenshot:** `028-Show-QR-To-Cashier.png`
+- **Screenshot:** `026-Show-QR-To-Cashier.png`
 - **Purpose:** QR موقَّع دوّار (`r1`) + عدّاد صلاحية + حالة حيّة مؤكَّد/منتهٍ.
 - **States:** pending / confirmed (نجاح → 036) / expired.
 - **Potential Bugs:** `redemption['redemption_id'] as String` (41) و`expires_at` (44) بلا حماية في
   `initState` — يرمي لو غابت من ردّ الـedge function.
 
-## 029 — Lucky Wheel
+## 027 — Lucky Wheel
 - **Page Name:** عجلة الحظ / `WheelScreen` (`wheel/wheel_screen.dart:17`)
-- **Screenshot:** `029-Lucky-Wheel.png`
+- **Screenshot:** `027-Lucky-Wheel.png`
 - **Available Actions:** «لِف الآن» → `_spin` → نتيجة prize/points + تنقّل؛ «هداياي».
 - **States:** loading/error+retry/empty/data.
 - **Potential Bugs:** `wheelRepoProvider.currentUserId!` (74) **فكّ إجباري** — انقطاع الجلسة أثناء اللف = NPE.
 
-## 030 — My Prizes
+## 028 — My Prizes
 - **Page Name:** هداياي / `MyPrizesScreen` (`wheel/my_prizes_screen.dart:21`)
-- **Screenshot:** `030-My-Prizes.png`
+- **Screenshot:** `028-My-Prizes.png`
 - **Available Actions:** قائمة مُرقّمة؛ نقر الجائزة → `PrizeQrScreen`؛ empty «لا توجد هدايا بعد».
 
-## 031 — Prize QR
+## 029 — Prize QR
 - **Page Name:** رمز الجائزة / `PrizeQrScreen` (`wheel/prize_qr_screen.dart:13`)
-- **Screenshot:** `031-Prize-QR.png`
+- **Screenshot:** `029-Prize-QR.png`
 - **Purpose:** QR دوّار (`p1`) + حالة حيّة.
 - **States:** pending / redeemed (نجاح) / expired.
 - **Modals:** عند `delivering` → `_DeliverSheet` (غير قابلة للإغلاق/السحب: موافق/إلغاء/إبلاغ)؛
   مسار الإبلاغ → مسجّل فيديو ثم `_ReportSheet`.
 - **Potential Bugs:** `_tick` يستدعي `setState` كل ثانية (مفحوص `mounted`).
 
-## 032 — Leaderboard
+## 030 — Leaderboard
 - **Page Name:** لوحة الصدارة / `LeaderboardScreen` (`leaderboard/leaderboard_screen.dart:25`)
-- **Screenshot:** `032-Leaderboard.png`
+- **Screenshot:** `030-Leaderboard.png`
 - **Purpose:** صدارة عامة (من الملف) أو لكل متجر (من نظرة عامة).
 - **States:** loading/error+retry/empty/data — تغطية كاملة. يعالج <3 مشاركين.
 
-## 033 — Referral
+## 031 — Referral
 - **Page Name:** دعوة صديق / `ReferralScreen` (`referral/referral_screen.dart:18`)
-- **Screenshot:** `033-Referral.png`
+- **Screenshot:** `031-Referral.png`
 - **Available Actions:** «نسخ» (clipboard) / «مشاركة» (`Share.share`)؛ قائمة الإحالات بشارات
   pending/qualified/rewarded. **ورقة مرتبطة:** `ReferralLinkSheet` (من الرئيسية) — QR للكود +
   ربط بالكود + «امسح كود صديقك» (`ReferralScanScreen`) + «فكّ الارتباط».
@@ -281,31 +276,31 @@
 - **Potential Bugs:** `ReferralScanScreen._onDetect` يستدعي `Navigator.pop` بلا فحص `mounted`
   (186) — خطر منخفض (يحرسه `_done`).
 
-## 034 — Deliver Confirm (Sheet)
+## 032 — Deliver Confirm (Sheet)
 - **Page Name:** تأكيد التسليم / `_DeliverSheet` (داخل `prize_qr_screen.dart`)
-- **Screenshot:** `034-Deliver-Confirm.png`
+- **Screenshot:** `032-Deliver-Confirm.png`
 - **Purpose:** ورقة سفلية إجبارية عند تسليم جائزة: موافق/إلغاء/إبلاغ.
 
-## 035 — Report Form (Sheet)
+## 033 — Report Form (Sheet)
 - **Page Name:** إبلاغ عن مشكلة / `_ReportSheet` (`prize_qr_screen.dart:369`)
-- **Screenshot:** `035-Report-Form.png`
+- **Screenshot:** `033-Report-Form.png`
 - **Forms/Validation:** «أضف رسالة أو فيديو» (واحد على الأقل، سطر 386)؛ يرفق المتجر/الفرع تلقائيًا.
 
-## 036 — Redeemed Success
+## 034 — Redeemed Success
 - **Page Name:** تم الاستلام / `_ResultView` (نجاح)
-- **Screenshot:** `036-Redeemed-Success.png`
+- **Screenshot:** `034-Redeemed-Success.png`
 - **Purpose:** تأكيد بصري لإتمام الاستبدال/التسليم.
 
-## 037 — Report Chat
+## 035 — Report Chat
 - **Page Name:** محادثة البلاغ / `ReportChatScreen` (`reports/report_chat_screen.dart:13`)
-- **Screenshot:** `037-Report-Chat.png`
+- **Screenshot:** `035-Report-Chat.png`
 - **Purpose:** محادثة ثلاثية الأطراف عبر `ReportChatView` المشترك.
 - **Available Actions:** إرسال/تعديل/ردّ على رسالة.
 - **Potential UX Issues:** كل إرسال/تعديل يُعيد جلب كامل الخيط (43-54) — وميض ولا تحديث تفاؤلي.
 
-## 038–041 — Dispute Views (3 أطراف + قفز)
-- **Screenshots:** `038-Dispute-Customer-View.png` · `039-Dispute-Merchant-View.png` ·
-  `040-Dispute-Admin-View.png` · `041-Dispute-Jump-To-Message.png`
+## 036–039 — Dispute Views (3 أطراف + قفز)
+- **Screenshots:** `036-Dispute-Customer-View.png` · `037-Dispute-Merchant-View.png` ·
+  `038-Dispute-Admin-View.png` · `039-Dispute-Jump-To-Message.png`
 - **Purpose:** عرض النزاع من زاوية العميل/التاجر/الأدمن + ميزة «القفز للرسالة الأصلية».
 - **Notes:** مولّدة من `disputes_preview_test.dart`؛ تُظهر اقتباس الرد والإبراز عند القفز.
 
