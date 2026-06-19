@@ -24,6 +24,15 @@ final _activityProvider = StateNotifierProvider.autoDispose.family<
   });
 });
 
+/// تسمية الموظّف في الفلتر: الاسم + موبايله (وإلا دوره) — لتمييز الشخص.
+String _staffOptionLabel(Map<String, dynamic> s) {
+  final name = (s['name'] as String?)?.trim().isNotEmpty == true
+      ? s['name'] as String
+      : 'موظّف';
+  final phone = (s['phone'] as String?)?.trim();
+  return '$name · ${phone != null && phone.isNotEmpty ? phone : _roleLabel(s['role'] as String?)}';
+}
+
 String _roleLabel(String? r) => switch (r) {
       'merchant_owner' => 'المالك',
       'manager' => 'مدير',
@@ -100,8 +109,7 @@ class _ActivityLogScreenState extends ConsumerState<ActivityLogScreen> {
               for (final s in staffList)
                 DropdownMenuItem(
                   value: s['id'] as String,
-                  child: Text(
-                      '${s['name'] ?? 'موظّف'} · ${_roleLabel(s['role'] as String?)}'),
+                  child: Text(_staffOptionLabel(s)),
                 ),
             ],
             onChanged: (v) => setState(() => _staffId = v),

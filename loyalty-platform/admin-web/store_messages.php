@@ -26,7 +26,7 @@ $rows = all("select m.id, m.report_id, m.sender_role, m.sender_name, m.body,
 
 $merchants = all("select id, business_name from public.merchants order by business_name");
 $staffOpts = $merchant !== ''
-  ? all("select id, name, role from public.merchant_staff where merchant_id=:m order by name", ['m' => $merchant])
+  ? all("select id, name, role, phone from public.merchant_staff where merchant_id=:m order by name", ['m' => $merchant])
   : [];
 
 function rl(string $r): string {
@@ -51,7 +51,7 @@ require __DIR__ . '/partials/header.php';
   <select name="staff" onchange="this.form.submit()" class="border rounded-lg px-3 py-1.5 text-sm" <?= $merchant === '' ? 'disabled' : '' ?>>
     <option value="">كل الموظفين</option>
     <?php foreach ($staffOpts as $s): ?>
-      <option value="<?= e($s['id']) ?>" <?= $staff === $s['id'] ? 'selected' : '' ?>><?= e($s['name']) ?> · <?= e(sl($s['role'])) ?></option>
+      <option value="<?= e($s['id']) ?>" <?= $staff === $s['id'] ? 'selected' : '' ?>><?= e($s['name']) ?> · <?= e(trim((string)$s['phone']) !== '' ? $s['phone'] : sl($s['role'])) ?></option>
     <?php endforeach; ?>
   </select>
   <span class="text-sm text-gray-500 mr-auto"><?= n($total) ?> رسالة</span>
