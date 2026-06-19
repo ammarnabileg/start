@@ -17,6 +17,12 @@ if (is_post()) {
     require_perm('reports', 'reply');
     $body = trim((string) post('body'));
     $att  = trim((string) post('attachment_url'));
+    // رفع صورة فعلي (إن وُجد) له الأولوية على الرابط الملصوق.
+    if (!empty($_FILES['image']['name'])) {
+      $uploaded = admin_storage_upload($_FILES['image']);
+      if ($uploaded) { $att = $uploaded; }
+      else { flash('تعذّر رفع الصورة (تحقق من إعداد Push/Storage أو حجم/نوع الملف).', 'error'); }
+    }
     $reply_to = (string) post('reply_to') ?: null;
     if ($body !== '') {
       $admin = current_admin();
@@ -88,6 +94,30 @@ $messages = all("select m.*, ms.role staff_role, ms.phone staff_phone,
   left join public.merchant_staff ms on ms.id = m.sender_staff_id
   left join public.report_messages rm on rm.id = m.reply_to_id
   where m.report_id=:id order by m.created_at", ['id' => $id]);
+
+/** رفع صورة إلى Supabase Storage (bucket: reports) عبر REST — يعيد الرابط العام أو null.
+ *  يعيد استخدام إعداد الـ push (service_key + اشتقاق أساس المشروع من function_url). */
+function admin_storage_upload(array $file): ?string {
+  $push = setting_get('push', ['function_url' => '', 'service_key' => '']);
+  $fn = (string) ($push['function_url'] ?? ''); $key = (string) ($push['service_key'] ?? '');
+  if ($fn === '' || $key === '' || !function_exists('curl_init')) return null;
+  if (!preg_match('#^(https://[^/]+)#', $fn, $m)) return null;
+  $base = $m[1];
+  if (($file['error'] ?? 1) !== 0 || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) return null;
+  if (($file['size'] ?? 0) > 5 * 1024 * 1024) return null; // حد 5MB
+  $ctype = function_exists('mime_content_type') ? (mime_content_type($file['tmp_name']) ?: '') : '';
+  if (strpos($ctype, 'image/') !== 0) return null;            // صور فقط
+  $ext = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', pathinfo($file['name'] ?? '', PATHINFO_EXTENSION)) ?: 'jpg');
+  $path = 'admin/' . bin2hex(random_bytes(8)) . '.' . $ext;
+  $ch = curl_init("$base/storage/v1/object/reports/$path");
+  curl_setopt_array($ch, [
+    CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
+    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key, 'Content-Type: ' . $ctype, 'x-upsert: true'],
+    CURLOPT_POSTFIELDS => file_get_contents($file['tmp_name']),
+  ]);
+  curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+  return ($code >= 200 && $code < 300) ? "$base/storage/v1/object/public/reports/$path" : null;
+}
 
 function role_label(string $r): string {
   return ['customer' => 'عميل', 'merchant' => 'المتجر', 'admin' => 'إدارة المنصّة'][$r] ?? $r;
@@ -183,13 +213,17 @@ require __DIR__ . '/partials/header.php';
 </div>
 
 <?php if ($canReply): ?>
-<form method="post" class="bg-white rounded-xl border p-4">
+<form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border p-4">
   <?= csrf_field() ?><input type="hidden" name="action" value="reply">
   <textarea name="body" rows="3" required placeholder="اكتب ردًّا إداريًا للطرفين…"
     class="w-full border rounded-lg px-3 py-2 mb-2"></textarea>
   <div class="flex flex-wrap items-center gap-3">
-    <input name="attachment_url" type="url" placeholder="رابط صورة مرفقة (اختياري — للأدمن فقط)"
-      class="flex-1 min-w-[220px] border rounded-lg px-3 py-2 text-sm">
+    <label class="flex items-center gap-2 text-sm text-gray-600">
+      📎 صورة:
+      <input name="image" type="file" accept="image/*" class="text-sm">
+    </label>
+    <input name="attachment_url" type="url" placeholder="أو رابط صورة (اختياري)"
+      class="flex-1 min-w-[200px] border rounded-lg px-3 py-2 text-sm">
     <button class="bg-amber-500 text-white font-bold rounded-lg px-6 py-2">إرسال كردّ إداري</button>
   </div>
 </form>
