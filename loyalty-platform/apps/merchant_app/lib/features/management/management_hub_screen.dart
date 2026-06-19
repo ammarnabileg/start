@@ -8,6 +8,7 @@ import '../analytics/analytics_screen.dart';
 import '../announcements/announcements_screen.dart';
 import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
+import 'activity_log_screen.dart';
 import 'branches_screen.dart';
 import 'campaigns_screen.dart';
 import 'customers_screen.dart';
@@ -123,6 +124,14 @@ class ManagementHubScreen extends ConsumerWidget {
               title: 'سجل رسائل الموظفين',
               subtitle: 'راجع ردود موظّف معيّن على البلاغات',
               builder: (_) => const StaffMessagesScreen(),
+              resource: 'staff',
+            ),
+            _HubTile(
+              icon: Icons.history_rounded,
+              accent: AppColors.primaryDark,
+              title: 'سجل النشاط',
+              subtitle: 'مين عمل كل أكشن في المتجر',
+              builder: (_) => const ActivityLogScreen(),
               resource: 'staff',
             ),
             _HubTile(
