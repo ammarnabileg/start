@@ -2567,3 +2567,199 @@ language sql security definer set search_path = public as $$
 $$;
 select cron.schedule('purge-activity-log','40 1 * * *', $$select public.purge_activity_log();$$)
   where not exists (select 1 from cron.job where jobname = 'purge-activity-log');
+
+-- =====================================================================
+-- 32) إحالة يموّلها التاجر (per‑merchant) + حضور (Geofence/WiFi) — الأساس.
+--     • الربط عام قابل للتغيير؛ يُحتسب ويُقفل لكل متجر عند أول دخول للمُحال إليه.
+--     • مسار مكافآت تراكمي يحدّده التاجر؛ كل مرحلة تُمنح مرة.
+--     • حضور: الفرع له موقع + نطاق + (اختياري) بصمات WiFi.
+-- =====================================================================
+
+-- بصمات راوتر الفرع (اختياري) — إشارة حضور أدقّ داخل الأماكن المقفولة.
+alter table public.branches add column if not exists wifi_bssids text[];
+
+-- المؤشّر العام: مين يحيل المستخدم حاليًا (يتغيّر لحد ما يتقفل لكل متجر).
+alter table public.users add column if not exists current_referrer_id uuid references public.users(id);
+
+-- برنامج إحالة التاجر (مسار تراكمي).
+create table if not exists public.referral_programs (
+  merchant_id uuid primary key references public.merchants(id) on delete cascade,
+  enabled     boolean not null default false,
+  -- milestones: [{"count":3,"reward_points":50,"label":"قهوة مجانية"}, ...]
+  milestones  jsonb not null default '[]'::jsonb,
+  referee_reward_points int not null default 0,   -- مكافأة ترحيب للصاحب الجديد (اختياري)
+  updated_at  timestamptz not null default now()
+);
+alter table public.referral_programs enable row level security;
+create policy refprog_read on public.referral_programs for select to authenticated using (true);
+
+-- سجل إحالة لكل (تاجر، مُحال إليه) — يتقفل عند أول دخول (unique).
+create table if not exists public.merchant_referrals (
+  id uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  referee_id  uuid not null references public.users(id) on delete cascade,
+  referrer_id uuid not null references public.users(id) on delete cascade,
+  branch_id   uuid references public.branches(id) on delete set null,
+  counted_at  timestamptz not null default now(),
+  unique (merchant_id, referee_id)
+);
+create index if not exists idx_mref_referrer on public.merchant_referrals(merchant_id, referrer_id);
+alter table public.merchant_referrals enable row level security;
+create policy mref_read on public.merchant_referrals for select using (
+  referee_id = auth.uid() or referrer_id = auth.uid()
+  or public.current_staff_can(merchant_id, 'customers', 'view') or public.is_super_admin()
+);
+
+-- منع تكرار منح المرحلة.
+create table if not exists public.referral_milestone_grants (
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  referrer_id uuid not null references public.users(id) on delete cascade,
+  milestone_index int not null,
+  granted_at timestamptz not null default now(),
+  primary key (merchant_id, referrer_id, milestone_index)
+);
+
+-- العميل يضبط/يغيّر مُحيله العام (بكود أو بـ id من QR). حارس ضد إحالة النفس.
+create or replace function public.set_referrer(p_code text default null, p_referrer uuid default null)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_ref uuid := p_referrer;
+begin
+  if v_ref is null and p_code is not null then
+    select id into v_ref from public.users where upper(referral_code) = upper(btrim(p_code));
+  end if;
+  if v_ref is null then raise exception 'كود إحالة غير صحيح'; end if;
+  if v_ref = auth.uid() then raise exception 'لا يمكنك إحالة نفسك'; end if;
+  update public.users set current_referrer_id = v_ref where id = auth.uid();
+end $$;
+grant execute on function public.set_referrer(text, uuid) to authenticated;
+
+create or replace function public.clear_referrer() returns void
+language sql security definer set search_path = public, pg_temp as $$
+  update public.users set current_referrer_id = null where id = auth.uid();
+$$;
+grant execute on function public.clear_referrer() to authenticated;
+
+-- الاحتساب: عند إنشاء محفظة جديدة للمُحال إليه في متجر، لو مربوط بمُحيل عميل في
+-- نفس المتجر → سجّل الإحالة (تتقفل)، وامنح مراحل المسار للمُحيل (لو مفعّل).
+create or replace function public.tg_merchant_referral()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_ref uuid; v_count int; v_prog public.referral_programs;
+        v_idx int; v_pts int; v_rwallet uuid;
+begin
+  select current_referrer_id into v_ref from public.users where id = NEW.user_id;
+  if v_ref is null or v_ref = NEW.user_id then return NEW; end if;
+  -- المُحيل لازم يكون عميل في نفس المتجر (وله محفظة)
+  select id into v_rwallet from public.user_stores
+    where user_id = v_ref and merchant_id = NEW.merchant_id limit 1;
+  if v_rwallet is null then return NEW; end if;
+
+  begin
+    insert into public.merchant_referrals(merchant_id, referee_id, referrer_id, branch_id)
+      values (NEW.merchant_id, NEW.user_id, v_ref, NEW.branch_id);
+  exception when unique_violation then return NEW;  -- مسجّلة من قبل
+  end;
+
+  select * into v_prog from public.referral_programs where merchant_id = NEW.merchant_id;
+  -- مكافأة ترحيب للصاحب الجديد (اختياري)
+  if found and v_prog.enabled and coalesce(v_prog.referee_reward_points, 0) > 0 then
+    update public.user_stores
+       set available_points = available_points + v_prog.referee_reward_points,
+           lifetime_points  = lifetime_points  + v_prog.referee_reward_points
+     where id = NEW.id;
+    insert into public.points_transactions(user_store_id, type, points, reason)
+      values (NEW.id, 'earn', v_prog.referee_reward_points, 'referral_welcome');
+  end if;
+
+  if not found or not v_prog.enabled then return NEW; end if;
+
+  select count(*) into v_count from public.merchant_referrals
+    where merchant_id = NEW.merchant_id and referrer_id = v_ref;
+
+  for v_idx in 0 .. coalesce(jsonb_array_length(v_prog.milestones), 0) - 1 loop
+    if (v_prog.milestones->v_idx->>'count')::int <= v_count then
+      begin
+        insert into public.referral_milestone_grants(merchant_id, referrer_id, milestone_index)
+          values (NEW.merchant_id, v_ref, v_idx);
+        v_pts := coalesce((v_prog.milestones->v_idx->>'reward_points')::int, 0);
+        if v_pts > 0 then
+          update public.user_stores
+             set available_points = available_points + v_pts,
+                 lifetime_points  = lifetime_points  + v_pts
+           where id = v_rwallet;
+          insert into public.points_transactions(user_store_id, type, points, reason)
+            values (v_rwallet, 'earn', v_pts, 'referral_reward');
+        end if;
+        insert into public.notifications(user_id, type, title, body, data)
+          values (v_ref, 'referral', 'مكافأة إحالة! 🎁',
+                  coalesce(v_prog.milestones->v_idx->>'label', 'وصلت لمرحلة جديدة — مكافأتك أُضيفت'),
+                  jsonb_build_object('merchant_id', NEW.merchant_id, 'milestone', v_idx));
+      exception when unique_violation then null;  -- ممنوحة من قبل
+      end;
+    end if;
+  end loop;
+  return NEW;
+end $$;
+drop trigger if exists merchant_referral_on_wallet on public.user_stores;
+create trigger merchant_referral_on_wallet after insert on public.user_stores
+  for each row execute function public.tg_merchant_referral();
+
+-- تقدّم إحالة العميل عند متجر (لعرض المسار). يرجّع json.
+create or replace function public.my_referral_progress(p_merchant uuid)
+returns jsonb language sql stable security definer set search_path = public, pg_temp as $$
+  select jsonb_build_object(
+    'enabled', coalesce((select enabled from public.referral_programs where merchant_id = p_merchant), false),
+    'milestones', coalesce((select milestones from public.referral_programs where merchant_id = p_merchant), '[]'::jsonb),
+    'count', (select count(*) from public.merchant_referrals
+              where merchant_id = p_merchant and referrer_id = auth.uid()),
+    'granted', coalesce((select array_agg(milestone_index) from public.referral_milestone_grants
+              where merchant_id = p_merchant and referrer_id = auth.uid()), '{}')
+  );
+$$;
+grant execute on function public.my_referral_progress(uuid) to authenticated;
+
+-- التاجر يحفظ إعداد برنامج الإحالة (صلاحية settings.edit).
+create or replace function public.set_referral_program(
+  p_merchant uuid, p_enabled boolean, p_milestones jsonb, p_referee_points int default 0
+) returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if not public.current_staff_can(p_merchant, 'settings', 'edit') then
+    raise exception 'forbidden';
+  end if;
+  insert into public.referral_programs(merchant_id, enabled, milestones, referee_reward_points, updated_at)
+    values (p_merchant, p_enabled, coalesce(p_milestones,'[]'::jsonb), greatest(0, coalesce(p_referee_points,0)), now())
+  on conflict (merchant_id) do update
+    set enabled = excluded.enabled, milestones = excluded.milestones,
+        referee_reward_points = excluded.referee_reward_points, updated_at = now();
+end $$;
+grant execute on function public.set_referral_program(uuid, boolean, jsonb, int) to authenticated;
+
+-- حضور: هل الموظّف ضمن نطاق الفرع (GPS بهامش الدقّة أو WiFi)؟ بدون إعداد = مسموح.
+create or replace function public.branch_presence_ok(
+  p_branch uuid, p_lat double precision, p_lng double precision,
+  p_accuracy double precision default 0, p_bssid text default null
+) returns boolean language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare b public.branches; v_dist double precision; v_has_geo boolean; v_has_wifi boolean;
+begin
+  select * into b from public.branches where id = p_branch;
+  if b.id is null then return true; end if;            -- بلا فرع محدّد = لا فرض
+  v_has_geo  := b.lat is not null and b.lng is not null;
+  v_has_wifi := b.wifi_bssids is not null and array_length(b.wifi_bssids, 1) > 0;
+  if not v_has_geo and not v_has_wifi then return true; end if;  -- غير مُعدّ = مسموح
+  -- WiFi: تطابق البصمة = حضور مؤكّد
+  if v_has_wifi and p_bssid is not null and p_bssid = any(b.wifi_bssids) then
+    return true;
+  end if;
+  -- GPS: المسافة ناقص الدقّة ضمن النطاق (هافرسين)
+  if v_has_geo and p_lat is not null and p_lng is not null then
+    v_dist := 2 * 6371000 * asin(sqrt(
+      power(sin(radians(p_lat - b.lat) / 2), 2) +
+      cos(radians(b.lat)) * cos(radians(p_lat)) *
+      power(sin(radians(p_lng - b.lng) / 2), 2)));
+    if (v_dist - coalesce(p_accuracy, 0)) <= b.geofence_radius_m then
+      return true;
+    end if;
+  end if;
+  return false;
+end $$;
+grant execute on function public.branch_presence_ok(uuid, double precision, double precision, double precision, text)
+  to authenticated, service_role;
