@@ -10,6 +10,7 @@ import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
 import 'activity_log_screen.dart';
 import 'branches_screen.dart';
+import 'referral_program_screen.dart';
 import 'campaigns_screen.dart';
 import 'customers_screen.dart';
 import 'coupons_screen.dart';
@@ -141,6 +142,14 @@ class ManagementHubScreen extends ConsumerWidget {
               subtitle: 'اجمع آراء عملائك مقابل نقاط',
               builder: (_) => const QuestionsScreen(),
               resource: 'questions',
+            ),
+            _HubTile(
+              icon: Icons.group_add_outlined,
+              accent: AppColors.success,
+              title: 'برنامج الإحالة',
+              subtitle: 'مسار مكافآت لمن يحيل أصدقاءه لمتجرك',
+              builder: (_) => const ReferralProgramScreen(),
+              resource: 'settings',
             ),
             _HubTile(
               icon: Icons.casino_rounded,

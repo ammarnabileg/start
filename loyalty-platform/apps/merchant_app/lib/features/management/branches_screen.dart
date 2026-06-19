@@ -140,6 +140,7 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
   late final TextEditingController _name;
   late final TextEditingController _address;
   late final TextEditingController _radius;
+  late final TextEditingController _wifi;
   double? _lat;
   double? _lng;
   late bool _active;
@@ -153,6 +154,8 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
     _address = TextEditingController(text: e?['address'] as String? ?? '');
     _radius = TextEditingController(
         text: (e?['geofence_radius_m'] ?? 150).toString());
+    _wifi = TextEditingController(
+        text: ((e?['wifi_bssids'] as List?) ?? const []).join(', '));
     _lat = (e?['lat'] as num?)?.toDouble();
     _lng = (e?['lng'] as num?)?.toDouble();
     _active = e?['active'] as bool? ?? true;
@@ -163,6 +166,7 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
     _name.dispose();
     _address.dispose();
     _radius.dispose();
+    _wifi.dispose();
     super.dispose();
   }
 
@@ -192,6 +196,13 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
         'lat': _lat,
         'lng': _lng,
         'geofence_radius_m': int.tryParse(_radius.text.trim()) ?? 150,
+        'wifi_bssids': _wifi.text.trim().isEmpty
+            ? null
+            : _wifi.text
+                .split(',')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList(),
         'active': _active,
       };
       final repo = ref.read(branchesRepoProvider);
@@ -257,12 +268,22 @@ class _BranchEditorState extends ConsumerState<_BranchEditor> {
               controller: _radius,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                  labelText: 'نطاق إشعار القرب (متر)'),
+                  labelText: 'نطاق الموقع/القرب (متر)',
+                  helperText: 'يُستخدم لمنع المسح خارج الفرع (يُفضّل 50م فأكثر)'),
               validator: (v) {
                 final n = int.tryParse(v?.trim() ?? '');
                 if (n == null || n <= 0) return 'أدخل رقمًا صحيحًا';
                 return null;
               },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _wifi,
+              decoration: const InputDecoration(
+                labelText: 'بصمات WiFi للفرع (اختياري)',
+                helperText: 'BSSID للراوتر، مفصولة بفاصلة — حضور أدقّ داخل المحل',
+                hintText: 'AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66',
+              ),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
