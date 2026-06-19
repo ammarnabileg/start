@@ -173,6 +173,14 @@ void main() {
   testWidgets('m31 plans', (t) => _shot(t, 'm31_plans', const _Plans()));
   testWidgets('m32 subscription', (t) => _shot(t, 'm32_subscription', const _Subscription()));
   testWidgets('m33 unavailable', (t) => _shot(t, 'm33_unavailable', const _Unavailable()));
+  testWidgets('m34 referral program',
+      (t) => _shot(t, 'm34_referral_program', const _ReferralProgram()));
+  testWidgets('m35 staff messages',
+      (t) => _shot(t, 'm35_staff_messages', const _StaffMessages()));
+  testWidgets('m36 report chat',
+      (t) => _shot(t, 'm36_report_chat', const _ReportChat()));
+  testWidgets('m37 setup checklist',
+      (t) => _shot(t, 'm37_setup_checklist', const _SetupChecklist()));
 }
 
 // ============================ FACSIMILES ============================
@@ -1970,4 +1978,240 @@ class _Unavailable extends StatelessWidget {
       );
 }
 
+/// m34 — برنامج الإحالة: تفعيل + مسار مراحل تراكمي + مكافأة ترحيب.
+class _ReferralProgram extends StatelessWidget {
+  const _ReferralProgram();
+  Widget _milestone(int i, String count, String pts, String label) => AppCard(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: Column(children: [
+          Row(children: [
+            CircleAvatar(
+                radius: 14,
+                backgroundColor: AppColors.primaryLight,
+                child: Text('$i',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 13))),
+            const SizedBox(width: 10),
+            Expanded(child: _field('عدد الإحالات', value: count)),
+            const SizedBox(width: 10),
+            Expanded(child: _field('نقاط', value: pts)),
+          ]),
+          _field('وصف الهدية (اختياري)', value: label),
+        ]),
+      );
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('برنامج الإحالة')),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          AppCard(
+            child: Row(children: [
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('تفعيل برنامج الإحالة',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 2),
+                      const Text(
+                          'العميل يدعو أصدقاءه — تُحتسب الإحالة عند أول زيارة لصديقه.',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13)),
+                    ]),
+              ),
+              const Switch(value: true, onChanged: _noopBool),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          const SectionHeader(title: 'مراحل المكافآت (تراكمية)'),
+          const SizedBox(height: 8),
+          _milestone(1, '3', '50', 'خصم 10%'),
+          _milestone(2, '7', '120', 'قهوة مجانية'),
+          OutlinedButton.icon(
+              onPressed: _noop,
+              icon: const AppIcon(Icons.add_rounded),
+              label: const Text('أضف مرحلة')),
+          const SizedBox(height: 16),
+          const SectionHeader(title: 'مكافأة ترحيب للصاحب الجديد (اختياري)'),
+          const SizedBox(height: 8),
+          AppCard(
+            child: Row(children: [
+              const Expanded(child: Text('نقاط ترحيب لكل صاحب جديد')),
+              SizedBox(width: 90, child: _field('', value: '25')),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          const PrimaryButton(label: 'حفظ', onPressed: _noop),
+        ]),
+      );
+}
+
+/// m35 — سجل رسائل الموظفين: فلتر موظّف + بطاقات محادثات.
+class _StaffMessages extends StatelessWidget {
+  const _StaffMessages();
+  @override
+  Widget build(BuildContext context) => _listScaffold('سجل رسائل الموظفين', [
+        DropdownButtonFormField<String>(
+          value: 'all',
+          decoration: const InputDecoration(
+              labelText: 'الموظّف', prefixIcon: AppIcon(Icons.badge_outlined)),
+          items: const [
+            DropdownMenuItem(value: 'all', child: Text('كل الموظفين')),
+            DropdownMenuItem(value: 'a', child: Text('سارة (0555 123 0122)')),
+            DropdownMenuItem(value: 'b', child: Text('أحمد (0544 222 0111)')),
+          ],
+          onChanged: _noopStr,
+        ),
+        const SizedBox(height: 12),
+        _rowCard(Icons.sms_outlined, 'بلاغ #1042 · العميل خالد',
+            'سارة: تم حلّ المشكلة وإضافة النقاط · منذ 4 د',
+            trailing: const _Chip('مفتوح', AppColors.warning)),
+        _rowCard(Icons.sms_outlined, 'بلاغ #1038 · العميل منى',
+            'أحمد: نأسف على الإزعاج، سيتم التعويض · منذ ساعة',
+            trailing: const _Chip('قيد المراجعة', AppColors.info)),
+        _rowCard(Icons.sms_outlined, 'بلاغ #1031 · العميل ياسر',
+            'سارة: تم الإغلاق بالاتفاق · أمس',
+            trailing: const _Chip('محلول', AppColors.success)),
+      ]);
+}
+
+/// m36 — محادثة بلاغ (3 أطراف): عميل · موظّف · أدمن.
+class _ReportChat extends StatelessWidget {
+  const _ReportChat();
+  Widget _bubble(String who, String body, Color c, Alignment a) => Align(
+        alignment: a,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 5),
+          padding: const EdgeInsets.all(12),
+          constraints: const BoxConstraints(maxWidth: 280),
+          decoration: BoxDecoration(
+              color: c, borderRadius: BorderRadius.circular(14)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(who,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, fontSize: 11)),
+            const SizedBox(height: 3),
+            Text(body, style: const TextStyle(fontSize: 13.5)),
+          ]),
+        ),
+      );
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('بلاغ العميل · خالد')),
+        body: Column(children: [
+          Expanded(
+            child: ListView(padding: const EdgeInsets.all(16), children: [
+              _bubble('العميل · خالد', 'لم أستلم الجائزة رغم تأكيد التسليم.',
+                  AppColors.surface, Alignment.centerRight),
+              _bubble('الموظّف · سارة', 'نأسف للإزعاج، سنراجع الأمر فورًا.',
+                  AppColors.primaryLight, Alignment.centerLeft),
+              _bubble('الأدمن', 'تمت إعادة النقاط وإضافة تعويض. شكرًا لصبرك.',
+                  AppColors.infoBg, Alignment.centerLeft),
+            ]),
+          ),
+          const SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Row(children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                        hintText: 'اكتب ردًّا…', isDense: true),
+                  ),
+                ),
+                SizedBox(width: 8),
+                FloatingActionButton.small(
+                    onPressed: _noop,
+                    backgroundColor: AppColors.primary,
+                    child: AppIcon(Icons.send_rounded,
+                        color: Colors.white, size: 20)),
+              ]),
+            ),
+          ),
+        ]),
+      );
+}
+
+/// m37 — بطاقة «جهّز متجرك» (Setup Checklist) على لوحة التحكم.
+class _SetupChecklist extends StatelessWidget {
+  const _SetupChecklist();
+  Widget _step(String t, bool done) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(children: [
+          AppIcon(
+              done
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: done ? AppColors.success : AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Text(t,
+                  style: TextStyle(
+                      decoration: done ? TextDecoration.lineThrough : null,
+                      color: done
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary))),
+          if (!done)
+            const AppIcon(Icons.chevron_left_rounded,
+                color: AppColors.textSecondary),
+        ]),
+      );
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('لوحة التحكم')),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          AppCard(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    const AppIconBadge(Icons.rocket_launch_outlined, size: 44),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('جهّز متجرك',
+                                style:
+                                    Theme.of(context).textTheme.titleMedium),
+                            const Text('أكمل الخطوات لتفعيل كل المزايا',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13)),
+                          ]),
+                    ),
+                    const Text('3/5',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDark)),
+                  ]),
+                  const Divider(height: 24),
+                  _step('أكمل بيانات المتجر', true),
+                  _step('أضف فرعك الأول', true),
+                  _step('أنشئ أول مكافأة', true),
+                  _step('صمّم مستويات الولاء', false),
+                  _step('أضف موظف كاشير', false),
+                ]),
+          ),
+        ]),
+      );
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Chip(this.label, this.color);
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: .15),
+            borderRadius: BorderRadius.circular(16)),
+        child: Text(label,
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+      );
+}
+
 void _noop() {}
+void _noopBool(bool? _) {}
+void _noopStr(String? _) {}

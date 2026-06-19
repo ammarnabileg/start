@@ -43,7 +43,7 @@
     001-Splash.png ... 041-Dispute-Jump-To-Message.png
     REPORT.md              ← تقرير شاشة-بشاشة (الغرض/الإجراءات/UX/Bugs)
   Merchant-App/
-    001-Splash.png ... 041-Review-Reply.png
+    001-Splash.png ... 045-Review-Reply.png
     REPORT.md
 ```
 
@@ -73,4 +73,10 @@
 ## ملاحظة منهجية
 لقطات `m##`/`c##` **بدائل ساكنة (facsimiles)** تُبنى من نفس design-system؛ تمثّل الشكل بدقّة لكنها لا
 تُظهر تلقائيًا الحالات الديناميكية (فارغ/خطأ/بوّابات fail-open). التقارير تعتمد ملفات الميزات الحقيقية
-كمصدر-حقيقة. أربع شاشات إدارة عميقة بلا لقطة بعد: ReportChat، StaffMessages، ReferralProgram، SetupChecklist.
+كمصدر-حقيقة. أُضيفت لقطات الشاشات الأربع العميقة في تطبيق التاجر (ReportChat، StaffMessages،
+ReferralProgram، SetupChecklist) فأصبح المجموع: العميل 41 شاشة، التاجر 45 شاشة.
+
+### ما لم يُغطَّ بعد (لطلب لاحق)
+**متغيّرات الحالة المنفصلة** لكل شاشة (تحقّق نموذج خاطئ/صحيح، فارغ، خطأ+إعادة، كل Modal/Dropdown
+مفتوح على حدة) لم تُولَّد كلقطات مستقلة — فهي مئات اللقطات الإضافية. وُثّقت هذه الحالات نصيًّا في
+`REPORT.md` (حقول States/Forms/Modals). أخبرني إن أردت توليدها بصريًّا واحدة-واحدة.

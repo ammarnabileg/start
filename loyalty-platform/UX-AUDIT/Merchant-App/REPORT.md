@@ -322,8 +322,9 @@
 > **لم يُعثر على أي زرّ ميّت أو تنقّل مكسور في تطبيق التاجر** — كل معالج يصل لهدف فعلي.
 > (الزرّ الميّت الوحيد في المنصّة كان في تطبيق العميل: «تفعيل» في `LocationPrimingScreen`.)
 
-### شاشات بلا لقطة مخصّصة (الإدارة العميقة)
-`ReportChatScreen` · `StaffMessagesScreen` · `ReferralProgramScreen` · `SetupChecklist` — تُفتح ضمن تدفّق
-الإدارة؛ لقطاتها غير موجودة في مجموعة `m##` (يمكن توليدها لاحقًا عند الطلب).
+### شاشات الإدارة العميقة (أُضيفت لقطاتها الآن)
+`SetupChecklist` (`Setup-Checklist.png`) · `ReportChatScreen` (`Report-Chat.png`) ·
+`StaffMessagesScreen` (`Staff-Messages.png`) · `ReferralProgramScreen` (`Referral-Program.png`) —
+أصبحت ضمن المجموعة المرقّمة (45 شاشة).
 
 **التحليل الساكن:** `flutter analyze` على `merchant_app` = ✅ بلا مشاكل.
