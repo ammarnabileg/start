@@ -150,10 +150,11 @@ class _ActivityCard extends StatelessWidget {
                   text: '${row['staff_name'] ?? 'موظّف'} ',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w800)),
-              TextSpan(
-                  text: '· ${_roleLabel(row['actor_role'] as String?)}',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary)),
+              if ((row['staff_phone'] as String?)?.trim().isNotEmpty == true)
+                TextSpan(
+                    text: '· ${row['staff_phone']}',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
             ])),
             const SizedBox(height: 2),
             Text('${a.label} $entity${summary != null && summary.isNotEmpty ? ' · $summary' : ''}',

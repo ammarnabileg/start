@@ -2440,7 +2440,9 @@ create table if not exists public.merchant_activity_log (
   merchant_id uuid not null references public.merchants(id) on delete cascade,
   staff_id    uuid references public.merchant_staff(id) on delete set null,
   staff_name  text,                 -- لقطة اسم الفاعل (يبقى ولو حُذف الموظّف)
-  actor_role  text,                 -- دور الفاعل وقتها (merchant_owner/manager/cashier) أو 'admin'
+  staff_phone text,                 -- موبايل الفاعل (لتمييز الشخص نفسه)
+  staff_user_id uuid,               -- حساب الفاعل (هوية شخصية ثابتة)
+  actor_role  text,                 -- دور الفاعل وقتها (سياق إضافي فقط)
   action      text not null,        -- create|update|delete|grant_points|redeem_reward|redeem_prize|record_visit|apply_coupon
   entity_type text not null,        -- reward|level|coupon|campaign|question|wheel|branch|staff|role|settings|points|prize|visit|coupon_use
   entity_id   uuid,
@@ -2466,22 +2468,27 @@ create or replace function public.log_merchant_activity(
   p_entity_id uuid default null, p_summary text default null,
   p_meta jsonb default null, p_staff_id uuid default null
 ) returns void language plpgsql security definer set search_path = public, pg_temp as $$
-declare v_sid uuid := p_staff_id; v_name text; v_role text;
+declare v_sid uuid := p_staff_id; v_name text; v_role text; v_phone text; v_uid uuid;
 begin
   if p_merchant is null then return; end if;
   if v_sid is null then
-    select id, name, role into v_sid, v_name, v_role
+    select id, name, role, phone, user_id into v_sid, v_name, v_role, v_phone, v_uid
     from public.merchant_staff
     where merchant_id = p_merchant and user_id = auth.uid() and status = 'active'
     limit 1;
   else
-    select name, role into v_name, v_role from public.merchant_staff where id = v_sid;
+    select name, role, phone, user_id into v_name, v_role, v_phone, v_uid
+    from public.merchant_staff where id = v_sid;
+  end if;
+  -- موبايل الشخص: من سجل الموظّف، وإلا من حساب المستخدم.
+  if (v_phone is null or v_phone = '') and v_uid is not null then
+    select phone into v_phone from public.users where id = v_uid;
   end if;
   insert into public.merchant_activity_log(
-      merchant_id, staff_id, staff_name, actor_role, action, entity_type,
-      entity_id, summary, meta)
-    values (p_merchant, v_sid, v_name, v_role, p_action, p_entity_type,
-            p_entity_id, p_summary, p_meta);
+      merchant_id, staff_id, staff_name, staff_phone, staff_user_id, actor_role,
+      action, entity_type, entity_id, summary, meta)
+    values (p_merchant, v_sid, v_name, v_phone, v_uid, v_role, p_action,
+            p_entity_type, p_entity_id, p_summary, p_meta);
 end $$;
 grant execute on function public.log_merchant_activity(uuid, text, text, uuid, text, jsonb, uuid)
   to authenticated, service_role;
@@ -2533,8 +2540,8 @@ create or replace function public.merchant_activity(
   p_merchant uuid, p_staff uuid default null,
   p_limit int default 30, p_offset int default 0
 ) returns table (
-  id bigint, staff_id uuid, staff_name text, actor_role text,
-  action text, entity_type text, entity_id uuid, summary text,
+  id bigint, staff_id uuid, staff_name text, staff_phone text, staff_user_id uuid,
+  actor_role text, action text, entity_type text, entity_id uuid, summary text,
   meta jsonb, created_at timestamptz
 ) language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
@@ -2542,7 +2549,8 @@ begin
     raise exception 'forbidden';
   end if;
   return query
-    select a.id, a.staff_id, a.staff_name, a.actor_role, a.action, a.entity_type,
+    select a.id, a.staff_id, a.staff_name, a.staff_phone, a.staff_user_id,
+           a.actor_role, a.action, a.entity_type,
            a.entity_id, a.summary, a.meta, a.created_at
     from public.merchant_activity_log a
     where a.merchant_id = p_merchant

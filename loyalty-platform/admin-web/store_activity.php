@@ -72,7 +72,7 @@ require __DIR__ . '/partials/header.php';
       <div class="flex-1 min-w-0">
         <div class="text-sm">
           <b><?= e($r['staff_name'] ?: 'موظّف') ?></b>
-          <span class="text-gray-400">· <?= e(rl($r['actor_role'])) ?></span>
+          <?php if (trim((string)$r['staff_phone']) !== ''): ?><span class="text-gray-400">· <?= e($r['staff_phone']) ?></span><?php endif; ?>
           <?php if ($r['business_name']): ?><span class="text-emerald-700">· <?= e($r['business_name']) ?></span><?php endif; ?>
         </div>
         <div class="text-gray-800 mt-0.5">
