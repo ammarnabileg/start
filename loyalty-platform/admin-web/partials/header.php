@@ -39,6 +39,7 @@ function navlink(string $file, string $res, string $label, string $icon, string 
         if (can('analytics','view')) echo '<a href="report.php" target="_blank" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-300 hover:bg-gray-700/60"><span class="text-lg w-5 text-center">🖨️</span><span>تقرير PDF</span></a>';
         navlink('merchants.php','merchants','التجار (CRM)','🏪',$cur);
         navlink('store_activity.php','merchants','سجل نشاط المتاجر','🧾',$cur);
+        navlink('referrals.php','merchants','الإحالات','🤝',$cur);
         navlink('finance.php','finance','المالية والاشتراكات','💳',$cur);
         navlink('dunning.php','finance','استرجاع الإيرادات','💰',$cur);
         navlink('users.php','users','المستخدمون','👥',$cur);
