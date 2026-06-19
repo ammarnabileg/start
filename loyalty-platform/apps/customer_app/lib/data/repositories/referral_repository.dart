@@ -17,6 +17,20 @@ class ReferralRepository {
         .order('created_at', ascending: false);
     return (rows as List).cast<Map<String, dynamic>>();
   }
+
+  /// ربط المُحيل العام بكود إحالة.
+  Future<void> setReferrerByCode(String code) =>
+      _client.rpc('set_referrer', params: {'p_code': code.trim()});
+
+  /// فكّ الارتباط العام.
+  Future<void> clearReferrer() => _client.rpc('clear_referrer');
+
+  /// تقدّم إحالة العميل عند متجر (count + milestones + granted + enabled).
+  Future<Map<String, dynamic>> progress(String merchantId) async {
+    final res = await _client
+        .rpc('my_referral_progress', params: {'p_merchant': merchantId});
+    return (res as Map?)?.cast<String, dynamic>() ?? const {};
+  }
 }
 
 final referralRepoProvider = Provider<ReferralRepository>(

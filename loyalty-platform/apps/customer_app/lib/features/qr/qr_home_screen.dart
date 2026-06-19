@@ -6,6 +6,7 @@ import 'package:loyalty_core/loyalty_core.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
+import '../referral/referral_link_sheet.dart';
 import 'qr_providers.dart';
 
 /// الرئيسية / My QR — أهم شاشة. الـ QR متغيّر، يعلّي الإضاءة، ويشتغل أوفلاين.
@@ -178,6 +179,22 @@ class _QrHomeScreenState extends ConsumerState<QrHomeScreen>
                                 end: const Offset(1, 1),
                                 curve: Curves.easeOutBack),
                         const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: () => showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: AppColors.surface,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(24)),
+                            ),
+                            builder: (_) => ReferralLinkSheet(
+                                referralCode: user.referralCode),
+                          ),
+                          icon: const AppIcon(Icons.group_add_outlined),
+                          label: const Text('ربط إحالة'),
+                        ),
+                        const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),

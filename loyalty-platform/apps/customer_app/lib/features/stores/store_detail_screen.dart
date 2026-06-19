@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../data/paginated_notifier.dart';
+import '../../data/repositories/referral_repository.dart';
 import '../../data/repositories/stores_repository.dart';
 import 'my_stores_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
@@ -81,6 +82,12 @@ final storeRatingProvider = FutureProvider.autoDispose
 final storeReviewsProvider = FutureProvider.autoDispose
     .family<List<Review>, String>((ref, merchantId) async {
   return ref.read(storesRepoProvider).storeReviews(merchantId);
+});
+
+/// تقدّم إحالة العميل عند هذا المتجر (مسار المراحل).
+final referralProgressProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, String>((ref, merchantId) async {
+  return ref.read(referralRepoProvider).progress(merchantId);
 });
 
 // ===================== Screen =====================
@@ -283,11 +290,111 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
         ),
+        _ReferralProgressCard(store: store),
         const SizedBox(height: 20),
         const SectionHeader(title: 'الخصوصية'),
         const SizedBox(height: 8),
         _SharingCard(store: store),
       ],
+    );
+  }
+}
+
+/// كارت مسار الإحالة عند المتجر (يظهر فقط لو التاجر مفعّل البرنامج).
+class _ReferralProgressCard extends ConsumerWidget {
+  final UserStore store;
+  const _ReferralProgressCard({required this.store});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data =
+        ref.watch(referralProgressProvider(store.merchantId)).valueOrNull;
+    if (data == null || data['enabled'] != true) return const SizedBox.shrink();
+    final milestones = (data['milestones'] as List?) ?? const [];
+    if (milestones.isEmpty) return const SizedBox.shrink();
+    final count = (data['count'] as num?)?.toInt() ?? 0;
+    final granted = ((data['granted'] as List?) ?? const [])
+        .map((e) => (e as num).toInt())
+        .toSet();
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 20),
+        const SectionHeader(title: 'ادعُ أصدقاءك 🎁'),
+        const SizedBox(height: 8),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const AppIcon(Icons.group_add_outlined,
+                    color: AppColors.primaryDark),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('إحالاتك هنا: $count',
+                      style: theme.textTheme.titleMedium),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              for (var i = 0; i < milestones.length; i++)
+                _MilestoneRow(
+                  m: milestones[i] as Map<String, dynamic>,
+                  reached: count >= ((milestones[i]['count'] as num?)?.toInt() ?? 999999),
+                  earned: granted.contains(i),
+                ),
+              const SizedBox(height: 4),
+              Text('تُحتسب الإحالة عند أول زيارة لصديقك لهذا المتجر.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MilestoneRow extends StatelessWidget {
+  final Map<String, dynamic> m;
+  final bool reached;
+  final bool earned;
+  const _MilestoneRow(
+      {required this.m, required this.reached, required this.earned});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cnt = (m['count'] as num?)?.toInt() ?? 0;
+    final label = (m['label'] as String?)?.trim();
+    final pts = (m['reward_points'] as num?)?.toInt() ?? 0;
+    final reward = (label != null && label.isNotEmpty)
+        ? label
+        : (pts > 0 ? '$pts نقطة' : 'هدية');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        AppIcon(
+          earned
+              ? Icons.check_circle_rounded
+              : (reached
+                  ? Icons.workspace_premium_rounded
+                  : Icons.lock_outline_rounded),
+          color: earned
+              ? AppColors.success
+              : (reached ? AppColors.gold : AppColors.textSecondary),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text('عند $cnt إحالة: $reward',
+              style: theme.textTheme.bodyMedium),
+        ),
+        if (earned)
+          const Text('تم 🎉',
+              style: TextStyle(
+                  color: AppColors.success, fontWeight: FontWeight.w800, fontSize: 12)),
+      ]),
     );
   }
 }
