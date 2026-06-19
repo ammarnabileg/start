@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,12 +29,16 @@ class ReportsRepository {
         .toList();
   }
 
-  Future<void> postMessage(String reportId, String body, {String? replyTo}) {
-    return _client.rpc('post_report_message', params: {
+  Future<void> postMessage(String reportId, String body, {String? replyTo}) async {
+    await _client.rpc('post_report_message', params: {
       'p_report': reportId,
       'p_body': body,
       'p_reply_to': replyTo,
     });
+    // Push لصاحب البلاغ — أفضل جهد، لا يعطّل الإرسال.
+    unawaited(_client.functions
+        .invoke('notify-report-reply', body: {'report_id': reportId})
+        .then((_) {}, onError: (_) {}));
   }
 
   Future<void> editMessage(String messageId, String body) {

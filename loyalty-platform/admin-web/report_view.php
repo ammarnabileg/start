@@ -31,6 +31,22 @@ if (is_post()) {
          values (:uid,'report_reply','رد جديد على بلاغك','ردّت إدارة المنصّة على بلاغك',
                  jsonb_build_object('report_id', :rid::text))",
         ['uid' => $report['user_id'], 'rid' => $id]);
+      // Push لصاحب البلاغ (إن كان Push مُعدًّا في الإعدادات).
+      $push = setting_get('push', ['function_url' => '', 'service_key' => '']);
+      if (!empty($push['function_url']) && function_exists('curl_init')) {
+        $ch = curl_init($push['function_url']);
+        curl_setopt_array($ch, [
+          CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+          CURLOPT_HTTPHEADER => ['Content-Type: application/json',
+            'Authorization: Bearer ' . ($push['service_key'] ?? '')],
+          CURLOPT_POSTFIELDS => json_encode([
+            'title' => 'رد جديد على بلاغك',
+            'body' => 'ردّت إدارة المنصّة على بلاغك',
+            'user_ids' => [$report['user_id']],
+          ]),
+        ]);
+        @curl_exec($ch); curl_close($ch);
+      }
       audit('reply', 'report', $id);
       flash('تم إرسال ردّك.');
     }
