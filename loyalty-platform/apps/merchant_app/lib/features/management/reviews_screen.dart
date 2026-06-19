@@ -41,14 +41,14 @@ class ReviewsScreen extends ConsumerWidget {
             message: 'تعذّر تحميل التقييمات',
             onRetry: () => _refresh(ref)),
         data: (rows) {
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(ref),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (summary != null) _SummaryCard(summary: summary),
-                const SizedBox(height: 16),
-                if (rows.isEmpty)
+          if (rows.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: () async => _refresh(ref),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (summary != null) _SummaryCard(summary: summary),
+                  const SizedBox(height: 16),
                   const SizedBox(
                     height: 260,
                     child: EmptyView(
@@ -56,17 +56,35 @@ class ReviewsScreen extends ConsumerWidget {
                       title: 'لا توجد تقييمات بعد',
                       message: 'تقييمات عملائك ومراجعاتهم ستظهر هنا.',
                     ),
-                  )
-                else
-                  for (var i = 0; i < rows.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _ReviewCard(review: rows[i])
-                          .animate()
-                          .fadeIn(duration: 300.ms, delay: (40 * i).ms)
-                          .slideY(begin: .06, end: 0),
-                    ),
-              ],
+                  ),
+                ],
+              ),
+            );
+          }
+          // ListView.builder = بناء كسول (يتعامل مع آلاف المراجعات بكفاءة).
+          return RefreshIndicator(
+            onRefresh: () async => _refresh(ref),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: rows.length + 1,
+              itemBuilder: (_, idx) {
+                if (idx == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: summary != null
+                        ? _SummaryCard(summary: summary)
+                        : const SizedBox.shrink(),
+                  );
+                }
+                final i = idx - 1;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ReviewCard(review: rows[i])
+                      .animate()
+                      .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                      .slideY(begin: .06, end: 0),
+                );
+              },
             ),
           );
         },
