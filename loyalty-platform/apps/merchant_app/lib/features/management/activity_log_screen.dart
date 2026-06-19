@@ -53,6 +53,7 @@ String _roleLabel(String? r) => switch (r) {
       'record_visit' => (label: 'سجّل زيارة', icon: Icons.repeat_rounded, color: AppColors.info),
       'apply_coupon' => (label: 'طبّق كوبونًا', icon: Icons.confirmation_num_outlined, color: AppColors.error),
       'qr_failed' => (label: 'فشل قراءة', icon: Icons.qr_code_scanner_rounded, color: AppColors.warning),
+      'presence_blocked' => (label: 'محاولة خارج النطاق', icon: Icons.block_rounded, color: AppColors.error),
       'send_announcement' => (label: 'أرسل', icon: Icons.campaign_outlined, color: AppColors.primaryDark),
       _ => (label: action, icon: Icons.bolt, color: AppColors.textSecondary),
     };

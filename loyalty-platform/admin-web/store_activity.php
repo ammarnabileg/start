@@ -29,7 +29,7 @@ function al(string $a): string {
     'grant_points' => 'منح نقاطًا', 'redeem_reward' => 'سلّم مكافأة',
     'redeem_prize' => 'سلّم جائزة', 'record_visit' => 'سجّل زيارة',
     'apply_coupon' => 'طبّق كوبونًا', 'qr_failed' => 'فشل قراءة',
-    'send_announcement' => 'أرسل',
+    'presence_blocked' => 'محاولة خارج النطاق', 'send_announcement' => 'أرسل',
   ][$a] ?? $a;
 }
 function el(?string $e): string {

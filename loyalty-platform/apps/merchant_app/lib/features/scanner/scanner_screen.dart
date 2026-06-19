@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/presence.dart';
 import '../../data/repositories/scan_repository.dart';
 import 'customer_profile_screen.dart';
 
@@ -72,7 +73,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         return;
       }
 
-      final res = await ref.read(scanRepoProvider).verifyQr(payload);
+      // فرض الحضور: نلتقط الموقع وبصمة WiFi ونمرّرها للتحقق من نطاق الفرع.
+      final presence = await capturePresence();
+      final res = await ref.read(scanRepoProvider).verifyQr(payload,
+          lat: presence.lat,
+          lng: presence.lng,
+          accuracy: presence.accuracy,
+          bssid: presence.bssid);
+      if (res.data?['blocked'] == 'presence') {
+        if (!mounted) return;
+        await _showBlockedDialog(res.data?['message'] as String?);
+        return;
+      }
       if (res.data?['error'] != null) {
         _snack(res.data['error'] as String);
         return;
@@ -86,6 +98,31 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// بوب‑أب رادع عند المسح خارج النطاق — يوضّح إن المحاولة سُجّلت وأُبلِغ المالك.
+  Future<void> _showBlockedDialog(String? message) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        icon: const Text('🚩', style: TextStyle(fontSize: 40)),
+        title: const Text('محاولة خارج نطاق الفرع', textAlign: TextAlign.center),
+        content: Text(
+          message ??
+              'أنت خارج موقع الفرع المسموح. تم تسجيل هذه المحاولة وإبلاغ صاحب المتجر.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('حسنًا'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _snack(String msg) {

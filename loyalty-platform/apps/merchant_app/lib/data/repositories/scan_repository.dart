@@ -26,8 +26,15 @@ class ScanRepository {
     });
   }
 
-  Future<FunctionResponse> verifyQr(String payload) {
-    return _client.functions.invoke('verify-qr', body: {'payload': payload});
+  Future<FunctionResponse> verifyQr(String payload,
+      {double? lat, double? lng, double? accuracy, String? bssid}) {
+    return _client.functions.invoke('verify-qr', body: {
+      'payload': payload,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (accuracy != null) 'accuracy': accuracy,
+      if (bssid != null) 'bssid': bssid,
+    });
   }
 
   /// استدعاء عام لدوال إجراءات العميل (add-points/record-visit/staff-redeem/apply-coupon).

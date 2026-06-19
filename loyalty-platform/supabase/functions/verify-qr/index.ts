@@ -13,8 +13,43 @@ Deno.serve(async (req) => {
     if (!await rateLimit(svc, `verify:${staff.staffId}`, 200, 60)) {
       return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
     }
-    const { payload } = await req.json();
+    const { payload, lat, lng, accuracy, bssid } = await req.json();
     if (!payload) return badRequest("payload مفقود");
+
+    // فرض الحضور: لو الموظّف مربوط بفرع له موقع/WiFi، لازم يكون داخل النطاق.
+    if (staff.branchId) {
+      const { data: ok } = await svc.rpc("branch_presence_ok", {
+        p_branch: staff.branchId,
+        p_lat: typeof lat === "number" ? lat : null,
+        p_lng: typeof lng === "number" ? lng : null,
+        p_accuracy: typeof accuracy === "number" ? accuracy : 0,
+        p_bssid: bssid ?? null,
+      });
+      if (ok === false) {
+        // سجّل المحاولة المشبوهة + بلّغ المالك.
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "presence_blocked", p_entity_type: "scan",
+          p_summary: "محاولة مسح خارج نطاق الفرع",
+          p_meta: { lat, lng, accuracy, has_bssid: !!bssid }, p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+        const { data: owners } = await svc.from("merchant_staff")
+          .select("user_id").eq("merchant_id", staff.merchantId)
+          .in("role", ["merchant_owner", "manager"]).not("user_id", "is", null);
+        const ids = [...new Set((owners ?? []).map((o) => o.user_id as string).filter((x) => !!x))];
+        if (ids.length) {
+          await svc.from("notifications").insert(ids.map((uid) => ({
+            user_id: uid, type: "fraud_alert",
+            title: "محاولة مشبوهة 🚩",
+            body: "حاول أحد الموظفين مسح رمز خارج نطاق الفرع (التفاصيل في سجل النشاط)",
+            data: { staff_id: staff.staffId, kind: "presence_blocked" },
+          }))).then(() => {}, () => {});
+        }
+        return json({
+          blocked: "presence",
+          message: "أنت خارج نطاق الفرع — تم تسجيل المحاولة وإبلاغ صاحب المتجر.",
+        });
+      }
+    }
 
     // userId من الـ payload عشان نجيب الـ secret، ثم نتحقق منه فعليًا
     const claimedUserId = String(payload).split(".")[1];
