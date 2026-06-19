@@ -72,11 +72,17 @@ Widget _nav(int i) => AppBottomNav(
       currentIndex: i,
       onTap: (_) {},
       items: const [
-        AppBottomNavItem(icon: Icons.dashboard_outlined, label: 'لوحة التحكم'),
+        AppBottomNavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard_rounded,
+            label: 'لوحة التحكم'),
         AppBottomNavItem(
             icon: Icons.qr_code_scanner_rounded, label: 'مسح', prominent: true),
         AppBottomNavItem(icon: Icons.tune_rounded, label: 'الإدارة'),
-        AppBottomNavItem(icon: Icons.storefront_outlined, label: 'حسابي'),
+        AppBottomNavItem(
+            icon: Icons.storefront_outlined,
+            activeIcon: Icons.storefront_rounded,
+            label: 'حسابي'),
       ],
     );
 

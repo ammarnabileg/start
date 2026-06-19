@@ -80,10 +80,21 @@ Widget _nav(int i) => AppBottomNav(
       currentIndex: i,
       onTap: (_) {},
       items: const [
-        AppBottomNavItem(icon: Icons.qr_code_2_rounded, label: 'الرئيسية'),
-        AppBottomNavItem(icon: Icons.storefront_outlined, label: 'متاجري'),
-        AppBottomNavItem(icon: Icons.notifications_none_rounded, label: 'الإشعارات'),
-        AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'حسابي'),
+        AppBottomNavItem(
+            icon: Icons.qr_code_2_rounded, label: 'رمزي', prominent: true),
+        AppBottomNavItem(
+            icon: Icons.storefront_outlined,
+            activeIcon: Icons.storefront_rounded,
+            label: 'متاجري'),
+        AppBottomNavItem(
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'الإشعارات',
+            badgeCount: 3),
+        AppBottomNavItem(
+            icon: Icons.person_outline_rounded,
+            activeIcon: Icons.person_rounded,
+            label: 'حسابي'),
       ],
     );
 
