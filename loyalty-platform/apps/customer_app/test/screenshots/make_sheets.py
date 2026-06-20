@@ -90,6 +90,7 @@ MERCHANT = [
     ('m06_register_business', 'تسجيل متجر جديد'),
     ('m07_pending', 'بانتظار الموافقة'),
     ('m08_dashboard', 'لوحة التحكم'),
+    ('m08b_notifications', 'الإشعارات'),
     ('m37_setup_checklist', 'جهّز متجرك'),
     ('m09_scanner', 'الماسح الضوئي'),
     ('m09b_prize_deliver', 'تسليم جائزة'),

@@ -22,6 +22,25 @@ Future<void> _loadFonts() async {
     loader.addFont(Future.value(ByteData.view(Uint8List.fromList(bytes).buffer)));
   }
   await loader.load();
+  await _loadMaterialIcons();
+}
+
+/// تحميل خط أيقونات Material حتى تُرسَم الأيقونات غير المُسجّلة كـ SVG
+/// بنفس شكلها في التطبيق الحقيقي (وإلا تظهر مربّعات في بيئة الاختبار فقط).
+Future<void> _loadMaterialIcons() async {
+  for (final p in [
+    '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}'
+        '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+  ]) {
+    final file = File(p);
+    if (file.existsSync()) {
+      final loader = FontLoader('MaterialIcons')
+        ..addFont(Future.value(
+            ByteData.view(Uint8List.fromList(file.readAsBytesSync()).buffer)));
+      await loader.load();
+      return;
+    }
+  }
 }
 
 ThemeData _theme() {
@@ -76,6 +95,11 @@ Widget _nav(int i) => AppBottomNav(
             icon: Icons.dashboard_outlined,
             activeIcon: Icons.dashboard_rounded,
             label: 'لوحة التحكم'),
+        AppBottomNavItem(
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'الإشعارات',
+            badgeCount: 2),
         AppBottomNavItem(
             icon: Icons.qr_code_scanner_rounded, label: 'مسح', prominent: true),
         AppBottomNavItem(icon: Icons.tune_rounded, label: 'الإدارة'),
@@ -143,6 +167,7 @@ void main() {
   testWidgets('m06 register business', (t) => _shot(t, 'm06_register_business', const _RegisterBiz()));
   testWidgets('m07 pending approval', (t) => _shot(t, 'm07_pending', const _Pending()));
   testWidgets('m08 dashboard', (t) => _shot(t, 'm08_dashboard', const _Dashboard()));
+  testWidgets('m08b notifications', (t) => _shot(t, 'm08b_notifications', const _MerchantNotifications()));
   testWidgets('m09 scanner', (t) => _shot(t, 'm09_scanner', const _Scanner()));
   testWidgets('m09b prize deliver', (t) => _shot(t, 'm09b_prize_deliver', const _PrizeDeliver()));
   testWidgets('m10 customer profile', (t) => _shot(t, 'm10_customer_profile', const _CustomerProfile()));
@@ -413,11 +438,66 @@ class _Dashboard extends StatelessWidget {
   }
 }
 
+class _MerchantNotifications extends StatelessWidget {
+  const _MerchantNotifications();
+
+  Widget _card(IconData icon, Color? badge, String title, String body,
+          {bool unread = false}) =>
+      AppCard(
+        margin: const EdgeInsets.only(bottom: 10),
+        color: unread ? AppColors.surfaceCream : null,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          AppIconBadge(icon, size: 44, iconSize: 22, color: badge),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15))),
+                if (unread)
+                  Container(
+                      width: 9,
+                      height: 9,
+                      margin: const EdgeInsetsDirectional.only(start: 6),
+                      decoration: const BoxDecoration(
+                          color: AppColors.primaryDark, shape: BoxShape.circle)),
+              ]),
+              const SizedBox(height: 4),
+              Text(body,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13)),
+            ]),
+          ),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        bottomNavigationBar: _nav(1),
+        appBar: AppBar(title: const Text('الإشعارات'), centerTitle: true),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          _card(Icons.gpp_maybe_rounded, AppColors.error, 'محاولة مشبوهة 🚩',
+              'حاول أحد الموظفين مسح رمز خارج نطاق الفرع (التفاصيل في سجل النشاط)',
+              unread: true),
+          _card(Icons.flag_rounded, AppColors.error, 'بلاغ جديد من عميل',
+              'لم أستلم الجائزة رغم تأكيد التسليم', unread: true),
+          _card(Icons.star_rounded, null, 'تقييم جديد ⭐⭐⭐⭐⭐',
+              'قهوة ممتازة وخدمة سريعة، المكان مريح جدًا للعمل.'),
+          _card(Icons.group_add_rounded, AppColors.success, 'مكافأة إحالة! 🎁',
+              'عميلك أحال صديقًا أتمّ أول زيارة — كافِئه تلقائيًا.'),
+          _card(Icons.campaign_rounded, AppColors.info, 'إعلان مُرسَل',
+              'تم إرسال إعلانك إلى 1,240 عميلًا.'),
+        ]),
+      );
+}
+
 class _Scanner extends StatelessWidget {
   const _Scanner();
   @override
   Widget build(BuildContext context) => Scaffold(
-        bottomNavigationBar: _nav(1),
+        bottomNavigationBar: _nav(2),
         appBar: AppBar(title: const Text('مسح رمز العميل')),
         body: Stack(
           fit: StackFit.expand,
@@ -651,7 +731,7 @@ class _Management extends StatelessWidget {
       ('الإعلانات', 'أرسل إشعارًا لكل عملائك', Icons.campaign_outlined, AppColors.primaryDark),
     ];
     return Scaffold(
-      bottomNavigationBar: _nav(2),
+      bottomNavigationBar: _nav(3),
       body: CustomScrollView(
         slivers: [
           const SliverToBoxAdapter(
@@ -711,7 +791,7 @@ class _BizProfile extends StatelessWidget {
   const _BizProfile();
   @override
   Widget build(BuildContext context) => Scaffold(
-        bottomNavigationBar: _nav(3),
+        bottomNavigationBar: _nav(4),
         body: ListView(padding: EdgeInsets.zero, children: [
           const HeroHeader(
               title: 'مقهى الرواق',
@@ -1459,7 +1539,7 @@ class _Customers extends StatelessWidget {
           ),
         ),
       ]),
-      bottomNavigationBar: _nav(2),
+      bottomNavigationBar: _nav(3),
     );
   }
 }

@@ -59,6 +59,7 @@ MERCHANT = [
     ('m06_register_business', 'Register-Business'),
     ('m07_pending', 'Pending-Approval'),
     ('m08_dashboard', 'Dashboard'),
+    ('m08b_notifications', 'Notifications'),
     ('m37_setup_checklist', 'Setup-Checklist'),
     ('m09_scanner', 'Scanner'),
     ('m09b_prize_deliver', 'Prize-Deliver'),

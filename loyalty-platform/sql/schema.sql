@@ -2763,3 +2763,69 @@ begin
 end $$;
 grant execute on function public.branch_presence_ok(uuid, double precision, double precision, double precision, text)
   to authenticated, service_role;
+
+-- =====================================================================
+-- 33) إشعارات التاجر — إعلام أصحاب/مديري المتجر بالأحداث المهمة
+--     (بلاغ جديد، تقييم جديد). تنبيه الاحتيال يُنشأ من verify-qr،
+--     وإشعارات الإحالة من tg_merchant_referral.
+-- =====================================================================
+
+-- يُدخل إشعارًا لكل أصحاب/مديري المتجر (دون الكاشير). SECURITY DEFINER
+-- ليتجاوز RLS عند الكتابة لمستخدمين آخرين.
+create or replace function public.notify_merchant_owners(
+  p_merchant uuid,
+  p_type     text,
+  p_title    text,
+  p_body     text,
+  p_data     jsonb default '{}'::jsonb
+) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if p_merchant is null then
+    return;
+  end if;
+  insert into public.notifications (user_id, type, title, body, data)
+  select distinct ms.user_id, p_type, p_title, p_body,
+         coalesce(p_data, '{}'::jsonb) || jsonb_build_object('merchant_id', p_merchant)
+  from public.merchant_staff ms
+  where ms.merchant_id = p_merchant
+    and ms.user_id is not null
+    and ms.role in ('merchant_owner', 'manager', 'branch_manager');
+end $$;
+
+grant execute on function public.notify_merchant_owners(uuid, text, text, text, jsonb)
+  to authenticated, service_role;
+
+-- بلاغ جديد من عميل → إشعار للتاجر.
+create or replace function public.tg_notify_new_report() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.notify_merchant_owners(
+    NEW.merchant_id, 'new_report', 'بلاغ جديد من عميل',
+    coalesce(nullif(left(NEW.message, 80), ''), 'وصلك بلاغ جديد — افتحه للرد عليه'),
+    jsonb_build_object('report_id', NEW.id));
+  return NEW;
+end $$;
+
+drop trigger if exists trg_notify_new_report on public.reports;
+create trigger trg_notify_new_report
+  after insert on public.reports
+  for each row execute function public.tg_notify_new_report();
+
+-- تقييم جديد → إشعار للتاجر (يُطلق على الإدراج الجديد فقط؛ تعديل التقييم
+-- يتحوّل إلى UPDATE في upsert_review فلا يُطلق هذا المُحفّز).
+create or replace function public.tg_notify_new_review() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.notify_merchant_owners(
+    NEW.merchant_id, 'review',
+    'تقييم جديد ' || repeat('⭐', greatest(NEW.rating, 1)),
+    coalesce(nullif(left(NEW.comment, 80), ''), 'ترك أحد عملائك تقييمًا جديدًا'),
+    jsonb_build_object('review_id', NEW.id, 'rating', NEW.rating));
+  return NEW;
+end $$;
+
+drop trigger if exists trg_notify_new_review on public.reviews;
+create trigger trg_notify_new_review
+  after insert on public.reviews
+  for each row execute function public.tg_notify_new_review();
