@@ -476,10 +476,7 @@ class _Avatar extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [color, Color.lerp(color, Colors.black, .18)!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
+          color: color,
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,

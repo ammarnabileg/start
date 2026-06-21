@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'app_icon.dart';
 
-/// شارة أيقونة موحّدة بهوية Hatchy: خلفية ذهبية متدرّجة + أيقونة بيضاء —
-/// نفس استايل زر المسح البارز. تُستخدم لكل الأيقونات اللي خلفيتها ذهبية.
+/// شارة أيقونة موحّدة بهوية Hatchy: خلفية بلون فاتح (tint) + أيقونة بنفس اللون،
+/// بحواف دائرية ناعمة وبدون أي بوردر أو ظل. هوية واحدة لكل أيقونات التطبيق.
 class AppIconBadge extends StatelessWidget {
   final IconData icon;
 
@@ -11,7 +11,7 @@ class AppIconBadge extends StatelessWidget {
   final double size;
   final double? iconSize;
 
-  /// لون أساس بديل (لو عايز شارة بلون دلالي بدل الذهبي) — تبقى بأيقونة بيضاء.
+  /// لون الهوية (الخلفية الفاتحة + الأيقونة). افتراضيًا الأساسي الذهبي.
   final Color? color;
 
   /// شكل دائري بدل المربّع الدائري الحواف.
@@ -28,25 +28,17 @@ class AppIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final solid = color;
+    final c = color ?? AppColors.primaryDark;
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: solid == null ? AppColors.buttonGradient : null,
-        color: solid,
+        color: c.withValues(alpha: .14),
         shape: circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: circle ? null : BorderRadius.circular(size * 0.32),
-        boxShadow: [
-          BoxShadow(
-            color: (solid ?? AppColors.primary).withValues(alpha: .32),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: circle ? null : BorderRadius.circular(size * 0.30),
       ),
-      child: AppIcon(icon, size: iconSize ?? size * 0.5, color: Colors.white),
+      child: AppIcon(icon, size: iconSize ?? size * 0.5, color: c),
     );
   }
 }
