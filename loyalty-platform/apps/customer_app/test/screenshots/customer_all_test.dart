@@ -515,9 +515,8 @@ class _Register extends StatelessWidget {
                 child: Checkbox(value: true, onChanged: _noopBool)),
             const SizedBox(width: 8),
             Expanded(
-              child: RichText(
-                text: const TextSpan(
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              child: Text.rich(
+                const TextSpan(
                   children: [
                     TextSpan(text: 'أوافق على '),
                     TextSpan(
@@ -527,6 +526,8 @@ class _Register extends StatelessWidget {
                             fontWeight: FontWeight.w700)),
                   ],
                 ),
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13),
               ),
             ),
           ]),
