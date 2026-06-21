@@ -45,8 +45,7 @@ CUSTOMER = [
     ('c25_report', 'Report-Form'),
     ('c26_redeemed', 'Redeemed-Success'),
     ('report_chat_real', 'Report-Chat'),
-    ('dispute_1_customer', 'Dispute-Customer-View'),
-    ('dispute_4_jump', 'Dispute-Jump-To-Message'),
+    ('report_chat_jump', 'Report-Chat-Jump-To-Message'),
 ]
 
 MERCHANT = [

@@ -76,8 +76,7 @@ CUSTOMER = [
     ('c25_report', 'إرسال بلاغ'),
     ('c26_redeemed', 'تم الاستبدال'),
     ('report_chat_real', 'محادثة البلاغ'),
-    ('dispute_1_customer', 'النزاع · العميل'),
-    ('dispute_4_jump', 'النزاع · قفز للرسالة'),
+    ('report_chat_jump', 'محادثة البلاغ · القفز للرسالة'),
 ]
 
 MERCHANT = [
