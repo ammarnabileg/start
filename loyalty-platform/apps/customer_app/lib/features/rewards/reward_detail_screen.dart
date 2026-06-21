@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../data/repositories/rewards_repository.dart';
-import 'show_to_cashier_screen.dart';
+import '../wheel/my_prizes_screen.dart';
 
 /// تفاصيل المكافأة (Reward Detail) — راجع CUSTOMER_APP.md 1.13.
 class RewardDetailScreen extends ConsumerStatefulWidget {
@@ -28,14 +28,15 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
       widget.reward.affordableWith(widget.availablePoints) &&
       widget.reward.inStock;
 
-  Future<void> _confirmAndRedeem() async {
+  Future<void> _confirmAndBuy() async {
     final reward = widget.reward;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('تأكيد الاستبدال'),
+        title: const Text('تأكيد الشراء'),
         content: Text(
-            'هل تريد استبدال ${reward.name} مقابل ${reward.pointsCost} نقطة؟'),
+            'سيتم خصم ${reward.pointsCost} نقطة وإضافة «${reward.name}» إلى '
+            '«هداياي»، تستلمها من الكاشير وقت ما تحب.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -52,23 +53,27 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
 
     setState(() => _loading = true);
     try {
-      final data = await ref
+      await ref
           .read(rewardsRepoProvider)
-          .redeemReward(reward.id, idempotencyKey: genIdempotencyKey());
-      if (data == null || data['error'] != null) {
-        _showError(
-            (data?['error'] as String?) ?? 'تعذّر بدء الاستبدال، حاول مرة أخرى.');
-        return;
-      }
+          .buyReward(reward.id, idempotencyKey: genIdempotencyKey());
       if (!mounted) return;
+      AppFeedback.toast(context, 'تمت إضافة «${reward.name}» إلى هداياي');
+      // ينتقل إلى "هداياي" حيث زر الاستبدال — الهدية أصبحت مملوكة.
       Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => ShowToCashierScreen(redemption: data),
+        builder: (_) => const MyPrizesScreen(),
       ));
-    } catch (_) {
-      _showError('تعذّر بدء الاستبدال، حاول مرة أخرى.');
+    } catch (e) {
+      _showError(_friendly(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _friendly(Object e) {
+    final m = e.toString();
+    if (m.contains('نقاط')) return 'نقاطك غير كافية';
+    if (m.contains('الكمية')) return 'نفدت الكمية';
+    return 'تعذّر إتمام الشراء، حاول مرة أخرى.';
   }
 
   void _showError(String message) {
@@ -182,10 +187,10 @@ class _RewardDetailScreenState extends ConsumerState<RewardDetailScreen> {
                   ),
                 const SizedBox(height: 20),
                 PrimaryButton(
-                  label: 'استبدال الآن',
+                  label: 'احصل عليها بـ ${reward.pointsCost} نقطة',
                   icon: Icons.redeem_rounded,
                   loading: _loading,
-                  onPressed: _affordable ? _confirmAndRedeem : null,
+                  onPressed: _affordable ? _confirmAndBuy : null,
                 ),
               ],
             ),

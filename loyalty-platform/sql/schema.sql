@@ -2914,3 +2914,115 @@ create trigger trg_plan_gate before insert on public.merchant_questions
 drop trigger if exists trg_plan_gate on public.referral_programs;
 create trigger trg_plan_gate before insert on public.referral_programs
   for each row execute function public.tg_plan_gate('referrals');
+
+-- =====================================================================
+-- 35) شراء مكافأة بالنقاط (امتلاك فوري). يخصم النقاط لحظة الشراء ويضيف الهدية
+--     إلى "هداياي" (user_prizes, source='reward') قابلة للاستلام عند الكاشير.
+--     لو لم تُستلم خلال المدة → تنتهي وتُرجَع النقاط تلقائيًا. راجع CUSTOMER_APP.
+-- =====================================================================
+
+-- مدة صلاحية الهدية المشتراة بالنقاط قبل استرجاعها (أيام).
+alter table public.merchant_settings
+  add column if not exists reward_prize_ttl_days integer not null default 30;
+
+create or replace function public.purchase_reward_with_points(
+  p_reward uuid, p_branch uuid default null, p_user uuid default null
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_uid    uuid := coalesce(p_user, auth.uid());
+  v_reward record;
+  v_wallet public.user_stores;
+  v_ttl    integer;
+  v_prize  public.user_prizes;
+begin
+  if v_uid is null then
+    raise exception 'NOT_AUTHENTICATED' using errcode = 'P0001';
+  end if;
+  -- منع انتحال هوية عميل آخر من واجهة عميل عادي (الحافة تمرّر هوية مُتحقّقة).
+  if p_user is not null and auth.uid() is not null and p_user <> auth.uid() then
+    raise exception 'NOT_AUTHENTICATED' using errcode = 'P0001';
+  end if;
+
+  select id, merchant_id, name, points_cost, stock_qty, active
+    into v_reward
+  from public.rewards where id = p_reward;
+  if not found or not v_reward.active then
+    raise exception 'REWARD_UNAVAILABLE' using errcode = 'P0001';
+  end if;
+  if v_reward.stock_qty is not null and v_reward.stock_qty <= 0 then
+    raise exception 'OUT_OF_STOCK' using errcode = 'P0001';
+  end if;
+
+  -- المحفظة حسب نطاق نقاط التاجر (merchant/branch).
+  v_wallet := public.get_or_create_wallet(v_uid, v_reward.merchant_id, p_branch);
+
+  -- خصم النقاط ذرّيًا — يرمي INSUFFICIENT_POINTS لو الرصيد لا يكفي (يلغي العملية).
+  perform public.wallet_apply(v_wallet.id, -v_reward.points_cost);
+
+  perform public.decrement_stock(p_reward);
+
+  select coalesce(reward_prize_ttl_days, 30) into v_ttl
+    from public.merchant_settings where merchant_id = v_reward.merchant_id;
+  v_ttl := coalesce(v_ttl, 30);
+
+  -- الهدية المملوكة: نخزّن تكلفة النقاط في points_value لاستردادها عند الانتهاء.
+  -- (تأكيد الكاشير لا يصرف points_value إلا لـ kind='points'، فالمكافأة آمنة.)
+  insert into public.user_prizes(
+    user_id, merchant_id, source, source_ref, title, kind,
+    points_value, status, branch_scope, expires_at
+  ) values (
+    v_uid, v_reward.merchant_id, 'reward', p_reward, v_reward.name, 'reward',
+    v_reward.points_cost, 'won', v_wallet.branch_id,
+    now() + make_interval(days => v_ttl)
+  ) returning * into v_prize;
+
+  insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+  values (v_wallet.id, v_wallet.branch_id, 'redeem', v_reward.points_cost,
+          'reward_purchase');
+
+  return jsonb_build_object(
+    'prize_id', v_prize.id,
+    'title', v_prize.title,
+    'claim_secret', v_prize.claim_secret,
+    'expires_at', v_prize.expires_at,
+    'status', v_prize.status,
+    'available_points',
+      (select available_points from public.user_stores where id = v_wallet.id)
+  );
+end;
+$$;
+
+grant execute on function public.purchase_reward_with_points(uuid, uuid, uuid)
+  to authenticated, service_role;
+
+-- استرجاع النقاط للهدايا المشتراة بالنقاط التي انتهت صلاحيتها قبل الاستلام.
+create or replace function public.expire_reward_prizes()
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  p        record;
+  v_wallet public.user_stores;
+begin
+  for p in
+    select * from public.user_prizes
+    where source = 'reward' and kind = 'reward' and status = 'won'
+      and expires_at is not null and expires_at < now()
+  loop
+    v_wallet := public.get_or_create_wallet(p.user_id, p.merchant_id, p.branch_scope);
+    perform public.wallet_apply(v_wallet.id, p.points_value);
+    insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+    values (v_wallet.id, v_wallet.branch_id, 'earn', p.points_value, 'reward_refund');
+    -- إرجاع المخزون إن كان محدودًا.
+    update public.rewards set stock_qty = stock_qty + 1
+      where id = p.source_ref and stock_qty is not null;
+    update public.user_prizes set status = 'expired' where id = p.id;
+    insert into public.notifications(user_id, type, title, body, data)
+    values (p.user_id, 'reward_refund', 'انتهت صلاحية هديتك',
+      'تم استرجاع ' || p.points_value || ' نقطة لأن «' || p.title ||
+      '» لم تُستلم في الوقت المحدد.',
+      jsonb_build_object('merchant_id', p.merchant_id, 'prize_id', p.id));
+  end loop;
+end;
+$$;
+
+select cron.schedule('expire-reward-prizes', '20 1 * * *',
+  $$select public.expire_reward_prizes();$$);

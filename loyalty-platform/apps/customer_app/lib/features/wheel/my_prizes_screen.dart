@@ -92,7 +92,28 @@ class _PrizeCard extends StatelessWidget {
               ],
             ),
           ),
-          const AppIcon(Icons.chevron_left_rounded),
+          const SizedBox(width: 8),
+          // زر الاستبدال — يفتح رمز الاستلام ليؤكّده الكاشير (لا تظهر نقاط: مملوكة).
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIcon(Icons.qr_code_2_rounded,
+                    size: 18, color: AppColors.onPrimary),
+                SizedBox(width: 6),
+                Text('استبدال',
+                    style: TextStyle(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13)),
+              ],
+            ),
+          ),
         ],
       ),
     );

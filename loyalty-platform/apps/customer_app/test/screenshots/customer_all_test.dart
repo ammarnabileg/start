@@ -508,15 +508,15 @@ class _Register extends StatelessWidget {
               value: '••••••••',
               trailing: Icons.visibility_off_outlined),
           _field('تاريخ الميلاد (اختياري)', icon: Icons.cake_outlined),
-          Row(children: [
-            const SizedBox(
+          const Row(children: [
+            SizedBox(
                 width: 22,
                 height: 22,
                 child: Checkbox(value: true, onChanged: _noopBool)),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text.rich(
-                const TextSpan(
+                TextSpan(
                   children: [
                     TextSpan(text: 'أوافق على '),
                     TextSpan(
@@ -526,7 +526,7 @@ class _Register extends StatelessWidget {
                             fontWeight: FontWeight.w700)),
                   ],
                 ),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 13),
               ),
             ),
@@ -1650,9 +1650,14 @@ class _RewardDetail extends StatelessWidget {
               Text('350 نقطة', style: TextStyle(fontWeight: FontWeight.w800)),
             ]),
           ),
+          const SizedBox(height: 8),
+          const Text('تُضاف إلى «هداياي» وتستلمها من الكاشير وقت ما تحب.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 24),
           const PrimaryButton(
-              label: 'استبدال الآن', icon: Icons.redeem_rounded, onPressed: _noop),
+              label: 'احصل عليها بـ 100 نقطة',
+              icon: Icons.redeem_rounded,
+              onPressed: _noop),
         ]),
       );
 }
@@ -1793,7 +1798,24 @@ class _MyPrizes extends StatelessWidget {
                   ],
                 ),
               ),
-              const AppIcon(Icons.qr_code_2_rounded, color: AppColors.primaryDark),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  AppIcon(Icons.qr_code_2_rounded,
+                      size: 18, color: AppColors.onPrimary),
+                  SizedBox(width: 6),
+                  Text('استبدال',
+                      style: TextStyle(
+                          color: AppColors.onPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                ]),
+              ),
             ]),
           ),
       ]),
