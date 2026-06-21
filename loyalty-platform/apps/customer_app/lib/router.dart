@@ -6,6 +6,7 @@ import 'features/shell/home_shell.dart';
 import 'features/qr/qr_home_screen.dart';
 import 'features/stores/my_stores_screen.dart';
 import 'features/notifications/notifications_screen.dart';
+import 'features/wheel/my_prizes_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/auth/welcome_screen.dart';
 import 'features/splash/splash_screen.dart';
@@ -23,7 +24,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
-      // الـ Bottom Tab Bar (4 تابات ثابتة)
+      // الـ Bottom Tab Bar (5 تابات ثابتة، زر QR بارز في النص)
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => HomeShell(shell: shell),
         branches: [
@@ -37,6 +38,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(
                 path: '/notifications',
                 builder: (_, __) => const NotificationsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/prizes', builder: (_, __) => const MyPrizesScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),

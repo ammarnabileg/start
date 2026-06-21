@@ -92,6 +92,10 @@ Widget _nav(int i) => AppBottomNav(
             label: 'الإشعارات',
             badgeCount: 3),
         AppBottomNavItem(
+            icon: Icons.card_giftcard_outlined,
+            activeIcon: Icons.card_giftcard_rounded,
+            label: 'هداياي'),
+        AppBottomNavItem(
             icon: Icons.person_outline_rounded,
             activeIcon: Icons.person_rounded,
             label: 'حسابي'),
@@ -815,7 +819,7 @@ class _Profile extends StatelessWidget {
       (Icons.support_agent_outlined, 'الدعم'),
     ];
     return Scaffold(
-      bottomNavigationBar: _nav(3),
+      bottomNavigationBar: _nav(4),
       body: ListView(padding: EdgeInsets.zero, children: [
         const HeroHeader(title: 'أحمد خالد', subtitle: '05xxxxxxxx'),
         Padding(
@@ -1756,21 +1760,15 @@ class _MyPrizes extends StatelessWidget {
       ('خصم 20%', 'بيتزا تايم', 'سارية حتى 5 أغسطس'),
     ];
     return Scaffold(
+      bottomNavigationBar: _nav(3),
       appBar: AppBar(title: const Text('هداياي'), centerTitle: true),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         for (final p in prizes)
           AppCard(
             margin: const EdgeInsets.only(bottom: 12),
             child: Row(children: [
-              Container(
-                height: 52,
-                width: 52,
-                decoration: BoxDecoration(
-                    gradient: AppColors.goldGradient,
-                    borderRadius: BorderRadius.circular(14)),
-                child: const AppIcon(Icons.card_giftcard_rounded,
-                    color: AppColors.onPrimary),
-              ),
+              const AppIconBadge(Icons.card_giftcard_rounded,
+                  size: 52, color: AppColors.goldTier),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

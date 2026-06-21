@@ -65,11 +65,7 @@ class _PrizeCard extends StatelessWidget {
       )),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.primaryLight,
-            child: AppIcon(_kindIcon, color: AppColors.primaryDark),
-          ),
+          AppIconBadge(_kindIcon, size: 48, color: AppColors.goldTier),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

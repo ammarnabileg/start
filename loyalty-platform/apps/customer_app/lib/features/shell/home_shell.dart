@@ -5,7 +5,8 @@ import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../data/repositories/notifications_repository.dart';
 
-/// الـ Bottom Tab Bar — 4 تابات ثابتة (الرئيسية/متاجري/الإشعارات/حسابي).
+/// الـ Bottom Tab Bar — 5 تابات (رمزي بارز في النص · متاجري/الإشعارات على جنب
+/// · هداياي/حسابي على الجنب الآخر) ليكون متوازنًا.
 class HomeShell extends ConsumerWidget {
   final StatefulNavigationShell shell;
   const HomeShell({super.key, required this.shell});
@@ -33,6 +34,10 @@ class HomeShell extends ConsumerWidget {
               activeIcon: Icons.notifications_rounded,
               label: 'الإشعارات',
               badgeCount: unread),
+          const AppBottomNavItem(
+              icon: Icons.card_giftcard_outlined,
+              activeIcon: Icons.card_giftcard_rounded,
+              label: 'هداياي'),
           const AppBottomNavItem(
               icon: Icons.person_outline_rounded,
               activeIcon: Icons.person_rounded,
