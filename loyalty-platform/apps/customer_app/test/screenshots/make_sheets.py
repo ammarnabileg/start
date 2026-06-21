@@ -71,13 +71,12 @@ CUSTOMER = [
     ('c21_prize_qr', 'رمز QR للجائزة'),
     ('c22_leaderboard', 'لوحة الصدارة'),
     ('c23_referral', 'الإحالة'),
+    ('c23b_referral_link', 'ربط إحالة (ورقة)'),
     ('c24_deliver_confirm', 'تأكيد التسليم'),
     ('c25_report', 'إرسال بلاغ'),
     ('c26_redeemed', 'تم الاستبدال'),
     ('report_chat_real', 'محادثة البلاغ'),
     ('dispute_1_customer', 'النزاع · العميل'),
-    ('dispute_2_merchant', 'النزاع · التاجر'),
-    ('dispute_3_admin', 'النزاع · الأدمن'),
     ('dispute_4_jump', 'النزاع · قفز للرسالة'),
 ]
 

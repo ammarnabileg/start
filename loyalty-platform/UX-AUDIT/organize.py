@@ -40,13 +40,12 @@ CUSTOMER = [
     ('c21_prize_qr', 'Prize-QR'),
     ('c22_leaderboard', 'Leaderboard'),
     ('c23_referral', 'Referral'),
+    ('c23b_referral_link', 'Referral-Link-Sheet'),
     ('c24_deliver_confirm', 'Deliver-Confirm'),
     ('c25_report', 'Report-Form'),
     ('c26_redeemed', 'Redeemed-Success'),
     ('report_chat_real', 'Report-Chat'),
     ('dispute_1_customer', 'Dispute-Customer-View'),
-    ('dispute_2_merchant', 'Dispute-Merchant-View'),
-    ('dispute_3_admin', 'Dispute-Admin-View'),
     ('dispute_4_jump', 'Dispute-Jump-To-Message'),
 ]
 

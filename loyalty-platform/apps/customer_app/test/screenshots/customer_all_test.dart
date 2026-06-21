@@ -166,6 +166,7 @@ void main() {
   testWidgets('c21 prize qr', (t) => _shot(t, 'c21_prize_qr', const _PrizeQr()));
   testWidgets('c22 leaderboard', (t) => _shot(t, 'c22_leaderboard', const _Leaderboard()));
   testWidgets('c23 referral', (t) => _shot(t, 'c23_referral', const _Referral()));
+  testWidgets('c23b referral link', (t) => _shot(t, 'c23b_referral_link', const _ReferralLink()));
   testWidgets('c24 deliver confirm', (t) => _shot(t, 'c24_deliver_confirm', const _DeliverConfirm()));
   testWidgets('c25 report', (t) => _shot(t, 'c25_report', const _ReportForm()));
   testWidgets('c26 redeemed', (t) => _shot(t, 'c26_redeemed', const _RedeemedSuccess()));
@@ -662,6 +663,14 @@ class _QrHome extends StatelessWidget {
                   ]),
                 ]),
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const AppIcon(Icons.group_add_outlined),
+              label: const Text('ربط إحالة'),
             ),
           ),
         ]),
@@ -1888,6 +1897,96 @@ class _Leaderboard extends StatelessWidget {
             ),
           ),
       ]),
+    );
+  }
+}
+
+/// ورقة «ربط إحالة» التي تفتح من زر الرئيسية (ReferralLinkSheet).
+class _ReferralLink extends StatelessWidget {
+  const _ReferralLink();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: Colors.black.withValues(alpha: .35),
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(3))),
+            Text('كود إحالتك', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 6),
+            const Text(
+                'شاركه مع أصحابك — لما يربطوا بيه ويزوروا متجرك تكسب هدايا 🎁',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.divider)),
+              child: QrImageView(
+                  data: 'ref1.8F3A2C9D',
+                  size: 140,
+                  backgroundColor: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                  color: AppColors.surfaceCream,
+                  borderRadius: BorderRadius.circular(AppRadii.pill)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('8F3A2C9D',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, letterSpacing: 2)),
+                SizedBox(width: 10),
+                AppIcon(Icons.copy_rounded,
+                    size: 18, color: AppColors.primaryDark),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            const Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text('أحالك صديق؟ اربط بكوده',
+                    style: TextStyle(fontWeight: FontWeight.w700))),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: _field('كود الصديق'),
+              ),
+              const SizedBox(width: 10),
+              const PrimaryButton(
+                  label: 'ربط', expanded: false, onPressed: _noop),
+            ]),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const AppIcon(Icons.qr_code_scanner_rounded),
+              label: const Text('امسح كود صديقك'),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+                onPressed: () {},
+                child: const Text('فكّ الارتباط الحالي',
+                    style: TextStyle(color: AppColors.error))),
+          ]),
+        ),
+      ),
     );
   }
 }
