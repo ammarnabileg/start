@@ -1828,15 +1828,11 @@ create index if not exists idx_staff_pending_phone
 -- F1 · هل التاجر "متاح" الآن؟ (معتمد + غير معلّق + اشتراك/تجربة سارية).
 create or replace function public.merchant_entitled(p_merchant uuid)
 returns boolean language sql security definer stable as $$
+  -- كل تاجر مُعتمَد له وصول أساسي (الباقة المجانية: نقاط + تكرار زيارات).
+  -- المزايا المدفوعة تُحجَب عبر plan gating لا عبر منع الدخول كليًّا.
   select exists (
     select 1 from public.merchants m
-    left join public.subscriptions s on s.merchant_id = m.id
-    where m.id = p_merchant
-      and m.status = 'approved'
-      and (
-        (s.status = 'active' and s.current_period_end is not null and s.current_period_end > now())
-        or (s.status = 'trial' and s.trial_ends_at is not null and s.trial_ends_at > now())
-      )
+    where m.id = p_merchant and m.status = 'approved'
   );
 $$;
 
@@ -2829,3 +2825,92 @@ drop trigger if exists trg_notify_new_review on public.reviews;
 create trigger trg_notify_new_review
   after insert on public.reviews
   for each row execute function public.tg_notify_new_review();
+
+-- =====================================================================
+-- 34) تحجيم الباقات (Plan gating) — المجانية: نقاط + تكرار زيارات فقط.
+--     الذهبية/المؤسسات (والتجربة): كل المزايا. فرض على الواجهة والباك-إند.
+-- =====================================================================
+
+-- توسيع أكواد الباقات لتشمل free/gold/enterprise (مع إبقاء القديمة للتوافق).
+alter table public.subscriptions drop constraint if exists subscriptions_plan_check;
+alter table public.subscriptions
+  add constraint subscriptions_plan_check
+  check (plan in ('trial','monthly','yearly','free','gold','enterprise'));
+
+-- مصفوفة المزايا لكل باقة. المجانية = نقاط + تكرار زيارات فقط.
+create or replace function public.plan_allows(p_plan text, p_feature text)
+returns boolean language sql immutable as $$
+  select case
+    -- النقاط وتكرار الزيارات متاحة للجميع (بما فيهم المجانية).
+    when p_feature in ('points', 'visits') then true
+    -- الباقات المدفوعة والتجربة تفتح كل المزايا.
+    when coalesce(p_plan, 'free') in ('gold', 'enterprise', 'trial', 'monthly', 'yearly')
+      then true
+    -- المجانية (أو غير معروف) → باقي المزايا مقفولة.
+    else false
+  end;
+$$;
+
+-- الباقة الفعلية للتاجر: مدفوعة سارية → باقتها؛ تجربة سارية → trial؛ غير ذلك → free.
+create or replace function public.merchant_current_plan(p_merchant uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select coalesce((
+    select case
+      when s.status = 'active' and s.current_period_end is not null
+           and s.current_period_end > now()
+        then coalesce(nullif(s.plan, 'trial'), 'gold')
+      when s.status = 'trial' and s.trial_ends_at is not null
+           and s.trial_ends_at > now()
+        then 'trial'
+      else 'free'
+    end
+    from public.subscriptions s
+    where s.merchant_id = p_merchant
+    order by s.created_at desc
+    limit 1
+  ), 'free');
+$$;
+
+create or replace function public.merchant_plan_allows(p_merchant uuid, p_feature text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.plan_allows(public.merchant_current_plan(p_merchant), p_feature);
+$$;
+
+grant execute on function public.merchant_current_plan(uuid) to authenticated, service_role;
+grant execute on function public.merchant_plan_allows(uuid, text) to authenticated, service_role;
+grant execute on function public.plan_allows(text, text) to authenticated, service_role;
+
+-- مُحفّز عام يمنع إنشاء ميزة مدفوعة على الباقة المجانية (backstop أمني).
+create or replace function public.tg_plan_gate() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.merchant_plan_allows(NEW.merchant_id, TG_ARGV[0]) then
+    raise exception 'هذه الميزة (%) تتطلب ترقية باقتك', TG_ARGV[0]
+      using errcode = 'P0001', hint = 'upgrade_plan';
+  end if;
+  return NEW;
+end $$;
+
+drop trigger if exists trg_plan_gate on public.rewards;
+create trigger trg_plan_gate before insert on public.rewards
+  for each row execute function public.tg_plan_gate('rewards');
+
+drop trigger if exists trg_plan_gate on public.loyalty_levels;
+create trigger trg_plan_gate before insert on public.loyalty_levels
+  for each row execute function public.tg_plan_gate('levels');
+
+drop trigger if exists trg_plan_gate on public.coupons;
+create trigger trg_plan_gate before insert on public.coupons
+  for each row execute function public.tg_plan_gate('coupons');
+
+drop trigger if exists trg_plan_gate on public.lucky_wheels;
+create trigger trg_plan_gate before insert on public.lucky_wheels
+  for each row execute function public.tg_plan_gate('wheel');
+
+drop trigger if exists trg_plan_gate on public.merchant_questions;
+create trigger trg_plan_gate before insert on public.merchant_questions
+  for each row execute function public.tg_plan_gate('questions');
+
+drop trigger if exists trg_plan_gate on public.referral_programs;
+create trigger trg_plan_gate before insert on public.referral_programs
+  for each row execute function public.tg_plan_gate('referrals');

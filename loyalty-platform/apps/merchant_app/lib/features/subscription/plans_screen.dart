@@ -3,11 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
+import '../../core/plan.dart';
 import '../../data/repositories/merchant_repository.dart';
 import '../shell/merchant_shell.dart';
 
-/// 2.6 — اختيار الباقة. تجربة مجانية 30 يوم (مميّزة) / شهري $9 / سنوي $99.
-/// الدفع يدوي في النسخة الأولى: الزرار يبدأ التجربة، والمدفوع يفعّله الأدمن.
+/// 2.6 — اختيار الباقة. المجانية (نقاط + تكرار زيارات) / الذهبية 199 ريال
+/// (كل المزايا) / المؤسسات (تواصل معنا). السعر يظهر بعملة الدولة عبر الـIP.
+/// الدفع يدوي في النسخة الأولى: المجانية تبدأ فورًا، والمدفوع يفعّله الأدمن.
 class PlansScreen extends ConsumerStatefulWidget {
   final String merchantId;
   const PlansScreen({super.key, required this.merchantId});
@@ -19,16 +21,14 @@ class PlansScreen extends ConsumerStatefulWidget {
 class _PlansScreenState extends ConsumerState<PlansScreen> {
   bool _busy = false;
 
-  Future<void> _startTrial() async {
+  Future<void> _startFree() async {
     setState(() => _busy = true);
-    final trialEnds = DateTime.now().toUtc().add(const Duration(days: 30));
     try {
-      // إنشاء/تحديث اشتراك التجربة. upsert على merchant_id لتجنّب التكرار.
+      // الباقة المجانية تبدأ فورًا — اشتراك دائم بلا نهاية فترة.
       await ref.read(merchantRepoProvider).upsertSubscription({
         'merchant_id': widget.merchantId,
-        'plan': 'trial',
-        'status': 'trial',
-        'trial_ends_at': trialEnds.toIso8601String(),
+        'plan': 'free',
+        'status': 'active',
       });
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -36,7 +36,7 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
         (route) => false,
       );
     } catch (_) {
-      _snack('تعذّر بدء التجربة، حاول مرة أخرى');
+      _snack('تعذّر البدء، حاول مرة أخرى');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,6 +69,10 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final price = ref.watch(planPriceProvider);
+    // سعر الذهبية حسب الدولة (199 ريال داخل السعودية / $53 خارجها).
+    final goldPrice = price.valueOrNull?.display ?? '…';
+    final goldPeriod = price.valueOrNull?.period ?? 'شهريًا';
     return Scaffold(
       appBar: AppBar(title: const Text('اختر باقتك')),
       body: SafeArea(
@@ -83,61 +87,70 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'كل الباقات تفتح المزايا كاملة — اختر ما يناسبك.',
+              'المجانية تكفي للبداية، والذهبية تفتح كل المزايا.',
               style: text.bodyMedium?.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xxl),
             _PlanCard(
-              featured: true,
-              title: 'تجربة مجانية',
+              title: 'المجانية',
               price: 'مجانًا',
-              period: 'لمدة 30 يومًا',
+              period: 'للأبد',
               perks: const [
-                'كل المزايا مفتوحة',
-                'مسح غير محدود وإضافة نقاط',
-                'حملات ومكافآت ومستويات',
+                'نقاط ومكافآت أساسية للعملاء',
+                'حملات تكرار الزيارات',
+                'فرع واحد وعملاء بلا حد',
               ],
-              actionLabel: 'ابدأ التجربة المجانية',
+              actionLabel: 'ابدأ مجانًا',
               loading: _busy,
-              onAction: _busy ? null : _startTrial,
+              onAction: _busy ? null : _startFree,
             )
                 .animate()
                 .fadeIn(duration: 350.ms)
                 .slideY(begin: .08, end: 0),
             const SizedBox(height: AppSpacing.lg),
             _PlanCard(
-              title: 'الباقة الشهرية',
-              price: r'$9',
-              period: 'شهريًا',
+              featured: true,
+              title: 'الذهبية',
+              price: goldPrice,
+              period: goldPeriod,
               perks: const [
-                'كل مزايا المنصة',
-                'دعم فني',
-                'تجديد شهري مرن',
+                'كل مزايا المجانية، بالإضافة إلى:',
+                'المكافآت والمستويات والكوبونات',
+                'عجلة الحظ والأسئلة وبرنامج الإحالة',
+                'الإعلانات والتحليلات المتقدمة',
+                'فروع وعملاء بلا حدود',
               ],
-              actionLabel: 'اشترك',
-              onAction: _busy ? null : () => _showPaidInfo('الشهرية'),
+              actionLabel: 'اشترك في الذهبية',
+              onAction: _busy ? null : () => _showPaidInfo('الذهبية'),
             )
                 .animate()
                 .fadeIn(duration: 350.ms, delay: 80.ms)
                 .slideY(begin: .08, end: 0),
             const SizedBox(height: AppSpacing.lg),
             _PlanCard(
-              title: 'الباقة السنوية',
-              price: r'$99',
-              period: 'سنويًا',
-              badge: 'وفّر ~8%',
+              title: 'المؤسسات',
+              price: 'تواصل معنا',
+              period: '',
               perks: const [
-                'كل مزايا المنصة',
-                'أفضل قيمة على المدى الطويل',
-                'دعم فني',
+                'كل مزايا الذهبية',
+                'تكامل POS مخصّص',
+                'دعم أولوية وحلول مؤسسية',
               ],
-              actionLabel: 'اشترك',
-              onAction: _busy ? null : () => _showPaidInfo('السنوية'),
+              actionLabel: 'تواصل معنا',
+              onAction: _busy ? null : () => _showPaidInfo('المؤسسات'),
             )
                 .animate()
                 .fadeIn(duration: 350.ms, delay: 160.ms)
                 .slideY(begin: .08, end: 0),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              price.valueOrNull?.country == 'SA'
+                  ? 'الأسعار بالريال السعودي، شاملة كل المزايا.'
+                  : 'الأسعار بالدولار الأمريكي.',
+              style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -150,7 +163,6 @@ class _PlanCard extends StatelessWidget {
   final String title;
   final String price;
   final String period;
-  final String? badge;
   final List<String> perks;
   final String actionLabel;
   final bool loading;
@@ -161,7 +173,6 @@ class _PlanCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.period,
-    this.badge,
     required this.perks,
     required this.actionLabel,
     this.loading = false,
@@ -197,12 +208,7 @@ class _PlanCard extends StatelessWidget {
                 const _Pill(
                     label: 'الأكثر شيوعًا',
                     bg: AppColors.onPrimary,
-                    fg: AppColors.primary)
-              else if (badge != null)
-                _Pill(
-                    label: badge!,
-                    bg: AppColors.success,
-                    fg: Colors.white),
+                    fg: AppColors.primary),
             ],
           ),
           const SizedBox(height: AppSpacing.md),

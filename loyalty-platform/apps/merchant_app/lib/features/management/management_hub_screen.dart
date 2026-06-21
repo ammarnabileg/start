@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loyalty_core/loyalty_core.dart';
 
 import '../../core/merchant_providers.dart';
+import '../../core/plan.dart';
 import '../analytics/analytics_screen.dart';
 import '../announcements/announcements_screen.dart';
 import '../leaderboard/store_leaderboard_screen.dart';
 import '../settings/merchant_settings_screen.dart';
+import '../subscription/plans_screen.dart';
 import 'activity_log_screen.dart';
 import 'branches_screen.dart';
 import 'referral_program_screen.dart';
@@ -33,6 +35,7 @@ class ManagementHubScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(merchantSettingsProvider);
     final perms = ref.watch(permissionsProvider).valueOrNull;
+    final plan = ref.watch(merchantPlanProvider).valueOrNull ?? 'free';
 
     return Scaffold(
       body: settingsAsync.when(
@@ -84,6 +87,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 subtitle: 'الجوائز القابلة للاستبدال بالنقاط',
                 builder: (_) => const RewardsManagementScreen(),
                 resource: 'rewards',
+                feature: 'rewards',
               ),
             if (settings.enableLevels)
               _HubTile(
@@ -93,6 +97,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 subtitle: 'مستويات الولاء حسب إجمالي النقاط',
                 builder: (_) => const LevelsScreen(),
                 resource: 'levels',
+                feature: 'levels',
               ),
             if (settings.enableCoupons)
               _HubTile(
@@ -102,6 +107,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 subtitle: 'أكواد خصم ومنتجات مجانية',
                 builder: (_) => const CouponsScreen(),
                 resource: 'coupons',
+                feature: 'coupons',
               ),
             _HubTile(
               icon: Icons.store_mall_directory_outlined,
@@ -142,6 +148,7 @@ class ManagementHubScreen extends ConsumerWidget {
               subtitle: 'اجمع آراء عملائك مقابل نقاط',
               builder: (_) => const QuestionsScreen(),
               resource: 'questions',
+              feature: 'questions',
             ),
             _HubTile(
               icon: Icons.group_add_outlined,
@@ -150,6 +157,7 @@ class ManagementHubScreen extends ConsumerWidget {
               subtitle: 'مسار مكافآت لمن يحيل أصدقاءه لمتجرك',
               builder: (_) => const ReferralProgramScreen(),
               resource: 'settings',
+              feature: 'referrals',
             ),
             _HubTile(
               icon: Icons.casino_rounded,
@@ -158,6 +166,7 @@ class ManagementHubScreen extends ConsumerWidget {
               subtitle: 'صمّم عجلة الجوائز ومقاطعها',
               builder: (_) => const WheelManagementScreen(),
               resource: 'wheel',
+              feature: 'wheel',
             ),
             _HubTile(
               icon: Icons.admin_panel_settings_outlined,
@@ -207,6 +216,7 @@ class ManagementHubScreen extends ConsumerWidget {
                 subtitle: 'أرسل إشعارًا لكل عملائك',
                 builder: (_) => const AnnouncementsScreen(),
                 resource: 'announcements',
+                feature: 'announcements',
               ),
           ];
 
@@ -237,31 +247,78 @@ class ManagementHubScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
                       final t = visible[i];
+                      // مقفولة لو ميزتها مدفوعة والتاجر على الباقة المجانية.
+                      final locked =
+                          t.feature != null && !planAllows(plan, t.feature!);
                       return AppCard(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: t.builder),
-                        ),
+                        onTap: () => locked
+                            ? _showUpgrade(context, t.title)
+                            : Navigator.of(context).push(
+                                MaterialPageRoute(builder: t.builder),
+                              ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              height: 52,
-                              width: 52,
-                              decoration: BoxDecoration(
-                                color: t.accent.withValues(alpha: .15),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.md),
-                              ),
-                              child: AppIcon(t.icon, color: t.accent, size: 26),
+                            Row(
+                              children: [
+                                Container(
+                                  height: 52,
+                                  width: 52,
+                                  decoration: BoxDecoration(
+                                    color: (locked
+                                            ? AppColors.textSecondary
+                                            : t.accent)
+                                        .withValues(alpha: .15),
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadii.md),
+                                  ),
+                                  child: AppIcon(t.icon,
+                                      color: locked
+                                          ? AppColors.textSecondary
+                                          : t.accent,
+                                      size: 26),
+                                ),
+                                const Spacer(),
+                                if (locked)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppColors.goldTier.withValues(alpha: .15),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          AppIcon(Icons.lock_rounded,
+                                              size: 13,
+                                              color: AppColors.goldTier),
+                                          SizedBox(width: 3),
+                                          Text('ذهبية',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppColors.goldTier)),
+                                        ]),
+                                  ),
+                              ],
                             ),
                             const Spacer(),
                             Text(t.title,
-                                style:
-                                    Theme.of(context).textTheme.titleMedium),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                        color: locked
+                                            ? AppColors.textSecondary
+                                            : null)),
                             const SizedBox(height: 4),
-                            Text(t.subtitle,
-                                style:
-                                    Theme.of(context).textTheme.bodySmall,
+                            Text(
+                                locked
+                                    ? 'متاحة في الباقة الذهبية'
+                                    : t.subtitle,
+                                style: Theme.of(context).textTheme.bodySmall,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis),
                           ],
@@ -283,6 +340,36 @@ class ManagementHubScreen extends ConsumerWidget {
   }
 }
 
+/// نافذة ترقية عند الضغط على ميزة مقفولة في الباقة المجانية.
+void _showUpgrade(BuildContext context, String feature) {
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => Consumer(
+      builder: (ctx, ref, _) => AlertDialog(
+        title: const Text('ميزة الباقة الذهبية'),
+        content: Text(
+            '«$feature» متاحة في الباقة الذهبية. رقِّ باقتك لفتح كل المزايا '
+            '(المكافآت، المستويات، الكوبونات، عجلة الحظ، الأسئلة، الإحالة، الإعلانات).'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('لاحقًا')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final staff = await ref.read(currentStaffProvider.future);
+              if (!ctx.mounted) return;
+              Navigator.of(ctx).push(MaterialPageRoute<void>(
+                  builder: (_) => PlansScreen(merchantId: staff.merchantId)));
+            },
+            child: const Text('عرض الباقات'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _HubTile {
   final IconData icon;
   final Color accent;
@@ -290,6 +377,7 @@ class _HubTile {
   final String subtitle;
   final WidgetBuilder builder;
   final String? resource; // مورد الصلاحية (null = متاح للكل)
+  final String? feature; // ميزة الباقة (تُقفل على المجانية لو مدفوعة)
   const _HubTile({
     required this.icon,
     required this.accent,
@@ -297,5 +385,6 @@ class _HubTile {
     required this.subtitle,
     required this.builder,
     this.resource,
+    this.feature,
   });
 }
