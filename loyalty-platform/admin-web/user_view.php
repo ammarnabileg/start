@@ -11,11 +11,11 @@ if (is_post()) {
   $act = (string) post('action');
   if ($act === 'save') {
     require_perm('users', 'edit');
-    q("update public.users set name=:n, email=:e,
-         leaderboard_opt_in=:lb, share_profile_with_merchants=:sp where id=:id", [
+    // الخصوصية (leaderboard_opt_in / share_profile_with_merchants) يتحكّم بها
+    // العميل وحده — لا يجوز للإدارة إلغاء إخفاءه. لا نلمس هذين العمودين هنا.
+    q("update public.users set name=:n, email=:e where id=:id", [
       'n'=>trim((string)post('name')), 'e'=>trim((string)post('email')) ?: null,
-      'lb'=>post('leaderboard_opt_in')?'true':'false',
-      'sp'=>post('share_profile_with_merchants')?'true':'false', 'id'=>$id,
+      'id'=>$id,
     ]);
     audit('update','user',$id); flash('تم حفظ بيانات المستخدم.');
   } elseif ($act === 'delete') {
@@ -65,8 +65,11 @@ require __DIR__ . '/partials/header.php';
         <input value="<?= e($u['phone']) ?>" disabled class="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50"></label>
       <label class="block col-span-2"><span class="text-xs text-gray-500">البريد</span>
         <input name="email" value="<?= e($u['email']) ?>" <?= $canEdit?'':'disabled' ?> class="mt-1 w-full border rounded-lg px-3 py-2"></label>
-      <label class="inline-flex items-center gap-2"><input type="checkbox" name="leaderboard_opt_in" <?= $u['leaderboard_opt_in']?'checked':'' ?> <?= $canEdit?'':'disabled' ?>> الظهور في الصدارة</label>
-      <label class="inline-flex items-center gap-2"><input type="checkbox" name="share_profile_with_merchants" <?= $u['share_profile_with_merchants']?'checked':'' ?> <?= $canEdit?'':'disabled' ?>> مشاركة البيانات مع المتاجر</label>
+      <!-- خصوصية يتحكّم بها العميل (قراءة فقط للإدارة — لا يمكن إلغاء إخفائه). -->
+      <div class="inline-flex items-center gap-2 text-sm"><span class="text-gray-500">الظهور في الصدارة:</span>
+        <?= $u['leaderboard_opt_in']?badge('ظاهر','green'):badge('مخفي باختياره','gray') ?></div>
+      <div class="inline-flex items-center gap-2 text-sm"><span class="text-gray-500">مشاركة البيانات مع المتاجر:</span>
+        <?= $u['share_profile_with_merchants']?badge('يشارك','green'):badge('مخفي باختياره','gray') ?></div>
       <?php if ($canEdit): ?><div class="col-span-2"><button class="bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg px-6 py-2">حفظ</button></div><?php endif; ?>
     </form>
   </div>
