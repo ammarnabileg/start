@@ -27,6 +27,8 @@ class MerchantCustomer {
   final String? branchName;
   final DateTime? firstLinked;
   final DateTime? lastActivity;
+  final DateTime? dateOfBirth;
+  final String? joinedVia; // 'referral' = انضم بإحالة، 'direct' = مباشر
 
   MerchantCustomer.fromJson(Map<String, dynamic> j)
       : userId = j['user_id'] as String,
@@ -44,7 +46,11 @@ class MerchantCustomer {
             : DateTime.parse(j['first_linked'] as String),
         lastActivity = j['last_activity'] == null
             ? null
-            : DateTime.parse(j['last_activity'] as String);
+            : DateTime.parse(j['last_activity'] as String),
+        dateOfBirth = j['date_of_birth'] == null
+            ? null
+            : DateTime.parse(j['date_of_birth'] as String),
+        joinedVia = j['joined_via'] as String?;
 
   /// نشِط = نشاط خلال آخر ٣٠ يومًا.
   bool get isActive =>
@@ -311,6 +317,9 @@ class _CustomerDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             _row('المستوى', c.levelName ?? '—'),
             _row('البريد', c.email ?? '—'),
+            _row('تاريخ الميلاد', _date(c.dateOfBirth)),
+            _row('انضمّ عن طريق',
+                c.joinedVia == 'referral' ? 'إحالة من عميل' : 'تسجيل مباشر'),
             _row('الفرع', c.branchName ?? '—'),
             _row('الحالة', c.isActive ? 'نشِط' : 'غير نشِط'),
             _row('الإشعارات', c.pushOptIn ? 'مفعّلة' : 'غير مفعّلة'),

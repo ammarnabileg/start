@@ -1073,6 +1073,8 @@ language sql security definer stable as $$
 $$;
 
 -- عرض عملاء التاجر مع كل خصائصهم (مجمّعة عبر فروعه). محمي بعضوية التاجر.
+-- توقيع الإرجاع يتغيّر (أعمدة إضافية) فلا يكفي create or replace.
+drop function if exists public.merchant_customers(uuid, text, uuid, text, int, int, int, boolean, int, int);
 create or replace function public.merchant_customers(
   p_merchant   uuid,
   p_search     text    default null,
@@ -1097,7 +1099,9 @@ create or replace function public.merchant_customers(
   push_opt_in      boolean,
   branch_name      text,
   first_linked     timestamptz,
-  last_activity    timestamptz
+  last_activity    timestamptz,
+  date_of_birth    date,                -- الميلاد (لعروض أعياد الميلاد) — لو متاح
+  joined_via       text                 -- 'referral' = انضم بإحالة، 'direct' = مباشر
 ) language plpgsql security definer stable
   set search_path = public, pg_temp as $$
 begin
@@ -1109,6 +1113,7 @@ begin
     select
       u.id as uid, u.name as uname, u.phone as uphone, u.email as uemail,
       u.avatar_url as uavatar, u.push_opt_in as upush,
+      u.date_of_birth as udob, (u.referred_by is not null) as ureferred,
       sum(us.available_points)::bigint as avail,
       sum(us.lifetime_points)::bigint  as life,
       (array_agg(l.name order by l.threshold_lifetime_points desc)
@@ -1139,10 +1144,12 @@ begin
             select 1 from public.user_visits v
              where v.user_id = u.id and v.merchant_id = p_merchant
                and v.branch_id = p_branch))
-    group by u.id, u.name, u.phone, u.email, u.avatar_url, u.push_opt_in
+    group by u.id, u.name, u.phone, u.email, u.avatar_url, u.push_opt_in,
+             u.date_of_birth, u.referred_by
   )
   select uid, uname, uphone, uemail, uavatar, avail, life, lvl, vis, upush,
-         branch_nm, linked, last_act
+         branch_nm, linked, last_act, udob,
+         case when ureferred then 'referral' else 'direct' end
   from agg
   where (p_level      is null or lvl   = p_level)
     and (p_min_points is null or avail >= p_min_points)
