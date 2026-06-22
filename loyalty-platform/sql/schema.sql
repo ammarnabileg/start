@@ -453,6 +453,10 @@ create index idx_visits_merchant_date  on public.user_visits(merchant_id, visit_
 create index idx_points_store          on public.points_transactions(user_store_id);
 create index idx_rewards_merchant      on public.rewards(merchant_id) where active;
 create index idx_staff_user            on public.merchant_staff(user_id);
+-- يمنع دعوتين معلّقتين بنفس الرقم في نفس المتجر (مصدر غموض claim-staff). يقتصر
+-- على الدعوات غير المربوطة (user_id is null) فلا يمنع إعادة الإضافة بعد المغادرة.
+create unique index uq_staff_pending_phone on public.merchant_staff(merchant_id, phone)
+  where user_id is null and phone is not null;
 create index idx_notifications_user    on public.notifications(user_id) where read_at is null;
 
 -- =====================================================================
