@@ -34,41 +34,21 @@ Deno.serve(async (req) => {
       return badRequest(`الحد الأقصى للعملية ${s.max_points_per_txn} نقطة`, 422);
     }
 
-    // السقف اليومي لكل موظف
-    const since = new Date(); since.setHours(0, 0, 0, 0);
-    const { data: todayTx } = await svc
-      .from("points_transactions")
-      .select("points")
-      .eq("staff_id", staff.staffId).eq("type", "earn")
-      .gte("created_at", since.toISOString());
-    const todaySum = (todayTx ?? []).reduce((a, r) => a + r.points, 0);
-    if (todaySum + pts > s.daily_points_per_staff) {
-      return badRequest("تم تجاوز الحد اليومي المسموح للموظف", 422);
-    }
-
-    // المعاملة محمية بـ idempotency (إعادة الإرسال لا تضاعف النقاط).
+    // السقف اليومي لكل موظف يُفحَص ويُطبَّق ذرّيًا داخل add_points_atomic: قفل
+    // صف الموظف يسلسل عملياته فلا يتجاوز طلبان متزامنان السقف معًا (كان فحص
+    // اقرأ-المجموع-ثم-أضِف سباقًا يسمح بالتجاوز).
     const idem = await withIdempotency(
       svc,
       idempotency_key,
       { endpoint: "add-points", userId: user_id, merchantId: staff.merchantId },
       async () => {
-        const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-          p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
-        }).single();
-
-        // تطبيق ذرّي للرصيد (يمنع فقدان التحديثات تحت التزامن).
-        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
-          p_wallet: wallet.id,
-          p_available_delta: pts,
-          p_lifetime_delta: pts,
-          p_recompute_level: s.enable_levels,
+        const { data: res, error } = await svc.rpc("add_points_atomic", {
+          p_user: user_id, p_merchant: staff.merchantId, p_branch: staff.branchId,
+          p_staff: staff.staffId, p_points: pts, p_reason: reason ?? null,
+          p_daily_cap: s.daily_points_per_staff, p_recompute_level: s.enable_levels,
         });
-        if (applyErr) throw applyErr;
-
-        await svc.from("points_transactions").insert({
-          user_store_id: wallet.id, branch_id: staff.branchId,
-          type: "earn", points: pts, staff_id: staff.staffId, reason: reason ?? null,
-        });
+        if (error) throw new Error(error.message);
+        const applied = res.apply;
 
         await svc.from("notifications").insert({
           user_id, type: "points", title: "حصلت على نقاط",
@@ -99,6 +79,13 @@ Deno.serve(async (req) => {
     }
     return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const m = (e as Error).message;
+    if (m.includes("DAILY_CAP")) {
+      return badRequest("تم تجاوز الحد اليومي المسموح للموظف", 422);
+    }
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
   }
 });

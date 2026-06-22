@@ -33,133 +33,21 @@ Deno.serve(async (req) => {
       if (wAt === false) return badRequest("العجلة غير متاحة في فرعك", 403);
     }
 
-    // حد اللفّات اليومي (لو مفعّل)
-    if (wheel.max_spins_per_day > 0) {
-      const since = new Date(); since.setHours(0, 0, 0, 0);
-      const { count } = await svc.from("user_prizes")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId).eq("merchant_id", wheel.merchant_id)
-        .eq("source", "wheel").gte("created_at", since.toISOString());
-      if ((count ?? 0) >= wheel.max_spins_per_day) {
-        return badRequest("لقد استنفدت لفّات اليوم", 429);
-      }
-    }
-
-    // المقاطع
-    const { data: segments } = await svc.from("wheel_segments")
-      .select("*").eq("wheel_id", wheel_id).order("sort_order");
-    if (!segments || segments.length === 0) {
-      return badRequest("لا توجد عروض على العجلة بعد", 409);
-    }
-    // المقاطع المتاحة (مخزون > 0 أو غير محدود)
-    const pool = segments.filter((s) =>
-      s.stock === null || (s.stock as number) > 0);
-    if (pool.length === 0) return badRequest("نفدت كل العروض", 409);
-
-    // خصم النقاط: نختار محفظة للعميل عند هذا التاجر فيها رصيد كافٍ.
-    const cost = wheel.spin_cost_points;
-    const { data: wallets } = await svc.from("user_stores")
-      .select("id, branch_id, available_points")
-      .eq("user_id", userId).eq("merchant_id", wheel.merchant_id)
-      .order("available_points", { ascending: false });
-    const wallet = (wallets ?? []).find((w) => w.available_points >= cost);
-    if (!wallet) return badRequest("النقاط غير كافية للّفّة", 422);
-
-    // المعاملة محمية بـ idempotency: لفّة مكرّرة بنفس المفتاح لا تخصم مرتين
-    // ولا تمنح جائزتين — تُعيد نفس النتيجة المخزّنة.
+    // اللفّة كاملة (الحد اليومي + اختيار النصيب الموزون + إنقاص المخزون +
+    // خصم سعر اللفّة ومنح الجائزة) تتم ذرّيًا داخل spin_wheel_execute بقفل صف
+    // العجلة — يمنع تجاوز الحد اليومي وبيع مخزون أكثر من المتاح تحت التزامن.
+    // محمية أيضًا بـ idempotency: لفّة مكرّرة بنفس المفتاح تُعيد نفس النتيجة.
     const idem = await withIdempotency(
       svc,
       idempotency_key,
       { endpoint: "spin-wheel", userId, merchantId: wheel.merchant_id },
       async () => {
-        // خصم ذرّي لسعر اللفّة — يمنع الصرف المزدوج تحت التزامن.
-        const { error: debErr } = await svc.rpc("wallet_apply", {
-          p_wallet: wallet.id, p_available_delta: -cost,
+        const { data, error } = await svc.rpc("spin_wheel_execute", {
+          p_user: userId, p_wheel: wheel_id,
         });
-        // نرمي بدل إرجاع {error} كـ200 — حتى لا يُخزَّن فشلٌ كنجاحٍ في مفتاح idempotency.
-        if (debErr) throw new Error("INSUFFICIENT_POINTS");
-        await svc.from("points_transactions").insert({
-          user_store_id: wallet.id, branch_id: wallet.branch_id,
-          type: "redeem", points: -cost, reason: "wheel_spin",
-        });
-
-        // اختيار النصيب (weighted random) على السيرفر — لا يُتلاعب به.
-        const total = pool.reduce((a, s) => a + Math.max(s.weight ?? 1, 1), 0);
-        let r = Math.random() * total;
-        let chosen = pool[pool.length - 1];
-        for (const s of pool) {
-          r -= Math.max(s.weight ?? 1, 1);
-          if (r <= 0) { chosen = s; break; }
-        }
-
-        // إنقاص مخزون المقطع لو محدود
-        if (chosen.stock !== null) {
-          await svc.from("wheel_segments")
-            .update({ stock: Math.max((chosen.stock as number) - 1, 0) })
-            .eq("id", chosen.id);
-        }
-
-        // النصيب "لا شيء" → لا هدية
-        if (chosen.kind === "nothing") {
-          return {
-            result: "nothing",
-            segment_id: chosen.id,
-            label: chosen.label,
-            prize: null,
-          };
-        }
-
-        // النصيب "نقاط" → نعيدها مباشرة (earn)
-        if (chosen.kind === "points") {
-          const pts = chosen.points_value ?? 0;
-          // إضافة ذرّية لنقاط الجائزة (lifetime لا يتغيّر في جوائز العجلة).
-          await svc.rpc("wallet_apply", {
-            p_wallet: wallet.id, p_available_delta: pts,
-          });
-          await svc.from("points_transactions").insert({
-            user_store_id: wallet.id, branch_id: wallet.branch_id,
-            type: "earn", points: pts, reason: "wheel_points",
-          });
-          return {
-            result: "points",
-            segment_id: chosen.id,
-            label: chosen.label,
-            points: pts,
-            prize: null,
-          };
-        }
-
-        // النصيب "مكافأة/كوبون" → نحفظ هدية قابلة للتفعيل بـ QR متغيّر.
-        // نطاق الفرع للهدية حسب إعداد نطاق النقاط: لو branch نقيّدها بفرع المحفظة.
-        const { data: settings } = await svc.from("merchant_settings")
-          .select("points_scope").eq("merchant_id", wheel.merchant_id).maybeSingle();
-        const branchScope =
-          (settings?.points_scope ?? "branch") === "branch" ? wallet.branch_id : null;
-
-        const expires = new Date(Date.now() + 30 * 24 * 3600_000); // 30 يوم
-        const { data: prize } = await svc.from("user_prizes").insert({
-          user_id: userId,
-          merchant_id: wheel.merchant_id,
-          source: "wheel",
-          source_ref: wheel_id,
-          title: chosen.label,
-          kind: chosen.kind,
-          points_value: chosen.points_value ?? 0,
-          branch_scope: branchScope,
-          expires_at: expires.toISOString(),
-        }).select("id, claim_secret, title, expires_at").single();
-
-        return {
-          result: "prize",
-          segment_id: chosen.id,
-          label: chosen.label,
-          prize: {
-            id: prize.id,
-            title: prize.title,
-            claim_secret: prize.claim_secret, // العميل يولّد منه QR متغيّر
-            expires_at: prize.expires_at,
-          },
-        };
+        // نرمي بدل تخزين فشلٍ كنجاحٍ في مفتاح idempotency.
+        if (error) throw new Error(error.message);
+        return data as Record<string, unknown>;
       },
     );
 
@@ -172,6 +60,9 @@ Deno.serve(async (req) => {
     if (m.includes("INSUFFICIENT_POINTS")) {
       return badRequest("النقاط غير كافية للّفّة", 422);
     }
+    if (m.includes("DAILY_LIMIT")) return badRequest("لقد استنفدت لفّات اليوم", 429);
+    if (m.includes("NO_SEGMENTS")) return badRequest("نفدت كل العروض", 409);
+    if (m.includes("WHEEL_UNAVAILABLE")) return badRequest("العجلة غير متاحة", 400);
     if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
       return badRequest(m, 401);
     }

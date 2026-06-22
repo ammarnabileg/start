@@ -36,32 +36,18 @@ Deno.serve(async (req) => {
       return badRequest("انتهت صلاحية الكوبون", 410);
     }
 
-    // الحدود
-    if (coupon.usage_limit != null) {
-      const { count } = await svc.from("coupon_redemptions")
-        .select("id", { count: "exact", head: true }).eq("coupon_id", coupon.id);
-      if ((count ?? 0) >= coupon.usage_limit) {
-        return badRequest("تم استنفاد استخدامات الكوبون", 409);
-      }
-    }
-    if (coupon.per_user_limit != null) {
-      const { count } = await svc.from("coupon_redemptions")
-        .select("id", { count: "exact", head: true })
-        .eq("coupon_id", coupon.id).eq("user_id", user_id);
-      if ((count ?? 0) >= coupon.per_user_limit) {
-        return badRequest("استخدمت هذا الكوبون من قبل", 409);
-      }
-    }
-
-    // المعاملة محمية بـ idempotency (تطبيق مكرّر لا يُسجَّل استخدامين).
+    // الحدود (الإجمالي + لكل عميل) تُفحَص وتُسجَّل ذرّيًا داخل الدالة: قفل صف
+    // الكوبون يسلسل الاستخدامات فلا يتجاوز طلبان متزامنان الحد معًا (كان فحص
+    // count-ثم-insert سباقًا يسمح بتجاوز الحد).
     const idem = await withIdempotency(
       svc,
       idempotency_key,
       { endpoint: "apply-coupon", userId: user_id, merchantId: staff.merchantId },
       async () => {
-        await svc.from("coupon_redemptions").insert({
-          coupon_id: coupon.id, user_id, staff_id: staff.staffId,
+        const { error } = await svc.rpc("apply_coupon_atomic", {
+          p_coupon: coupon.id, p_user: user_id, p_staff: staff.staffId,
         });
+        if (error) throw new Error(error.message);
 
         await svc.rpc("log_merchant_activity", {
           p_merchant: staff.merchantId, p_action: "apply_coupon",
@@ -83,6 +69,13 @@ Deno.serve(async (req) => {
     }
     return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const m = (e as Error).message;
+    if (m.includes("USAGE_EXCEEDED")) return badRequest("تم استنفاد استخدامات الكوبون", 409);
+    if (m.includes("USER_LIMIT")) return badRequest("استخدمت هذا الكوبون من قبل", 409);
+    if (m.includes("COUPON_INVALID")) return badRequest("كوبون غير صالح", 422);
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
   }
 });

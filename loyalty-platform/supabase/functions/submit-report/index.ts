@@ -2,6 +2,7 @@
 import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
 import { serviceClient, requireUser } from "../_shared/auth.ts";
 import { rateLimit } from "../_shared/ratelimit.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -16,7 +17,7 @@ Deno.serve(async (req) => {
 
     const {
       merchant_id, branch_id, prize_id, message, video_url,
-      subject_type, subject_id, subject_label,
+      subject_type, subject_id, subject_label, idempotency_key,
     } = await req.json();
     if (!message && !video_url) return badRequest("أضف رسالة أو فيديو");
     if (message && String(message).length > 2000) {
@@ -44,32 +45,46 @@ Deno.serve(async (req) => {
       if (!rel) return badRequest("لا علاقة لك بهذا المتجر", 403);
     }
 
-    const { data } = await svc.from("reports").insert({
-      user_id: userId,
-      merchant_id: m,
-      branch_id: branch_id ?? null,
-      prize_id: prize_id ?? null,
-      message: message ?? null,
-      video_url: video_url ?? null,
-      subject_type: subject_type ?? null,
-      subject_id: subject_id ?? null,
-      subject_label: subject_label ?? null,
-    }).select("id").single();
+    // محمي بـ idempotency: إعادة الإرسال بنفس المفتاح لا تنشئ بلاغًا مكرّرًا.
+    const idem = await withIdempotency(
+      svc, idempotency_key, { endpoint: "submit-report", userId, merchantId: m },
+      async () => {
+        const { data } = await svc.from("reports").insert({
+          user_id: userId,
+          merchant_id: m,
+          branch_id: branch_id ?? null,
+          prize_id: prize_id ?? null,
+          message: message ?? null,
+          video_url: video_url ?? null,
+          subject_type: subject_type ?? null,
+          subject_id: subject_id ?? null,
+          subject_label: subject_label ?? null,
+        }).select("id").single();
 
-    // رسالة الافتتاح في الـthread = البلاغ نفسه (أول رسالة من العميل).
-    const { data: me } = await svc.from("users")
-      .select("name").eq("id", userId).maybeSingle();
-    await svc.from("report_messages").insert({
-      report_id: data.id,
-      sender_role: "customer",
-      sender_user_id: userId,
-      sender_name: me?.name ?? null,
-      body: (message && String(message).trim()) || "(بلاغ بدون نص)",
-      attachment_url: video_url ?? null,
-    });
+        // رسالة الافتتاح في الـthread = البلاغ نفسه (أول رسالة من العميل).
+        const { data: me } = await svc.from("users")
+          .select("name").eq("id", userId).maybeSingle();
+        await svc.from("report_messages").insert({
+          report_id: data.id,
+          sender_role: "customer",
+          sender_user_id: userId,
+          sender_name: me?.name ?? null,
+          body: (message && String(message).trim()) || "(بلاغ بدون نص)",
+          attachment_url: video_url ?? null,
+        });
 
-    return json({ id: data.id, submitted: true });
+        return { id: data.id, submitted: true };
+      },
+    );
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const msg = (e as Error).message;
+    if (msg.includes("مصرّح") || msg.includes("جلسة") || msg.includes("صلاحية")) {
+      return badRequest(msg, 401);
+    }
+    return badRequest(msg, 400);
   }
 });

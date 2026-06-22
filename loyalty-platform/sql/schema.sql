@@ -3173,3 +3173,204 @@ end;
 $$;
 
 grant execute on function public.confirm_prize_collection(uuid, uuid) to service_role;
+
+-- =====================================================================
+-- نزاهة الحدود: تحويل فحوص "اقرأ ثم نفّذ" (TOCTOU) إلى عمليات ذرّية بقفل صف.
+-- =====================================================================
+
+-- تطبيق كوبون ذرّيًا: قفل صف الكوبون يسلسل كل استخداماته فيصبح فحص الحد متّسقًا.
+create or replace function public.apply_coupon_atomic(
+  p_coupon uuid, p_user uuid, p_staff uuid
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare c record; v_used int; v_user_used int;
+begin
+  select * into c from public.coupons where id = p_coupon for update;
+  if not found or not c.active then raise exception 'COUPON_INVALID' using errcode='P0001'; end if;
+  if c.usage_limit is not null then
+    select count(*) into v_used from public.coupon_redemptions where coupon_id = c.id;
+    if v_used >= c.usage_limit then raise exception 'USAGE_EXCEEDED' using errcode='P0001'; end if;
+  end if;
+  if c.per_user_limit is not null then
+    select count(*) into v_user_used from public.coupon_redemptions
+      where coupon_id = c.id and user_id = p_user;
+    if v_user_used >= c.per_user_limit then raise exception 'USER_LIMIT' using errcode='P0001'; end if;
+  end if;
+  insert into public.coupon_redemptions(coupon_id, user_id, staff_id) values (c.id, p_user, p_staff);
+  return jsonb_build_object('applied', true, 'type', c.type, 'value', c.value);
+end; $$;
+grant execute on function public.apply_coupon_atomic(uuid, uuid, uuid) to service_role;
+
+-- تسجيل زيارة + منح أختام/مكافأة في معاملة واحدة — يقفل نافذة فقدان النقاط
+-- (لو تعطّل التنفيذ بعد إدراج الزيارة، كان القيد الفريد يمنع إعادة المنح).
+create or replace function public.record_visit_atomic(
+  p_user uuid, p_merchant uuid, p_branch uuid, p_campaign uuid,
+  p_source text, p_staff uuid, p_enable_points boolean, p_enable_levels boolean
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_wallet public.user_stores; camp record;
+  v_stamps int; v_reward_ready boolean := false; v_awarded int := 0;
+begin
+  v_wallet := public.get_or_create_wallet(p_user, p_merchant, p_branch);
+  begin
+    insert into public.user_visits(user_id, merchant_id, branch_id, campaign_id, source, scanned_by_staff_id)
+    values (p_user, p_merchant, p_branch, p_campaign, coalesce(p_source,'qr_scan'), p_staff);
+  exception when unique_violation then
+    raise exception 'VISIT_EXISTS' using errcode='P0001';
+  end;
+
+  if p_campaign is not null then
+    select required_visits, reward_name, reward_description, points_per_stamp, reward_points
+      into camp from public.visit_campaigns where id = p_campaign;
+    if found then
+      select count(*) into v_stamps from public.user_visits
+        where user_id = p_user and merchant_id = p_merchant and campaign_id = p_campaign;
+      v_reward_ready := v_stamps > 0 and (v_stamps % camp.required_visits) = 0;
+      if p_enable_points then
+        v_awarded := coalesce(camp.points_per_stamp,0)
+                   + case when v_reward_ready then coalesce(camp.reward_points,0) else 0 end;
+        if v_awarded > 0 then
+          perform public.wallet_apply(v_wallet.id, v_awarded, v_awarded, p_enable_levels);
+          insert into public.points_transactions(user_store_id, branch_id, type, points, staff_id, reason)
+            values (v_wallet.id, p_branch, 'earn', v_awarded, p_staff, 'stamp');
+        end if;
+      end if;
+      if v_reward_ready then
+        insert into public.user_prizes(user_id, merchant_id, source, source_ref, title, description, kind, branch_scope, expires_at)
+          values (p_user, p_merchant, 'campaign', p_campaign,
+                  coalesce(camp.reward_name,'مكافأة بطاقتك'), camp.reward_description,
+                  'reward', p_branch, now() + interval '30 days');
+        insert into public.notifications(user_id, type, title, body, data)
+          values (p_user, 'reward_ready', 'مكافأتك جاهزة! 🎁',
+                  'أكملت بطاقتك — استلم '||coalesce(camp.reward_name,'')||' من "هداياي"',
+                  jsonb_build_object('merchant_id', p_merchant, 'campaign_id', p_campaign));
+      end if;
+    end if;
+  end if;
+
+  return jsonb_build_object('recorded', true, 'reward_ready', v_reward_ready, 'points_awarded', v_awarded);
+end; $$;
+grant execute on function public.record_visit_atomic(uuid, uuid, uuid, uuid, text, uuid, boolean, boolean) to service_role;
+
+-- لفّة العجلة كاملة في معاملة واحدة: قفل صف العجلة يسلسل اللفّات فتصبح فحوص
+-- الحد اليومي والمخزون متّسقة، والخصم/الاختيار/إنقاص المخزون ذرّية.
+create or replace function public.spin_wheel_execute(
+  p_user uuid, p_wheel uuid
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  w record; v_wallet record; v_cost int; v_count int;
+  v_total numeric; v_r numeric; v_acc numeric := 0; seg record; chosen record;
+  v_scope text; v_branch_scope uuid; v_pts int; v_prize record;
+begin
+  select * into w from public.lucky_wheels where id = p_wheel for update;
+  if not found or not w.active then raise exception 'WHEEL_UNAVAILABLE' using errcode='P0001'; end if;
+  v_cost := w.spin_cost_points;
+
+  select * into v_wallet from public.user_stores
+    where user_id = p_user and merchant_id = w.merchant_id and available_points >= v_cost
+    order by available_points desc limit 1 for update;
+  if not found then raise exception 'INSUFFICIENT_POINTS' using errcode='P0001'; end if;
+
+  if w.max_spins_per_day > 0 then
+    select count(*) into v_count from public.user_prizes
+      where user_id = p_user and merchant_id = w.merchant_id
+        and source='wheel' and created_at >= date_trunc('day', now());
+    if v_count >= w.max_spins_per_day then raise exception 'DAILY_LIMIT' using errcode='P0001'; end if;
+  end if;
+
+  perform public.wallet_apply(v_wallet.id, -v_cost, 0, false);
+  insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+    values (v_wallet.id, v_wallet.branch_id, 'redeem', -v_cost, 'wheel_spin');
+
+  select coalesce(sum(greatest(weight,1)),0) into v_total from public.wheel_segments
+    where wheel_id = p_wheel and (stock is null or stock > 0);
+  if v_total <= 0 then raise exception 'NO_SEGMENTS' using errcode='P0001'; end if;
+  v_r := random() * v_total;
+  for seg in select * from public.wheel_segments
+       where wheel_id = p_wheel and (stock is null or stock > 0) order by sort_order loop
+    chosen := seg;
+    v_acc := v_acc + greatest(seg.weight,1);
+    exit when v_r <= v_acc;
+  end loop;
+
+  if chosen.stock is not null then
+    update public.wheel_segments set stock = stock - 1 where id = chosen.id and stock > 0;
+  end if;
+
+  if chosen.kind = 'nothing' then
+    return jsonb_build_object('result','nothing','segment_id',chosen.id,'label',chosen.label,'prize',null);
+  end if;
+
+  if chosen.kind = 'points' then
+    v_pts := coalesce(chosen.points_value,0);
+    perform public.wallet_apply(v_wallet.id, v_pts, 0, false);
+    insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+      values (v_wallet.id, v_wallet.branch_id, 'earn', v_pts, 'wheel_points');
+    return jsonb_build_object('result','points','segment_id',chosen.id,'label',chosen.label,'points',v_pts,'prize',null);
+  end if;
+
+  select coalesce(points_scope,'branch') into v_scope
+    from public.merchant_settings where merchant_id = w.merchant_id;
+  v_branch_scope := case when coalesce(v_scope,'branch')='branch' then v_wallet.branch_id else null end;
+  insert into public.user_prizes(user_id, merchant_id, source, source_ref, title, kind, points_value, branch_scope, expires_at)
+    values (p_user, w.merchant_id, 'wheel', p_wheel, chosen.label, chosen.kind,
+            coalesce(chosen.points_value,0), v_branch_scope, now() + interval '30 days')
+    returning id, claim_secret, title, expires_at into v_prize;
+  return jsonb_build_object('result','prize','segment_id',chosen.id,'label',chosen.label,
+    'prize', jsonb_build_object('id',v_prize.id,'title',v_prize.title,
+                                'claim_secret',v_prize.claim_secret,'expires_at',v_prize.expires_at));
+end; $$;
+grant execute on function public.spin_wheel_execute(uuid, uuid) to service_role;
+
+-- إضافة نقاط مع سقف يومي للموظف ذرّيًا: قفل صف الموظف يسلسل عملياته المتزامنة
+-- فلا يتجاوز اثنان السقف معًا.
+create or replace function public.add_points_atomic(
+  p_user uuid, p_merchant uuid, p_branch uuid, p_staff uuid,
+  p_points int, p_reason text, p_daily_cap int, p_recompute_level boolean
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_wallet public.user_stores; v_today int; v_applied jsonb;
+begin
+  perform 1 from public.merchant_staff where id = p_staff for update;
+  select coalesce(sum(points),0) into v_today from public.points_transactions
+    where staff_id = p_staff and type='earn' and created_at >= date_trunc('day', now());
+  if v_today + p_points > p_daily_cap then raise exception 'DAILY_CAP' using errcode='P0001'; end if;
+
+  v_wallet := public.get_or_create_wallet(p_user, p_merchant, p_branch);
+  v_applied := public.wallet_apply(v_wallet.id, p_points, p_points, p_recompute_level);
+  insert into public.points_transactions(user_store_id, branch_id, type, points, staff_id, reason)
+    values (v_wallet.id, p_branch, 'earn', p_points, p_staff, p_reason);
+  return jsonb_build_object('wallet_id', v_wallet.id, 'apply', v_applied);
+end; $$;
+grant execute on function public.add_points_atomic(uuid, uuid, uuid, uuid, int, text, int, boolean) to service_role;
+
+-- تسجيل إجابة سؤال + منح نقاطها في معاملة واحدة — يقفل نافذة فقدان النقاط
+-- (كان القيد الفريد يمنع إعادة المنح لو تعطّل التنفيذ بعد إدراج الإجابة).
+create or replace function public.answer_question_atomic(
+  p_question uuid, p_user uuid, p_merchant uuid, p_branch uuid,
+  p_answer_text text, p_options uuid[], p_is_text boolean,
+  p_points int, p_enable_points boolean, p_enable_levels boolean
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_resp uuid; v_wallet public.user_stores; v_awarded int := 0;
+begin
+  begin
+    insert into public.question_responses(question_id, user_id, merchant_id, branch_id,
+      answer_text, selected_option_ids, points_awarded)
+    values (p_question, p_user, p_merchant, p_branch,
+      case when p_is_text then p_answer_text else null end,
+      case when p_is_text then null else p_options end,
+      p_points)
+    returning id into v_resp;
+  exception when unique_violation then
+    raise exception 'ALREADY_ANSWERED' using errcode='P0001';
+  end;
+
+  if p_points > 0 and p_enable_points then
+    v_wallet := public.get_or_create_wallet(p_user, p_merchant, p_branch);
+    perform public.wallet_apply(v_wallet.id, p_points, p_points, p_enable_levels);
+    insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+      values (v_wallet.id, p_branch, 'earn', p_points, 'question_answer');
+    v_awarded := p_points;
+  end if;
+
+  return jsonb_build_object('response_id', v_resp, 'points_awarded', v_awarded);
+end; $$;
+grant execute on function public.answer_question_atomic(uuid, uuid, uuid, uuid, text, uuid[], boolean, int, boolean, boolean) to service_role;

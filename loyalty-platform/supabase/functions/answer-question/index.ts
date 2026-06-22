@@ -49,48 +49,31 @@ Deno.serve(async (req) => {
       .order("first_linked_at", { ascending: false }).limit(1).maybeSingle();
     if (!anyWallet) return badRequest("لست مرتبطًا بهذا المتجر بعد", 409);
 
-    // تسجيل الإجابة (القيد الفريد يمنع التكرار)
-    const { data: resp, error } = await svc.from("question_responses").insert({
-      question_id,
-      user_id: userId,
-      merchant_id: q.merchant_id,
-      branch_id: anyWallet.branch_id,
-      answer_text: q.type === "text" ? answer_text : null,
-      selected_option_ids: q.type === "text" ? null : selected_option_ids,
-      points_awarded: q.points_reward,
-    }).select("id").single();
-
+    // تسجيل الإجابة + منح نقاطها ذرّيًا في معاملة واحدة — يقفل نافذة فقدان
+    // النقاط (لو تعطّل التنفيذ بعد الإدراج كان القيد الفريد يمنع إعادة المنح).
+    const s = await merchantSettings(svc, q.merchant_id);
+    const { data: res, error } = await svc.rpc("answer_question_atomic", {
+      p_question: question_id, p_user: userId, p_merchant: q.merchant_id,
+      p_branch: anyWallet.branch_id,
+      p_answer_text: q.type === "text" ? answer_text : null,
+      p_options: q.type === "text" ? null : selected_option_ids,
+      p_is_text: q.type === "text",
+      p_points: q.points_reward, p_enable_points: s.enable_points,
+      p_enable_levels: s.enable_levels,
+    });
     if (error) {
-      if ((error as { code?: string }).code === "23505") {
+      if (error.message.includes("ALREADY_ANSWERED")) {
         return badRequest("لقد أجبت على هذا السؤال من قبل", 409);
       }
-      throw error;
+      throw new Error(error.message);
     }
 
-    // منح النقاط عبر نفس مسار earn (يحترم نطاق النقاط + المستوى)
-    let awarded = 0;
-    const s = await merchantSettings(svc, q.merchant_id);
-    if (q.points_reward > 0 && s.enable_points) {
-      const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-        p_user: userId, p_merchant: q.merchant_id, p_staff_branch: anyWallet.branch_id,
-      }).single();
-
-      const { error: applyErr } = await svc.rpc("wallet_apply", {
-        p_wallet: wallet.id,
-        p_available_delta: q.points_reward,
-        p_lifetime_delta: q.points_reward,
-        p_recompute_level: s.enable_levels,
-      });
-      if (applyErr) throw applyErr;
-      await svc.from("points_transactions").insert({
-        user_store_id: wallet.id, branch_id: anyWallet.branch_id,
-        type: "earn", points: q.points_reward, reason: "question_answer",
-      });
-      awarded = q.points_reward;
-    }
-
-    return json({ response_id: resp.id, points_awarded: awarded });
+    return json({ response_id: res.response_id, points_awarded: res.points_awarded });
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const m = (e as Error).message;
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
   }
 });
