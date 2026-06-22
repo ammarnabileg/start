@@ -65,6 +65,8 @@ require __DIR__ . '/partials/header.php';
         <input value="<?= e($u['phone']) ?>" disabled class="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50"></label>
       <label class="block col-span-2"><span class="text-xs text-gray-500">البريد</span>
         <input name="email" value="<?= e($u['email']) ?>" <?= $canEdit?'':'disabled' ?> class="mt-1 w-full border rounded-lg px-3 py-2"></label>
+      <label class="block col-span-2"><span class="text-xs text-gray-500">تاريخ الميلاد</span>
+        <input value="<?= e($u['date_of_birth'] ?: '—') ?>" disabled class="mt-1 w-full border rounded-lg px-3 py-2 bg-gray-50"></label>
       <!-- خصوصية يتحكّم بها العميل (قراءة فقط للإدارة — لا يمكن إلغاء إخفائه). -->
       <div class="inline-flex items-center gap-2 text-sm"><span class="text-gray-500">الظهور في الصدارة:</span>
         <?= $u['leaderboard_opt_in']?badge('ظاهر','green'):badge('مخفي باختياره','gray') ?></div>
