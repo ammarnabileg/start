@@ -2956,10 +2956,17 @@ begin
   -- المحفظة حسب نطاق نقاط التاجر (merchant/branch).
   v_wallet := public.get_or_create_wallet(v_uid, v_reward.merchant_id, p_branch);
 
-  -- خصم النقاط ذرّيًا — يرمي INSUFFICIENT_POINTS لو الرصيد لا يكفي (يلغي العملية).
-  perform public.wallet_apply(v_wallet.id, -v_reward.points_cost);
+  -- إنقاص المخزون ذرّيًا أولًا (يمنع البيع الزائد تحت التزامن — لا نعتمد على القراءة فوق).
+  if v_reward.stock_qty is not null then
+    update public.rewards set stock_qty = stock_qty - 1
+      where id = p_reward and stock_qty > 0;
+    if not found then
+      raise exception 'OUT_OF_STOCK' using errcode = 'P0001';
+    end if;
+  end if;
 
-  perform public.decrement_stock(p_reward);
+  -- خصم النقاط ذرّيًا — يرمي INSUFFICIENT_POINTS لو الرصيد لا يكفي (يلغي العملية كلها).
+  perform public.wallet_apply(v_wallet.id, -v_reward.points_cost);
 
   select coalesce(reward_prize_ttl_days, 30) into v_ttl
     from public.merchant_settings where merchant_id = v_reward.merchant_id;
@@ -2976,8 +2983,9 @@ begin
     now() + make_interval(days => v_ttl)
   ) returning * into v_prize;
 
+  -- قيد صرف بإشارة سالبة (موافِق لباقي مسارات الـredeem في المنصّة).
   insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
-  values (v_wallet.id, v_wallet.branch_id, 'redeem', v_reward.points_cost,
+  values (v_wallet.id, v_wallet.branch_id, 'redeem', -v_reward.points_cost,
           'reward_purchase');
 
   return jsonb_build_object(
@@ -3006,6 +3014,7 @@ begin
     select * from public.user_prizes
     where source = 'reward' and kind = 'reward' and status = 'won'
       and expires_at is not null and expires_at < now()
+    for update skip locked      -- يقفل الصف فيمنع استرجاعًا مزدوجًا مع تأكيد الكاشير
   loop
     v_wallet := public.get_or_create_wallet(p.user_id, p.merchant_id, p.branch_scope);
     perform public.wallet_apply(v_wallet.id, p.points_value);
@@ -3025,4 +3034,5 @@ end;
 $$;
 
 select cron.schedule('expire-reward-prizes', '20 1 * * *',
-  $$select public.expire_reward_prizes();$$);
+  $$select public.expire_reward_prizes();$$)
+  where not exists (select 1 from cron.job where jobname = 'expire-reward-prizes');

@@ -25,6 +25,15 @@ Deno.serve(async (req) => {
       return badRequest("الإعلانات غير مفعّلة لهذا المتجر");
     }
 
+    // الإعلانات ميزة مدفوعة — تُفرض هنا لأنها تُرسَل عبر الحافة لا عبر إدراج جدول مُحجَّم.
+    const { data: allowed } = await svc.rpc("merchant_plan_allows", {
+      p_merchant: staff.merchantId,
+      p_feature: "announcements",
+    });
+    if (allowed !== true) {
+      return badRequest("الإعلانات متاحة في الباقة الذهبية", 402);
+    }
+
     // الجمهور: العملاء المرتبطون بالتاجر (مميّزون) — باستثناء من عطّل المشاركة
     // (الخصوصية: "لا يمكن للتاجر التواصل معي"). svc يتجاوز RLS فنُرشّح صراحةً:
     //  • user_stores.visible = إخفاء لكل متجر.

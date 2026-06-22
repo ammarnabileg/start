@@ -101,6 +101,8 @@ export async function merchantSettings(svc: SupabaseClient, merchantId: string) 
     enable_visits: data?.enable_visits ?? true,
     enable_rewards: data?.enable_rewards ?? true,
     enable_levels: data?.enable_levels ?? true,
+    enable_coupons: data?.enable_coupons ?? false, // opt-in (يطابق default الجدول)
+    enable_announcements: data?.enable_announcements ?? true,
     max_points_per_txn: data?.max_points_per_txn ?? 500,
     daily_points_per_staff: data?.daily_points_per_staff ?? 5000,
     one_visit_per_day: data?.one_visit_per_day ?? true,
