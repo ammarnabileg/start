@@ -23,40 +23,21 @@ Deno.serve(async (req) => {
     }
 
     if (action === "confirm") {
-      // انتقال ذرّي: فقط الطلب الذي يحوّل delivering→redeemed يصرف النقاط.
-      // يمنع سَكّ النقاط عبر تأكيدات متزامنة (eq على الحالة = حارس ذرّي).
-      const { data: flipped } = await svc.from("user_prizes").update({
-        status: "redeemed",
-        redeemed_at: new Date().toISOString(),
-      }).eq("id", prize.id).eq("status", "delivering")
-        .select("id, kind, points_value, redeemed_branch").maybeSingle();
-      if (!flipped) {
-        return badRequest("تم تأكيد استلام هذه الهدية بالفعل", 409);
-      }
-
-      // هدية من نوع "نقاط" → تُضاف فعليًا لرصيد العميل عند التأكيد (مرة واحدة).
-      if (flipped.kind === "points" && (flipped.points_value ?? 0) > 0) {
-        const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-          p_user: userId,
-          p_merchant: prize.merchant_id,
-          p_staff_branch: flipped.redeemed_branch,
-        }).single();
-        if (wallet) {
-          const pts = flipped.points_value as number;
-          const { error: applyErr } = await svc.rpc("wallet_apply", {
-            p_wallet: wallet.id,
-            p_available_delta: pts,
-            p_lifetime_delta: pts,
-            p_recompute_level: true,
-          });
-          if (applyErr) throw applyErr;
-          await svc.from("points_transactions").insert({
-            user_store_id: wallet.id, branch_id: wallet.branch_id,
-            type: "earn", points: pts, reason: "prize_points",
-          });
+      // قلب الحالة + صرف نقاط kind='points' ذرّيًا في معاملة واحدة (قفل صف داخل
+      // الدالة) — يمنع سَكّ النقاط من تأكيدات متزامنة وفقدان القيد عند التعطّل.
+      const { data, error } = await svc.rpc("confirm_prize_collection", {
+        p_prize: prize.id, p_user: userId,
+      });
+      if (error) {
+        const m = error.message;
+        if (m.includes("NOT_DELIVERING")) {
+          return badRequest("تم تأكيد استلام هذه الهدية بالفعل", 409);
         }
+        if (m.includes("NOT_OWNER")) return badRequest("غير مصرّح", 403);
+        if (m.includes("PRIZE_NOT_FOUND")) return badRequest("الهدية غير موجودة", 404);
+        throw new Error(m);
       }
-      return json({ status: "redeemed", title: prize.title });
+      return json(data ?? { status: "redeemed", title: prize.title });
     }
     // إلغاء → ترجع الهدية متاحة، ونمسح بيانات الكاشير (مشروط بالحالة).
     const { data: reverted } = await svc.from("user_prizes").update({

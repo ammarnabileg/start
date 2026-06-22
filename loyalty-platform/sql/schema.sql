@@ -3135,3 +3135,41 @@ grant execute on function public.confirm_reward_redemption(uuid, uuid, uuid)
   to service_role;
 grant execute on function public.staff_redeem_reward(uuid, uuid, uuid, uuid)
   to service_role;
+
+-- تأكيد استلام جائزة (العميل): delivering → redeemed + صرف نقاط kind='points' ذرّيًا
+-- في معاملة واحدة بقفل صف — يمنع سَكّ النقاط أو فقدان القيد لو تعطّل التنفيذ.
+create or replace function public.confirm_prize_collection(
+  p_prize uuid, p_user uuid
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  pr       record;
+  v_wallet public.user_stores;
+begin
+  select * into pr from public.user_prizes where id = p_prize for update;
+  if not found then
+    raise exception 'PRIZE_NOT_FOUND' using errcode = 'P0001';
+  end if;
+  if pr.user_id <> p_user then
+    raise exception 'NOT_OWNER' using errcode = 'P0001';
+  end if;
+  if pr.status <> 'delivering' then
+    raise exception 'NOT_DELIVERING' using errcode = 'P0001';
+  end if;
+
+  update public.user_prizes
+     set status = 'redeemed', redeemed_at = now()
+   where id = pr.id;
+
+  -- جائزة "نقاط" → تُضاف فعليًا لرصيد العميل عند التأكيد (مرة واحدة، ذرّيًا).
+  if pr.kind = 'points' and coalesce(pr.points_value, 0) > 0 then
+    v_wallet := public.get_or_create_wallet(pr.user_id, pr.merchant_id, pr.redeemed_branch);
+    perform public.wallet_apply(v_wallet.id, pr.points_value, pr.points_value, true);
+    insert into public.points_transactions(user_store_id, branch_id, type, points, reason)
+    values (v_wallet.id, v_wallet.branch_id, 'earn', pr.points_value, 'prize_points');
+  end if;
+
+  return jsonb_build_object('status', 'redeemed', 'title', pr.title, 'kind', pr.kind);
+end;
+$$;
+
+grant execute on function public.confirm_prize_collection(uuid, uuid) to service_role;
