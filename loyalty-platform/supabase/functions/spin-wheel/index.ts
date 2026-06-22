@@ -76,7 +76,8 @@ Deno.serve(async (req) => {
         const { error: debErr } = await svc.rpc("wallet_apply", {
           p_wallet: wallet.id, p_available_delta: -cost,
         });
-        if (debErr) return { error: "النقاط غير كافية للّفّة" };
+        // نرمي بدل إرجاع {error} كـ200 — حتى لا يُخزَّن فشلٌ كنجاحٍ في مفتاح idempotency.
+        if (debErr) throw new Error("INSUFFICIENT_POINTS");
         await svc.from("points_transactions").insert({
           user_store_id: wallet.id, branch_id: wallet.branch_id,
           type: "redeem", points: -cost, reason: "wheel_spin",
@@ -167,6 +168,13 @@ Deno.serve(async (req) => {
     }
     return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const m = (e as Error).message;
+    if (m.includes("INSUFFICIENT_POINTS")) {
+      return badRequest("النقاط غير كافية للّفّة", 422);
+    }
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
   }
 });

@@ -3036,3 +3036,102 @@ $$;
 select cron.schedule('expire-reward-prizes', '20 1 * * *',
   $$select public.expire_reward_prizes();$$)
   where not exists (select 1 from cron.job where jobname = 'expire-reward-prizes');
+
+-- =====================================================================
+-- 36) عمليات استبدال ذرّية (نزاهة النقاط). تنقل الحالة + الخصم + القيد + المخزون
+--     في معاملة واحدة بقفل صف، فتمنع الخصم المزدوج/الحالة الجزئية تحت التزامن.
+-- =====================================================================
+
+-- تأكيد استرداد مكافأة (الكاشير): pending → confirmed + خصم ذرّي مرة واحدة.
+create or replace function public.confirm_reward_redemption(
+  p_redemption uuid, p_staff uuid, p_branch uuid
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  r        record;
+  v_wallet public.user_stores;
+begin
+  select * into r from public.reward_redemptions where id = p_redemption for update;
+  if not found then
+    raise exception 'REDEMPTION_NOT_FOUND' using errcode = 'P0001';
+  end if;
+  if r.status <> 'pending' then
+    raise exception 'NOT_PENDING' using errcode = 'P0001';
+  end if;
+  if r.expires_at is not null and r.expires_at < now() then
+    update public.reward_redemptions set status = 'expired' where id = r.id;
+    raise exception 'EXPIRED' using errcode = 'P0001';
+  end if;
+
+  v_wallet := public.get_or_create_wallet(r.user_id, r.merchant_id, p_branch);
+  -- خصم ذرّي — يرمي INSUFFICIENT_POINTS لو الرصيد لا يكفي (يلغي المعاملة كلها).
+  perform public.wallet_apply(v_wallet.id, -r.points_spent);
+
+  insert into public.points_transactions(user_store_id, branch_id, type, points, staff_id, reason)
+  values (v_wallet.id, p_branch, 'redeem', -r.points_spent, p_staff, 'reward_redemption');
+
+  update public.reward_redemptions
+     set status = 'confirmed', branch_id = p_branch, staff_id = p_staff,
+         confirmed_at = now()
+   where id = r.id;
+
+  perform public.decrement_stock(r.reward_id);
+
+  return jsonb_build_object(
+    'confirmed', true,
+    'reward_id', r.reward_id,
+    'user_id', r.user_id,
+    'remaining_points',
+      (select available_points from public.user_stores where id = v_wallet.id)
+  );
+end;
+$$;
+
+-- استبدال مباشر من الكاشير: خصم + قيد استبدال confirmed + إنقاص مخزون ذرّيًا.
+create or replace function public.staff_redeem_reward(
+  p_user uuid, p_reward uuid, p_staff uuid, p_branch uuid
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_reward record;
+  v_wallet public.user_stores;
+begin
+  select id, merchant_id, name, points_cost, stock_qty, active
+    into v_reward
+  from public.rewards where id = p_reward for update;
+  if not found or not v_reward.active then
+    raise exception 'REWARD_UNAVAILABLE' using errcode = 'P0001';
+  end if;
+  if v_reward.stock_qty is not null then
+    update public.rewards set stock_qty = stock_qty - 1
+      where id = p_reward and stock_qty > 0;
+    if not found then
+      raise exception 'OUT_OF_STOCK' using errcode = 'P0001';
+    end if;
+  end if;
+
+  v_wallet := public.get_or_create_wallet(p_user, v_reward.merchant_id, p_branch);
+  perform public.wallet_apply(v_wallet.id, -v_reward.points_cost);
+
+  insert into public.points_transactions(user_store_id, branch_id, type, points, staff_id, reason)
+  values (v_wallet.id, p_branch, 'redeem', -v_reward.points_cost, p_staff, 'reward_redemption');
+
+  insert into public.reward_redemptions(
+    user_id, merchant_id, reward_id, branch_id, points_spent, staff_id,
+    status, confirmed_at
+  ) values (
+    p_user, v_reward.merchant_id, p_reward, p_branch, v_reward.points_cost,
+    p_staff, 'confirmed', now()
+  );
+
+  return jsonb_build_object(
+    'redeemed', true,
+    'reward_name', v_reward.name,
+    'remaining_points',
+      (select available_points from public.user_stores where id = v_wallet.id)
+  );
+end;
+$$;
+
+grant execute on function public.confirm_reward_redemption(uuid, uuid, uuid)
+  to service_role;
+grant execute on function public.staff_redeem_reward(uuid, uuid, uuid, uuid)
+  to service_role;

@@ -39,49 +39,18 @@ Deno.serve(async (req) => {
       return badRequest("انتهت صلاحية الكود، اطلب من العميل إعادة المحاولة", 410);
     }
 
-    // المحفظة حسب فرع الكاشير (نطاق النقاط)
-    const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-      p_user: r.user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
-    }).single();
-
-    if (wallet.available_points < r.points_spent) {
-      return badRequest("رصيد العميل في هذا الفرع غير كافٍ", 422);
-    }
-
-    // المعاملة محمية بـ idempotency (تأكيد مكرّر لا يخصم مرتين).
+    // المعاملة محمية بـ idempotency (تأكيد مكرّر بنفس المفتاح يرجّع نفس النتيجة).
     const idem = await withIdempotency(
       svc,
       idempotency_key,
       { endpoint: "confirm-redemption", userId: r.user_id, merchantId: staff.merchantId },
       async () => {
-        // خصم ذرّي من available فقط (lifetime ثابت) — يمنع الصرف المزدوج.
-        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
-          p_wallet: wallet.id,
-          p_available_delta: -r.points_spent,
+        // الانتقال + الخصم + القيد + المخزون ذرّيًا (قفل صف + حارس حالة داخل الدالة)
+        // — يمنع الخصم المزدوج حتى مع مفاتيح idempotency مختلفة لنفس العملية.
+        const { data, error } = await svc.rpc("confirm_reward_redemption", {
+          p_redemption: r.id, p_staff: staff.staffId, p_branch: staff.branchId,
         });
-        if (applyErr) {
-          // INSUFFICIENT_POINTS من الدالة الذرّية (سباق رصيد).
-          return { error: "رصيد العميل في هذا الفرع غير كافٍ" };
-        }
-
-        await svc.from("points_transactions").insert({
-          user_store_id: wallet.id,
-          branch_id: staff.branchId,
-          type: "redeem",
-          points: -r.points_spent,
-          staff_id: staff.staffId,
-          reason: "reward_redemption",
-        });
-
-        await svc.from("reward_redemptions").update({
-          status: "confirmed",
-          branch_id: staff.branchId,
-          staff_id: staff.staffId,
-          confirmed_at: new Date().toISOString(),
-        }).eq("id", r.id);
-
-        // إنقاص المخزون لو محدود
-        await svc.rpc("decrement_stock", { p_reward: r.reward_id }).then(() => {}, () => {});
+        if (error) throw new Error(error.message);
 
         await svc.rpc("log_merchant_activity", {
           p_merchant: staff.merchantId, p_action: "redeem_reward",
@@ -92,7 +61,7 @@ Deno.serve(async (req) => {
 
         return {
           confirmed: true,
-          remaining_points: applied.available_points,
+          remaining_points: (data as Record<string, unknown>).remaining_points,
         };
       },
     );
@@ -102,6 +71,21 @@ Deno.serve(async (req) => {
     }
     return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    return mapRedeemError(e as Error);
   }
 });
+
+// تحويل أخطاء الدالة الذرّية إلى أكواد حالة صحيحة (بدل 401 لكل خطأ).
+function mapRedeemError(e: Error): Response {
+  const m = e.message;
+  if (m.includes("INSUFFICIENT_POINTS")) return badRequest("رصيد العميل غير كافٍ", 422);
+  if (m.includes("NOT_PENDING")) return badRequest("العملية غير قابلة للتأكيد", 409);
+  if (m.includes("EXPIRED")) return badRequest("انتهت صلاحية الكود", 410);
+  if (m.includes("REDEMPTION_NOT_FOUND")) {
+    return badRequest("عملية الاستبدال غير موجودة", 404);
+  }
+  if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+    return badRequest(m, 401);
+  }
+  return badRequest(m, 400);
+}

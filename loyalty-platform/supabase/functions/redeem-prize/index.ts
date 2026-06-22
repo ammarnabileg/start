@@ -68,12 +68,16 @@ Deno.serve(async (req) => {
       idempotency_key,
       { endpoint: "redeem-prize", userId: prize.user_id, merchantId: staff.merchantId },
       async () => {
-        // بدء التسليم: ننتقل لحالة "delivering" بانتظار تأكيد العميل (موافق/إلغاء).
-        await svc.from("user_prizes").update({
+        // بدء التسليم: انتقال ذرّي won→delivering (eq على الحالة يمنع مسحَين
+        // متزامنين من إنشاء تسليمَين/إشعارَين لنفس الهدية).
+        const { data: started } = await svc.from("user_prizes").update({
           status: "delivering",
           redeemed_by_staff: staff.staffId,
           redeemed_branch: staff.branchId,
-        }).eq("id", prize.id);
+        }).eq("id", prize.id).eq("status", "won").select("id").maybeSingle();
+        if (!started) {
+          return { delivering: false, already: true, title: prize.title };
+        }
 
         // إشعار العميل ليؤكّد الاستلام من شاشته (تتحدّث لحظيًا أيضًا).
         await svc.from("notifications").insert({

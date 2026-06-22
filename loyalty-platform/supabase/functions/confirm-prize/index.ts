@@ -23,20 +23,26 @@ Deno.serve(async (req) => {
     }
 
     if (action === "confirm") {
-      await svc.from("user_prizes").update({
+      // انتقال ذرّي: فقط الطلب الذي يحوّل delivering→redeemed يصرف النقاط.
+      // يمنع سَكّ النقاط عبر تأكيدات متزامنة (eq على الحالة = حارس ذرّي).
+      const { data: flipped } = await svc.from("user_prizes").update({
         status: "redeemed",
         redeemed_at: new Date().toISOString(),
-      }).eq("id", prize.id);
+      }).eq("id", prize.id).eq("status", "delivering")
+        .select("id, kind, points_value, redeemed_branch").maybeSingle();
+      if (!flipped) {
+        return badRequest("تم تأكيد استلام هذه الهدية بالفعل", 409);
+      }
 
-      // هدية من نوع "نقاط" → تُضاف فعليًا لرصيد العميل عند التأكيد.
-      if (prize.kind === "points" && (prize.points_value ?? 0) > 0) {
+      // هدية من نوع "نقاط" → تُضاف فعليًا لرصيد العميل عند التأكيد (مرة واحدة).
+      if (flipped.kind === "points" && (flipped.points_value ?? 0) > 0) {
         const { data: wallet } = await svc.rpc("get_or_create_wallet", {
           p_user: userId,
           p_merchant: prize.merchant_id,
-          p_staff_branch: prize.redeemed_branch,
+          p_staff_branch: flipped.redeemed_branch,
         }).single();
         if (wallet) {
-          const pts = prize.points_value as number;
+          const pts = flipped.points_value as number;
           const { error: applyErr } = await svc.rpc("wallet_apply", {
             p_wallet: wallet.id,
             p_available_delta: pts,
@@ -52,14 +58,17 @@ Deno.serve(async (req) => {
       }
       return json({ status: "redeemed", title: prize.title });
     }
-    // إلغاء → ترجع الهدية متاحة، ونمسح بيانات الكاشير.
-    await svc.from("user_prizes").update({
+    // إلغاء → ترجع الهدية متاحة، ونمسح بيانات الكاشير (مشروط بالحالة).
+    const { data: reverted } = await svc.from("user_prizes").update({
       status: "won",
       redeemed_by_staff: null,
       redeemed_branch: null,
-    }).eq("id", prize.id);
+    }).eq("id", prize.id).eq("status", "delivering").select("id").maybeSingle();
+    if (!reverted) {
+      return badRequest("لا توجد عملية تسليم جارية لهذه الهدية", 409);
+    }
     return json({ status: "won" });
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    return badRequest((e as Error).message, 400);
   }
 });

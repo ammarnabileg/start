@@ -47,37 +47,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: wallet } = await svc.rpc("get_or_create_wallet", {
-      p_user: user_id, p_merchant: staff.merchantId, p_staff_branch: staff.branchId,
-    }).single();
-    if (wallet.available_points < reward.points_cost) {
-      return badRequest("نقاط العميل غير كافية", 422);
-    }
-
-    // المعاملة محمية بـ idempotency (إعادة الإرسال لا تخصم النقاط مرتين).
+    // المعاملة محمية بـ idempotency (إعادة الإرسال بنفس المفتاح لا تخصم مرتين).
     const idem = await withIdempotency(
       svc,
       idempotency_key,
       { endpoint: "staff-redeem", userId: user_id, merchantId: staff.merchantId },
       async () => {
-        // خصم ذرّي — يمنع الصرف المزدوج تحت التزامن.
-        const { data: applied, error: applyErr } = await svc.rpc("wallet_apply", {
-          p_wallet: wallet.id,
-          p_available_delta: -reward.points_cost,
+        // الخصم + قيد الاستبدال + إنقاص المخزون ذرّيًا (قفل صف داخل الدالة).
+        const { data, error } = await svc.rpc("staff_redeem_reward", {
+          p_user: user_id, p_reward: reward.id,
+          p_staff: staff.staffId, p_branch: staff.branchId,
         });
-        if (applyErr) return { error: "نقاط العميل غير كافية" };
-        await svc.from("points_transactions").insert({
-          user_store_id: wallet.id, branch_id: staff.branchId,
-          type: "redeem", points: -reward.points_cost, staff_id: staff.staffId,
-          reason: "reward_redemption",
-        });
-        await svc.from("reward_redemptions").insert({
-          user_id, merchant_id: staff.merchantId, reward_id: reward.id,
-          branch_id: staff.branchId, points_spent: reward.points_cost,
-          staff_id: staff.staffId, status: "confirmed",
-          confirmed_at: new Date().toISOString(),
-        });
-        await svc.rpc("decrement_stock", { p_reward: reward.id }).then(() => {}, () => {});
+        if (error) throw new Error(error.message);
 
         await svc.rpc("log_merchant_activity", {
           p_merchant: staff.merchantId, p_action: "redeem_reward",
@@ -85,10 +66,11 @@ Deno.serve(async (req) => {
           p_meta: { user_id }, p_staff_id: staff.staffId,
         }).then(() => {}, () => {});
 
+        const res = data as Record<string, unknown>;
         return {
           redeemed: true,
           reward_name: reward.name,
-          remaining_points: applied.available_points,
+          remaining_points: res.remaining_points,
         };
       },
     );
@@ -98,6 +80,13 @@ Deno.serve(async (req) => {
     }
     return json(idem.data);
   } catch (e) {
-    return badRequest((e as Error).message, 401);
+    const m = (e as Error).message;
+    if (m.includes("INSUFFICIENT_POINTS")) return badRequest("نقاط العميل غير كافية", 422);
+    if (m.includes("OUT_OF_STOCK")) return badRequest("نفدت الكمية", 409);
+    if (m.includes("REWARD_UNAVAILABLE")) return badRequest("المكافأة غير متاحة", 409);
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
   }
 });
