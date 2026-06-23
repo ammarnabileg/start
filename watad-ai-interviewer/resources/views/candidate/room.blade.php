@@ -71,6 +71,14 @@
                 {{ $rtl ? 'شكرًا — اكتملت مقابلتك. يمكنك إغلاق هذه النافذة.' : 'Thank you — your interview is complete. You may close this window.' }}
             </div>
         </template>
+        <template x-if="startError">
+            <div class="text-center py-2">
+                <button @click="retryStart()"
+                        class="rounded-lg bg-brand px-5 py-2 text-white text-sm font-medium hover:bg-brand-dark">
+                    {{ $rtl ? 'إعادة المحاولة' : 'Retry' }}
+                </button>
+            </div>
+        </template>
     </div>
 </div>
 
@@ -97,19 +105,27 @@ function interviewRoom(publicId, mode, lang) {
         async start() {
             if (this.usesAvatar || this.usesMic) await this.initMedia();
             this.thinking = true;
+            this.startError = false;
             try {
                 const res = await json('start');
                 this.thinking = false;
                 if (res.status === 'error') {
-                    this.transcript.push({ role: 'agent', text: res.message || 'Service unavailable. Please refresh.' });
+                    this.startError = true;
+                    this.transcript.push({ role: 'agent', text: res.message || 'Service unavailable. Please retry.' });
                 } else {
                     if (res.avatar && res.avatar.room_url) this.avatarUrl = res.avatar.room_url;
                     this.apply(res);
                 }
             } catch (e) {
                 this.thinking = false;
-                this.transcript.push({ role: 'agent', text: 'Connection error. Please refresh the page and try again.' });
+                this.startError = true;
+                this.transcript.push({ role: 'agent', text: 'Connection error. Please retry.' });
             }
+        },
+
+        async retryStart() {
+            this.transcript = [];
+            await this.start();
         },
 
         async send() {

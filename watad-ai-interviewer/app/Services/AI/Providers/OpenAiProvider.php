@@ -44,6 +44,7 @@ final class OpenAiProvider implements LlmProvider
         }
 
         $resp = Http::withToken($this->apiKey)
+            ->withOptions(['curl' => [CURLOPT_SSL_VERSION => CURL_SSLVERSION_DEFAULT]])
             ->acceptJson()
             ->post('https://api.openai.com/v1/chat/completions', $body)
             ->throw()

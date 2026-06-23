@@ -2,7 +2,10 @@
 @section('title', 'Avatars · Watad')
 @section('heading', 'Avatars')
 @section('content')
-@php($styles = ['friendly','formal','probing','rapid','socratic']; $genders = ['female','male','neutral'];)
+@php
+    $styles  = ['friendly', 'formal', 'probing', 'rapid', 'socratic'];
+    $genders = ['female', 'male', 'neutral'];
+@endphp
 <x-page-header title="Interviewer avatars" />
 
 <div class="grid gap-5 md:grid-cols-2">
