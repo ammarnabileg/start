@@ -15,8 +15,8 @@
         ['Recruiting', [
             ['hr.dashboard', 'Dashboard', null, false],
             ['hr.jobs.index', 'Jobs', 'jobs.view', true],
-            ['hr.interviews.index', 'Interviews', 'interviews.view', false],
-            ['hr.pipeline.index', 'Pipeline', 'interviews.view', false],
+            ['hr.interviews.index', 'AI Interviews', 'ai_interviews.view', false],
+            ['hr.pipeline.index', 'Pipeline', 'pipelines.view', false],
         ]],
         ['Setup', [
             ['hr.templates.index', 'Templates', 'templates.view', true],

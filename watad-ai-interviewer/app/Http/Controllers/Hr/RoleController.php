@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Support\Permissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -27,6 +28,23 @@ class RoleController extends Controller
             'actions'   => Permissions::ACTIONS,
             'extra'     => Permissions::EXTRA,
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'        => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $slug = Str::slug($data['name'], '_') ?: 'role';
+        if (Role::where('slug', $slug)->exists()) {
+            $slug .= '_'.Str::lower(Str::random(4));
+        }
+
+        Role::create(['slug' => $slug, 'name' => $data['name'], 'description' => $data['description'] ?? null]);
+
+        return back()->with('status', "Role “{$data['name']}” created. Set its permissions below.");
     }
 
     public function update(Request $request, Role $role): RedirectResponse

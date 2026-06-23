@@ -60,14 +60,14 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
     Route::post('/jobs/{job}/invitations', [JobController::class, 'createInvitation'])
         ->middleware('can:invitations.create')->name('jobs.invitations.create');
 
-    Route::get('/interviews', [InterviewController::class, 'index'])->middleware('can:interviews.view')->name('interviews.index');
+    Route::get('/interviews', [InterviewController::class, 'index'])->middleware('can:ai_interviews.view')->name('interviews.index');
     Route::get('/interviews/{interview}', [InterviewController::class, 'show'])->middleware('can:reports.view')->name('interviews.show');
     Route::get('/interviews/{interview}/report.pdf', [InterviewController::class, 'reportPdf'])
         ->middleware('can:reports.view')->name('interviews.report.pdf');
     Route::post('/interviews/{interview}/move-stage', [InterviewController::class, 'moveStage'])
-        ->middleware('can:interviews.move_stage')->name('interviews.move_stage');
+        ->middleware('can:candidates.move_stage')->name('interviews.move_stage');
 
-    Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:interviews.view')->name('pipeline.index');
+    Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:pipelines.view')->name('pipeline.index');
 
     // Interview templates
     Route::get('/templates', [TemplateController::class, 'index'])->middleware('can:templates.view')->name('templates.index');
@@ -91,6 +91,7 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
 
     // Roles & permissions (granular CRUD matrix editor)
     Route::get('/roles', [RoleController::class, 'index'])->middleware('can:roles.view')->name('roles.index');
+    Route::post('/roles', [RoleController::class, 'store'])->middleware('can:roles.create')->name('roles.store');
     Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('can:roles.update')->name('roles.update');
 
     // Settings

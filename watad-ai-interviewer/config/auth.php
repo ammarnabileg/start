@@ -8,12 +8,18 @@ return [
 
     'guards' => [
         'web' => ['driver' => 'session', 'provider' => 'users'],
+        // Candidate Portal — see routes/portal.php and docs/24-candidate-portal.md
+        'candidate' => ['driver' => 'session', 'provider' => 'candidate_users'],
     ],
 
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
+        ],
+        'candidate_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\CandidateUser::class,
         ],
     ],
 

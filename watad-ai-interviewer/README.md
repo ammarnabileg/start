@@ -60,6 +60,16 @@ This repo is delivered in two layers:
 | 17 | [Development Roadmap](docs/17-development-roadmap.md) | Phased delivery roadmap |
 | 18 | [Deployment](docs/18-deployment.md) | Docker + Nginx + queue/websocket deployment |
 | 19 | [Additional Ideas](docs/19-additional-ideas.md) | Prioritized high-impact feature backlog |
+| 20 | [System Blueprint & Sitemap](docs/20-system-blueprint.md) | Admin + portal sitemap, modules, status vocabulary |
+| 21 | [Hiring Workflow (3 stages)](docs/21-hiring-workflow.md) | AI screening → human interviews → final approval, AI override, user journeys |
+| 22 | [Candidate Master Profile](docs/22-candidate-master-profile.md) | Unified profile, sub-tabs, accumulation, timeline |
+| 23 | [Admin Panel Tabs](docs/23-admin-tabs.md) | 12 tabs screen-by-screen (fields, actions, permissions) |
+| 24 | [Candidate Portal](docs/24-candidate-portal.md) | 6 candidate-facing tabs |
+| 25 | [Permissions Matrix](docs/25-permissions-matrix.md) | Dynamic CRUD + abilities × roles |
+| 26 | [Database Schema v2](docs/26-schema-v2.md) | New tables + ERD (applications, human interviews, offers, portal…) |
+| 27 | [API Endpoints v2](docs/27-api-v2.md) | Admin + portal + webhook endpoints |
+| 28 | [Modules & Roadmap](docs/28-modules-and-roadmap.md) | Laravel module structure + phased roadmap (P7–P16) |
+| 29 | [Wireframes v2](docs/29-wireframes-v2.md) | Screen-by-screen wireframes for the new flows |
 
 ---
 
