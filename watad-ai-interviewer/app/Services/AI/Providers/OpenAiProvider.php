@@ -79,7 +79,9 @@ final class OpenAiProvider implements LlmProvider
             if (is_array($content)) {
                 $content = collect($content)->map(fn ($b) => $b['text'] ?? '')->implode("\n");
             }
-            $messages[] = ['role' => $m['role'], 'content' => $content];
+            // OpenAI only accepts 'system' at position 0; mid-conversation operator nudges become 'user'.
+            $role = ($m['role'] === 'system' && ! empty($messages)) ? 'user' : $m['role'];
+            $messages[] = ['role' => $role, 'content' => $content];
         }
 
         return $messages;

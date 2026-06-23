@@ -40,15 +40,22 @@ final class InterviewEngine
         // provider is disabled or unreachable.
         $avatarJoin = $this->maybeStartAvatar($interview);
 
-        $result = $this->llm->stream('conversation', [
-            'system'   => $this->prompts->interviewerSystemBlocks($interview),
-            'tools'    => $this->prompts->interviewerTools(),
-            'thinking' => $this->prompts->interviewerThinking(),
-            'messages' => [[
-                'role'    => 'user',
-                'content' => '[The candidate has joined. Introduce yourself and Watad, briefly explain the role, then ask your first question.]',
-            ]],
-        ], fn ($delta) => null);
+        try {
+            $result = $this->llm->stream('conversation', [
+                'system'   => $this->prompts->interviewerSystemBlocks($interview),
+                'tools'    => $this->prompts->interviewerTools(),
+                'thinking' => $this->prompts->interviewerThinking(),
+                'messages' => [[
+                    'role'    => 'user',
+                    'content' => '[The candidate has joined. Introduce yourself and Watad, briefly explain the role, then ask your first question.]',
+                ]],
+            ], fn ($delta) => null);
+        } catch (\Throwable $e) {
+            Log::error('Interview LLM start failure', ['interview' => $interview->id, 'error' => $e->getMessage()]);
+            $interview->status = InterviewStatus::Scheduled;
+            $interview->save();
+            return ['status' => 'error', 'message' => 'عذرًا، خدمة الذكاء الاصطناعي غير متاحة حاليًا. يرجى تحديث الصفحة والمحاولة مجددًا. إذا استمر الخطأ، تواصل مع الدعم الفني. (AI service temporarily unavailable — please refresh and try again.)'];
+        }
 
         $this->recordUsage($interview, $result);
         $this->emitEvent($interview, 'introduction', 'info', 'Interview started', 0);
@@ -79,12 +86,17 @@ final class InterviewEngine
             $messages[] = $this->prompts->wrapUpNudge();
         }
 
-        $result = $this->llm->stream('conversation', [
-            'system'   => $this->prompts->interviewerSystemBlocks($interview),
-            'tools'    => $this->prompts->interviewerTools(),
-            'thinking' => $this->prompts->interviewerThinking(),
-            'messages' => $messages,
-        ], $onDelta ?? fn ($delta) => null);
+        try {
+            $result = $this->llm->stream('conversation', [
+                'system'   => $this->prompts->interviewerSystemBlocks($interview),
+                'tools'    => $this->prompts->interviewerTools(),
+                'thinking' => $this->prompts->interviewerThinking(),
+                'messages' => $messages,
+            ], $onDelta ?? fn ($delta) => null);
+        } catch (\Throwable $e) {
+            Log::error('Interview LLM turn failure', ['interview' => $interview->id, 'error' => $e->getMessage()]);
+            return ['status' => 'error', 'message' => 'عذرًا، حدث خطأ مؤقت. يرجى إعادة إرسال إجابتك. (Temporary error — please resend your answer.)'];
+        }
 
         $this->recordUsage($interview, $result);
 

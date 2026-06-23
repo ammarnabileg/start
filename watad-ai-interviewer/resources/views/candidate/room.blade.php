@@ -97,10 +97,19 @@ function interviewRoom(publicId, mode, lang) {
         async start() {
             if (this.usesAvatar || this.usesMic) await this.initMedia();
             this.thinking = true;
-            const res = await json('start');
-            this.thinking = false;
-            if (res.avatar && res.avatar.room_url) this.avatarUrl = res.avatar.room_url;
-            this.apply(res);
+            try {
+                const res = await json('start');
+                this.thinking = false;
+                if (res.status === 'error') {
+                    this.transcript.push({ role: 'agent', text: res.message || 'Service unavailable. Please refresh.' });
+                } else {
+                    if (res.avatar && res.avatar.room_url) this.avatarUrl = res.avatar.room_url;
+                    this.apply(res);
+                }
+            } catch (e) {
+                this.thinking = false;
+                this.transcript.push({ role: 'agent', text: 'Connection error. Please refresh the page and try again.' });
+            }
         },
 
         async send() {
@@ -110,10 +119,19 @@ function interviewRoom(publicId, mode, lang) {
             this.draft = '';
             this.scroll();
             this.thinking = true;
-            await this.flushAudio();                 // best-effort upload of the spoken audio
-            const res = await json('answer', { text, client_token: crypto.randomUUID() });
-            this.thinking = false;
-            this.apply(res);
+            try {
+                await this.flushAudio();
+                const res = await json('answer', { text, client_token: crypto.randomUUID() });
+                this.thinking = false;
+                if (res.status === 'error') {
+                    this.transcript.push({ role: 'agent', text: res.message || 'Temporary error. Please try again.' });
+                } else {
+                    this.apply(res);
+                }
+            } catch (e) {
+                this.thinking = false;
+                this.transcript.push({ role: 'agent', text: 'Connection error. Please try again.' });
+            }
         },
 
         apply(res) {
