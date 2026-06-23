@@ -186,6 +186,8 @@ void main() {
   testWidgets('m21 questions', (t) => _shot(t, 'm21_questions', const _Questions()));
   testWidgets('m22 responses', (t) => _shot(t, 'm22_responses', const _Responses()));
   testWidgets('m23 customers', (t) => _shot(t, 'm23_customers', const _Customers()));
+  testWidgets('m23c customer card',
+      (t) => _shot(t, 'm23c_customer_card', const _CustomerCard()));
   testWidgets('m23b reports', (t) => _shot(t, 'm23b_reports', const _Reports()));
   testWidgets('m24 staff', (t) => _shot(t, 'm24_staff', const _Staff()));
   testWidgets('m25 roles', (t) => _shot(t, 'm25_roles', const _Roles()));
@@ -1540,6 +1542,96 @@ class _Customers extends StatelessWidget {
         ),
       ]),
       bottomNavigationBar: _nav(3),
+    );
+  }
+}
+
+/// بطاقة العميل المفصّلة (تُفتح من دليل العملاء) — تعرض كل البيانات المتاحة
+/// للعميل الظاهر: الاسم/الجوال/البريد + تاريخ الميلاد + كيف انضمّ + تواصل واتساب.
+class _CustomerCard extends StatelessWidget {
+  const _CustomerCard();
+
+  Widget _row(String k, String v, {Color? vColor}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(k, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(v,
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, color: vColor)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('بطاقة العميل')),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: AppColors.primaryLight,
+                child: const Text('أ',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('أحمد خالد', style: theme.textTheme.titleLarge),
+                    Text('05xxxxxxxx', style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 18),
+            Row(children: const [
+              Expanded(
+                  child: StatCard(
+                      icon: Icons.stars_rounded,
+                      label: 'متاحة',
+                      value: '1240',
+                      highlight: true)),
+              SizedBox(width: 10),
+              Expanded(
+                  child: StatCard(
+                      icon: Icons.workspace_premium_rounded,
+                      label: 'إجمالي',
+                      value: '3200')),
+              SizedBox(width: 10),
+              Expanded(
+                  child: StatCard(
+                      icon: Icons.event_repeat_rounded,
+                      label: 'زيارات',
+                      value: '24')),
+            ]),
+            const SizedBox(height: 14),
+            _row('المستوى', 'ذهبي'),
+            _row('البريد', 'ahmed@example.com'),
+            _row('تاريخ الميلاد', '1995/03/12', vColor: AppColors.primaryDark),
+            _row('انضمّ عن طريق', 'إحالة من عميل',
+                vColor: AppColors.primaryDark),
+            _row('الفرع', 'فرع العليا'),
+            _row('الحالة', 'نشِط'),
+            _row('أول ارتباط', '2025/11/02'),
+            _row('آخر نشاط', '2026/06/20'),
+            const SizedBox(height: 18),
+            const PrimaryButton(
+                label: 'تواصل عبر واتساب',
+                icon: Icons.chat_rounded,
+                onPressed: _noop),
+          ],
+        ),
+      ),
     );
   }
 }
