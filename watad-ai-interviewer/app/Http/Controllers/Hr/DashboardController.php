@@ -41,6 +41,17 @@ class DashboardController extends Controller
             ->limit(12)
             ->get();
 
-        return view('hr.dashboard', compact('metrics', 'funnel', 'recent'));
+        // Last 30 days of interview volume (daily). Weekly/monthly are aggregated client-side.
+        $counts = Interview::where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->get(['created_at'])
+            ->groupBy(fn ($i) => $i->created_at->toDateString())
+            ->map->count();
+
+        $chart = collect(range(29, 0))->map(function ($daysAgo) use ($counts) {
+            $date = now()->subDays($daysAgo)->toDateString();
+            return ['date' => $date, 'count' => (int) ($counts[$date] ?? 0)];
+        })->values();
+
+        return view('hr.dashboard', compact('metrics', 'funnel', 'recent', 'chart'));
     }
 }

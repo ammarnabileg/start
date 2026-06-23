@@ -17,15 +17,23 @@ This repo is delivered in two layers:
 | Layer | Status | Where |
 |---|---|---|
 | **Production specification** — DB schema, ERD, API spec, AI prompt architecture, interview-engine logic, scoring, video architecture, security, RBAC, roadmap, deployment | Complete, implementation-ready | [`docs/`](docs/) |
-| **Runnable Laravel foundation** — migrations, models, AI interview engine (Claude PHP SDK), scoring, Google Sheets + Excel export, PDF report, REST API, HR dashboard + candidate interview UI, Docker | Core text/voice flow runnable; video-avatar layer is provider adapters + spec | `app/`, `database/`, `routes/`, `resources/`, `config/`, `docker/` |
+| **Runnable Laravel foundation** — migrations, models, AI interview engine (Claude PHP SDK), scoring, Google Sheets + Excel export, PDF report, REST API, full HR console + candidate interview UI, Docker | Text **and voice** interview flow runnable; **bilingual (Arabic + English)**; video‑avatar layer wired end‑to‑end in code | `app/`, `database/`, `routes/`, `resources/`, `config/`, `docker/` |
 
-> **Honest scope note.** The text/voice interview → AI scoring → report → sheet flow is real,
-> wired code you can run after `composer install` and supplying API keys. The **video‑avatar
-> interviewer** (Tavus / HeyGen / LiveKit) and **real‑time video behavioral analysis** are
-> implemented as clean provider interfaces + adapters and fully specified in
-> [`docs/09`](docs/09-video-interview-architecture.md) and
-> [`docs/10`](docs/10-video-behavioral-analysis.md); they require paid third‑party accounts and
-> GPU/WebRTC infrastructure to run end‑to‑end and are not exercisable in a bare checkout.
+> **Honest scope note.** The interview → AI scoring → report → sheet flow is real, wired code you
+> can run after `composer install` and supplying an API key.
+> - **Text + Voice modes** run from a bare checkout (voice uses the browser Web Speech API for
+>   speech‑to‑text + text‑to‑speech, plus per‑turn audio capture; no paid service required).
+> - The agent is **fully bilingual** — it starts in the template language and mirrors the
+>   candidate's Arabic (incl. dialect) or English, with RTL support throughout the candidate UI.
+> - The **video‑avatar interviewer** (Tavus / HeyGen / LiveKit) is now **wired end‑to‑end in code**
+>   (the engine provisions the avatar room, speaks each turn, and ends the session), but running it
+>   live requires paid provider accounts + a WebRTC deployment, so it is not exercisable in a bare
+>   checkout. **Real‑time video behavioral analysis** ([`docs/10`](docs/10-video-behavioral-analysis.md))
+>   needs a GPU/vision worker.
+>
+> **HR console** includes Dashboard (with charts), Jobs + invitations, Interviews, Report/replay,
+> Pipeline board, Templates (competency weights), Avatars, Question libraries, Users & roles, and
+> Settings — all RBAC‑gated.
 
 ---
 
@@ -51,6 +59,7 @@ This repo is delivered in two layers:
 | 16 | [Folder & Module Structure](docs/16-folder-structure.md) | Laravel module/folder structure |
 | 17 | [Development Roadmap](docs/17-development-roadmap.md) | Phased delivery roadmap |
 | 18 | [Deployment](docs/18-deployment.md) | Docker + Nginx + queue/websocket deployment |
+| 19 | [Additional Ideas](docs/19-additional-ideas.md) | Prioritized high-impact feature backlog |
 
 ---
 

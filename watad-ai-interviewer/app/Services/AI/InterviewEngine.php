@@ -8,6 +8,7 @@ use App\Enums\InterviewStatus;
 use App\Jobs\FinalizeInterview;
 use App\Models\Interview;
 use App\Services\AI\Prompts\PromptLibrary;
+use App\Services\Video\VideoProviderManager;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -21,6 +22,7 @@ final class InterviewEngine
     public function __construct(
         private readonly LlmManager $llm,
         private readonly PromptLibrary $prompts,
+        private readonly VideoProviderManager $video,
     ) {}
 
     /** Begin the interview: agent introduces itself, explains the role, asks the first question. */
@@ -32,6 +34,11 @@ final class InterviewEngine
         $interview->status      = InterviewStatus::InProgress;
         $interview->started_at  = now();
         $interview->save();
+
+        // In video mode, provision the live avatar room before the first turn so the agent's
+        // intro can be spoken by the avatar. Returns null (and falls back to text/voice) if the
+        // provider is disabled or unreachable.
+        $avatarJoin = $this->maybeStartAvatar($interview);
 
         $result = $this->llm->stream('conversation', [
             'system'   => $this->prompts->interviewerSystemBlocks($interview),
@@ -46,7 +53,13 @@ final class InterviewEngine
         $this->recordUsage($interview, $result);
         $this->emitEvent($interview, 'introduction', 'info', 'Interview started', 0);
 
-        return $this->applyAgentResult($interview, $result, isIntro: true);
+        $response = $this->applyAgentResult($interview, $result, isIntro: true);
+
+        if ($avatarJoin) {
+            $response['avatar'] = $avatarJoin;
+        }
+
+        return $response;
     }
 
     /**
@@ -126,6 +139,8 @@ final class InterviewEngine
             'is_follow_up' => (bool) ($ask['input']['is_follow_up'] ?? false),
         ]);
 
+        $this->speakIfVideo($interview, $questionText);
+
         $state['asked_count'] = ($state['asked_count'] ?? 0) + 1;
         $state['phase']       = $this->phaseFor($state);
         $interview->state          = $state;
@@ -146,6 +161,9 @@ final class InterviewEngine
     private function conclude(Interview $interview, string $closing): array
     {
         $message = $this->persistMessage($interview, 'agent', $closing);
+
+        $this->speakIfVideo($interview, $closing);
+        $this->endAvatar($interview);
 
         $interview->status           = InterviewStatus::Processing;
         $interview->completed_at      = now();
@@ -313,6 +331,62 @@ final class InterviewEngine
     {
         $interview->increment('llm_input_tokens', $result->inputTokens);
         $interview->increment('llm_output_tokens', $result->outputTokens);
+    }
+
+    /* --------------------------- avatar (video) ----------------------- */
+
+    /** @return array{room_url:string, token:string}|null join info for the candidate's room. */
+    private function maybeStartAvatar(Interview $interview): ?array
+    {
+        if (! $interview->mode->capturesVideo() || ! $this->video->enabled() || ! $interview->avatar) {
+            return null;
+        }
+
+        try {
+            $session = $this->video->resolve()?->createSession($interview, $interview->avatar);
+            if (! $session) {
+                return null;
+            }
+            $state = $interview->state ?: [];
+            $state['provider_session_id'] = $session['session_id'];
+            $interview->state = $state;
+            $interview->save();
+
+            return ['room_url' => $session['room_url'], 'token' => $session['token']];
+        } catch (\Throwable $e) {
+            // Graceful fallback: log and continue without the avatar (text/voice still works).
+            report($e);
+            return null;
+        }
+    }
+
+    private function speakIfVideo(Interview $interview, string $text): void
+    {
+        if (! $interview->mode->capturesVideo() || ! $this->video->enabled()) {
+            return;
+        }
+        $sessionId = $interview->state['provider_session_id'] ?? null;
+        if (! $sessionId) {
+            return;
+        }
+        try {
+            $this->video->resolve()?->speak($sessionId, $text);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function endAvatar(Interview $interview): void
+    {
+        $sessionId = $interview->state['provider_session_id'] ?? null;
+        if (! $interview->mode->capturesVideo() || ! $this->video->enabled() || ! $sessionId) {
+            return;
+        }
+        try {
+            $this->video->resolve()?->endSession($sessionId);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function progress(Interview $interview, array $state): array

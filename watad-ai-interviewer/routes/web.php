@@ -4,9 +4,15 @@ use App\Http\Controllers\Api\InterviewApiController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Candidate\InterviewRoomController;
 use App\Http\Controllers\Candidate\InvitationController;
+use App\Http\Controllers\Hr\AvatarController;
 use App\Http\Controllers\Hr\DashboardController;
 use App\Http\Controllers\Hr\InterviewController;
 use App\Http\Controllers\Hr\JobController;
+use App\Http\Controllers\Hr\PipelineController;
+use App\Http\Controllers\Hr\QuestionController;
+use App\Http\Controllers\Hr\SettingsController;
+use App\Http\Controllers\Hr\TemplateController;
+use App\Http\Controllers\Hr\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,6 +30,7 @@ Route::get('/interview/{interview}', [InterviewRoomController::class, 'show'])->
 Route::prefix('interview/{interview}')->name('api.interview.')->group(function () {
     Route::post('start', [InterviewApiController::class, 'start'])->name('start');
     Route::post('answer', [InterviewApiController::class, 'answer'])->middleware('throttle:30,1')->name('answer');
+    Route::post('audio', [InterviewApiController::class, 'uploadAudio'])->middleware('throttle:60,1')->name('audio');
     Route::post('complete', [InterviewApiController::class, 'complete'])->name('complete');
     Route::get('state', [InterviewApiController::class, 'state'])->name('state');
 });
@@ -58,4 +65,29 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
         ->middleware('can:report.view')->name('interviews.report.pdf');
     Route::post('/interviews/{interview}/move-stage', [InterviewController::class, 'moveStage'])
         ->middleware('can:interview.move_stage')->name('interviews.move_stage');
+
+    Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:interview.view')->name('pipeline.index');
+
+    // Interview templates
+    Route::get('/templates', [TemplateController::class, 'index'])->middleware('can:template.manage')->name('templates.index');
+    Route::post('/templates', [TemplateController::class, 'store'])->middleware('can:template.manage')->name('templates.store');
+    Route::put('/templates/{template}', [TemplateController::class, 'update'])->middleware('can:template.manage')->name('templates.update');
+
+    // Avatars (the Watad interviewer cast)
+    Route::get('/avatars', [AvatarController::class, 'index'])->middleware('can:avatar.manage')->name('avatars.index');
+    Route::post('/avatars', [AvatarController::class, 'store'])->middleware('can:avatar.manage')->name('avatars.store');
+    Route::put('/avatars/{avatar}', [AvatarController::class, 'update'])->middleware('can:avatar.manage')->name('avatars.update');
+
+    // Question libraries
+    Route::get('/questions', [QuestionController::class, 'index'])->middleware('can:question.manage')->name('questions.index');
+    Route::post('/questions/libraries', [QuestionController::class, 'storeLibrary'])->middleware('can:question.manage')->name('questions.libraries.store');
+    Route::post('/questions', [QuestionController::class, 'storeQuestion'])->middleware('can:question.manage')->name('questions.store');
+
+    // Users & roles
+    Route::get('/users', [UserController::class, 'index'])->middleware('can:user.manage')->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->middleware('can:user.manage')->name('users.store');
+    Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->middleware('can:user.manage')->name('users.roles');
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware('can:settings.manage')->name('settings.index');
 });

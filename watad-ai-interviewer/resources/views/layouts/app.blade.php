@@ -21,11 +21,21 @@
             <span class="font-semibold">Watad</span>
         </div>
         <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
-            @php($nav = [['hr.dashboard','Dashboard'],['hr.jobs.index','Jobs'],['hr.interviews.index','Interviews']])
-            @foreach($nav as [$route,$label])
+            @php($nav = [
+                ['hr.dashboard','Dashboard','📊'],
+                ['hr.jobs.index','Jobs','💼'],
+                ['hr.interviews.index','Interviews','🎙️'],
+                ['hr.pipeline.index','Pipeline','🗂️'],
+                ['hr.templates.index','Templates','🧩'],
+                ['hr.avatars.index','Avatars','🧑‍💼'],
+                ['hr.questions.index','Questions','❓'],
+                ['hr.users.index','Users','👥'],
+                ['hr.settings.index','Settings','⚙️'],
+            ])
+            @foreach($nav as [$route,$label,$icon])
                 <a href="{{ Route::has($route) ? route($route) : '#' }}"
-                   class="block rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 {{ request()->routeIs($route) ? 'bg-slate-100 dark:bg-slate-800 font-medium' : '' }}">
-                    {{ $label }}
+                   class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 {{ request()->routeIs($route) ? 'bg-slate-100 dark:bg-slate-800 font-medium' : '' }}">
+                    <span>{{ $icon }}</span><span>{{ $label }}</span>
                 </a>
             @endforeach
         </nav>

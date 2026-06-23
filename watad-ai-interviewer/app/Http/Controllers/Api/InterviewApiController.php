@@ -9,8 +9,11 @@ use App\Events\AgentMessageStreamed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AnswerRequest;
 use App\Models\Interview;
+use App\Models\Recording;
 use App\Services\AI\InterviewEngine;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Drives the live interview from the candidate's browser. Lightweight session auth: the browser
@@ -52,6 +55,28 @@ class InterviewApiController extends Controller
         }
 
         return response()->json(['status' => $interview->status->value]);
+    }
+
+    /** Voice mode: store the candidate's recorded audio for the most recent answer turn. */
+    public function uploadAudio(Request $request, Interview $interview): JsonResponse
+    {
+        $this->guard($interview);
+        $request->validate(['audio' => ['required', 'file', 'mimes:webm,ogg,wav,mp3,m4a', 'max:10240']]);
+
+        $path = $request->file('audio')->store("interviews/{$interview->public_id}/audio");
+
+        Recording::create([
+            'interview_id' => $interview->id,
+            'kind'         => 'audio',
+            'provider'     => 'local',
+            'url'          => $path,
+            'status'       => 'ready',
+        ]);
+
+        $interview->messages()->where('role', 'candidate')->orderByDesc('seq')->first()
+            ?->update(['audio_path' => $path]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function state(Interview $interview): JsonResponse
