@@ -15,8 +15,12 @@
         ['Recruiting', [
             ['hr.dashboard', 'Dashboard', null, false],
             ['hr.jobs.index', 'Jobs', 'jobs.view', true],
-            ['hr.interviews.index', 'AI Interviews', 'ai_interviews.view', false],
+            ['hr.candidates.index', 'Candidates', 'candidates.view', false],
             ['hr.pipeline.index', 'Pipeline', 'pipelines.view', false],
+            ['hr.interviews.index', 'AI Interviews', 'ai_interviews.view', false],
+            ['hr.human-interviews.index', 'Human Interviews', 'human_interviews.view', true],
+            ['hr.offers.index', 'Offers', 'offers.view', false],
+            ['hr.talent-pool.index', 'Talent Pool', 'talent_pool.view', false],
         ]],
         ['Setup', [
             ['hr.templates.index', 'Templates', 'templates.view', true],

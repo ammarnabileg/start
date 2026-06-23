@@ -73,6 +73,15 @@ class InvitationController extends Controller
 
         $invitation->update(['status' => 'started', 'candidate_id' => $candidate->id]);
 
+        // Create the application (pipeline spine) and link the AI screening interview.
+        $application = \App\Models\JobApplication::updateOrCreate(
+            ['candidate_id' => $candidate->id, 'job_position_id' => $invitation->job_position_id],
+            ['ai_interview_id' => $interview->id, 'status' => 'ai_screening', 'source' => 'link',
+             'applied_at' => now(), 'last_activity_at' => now()],
+        );
+        app(\App\Services\Hiring\ApplicationWorkflow::class)
+            ->logActivity($application, 'application_created', 'Applied via interview link');
+
         // Analyze the CV in the background so topics_to_probe are ready before the agent's first turn.
         AnalyzeCv::dispatch($interview->id);
 

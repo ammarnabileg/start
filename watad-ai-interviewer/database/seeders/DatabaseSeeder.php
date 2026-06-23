@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolePermissionSeeder::class,
+            SettingsSeeder::class,
+            EvaluationTemplateSeeder::class,
+            MessageTemplateSeeder::class,
             AvatarSeeder::class,
             PipelineSeeder::class,
             DemoSeeder::class,

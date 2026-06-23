@@ -7,10 +7,15 @@ namespace Database\Seeders;
 use App\Enums\Competency;
 use App\Enums\RoleSlug;
 use App\Models\Avatar;
+use App\Models\Candidate;
+use App\Models\CandidateUser;
 use App\Models\Department;
+use App\Models\EvaluationTemplate;
 use App\Models\HiringPipeline;
+use App\Models\HumanInterview;
 use App\Models\InterviewInvitation;
 use App\Models\InterviewTemplate;
+use App\Models\JobApplication;
 use App\Models\JobPosition;
 use App\Models\Role;
 use App\Models\User;
@@ -107,7 +112,48 @@ class DemoSeeder extends Seeder
             ],
         );
 
-        $this->command?->info('Demo HR login: admin@watad.com / password');
-        $this->command?->info('Demo candidate interview link: '.url("/i/{$token}"));
+        // Demo applicant with a portal login, an application, and a scheduled human interview.
+        $candidate = Candidate::updateOrCreate(
+            ['email' => 'candidate@watad.com'],
+            [
+                'full_name' => 'Mona Adel', 'phone' => '+201000000000', 'country' => 'Egypt',
+                'years_experience' => 6, 'expected_salary' => 55000, 'salary_currency' => 'EGP',
+                'notice_period' => '1 month', 'source' => 'portal', 'consent_at' => now(),
+            ],
+        );
+        CandidateUser::updateOrCreate(
+            ['email' => 'candidate@watad.com'],
+            ['candidate_id' => $candidate->id, 'password' => Hash::make('password'), 'is_active' => true, 'email_verified_at' => now()],
+        );
+
+        $application = JobApplication::updateOrCreate(
+            ['candidate_id' => $candidate->id, 'job_position_id' => $job->id],
+            ['status' => 'qualified', 'owner_id' => $manager?->id, 'applied_at' => now(), 'last_activity_at' => now()],
+        );
+
+        $recruiter = User::where('email', 'recruiter@watad.com')->first();
+        $evalTemplate = EvaluationTemplate::where('is_default', true)->first();
+
+        $hi = HumanInterview::firstOrCreate(
+            ['application_id' => $application->id, 'type' => 'technical'],
+            [
+                'template_id'      => $evalTemplate?->id,
+                'organizer_id'     => $manager?->id,
+                'mode'             => 'online',
+                'meeting_provider' => 'manual',
+                'meeting_url'      => 'https://meet.example.com/watad-demo',
+                'scheduled_at'     => now()->addDays(2)->setTime(14, 0),
+                'duration_min'     => 45,
+                'timezone'         => 'Africa/Cairo',
+                'status'           => 'scheduled',
+            ],
+        );
+        if ($recruiter && $hi->panelists()->count() === 0) {
+            $hi->panelists()->create(['user_id' => $recruiter->id, 'is_lead' => true]);
+        }
+
+        $this->command?->info('Demo HR login:        admin@watad.com / password');
+        $this->command?->info('Demo candidate login: candidate@watad.com / password  (/portal/login)');
+        $this->command?->info('Demo interview link:  '.url("/i/{$token}"));
     }
 }

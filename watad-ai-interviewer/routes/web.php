@@ -4,16 +4,23 @@ use App\Http\Controllers\Api\InterviewApiController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Candidate\InterviewRoomController;
 use App\Http\Controllers\Candidate\InvitationController;
+use App\Http\Controllers\Hr\ApplicationController;
 use App\Http\Controllers\Hr\AvatarController;
+use App\Http\Controllers\Hr\CandidateController;
 use App\Http\Controllers\Hr\DashboardController;
+use App\Http\Controllers\Hr\HumanInterviewController;
 use App\Http\Controllers\Hr\InterviewController;
 use App\Http\Controllers\Hr\JobController;
+use App\Http\Controllers\Hr\OfferController;
 use App\Http\Controllers\Hr\PipelineController;
 use App\Http\Controllers\Hr\QuestionController;
 use App\Http\Controllers\Hr\RoleController;
 use App\Http\Controllers\Hr\SettingsController;
+use App\Http\Controllers\Hr\TalentPoolController;
 use App\Http\Controllers\Hr\TemplateController;
 use App\Http\Controllers\Hr\UserController;
+use App\Http\Controllers\Portal\AuthController as PortalAuthController;
+use App\Http\Controllers\Portal\PortalController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -69,6 +76,38 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
 
     Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:pipelines.view')->name('pipeline.index');
 
+    // Candidates (master profile)
+    Route::get('/candidates', [CandidateController::class, 'index'])->middleware('can:candidates.view')->name('candidates.index');
+    Route::get('/candidates/{candidate}', [CandidateController::class, 'show'])->middleware('can:candidates.view')->name('candidates.show');
+    Route::post('/candidates/{candidate}/notes', [CandidateController::class, 'storeNote'])->name('candidates.notes.store');
+    Route::post('/candidates/{candidate}/documents', [CandidateController::class, 'uploadDocument'])->name('candidates.documents.store');
+    Route::get('/candidates/{candidate}/documents/{document}', [CandidateController::class, 'documentDownload'])->name('candidates.documents.download');
+    Route::post('/candidates/{candidate}/tags', [CandidateController::class, 'addTag'])->name('candidates.tags.store');
+    Route::post('/candidates/{candidate}/talent-pool', [CandidateController::class, 'addToTalentPool'])->name('candidates.talent-pool.add');
+
+    // Applications — decisions & pipeline moves
+    Route::post('/applications/{application}/decision', [ApplicationController::class, 'decision'])->name('applications.decision');
+    Route::post('/applications/{application}/move-stage', [ApplicationController::class, 'moveStage'])->name('applications.move_stage');
+
+    // Human interviews (Stage 2)
+    Route::get('/human-interviews', [HumanInterviewController::class, 'index'])->middleware('can:human_interviews.view')->name('human-interviews.index');
+    Route::get('/human-interviews/create', [HumanInterviewController::class, 'create'])->middleware('can:interviews.schedule')->name('human-interviews.create');
+    Route::post('/human-interviews', [HumanInterviewController::class, 'store'])->middleware('can:interviews.schedule')->name('human-interviews.store');
+    Route::get('/human-interviews/{humanInterview}', [HumanInterviewController::class, 'show'])->middleware('can:human_interviews.view')->name('human-interviews.show');
+    Route::post('/human-interviews/{humanInterview}/evaluate', [HumanInterviewController::class, 'submitEvaluation'])->middleware('can:evaluations.create')->name('human-interviews.evaluate');
+
+    // Offers (Stage 3)
+    Route::get('/offers', [OfferController::class, 'index'])->middleware('can:offers.view')->name('offers.index');
+    Route::post('/applications/{application}/offers', [OfferController::class, 'store'])->name('offers.store');
+    Route::get('/offers/{offer}', [OfferController::class, 'show'])->middleware('can:offers.view')->name('offers.show');
+    Route::post('/offers/{offer}/send', [OfferController::class, 'send'])->name('offers.send');
+    Route::post('/offers/{offer}/withdraw', [OfferController::class, 'withdraw'])->name('offers.withdraw');
+    Route::get('/offers/{offer}/letter.pdf', [OfferController::class, 'letterPdf'])->middleware('can:offers.view')->name('offers.letter');
+
+    // Talent pool
+    Route::get('/talent-pool', [TalentPoolController::class, 'index'])->middleware('can:talent_pool.view')->name('talent-pool.index');
+    Route::post('/talent-pool', [TalentPoolController::class, 'store'])->middleware('can:talent_pool.create')->name('talent-pool.store');
+
     // Interview templates
     Route::get('/templates', [TemplateController::class, 'index'])->middleware('can:templates.view')->name('templates.index');
     Route::post('/templates', [TemplateController::class, 'store'])->middleware('can:templates.create')->name('templates.store');
@@ -96,4 +135,33 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('can:settings.view')->name('settings.index');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Candidate Portal (guard: candidate)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::middleware('guest:candidate')->group(function () {
+        Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('login');
+        Route::post('/login', [PortalAuthController::class, 'login']);
+        Route::get('/register', [PortalAuthController::class, 'showRegister'])->name('register');
+        Route::post('/register', [PortalAuthController::class, 'register']);
+    });
+    Route::post('/logout', [PortalAuthController::class, 'logout'])->middleware('auth:candidate')->name('logout');
+
+    Route::middleware('auth:candidate')->group(function () {
+        Route::get('/', [PortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/applications', [PortalController::class, 'applications'])->name('applications');
+        Route::get('/applications/{application}', [PortalController::class, 'application'])->name('applications.show');
+        Route::get('/interviews', [PortalController::class, 'interviews'])->name('interviews');
+        Route::get('/profile', [PortalController::class, 'profile'])->name('profile');
+        Route::put('/profile', [PortalController::class, 'updateProfile'])->name('profile.update');
+        Route::get('/notifications', [PortalController::class, 'notifications'])->name('notifications');
+        Route::get('/offers', [PortalController::class, 'offers'])->name('offers');
+        Route::get('/offers/{offer}', [PortalController::class, 'offer'])->name('offers.show');
+        Route::post('/offers/{offer}/accept', [PortalController::class, 'acceptOffer'])->name('offers.accept');
+        Route::post('/offers/{offer}/decline', [PortalController::class, 'declineOffer'])->name('offers.decline');
+    });
 });

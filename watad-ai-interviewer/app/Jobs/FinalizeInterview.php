@@ -60,6 +60,8 @@ class FinalizeInterview implements ShouldQueue
                 'status'         => InterviewStatus::Completed,
             ]);
 
+            $this->markApplicationScreened($interview, $overall, $recommendation);
+
             GenerateReport::dispatch($interview->id);
 
             if (config('watad.sheets.enabled')) {
@@ -107,6 +109,26 @@ class FinalizeInterview implements ShouldQueue
         }
 
         return $rec;
+    }
+
+    /**
+     * Surface the finished AI screening on the application timeline. The AI never advances the
+     * application itself — it only records its score + recommendation so a human can decide.
+     */
+    private function markApplicationScreened(Interview $interview, float $overall, Recommendation $recommendation): void
+    {
+        $application = \App\Models\JobApplication::where('ai_interview_id', $interview->id)->first();
+        if (! $application) {
+            return;
+        }
+
+        app(\App\Services\Hiring\ApplicationWorkflow::class)->logActivity(
+            $application,
+            'ai_interview_completed',
+            'AI screening completed — score '.round($overall, 1).'/100, recommendation: '.$recommendation->label(),
+            null,
+            ['overall_score' => $overall, 'recommendation' => $recommendation->value],
+        );
     }
 
     private function notify(Interview $interview, float $overall): void
