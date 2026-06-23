@@ -43,20 +43,74 @@ if (isset($_GET['download']) && $_GET['download'] === 'backup'
     die('تعذّر قراءة بيانات قاعدة البيانات من .env');
 }
 
-/* ══════════════════ VENDOR.ZIP AUTO-EXTRACT ════════════════════════ */
-if ($action === 'extract_vendor') {
+/* ══════════════════ VENDOR RECOVERY (zip / split parts) ════════════ */
+/** Locate split parts (vendor.zip.part00…) in project root or /public. */
+function find_vendor_parts(string $root): array {
+    $parts = glob($root . '/vendor.zip.part*') ?: [];
+    if (!$parts) $parts = glob($root . '/public/vendor.zip.part*') ?: [];
+    sort($parts);
+    return $parts;
+}
+/** Extract a zip into $root; returns true on success. */
+function extract_vendor_zip(string $zipPath, string $root, array &$notices, array &$errors): bool {
     if (!class_exists('ZipArchive')) {
-        $errors[] = 'امتداد ZipArchive غير مفعّل على السيرفر. فعّله من php.ini ثم أعد المحاولة.';
-    } elseif (empty($_FILES['vendor_zip']['tmp_name']) || $_FILES['vendor_zip']['error'] !== 0) {
-        $errors[] = 'لم يتم رفع الملف أو يتجاوز الحد المسموح (upload_max_filesize). يمكن رفعه عبر cPanel ثم الاستخراج منه.';
+        $errors[] = 'امتداد ZipArchive غير مفعّل على السيرفر. فعّله ثم أعد المحاولة.';
+        return false;
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath) !== true) {
+        $errors[] = 'فشل فتح vendor.zip — قد يكون تالفاً أو ناقص الأجزاء.';
+        return false;
+    }
+    $zip->extractTo($root);
+    $zip->close();
+    $notices[] = '✓ تم استخراج مجلد vendor/ بنجاح!';
+    return true;
+}
+
+// (1) Upload a single vendor.zip through the form.
+if ($action === 'extract_vendor') {
+    if (empty($_FILES['vendor_zip']['tmp_name']) || $_FILES['vendor_zip']['error'] !== 0) {
+        $errors[] = 'لم يتم رفع الملف أو يتجاوز حد الرفع (upload_max_filesize). ارفعه عبر File Manager بدلاً من ذلك.';
     } else {
-        $zip = new ZipArchive();
-        if ($zip->open($_FILES['vendor_zip']['tmp_name']) === true) {
-            $zip->extractTo($root);
-            $zip->close();
-            $notices[] = '✓ تم استخراج مجلد vendor/ بنجاح! أعد تحميل الصفحة لتحديث الفحص.';
+        extract_vendor_zip($_FILES['vendor_zip']['tmp_name'], $root, $notices, $errors);
+    }
+}
+
+// (2) A vendor.zip already sitting on disk (uploaded via File Manager).
+if ($action === 'extract_disk_vendor') {
+    $zp = file_exists($root . '/vendor.zip') ? $root . '/vendor.zip'
+        : (file_exists($root . '/public/vendor.zip') ? $root . '/public/vendor.zip' : null);
+    if (!$zp) {
+        $errors[] = 'لم يتم العثور على vendor.zip في مجلد المشروع.';
+    } elseif (extract_vendor_zip($zp, $root, $notices, $errors)) {
+        @unlink($zp);
+    }
+}
+
+// (3) Split parts on disk → concatenate then extract (no manual merge needed).
+if ($action === 'merge_vendor') {
+    $parts = find_vendor_parts($root);
+    if (!$parts) {
+        $errors[] = 'لم يتم العثور على أجزاء vendor.zip.part* في مجلد المشروع.';
+    } else {
+        $zipPath = $root . '/vendor.zip';
+        @unlink($zipPath);
+        $out = @fopen($zipPath, 'wb');
+        if (!$out) {
+            $errors[] = 'تعذّر إنشاء vendor.zip — تأكد أن المجلد الجذر قابل للكتابة.';
         } else {
-            $errors[] = 'فشل فتح vendor.zip — تأكد أنه غير تالف وأنه بصيغة ZIP صحيحة.';
+            foreach ($parts as $p) {
+                $in = fopen($p, 'rb');
+                stream_copy_to_stream($in, $out);
+                fclose($in);
+            }
+            fclose($out);
+            if (extract_vendor_zip($zipPath, $root, $notices, $errors)) {
+                @unlink($zipPath);
+                foreach ($parts as $p) @unlink($p);
+                $notices[] = '✓ تم حذف الملفات المؤقتة. المكتبات جاهزة الآن.';
+            }
         }
     }
 }
@@ -364,22 +418,67 @@ details[open]>*:not(summary){padding:14px}
         </div>
     <?php endforeach; ?>
 
-    <?php if (!$vendorOk): ?>
+    <?php if (!$vendorOk):
+        $diskParts = find_vendor_parts($root);
+        $diskZip   = file_exists($root . '/vendor.zip') || file_exists($root . '/public/vendor.zip');
+    ?>
     <div class="alert alert-warn" style="margin-top:16px">
-        <strong>مشكلة: مكتبات PHP غير موجودة (vendor/)</strong><br><br>
-        المسار المطلوب:<br>
+        <strong>مشكلة: مكتبات PHP غير موجودة (vendor/)</strong><br>
+        المسار المطلوب:
         <div class="path-box"><?= htmlspecialchars($root) ?>/vendor/autoload.php</div>
-        <strong>الحل الأسرع:</strong> ارفع ملف <code>vendor.zip</code> (مرفق في الأرشيف) عبر cPanel وسيتم استخراجه تلقائياً:<br><br>
-        <form method="POST" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input type="hidden" name="action" value="extract_vendor">
-            <input type="file" name="vendor_zip" accept=".zip" style="flex:1;min-width:200px">
-            <button class="btn btn-sm" type="submit">استخراج vendor.zip</button>
-        </form>
-        <p class="hint" style="margin-top:10px">
-            أو استخرجه يدوياً على السيرفر:
-            <code>cd /path/to/site && tar -xf watad-ai-interviewer.tar.xz</code><br>
-            تأكد أن مجلد <code>vendor/</code> في نفس مستوى مجلد <code>public/</code>.
-        </p>
+
+        <?php if ($diskParts): ?>
+            <!-- BEST CASE: split parts already uploaded to the server -->
+            <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;margin:6px 0">
+                <strong style="color:#047857">✓ تم العثور على <?= count($diskParts) ?> أجزاء على السيرفر.</strong><br>
+                اضغط الزر وسيتم دمجها واستخراج المكتبات تلقائياً (بدون أي خطوة يدوية):
+                <form method="POST" style="margin-top:12px">
+                    <input type="hidden" name="action" value="merge_vendor">
+                    <button class="btn" type="submit">⚙ ادمج الأجزاء واستخرج المكتبات</button>
+                </form>
+            </div>
+        <?php elseif ($diskZip): ?>
+            <!-- vendor.zip already on disk -->
+            <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;margin:6px 0">
+                <strong style="color:#047857">✓ تم العثور على vendor.zip على السيرفر.</strong>
+                <form method="POST" style="margin-top:12px">
+                    <input type="hidden" name="action" value="extract_disk_vendor">
+                    <button class="btn" type="submit">⚙ استخرج vendor.zip</button>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <details<?= $diskParts || $diskZip ? '' : ' open' ?> style="margin-top:8px">
+            <summary>الطريقة الموصى بها عبر File Manager (Plesk) — اضغط للتفاصيل</summary>
+            <div style="font-size:13px;line-height:1.9">
+                <strong>الأسهل والأضمن (بدون أي أوامر):</strong>
+                <ol style="margin:8px 22px 0 0;padding:0">
+                    <li>افتح Plesk ← <strong>File Manager</strong> ← ادخل مجلد <code>httpdocs</code>.</li>
+                    <li>ارفع ملفات الأجزاء الستة <code>vendor.zip.part00 … part05</code> هناك (سحب وإفلات).</li>
+                    <li>ارجع لهذه الصفحة واضغط <strong>تحديث/إعادة تحميل</strong> — سيظهر زر «ادمج الأجزاء».</li>
+                </ol>
+                <p style="margin-top:10px;color:#64748b">
+                    ملف الأجزاء صغير (6MB لكل جزء) فيمر دون مشاكل حدود الرفع.
+                    لا ترفعها داخل مجلد <code>public</code> بل في <code>httpdocs</code> مباشرةً.
+                </p>
+            </div>
+        </details>
+
+        <details style="margin-top:8px">
+            <summary>أو ارفع vendor.zip المدموج مباشرةً من هنا</summary>
+            <div>
+                <p style="font-size:13px;color:#64748b;margin-bottom:8px">
+                    ادمج الأجزاء على جهازك أولاً
+                    (<code>copy /b vendor.zip.part00+...+part05 vendor.zip</code> على Windows،
+                    أو <code>cat vendor.zip.part* &gt; vendor.zip</code> على Mac/Linux) ثم ارفع الناتج:
+                </p>
+                <form method="POST" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    <input type="hidden" name="action" value="extract_vendor">
+                    <input type="file" name="vendor_zip" accept=".zip" style="flex:1;min-width:200px">
+                    <button class="btn btn-sm" type="submit">رفع واستخراج</button>
+                </form>
+            </div>
+        </details>
     </div>
     <?php endif; ?>
 </div>
