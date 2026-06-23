@@ -66,6 +66,14 @@
                 </button>
             </div>
         </template>
+        <template x-if="!concluded && !startError && progress.asked > 0">
+            <div class="text-center pt-3">
+                <button @click="endInterview()" :disabled="thinking"
+                        class="text-xs text-slate-400 hover:text-slate-600 underline disabled:opacity-50">
+                    {{ $rtl ? 'إنهاء المقابلة الآن' : 'End interview now' }}
+                </button>
+            </div>
+        </template>
         <template x-if="concluded">
             <div class="text-center text-sm text-slate-600 py-2">
                 {{ $rtl ? 'شكرًا — اكتملت مقابلتك. يمكنك إغلاق هذه النافذة.' : 'Thank you — your interview is complete. You may close this window.' }}
@@ -126,6 +134,19 @@ function interviewRoom(publicId, mode, lang) {
         async retryStart() {
             this.transcript = [];
             await this.start();
+        },
+
+        async endInterview() {
+            if (this.thinking) return;
+            if (!confirm('{{ $rtl ? 'هل تريد إنهاء المقابلة الآن؟' : 'End the interview now?' }}')) return;
+            this.thinking = true;
+            try {
+                const res = await json('complete');
+                this.thinking = false;
+                this.apply(res);
+            } catch (e) {
+                this.thinking = false;
+            }
         },
 
         async send() {

@@ -50,6 +50,36 @@ class JobController extends Controller
         return redirect()->route('hr.jobs.index')->with('status', "Job “{$job->title}” created.");
     }
 
+    public function update(Request $request, JobPosition $job): RedirectResponse
+    {
+        $data = $request->validate([
+            'title'         => ['required', 'string', 'max:200'],
+            'department_id' => ['nullable', 'exists:departments,id'],
+            'seniority'     => ['required', 'in:intern,junior,mid,senior,lead,manager,director,executive'],
+            'description'   => ['nullable', 'string'],
+            'salary_min'    => ['nullable', 'numeric'],
+            'salary_max'    => ['nullable', 'numeric'],
+            'currency'      => ['nullable', 'string', 'size:3'],
+            'status'        => ['required', 'in:draft,open,paused,closed'],
+        ]);
+
+        $job->update($data);
+
+        return redirect()->route('hr.jobs.index')->with('status', "Job “{$job->title}” updated.");
+    }
+
+    /** Quick status change (e.g. archive → closed/paused, or re-open). */
+    public function updateStatus(Request $request, JobPosition $job): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:draft,open,paused,closed'],
+        ]);
+
+        $job->update($data);
+
+        return redirect()->route('hr.jobs.index')->with('status', "Job “{$job->title}” marked {$data['status']}.");
+    }
+
     public function createInvitation(Request $request, JobPosition $job): RedirectResponse
     {
         $invitation = InterviewInvitation::create([

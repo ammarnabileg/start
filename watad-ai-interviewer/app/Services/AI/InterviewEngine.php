@@ -81,6 +81,15 @@ final class InterviewEngine
 
         $this->persistMessage($interview, 'candidate', $candidateText);
 
+        // Hard stop: the interview normally ends when the model calls conclude_interview itself.
+        // But a model that keeps asking (or never emits that tool call) would run forever and the
+        // interview would never finalize — so scoring would never run. Once the max-questions
+        // budget is reached, force a clean conclusion regardless of what the model does.
+        $maxQ = $interview->template->max_questions ?? config('watad.interview.default_max_questions');
+        if (($state['asked_count'] ?? 0) >= $maxQ) {
+            return $this->conclude($interview, $this->defaultClosing($interview));
+        }
+
         $messages = $this->buildTranscript($interview);
         if ($this->nearBudget($interview, $state)) {
             $messages[] = $this->prompts->wrapUpNudge();
@@ -433,6 +442,11 @@ final class InterviewEngine
     private function defaultClosing(Interview $interview): string
     {
         $name = $interview->candidate?->full_name ? ' '.explode(' ', $interview->candidate->full_name)[0] : '';
+
+        if (($interview->language ?? 'en') === 'ar') {
+            return "شكرًا لك{$name} على وقتك — هذا كل ما لديّ من أسئلة. سيراجع فريق واتد مقابلتك ويتواصل معك بخصوص الخطوات التالية. نتمنى لك يومًا موفقًا!";
+        }
+
         return "Thank you{$name}, that's everything from my side. We appreciate your time — the Watad team will review your interview and be in touch about next steps. Have a great day!";
     }
 }

@@ -64,6 +64,8 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
 
     Route::get('/jobs', [JobController::class, 'index'])->middleware('can:jobs.view')->name('jobs.index');
     Route::post('/jobs', [JobController::class, 'store'])->middleware('can:jobs.create')->name('jobs.store');
+    Route::put('/jobs/{job}', [JobController::class, 'update'])->middleware('can:jobs.update')->name('jobs.update');
+    Route::patch('/jobs/{job}/status', [JobController::class, 'updateStatus'])->middleware('can:jobs.update')->name('jobs.status');
     Route::post('/jobs/{job}/invitations', [JobController::class, 'createInvitation'])
         ->middleware('can:invitations.create')->name('jobs.invitations.create');
 
