@@ -1,0 +1,310 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loyalty_core/loyalty_core.dart';
+
+import '../../core/map_picker_screen.dart';
+import '../../core/merchant_providers.dart';
+import '../../core/perm_gate.dart';
+import '../../data/repositories/branches_repository.dart';
+
+/// قائمة الفروع من جدول branches.
+final branchesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final staff = await ref.watch(currentStaffProvider.future);
+  return ref.read(branchesRepoProvider).fetchBranches(staff.merchantId);
+});
+
+/// 2.10.هـ — الفروع.
+class BranchesScreen extends ConsumerWidget {
+  const BranchesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(branchesProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('الفروع')),
+      floatingActionButton: PermFab(
+        resource: PermResource.branches,
+        label: 'فرع جديد',
+        onPressed: () => _openEditor(context, ref, null),
+      ),
+      body: async.when(
+        loading: () => const SkeletonList(),
+        error: (e, _) => ErrorView(
+          message: 'تعذّر تحميل الفروع',
+          onRetry: () => ref.invalidate(branchesProvider),
+        ),
+        data: (rows) {
+          if (rows.isEmpty) {
+            return EmptyView(
+              icon: Icons.store_mall_directory_outlined,
+              title: 'لا توجد فروع بعد',
+              message: 'أضِف فروع متجرك لتفعيل تقارير الفروع وإشعار القرب.',
+              actionLabel: 'إضافة فرع',
+              onAction: ref.permCan(PermResource.branches, PermAction.create)
+                  ? () => _openEditor(context, ref, null)
+                  : null,
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: rows.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, i) {
+              final b = rows[i];
+              return AppCard(
+                onTap: () => _openEditor(context, ref, b),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: .15),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: const AppIcon(Icons.location_on_outlined,
+                          color: AppColors.success),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(b['name'] as String? ?? '—',
+                              style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 4),
+                          Text(b['address'] as String? ?? 'بدون عنوان',
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    _ActiveChip(active: b['active'] == true),
+                  ],
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                  .slideY(begin: .06, end: 0);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditor(BuildContext context, WidgetRef ref,
+      Map<String, dynamic>? existing) async {
+    final readOnly =
+        existing != null && !ref.permCan(PermResource.branches, PermAction.edit);
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _BranchEditor(existing: existing, readOnly: readOnly),
+    );
+    if (saved == true) ref.invalidate(branchesProvider);
+  }
+}
+
+class _ActiveChip extends StatelessWidget {
+  final bool active;
+  const _ActiveChip({required this.active});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: (active ? AppColors.success : AppColors.textSecondary)
+              .withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(active ? 'مفعّل' : 'متوقف',
+            style: TextStyle(
+                color: active ? AppColors.success : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12)),
+      );
+}
+
+class _BranchEditor extends ConsumerStatefulWidget {
+  final Map<String, dynamic>? existing;
+  final bool readOnly;
+  const _BranchEditor({this.existing, this.readOnly = false});
+  @override
+  ConsumerState<_BranchEditor> createState() => _BranchEditorState();
+}
+
+class _BranchEditorState extends ConsumerState<_BranchEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _address;
+  late final TextEditingController _radius;
+  late final TextEditingController _wifi;
+  double? _lat;
+  double? _lng;
+  late bool _active;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _name = TextEditingController(text: e?['name'] as String? ?? '');
+    _address = TextEditingController(text: e?['address'] as String? ?? '');
+    _radius = TextEditingController(
+        text: (e?['geofence_radius_m'] ?? 150).toString());
+    _wifi = TextEditingController(
+        text: ((e?['wifi_bssids'] as List?) ?? const []).join(', '));
+    _lat = (e?['lat'] as num?)?.toDouble();
+    _lng = (e?['lng'] as num?)?.toDouble();
+    _active = e?['active'] as bool? ?? true;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _address.dispose();
+    _radius.dispose();
+    _wifi.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickLocation() async {
+    final result = await Navigator.of(context).push<PickedLocation>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(initialLat: _lat, initialLng: _lng),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _lat = result.lat;
+        _lng = result.lng;
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _busy = true);
+    try {
+      final staff = await ref.read(currentStaffProvider.future);
+      final payload = {
+        'merchant_id': staff.merchantId,
+        'name': _name.text.trim(),
+        'address': _address.text.trim(),
+        'lat': _lat,
+        'lng': _lng,
+        'geofence_radius_m': int.tryParse(_radius.text.trim()) ?? 150,
+        'wifi_bssids': _wifi.text.trim().isEmpty
+            ? null
+            : _wifi.text
+                .split(',')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList(),
+        'active': _active,
+      };
+      final repo = ref.read(branchesRepoProvider);
+      if (widget.existing == null) {
+        await repo.insertBranch(payload);
+      } else {
+        await repo.updateBranch(widget.existing!['id'] as String, payload);
+      }
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppFeedback.toast(context, 'تم حفظ الفرع');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.toast(context, 'تعذّر الحفظ', error: true);
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.existing == null ? 'فرع جديد' : 'تعديل الفرع',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            if (widget.readOnly) const ReadOnlyNotice(),
+            TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'اسم الفرع'),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _address,
+              decoration: const InputDecoration(labelText: 'العنوان'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _pickLocation,
+              icon: const AppIcon(Icons.map_outlined),
+              label: Text(_lat == null || _lng == null
+                  ? 'اختيار الموقع على الخريطة'
+                  : 'الموقع: ${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _radius,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'نطاق الموقع/القرب (متر)',
+                  helperText: 'يُستخدم لمنع المسح خارج الفرع (يُفضّل 50م فأكثر)'),
+              validator: (v) {
+                final n = int.tryParse(v?.trim() ?? '');
+                if (n == null || n <= 0) return 'أدخل رقمًا صحيحًا';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _wifi,
+              decoration: const InputDecoration(
+                labelText: 'بصمات WiFi للفرع (اختياري)',
+                helperText: 'BSSID للراوتر، مفصولة بفاصلة — حضور أدقّ داخل المحل',
+                hintText: 'AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66',
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('مفعّل'),
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+            ),
+            const SizedBox(height: 8),
+            if (!widget.readOnly)
+              PrimaryButton(label: 'حفظ', loading: _busy, onPressed: _save),
+            if (widget.existing != null)
+              DeleteActionButton(
+                resource: PermResource.branches,
+                onDelete: () => ref
+                    .read(branchesRepoProvider)
+                    .deleteBranch(widget.existing!['id'] as String),
+              ),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,81 @@
+// apply-coupon: الكاشير يطبّق كوبونًا لعميل — يتحقق من الصلاحية والحدود ويسجّل الاستخدام.
+import { corsHeaders, badRequest, json } from "../_shared/cors.ts";
+import { serviceClient, requireStaff, merchantSettings } from "../_shared/auth.ts";
+import { withIdempotency } from "../_shared/idempotency.ts";
+import { rateLimit } from "../_shared/ratelimit.ts";
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const svc = serviceClient();
+    const staff = await requireStaff(req, svc);
+    if (!await rateLimit(svc, `coupon:${staff.staffId}`, 100, 60)) {
+      return badRequest("محاولات كثيرة، انتظر قليلًا", 429);
+    }
+    const { user_id, code, idempotency_key } = await req.json();
+    if (!user_id || !code) return badRequest("user_id و code مطلوبان");
+
+    const s = await merchantSettings(svc, staff.merchantId);
+    if (!s.enable_coupons) return badRequest("الكوبونات غير مفعّلة");
+
+    const { data: coupon } = await svc.from("coupons")
+      .select("id, type, value, valid_from, valid_to, usage_limit, per_user_limit, active")
+      .eq("merchant_id", staff.merchantId).eq("code", code).maybeSingle();
+    if (!coupon || !coupon.active) return badRequest("كوبون غير صالح");
+    // استهداف الفروع: الكوبون لازم يكون متاحًا في فرع الكاشير.
+    const { data: cAt } = await svc.rpc("entity_at_branch", {
+      p_type: "coupon", p_id: coupon.id, p_branch: staff.branchId,
+    });
+    if (cAt === false) return badRequest("هذا الكوبون غير متاح في فرعك", 403);
+
+    const now = Date.now();
+    if (coupon.valid_from && new Date(coupon.valid_from).getTime() > now) {
+      return badRequest("الكوبون لم يبدأ بعد", 422);
+    }
+    if (coupon.valid_to && new Date(coupon.valid_to).getTime() < now) {
+      return badRequest("انتهت صلاحية الكوبون", 410);
+    }
+
+    // الحدود (الإجمالي + لكل عميل) تُفحَص وتُسجَّل ذرّيًا داخل الدالة: قفل صف
+    // الكوبون يسلسل الاستخدامات فلا يتجاوز طلبان متزامنان الحد معًا (كان فحص
+    // count-ثم-insert سباقًا يسمح بتجاوز الحد).
+    const idem = await withIdempotency(
+      svc,
+      idempotency_key,
+      { endpoint: "apply-coupon", userId: user_id, merchantId: staff.merchantId },
+      async () => {
+        const { error } = await svc.rpc("apply_coupon_atomic", {
+          p_coupon: coupon.id, p_user: user_id, p_staff: staff.staffId,
+        });
+        if (error) throw new Error(error.message);
+
+        await svc.rpc("log_merchant_activity", {
+          p_merchant: staff.merchantId, p_action: "apply_coupon",
+          p_entity_type: "coupon", p_entity_id: coupon.id, p_summary: "تطبيق كوبون",
+          p_meta: { user_id, type: coupon.type, value: coupon.value },
+          p_staff_id: staff.staffId,
+        }).then(() => {}, () => {});
+
+        return {
+          applied: true,
+          type: coupon.type, // percent / fixed / free_item
+          value: coupon.value,
+        };
+      },
+    );
+
+    if ("conflict" in idem) {
+      return badRequest("عملية قيد المعالجة، حاول مرة أخرى", 409);
+    }
+    return json(idem.data);
+  } catch (e) {
+    const m = (e as Error).message;
+    if (m.includes("USAGE_EXCEEDED")) return badRequest("تم استنفاد استخدامات الكوبون", 409);
+    if (m.includes("USER_LIMIT")) return badRequest("استخدمت هذا الكوبون من قبل", 409);
+    if (m.includes("COUPON_INVALID")) return badRequest("كوبون غير صالح", 422);
+    if (m.includes("مصرّح") || m.includes("جلسة") || m.includes("صلاحية")) {
+      return badRequest(m, 401);
+    }
+    return badRequest(m, 400);
+  }
+});

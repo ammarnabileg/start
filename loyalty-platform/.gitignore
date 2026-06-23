@@ -1,0 +1,26 @@
+# Flutter / Dart generated artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.pub-cache/
+.pub/
+*.iml
+.idea/
+
+# App-level lockfiles (libraries don't commit lockfiles; apps may — keep out for now)
+pubspec.lock
+
+# Generated Firebase config (added per-developer)
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart
+
+# Android release signing secrets (per-developer — never commit)
+**/key.properties
+*.jks
+*.keystore
+
+# Generated screenshots
+**/test/screenshots/out/
