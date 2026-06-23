@@ -176,6 +176,94 @@ $requirements = [
 ];
 $requirementsOk = !in_array(false, $requirements, true);
 
+/* ══════════════════ TEST AI CONNECTION ════════════════════════════ */
+$aiTestResult = null;
+if ($action === 'test_ai' && file_exists($lockFile) && file_exists($envFile)) {
+    // Read key directly from .env — bypasses any Laravel config cache.
+    $envVars  = parse_env_file($envFile);
+    $provider = $envVars['WATAD_AI_PROVIDER'] ?? 'openai';
+
+    if ($provider === 'openai') {
+        $apiKey = $envVars['OPENAI_API_KEY'] ?? '';
+        $model  = $envVars['WATAD_OPENAI_CONVERSATION_MODEL'] ?? 'gpt-4o';
+        if ($apiKey === '') {
+            $aiTestResult = ['ok' => false, 'msg' => 'OPENAI_API_KEY فارغ في ملف .env'];
+        } else {
+            $ch = curl_init('https://api.openai.com/v1/chat/completions');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 20,
+                CURLOPT_HTTPHEADER     => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $apiKey,
+                ],
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode([
+                    'model' => $model, 'max_tokens' => 5,
+                    'messages' => [['role' => 'user', 'content' => 'Hi']],
+                ]),
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $body   = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+            if ($curlErr) {
+                $aiTestResult = ['ok' => false, 'msg' => 'خطأ في الشبكة (cURL): ' . $curlErr . ' — السيرفر قد يكون محجوب عنده الاتصال الخارجي بـ api.openai.com'];
+            } elseif ($status >= 200 && $status < 300) {
+                $aiTestResult = ['ok' => true, 'msg' => '✓ OpenAI يعمل. الموديل: ' . $model . ' | المفتاح صحيح'];
+            } else {
+                $decoded = json_decode($body, true);
+                $detail  = $decoded['error']['message'] ?? $body;
+                $aiTestResult = ['ok' => false, 'msg' => "OpenAI رفض الطلب (HTTP {$status}): {$detail}"];
+            }
+        }
+    } elseif ($provider === 'claude') {
+        $apiKey = $envVars['ANTHROPIC_API_KEY'] ?? '';
+        $model  = $envVars['WATAD_AI_CONVERSATION_MODEL'] ?? 'claude-haiku-4-5-20251001';
+        if ($apiKey === '') {
+            $aiTestResult = ['ok' => false, 'msg' => 'ANTHROPIC_API_KEY فارغ في ملف .env'];
+        } else {
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 20,
+                CURLOPT_HTTPHEADER     => [
+                    'Content-Type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode([
+                    'model' => $model, 'max_tokens' => 5,
+                    'messages' => [['role' => 'user', 'content' => 'Hi']],
+                ]),
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $body   = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+            if ($curlErr) {
+                $aiTestResult = ['ok' => false, 'msg' => 'خطأ في الشبكة (cURL): ' . $curlErr . ' — السيرفر قد يكون محجوب عنده الاتصال الخارجي بـ api.anthropic.com'];
+            } elseif ($status >= 200 && $status < 300) {
+                $aiTestResult = ['ok' => true, 'msg' => '✓ Claude (Anthropic) يعمل. الموديل: ' . $model . ' | المفتاح صحيح'];
+            } else {
+                $decoded = json_decode($body, true);
+                $detail  = $decoded['error']['message'] ?? $body;
+                $aiTestResult = ['ok' => false, 'msg' => "Anthropic رفض الطلب (HTTP {$status}): {$detail}"];
+            }
+        }
+    }
+
+    /* Also clear config cache while we're here */
+    if (file_exists($autoload)) {
+        try { boot_kernel($root)->call('config:clear'); } catch (\Throwable $ce) {}
+        $pcFile = $root . '/bootstrap/cache/config.php';
+        if (file_exists($pcFile)) @unlink($pcFile);
+    }
+}
+
 /* ══════════════════ UPDATE API KEY ═════════════════════════════════ */
 if ($action === 'update_api_key' && file_exists($lockFile) && file_exists($envFile)) {
     $newKey      = trim((string)($_POST['new_api_key'] ?? ''));
@@ -410,6 +498,24 @@ details[open]>*:not(summary){padding:14px}
         <p class="hint" style="margin-top:12px">
             للأمان: احذف ملف <code>public/install.php</code> بعد الانتهاء من الإعداد.
         </p>
+    </div>
+
+    <?php if ($aiTestResult): ?>
+    <div class="alert <?= $aiTestResult['ok'] ? 'alert-ok' : 'alert-error' ?>" style="margin-bottom:0">
+        <?= htmlspecialchars($aiTestResult['msg']) ?>
+    </div>
+    <?php endif; ?>
+
+    <div class="card">
+        <h2>🔍 تشخيص اتصال الذكاء الاصطناعي</h2>
+        <p style="font-size:14px;color:#475569;margin-bottom:14px">
+            اضغط لاختبار الاتصال بـ API مباشرةً من السيرفر — يقرأ المفتاح من <code>.env</code>
+            ويتجاوز أي cache، ويُظهر الخطأ الفعلي إن وُجد.
+        </p>
+        <form method="POST">
+            <input type="hidden" name="action" value="test_ai">
+            <button class="btn" type="submit">اختبر الاتصال بـ AI الآن</button>
+        </form>
     </div>
 
     <div class="card">
