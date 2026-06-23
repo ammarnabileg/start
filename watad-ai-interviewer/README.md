@@ -1,0 +1,131 @@
+# Watad AI Interviewer
+
+**An enterprise-grade, autonomous AI HR interview platform** that replaces the first HR
+screening round. Candidates complete a 1‑on‑1 interview with an AI agent (text, voice, or
+video avatar). The platform analyzes the CV, runs an adaptive real‑time interview, scores the
+candidate across 10+ competencies, produces a psychological/behavioral profile, detects red
+flags, generates a PDF report, and pushes results to the HR dashboard, Google Sheets, and Excel.
+
+Built for **Watad**.
+
+---
+
+## 1. What this repository contains
+
+This repo is delivered in two layers:
+
+| Layer | Status | Where |
+|---|---|---|
+| **Production specification** — DB schema, ERD, API spec, AI prompt architecture, interview-engine logic, scoring, video architecture, security, RBAC, roadmap, deployment | Complete, implementation-ready | [`docs/`](docs/) |
+| **Runnable Laravel foundation** — migrations, models, AI interview engine (Claude PHP SDK), scoring, Google Sheets + Excel export, PDF report, REST API, HR dashboard + candidate interview UI, Docker | Core text/voice flow runnable; video-avatar layer is provider adapters + spec | `app/`, `database/`, `routes/`, `resources/`, `config/`, `docker/` |
+
+> **Honest scope note.** The text/voice interview → AI scoring → report → sheet flow is real,
+> wired code you can run after `composer install` and supplying API keys. The **video‑avatar
+> interviewer** (Tavus / HeyGen / LiveKit) and **real‑time video behavioral analysis** are
+> implemented as clean provider interfaces + adapters and fully specified in
+> [`docs/09`](docs/09-video-interview-architecture.md) and
+> [`docs/10`](docs/10-video-behavioral-analysis.md); they require paid third‑party accounts and
+> GPU/WebRTC infrastructure to run end‑to‑end and are not exercisable in a bare checkout.
+
+---
+
+## 2. Documentation index (the 17 deliverables)
+
+| # | Document | Covers deliverable(s) |
+|---|---|---|
+| 01 | [Product Overview](docs/01-product-overview.md) | Vision, personas, core business flow, user flows |
+| 02 | [System Architecture](docs/02-system-architecture.md) | Full system architecture, component & sequence diagrams, tech stack |
+| 03 | [Database Schema](docs/03-database-schema.md) | Complete schema — every table, field, type, index, FK |
+| 04 | [ERD](docs/04-erd.md) | Entity-relationship diagram (Mermaid) |
+| 05 | [API Structure](docs/05-api-structure.md) | Full REST + WebSocket API spec |
+| 06 | [AI Prompt Engineering](docs/06-ai-prompt-engineering.md) | Prompt architecture, system prompts, tool defs, caching |
+| 07 | [Interview Engine Logic](docs/07-interview-engine-logic.md) | State machine, adaptive branching, real-time loop |
+| 08 | [Scoring & Analysis](docs/08-scoring-and-analysis.md) | Scoring rubric, psychological/DISC/Big-Five, red flags |
+| 09 | [Video Interview Architecture](docs/09-video-interview-architecture.md) | AI avatar, Tavus/HeyGen/LiveKit/WebRTC, recording, replay |
+| 10 | [Video Behavioral Analysis](docs/10-video-behavioral-analysis.md) | Video/audio analysis engine, multi-agent behavioral pipeline |
+| 11 | [Google Sheets Integration](docs/11-google-sheets-integration.md) | Sheets flow + Excel export |
+| 12 | [PDF Report Structure](docs/12-pdf-report-structure.md) | Report sections and layout |
+| 13 | [Security Architecture](docs/13-security-architecture.md) | Audit logs, GDPR, sessions, API security, rate limiting |
+| 14 | [RBAC](docs/14-rbac.md) | Roles, permission matrix, multi-user system |
+| 15 | [Wireframes & UI/UX](docs/15-wireframes-ui-ux.md) | Wireframes, dashboard, admin & candidate screens, design system |
+| 16 | [Folder & Module Structure](docs/16-folder-structure.md) | Laravel module/folder structure |
+| 17 | [Development Roadmap](docs/17-development-roadmap.md) | Phased delivery roadmap |
+| 18 | [Deployment](docs/18-deployment.md) | Docker + Nginx + queue/websocket deployment |
+
+---
+
+## 3. Tech stack
+
+| Concern | Choice |
+|---|---|
+| Backend | PHP 8.3+ / Laravel 11 |
+| Frontend | Blade + TailwindCSS + Alpine.js |
+| Database | MySQL 8 |
+| Cache / Queue | Redis (queues, rate limiting, interview session state) |
+| Real-time | Laravel Reverb (WebSockets) |
+| Object storage | S3-compatible (recordings, CVs, reports) |
+| AI — reasoning | **Claude** (`claude-opus-4-8` deep analysis, `claude-sonnet-4-6` real-time turns) via `anthropic-ai/sdk`; OpenAI provider as a pluggable alternative |
+| AI — voice | Browser Web Speech API (STT/TTS) baseline; pluggable Deepgram/ElevenLabs adapters |
+| AI — video avatar | Tavus / HeyGen Interactive Avatar / OpenAI Realtime + LiveKit (provider adapters) |
+| PDF | `barryvdh/laravel-dompdf` |
+| Sheets | `google/apiclient` (Sheets v4) |
+| Deployment | Docker + Nginx |
+
+See [`docs/02`](docs/02-system-architecture.md) for why each was chosen.
+
+---
+
+## 4. Quickstart (local, Docker)
+
+```bash
+cd watad-ai-interviewer
+cp .env.example .env
+
+# Set at minimum:
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   APP_KEY=                      (php artisan key:generate fills this)
+#   DB_*, REDIS_*                 (defaults match docker-compose)
+
+docker compose up -d --build      # app, nginx, mysql, redis, queue worker, reverb
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --seed
+# App:        http://localhost:8080
+# HR login:   admin@watad.com / password  (from DemoSeeder)
+```
+
+Without Docker (requires local PHP 8.3+, MySQL, Redis):
+
+```bash
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan reverb:start &        # websockets
+php artisan queue:work &          # async AI analysis jobs
+php artisan serve
+```
+
+> This directory is a self-contained Laravel application module. It is intentionally kept
+> separate from the legacy PHP CMS in the repository root.
+
+---
+
+## 5. The core flow in one picture
+
+```
+HR creates Job ──▶ Candidate gets link ──▶ Candidate intake form + CV upload
+                                                     │
+                                          AI analyzes CV (Claude, PDF vision)
+                                                     │
+                                    Real-time adaptive interview (AI agent)
+                                       text / voice / video avatar
+                                                     │
+                       Transcript + recording + (video signals) captured
+                                                     │
+        Multi-agent analysis: scoring · psychometrics · red flags · summary
+                                                     │
+        ┌────────────────────────┬─────────────────────────┬──────────────┐
+   HR Dashboard            PDF report (S3)          Google Sheet row    Excel export
+```
+
+Full detail: [`docs/07`](docs/07-interview-engine-logic.md) and [`docs/01`](docs/01-product-overview.md).
