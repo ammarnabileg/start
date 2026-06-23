@@ -1,293 +1,226 @@
 <?php
-
 /**
- * Watad AI Interviewer — Web Installer & Maintenance
- * ------------------------------------------------------------------
- * The complete setup runs from this page:
- *   • requirements check
- *   • database: SQLite (create fresh OR upload a .sqlite file) or MySQL (migrate fresh OR import a .sql dump)
- *   • ALL API subscriptions & integrations (Claude/OpenAI, email/SMTP, S3 storage, video avatar,
- *     WhatsApp, Google Sheets, Reverb real-time) — entered here, written to .env
- *   • writes .env, generates APP_KEY, migrates + seeds, creates the Super Admin
- *   • after install it self-locks (storage/installed.lock)
- *   • a guarded RESET button wipes ALL data and returns to a fresh install page
- *
- * SECURITY: delete public/install.php after go-live, or keep it only on trusted environments —
- * the RESET action is destructive.
+ * Watad AI Interviewer — Web Installer (Simplified)
+ * MySQL · OpenAI · HeyGen · Local Storage
  */
-
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE);
 ini_set('display_errors', '1');
-set_time_limit(0);
+set_time_limit(300);
 
-$root      = dirname(__DIR__);
-$autoload  = $root.'/vendor/autoload.php';
-$lockFile  = $root.'/storage/installed.lock';
-$envFile   = $root.'/.env';
-$envSample = $root.'/.env.example';
-$sqlitePath = $root.'/database/database.sqlite';
+$root     = dirname(__DIR__);
+$autoload = $root . '/vendor/autoload.php';
+$lockFile = $root . '/storage/installed.lock';
+$envFile  = $root . '/.env';
+$envSample= $root . '/.env.example';
 
-$errors = [];
+$errors  = [];
 $notices = [];
-$output = '';
-$done = false;
-$resetDone = false;
-$action = $_POST['action'] ?? null;
-$alreadyInstalled = file_exists($lockFile) && ! isset($_GET['force']);
+$output  = '';
+$done    = false;
+$action  = $_POST['action'] ?? null;
+$alreadyInstalled = file_exists($lockFile) && !isset($_GET['force']);
 
-/* ----------------------------- requirements ----------------------------- */
-$requirements = [
-    'PHP >= 8.3'            => version_compare(PHP_VERSION, '8.3.0', '>='),
-    'PDO extension'         => extension_loaded('pdo'),
-    'PDO MySQL'             => extension_loaded('pdo_mysql'),
-    'PDO SQLite'            => extension_loaded('pdo_sqlite'),
-    'Mbstring'              => extension_loaded('mbstring'),
-    'OpenSSL'               => extension_loaded('openssl'),
-    'cURL'                  => extension_loaded('curl'),
-    'Composer dependencies' => file_exists($autoload),
-    'storage/ writable'     => is_writable($root.'/storage'),
-    '.env writable'         => (file_exists($envFile) && is_writable($envFile)) || is_writable($root),
-    'database/ writable'    => is_writable($root.'/database'),
-];
-$requirementsOk = ! in_array(false, $requirements, true);
-
-// Re-populate fields on validation error (so typed API keys are not lost).
-$old = fn (string $k, string $d = '') => htmlspecialchars((string) ($_POST[$k] ?? $d), ENT_QUOTES);
-$sel = fn (string $k, string $v, string $d = '') => (($_POST[$k] ?? $d) === $v) ? 'selected' : '';
-$chk = fn (string $k) => isset($_POST[$k]) ? 'checked' : '';
-
-/* ----------------------------- helpers ----------------------------- */
-function env_set(string $content, string $key, ?string $value): string
-{
-    $value = (string) $value;
-    $quoted = preg_match('/\s|#|"/', $value) ? '"'.str_replace('"', '\"', $value).'"' : $value;
-    $line = $key.'='.$quoted;
-    if (preg_match('/^'.preg_quote($key, '/').'=.*$/m', $content)) {
-        return preg_replace('/^'.preg_quote($key, '/').'=.*$/m', $line, $content);
+/* ══════════════════ DATABASE BACKUP DOWNLOAD ══════════════════════ */
+if (isset($_GET['download']) && $_GET['download'] === 'backup'
+    && file_exists($lockFile) && file_exists($envFile)) {
+    $env  = parse_env_file($envFile);
+    $host = $env['DB_HOST']     ?? '127.0.0.1';
+    $port = $env['DB_PORT']     ?? '3306';
+    $db   = $env['DB_DATABASE'] ?? '';
+    $user = $env['DB_USERNAME'] ?? '';
+    $pass = $env['DB_PASSWORD'] ?? '';
+    if ($db && $user) {
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="watad-backup-' . date('Y-m-d_H-i-s') . '.sql"');
+        $pw  = $pass !== '' ? '-p' . escapeshellarg($pass) : '';
+        passthru(sprintf(
+            'mysqldump -h %s -P %s -u %s %s %s 2>/dev/null',
+            escapeshellarg($host), escapeshellarg($port),
+            escapeshellarg($user), $pw, escapeshellarg($db)
+        ));
+        exit;
     }
-    return rtrim($content)."\n".$line."\n";
+    die('تعذّر قراءة بيانات قاعدة البيانات من .env');
 }
 
-function boot_kernel(string $root)
-{
-    require_once $root.'/vendor/autoload.php';
-    $app = require $root.'/bootstrap/app.php';
+/* ══════════════════ VENDOR.ZIP AUTO-EXTRACT ════════════════════════ */
+if ($action === 'extract_vendor') {
+    if (!class_exists('ZipArchive')) {
+        $errors[] = 'امتداد ZipArchive غير مفعّل على السيرفر. فعّله من php.ini ثم أعد المحاولة.';
+    } elseif (empty($_FILES['vendor_zip']['tmp_name']) || $_FILES['vendor_zip']['error'] !== 0) {
+        $errors[] = 'لم يتم رفع الملف أو يتجاوز الحد المسموح (upload_max_filesize). يمكن رفعه عبر cPanel ثم الاستخراج منه.';
+    } else {
+        $zip = new ZipArchive();
+        if ($zip->open($_FILES['vendor_zip']['tmp_name']) === true) {
+            $zip->extractTo($root);
+            $zip->close();
+            $notices[] = '✓ تم استخراج مجلد vendor/ بنجاح! أعد تحميل الصفحة لتحديث الفحص.';
+        } else {
+            $errors[] = 'فشل فتح vendor.zip — تأكد أنه غير تالف وأنه بصيغة ZIP صحيحة.';
+        }
+    }
+}
+
+/* ══════════════════ HELPERS ════════════════════════════════════════ */
+$old = fn(string $k, string $d = '') => htmlspecialchars((string)($_POST[$k] ?? $d), ENT_QUOTES);
+
+function parse_env_file(string $file): array {
+    $env = [];
+    foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if (str_starts_with(trim($line), '#')) continue;
+        [$k, $v] = array_pad(explode('=', $line, 2), 2, '');
+        $env[trim($k)] = trim($v, " \"'\t\n\r");
+    }
+    return $env;
+}
+
+function env_set(string $content, string $key, string $value): string {
+    $quoted = preg_match('/[\s#"]/', $value)
+        ? '"' . str_replace('"', '\"', $value) . '"'
+        : $value;
+    $line = $key . '=' . $quoted;
+    return preg_match('/^' . preg_quote($key, '/') . '=/m', $content)
+        ? preg_replace('/^' . preg_quote($key, '/') . '=.*/m', $line, $content)
+        : rtrim($content) . "\n" . $line . "\n";
+}
+
+function boot_kernel(string $root) {
+    require_once $root . '/vendor/autoload.php';
+    $app    = require $root . '/bootstrap/app.php';
     $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
     $kernel->bootstrap();
     return $kernel;
 }
 
-function import_sql_dump(string $sql): void
-{
-    $pdo = Illuminate\Support\Facades\DB::connection()->getPdo();
-    // Strip comment lines, then run statements split on semicolons at line ends.
-    $sql = preg_replace('/^\s*(--|#).*$/m', '', $sql);
-    foreach (array_filter(array_map('trim', preg_split('/;\s*[\r\n]/', $sql))) as $stmt) {
-        if ($stmt !== '') {
-            $pdo->exec($stmt);
-        }
-    }
-}
+/* ══════════════════ REQUIREMENTS ═══════════════════════════════════ */
+$vendorOk = file_exists($autoload);
+$requirements = [
+    'PHP 8.3+'                    => version_compare(PHP_VERSION, '8.3.0', '>='),
+    'PDO'                         => extension_loaded('pdo'),
+    'PDO MySQL'                   => extension_loaded('pdo_mysql'),
+    'Mbstring'                    => extension_loaded('mbstring'),
+    'OpenSSL'                     => extension_loaded('openssl'),
+    'cURL'                        => extension_loaded('curl'),
+    'ZipArchive'                  => class_exists('ZipArchive'),
+    'مكتبات المشروع (vendor/)'    => $vendorOk,
+    'مجلد storage/ قابل للكتابة'  => is_writable($root . '/storage'),
+    'المجلد الجذر قابل للكتابة'   => is_writable($root),
+];
+$requirementsOk = !in_array(false, $requirements, true);
 
-/* ----------------------------- RESET (wipe everything) ----------------------------- */
+/* ══════════════════ RESET ══════════════════════════════════════════ */
 if ($action === 'reset' && file_exists($lockFile)) {
     if (($_POST['confirm'] ?? '') !== 'DELETE') {
-        $errors[] = 'To reset, type DELETE in the confirmation box.';
+        $errors[] = 'يجب كتابة DELETE للتأكيد.';
     } else {
         try {
             if (file_exists($autoload) && file_exists($envFile)) {
-                $kernel = boot_kernel($root);
-                $kernel->call('db:wipe', ['--force' => true]);
-                $output .= $kernel->output();
+                boot_kernel($root)->call('db:wipe', ['--force' => true]);
             }
             @unlink($lockFile);
-            // For SQLite, also blank the file so the next install starts clean.
-            if (is_file($sqlitePath)) {
-                @file_put_contents($sqlitePath, '');
-            }
-            $resetDone = true;
             $alreadyInstalled = false;
-            $notices[] = 'All data wiped. You can install again below.';
+            $notices[] = 'تم مسح كل البيانات. يمكنك إعادة التثبيت الآن.';
         } catch (\Throwable $e) {
-            $errors[] = 'Reset failed: '.$e->getMessage();
+            $errors[] = 'فشل: ' . $e->getMessage();
         }
     }
 }
 
-/* ----------------------------- INSTALL ----------------------------- */
-if ($action === 'install' && ! $alreadyInstalled && $requirementsOk) {
-    $f = fn (string $k, string $d = '') => trim((string) ($_POST[$k] ?? $d));
+/* ══════════════════ INSTALL ════════════════════════════════════════ */
+if ($action === 'install' && !$alreadyInstalled && $requirementsOk) {
+    $f = fn(string $k, string $d = '') => trim((string)($_POST[$k] ?? $d));
 
-    $driver   = $f('db_driver', 'sqlite');           // sqlite | mysql
-    $dbSetup  = $f('db_setup', 'fresh');             // fresh | import
-    $useRedis = isset($_POST['use_redis']);
-    $loadDemo = isset($_POST['load_demo']);
-
-    foreach (['app_name', 'app_url', 'admin_name', 'admin_email', 'admin_password'] as $req) {
-        if ($f($req) === '') {
-            $errors[] = "Field “{$req}” is required.";
-        }
+    foreach (['app_name','app_url','db_database','db_username','admin_name','admin_email','admin_password'] as $req) {
+        if ($f($req) === '') $errors[] = "الحقل «{$req}» مطلوب.";
     }
-    if ($driver === 'mysql') {
-        foreach (['db_database', 'db_username'] as $req) {
-            if ($f($req) === '') {
-                $errors[] = "MySQL field “{$req}” is required.";
-            }
-        }
-    }
-    if (strlen($f('admin_password')) < 8) {
-        $errors[] = 'Admin password must be at least 8 characters.';
-    }
-    if (! filter_var($f('admin_email'), FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Admin email is invalid.';
-    }
+    if ($f('openai_api_key') === '')    $errors[] = 'OpenAI API Key مطلوب.';
+    if (strlen($f('admin_password')) < 8) $errors[] = 'كلمة المرور يجب ألا تقل عن 8 أحرف.';
+    if (!filter_var($f('admin_email'), FILTER_VALIDATE_EMAIL)) $errors[] = 'البريد الإلكتروني غير صحيح.';
 
     if (empty($errors)) {
         try {
-            // 1) Handle an uploaded SQLite database file (import).
-            if ($driver === 'sqlite') {
-                if ($dbSetup === 'import' && ! empty($_FILES['sqlite_file']['tmp_name'])) {
-                    move_uploaded_file($_FILES['sqlite_file']['tmp_name'], $sqlitePath);
-                } elseif (! is_file($sqlitePath)) {
-                    file_put_contents($sqlitePath, '');
-                }
-            }
+            /* resolve model (handle "custom" option) */
+            $convModel  = $f('ai_conversation_model') === 'custom'
+                ? ($f('conv_custom') ?: 'gpt-4o')
+                : ($f('ai_conversation_model') ?: 'gpt-4o');
+            $analModel  = $f('ai_analysis_model') === 'custom'
+                ? ($f('anal_custom') ?: 'gpt-4o')
+                : ($f('ai_analysis_model') ?: 'gpt-4o');
 
-            // 2) Write .env.
+            $heygenKey = $f('heygen_api_key');
+            $videoProv = $heygenKey !== '' ? 'heygen' : 'none';
+
+            /* write .env */
             $content = file_exists($envSample) ? file_get_contents($envSample) : "APP_NAME=Watad\n";
-            $cacheDriver = $useRedis ? 'redis' : 'database';
+            foreach ([
+                'APP_NAME'   => $f('app_name'),
+                'APP_ENV'    => 'production',
+                'APP_DEBUG'  => 'false',
+                'APP_URL'    => rtrim($f('app_url'), '/'),
 
-            $storageDisk    = $f('filesystem_disk', 'local');   // local | s3
-            $aiProvider     = $f('ai_provider', 'claude');       // claude | openai
-            $videoProvider  = $f('video_provider', 'none');      // none | tavus | heygen
-            $enableRealtime = isset($_POST['enable_reverb']);
-            $sheetsEnabled  = isset($_POST['sheets_enabled']);
+                'DB_CONNECTION' => 'mysql',
+                'DB_HOST'       => $f('db_host', '127.0.0.1'),
+                'DB_PORT'       => $f('db_port', '3306'),
+                'DB_DATABASE'   => $f('db_database'),
+                'DB_USERNAME'   => $f('db_username'),
+                'DB_PASSWORD'   => $f('db_password'),
 
-            $map = [
-                'APP_NAME'  => $f('app_name'), 'APP_ENV' => 'production', 'APP_DEBUG' => 'false',
-                'APP_URL'   => $f('app_url'),
-                'DB_CONNECTION' => $driver,
-                'CACHE_STORE' => $cacheDriver, 'QUEUE_CONNECTION' => $cacheDriver, 'SESSION_DRIVER' => $cacheDriver,
-                'BROADCAST_CONNECTION' => $enableRealtime ? 'reverb' : 'null',
-                'FILESYSTEM_DISK' => $storageDisk,
-                'REDIS_HOST' => $f('redis_host', '127.0.0.1'), 'REDIS_PORT' => $f('redis_port', '6379'),
-                'WATAD_AI_PROVIDER'    => $aiProvider,
-                'WATAD_VIDEO_PROVIDER' => $videoProvider,
-                'WATAD_SHEETS_ENABLED' => $sheetsEnabled ? 'true' : 'false',
-            ];
-            if ($driver === 'sqlite') {
-                $map['DB_DATABASE'] = $sqlitePath;
-            } else {
-                $map += [
-                    'DB_HOST' => $f('db_host', '127.0.0.1'), 'DB_PORT' => $f('db_port', '3306'),
-                    'DB_DATABASE' => $f('db_database'), 'DB_USERNAME' => $f('db_username'), 'DB_PASSWORD' => $f('db_password'),
-                ];
-            }
+                'FILESYSTEM_DISK'      => 'local',
+                'CACHE_STORE'          => 'database',
+                'QUEUE_CONNECTION'     => 'database',
+                'SESSION_DRIVER'       => 'database',
+                'BROADCAST_CONNECTION' => 'null',
 
-            // All API subscriptions & integrations — only the keys actually filled are persisted,
-            // so blanks never clobber sane .env.example defaults.
-            $optional = [
-                // AI providers
-                'ANTHROPIC_API_KEY'            => $f('anthropic_api_key'),
-                'OPENAI_API_KEY'               => $f('openai_api_key'),
-                'WATAD_AI_CONVERSATION_MODEL'  => $f('ai_conversation_model'),
-                'WATAD_AI_ANALYSIS_MODEL'      => $f('ai_analysis_model'),
-                // Email (SMTP)
-                'MAIL_MAILER'        => $f('mail_mailer'),
-                'MAIL_HOST'          => $f('mail_host'),
-                'MAIL_PORT'          => $f('mail_port'),
-                'MAIL_USERNAME'      => $f('mail_username'),
-                'MAIL_PASSWORD'      => $f('mail_password'),
-                'MAIL_ENCRYPTION'    => $f('mail_encryption'),
-                'MAIL_FROM_ADDRESS'  => $f('mail_from_address'),
-                'MAIL_FROM_NAME'     => $f('mail_from_name'),
-                // Storage (S3 / S3-compatible)
-                'AWS_ACCESS_KEY_ID'     => $f('aws_key'),
-                'AWS_SECRET_ACCESS_KEY' => $f('aws_secret'),
-                'AWS_DEFAULT_REGION'    => $f('aws_region'),
-                'AWS_BUCKET'            => $f('aws_bucket'),
-                'AWS_ENDPOINT'          => $f('aws_endpoint'),
-                // Video avatar
-                'TAVUS_API_KEY'      => $f('tavus_api_key'),
-                'HEYGEN_API_KEY'     => $f('heygen_api_key'),
-                'LIVEKIT_URL'        => $f('livekit_url'),
-                'LIVEKIT_API_KEY'    => $f('livekit_key'),
-                'LIVEKIT_API_SECRET' => $f('livekit_secret'),
-                // WhatsApp
-                'WHATSAPP_TOKEN'     => $f('whatsapp_token'),
-                'WHATSAPP_PHONE_ID'  => $f('whatsapp_phone_id'),
-                // Google Sheets
-                'WATAD_SHEETS_SPREADSHEET_ID'    => $f('sheets_spreadsheet_id'),
-                'WATAD_SHEETS_TAB'               => $f('sheets_tab'),
-                'GOOGLE_APPLICATION_CREDENTIALS' => $f('google_credentials'),
-                // Real-time (Reverb)
-                'REVERB_APP_ID'      => $f('reverb_app_id'),
-                'REVERB_APP_KEY'     => $f('reverb_app_key'),
-                'REVERB_APP_SECRET'  => $f('reverb_app_secret'),
-                'REVERB_HOST'        => $f('reverb_host'),
-                'REVERB_PORT'        => $f('reverb_port'),
-            ];
-            foreach ($optional as $k => $v) {
-                if ($v !== '') {
-                    $map[$k] = $v;
-                }
-            }
+                /* email disabled — tracking is on-platform only */
+                'MAIL_MAILER' => 'log',
 
-            // SQLite with cache/session on "database" needs tables; if importing a foreign DB, fall back to file/array.
-            if ($dbSetup === 'import') {
-                $content = env_set($content, 'CACHE_STORE', 'file');
-                $content = env_set($content, 'SESSION_DRIVER', 'file');
-                $content = env_set($content, 'QUEUE_CONNECTION', 'sync');
-            }
-            foreach ($map as $k => $v) {
+                'WATAD_AI_PROVIDER'           => 'openai',
+                'OPENAI_API_KEY'              => $f('openai_api_key'),
+                'WATAD_AI_CONVERSATION_MODEL' => $convModel,
+                'WATAD_AI_ANALYSIS_MODEL'     => $analModel,
+
+                'WATAD_VIDEO_PROVIDER' => $videoProv,
+                'HEYGEN_API_KEY'       => $heygenKey,
+
+                'WATAD_SHEETS_ENABLED' => 'false',
+            ] as $k => $v) {
                 $content = env_set($content, $k, $v);
             }
             file_put_contents($envFile, $content);
 
-            // 3) Boot framework with the new .env.
+            /* boot Laravel */
             $kernel = boot_kernel($root);
-            $run = function (string $cmd, array $params = []) use ($kernel, &$output) {
-                $kernel->call($cmd, $params);
-                $output .= '$ artisan '.$cmd."\n".$kernel->output()."\n";
+            $run = function(string $cmd, array $p = []) use ($kernel, &$output) {
+                $kernel->call($cmd, $p);
+                $output .= "$ artisan {$cmd}\n" . $kernel->output() . "\n";
             };
 
-            if (empty(getenv('APP_KEY')) && ! preg_match('/^APP_KEY=base64:/m', $content)) {
-                $run('key:generate', ['--force' => true]);
-            }
+            $run('key:generate', ['--force' => true]);
+            $run('migrate',      ['--force' => true]);
+            $run('db:seed', ['--class' => 'Database\\Seeders\\RolePermissionSeeder', '--force' => true]);
+            $run('db:seed', ['--class' => 'Database\\Seeders\\AvatarSeeder',         '--force' => true]);
+            $run('db:seed', ['--class' => 'Database\\Seeders\\PipelineSeeder',       '--force' => true]);
 
-            // 4) Database initialization.
-            if ($dbSetup === 'import' && $driver === 'mysql' && ! empty($_FILES['sql_dump']['tmp_name'])) {
-                import_sql_dump((string) file_get_contents($_FILES['sql_dump']['tmp_name']));
-                $output .= "Imported SQL dump.\n";
-                // Ensure schema is complete even after an import.
-                $run('migrate', ['--force' => true]);
-            } elseif ($dbSetup === 'import' && $driver === 'sqlite') {
-                $run('migrate', ['--force' => true]); // top up any missing tables in the uploaded DB
-            } else {
-                $run('migrate', ['--force' => true]);
-                $run('db:seed', ['--class' => 'Database\\Seeders\\RolePermissionSeeder', '--force' => true]);
-                $run('db:seed', ['--class' => 'Database\\Seeders\\AvatarSeeder', '--force' => true]);
-                $run('db:seed', ['--class' => 'Database\\Seeders\\PipelineSeeder', '--force' => true]);
-                if ($loadDemo) {
-                    $run('db:seed', ['--class' => 'Database\\Seeders\\DemoSeeder', '--force' => true]);
-                }
-            }
-
-            // 5) Super Admin (full control).
+            /* super admin */
             if (\Illuminate\Support\Facades\Schema::hasTable('roles')) {
-                \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\RolePermissionSeeder', '--force' => true]);
+                \Illuminate\Support\Facades\Artisan::call('db:seed', [
+                    '--class' => 'Database\\Seeders\\RolePermissionSeeder', '--force' => true,
+                ]);
             }
             $admin = \App\Models\User::updateOrCreate(
                 ['email' => $f('admin_email')],
-                ['name' => $f('admin_name'), 'password' => \Illuminate\Support\Facades\Hash::make($f('admin_password')),
-                 'is_active' => true, 'email_verified_at' => now()],
+                ['name'  => $f('admin_name'),
+                 'password'          => \Illuminate\Support\Facades\Hash::make($f('admin_password')),
+                 'is_active'         => true,
+                 'email_verified_at' => now()]
             );
             if ($role = \App\Models\Role::where('slug', 'super_admin')->first()) {
                 $admin->roles()->syncWithoutDetaching([$role->id]);
             }
 
-            file_put_contents($lockFile, 'Installed at '.date('c'));
+            file_put_contents($lockFile, 'Installed: ' . date('c'));
             $done = true;
+
         } catch (\Throwable $e) {
             $errors[] = $e->getMessage();
         }
@@ -295,243 +228,352 @@ if ($action === 'install' && ! $alreadyInstalled && $requirementsOk) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Install · Watad AI Interviewer</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تثبيت · Watad AI Interviewer</title>
 <style>
-    :root { --brand:#2563eb; --brand-dark:#1d4ed8; }
-    * { box-sizing:border-box; font-family:Inter,system-ui,sans-serif; }
-    body { margin:0; background:#f8fafc; color:#1e293b; }
-    .wrap { max-width:760px; margin:40px auto; padding:0 16px; }
-    .brand { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
-    .logo { width:40px;height:40px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:20px; }
-    .card { background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:20px; }
-    h1 { font-size:22px;margin:0; } h2 { font-size:16px;margin:0 0 14px; }
-    .muted { color:#64748b;font-size:14px; }
-    label { display:block;font-size:13px;color:#475569;margin:12px 0 4px; }
-    input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],input[type=file],select {
-        width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:#fff; }
-    input:focus,select:focus { outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.15); }
-    .grid { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
-    .btn { display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;border:0;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer; }
-    .btn:hover { background:var(--brand-dark); }
-    .btn-danger { background:#dc2626; } .btn-danger:hover { background:#b91c1c; }
-    .req { display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:14px; }
-    .ok { color:#059669; } .bad { color:#dc2626; }
-    .alert { border-radius:9px;padding:12px 14px;font-size:14px;margin-bottom:14px; }
-    .alert-error { background:#fef2f2;color:#b91c1c;border:1px solid #fecaca; }
-    .alert-ok { background:#ecfdf5;color:#047857;border:1px solid #a7f3d0; }
-    .alert-info { background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe; }
-    .check { display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;color:#475569; }
-    pre { background:#0f172a;color:#e2e8f0;padding:14px;border-radius:9px;font-size:12px;overflow:auto;max-height:240px; }
-    a { color:var(--brand); }
-    .seg { display:flex;gap:8px;flex-wrap:wrap;margin-top:6px; }
-    .seg label { display:flex;align-items:center;gap:6px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;margin:0;cursor:pointer; }
-    details { border:1px solid #e2e8f0;border-radius:9px;padding:8px 14px;margin-top:10px;background:#fafbfc; }
-    details[open] { background:#fff;padding-bottom:14px; }
-    summary { cursor:pointer;font-weight:600;font-size:14px;color:#334155;user-select:none;padding:4px 0; }
-    summary::marker { color:var(--brand); }
+:root{--brand:#1a6f3c;--brand-d:#115a2e;--brand-l:#e8f4ed;}
+*{box-sizing:border-box;font-family:'Segoe UI',Tahoma,Arial,sans-serif;margin:0;padding:0}
+body{background:#f4f6f8;color:#1e293b;padding-bottom:60px}
+.wrap{max-width:700px;margin:36px auto;padding:0 16px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.logo{width:48px;height:48px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:24px;flex-shrink:0}
+.brand h1{font-size:22px;color:#0f172a}
+.brand p{font-size:13px;color:#64748b;margin-top:2px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:16px}
+h2{font-size:14px;font-weight:700;color:var(--brand);border-bottom:1.5px solid var(--brand-l);padding-bottom:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.num{display:inline-flex;width:26px;height:26px;background:var(--brand);color:#fff;border-radius:50%;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+label{display:block;font-size:13px;color:#475569;font-weight:500;margin-bottom:5px;margin-top:14px}
+label:first-child{margin-top:0}
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],input[type=file],select{
+    width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:14px;background:#fff;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,111,60,.12)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--brand);color:#fff;border:0;padding:12px 24px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .15s}
+.btn:hover{background:var(--brand-d)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-danger{background:#dc2626}.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:#fff;color:var(--brand);border:1.5px solid var(--brand)}.btn-outline:hover{background:var(--brand-l)}
+.btn-sm{padding:8px 14px;font-size:13px}
+.req-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
+.req-row:last-child{border:0}
+.ok{color:#059669;font-weight:700} .bad{color:#dc2626;font-weight:700}
+.alert{border-radius:9px;padding:13px 16px;font-size:14px;margin-bottom:12px;line-height:1.7}
+.alert-error{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.alert-ok{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.alert-warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:9px;font-size:12px;overflow:auto;max-height:220px;margin-top:10px}
+.hint{font-size:12px;color:#94a3b8;margin-top:5px;line-height:1.5}
+code{background:#f1f5f9;border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:monospace}
+.path-box{background:#0f172a;color:#7dd3fc;padding:10px 14px;border-radius:8px;font-size:12px;font-family:monospace;margin:8px 0;word-break:break-all}
+.box{border:1px solid #e2e8f0;border-radius:10px;padding:16px;background:#f8fafc;margin-top:14px}
+.box-title{font-weight:700;font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.badge{display:inline-flex;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.badge-req{background:#fef2f2;color:#b91c1c}
+.badge-opt{background:#fefce8;color:#92400e}
+.badge-ok{background:#d1fae5;color:#065f46}
+.full{grid-column:1/-1}
+details{border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;margin-top:10px}
+summary{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#475569;background:#f8fafc;user-select:none}
+details[open] summary{background:#fff;border-bottom:1px solid #e2e8f0}
+details[open]>*:not(summary){padding:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
-    <div class="brand"><div class="logo">W</div><div><h1>Watad AI Interviewer</h1><div class="muted">System installer & maintenance</div></div></div>
 
-    <?php foreach ($notices as $n): ?><div class="alert alert-info"><?= htmlspecialchars($n) ?></div><?php endforeach; ?>
+<div class="brand">
+    <div class="logo">W</div>
+    <div>
+        <h1>Watad AI Interviewer</h1>
+        <p>صفحة التثبيت — MySQL · OpenAI · تخزين محلي</p>
+    </div>
+</div>
 
-    <?php if ($alreadyInstalled): ?>
-        <div class="card">
-            <div class="alert alert-ok">✓ The system is installed.</div>
-            <p><a href="login">→ Go to login</a> &nbsp;·&nbsp; Delete <code>public/install.php</code> for production safety.</p>
+<?php foreach ($notices as $n): ?>
+    <div class="alert alert-info"><?= htmlspecialchars($n) ?></div>
+<?php endforeach; ?>
+
+<?php /* ═══════════════ ALREADY INSTALLED ═══════════════ */ ?>
+<?php if ($alreadyInstalled): ?>
+    <div class="card">
+        <div class="alert alert-ok" style="margin-bottom:14px">✓ المنصة مثبّتة وتعمل.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a href="login" class="btn">← الدخول للمنصة</a>
+            <a href="?download=backup" class="btn btn-outline btn-sm" style="align-self:center">
+                ⬇ تحميل نسخة احتياطية SQL
+            </a>
         </div>
-        <div class="card">
-            <h2 style="color:#b91c1c">⚠ Reset / Reinstall</h2>
-            <p class="muted">This <strong>permanently deletes ALL data</strong> (drops every table) and returns to a fresh install page.</p>
-            <form method="POST" onsubmit="return confirm('This will DELETE ALL DATA. Continue?');">
-                <input type="hidden" name="action" value="reset">
-                <label>Type <code>DELETE</code> to confirm</label>
-                <input type="text" name="confirm" placeholder="DELETE" autocomplete="off">
-                <div style="margin-top:14px"><button class="btn btn-danger" type="submit">Wipe everything & reinstall</button></div>
-            </form>
-            <?php foreach ($errors as $e): ?><div class="alert alert-error" style="margin-top:12px"><?= htmlspecialchars($e) ?></div><?php endforeach; ?>
-        </div>
-    <?php elseif ($done): ?>
-        <div class="card">
-            <div class="alert alert-ok">🎉 Installation complete! Your Super Admin account is ready (full control).</div>
-            <p class="muted">Next: start the queue worker (<code>php artisan queue:work</code>) for AI analysis jobs, and delete <code>public/install.php</code>.</p>
-            <p><a href="login">→ Go to login</a></p>
-            <details><summary class="muted">Setup output</summary><pre><?= htmlspecialchars($output) ?></pre></details>
-        </div>
-    <?php else: ?>
-        <div class="card">
-            <h2>1 · Requirements</h2>
-            <?php foreach ($requirements as $name => $pass): ?>
-                <div class="req"><span><?= htmlspecialchars($name) ?></span><span class="<?= $pass ? 'ok' : 'bad' ?>"><?= $pass ? '✓ OK' : '✗ Missing' ?></span></div>
-            <?php endforeach; ?>
-            <?php if (! $requirementsOk): ?><p class="muted" style="margin-top:12px">Resolve the items above (e.g. <code>composer install</code>, fix permissions) then reload.</p><?php endif; ?>
-        </div>
+        <p class="hint" style="margin-top:12px">
+            للأمان: احذف ملف <code>public/install.php</code> بعد الانتهاء من الإعداد.
+        </p>
+    </div>
 
-        <?php foreach ($errors as $e): ?><div class="alert alert-error"><?= htmlspecialchars($e) ?></div><?php endforeach; ?>
-
-        <form method="POST" enctype="multipart/form-data" class="card"
-              onsubmit="this.querySelector('button[type=submit]').innerText='Installing…';">
-            <input type="hidden" name="action" value="install">
-
-            <h2>2 · Site</h2>
-            <div class="grid">
-                <div><label>Site name</label><input type="text" name="app_name" value="<?= $old('app_name', 'Watad AI Interviewer') ?>"></div>
-                <div><label>Site URL</label><input type="url" name="app_url" value="<?= $old('app_url', 'http://localhost:8000') ?>"></div>
+    <div class="card">
+        <h2><span style="color:#b91c1c">⚠</span> إعادة التثبيت (مسح كامل)</h2>
+        <p style="font-size:14px;color:#475569;margin-bottom:14px">
+            يمسح <strong>جميع البيانات نهائياً</strong> ويعيدك لصفحة التثبيت من الصفر.
+        </p>
+        <form method="POST" onsubmit="return confirm('سيتم مسح كل البيانات نهائياً. متأكد؟');">
+            <input type="hidden" name="action" value="reset">
+            <label>اكتب <code>DELETE</code> للتأكيد</label>
+            <input type="text" name="confirm" placeholder="DELETE" autocomplete="off" style="max-width:220px">
+            <div style="margin-top:14px">
+                <button class="btn btn-danger" type="submit">مسح كل شيء وإعادة التثبيت</button>
             </div>
-
-            <h2 style="margin-top:22px">3 · Database</h2>
-            <div id="db" data-driver="sqlite">
-                <label>Database engine</label>
-                <div class="seg">
-                    <label><input type="radio" name="db_driver" value="sqlite" checked onclick="dbDriver('sqlite')"> SQLite (simplest — no server)</label>
-                    <label><input type="radio" name="db_driver" value="mysql" onclick="dbDriver('mysql')"> MySQL</label>
-                </div>
-
-                <label style="margin-top:14px">Initialization</label>
-                <div class="seg">
-                    <label><input type="radio" name="db_setup" value="fresh" checked onclick="dbSetup('fresh')"> Fresh install (create tables + seed)</label>
-                    <label><input type="radio" name="db_setup" value="import" onclick="dbSetup('import')"> Import existing database</label>
-                </div>
-
-                <div id="mysql-fields" style="display:none">
-                    <div class="grid">
-                        <div><label>DB host</label><input type="text" name="db_host" value="127.0.0.1"></div>
-                        <div><label>DB port</label><input type="number" name="db_port" value="3306"></div>
-                        <div><label>DB name</label><input type="text" name="db_database" value="watad"></div>
-                        <div><label>DB user</label><input type="text" name="db_username" value="root"></div>
-                        <div><label>DB password</label><input type="password" name="db_password"></div>
-                    </div>
-                    <div id="sql-dump" style="display:none"><label>Upload .sql dump (optional)</label><input type="file" name="sql_dump" accept=".sql"></div>
-                </div>
-
-                <div id="sqlite-upload" style="display:none"><label>Upload SQLite database file (.sqlite)</label><input type="file" name="sqlite_file" accept=".sqlite,.db,.sqlite3"></div>
-
-                <label class="check"><input type="checkbox" name="use_redis"> Use Redis for cache/queue/session (fresh installs)</label>
-                <label class="check"><input type="checkbox" name="load_demo"> Load demo data (sample job + interview link)</label>
-            </div>
-
-            <h2 style="margin-top:22px">4 · Administrator (full control)</h2>
-            <div class="grid">
-                <div><label>Full name</label><input type="text" name="admin_name" value="<?= $old('admin_name') ?>"></div>
-                <div><label>Email</label><input type="email" name="admin_email" value="<?= $old('admin_email') ?>"></div>
-                <div><label>Password (min 8)</label><input type="password" name="admin_password"></div>
-            </div>
-
-            <h2 style="margin-top:22px">5 · API subscriptions &amp; integrations
-                <span class="muted" style="font-weight:400">— enter everything you use; all optional</span></h2>
-
-            <details open>
-                <summary>🤖 AI providers (Claude / OpenAI)</summary>
-                <label>Primary AI provider</label>
-                <select name="ai_provider">
-                    <option value="claude" <?= $sel('ai_provider', 'claude', 'claude') ?>>Claude — Anthropic (recommended)</option>
-                    <option value="openai" <?= $sel('ai_provider', 'openai') ?>>OpenAI</option>
-                </select>
-                <label>Anthropic API key (Claude)</label>
-                <input type="text" name="anthropic_api_key" placeholder="sk-ant-..." value="<?= $old('anthropic_api_key') ?>">
-                <label>OpenAI API key (alternative provider)</label>
-                <input type="text" name="openai_api_key" placeholder="sk-..." value="<?= $old('openai_api_key') ?>">
-                <div class="grid">
-                    <div><label>Conversation model</label><input type="text" name="ai_conversation_model" placeholder="claude-sonnet-4-6" value="<?= $old('ai_conversation_model') ?>"></div>
-                    <div><label>Analysis model</label><input type="text" name="ai_analysis_model" placeholder="claude-opus-4-8" value="<?= $old('ai_analysis_model') ?>"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>✉️ Email (SMTP — invitations, offers, notifications)</summary>
-                <div class="grid">
-                    <div><label>Mailer</label><input type="text" name="mail_mailer" placeholder="smtp" value="<?= $old('mail_mailer') ?>"></div>
-                    <div><label>Host</label><input type="text" name="mail_host" placeholder="smtp.gmail.com" value="<?= $old('mail_host') ?>"></div>
-                    <div><label>Port</label><input type="number" name="mail_port" placeholder="587" value="<?= $old('mail_port') ?>"></div>
-                    <div><label>Encryption</label><input type="text" name="mail_encryption" placeholder="tls" value="<?= $old('mail_encryption') ?>"></div>
-                    <div><label>Username</label><input type="text" name="mail_username" value="<?= $old('mail_username') ?>"></div>
-                    <div><label>Password</label><input type="password" name="mail_password"></div>
-                    <div><label>From address</label><input type="email" name="mail_from_address" placeholder="hr@watad.com" value="<?= $old('mail_from_address') ?>"></div>
-                    <div><label>From name</label><input type="text" name="mail_from_name" placeholder="Watad HR" value="<?= $old('mail_from_name') ?>"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>🗄️ File storage (CVs, reports — Amazon S3 / compatible)</summary>
-                <label>Storage disk</label>
-                <select name="filesystem_disk">
-                    <option value="local" <?= $sel('filesystem_disk', 'local', 'local') ?>>Local disk (default)</option>
-                    <option value="s3" <?= $sel('filesystem_disk', 's3') ?>>Amazon S3 / S3-compatible</option>
-                </select>
-                <div class="grid">
-                    <div><label>Access key ID</label><input type="text" name="aws_key" value="<?= $old('aws_key') ?>"></div>
-                    <div><label>Secret access key</label><input type="password" name="aws_secret"></div>
-                    <div><label>Region</label><input type="text" name="aws_region" placeholder="us-east-1" value="<?= $old('aws_region') ?>"></div>
-                    <div><label>Bucket</label><input type="text" name="aws_bucket" value="<?= $old('aws_bucket') ?>"></div>
-                    <div style="grid-column:1/-1"><label>Endpoint (S3-compatible only, optional)</label><input type="url" name="aws_endpoint" value="<?= $old('aws_endpoint') ?>"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>🎥 Video avatar (live video interviews)</summary>
-                <label>Video provider</label>
-                <select name="video_provider">
-                    <option value="none" <?= $sel('video_provider', 'none', 'none') ?>>None — text / voice only</option>
-                    <option value="tavus" <?= $sel('video_provider', 'tavus') ?>>Tavus</option>
-                    <option value="heygen" <?= $sel('video_provider', 'heygen') ?>>HeyGen</option>
-                </select>
-                <div class="grid">
-                    <div><label>Tavus API key</label><input type="text" name="tavus_api_key" value="<?= $old('tavus_api_key') ?>"></div>
-                    <div><label>HeyGen API key</label><input type="text" name="heygen_api_key" value="<?= $old('heygen_api_key') ?>"></div>
-                    <div><label>LiveKit URL</label><input type="url" name="livekit_url" value="<?= $old('livekit_url') ?>"></div>
-                    <div><label>LiveKit API key</label><input type="text" name="livekit_key" value="<?= $old('livekit_key') ?>"></div>
-                    <div><label>LiveKit API secret</label><input type="password" name="livekit_secret"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>💬 WhatsApp (candidate notifications)</summary>
-                <div class="grid">
-                    <div><label>WhatsApp token</label><input type="text" name="whatsapp_token" value="<?= $old('whatsapp_token') ?>"></div>
-                    <div><label>Phone number ID</label><input type="text" name="whatsapp_phone_id" value="<?= $old('whatsapp_phone_id') ?>"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>📊 Google Sheets (export candidate results)</summary>
-                <label class="check"><input type="checkbox" name="sheets_enabled" <?= $chk('sheets_enabled') ?>> Push results to Google Sheets</label>
-                <div class="grid">
-                    <div><label>Spreadsheet ID</label><input type="text" name="sheets_spreadsheet_id" value="<?= $old('sheets_spreadsheet_id') ?>"></div>
-                    <div><label>Tab name</label><input type="text" name="sheets_tab" placeholder="Candidates" value="<?= $old('sheets_tab') ?>"></div>
-                    <div style="grid-column:1/-1"><label>Service-account credentials path (JSON)</label><input type="text" name="google_credentials" placeholder="/path/to/credentials.json" value="<?= $old('google_credentials') ?>"></div>
-                </div>
-            </details>
-
-            <details>
-                <summary>⚡ Real-time streaming (WebSockets / Reverb)</summary>
-                <label class="check"><input type="checkbox" name="enable_reverb" <?= $chk('enable_reverb') ?>> Enable live interview streaming (Reverb)</label>
-                <div class="grid">
-                    <div><label>App ID</label><input type="text" name="reverb_app_id" placeholder="watad" value="<?= $old('reverb_app_id') ?>"></div>
-                    <div><label>App key</label><input type="text" name="reverb_app_key" value="<?= $old('reverb_app_key') ?>"></div>
-                    <div><label>App secret</label><input type="password" name="reverb_app_secret"></div>
-                    <div><label>Host</label><input type="text" name="reverb_host" placeholder="localhost" value="<?= $old('reverb_host') ?>"></div>
-                    <div><label>Port</label><input type="number" name="reverb_port" placeholder="8080" value="<?= $old('reverb_port') ?>"></div>
-                </div>
-            </details>
-
-            <div style="margin-top:20px"><button class="btn" type="submit" <?= $requirementsOk ? '' : 'disabled' ?>>Install Watad →</button></div>
         </form>
+        <?php foreach ($errors as $e): ?>
+            <div class="alert alert-error" style="margin-top:12px"><?= htmlspecialchars($e) ?></div>
+        <?php endforeach; ?>
+    </div>
+
+<?php /* ═══════════════ DONE ═══════════════════════════ */ ?>
+<?php elseif ($done): ?>
+    <div class="card">
+        <div class="alert alert-ok">🎉 تم التثبيت بنجاح! حساب المدير جاهز.</div>
+        <p style="font-size:14px;color:#475569;line-height:1.9;margin:14px 0">
+            <strong>خطوة مهمة — شغّل معالج الطابور على السيرفر:</strong><br>
+            <code>php artisan queue:work --daemon</code><br>
+            هذا ضروري لتشغيل مقابلات الذكاء الاصطناعي وإنتاج التقارير.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a href="login" class="btn">← الدخول للمنصة</a>
+            <a href="?download=backup" class="btn btn-outline btn-sm" style="align-self:center">
+                ⬇ تحميل نسخة احتياطية SQL
+            </a>
+        </div>
+        <details style="margin-top:14px">
+            <summary>تفاصيل التثبيت (سجل الأوامر)</summary>
+            <pre><?= htmlspecialchars($output) ?></pre>
+        </details>
+    </div>
+
+<?php /* ═══════════════ INSTALL FORM ══════════════════ */ ?>
+<?php else: ?>
+
+<!-- ❶ Requirements -->
+<div class="card">
+    <h2><span class="num">1</span> متطلبات النظام</h2>
+    <?php foreach ($requirements as $name => $pass): ?>
+        <div class="req-row">
+            <span><?= htmlspecialchars($name) ?></span>
+            <span class="<?= $pass ? 'ok' : 'bad' ?>"><?= $pass ? '✓ موجود' : '✗ مفقود' ?></span>
+        </div>
+    <?php endforeach; ?>
+
+    <?php if (!$vendorOk): ?>
+    <div class="alert alert-warn" style="margin-top:16px">
+        <strong>مشكلة: مكتبات PHP غير موجودة (vendor/)</strong><br><br>
+        المسار المطلوب:<br>
+        <div class="path-box"><?= htmlspecialchars($root) ?>/vendor/autoload.php</div>
+        <strong>الحل الأسرع:</strong> ارفع ملف <code>vendor.zip</code> (مرفق في الأرشيف) عبر cPanel وسيتم استخراجه تلقائياً:<br><br>
+        <form method="POST" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="hidden" name="action" value="extract_vendor">
+            <input type="file" name="vendor_zip" accept=".zip" style="flex:1;min-width:200px">
+            <button class="btn btn-sm" type="submit">استخراج vendor.zip</button>
+        </form>
+        <p class="hint" style="margin-top:10px">
+            أو استخرجه يدوياً على السيرفر:
+            <code>cd /path/to/site && tar -xf watad-ai-interviewer.tar.xz</code><br>
+            تأكد أن مجلد <code>vendor/</code> في نفس مستوى مجلد <code>public/</code>.
+        </p>
+    </div>
+    <?php endif; ?>
+</div>
+
+<?php foreach ($errors as $e): ?>
+    <div class="alert alert-error"><?= htmlspecialchars($e) ?></div>
+<?php endforeach; ?>
+
+<form method="POST" enctype="multipart/form-data"
+      onsubmit="
+        var b=this.querySelector('.install-btn');
+        b.innerText='جارٍ التثبيت… (قد يستغرق دقيقة)';
+        b.disabled=true;">
+    <input type="hidden" name="action" value="install">
+
+    <!-- ❷ Site -->
+    <div class="card">
+        <h2><span class="num">2</span> إعدادات الموقع</h2>
+        <div class="grid">
+            <div>
+                <label>اسم الموقع</label>
+                <input type="text" name="app_name" value="<?= $old('app_name','Watad AI Interviewer') ?>">
+            </div>
+            <div>
+                <label>رابط الموقع (URL)</label>
+                <input type="url" name="app_url"
+                       value="<?= $old('app_url','https://') ?>"
+                       placeholder="https://yourdomain.com">
+            </div>
+        </div>
+    </div>
+
+    <!-- ❸ Database -->
+    <div class="card">
+        <h2><span class="num">3</span> قاعدة البيانات (MySQL)</h2>
+        <p class="hint" style="margin-top:0;margin-bottom:4px">
+            أدخل بيانات قاعدة البيانات التي أنشأتها على السيرفر (من cPanel مثلاً)
+        </p>
+        <div class="grid">
+            <div>
+                <label>اسم قاعدة البيانات</label>
+                <input type="text" name="db_database"
+                       value="<?= $old('db_database') ?>" placeholder="watad_db">
+            </div>
+            <div>
+                <label>اسم المستخدم</label>
+                <input type="text" name="db_username"
+                       value="<?= $old('db_username') ?>" placeholder="watad_user">
+            </div>
+            <div>
+                <label>كلمة مرور قاعدة البيانات</label>
+                <input type="password" name="db_password">
+            </div>
+            <div>
+                <label>هوست (لا تغيّره عادةً)</label>
+                <input type="text" name="db_host"
+                       value="<?= $old('db_host','127.0.0.1') ?>">
+            </div>
+        </div>
+    </div>
+
+    <!-- ❹ Admin -->
+    <div class="card">
+        <h2><span class="num">4</span> حساب المدير (Super Admin)</h2>
+        <div class="grid">
+            <div>
+                <label>الاسم الكامل</label>
+                <input type="text" name="admin_name" value="<?= $old('admin_name') ?>">
+            </div>
+            <div>
+                <label>البريد الإلكتروني</label>
+                <input type="email" name="admin_email" value="<?= $old('admin_email') ?>">
+            </div>
+            <div class="full">
+                <label>كلمة المرور (8 أحرف على الأقل)</label>
+                <input type="password" name="admin_password">
+            </div>
+        </div>
+    </div>
+
+    <!-- ❺ API Keys -->
+    <div class="card">
+        <h2><span class="num">5</span> مفاتيح API</h2>
+
+        <!-- OpenAI -->
+        <div class="box">
+            <div class="box-title">
+                🤖 OpenAI
+                <span class="badge badge-req">مطلوب</span>
+            </div>
+
+            <label>OpenAI API Key</label>
+            <input type="text" name="openai_api_key"
+                   placeholder="sk-proj-…" value="<?= $old('openai_api_key') ?>">
+            <p class="hint">احصل عليه من: platform.openai.com → API Keys</p>
+
+            <div class="grid" style="margin-top:14px">
+                <div>
+                    <label>موديل المقابلة (المحادثة)</label>
+                    <select name="ai_conversation_model" id="convSel"
+                            onchange="toggleCustom('convSel','convCustom')">
+                        <option value="gpt-4o"<?= selOpt('ai_conversation_model','gpt-4o',true,$_POST) ?>>
+                            gpt-4o — الأفضل توازناً (موصى)</option>
+                        <option value="gpt-4o-mini"<?= selOpt('ai_conversation_model','gpt-4o-mini',false,$_POST) ?>>
+                            gpt-4o-mini — أسرع وأقل تكلفة</option>
+                        <option value="gpt-4-turbo"<?= selOpt('ai_conversation_model','gpt-4-turbo',false,$_POST) ?>>
+                            gpt-4-turbo — موثوق ومستقر</option>
+                        <option value="custom"<?= selOpt('ai_conversation_model','custom',false,$_POST) ?>>
+                            أكتب اسم الموديل بنفسي…</option>
+                    </select>
+                    <input type="text" id="convCustom" name="conv_custom"
+                           placeholder="اسم الموديل"
+                           style="display:none;margin-top:6px"
+                           value="<?= $old('conv_custom') ?>">
+                </div>
+                <div>
+                    <label>موديل التحليل (التقييم والتقارير)</label>
+                    <select name="ai_analysis_model" id="analSel"
+                            onchange="toggleCustom('analSel','analCustom')">
+                        <option value="gpt-4o"<?= selOpt('ai_analysis_model','gpt-4o',true,$_POST) ?>>
+                            gpt-4o — موصى للتحليل</option>
+                        <option value="o4-mini"<?= selOpt('ai_analysis_model','o4-mini',false,$_POST) ?>>
+                            o4-mini — تفكير عميق (الأحدث)</option>
+                        <option value="o3-mini"<?= selOpt('ai_analysis_model','o3-mini',false,$_POST) ?>>
+                            o3-mini — تفكير عميق</option>
+                        <option value="gpt-4-turbo"<?= selOpt('ai_analysis_model','gpt-4-turbo',false,$_POST) ?>>
+                            gpt-4-turbo — موثوق ومستقر</option>
+                        <option value="custom"<?= selOpt('ai_analysis_model','custom',false,$_POST) ?>>
+                            أكتب اسم الموديل بنفسي…</option>
+                    </select>
+                    <input type="text" id="analCustom" name="anal_custom"
+                           placeholder="اسم الموديل"
+                           style="display:none;margin-top:6px"
+                           value="<?= $old('anal_custom') ?>">
+                </div>
+            </div>
+        </div>
+
+        <!-- HeyGen -->
+        <div class="box" style="margin-top:14px">
+            <div class="box-title">
+                🎥 HeyGen (أفاتار الفيديو)
+                <span class="badge badge-opt">اختياري</span>
+            </div>
+            <label>HeyGen API Key</label>
+            <input type="text" name="heygen_api_key"
+                   placeholder="اتركه فارغاً إذا لم تشترك بعد"
+                   value="<?= $old('heygen_api_key') ?>">
+            <p class="hint">
+                إذا تركته فارغاً تعمل المقابلات بالنص/الصوت فقط (بدون أفاتار).<br>
+                يمكنك إضافته لاحقاً من ملف <code>.env</code> في جذر المشروع.
+            </p>
+        </div>
+    </div>
+
+    <!-- Install Button -->
+    <button class="btn install-btn" type="submit"
+            <?= $requirementsOk ? '' : 'disabled' ?>
+            style="width:100%;padding:15px;font-size:16px;border-radius:10px">
+        تثبيت Watad AI Interviewer ←
+    </button>
+    <?php if (!$requirementsOk): ?>
+        <p style="text-align:center;color:#dc2626;font-size:13px;margin-top:10px">
+            حل المشكلات المُشار إليها أعلاه ثم أعد تحميل الصفحة
+        </p>
     <?php endif; ?>
 
-    <p class="muted" style="text-align:center">The Super Admin gets every permission. Other roles are managed from <strong>Roles &amp; Permissions</strong> after install.</p>
-</div>
+</form>
+
+<?php endif; ?>
+</div><!-- /wrap -->
+
+<?php
+/* PHP helper used in HTML — defined here to avoid "called before definition" in older PHP */
+function selOpt(string $key, string $val, bool $default, array $post): string {
+    $current = $post[$key] ?? ($default ? $val : '');
+    return $current === $val ? ' selected' : '';
+}
+?>
+
 <script>
-    function dbDriver(d){ document.getElementById('mysql-fields').style.display = d==='mysql'?'block':'none';
-        document.getElementById('sqlite-upload').style.display = (d==='sqlite' && current_setup==='import')?'block':'none';
-        document.getElementById('sql-dump').style.display = (d==='mysql' && current_setup==='import')?'block':'none'; }
-    var current_setup='fresh';
-    function dbSetup(s){ current_setup=s;
-        var d = document.querySelector('input[name=db_driver]:checked').value; dbDriver(d); }
+function toggleCustom(selId, inputId) {
+    var sel = document.getElementById(selId);
+    var inp = document.getElementById(inputId);
+    var show = sel.value === 'custom';
+    inp.style.display = show ? 'block' : 'none';
+    inp.required = show;
+    if (!show) inp.value = '';
+}
+// restore state on page reload (validation error)
+window.addEventListener('DOMContentLoaded', function() {
+    toggleCustom('convSel','convCustom');
+    toggleCustom('analSel','analCustom');
+});
 </script>
 </body>
 </html>
