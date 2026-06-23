@@ -2,79 +2,72 @@
 @section('title', 'Dashboard · Watad')
 @section('heading', 'Dashboard')
 @section('content')
-@php
-    $cards = [
-        ['Total candidates', $metrics['total_candidates']],
-        ['Interviews today', $metrics['interviews_today']],
-        ['Hired', $metrics['hired']],
-        ['Rejected', $metrics['rejected']],
-        ['Conversion', $metrics['conversion'].'%'],
-        ['Avg score', $metrics['avg_score']],
-    ];
-@endphp
+<x-page-header title="Overview" />
 
-<div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
-    @foreach($cards as [$label, $value])
-        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
-            <div class="text-xs text-slate-500">{{ $label }}</div>
-            <div class="text-2xl font-semibold mt-1">{{ $value }}</div>
-        </div>
-    @endforeach
+<div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+    <x-stat-card label="Total candidates" :value="$metrics['total_candidates']" icon="👤" />
+    <x-stat-card label="Interviews today" :value="$metrics['interviews_today']" icon="🎙️" />
+    <x-stat-card label="Hired" :value="$metrics['hired']" icon="✅" />
+    <x-stat-card label="Rejected" :value="$metrics['rejected']" icon="🚫" />
+    <x-stat-card label="Conversion" :value="$metrics['conversion'].'%'" icon="📈" />
+    <x-stat-card label="Avg score" :value="$metrics['avg_score']" icon="⭐" />
 </div>
 
-<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5 mt-6"
-     x-data="interviewChart(@js($chart))">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold">Interview volume</h2>
+<div class="card mt-6 p-5" x-data="interviewChart(@js($chart))">
+    <div class="mb-4 flex items-center justify-between">
+        <h2 class="font-semibold text-slate-800">Interview volume</h2>
         <div class="flex gap-1 text-xs">
             <template x-for="g in ['daily','weekly','monthly']" :key="g">
                 <button @click="grouping = g; render()"
-                        :class="grouping === g ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800'"
-                        class="rounded px-2 py-1 capitalize" x-text="g"></button>
+                        :class="grouping === g ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600'"
+                        class="rounded-md px-2.5 py-1 capitalize" x-text="g"></button>
             </template>
         </div>
     </div>
     <canvas x-ref="canvas" height="80"></canvas>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-    <div class="lg:col-span-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5">
-        <h2 class="font-semibold mb-4">Hiring funnel</h2>
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="card p-5 lg:col-span-1">
+        <h2 class="mb-4 font-semibold text-slate-800">Hiring funnel</h2>
         @php($max = max(1, $funnel['applied']))
         @foreach($funnel as $stage => $count)
             <div class="mb-3">
-                <div class="flex justify-between text-sm mb-1"><span class="capitalize">{{ $stage }}</span><span class="text-slate-500">{{ $count }}</span></div>
-                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-                    <div class="h-2 rounded-full bg-indigo-500" style="width: {{ round($count / $max * 100) }}%"></div>
+                <div class="mb-1 flex justify-between text-sm">
+                    <span class="capitalize text-slate-600">{{ $stage }}</span>
+                    <span class="text-slate-400">{{ $count }}</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-100">
+                    <div class="h-2 rounded-full bg-brand" style="width: {{ round($count / $max * 100) }}%"></div>
                 </div>
             </div>
         @endforeach
     </div>
 
-    <div class="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5">
-        <h2 class="font-semibold mb-4">Recent results</h2>
+    <div class="card overflow-hidden lg:col-span-2">
+        <div class="border-b border-slate-100 px-5 py-4">
+            <h2 class="font-semibold text-slate-800">Recent results</h2>
+        </div>
         <table class="w-full text-sm">
-            <thead class="text-slate-500 text-start">
-                <tr class="border-b border-slate-100 dark:border-slate-800">
-                    <th class="text-start font-medium py-2">Candidate</th>
+            <thead class="text-slate-500">
+                <tr class="border-b border-slate-100">
+                    <th class="px-5 py-2.5 text-start font-medium">Candidate</th>
                     <th class="text-start font-medium">Position</th>
                     <th class="text-start font-medium">Score</th>
-                    <th class="text-start font-medium">Recommendation</th>
+                    <th class="px-5 text-start font-medium">Recommendation</th>
                 </tr>
             </thead>
             <tbody>
             @forelse($recent as $interview)
-                <tr class="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td class="py-2">
-                        <a href="{{ route('hr.interviews.show', $interview->public_id) }}" class="text-indigo-600 hover:underline">
+                <tr class="border-b border-slate-50 hover:bg-slate-50">
+                    <td class="px-5 py-2.5">
+                        <a href="{{ route('hr.interviews.show', $interview->public_id) }}" class="text-brand hover:underline">
                             {{ $interview->candidate?->full_name }}
                         </a>
                     </td>
-                    <td>{{ $interview->jobPosition?->title }}</td>
+                    <td class="text-slate-600">{{ $interview->jobPosition?->title }}</td>
                     <td class="font-medium">{{ $interview->overall_score }}</td>
-                    <td>
-                        @include('components.reco-badge', ['recommendation' => $interview->recommendation])
-                    </td>
+                    <td class="px-5">@include('components.reco-badge', ['recommendation' => $interview->recommendation])</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="py-6 text-center text-slate-400">No completed interviews yet.</td></tr>
@@ -107,8 +100,8 @@ function interviewChart(daily) {
             if (this.chart) this.chart.destroy();
             this.chart = new Chart(this.$refs.canvas, {
                 type: 'line',
-                data: { labels, datasets: [{ label: 'Interviews', data, borderColor: '#4f46e5',
-                        backgroundColor: 'rgba(79,70,229,.1)', fill: true, tension: .3 }] },
+                data: { labels, datasets: [{ label: 'Interviews', data, borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37,99,235,.1)', fill: true, tension: .3 }] },
                 options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
             });
         },

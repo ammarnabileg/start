@@ -1,80 +1,75 @@
 # 14 — Roles & Permissions (RBAC)
 
-Self-contained RBAC: `users` ↔ `roles` ↔ `permissions` (many-to-many both ways). Enforced by
-policies + `EnsureRole` / Laravel `can:` middleware. **Default-deny**: no permission → no access.
+Self-contained, **granular CRUD** RBAC: every resource exposes **View / Create / Edit (update) /
+Delete** permissions, plus a few special abilities. `users` ↔ `roles` ↔ `permissions` are
+many-to-many. The **Super Admin has full control over everything** and cannot be restricted.
+Permissions per role are editable from the admin UI (**Roles & Permissions** screen) and seeded by
+the installer. Single source of truth: `app/Support/Permissions.php`.
+
+## Resources (each gets view / create / update / delete)
+
+`jobs` · `departments` · `candidates` · `interviews` · `templates` · `avatars` · `questions` ·
+`pipelines` · `users` · `roles` · `reports` · `settings`
+
+→ slugs like `jobs.view`, `jobs.create`, `jobs.update`, `jobs.delete`, … for all 12 resources
+(48 CRUD permissions total).
+
+## Special (non-CRUD) abilities
+
+| Slug | Meaning |
+|---|---|
+| `invitations.create` | Generate candidate interview links |
+| `interviews.monitor` | Watch live interviews |
+| `interviews.move_stage` | Move a candidate across pipeline stages |
+| `reports.export` | Export results (Excel / Sheets) |
+| `candidates.erase` | GDPR erasure of candidate data |
+| `integrations.manage` | Configure integrations |
+| `audit.view` | View the audit log |
 
 ## Roles (seeded)
 
 | Slug | Name | Intent |
 |---|---|---|
-| `super_admin` | Super Admin | Everything, incl. settings, users, integrations, audit |
-| `hr_manager` | HR Manager | Full hiring ops: jobs, candidates, interviews, reports, exports, pipeline |
-| `recruiter` | Recruiter | Create jobs/invitations, view candidates & reports, move stages |
-| `dept_manager` | Department Manager | View candidates/reports for **their** department only |
-| `viewer` | Interviewer Viewer | Read-only: reports, transcripts, replay |
+| `super_admin` | Super Admin | **Everything** — full View/Create/Edit/Delete on all resources + all abilities. Locked. |
+| `hr_manager` | HR Manager | All hiring resources (CRUD) + reports + audit; **not** user/role/settings administration |
+| `recruiter` | Recruiter | Create/edit jobs, invite, view/update candidates, monitor & move interviews, view reports/export, manage questions |
+| `dept_manager` | Department Manager | View jobs/candidates/interviews/reports + move stage (their department only) |
+| `viewer` | Interviewer Viewer | Read-only: jobs, candidates, interviews, reports |
 
-## Permission catalog (`permissions.slug`, grouped)
+`dept_manager` and `viewer` are additionally constrained by a department scope (policy + global
+scope) to rows whose `job_positions.department_id` matches the user's department(s).
 
-| Group | Permissions |
-|---|---|
-| jobs | `job.view`, `job.create`, `job.update`, `job.delete` |
-| invitations | `invitation.create`, `invitation.cancel` |
-| candidates | `candidate.view`, `candidate.update`, `candidate.delete`, `gdpr.erase` |
-| interviews | `interview.view`, `interview.monitor`, `interview.move_stage` |
-| reports | `report.view`, `report.export` |
-| config | `template.manage`, `avatar.manage`, `question.manage`, `pipeline.manage` |
-| users | `user.manage` |
-| settings | `settings.manage`, `integration.manage` |
-| audit | `audit.view` |
+## How it's enforced
 
-## Permission matrix
+1. **Gate::before** (in `AppServiceProvider`): `super_admin` is allowed everything; otherwise any
+   dotted ability (e.g. `jobs.create`) resolves against the user's permissions
+   (`User::hasPermission`). This means **new permissions work automatically** — no per-ability gate
+   registration.
+2. **Route middleware** — `->middleware('can:jobs.create')` on each route.
+3. **Blade** — `@can('jobs.create')` hides unauthorized UI (defense in depth).
+4. **Policies + global scope** — for record-level checks and department scoping.
 
-| Permission | super_admin | hr_manager | recruiter | dept_manager | viewer |
-|---|:--:|:--:|:--:|:--:|:--:|
-| job.view | ✅ | ✅ | ✅ | ✅¹ | ✅¹ |
-| job.create / update | ✅ | ✅ | ✅ | — | — |
-| job.delete | ✅ | ✅ | — | — | — |
-| invitation.create / cancel | ✅ | ✅ | ✅ | — | — |
-| candidate.view | ✅ | ✅ | ✅ | ✅¹ | ✅¹ |
-| candidate.update | ✅ | ✅ | ✅ | — | — |
-| candidate.delete | ✅ | ✅ | — | — | — |
-| gdpr.erase | ✅ | ✅ | — | — | — |
-| interview.view | ✅ | ✅ | ✅ | ✅¹ | ✅¹ |
-| interview.monitor (live) | ✅ | ✅ | ✅ | — | — |
-| interview.move_stage | ✅ | ✅ | ✅ | ✅¹ | — |
-| report.view | ✅ | ✅ | ✅ | ✅¹ | ✅¹ |
-| report.export | ✅ | ✅ | ✅ | ✅¹ | — |
-| template.manage | ✅ | ✅ | — | — | — |
-| avatar.manage | ✅ | ✅ | — | — | — |
-| question.manage | ✅ | ✅ | ✅ | — | — |
-| pipeline.manage | ✅ | ✅ | — | — | — |
-| user.manage | ✅ | — | — | — | — |
-| settings.manage / integration.manage | ✅ | — | — | — | — |
-| audit.view | ✅ | ✅ | — | — | — |
+## Managing permissions (admin UI)
 
-¹ **Department scoping**: `dept_manager` and `viewer` are additionally constrained by a global
-query scope to rows whose `job_positions.department_id` matches the user's department(s). This is
-enforced in policies + an Eloquent global scope, not just the UI.
+`HR → Roles & Permissions` renders a live matrix per role: rows = resources, columns =
+View/Create/Edit/Delete checkboxes, plus the special abilities. Toggling and saving syncs that
+role's `permission_role` rows (`RoleController@update`). The Super Admin row is shown fully checked
+and **locked** (it always has full access).
 
-## Enforcement points
+## Seeding & install
 
-1. **Route middleware** — `->middleware('can:job.create')` or `EnsureRole:hr_manager,super_admin`.
-2. **Policies** — `InterviewPolicy`, `JobPositionPolicy`, `CandidatePolicy`, etc. gate
-   view/update/delete and apply department scoping.
-3. **Global scopes** — `DepartmentScope` auto-filters queries for department-scoped roles.
-4. **Blade** — `@can` directives hide unauthorized UI (defense in depth, not the control).
-
-## Seeding
-
-`RolePermissionSeeder` creates the roles, the full permission catalog, and the matrix above.
-`DemoSeeder` creates one user per role (e.g. `admin@watad.com` / `password`) for local dev.
+- `RolePermissionSeeder` creates the full catalog (`Permissions::catalog()`) and applies the role
+  matrix (`Permissions::matrix()`).
+- The **web installer** (`public/install.php`) runs this seeder and creates the first **Super
+  Admin** account with the email/password you enter — that account then has full control and can
+  configure every other role from the UI.
 
 ## Example (route protection)
 
 ```php
-Route::middleware(['auth','can:report.export'])
+Route::middleware(['auth','can:reports.export'])
     ->get('/api/export/interviews.xlsx', [ExportController::class, 'interviews']);
 
-Route::middleware(['auth','can:user.manage'])
-    ->apiResource('users', UserController::class);
+Route::middleware(['auth','can:roles.update'])
+    ->put('/hr/roles/{role}', [RoleController::class, 'update']);
 ```

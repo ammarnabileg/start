@@ -103,6 +103,11 @@ docker compose exec app php artisan migrate --seed
 # HR login:   admin@watad.com / password  (from DemoSeeder)
 ```
 
+**Or use the web installer** (no terminal setup): after `composer install` and a running MySQL,
+open **`http://localhost:8080/install.php`** and follow the wizard — it checks requirements,
+writes `.env`, runs migrations, seeds roles/permissions/avatars, and creates your **Super Admin**
+account (full control). Delete `public/install.php` afterwards. See [`docs/14`](docs/14-rbac.md).
+
 Without Docker (requires local PHP 8.3+, MySQL, Redis):
 
 ```bash

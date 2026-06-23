@@ -18,7 +18,13 @@ class JobController extends Controller
     {
         $jobs = JobPosition::with('department')->latest()->paginate(20);
 
-        return view('hr.jobs', compact('jobs'));
+        $stats = [
+            'open'   => JobPosition::where('status', 'open')->count(),
+            'draft'  => JobPosition::where('status', 'draft')->count(),
+            'closed' => JobPosition::whereIn('status', ['closed', 'paused'])->count(),
+        ];
+
+        return view('hr.jobs', compact('jobs', 'stats'));
     }
 
     public function store(Request $request): RedirectResponse

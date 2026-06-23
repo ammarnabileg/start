@@ -7,59 +7,106 @@ namespace App\Support;
 use App\Enums\RoleSlug;
 
 /**
- * The permission catalog and the role→permission matrix (docs/14-rbac.md).
- * Single source of truth used by RolePermissionSeeder and the authorization gates.
+ * Granular permission catalog: uniform CRUD (view / create / update / delete) for every resource,
+ * plus a few non-CRUD abilities. The Super Admin always has full control (enforced in
+ * AppServiceProvider via Gate::before). Roles & their permissions are editable from the admin UI
+ * (Roles & Permissions screen). See docs/14-rbac.md.
  */
 final class Permissions
 {
-    /** @var array<string, array{name:string, group:string}> */
-    public const CATALOG = [
-        'job.view'            => ['name' => 'View jobs', 'group' => 'jobs'],
-        'job.create'          => ['name' => 'Create jobs', 'group' => 'jobs'],
-        'job.update'          => ['name' => 'Update jobs', 'group' => 'jobs'],
-        'job.delete'          => ['name' => 'Delete jobs', 'group' => 'jobs'],
-        'invitation.create'   => ['name' => 'Create invitations', 'group' => 'invitations'],
-        'invitation.cancel'   => ['name' => 'Cancel invitations', 'group' => 'invitations'],
-        'candidate.view'      => ['name' => 'View candidates', 'group' => 'candidates'],
-        'candidate.update'    => ['name' => 'Update candidates', 'group' => 'candidates'],
-        'candidate.delete'    => ['name' => 'Delete candidates', 'group' => 'candidates'],
-        'gdpr.erase'          => ['name' => 'Erase candidate data (GDPR)', 'group' => 'candidates'],
-        'interview.view'      => ['name' => 'View interviews', 'group' => 'interviews'],
-        'interview.monitor'   => ['name' => 'Monitor live interviews', 'group' => 'interviews'],
-        'interview.move_stage' => ['name' => 'Move pipeline stage', 'group' => 'interviews'],
-        'report.view'         => ['name' => 'View reports', 'group' => 'reports'],
-        'report.export'       => ['name' => 'Export reports', 'group' => 'reports'],
-        'template.manage'     => ['name' => 'Manage templates', 'group' => 'config'],
-        'avatar.manage'       => ['name' => 'Manage avatars', 'group' => 'config'],
-        'question.manage'     => ['name' => 'Manage questions', 'group' => 'config'],
-        'pipeline.manage'     => ['name' => 'Manage pipelines', 'group' => 'config'],
-        'user.manage'         => ['name' => 'Manage users', 'group' => 'users'],
-        'settings.manage'     => ['name' => 'Manage settings', 'group' => 'settings'],
-        'integration.manage'  => ['name' => 'Manage integrations', 'group' => 'settings'],
-        'audit.view'          => ['name' => 'View audit log', 'group' => 'audit'],
+    /** Resource key => human label. Each gets view/create/update/delete permissions. */
+    public const RESOURCES = [
+        'jobs'        => 'Jobs',
+        'departments' => 'Departments',
+        'candidates'  => 'Candidates',
+        'interviews'  => 'Interviews',
+        'templates'   => 'Templates',
+        'avatars'     => 'Avatars',
+        'questions'   => 'Questions',
+        'pipelines'   => 'Pipelines',
+        'users'       => 'Users',
+        'roles'       => 'Roles',
+        'reports'     => 'Reports',
+        'settings'    => 'Settings',
     ];
 
-    /** Role → permission slugs. '*' means all permissions. */
+    /** CRUD action key => label. */
+    public const ACTIONS = [
+        'view'   => 'View',
+        'create' => 'Create',
+        'update' => 'Edit',
+        'delete' => 'Delete',
+    ];
+
+    /** Extra non-CRUD abilities: slug => [label, resource-group]. */
+    public const EXTRA = [
+        'invitations.create'    => ['Create invitations', 'jobs'],
+        'interviews.monitor'    => ['Monitor live interviews', 'interviews'],
+        'interviews.move_stage' => ['Move pipeline stage', 'interviews'],
+        'reports.export'        => ['Export reports', 'reports'],
+        'candidates.erase'      => ['Erase candidate data (GDPR)', 'candidates'],
+        'integrations.manage'   => ['Manage integrations', 'settings'],
+        'audit.view'            => ['View audit log', 'settings'],
+    ];
+
+    /** @return array<string, array{name:string, group:string}> full slug => meta catalog. */
+    public static function catalog(): array
+    {
+        $catalog = [];
+
+        foreach (self::RESOURCES as $resource => $label) {
+            foreach (self::ACTIONS as $action => $actionLabel) {
+                $catalog["{$resource}.{$action}"] = [
+                    'name'  => "{$actionLabel} {$label}",
+                    'group' => $resource,
+                ];
+            }
+        }
+
+        foreach (self::EXTRA as $slug => [$name, $group]) {
+            $catalog[$slug] = ['name' => $name, 'group' => $group];
+        }
+
+        return $catalog;
+    }
+
+    /** @return list<string> every permission slug. */
+    public static function all(): array
+    {
+        return array_keys(self::catalog());
+    }
+
+    /** Role => permission slugs ('*' = all). Editable later from the admin UI. */
     public static function matrix(): array
     {
-        $all = array_keys(self::CATALOG);
+        $adminOnly = [
+            'users.view', 'users.create', 'users.update', 'users.delete',
+            'roles.view', 'roles.create', 'roles.update', 'roles.delete',
+            'settings.create', 'settings.update', 'settings.delete', 'integrations.manage',
+        ];
 
         return [
             RoleSlug::SuperAdmin->value => ['*'],
-            RoleSlug::HrManager->value => array_values(array_diff($all, [
-                'user.manage', 'settings.manage', 'integration.manage',
-            ])),
+
+            // HR Manager: full hiring control, but not user/role/settings administration.
+            RoleSlug::HrManager->value => array_values(array_diff(self::all(), $adminOnly)),
+
             RoleSlug::Recruiter->value => [
-                'job.view', 'job.create', 'job.update', 'invitation.create', 'invitation.cancel',
-                'candidate.view', 'candidate.update', 'interview.view', 'interview.monitor',
-                'interview.move_stage', 'report.view', 'report.export', 'question.manage',
+                'jobs.view', 'jobs.create', 'jobs.update', 'invitations.create',
+                'candidates.view', 'candidates.update',
+                'interviews.view', 'interviews.monitor', 'interviews.move_stage',
+                'reports.view', 'reports.export',
+                'templates.view', 'avatars.view', 'questions.view', 'questions.create',
+                'pipelines.view', 'departments.view',
             ],
+
             RoleSlug::DeptManager->value => [
-                'job.view', 'candidate.view', 'interview.view', 'interview.move_stage',
-                'report.view', 'report.export',
+                'jobs.view', 'candidates.view', 'interviews.view', 'interviews.move_stage',
+                'reports.view', 'reports.export', 'pipelines.view', 'departments.view',
             ],
+
             RoleSlug::Viewer->value => [
-                'job.view', 'candidate.view', 'interview.view', 'report.view',
+                'jobs.view', 'candidates.view', 'interviews.view', 'reports.view', 'pipelines.view',
             ],
         ];
     }

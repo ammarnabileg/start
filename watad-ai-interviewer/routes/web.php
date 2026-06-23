@@ -10,6 +10,7 @@ use App\Http\Controllers\Hr\InterviewController;
 use App\Http\Controllers\Hr\JobController;
 use App\Http\Controllers\Hr\PipelineController;
 use App\Http\Controllers\Hr\QuestionController;
+use App\Http\Controllers\Hr\RoleController;
 use App\Http\Controllers\Hr\SettingsController;
 use App\Http\Controllers\Hr\TemplateController;
 use App\Http\Controllers\Hr\UserController;
@@ -54,40 +55,44 @@ Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->
 Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/jobs', [JobController::class, 'index'])->middleware('can:job.view')->name('jobs.index');
-    Route::post('/jobs', [JobController::class, 'store'])->middleware('can:job.create')->name('jobs.store');
+    Route::get('/jobs', [JobController::class, 'index'])->middleware('can:jobs.view')->name('jobs.index');
+    Route::post('/jobs', [JobController::class, 'store'])->middleware('can:jobs.create')->name('jobs.store');
     Route::post('/jobs/{job}/invitations', [JobController::class, 'createInvitation'])
-        ->middleware('can:invitation.create')->name('jobs.invitations.create');
+        ->middleware('can:invitations.create')->name('jobs.invitations.create');
 
-    Route::get('/interviews', [InterviewController::class, 'index'])->middleware('can:interview.view')->name('interviews.index');
-    Route::get('/interviews/{interview}', [InterviewController::class, 'show'])->middleware('can:report.view')->name('interviews.show');
+    Route::get('/interviews', [InterviewController::class, 'index'])->middleware('can:interviews.view')->name('interviews.index');
+    Route::get('/interviews/{interview}', [InterviewController::class, 'show'])->middleware('can:reports.view')->name('interviews.show');
     Route::get('/interviews/{interview}/report.pdf', [InterviewController::class, 'reportPdf'])
-        ->middleware('can:report.view')->name('interviews.report.pdf');
+        ->middleware('can:reports.view')->name('interviews.report.pdf');
     Route::post('/interviews/{interview}/move-stage', [InterviewController::class, 'moveStage'])
-        ->middleware('can:interview.move_stage')->name('interviews.move_stage');
+        ->middleware('can:interviews.move_stage')->name('interviews.move_stage');
 
-    Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:interview.view')->name('pipeline.index');
+    Route::get('/pipeline', [PipelineController::class, 'index'])->middleware('can:interviews.view')->name('pipeline.index');
 
     // Interview templates
-    Route::get('/templates', [TemplateController::class, 'index'])->middleware('can:template.manage')->name('templates.index');
-    Route::post('/templates', [TemplateController::class, 'store'])->middleware('can:template.manage')->name('templates.store');
-    Route::put('/templates/{template}', [TemplateController::class, 'update'])->middleware('can:template.manage')->name('templates.update');
+    Route::get('/templates', [TemplateController::class, 'index'])->middleware('can:templates.view')->name('templates.index');
+    Route::post('/templates', [TemplateController::class, 'store'])->middleware('can:templates.create')->name('templates.store');
+    Route::put('/templates/{template}', [TemplateController::class, 'update'])->middleware('can:templates.update')->name('templates.update');
 
     // Avatars (the Watad interviewer cast)
-    Route::get('/avatars', [AvatarController::class, 'index'])->middleware('can:avatar.manage')->name('avatars.index');
-    Route::post('/avatars', [AvatarController::class, 'store'])->middleware('can:avatar.manage')->name('avatars.store');
-    Route::put('/avatars/{avatar}', [AvatarController::class, 'update'])->middleware('can:avatar.manage')->name('avatars.update');
+    Route::get('/avatars', [AvatarController::class, 'index'])->middleware('can:avatars.view')->name('avatars.index');
+    Route::post('/avatars', [AvatarController::class, 'store'])->middleware('can:avatars.create')->name('avatars.store');
+    Route::put('/avatars/{avatar}', [AvatarController::class, 'update'])->middleware('can:avatars.update')->name('avatars.update');
 
     // Question libraries
-    Route::get('/questions', [QuestionController::class, 'index'])->middleware('can:question.manage')->name('questions.index');
-    Route::post('/questions/libraries', [QuestionController::class, 'storeLibrary'])->middleware('can:question.manage')->name('questions.libraries.store');
-    Route::post('/questions', [QuestionController::class, 'storeQuestion'])->middleware('can:question.manage')->name('questions.store');
+    Route::get('/questions', [QuestionController::class, 'index'])->middleware('can:questions.view')->name('questions.index');
+    Route::post('/questions/libraries', [QuestionController::class, 'storeLibrary'])->middleware('can:questions.create')->name('questions.libraries.store');
+    Route::post('/questions', [QuestionController::class, 'storeQuestion'])->middleware('can:questions.create')->name('questions.store');
 
-    // Users & roles
-    Route::get('/users', [UserController::class, 'index'])->middleware('can:user.manage')->name('users.index');
-    Route::post('/users', [UserController::class, 'store'])->middleware('can:user.manage')->name('users.store');
-    Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->middleware('can:user.manage')->name('users.roles');
+    // Users
+    Route::get('/users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->middleware('can:users.create')->name('users.store');
+    Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->middleware('can:users.update')->name('users.roles');
+
+    // Roles & permissions (granular CRUD matrix editor)
+    Route::get('/roles', [RoleController::class, 'index'])->middleware('can:roles.view')->name('roles.index');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('can:roles.update')->name('roles.update');
 
     // Settings
-    Route::get('/settings', [SettingsController::class, 'index'])->middleware('can:settings.manage')->name('settings.index');
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware('can:settings.view')->name('settings.index');
 });

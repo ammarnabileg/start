@@ -14,7 +14,7 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach (Permissions::CATALOG as $slug => $meta) {
+        foreach (Permissions::catalog() as $slug => $meta) {
             Permission::updateOrCreate(['slug' => $slug], ['name' => $meta['name'], 'group' => $meta['group']]);
         }
 

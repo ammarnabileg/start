@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 // HR token API (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/export/interviews.xlsx', [ExportController::class, 'interviews'])
-        ->middleware('can:report.export')
+        ->middleware('can:reports.export')
         ->name('api.export.interviews');
 });
 

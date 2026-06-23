@@ -40,7 +40,7 @@
             <div :class="turn.role === 'agent' ? '' : 'flex justify-end'">
                 <div :class="turn.role === 'agent'
                         ? 'max-w-[80%] rounded-2xl bg-slate-100 px-4 py-2.5'
-                        : 'max-w-[80%] rounded-2xl bg-indigo-600 text-white px-4 py-2.5'">
+                        : 'max-w-[80%] rounded-2xl bg-brand text-white px-4 py-2.5'">
                     <p class="text-sm whitespace-pre-wrap" x-text="turn.text"></p>
                 </div>
             </div>
@@ -61,7 +61,7 @@
                           :placeholder="listening ? '{{ $rtl ? 'جارٍ الاستماع…' : 'Listening…' }}' : '{{ $rtl ? 'اكتب إجابتك…' : 'Type your answer…' }}'"
                           class="flex-1 resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
                 <button @click="send()" :disabled="thinking || !draft.trim()"
-                        class="rounded-lg bg-indigo-600 px-4 py-2.5 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                        class="rounded-lg bg-brand px-4 py-2.5 text-white text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
                     {{ $rtl ? 'إرسال' : 'Send' }}
                 </button>
             </div>

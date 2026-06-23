@@ -25,7 +25,13 @@ class InterviewController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('hr.interviews', compact('interviews'));
+        $stats = [
+            'total'       => Interview::count(),
+            'completed'   => Interview::where('status', 'completed')->count(),
+            'shortlisted' => Interview::whereIn('recommendation', ['strong_hire', 'hire'])->count(),
+        ];
+
+        return view('hr.interviews', compact('interviews', 'stats'));
     }
 
     public function show(Interview $interview): View

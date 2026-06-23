@@ -1,30 +1,22 @@
 @extends('layouts.candidate')
-@section('title', 'Sign in · Watad')
+@section('title', 'Sign in')
 @section('content')
 <div class="mx-auto max-w-sm">
-    <h1 class="text-xl font-semibold mb-1">Sign in</h1>
-    <p class="text-sm text-slate-500 mb-6">Watad AI Interviewer — HR console</p>
+    <div class="card p-6">
+        <h1 class="mb-1 text-xl font-semibold text-slate-800">Sign in</h1>
+        <p class="mb-6 text-sm text-slate-500">Watad AI Interviewer — HR console</p>
 
-    @if($errors->any())
-        <div class="mb-4 rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm">{{ $errors->first() }}</div>
-    @endif
+        @if($errors->any())
+            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
+        @endif
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-4">
-        @csrf
-        <div>
-            <label class="block text-sm mb-1">Email</label>
-            <input name="email" type="email" value="{{ old('email') }}" required autofocus
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2">
-        </div>
-        <div>
-            <label class="block text-sm mb-1">Password</label>
-            <input name="password" type="password" required
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2">
-        </div>
-        <label class="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" name="remember"> Remember me
-        </label>
-        <button class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-white font-medium hover:bg-indigo-700">Sign in</button>
-    </form>
+        <form method="POST" action="{{ route('login') }}" class="space-y-4">
+            @csrf
+            <div><label class="label">Email</label><input name="email" type="email" value="{{ old('email') }}" required autofocus class="input"></div>
+            <div><label class="label">Password</label><input name="password" type="password" required class="input"></div>
+            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="remember" class="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand"> Remember me</label>
+            <button class="btn-primary w-full">Sign in</button>
+        </form>
+    </div>
 </div>
 @endsection
