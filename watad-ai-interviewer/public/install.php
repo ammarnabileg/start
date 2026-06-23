@@ -148,6 +148,20 @@ function boot_kernel(string $root) {
 
 /* ══════════════════ REQUIREMENTS ═══════════════════════════════════ */
 $vendorOk = file_exists($autoload);
+
+// Auto-fix: if vendor was compiled for PHP 8.4+ but this server runs 8.3,
+// patch the generated platform_check.php so Laravel can bootstrap.
+if ($vendorOk) {
+    $pcFile = $root . '/vendor/composer/platform_check.php';
+    if (file_exists($pcFile)) {
+        $pcContent = file_get_contents($pcFile);
+        // Matches PHP_VERSION_ID >= 80400 through 80999
+        if (preg_match('/PHP_VERSION_ID >= 80[4-9]\d{2}/', $pcContent)) {
+            $pcPatched = preg_replace('/PHP_VERSION_ID >= 80[4-9]\d{2}/', 'PHP_VERSION_ID >= 80300', $pcContent);
+            @file_put_contents($pcFile, $pcPatched);
+        }
+    }
+}
 $requirements = [
     'PHP 8.3+'                    => version_compare(PHP_VERSION, '8.3.0', '>='),
     'PDO'                         => extension_loaded('pdo'),
