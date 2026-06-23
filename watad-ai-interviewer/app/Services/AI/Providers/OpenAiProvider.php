@@ -6,12 +6,12 @@ namespace App\Services\AI\Providers;
 
 use App\Services\AI\Contracts\LlmProvider;
 use App\Services\AI\LlmResult;
-use Illuminate\Support\Facades\Http;
 
 /**
  * OpenAI implementation (Chat Completions) behind the same interface, so switching providers is
  * a config change (config('watad.ai.provider') = 'openai'). Anthropic-style system blocks and
- * tools are translated to OpenAI's shape. Kept deliberately small; extend as needed.
+ * tools are translated to OpenAI's shape. Uses native cURL to avoid Guzzle TLS version conflicts
+ * on shared hosting environments where libcurl may not support forced TLS 1.2.
  */
 final class OpenAiProvider implements LlmProvider
 {
@@ -27,9 +27,9 @@ final class OpenAiProvider implements LlmProvider
         $messages = $this->translateMessages($params);
 
         $body = [
-            'model'       => $params['model'],
-            'max_tokens'  => $params['maxTokens'] ?? 1024,
-            'messages'    => $messages,
+            'model'      => $params['model'],
+            'max_tokens' => $params['maxTokens'] ?? 1024,
+            'messages'   => $messages,
         ];
 
         if (! empty($params['tools'])) {
@@ -43,12 +43,35 @@ final class OpenAiProvider implements LlmProvider
             ], $params['tools']);
         }
 
-        $resp = Http::withToken($this->apiKey)
-            ->withOptions(['curl' => [CURLOPT_SSL_VERSION => CURL_SSLVERSION_DEFAULT]])
-            ->acceptJson()
-            ->post('https://api.openai.com/v1/chat/completions', $body)
-            ->throw()
-            ->json();
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $this->apiKey,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($body),
+            CURLOPT_TIMEOUT    => 120,
+        ]);
+
+        $raw    = curl_exec($ch);
+        $errno  = curl_errno($ch);
+        $error  = curl_error($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($errno !== 0 || $raw === false) {
+            throw new \RuntimeException("OpenAI cURL error [{$errno}]: {$error}");
+        }
+
+        $resp = json_decode((string) $raw, true);
+
+        if ($status >= 400) {
+            $message = $resp['error']['message'] ?? $raw;
+            throw new \RuntimeException("OpenAI API error [{$status}]: {$message}");
+        }
 
         return $this->normalize($resp);
     }
