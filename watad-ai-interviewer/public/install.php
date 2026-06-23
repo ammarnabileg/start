@@ -454,11 +454,11 @@ details[open]>*:not(summary){padding:14px}
                 <strong>الأسهل والأضمن (بدون أي أوامر):</strong>
                 <ol style="margin:8px 22px 0 0;padding:0">
                     <li>افتح Plesk ← <strong>File Manager</strong> ← ادخل مجلد <code>httpdocs</code>.</li>
-                    <li>ارفع ملفات الأجزاء الستة <code>vendor.zip.part00 … part05</code> هناك (سحب وإفلات).</li>
+                    <li>ارفع ملفات الأجزاء الثلاثة <code>vendor.zip.partaa</code>، <code>vendor.zip.partab</code>، <code>vendor.zip.partac</code> هناك (سحب وإفلات).</li>
                     <li>ارجع لهذه الصفحة واضغط <strong>تحديث/إعادة تحميل</strong> — سيظهر زر «ادمج الأجزاء».</li>
                 </ol>
                 <p style="margin-top:10px;color:#64748b">
-                    ملف الأجزاء صغير (6MB لكل جزء) فيمر دون مشاكل حدود الرفع.
+                    كل جزء حوالي 6MB فيمر دون مشاكل حدود الرفع.
                     لا ترفعها داخل مجلد <code>public</code> بل في <code>httpdocs</code> مباشرةً.
                 </p>
             </div>
@@ -469,7 +469,7 @@ details[open]>*:not(summary){padding:14px}
             <div>
                 <p style="font-size:13px;color:#64748b;margin-bottom:8px">
                     ادمج الأجزاء على جهازك أولاً
-                    (<code>copy /b vendor.zip.part00+...+part05 vendor.zip</code> على Windows،
+                    (<code>copy /b vendor.zip.partaa+vendor.zip.partab+vendor.zip.partac vendor.zip</code> على Windows،
                     أو <code>cat vendor.zip.part* &gt; vendor.zip</code> على Mac/Linux) ثم ارفع الناتج:
                 </p>
                 <form method="POST" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
