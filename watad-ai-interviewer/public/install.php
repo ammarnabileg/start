@@ -176,6 +176,38 @@ $requirements = [
 ];
 $requirementsOk = !in_array(false, $requirements, true);
 
+/* ══════════════════ UPDATE API KEY ═════════════════════════════════ */
+if ($action === 'update_api_key' && file_exists($lockFile) && file_exists($envFile)) {
+    $newKey      = trim((string)($_POST['new_api_key'] ?? ''));
+    $newProvider = trim((string)($_POST['ai_provider'] ?? 'openai'));
+    $newModel    = trim((string)($_POST['ai_model'] ?? ''));
+
+    if ($newKey === '') {
+        $errors[] = 'المفتاح لا يمكن أن يكون فارغاً.';
+    } else {
+        try {
+            $content = file_get_contents($envFile);
+            if ($newProvider === 'claude') {
+                $content = env_set($content, 'WATAD_AI_PROVIDER', 'claude');
+                $content = env_set($content, 'ANTHROPIC_API_KEY', $newKey);
+                if ($newModel !== '') $content = env_set($content, 'WATAD_AI_CONVERSATION_MODEL', $newModel);
+            } else {
+                $content = env_set($content, 'WATAD_AI_PROVIDER', 'openai');
+                $content = env_set($content, 'OPENAI_API_KEY', $newKey);
+                if ($newModel !== '') $content = env_set($content, 'WATAD_OPENAI_CONVERSATION_MODEL', $newModel);
+            }
+            file_put_contents($envFile, $content);
+            /* Clear config cache so the app picks up the new key immediately */
+            if (file_exists($autoload)) {
+                try { boot_kernel($root)->call('config:clear'); } catch (\Throwable $ce) {}
+            }
+            $notices[] = '✓ تم تحديث مفتاح API بنجاح. جرّب المقابلة الآن.';
+        } catch (\Throwable $e) {
+            $errors[] = 'فشل التحديث: ' . $e->getMessage();
+        }
+    }
+}
+
 /* ══════════════════ RESET ══════════════════════════════════════════ */
 if ($action === 'reset' && file_exists($lockFile)) {
     if (($_POST['confirm'] ?? '') !== 'DELETE') {
@@ -378,6 +410,51 @@ details[open]>*:not(summary){padding:14px}
         <p class="hint" style="margin-top:12px">
             للأمان: احذف ملف <code>public/install.php</code> بعد الانتهاء من الإعداد.
         </p>
+    </div>
+
+    <div class="card">
+        <h2>🔑 تحديث مفتاح API (بدون مسح البيانات)</h2>
+        <p style="font-size:14px;color:#475569;margin-bottom:14px">
+            إذا كانت المقابلات لا تعمل (الذكاء الاصطناعي لا يرد)، غالباً المشكلة في مفتاح API.
+            حدّثه هنا مباشرةً دون الحاجة لإعادة التثبيت.
+        </p>
+        <form method="POST">
+            <input type="hidden" name="action" value="update_api_key">
+            <div class="grid">
+                <div>
+                    <label>مزوّد الذكاء الاصطناعي</label>
+                    <select name="ai_provider" id="provSel" onchange="toggleProviderFields()">
+                        <option value="openai">OpenAI (gpt-4o وما شابه)</option>
+                        <option value="claude">Anthropic Claude</option>
+                    </select>
+                </div>
+                <div>
+                    <label>اسم الموديل (اختياري — اتركه فارغاً للإبقاء على الحالي)</label>
+                    <input type="text" name="ai_model" id="modelHint"
+                           placeholder="gpt-4o / claude-sonnet-4-6 / …">
+                </div>
+                <div class="full">
+                    <label id="keyLabel">OpenAI API Key الجديد</label>
+                    <input type="text" name="new_api_key" id="keyInput"
+                           placeholder="sk-proj-… / sk-ant-…" autocomplete="off">
+                </div>
+            </div>
+            <div style="margin-top:14px">
+                <button class="btn" type="submit">تحديث المفتاح</button>
+            </div>
+        </form>
+        <?php foreach ($errors as $e): ?>
+            <div class="alert alert-error" style="margin-top:12px"><?= htmlspecialchars($e) ?></div>
+        <?php endforeach; ?>
+        <script>
+        function toggleProviderFields() {
+            var prov = document.getElementById('provSel').value;
+            document.getElementById('keyLabel').textContent =
+                prov === 'claude' ? 'Anthropic API Key الجديد' : 'OpenAI API Key الجديد';
+            document.getElementById('modelHint').placeholder =
+                prov === 'claude' ? 'claude-sonnet-4-6 / claude-opus-4-8' : 'gpt-4o / gpt-4o-mini';
+        }
+        </script>
     </div>
 
     <div class="card">
