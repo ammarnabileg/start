@@ -367,9 +367,12 @@ HT;
             ['installed_at', date('Y-m-d H:i:s'), 'string'],
             ['default_ai_model', 'gpt-4o', 'string'],
         ];
+        $sStmt = $pdo->prepare(
+            "INSERT INTO system_settings (tenant_id, setting_key, setting_value) VALUES (NULL, ?, ?)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()"
+        );
         foreach ($settings as [$k, $v, $t]) {
-            $pdo->exec("INSERT INTO system_settings (`key`, `value`, `type`) VALUES ('" . addslashes($k) . "', '" . addslashes($v) . "', '$t')
-                ON DUPLICATE KEY UPDATE `value` = '" . addslashes($v) . "'");
+            $sStmt->execute([$k, $v]);
         }
 
         // Step 12: Write installed marker
