@@ -312,7 +312,7 @@ $activeTab = $_GET['tab'] ?? 'general';
   $limits = $planLimits[$plan] ?? $planLimits['growth'];
   $planColor = $planColors[$plan] ?? 'violet';
   // Usage (live counts with demo fallback)
-  $usedInterviews = (int)($db->fetch("SELECT COUNT(*) c FROM ai_interviews WHERE tenant_id=? AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())", [$tid])['c'] ?? 47);
+  $usedInterviews = (int)($db->fetch("SELECT COUNT(*) c FROM interviews i JOIN applications a ON a.id=i.application_id WHERE a.tenant_id=? AND YEAR(i.created_at)=YEAR(NOW()) AND MONTH(i.created_at)=MONTH(NOW())", [$tid])['c'] ?? 0);
   $usedJobs       = (int)($db->fetch("SELECT COUNT(*) c FROM jobs WHERE tenant_id=? AND status='active'", [$tid])['c'] ?? 12);
   $usedMembers    = count($teamMembers);
   $usedCredits    = (int)($db->fetch("SELECT SUM(tokens) c FROM ai_usage WHERE tenant_id=? AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())", [$tid])['c'] ?? 184300);

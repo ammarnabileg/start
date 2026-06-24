@@ -337,9 +337,12 @@ class CandidateController
             $applicationId = (int) $existingApp['id'];
         } else {
             $applicationId = $this->db->insert('applications', [
+                'tenant_id'      => $tenantId,
                 'job_id'         => $jobId,
                 'candidate_id'   => $candidateId,
                 'status'         => 'applied',
+                'stage'          => 'applied',
+                'current_stage'  => 'applied',
                 'pipeline_stage' => 'applied',
             ]);
         }

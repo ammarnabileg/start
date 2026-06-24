@@ -27,8 +27,8 @@ if ($method === 'GET' && !$action && !$id) {
     if ($search) { $where[] = 'j.title LIKE ?'; $params[] = "%$search%"; }
 
     $sql = "SELECT j.id, j.title, j.department, j.location, j.status, j.job_type,
-                   j.salary_min, j.salary_max, j.salary_currency,
-                   j.interview_process, j.created_at, j.published_at,
+                   j.salary_min, j.salary_max, j.currency as salary_currency,
+                   j.created_at, j.published_at,
                    (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id AND a.tenant_id = j.tenant_id) as applicant_count,
                    (SELECT COUNT(*) FROM interviews i JOIN applications a2 ON a2.id = i.application_id WHERE a2.job_id = j.id) as interview_count
             FROM jobs j

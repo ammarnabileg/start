@@ -9,7 +9,7 @@ $interviews = $db->fetchAll(
      JOIN applications a ON a.id = hi.application_id
      JOIN candidates c ON c.id = a.candidate_id
      JOIN jobs j ON j.id = a.job_id
-     WHERE hi.tenant_id = ? ORDER BY hi.scheduled_at DESC LIMIT 50",
+     WHERE a.tenant_id = ? ORDER BY hi.scheduled_at DESC LIMIT 50",
     [$tid]
 ) ?: [];
 ?>

@@ -47,17 +47,11 @@ class InterviewRepository
     public function create(array $data): int
     {
         $payload = [
-            'tenant_id'      => (int) ($data['tenant_id'] ?? 0),
             'application_id' => (int) ($data['application_id'] ?? 0),
-            'type'           => (string) ($data['type'] ?? 'text'),
+            'type'           => (string) ($data['type'] ?? 'ai_text'),
             'status'         => (string) ($data['status'] ?? 'pending'),
+            'token'          => $data['token'] ?? bin2hex(random_bytes(20)),
         ];
-        if (isset($data['session_data'])) {
-            $payload['session_data'] = $this->encode($data['session_data']);
-        }
-        if (isset($data['ai_context'])) {
-            $payload['ai_context'] = (string) $data['ai_context'];
-        }
         return $this->db->insert('interviews', $payload);
     }
 
@@ -228,7 +222,7 @@ class InterviewRepository
      */
     public function getForTenant(int $tenantId, array $filters = []): array
     {
-        $where  = ['i.tenant_id = ?'];
+        $where  = ['a.tenant_id = ?'];
         $params = [$tenantId];
 
         if (!empty($filters['status'])) {
@@ -292,7 +286,7 @@ class InterviewRepository
         $params = [$interviewId];
         $tenantClause = '';
         if ($tenantId !== null) {
-            $tenantClause = ' AND i.tenant_id = ?';
+            $tenantClause = ' AND a.tenant_id = ?';
             $params[] = $tenantId;
         }
 
@@ -301,8 +295,8 @@ class InterviewRepository
                 i.*,
                 a.job_id, a.candidate_id, a.stage, a.cv_match_score, a.cv_analysis,
                 a.final_score, a.ai_recommendation, a.hr_decision, a.hr_notes,
-                j.title AS job_title, j.seniority, j.description AS job_description,
-                j.requirements AS job_requirements, j.language AS job_language,
+                j.title AS job_title, j.experience_level AS seniority, j.description AS job_description,
+                j.requirements AS job_requirements,
                 c.full_name AS candidate_name, c.email AS candidate_email,
                 c.phone AS candidate_phone, c.years_experience, c.expected_salary,
                 c.salary_currency, c.linkedin_url, c.location
