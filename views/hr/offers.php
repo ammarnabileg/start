@@ -1,419 +1,1031 @@
 <?php
-/**
- * Offers management page with Draft / Pending / Accepted / Declined tabs.
- * Create/Edit offer modal with AI letter generation.
- */
-require_once __DIR__ . '/../partials/helpers.php';
-
-$activeTab = $_GET['tab'] ?? 'pending';
-
-$offers = $offers ?? [
-    ['id'=>1,'candidate'=>'James Carter','candidate_id'=>1,'position'=>'Senior Backend Engineer','department'=>'Engineering','salary'=>110000,'currency'=>'GBP','salary_type'=>'annual','start_date'=>'+30 days','deadline'=>'+7 days','status'=>'pending','created_at'=>'-2 days','reporting_to'=>'CTO','benefits'=>['health','dental','stock','remote']],
-    ['id'=>2,'candidate'=>'Diego Fernandez','candidate_id'=>3,'position'=>'Product Designer','department'=>'Design','salary'=>95000,'currency'=>'USD','salary_type'=>'annual','start_date'=>'+21 days','deadline'=>'+5 days','status'=>'pending','created_at'=>'-1 days','reporting_to'=>'Head of Design','benefits'=>['health','dental','401k','remote']],
-    ['id'=>3,'candidate'=>'Olivia Reyes','candidate_id'=>6,'position'=>'Frontend Engineer','department'=>'Engineering','salary'=>90000,'currency'=>'USD','salary_type'=>'annual','start_date'=>'+45 days','deadline'=>'+14 days','status'=>'draft','created_at'=>'-3 days','reporting_to'=>'Engineering Manager','benefits'=>['health','401k','remote']],
-    ['id'=>4,'candidate'=>'Liam Murphy','candidate_id'=>9,'position'=>'Senior Backend Engineer','department'=>'Engineering','salary'=>130000,'currency'=>'EUR','salary_type'=>'annual','start_date'=>'+14 days','deadline'=>null,'status'=>'accepted','created_at'=>'-14 days','reporting_to'=>'VP Engineering','benefits'=>['health','dental','vision','stock','remote']],
-    ['id'=>5,'candidate'=>'Grace Okafor','candidate_id'=>8,'position'=>'Product Designer','department'=>'Design','salary'=>85000,'currency'=>'USD','salary_type'=>'annual','start_date'=>'+60 days','deadline'=>'-2 days','status'=>'declined','created_at'=>'-10 days','reporting_to'=>'Head of Design','benefits'=>['health','remote']],
-];
-
-$tabs = ['draft'=>'Draft','pending'=>'Pending','accepted'=>'Accepted','declined'=>'Declined'];
-$tabCounts = [];
-foreach ($tabs as $k=>$_) $tabCounts[$k] = count(array_filter($offers, fn($o)=>$o['status']===$k));
-$tabOffers = array_values(array_filter($offers, fn($o)=>$o['status']===$activeTab));
-
-$statusConfig = [
-    'draft'    => ['Draft',    'bg-gray-100 text-gray-600'],
-    'pending'  => ['Pending',  'bg-amber-100 text-amber-700'],
-    'accepted' => ['Accepted', 'bg-emerald-100 text-emerald-700'],
-    'declined' => ['Declined', 'bg-rose-100 text-rose-700'],
-];
-
-$benefitLabels = [
-    'health'  =>'Health Insurance','dental'=>'Dental Coverage','vision'=>'Vision Coverage',
-    '401k'    =>'401(k) Match',   'stock' =>'Stock Options',  'remote' =>'Remote Work',
-    'learning'=>'Learning Budget','gym'=>'Gym Membership',
-];
-
-$pageTitle   = 'Offers';
-$activeNav   = 'offers';
-$breadcrumbs = [['label'=>'Home','url'=>'/dashboard'],['label'=>'Offers']];
-
-ob_start();
+$pageTitle = 'Offers';
+$db = Database::getInstance();
+$tid = Auth::user()['tenant_id'];
+$activeTab = $_GET['status'] ?? 'all';
 ?>
 
-<!-- Top bar -->
-<div class="flex items-center justify-between mb-6">
-  <p class="text-sm text-gray-500">Manage job offers through every stage of acceptance.</p>
-  <button onclick="openOfferModal()" class="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all shadow-sm hover:shadow-md">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-    Create Offer
-  </button>
-</div>
-
-<!-- Status tabs -->
-<div class="flex gap-1 overflow-x-auto border-b border-gray-200 mb-6">
-  <?php foreach ($tabs as $key => $label): $on = $activeTab === $key; ?>
-    <a href="?tab=<?= e($key) ?>"
-      class="flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap relative transition-colors <?= $on ? 'text-violet-700' : 'text-gray-500 hover:text-gray-800' ?>">
-      <?= e($label) ?>
-      <span class="px-2 py-0.5 rounded-full text-xs font-bold <?= $on ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500' ?>"><?= (int)($tabCounts[$key]??0) ?></span>
-      <?php if ($on): ?><span class="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-t-full"></span><?php endif; ?>
-    </a>
-  <?php endforeach; ?>
-</div>
-
-<!-- Offers list -->
-<?php if (empty($tabOffers)): ?>
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 py-16 text-center">
-  <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-  </div>
-  <p class="font-semibold text-gray-700">No <?= strtolower($tabs[$activeTab]) ?> offers</p>
-  <p class="text-sm text-gray-400 mt-1">Create an offer to get started.</p>
-  <button onclick="openOfferModal()" class="mt-4 inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-full text-sm font-semibold transition-colors">Create Offer</button>
-</div>
-<?php else: ?>
-<div class="grid grid-cols-1 gap-4">
-  <?php foreach ($tabOffers as $offer):
-    [$stLabel,$stCls] = $statusConfig[$offer['status']] ?? ['Unknown','bg-gray-100 text-gray-600'];
-  ?>
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-    <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-      <!-- Candidate info -->
-      <div class="flex items-center gap-4 flex-1 min-w-0">
-        <div class="w-12 h-12 rounded-xl bg-violet-100 text-violet-700 font-bold flex items-center justify-center text-base shrink-0">
-          <?= e(initials($offer['candidate'])) ?>
-        </div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <a href="/candidates/<?= (int)$offer['candidate_id'] ?>" class="font-bold text-gray-900 hover:text-violet-600 transition-colors"><?= e($offer['candidate']) ?></a>
-            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $stCls ?>"><?= e($stLabel) ?></span>
-          </div>
-          <div class="text-sm text-gray-500 mt-0.5"><?= e($offer['position']) ?> · <?= e($offer['department']) ?></div>
-          <div class="text-xs text-gray-400 mt-0.5">Reports to: <?= e($offer['reporting_to']) ?></div>
-        </div>
-      </div>
-
-      <!-- Offer details -->
-      <div class="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-right">
-        <div>
-          <div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Salary</div>
-          <div class="font-bold text-gray-900"><?= e($offer['currency']) ?> <?= number_format((int)$offer['salary']) ?></div>
-          <div class="text-xs text-gray-400 capitalize"><?= e($offer['salary_type']) ?></div>
-        </div>
-        <div>
-          <div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Start Date</div>
-          <div class="font-semibold text-gray-700 text-sm"><?= e(time_ago($offer['start_date'])) ?></div>
-        </div>
-        <div>
-          <?php if ($offer['deadline'] && $offer['status'] === 'pending'): ?>
-          <div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Deadline</div>
-          <div class="font-semibold text-sm <?= strtotime($offer['deadline']) < time()+86400*3 ? 'text-rose-600' : 'text-amber-600' ?>">
-            <?= e(time_ago($offer['deadline'])) ?>
-          </div>
-          <?php else: ?>
-          <div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Created</div>
-          <div class="font-semibold text-gray-500 text-sm"><?= e(time_ago($offer['created_at'])) ?></div>
-          <?php endif; ?>
-        </div>
-      </div>
-    </div>
-
-    <!-- Benefits -->
-    <?php if (!empty($offer['benefits'])): ?>
-    <div class="mt-4 flex flex-wrap gap-1.5">
-      <?php foreach ($offer['benefits'] as $b): ?>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-          <?= e($benefitLabels[$b] ?? ucfirst($b)) ?>
-        </span>
-      <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Actions -->
-    <div class="mt-5 pt-4 border-t border-gray-50 flex items-center gap-2 flex-wrap">
-      <?php if ($offer['status'] === 'pending' || $offer['status'] === 'draft'): ?>
-        <button onclick="openOfferModal(<?= (int)$offer['id'] ?>)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">Edit</button>
-        <?php if ($offer['status'] === 'pending'): ?>
-          <button onclick="resendOffer(<?= (int)$offer['id'] ?>)" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">Resend</button>
-          <button onclick="withdrawOffer(<?= (int)$offer['id'] ?>)" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-full text-sm font-medium transition-colors">Withdraw</button>
-        <?php endif; ?>
-        <?php if ($offer['status'] === 'draft'): ?>
-          <button onclick="sendOffer(<?= (int)$offer['id'] ?>)" class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">Send Offer</button>
-        <?php endif; ?>
-      <?php elseif ($offer['status'] === 'accepted'): ?>
-        <button onclick="viewOffer(<?= (int)$offer['id'] ?>)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">View Letter</button>
-        <button onclick="downloadOffer(<?= (int)$offer['id'] ?>)" class="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          Download PDF
-        </button>
-      <?php elseif ($offer['status'] === 'declined'): ?>
-        <button onclick="viewOffer(<?= (int)$offer['id'] ?>)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">View Letter</button>
-        <button onclick="openOfferModal()" class="bg-violet-50 hover:bg-violet-100 text-violet-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">Create New Offer</button>
-      <?php endif; ?>
-      <button onclick="viewOffer(<?= (int)$offer['id'] ?>)" class="ml-auto text-xs text-violet-600 hover:text-violet-800 font-medium">Preview Letter →</button>
-    </div>
-  </div>
-  <?php endforeach; ?>
-</div>
-<?php endif; ?>
-
-<!-- ══════════ CREATE / EDIT OFFER MODAL ══════════ -->
-<div id="offerModal" class="hidden fixed inset-0 z-[90] flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onclick="closeOfferModal()"></div>
-  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-    <!-- Modal Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-      <div>
-        <h3 class="font-bold text-gray-900" id="offerModalTitle">Create Offer</h3>
-        <p class="text-xs text-gray-400">Fill in the details and optionally use AI to write the offer letter.</p>
-      </div>
-      <button onclick="closeOfferModal()" class="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-
-    <!-- Modal Body -->
-    <div class="overflow-y-auto flex-1 px-6 py-5">
-      <form id="offerForm" class="space-y-4">
-        <input type="hidden" name="offer_id" id="offerIdField">
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Candidate <span class="text-rose-500">*</span></label>
-            <input type="text" name="candidate_name" id="offerCandidate" placeholder="Search or type candidate name..."
-              class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Position Title <span class="text-rose-500">*</span></label>
-            <input type="text" name="position" id="offerPosition" placeholder="e.g. Senior Backend Engineer"
-              class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
-            <select name="department" class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-              <?php foreach (['Engineering','Marketing','Sales','HR','Finance','Operations','Design','Legal','Other'] as $d): ?>
-                <option value="<?= e($d) ?>"><?= e($d) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Reporting To</label>
-            <input type="text" name="reporting_to" placeholder="e.g. CTO, Engineering Manager"
-              class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-          </div>
-        </div>
-
-        <!-- Salary -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Compensation</label>
-          <div class="flex flex-wrap gap-2">
-            <select name="currency" class="rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none w-24">
-              <option>USD</option><option>EUR</option><option>GBP</option><option>AED</option>
-            </select>
-            <input type="number" name="salary" placeholder="Amount" min="0"
-              class="rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none flex-1 min-w-24">
-            <select name="salary_type" class="rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-              <option value="annual">Annual</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Benefits -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Benefits Package</label>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <?php foreach ($benefitLabels as $val=>$label): ?>
-              <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input type="checkbox" name="benefits[]" value="<?= e($val) ?>" class="accent-violet-600 rounded w-4 h-4">
-                <?= e($label) ?>
-              </label>
-            <?php endforeach; ?>
-          </div>
-        </div>
-
-        <!-- Dates -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
-            <input type="date" name="start_date" class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Offer Expiry Date</label>
-            <input type="date" name="expiry_date" class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
-          </div>
-        </div>
-
-        <!-- Additional conditions -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Additional Conditions</label>
-          <textarea name="conditions" rows="3" placeholder="e.g. Probationary period of 3 months, signing bonus of $5,000, relocation package..."
-            class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 outline-none resize-y"></textarea>
-        </div>
-
-        <!-- AI Letter Generator -->
-        <div class="border-t border-gray-100 pt-4">
-          <div class="flex items-center justify-between mb-3">
-            <label class="text-sm font-semibold text-gray-700">Offer Letter</label>
-            <button type="button" onclick="generateOfferLetter()" id="generateLetterBtn"
-              class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-500 text-gray-900 px-4 py-2 rounded-full text-sm font-bold transition-all">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 1.8 4.6L18 9.4l-4.2 1.8L12 16l-1.8-4.8L6 9.4l4.2-1.8L12 3Z"/></svg>
-              AI Generate Letter
-            </button>
-          </div>
-
-          <!-- Letter preview / editor -->
-          <div id="letterLoading" class="hidden text-center py-8">
-            <div class="inline-block w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin mb-3" style="border-width:3px"></div>
-            <p class="text-sm text-gray-500">AI is writing your offer letter...</p>
-          </div>
-          <div id="letterPreview" class="hidden rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-white">
-              <span class="text-xs font-semibold text-gray-600">Offer Letter Preview</span>
-              <div class="flex gap-2">
-                <button type="button" onclick="toggleLetterEdit()" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Edit</button>
-                <button type="button" onclick="copyLetter()" class="text-xs text-gray-500 hover:text-gray-700 font-medium">Copy</button>
-              </div>
-            </div>
-            <div id="letterContent" contenteditable="false"
-              class="p-5 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto outline-none"
-              style="font-family:Georgia,serif">
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-
-    <!-- Modal Footer -->
-    <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
-      <button type="button" onclick="closeOfferModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">Cancel</button>
-      <div class="flex gap-2">
-        <button type="button" onclick="saveOffer('draft')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium transition-colors">Save Draft</button>
-        <button type="button" onclick="saveOffer('pending')" class="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-full text-sm font-bold transition-colors shadow-sm">Send Offer</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Offer Letter Preview Modal -->
-<div id="viewLetterModal" class="hidden fixed inset-0 z-[91] flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-gray-900/60" onclick="closeLetterModal()"></div>
-  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-8" style="font-family:Georgia,serif">
-    <div class="flex items-start justify-between mb-6 font-sans">
-      <h3 class="font-bold text-gray-900">Offer Letter</h3>
-      <button onclick="closeLetterModal()" class="text-gray-400 hover:text-gray-700">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div id="viewLetterContent" class="text-sm text-gray-800 leading-relaxed space-y-4"></div>
-  </div>
-</div>
-
-<script>
-var currentOfferId = null;
-
-function openOfferModal(offerId) {
-  currentOfferId = offerId || null;
-  document.getElementById('offerModalTitle').textContent = offerId ? 'Edit Offer' : 'Create Offer';
-  document.getElementById('offerModal').classList.remove('hidden');
-  document.getElementById('letterPreview').classList.add('hidden');
-  document.getElementById('letterLoading').classList.add('hidden');
-}
-
-function closeOfferModal() {
-  document.getElementById('offerModal').classList.add('hidden');
-}
-
-async function generateOfferLetter() {
-  var candidate = document.getElementById('offerCandidate').value.trim();
-  var position  = document.getElementById('offerPosition').value.trim();
-  if (!candidate || !position) {
-    showToast('Please fill in candidate name and position first.', 'warning');
-    return;
-  }
-
-  var btn = document.getElementById('generateLetterBtn');
-  var loading = document.getElementById('letterLoading');
-  var preview = document.getElementById('letterPreview');
-
-  btn.disabled = true;
-  loading.classList.remove('hidden');
-  preview.classList.add('hidden');
-
-  try {
-    var resp = await fetch('/api/v1/ai?action=generate-offer', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
-      body: JSON.stringify({candidate: candidate, position: position})
-    });
-    var data = await resp.json();
-    var letter = data.data?.letter || generateFallbackLetter(candidate, position);
-    document.getElementById('letterContent').textContent = letter;
-    showToast('Offer letter generated!', 'success');
-  } catch(e) {
-    document.getElementById('letterContent').textContent = generateFallbackLetter(candidate, position);
-    showToast('AI generated a draft letter. Review before sending.', 'info');
-  }
-
-  loading.classList.add('hidden');
-  preview.classList.remove('hidden');
-  btn.disabled = false;
-}
-
-function generateFallbackLetter(candidate, position) {
-  var today = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
-  return today + '\n\nDear ' + candidate + ',\n\nWe are delighted to extend this offer of employment to you for the position of ' + position + ' at Acme Talent Ltd.\n\nFollowing your impressive performance throughout our interview process, we are confident you will make a significant and positive contribution to our team. Your experience, skills, and approach closely align with what we are looking for in this role.\n\nThe details of your offer are outlined in the accompanying schedule. Please review all terms carefully. Should you have any questions, please do not hesitate to contact us.\n\nThis offer is contingent upon the successful completion of reference and background checks. We kindly request that you confirm your acceptance of this offer by the stated expiry date.\n\nWe are genuinely excited about the possibility of you joining our team and look forward to hearing from you.\n\nYours sincerely,\n\nSarah Mitchell\nHR Manager, Acme Talent Ltd';
-}
-
-function toggleLetterEdit() {
-  var el = document.getElementById('letterContent');
-  var isEditable = el.contentEditable === 'true';
-  el.contentEditable = isEditable ? 'false' : 'true';
-  el.className = el.className.replace('bg-gray-50','') + (isEditable ? '' : ' bg-white ring-2 ring-violet-500');
-  if (!isEditable) el.focus();
-}
-
-function copyLetter() {
-  var text = document.getElementById('letterContent').textContent;
-  navigator.clipboard.writeText(text).then(function(){
-    showToast('Letter copied to clipboard.', 'success');
-  });
-}
-
-function saveOffer(status) {
-  showToast(status === 'draft' ? 'Offer saved as draft.' : 'Offer sent to candidate!', 'success');
-  closeOfferModal();
-}
-
-function resendOffer(id) {
-  showToast('Offer resent to candidate.', 'success');
-}
-
-function withdrawOffer(id) {
-  if (!confirm('Are you sure you want to withdraw this offer?')) return;
-  showToast('Offer withdrawn.', 'info');
-}
-
-function sendOffer(id) {
-  showToast('Offer sent to candidate!', 'success');
-}
-
-function viewOffer(id) {
-  var sampleLetter = 'Dear Candidate,\n\nWe are pleased to offer you the position at our company. Please review the enclosed terms and respond by the deadline.\n\nWe look forward to welcoming you to the team.\n\nBest regards,\nHR Team';
-  document.getElementById('viewLetterContent').innerHTML = '<p>' + sampleLetter.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>') + '</p>';
-  document.getElementById('viewLetterModal').classList.remove('hidden');
-}
-
-function closeLetterModal() {
-  document.getElementById('viewLetterModal').classList.add('hidden');
-}
-
-function downloadOffer(id) {
-  showToast('Preparing PDF download...', 'info');
-  setTimeout(function(){ showToast('PDF downloaded!', 'success'); }, 1200);
-}
-</script>
-<?php require __DIR__ . '/../partials/view_scripts.php'; ?>
 <?php
-$content = ob_get_clean();
-require VIEWS_PATH . '/layouts/app.php';
+$mockOffers = [
+    ['name'=>'Alex Morrison','initials'=>'AM','email'=>'alex@email.com','position'=>'Senior Engineer','dept'=>'Engineering','salary'=>'9,500','type'=>'month','status'=>'pending','expires_days'=>5,'benefits'=>true],
+    ['name'=>'Sarah Chen','initials'=>'SC','email'=>'sarah@email.com','position'=>'Product Manager','dept'=>'Product','salary'=>'95,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
+    ['name'=>'Marcus Johnson','initials'=>'MJ','email'=>'marcus@email.com','position'=>'UX Designer','dept'=>'Design','salary'=>'7,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
+    ['name'=>'Priya Patel','initials'=>'PP','email'=>'priya@email.com','position'=>'Data Scientist','dept'=>'Analytics','salary'=>'110,000','type'=>'year','status'=>'pending','expires_days'=>2,'benefits'=>true],
+    ['name'=>'James Wilson','initials'=>'JW','email'=>'james@email.com','position'=>'DevOps Engineer','dept'=>'Infrastructure','salary'=>'8,800','type'=>'month','status'=>'declined','expires_days'=>0,'benefits'=>true],
+    ['name'=>'Emma Rodriguez','initials'=>'ER','email'=>'emma@email.com','position'=>'Marketing Lead','dept'=>'Marketing','salary'=>'75,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
+    ['name'=>'David Kim','initials'=>'DK','email'=>'david@email.com','position'=>'Backend Developer','dept'=>'Engineering','salary'=>'8,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
+    ['name'=>'Lisa Thompson','initials'=>'LT','email'=>'lisa@email.com','position'=>'HR Specialist','dept'=>'Human Resources','salary'=>'55,000','type'=>'year','status'=>'pending','expires_days'=>7,'benefits'=>true],
+];
+
+$tabCounts = ['all' => 24, 'draft' => 5, 'pending' => 8, 'accepted' => 9, 'declined' => 2];
+$tabs      = ['all' => 'All', 'draft' => 'Draft', 'pending' => 'Pending', 'accepted' => 'Accepted', 'declined' => 'Declined'];
+
+$statusBadge = [
+    'draft'    => 'bg-gray-100 text-gray-600',
+    'pending'  => 'bg-amber-100 text-amber-700',
+    'accepted' => 'bg-green-100 text-green-700',
+    'declined' => 'bg-red-100 text-red-700',
+];
+?>
+
+<!-- Toast container -->
+<div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- Page wrapper -->
+<div class="p-6 lg:p-8 max-w-screen-xl mx-auto">
+
+    <!-- ───────── PAGE HEADER ───────── -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Offers</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Manage candidate offer letters and compensation packages</p>
+        </div>
+        <button
+            onclick="openCreateModal()"
+            class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Create Offer
+        </button>
+    </div>
+
+    <!-- ───────── TABS ───────── -->
+    <div class="flex items-center gap-1 mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-1.5 overflow-x-auto">
+        <?php foreach ($tabs as $key => $label): ?>
+        <?php
+            $isActive = ($activeTab === $key);
+            $tabCls   = $isActive
+                ? 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-violet-600 text-white transition-all whitespace-nowrap'
+                : 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all whitespace-nowrap';
+            $badgeCls = $isActive
+                ? 'bg-violet-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full'
+                : 'bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full';
+        ?>
+        <button class="<?= $tabCls ?>" data-tab="<?= $key ?>" onclick="switchTab('<?= $key ?>')">
+            <?= $label ?>
+            <span class="<?= $badgeCls ?>"><?= $tabCounts[$key] ?></span>
+        </button>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- ───────── OFFER CARDS ───────── -->
+    <div id="offersContainer" class="flex flex-col gap-4">
+
+        <?php foreach ($mockOffers as $idx => $offer): ?>
+        <?php
+            $show        = ($activeTab === 'all' || $activeTab === $offer['status']);
+            $badge       = $statusBadge[$offer['status']];
+            $salaryLabel = '$' . $offer['salary'] . ' / ' . $offer['type'];
+            $dotCls      = [
+                'draft'    => 'bg-gray-400',
+                'pending'  => 'bg-amber-500',
+                'accepted' => 'bg-green-500',
+                'declined' => 'bg-red-500',
+            ][$offer['status']] ?? 'bg-gray-400';
+        ?>
+        <div
+            class="offer-card bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-5 transition-all hover:shadow-md"
+            data-status="<?= $offer['status'] ?>"
+            data-id="offer-<?= $idx ?>"
+            <?= $show ? '' : 'style="display:none"' ?>>
+
+            <!-- Candidate -->
+            <div class="flex items-center gap-3 min-w-[190px]">
+                <div class="w-11 h-11 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm select-none">
+                    <?= htmlspecialchars($offer['initials']) ?>
+                </div>
+                <div class="min-w-0">
+                    <p class="font-semibold text-gray-900 text-sm leading-tight"><?= htmlspecialchars($offer['name']) ?></p>
+                    <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($offer['email']) ?></p>
+                </div>
+            </div>
+
+            <!-- Position -->
+            <div class="min-w-[155px]">
+                <p class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($offer['position']) ?></p>
+                <p class="text-xs text-gray-400 mt-0.5"><?= htmlspecialchars($offer['dept']) ?></p>
+            </div>
+
+            <!-- Salary -->
+            <div class="min-w-[155px]">
+                <p class="text-lg font-bold text-amber-500 leading-tight"><?= $salaryLabel ?></p>
+                <?php if ($offer['benefits']): ?>
+                <p class="text-xs text-gray-400 mt-0.5">+ Benefits package</p>
+                <?php else: ?>
+                <p class="text-xs text-gray-300 mt-0.5">No benefits</p>
+                <?php endif; ?>
+            </div>
+
+            <!-- Status + expiry -->
+            <div class="flex flex-col gap-1.5 min-w-[130px]">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold w-fit <?= $badge ?>">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 <?= $dotCls ?>"></span>
+                    <?= ucfirst($offer['status']) ?>
+                </span>
+                <?php if ($offer['status'] === 'pending' && $offer['expires_days'] > 0): ?>
+                    <?php $expClr = $offer['expires_days'] <= 3 ? 'text-red-500' : 'text-amber-600'; ?>
+                    <span class="text-xs font-medium <?= $expClr ?>">
+                        <?= $offer['expires_days'] <= 3 ? '⚠ ' : '' ?>Expires in <?= $offer['expires_days'] ?> day<?= $offer['expires_days'] !== 1 ? 's' : '' ?>
+                    </span>
+                <?php elseif ($offer['status'] === 'accepted'): ?>
+                    <span class="text-xs text-gray-400">Offer accepted</span>
+                <?php elseif ($offer['status'] === 'declined'): ?>
+                    <span class="text-xs text-gray-400">Offer declined</span>
+                <?php else: ?>
+                    <span class="text-xs text-gray-400">Not yet sent</span>
+                <?php endif; ?>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 flex-wrap ml-auto">
+                <?php if ($offer['status'] === 'draft'): ?>
+                    <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-violet-300 text-violet-600 rounded-full hover:bg-violet-50 transition-colors">Edit</button>
+                    <button onclick="confirmSendCard(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">Send</button>
+                    <button onclick="deleteOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-red-200 text-red-500 rounded-full hover:bg-red-50 transition-colors">Delete</button>
+                <?php elseif ($offer['status'] === 'pending'): ?>
+                    <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View</button>
+                    <button onclick="resendOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-violet-300 text-violet-600 rounded-full hover:bg-violet-50 transition-colors">Resend</button>
+                    <button onclick="withdrawOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-amber-200 text-amber-600 rounded-full hover:bg-amber-50 transition-colors">Withdraw</button>
+                <?php elseif ($offer['status'] === 'accepted'): ?>
+                    <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View Letter</button>
+                    <button onclick="downloadPDF(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">Download PDF</button>
+                    <button onclick="markAsHired(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors">Mark as Hired</button>
+                <?php elseif ($offer['status'] === 'declined'): ?>
+                    <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View</button>
+                    <button onclick="openCreateModal()" class="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">Create New Offer</button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="hidden">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <p class="font-semibold text-gray-500">No offers found</p>
+                <p class="text-sm text-gray-400 mt-1">Create your first offer to get started</p>
+                <button onclick="openCreateModal()" class="mt-4 inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Create Offer
+                </button>
+            </div>
+        </div>
+
+    </div><!-- /offersContainer -->
+</div><!-- /page wrapper -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     CREATE OFFER MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="createOfferModal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col pointer-events-auto">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900">Create Offer</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Build and send a professional offer letter</p>
+                </div>
+                <button onclick="closeCreateModal()" aria-label="Close" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Scrollable body -->
+            <div class="overflow-y-auto flex-1 px-6 py-5 space-y-7">
+
+                <!-- §1 Candidate -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">1</span>
+                        Candidate
+                    </h3>
+
+                    <!-- Selected pill -->
+                    <div id="selectedCandidatePill" class="hidden mb-2">
+                        <div class="inline-flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-700 px-3 py-1.5 rounded-full text-sm font-medium">
+                            <span class="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold flex-shrink-0" id="selectedInitials"></span>
+                            <span id="selectedName"></span>
+                            <button onclick="clearCandidate()" aria-label="Remove candidate" class="ml-1 w-4 h-4 rounded-full hover:bg-violet-200 flex items-center justify-center transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search wrapper -->
+                    <div id="searchWrapper" class="relative">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input
+                            type="text"
+                            id="candidateSearch"
+                            autocomplete="off"
+                            placeholder="Search candidates in final review..."
+                            oninput="handleCandidateSearch(this.value)"
+                            class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                        <!-- Dropdown -->
+                        <div id="candidateDropdown" class="hidden absolute z-30 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden"></div>
+                    </div>
+                </div>
+
+                <!-- §2 Position Details -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">2</span>
+                        Position Details
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Position Title</label>
+                            <input type="text" id="offerPosition" placeholder="e.g. Senior Software Engineer"
+                                class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Start Date</label>
+                            <input type="date" id="offerStartDate"
+                                class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Offer Expiry Date</label>
+                            <input type="date" id="offerExpiryDate"
+                                class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- §3 Compensation -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">3</span>
+                        Compensation
+                    </h3>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Currency</label>
+                            <select id="offerCurrency" onchange="updateCurrencySymbol()"
+                                class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white transition-shadow">
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="CAD">CAD</option>
+                                <option value="AUD">AUD</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Salary Amount</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium select-none" id="currencySymbol">$</span>
+                                <input type="text" id="offerSalary" placeholder="0" oninput="formatSalaryInput(this)"
+                                    class="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Salary type toggle -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Salary Type</label>
+                        <div class="inline-flex border border-gray-200 rounded-xl p-0.5 bg-gray-50">
+                            <button id="typeMonthly" type="button" onclick="setSalaryType('monthly')"
+                                class="px-5 py-2 text-sm font-semibold rounded-lg transition-all bg-white shadow-sm text-violet-700 border border-violet-200">
+                                Monthly
+                            </button>
+                            <button id="typeAnnual" type="button" onclick="setSalaryType('annual')"
+                                class="px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-500 hover:text-gray-700">
+                                Annual
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- §4 Benefits -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">4</span>
+                        Benefits
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <?php
+                        $benefits = [
+                            ['id' => 'ben_health', 'label' => 'Health Insurance',       'icon' => '❤️'],
+                            ['id' => 'ben_dental', 'label' => 'Dental Coverage',         'icon' => '🦷'],
+                            ['id' => 'ben_vision', 'label' => 'Vision Coverage',         'icon' => '👓'],
+                            ['id' => 'ben_remote', 'label' => 'Remote Work',             'icon' => '🏠'],
+                            ['id' => 'ben_stock',  'label' => 'Stock Options',           'icon' => '📈'],
+                            ['id' => 'ben_bonus',  'label' => 'Annual Bonus',            'icon' => '💰'],
+                            ['id' => 'ben_dev',    'label' => 'Professional Development','icon' => '📚'],
+                            ['id' => 'ben_gym',    'label' => 'Gym Membership',          'icon' => '💪'],
+                        ];
+                        foreach ($benefits as $b): ?>
+                        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50 cursor-pointer transition-all has-[:checked]:border-violet-300 has-[:checked]:bg-violet-50">
+                            <input type="checkbox" name="benefits[]" value="<?= $b['id'] ?>"
+                                class="w-4 h-4 rounded accent-violet-600 cursor-pointer">
+                            <span class="text-sm text-gray-700 font-medium"><?= $b['icon'] ?> <?= $b['label'] ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- §5 Additional Terms -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">5</span>
+                        Additional Terms
+                    </h3>
+                    <textarea id="offerTerms" rows="3"
+                        placeholder="Add any additional conditions, requirements, or notes to be included in the offer letter..."
+                        class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-shadow"></textarea>
+                </div>
+
+                <!-- §6 AI Letter -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs flex items-center justify-center font-bold flex-shrink-0">6</span>
+                        AI Offer Letter
+                    </h3>
+                    <button type="button" onclick="generateAILetter()" id="aiGenerateBtn"
+                        class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-colors shadow-sm">
+                        <span aria-hidden="true">✨</span>
+                        Generate Offer Letter with AI
+                    </button>
+
+                    <!-- Loading -->
+                    <div id="aiLoadingState" class="hidden mt-4 flex items-center gap-3 p-4 bg-violet-50 rounded-xl border border-violet-100">
+                        <div class="flex gap-1 flex-shrink-0">
+                            <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay:0s"></div>
+                            <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay:0.15s"></div>
+                            <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay:0.3s"></div>
+                        </div>
+                        <span class="text-sm text-violet-700 font-medium">AI is crafting your offer letter&hellip;</span>
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="aiLetterPreview" class="hidden mt-4">
+                        <div class="rounded-xl border border-violet-200 bg-white overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-2.5 bg-violet-50 border-b border-violet-100">
+                                <span class="text-xs font-bold text-violet-700 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                    </svg>
+                                    AI Generated Preview
+                                </span>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="generateAILetter()" class="text-xs text-violet-600 hover:text-violet-800 font-semibold px-2 py-1 rounded-lg hover:bg-violet-100 transition-colors">↺ Regenerate</button>
+                                    <button type="button" id="aiAcceptBtn" onclick="acceptAILetter()" class="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold px-3 py-1 rounded-lg transition-colors">Accept</button>
+                                </div>
+                            </div>
+                            <div id="aiLetterContent" class="p-5 text-sm text-gray-700 leading-relaxed space-y-3 max-h-60 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /scrollable body -->
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-gray-50/60 rounded-b-2xl">
+                <button type="button" onclick="closeCreateModal()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+                    Cancel
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveAsDraft()" class="px-4 py-2 text-sm font-medium border border-violet-300 text-violet-600 rounded-full hover:bg-violet-50 transition-colors">
+                        Save as Draft
+                    </button>
+                    <button type="button" onclick="submitSendOffer()" class="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors shadow-sm">
+                        Send to Candidate
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     VIEW OFFER MODAL
+══════════════════════════════════════════════════════════ -->
+<div id="viewOfferModal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeViewModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col pointer-events-auto">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900" id="viewModalTitle">Offer Letter</h2>
+                    <p class="text-xs text-gray-400 mt-0.5" id="viewModalSubtitle">Review offer details</p>
+                </div>
+                <button onclick="closeViewModal()" aria-label="Close" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="overflow-y-auto flex-1 px-6 py-5">
+
+                <!-- Candidate header -->
+                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl mb-5">
+                    <div class="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 select-none" id="viewAvatarInitials"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-900 text-base" id="viewCandidateName"></p>
+                        <p class="text-sm text-gray-500" id="viewCandidateEmail"></p>
+                        <p class="text-xs text-gray-400 mt-0.5" id="viewCandidatePosition"></p>
+                    </div>
+                    <div class="flex-shrink-0" id="viewStatusBadgeWrap"></div>
+                </div>
+
+                <!-- Letter -->
+                <div class="border border-gray-100 rounded-xl p-6 bg-white text-sm text-gray-700 leading-relaxed" id="viewLetterBody"
+                    style="font-family:Georgia,'Times New Roman',serif"></div>
+
+                <!-- Meta grid -->
+                <div class="mt-4 grid grid-cols-2 gap-3" id="viewMetaInfo"></div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-gray-50/60 rounded-b-2xl">
+                <button onclick="closeViewModal()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+                    Close
+                </button>
+                <div class="flex gap-2" id="viewModalActions"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+/* ─── Data ─────────────────────────────────────────────── */
+const offersData = <?php echo json_encode(array_values($mockOffers), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS); ?>;
+
+const mockCandidates = [
+    {name:'Jordan Lee',     initials:'JL', email:'jordan@example.com',  position:'Frontend Developer'},
+    {name:'Chloe Davis',    initials:'CD', email:'chloe@example.com',   position:'Product Designer'},
+    {name:'Ryan Park',      initials:'RP', email:'ryan@example.com',    position:'Solutions Architect'},
+    {name:'Amelia Brooks',  initials:'AB', email:'amelia@example.com',  position:'Data Analyst'},
+    {name:'Nathan Clark',   initials:'NC', email:'nathan@example.com',  position:'Backend Engineer'},
+    {name:'Sofia Garcia',   initials:'SG', email:'sofia@example.com',   position:'QA Engineer'},
+    {name:'Tyler Hughes',   initials:'TH', email:'tyler@example.com',   position:'Cloud Engineer'},
+    {name:'Maya Robinson',  initials:'MR', email:'maya@example.com',    position:'UX Researcher'},
+];
+
+const currencySymbols = {USD:'$', EUR:'€', GBP:'£', CAD:'C$', AUD:'A$'};
+const statusBadgeMap  = {
+    draft:    'bg-gray-100 text-gray-600',
+    pending:  'bg-amber-100 text-amber-700',
+    accepted: 'bg-green-100 text-green-700',
+    declined: 'bg-red-100 text-red-700',
+};
+
+let currentSalaryType   = 'monthly';
+let selectedCandidate   = null;
+let currentViewOfferId  = null;
+let aiLetterAccepted    = false;
+let searchDebounceTimer = null;
+
+/* ─── Tab Switching ─────────────────────────────────────── */
+function switchTab(key) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('status', key);
+    window.history.pushState({}, '', url.toString());
+
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+        const active = btn.dataset.tab === key;
+        btn.className = active
+            ? 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-violet-600 text-white transition-all whitespace-nowrap'
+            : 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all whitespace-nowrap';
+        const badge = btn.querySelector('span');
+        if (badge) {
+            badge.className = active
+                ? 'bg-violet-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full'
+                : 'bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full';
+        }
+    });
+
+    let visible = 0;
+    document.querySelectorAll('.offer-card').forEach(card => {
+        const show = (key === 'all' || card.dataset.status === key);
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    const empty = document.getElementById('emptyState');
+    if (empty) empty.classList.toggle('hidden', visible > 0);
+}
+
+/* ─── Create Modal ──────────────────────────────────────── */
+function openCreateModal() {
+    document.getElementById('createOfferModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCreateModal() {
+    document.getElementById('createOfferModal').classList.add('hidden');
+    document.body.style.overflow = '';
+    _resetCreateForm();
+}
+
+function _resetCreateForm() {
+    clearCandidate();
+    const si = document.getElementById('candidateSearch');
+    if (si) si.value = '';
+    hideCandidateDropdown();
+
+    ['offerPosition', 'offerStartDate', 'offerExpiryDate', 'offerSalary', 'offerTerms'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    document.querySelectorAll('input[name="benefits[]"]').forEach(cb => (cb.checked = false));
+    setSalaryType('monthly');
+
+    document.getElementById('aiLoadingState').classList.add('hidden');
+    document.getElementById('aiLetterPreview').classList.add('hidden');
+
+    const btn = document.getElementById('aiGenerateBtn');
+    if (btn) { btn.disabled = false; btn.classList.remove('opacity-60'); }
+
+    const acceptBtn = document.getElementById('aiAcceptBtn');
+    if (acceptBtn) acceptBtn.textContent = 'Accept';
+
+    aiLetterAccepted = false;
+
+    // Reset dates to sensible defaults
+    const today   = new Date();
+    const start   = new Date(today); start.setDate(start.getDate() + 14);
+    const expiry  = new Date(today); expiry.setDate(expiry.getDate() + 7);
+    const fmt     = d => d.toISOString().split('T')[0];
+
+    const sdEl = document.getElementById('offerStartDate');
+    const exEl = document.getElementById('offerExpiryDate');
+    if (sdEl) { sdEl.min = fmt(today); sdEl.value = fmt(start); }
+    if (exEl) { exEl.min = fmt(today); exEl.value = fmt(expiry); }
+}
+
+/* ─── Candidate Search ──────────────────────────────────── */
+function handleCandidateSearch(val) {
+    clearTimeout(searchDebounceTimer);
+    if (val.trim().length < 2) { hideCandidateDropdown(); return; }
+    searchDebounceTimer = setTimeout(() => {
+        const q = val.toLowerCase();
+        const results = mockCandidates
+            .filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.position.toLowerCase().includes(q))
+            .slice(0, 5);
+        _renderCandidateDropdown(results);
+    }, 220);
+}
+
+function _renderCandidateDropdown(results) {
+    const dd = document.getElementById('candidateDropdown');
+    if (!dd) return;
+    dd.innerHTML = results.length === 0
+        ? '<div class="px-4 py-3 text-sm text-gray-400">No matching candidates</div>'
+        : results.map(c => `
+            <button type="button" onclick='selectCandidate(${JSON.stringify(c)})'
+                class="w-full flex items-center gap-3 px-4 py-3 hover:bg-violet-50 transition-colors text-left border-b border-gray-50 last:border-0">
+                <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none">${_esc(c.initials)}</div>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-gray-800">${_esc(c.name)}</p>
+                    <p class="text-xs text-gray-400 truncate">${_esc(c.position)} &bull; ${_esc(c.email)}</p>
+                </div>
+            </button>`).join('');
+    dd.classList.remove('hidden');
+}
+
+function hideCandidateDropdown() {
+    const dd = document.getElementById('candidateDropdown');
+    if (dd) dd.classList.add('hidden');
+}
+
+function selectCandidate(candidate) {
+    selectedCandidate = candidate;
+    hideCandidateDropdown();
+
+    document.getElementById('searchWrapper').classList.add('hidden');
+    document.getElementById('selectedCandidatePill').classList.remove('hidden');
+    document.getElementById('selectedInitials').textContent = candidate.initials;
+    document.getElementById('selectedName').textContent = candidate.name;
+
+    const pos = document.getElementById('offerPosition');
+    if (pos && !pos.value) pos.value = candidate.position;
+}
+
+function clearCandidate() {
+    selectedCandidate = null;
+    document.getElementById('searchWrapper').classList.remove('hidden');
+    document.getElementById('selectedCandidatePill').classList.add('hidden');
+    const si = document.getElementById('candidateSearch');
+    if (si) { si.value = ''; si.focus(); }
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+    if (!e.target.closest('#searchWrapper') && !e.target.closest('#candidateDropdown')) {
+        hideCandidateDropdown();
+    }
+});
+
+/* ─── Salary Type Toggle ────────────────────────────────── */
+function setSalaryType(type) {
+    currentSalaryType = type;
+    const monthly = document.getElementById('typeMonthly');
+    const annual  = document.getElementById('typeAnnual');
+    if (!monthly || !annual) return;
+
+    const activeCls  = 'px-5 py-2 text-sm font-semibold rounded-lg transition-all bg-white shadow-sm text-violet-700 border border-violet-200';
+    const inactiveCls = 'px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-500 hover:text-gray-700';
+
+    monthly.className = type === 'monthly' ? activeCls : inactiveCls;
+    annual.className  = type === 'annual'  ? activeCls : inactiveCls;
+}
+
+/* ─── Currency ──────────────────────────────────────────── */
+function updateCurrencySymbol() {
+    const sel = document.getElementById('offerCurrency');
+    const sym = document.getElementById('currencySymbol');
+    if (sel && sym) sym.textContent = currencySymbols[sel.value] || '$';
+}
+
+function formatSalaryInput(input) {
+    const raw = input.value.replace(/[^\d]/g, '');
+    input.value = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
+}
+
+/* ─── AI Letter Generation ──────────────────────────────── */
+function generateAILetter() {
+    const loading    = document.getElementById('aiLoadingState');
+    const preview    = document.getElementById('aiLetterPreview');
+    const btn        = document.getElementById('aiGenerateBtn');
+    const acceptBtn  = document.getElementById('aiAcceptBtn');
+
+    preview.classList.add('hidden');
+    loading.classList.remove('hidden');
+    btn.disabled = true;
+    btn.classList.add('opacity-60');
+    if (acceptBtn) acceptBtn.textContent = 'Accept';
+    aiLetterAccepted = false;
+
+    const candidateName = selectedCandidate ? selectedCandidate.name : 'the Candidate';
+    const position      = document.getElementById('offerPosition')?.value  || 'the position';
+    const salary        = document.getElementById('offerSalary')?.value    || 'competitive';
+    const currency      = document.getElementById('offerCurrency')?.value  || 'USD';
+    const sym           = currencySymbols[currency] || '$';
+    const salaryType    = currentSalaryType === 'monthly' ? 'per month' : 'per annum';
+    const startDate     = document.getElementById('offerStartDate')?.value  || '';
+    const expiryDate    = document.getElementById('offerExpiryDate')?.value || '';
+
+    fetch('/api/v1/offers?action=generate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({candidate: candidateName, position, salary, currency, salaryType})
+    }).catch(() => {});
+
+    setTimeout(() => {
+        loading.classList.add('hidden');
+        btn.disabled = false;
+        btn.classList.remove('opacity-60');
+
+        const fmtDate = iso => iso
+            ? new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})
+            : null;
+
+        const today   = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+        const start   = fmtDate(startDate)  || 'a mutually agreed date';
+        const expiry  = fmtDate(expiryDate) || '7 days from the date of this letter';
+
+        document.getElementById('aiLetterContent').innerHTML = `
+            <p class="text-gray-400 text-xs">${today}</p>
+            <p class="font-semibold text-gray-800">Dear ${_esc(candidateName)},</p>
+            <p>We are delighted to extend this formal offer of employment for the position of <strong>${_esc(position)}</strong> at <strong>HireAI Technologies</strong>. Following our thorough review process, we are confident that your skills, experience, and values align perfectly with our team's vision and culture.</p>
+            <p><strong>Compensation Package:</strong> We are pleased to offer a base salary of <strong class="text-amber-600">${sym}${_esc(salary)} ${salaryType}</strong>, payable in accordance with our standard payroll schedule.</p>
+            <p><strong>Start Date:</strong> We propose a start date of <strong>${start}</strong>, though we are open to discussing this to accommodate your transition.</p>
+            <p><strong>Benefits:</strong> In addition to your base compensation, you will be entitled to our comprehensive benefits package, details of which are enclosed with this letter.</p>
+            <p>This offer is contingent upon the successful completion of a standard background check. Please review the enclosed terms carefully and return a signed copy by <strong>${expiry}</strong>.</p>
+            <p>We look forward to welcoming you to the team.</p>
+            <p>Warm regards,<br><strong>The Hiring Team</strong><br>HireAI Technologies</p>`;
+
+        preview.classList.remove('hidden');
+    }, 1500);
+}
+
+function acceptAILetter() {
+    aiLetterAccepted = true;
+    const btn = document.getElementById('aiAcceptBtn');
+    if (btn) {
+        btn.textContent = '✓ Accepted';
+        btn.className = 'text-xs bg-green-500 text-white font-semibold px-3 py-1 rounded-lg cursor-default';
+        btn.onclick = null;
+    }
+    showToast('AI letter accepted — ready to send.', 'success');
+}
+
+/* ─── Form Data Helpers ─────────────────────────────────── */
+function _gatherFormData() {
+    const benefits = [];
+    document.querySelectorAll('input[name="benefits[]"]:checked').forEach(cb => benefits.push(cb.value));
+    return {
+        candidate:       selectedCandidate,
+        position:        document.getElementById('offerPosition')?.value   || '',
+        startDate:       document.getElementById('offerStartDate')?.value  || '',
+        expiryDate:      document.getElementById('offerExpiryDate')?.value || '',
+        salary:          (document.getElementById('offerSalary')?.value || '').replace(/,/g, ''),
+        currency:        document.getElementById('offerCurrency')?.value   || 'USD',
+        salaryType:      currentSalaryType,
+        benefits,
+        additionalTerms: document.getElementById('offerTerms')?.value      || '',
+        aiLetterAccepted,
+    };
+}
+
+/* ─── Save / Send from Modal ────────────────────────────── */
+function saveAsDraft() {
+    const payload = _gatherFormData();
+    payload.status = 'draft';
+    fetch('/api/v1/offers', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify(payload)
+    }).catch(() => {});
+    showToast('Offer saved as draft.', 'success');
+    closeCreateModal();
+}
+
+function submitSendOffer() {
+    if (!confirm('Send this offer to the candidate? They will receive an email notification.')) return;
+    const payload = _gatherFormData();
+    payload.status = 'pending';
+    fetch('/api/v1/offers', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify(payload)
+    }).catch(() => {});
+    showToast('Offer sent to candidate!', 'success');
+    closeCreateModal();
+}
+
+/* ─── Card Actions ──────────────────────────────────────── */
+function confirmSendCard(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    if (!confirm(`Send the offer to ${offer.name}?`)) return;
+    fetch('/api/v1/offers', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({idx, status: 'pending'})
+    }).catch(() => {});
+    showToast(`Offer sent to ${offer.name}!`, 'success');
+}
+
+function resendOffer(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    fetch(`/api/v1/offers`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({idx, action: 'resend'})
+    }).catch(() => {});
+    showToast(`Offer resent to ${offer.name}.`, 'success');
+}
+
+function withdrawOffer(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    if (!confirm(`Withdraw the offer for ${offer.name}? This cannot be undone.`)) return;
+    fetch(`/api/v1/offers/${idx}/withdraw`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
+    }).catch(() => {});
+    showToast('Offer withdrawn.', 'info');
+    closeViewModal();
+}
+
+function markAsHired(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    if (!confirm(`Mark ${offer.name} as hired? This will update their candidate profile.`)) return;
+    fetch(`/api/v1/offers/${idx}/hire`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
+    }).catch(() => {});
+    showToast(`${offer.name} marked as hired!`, 'success');
+}
+
+function deleteOffer(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    if (!confirm(`Delete this draft offer for ${offer.name}? This cannot be undone.`)) return;
+    fetch(`/api/v1/offers/${idx}`, {
+        method: 'DELETE',
+        headers: {'X-Requested-With':'XMLHttpRequest'}
+    }).catch(() => {});
+    const card = document.querySelector(`.offer-card[data-id="offer-${idx}"]`);
+    if (card) {
+        card.style.transition = 'opacity 0.3s, transform 0.3s';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(16px)';
+        setTimeout(() => card.remove(), 320);
+    }
+    showToast('Draft offer deleted.', 'success');
+}
+
+function downloadPDF(idx) {
+    showToast('Preparing PDF download…', 'info');
+    window.open(`/api/v1/offers/${idx}/pdf`, '_blank');
+}
+
+/* ─── View Modal ────────────────────────────────────────── */
+function openViewModal(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
+    currentViewOfferId = idx;
+
+    document.getElementById('viewModalTitle').textContent   = `${offer.position} — Offer Letter`;
+    document.getElementById('viewModalSubtitle').textContent = `Issued to ${offer.name}`;
+    document.getElementById('viewAvatarInitials').textContent = offer.initials;
+    document.getElementById('viewCandidateName').textContent  = offer.name;
+    document.getElementById('viewCandidateEmail').textContent = offer.email;
+    document.getElementById('viewCandidatePosition').textContent = `${offer.dept} Department`;
+
+    const badgeCls = statusBadgeMap[offer.status] || 'bg-gray-100 text-gray-600';
+    document.getElementById('viewStatusBadgeWrap').innerHTML =
+        `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${badgeCls}">
+            ${_cap(offer.status)}
+        </span>`;
+
+    const salaryLabel = `$${offer.salary} / ${offer.type}`;
+    const today = new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
+
+    document.getElementById('viewLetterBody').innerHTML = `
+        <div class="text-center pb-5 mb-5 border-b border-gray-100">
+            <p class="font-bold text-gray-900 text-lg tracking-wide">HireAI Technologies</p>
+            <p class="text-xs text-gray-400 mt-0.5 uppercase tracking-widest">Official Offer of Employment</p>
+        </div>
+        <p class="text-gray-400 text-xs mb-3">${today}</p>
+        <p><strong>Dear ${_esc(offer.name)},</strong></p>
+        <p>We are pleased to formally offer you the position of <strong>${_esc(offer.position)}</strong> within our <strong>${_esc(offer.dept)}</strong> department at HireAI Technologies. This letter serves as your official offer of employment and outlines the key terms and conditions of your engagement with our company.</p>
+        <p><strong>Compensation:</strong> Your base salary will be <strong class="text-amber-600">${salaryLabel}</strong>${offer.benefits ? ', supplemented by our comprehensive employee benefits package including health, dental, and vision coverage' : ''}.</p>
+        <p><strong>Employment Type:</strong> This is a full-time, permanent position subject to a 90-day probationary period during which your performance and fit will be assessed.</p>
+        <p><strong>Reporting Structure:</strong> You will report to the Head of ${_esc(offer.dept)} and work closely with cross-functional teams across the organization.</p>
+        <p>We believe your unique skills and experience make you an excellent addition to our team. We look forward to seeing the positive impact you will have on our mission to transform recruitment through AI.</p>
+        <p>Please sign and return a copy of this letter to confirm your acceptance.</p>
+        <p class="mt-4">Sincerely,<br><strong>The Hiring Team</strong><br>HireAI Technologies</p>
+        <div class="mt-8 pt-5 border-t border-gray-100">
+            <p class="text-xs text-gray-400 font-semibold mb-3 uppercase tracking-wider">Candidate Acceptance</p>
+            <div class="flex gap-10">
+                <div>
+                    <div class="w-44 border-b border-gray-300 mb-1 h-7"></div>
+                    <p class="text-xs text-gray-400">Signature</p>
+                </div>
+                <div>
+                    <div class="w-32 border-b border-gray-300 mb-1 h-7"></div>
+                    <p class="text-xs text-gray-400">Date</p>
+                </div>
+            </div>
+        </div>`;
+
+    const expText = (offer.status === 'pending' && offer.expires_days > 0)
+        ? `<span class="${offer.expires_days <= 3 ? 'text-red-500 font-semibold' : 'text-amber-600 font-semibold'}">Expires in ${offer.expires_days} day${offer.expires_days !== 1 ? 's' : ''}</span>`
+        : '<span class="text-gray-500">—</span>';
+
+    document.getElementById('viewMetaInfo').innerHTML = `
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="text-xs text-gray-400 mb-0.5">Status</p>
+            <p class="text-sm font-semibold text-gray-700 capitalize">${offer.status}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="text-xs text-gray-400 mb-0.5">Salary</p>
+            <p class="text-sm font-semibold text-amber-600">${salaryLabel}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="text-xs text-gray-400 mb-0.5">Expiry</p>
+            <div class="text-sm">${expText}</div>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="text-xs text-gray-400 mb-0.5">Benefits</p>
+            <p class="text-sm font-semibold text-gray-700">${offer.benefits ? 'Included' : 'Not included'}</p>
+        </div>`;
+
+    let actions = `
+        <button onclick="downloadPDF(${idx})" class="px-4 py-2 text-sm font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">
+            Download PDF
+        </button>`;
+
+    if (offer.status === 'pending') {
+        actions += `
+        <button onclick="withdrawOffer(${idx})" class="px-4 py-2 text-sm font-medium border border-amber-200 text-amber-600 rounded-full hover:bg-amber-50 transition-colors">
+            Withdraw Offer
+        </button>`;
+    }
+    if (offer.status === 'accepted') {
+        actions += `
+        <button onclick="markAsHired(${idx})" class="px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors">
+            Mark as Hired
+        </button>`;
+    }
+    if (offer.status === 'declined') {
+        actions += `
+        <button onclick="closeViewModal(); openCreateModal();" class="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">
+            Create New Offer
+        </button>`;
+    }
+
+    document.getElementById('viewModalActions').innerHTML = actions;
+    document.getElementById('viewOfferModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeViewModal() {
+    document.getElementById('viewOfferModal').classList.add('hidden');
+    document.body.style.overflow = '';
+    currentViewOfferId = null;
+}
+
+/* ─── Keyboard Shortcuts ────────────────────────────────── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeCreateModal();
+        closeViewModal();
+    }
+});
+
+/* ─── Toast Notifications ───────────────────────────────── */
+function showToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const colors = {success:'bg-green-500', error:'bg-red-500', info:'bg-blue-500', warning:'bg-amber-500'};
+    const icons  = {
+        success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>',
+        error:   '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>',
+        info:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+        warning: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium max-w-xs ${colors[type] || colors.success}`;
+    toast.style.cssText = 'transform:translateX(120%);transition:transform 0.28s cubic-bezier(.22,.61,.36,1),opacity 0.28s ease;';
+    toast.innerHTML = `
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[type] || icons.success}</svg>
+        <span>${_esc(message)}</span>
+        <button onclick="this.parentElement.remove()" class="ml-auto w-4 h-4 flex items-center justify-center flex-shrink-0 opacity-70 hover:opacity-100">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>`;
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+/* ─── Utilities ─────────────────────────────────────────── */
+function _esc(str) {
+    return String(str ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function _cap(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+
+/* ─── Init ──────────────────────────────────────────────── */
+(function init() {
+    // Pre-set default dates on the create modal
+    const today  = new Date();
+    const start  = new Date(today); start.setDate(start.getDate() + 14);
+    const expiry = new Date(today); expiry.setDate(expiry.getDate() + 7);
+    const fmt    = d => d.toISOString().split('T')[0];
+
+    const sdEl = document.getElementById('offerStartDate');
+    const exEl = document.getElementById('offerExpiryDate');
+    if (sdEl) { sdEl.min = fmt(today); sdEl.value = fmt(start); }
+    if (exEl) { exEl.min = fmt(today); exEl.value = fmt(expiry); }
+
+    // Evaluate initial empty state
+    const activeKey = new URLSearchParams(window.location.search).get('status') || 'all';
+    const visible   = [...document.querySelectorAll('.offer-card')]
+        .filter(c => activeKey === 'all' || c.dataset.status === activeKey).length;
+    const empty = document.getElementById('emptyState');
+    if (empty) empty.classList.toggle('hidden', visible > 0);
+})();
+</script>
