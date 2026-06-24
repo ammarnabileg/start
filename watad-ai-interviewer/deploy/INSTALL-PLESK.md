@@ -9,6 +9,25 @@ PHP CLI: `/opt/plesk/php/8.3/bin/php`
 
 ---
 
+## Two ways to run the commands
+- **Option A — Browser terminal** (`public/setup.php`): a temporary, token-protected
+  web terminal for when you don't have SSH handy. Delete it right after install.
+- **Option B — SSH/Plesk terminal**: run the same commands directly.
+
+Either way, the command sequence (steps 3–6, 9) is identical.
+
+### Option A — install via the browser terminal
+1. After getting the code (step 1) and creating the DB (step 2), open
+   `public/setup.php`, set `SETUP_TOKEN` to a long random secret, save.
+2. Make the web root serve `public/` first (step 7) — or temporarily browse to
+   `https://YOUR-DOMAIN/public/setup.php`.
+3. Open it, unlock with your token, and use the **quick buttons** in this order:
+   `composer install` → `cp .env.plesk .env` → `key:generate` → *(edit .env: DB + OPENAI_API_KEY)* →
+   `migrate:fresh --seed --force` → `storage:link` → `chmod 775 …` → `config:clear`/`route:clear`/`view:clear`.
+4. Click **🗑 Delete this file** when finished. **Never leave setup.php on a live site.**
+
+---
+
 ## 0. Wipe the old install
 In **Plesk → Files**, delete everything inside `httpdocs/` (or back it up first).
 In **Plesk → Databases**, drop the old DB or create a new empty one.
