@@ -123,11 +123,16 @@ Route::middleware('auth')->prefix('hr')->name('hr.')->group(function () {
     // Question libraries
     Route::get('/questions', [QuestionController::class, 'index'])->middleware('can:questions.view')->name('questions.index');
     Route::post('/questions/libraries', [QuestionController::class, 'storeLibrary'])->middleware('can:questions.create')->name('questions.libraries.store');
+    Route::put('/questions/libraries/{library}', [QuestionController::class, 'updateLibrary'])->middleware('can:questions.update')->name('questions.libraries.update');
     Route::post('/questions', [QuestionController::class, 'storeQuestion'])->middleware('can:questions.create')->name('questions.store');
+    Route::put('/questions/{question}', [QuestionController::class, 'updateQuestion'])->middleware('can:questions.update')->name('questions.update');
+    Route::patch('/questions/{question}/toggle', [QuestionController::class, 'toggleQuestion'])->middleware('can:questions.update')->name('questions.toggle');
 
     // Users
     Route::get('/users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
     Route::post('/users', [UserController::class, 'store'])->middleware('can:users.create')->name('users.store');
+    Route::put('/users/{user}', [UserController::class, 'update'])->middleware('can:users.update')->name('users.update');
+    Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])->middleware('can:users.update')->name('users.status');
     Route::put('/users/{user}/roles', [UserController::class, 'updateRoles'])->middleware('can:users.update')->name('users.roles');
 
     // Roles & permissions (granular CRUD matrix editor)

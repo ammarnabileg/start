@@ -90,8 +90,17 @@ Rebuilt `resources/views/hr/pipeline.blade.php` + `PipelineController@index`.
 OpenAI ✅ (native cURL, TLS fix) · Claude ✅ · Tavus/HeyGen ✅ (graceful fallback when disabled/no credits) ·
 Google Sheets ✅ (config-gated) · WhatsApp/Email ✅ (notification jobs) · PDF/Excel export ✅.
 
-### Remaining recommendations (not yet implemented)
-- Edit/archive UI for **Questions** and **Users** (lower-frequency entities).
-- Candidate **portal** polish (the live interview room was redesigned in Phase 1; the post-application portal pages are functional but could get the same progress/status treatment).
-- **Resume Intelligence on OpenAI**: `CvAnalyzer` reads PDFs via Anthropic document blocks; when the provider is OpenAI, PDF vision parsing needs an OpenAI-native path (falls back to extracted text today).
-- Move queue processing to a real worker (Supervisor) if traffic grows beyond what a 1-min cron drain handles.
+## Phase 6 — Remaining items (DONE)
+
+| Area | Change | Affected |
+|------|--------|----------|
+| **Questions** | Edit question (text, Arabic text, competency, difficulty) + Archive/Restore (`is_active`); edit library (name, description). | `QuestionController` (updateLibrary/updateQuestion/toggleQuestion), `routes/web.php`, `hr/questions.blade.php` |
+| **Users** | Edit (name, email, optional new password) + Activate/Deactivate (self-deactivation blocked). Deactivated users can no longer sign in. | `UserController` (update/updateStatus), `LoginController` (enforces `is_active`), `routes/web.php`, `hr/users.blade.php` |
+| **Candidate portal** | Application page rebuilt into a journey stepper (done / current / upcoming) with a per-status "What's next" explainer, terminal-state handling, and an offer CTA. | `portal/application.blade.php` |
+| **Resume Intelligence on OpenAI** | `CvAnalyzer` is now provider-aware: Claude reads the PDF natively; OpenAI gets extracted text via `smalot/pdfparser`. Previously OpenAI received no CV content (the Anthropic document block was silently dropped and link candidates have no `cv_text`). | `CvAnalyzer`, `composer.json` (+`smalot/pdfparser`) |
+
+> **Deploy note:** Phase 6 adds a Composer package. After pulling, run **`composer install`** (Plesk → PHP Composer) so `smalot/pdfparser` is available; otherwise CV parsing on OpenAI falls back to job-context-only (no crash).
+
+### Still optional (future)
+- Move queue processing to a always-on worker (Supervisor) if volume outgrows the 1-min cron drain.
+- Capture `cv_text` at intake so analysis never depends on PDF parsing.

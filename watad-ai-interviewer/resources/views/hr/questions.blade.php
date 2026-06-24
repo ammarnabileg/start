@@ -28,11 +28,49 @@
 
     <div class="space-y-4 lg:col-span-2">
         @forelse($libraries as $lib)
-            <div class="card p-4">
-                <h3 class="font-semibold text-slate-800">{{ $lib->name }} <span class="text-xs text-slate-400">({{ $lib->questions->count() }})</span></h3>
-                <ul class="mt-2 space-y-1 text-sm">
+            <div class="card p-4" x-data="{ editLib: false }">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-800">{{ $lib->name }} <span class="text-xs text-slate-400">({{ $lib->questions->count() }})</span></h3>
+                    @can('questions.update')
+                        <button @click="editLib = !editLib" class="text-xs font-medium text-brand">Edit</button>
+                    @endcan
+                </div>
+                @can('questions.update')
+                    <form x-show="editLib" x-cloak method="POST" action="{{ route('hr.questions.libraries.update', $lib) }}" class="mt-3 space-y-2">
+                        @csrf @method('PUT')
+                        <input name="name" value="{{ $lib->name }}" required class="input">
+                        <input name="description" value="{{ $lib->description }}" placeholder="Description" class="input">
+                        <button class="btn-primary">Save</button>
+                    </form>
+                @endcan
+                <ul class="mt-2 space-y-1.5 text-sm">
                     @foreach($lib->questions as $q)
-                        <li class="flex gap-2"><span class="badge-soft bg-slate-100 text-slate-500">{{ $q->competency }}</span><span class="text-slate-600">{{ $q->text }}</span></li>
+                        <li x-data="{ editQ: false }" class="rounded-lg {{ $q->is_active ? '' : 'opacity-50' }}">
+                            <div class="flex items-start gap-2 py-1">
+                                <span class="badge-soft bg-slate-100 text-slate-500">{{ $q->competency }}</span>
+                                <span class="flex-1 text-slate-600">{{ $q->text }}</span>
+                                @unless($q->is_active)<span class="badge-soft bg-slate-100 text-slate-400">Archived</span>@endunless
+                                @can('questions.update')
+                                    <button @click="editQ = !editQ" class="text-xs text-brand">Edit</button>
+                                    <form method="POST" action="{{ route('hr.questions.toggle', $q) }}" class="inline">
+                                        @csrf @method('PATCH')
+                                        <button class="text-xs {{ $q->is_active ? 'text-amber-600' : 'text-emerald-600' }}">{{ $q->is_active ? 'Archive' : 'Restore' }}</button>
+                                    </form>
+                                @endcan
+                            </div>
+                            @can('questions.update')
+                                <form x-show="editQ" x-cloak method="POST" action="{{ route('hr.questions.update', $q) }}" class="mb-2 space-y-2 rounded-lg bg-slate-50 p-3">
+                                    @csrf @method('PUT')
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <select name="competency" class="input">@foreach($competencies as $c)<option value="{{ $c->value }}" @selected($q->competency===$c->value)>{{ $c->label() }}</option>@endforeach</select>
+                                        <select name="difficulty" class="input">@foreach(['easy','standard','hard'] as $d)<option @selected($q->difficulty===$d)>{{ $d }}</option>@endforeach</select>
+                                    </div>
+                                    <textarea name="text" rows="2" required class="input">{{ $q->text }}</textarea>
+                                    <textarea name="text_ar" rows="2" dir="rtl" placeholder="بالعربية" class="input">{{ $q->text_ar }}</textarea>
+                                    <button class="btn-primary">Save question</button>
+                                </form>
+                            @endcan
+                        </li>
                     @endforeach
                 </ul>
             </div>
