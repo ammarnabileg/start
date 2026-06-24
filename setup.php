@@ -254,22 +254,40 @@ function apiLock(){
     return json(['success'=>true]);
 }
 
-function findNpm(): string {
-    foreach ([
-        '/usr/bin/npm','/usr/local/bin/npm',
-        '/opt/plesk/node/22/bin/npm','/opt/plesk/node/20/bin/npm',
-        '/opt/plesk/node/18/bin/npm','/opt/plesk/node/16/bin/npm',
-    ] as $p) {
-        if (@is_executable($p)) return $p;
+function findNode(): array {
+    // Returns ['npm'=>'...', 'node'=>'...', 'bin'=>'...']
+    // Check standard Plesk node locations
+    foreach (['22','20','18','16','14'] as $v) {
+        $bin  = "/opt/plesk/node/{$v}/bin";
+        $node = "{$bin}/node";
+        $npm  = "{$bin}/npm";
+        if (@is_executable($node)) return ['npm'=>$npm,'node'=>$node,'bin'=>$bin];
     }
-    $out=[]; @exec('find /opt /usr/local /usr -name "npm" -type f 2>/dev/null | head -1', $out);
-    return trim($out[0] ?? '') ?: 'npm';
+    // Fallback: find npm anywhere and derive node from same dir
+    $out=[]; @exec('find /opt /usr/local /usr -name "npm" -type f 2>/dev/null | head -3', $out);
+    foreach ($out as $npmPath) {
+        $npmPath = trim($npmPath);
+        $binDir  = dirname($npmPath);
+        // npm might be in lib/node_modules/.../bin — derive bin from /opt/plesk/node/X/
+        if (preg_match('#(/opt/plesk/node/[\d.]+)#', $npmPath, $m)) {
+            $binDir = $m[1].'/bin';
+        }
+        $nodePath = $binDir.'/node';
+        if (@is_executable($nodePath)) return ['npm'=>$npmPath,'node'=>$nodePath,'bin'=>$binDir];
+    }
+    return ['npm'=>'npm','node'=>'node','bin'=>''];
 }
 
+function findNpm(): string { return findNode()['npm']; }
+
 function apiSetupFrontend(): string {
-    $log  = [];
-    $root = dirname(BACKEND);
-    $npm  = findNpm();
+    $log    = [];
+    $root   = dirname(BACKEND);
+    $nd     = findNode();
+    $npm    = $nd['npm'];
+    $nodeBin= $nd['bin'];
+    // Prepend node bin to PATH so npm can find node
+    $env    = $nodeBin ? "PATH={$nodeBin}:/usr/local/bin:/usr/bin:/bin " : '';
     $appUrl = (isset($_SERVER['HTTPS'])?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost');
 
     // 1. Write .htaccess
@@ -286,11 +304,11 @@ function apiSetupFrontend(): string {
     $log[] = ['cmd'=>'frontend/.env.local','result'=>['output'=>$envOk?"✓ NEXT_PUBLIC_API_URL={$appUrl}/api":'✗ فشل','success'=>$envOk]];
 
     // 3. npm install
-    $r = runIn("$npm install 2>&1", $root.'/frontend');
+    $r = runIn("{$env}{$npm} install 2>&1", $root.'/frontend');
     $log[] = ['cmd'=>'npm install','result'=>$r];
 
     // 4. npm run build
-    $r = runIn("$npm run build 2>&1", $root.'/frontend');
+    $r = runIn("{$env}{$npm} run build 2>&1", $root.'/frontend');
     $log[] = ['cmd'=>'npm run build','result'=>$r];
     if (!$r['success']) {
         return json(['success'=>false,'log'=>$log,'message'=>'✗ فشل npm run build — راجع السجل']);
@@ -300,7 +318,7 @@ function apiSetupFrontend(): string {
     @exec('pkill -f "next start" 2>/dev/null');
     sleep(1);
     $pidFile = '/tmp/next_pid.txt';
-    runIn("nohup $npm start > /tmp/next.log 2>&1 & echo \$! > $pidFile", $root.'/frontend');
+    runIn("{$env}nohup {$npm} start > /tmp/next.log 2>&1 & echo \$! > {$pidFile}", $root.'/frontend');
     sleep(2);
     $pid = trim(@file_get_contents($pidFile) ?: '?');
     $log[] = ['cmd'=>'npm start','result'=>['output'=>"✓ Next.js يعمل (PID {$pid}) على port 3000",'success'=>true]];
