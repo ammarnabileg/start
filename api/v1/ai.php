@@ -317,7 +317,8 @@ class AiApi
 
         if (empty($context['jobs'])) {
             $context['jobs'] = $this->db->fetchAll('
-                SELECT id, title, seniority, status, applications_count
+                SELECT id, title, experience_level AS seniority, status,
+                       (SELECT COUNT(*) FROM applications a WHERE a.job_id=jobs.id) AS applications_count
                   FROM jobs WHERE tenant_id = ?
                  ORDER BY created_at DESC LIMIT 25
             ', [$this->tenantId]);

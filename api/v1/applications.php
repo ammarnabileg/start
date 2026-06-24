@@ -100,9 +100,8 @@ elseif ($method === 'GET' && $action === 'detail') {
     $row = $db->fetch(
         "SELECT a.*, c.full_name, c.email, c.phone, c.location,
                 j.title as job_title, j.department,
-                ie.overall_score, ie.recommendation, ie.ai_summary,
-                ie.skills_scores, ie.disc_profile, ie.big_five, ie.red_flags,
-                ie.transcript
+                ie.overall_score, ie.recommendation, ie.executive_summary as ai_summary,
+                ie.skills_analysis as skills_scores, ie.disc_profile, ie.big_five, ie.red_flags
          FROM applications a
          JOIN candidates c ON c.id = a.candidate_id
          JOIN jobs j ON j.id = a.job_id

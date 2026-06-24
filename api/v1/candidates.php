@@ -58,7 +58,7 @@ elseif ($action === 'quick_view') {
     $row = $db->fetch(
         "SELECT a.id as application_id, a.current_stage, c.full_name as candidate_name,
                 c.email as candidate_email, ie.overall_score, ie.recommendation,
-                ie.ai_summary, i.token as interview_token
+                ie.executive_summary as ai_summary, i.token as interview_token
          FROM applications a
          JOIN candidates c ON c.id = a.candidate_id
          LEFT JOIN interviews i ON i.application_id = a.id
