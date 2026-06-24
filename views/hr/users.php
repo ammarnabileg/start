@@ -8,10 +8,15 @@ $db        = Database::getInstance();
 
 $users = Cache::remember("users_list_{$tid}", 120, function() use ($db, $tid) {
     return $db->fetchAll(
-        "SELECT u.id, u.full_name, u.email, u.role, u.status, u.last_login, u.created_at,
-                (SELECT COUNT(*) FROM applications a WHERE a.tenant_id = u.tenant_id) as activity
+        "SELECT u.id, u.full_name, u.email, u.status, u.last_login_at as last_login, u.created_at,
+                GROUP_CONCAT(r.slug ORDER BY r.id SEPARATOR ',') as roles,
+                (SELECT r2.display_name FROM roles r2 JOIN user_roles ur2 ON ur2.role_id=r2.id WHERE ur2.user_id=u.id LIMIT 1) as role
          FROM users u
-         WHERE u.tenant_id = ? AND u.role != 'candidate'
+         LEFT JOIN user_roles ur ON ur.user_id = u.id
+         LEFT JOIN roles r ON r.id = ur.role_id
+         WHERE u.tenant_id = ?
+           AND NOT EXISTS (SELECT 1 FROM user_roles ur3 JOIN roles r3 ON r3.id=ur3.role_id WHERE ur3.user_id=u.id AND r3.slug='candidate')
+         GROUP BY u.id
          ORDER BY u.created_at DESC",
         [$tid]
     ) ?: [];

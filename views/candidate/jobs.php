@@ -193,7 +193,7 @@ $departments = $db->fetchAll(
     $salary     = formatSalary(
         !empty($job['salary_min']) ? (int)$job['salary_min'] : null,
         !empty($job['salary_max']) ? (int)$job['salary_max'] : null,
-        $job['salary_currency'] ?? 'USD'
+        $job['currency'] ?? $job['salary_currency'] ?? 'USD'
     );
     $postedAt   = !empty($job['published_at']) ? timeAgo($job['published_at']) : 'Recently';
     $matchScore = !empty($job['match_score']) ? (int)$job['match_score'] : null;

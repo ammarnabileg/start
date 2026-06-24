@@ -40,10 +40,11 @@ $profilePct  = $totalScore > 0 ? (int)round(($filledScore / $totalScore) * 100) 
 
 // ── Active Applications ────────────────────────────────────────────────────
 $applications = $db->fetchAll(
-    "SELECT a.*, j.title as job_title, j.company_name, j.location,
-            i.id as interview_id, i.status as interview_status, i.access_token
+    "SELECT a.*, j.title as job_title, t.name as company_name, j.location,
+            i.id as interview_id, i.status as interview_status, i.token as access_token
      FROM applications a
      JOIN jobs j ON j.id = a.job_id
+     JOIN tenants t ON t.id = j.tenant_id
      LEFT JOIN interviews i ON i.application_id = a.id AND i.status IN ('pending','in_progress')
      WHERE a.candidate_id = ? AND a.stage NOT IN ('rejected','hired','withdrawn')
      ORDER BY a.updated_at DESC LIMIT 6",
@@ -52,10 +53,11 @@ $applications = $db->fetchAll(
 
 // ── Upcoming Interviews ────────────────────────────────────────────────────
 $interviews = $db->fetchAll(
-    "SELECT i.*, j.title as job_title, j.company_name, a.stage
+    "SELECT i.*, j.title as job_title, t.name as company_name, a.stage
      FROM interviews i
      JOIN applications a ON a.id = i.application_id
      JOIN jobs j ON j.id = a.job_id
+     JOIN tenants t ON t.id = j.tenant_id
      WHERE a.candidate_id = ? AND i.status IN ('pending','in_progress')
      ORDER BY i.created_at DESC LIMIT 4",
     [$candidateId]
@@ -65,7 +67,7 @@ $interviews = $db->fetchAll(
 $recommendedJobs = $db->fetchAll(
     "SELECT j.*, FLOOR(70 + RAND() * 28) as match_score
      FROM jobs j
-     WHERE j.status = 'active'
+     WHERE j.status = 'published'
        AND j.id NOT IN (SELECT job_id FROM applications WHERE candidate_id = ?)
      ORDER BY j.created_at DESC LIMIT 4",
     [$candidateId]

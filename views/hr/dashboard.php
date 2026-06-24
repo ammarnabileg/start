@@ -8,13 +8,13 @@ $stats = Cache::remember(Cache::tenantKey('dashboard_stats', $tenantId), 300, fu
         'active_jobs'     => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND status = 'active'", [$tenantId]) ?? 0,
         'total_candidates'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ?", [$tenantId]) ?? 0,
         'interviews_today'=> $db->fetchColumn("SELECT COUNT(*) FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.tenant_id = ? AND DATE(i.created_at) = CURDATE()", [$tenantId]) ?? 0,
-        'hired_month'     => $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND stage = 'hired' AND MONTH(updated_at) = MONTH(NOW())", [$tenantId]) ?? 0,
-        'pending_decision'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND hr_decision = 'pending' AND stage IN ('qualified','tech_interview','manager_interview','final_review')", [$tenantId]) ?? 0,
+        'hired_month'     => $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage = 'hired' AND MONTH(updated_at) = MONTH(NOW())", [$tenantId]) ?? 0,
+        'pending_decision'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage IN ('qualified','tech_interview','manager_interview','final_review')", [$tenantId]) ?? 0,
     ];
 });
 
 // Recent interviews
-$recentInterviews = $db->fetchAll("SELECT i.*, a.stage, c.full_name, c.email, j.title as job_title, e.overall_score, e.recommendation
+$recentInterviews = $db->fetchAll("SELECT i.*, a.current_stage as stage, c.full_name, c.email, j.title as job_title, e.overall_score, e.recommendation
     FROM interviews i
     JOIN applications a ON a.id = i.application_id
     JOIN candidates c ON c.id = a.candidate_id
@@ -24,7 +24,7 @@ $recentInterviews = $db->fetchAll("SELECT i.*, a.stage, c.full_name, c.email, j.
     ORDER BY i.completed_at DESC LIMIT 8", [$tenantId]);
 
 // Stage distribution
-$stages = $db->fetchAll("SELECT stage, COUNT(*) as cnt FROM applications WHERE tenant_id = ? GROUP BY stage", [$tenantId]);
+$stages = $db->fetchAll("SELECT current_stage as stage, COUNT(*) as cnt FROM applications WHERE tenant_id = ? GROUP BY current_stage", [$tenantId]);
 $stageCounts = array_column($stages, 'cnt', 'stage');
 $totalApps = array_sum($stageCounts);
 
