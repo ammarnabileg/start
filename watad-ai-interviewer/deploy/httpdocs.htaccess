@@ -1,0 +1,10 @@
+# Fallback ONLY if you cannot set the Plesk Document Root to .../httpdocs/public
+# Place this file at: httpdocs/.htaccess
+# It forwards every request into Laravel's public/ folder.
+# The negative lookahead tests the REWRITTEN path (not REQUEST_URI), so the
+# rule never re-fires on itself — that self-re-firing caused the old
+# ERR_TOO_MANY_REDIRECTS loop.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>
