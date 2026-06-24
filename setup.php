@@ -63,15 +63,16 @@ if (isset($_GET['a'])) {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
     if ($a !== 'status' && file_exists(LOCK)) { echo json(['error'=>'مقفل','locked'=>true]); exit; }
     match($a) {
-        'status'   => print(apiStatus()),
-        'check'    => print(apiCheck()),
-        'test_db'  => print(apiTestDb($body)),
-        'install'  => print(apiInstall($body)),
-        'update'   => print(apiUpdate($body)),
-        'terminal' => print(apiTerminal($body)),
-        'lock'     => print(apiLock()),
-        'settings' => print(apiSettings()),
-        default    => print(json(['error'=>'unknown'])),
+        'status'          => print(apiStatus()),
+        'check'           => print(apiCheck()),
+        'test_db'         => print(apiTestDb($body)),
+        'install'         => print(apiInstall($body)),
+        'update'          => print(apiUpdate($body)),
+        'terminal'        => print(apiTerminal($body)),
+        'lock'            => print(apiLock()),
+        'settings'        => print(apiSettings()),
+        'setup_frontend'  => print(apiSetupFrontend()),
+        default           => print(json(['error'=>'unknown'])),
     };
     exit;
 }
@@ -251,6 +252,60 @@ function apiTerminal($body){
 function apiLock(){
     file_put_contents(LOCK, date('Y-m-d H:i:s'));
     return json(['success'=>true]);
+}
+
+function findNpm(): string {
+    foreach ([
+        '/usr/bin/npm','/usr/local/bin/npm',
+        '/opt/plesk/node/22/bin/npm','/opt/plesk/node/20/bin/npm',
+        '/opt/plesk/node/18/bin/npm','/opt/plesk/node/16/bin/npm',
+    ] as $p) {
+        if (@is_executable($p)) return $p;
+    }
+    $out=[]; @exec('find /opt /usr/local /usr -name "npm" -type f 2>/dev/null | head -1', $out);
+    return trim($out[0] ?? '') ?: 'npm';
+}
+
+function apiSetupFrontend(): string {
+    $log  = [];
+    $root = dirname(BACKEND);
+    $npm  = findNpm();
+    $appUrl = (isset($_SERVER['HTTPS'])?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost');
+
+    // 1. Write .htaccess
+    $ht = "Options -MultiViews\nRewriteEngine On\n\n"
+        ."RewriteRule ^setup\\.php$ - [L]\n\n"
+        ."RewriteCond %{REQUEST_FILENAME} !-f\n"
+        ."RewriteRule ^api/(.*)$ backend/public/index.php [L,QSA]\n\n"
+        ."RewriteRule ^(.*)$ http://127.0.0.1:3000/\$1 [P,L,QSA]\n";
+    $ok = (bool) file_put_contents($root.'/.htaccess', $ht);
+    $log[] = ['cmd'=>'.htaccess', 'result'=>['output'=>$ok?'✓ تم إنشاء .htaccess':'✗ فشل الكتابة','success'=>$ok]];
+
+    // 2. Write frontend/.env.local
+    $envOk = (bool) file_put_contents($root.'/frontend/.env.local', "NEXT_PUBLIC_API_URL={$appUrl}/api\n");
+    $log[] = ['cmd'=>'frontend/.env.local','result'=>['output'=>$envOk?"✓ NEXT_PUBLIC_API_URL={$appUrl}/api":'✗ فشل','success'=>$envOk]];
+
+    // 3. npm install
+    $r = runIn("$npm install 2>&1", $root.'/frontend');
+    $log[] = ['cmd'=>'npm install','result'=>$r];
+
+    // 4. npm run build
+    $r = runIn("$npm run build 2>&1", $root.'/frontend');
+    $log[] = ['cmd'=>'npm run build','result'=>$r];
+    if (!$r['success']) {
+        return json(['success'=>false,'log'=>$log,'message'=>'✗ فشل npm run build — راجع السجل']);
+    }
+
+    // 5. Kill any old Next.js then start fresh
+    @exec('pkill -f "next start" 2>/dev/null');
+    sleep(1);
+    $pidFile = '/tmp/next_pid.txt';
+    runIn("nohup $npm start > /tmp/next.log 2>&1 & echo \$! > $pidFile", $root.'/frontend');
+    sleep(2);
+    $pid = trim(@file_get_contents($pidFile) ?: '?');
+    $log[] = ['cmd'=>'npm start','result'=>['output'=>"✓ Next.js يعمل (PID {$pid}) على port 3000",'success'=>true]];
+
+    return json(['success'=>true,'log'=>$log,'message'=>"🎉 الفرونت إند شغّال! افتح {$appUrl}/login"]);
 }
 
 function apiSettings(){
@@ -540,6 +595,17 @@ input::placeholder{color:#374151}
     <div id="ilogMsg" style="margin-top:10px;font-size:13px;text-align:center"></div>
   </div>
 
+  <!-- ══════════ FRONTEND SETUP ══════════ -->
+  <div class="section" id="frontendSection">
+    <div class="section-head">⚡ تشغيل الفرونت إند (Next.js)</div>
+    <div class="section-body" style="gap:10px">
+      <p style="font-size:12px;color:#94a3b8">اضغط الزر — سيقوم تلقائياً بـ: إنشاء .htaccess، ضبط متغيرات البيئة، npm install، npm build، تشغيل Next.js</p>
+      <button class="btn btn-violet btn-full" onclick="setupFrontend()" id="frontendBtn">🚀 تشغيل الفرونت إند تلقائياً</button>
+      <div id="frontendLog" style="display:none" class="ilog"></div>
+      <div id="frontendMsg" style="margin-top:6px;font-size:13px;text-align:center"></div>
+    </div>
+  </div>
+
   <!-- ══════════ TERMINAL ══════════ -->
   <div style="margin-top:20px">
     <div class="term">
@@ -739,6 +805,33 @@ async function runTerm(){
 }
 
 // ─── Lock ───────────────────────────────────────────────────
+async function setupFrontend(){
+  const btn = document.getElementById('frontendBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جاري الإعداد... (قد يستغرق دقيقتين)';
+  document.getElementById('frontendLog').style.display = '';
+  document.getElementById('frontendLog').innerHTML = '';
+  document.getElementById('frontendMsg').innerHTML = '';
+
+  const r = await api('setup_frontend');
+
+  if(r.log) r.log.forEach(l=>{
+    const ok = l.result.success;
+    document.getElementById('frontendLog').innerHTML +=
+      `<div class="cmd">▶ ${l.cmd}</div><div class="${ok?'ok':'err'}">${escHtml(l.result.output||'')}</div><br>`;
+    document.getElementById('frontendLog').scrollTop = 9999;
+  });
+
+  const msg = document.getElementById('frontendMsg');
+  if(r.success){
+    msg.innerHTML = `<span style="color:#34d399;font-size:14px">${r.message}</span><br>
+      <a href="/login" style="color:#a78bfa;margin-top:6px;display:inline-block">→ تسجيل الدخول</a>`;
+    btn.innerHTML = '✓ الفرونت إند شغّال';
+  } else {
+    msg.innerHTML = `<span style="color:#f87171">${r.message||'حدث خطأ'}</span>`;
+    btn.disabled = false; btn.innerHTML = '🔄 إعادة المحاولة';
+  }
+}
+
 async function lockSetup(){
   if(!confirm('هل أنت متأكد؟ لن تتمكن من الوصول لهذه الصفحة إلا بحذف ملف .setup.lock من File Manager في Plesk.')) return;
   const r=await api('lock');
