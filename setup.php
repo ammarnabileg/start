@@ -188,8 +188,23 @@ function apiInstall($body){
         $log[] = ['cmd'=>'create admin','result'=>['output'=>'خطأ: '.$e->getMessage(),'success'=>false]];
     }
 
+    // Create .htaccess to route /api/* to Laravel and everything else to Next.js
+    $appUrl  = (isset($_SERVER['HTTPS'])?'https':'http').'://'.($_SERVER['HTTP_HOST']??'localhost');
+    $htaContent = "Options -MultiViews\nRewriteEngine On\n\n"
+        ."# Serve setup.php directly\nRewriteRule ^setup\\.php$ - [L]\n\n"
+        ."# API → Laravel backend\nRewriteCond %{REQUEST_FILENAME} !-f\n"
+        ."RewriteRule ^api/(.*)$ backend/public/index.php [L,QSA]\n\n"
+        ."# Everything else → Next.js on port 3000\nRewriteRule ^(.*)$ http://127.0.0.1:3000/\$1 [P,L,QSA]\n";
+    file_put_contents(dirname(BACKEND).'/.htaccess', $htaContent);
+    $log[] = ['cmd'=>'.htaccess','result'=>['output'=>'✓ تم إنشاء .htaccess','success'=>true]];
+
+    // Create frontend/.env.local
+    $envLocal = dirname(BACKEND).'/frontend/.env.local';
+    file_put_contents($envLocal, "NEXT_PUBLIC_API_URL={$appUrl}/api\n");
+    $log[] = ['cmd'=>'frontend/.env.local','result'=>['output'=>"✓ NEXT_PUBLIC_API_URL={$appUrl}/api",'success'=>true]];
+
     $allOk = empty(array_filter($log, fn($l)=>!$l['result']['success']));
-    return json(['success'=>$allOk,'log'=>$log,'message'=>$allOk?'🎉 تم التثبيت بنجاح! يمكنك تسجيل الدخول الآن.':'⚠ بعض الخطوات فشلت — راجع السجل أدناه']);
+    return json(['success'=>$allOk,'log'=>$log,'message'=>$allOk?'🎉 تم التثبيت بنجاح! الخطوة الأخيرة: شغّل الفرونت إند من التيرمنال أدناه.':'⚠ بعض الخطوات فشلت — راجع السجل أدناه']);
 }
 
 function apiUpdate($body){
@@ -223,18 +238,14 @@ function apiTerminal($body){
     $cmd = trim($body['command'] ?? '');
     if (!$cmd) return json(['output'=>'', 'success'=>true]);
 
-    // Auto-fix: replace bare 'php' with Plesk PHP 8.3 binary
-    if (preg_match('/^php\b/', $cmd)) {
-        $cmd = '/opt/plesk/php/8.3/bin/php ' . preg_replace('/^php\s*/', '', $cmd);
-    }
+    // Auto-fix: php → Plesk PHP 8.3
+    $cmd = preg_replace('/(?<![\/\w])php(?=\s)/', '/opt/plesk/php/8.3/bin/php', $cmd);
 
-    // Auto-fix: replace bare 'composer' with Plesk composer.phar + PHP binary
-    if (preg_match('/^composer\b/', $cmd)) {
-        $cmd = '/opt/plesk/php/8.3/bin/php /usr/local/psa/var/modules/composer/composer.phar '
-             . preg_replace('/^composer\s*/', '', $cmd);
-    }
+    // Auto-fix: composer → Plesk composer.phar
+    $cmd = preg_replace('/(?<![\/\w])composer(?=\s)/', '/opt/plesk/php/8.3/bin/php /usr/local/psa/var/modules/composer/composer.phar', $cmd);
 
-    return json(runIn($cmd, BACKEND));
+    // Run from httpdocs root so both 'frontend/' and 'backend/' are accessible
+    return json(runIn($cmd, dirname(BACKEND)));
 }
 
 function apiLock(){
@@ -562,23 +573,27 @@ input::placeholder{color:#374151}
 
 <script>
 const QUICK = [
+  // Frontend
+  'cd frontend && npm install',
+  'cd frontend && npm run build',
+  'cd frontend && nohup npm start > /tmp/next.log 2>&1 & echo "Next.js PID: $!"',
+  'cat /tmp/next.log',
+  'pkill -f "next start"',
+  // Backend
   'composer install --no-dev',
   'composer update --no-dev',
-  'composer dump-autoload',
-  'rm composer.lock',
+  'rm backend/composer.lock',
   'php artisan migrate --force',
   'php artisan migrate:fresh --seed',
   'php artisan db:seed --class=PermissionSeeder --force',
-  'php artisan key:generate',
-  'php artisan jwt:secret',
   'php artisan config:clear',
   'php artisan cache:clear',
   'php artisan optimize:clear',
   'php artisan storage:link',
-  'php artisan queue:restart',
   'php artisan --version',
+  // Info
   'ls -la',
-  'pwd',
+  'cat /tmp/next.log',
 ];
 
 let termHistory = [], histIdx = -1, installed = false;
