@@ -7,7 +7,31 @@
 define('BACKEND', __DIR__ . '/backend');
 define('LOCK',    __DIR__ . '/.setup.lock');
 define('ENVFILE', BACKEND  . '/.env');
-define('PHP_BIN', PHP_BINARY ?: 'php');
+
+// Detect PHP CLI binary (PHP_BINARY in FPM context points to php-fpm, not php CLI)
+function detectPhpCli(): string {
+    $fpm = PHP_BINARY;
+    // If running as php-fpm, replace with php in same dir
+    if (str_contains($fpm, 'php-fpm')) {
+        $cli = str_replace('php-fpm', 'php', $fpm);
+        if (file_exists($cli) && is_executable($cli)) return $cli;
+    }
+    // Plesk versioned CLI path
+    $ver = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+    foreach ([
+        "/opt/plesk/php/{$ver}/bin/php",
+        "/usr/local/bin/php{$ver}",
+        "/usr/local/bin/php",
+        "/usr/bin/php",
+    ] as $p) {
+        if (file_exists($p) && is_executable($p)) return $p;
+    }
+    // Last resort: search PATH
+    $out = []; exec('which php 2>/dev/null', $out);
+    if (!empty($out[0])) return trim($out[0]);
+    return 'php';
+}
+define('PHP_BIN', detectPhpCli());
 
 // ═══════════════════════════════════════
 // AJAX HANDLERS
@@ -39,12 +63,17 @@ function apiStatus(){
 }
 
 function apiCheck(){
-    $c = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions') ?? '')));
+    $c   = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions') ?? '')));
+    $php = PHP_BIN;
+    // Verify it actually runs artisan
+    $testOut=[]; exec($php.' '.BACKEND.'/artisan --version 2>&1', $testOut, $testCode);
+    $phpOk  = ($testCode === 0 && !empty($testOut[0]));
+    $phpVal = $phpOk ? '✓ '.basename($php) : '✗ '.basename($php).' → '.($testOut[0]??'لا يعمل');
     return json([
         'PHP 8.2+'          =>['status'=>version_compare(PHP_VERSION,'8.2.0','>='),'value'=>PHP_VERSION],
+        'PHP CLI'           =>['status'=>$phpOk,'value'=>$phpVal],
         'PDO MySQL'         =>['status'=>extension_loaded('pdo_mysql'),'value'=>extension_loaded('pdo_mysql')?'✓ مثبت':'✗ غير مثبت'],
         'OpenSSL'           =>['status'=>extension_loaded('openssl'),'value'=>extension_loaded('openssl')?'✓ مثبت':'✗ غير مثبت'],
-        'cURL'              =>['status'=>extension_loaded('curl'),'value'=>extension_loaded('curl')?'✓ مثبت':'✗ غير مثبت'],
         'exec() مفعل'       =>['status'=>$c,'value'=>$c?'✓ نعم':'✗ معطل في php.ini'],
         'مجلد backend'      =>['status'=>is_dir(BACKEND),'value'=>is_dir(BACKEND)?'✓ موجود':'✗ غير موجود'],
         'صلاحية الكتابة'    =>['status'=>is_writable(BACKEND),'value'=>is_writable(BACKEND)?'✓ قابل':'✗ غير قابل'],
@@ -172,18 +201,19 @@ function apiUpdate($body){
 function apiTerminal($body){
     static $ALLOWED=[
         'php artisan migrate --force','php artisan migrate:fresh --seed','php artisan migrate:fresh',
-        'php artisan migrate','php artisan db:seed','php artisan key:generate',
-        'php artisan jwt:secret','php artisan config:clear','php artisan cache:clear',
-        'php artisan optimize:clear','php artisan optimize','php artisan storage:link',
-        'php artisan queue:restart','php artisan route:clear','php artisan view:clear',
+        'php artisan migrate','php artisan db:seed','php artisan db:seed --class=PermissionSeeder --force',
+        'php artisan key:generate','php artisan jwt:secret','php artisan config:clear',
+        'php artisan cache:clear','php artisan optimize:clear','php artisan optimize',
+        'php artisan storage:link','php artisan queue:restart','php artisan route:clear',
+        'php artisan view:clear','php artisan --version',
         'composer install --no-dev','composer install','composer dump-autoload',
     ];
     $cmd=trim($body['command']??'');
     $ok=false;
     foreach($ALLOWED as $a){ if(str_starts_with($cmd,$a)){$ok=true;break;} }
     if(!$ok) return json(['output'=>"الأمر غير مسموح.\n\nالأوامر المتاحة:\n".implode("\n",$ALLOWED),'success'=>false]);
-    // Prepend php binary for artisan
-    if(str_starts_with($cmd,'php artisan')) $cmd = PHP_BIN.' '.ltrim(substr($cmd,3),' ');
+    // Replace 'php artisan' with detected CLI binary
+    if(str_starts_with($cmd,'php artisan')) $cmd = PHP_BIN.' artisan '.substr($cmd, strlen('php artisan '));
     return json(runIn($cmd, BACKEND));
 }
 
