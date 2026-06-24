@@ -53,7 +53,7 @@ class TemplateController extends Controller
     {
         $template->update($request->only([
             'name', 'avatar_id', 'mode', 'language',
-            'min_questions', 'max_questions', 'max_duration_min', 'follow_up_depth',
+            'min_questions', 'max_questions', 'max_duration_min', 'follow_up_depth', 'is_active',
         ]));
 
         $enabled = $request->input('enabled', []);

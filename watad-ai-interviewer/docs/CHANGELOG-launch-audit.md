@@ -44,16 +44,54 @@ is weak, but because no data is ever produced**:
 
 ---
 
-## Phase 2 — HR Decision Center (planned)
-Rebuild `hr/report.blade.php` into a multi-canvas decision center: Executive Summary, Recommendation,
-Competency breakdown (score + confidence + evidence quotes), Behavioral/Personality (DISC + Big Five),
-Risk analysis, Resume analysis, Interview Evidence Explorer, Timeline, Recruiter notes, Final Decision.
+## Phase 2 — HR Decision Center (DONE)
+Rebuilt `resources/views/hr/report.blade.php` from a 5-tab stub into a decision center.
+`InterviewController@show` now also passes the linked `JobApplication`.
 
-## Phase 3 — Pipeline redesign (planned)
-Drag & drop board, fast search, filters, bulk actions, AI recommendation badges, candidate health.
+| Canvas | Contents |
+|--------|----------|
+| Executive Summary | Score ring, recommendation, AI outcome chip (auto-advanced / pending / HR attention), JD-match, question count, red-flag count, strongest/weakest competency, summary, strengths, concerns. |
+| Competencies | Per-competency bar + **confidence %** + rationale + **evidence quotes** pulled from the transcript by `evidence` seq. |
+| Behavioral | DISC bars, Big Five bars, growth-mindset, stress-handling, personality type, leadership tendency, observations. |
+| Risk Analysis | Red flags sorted by severity, color-coded, with evidence quotes. |
+| Resume | CV summary, JD-match score, years, skills, companies, highlights, gaps, suggested focus. |
+| Transcript | Chat-styled, seq-numbered. |
+| Timeline | Event stream with severity dots. |
+| **Final Decision bar** | Advance / Hold / Reject (with reason), permission-gated, wired to `applications.decision`. |
 
-## Phase 4 — Candidate portal + HR dashboard redesign (planned)
+**Affected:** `hr/report.blade.php`, `InterviewController.php`. **Data:** competency_scores, behavioral_analyses, red_flags, interview_reports, cv_analyses, interview_messages, interview_events, job_applications.
 
-## Phase 5 — Security & integrations audit (planned)
-CSRF, webhook HMAC, RBAC, audit logs, rate limiting, upload security, retention; OpenAI/Claude/Tavus/
-HeyGen/WhatsApp/Sheets/Email/PDF/Excel verification.
+## Phase 3 — Pipeline redesign (DONE)
+Rebuilt `resources/views/hr/pipeline.blade.php` + `PipelineController@index`.
+- **Before:** static columns, a per-card status `<select>` (one POST per move, full reload).
+- **After:** reactive Alpine board — **drag & drop** between columns (optimistic, posts to `applications.move_stage`), live **search**, **job** + **recommendation** filters, AI **score + recommendation badges**, interview-status dot, stale-activity (**health**) indicator, multi-select with a floating **bulk move** bar.
+
+## Phase 4 — HR dashboard (DONE)
+`DashboardController@index` + `hr/dashboard.blade.php`: added **Active jobs** and **Pending review** metrics, an **Active jobs** panel (open roles + screening volume) and a **Needs attention** panel (completed interviews carrying a high-severity red flag) deep-linking to the Decision Center. Existing funnel + volume chart retained.
+
+## Phase 5 — Edit / Archive + audit (DONE)
+**Edit + archive** now available on the create-heavy setup entities:
+- **Jobs** — full edit form + Archive/Re-open (Phase 1).
+- **Templates** — full edit (name, mode, language, avatar, Q-counts, duration, follow-up, weights) + Archive/Restore via `is_active`. (`TemplateController@update`, `hr/templates.blade.php`)
+- **Avatars** — inline edit + active toggle (already present; verified).
+
+### Security audit (findings)
+| Area | State | Note |
+|------|-------|------|
+| CSRF | ✅ | All web forms use `@csrf`; `SecurityHeaders` middleware appended to the web group. |
+| Webhook HMAC | ✅ | Avatar + video-analysis webhooks validate HMAC (`routes/api.php`). |
+| RBAC | ✅ | Every HR route gated by `can:` abilities; decision actions check `decisions.*`. |
+| Rate limiting | ✅ | `answer` 30/min, `audio` 60/min throttles. |
+| Upload security | ✅ now | mimes + size validation; client guard added; recommend ClamAV (`watad.uploads.av_scan`) in prod. |
+| Sessions | ✅ | Candidate room is session-bound (`session('interview_id')`), 403 otherwise. |
+| Data retention | ✅ | `watad:gdpr-purge` scheduled daily (now actually runs via the cron). |
+
+### Integrations status
+OpenAI ✅ (native cURL, TLS fix) · Claude ✅ · Tavus/HeyGen ✅ (graceful fallback when disabled/no credits) ·
+Google Sheets ✅ (config-gated) · WhatsApp/Email ✅ (notification jobs) · PDF/Excel export ✅.
+
+### Remaining recommendations (not yet implemented)
+- Edit/archive UI for **Questions** and **Users** (lower-frequency entities).
+- Candidate **portal** polish (the live interview room was redesigned in Phase 1; the post-application portal pages are functional but could get the same progress/status treatment).
+- **Resume Intelligence on OpenAI**: `CvAnalyzer` reads PDFs via Anthropic document blocks; when the provider is OpenAI, PDF vision parsing needs an OpenAI-native path (falls back to extracted text today).
+- Move queue processing to a real worker (Supervisor) if traffic grows beyond what a 1-min cron drain handles.
