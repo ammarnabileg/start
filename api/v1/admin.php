@@ -125,26 +125,32 @@ if ($method === 'POST' && $action === 'create_company') {
     if ($exists) { Response::error('Slug already taken', 409); exit; }
 
     $tenantId = $db->insert('tenants', [
-        'name'      => $data['name'],
-        'slug'      => $data['slug'],
-        'plan'      => $data['plan'] ?? 'starter',
-        'max_users' => (int)($data['max_users'] ?? 10),
-        'max_jobs'  => (int)($data['max_jobs'] ?? 20),
-        'status'    => 'active',
-        'created_at'=> date('Y-m-d H:i:s'),
-        'updated_at'=> date('Y-m-d H:i:s')
-    ]);
-
-    $ownerId = $db->insert('users', [
-        'tenant_id'  => $tenantId,
-        'full_name'  => $data['owner_name'] ?? $data['owner_email'],
-        'email'      => $data['owner_email'],
-        'password'   => password_hash($data['owner_password'] ?? bin2hex(random_bytes(8)), PASSWORD_DEFAULT),
-        'role'       => 'company_owner',
+        'name'       => $data['name'],
+        'slug'       => $data['slug'],
+        'plan'       => $data['plan'] ?? 'starter',
         'status'     => 'active',
         'created_at' => date('Y-m-d H:i:s'),
         'updated_at' => date('Y-m-d H:i:s')
     ]);
+
+    $ownerName  = trim($data['owner_name'] ?? $data['owner_email']);
+    $ownerParts = explode(' ', $ownerName, 2);
+    $ownerId = $db->insert('users', [
+        'tenant_id'         => $tenantId,
+        'first_name'        => $ownerParts[0],
+        'last_name'         => $ownerParts[1] ?? '',
+        'email'             => $data['owner_email'],
+        'password_hash'     => password_hash($data['owner_password'] ?? bin2hex(random_bytes(8)), PASSWORD_DEFAULT),
+        'status'            => 'active',
+        'email_verified_at' => date('Y-m-d H:i:s'),
+        'created_at'        => date('Y-m-d H:i:s'),
+        'updated_at'        => date('Y-m-d H:i:s')
+    ]);
+    // Assign company_owner role
+    $ownerRole = $db->fetch("SELECT id FROM roles WHERE slug = 'company_owner' LIMIT 1");
+    if ($ownerRole) {
+        $db->query("INSERT IGNORE INTO user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())", [$ownerId, $ownerRole['id']]);
+    }
 
     Response::success(['tenant_id' => $tenantId, 'owner_id' => $ownerId]);
     exit;

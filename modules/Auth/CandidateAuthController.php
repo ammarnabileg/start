@@ -52,39 +52,41 @@ class CandidateAuthController {
             return;
         }
 
+        $nameParts = explode(' ', trim($name), 2);
+        $firstName = $nameParts[0];
+        $lastName  = $nameParts[1] ?? '';
+
         // Create candidate user
         $userId = $db->insert('users', [
-            'tenant_id'  => $tenant['id'],
-            'full_name'  => $name,
-            'email'      => $email,
-            'password'   => password_hash($pass, PASSWORD_DEFAULT),
-            'role'       => 'candidate',
-            'type'       => 'candidate',
-            'status'     => 'active',
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'tenant_id'         => $tenant['id'],
+            'first_name'        => $firstName,
+            'last_name'         => $lastName,
+            'email'             => $email,
+            'password_hash'     => password_hash($pass, PASSWORD_DEFAULT),
+            'status'            => 'active',
+            'email_verified_at' => date('Y-m-d H:i:s'),
+            'created_at'        => date('Y-m-d H:i:s'),
+            'updated_at'        => date('Y-m-d H:i:s')
         ]);
+
+        // Assign candidate role
+        $candidateRole = $db->fetch("SELECT id FROM roles WHERE slug = 'candidate' LIMIT 1");
+        if ($candidateRole) {
+            $db->query("INSERT IGNORE INTO user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())", [$userId, $candidateRole['id']]);
+        }
 
         // Create candidate record
         $db->insert('candidates', [
-            'user_id'    => $userId,
             'tenant_id'  => $tenant['id'],
-            'full_name'  => $name,
+            'first_name' => $firstName,
+            'last_name'  => $lastName,
             'email'      => $email,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
         ]);
 
-        // Auto-login
-        $_SESSION['user'] = [
-            'id'           => $userId,
-            'tenant_id'    => $tenant['id'],
-            'tenant_slug'  => $tenant['slug'],
-            'full_name'    => $name,
-            'email'        => $email,
-            'role'         => 'candidate',
-            'type'         => 'candidate',
-        ];
+        // Auto-login via Auth::login so all virtual fields are computed correctly
+        Auth::login($email, $pass);
 
         header('Location: /c/dashboard');
         exit;

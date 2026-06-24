@@ -30,7 +30,7 @@ if ($filterCo > 0) {
     $params[] = $filterCo;
 }
 if ($filterRole !== '') {
-    $where[]  = 'u.role = ?';
+    $where[]  = 'EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.slug=?)';
     $params[] = $filterRole;
 }
 if ($filterSt !== '') {

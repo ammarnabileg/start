@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   first_name VARCHAR(120) NULL,
   last_name VARCHAR(120) NULL,
+  full_name VARCHAR(241) GENERATED ALWAYS AS (TRIM(CONCAT(COALESCE(first_name,''), IF(first_name IS NOT NULL AND last_name IS NOT NULL,' ',''), COALESCE(last_name,'')))) VIRTUAL,
   avatar_url VARCHAR(500) NULL,
   status ENUM('active','inactive') NOT NULL DEFAULT 'active',
   is_super_admin TINYINT(1) NOT NULL DEFAULT 0,
@@ -122,7 +123,13 @@ CREATE TABLE IF NOT EXISTS candidates (
   email VARCHAR(255) NOT NULL,
   first_name VARCHAR(120) NULL,
   last_name VARCHAR(120) NULL,
+  full_name VARCHAR(241) GENERATED ALWAYS AS (TRIM(CONCAT(COALESCE(first_name,''), IF(first_name IS NOT NULL AND last_name IS NOT NULL,' ',''), COALESCE(last_name,'')))) VIRTUAL,
   phone VARCHAR(60) NULL,
+  location VARCHAR(180) NULL,
+  years_experience TINYINT UNSIGNED NULL,
+  expected_salary DECIMAL(12,2) NULL,
+  salary_currency VARCHAR(10) DEFAULT 'USD',
+  skills JSON NULL,
   cv_url VARCHAR(500) NULL,
   cv_text LONGTEXT NULL,
   linkedin_url VARCHAR(500) NULL,
@@ -135,16 +142,21 @@ CREATE TABLE IF NOT EXISTS candidates (
 
 CREATE TABLE IF NOT EXISTS applications (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT UNSIGNED NOT NULL,
   job_id BIGINT UNSIGNED NOT NULL,
   candidate_id BIGINT UNSIGNED NOT NULL,
   status VARCHAR(60) NOT NULL DEFAULT 'applied',
+  current_stage VARCHAR(60) NOT NULL DEFAULT 'applied',
   pipeline_stage ENUM('applied','screening','ai_interview','human_interview','offer','hired','rejected') NOT NULL DEFAULT 'applied',
   ai_match_score DECIMAL(5,2) NULL,
+  is_archived TINYINT(1) NOT NULL DEFAULT 0,
   applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_app_tenant (tenant_id),
   KEY idx_app_job (job_id),
   KEY idx_app_candidate (candidate_id),
-  KEY idx_app_stage (pipeline_stage)
+  KEY idx_app_stage (pipeline_stage),
+  KEY idx_app_current_stage (current_stage)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS interviews (
@@ -275,7 +287,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   action VARCHAR(150) NULL,
   resource_type VARCHAR(120) NULL,
   resource_id VARCHAR(120) NULL,
+  entity_type VARCHAR(120) NULL,
+  entity_id VARCHAR(120) NULL,
   details JSON NULL,
+  meta JSON NULL,
   ip_address VARCHAR(64) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_audit_tenant (tenant_id)
