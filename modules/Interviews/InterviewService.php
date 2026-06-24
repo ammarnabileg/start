@@ -428,18 +428,25 @@ class InterviewService
             return [];
         }
         return $this->db->fetchAll(
-            'SELECT * FROM job_criteria WHERE job_id = ? ORDER BY `order` ASC, id ASC',
+            'SELECT * FROM job_criteria WHERE job_id = ? ORDER BY id ASC',
             [$jobId]
         );
     }
 
     private function getQuestionBank(int $tenantId, int $jobId): array
     {
-        return $this->db->fetchAll('
-            SELECT * FROM question_bank
-             WHERE tenant_id = ? AND (job_id = ? OR job_id IS NULL OR is_global = 1)
-             ORDER BY (job_id = ?) DESC, usage_count DESC
-             LIMIT 20
-        ', [$tenantId, $jobId, $jobId]);
+        // question_bank is a JSON column on the jobs table, not a separate table.
+        if ($jobId <= 0) {
+            return [];
+        }
+        $row = $this->db->fetch(
+            'SELECT question_bank FROM jobs WHERE id = ? AND tenant_id = ? LIMIT 1',
+            [$jobId, $tenantId]
+        );
+        if (!$row || empty($row['question_bank'])) {
+            return [];
+        }
+        $bank = json_decode((string) $row['question_bank'], true);
+        return is_array($bank) ? array_slice($bank, 0, 20) : [];
     }
 }
