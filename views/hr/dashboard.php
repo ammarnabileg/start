@@ -5,7 +5,7 @@ $tenantId = $user['tenant_id'] ?? 0;
 // Stats (cached 5 min)
 $stats = Cache::remember(Cache::tenantKey('dashboard_stats', $tenantId), 300, function() use ($db, $tenantId) {
     return [
-        'active_jobs'     => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND status = 'active'", [$tenantId]) ?? 0,
+        'active_jobs'     => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND status = 'published'", [$tenantId]) ?? 0,
         'total_candidates'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ?", [$tenantId]) ?? 0,
         'interviews_today'=> $db->fetchColumn("SELECT COUNT(*) FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.tenant_id = ? AND DATE(i.created_at) = CURDATE()", [$tenantId]) ?? 0,
         'hired_month'     => $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage = 'hired' AND MONTH(updated_at) = MONTH(NOW())", [$tenantId]) ?? 0,

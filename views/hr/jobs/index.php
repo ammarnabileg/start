@@ -9,11 +9,11 @@ require_once __DIR__ . '/../../partials/helpers.php';
 $activeStatus = $activeStatus ?? ($_GET['status'] ?? 'all');
 
 $jobs = $jobs ?? [
-    ['id'=>1,'title'=>'Senior Backend Engineer','department'=>'Engineering','seniority'=>'senior','location'=>'London, UK','work_type'=>'hybrid','status'=>'active','interview_type'=>'video','posted'=>'-4 days','applications'=>64,'interviews'=>41,'hired'=>2,'salary_min'=>90000,'salary_max'=>120000,'currency'=>'GBP'],
-    ['id'=>2,'title'=>'Product Designer','department'=>'Design','seniority'=>'mid','location'=>'Remote','work_type'=>'remote','status'=>'active','interview_type'=>'voice','posted'=>'-6 days','applications'=>38,'interviews'=>22,'hired'=>1,'salary_min'=>70000,'salary_max'=>95000,'currency'=>'USD'],
-    ['id'=>3,'title'=>'Frontend Engineer','department'=>'Engineering','seniority'=>'mid','location'=>'Austin, US','work_type'=>'onsite','status'=>'active','interview_type'=>'text','posted'=>'-2 days','applications'=>51,'interviews'=>30,'hired'=>0,'salary_min'=>85000,'salary_max'=>110000,'currency'=>'USD'],
+    ['id'=>1,'title'=>'Senior Backend Engineer','department'=>'Engineering','seniority'=>'senior','location'=>'London, UK','work_type'=>'hybrid','status'=>'published','interview_type'=>'video','posted'=>'-4 days','applications'=>64,'interviews'=>41,'hired'=>2,'salary_min'=>90000,'salary_max'=>120000,'currency'=>'GBP'],
+    ['id'=>2,'title'=>'Product Designer','department'=>'Design','seniority'=>'mid','location'=>'Remote','work_type'=>'remote','status'=>'published','interview_type'=>'voice','posted'=>'-6 days','applications'=>38,'interviews'=>22,'hired'=>1,'salary_min'=>70000,'salary_max'=>95000,'currency'=>'USD'],
+    ['id'=>3,'title'=>'Frontend Engineer','department'=>'Engineering','seniority'=>'mid','location'=>'Austin, US','work_type'=>'onsite','status'=>'published','interview_type'=>'text','posted'=>'-2 days','applications'=>51,'interviews'=>30,'hired'=>0,'salary_min'=>85000,'salary_max'=>110000,'currency'=>'USD'],
     ['id'=>4,'title'=>'Data Analyst','department'=>'Data','seniority'=>'junior','location'=>'Singapore','work_type'=>'hybrid','status'=>'draft','interview_type'=>'text','posted'=>'-1 days','applications'=>0,'interviews'=>0,'hired'=>0,'salary_min'=>45000,'salary_max'=>60000,'currency'=>'USD'],
-    ['id'=>5,'title'=>'Engineering Manager','department'=>'Engineering','seniority'=>'manager','location'=>'Berlin, DE','work_type'=>'hybrid','status'=>'paused','interview_type'=>'video','posted'=>'-12 days','applications'=>27,'interviews'=>12,'hired'=>0,'salary_min'=>110000,'salary_max'=>150000,'currency'=>'EUR'],
+    ['id'=>5,'title'=>'Engineering Manager','department'=>'Engineering','seniority'=>'manager','location'=>'Berlin, DE','work_type'=>'hybrid','status'=>'closed','interview_type'=>'video','posted'=>'-12 days','applications'=>27,'interviews'=>12,'hired'=>0,'salary_min'=>110000,'salary_max'=>150000,'currency'=>'EUR'],
     ['id'=>6,'title'=>'Marketing Lead','department'=>'Marketing','seniority'=>'lead','location'=>'Remote','work_type'=>'remote','status'=>'archived','interview_type'=>'voice','posted'=>'-30 days','applications'=>44,'interviews'=>33,'hired'=>1,'salary_min'=>80000,'salary_max'=>105000,'currency'=>'USD'],
 ];
 
@@ -21,7 +21,7 @@ $departments = $departments ?? ['Engineering','Design','Data','Marketing','Sales
 
 $counts = $counts ?? [
     'all'=>count($jobs),
-    'active'=>count(array_filter($jobs, fn($j)=>$j['status']==='active')),
+    'published'=>count(array_filter($jobs, fn($j)=>$j['status']==='published')),
     'draft'=>count(array_filter($jobs, fn($j)=>$j['status']==='draft')),
     'archived'=>count(array_filter($jobs, fn($j)=>$j['status']==='archived')),
     'closed'=>count(array_filter($jobs, fn($j)=>$j['status']==='closed')),
@@ -56,7 +56,7 @@ ob_start();
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 mb-6 flex flex-col lg:flex-row gap-3 lg:items-center">
     <div class="flex items-center gap-1 overflow-x-auto">
         <?php
-        $tabs = ['all'=>'All','active'=>'Active','draft'=>'Draft','archived'=>'Archived','closed'=>'Closed'];
+        $tabs = ['all'=>'All','published'=>'Published','draft'=>'Draft','archived'=>'Archived','closed'=>'Closed'];
         foreach ($tabs as $key=>$label):
             $on = $activeStatus === $key; ?>
             <a href="?status=<?= e($key) ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors <?= $on ? 'bg-violet-600 text-white' : 'text-gray-600 hover:bg-gray-100' ?>">

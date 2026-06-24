@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Offers';
 $db = Database::getInstance();
-$tid = Auth::user()['tenant_id'];
+$tid = Auth::user()['tenant_id'] ?? 0;
 $activeTab = $_GET['status'] ?? 'all';
 ?>
 
