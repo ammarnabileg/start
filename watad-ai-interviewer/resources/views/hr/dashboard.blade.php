@@ -4,13 +4,15 @@
 @section('content')
 <x-page-header title="Overview" />
 
-<div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
     <x-stat-card label="Total candidates" :value="$metrics['total_candidates']" icon="👤" />
+    <x-stat-card label="Active jobs" :value="$metrics['active_jobs']" icon="💼" />
     <x-stat-card label="Interviews today" :value="$metrics['interviews_today']" icon="🎙️" />
+    <x-stat-card label="Pending review" :value="$metrics['pending_review']" icon="⏳" />
     <x-stat-card label="Hired" :value="$metrics['hired']" icon="✅" />
-    <x-stat-card label="Rejected" :value="$metrics['rejected']" icon="🚫" />
     <x-stat-card label="Conversion" :value="$metrics['conversion'].'%'" icon="📈" />
     <x-stat-card label="Avg score" :value="$metrics['avg_score']" icon="⭐" />
+    <x-stat-card label="Rejected" :value="$metrics['rejected']" icon="🚫" />
 </div>
 
 <div class="card mt-6 p-5" x-data="interviewChart(@js($chart))">
@@ -25,6 +27,50 @@
         </div>
     </div>
     <canvas x-ref="canvas" height="80"></canvas>
+</div>
+
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+    {{-- Active jobs --}}
+    <div class="card overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <h2 class="font-semibold text-slate-800">Active jobs</h2>
+            <a href="{{ route('hr.jobs.index') }}" class="text-xs font-medium text-brand hover:underline">View all →</a>
+        </div>
+        <div class="divide-y divide-slate-50">
+            @forelse($activeJobs as $job)
+                <div class="flex items-center justify-between px-5 py-3">
+                    <div>
+                        <div class="text-sm font-medium text-slate-700">{{ $job->title }}</div>
+                        <div class="text-xs text-slate-400 capitalize">{{ $job->seniority }}</div>
+                    </div>
+                    <span class="badge-soft bg-brand-light text-brand">{{ $job->interviews_count }} interviews</span>
+                </div>
+            @empty
+                <p class="px-5 py-6 text-center text-sm text-slate-400">No open jobs.</p>
+            @endforelse
+        </div>
+    </div>
+
+    {{-- Needs attention --}}
+    <div class="card overflow-hidden">
+        <div class="border-b border-slate-100 px-5 py-4">
+            <h2 class="font-semibold text-slate-800">⚑ Needs attention</h2>
+        </div>
+        <div class="divide-y divide-slate-50">
+            @forelse($attention as $interview)
+                <a href="{{ route('hr.interviews.show', $interview->public_id) }}"
+                   class="flex items-center justify-between px-5 py-3 hover:bg-slate-50">
+                    <div>
+                        <div class="text-sm font-medium text-slate-700">{{ $interview->candidate?->full_name }}</div>
+                        <div class="text-xs text-slate-400">{{ $interview->jobPosition?->title }}</div>
+                    </div>
+                    <span class="badge-soft bg-red-100 text-red-700">High red flag</span>
+                </a>
+            @empty
+                <p class="px-5 py-6 text-center text-sm text-emerald-600">✓ Nothing needs attention.</p>
+            @endforelse
+        </div>
+    </div>
 </div>
 
 <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

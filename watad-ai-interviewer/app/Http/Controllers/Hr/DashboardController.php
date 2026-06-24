@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Hr;
 
-use App\Enums\Recommendation;
 use App\Http\Controllers\Controller;
 use App\Models\Candidate;
 use App\Models\Interview;
+use App\Models\JobPosition;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -20,12 +20,28 @@ class DashboardController extends Controller
             'hired'            => Interview::whereIn('recommendation', ['strong_hire', 'hire'])->count(),
             'rejected'         => Interview::where('recommendation', 'reject')->count(),
             'avg_score'        => round((float) Interview::whereNotNull('overall_score')->avg('overall_score'), 1),
+            'active_jobs'      => JobPosition::where('status', 'open')->count(),
+            'pending_review'   => Interview::where('status', 'completed')->whereIn('recommendation', ['maybe', 'reject'])->count(),
         ];
 
         $completed = Interview::where('status', 'completed')->count();
         $metrics['conversion'] = $metrics['total_candidates'] > 0
             ? round(($metrics['hired'] / $metrics['total_candidates']) * 100, 1)
             : 0.0;
+
+        // Open jobs with screening volume, and interviews that need a human's eyes.
+        $activeJobs = JobPosition::where('status', 'open')
+            ->withCount('interviews')
+            ->latest()
+            ->limit(6)
+            ->get();
+
+        $attention = Interview::with(['candidate', 'jobPosition'])
+            ->where('status', 'completed')
+            ->whereHas('redFlags', fn ($q) => $q->where('severity', 'high'))
+            ->latest('completed_at')
+            ->limit(6)
+            ->get();
 
         $funnel = [
             'applied'     => Candidate::count(),
@@ -52,6 +68,6 @@ class DashboardController extends Controller
             return ['date' => $date, 'count' => (int) ($counts[$date] ?? 0)];
         })->values();
 
-        return view('hr.dashboard', compact('metrics', 'funnel', 'recent', 'chart'));
+        return view('hr.dashboard', compact('metrics', 'funnel', 'recent', 'chart', 'activeJobs', 'attention'));
     }
 }
