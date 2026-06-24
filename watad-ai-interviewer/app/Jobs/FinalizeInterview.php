@@ -112,8 +112,10 @@ class FinalizeInterview implements ShouldQueue
     }
 
     /**
-     * Surface the finished AI screening on the application timeline. The AI never advances the
-     * application itself — it only records its score + recommendation so a human can decide.
+     * Surface the finished AI screening on the application and let the AI auto-advance strong
+     * candidates (→ Qualified) or hold the rest for human review. The AI never rejects — final
+     * rejection always requires a human decision. A critical (high-severity, fatal-type) red flag
+     * routes the candidate to "HR attention required" instead of advancing.
      */
     private function markApplicationScreened(Interview $interview, float $overall, Recommendation $recommendation): void
     {
@@ -122,13 +124,22 @@ class FinalizeInterview implements ShouldQueue
             return;
         }
 
-        app(\App\Services\Hiring\ApplicationWorkflow::class)->logActivity(
+        $workflow = app(\App\Services\Hiring\ApplicationWorkflow::class);
+
+        $workflow->logActivity(
             $application,
             'ai_interview_completed',
             'AI screening completed — score '.round($overall, 1).'/100, recommendation: '.$recommendation->label(),
             null,
             ['overall_score' => $overall, 'recommendation' => $recommendation->value],
         );
+
+        $criticalFlags = $interview->redFlags
+            ->where('severity', 'high')
+            ->whereIn('type', config('watad.scoring.overrides.fatal_flag_types', []))
+            ->isNotEmpty();
+
+        $workflow->aiScreeningOutcome($application, $recommendation, $overall, $criticalFlags);
     }
 
     private function notify(Interview $interview, float $overall): void

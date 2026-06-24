@@ -6,6 +6,7 @@ namespace App\Services\Hiring;
 
 use App\Enums\ApplicationStatus;
 use App\Enums\DecisionType;
+use App\Enums\Recommendation;
 use App\Models\CandidateActivity;
 use App\Models\HiringDecision;
 use App\Models\JobApplication;
@@ -43,6 +44,42 @@ class ApplicationWorkflow
             'occurred_at'    => now(),
         ]);
         $app->forceFill(['last_activity_at' => now()])->save();
+    }
+
+    /**
+     * Apply the AI screening outcome to the application. The AI auto-advances strong candidates to
+     * Qualified ("approved") and holds everyone else for human review — it NEVER rejects. Final
+     * rejection always requires a human decision (see decide()).
+     */
+    public function aiScreeningOutcome(JobApplication $app, Recommendation $rec, float $overall, bool $criticalFlags = false): void
+    {
+        if ($app->status->isTerminal()) {
+            return; // a human already closed this out — don't override
+        }
+
+        $approved = ! $criticalFlags && in_array($rec, [Recommendation::StrongHire, Recommendation::Hire], true);
+        $score    = round($overall, 1);
+
+        if ($approved) {
+            $from = $app->status;
+            if ($from !== ApplicationStatus::Qualified) {
+                $app->status = ApplicationStatus::Qualified;
+                $app->save();
+            }
+            $this->logActivity($app, 'ai_advanced',
+                "AI screening passed — {$score}/100 ({$rec->label()}). Auto-advanced to Qualified.",
+                null, ['overall_score' => $overall, 'recommendation' => $rec->value, 'outcome' => 'approved']);
+            return;
+        }
+
+        // Held for human review. Stays in Ai Screening; flag for attention when critical.
+        $reason = $criticalFlags
+            ? 'critical red flags — HR attention required'
+            : 'score below auto-advance threshold';
+        $this->logActivity($app, $criticalFlags ? 'ai_attention_required' : 'ai_pending_review',
+            "AI screening complete — {$score}/100 ({$rec->label()}). Held for human review ({$reason}).",
+            null, ['overall_score' => $overall, 'recommendation' => $rec->value,
+                   'outcome' => 'pending_review', 'critical_flags' => $criticalFlags]);
     }
 
     /** Record a hiring decision and apply the resulting status transition. */

@@ -83,10 +83,12 @@ final class InterviewEngine
 
         // Hard stop: the interview normally ends when the model calls conclude_interview itself.
         // But a model that keeps asking (or never emits that tool call) would run forever and the
-        // interview would never finalize — so scoring would never run. Once the max-questions
-        // budget is reached, force a clean conclusion regardless of what the model does.
-        $maxQ = $interview->template->max_questions ?? config('watad.interview.default_max_questions');
-        if (($state['asked_count'] ?? 0) >= $maxQ) {
+        // interview would never finalize — so scoring would never run. Force a clean conclusion
+        // once EITHER the max-questions budget OR the time deadline is reached, no matter what the
+        // model does. (Scenarios A + B of the interview-completion rules.)
+        $maxQ           = $interview->template->max_questions ?? config('watad.interview.default_max_questions');
+        $deadlinePassed = now()->timestamp >= ($state['deadline_at'] ?? PHP_INT_MAX);
+        if (($state['asked_count'] ?? 0) >= $maxQ || $deadlinePassed) {
             return $this->conclude($interview, $this->defaultClosing($interview));
         }
 

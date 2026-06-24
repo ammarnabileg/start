@@ -1,24 +1,65 @@
 @extends('layouts.candidate')
 @section('title', 'Interview · '.$interview->jobPosition->title)
 @php
-    $rtl  = $interview->language === 'ar';
-    $lang = $rtl ? 'ar-EG' : 'en-US';
+    $rtl    = $interview->language === 'ar';
+    $lang   = $rtl ? 'ar-EG' : 'en-US';
+    $maxQ   = $interview->template?->max_questions ?? config('watad.interview.default_max_questions');
+    $maxMin = $interview->template?->max_duration_min ?? config('watad.interview.default_max_duration_min');
 @endphp
 @section('content')
-<div x-data="interviewRoom('{{ $interview->public_id }}', '{{ $interview->mode->value }}', '{{ $lang }}')"
+<div x-data="interviewRoom('{{ $interview->public_id }}', '{{ $interview->mode->value }}', '{{ $lang }}', {{ (int) $maxQ }}, {{ (int) $maxMin }})"
      x-init="start()" x-cloak dir="{{ $rtl ? 'rtl' : 'ltr' }}"
      class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
 
+    {{-- ============ Completion screen (shown when concluded) ============ --}}
+    <div x-show="concluded" x-cloak class="px-6 py-16 text-center">
+        <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-emerald-100">
+            <svg class="h-9 w-9 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-slate-800">
+            {{ $rtl ? 'تمت المقابلة بنجاح' : 'Interview Completed Successfully' }}
+        </h2>
+        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
+            {{ $rtl
+                ? 'شكرًا لإتمامك المقابلة. سيقوم فريق التوظيف بمراجعة طلبك والتواصل معك بخصوص المرحلة التالية.'
+                : 'Thank you for completing your interview. Our recruitment team will review your application and contact you regarding the next stage.' }}
+        </p>
+        <div class="mx-auto mt-6 max-w-xs">
+            <div class="mb-1 flex items-center justify-between text-xs text-slate-500">
+                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
+                    {{ $rtl ? 'تم الإرسال' : 'Submitted' }}
+                </span>
+                <span>100%</span>
+            </div>
+            <div class="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div class="h-full rounded-full bg-emerald-500" style="width:100%"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ============ Live interview (hidden once concluded) ============ --}}
+    <template x-if="!concluded">
+    <div>
     <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
         <div class="text-sm">
             <span class="font-medium">{{ $interview->avatar?->name ?? 'AI Interviewer' }}</span>
             <span class="text-slate-400">· {{ $interview->jobPosition->title }}</span>
             <span class="ms-1 rounded bg-slate-200 px-1.5 text-[10px] uppercase">{{ $interview->mode->value }}</span>
         </div>
-        <div class="flex items-center gap-3 text-xs text-slate-500">
-            <span x-show="concluded" class="text-emerald-600 font-medium">{{ $rtl ? 'اكتملت' : 'Completed' }}</span>
-            <span x-show="!concluded">Q <span x-text="progress.asked"></span> · <span x-text="progress.phase"></span></span>
+        <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-500">{{ $rtl ? 'سؤال' : 'Question' }}
+                <span class="font-semibold text-slate-700" x-text="Math.max(progress.asked, 1)"></span> /
+                <span x-text="maxQuestions"></span></span>
+            <span class="tabular-nums font-medium" :class="timeLeft <= 120 ? 'text-red-500' : 'text-slate-500'"
+                  x-show="timeLeft !== null" x-text="formatTime(timeLeft)"></span>
         </div>
+    </div>
+
+    {{-- Progress bar --}}
+    <div class="h-1.5 w-full bg-slate-100">
+        <div class="h-full bg-brand transition-all duration-500" :style="`width:${progressPct()}%`"></div>
     </div>
 
     {{-- Video stage (video mode) --}}
@@ -74,11 +115,6 @@
                 </button>
             </div>
         </template>
-        <template x-if="concluded">
-            <div class="text-center text-sm text-slate-600 py-2">
-                {{ $rtl ? 'شكرًا — اكتملت مقابلتك. يمكنك إغلاق هذه النافذة.' : 'Thank you — your interview is complete. You may close this window.' }}
-            </div>
-        </template>
         <template x-if="startError">
             <div class="text-center py-2">
                 <button @click="retryStart()"
@@ -88,10 +124,12 @@
             </div>
         </template>
     </div>
+    </div>
+    </template>
 </div>
 
 <script>
-function interviewRoom(publicId, mode, lang) {
+function interviewRoom(publicId, mode, lang, maxQuestions, maxDurationMin) {
     const csrf = document.querySelector('meta[name=csrf-token]').content;
     const json = (path, body) => fetch(`/interview/${publicId}/${path}`, {
         method: 'POST',
@@ -100,15 +138,35 @@ function interviewRoom(publicId, mode, lang) {
     }).then(r => r.json());
 
     return {
-        mode, lang,
-        transcript: [], draft: '', thinking: false, concluded: false,
+        mode, lang, maxQuestions, maxDurationMin,
+        transcript: [], draft: '', thinking: false, concluded: false, startError: false,
         progress: { asked: 0, phase: 'intro' },
         usesMic: mode !== 'text',
         usesTTS: mode === 'voice',
         usesAvatar: mode === 'video',
         listening: false,
         avatarUrl: '',
+        timeLeft: null, timer: null,
         recognition: null, recorder: null, chunks: [], stream: null,
+
+        progressPct() {
+            const max = this.progress.max || this.maxQuestions || 14;
+            return Math.min(100, Math.round((this.progress.asked / max) * 100));
+        },
+        formatTime(s) {
+            const m = Math.floor(s / 60), sec = s % 60;
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        },
+        startTimer() {
+            if (this.timer || !this.maxDurationMin) return;
+            this.timeLeft = this.maxDurationMin * 60;
+            this.timer = setInterval(() => {
+                if (this.timeLeft === null) return;
+                this.timeLeft--;
+                if (this.timeLeft <= 0) { this.stopTimer(); this.autoComplete(); }
+            }, 1000);
+        },
+        stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null; } },
 
         async start() {
             if (this.usesAvatar || this.usesMic) await this.initMedia();
@@ -123,6 +181,7 @@ function interviewRoom(publicId, mode, lang) {
                 } else {
                     if (res.avatar && res.avatar.room_url) this.avatarUrl = res.avatar.room_url;
                     this.apply(res);
+                    this.startTimer();
                 }
             } catch (e) {
                 this.thinking = false;
@@ -139,6 +198,14 @@ function interviewRoom(publicId, mode, lang) {
         async endInterview() {
             if (this.thinking) return;
             if (!confirm('{{ $rtl ? 'هل تريد إنهاء المقابلة الآن؟' : 'End the interview now?' }}')) return;
+            await this.autoComplete();
+        },
+
+        // Concludes the interview (manual end, or auto when the timer runs out). The AI agent
+        // produces the closing message server-side, then the completion screen is shown.
+        async autoComplete() {
+            if (this.concluded) return;
+            this.stopTimer();
             this.thinking = true;
             try {
                 const res = await json('complete');
@@ -146,6 +213,10 @@ function interviewRoom(publicId, mode, lang) {
                 this.apply(res);
             } catch (e) {
                 this.thinking = false;
+                // Even if the network call fails, show the completion screen — the server-side
+                // abandon sweep will finalize and score the interview.
+                this.concluded = true;
+                this.stopMedia();
             }
         },
 
@@ -177,7 +248,7 @@ function interviewRoom(publicId, mode, lang) {
                 this.transcript.push({ role: 'agent', text: res.agent.text });
                 if (this.usesTTS) this.speak(res.agent.text);
             }
-            if (res.status === 'concluded') { this.concluded = true; this.stopMedia(); }
+            if (res.status === 'concluded') { this.concluded = true; this.stopTimer(); this.stopMedia(); }
             this.scroll();
         },
 

@@ -15,8 +15,23 @@
         </div>
     @endif
 
+    @php($cvMaxKb = (int) config('watad.uploads.cv_max_kb'))
     <form method="POST" action="{{ route('candidate.invitation.intake', $invitation->token) }}"
-          enctype="multipart/form-data" class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          enctype="multipart/form-data" class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
+          x-data="{
+              submitting: false,
+              fileName: '', fileErr: '',
+              maxKb: {{ $cvMaxKb }},
+              pick(e) {
+                  this.fileErr = ''; this.fileName = '';
+                  const f = e.target.files[0]; if (!f) return;
+                  const ok = /\.(pdf|docx?|DOCX?|PDF)$/.test(f.name);
+                  if (!ok) { this.fileErr = 'Only PDF, DOC or DOCX are allowed.'; e.target.value=''; return; }
+                  if (f.size / 1024 > this.maxKb) { this.fileErr = `File is too large (max ${(this.maxKb/1024).toFixed(1)} MB).`; e.target.value=''; return; }
+                  this.fileName = f.name;
+              }
+          }"
+          @submit="if (fileErr) { $event.preventDefault(); return; } submitting = true">
         @csrf
         <div class="sm:col-span-2"><label class="label">Full name *</label><input name="full_name" required value="{{ old('full_name') }}" class="input"></div>
         <div><label class="label">Email *</label><input name="email" type="email" required value="{{ old('email') }}" class="input"></div>
@@ -28,12 +43,24 @@
             <input name="expected_salary" type="number" step="100" value="{{ old('expected_salary') }}" class="input">
             <input type="hidden" name="salary_currency" value="{{ $invitation->jobPosition->currency }}"></div>
         <div><label class="label">Notice period</label><input name="notice_period" placeholder="e.g. 1 month" value="{{ old('notice_period') }}" class="input"></div>
-        <div class="sm:col-span-2"><label class="label">CV (PDF / DOCX) *</label><input name="cv" type="file" accept=".pdf,.doc,.docx" required class="input"></div>
+        <div class="sm:col-span-2">
+            <label class="label">CV (PDF / DOC / DOCX) *</label>
+            <input name="cv" type="file" accept=".pdf,.doc,.docx" required class="input" @change="pick($event)">
+            <p x-show="fileName" x-cloak class="mt-1 text-xs text-emerald-600">
+                ✓ <span x-text="fileName"></span>
+            </p>
+            <p x-show="fileErr" x-cloak class="mt-1 text-xs text-red-600" x-text="fileErr"></p>
+        </div>
         <label class="flex items-start gap-2 text-sm text-slate-600 sm:col-span-2">
             <input type="checkbox" name="consent" value="1" required class="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand">
             I consent to the processing and recording of this interview for hiring purposes.
         </label>
-        <div class="sm:col-span-2"><button class="btn-primary w-full">Start interview →</button></div>
+        <div class="sm:col-span-2">
+            <button type="submit" class="btn-primary w-full" :disabled="submitting || fileErr">
+                <span x-show="!submitting">Start interview →</span>
+                <span x-show="submitting" x-cloak>Uploading…</span>
+            </button>
+        </div>
     </form>
 </div>
 @endsection

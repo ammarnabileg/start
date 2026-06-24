@@ -32,4 +32,17 @@ class IntakeRequest extends FormRequest
             'consent'          => ['accepted'],
         ];
     }
+
+    public function messages(): array
+    {
+        $maxMb = round(((int) config('watad.uploads.cv_max_kb')) / 1024, 1);
+
+        return [
+            'cv.required' => 'Please attach your CV (PDF, DOC, or DOCX).',
+            'cv.file'     => 'The CV upload failed. Please choose the file again and retry.',
+            'cv.mimes'    => 'The CV must be a PDF, DOC, or DOCX file.',
+            'cv.max'      => "The CV is too large. Maximum size is {$maxMb} MB.",
+            'consent.accepted' => 'You must consent to continue.',
+        ];
+    }
 }
