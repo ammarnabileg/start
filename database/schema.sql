@@ -40,10 +40,12 @@ CREATE TABLE IF NOT EXISTS roles (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   tenant_id BIGINT UNSIGNED NULL,
   name VARCHAR(120) NOT NULL,
+  slug VARCHAR(120) NOT NULL,
   display_name VARCHAR(180) NULL,
   description TEXT NULL,
   is_system TINYINT(1) NOT NULL DEFAULT 0,
-  KEY idx_roles_tenant (tenant_id)
+  KEY idx_roles_tenant (tenant_id),
+  UNIQUE KEY uq_roles_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS permissions (

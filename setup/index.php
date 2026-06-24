@@ -249,14 +249,18 @@ function installSystem() {
         // Step 6: Create super admin (prepared statements; no string escaping).
         $passHash = password_hash($adminPass, PASSWORD_DEFAULT);
         $adminEmail = strtolower(trim($adminEmail));
+        $nameParts  = explode(' ', trim($adminName), 2);
+        $firstName  = $nameParts[0] ?? $adminName;
+        $lastName   = $nameParts[1] ?? '';
 
         // Upsert the super admin user (tenant_id NULL = platform-level).
         $ins = $pdo->prepare(
-            "INSERT INTO users (tenant_id, full_name, email, password_hash, type, status, email_verified_at, created_at)
-             VALUES (NULL, ?, ?, ?, 'super_admin', 'active', NOW(), NOW())
-             ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), full_name = VALUES(full_name), type = 'super_admin', status = 'active'"
+            "INSERT INTO users (tenant_id, first_name, last_name, email, password_hash, is_super_admin, status, email_verified_at, created_at)
+             VALUES (NULL, ?, ?, ?, ?, 1, 'active', NOW(), NOW())
+             ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), first_name = VALUES(first_name),
+             last_name = VALUES(last_name), is_super_admin = 1, status = 'active'"
         );
-        $ins->execute([$adminName, $adminEmail, $passHash]);
+        $ins->execute([$firstName, $lastName, $adminEmail, $passHash]);
 
         // Resolve the user id (lastInsertId is 0 on the UPDATE branch).
         $adminId = (int) $pdo->lastInsertId();
@@ -1200,11 +1204,7 @@ function validateStep(step) {
     }
   }
   if (step === 2) {
-    const key = document.getElementById('openai_key').value.trim();
-    if (!key) {
-      showToast('OpenAI API key is required.', 'error');
-      return false;
-    }
+    // API keys are optional — skip validation
   }
   return true;
 }

@@ -30,6 +30,18 @@ class Auth {
             JOIN user_roles ur ON ur.role_id = rp.role_id WHERE ur.user_id = ?", [$user['id']]);
         $user['permissions'] = array_column($permissions, 'slug');
 
+        // Compute a virtual 'type' field from DB flags + roles (schema has no type column)
+        if (!empty($user['is_super_admin']) || in_array('super_admin', $user['roles'])) {
+            $user['type'] = 'super_admin';
+        } elseif (in_array('candidate', $user['roles'])) {
+            $user['type'] = 'candidate';
+        } else {
+            $user['type'] = 'company_user';
+        }
+
+        // Compute full_name for convenience
+        $user['full_name'] = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+
         unset($user['password_hash'], $user['remember_token'], $user['two_fa_secret']);
 
         $secret = $_ENV['JWT_SECRET'] ?? 'default-secret';
@@ -41,7 +53,7 @@ class Auth {
         self::$currentUser = $user;
 
         // Update last login
-        $db->update('users', ['last_login_at' => date('Y-m-d H:i:s'), 'last_login_ip' => $_SERVER['REMOTE_ADDR'] ?? ''], ['id' => $user['id']]);
+        $db->update('users', ['last_login_at' => date('Y-m-d H:i:s')], ['id' => $user['id']]);
 
         return ['user' => $user, 'token' => $token];
     }
