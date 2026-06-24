@@ -303,7 +303,18 @@ function apiSetupFrontend(): string {
     $envOk = (bool) file_put_contents($root.'/frontend/.env.local', "NEXT_PUBLIC_API_URL={$appUrl}/api\n");
     $log[] = ['cmd'=>'frontend/.env.local','result'=>['output'=>$envOk?"✓ NEXT_PUBLIC_API_URL={$appUrl}/api":'✗ فشل','success'=>$envOk]];
 
-    // 3. npm install
+    // 3. Create server.js for Phusion Passenger / Plesk Node.js
+    $serverJs = $root.'/frontend/server.js';
+    if (!file_exists($serverJs)) {
+        $js = "'use strict';\n"
+            . "const path=require('path'),{spawn}=require('child_process');\n"
+            . "const child=spawn(process.execPath,[path.join(__dirname,'node_modules','.bin','next'),'start','-p',String(process.env.PORT||3000)],{cwd:__dirname,stdio:'inherit',env:{...process.env,NODE_ENV:'production'}});\n"
+            . "child.on('exit',c=>process.exit(c||0));\n";
+        file_put_contents($serverJs, $js);
+        $log[] = ['cmd'=>'server.js','result'=>['output'=>'✓ تم إنشاء frontend/server.js','success'=>true]];
+    }
+
+    // 4. npm install
     $r = runIn("{$env}{$npm} install 2>&1", $root.'/frontend');
     $log[] = ['cmd'=>'npm install','result'=>$r];
 
