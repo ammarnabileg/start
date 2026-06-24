@@ -82,6 +82,12 @@ if ($path === '/logout') {
     exit;
 }
 
+if ($path === '/unauthorized') {
+    http_response_code(403);
+    renderView('errors/unauthorized', ['pageTitle' => 'Access Denied'], 'app');
+    exit;
+}
+
 if ($path === '/register') {
     require MODULES_PATH . '/Auth/CandidateAuthController.php';
     if ($method === 'POST') CandidateAuthController::register($request);
