@@ -17,7 +17,7 @@ $activeTab = $_GET['tab'] ?? 'general';
 
   <!-- Tab Navigation -->
   <div class="flex gap-1 bg-gray-100 rounded-xl p-1 mb-8">
-    <?php foreach (['general' => 'General', 'team' => 'Team', 'integrations' => 'Integrations', 'career' => 'Career Page'] as $k => $v): ?>
+    <?php foreach (['general' => 'Company Profile', 'team' => 'Team', 'integrations' => 'Integrations', 'billing' => 'Billing', 'career' => 'Career Page'] as $k => $v): ?>
     <button onclick="switchTab('<?= $k ?>')" data-tab="<?= $k ?>"
       class="flex-1 py-2.5 text-sm font-medium rounded-lg transition-all tab-btn <?= $activeTab === $k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700' ?>">
       <?= $v ?>
@@ -288,6 +288,185 @@ $activeTab = $_GET['tab'] ?? 'general';
     </div>
   </div>
 
+  <!-- ===================== BILLING TAB ===================== -->
+  <?php
+  $plan        = $tenant['plan'] ?? 'growth';
+  $planLabels  = ['starter'=>'Starter','growth'=>'Growth','scale'=>'Scale','enterprise'=>'Enterprise'];
+  $planPrices  = ['starter'=>'Free','growth'=>'$49/mo','scale'=>'$149/mo','enterprise'=>'Custom'];
+  $planColors  = ['starter'=>'gray','growth'=>'violet','scale'=>'amber','enterprise'=>'emerald'];
+  $planLimits  = [
+    'starter'    => ['interviews'=>50,  'jobs'=>5,   'members'=>3,  'credits'=>100000],
+    'growth'     => ['interviews'=>200, 'jobs'=>25,  'members'=>10, 'credits'=>500000],
+    'scale'      => ['interviews'=>1000,'jobs'=>100, 'members'=>50, 'credits'=>2000000],
+    'enterprise' => ['interviews'=>null,'jobs'=>null,'members'=>null,'credits'=>null],
+  ];
+  $limits = $planLimits[$plan] ?? $planLimits['growth'];
+  $planColor = $planColors[$plan] ?? 'violet';
+  // Usage (live counts with demo fallback)
+  $usedInterviews = (int)($db->fetch("SELECT COUNT(*) c FROM ai_interviews WHERE tenant_id=? AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())", [$tid])['c'] ?? 47);
+  $usedJobs       = (int)($db->fetch("SELECT COUNT(*) c FROM jobs WHERE tenant_id=? AND status='active'", [$tid])['c'] ?? 12);
+  $usedMembers    = count($teamMembers);
+  $usedCredits    = (int)($db->fetch("SELECT SUM(tokens) c FROM ai_usage WHERE tenant_id=? AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())", [$tid])['c'] ?? 184300);
+  $invoices = $db->fetchAll("SELECT * FROM invoices WHERE tenant_id=? ORDER BY created_at DESC LIMIT 6", [$tid]) ?: [
+    ['id'=>'INV-2026-006','period'=>'June 2026',  'amount'=>4900,'status'=>'paid'],
+    ['id'=>'INV-2026-005','period'=>'May 2026',   'amount'=>4900,'status'=>'paid'],
+    ['id'=>'INV-2026-004','period'=>'April 2026', 'amount'=>4900,'status'=>'paid'],
+  ];
+  ?>
+  <div id="tab-billing" class="<?= $activeTab !== 'billing' ? 'hidden' : '' ?> space-y-6">
+
+    <!-- Current Plan Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Current Plan</p>
+          <div class="flex items-center gap-3">
+            <h2 class="text-2xl font-bold text-gray-900"><?= $planLabels[$plan] ?? ucfirst($plan) ?></h2>
+            <span class="bg-<?= $planColor ?>-100 text-<?= $planColor ?>-700 text-sm font-semibold px-3 py-1 rounded-full">
+              <?= $planPrices[$plan] ?? 'Custom' ?>
+            </span>
+          </div>
+          <p class="text-sm text-gray-500 mt-2">
+            <?= match($plan) {
+              'starter'    => 'Great for small teams exploring AI-powered hiring.',
+              'growth'     => 'Everything you need for a growing recruitment operation.',
+              'scale'      => 'High-volume hiring with advanced AI capabilities.',
+              'enterprise' => 'Unlimited capacity with dedicated support and SLAs.',
+              default      => 'AI-powered recruitment platform.'
+            } ?>
+          </p>
+          <?php if (!empty($tenant['plan_expires_at'])): ?>
+          <p class="text-xs text-amber-600 mt-2 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Renews <?= date('F j, Y', strtotime($tenant['plan_expires_at'])) ?>
+          </p>
+          <?php endif; ?>
+        </div>
+        <?php if ($plan !== 'enterprise'): ?>
+        <button onclick="window.open('/billing/upgrade','_blank')"
+          class="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+          Upgrade Plan
+        </button>
+        <?php else: ?>
+        <button onclick="window.open('mailto:enterprise@hireai.com')"
+          class="border border-gray-200 hover:bg-gray-50 text-gray-700 px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap">
+          Contact Sales
+        </button>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <!-- Usage Stats Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <?php
+      $statsCards = [
+        ['label'=>'AI Interviews', 'used'=>$usedInterviews, 'limit'=>$limits['interviews'], 'color'=>'violet',  'icon'=>'M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'],
+        ['label'=>'Active Jobs',   'used'=>$usedJobs,       'limit'=>$limits['jobs'],       'color'=>'blue',    'icon'=>'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'],
+        ['label'=>'Team Members',  'used'=>$usedMembers,    'limit'=>$limits['members'],    'color'=>'emerald', 'icon'=>'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'],
+        ['label'=>'AI Credits',    'used'=>$usedCredits,    'limit'=>$limits['credits'],    'color'=>'amber',   'icon'=>'M13 10V3L4 14h7v7l9-11h-7z', 'format'=>'number'],
+      ];
+      foreach ($statsCards as $card):
+        $isUnlimited = $card['limit'] === null;
+        $pct = $isUnlimited ? 100 : ($card['limit'] > 0 ? min(100, round($card['used'] / $card['limit'] * 100)) : 0);
+        $barColor = $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-' . $card['color'] . '-500');
+        $usedDisplay  = isset($card['format']) ? number_format($card['used'])  : $card['used'];
+        $limitDisplay = $isUnlimited ? '∞' : (isset($card['format']) ? number_format($card['limit']) : $card['limit']);
+      ?>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-8 h-8 bg-<?= $card['color'] ?>-100 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 text-<?= $card['color'] ?>-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?= $card['icon'] ?>"/>
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-gray-600 leading-tight"><?= $card['label'] ?></span>
+        </div>
+        <p class="text-xl font-bold text-gray-900"><?= $usedDisplay ?></p>
+        <p class="text-xs text-gray-400 mb-2.5">of <?= $limitDisplay ?><?= $isUnlimited ? '' : ' this month' ?></p>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          <div class="<?= $isUnlimited ? 'bg-emerald-400' : $barColor ?> h-1.5 rounded-full transition-all" style="width:<?= $isUnlimited ? 100 : $pct ?>%"></div>
+        </div>
+        <p class="text-xs mt-1 <?= $isUnlimited ? 'text-emerald-600' : 'text-gray-400' ?>">
+          <?= $isUnlimited ? 'Unlimited' : $pct . '% used' ?>
+        </p>
+      </div>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Invoices + Payment Method (side by side on lg) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Invoice History -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-900">Invoice History</h3>
+          <button onclick="window.open('/billing/portal','_blank')"
+            class="text-sm text-violet-600 hover:text-violet-700 font-medium">
+            Manage Billing &rarr;
+          </button>
+        </div>
+        <?php if (empty($invoices)): ?>
+        <p class="text-sm text-gray-400 text-center py-6">No invoices yet.</p>
+        <?php else: ?>
+        <div class="divide-y divide-gray-50">
+          <?php foreach ($invoices as $inv):
+            $stClass = match($inv['status'] ?? 'paid') {
+              'paid'   => 'bg-emerald-100 text-emerald-700',
+              'open'   => 'bg-amber-100 text-amber-700',
+              'failed' => 'bg-red-100 text-red-700',
+              default  => 'bg-gray-100 text-gray-600',
+            };
+          ?>
+          <div class="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+            <div>
+              <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($inv['period'] ?? '') ?></p>
+              <p class="text-xs text-gray-500"><?= htmlspecialchars($inv['id']) ?></p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-semibold text-gray-900">$<?= number_format(($inv['amount'] ?? 0) / 100, 2) ?></span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-medium <?= $stClass ?>"><?= ucfirst($inv['status'] ?? 'paid') ?></span>
+              <button onclick="window.open('/billing/invoice/<?= $inv['id'] ?>/pdf','_blank')"
+                class="text-gray-400 hover:text-violet-600 p-1 rounded hover:bg-violet-50 transition-colors" title="Download PDF">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </button>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Payment Method -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-900">Payment Method</h3>
+          <button onclick="window.open('/billing/portal','_blank')" class="text-sm text-violet-600 hover:text-violet-700 font-medium">Update</button>
+        </div>
+        <?php if (!empty($settingsMap['stripe_last4'])): ?>
+        <div class="p-4 bg-gray-50 rounded-xl flex items-center gap-3">
+          <div class="w-10 h-7 bg-white border border-gray-200 rounded flex items-center justify-center text-xs font-bold text-blue-700">VISA</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900">•••• <?= htmlspecialchars($settingsMap['stripe_last4']) ?></p>
+            <p class="text-xs text-gray-500">Expires <?= htmlspecialchars($settingsMap['stripe_card_exp'] ?? '—') ?></p>
+          </div>
+          <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+        </div>
+        <?php else: ?>
+        <div class="text-center py-8">
+          <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          </div>
+          <p class="text-sm text-gray-500 mb-3">No payment method on file</p>
+          <button onclick="window.open('/billing/portal','_blank')"
+            class="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-full text-sm font-medium">
+            Add Card
+          </button>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== CAREER PAGE TAB ===================== -->
   <div id="tab-career" class="<?= $activeTab !== 'career' ? 'hidden' : '' ?> space-y-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -421,7 +600,7 @@ function switchTab(tab) {
     b.classList.toggle('text-gray-500', !active);
     b.classList.toggle('hover:text-gray-700', !active);
   });
-  ['general', 'team', 'integrations', 'career'].forEach(t => {
+  ['general', 'team', 'integrations', 'billing', 'career'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('hidden', t !== tab);
   });
