@@ -44,6 +44,8 @@ yarn-error.log*
 # Database
 *.sql
 *.sqlite
+# ...but keep the application schema (it is source, not a dump)
+!database/schema.sql
 
 # Backup files
 *.bak
