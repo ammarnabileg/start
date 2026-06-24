@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS applications (
   hr_notes TEXT NULL,
   interview_link_token VARCHAR(80) NULL,
   interview_link_expires_at TIMESTAMP NULL,
+  interview_id BIGINT UNSIGNED NULL,
   interview_link_used TINYINT(1) NOT NULL DEFAULT 0,
   is_archived TINYINT(1) NOT NULL DEFAULT 0,
   applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

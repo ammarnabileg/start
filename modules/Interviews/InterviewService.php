@@ -281,7 +281,7 @@ class InterviewService
 
         $row = $this->db->fetch('
             SELECT a.*, j.title AS job_title, j.interview_type, j.interview_duration,
-                   j.max_questions, j.language AS job_language,
+                   j.max_questions, j.interview_type AS job_language,
                    c.full_name AS candidate_name, c.email AS candidate_email
               FROM applications a
               JOIN jobs j ON j.id = a.job_id
