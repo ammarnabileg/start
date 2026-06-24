@@ -20,6 +20,17 @@
 
 const SETUP_TOKEN = 'CHANGE-ME-to-a-long-random-secret-at-least-16-chars';
 
+/**
+ * Absolute path to the PHP **CLI** binary (NOT php-fpm). On Plesk this is
+ * /opt/plesk/php/<version>/bin/php — adjust the version if needed.
+ * We must hard-code it: under FPM, PHP_BINARY is php-fpm and open_basedir
+ * usually hides /opt from is_file(), so auto-detection is unreliable.
+ */
+const PHP_BIN = '/opt/plesk/php/8.3/bin/php';
+
+/** Plesk's bundled Composer phar (run as: PHP_BIN composer.phar ...). */
+const COMPOSER_PHAR = '/usr/lib/plesk-9.0/composer.phar';
+
 /* ----- binaries this terminal may run (default-deny everything else) ----- */
 const ALLOWED = [
     'php', 'artisan', 'composer', 'git',
@@ -86,22 +97,16 @@ if (($_POST['action'] ?? '') === 'run') {
 /* ----- helpers ----- */
 function php_binary(): string
 {
-    foreach (['/opt/plesk/php/8.3/bin/php', '/opt/plesk/php/8.2/bin/php', '/opt/plesk/php/8.4/bin/php'] as $p) {
-        if (is_file($p)) {
-            return $p;
-        }
-    }
-    return PHP_BINARY ?: 'php';
+    // Hard-coded (see PHP_BIN note): is_file() is unreliable under FPM open_basedir,
+    // and PHP_BINARY would be php-fpm — which cannot run artisan.
+    return PHP_BIN;
 }
 
 function composer_argv(string $php, array $rest): array
 {
-    foreach (['/usr/lib/plesk-9.0/composer.phar', '/usr/local/bin/composer', '/usr/bin/composer'] as $p) {
-        if (is_file($p)) {
-            return str_ends_with($p, '.phar') ? array_merge([$php, $p], $rest) : array_merge([$p], $rest);
-        }
-    }
-    return array_merge(['composer'], $rest);
+    // Run the Plesk composer phar with the CLI php. If your composer lives elsewhere,
+    // edit COMPOSER_PHAR, or use Plesk → PHP Composer for the install step instead.
+    return array_merge([$php, COMPOSER_PHAR], $rest);
 }
 
 /** Run as an argument array → NO shell is involved, so command chaining is impossible. */
@@ -205,7 +210,8 @@ unset($_SESSION['setup_err']);
             <input id="cmd" type="text" placeholder="php artisan ..." onkeydown="if(event.key==='Enter')runCmd()">
             <button class="btn" onclick="runCmd()">Run</button>
         </div>
-        <p class="sub" style="margin:8px 0 0">Allowed: <?= implode(', ', ALLOWED) ?></p>
+        <p class="sub" style="margin:8px 0 0">PHP CLI: <code><?= htmlspecialchars(PHP_BIN) ?></code> · Allowed: <?= implode(', ', ALLOWED) ?></p>
+        <p class="sub" style="margin:4px 0 0">Tip: run <code>php -v</code> first to confirm the PHP path is correct. If it shows php-fpm usage, edit <code>PHP_BIN</code> at the top of this file.</p>
     </div>
 
     <pre id="out">Ready. Run the steps above in order.
