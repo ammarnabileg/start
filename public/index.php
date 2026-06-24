@@ -22,6 +22,7 @@ require ROOT_DIR . '/core/Auth.php';
 require ROOT_DIR . '/core/Cache.php';
 require ROOT_DIR . '/core/Request.php';
 require ROOT_DIR . '/core/Response.php';
+require ROOT_DIR . '/core/ApiKeyManager.php';
 
 // Start session
 if (session_status() === PHP_SESSION_NONE) {

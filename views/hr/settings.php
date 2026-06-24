@@ -132,6 +132,15 @@ $activeTab = $_GET['tab'] ?? 'general';
   <!-- ===================== INTEGRATIONS TAB ===================== -->
   <div id="tab-integrations" class="<?= $activeTab !== 'integrations' ? 'hidden' : '' ?> space-y-6">
 
+    <!-- Per-company key notice -->
+    <div class="bg-violet-50 border border-violet-200 rounded-2xl px-5 py-4 flex gap-3 items-start">
+      <svg class="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      <div>
+        <p class="text-sm font-semibold text-violet-900">Your company API keys — billed to you</p>
+        <p class="text-xs text-violet-700 mt-0.5">These keys are encrypted and stored securely. All AI usage is billed directly to your OpenAI/HeyGen accounts — the platform owner is not charged for your AI usage.</p>
+      </div>
+    </div>
+
     <!-- OpenAI -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center gap-3 mb-5">
@@ -149,7 +158,7 @@ $activeTab = $_GET['tab'] ?? 'general';
           <label class="block text-sm font-medium text-gray-700 mb-1.5">API Key</label>
           <div class="relative">
             <input type="password" name="openai_api_key" id="openai-key"
-              value="<?= strlen($settingsMap['openai_api_key'] ?? '') > 4 ? '••••••••' . substr($settingsMap['openai_api_key'], -4) : '' ?>"
+              value="<?= !empty($tenant['openai_api_key']) ? '••••••••••••' : '' ?>"
               placeholder="sk-..."
               class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 pr-11 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none font-mono">
             <button type="button" onclick="togglePassword('openai-key', this)"
@@ -162,7 +171,7 @@ $activeTab = $_GET['tab'] ?? 'general';
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Model</label>
           <select name="openai_model" class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none">
             <?php foreach (['gpt-4o-mini' => 'GPT-4o Mini — Fast & Cost-effective', 'gpt-4o' => 'GPT-4o — Recommended', 'gpt-4-turbo' => 'GPT-4 Turbo — Highest Capability'] as $m => $l): ?>
-            <option value="<?= $m ?>" <?= ($settingsMap['openai_model'] ?? 'gpt-4o-mini') === $m ? 'selected' : '' ?>><?= $l ?></option>
+            <option value="<?= $m ?>" <?= ($tenant['openai_model'] ?? 'gpt-4o') === $m ? 'selected' : '' ?>><?= $l ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -194,7 +203,7 @@ $activeTab = $_GET['tab'] ?? 'general';
           <label class="block text-sm font-medium text-gray-700 mb-1.5">API Key</label>
           <div class="relative">
             <input type="password" name="heygen_api_key" id="heygen-key"
-              value="<?= strlen($settingsMap['heygen_api_key'] ?? '') > 4 ? '••••••••' . substr($settingsMap['heygen_api_key'], -4) : '' ?>"
+              value="<?= !empty($tenant['heygen_api_key']) ? '••••••••••••' : '' ?>"
               placeholder="Your HeyGen API key"
               class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 pr-11 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none font-mono">
             <button type="button" onclick="togglePassword('heygen-key', this)"
@@ -677,8 +686,13 @@ document.getElementById('openai-form')?.addEventListener('submit', async e => {
   const btn = e.target.querySelector('[type="submit"]');
   setLoading(btn, true, 'Saving...');
   const fd = new FormData(e.target);
+  const key = fd.get('openai_api_key') || '';
+  const model = fd.get('openai_model') || 'gpt-4o';
   try {
-    const res = await apiPost('/api/v1/settings', { action: 'save_openai', api_key: fd.get('openai_api_key'), model: fd.get('openai_model') });
+    // Only send key if user typed something (not the masked placeholder)
+    const payload = { action: 'save_api_keys', openai_model: model };
+    if (key && !key.includes('••')) payload.openai = key;
+    const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'OpenAI settings saved', res.ok || res.success ? 'success' : 'error');
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
@@ -689,7 +703,9 @@ async function testOpenAI() {
   setLoading(btn, true, 'Testing...');
   try {
     const key = document.getElementById('openai-key').value;
-    const res = await apiPost('/api/v1/settings', { action: 'test_openai', key });
+    const payload = { action: 'test_openai' };
+    if (key && !key.includes('••')) payload.key = key;
+    const res = await apiPost('/api/v1/settings', payload);
     const badge = document.getElementById('openai-status-badge');
     if (res.ok || res.success) {
       badge.innerHTML = '<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>Connected</span>';
@@ -708,8 +724,11 @@ document.getElementById('heygen-form')?.addEventListener('submit', async e => {
   const btn = e.target.querySelector('[type="submit"]');
   setLoading(btn, true, 'Saving...');
   const fd = new FormData(e.target);
+  const key = fd.get('heygen_api_key') || '';
   try {
-    const res = await apiPost('/api/v1/settings', { action: 'save_heygen', api_key: fd.get('heygen_api_key') });
+    const payload = { action: 'save_api_keys' };
+    if (key && !key.includes('••')) payload.heygen = key;
+    const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'HeyGen settings saved', res.ok || res.success ? 'success' : 'error');
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }

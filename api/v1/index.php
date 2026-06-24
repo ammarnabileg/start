@@ -96,23 +96,79 @@ try {
             break;
 
         case 'settings':
-            // Settings API — save system/company settings
             Auth::requireAuth();
             $action = $request->get('action') ?? $request->input('action') ?? '';
-            $db = Database::getInstance();
+            $db  = Database::getInstance();
+            $tid = (int) (Auth::user()['tenant_id'] ?? 0);
+
             if ($action === 'save_settings') {
+                // Generic key-value settings (non-API-key)
                 $settings = $request->input('settings', []);
-                $tid = Auth::user()['tenant_id'] ?? null;
                 foreach ($settings as $key => $value) {
                     $key = preg_replace('/[^a-z0-9_.]/i', '', $key);
-                    $existing = $db->fetchColumn("SELECT id FROM system_settings WHERE setting_key=? AND tenant_id" . ($tid ? "=?" : " IS NULL"), array_filter([$key, $tid]));
+                    $existing = $db->fetchColumn(
+                        "SELECT id FROM system_settings WHERE setting_key=? AND tenant_id" . ($tid ? "=?" : " IS NULL"),
+                        array_filter([$key, $tid ?: null])
+                    );
                     if ($existing) {
                         $db->update('system_settings', ['setting_value' => $value, 'updated_at' => date('Y-m-d H:i:s')], ['id' => $existing]);
                     } else {
-                        $db->insert('system_settings', ['tenant_id' => $tid, 'setting_key' => $key, 'setting_value' => $value, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
+                        $db->insert('system_settings', ['tenant_id' => $tid ?: null, 'setting_key' => $key, 'setting_value' => $value, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
                     }
                 }
                 Response::success(['message' => 'Settings saved']);
+
+            } elseif ($action === 'save_api_keys') {
+                // Per-tenant API key storage (encrypted)
+                if (!$tid) Response::error('No tenant context', 403);
+                $updated = [];
+                foreach (['openai' => 'openai_api_key', 'heygen' => 'heygen_api_key', 'openai_model' => 'openai_model'] as $input => $col) {
+                    $val = $request->input($input);
+                    if ($val === null) continue;
+                    $val = trim($val);
+                    if ($val === '') {
+                        // Clear the key
+                        $db->query("UPDATE tenants SET `{$col}` = NULL, updated_at = NOW() WHERE id = ?", [$tid]);
+                    } else {
+                        ApiKeyManager::saveTenantKey($tid, $input === 'openai_model' ? 'openai_model' : $input, $val);
+                    }
+                    $updated[] = $input;
+                }
+                ApiKeyManager::clearCache();
+                Response::success(['message' => 'API keys saved', 'updated' => $updated]);
+
+            } elseif ($action === 'test_openai') {
+                $key = trim($request->input('key', ''));
+                if ($key === '') {
+                    // Test the tenant's stored key
+                    $key = ApiKeyManager::getTenantOpenAIKey($tid ?: null);
+                }
+                if ($key === '') Response::error('No OpenAI key configured', 400);
+                Response::json(ApiKeyManager::testOpenAIKey($key));
+
+            } elseif ($action === 'test_heygen') {
+                $key = trim($request->input('key', ''));
+                if ($key === '') {
+                    $key = ApiKeyManager::getTenantHeyGenKey($tid ?: null);
+                }
+                if ($key === '') Response::error('No HeyGen key configured', 400);
+                Response::json(ApiKeyManager::testHeyGenKey($key));
+
+            } elseif ($action === 'get_api_keys') {
+                // Return masked keys so the UI can show whether keys are set
+                if (!$tid) Response::error('No tenant context', 403);
+                $row = $db->fetch('SELECT openai_api_key, heygen_api_key, openai_model FROM tenants WHERE id = ?', [$tid]);
+                $mask = fn(?string $enc) => $enc
+                    ? (function(string $plain) { return $plain !== '' ? '***' . substr($plain, -4) : null; })(ApiKeyManager::decrypt($enc))
+                    : null;
+                Response::success([
+                    'openai_set'    => !empty($row['openai_api_key']),
+                    'heygen_set'    => !empty($row['heygen_api_key']),
+                    'openai_masked' => $mask($row['openai_api_key'] ?? null),
+                    'heygen_masked' => $mask($row['heygen_api_key'] ?? null),
+                    'openai_model'  => $row['openai_model'] ?? 'gpt-4o',
+                ]);
+
             } else {
                 Response::error('Unknown settings action', 400);
             }

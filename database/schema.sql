@@ -4,12 +4,20 @@ SET FOREIGN_KEY_CHECKS=0;
 CREATE TABLE IF NOT EXISTS tenants (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  subdomain VARCHAR(120) NOT NULL UNIQUE,
-  plan VARCHAR(50) NOT NULL DEFAULT 'free',
+  slug VARCHAR(120) NOT NULL UNIQUE,
+  subdomain VARCHAR(120) NULL,
+  domain VARCHAR(255) NULL,
+  plan VARCHAR(50) NOT NULL DEFAULT 'starter',
   status ENUM('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  -- Per-tenant API keys (AES-256-CBC encrypted at rest via ApiKeyManager)
+  openai_api_key VARCHAR(600) NULL COMMENT 'Encrypted OpenAI API key for this company',
+  heygen_api_key VARCHAR(600) NULL COMMENT 'Encrypted HeyGen API key for this company',
+  openai_model VARCHAR(100) NULL DEFAULT 'gpt-4o' COMMENT 'OpenAI model preference per company',
   settings JSON NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_tenants_slug (slug),
+  KEY idx_tenants_domain (domain)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS users (

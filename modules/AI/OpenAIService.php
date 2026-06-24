@@ -47,8 +47,14 @@ class OpenAIService
 
     public function __construct(?string $apiKey = null, ?string $model = null)
     {
-        $this->apiKey = $apiKey ?? ($_ENV['OPENAI_API_KEY'] ?? '');
-        $this->model  = $model ?? ($_ENV['OPENAI_MODEL'] ?? 'gpt-4o');
+        // Priority: explicit arg → tenant key from DB → platform ENV fallback
+        $this->apiKey = $apiKey
+            ?? (class_exists('ApiKeyManager') ? \ApiKeyManager::getTenantOpenAIKey() : null)
+            ?? ($_ENV['OPENAI_API_KEY'] ?? '');
+
+        $this->model = $model
+            ?? (class_exists('ApiKeyManager') ? \ApiKeyManager::getTenantOpenAIModel() : null)
+            ?? ($_ENV['OPENAI_MODEL'] ?? 'gpt-4o');
     }
 
     public function getModel(): string

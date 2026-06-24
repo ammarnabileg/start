@@ -50,7 +50,7 @@ if (class_exists('Env', false) && file_exists(ROOT_DIR . '/.env')) {
     \Env::load(ROOT_DIR . '/.env');
 }
 
-foreach (['Database', 'JWT', 'Auth', 'Cache', 'Request', 'Response'] as $coreClass) {
+foreach (['Database', 'JWT', 'Auth', 'Cache', 'Request', 'Response', 'ApiKeyManager'] as $coreClass) {
     if (!class_exists($coreClass, false) && is_file(CORE_PATH . "/{$coreClass}.php")) {
         require CORE_PATH . "/{$coreClass}.php";
     }

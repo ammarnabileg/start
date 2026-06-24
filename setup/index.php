@@ -205,7 +205,8 @@ function installSystem() {
         $openaiKey = $data['openai_key'] ?? '';
         $heygenKey = $data['heygen_key'] ?? '';
 
-        if (!$dbName || !$dbUser || !$adminEmail || !$adminPass || !$openaiKey) {
+        // API keys are optional — each company enters their own in Settings
+        if (!$dbName || !$dbUser || !$adminEmail || !$adminPass) {
             echo json_encode(['ok' => false, 'steps' => $steps, 'msg' => 'Required fields missing']);
             return;
         }
@@ -772,8 +773,12 @@ if (file_exists(ENV_FILE)) {
 
   <!-- Step 3: AI Settings -->
   <div id="step-2" class="p-8 fade-in hidden">
-    <h2 class="text-xl font-bold text-gray-900 mb-1">AI Configuration</h2>
-    <p class="text-gray-500 text-sm mb-8">Connect your OpenAI account to power all AI features. HeyGen is optional (for video interviews only).</p>
+    <h2 class="text-xl font-bold text-gray-900 mb-1">AI Configuration <span class="text-sm font-normal text-gray-400">(Optional)</span></h2>
+    <p class="text-gray-500 text-sm mb-2">These are <strong>platform-level defaults</strong> for your super admin account only.</p>
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex gap-3 items-start">
+      <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p class="text-sm text-amber-800"><strong>Each company enters their own API keys</strong> in Settings → Integrations after they sign up. You are not charged for their AI usage — they are billed directly by OpenAI/HeyGen.</p>
+    </div>
 
     <div class="space-y-6">
       <div class="bg-violet-50 border border-violet-200 rounded-2xl p-6">
@@ -782,8 +787,11 @@ if (file_exists(ENV_FILE)) {
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </div>
           <div class="flex-1">
-            <label class="block text-sm font-bold text-gray-900 mb-1">OpenAI API Key <span class="text-red-500">*</span></label>
-            <p class="text-xs text-gray-500 mb-3">Used for AI interviews, CV analysis, candidate matching, and all AI features. Get yours at platform.openai.com</p>
+            <div class="flex items-center gap-2 mb-1">
+              <label class="block text-sm font-bold text-gray-900">OpenAI API Key</label>
+              <span class="text-xs bg-gray-200 text-gray-600 rounded-full px-2 py-0.5">Optional</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Platform-level fallback key. Leave empty — companies will add their own keys. Get yours at platform.openai.com</p>
             <div class="flex gap-3">
               <div class="relative flex-1">
                 <input type="password" id="openai_key" placeholder="sk-proj-..."

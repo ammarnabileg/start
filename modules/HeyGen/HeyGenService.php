@@ -30,7 +30,10 @@ class HeyGenService
 
     public function __construct(?string $apiKey = null)
     {
-        $this->apiKey = $apiKey ?? ($_ENV['HEYGEN_API_KEY'] ?? '');
+        // Priority: explicit arg → tenant key from DB → platform ENV fallback
+        $this->apiKey = $apiKey
+            ?? (class_exists('ApiKeyManager') ? \ApiKeyManager::getTenantHeyGenKey() : null)
+            ?? ($_ENV['HEYGEN_API_KEY'] ?? '');
     }
 
     public function hasKey(): bool
