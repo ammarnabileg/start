@@ -41,7 +41,9 @@ class InterviewController extends Controller
             'behavioralAnalysis', 'redFlags', 'videoAnalysis', 'report', 'events', 'messages',
         ]);
 
-        return view('hr.report', compact('interview'));
+        $application = \App\Models\JobApplication::where('ai_interview_id', $interview->id)->first();
+
+        return view('hr.report', compact('interview', 'application'));
     }
 
     public function reportPdf(Interview $interview): StreamedResponse
