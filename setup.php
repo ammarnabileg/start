@@ -220,37 +220,20 @@ function apiUpdate($body){
 }
 
 function apiTerminal($body){
-    static $ALLOWED=[
-        'php artisan migrate --force','php artisan migrate:fresh --seed','php artisan migrate:fresh',
-        'php artisan migrate','php artisan db:seed','php artisan db:seed --class=PermissionSeeder --force',
-        'php artisan key:generate','php artisan jwt:secret','php artisan config:clear',
-        'php artisan cache:clear','php artisan optimize:clear','php artisan optimize',
-        'php artisan storage:link','php artisan queue:restart','php artisan route:clear',
-        'php artisan view:clear','php artisan --version',
-        'composer install --no-dev','composer install','composer dump-autoload',
-    ];
-    $cmd=trim($body['command']??'');
-    $ok=false;
-    foreach($ALLOWED as $a){ if(str_starts_with($cmd,$a)){$ok=true;break;} }
-    if(!$ok) return json(['output'=>"الأمر غير مسموح.\n\nالأوامر المتاحة:\n".implode("\n",$ALLOWED),'success'=>false]);
+    $cmd = trim($body['command'] ?? '');
+    if (!$cmd) return json(['output'=>'', 'success'=>true]);
 
-    // For php artisan commands: try in-process first (works even without exec/PHP CLI)
-    if(str_starts_with($cmd,'php artisan ')){
-        $rest  = substr($cmd, strlen('php artisan '));
-        $parts = explode(' ', $rest, 2);
-        $artisanCmd = $parts[0];
-        // Parse simple --key=value and --flag args
-        $args = [];
-        if(isset($parts[1])){
-            foreach(explode(' ', $parts[1]) as $p){
-                if(str_contains($p,'=')){[$k,$v]=explode('=',$p,2); $args[rtrim($k,'=')]=$v;}
-                elseif(str_starts_with($p,'--')){ $args[$p]=true; }
-            }
-        }
-        return json(runLaravel($artisanCmd, $args));
+    // Auto-fix: replace bare 'php' with Plesk PHP 8.3 binary
+    if (preg_match('/^php\b/', $cmd)) {
+        $cmd = '/opt/plesk/php/8.3/bin/php ' . preg_replace('/^php\s*/', '', $cmd);
     }
 
-    // Non-artisan commands (composer etc) — need exec()
+    // Auto-fix: replace bare 'composer' with Plesk composer.phar + PHP binary
+    if (preg_match('/^composer\b/', $cmd)) {
+        $cmd = '/opt/plesk/php/8.3/bin/php /usr/local/psa/var/modules/composer/composer.phar '
+             . preg_replace('/^composer\s*/', '', $cmd);
+    }
+
     return json(runIn($cmd, BACKEND));
 }
 
@@ -440,7 +423,7 @@ input::placeholder{color:#374151}
 .quick-cmds{padding:10px 14px 8px;border-bottom:1px solid #30363d;display:flex;flex-wrap:wrap;gap:6px}
 .qbtn{background:#1c2128;border:1px solid #30363d;color:#8b949e;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:monospace;transition:.15s}
 .qbtn:hover{border-color:#58a6ff;color:#c9d1d9}
-.term-out{height:200px;overflow-y:auto;padding:14px;font-family:monospace;font-size:11px;line-height:1.7;background:#0d1117}
+.term-out{min-height:300px;max-height:none;overflow-y:auto;padding:14px;font-family:monospace;font-size:11px;line-height:1.7;background:#0d1117}
 .term-out .tline-cmd{color:#58a6ff}
 .term-out .tline-ok{color:#3fb950;white-space:pre-wrap}
 .term-out .tline-err{color:#f85149;white-space:pre-wrap}
@@ -579,8 +562,13 @@ input::placeholder{color:#374151}
 
 <script>
 const QUICK = [
+  'composer install --no-dev',
+  'composer update --no-dev',
+  'composer dump-autoload',
+  'rm composer.lock',
   'php artisan migrate --force',
   'php artisan migrate:fresh --seed',
+  'php artisan db:seed --class=PermissionSeeder --force',
   'php artisan key:generate',
   'php artisan jwt:secret',
   'php artisan config:clear',
@@ -588,8 +576,9 @@ const QUICK = [
   'php artisan optimize:clear',
   'php artisan storage:link',
   'php artisan queue:restart',
-  'composer install --no-dev',
-  'composer dump-autoload',
+  'php artisan --version',
+  'ls -la',
+  'pwd',
 ];
 
 let termHistory = [], histIdx = -1, installed = false;
