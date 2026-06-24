@@ -10,26 +10,47 @@ define('ENVFILE', BACKEND  . '/.env');
 
 // Detect PHP CLI binary (PHP_BINARY in FPM context points to php-fpm, not php CLI)
 function detectPhpCli(): string {
-    $fpm = PHP_BINARY;
-    // If running as php-fpm, replace with php in same dir
-    if (str_contains($fpm, 'php-fpm')) {
-        $cli = str_replace('php-fpm', 'php', $fpm);
+    $fpm = PHP_BINARY ?? '';
+
+    // Plesk stores FPM at /opt/plesk/php/X.Y/sbin/php-fpm
+    // CLI is at                /opt/plesk/php/X.Y/bin/php
+    if (preg_match('#(/opt/plesk/php/[\d.]+)#', $fpm, $m)) {
+        $cli = $m[1] . '/bin/php';
         if (file_exists($cli) && is_executable($cli)) return $cli;
     }
-    // Plesk versioned CLI path
+
+    // Generic: replace sbin/php-fpm or bin/php-fpm with bin/php
+    foreach (['/sbin/php-fpm', '/bin/php-fpm'] as $s) {
+        if (str_ends_with($fpm, $s)) {
+            $cli = substr($fpm, 0, -strlen($s)) . '/bin/php';
+            if (file_exists($cli) && is_executable($cli)) return $cli;
+        }
+    }
+
+    // Plesk standard paths
     $ver = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
     foreach ([
         "/opt/plesk/php/{$ver}/bin/php",
-        "/usr/local/bin/php{$ver}",
+        "/opt/plesk/php/8.3/bin/php",
+        "/opt/plesk/php/8.2/bin/php",
+        "/opt/plesk/php/8.1/bin/php",
         "/usr/local/bin/php",
         "/usr/bin/php",
     ] as $p) {
-        if (file_exists($p) && is_executable($p)) return $p;
+        if (@file_exists($p) && @is_executable($p)) return $p;
     }
-    // Last resort: search PATH
-    $out = []; exec('which php 2>/dev/null', $out);
-    if (!empty($out[0])) return trim($out[0]);
-    return 'php';
+
+    // find on filesystem
+    $out = []; exec('find /opt/plesk/php -maxdepth 3 -name "php" -type f 2>/dev/null | head -1', $out);
+    if (!empty($out[0]) && trim($out[0])) return trim($out[0]);
+
+    // system which / command -v
+    foreach (['command -v php', 'which php'] as $w) {
+        $out = []; exec($w . ' 2>/dev/null', $out);
+        if (!empty($out[0]) && trim($out[0])) return trim($out[0]);
+    }
+
+    return 'php'; // last resort
 }
 define('PHP_BIN', detectPhpCli());
 
@@ -63,18 +84,14 @@ function apiStatus(){
 }
 
 function apiCheck(){
-    $c   = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions') ?? '')));
-    $php = PHP_BIN;
-    // Verify it actually runs artisan
-    $testOut=[]; exec($php.' '.BACKEND.'/artisan --version 2>&1', $testOut, $testCode);
-    $phpOk  = ($testCode === 0 && !empty($testOut[0]));
-    $phpVal = $phpOk ? '✓ '.basename($php) : '✗ '.basename($php).' → '.($testOut[0]??'لا يعمل');
+    $c      = function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions') ?? '')));
+    $vendor = file_exists(BACKEND . '/vendor/autoload.php');
     return json([
         'PHP 8.2+'          =>['status'=>version_compare(PHP_VERSION,'8.2.0','>='),'value'=>PHP_VERSION],
-        'PHP CLI'           =>['status'=>$phpOk,'value'=>$phpVal],
         'PDO MySQL'         =>['status'=>extension_loaded('pdo_mysql'),'value'=>extension_loaded('pdo_mysql')?'✓ مثبت':'✗ غير مثبت'],
         'OpenSSL'           =>['status'=>extension_loaded('openssl'),'value'=>extension_loaded('openssl')?'✓ مثبت':'✗ غير مثبت'],
-        'exec() مفعل'       =>['status'=>$c,'value'=>$c?'✓ نعم':'✗ معطل في php.ini'],
+        'Composer Vendor'   =>['status'=>$vendor,'value'=>$vendor?'✓ موجود':'✗ غير موجود — شغّل: composer install'],
+        'exec() للتيرمنال'  =>['status'=>$c,'value'=>$c?'✓ متاح':'⚠ التيرمنال معطل — التثبيت يعمل بدونه'],
         'مجلد backend'      =>['status'=>is_dir(BACKEND),'value'=>is_dir(BACKEND)?'✓ موجود':'✗ غير موجود'],
         'صلاحية الكتابة'    =>['status'=>is_writable(BACKEND),'value'=>is_writable(BACKEND)?'✓ قابل':'✗ غير قابل'],
     ]);
@@ -122,13 +139,17 @@ function apiInstall($body){
 
     $log = [];
 
-    // 2. key:generate + jwt:secret
-    $log[] = ['cmd'=>'key:generate',  'result'=>artisan('key:generate --force')];
-    $log[] = ['cmd'=>'jwt:secret',    'result'=>artisan('jwt:secret --force')];
-    $log[] = ['cmd'=>'config:clear',  'result'=>artisan('config:clear')];
-    $log[] = ['cmd'=>'migrate',       'result'=>artisan('migrate --force')];
-    $log[] = ['cmd'=>'PermissionSeeder','result'=>artisan('db:seed --class=PermissionSeeder --force')];
-    $log[] = ['cmd'=>'storage:link',  'result'=>artisan('storage:link --force')];
+    // 2. Generate APP_KEY and JWT_SECRET with pure PHP — zero exec() needed
+    $appKey    = 'base64:' . base64_encode(random_bytes(32));
+    $jwtSecret = base64_encode(random_bytes(48)); // 64 alphanumeric chars
+    updateEnv(['APP_KEY' => $appKey, 'JWT_SECRET' => $jwtSecret]);
+    $log[] = ['cmd'=>'key:generate', 'result'=>['output'=>'✓ APP_KEY تم إنشاؤه (pure PHP)', 'success'=>true]];
+    $log[] = ['cmd'=>'jwt:secret',   'result'=>['output'=>'✓ JWT_SECRET تم إنشاؤه (pure PHP)', 'success'=>true]];
+
+    // 3. Bootstrap Laravel in-process — no exec(), no PHP CLI needed
+    $log[] = ['cmd'=>'migrate',          'result'=>runLaravel('migrate',  ['--force'=>true])];
+    $log[] = ['cmd'=>'PermissionSeeder', 'result'=>runLaravel('db:seed',  ['--class'=>'PermissionSeeder','--force'=>true])];
+    $log[] = ['cmd'=>'storage:link',     'result'=>runLaravel('storage:link', ['--force'=>true])];
 
     // 3. Create super admin via PDO
     try{
@@ -182,7 +203,7 @@ function apiUpdate($body){
     if(!empty($body['heygen_key']))   $up['HEYGEN_API_KEY']= $body['heygen_key'];
     if(!empty($body['platform_name']))$up['APP_NAME']     = $body['platform_name'];
     if($up) updateEnv($up);
-    artisan('config:clear');
+    runLaravel('config:clear');
 
     if(!empty($body['admin_email'])||!empty($body['admin_password'])){
         try{
@@ -212,8 +233,24 @@ function apiTerminal($body){
     $ok=false;
     foreach($ALLOWED as $a){ if(str_starts_with($cmd,$a)){$ok=true;break;} }
     if(!$ok) return json(['output'=>"الأمر غير مسموح.\n\nالأوامر المتاحة:\n".implode("\n",$ALLOWED),'success'=>false]);
-    // Replace 'php artisan' with detected CLI binary
-    if(str_starts_with($cmd,'php artisan')) $cmd = PHP_BIN.' artisan '.substr($cmd, strlen('php artisan '));
+
+    // For php artisan commands: try in-process first (works even without exec/PHP CLI)
+    if(str_starts_with($cmd,'php artisan ')){
+        $rest  = substr($cmd, strlen('php artisan '));
+        $parts = explode(' ', $rest, 2);
+        $artisanCmd = $parts[0];
+        // Parse simple --key=value and --flag args
+        $args = [];
+        if(isset($parts[1])){
+            foreach(explode(' ', $parts[1]) as $p){
+                if(str_contains($p,'=')){[$k,$v]=explode('=',$p,2); $args[rtrim($k,'=')]=$v;}
+                elseif(str_starts_with($p,'--')){ $args[$p]=true; }
+            }
+        }
+        return json(runLaravel($artisanCmd, $args));
+    }
+
+    // Non-artisan commands (composer etc) — need exec()
     return json(runIn($cmd, BACKEND));
 }
 
@@ -242,6 +279,43 @@ function apiSettings(){
 
 // ─ Utilities ───────────────────────────────────────────────────
 function artisan($cmd){ return runIn(PHP_BIN.' artisan '.$cmd.' 2>&1', BACKEND); }
+
+/**
+ * Bootstrap Laravel in the current PHP process and call an Artisan command.
+ * Works even when exec() is disabled — no external PHP CLI binary required.
+ */
+function runLaravel(string $artisanCmd, array $args = []): array {
+    static $kernel = null;
+
+    if (!file_exists(BACKEND . '/vendor/autoload.php')) {
+        return ['output' => '✗ composer install لم يُشغَّل — vendor/ غير موجود', 'success' => false];
+    }
+
+    $prevDir = getcwd();
+    try {
+        chdir(BACKEND);
+
+        if ($kernel === null) {
+            require_once BACKEND . '/vendor/autoload.php';
+            $app    = require BACKEND . '/bootstrap/app.php';
+            $kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
+        }
+
+        ob_start();
+        $exitCode = $kernel->call($artisanCmd, $args);
+        $output   = trim(ob_get_clean());
+        @chdir($prevDir);
+
+        return [
+            'output'  => $output !== '' ? $output : ($exitCode === 0 ? '✓ تم' : '✗ فشل بدون رسالة'),
+            'success' => $exitCode === 0,
+        ];
+    } catch (\Throwable $e) {
+        @ob_end_clean();
+        @chdir($prevDir);
+        return ['output' => '✗ ' . $e->getMessage(), 'success' => false];
+    }
+}
 
 function runIn($cmd,$cwd=null){
     if(!canExec()) return['output'=>'exec() معطل في إعدادات PHP (disable_functions)','success'=>false];
