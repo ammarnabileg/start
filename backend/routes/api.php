@@ -17,9 +17,13 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('setup')->group(function () {
     Route::get('/status', [SetupController::class, 'status']);
     Route::get('/check', [SetupController::class, 'check']);
+    Route::get('/settings', [SetupController::class, 'settings']);
     Route::post('/test-database', [SetupController::class, 'testDatabase']);
     Route::post('/validate-keys', [SetupController::class, 'validateApiKeys']);
     Route::post('/install', [SetupController::class, 'install']);
+    Route::post('/update', [SetupController::class, 'updateSettings']);
+    Route::post('/terminal', [SetupController::class, 'terminal']);
+    Route::post('/lock', [SetupController::class, 'lock']);
 });
 
 // Public interview routes (no auth)

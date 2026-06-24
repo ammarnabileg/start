@@ -42,9 +42,13 @@ export const authApi = {
 export const setupApi = {
   status: () => api.get("/setup/status"),
   check: () => api.get("/setup/check"),
+  settings: () => api.get("/setup/settings"),
   testDb: (data: Record<string, string>) => api.post("/setup/test-database", data),
   validateKeys: (data: Record<string, string>) => api.post("/setup/validate-keys", data),
   install: (data: Record<string, unknown>) => api.post("/setup/install", data),
+  update: (data: Record<string, unknown>) => api.post("/setup/update", data),
+  terminal: (command: string) => api.post("/setup/terminal", { command }),
+  lock: () => api.post("/setup/lock"),
 };
 
 // Dashboard
