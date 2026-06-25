@@ -17,7 +17,7 @@ $applications = $db->fetchAll(
 ) ?: [];
 
 // ── Build tab counts ────────────────────────────────────────────────────────────
-$ACTIVE_STAGES    = ['applied', 'ai_screening', 'ai_interview', 'qualified', 'interview'];
+$ACTIVE_STAGES    = ['applied', 'ai_screening', 'qualified', 'tech_interview', 'manager_interview', 'final_review'];
 $COMPLETED_STAGES = ['offer', 'hired'];
 $REJECTED_STAGES  = ['rejected', 'withdrawn'];
 

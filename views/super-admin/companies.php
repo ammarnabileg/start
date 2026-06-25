@@ -372,6 +372,10 @@ async function apiPost(url, body) {
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     body: JSON.stringify(body)
   });
+  if (!r.ok && r.status !== 422 && r.status !== 409) {
+    const t = await r.text();
+    try { return JSON.parse(t); } catch { return { ok: false, message: 'Server error (' + r.status + ')' }; }
+  }
   return r.json();
 }
 
@@ -427,9 +431,20 @@ async function deleteCompany(id, name) {
   else showToast(d.message || 'Failed.', 'error');
 }
 
-function impersonateOwner(id) {
-  if (!confirm('Impersonate this company owner?')) return;
-  window.location.href = '/super/impersonate?tenant_id=' + id;
+async function impersonateOwner(id) {
+  if (!confirm('Impersonate this company owner? You will be logged in as their first admin user.')) return;
+  try {
+    const d = await apiPost('/api/v1/admin?action=impersonate', { tenant_id: id });
+    if (d.ok) {
+      if (typeof showToast === 'function') showToast('Impersonation started — redirecting…', 'success');
+      setTimeout(() => { window.location.href = d.data?.redirect || '/dashboard'; }, 800);
+    } else {
+      if (typeof showToast === 'function') showToast(d.message || 'Impersonation failed.', 'error');
+      else alert(d.message || 'Impersonation failed.');
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Network error. Please try again.', 'error');
+  }
 }
 
 // ── Bulk selection ────────────────────────────────────────────────────────────

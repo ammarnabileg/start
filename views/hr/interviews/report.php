@@ -26,7 +26,7 @@ if (isset($report) && is_array($report)) {
         'duration_minutes' => $report['duration_minutes'] ?? 0,
         'status'           => $report['status'] ?? '',
         'ai_model'         => $report['ai_model'] ?? '',
-        'tokens_used'      => $report['tokens_used'] ?? 0,
+        'tokens_used'      => $report['ai_tokens_used'] ?? $report['tokens_used'] ?? 0,
     ], fn($v) => $v !== null);
     if (!isset($evaluation) && !empty($report['evaluation'])) {
         $ev = $report['evaluation'];

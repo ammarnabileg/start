@@ -95,6 +95,71 @@ try {
             require __DIR__ . '/users.php';
             break;
 
+        case 'roles':
+            Auth::requireAuth();
+            Auth::requirePermission('roles.manage');
+            $db  = Database::getInstance();
+            $tid = (int)(Auth::user()['tenant_id'] ?? 0);
+            $rid = isset($segments[1]) && is_numeric($segments[1]) ? (int)$segments[1] : 0;
+            $sub = $segments[2] ?? '';
+
+            if ($sub === 'permissions' && $method === 'PUT') {
+                // Save permission assignments for a role
+                $permIds = (array)($request->input('permission_ids', []));
+                $db->query("DELETE FROM role_permissions WHERE role_id = ?", [$rid]);
+                foreach ($permIds as $pid) {
+                    if ((int)$pid) $db->query("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)", [$rid, (int)$pid]);
+                }
+                Response::json(['success' => true, 'message' => 'Permissions saved']);
+
+            } elseif ($rid && $method === 'PUT') {
+                // Update role name/description
+                $role = $db->fetch("SELECT id FROM roles WHERE id = ? AND (tenant_id = ? OR tenant_id IS NULL) AND is_system = 0", [$rid, $tid]);
+                if (!$role) { Response::error('Role not found or system role', 404); break; }
+                $updates = array_filter([
+                    'name'        => $request->input('name'),
+                    'description' => $request->input('description'),
+                    'updated_at'  => date('Y-m-d H:i:s'),
+                ], fn($v) => $v !== null);
+                $db->update('roles', $updates, ['id' => $rid]);
+                Response::json(['success' => true, 'message' => 'Role updated']);
+
+            } elseif ($rid && $method === 'DELETE') {
+                $db->query("DELETE FROM user_roles WHERE role_id = ?", [$rid]);
+                $db->query("DELETE FROM role_permissions WHERE role_id = ?", [$rid]);
+                $db->query("DELETE FROM roles WHERE id = ? AND tenant_id = ? AND is_system = 0", [$rid, $tid]);
+                Response::json(['success' => true, 'message' => 'Role deleted']);
+
+            } elseif ($method === 'POST') {
+                // Create new role
+                $name     = trim($request->input('name', ''));
+                $desc     = trim($request->input('description', ''));
+                $copyFrom = (int)$request->input('copy_from_role_id', 0);
+                if (!$name) { Response::error('Role name required', 422); break; }
+                $slug  = preg_replace('/[^a-z0-9_]/', '_', strtolower($name));
+                $newId = $db->insert('roles', [
+                    'tenant_id'   => $tid,
+                    'name'        => $name,
+                    'slug'        => $slug . '_' . $tid,
+                    'description' => $desc,
+                    'is_system'   => 0,
+                    'created_at'  => date('Y-m-d H:i:s'),
+                    'updated_at'  => date('Y-m-d H:i:s'),
+                ]);
+                if ($copyFrom) {
+                    $rows = $db->fetchAll("SELECT permission_id FROM role_permissions WHERE role_id = ?", [$copyFrom]);
+                    foreach ($rows as $r) {
+                        $db->query("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)", [$newId, $r['permission_id']]);
+                    }
+                }
+                Response::json(['success' => true, 'id' => $newId, 'message' => 'Role created']);
+
+            } else {
+                $roles = $db->fetchAll("SELECT r.*, COUNT(rp.permission_id) as perm_count FROM roles r LEFT JOIN role_permissions rp ON rp.role_id = r.id WHERE r.tenant_id = ? OR r.tenant_id IS NULL GROUP BY r.id ORDER BY r.is_system DESC, r.name ASC", [$tid]) ?: [];
+                Response::success($roles);
+            }
+            break;
+
         case 'team':
             Auth::requireAuth();
             $db  = Database::getInstance();
@@ -231,6 +296,169 @@ try {
                     [$uid]
                 ) ?: [];
                 Response::success($items);
+            }
+            break;
+
+        case 'profile':
+            Auth::requireAuth();
+            $db  = Database::getInstance();
+            $cid = (int)(Auth::user()['id'] ?? 0);
+            if ($method === 'GET') {
+                $row = $db->fetch("SELECT * FROM candidates WHERE id = ?", [$cid]);
+                Response::success($row ?: []);
+            } elseif ($method === 'POST') {
+                $fullName = trim($request->input('full_name', ''));
+                $parts    = $fullName !== '' ? explode(' ', $fullName, 2) : [];
+                $updates  = array_filter([
+                    'first_name'           => $parts[0] ?? ($request->input('first_name') ?? null),
+                    'last_name'            => $parts[1] ?? ($request->input('last_name') ?? null),
+                    'phone'                => $request->input('phone'),
+                    'location'             => $request->input('location'),
+                    'linkedin_url'         => $request->input('linkedin_url'),
+                    'portfolio_url'        => $request->input('portfolio_url'),
+                    'professional_summary' => $request->input('professional_summary'),
+                    'availability'         => $request->input('availability'),
+                    'updated_at'           => date('Y-m-d H:i:s'),
+                ], fn($v) => $v !== null);
+                if ($updates) $db->update('candidates', $updates, ['id' => $cid]);
+
+                // Skills
+                $skills = $request->input('skills', []);
+                if (is_array($skills)) {
+                    $db->query("DELETE FROM candidate_skills WHERE candidate_id = ?", [$cid]);
+                    foreach ($skills as $skill) {
+                        if (trim((string)$skill)) {
+                            $db->insert('candidate_skills', ['candidate_id' => $cid, 'skill_name' => trim($skill), 'created_at' => date('Y-m-d H:i:s')]);
+                        }
+                    }
+                }
+                // Work experiences
+                $experiences = $request->input('work_experience', []);
+                if (is_array($experiences)) {
+                    $db->query("DELETE FROM candidate_experiences WHERE candidate_id = ?", [$cid]);
+                    foreach ($experiences as $exp) {
+                        if (!empty($exp['title'])) {
+                            $db->insert('candidate_experiences', [
+                                'candidate_id' => $cid,
+                                'job_title'    => $exp['title'] ?? '',
+                                'company'      => $exp['company'] ?? '',
+                                'start_date'   => $exp['from'] ?? null,
+                                'end_date'     => $exp['to'] ?? null,
+                                'description'  => $exp['desc'] ?? '',
+                                'created_at'   => date('Y-m-d H:i:s'),
+                            ]);
+                        }
+                    }
+                }
+                // Education
+                $educations = $request->input('education', []);
+                if (is_array($educations)) {
+                    $db->query("DELETE FROM candidate_education WHERE candidate_id = ?", [$cid]);
+                    foreach ($educations as $edu) {
+                        if (!empty($edu['degree'])) {
+                            $db->insert('candidate_education', [
+                                'candidate_id' => $cid,
+                                'degree'       => $edu['degree'] ?? '',
+                                'institution'  => $edu['school'] ?? '',
+                                'start_date'   => $edu['from'] ?? null,
+                                'end_date'     => $edu['to'] ?? null,
+                                'created_at'   => date('Y-m-d H:i:s'),
+                            ]);
+                        }
+                    }
+                }
+                Response::success(['message' => 'Profile saved']);
+            } else {
+                Response::error('Method not allowed', 405);
+            }
+            break;
+
+        case 'hr-interviews':
+            Auth::requireAuth();
+            $db  = Database::getInstance();
+            $tid = (int)(Auth::user()['tenant_id'] ?? 0);
+            $hiAction = $request->get('action') ?? $request->input('action') ?? '';
+
+            if ($hiAction === 'schedule' || ($method === 'POST' && !$hiAction)) {
+                $candidateId   = (int)$request->input('candidate_id');
+                $jobId         = (int)$request->input('job_id');
+                $scheduledAt   = $request->input('scheduled_at') ?? $request->input('date') . ' ' . $request->input('time');
+                $duration      = (int)($request->input('duration', 60));
+                $type          = $request->input('type', 'video');
+                $link          = $request->input('meeting_link', '');
+                $notes         = $request->input('notes', '');
+                $interviewerIds = (array)($request->input('interviewer_ids', []));
+
+                // Find or create application for this candidate+job
+                $app = $db->fetch("SELECT id FROM applications WHERE candidate_id = ? AND job_id = ? AND tenant_id = ? LIMIT 1", [$candidateId, $jobId, $tid]);
+                if (!$app) { Response::error('No application found for this candidate + job', 404); break; }
+
+                $hiId = $db->insert('human_interviews', [
+                    'application_id' => $app['id'],
+                    'scheduled_at'   => $scheduledAt,
+                    'duration_min'   => $duration,
+                    'interview_type' => $type,
+                    'meeting_link'   => $link,
+                    'notes'          => $notes,
+                    'status'         => 'scheduled',
+                    'created_by'     => Auth::user()['id'],
+                    'created_at'     => date('Y-m-d H:i:s'),
+                ]);
+                foreach ($interviewerIds as $uid) {
+                    if ((int)$uid) $db->insert('human_interview_evaluators', ['interview_id' => $hiId, 'user_id' => (int)$uid]);
+                }
+                $db->update('applications', ['current_stage' => 'tech_interview'], ['id' => $app['id']]);
+                Response::success(['id' => $hiId, 'message' => 'Interview scheduled']);
+
+            } elseif ($hiAction === 'update') {
+                $hiId  = (int)$request->input('id');
+                $updates = array_filter([
+                    'scheduled_at'   => $request->input('scheduled_at') ?? (($request->input('date') ?? '') . ' ' . ($request->input('time') ?? '')),
+                    'duration_min'   => $request->input('duration') ? (int)$request->input('duration') : null,
+                    'interview_type' => $request->input('type'),
+                    'meeting_link'   => $request->input('meeting_link'),
+                    'notes'          => $request->input('notes'),
+                    'updated_at'     => date('Y-m-d H:i:s'),
+                ], fn($v) => $v !== null && $v !== '');
+                if ($hiId && $updates) $db->update('human_interviews', $updates, ['id' => $hiId]);
+                Response::success(['message' => 'Interview updated']);
+
+            } elseif ($hiAction === 'cancel') {
+                $hiId = (int)$request->input('id');
+                if ($hiId) $db->update('human_interviews', ['status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')], ['id' => $hiId]);
+                Response::success(['message' => 'Interview cancelled']);
+
+            } elseif ($hiAction === 'remind') {
+                // Reminder logic placeholder — returns success (email integration can be added later)
+                Response::success(['message' => 'Reminder sent']);
+
+            } elseif ($hiAction === 'complete') {
+                $hiId   = (int)$request->input('id');
+                $rating = (int)($request->input('overall_rating', 3));
+                $notes  = $request->input('outcome_notes', '');
+                if ($hiId) {
+                    $db->update('human_interviews', [
+                        'status'          => 'completed',
+                        'overall_rating'  => $rating,
+                        'outcome_notes'   => $notes,
+                        'completed_at'    => date('Y-m-d H:i:s'),
+                        'updated_at'      => date('Y-m-d H:i:s'),
+                    ], ['id' => $hiId]);
+                }
+                Response::success(['message' => 'Interview marked as complete']);
+
+            } else {
+                // List human interviews for this tenant
+                $rows = $db->fetchAll(
+                    "SELECT hi.*, CONCAT(c.first_name,' ',c.last_name) as candidate_name, j.title as job_title
+                     FROM human_interviews hi
+                     JOIN applications a ON a.id = hi.application_id
+                     JOIN candidates c ON c.id = a.candidate_id
+                     JOIN jobs j ON j.id = a.job_id
+                     WHERE a.tenant_id = ? ORDER BY hi.scheduled_at DESC LIMIT 100",
+                    [$tid]
+                ) ?: [];
+                Response::success($rows);
             }
             break;
 

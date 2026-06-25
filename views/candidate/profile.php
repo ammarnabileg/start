@@ -211,7 +211,7 @@ $cvUploadDate = !empty($cv['created_at']) ? date('M j, Y', strtotime($cv['create
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-gray-600 mb-1.5">Full Name <span class="text-red-400">*</span></label>
             <input type="text" id="full_name" name="full_name"
-              value="<?= htmlspecialchars($profile['full_name'] ?? '') ?>"
+              value="<?= htmlspecialchars(trim(($profile['first_name'] ?? '') . ' ' . ($profile['last_name'] ?? '')) ?: ($profile['full_name'] ?? '')) ?>"
               placeholder="e.g. Alex Johnson"
               oninput="updateInitials(this.value); scheduleCompletionUpdate()"
               class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-colors">
@@ -1010,8 +1010,12 @@ async function saveProfile() {
   const skillsRaw = document.getElementById('skills-value')?.value ?? '';
   const skills    = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+  const fullName = document.getElementById('full_name')?.value?.trim() ?? '';
+  const nameParts = fullName.split(' ');
   const payload = {
-    full_name:            document.getElementById('full_name')?.value?.trim() ?? '',
+    full_name:            fullName,
+    first_name:           nameParts[0] ?? '',
+    last_name:            nameParts.slice(1).join(' ') || nameParts[0] || '',
     phone:                document.getElementById('phone')?.value?.trim() ?? '',
     location:             document.getElementById('location')?.value?.trim() ?? '',
     linkedin_url:         document.getElementById('linkedin_url')?.value?.trim() ?? '',

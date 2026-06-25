@@ -835,7 +835,7 @@ try {
     if (!body.candidate_id) { showToast('Please select a candidate', 'error'); return; }
     if (!body.job_id)       { showToast('Please select a position', 'error'); return; }
 
-    fetch('/api/v1/interviews/schedule', {
+    fetch('/api/v1/hr-interviews?action=schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify(body)
@@ -900,8 +900,9 @@ try {
       else { body[k] = v; }
     });
 
-    fetch('/api/v1/interviews/' + id, {
-      method: 'PUT',
+    body.id = id;
+    fetch('/api/v1/hr-interviews?action=update', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify(body)
     })
@@ -921,9 +922,10 @@ try {
   /* ──────────────────────── Cancel ───────────────────────────── */
   window.confirmCancel = function (id) {
     if (!confirm('Are you sure you want to cancel this interview? This will notify the candidate and interviewers.')) return;
-    fetch('/api/v1/interviews/' + id + '/cancel', {
+    fetch('/api/v1/hr-interviews?action=cancel', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ id: id })
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
@@ -939,9 +941,10 @@ try {
 
   /* ─────────────────────── Send Reminder ────────────────────── */
   window.sendReminder = function (id) {
-    fetch('/api/v1/interviews/' + id + '/remind', {
+    fetch('/api/v1/hr-interviews?action=remind', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ id: id })
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
@@ -1003,7 +1006,8 @@ try {
     var body = {};
     fd.forEach(function (v, k) { body[k] = v; });
 
-    fetch('/api/v1/interviews/' + id + '/complete', {
+    body.id = id;
+    fetch('/api/v1/hr-interviews?action=complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify(body)

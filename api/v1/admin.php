@@ -264,8 +264,17 @@ if ($method === 'POST' && $action === 'bulk_companies') {
 // ── Impersonate ──────────────────────────────────────────────────────────
 if ($method === 'POST' && $action === 'impersonate') {
     $targetUserId = (int)$request->input('user_id');
-    $user = $db->fetch("SELECT * FROM users WHERE id = ?", [$targetUserId]);
-    if (!$user) { Response::error('User not found', 404); exit; }
+    $tenantId     = (int)$request->input('tenant_id');
+
+    if ($targetUserId) {
+        $user = $db->fetch("SELECT * FROM users WHERE id = ?", [$targetUserId]);
+    } elseif ($tenantId) {
+        $user = $db->fetch("SELECT * FROM users WHERE tenant_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1", [$tenantId]);
+    } else {
+        Response::error('user_id or tenant_id required', 422); exit;
+    }
+
+    if (!$user) { Response::error('No active user found for this company', 404); exit; }
 
     $_SESSION['impersonating'] = $userId;
     $_SESSION['user']          = $user;

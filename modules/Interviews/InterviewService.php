@@ -95,7 +95,7 @@ class InterviewService
         ]);
 
         // Move the application into AI screening if it is still at "applied".
-        if (($application['stage'] ?? '') === 'applied') {
+        if (($application['current_stage'] ?? $application['stage'] ?? '') === 'applied') {
             $this->updateApplicationStage($applicationId, 'ai_screening');
         }
 
@@ -327,7 +327,7 @@ class InterviewService
             'interview_id'        => $interviewId,
             'final_score'         => $score,
             'ai_recommendation'   => $recommendation,
-            'stage'               => $stage,
+            'current_stage'       => $stage,
             'interview_link_used' => 1,
         ], ['id' => $applicationId]);
 
@@ -358,7 +358,7 @@ class InterviewService
 
     private function updateApplicationStage(int $applicationId, string $stage): void
     {
-        $this->db->update('applications', ['stage' => $stage], ['id' => $applicationId]);
+        $this->db->update('applications', ['current_stage' => $stage], ['id' => $applicationId]);
     }
 
     private function countQuestions(array $messages): int

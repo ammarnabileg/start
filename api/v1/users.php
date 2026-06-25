@@ -109,10 +109,8 @@ elseif ($method === 'PUT') {
         }
     }
 
-    if (empty($updates)) { Response::error('Nothing to update', 422); exit; }
-
     $updates['updated_at'] = date('Y-m-d H:i:s');
-    $db->update('users', $updates, ['id' => $id]);
+    if (count($updates) > 1) $db->update('users', $updates, ['id' => $id]);
 
     Response::success(['message' => 'Updated']);
 }
