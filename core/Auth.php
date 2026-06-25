@@ -120,7 +120,16 @@ class Auth {
 
     public static function requirePermission(string $permission): void {
         self::requireAuth();
-        if (!self::can($permission)) { header('Location: /unauthorized'); exit; }
+        if (!self::can($permission)) {
+            $isApi = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/api/');
+            if ($isApi) {
+                http_response_code(403);
+                header('Content-Type: application/json');
+                echo json_encode(['ok' => false, 'message' => "Permission denied: {$permission}"]);
+                exit;
+            }
+            header('Location: /unauthorized'); exit;
+        }
     }
 
     public static function hasRole(string $role): bool {

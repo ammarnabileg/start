@@ -1,18 +1,19 @@
 <?php
 ob_start();
 $pageTitle = 'Roles & Permissions';
-if (!Auth::can('roles.manage')) { header('Location: /unauthorized'); exit; }
+if (!Auth::can('roles.manage') && !Auth::can('roles.view')) { header('Location: /unauthorized'); exit; }
+$canManageRoles = Auth::can('roles.manage');
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
 $roles = $db->fetchAll("SELECT r.*, (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) as user_count FROM roles r WHERE r.tenant_id = ? OR r.tenant_id IS NULL ORDER BY r.is_system DESC, r.name ASC", [$tid]) ?: [];
-$permissions = $db->fetchAll("SELECT * FROM permissions ORDER BY category, name") ?: [];
+$permissions = $db->fetchAll("SELECT * FROM permissions ORDER BY module, name") ?: [];
 ?>
 
 <?php
-// Group permissions by category
+// Group permissions by module (stored as 'module' in DB, displayed as 'category')
 $permsByCategory = [];
 foreach ($permissions as $perm) {
-    $permsByCategory[$perm['category']][] = $perm;
+    $permsByCategory[$perm['module'] ?? 'other'][] = $perm;
 }
 
 // Category display metadata

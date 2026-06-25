@@ -257,6 +257,15 @@ class AiApi
         $context['user_id'] = $this->userId;
 
         $copilot = new RecruitmentCopilot();
+        $aiSvc = new \Modules\AI\OpenAIService();
+        if (!$aiSvc->hasKey()) {
+            Response::success([
+                'answer'      => 'AI Copilot is not configured yet. Please add an OpenAI API key in Settings.',
+                'data'        => [],
+                'suggestions' => [],
+            ]);
+            return;
+        }
         $result = $copilot->chat($message, $context, $this->tenantId);
 
         Response::success($result);
