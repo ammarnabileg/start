@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'AI Analytics';
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
@@ -562,3 +563,4 @@ function exportLogs() {
   window.location.href = `/api/v1/ai-analytics/export?days=${days}`;
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

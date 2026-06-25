@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'Offers';
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
@@ -1029,3 +1030,4 @@ function _cap(str) {
     if (empty) empty.classList.toggle('hidden', visible > 0);
 })();
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>
