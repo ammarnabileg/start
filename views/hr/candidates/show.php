@@ -517,7 +517,7 @@ async function updateStage() {
     var btn = event.target;
     btn.disabled = true;
     try {
-        var res = await fetch('/api/v1/pipeline?action=move', {
+        var res = await fetch('/api/v1/applications?action=move_stage', {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({application_id: _appId, stage: stage})

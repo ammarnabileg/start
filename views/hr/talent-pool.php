@@ -376,12 +376,17 @@ async function removeFromPool(btn, id) {
 async function startInterview(candidateId) {
   App.toast('Preparing AI interview link…', 'info');
   try {
-    var res = await fetch('/api/v1/interviews?action=send_link', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+    var res = await fetch('/api/v1/hr-interviews?action=send_link', {
+      method: 'POST', headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
       body: JSON.stringify({candidate_id: candidateId})
     });
     var data = await res.json();
-    App.toast(data.success ? 'Interview link sent to candidate!' : (data.message||'Error sending link'), data.success?'success':'error');
+    if (data.ok && data.data?.link) {
+      navigator.clipboard?.writeText(data.data.link).catch(()=>{});
+      App.toast('Interview link copied to clipboard!', 'success');
+    } else {
+      App.toast(data.message || 'Error getting interview link', 'error');
+    }
   } catch(e) { App.toast('Error sending interview link', 'error'); }
 }
 </script>

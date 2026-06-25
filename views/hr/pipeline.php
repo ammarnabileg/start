@@ -168,13 +168,14 @@ async function rankAllAI() {
     if (btn) btn.disabled = true;
     App.toast('AI is ranking all candidates…', 'info');
     try {
-        var res = await fetch('/api/v1/pipeline?action=rank_all', {
+        var jobId = document.getElementById('pipelineJobFilter')?.value || '';
+        var res = await fetch('/api/v1/ai?action=match-candidates', {
             method: 'POST',
-            headers: {'Content-Type':'application/json','X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content||''},
-            body: JSON.stringify({})
+            headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+            body: JSON.stringify({job_id: jobId})
         });
         var data = await res.json();
-        if (data.success) {
+        if (data.ok) {
             App.toast('Candidates re-ranked by AI score — reloading…', 'success');
             setTimeout(function(){ location.reload(); }, 1200);
         } else { App.toast(data.message || 'Ranking failed', 'error'); }

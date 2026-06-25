@@ -17,6 +17,7 @@ function offerStatusBadge(string $status): string {
         'pending'  => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>Pending</span>',
         'accepted' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Accepted</span>',
         'declined' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
+        'rejected' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
         default    => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">' . htmlspecialchars(ucfirst($status)) . '</span>',
     };
 }
@@ -78,7 +79,7 @@ $avatarColors = [
         All (<?= count($offers) ?>)
       </button>
       <?php
-      $statuses = ['pending' => 'Pending', 'accepted' => 'Accepted', 'declined' => 'Declined'];
+      $statuses = ['pending' => 'Pending', 'accepted' => 'Accepted', 'rejected' => 'Declined', 'negotiating' => 'Negotiating'];
       foreach ($statuses as $s => $l):
         $cnt = count(array_filter($offers, fn($o) => ($o['status'] ?? '') === $s));
         if ($cnt === 0) continue;
@@ -188,9 +189,9 @@ $avatarColors = [
         <!-- Action buttons -->
         <div class="flex flex-wrap items-center gap-2 mt-4">
           <!-- View offer letter (always visible) -->
-          <?php if (!empty($o['offer_letter_text'])): ?>
+          <?php if (!empty($o['offer_letter'])): ?>
           <button
-            onclick="openOfferLetter(<?= $offerId ?>, <?= json_encode($jobTitle) ?>, <?= json_encode($company) ?>, <?= json_encode($o['offer_letter_text']) ?>)"
+            onclick="openOfferLetter(<?= $offerId ?>, <?= json_encode($jobTitle) ?>, <?= json_encode($company) ?>, <?= json_encode($o['offer_letter']) ?>)"
             class="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 border border-violet-300 hover:border-violet-500 hover:bg-violet-50 px-4 py-2 rounded-full transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             View Offer Letter
@@ -224,7 +225,7 @@ $avatarColors = [
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Offer Accepted
           </span>
-          <?php elseif ($status === 'declined'): ?>
+          <?php elseif (in_array($status, ['declined', 'rejected'])): ?>
           <span class="inline-flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-2 rounded-full font-medium">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Offer Declined
@@ -529,7 +530,7 @@ async function confirmDecline() {
     if (res.ok) {
       closeModal('modal-decline');
       showToast('Offer declined.', 'info');
-      updateCardStatus(activeOfferId, 'declined');
+      updateCardStatus(activeOfferId, 'rejected');
     } else {
       const d = await res.json();
       throw new Error(d.error ?? 'Decline failed');
@@ -577,9 +578,9 @@ async function confirmNegotiate() {
   btn.textContent = 'Sending...';
   try {
     const res = await apiFetch(`/api/v1/offers/${activeOfferId}/negotiate`, 'POST', {
-      negotiated_salary:    salary,
-      salary_currency:      currency,
-      negotiation_message:  message,
+      negotiated_salary: salary,
+      currency:          currency,
+      message:           message,
     });
     if (res.ok) {
       closeModal('modal-negotiate');
@@ -605,7 +606,7 @@ function updateCardStatus(offerId, newStatus) {
   // Replace status badge
   const badgeHTML = {
     accepted: '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Accepted</span>',
-    declined: '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
+    rejected: '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
   };
   const oldBadge = card.querySelector('[class*="rounded-full"][class*="text-amber"]');
   if (oldBadge && badgeHTML[newStatus]) {

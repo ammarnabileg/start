@@ -428,6 +428,24 @@ try {
                 if ($hiId) $db->update('human_interviews', ['status' => 'cancelled', 'updated_at' => date('Y-m-d H:i:s')], ['id' => $hiId]);
                 Response::success(['message' => 'Interview cancelled']);
 
+            } elseif ($hiAction === 'send_link') {
+                // Generate / retrieve AI interview link for a candidate from talent pool
+                Auth::requirePermission('interviews.view');
+                $candidateId = (int)$request->input('candidate_id');
+                if (!$candidateId) { Response::error('candidate_id required', 422); break; }
+                // Find most recent active application for this candidate in this tenant
+                $app = $db->fetch(
+                    "SELECT a.id, a.job_id, j.interview_link_token FROM applications a
+                     JOIN jobs j ON j.id = a.job_id
+                     WHERE a.candidate_id = ? AND a.tenant_id = ? AND a.current_stage NOT IN ('hired','rejected','withdrawn')
+                     ORDER BY a.applied_at DESC LIMIT 1",
+                    [$candidateId, $tid]
+                );
+                if (!$app) { Response::error('No active application found for this candidate', 404); break; }
+                $baseUrl = rtrim($_ENV['APP_URL'] ?? (($_SERVER['HTTPS'] ?? '') === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), '/');
+                $link = $baseUrl . '/interview/' . ($app['interview_link_token'] ?? '');
+                Response::success(['link' => $link, 'message' => 'Interview link ready']);
+
             } elseif ($hiAction === 'remind') {
                 // Reminder logic placeholder — returns success (email integration can be added later)
                 Response::success(['message' => 'Reminder sent']);
