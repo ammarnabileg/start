@@ -1,4 +1,5 @@
 <?php
+ob_start();
 /**
  * Super Admin Dashboard
  * Rendered by SuperAdminRouter -> views/layouts/app.php wraps this content.
@@ -314,3 +315,4 @@ function impersonateCompany(id) {
   window.location.href = '/super/impersonate?tenant_id=' + id;
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

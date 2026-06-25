@@ -1,4 +1,5 @@
 <?php
+ob_start();
 /**
  * Super Admin – Global Users List
  */
@@ -269,3 +270,4 @@ async function deleteUser(id, name) {
   else showToast(d.message || 'Failed.', 'error');
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

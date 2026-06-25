@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // Candidate Dashboard — rendered inside candidate.php layout via $content
 // Variables: $user
 $db          = Database::getInstance();
@@ -328,3 +329,4 @@ function ivTypeIcon(string $type): string {
 
   </div>
 </div>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/candidate.php'; ?>

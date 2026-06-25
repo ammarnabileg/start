@@ -1,4 +1,5 @@
 <?php
+ob_start();
 /**
  * Super Admin – AI Usage Analytics
  * Route: /super/ai-usage -> super-admin/ai-analytics
@@ -352,3 +353,4 @@ function drawCharts() {
   }
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

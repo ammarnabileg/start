@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'My Applications';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
@@ -615,3 +616,4 @@ function scoreBar(int $score): string {
   }
 })();
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/candidate.php'; ?>

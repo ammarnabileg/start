@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'Find Jobs';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
@@ -585,3 +586,4 @@ if ($totalPages > 1):
   if (Object.values(f0).some(v => v !== '')) applyFilters();
 })();
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/candidate.php'; ?>

@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'Team Management';
 $canInvite = Auth::can('users.create');
 $canEdit   = Auth::can('users.edit');
@@ -222,3 +223,4 @@ function removeUser(id, name) {
   });
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

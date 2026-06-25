@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'Company Settings';
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
@@ -849,3 +850,4 @@ document.getElementById('invite-form')?.addEventListener('submit', async e => {
   finally { setLoading(btn, false); }
 });
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

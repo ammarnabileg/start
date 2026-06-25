@@ -1,4 +1,5 @@
 <?php
+ob_start();
 /**
  * Super Admin – Company Management
  */
@@ -438,3 +439,4 @@ document.querySelector('#addCompanyForm [name=slug]')?.addEventListener('input',
   this.dataset.touched = '1';
 });
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

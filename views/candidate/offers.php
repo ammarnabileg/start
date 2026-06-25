@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'My Offers';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
@@ -687,3 +688,4 @@ function escapeHtml(s) {
     .replace(/'/g, '&#039;');
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/candidate.php'; ?>

@@ -1,4 +1,5 @@
 <?php
+ob_start();
 /**
  * Super Admin – System Settings
  */
@@ -385,3 +386,4 @@ async function sendTestEmail() {
   }
 }
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'Roles & Permissions';
 if (!Auth::can('roles.manage')) { header('Location: /unauthorized'); exit; }
 $db = Database::getInstance();
@@ -594,3 +595,4 @@ document.addEventListener('keydown', e => {
   }
 });
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

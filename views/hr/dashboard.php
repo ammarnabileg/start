@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $db = Database::getInstance();
 $tenantId = $user['tenant_id'] ?? 0;
 
@@ -160,3 +161,4 @@ function scoreBadge(?float $score): string {
     </div>
   </div>
 </div>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

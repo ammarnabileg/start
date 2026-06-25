@@ -1,4 +1,5 @@
 <?php
+ob_start();
 $pageTitle = 'My Profile';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
@@ -1150,3 +1151,4 @@ function escapeHtml(s) {
   if (valid.includes(hash)) switchTab(hash);
 })();
 </script>
+<?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/candidate.php'; ?>

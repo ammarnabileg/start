@@ -34,10 +34,14 @@ class HRRouter {
         $data['user'] = Auth::user();
         extract($data);
         $viewFile = VIEWS_PATH . '/' . str_replace('.', '/', $view) . '.php';
-        ob_start();
-        if (file_exists($viewFile)) require $viewFile;
-        else echo "<p class='p-8 text-gray-500'>View coming soon: {$view}</p>";
-        $content = ob_get_clean();
-        require VIEWS_PATH . '/layouts/app.php';
+        if (file_exists($viewFile)) {
+            require $viewFile;
+        } else {
+            // Fallback: simple views that have no layout of their own
+            ob_start();
+            echo "<p class='p-8 text-gray-500'>View coming soon: {$view}</p>";
+            $content = ob_get_clean();
+            require VIEWS_PATH . '/layouts/app.php';
+        }
     }
 }
