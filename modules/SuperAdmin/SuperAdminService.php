@@ -80,7 +80,7 @@ class SuperAdminService
         $totalInterviews = (int) ($this->db->fetch('SELECT COUNT(*) AS c FROM interviews')['c'] ?? 0);
 
         $usage = $this->db->fetch(
-            'SELECT COALESCE(SUM(tokens_used),0) AS tokens, COALESCE(SUM(cost),0) AS cost FROM ai_usage_logs'
+            'SELECT COALESCE(SUM(total_tokens),0) AS tokens, COALESCE(SUM(cost),0) AS cost FROM ai_usage_logs'
         );
 
         return [

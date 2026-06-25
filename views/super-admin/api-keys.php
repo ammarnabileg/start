@@ -300,7 +300,7 @@ async function saveTenantKeys() {
     closeModal();
     if (typeof showToast === 'function') showToast('Keys saved for company', 'success');
   } else {
-    alert('Error: ' + d.message);
+    if (typeof showToast === 'function') showToast('Error: ' + d.message, 'error'); else alert('Error: ' + d.message);
   }
 }
 document.getElementById('tenantModal').addEventListener('click', function(e) {

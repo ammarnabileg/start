@@ -24,8 +24,8 @@ $offersReceived = (int)($db->fetchColumn(
 ) ?? 0);
 
 // Profile completion score
-$candidate = $db->fetchRow("SELECT * FROM candidates WHERE user_id = ?", [$candidateId])
-             ?? $db->fetchRow("SELECT * FROM candidates WHERE id = ?", [$candidateId])
+$candidate = $db->fetch("SELECT * FROM candidates WHERE user_id = ?", [$candidateId])
+             ?? $db->fetch("SELECT * FROM candidates WHERE id = ?", [$candidateId])
              ?? [];
 $profileFields = ['first_name','phone','location','bio','linkedin_url','avatar'];
 $filled = 0;

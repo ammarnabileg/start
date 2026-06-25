@@ -468,7 +468,7 @@ function copyText(text) {
 async function sendCredentials(id, name) {
   const newPass = prompt('Set a new password for "' + name + '" (min 8 chars):\nLeave blank to just send their current login email.');
   if (newPass === null) return; // cancelled
-  if (newPass && newPass.length < 8) { alert('Password must be at least 8 characters.'); return; }
+  if (newPass && newPass.length < 8) { if (typeof showToast === 'function') showToast('Password must be at least 8 characters.', 'warning'); else alert('Password must be at least 8 characters.'); return; }
   const d = await apiPost('/api/v1/admin?action=reset_company_password', { id, password: newPass });
   if (d.ok) {
     const info = 'Login: ' + (d.data?.email || '') + (newPass ? '\nNew Password: ' + newPass : '');

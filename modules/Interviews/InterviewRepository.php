@@ -238,7 +238,7 @@ class InterviewRepository
             $params[] = (int) $filters['job_id'];
         }
         if (!empty($filters['stage'])) {
-            $where[] = 'a.stage = ?';
+            $where[] = 'a.current_stage = ?';
             $params[] = (string) $filters['stage'];
         }
         if (!empty($filters['recommendation'])) {

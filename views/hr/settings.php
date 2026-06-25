@@ -344,7 +344,7 @@ $aiStatus = TenantAIProvider::status($tid);
   $usedInterviews = (int)($db->fetch("SELECT COUNT(*) c FROM interviews i JOIN applications a ON a.id=i.application_id WHERE a.tenant_id=? AND i.created_at BETWEEN ? AND ?", [$tid, $monthStart, $monthEnd])['c'] ?? 0);
   $usedJobs       = (int)($db->fetch("SELECT COUNT(*) c FROM jobs WHERE tenant_id=? AND status='published'", [$tid])['c'] ?? 12);
   $usedMembers    = count($teamMembers);
-  $usedCredits    = (int)($db->fetch("SELECT SUM(tokens_used) c FROM ai_usage_logs WHERE tenant_id=? AND created_at BETWEEN ? AND ?", [$tid, $monthStart, $monthEnd])['c'] ?? 0);
+  $usedCredits    = (int)($db->fetch("SELECT SUM(total_tokens) c FROM ai_usage_logs WHERE tenant_id=? AND created_at BETWEEN ? AND ?", [$tid, $monthStart, $monthEnd])['c'] ?? 0);
   try { $invoices = $db->fetchAll("SELECT * FROM invoices WHERE tenant_id=? ORDER BY created_at DESC LIMIT 6", [$tid]) ?: []; } catch (\Exception $e) { $invoices = []; }
   if (empty($invoices)) $invoices = [
     ['id'=>'INV-2026-006','period'=>'June 2026',  'amount'=>4900,'status'=>'paid'],

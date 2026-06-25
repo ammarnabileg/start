@@ -217,6 +217,40 @@ try {
             }
             break;
 
+        case 'cv':
+            Auth::requireAuth();
+            $db  = Database::getInstance();
+            $cid = (int)(Auth::user()['id'] ?? 0);
+            $cvAction = $request->get('action') ?? $request->input('action') ?? '';
+
+            if ($cvAction === 'upload' && $method === 'POST') {
+                if (empty($_FILES['cv']['tmp_name'])) { Response::error('No file uploaded', 422); exit; }
+                $file = $_FILES['cv'];
+                $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, ['pdf','doc','docx'])) { Response::error('Only PDF/DOC/DOCX allowed', 422); exit; }
+                if ($file['size'] > 10 * 1024 * 1024) { Response::error('File too large (max 10MB)', 422); exit; }
+                $uploadDir = dirname(__DIR__, 2) . '/storage/cvs/';
+                if (!is_dir($uploadDir)) { @mkdir($uploadDir, 0775, true); }
+                $filename = 'cv_' . $cid . '_' . time() . '.' . $ext;
+                if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) { Response::error('Upload failed', 500); exit; }
+                $url = '/storage/cvs/' . $filename;
+                $db->query("UPDATE candidates SET cv_url = ?, updated_at = NOW() WHERE id = ?", [$url, $cid]);
+                Response::success(['url' => $url, 'filename' => $file['name']]);
+
+            } elseif ($cvAction === 'delete' && $method === 'POST') {
+                $row = $db->fetch("SELECT cv_url FROM candidates WHERE id = ?", [$cid]);
+                if (!empty($row['cv_url'])) {
+                    $fullPath = dirname(__DIR__, 2) . $row['cv_url'];
+                    if (file_exists($fullPath)) @unlink($fullPath);
+                }
+                $db->query("UPDATE candidates SET cv_url = NULL, cv_text = NULL, updated_at = NOW() WHERE id = ?", [$cid]);
+                Response::success(['message' => 'CV removed']);
+
+            } else {
+                Response::error('Unknown CV action', 400);
+            }
+            break;
+
         case '':
             Response::success(['name' => 'AI Recruitment API', 'version' => 'v1', 'status' => 'ok']);
             break;

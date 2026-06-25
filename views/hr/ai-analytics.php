@@ -22,7 +22,7 @@ $totalRequests = (int)($db->fetchColumn(
 ) ?? 0);
 
 $totalTokens = (int)($db->fetchColumn(
-    "SELECT COALESCE(SUM(tokens_used), 0) FROM ai_usage_logs WHERE tenant_id = ? AND created_at >= ?",
+    "SELECT COALESCE(SUM(total_tokens), 0) FROM ai_usage_logs WHERE tenant_id = ? AND created_at >= ?",
     [$tid, $since]
 ) ?? 0);
 
@@ -39,8 +39,8 @@ $mostUsedFeature = $db->fetchColumn(
 $breakdown = $db->fetchAll(
     "SELECT feature,
             COUNT(*) as request_count,
-            COALESCE(SUM(tokens_used), 0) as total_tokens,
-            COALESCE(AVG(tokens_used), 0) as avg_tokens
+            COALESCE(SUM(total_tokens), 0) as total_tokens,
+            COALESCE(AVG(total_tokens), 0) as avg_tokens
      FROM ai_usage_logs
      WHERE tenant_id = ? AND created_at >= ?
      GROUP BY feature
@@ -52,7 +52,7 @@ $breakdown = $db->fetchAll(
 $dailyUsage = $db->fetchAll(
     "SELECT DATE(created_at) as day,
             COUNT(*) as requests,
-            COALESCE(SUM(tokens_used), 0) as tokens
+            COALESCE(SUM(total_tokens), 0) as tokens
      FROM ai_usage_logs
      WHERE tenant_id = ? AND created_at >= ?
      GROUP BY DATE(created_at)
@@ -375,7 +375,7 @@ function featureIcon(string $key, array $icons): string {
             $ts = date('M j, Y · H:i', strtotime($log['created_at']));
             $fname = featureName($log['feature'] ?? '', $featureNames);
             $model = $log['model'] ?? 'gpt-4o';
-            $tokens = (int)($log['tokens_used'] ?? 0);
+            $tokens = (int)($log['total_tokens'] ?? 0);
             $triggeredBy = $log['user_name'] ?? 'System';
             $modelColor = str_contains($model, '4o') ? 'bg-violet-50 text-violet-700' : (str_contains($model, 'mini') ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600');
           ?>

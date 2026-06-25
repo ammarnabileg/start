@@ -25,7 +25,7 @@ try {
     if ($filterStage) { $where .= " AND a.current_stage = ?"; $params[] = $filterStage; }
     if ($filterMin > 0 || $filterMax < 100) { $where .= " AND a.ai_match_score BETWEEN ? AND ?"; $params[]=$filterMin; $params[]=$filterMax; }
 
-    $total = (int)($db->fetchOne("SELECT COUNT(*) as n FROM applications a JOIN candidates c ON c.id=a.candidate_id WHERE $where", $params)['n'] ?? 0);
+    $total = (int)($db->fetch("SELECT COUNT(*) as n FROM applications a JOIN candidates c ON c.id=a.candidate_id WHERE $where", $params)['n'] ?? 0);
 
     $candidates = $db->fetchAll(
         "SELECT c.id, CONCAT(c.first_name,' ',c.last_name) as full_name,
