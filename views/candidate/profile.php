@@ -5,31 +5,19 @@ $cid = Auth::user()['id'];
 $profile = $db->fetch("SELECT * FROM candidates WHERE id = ?", [$cid]);
 $cv = $db->fetch("SELECT * FROM candidate_cvs WHERE candidate_id = ? ORDER BY created_at DESC LIMIT 1", [$cid]);
 
-// Parse JSON fields safely
-$workExperience = [];
-$education      = [];
-$skills         = [];
+// Load from normalized relational tables
+$workExperience = $db->fetchAll("SELECT * FROM candidate_experiences WHERE candidate_id = ? ORDER BY is_current DESC, start_date DESC", [$cid]) ?: [];
+$education      = $db->fetchAll("SELECT * FROM candidate_education WHERE candidate_id = ? ORDER BY graduation_year DESC", [$cid]) ?: [];
+$skillRows      = $db->fetchAll("SELECT * FROM candidate_skills WHERE candidate_id = ? ORDER BY skill_name", [$cid]) ?: [];
+$skills         = array_column($skillRows, 'skill_name');
 $languages      = [];
-
-if (!empty($profile['work_experience'])) {
-    $decoded = json_decode($profile['work_experience'], true);
-    if (is_array($decoded)) $workExperience = $decoded;
-}
-if (!empty($profile['education'])) {
-    $decoded = json_decode($profile['education'], true);
-    if (is_array($decoded)) $education = $decoded;
-}
-if (!empty($profile['skills'])) {
-    $decoded = json_decode($profile['skills'], true);
-    if (is_array($decoded)) $skills = $decoded;
-}
-if (!empty($profile['languages'])) {
-    $decoded = json_decode($profile['languages'], true);
+if (!empty($profile['languages_spoken'])) {
+    $decoded = json_decode($profile['languages_spoken'], true);
     if (is_array($decoded)) $languages = $decoded;
 }
 
 // Profile completion weights
-$hasName      = !empty($profile['full_name']);
+$hasName      = !empty($profile['first_name']);
 $hasPhone     = !empty($profile['phone']);
 $hasLocation  = !empty($profile['location']);
 $hasSummary   = !empty($profile['professional_summary']);
@@ -49,8 +37,9 @@ if ($hasSkills)   $completion += 15;
 if ($hasCv)       $completion += 15;
 
 $nameInitials = '';
-if (!empty($profile['full_name'])) {
-    $parts = explode(' ', trim($profile['full_name']));
+$fullName = trim(($profile['first_name'] ?? '') . ' ' . ($profile['last_name'] ?? ''));
+if ($fullName) {
+    $parts = explode(' ', $fullName);
     $nameInitials = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
 }
 if (empty($nameInitials)) $nameInitials = 'ME';

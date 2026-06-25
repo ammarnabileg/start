@@ -7,12 +7,19 @@
 require_once __DIR__ . '/../../partials/helpers.php';
 
 $departments = $departments ?? ['Engineering','Marketing','Sales','HR','Finance','Operations','Design','Legal','Other'];
-$avatars     = $avatars     ?? [
-    ['id'=>'sophia',  'name'=>'Sophia (Professional)'],
-    ['id'=>'marcus',  'name'=>'Marcus (Friendly)'],
-    ['id'=>'aria',    'name'=>'Aria (Formal)'],
-    ['id'=>'leo',     'name'=>'Leo (Casual)'],
-];
+if (!isset($avatars)) {
+    $db = Database::getInstance();
+    $tid = Auth::user()['tenant_id'] ?? null;
+    $avatars = $tid ? ($db->fetchAll("SELECT id, name FROM avatars WHERE tenant_id = ? ORDER BY name", [$tid]) ?: []) : [];
+    if (empty($avatars)) {
+        $avatars = [
+            ['id'=>'sophia', 'name'=>'Sophia (Professional)'],
+            ['id'=>'marcus', 'name'=>'Marcus (Friendly)'],
+            ['id'=>'aria',   'name'=>'Aria (Formal)'],
+            ['id'=>'leo',    'name'=>'Leo (Casual)'],
+        ];
+    }
+}
 $questionCategories = $questionCategories ?? ['General','Technical','Behavioral','Situational','Leadership','Culture'];
 
 $pageTitle   = 'Create Job';

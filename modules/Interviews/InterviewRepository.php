@@ -246,7 +246,7 @@ class InterviewRepository
             $params[] = (string) $filters['recommendation'];
         }
         if (!empty($filters['search'])) {
-            $where[] = '(c.full_name LIKE ? OR c.email LIKE ?)';
+            $where[] = "(CONCAT(c.first_name,' ',c.last_name) LIKE ? OR c.email LIKE ?)";
             $params[] = '%' . $filters['search'] . '%';
             $params[] = '%' . $filters['search'] . '%';
         }
@@ -258,9 +258,9 @@ class InterviewRepository
                 i.id, i.type, i.status, i.started_at, i.completed_at,
                 i.duration_seconds, i.questions_count, i.language_detected,
                 i.created_at,
-                a.id AS application_id, a.stage, a.final_score, a.ai_recommendation,
+                a.id AS application_id, a.current_stage AS stage, a.final_score, a.ai_recommendation,
                 j.id AS job_id, j.title AS job_title,
-                c.id AS candidate_id, c.full_name AS candidate_name, c.email AS candidate_email,
+                c.id AS candidate_id, CONCAT(c.first_name,' ',c.last_name) AS candidate_name, c.email AS candidate_email,
                 ev.overall_score, ev.recommendation
             FROM interviews i
             JOIN applications a ON a.id = i.application_id
@@ -293,11 +293,11 @@ class InterviewRepository
         $row = $this->db->fetch("
             SELECT
                 i.*,
-                a.job_id, a.candidate_id, a.stage, a.cv_match_score, a.cv_analysis,
+                a.job_id, a.candidate_id, a.current_stage AS stage, a.cv_match_score, a.cv_analysis,
                 a.final_score, a.ai_recommendation, a.hr_decision, a.hr_notes,
                 j.title AS job_title, j.experience_level AS seniority, j.description AS job_description,
                 j.requirements AS job_requirements,
-                c.full_name AS candidate_name, c.email AS candidate_email,
+                CONCAT(c.first_name,' ',c.last_name) AS candidate_name, c.email AS candidate_email,
                 c.phone AS candidate_phone, c.years_experience, c.expected_salary,
                 c.salary_currency, c.linkedin_url, c.location
             FROM interviews i

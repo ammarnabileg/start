@@ -20,7 +20,7 @@ $where  = ['1=1'];
 $params = [];
 
 if ($search !== '') {
-    $where[]  = '(u.full_name LIKE ? OR u.email LIKE ?)';
+    $where[]  = "(CONCAT(u.first_name,' ',u.last_name) LIKE ? OR u.email LIKE ?)";
     $s = '%' . $search . '%';
     $params[] = $s;
     $params[] = $s;
@@ -45,7 +45,7 @@ $total = (int)($db->fetchColumn(
 ) ?? 0);
 
 $users = $db->fetchAll(
-    "SELECT u.*, t.name AS company_name, t.slug AS company_slug
+    "SELECT u.*, CONCAT(u.first_name,' ',u.last_name) AS full_name, t.name AS company_name, t.slug AS company_slug
        FROM users u
   LEFT JOIN tenants t ON t.id = u.tenant_id
       WHERE {$whereSQL}

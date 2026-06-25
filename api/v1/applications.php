@@ -24,7 +24,7 @@ if ($method === 'GET' && !$action) {
     if ($stage) { $where[] = 'a.current_stage = ?'; $params[] = $stage; }
 
     $sql = "SELECT a.id, a.job_id, a.current_stage, a.applied_at,
-                   c.full_name, c.email,
+                   CONCAT(c.first_name,' ',c.last_name) as full_name, c.email,
                    j.title as job_title,
                    ie.overall_score, ie.recommendation
             FROM applications a
@@ -51,7 +51,7 @@ elseif ($action === 'pipeline') {
     foreach ($stages as $stage) {
         $rows = $db->fetchAll(
             "SELECT a.id, a.current_stage, a.applied_at,
-                    c.full_name, c.email, c.location,
+                    CONCAT(c.first_name,' ',c.last_name) as full_name, c.email, c.location,
                     ie.overall_score, ie.recommendation,
                     i.token as interview_token, i.status as interview_status
              FROM applications a
@@ -98,7 +98,7 @@ elseif ($method === 'GET' && $action === 'detail') {
     Auth::requirePermission('applications.view');
     $id = (int)$request->get('id');
     $row = $db->fetch(
-        "SELECT a.*, c.full_name, c.email, c.phone, c.location,
+        "SELECT a.*, CONCAT(c.first_name,' ',c.last_name) as full_name, c.email, c.phone, c.location,
                 j.title as job_title, j.department,
                 ie.overall_score, ie.recommendation, ie.executive_summary as ai_summary,
                 ie.skills_analysis as skills_scores, ie.disc_profile, ie.big_five, ie.red_flags

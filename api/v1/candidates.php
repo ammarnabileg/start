@@ -25,7 +25,7 @@ if ($method === 'GET' && !$action) {
     $params = [$tid];
 
     if ($search) {
-        $where[] = '(c.full_name LIKE ? OR c.email LIKE ?)';
+        $where[] = "(CONCAT(c.first_name,' ',c.last_name) LIKE ? OR c.email LIKE ?)";
         $params[] = "%$search%"; $params[] = "%$search%";
     }
     if ($jobId) { $where[] = 'a.job_id = ?'; $params[] = $jobId; }
@@ -35,7 +35,7 @@ if ($method === 'GET' && !$action) {
     if ($score === 'low')    { $where[] = 'ie.overall_score < 50'; }
 
     $sql = "SELECT a.id, a.current_stage, a.applied_at, a.is_archived,
-                   c.full_name, c.email, c.phone, c.location,
+                   CONCAT(c.first_name,' ',c.last_name) as full_name, c.email, c.phone, c.location,
                    j.title as job_title,
                    ie.overall_score, ie.recommendation,
                    i.status as interview_status
@@ -56,7 +56,7 @@ elseif ($action === 'quick_view') {
     Auth::requirePermission('candidates.view');
     $id = (int)$request->get('id');
     $row = $db->fetch(
-        "SELECT a.id as application_id, a.current_stage, c.full_name as candidate_name,
+        "SELECT a.id as application_id, a.current_stage, CONCAT(c.first_name,' ',c.last_name) as candidate_name,
                 c.email as candidate_email, ie.overall_score, ie.recommendation,
                 ie.executive_summary as ai_summary, i.token as interview_token
          FROM applications a
@@ -125,6 +125,31 @@ elseif ($method === 'POST' && $action === 'bulk_action') {
     Response::success(['updated' => count($ids)]);
 }
 
+// ── Bulk delete ───────────────────────────────────────────────────────────
+elseif ($method === 'POST' && $action === 'bulk_delete') {
+    Auth::requirePermission('candidates.delete');
+    $ids = array_map('intval', (array)$request->input('ids', []));
+    if (empty($ids)) { Response::error('No IDs provided', 422); exit; }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $db->query("DELETE a FROM applications a WHERE a.id IN ($placeholders) AND a.tenant_id=?", array_merge($ids, [$tid]));
+    Response::success(['deleted' => count($ids)]);
+}
+
+// ── Bulk move stage ───────────────────────────────────────────────────────
+elseif ($method === 'POST' && $action === 'bulk_move') {
+    Auth::requirePermission('pipeline.manage');
+    $ids      = array_map('intval', (array)$request->input('ids', []));
+    $newStage = $request->input('stage', '');
+    $valid    = ['applied','ai_screening','qualified','disqualified','tech_interview',
+                 'manager_interview','final_review','offer','hired','rejected','withdrawn'];
+    if (empty($ids)) { Response::error('No IDs provided', 422); exit; }
+    if (!in_array($newStage, $valid)) { Response::error('Invalid stage', 422); exit; }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $db->query("UPDATE applications SET current_stage=?, updated_at=NOW() WHERE id IN ($placeholders) AND tenant_id=?",
+        array_merge([$newStage], $ids, [$tid]));
+    Response::success(['updated' => count($ids), 'stage' => $newStage]);
+}
+
 // ── Export CSV ────────────────────────────────────────────────────────────
 elseif ($action === 'export') {
     Auth::requirePermission('candidates.view');
@@ -133,7 +158,7 @@ elseif ($action === 'export') {
     $extra = $jobId ? 'AND a.job_id=?' : '';
     if ($jobId) $params[] = $jobId;
     $rows = $db->fetchAll(
-        "SELECT c.full_name, c.email, c.phone, j.title as job, a.current_stage as stage,
+        "SELECT CONCAT(c.first_name,' ',c.last_name) as full_name, c.email, c.phone, j.title as job, a.current_stage as stage,
                 ie.overall_score as score, ie.recommendation, a.applied_at
          FROM applications a
          JOIN candidates c ON c.id=a.candidate_id

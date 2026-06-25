@@ -3,11 +3,11 @@
 // Variables: $user
 $db          = Database::getInstance();
 $candidateId = $user['id'] ?? 0;
-$userName    = $user['full_name'] ?? $user['name'] ?? 'there';
+$userName    = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: ($user['name'] ?? 'there');
 
 // ── Stats ──────────────────────────────────────────────────────────────────
 $activeApps = (int)($db->fetchColumn(
-    "SELECT COUNT(*) FROM applications WHERE candidate_id = ? AND stage NOT IN ('rejected','hired','withdrawn')",
+    "SELECT COUNT(*) FROM applications WHERE candidate_id = ? AND current_stage NOT IN ('rejected','hired','withdrawn')",
     [$candidateId]
 ) ?? 0);
 
@@ -19,7 +19,7 @@ $upcomingInterviews = (int)($db->fetchColumn(
 ) ?? 0);
 
 $offersReceived = (int)($db->fetchColumn(
-    "SELECT COUNT(*) FROM applications WHERE candidate_id = ? AND stage = 'offer'",
+    "SELECT COUNT(*) FROM applications WHERE candidate_id = ? AND current_stage = 'offer'",
     [$candidateId]
 ) ?? 0);
 
@@ -27,7 +27,7 @@ $offersReceived = (int)($db->fetchColumn(
 $candidate = $db->fetchRow("SELECT * FROM candidates WHERE user_id = ?", [$candidateId])
              ?? $db->fetchRow("SELECT * FROM candidates WHERE id = ?", [$candidateId])
              ?? [];
-$profileFields = ['full_name','phone','location','bio','linkedin_url','avatar'];
+$profileFields = ['first_name','phone','location','bio','linkedin_url','avatar'];
 $filled = 0;
 foreach ($profileFields as $f) { if (!empty($candidate[$f])) $filled++; }
 $hasCV     = !empty($candidate['cv_path']);
@@ -46,14 +46,14 @@ $applications = $db->fetchAll(
      JOIN jobs j ON j.id = a.job_id
      JOIN tenants t ON t.id = j.tenant_id
      LEFT JOIN interviews i ON i.application_id = a.id AND i.status IN ('pending','in_progress')
-     WHERE a.candidate_id = ? AND a.stage NOT IN ('rejected','hired','withdrawn')
+     WHERE a.candidate_id = ? AND a.current_stage NOT IN ('rejected','hired','withdrawn')
      ORDER BY a.updated_at DESC LIMIT 6",
     [$candidateId]
 ) ?: [];
 
 // ── Upcoming Interviews ────────────────────────────────────────────────────
 $interviews = $db->fetchAll(
-    "SELECT i.*, j.title as job_title, t.name as company_name, a.stage
+    "SELECT i.*, j.title as job_title, t.name as company_name, a.current_stage as stage
      FROM interviews i
      JOIN applications a ON a.id = i.application_id
      JOIN jobs j ON j.id = a.job_id
@@ -171,12 +171,12 @@ function ivTypeIcon(string $type): string {
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-semibold text-gray-900 truncate"><?= htmlspecialchars($app['job_title'] ?? '') ?></span>
-                <?= candStageBadge($app['stage'] ?? 'applied') ?>
+                <?= candStageBadge($app['current_stage'] ?? 'applied') ?>
               </div>
               <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
                 <span><?= htmlspecialchars($app['company_name'] ?? '') ?></span>
                 <span class="text-gray-300">·</span>
-                <span>Applied <?= isset($app['created_at']) ? date('M j', strtotime($app['created_at'])) : 'Recently' ?></span>
+                <span>Applied <?= isset($app['applied_at']) ? date('M j', strtotime($app['applied_at'])) : 'Recently' ?></span>
                 <?php if (!empty($app['location'])): ?>
                 <span class="text-gray-300">·</span>
                 <span><?= htmlspecialchars($app['location']) ?></span>
@@ -254,7 +254,7 @@ function ivTypeIcon(string $type): string {
       <div class="space-y-2">
         <?php
         $checks = [
-          ['Basic info & phone',      !empty($candidate['full_name']) && !empty($candidate['phone'] ?? '')],
+          ['Basic info & phone',      !empty($candidate['first_name']) && !empty($candidate['phone'] ?? '')],
           ['Profile photo',            !empty($candidate['avatar'] ?? '')],
           ['Professional summary',     !empty($candidate['bio'] ?? '')],
           ['Work experience',          $hasExp],

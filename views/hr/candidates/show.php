@@ -8,13 +8,13 @@
 require_once __DIR__ . '/../../partials/helpers.php';
 
 $candidate = $candidate ?? [
-    'id' => 1, 'full_name' => 'James Carter', 'email' => 'james.carter@mail.com', 'phone' => '+44 7700 900123',
+    'id' => 1, 'first_name' => 'James', 'last_name' => 'Carter', 'full_name' => 'James Carter', 'email' => 'james.carter@mail.com', 'phone' => '+44 7700 900123',
     'location' => 'London, UK', 'years_experience' => 7, 'expected_salary' => 110000, 'salary_currency' => 'GBP',
     'languages_spoken' => ['English (Native)', 'Spanish (B1)'], 'nationality' => 'British',
     'linkedin_url' => 'https://linkedin.com/in/jamescarter',
 ];
 $job = $job ?? ['title' => 'Senior Backend Engineer', 'department' => 'Engineering'];
-$application = $application ?? ['stage' => 'tech_interview', 'final_score' => 88, 'ai_recommendation' => 'strong', 'applied_at' => '-2 days'];
+$application = $application ?? ['current_stage' => 'tech_interview', 'final_score' => 88, 'ai_recommendation' => 'strong', 'applied_at' => '-2 days'];
 
 $evaluation = $evaluation ?? [
     'overall_score' => 88,
@@ -85,7 +85,7 @@ $humanInterviews = $humanInterviews ?? [
 
 $sc = score_color((float)$evaluation['overall_score']);
 [$recLabel, $recCls] = recommendation_badge($evaluation['recommendation']);
-[$stLabel, $stCls] = stage_meta($application['stage']);
+[$stLabel, $stCls] = stage_meta($application['current_stage']);
 $allStages = ['applied','ai_screening','qualified','disqualified','tech_interview','manager_interview','final_review','offer','hired','rejected','withdrawn'];
 
 $pageTitle   = $candidate['full_name'];
@@ -124,7 +124,7 @@ ob_start();
             <div class="flex items-center gap-2 bg-gray-50 rounded-full p-1">
                 <select id="stageSelect" class="bg-transparent text-sm font-medium text-gray-700 px-3 py-1.5 outline-none cursor-pointer">
                     <?php foreach ($allStages as $st): [$l] = stage_meta($st); ?>
-                        <option value="<?= e($st) ?>" <?= $st===$application['stage']?'selected':'' ?>><?= e($l) ?></option>
+                        <option value="<?= e($st) ?>" <?= $st===$application['current_stage']?'selected':'' ?>><?= e($l) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <button onclick="updateStage()" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-3 py-1.5 text-sm font-semibold transition-colors">Update</button>

@@ -20,13 +20,13 @@ if ($method === 'GET') {
 
     $where  = ['u.tenant_id = ?'];
     $params = [$tid];
-    if ($search) { $where[] = '(u.full_name LIKE ? OR u.email LIKE ?)'; $params[] = "%$search%"; $params[] = "%$search%"; }
+    if ($search) { $where[] = "(CONCAT(u.first_name,' ',u.last_name) LIKE ? OR u.email LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
     if ($role)   { $where[] = 'EXISTS (SELECT 1 FROM user_roles ur2 JOIN roles r2 ON r2.id=ur2.role_id WHERE ur2.user_id=u.id AND r2.slug=?)'; $params[] = $role; }
 
     // Exclude candidates
     $where[] = 'NOT EXISTS (SELECT 1 FROM user_roles ur3 JOIN roles r3 ON r3.id=ur3.role_id WHERE ur3.user_id=u.id AND r3.slug=\'candidate\')';
 
-    $sql = "SELECT u.id, u.full_name, u.email, u.status, u.last_login_at as last_login, u.created_at,
+    $sql = "SELECT u.id, CONCAT(u.first_name,' ',u.last_name) as full_name, u.email, u.status, u.last_login_at as last_login, u.created_at,
                    GROUP_CONCAT(r.slug) as roles
             FROM users u
             LEFT JOIN user_roles ur ON ur.user_id = u.id

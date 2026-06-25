@@ -3,7 +3,7 @@ class InterviewRoomController {
     public static function show(string $token, Request $request): void {
         $db = Database::getInstance();
         $application = $db->fetch("SELECT a.*, j.title as job_title, j.interview_type, j.interview_duration, j.max_questions,
-            c.full_name as candidate_name, c.email as candidate_email, t.name as tenant_name, t.id as tenant_id
+            CONCAT(c.first_name,' ',c.last_name) as candidate_name, c.email as candidate_email, t.name as tenant_name, t.id as tenant_id
             FROM applications a
             JOIN jobs j ON j.id = a.job_id
             JOIN candidates c ON c.id = a.candidate_id

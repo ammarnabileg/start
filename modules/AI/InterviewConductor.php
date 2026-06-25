@@ -40,7 +40,7 @@ class InterviewConductor
     {
         $jobTitle  = (string) ($job['title'] ?? 'this role');
         $company   = (string) ($job['company_name'] ?? $job['tenant_name'] ?? 'our company');
-        $candName  = $this->firstName((string) ($candidate['full_name'] ?? ''));
+        $candName  = $this->firstName((string) ($candidate['full_name'] ?? trim(($candidate['first_name'] ?? '') . ' ' . ($candidate['last_name'] ?? ''))));
         $maxQ      = (int) ($job['max_questions'] ?? $interview['questions_count'] ?? 12);
         $duration  = (int) ($job['interview_duration'] ?? 20);
         $langPref  = (string) ($job['language'] ?? 'en');

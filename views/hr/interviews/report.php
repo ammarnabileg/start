@@ -5,6 +5,51 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
+// Unpack flat $report row from InterviewController/InterviewRepository
+if (isset($report) && is_array($report)) {
+    $candidate  = $candidate ?? [
+        'id'       => $report['candidate_id'] ?? 0,
+        'full_name'=> $report['candidate_name'] ?? '',
+        'email'    => $report['candidate_email'] ?? '',
+        'phone'    => $report['candidate_phone'] ?? '',
+        'location' => $report['location'] ?? '',
+    ];
+    $job        = $job ?? [
+        'id'         => $report['job_id'] ?? 0,
+        'title'      => $report['job_title'] ?? '',
+        'department' => $report['seniority'] ?? '',
+    ];
+    $interview  = $interview ?? array_filter([
+        'id'               => $report['id'] ?? 0,
+        'started_at'       => $report['started_at'] ?? '',
+        'completed_at'     => $report['completed_at'] ?? '',
+        'duration_minutes' => $report['duration_minutes'] ?? 0,
+        'status'           => $report['status'] ?? '',
+        'ai_model'         => $report['ai_model'] ?? '',
+        'tokens_used'      => $report['tokens_used'] ?? 0,
+    ], fn($v) => $v !== null);
+    if (!isset($evaluation) && !empty($report['evaluation'])) {
+        $ev = $report['evaluation'];
+        $transcript = [];
+        foreach ($report['messages'] ?? [] as $m) {
+            $transcript[] = ['role' => $m['role'] ?? 'ai', 'content' => $m['content'] ?? ''];
+        }
+        $evaluation = [
+            'overall_score'         => $ev['overall_score'] ?? 0,
+            'recommendation'        => $ev['recommendation'] ?? 'possible',
+            'executive_summary'     => $ev['executive_summary'] ?? '',
+            'ai_verdict'            => $ev['ai_verdict'] ?? $ev['executive_summary'] ?? '',
+            'strengths'             => $ev['strengths'] ?? [],
+            'areas_for_development' => $ev['weaknesses'] ?? $ev['areas_for_development'] ?? [],
+            'skills'                => array_map(fn($s) => ['name'=>$s['name']??'','score'=>$s['score']??0,'color'=>'bg-blue-500'], $ev['skills_analysis'] ?? []),
+            'disc'                  => array_map(fn($k, $v) => ['label'=>ucfirst($k),'value'=>$v,'color'=>'bg-blue-500','soft'=>'bg-blue-50','text'=>'text-blue-700','desc'=>''], array_keys($ev['disc_profile'] ?? []), array_values($ev['disc_profile'] ?? [])),
+            'big_five'              => array_map(fn($k, $v) => ['trait'=>$k,'score'=>$v,'desc'=>''], array_keys($ev['big_five'] ?? []), array_values($ev['big_five'] ?? [])),
+            'red_flags'             => $ev['red_flags'] ?? [],
+            'transcript'            => $transcript,
+        ];
+    }
+}
+
 $candidate = $candidate ?? [
     'id' => 1, 'full_name' => 'James Carter', 'email' => 'james.carter@mail.com',
     'phone' => '+44 7700 900123', 'location' => 'London, UK',

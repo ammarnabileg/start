@@ -51,7 +51,7 @@ elseif ($method === 'GET' && $id) {
 }
 
 // ── Create job ────────────────────────────────────────────────────────────
-elseif ($method === 'POST' && !$action) {
+elseif ($method === 'POST' && (!$action || $action === 'create')) {
     Auth::requirePermission('jobs.create');
 
     $data = $request->only([
@@ -150,6 +150,20 @@ elseif ($method === 'DELETE' || ($method === 'POST' && $action === 'archive')) {
     $targetId = $id ?: (int)$request->input('id');
     $db->update('jobs', ['status' => 'archived', 'updated_at' => date('Y-m-d H:i:s')], ['id' => $targetId, 'tenant_id' => $tid]);
     Response::success(['message' => 'Archived']);
+}
+
+// ── Generate public application link ─────────────────────────────────────
+elseif ($method === 'POST' && $action === 'generate_link') {
+    Auth::requirePermission('jobs.edit');
+    $targetId = $id ?: (int)$request->input('id');
+    $job = $db->fetch("SELECT id, slug, status FROM jobs WHERE id = ? AND tenant_id = ?", [$targetId, $tid]);
+    if (!$job) { Response::error('Not found', 404); exit; }
+    $slug = $job['slug'] ?? ('job-' . $targetId . '-' . bin2hex(random_bytes(4)));
+    if (empty($job['slug'])) {
+        $db->update('jobs', ['slug' => $slug, 'updated_at' => date('Y-m-d H:i:s')], ['id' => $targetId]);
+    }
+    $baseUrl = rtrim($_ENV['APP_URL'] ?? (($_SERVER['HTTPS'] ?? '') === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), '/');
+    Response::success(['link' => $baseUrl . '/apply/' . $slug, 'slug' => $slug]);
 }
 
 // ── Duplicate ─────────────────────────────────────────────────────────────

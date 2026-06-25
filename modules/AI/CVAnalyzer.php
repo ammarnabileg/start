@@ -114,7 +114,7 @@ PROMPT;
             ? sprintf('%s %s - %s', $currency, $this->num($salaryMin), $this->num($salaryMax))
             : 'Not specified';
 
-        $candName     = (string) ($candidate['full_name'] ?? 'Candidate');
+        $candName     = (string) ($candidate['full_name'] ?? trim(($candidate['first_name'] ?? '') . ' ' . ($candidate['last_name'] ?? '')) ?: 'Candidate');
         $candExpected = $candidate['expected_salary'] ?? null;
         $candCurrency = (string) ($candidate['salary_currency'] ?? $currency);
         $expectedSalary = $candExpected !== null

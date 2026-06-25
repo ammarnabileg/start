@@ -21,7 +21,7 @@ if ($method === 'GET' && !$action) {
     $params = [$tid];
     if ($status) { $where[] = 'o.status = ?'; $params[] = $status; }
 
-    $sql = "SELECT o.*, c.full_name, c.email, j.title as job_title,
+    $sql = "SELECT o.*, CONCAT(c.first_name,' ',c.last_name) as full_name, c.email, j.title as job_title,
                    a.current_stage
             FROM offers o
             JOIN candidates c ON c.id = o.candidate_id
@@ -158,7 +158,7 @@ elseif ($method === 'POST' && $action === 'generate') {
     \TenantAIProvider::requireOpenAI();
     $offerId = (int)$request->input('offer_id');
     $offer   = $db->fetch(
-        "SELECT o.*, c.full_name, j.title as job_title, j.department
+        "SELECT o.*, CONCAT(c.first_name,' ',c.last_name) as full_name, j.title as job_title, j.department
          FROM offers o
          JOIN candidates c ON c.id = o.candidate_id
          JOIN jobs j ON j.id = o.job_id

@@ -77,7 +77,7 @@ for ($i = $days - 1; $i >= 0; $i--) {
 
 // Recent logs
 $recentLogs = $db->fetchAll(
-    "SELECT l.*, u.full_name as user_name
+    "SELECT l.*, CONCAT(u.first_name,' ',u.last_name) as user_name
      FROM ai_usage_logs l
      LEFT JOIN users u ON u.id = l.user_id
      WHERE l.tenant_id = ? AND l.created_at >= ?
