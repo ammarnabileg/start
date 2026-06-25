@@ -91,7 +91,10 @@ class Auth {
 
     public static function isSuper(): bool {
         $user = self::user();
-        return $user && in_array('super_admin', $user['roles'] ?? []);
+        if (!$user) return false;
+        return $user['type'] === 'super_admin'
+            || !empty($user['is_super_admin'])
+            || in_array('super_admin', $user['roles'] ?? []);
     }
 
     public static function isTenantUser(): bool {
