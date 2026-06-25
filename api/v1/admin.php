@@ -278,6 +278,7 @@ if ($method === 'POST' && $action === 'impersonate') {
 
     $_SESSION['impersonating'] = $userId;
     $_SESSION['user']          = $user;
+    $_SESSION['tenant_id']     = $user['tenant_id'];
 
     Response::success(['redirect' => '/dashboard']);
     exit;

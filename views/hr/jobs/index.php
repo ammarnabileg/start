@@ -33,7 +33,7 @@ try {
 } catch (\Exception $e) { $jobs = []; }
 
 $departments = $departments ?? array_values(array_unique(array_filter(array_column($jobs, 'department'))));
-if (empty($departments)) $departments = ['Engineering','Design','Data','Marketing','Sales','Operations'];
+if (empty($departments)) $departments = $db->fetchAll('SELECT DISTINCT department FROM jobs WHERE tenant_id=? AND department IS NOT NULL ORDER BY department', [$tid]);
 
 $counts = [
     'all'       => count($jobs),
@@ -256,7 +256,7 @@ ob_start();
 
             <!-- Manual panel -->
             <div data-panel="manual" class="hidden px-5 pb-5">
-                <form class="space-y-4" data-validate onsubmit="event.preventDefault(); App.toast('Job saved','success'); App.closeModal('newJobPanel');">
+                <form class="space-y-4" data-validate onsubmit="event.preventDefault(); submitNewJob('published');">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Title <span class="text-rose-500">*</span></label>
                         <input name="title" required type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none">
@@ -382,7 +382,7 @@ async function generateJobAI() {
     box.classList.remove('hidden');
     App.aiThinking(box, 'AI is drafting the job description…');
     try {
-        var res = await fetch('/api/v1/ai?action=build-job', {
+        var res = await fetch('/api/v1/ai/build-job', {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({title: title, seniority: seniority})
         });
@@ -424,9 +424,9 @@ async function generateJobLink(id) {
             body: JSON.stringify({job_id: id})
         });
         var d = await res.json().catch(()=>({}));
-        if (d.link) {
-            navigator.clipboard?.writeText(d.link).catch(()=>{});
-            App.toast('Interview link copied: ' + d.link, 'success');
+        if (d.ok && d.data?.link) {
+            navigator.clipboard?.writeText(d.data.link).catch(()=>{});
+            App.toast('Interview link copied: ' + d.data.link, 'success');
         } else { App.toast(d.message || 'Failed to generate link', 'error'); }
     } catch(e) { App.toast('Error generating link','error'); }
 }

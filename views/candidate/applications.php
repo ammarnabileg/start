@@ -10,7 +10,7 @@ $applications = $db->fetchAll(
      FROM applications a
      JOIN jobs j ON j.id = a.job_id
      JOIN tenants t ON t.id = j.tenant_id
-     LEFT JOIN interviews i ON i.application_id = a.id
+     LEFT JOIN interviews i ON i.application_id = a.id AND i.status IN ('pending','in_progress','completed')
      LEFT JOIN interview_evaluations ie ON ie.interview_id = i.id
      WHERE a.candidate_id = ? ORDER BY a.applied_at DESC",
     [$cid]
@@ -43,19 +43,19 @@ $PIPELINE = [
     ['key' => 'applied',       'label' => 'Applied'],
     ['key' => 'ai_screening',  'label' => 'AI Screening'],
     ['key' => 'qualified',     'label' => 'Qualified'],
-    ['key' => 'interview',     'label' => 'Interview'],
+    ['key' => 'tech_interview', 'label' => 'Interview'],
     ['key' => 'offer',         'label' => 'Offer'],
 ];
 
 // ── Helper functions ────────────────────────────────────────────────────────────
 function pipelineIndex(string $stage): int {
     return match($stage) {
-        'applied'                      => 0,
-        'ai_screening', 'ai_interview' => 1,
-        'qualified'                    => 2,
-        'interview'                    => 3,
-        'offer', 'hired'               => 4,
-        default                        => 0,
+        'applied'                                              => 0,
+        'ai_screening'                                         => 1,
+        'qualified'                                            => 2,
+        'tech_interview', 'manager_interview', 'final_review'  => 3,
+        'offer', 'hired'                                       => 4,
+        default                                                => 0,
     };
 }
 
@@ -300,7 +300,7 @@ function scoreBar(int $score): string {
 
           <!-- Action buttons -->
           <div class="flex flex-wrap gap-2 mt-4">
-            <?php if ($stage === 'ai_interview' && $token && in_array($interviewStatus, ['pending', null])): ?>
+            <?php if ($stage === 'ai_screening' && $token && in_array($interviewStatus, ['pending', null])): ?>
             <a href="/interview/<?= htmlspecialchars($token) ?>"
               class="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors shadow-sm shadow-violet-200">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>

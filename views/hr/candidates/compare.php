@@ -8,11 +8,11 @@
 require_once __DIR__ . '/../../partials/helpers.php';
 
 $candidates = $candidates ?? [
-    ['id'=>1,'full_name'=>'James Carter','job'=>'Senior Backend Engineer','score'=>88,'rec'=>'strong','disc'=>'C/D','flags'=>2,'years'=>7,'salary'=>110000,'cur'=>'GBP',
+    ['id'=>1,'first_name'=>'James','last_name'=>'Carter','job'=>'Senior Backend Engineer','score'=>88,'rec'=>'strong','disc'=>'C/D','flags'=>2,'years'=>7,'salary'=>110000,'cur'=>'GBP',
         'skills'=>['Backend'=>92,'System Design'=>88,'Databases'=>74,'Cloud'=>85,'Communication'=>89,'Leadership'=>72]],
-    ['id'=>9,'full_name'=>'Liam Murphy','job'=>'Senior Backend Engineer','score'=>85,'rec'=>'strong','disc'=>'D/I','flags'=>1,'years'=>10,'salary'=>125000,'cur'=>'GBP',
+    ['id'=>9,'first_name'=>'Liam','last_name'=>'Murphy','job'=>'Senior Backend Engineer','score'=>85,'rec'=>'strong','disc'=>'D/I','flags'=>1,'years'=>10,'salary'=>125000,'cur'=>'GBP',
         'skills'=>['Backend'=>86,'System Design'=>90,'Databases'=>82,'Cloud'=>88,'Communication'=>80,'Leadership'=>84]],
-    ['id'=>2,'full_name'=>'Aisha Khan','job'=>'Senior Backend Engineer','score'=>76,'rec'=>'suitable','disc'=>'S/C','flags'=>0,'years'=>5,'salary'=>95000,'cur'=>'GBP',
+    ['id'=>2,'first_name'=>'Aisha','last_name'=>'Khan','job'=>'Senior Backend Engineer','score'=>76,'rec'=>'suitable','disc'=>'S/C','flags'=>0,'years'=>5,'salary'=>95000,'cur'=>'GBP',
         'skills'=>['Backend'=>80,'System Design'=>72,'Databases'=>85,'Cloud'=>70,'Communication'=>78,'Leadership'=>60]],
 ];
 
@@ -51,8 +51,8 @@ ob_start();
                 <?php foreach ($candidates as $c): ?>
                     <th class="px-5 py-4 text-center border-l border-gray-100 min-w-[180px]">
                         <div class="flex flex-col items-center gap-2">
-                            <span class="w-12 h-12 rounded-2xl bg-violet-100 text-violet-700 font-bold flex items-center justify-center"><?= e(initials($c['full_name'])) ?></span>
-                            <a href="/candidates/<?= (int)$c['id'] ?>" class="text-sm font-bold text-gray-900 hover:text-violet-600"><?= e($c['full_name']) ?></a>
+                            <span class="w-12 h-12 rounded-2xl bg-violet-100 text-violet-700 font-bold flex items-center justify-center"><?= e(initials($c['first_name'].' '.$c['last_name'])) ?></span>
+                            <a href="/candidates/<?= (int)$c['id'] ?>" class="text-sm font-bold text-gray-900 hover:text-violet-600"><?= e($c['first_name'].' '.$c['last_name']) ?></a>
                             <span class="text-[11px] text-gray-400 font-normal"><?= e($c['job']) ?></span>
                         </div>
                     </th>
@@ -154,11 +154,11 @@ function compareAsk() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
             question: q,
-            candidates: <?= json_encode(array_map(fn($c)=>['id'=>$c['id']??null,'name'=>$c['full_name'],'score'=>$c['score'],'years'=>$c['years'],'rec'=>$c['rec'],'skills'=>$c['skills']],$candidates)) ?>
+            candidates: <?= json_encode(array_map(fn($c)=>['id'=>$c['id']??null,'name'=>($c['first_name']??'').' '.($c['last_name']??''),'score'=>$c['score'],'years'=>$c['years'],'rec'=>$c['rec'],'skills'=>$c['skills']],$candidates)) ?>
         })
     }).then(r=>r.json()).then(function(d){
         t.remove();
-        var ans = (d && ((d.data && d.data.answer) || d.message)) || 'Unable to compare at this time.';
+        var ans = (d && d.ok && d.data && d.data.answer) ? d.data.answer : (d && d.message ? d.message : 'Unable to compare at this time.');
         box.insertAdjacentHTML('beforeend','<div class="flex justify-start"><div class="max-w-[80%] bg-violet-50 text-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">'+App.escapeHtml(ans)+'</div></div>');
         box.scrollTop = box.scrollHeight;
     }).catch(function(){

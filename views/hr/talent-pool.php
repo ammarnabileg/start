@@ -294,17 +294,17 @@ async function createPool() {
   var role = document.getElementById('newPoolRole').value.trim();
   if (!name) { App.toast('Please enter a pool name.', 'warning'); return; }
   try {
-    var res = await fetch('/api/v1/talent-pool?action=create_pool', {
+    var res = await fetch('/api/v1/talent-pools?action=create_pool', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({name, description: desc, target_role: role})
     });
     var data = await res.json();
-    if (data.success) {
+    if (data.ok) {
       App.toast('Pool "' + name + '" created!', 'success');
       closeCreatePool();
       setTimeout(function(){ location.reload(); }, 800);
-    } else { App.toast(data.message || 'Failed to create pool', 'error'); }
+  } else { App.toast(data.message || 'Failed to create pool', 'error'); }
   } catch(e) { App.toast('Error creating pool', 'error'); }
 }
 
@@ -358,14 +358,14 @@ async function removeFromPool(btn, id) {
   if (!confirm('Remove this candidate from the pool?')) return;
   try {
     var poolId = new URLSearchParams(location.search).get('pool') || 0;
-    var res = await fetch('/api/v1/talent-pool?action=remove_candidate', {
+    var res = await fetch('/api/v1/talent-pools?action=remove_candidate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({candidate_id: id, pool_id: poolId})
     });
     var data = await res.json();
     var card = btn.closest('.pool-card');
     if (card) { card.style.transition='all 0.3s ease'; card.style.opacity='0'; setTimeout(function(){ card.remove(); },300); }
-    App.toast(data.success ? 'Candidate removed from pool.' : (data.message||'Error'), data.success?'info':'error');
+    App.toast(data.ok ? 'Candidate removed from pool.' : (data.message||'Error'), data.ok?'info':'error');
   } catch(e) {
     var card = btn.closest('.pool-card');
     if (card) { card.style.opacity='0'; setTimeout(function(){ card.remove(); },300); }

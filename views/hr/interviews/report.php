@@ -49,7 +49,7 @@ if (isset($report) && is_array($report)) {
                 }
                 return $out;
             })($ev['disc_profile'] ?? []),
-            'big_five'              => array_map(fn($k, $v) => ['trait'=>$k,'score'=>$v,'desc'=>''], array_keys($ev['big_five'] ?? []), array_values($ev['big_five'] ?? [])),
+            'big_five'              => (isset($ev['big_five'][0]) && is_array($ev['big_five'][0])) ? $ev['big_five'] : array_map(fn($k, $v) => ['trait'=>$k,'score'=>(int)$v,'desc'=>''], array_keys($ev['big_five'] ?? []), array_values($ev['big_five'] ?? [])),
             'red_flags'             => $ev['red_flags'] ?? [],
             'transcript'            => $transcript,
         ];
@@ -180,7 +180,7 @@ ob_start();
     <div class="mt-5 pt-5 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
       <div><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Candidate</div><div class="font-bold text-gray-900"><?= e($candidate['full_name']) ?></div></div>
       <div><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Position</div><div class="font-semibold text-gray-700"><?= e($job['title']) ?></div></div>
-      <div><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Interview Date</div><div class="text-gray-700"><?= e(time_ago($interview['completed_at'] ?? '')) ?></div></div>
+      <div><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Interview Date</div><div class="text-gray-700"><?= ($interview['completed_at'] ?? '') ? e(time_ago($interview['completed_at'])) : '—' ?></div></div>
       <div><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Duration</div><div class="text-gray-700"><?= (int)($interview['duration_minutes'] ?? 0) ?> minutes</div></div>
     </div>
   </div>
@@ -394,9 +394,9 @@ ob_start();
         <?php endif; ?>
         <div class="max-w-[80%]">
           <?php if ($isAI): ?>
-            <div class="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">Q<?= $qNum ?> · AI Interviewer · <?= e($msg['timestamp']) ?></div>
+            <div class="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">Q<?= $qNum ?> · AI Interviewer · <?= e($msg['timestamp'] ?? '') ?></div>
           <?php else: ?>
-            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 text-right"><?= e($candidate['full_name']) ?> · <?= e($msg['timestamp']) ?></div>
+            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 text-right"><?= e($candidate['full_name'] ?? '') ?> · <?= e($msg['timestamp'] ?? '') ?></div>
           <?php endif; ?>
           <div class="rounded-2xl px-4 py-3 text-sm leading-relaxed <?= $isAI ? 'bg-violet-600 text-white rounded-bl-sm' : 'bg-gray-100 text-gray-800 rounded-br-sm' ?>">
             <?= e($msg['content']) ?>
@@ -426,7 +426,7 @@ ob_start();
       </div>
       <div>
         <dt class="text-xs text-gray-400 font-semibold mb-0.5">Evaluation Timestamp</dt>
-        <dd class="text-gray-700"><?= e(time_ago($interview['completed_at'] ?? '')) ?></dd>
+        <dd class="text-gray-700"><?= ($interview['completed_at'] ?? '') ? e(time_ago($interview['completed_at'])) : '—' ?></dd>
       </div>
       <div>
         <dt class="text-xs text-gray-400 font-semibold mb-0.5">Report Version</dt>

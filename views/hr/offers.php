@@ -10,7 +10,7 @@ $statusBadge = [
     'draft'     => 'bg-gray-100 text-gray-600',
     'pending'   => 'bg-amber-100 text-amber-700',
     'accepted'  => 'bg-green-100 text-green-700',
-    'declined'  => 'bg-red-100 text-red-700',
+    'rejected'  => 'bg-red-100 text-red-700',
     'withdrawn' => 'bg-rose-100 text-rose-700',
 ];
 
@@ -115,7 +115,7 @@ try {
                 'draft'    => 'bg-gray-400',
                 'pending'  => 'bg-amber-500',
                 'accepted' => 'bg-green-500',
-                'declined' => 'bg-red-500',
+                'rejected' => 'bg-red-500',
             ][$offer['status']] ?? 'bg-gray-400';
         ?>
         <div
@@ -157,14 +157,14 @@ try {
                     <span class="w-1.5 h-1.5 rounded-full mr-1.5 <?= $dotCls ?>"></span>
                     <?= ucfirst($offer['status']) ?>
                 </span>
-                <?php if ($offer['status'] === 'pending' && $offer['expires_days'] > 0): ?>
+                <?php if ($offer['status'] === 'sent' && $offer['expires_days'] > 0): ?>
                     <?php $expClr = $offer['expires_days'] <= 3 ? 'text-red-500' : 'text-amber-600'; ?>
                     <span class="text-xs font-medium <?= $expClr ?>">
                         <?= $offer['expires_days'] <= 3 ? '⚠ ' : '' ?>Expires in <?= $offer['expires_days'] ?> day<?= $offer['expires_days'] !== 1 ? 's' : '' ?>
                     </span>
                 <?php elseif ($offer['status'] === 'accepted'): ?>
                     <span class="text-xs text-gray-400">Offer accepted</span>
-                <?php elseif ($offer['status'] === 'declined'): ?>
+                <?php elseif ($offer['status'] === 'rejected'): ?>
                     <span class="text-xs text-gray-400">Offer declined</span>
                 <?php else: ?>
                     <span class="text-xs text-gray-400">Not yet sent</span>
@@ -177,7 +177,7 @@ try {
                     <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-violet-300 text-violet-600 rounded-full hover:bg-violet-50 transition-colors">Edit</button>
                     <button onclick="confirmSendCard(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">Send</button>
                     <button onclick="deleteOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-red-200 text-red-500 rounded-full hover:bg-red-50 transition-colors">Delete</button>
-                <?php elseif ($offer['status'] === 'pending'): ?>
+                <?php elseif ($offer['status'] === 'sent'): ?>
                     <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View</button>
                     <button onclick="resendOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-violet-300 text-violet-600 rounded-full hover:bg-violet-50 transition-colors">Resend</button>
                     <button onclick="withdrawOffer(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-amber-200 text-amber-600 rounded-full hover:bg-amber-50 transition-colors">Withdraw</button>
@@ -185,7 +185,7 @@ try {
                     <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View Letter</button>
                     <button onclick="downloadPDF(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">Download PDF</button>
                     <button onclick="markAsHired(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors">Mark as Hired</button>
-                <?php elseif ($offer['status'] === 'declined'): ?>
+                <?php elseif ($offer['status'] === 'rejected'): ?>
                     <button onclick="openViewModal(<?= $idx ?>)" class="px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors">View</button>
                     <button onclick="openCreateModal()" class="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">Create New Offer</button>
                 <?php endif; ?>
@@ -830,11 +830,13 @@ function confirmSendCard(idx) {
 function resendOffer(idx) {
     const offer = offersData[idx];
     if (!offer) return;
-    fetch(`/api/v1/offers`, {
+    fetch('/api/v1/offers?action=resend', {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
-        body: JSON.stringify({idx, action: 'resend'})
-    }).catch(() => {});
+        body: JSON.stringify({id: offer.id})
+    }).then(r => r.json()).then(d => {
+        if (!d.ok) showToast(d.message || 'Failed to resend offer', 'error');
+    }).catch(() => showToast('Network error', 'error'));
     showToast(`Offer resent to ${offer.name}.`, 'success');
 }
 
@@ -856,10 +858,13 @@ function markAsHired(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Mark ${offer.name} as hired? This will update their candidate profile.`)) return;
-    fetch(`/api/v1/offers/${idx}/hire`, {
+    fetch('/api/v1/offers?action=mark_hired', {
         method: 'POST',
-        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
-    }).catch(() => {});
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({id: offer.id})
+    }).then(r => r.json()).then(d => {
+        if (!d.ok) showToast(d.message || 'Failed to mark as hired', 'error');
+    }).catch(() => showToast('Network error', 'error'));
     showToast(`${offer.name} marked as hired!`, 'success');
 }
 
@@ -969,7 +974,7 @@ function openViewModal(idx) {
             Download PDF
         </button>`;
 
-    if (offer.status === 'pending') {
+    if (offer.status === 'sent') {
         actions += `
         <button onclick="withdrawOffer(${idx})" class="px-4 py-2 text-sm font-medium border border-amber-200 text-amber-600 rounded-full hover:bg-amber-50 transition-colors">
             Withdraw Offer
@@ -981,7 +986,7 @@ function openViewModal(idx) {
             Mark as Hired
         </button>`;
     }
-    if (offer.status === 'declined') {
+    if (offer.status === 'rejected') {
         actions += `
         <button onclick="closeViewModal(); openCreateModal();" class="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors">
             Create New Offer

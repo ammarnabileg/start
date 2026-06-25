@@ -426,7 +426,7 @@ async function archiveCompany(id) {
 async function deleteCompany(id, name) {
   if (!confirm('PERMANENTLY delete "' + name + '"? This cannot be undone.')) return;
   if (!confirm('Are you ABSOLUTELY sure? All data will be lost.')) return;
-  const d = await apiPost('/api/v1/admin?action=delete_company', { id });
+  const d = await apiPost('/api/v1/admin?action=delete_company', { tenant_id: id });
   if (d.ok) { showToast('Company deleted.', 'success'); setTimeout(() => location.reload(), 800); }
   else showToast(d.message || 'Failed.', 'error');
 }
@@ -437,7 +437,7 @@ async function impersonateOwner(id) {
     const d = await apiPost('/api/v1/admin?action=impersonate', { tenant_id: id });
     if (d.ok) {
       if (typeof showToast === 'function') showToast('Impersonation started — redirecting…', 'success');
-      setTimeout(() => { window.location.href = d.data?.redirect || '/dashboard'; }, 800);
+      setTimeout(() => { window.location.href = (d.data && d.data.redirect) ? d.data.redirect : '/dashboard'; }, 800);
     } else {
       if (typeof showToast === 'function') showToast(d.message || 'Impersonation failed.', 'error');
       else alert(d.message || 'Impersonation failed.');

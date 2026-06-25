@@ -64,7 +64,6 @@ $old    = $old ?? [];
               placeholder="Smith">
           </div>
         </div>
-        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
           <input type="email" name="email" value="<?= htmlspecialchars($old['email'] ?? '') ?>" required

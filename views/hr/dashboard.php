@@ -7,6 +7,7 @@ $tenantId = $user['tenant_id'] ?? 0;
 $stats = Cache::remember(Cache::tenantKey('dashboard_stats', $tenantId), 300, function() use ($db, $tenantId) {
     return [
         'active_jobs'     => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND status = 'published'", [$tenantId]) ?? 0,
+        'new_jobs_week'   => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)", [$tenantId]) ?? 0,
         'total_candidates'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ?", [$tenantId]) ?? 0,
         'interviews_today'=> $db->fetchColumn("SELECT COUNT(*) FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.tenant_id = ? AND DATE(COALESCE(i.scheduled_at, i.created_at)) = CURDATE()", [$tenantId]) ?? 0,
         'hired_month'     => $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage = 'hired' AND updated_at >= DATE_FORMAT(NOW(),'%Y-%m-01')", [$tenantId]) ?? 0,
@@ -50,7 +51,7 @@ function scoreBadge(?float $score): string {
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
   <?php
   $statCards = [
-    ['Active Jobs', $stats['active_jobs'], 'briefcase', 'bg-violet-100 text-violet-700', '+2 this week'],
+    ['Active Jobs', $stats['active_jobs'], 'briefcase', 'bg-violet-100 text-violet-700', '+' . $stats['new_jobs_week'] . ' this week'],
     ['Total Candidates', $stats['total_candidates'], 'users', 'bg-blue-100 text-blue-700', 'All time'],
     ['Interviews Today', $stats['interviews_today'], 'sparkles', 'bg-amber-100 text-amber-700', 'AI conducted'],
     ['Hired This Month', $stats['hired_month'], 'check-circle', 'bg-emerald-100 text-emerald-700', 'This month'],

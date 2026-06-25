@@ -143,7 +143,7 @@ async function submitNewAvatar(e) {
     btn.disabled = true; btn.textContent = 'Saving…';
     var data = Object.fromEntries(new FormData(form));
     try {
-        var res = await fetch('/api/v1/avatars?action=create', {
+        const action = form.dataset.editId ? 'update' : 'create'; if (form.dataset.editId) data.id = form.dataset.editId; var res = await fetch('/api/v1/avatars?action=' + action, {
             method: 'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify(data)
         });
@@ -171,11 +171,7 @@ async function testAvatar(id, heygenId) {
 }
 
 function editAvatar(id, avatar) {
-    var nameEl  = document.querySelector('[name="name"]');
-    var genderEl = document.querySelector('[name="gender"]');
-    var persEl  = document.querySelector('[name="personality"]');
-    var langEl  = document.querySelector('[name="language"]');
-    var hidEl   = document.querySelector('[name="heygen_avatar_id"]');
+    var modalForm = document.querySelector('#newAvatarModal form'); var nameEl = modalForm.querySelector('[name="name"]'); var genderEl = modalForm.querySelector('[name="gender"]'); var persEl = modalForm.querySelector('[name="personality"]'); var langEl = modalForm.querySelector('[name="language"]'); var hidEl = modalForm.querySelector('[name="heygen_avatar_id"]');
     if (nameEl)  nameEl.value  = avatar.name || '';
     if (genderEl) genderEl.value = avatar.gender || 'female';
     if (persEl)  persEl.value  = avatar.personality || 'professional';

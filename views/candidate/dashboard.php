@@ -65,8 +65,9 @@ $interviews = $db->fetchAll(
 
 // ── AI Job Recommendations ─────────────────────────────────────────────────
 $recommendedJobs = $db->fetchAll(
-    "SELECT j.*, FLOOR(70 + RAND() * 28) as match_score
+    "SELECT j.*, t.name as company_name, FLOOR(70 + RAND() * 28) as match_score
      FROM jobs j
+     JOIN tenants t ON t.id = j.tenant_id
      WHERE j.status = 'published'
        AND j.id NOT IN (SELECT job_id FROM applications WHERE candidate_id = ?)
      ORDER BY j.created_at DESC LIMIT 4",
@@ -115,7 +116,7 @@ function ivTypeIcon(string $type): string {
         <?php endif; ?>
       </p>
     </div>
-    <a href="/candidate/jobs" class="bg-white/20 hover:bg-white/30 text-white px-5 py-2 rounded-full text-sm font-semibold transition-colors flex-shrink-0">
+    <a href="/c/jobs" class="bg-white/20 hover:bg-white/30 text-white px-5 py-2 rounded-full text-sm font-semibold transition-colors flex-shrink-0">
       Browse Jobs →
     </a>
   </div>
@@ -151,7 +152,7 @@ function ivTypeIcon(string $type): string {
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
       <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
         <h2 class="font-semibold text-gray-900">Active Applications</h2>
-        <a href="/candidate/applications" class="text-sm text-violet-600 hover:text-violet-800 font-medium">View all →</a>
+        <a href="/c/applications" class="text-sm text-violet-600 hover:text-violet-800 font-medium">View all →</a>
       </div>
 
       <?php if (empty($applications)): ?>
@@ -161,7 +162,7 @@ function ivTypeIcon(string $type): string {
         </div>
         <p class="text-gray-500 text-sm font-medium">No active applications yet</p>
         <p class="text-gray-400 text-xs mt-1">Browse jobs and apply to get started</p>
-        <a href="/candidate/jobs" class="mt-4 inline-flex items-center gap-2 bg-violet-600 text-white text-sm rounded-full px-5 py-2 font-medium hover:bg-violet-700 transition-colors">Browse Jobs</a>
+        <a href="/c/jobs" class="mt-4 inline-flex items-center gap-2 bg-violet-600 text-white text-sm rounded-full px-5 py-2 font-medium hover:bg-violet-700 transition-colors">Browse Jobs</a>
       </div>
       <?php else: ?>
       <div class="divide-y divide-gray-50">
@@ -274,12 +275,12 @@ function ivTypeIcon(string $type): string {
           </div>
           <span class="<?= $done ? 'text-gray-400 line-through' : 'text-gray-700' ?> flex-1"><?= $item ?></span>
           <?php if (!$done): ?>
-          <a href="/candidate/profile" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Add</a>
+          <a href="/c/profile" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Add</a>
           <?php endif; ?>
         </div>
         <?php endforeach; ?>
       </div>
-      <a href="/candidate/profile" class="mt-5 block text-center bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-full text-sm font-semibold transition-colors">
+      <a href="/c/profile" class="mt-5 block text-center bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-full text-sm font-semibold transition-colors">
         Complete Profile
       </a>
     </div>
@@ -294,7 +295,7 @@ function ivTypeIcon(string $type): string {
       <?php if (empty($recommendedJobs)): ?>
       <div class="px-6 py-8 text-center">
         <p class="text-sm text-gray-500">Complete your profile to get personalised job matches</p>
-        <a href="/candidate/profile" class="mt-2 inline-block text-xs text-violet-600 hover:text-violet-800 font-medium">Update profile →</a>
+        <a href="/c/profile" class="mt-2 inline-block text-xs text-violet-600 hover:text-violet-800 font-medium">Update profile →</a>
       </div>
       <?php else: ?>
       <div class="divide-y divide-gray-50">
@@ -313,7 +314,7 @@ function ivTypeIcon(string $type): string {
             </div>
             <div class="flex flex-col items-end gap-2 flex-shrink-0">
               <span class="bg-violet-100 text-violet-700 text-xs font-bold rounded-full px-2 py-0.5"><?= (int)($job['match_score'] ?? 75) ?>%</span>
-              <a href="/candidate/jobs/<?= (int)($job['id'] ?? 0) ?>"
+              <a href="/c/jobs/<?= (int)($job['id'] ?? 0) ?>"
                  class="text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-full px-3 py-1 font-medium transition-colors">Apply</a>
             </div>
           </div>
@@ -321,7 +322,7 @@ function ivTypeIcon(string $type): string {
         <?php endforeach; ?>
       </div>
       <div class="px-6 py-3 border-t border-gray-50">
-        <a href="/candidate/jobs" class="text-xs text-violet-600 hover:text-violet-800 font-medium">See all recommended jobs →</a>
+        <a href="/c/jobs" class="text-xs text-violet-600 hover:text-violet-800 font-medium">See all recommended jobs →</a>
       </div>
       <?php endif; ?>
     </div>

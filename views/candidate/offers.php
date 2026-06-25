@@ -14,7 +14,7 @@ $offers = $db->fetchAll(
 // ── Helpers ───────────────────────────────────────────────────────────────
 function offerStatusBadge(string $status): string {
     return match($status) {
-        'pending'  => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>Pending</span>',
+        'sent'     => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>Pending</span>',
         'accepted' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Accepted</span>',
         'rejected' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
         default    => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">' . htmlspecialchars(ucfirst($status)) . '</span>',

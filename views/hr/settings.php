@@ -760,8 +760,8 @@ document.getElementById('heygen-form')?.addEventListener('submit', async e => {
     const payload = { action: 'save_api_keys' };
     if (key && !key.includes('••')) payload.heygen = key;
     const res = await apiPost('/api/v1/settings', payload);
-    toast(res.message || 'HeyGen settings saved', res.ok || res.success ? 'success' : 'error');
-    if (res.ok || res.success) refreshAIStatusBadges();
+    toast(res.message || 'HeyGen settings saved', res.ok ? 'success' : 'error');
+    if (res.ok) refreshAIStatusBadges();
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -773,7 +773,7 @@ async function testHeyGen() {
     const key = document.getElementById('heygen-key').value;
     const res = await apiPost('/api/v1/settings', { action: 'test_heygen', key });
     const badge = document.getElementById('heygen-status-badge');
-    if (res.ok || res.success) {
+    if (res.ok) {
       badge.innerHTML = '<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>Connected</span>';
       toast('HeyGen API connected', 'success');
       // Load avatars
@@ -820,7 +820,7 @@ document.getElementById('smtp-form')?.addEventListener('submit', async e => {
   const fd = new FormData(e.target);
   try {
     const res = await apiPost('/api/v1/settings', { action: 'save_smtp', ...Object.fromEntries(fd.entries()) });
-    toast(res.message || 'SMTP settings saved', res.ok || res.success ? 'success' : 'error');
+    toast(res.message || 'SMTP settings saved', res.ok ? 'success' : 'error');
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -831,7 +831,7 @@ async function testSmtp() {
   const fd = new FormData(document.getElementById('smtp-form'));
   try {
     const res = await apiPost('/api/v1/settings', { action: 'test_smtp', ...Object.fromEntries(fd.entries()) });
-    toast(res.message || (res.ok ? 'Test email sent!' : 'SMTP test failed'), res.ok || res.success ? 'success' : 'error');
+    toast(res.message || (res.ok ? 'Test email sent!' : 'SMTP test failed'), res.ok ? 'success' : 'error');
   } catch { toast('SMTP test failed', 'error'); }
   finally { setLoading(btn, false); }
 }
@@ -847,7 +847,7 @@ document.getElementById('career-form')?.addEventListener('submit', async e => {
   body.career_theme_color = document.getElementById('career-color-hex').value;
   try {
     const res = await apiPost('/api/v1/settings', { action: 'save_career', ...body });
-    toast(res.message || 'Career page settings saved', res.ok || res.success ? 'success' : 'error');
+    toast(res.message || 'Career page settings saved', res.ok ? 'success' : 'error');
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -872,7 +872,7 @@ function syncColorPicker(hex) {
 async function removeTeamMember(userId, name) {
   if (!confirm(`Remove ${name} from your workspace?`)) return;
   try {
-    const res = await apiPost('/api/v1/admin', { action: 'remove_user', user_id: userId });
+    const res = await apiPost('/api/v1/users', { action: 'remove_user', user_id: userId });
     if (res.ok || res.success) { toast(name + ' removed', 'success'); setTimeout(() => location.reload(), 800); }
     else toast(res.message || 'Failed to remove', 'error');
   } catch { toast('Failed to remove team member', 'error'); }
@@ -885,7 +885,7 @@ document.getElementById('invite-form')?.addEventListener('submit', async e => {
   setLoading(btn, true, 'Sending...');
   const fd = new FormData(e.target);
   try {
-    const res = await apiPost('/api/v1/admin', { action: 'invite_user', ...Object.fromEntries(fd.entries()) });
+    const res = await apiPost('/api/v1/users', { action: 'invite_user', ...Object.fromEntries(fd.entries()) });
     if (res.ok || res.success) {
       toast('Invitation sent to ' + fd.get('email'), 'success');
       closeModal('invite-modal');

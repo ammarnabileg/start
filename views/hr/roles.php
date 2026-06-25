@@ -481,10 +481,10 @@ async function savePermissions() {
   document.querySelectorAll('.perm-checkbox:checked').forEach(cb => permIds.push(parseInt(cb.dataset.permId, 10)));
 
   try {
-    const res = await fetch(`/api/v1/roles/${activeRoleId}/permissions`, {
-      method: 'PUT',
+    const res = await fetch('/api/v1/roles?action=save_permissions', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ permission_ids: permIds })
+      body: JSON.stringify({ role_id: activeRoleId, permission_ids: permIds })
     });
     const json = await res.json();
     if (json.ok) {
@@ -530,7 +530,7 @@ async function createRole() {
   const copyFrom = document.getElementById('copyFromRole').value;
   if (!name) { showToast('Please enter a role name.', 'error'); return; }
   try {
-    const res = await fetch('/api/v1/roles', {
+    const res = await fetch('/api/v1/roles?action=create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify({ name, description: desc, copy_from_role_id: copyFrom || null })
@@ -564,10 +564,10 @@ async function updateRole() {
   const desc = document.getElementById('editRoleDescInput').value.trim();
   if (!name) { showToast('Role name cannot be empty.', 'error'); return; }
   try {
-    const res = await fetch(`/api/v1/roles/${id}`, {
-      method: 'PUT',
+    const res = await fetch('/api/v1/roles?action=update', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ name, description: desc })
+      body: JSON.stringify({ id, name, description: desc })
     });
     const json = await res.json();
     if (json.ok) {

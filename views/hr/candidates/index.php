@@ -56,7 +56,7 @@ try {
 } catch (\Exception $e) {
     $candidates = demo_candidates();
     $total = count($candidates);
-    $jobsList = ['Senior Backend Engineer','Product Designer','Frontend Engineer','Data Analyst'];
+    $jobsList = [];
 }
 $totalPages = max(1, (int)ceil($total / $perPage));
 
@@ -121,7 +121,7 @@ ob_start();
             <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage</label>
             <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
                 <option value="">All Stages</option>
-                <?php foreach (['applied','ai_screening','qualified','tech_interview','manager_interview','final_review','offer','hired'] as $s): [$l]=stage_meta($s); ?><option><?= e($l) ?></option><?php endforeach; ?>
+                <?php foreach (['applied','ai_screening','qualified','tech_interview','manager_interview','final_review','offer','hired'] as $s): [$l]=stage_meta($s); ?><option value="<?= e($s) ?>"><?= e($l) ?></option><?php endforeach; ?>
             </select>
         </div>
         <div>
@@ -207,7 +207,7 @@ ob_start();
                                     <?php if (empty($c['skills'])): ?><span class="text-xs text-gray-400">No skills parsed yet</span><?php endif; ?>
                                 </div>
                                 <div class="ml-auto flex items-center gap-3 text-xs text-gray-500">
-                                    <span><?= (int)($c['years'] ?? 0) ?> yrs exp</span>
+                                    <span><?= (int)($c['years_experience'] ?? 0) ?> yrs exp</span>
                                     <span class="text-gray-300">·</span>
                                     <span><?= e($c['location'] ?? '—') ?></span>
                                 </div>
@@ -250,13 +250,13 @@ function applyFilters(){
 }
 async function bulkAction(type){
     var ids = Array.from(document.querySelectorAll('[data-cand]:checked')).map(c=>c.value);
-    if(!ids.length){ App.toast('Select candidates first','warning'); return; }
+    if(!ids.length){ AR.Toast.warning('Select candidates first'); return; }
     if(type==='delete'){
-        App.confirm({title:'Delete '+ids.length+' candidate(s)?',message:'This cannot be undone.',confirmText:'Delete'}).then(async ok=>{
+        AR.confirm({title:'Delete '+ids.length+' candidate(s)?',message:'This cannot be undone.',confirmText:'Delete'}).then(async ok=>{
             if(!ok) return;
             var res = await fetch('/api/v1/candidates?action=bulk_delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
             var d = await res.json().catch(()=>({}));
-            App.toast(d.ok?ids.length+' deleted':d.message||'Delete failed', d.ok?'success':'error');
+            AR.Toast[d.ok?'success':'error'](d.ok?ids.length+' deleted':d.message||'Delete failed');
             if(d.ok) setTimeout(()=>location.reload(),900);
         }); return;
     }
@@ -270,14 +270,14 @@ async function bulkAction(type){
         if(!stage) return;
         var res = await fetch('/api/v1/candidates?action=bulk_move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,stage})});
         var d = await res.json().catch(()=>({}));
-        App.toast(d.ok?ids.length+' moved to '+stage:d.message||'Failed', d.ok?'success':'error');
+        AR.Toast[d.ok?'success':'error'](d.ok?ids.length+' moved to '+stage:d.message||'Failed');
         if(d.ok) setTimeout(()=>location.reload(),900);
         return;
     }
     if(type==='pool'){
         var res = await fetch('/api/v1/talent-pool?action=bulk_add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidate_ids:ids})});
         var d = await res.json().catch(()=>({}));
-        App.toast(d.ok?ids.length+' added to talent pool':d.message||'Failed', d.ok?'success':'error');
+        AR.Toast[d.ok?'success':'error'](d.ok?ids.length+' added to talent pool':d.message||'Failed');
     }
 }
 </script>

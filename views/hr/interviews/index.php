@@ -312,29 +312,53 @@ function getSelectedIds() {
 }
 function exportCSV() {
   var ids = getSelectedIds();
-  showToast('Exporting ' + ids.length + ' interview(s) to CSV...', 'info');
-  setTimeout(function(){ showToast('CSV download ready!', 'success'); }, 1500);
+  if (!ids.length) return;
+  showToast('Exporting ' + ids.length + ' interview(s)...', 'info');
+  window.location.href = '/api/v1/interviews?action=export&format=csv&ids=' + ids.join(',');
 }
 function archiveSelected() {
   var ids = getSelectedIds();
   if (!ids.length) return;
   if (!confirm('Archive ' + ids.length + ' interview(s)?')) return;
-  ids.forEach(function(id) {
-    var row = document.querySelector('.interview-row[data-id="' + id + '"]');
-    if (row) row.style.opacity = '0.3';
-  });
-  showToast(ids.length + ' interview(s) archived.', 'success');
-  clearSelection();
+  fetch('/api/v1/interviews?action=archive_bulk', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ids: ids})
+  }).then(r=>r.json()).then(function(d){
+    if (d && d.ok) {
+      ids.forEach(function(id){
+        var row = document.querySelector('.interview-row[data-id="'+id+'"]');
+        if (row) { row.style.transition='all 0.3s'; row.style.opacity='0'; setTimeout(function(){ row.remove(); },300); }
+      });
+      showToast(ids.length+' interview(s) archived.','success');
+      clearSelection();
+    } else { showToast(d.message||'Archive failed.','error'); }
+  }).catch(function(){ showToast('Error archiving interviews.','error'); });
 }
 function archiveInterview(id) {
   if (!confirm('Archive this interview?')) return;
-  var row = document.querySelector('.interview-row[data-id="' + id + '"]');
-  if (row) { row.style.transition = 'all 0.3s'; row.style.opacity = '0'; setTimeout(function(){ row.remove(); }, 300); }
-  showToast('Interview archived.', 'success');
+  fetch('/api/v1/interviews?action=archive', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id: id})
+  }).then(r=>r.json()).then(function(d){
+    if (d && d.ok) {
+      var row = document.querySelector('.interview-row[data-id="'+id+'"]');
+      if (row) { row.style.transition='all 0.3s'; row.style.opacity='0'; setTimeout(function(){ row.remove(); },300); }
+      showToast('Interview archived.','success');
+    } else { showToast(d.message||'Archive failed.','error'); }
+  }).catch(function(){ showToast('Error archiving interview.','error'); });
 }
 function moveToPipeline(id) {
   showToast('Moving candidate to pipeline...', 'info');
-  setTimeout(function(){ showToast('Candidate moved to Tech Interview stage!', 'success'); }, 800);
+  fetch('/api/v1/interviews?action=move_to_pipeline', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id: id})
+  }).then(r=>r.json()).then(function(d){
+    if (d && d.ok) { showToast('Candidate moved to pipeline!','success'); }
+    else { showToast(d.message||'Failed to move candidate.','error'); }
+  }).catch(function(){ showToast('Error moving candidate to pipeline.','error'); });
 }
 </script>
 <?php require __DIR__ . '/../../partials/view_scripts.php'; ?>
