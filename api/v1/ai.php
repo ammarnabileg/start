@@ -170,8 +170,8 @@ class AiApi
         if (empty($candidateIds)) {
             // Default to the applicants for this job.
             $rows = $this->db->fetchAll('
-                SELECT c.*, a.id AS application_id, a.stage, a.final_score, a.ai_recommendation,
-                       a.cv_match_score
+                SELECT c.*, a.id AS application_id, a.current_stage AS stage,
+                       a.ai_match_score AS final_score, a.ai_recommendation, a.cv_match_score
                   FROM applications a
                   JOIN candidates c ON c.id = a.candidate_id
                  WHERE a.job_id = ? AND a.tenant_id = ?
@@ -181,8 +181,8 @@ class AiApi
         } else {
             $placeholders = implode(',', array_fill(0, count($candidateIds), '?'));
             $rows = $this->db->fetchAll("
-                SELECT c.*, a.id AS application_id, a.stage, a.final_score, a.ai_recommendation,
-                       a.cv_match_score
+                SELECT c.*, a.id AS application_id, a.current_stage AS stage,
+                       a.ai_match_score AS final_score, a.ai_recommendation, a.cv_match_score
                   FROM candidates c
              LEFT JOIN applications a ON a.candidate_id = c.id AND a.job_id = ?
                  WHERE c.id IN ({$placeholders}) AND c.tenant_id = ?
@@ -198,7 +198,7 @@ class AiApi
             if (!empty($row['application_id'])) {
                 $eval = $this->db->fetch(
                     'SELECT overall_score, recommendation, executive_summary
-                       FROM interview_evaluations WHERE application_id = ? ORDER BY id DESC LIMIT 1',
+                       FROM interview_evaluations WHERE interview_id = (SELECT id FROM interviews WHERE application_id = ? ORDER BY id DESC LIMIT 1) ORDER BY id DESC LIMIT 1',
                     [(int) $row['application_id']]
                 );
                 if ($eval) {
@@ -305,8 +305,8 @@ class AiApi
     {
         if (empty($context['pipeline'])) {
             $stages = $this->db->fetchAll('
-                SELECT stage, COUNT(*) AS n FROM applications
-                 WHERE tenant_id = ? GROUP BY stage
+                SELECT current_stage AS stage, COUNT(*) AS n FROM applications
+                 WHERE tenant_id = ? GROUP BY current_stage
             ', [$this->tenantId]);
             $pipeline = [];
             foreach ($stages as $s) {
@@ -326,17 +326,20 @@ class AiApi
 
         if (empty($context['candidates'])) {
             $context['candidates'] = $this->db->fetchAll('
-                SELECT c.id, c.full_name, c.years_experience, c.expected_salary,
-                       c.location, c.skills,
-                       j.title AS job_title, a.stage, a.final_score, a.ai_recommendation,
+                SELECT c.id, CONCAT(c.first_name,' ',c.last_name) AS full_name,
+                       c.years_experience, c.expected_salary, c.location, c.skills,
+                       j.title AS job_title, a.current_stage AS stage,
+                       a.ai_match_score AS final_score, a.ai_recommendation,
                        ev.overall_score,
                        JSON_EXTRACT(ev.skills_analysis, "$.english_proficiency.score") AS english_proficiency
                   FROM applications a
                   JOIN candidates c ON c.id = a.candidate_id
                   JOIN jobs j ON j.id = a.job_id
-             LEFT JOIN interview_evaluations ev ON ev.application_id = a.id
+             LEFT JOIN interview_evaluations ev ON ev.interview_id = (
+                 SELECT id FROM interviews WHERE application_id = a.id ORDER BY id DESC LIMIT 1
+             )
                  WHERE a.tenant_id = ?
-                 ORDER BY (a.final_score IS NULL), a.final_score DESC
+                 ORDER BY (a.ai_match_score IS NULL), a.ai_match_score DESC
                  LIMIT 60
             ', [$this->tenantId]);
         }

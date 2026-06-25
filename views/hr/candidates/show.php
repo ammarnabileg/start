@@ -127,7 +127,7 @@ ob_start();
                         <option value="<?= e($st) ?>" <?= $st===$application['stage']?'selected':'' ?>><?= e($l) ?></option>
                     <?php endforeach; ?>
                 </select>
-                <button onclick="App.toast('Stage updated to '+document.getElementById('stageSelect').selectedOptions[0].text,'success')" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-3 py-1.5 text-sm font-semibold transition-colors">Update</button>
+                <button onclick="updateStage()" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-3 py-1.5 text-sm font-semibold transition-colors">Update</button>
             </div>
             <div class="relative" data-dropdown>
                 <button data-dropdown-trigger class="inline-flex items-center gap-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-full px-4 py-2 text-sm font-medium transition-colors">
@@ -135,9 +135,9 @@ ob_start();
                     <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                 </button>
                 <div data-dropdown-menu class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-30 text-sm animate-fade-in">
-                    <button onclick="App.toast('Opening scheduler…','info')" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Schedule Human Interview</button>
-                    <button onclick="App.toast('Drafting offer with AI…','info')" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Create Offer</button>
-                    <button onclick="App.toast('Added to talent pool','success')" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Add to Talent Pool</button>
+                    <button onclick="scheduleHumanInterview()" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Schedule Human Interview</button>
+                    <button onclick="location.href='/offers/create?application_id=<?= (int)($application['id']??0) ?>'" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Create Offer</button>
+                    <button onclick="addToTalentPool()" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700">Add to Talent Pool</button>
                     <button onclick="window.print()" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700 border-t border-gray-100">Export PDF</button>
                 </div>
             </div>
@@ -509,6 +509,51 @@ ob_start();
     @media print { aside, header, [data-dropdown], .cand-tab, #toastContainer { display:none !important; } main { padding:0 !important; } [data-panel]{ display:block !important; } .lg\:pl-64{ padding-left:0 !important; } }
 </style>
 <script>
+var _appId = <?= (int)($application['id'] ?? 0) ?>;
+var _candidateId = <?= (int)($candidate['id'] ?? 0) ?>;
+
+async function updateStage() {
+    var stage = document.getElementById('stageSelect').value;
+    var btn = event.target;
+    btn.disabled = true;
+    try {
+        var res = await fetch('/api/v1/pipeline?action=move', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({application_id: _appId, stage: stage})
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? 'Stage updated to '+document.getElementById('stageSelect').selectedOptions[0].text : (d.message||'Update failed'), d.success?'success':'error');
+    } catch(e) { App.toast('Error updating stage','error'); }
+    finally { btn.disabled = false; }
+}
+
+async function scheduleHumanInterview() {
+    var date = prompt('Interview date/time (YYYY-MM-DD HH:MM):');
+    if (!date) return;
+    try {
+        var res = await fetch('/api/v1/human-interviews?action=schedule', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({application_id: _appId, candidate_id: _candidateId, scheduled_at: date})
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? 'Interview scheduled' : (d.message||'Failed'), d.success?'success':'error');
+    } catch(e) { App.toast('Error scheduling interview','error'); }
+}
+
+async function addToTalentPool() {
+    try {
+        var res = await fetch('/api/v1/talent-pool?action=add_candidate', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({candidate_id: _candidateId})
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? 'Added to talent pool' : (d.message||'Failed'), d.success?'success':'error');
+    } catch(e) { App.toast('Error adding to pool','error'); }
+}
+
 // Animate skill bars when the Skills tab opens; animate on first load too.
 (function () {
     function fillBars(scope) {

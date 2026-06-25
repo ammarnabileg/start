@@ -380,7 +380,7 @@ $jobId = isset($jobId) ? (int) $jobId : 0;
         '</div>' +
       '</td>' +
       '<td class="px-5 py-4">' + scoreCell(c.ai_match_score) + '</td>' +
-      '<td class="px-5 py-4"><span class="badge badge-violet">' + AR.esc(prettyStage(c.pipeline_stage)) + '</span></td>' +
+      '<td class="px-5 py-4"><span class="badge badge-violet">' + AR.esc(prettyStage(c.current_stage || c.stage)) + '</span></td>' +
       '<td class="px-5 py-4 text-end">' +
         '<a href="/candidates/' + encodeURIComponent(c.id) + '" class="btn-ghost !py-1.5 !px-3 text-xs">View 360</a>' +
       '</td>' +

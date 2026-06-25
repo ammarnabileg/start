@@ -6,12 +6,58 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
-$candidates = $candidates ?? demo_candidates();
-$jobsList = $jobsList ?? ['Senior Backend Engineer','Product Designer','Frontend Engineer','Data Analyst'];
+global $db;
+$tid     = Auth::user()['tenant_id'] ?? 0;
+$perPage = 25;
+$page    = max(1, (int)($_GET['page'] ?? 1));
+$offset  = ($page - 1) * $perPage;
+$search  = trim($_GET['search'] ?? '');
+$filterJob   = (int)($_GET['job'] ?? 0);
+$filterStage = trim($_GET['stage'] ?? '');
+$filterMin   = (int)($_GET['score_min'] ?? 0);
+$filterMax   = (int)($_GET['score_max'] ?? 100);
 
-$perPage = $perPage ?? 25;
-$page    = max(1, (int)($page ?? ($_GET['page'] ?? 1)));
-$total   = $total ?? count($candidates);
+try {
+    $where = "a.tenant_id = ?";
+    $params = [$tid];
+    if ($search) { $where .= " AND (c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?)"; $s="%$search%"; $params[]=$s;$params[]=$s;$params[]=$s; }
+    if ($filterJob)   { $where .= " AND a.job_id = ?"; $params[] = $filterJob; }
+    if ($filterStage) { $where .= " AND a.current_stage = ?"; $params[] = $filterStage; }
+    if ($filterMin > 0 || $filterMax < 100) { $where .= " AND a.ai_match_score BETWEEN ? AND ?"; $params[]=$filterMin; $params[]=$filterMax; }
+
+    $total = (int)($db->fetchOne("SELECT COUNT(*) as n FROM applications a JOIN candidates c ON c.id=a.candidate_id WHERE $where", $params)['n'] ?? 0);
+
+    $candidates = $db->fetchAll(
+        "SELECT c.id, CONCAT(c.first_name,' ',c.last_name) as full_name,
+                c.email, c.phone, c.current_title, c.current_company, c.location,
+                c.skills, c.years_experience,
+                a.id as application_id, a.current_stage as stage,
+                a.ai_match_score as score, a.ai_recommendation as rec,
+                a.applied_at,
+                j.title as job,
+                ie.overall_score
+         FROM applications a
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = a.job_id
+         LEFT JOIN interview_evaluations ie ON ie.interview_id = (
+             SELECT id FROM interviews WHERE application_id = a.id ORDER BY created_at DESC LIMIT 1
+         )
+         WHERE $where
+         ORDER BY a.applied_at DESC
+         LIMIT $perPage OFFSET $offset",
+        $params
+    ) ?: [];
+    foreach ($candidates as &$c) {
+        $c['skills'] = is_string($c['skills']) ? (json_decode($c['skills'], true) ?: []) : ($c['skills'] ?: []);
+    }
+    unset($c);
+    $jobsList = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? ORDER BY title", [$tid]) ?: [];
+    $jobsList = array_column($jobsList, 'title');
+} catch (\Exception $e) {
+    $candidates = demo_candidates();
+    $total = count($candidates);
+    $jobsList = ['Senior Backend Engineer','Product Designer','Frontend Engineer','Data Analyst'];
+}
 $totalPages = max(1, (int)ceil($total / $perPage));
 
 $pageTitle   = 'Candidates';
@@ -97,8 +143,8 @@ ob_start();
             </select>
         </div>
         <div class="flex items-end gap-2">
-            <button onclick="App.toast('Filters applied','success')" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition-colors">Apply</button>
-            <button onclick="App.toast('Filters cleared','info')" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Reset</button>
+            <button onclick="applyFilters()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition-colors">Apply</button>
+            <button onclick="location.href='/candidates'" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Reset</button>
         </div>
     </div>
 </div>
@@ -191,12 +237,48 @@ function toggleFilters(){ var p=document.getElementById('filterPanel'); p.classL
 function toggleExpand(id){ document.getElementById('expand-'+id).classList.toggle('hidden'); }
 function toggleAll(cb){ document.querySelectorAll('[data-cand]').forEach(c=>c.checked=cb.checked); }
 function filterCands(){ var q=(document.getElementById('candSearch').value||'').toLowerCase(); document.querySelectorAll('.cand-row').forEach(r=>{ r.style.display = r.getAttribute('data-search').includes(q)?'':'none'; }); }
-function bulkAction(type){
-    var n = document.querySelectorAll('[data-cand]:checked').length;
-    if(!n){ App.toast('Select candidates first','warning'); return; }
-    if(type==='delete'){ App.confirm({title:'Delete '+n+' candidate(s)?',message:'This cannot be undone.',confirmText:'Delete'}).then(ok=>ok&&App.toast(n+' deleted','success')); return; }
-    var msg = {export:'Exporting '+n+' candidates to Excel…',move:'Moving '+n+' candidates…',pool:n+' added to talent pool'}[type];
-    App.toast(msg, type==='pool'?'success':'info');
+function applyFilters(){
+    var url = new URL(location.href);
+    var score = document.querySelector('#filterPanel input[type="range"]')?.value;
+    if (score && score > 0) url.searchParams.set('score_min', score); else url.searchParams.delete('score_min');
+    var job = document.querySelector('#filterPanel select:nth-of-type(1)')?.value;
+    if (job) url.searchParams.set('job', job); else url.searchParams.delete('job');
+    var stage = document.querySelector('#filterPanel select:nth-of-type(2)')?.value;
+    if (stage) url.searchParams.set('stage', stage); else url.searchParams.delete('stage');
+    url.searchParams.delete('page');
+    location.href = url.toString();
+}
+async function bulkAction(type){
+    var ids = Array.from(document.querySelectorAll('[data-cand]:checked')).map(c=>c.value);
+    if(!ids.length){ App.toast('Select candidates first','warning'); return; }
+    if(type==='delete'){
+        App.confirm({title:'Delete '+ids.length+' candidate(s)?',message:'This cannot be undone.',confirmText:'Delete'}).then(async ok=>{
+            if(!ok) return;
+            var res = await fetch('/api/v1/candidates?action=bulk_delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+            var d = await res.json().catch(()=>({}));
+            App.toast(d.success?ids.length+' deleted':d.message||'Delete failed', d.success?'success':'error');
+            if(d.success) setTimeout(()=>location.reload(),900);
+        }); return;
+    }
+    if(type==='export'){
+        var qs = ids.map(id=>'ids[]='+id).join('&');
+        location.href='/api/v1/candidates?action=export&'+qs;
+        return;
+    }
+    if(type==='move'){
+        var stage = prompt('Move to stage (applied/ai_screening/qualified/tech_interview/hired):');
+        if(!stage) return;
+        var res = await fetch('/api/v1/candidates?action=bulk_move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,stage})});
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success?ids.length+' moved to '+stage:d.message||'Failed','success');
+        if(d.success) setTimeout(()=>location.reload(),900);
+        return;
+    }
+    if(type==='pool'){
+        var res = await fetch('/api/v1/talent-pool?action=bulk_add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidate_ids:ids})});
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success?ids.length+' added to talent pool':d.message||'Failed', d.success?'success':'error');
+    }
 }
 </script>
 <?php require __DIR__ . '/../../partials/view_scripts.php'; ?>

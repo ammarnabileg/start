@@ -329,7 +329,7 @@ if ($action === 'stats') {
         'active_companies' => (int)$db->fetchColumn("SELECT COUNT(*) FROM tenants WHERE status='active'") ?: 0,
         'total_users'      => (int)$db->fetchColumn("SELECT COUNT(*) FROM users") ?: 0,
         'total_interviews' => (int)$db->fetchColumn("SELECT COUNT(*) FROM interviews WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)") ?: 0,
-        'total_tokens_30d' => (int)$db->fetchColumn("SELECT COALESCE(SUM(tokens_used),0) FROM ai_usage_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)") ?: 0,
+        'total_tokens_30d' => (int)$db->fetchColumn("SELECT COALESCE(SUM(total_tokens),0) FROM ai_usage_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)") ?: 0,
         'system' => [
             'php'   => PHP_VERSION,
             'disk'  => round(disk_free_space('/') / disk_total_space('/') * 100) . '% free',

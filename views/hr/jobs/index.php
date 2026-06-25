@@ -8,23 +8,39 @@ require_once __DIR__ . '/../../partials/helpers.php';
 
 $activeStatus = $activeStatus ?? ($_GET['status'] ?? 'all');
 
-$jobs = $jobs ?? [
-    ['id'=>1,'title'=>'Senior Backend Engineer','department'=>'Engineering','seniority'=>'senior','location'=>'London, UK','work_type'=>'hybrid','status'=>'published','interview_type'=>'video','posted'=>'-4 days','applications'=>64,'interviews'=>41,'hired'=>2,'salary_min'=>90000,'salary_max'=>120000,'currency'=>'GBP'],
-    ['id'=>2,'title'=>'Product Designer','department'=>'Design','seniority'=>'mid','location'=>'Remote','work_type'=>'remote','status'=>'published','interview_type'=>'voice','posted'=>'-6 days','applications'=>38,'interviews'=>22,'hired'=>1,'salary_min'=>70000,'salary_max'=>95000,'currency'=>'USD'],
-    ['id'=>3,'title'=>'Frontend Engineer','department'=>'Engineering','seniority'=>'mid','location'=>'Austin, US','work_type'=>'onsite','status'=>'published','interview_type'=>'text','posted'=>'-2 days','applications'=>51,'interviews'=>30,'hired'=>0,'salary_min'=>85000,'salary_max'=>110000,'currency'=>'USD'],
-    ['id'=>4,'title'=>'Data Analyst','department'=>'Data','seniority'=>'junior','location'=>'Singapore','work_type'=>'hybrid','status'=>'draft','interview_type'=>'text','posted'=>'-1 days','applications'=>0,'interviews'=>0,'hired'=>0,'salary_min'=>45000,'salary_max'=>60000,'currency'=>'USD'],
-    ['id'=>5,'title'=>'Engineering Manager','department'=>'Engineering','seniority'=>'manager','location'=>'Berlin, DE','work_type'=>'hybrid','status'=>'closed','interview_type'=>'video','posted'=>'-12 days','applications'=>27,'interviews'=>12,'hired'=>0,'salary_min'=>110000,'salary_max'=>150000,'currency'=>'EUR'],
-    ['id'=>6,'title'=>'Marketing Lead','department'=>'Marketing','seniority'=>'lead','location'=>'Remote','work_type'=>'remote','status'=>'archived','interview_type'=>'voice','posted'=>'-30 days','applications'=>44,'interviews'=>33,'hired'=>1,'salary_min'=>80000,'salary_max'=>105000,'currency'=>'USD'],
-];
+global $db;
+$tid = Auth::user()['tenant_id'] ?? 0;
+try {
+    $jobs = $db->fetchAll(
+        "SELECT j.*,
+                COUNT(DISTINCT a.id) as applications,
+                COUNT(DISTINCT i.id) as interviews,
+                SUM(CASE WHEN a.current_stage='hired' THEN 1 ELSE 0 END) as hired,
+                DATE_FORMAT(j.created_at,'%d %b') as posted
+         FROM jobs j
+         LEFT JOIN applications a ON a.job_id = j.id
+         LEFT JOIN interviews i ON i.application_id = a.id
+         WHERE j.tenant_id = ?
+         GROUP BY j.id
+         ORDER BY j.created_at DESC",
+        [$tid]
+    ) ?: [];
+    foreach ($jobs as &$j) {
+        $j['seniority']      = $j['seniority'] ?? '';
+        $j['interview_type'] = $j['interview_type'] ?? 'video';
+    }
+    unset($j);
+} catch (\Exception $e) { $jobs = []; }
 
-$departments = $departments ?? ['Engineering','Design','Data','Marketing','Sales','Operations'];
+$departments = $departments ?? array_values(array_unique(array_filter(array_column($jobs, 'department'))));
+if (empty($departments)) $departments = ['Engineering','Design','Data','Marketing','Sales','Operations'];
 
-$counts = $counts ?? [
-    'all'=>count($jobs),
-    'published'=>count(array_filter($jobs, fn($j)=>$j['status']==='published')),
-    'draft'=>count(array_filter($jobs, fn($j)=>$j['status']==='draft')),
-    'archived'=>count(array_filter($jobs, fn($j)=>$j['status']==='archived')),
-    'closed'=>count(array_filter($jobs, fn($j)=>$j['status']==='closed')),
+$counts = [
+    'all'       => count($jobs),
+    'published' => count(array_filter($jobs, fn($j)=>$j['status']==='published')),
+    'draft'     => count(array_filter($jobs, fn($j)=>$j['status']==='draft')),
+    'archived'  => count(array_filter($jobs, fn($j)=>$j['status']==='archived')),
+    'closed'    => count(array_filter($jobs, fn($j)=>$j['status']==='closed')),
 ];
 
 $visibleJobs = $activeStatus === 'all' ? $jobs : array_values(array_filter($jobs, fn($j)=>$j['status']===$activeStatus));
@@ -155,9 +171,9 @@ ob_start();
                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                     </button>
                     <div data-dropdown-menu class="hidden absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-20 text-sm animate-fade-in">
-                        <button onclick="App.toast('Interview link copied!','success')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700">Generate Link</button>
-                        <button onclick="App.toast('Job duplicated','info')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700">Duplicate</button>
-                        <button onclick="App.confirm({title:'Archive job?',message:'This job will be moved to your archive.',confirmText:'Archive',danger:false}).then(ok=>ok&&App.toast('Job archived','success'))" class="w-full text-left px-4 py-2 hover:bg-rose-50 text-rose-600">Archive</button>
+                        <button onclick="generateJobLink(<?= (int)$job['id'] ?>)" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700">Generate Link</button>
+                        <button onclick="duplicateJob(<?= (int)$job['id'] ?>)" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700">Duplicate</button>
+                        <button onclick="archiveJob(<?= (int)$job['id'] ?>)" class="w-full text-left px-4 py-2 hover:bg-rose-50 text-rose-600">Archive</button>
                     </div>
                 </div>
             </div>
@@ -329,8 +345,8 @@ ob_start();
 
         <!-- Footer -->
         <div class="border-t border-gray-100 p-4 flex justify-end gap-3 shrink-0">
-            <button onclick="App.toast('Saved as draft','info'); App.closeModal('newJobPanel');" class="rounded-full px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Save as Draft</button>
-            <button onclick="App.toast('Job published!','success'); App.closeModal('newJobPanel');" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-sm transition-all">Publish</button>
+            <button onclick="submitNewJob('draft')" class="rounded-full px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Save as Draft</button>
+            <button onclick="submitNewJob('active')" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-sm transition-all">Publish</button>
         </div>
     </div>
 </div>
@@ -373,6 +389,62 @@ function generateJobAI() {
               '<div class="px-4 py-3 bg-gray-50 flex gap-2 justify-end"><button onclick="App.activateTab(document.getElementById(\'newJobTabs\'),\'manual\')" class="text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full px-4 py-1.5">Edit</button><button onclick="App.toast(\'Draft accepted\',\'success\')" class="text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-full px-4 py-1.5">Accept</button></div>' +
             '</div>';
     }, 1500);
+}
+async function generateJobLink(id) {
+    try {
+        var res = await fetch('/api/v1/jobs?action=generate_link', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({job_id: id})
+        });
+        var d = await res.json().catch(()=>({}));
+        if (d.link) {
+            navigator.clipboard?.writeText(d.link).catch(()=>{});
+            App.toast('Interview link copied: ' + d.link, 'success');
+        } else { App.toast(d.message || 'Failed to generate link', 'error'); }
+    } catch(e) { App.toast('Error generating link','error'); }
+}
+async function duplicateJob(id) {
+    try {
+        var res = await fetch('/api/v1/jobs?action=duplicate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({job_id: id})
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? 'Job duplicated' : (d.message||'Failed'), d.success?'success':'error');
+        if (d.success) setTimeout(()=>location.reload(), 900);
+    } catch(e) { App.toast('Error duplicating job','error'); }
+}
+async function archiveJob(id) {
+    var ok = await App.confirm({title:'Archive job?',message:'This job will be archived and no longer accept applications.',confirmText:'Archive',danger:true});
+    if (!ok) return;
+    try {
+        var res = await fetch('/api/v1/jobs?action=archive', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({job_id: id})
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? 'Job archived' : (d.message||'Failed'), d.success?'success':'error');
+        if (d.success) setTimeout(()=>location.reload(), 900);
+    } catch(e) { App.toast('Error archiving job','error'); }
+}
+async function submitNewJob(status) {
+    var panel = document.getElementById('newJobPanel');
+    var form = panel?.querySelector('form');
+    if (!form) return;
+    var data = Object.fromEntries(new FormData(form));
+    data.status = status;
+    var btn = panel.querySelector('[onclick*="submitNewJob(\''+status+'\')"]');
+    if (btn) { btn.disabled = true; btn.textContent = status === 'draft' ? 'Saving…' : 'Publishing…'; }
+    try {
+        var res = await fetch('/api/v1/jobs?action=create', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(data)
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.success ? (status === 'draft' ? 'Draft saved' : 'Job published!') : (d.message||'Failed'), d.success?'success':'error');
+        if (d.success) { App.closeModal('newJobPanel'); setTimeout(()=>location.reload(), 900); }
+    } catch(e) { App.toast('Error saving job','error'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = status === 'draft' ? 'Save as Draft' : 'Publish'; } }
 }
 </script>
 <?php require __DIR__ . '/../../partials/view_scripts.php'; ?>
