@@ -21,7 +21,7 @@ $teamMembers = $db->fetchAll(
 $activeTab = $_GET['tab'] ?? 'general';
 
 // AI key status for the integrations tab
-$aiStatus = TenantAIProvider::status($tid);
+$aiStatus = class_exists('TenantAIProvider') ? TenantAIProvider::status($tid) : ['openai' => false, 'heygen' => false];
 ?>
 
 <div class="max-w-4xl mx-auto">

@@ -11,7 +11,7 @@ require_once __DIR__ . '/../partials/helpers.php';
 $stages = ['applied','ai_screening','qualified','disqualified','tech_interview','manager_interview','final_review','offer','hired','rejected','withdrawn'];
 
 if (!isset($columns)) {
-    global $db;
+    $db = Database::getInstance();
     $tid = Auth::user()['tenant_id'] ?? 0;
     $columns = array_fill_keys($stages, []);
     try {
@@ -40,7 +40,7 @@ if (!isset($columns)) {
 }
 
 if (!isset($jobsList)) {
-    global $db;
+    $db = Database::getInstance();
     $tid = Auth::user()['tenant_id'] ?? 0;
     try {
         $jobsList = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? AND status = 'published' ORDER BY title", [$tid]) ?: [];

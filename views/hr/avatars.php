@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../partials/helpers.php';
 
-global $db;
+$db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
 try {
     $avatars = $db->fetchAll(

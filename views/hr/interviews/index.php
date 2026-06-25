@@ -13,7 +13,7 @@ $filters = [
     'status' => $_GET['status'] ?? '',
 ];
 
-global $db;
+$db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
 
 try {

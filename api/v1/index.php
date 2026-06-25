@@ -95,6 +95,23 @@ try {
             require __DIR__ . '/users.php';
             break;
 
+        case 'team':
+            Auth::requireAuth();
+            $db  = Database::getInstance();
+            $tid = (int)(Auth::user()['tenant_id'] ?? 0);
+            $members = $db->fetchAll(
+                "SELECT u.id, CONCAT(u.first_name,' ',u.last_name) as name, u.email, u.avatar_url,
+                        r.name as role
+                 FROM users u
+                 LEFT JOIN user_roles ur ON ur.user_id = u.id
+                 LEFT JOIN roles r ON r.id = ur.role_id
+                 WHERE u.tenant_id = ? AND u.status = 'active'
+                 ORDER BY u.first_name ASC",
+                [$tid]
+            ) ?: [];
+            Response::success($members);
+            break;
+
         case 'admin':
             require __DIR__ . '/admin.php';
             break;

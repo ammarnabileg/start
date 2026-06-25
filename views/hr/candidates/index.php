@@ -6,7 +6,7 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
-global $db;
+$db = Database::getInstance();
 $tid     = Auth::user()['tenant_id'] ?? 0;
 $perPage = 25;
 $page    = max(1, (int)($_GET['page'] ?? 1));
