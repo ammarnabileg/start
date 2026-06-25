@@ -15,7 +15,9 @@ $stats = Cache::remember(Cache::tenantKey('dashboard_stats', $tenantId), 300, fu
 });
 
 // Recent interviews
-$recentInterviews = $db->fetchAll("SELECT i.*, a.current_stage as stage, c.full_name, c.email, j.title as job_title, e.overall_score, e.recommendation
+$recentInterviews = $db->fetchAll("SELECT i.*, a.current_stage as stage,
+        CONCAT(c.first_name,' ',c.last_name) as full_name,
+        c.email, c.id as candidate_id, j.title as job_title, e.overall_score, e.recommendation
     FROM interviews i
     JOIN applications a ON a.id = i.application_id
     JOIN candidates c ON c.id = a.candidate_id

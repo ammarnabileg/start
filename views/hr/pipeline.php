@@ -11,22 +11,42 @@ require_once __DIR__ . '/../partials/helpers.php';
 $stages = ['applied','ai_screening','qualified','disqualified','tech_interview','manager_interview','final_review','offer','hired','rejected','withdrawn'];
 
 if (!isset($columns)) {
+    global $db;
+    $tid = Auth::user()['tenant_id'] ?? 0;
     $columns = array_fill_keys($stages, []);
-    foreach (demo_candidates() as $c) {
-        $columns[$c['stage']][] = $c;
+    try {
+        $rows = $db->fetchAll(
+            "SELECT a.id, a.current_stage as stage, a.ai_match_score as score, a.ai_recommendation as rec,
+                    a.applied_at,
+                    CONCAT(c.first_name,' ',c.last_name) as full_name,
+                    j.title as job
+             FROM applications a
+             JOIN candidates c ON c.id = a.candidate_id
+             JOIN jobs j ON j.id = a.job_id
+             WHERE a.tenant_id = ?
+             ORDER BY a.applied_at DESC
+             LIMIT 200",
+            [$tid]
+        ) ?: [];
+        foreach ($rows as $r) {
+            $stg = $r['stage'] ?? 'applied';
+            if (!isset($columns[$stg])) $stg = 'applied';
+            $r['applied'] = $r['applied_at'] ? date('d M', strtotime($r['applied_at'])) : '';
+            $columns[$stg][] = $r;
+        }
+    } catch (\Exception $e) {
+        foreach (demo_candidates() as $c) { $columns[$c['stage']][] = $c; }
     }
-    // Add a couple more cards so busy columns look realistic.
-    $columns['applied'][] = ['id'=>11,'full_name'=>'Hana Yamamoto','job'=>'Data Analyst','score'=>0,'rec'=>null,'stage'=>'applied','applied'=>'-3 hours'];
-    $columns['applied'][] = ['id'=>12,'full_name'=>'Marco Bianchi','job'=>'Frontend Engineer','score'=>0,'rec'=>null,'stage'=>'applied','applied'=>'-5 hours'];
-    $columns['ai_screening'][] = ['id'=>13,'full_name'=>'Yuki Tanaka','job'=>'Senior Backend Engineer','score'=>58,'rec'=>'possible','stage'=>'ai_screening','applied'=>'-1 days'];
 }
 
-$jobsList = $jobsList ?? [
-    ['id'=>1,'title'=>'Senior Backend Engineer'],
-    ['id'=>2,'title'=>'Product Designer'],
-    ['id'=>3,'title'=>'Frontend Engineer'],
-    ['id'=>4,'title'=>'Data Analyst'],
-];
+if (!isset($jobsList)) {
+    global $db;
+    $tid = Auth::user()['tenant_id'] ?? 0;
+    try {
+        $jobsList = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? AND status = 'published' ORDER BY title", [$tid]) ?: [];
+    } catch (\Exception $e) { $jobsList = []; }
+}
+$jobsList = $jobsList ?: [['id'=>0,'title'=>'No jobs yet']];
 
 $pageTitle   = 'Pipeline';
 $activeNav   = 'pipeline';
@@ -138,12 +158,29 @@ function filterPipeline() {
         c.style.display = c.getAttribute('data-name').includes(q) ? '' : 'none';
     });
 }
-function rankAllAI() {
+async function rankAllAI() {
+    var btn = document.querySelector('[onclick="rankAllAI()"]');
+    if (btn) btn.disabled = true;
     App.toast('AI is ranking all candidates…', 'info');
-    setTimeout(function(){ App.toast('Candidates re-ranked by AI score', 'success'); }, 1600);
+    try {
+        var res = await fetch('/api/v1/pipeline?action=rank_all', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content||''},
+            body: JSON.stringify({})
+        });
+        var data = await res.json();
+        if (data.success) {
+            App.toast('Candidates re-ranked by AI score — reloading…', 'success');
+            setTimeout(function(){ location.reload(); }, 1200);
+        } else { App.toast(data.message || 'Ranking failed', 'error'); }
+    } catch(e) { App.toast('Unable to rank — check connection', 'error'); }
+    finally { if (btn) btn.disabled = false; }
 }
 document.getElementById('pipelineJobFilter')?.addEventListener('change', function(){
-    App.toast(this.value ? 'Filtered pipeline by job' : 'Showing all jobs', 'info');
+    var jobId = this.value;
+    var url = new URL(location.href);
+    if (jobId) url.searchParams.set('job', jobId); else url.searchParams.delete('job');
+    location.href = url.toString();
 });
 </script>
 <?php require __DIR__ . '/../partials/view_scripts.php'; ?>

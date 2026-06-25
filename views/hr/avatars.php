@@ -5,12 +5,25 @@
  */
 require_once __DIR__ . '/../partials/helpers.php';
 
-$avatars = $avatars ?? [
-    ['id'=>1,'name'=>'Sophia','gender'=>'female','personality'=>'professional','language'=>'en','jobs'=>4,'is_active'=>1,'heygen_avatar_id'=>'avt_sophia_01','image_url'=>null],
-    ['id'=>2,'name'=>'Marcus','gender'=>'male','personality'=>'friendly','language'=>'both','jobs'=>2,'is_active'=>1,'heygen_avatar_id'=>'avt_marcus_02','image_url'=>null],
-    ['id'=>3,'name'=>'Layla','gender'=>'female','personality'=>'formal','language'=>'both','jobs'=>1,'is_active'=>1,'heygen_avatar_id'=>'avt_layla_03','image_url'=>null],
-    ['id'=>4,'name'=>'David','gender'=>'male','personality'=>'casual','language'=>'en','jobs'=>0,'is_active'=>0,'heygen_avatar_id'=>'avt_david_04','image_url'=>null],
-];
+global $db;
+$tid = Auth::user()['tenant_id'] ?? 0;
+try {
+    $avatars = $db->fetchAll(
+        "SELECT av.*,
+                COUNT(DISTINCT j.id) as jobs
+         FROM avatars av
+         LEFT JOIN jobs j ON JSON_CONTAINS(j.avatar_ids, CAST(av.id AS JSON)) AND j.tenant_id = ?
+         WHERE av.tenant_id = ?
+         GROUP BY av.id
+         ORDER BY av.created_at DESC",
+        [$tid, $tid]
+    ) ?: [];
+} catch (\Exception $e) {
+    // fallback: simple query without job count
+    try {
+        $avatars = $db->fetchAll("SELECT *, 0 as jobs FROM avatars WHERE tenant_id = ? ORDER BY created_at DESC", [$tid]) ?: [];
+    } catch (\Exception $e2) { $avatars = []; }
+}
 
 $personaCls = ['professional'=>'bg-violet-100 text-violet-700','friendly'=>'bg-amber-100 text-amber-700','formal'=>'bg-blue-100 text-blue-700','casual'=>'bg-emerald-100 text-emerald-700'];
 $langLabel  = ['en'=>'English','ar'=>'Arabic','both'=>'EN / AR'];
@@ -57,10 +70,10 @@ ob_start();
                     Assigned to <?= (int)$a['jobs'] ?> job<?= $a['jobs']==1?'':'s' ?>
                 </div>
                 <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2">
-                    <button onclick="App.toast('Loading preview for <?= e($a['name']) ?>…','info')" class="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg py-1.5 transition-colors">
+                    <button onclick="testAvatar(<?= (int)$a['id'] ?>, '<?= e($a['heygen_avatar_id']) ?>')" class="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg py-1.5 transition-colors">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="6 4 20 12 6 20"/></svg>Test
                     </button>
-                    <button onclick="App.toast('Editing <?= e($a['name']) ?>','info')" class="flex-1 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg py-1.5 transition-colors">Edit</button>
+                    <button onclick="editAvatar(<?= (int)$a['id'] ?>, <?= json_encode($a) ?>)" class="flex-1 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg py-1.5 transition-colors">Edit</button>
                 </div>
             </div>
         </div>
@@ -82,7 +95,7 @@ ob_start();
             <h3 class="text-lg font-bold text-gray-900">New Avatar</h3>
             <button data-modal-close class="text-gray-400 hover:text-gray-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
-        <form class="space-y-4" data-validate onsubmit="event.preventDefault(); App.toast('Avatar created','success'); App.closeModal('newAvatarModal');">
+        <form class="space-y-4" data-validate onsubmit="submitNewAvatar(event)">
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Name <span class="text-rose-500">*</span></label>
@@ -113,7 +126,7 @@ ob_start();
             </div>
             <div class="rounded-xl bg-gray-50 border border-gray-100 p-3 flex items-center justify-between">
                 <span class="text-sm text-gray-500">Preview the avatar before saving</span>
-                <button type="button" onclick="App.toast('Generating preview…','info')" class="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-full px-3 py-1.5 transition-colors"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="6 4 20 12 6 20"/></svg>Test Preview</button>
+                <button type="button" onclick="testAvatarPreview(this)" class="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-full px-3 py-1.5 transition-colors"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="6 4 20 12 6 20"/></svg>Test Preview</button>
             </div>
             <div class="flex justify-end gap-3 pt-2">
                 <button type="button" data-modal-close class="rounded-full px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
@@ -122,6 +135,71 @@ ob_start();
         </form>
     </div>
 </div>
+<script>
+async function submitNewAvatar(e) {
+    e.preventDefault();
+    var form = e.target;
+    var btn = form.querySelector('[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    var data = Object.fromEntries(new FormData(form));
+    try {
+        var res = await fetch('/api/v1/avatars?action=create', {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(data)
+        });
+        var json = await res.json();
+        if (json.success) {
+            App.toast('Avatar created!', 'success');
+            App.closeModal('newAvatarModal');
+            setTimeout(function(){ location.reload(); }, 800);
+        } else { App.toast(json.message || 'Failed to create avatar', 'error'); }
+    } catch(err) { App.toast('Error saving avatar', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save Avatar'; }
+}
+
+async function testAvatar(id, heygenId) {
+    if (!heygenId) { App.toast('No HeyGen avatar ID configured', 'warning'); return; }
+    App.toast('Testing avatar connection…', 'info');
+    try {
+        var res = await fetch('/api/v1/avatars?action=test', {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({avatar_id: id, heygen_avatar_id: heygenId})
+        });
+        var data = await res.json();
+        App.toast(data.success ? 'Avatar is connected and working!' : (data.message||'Test failed'), data.success?'success':'error');
+    } catch(e) { App.toast('Error testing avatar', 'error'); }
+}
+
+function editAvatar(id, avatar) {
+    var nameEl  = document.querySelector('[name="name"]');
+    var genderEl = document.querySelector('[name="gender"]');
+    var persEl  = document.querySelector('[name="personality"]');
+    var langEl  = document.querySelector('[name="language"]');
+    var hidEl   = document.querySelector('[name="heygen_avatar_id"]');
+    if (nameEl)  nameEl.value  = avatar.name || '';
+    if (genderEl) genderEl.value = avatar.gender || 'female';
+    if (persEl)  persEl.value  = avatar.personality || 'professional';
+    if (langEl)  langEl.value  = avatar.language || 'en';
+    if (hidEl)   hidEl.value   = avatar.heygen_avatar_id || '';
+    var form = nameEl ? nameEl.closest('form') : null;
+    if (form) form.dataset.editId = id;
+    App.openModal('newAvatarModal');
+}
+
+async function testAvatarPreview(btn) {
+    var heygenId = btn.closest('form')?.querySelector('[name="heygen_avatar_id"]')?.value;
+    if (!heygenId) { App.toast('Enter a HeyGen Avatar ID first', 'warning'); return; }
+    App.toast('Testing HeyGen connection for ' + heygenId + '…', 'info');
+    try {
+        var res = await fetch('/api/v1/avatars?action=test', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({heygen_avatar_id: heygenId})
+        });
+        var data = await res.json();
+        App.toast(data.success ? 'Avatar ID is valid!' : (data.message||'Invalid avatar ID'), data.success?'success':'error');
+    } catch(e) { App.toast('Error testing connection', 'error'); }
+}
+</script>
 <?php require __DIR__ . '/../partials/view_scripts.php'; ?>
 <?php
 $content = ob_get_clean();

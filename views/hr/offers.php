@@ -4,29 +4,60 @@ $pageTitle = 'Offers';
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
 $activeTab = $_GET['status'] ?? 'all';
-?>
 
-<?php
-$mockOffers = [
-    ['name'=>'Alex Morrison','initials'=>'AM','email'=>'alex@email.com','position'=>'Senior Engineer','dept'=>'Engineering','salary'=>'9,500','type'=>'month','status'=>'pending','expires_days'=>5,'benefits'=>true],
-    ['name'=>'Sarah Chen','initials'=>'SC','email'=>'sarah@email.com','position'=>'Product Manager','dept'=>'Product','salary'=>'95,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
-    ['name'=>'Marcus Johnson','initials'=>'MJ','email'=>'marcus@email.com','position'=>'UX Designer','dept'=>'Design','salary'=>'7,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
-    ['name'=>'Priya Patel','initials'=>'PP','email'=>'priya@email.com','position'=>'Data Scientist','dept'=>'Analytics','salary'=>'110,000','type'=>'year','status'=>'pending','expires_days'=>2,'benefits'=>true],
-    ['name'=>'James Wilson','initials'=>'JW','email'=>'james@email.com','position'=>'DevOps Engineer','dept'=>'Infrastructure','salary'=>'8,800','type'=>'month','status'=>'declined','expires_days'=>0,'benefits'=>true],
-    ['name'=>'Emma Rodriguez','initials'=>'ER','email'=>'emma@email.com','position'=>'Marketing Lead','dept'=>'Marketing','salary'=>'75,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
-    ['name'=>'David Kim','initials'=>'DK','email'=>'david@email.com','position'=>'Backend Developer','dept'=>'Engineering','salary'=>'8,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
-    ['name'=>'Lisa Thompson','initials'=>'LT','email'=>'lisa@email.com','position'=>'HR Specialist','dept'=>'Human Resources','salary'=>'55,000','type'=>'year','status'=>'pending','expires_days'=>7,'benefits'=>true],
-];
-
-$tabCounts = ['all' => 24, 'draft' => 5, 'pending' => 8, 'accepted' => 9, 'declined' => 2];
 $tabs      = ['all' => 'All', 'draft' => 'Draft', 'pending' => 'Pending', 'accepted' => 'Accepted', 'declined' => 'Declined'];
-
 $statusBadge = [
-    'draft'    => 'bg-gray-100 text-gray-600',
-    'pending'  => 'bg-amber-100 text-amber-700',
-    'accepted' => 'bg-green-100 text-green-700',
-    'declined' => 'bg-red-100 text-red-700',
+    'draft'     => 'bg-gray-100 text-gray-600',
+    'pending'   => 'bg-amber-100 text-amber-700',
+    'accepted'  => 'bg-green-100 text-green-700',
+    'declined'  => 'bg-red-100 text-red-700',
+    'withdrawn' => 'bg-rose-100 text-rose-700',
 ];
+
+try {
+    $whereStatus = $activeTab !== 'all' ? " AND o.status = '$activeTab'" : '';
+    $rawOffers = $db->fetchAll(
+        "SELECT o.id, o.status, o.salary, o.currency, o.salary_period, o.start_date, o.expires_at,
+                o.include_benefits,
+                CONCAT(c.first_name,' ',c.last_name) as name,
+                CONCAT(UPPER(SUBSTRING(c.first_name,1,1)), UPPER(SUBSTRING(c.last_name,1,1))) as initials,
+                c.email,
+                j.title as position,
+                j.department as dept,
+                DATEDIFF(o.expires_at, NOW()) as expires_days
+         FROM offers o
+         JOIN applications a ON a.id = o.application_id
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = o.job_id
+         WHERE o.tenant_id = ? $whereStatus
+         ORDER BY o.created_at DESC
+         LIMIT 50",
+        [$tid]
+    ) ?: [];
+    $mockOffers = [];
+    foreach ($rawOffers as $r) {
+        $r['type']         = $r['salary_period'] ?? 'year';
+        $r['benefits']     = !empty($r['include_benefits']);
+        $r['expires_days'] = max(0, (int)$r['expires_days']);
+        $r['salary']       = number_format((float)$r['salary']);
+        $mockOffers[] = $r;
+    }
+    // Tab counts
+    $allCounts = $db->fetchAll(
+        "SELECT status, COUNT(*) as n FROM offers WHERE tenant_id = ? GROUP BY status", [$tid]
+    ) ?: [];
+    $countMap = array_column($allCounts, 'n', 'status');
+    $tabCounts = [
+        'all'      => array_sum($countMap),
+        'draft'    => $countMap['draft']    ?? 0,
+        'pending'  => $countMap['pending']  ?? 0,
+        'accepted' => $countMap['accepted'] ?? 0,
+        'declined' => $countMap['declined'] ?? 0,
+    ];
+} catch (\Exception $e) {
+    $mockOffers = [];
+    $tabCounts = ['all'=>0,'draft'=>0,'pending'=>0,'accepted'=>0,'declined'=>0];
+}
 ?>
 
 <!-- Toast container -->

@@ -155,7 +155,7 @@ ob_start();
         // Server-backed command.
         var loading = printLine('<span class="text-gray-500">running…</span>');
         try {
-            var r = await fetch('/api/v1/admin/terminal', {
+            var r = await fetch('/api/v1/admin?action=terminal', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ command: cmd })

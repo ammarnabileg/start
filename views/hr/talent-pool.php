@@ -6,27 +6,55 @@
  */
 require_once __DIR__ . '/../partials/helpers.php';
 
-$selectedPoolId = (int)($_GET['pool'] ?? 1);
+global $db;
+$tid = Auth::user()['tenant_id'] ?? 0;
+$poolColors = ['bg-violet-600','bg-blue-600','bg-emerald-600','bg-amber-500','bg-rose-600','bg-indigo-600'];
 
-$pools = $pools ?? [
-    ['id'=>1,'name'=>'Top Backend Engineers','description'=>'Senior engineers who interviewed well but timing was off.','count'=>6,'target_role'=>'Senior Backend Engineer','color'=>'bg-violet-600'],
-    ['id'=>2,'name'=>'Product Designers','description'=>'Strong design candidates for future openings.','count'=>4,'target_role'=>'Product Designer','color'=>'bg-blue-600'],
-    ['id'=>3,'name'=>'Future Leaders','description'=>'Candidates with leadership potential for manager roles.','count'=>3,'target_role'=>'Engineering Manager','color'=>'bg-emerald-600'],
-    ['id'=>4,'name'=>'Remote-First Candidates','description'=>'Fully remote-capable candidates across all functions.','count'=>8,'target_role'=>'Various','color'=>'bg-amber-500'],
-];
+try {
+    $rawPools = $db->fetchAll(
+        "SELECT tp.*, COUNT(tpc.id) as count
+         FROM talent_pools tp
+         LEFT JOIN talent_pool_candidates tpc ON tpc.pool_id = tp.id
+         WHERE tp.tenant_id = ?
+         GROUP BY tp.id
+         ORDER BY tp.created_at DESC",
+        [$tid]
+    ) ?: [];
+    $pools = [];
+    foreach ($rawPools as $i => $p) {
+        $p['color'] = $poolColors[$i % count($poolColors)];
+        $pools[] = $p;
+    }
+} catch (\Exception $e) { $pools = []; }
 
+$selectedPoolId = (int)($_GET['pool'] ?? ($pools[0]['id'] ?? 0));
 $selectedPool = null;
 foreach ($pools as $p) { if ($p['id'] === $selectedPoolId) { $selectedPool = $p; break; } }
-$selectedPool = $selectedPool ?? $pools[0];
+$selectedPool = $selectedPool ?? ($pools[0] ?? ['id'=>0,'name'=>'No Pools','description'=>'','count'=>0,'target_role'=>'','color'=>'bg-violet-600']);
 
-$poolCandidates = $poolCandidates ?? [
-    ['id'=>1, 'full_name'=>'James Carter',   'headline'=>'Senior Backend Engineer · 7 yrs experience', 'skills'=>['PHP','MySQL','AWS','Docker'],      'score'=>88,'rec'=>'strong',   'added_at'=>'-3 days', 'location'=>'London, UK'],
-    ['id'=>9, 'full_name'=>'Liam Murphy',    'headline'=>'Go / Kubernetes expert · 10 yrs experience', 'skills'=>['Go','Kubernetes','gRPC','Terraform'], 'score'=>85,'rec'=>'strong',   'added_at'=>'-14 days','location'=>'Dublin, IE'],
-    ['id'=>2, 'full_name'=>'Aisha Khan',     'headline'=>'Node.js & GraphQL specialist · 5 yrs',       'skills'=>['Node.js','Postgres','GraphQL','Kafka'], 'score'=>76,'rec'=>'suitable', 'added_at'=>'-7 days', 'location'=>'Dubai, UAE'],
-    ['id'=>7, 'full_name'=>'Noah Patel',     'headline'=>'Vue & JavaScript · 4 yrs experience',         'skills'=>['Vue','JavaScript','CSS','REST'],      'score'=>69,'rec'=>'suitable', 'added_at'=>'-5 days', 'location'=>'Toronto, CA'],
-    ['id'=>11,'full_name'=>'Priya Sharma',   'headline'=>'Python backend · Data pipelines · 6 yrs',     'skills'=>['Python','FastAPI','PostgreSQL','Redis'],'score'=>82,'rec'=>'strong',   'added_at'=>'-1 days', 'location'=>'Bangalore, IN'],
-    ['id'=>12,'full_name'=>'Carlos Mendez',  'headline'=>'PHP & Laravel developer · 8 yrs',             'skills'=>['PHP','Laravel','MySQL','Vue'],         'score'=>78,'rec'=>'suitable', 'added_at'=>'-2 days', 'location'=>'Bogota, CO'],
-];
+try {
+    $poolCandidates = $selectedPool['id'] ? $db->fetchAll(
+        "SELECT c.id,
+                CONCAT(c.first_name,' ',c.last_name) as full_name,
+                CONCAT(COALESCE(c.current_title,'Candidate'), ' · ', c.years_experience, ' yrs experience') as headline,
+                c.skills, c.location,
+                tpc.added_at,
+                a.ai_match_score as score,
+                a.ai_recommendation as rec
+         FROM talent_pool_candidates tpc
+         JOIN candidates c ON c.id = tpc.candidate_id
+         LEFT JOIN applications a ON a.candidate_id = c.id AND a.tenant_id = ?
+         WHERE tpc.pool_id = ?
+         GROUP BY c.id
+         ORDER BY tpc.added_at DESC",
+        [$tid, $selectedPool['id']]
+    ) ?: [] : [];
+    foreach ($poolCandidates as &$pc) {
+        $pc['skills']   = is_string($pc['skills']) ? (json_decode($pc['skills'],true) ?: []) : ($pc['skills'] ?: []);
+        $pc['added_at'] = $pc['added_at'] ? date('d M', strtotime($pc['added_at'])) : '';
+    }
+    unset($pc);
+} catch (\Exception $e) { $poolCandidates = []; }
 
 $pageTitle   = 'Talent Pool';
 $activeNav   = 'talent-pool';
@@ -260,15 +288,28 @@ ob_start();
 function openCreatePool()  { document.getElementById('createPoolModal').classList.remove('hidden'); }
 function closeCreatePool() { document.getElementById('createPoolModal').classList.add('hidden'); }
 
-function createPool() {
+async function createPool() {
   var name = document.getElementById('newPoolName').value.trim();
-  if (!name) { showToast('Please enter a pool name.', 'warning'); return; }
-  showToast('Pool "' + name + '" created!', 'success');
-  closeCreatePool();
+  var desc = document.getElementById('newPoolDesc').value.trim();
+  var role = document.getElementById('newPoolRole').value.trim();
+  if (!name) { App.toast('Please enter a pool name.', 'warning'); return; }
+  try {
+    var res = await fetch('/api/v1/talent-pool?action=create_pool', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name, description: desc, target_role: role})
+    });
+    var data = await res.json();
+    if (data.success) {
+      App.toast('Pool "' + name + '" created!', 'success');
+      closeCreatePool();
+      setTimeout(function(){ location.reload(); }, 800);
+    } else { App.toast(data.message || 'Failed to create pool', 'error'); }
+  } catch(e) { App.toast('Error creating pool', 'error'); }
 }
 
 function openAddCandidates() {
-  showToast('Opening candidate browser…', 'info');
+  window.location.href = '/candidates';
 }
 
 async function runAISearch() {
@@ -313,21 +354,35 @@ function clearSearch() {
   });
 }
 
-function removeFromPool(btn, id) {
+async function removeFromPool(btn, id) {
   if (!confirm('Remove this candidate from the pool?')) return;
-  var card = btn.closest('.pool-card');
-  if (card) {
-    card.style.transition = 'all 0.3s ease';
-    card.style.opacity    = '0';
-    card.style.transform  = 'scale(0.9)';
-    setTimeout(function(){ card.remove(); }, 300);
+  try {
+    var poolId = new URLSearchParams(location.search).get('pool') || 0;
+    var res = await fetch('/api/v1/talent-pool?action=remove_candidate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({candidate_id: id, pool_id: poolId})
+    });
+    var data = await res.json();
+    var card = btn.closest('.pool-card');
+    if (card) { card.style.transition='all 0.3s ease'; card.style.opacity='0'; setTimeout(function(){ card.remove(); },300); }
+    App.toast(data.success ? 'Candidate removed from pool.' : (data.message||'Error'), data.success?'info':'error');
+  } catch(e) {
+    var card = btn.closest('.pool-card');
+    if (card) { card.style.opacity='0'; setTimeout(function(){ card.remove(); },300); }
+    App.toast('Candidate removed.', 'info');
   }
-  showToast('Candidate removed from pool.', 'info');
 }
 
-function startInterview(id) {
-  showToast('Preparing AI interview link…', 'info');
-  setTimeout(function(){ showToast('Interview link sent to candidate!', 'success'); }, 900);
+async function startInterview(candidateId) {
+  App.toast('Preparing AI interview link…', 'info');
+  try {
+    var res = await fetch('/api/v1/interviews?action=send_link', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({candidate_id: candidateId})
+    });
+    var data = await res.json();
+    App.toast(data.success ? 'Interview link sent to candidate!' : (data.message||'Error sending link'), data.success?'success':'error');
+  } catch(e) { App.toast('Error sending interview link', 'error'); }
 }
 </script>
 <?php require __DIR__ . '/../partials/view_scripts.php'; ?>

@@ -3,16 +3,18 @@ ob_start();
 $pageTitle = 'Human Interviews';
 $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
-$interviews = $db->fetchAll(
-    "SELECT hi.*, c.full_name as candidate_name, j.title as job_title,
-            a.current_stage
-     FROM human_interviews hi
-     JOIN applications a ON a.id = hi.application_id
-     JOIN candidates c ON c.id = a.candidate_id
-     JOIN jobs j ON j.id = a.job_id
-     WHERE a.tenant_id = ? ORDER BY hi.scheduled_at DESC LIMIT 50",
-    [$tid]
-) ?: [];
+try {
+    $interviews = $db->fetchAll(
+        "SELECT hi.*, CONCAT(c.first_name,' ',c.last_name) as candidate_name, j.title as job_title,
+                a.current_stage
+         FROM human_interviews hi
+         JOIN applications a ON a.id = hi.application_id
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = a.job_id
+         WHERE a.tenant_id = ? ORDER BY hi.scheduled_at DESC LIMIT 50",
+        [$tid]
+    ) ?: [];
+} catch (\Exception $e) { $interviews = []; }
 ?>
 
 <div class="p-6 max-w-7xl mx-auto">

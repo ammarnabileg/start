@@ -9,7 +9,7 @@ $db        = Database::getInstance();
 
 $users = Cache::remember("users_list_{$tid}", 120, function() use ($db, $tid) {
     return $db->fetchAll(
-        "SELECT u.id, u.full_name, u.email, u.status, u.last_login_at as last_login, u.created_at,
+        "SELECT u.id, CONCAT(u.first_name,' ',u.last_name) as full_name, u.email, u.status, u.last_login_at as last_login, u.created_at,
                 GROUP_CONCAT(r.slug ORDER BY r.id SEPARATOR ',') as roles,
                 (SELECT r2.display_name FROM roles r2 JOIN user_roles ur2 ON ur2.role_id=r2.id WHERE ur2.user_id=u.id LIMIT 1) as role
          FROM users u

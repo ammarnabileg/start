@@ -356,7 +356,7 @@ async function saveSection(e, section) {
   for (const [k, v] of fd.entries()) data[k] = v;
 
   try {
-    const r = await fetch('/api/v1/admin?action=save_settings', {
+    const r = await fetch('/api/v1/settings?action=save_settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify(data)
@@ -373,7 +373,7 @@ async function sendTestEmail() {
   const email = prompt('Send test email to:');
   if (!email) return;
   try {
-    const r = await fetch('/api/v1/admin?action=test_email', {
+    const r = await fetch('/api/v1/settings?action=test_email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify({ email })

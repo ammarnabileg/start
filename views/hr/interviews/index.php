@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
-$filters = $filters ?? [
+$filters = [
     'job'    => $_GET['job']    ?? '',
     'from'   => $_GET['from']   ?? '',
     'to'     => $_GET['to']     ?? '',
@@ -13,34 +13,54 @@ $filters = $filters ?? [
     'status' => $_GET['status'] ?? '',
 ];
 
-$jobs = $jobs ?? [
-    ['id'=>1,'title'=>'Senior Backend Engineer'],
-    ['id'=>2,'title'=>'Product Designer'],
-    ['id'=>3,'title'=>'Frontend Engineer'],
-    ['id'=>4,'title'=>'Data Analyst'],
-];
+global $db;
+$tid = Auth::user()['tenant_id'] ?? 0;
 
-$interviews = $interviews ?? [
-    ['id'=>1,'candidate_id'=>1,'candidate'=>'James Carter','job_id'=>1,'job'=>'Senior Backend Engineer','score'=>88,'recommendation'=>'strong','duration'=>'18m','completed_at'=>'-1 days','status'=>'completed'],
-    ['id'=>2,'candidate_id'=>3,'candidate'=>'Diego Fernandez','job_id'=>2,'job'=>'Product Designer','score'=>92,'recommendation'=>'strong','duration'=>'22m','completed_at'=>'-6 days','status'=>'completed'],
-    ['id'=>3,'candidate_id'=>6,'candidate'=>'Olivia Reyes','job_id'=>3,'job'=>'Frontend Engineer','score'=>81,'recommendation'=>'strong','duration'=>'19m','completed_at'=>'-5 days','status'=>'completed'],
-    ['id'=>4,'candidate_id'=>2,'candidate'=>'Aisha Khan','job_id'=>1,'job'=>'Senior Backend Engineer','score'=>76,'recommendation'=>'suitable','duration'=>'25m','completed_at'=>'-3 days','status'=>'completed'],
-    ['id'=>5,'candidate_id'=>8,'candidate'=>'Grace Okafor','job_id'=>2,'job'=>'Product Designer','score'=>73,'recommendation'=>'suitable','duration'=>'21m','completed_at'=>'-9 days','status'=>'completed'],
-    ['id'=>6,'candidate_id'=>7,'candidate'=>'Noah Patel','job_id'=>3,'job'=>'Frontend Engineer','score'=>69,'recommendation'=>'suitable','duration'=>'17m','completed_at'=>'-7 hours','status'=>'completed'],
-    ['id'=>7,'candidate_id'=>4,'candidate'=>'Mei Lin','job_id'=>4,'job'=>'Data Analyst','score'=>61,'recommendation'=>'possible','duration'=>'14m','completed_at'=>'-1 days','status'=>'completed'],
-    ['id'=>8,'candidate_id'=>9,'candidate'=>'Liam Murphy','job_id'=>1,'job'=>'Senior Backend Engineer','score'=>85,'recommendation'=>'strong','duration'=>'28m','completed_at'=>'-14 days','status'=>'completed'],
-    ['id'=>9,'candidate_id'=>5,'candidate'=>'Tom Becker','job_id'=>4,'job'=>'Data Analyst','score'=>44,'recommendation'=>'not_recommended','duration'=>'12m','completed_at'=>'-4 days','status'=>'completed'],
-    ['id'=>10,'candidate_id'=>10,'candidate'=>'Sofia Rossi','job_id'=>3,'job'=>'Frontend Engineer','score'=>39,'recommendation'=>'not_recommended','duration'=>'9m','completed_at'=>'-11 days','status'=>'completed'],
-    ['id'=>11,'candidate_id'=>11,'candidate'=>'Priya Sharma','job_id'=>2,'job'=>'Product Designer','score'=>null,'recommendation'=>null,'duration'=>null,'completed_at'=>null,'status'=>'in_progress'],
-    ['id'=>12,'candidate_id'=>12,'candidate'=>'Carlos Mendez','job_id'=>1,'job'=>'Senior Backend Engineer','score'=>null,'recommendation'=>null,'duration'=>null,'completed_at'=>null,'status'=>'in_progress'],
-];
+try {
+    $jobs = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? ORDER BY title", [$tid]) ?: [];
 
-$counts = $counts ?? [
-    'total'    => count($interviews),
-    'completed'=> count(array_filter($interviews, fn($i)=>$i['status']==='completed')),
-    'in_progress'=> count(array_filter($interviews, fn($i)=>$i['status']==='in_progress')),
-    'strong'   => count(array_filter($interviews, fn($i)=>$i['recommendation']==='strong')),
-];
+    $where = "i.tenant_id = ?";
+    $params = [$tid];
+    if ($filters['job'])    { $where .= " AND a.job_id = ?"; $params[] = (int)$filters['job']; }
+    if ($filters['from'])   { $where .= " AND i.completed_at >= ?"; $params[] = $filters['from']; }
+    if ($filters['to'])     { $where .= " AND i.completed_at <= ?"; $params[] = $filters['to']; }
+    if ($filters['rec'])    { $where .= " AND ie.recommendation = ?"; $params[] = $filters['rec']; }
+    if ($filters['status']) { $where .= " AND i.status = ?"; $params[] = $filters['status']; }
+
+    $interviews = $db->fetchAll(
+        "SELECT i.id, i.status, i.completed_at,
+                a.candidate_id, a.job_id,
+                CONCAT(c.first_name,' ',c.last_name) as candidate,
+                j.title as job,
+                ie.overall_score as score,
+                ie.recommendation,
+                TIMESTAMPDIFF(MINUTE, i.created_at, IFNULL(i.completed_at, NOW())) as duration_min
+         FROM interviews i
+         JOIN applications a ON a.id = i.application_id
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = a.job_id
+         LEFT JOIN interview_evaluations ie ON ie.interview_id = i.id
+         WHERE $where
+         ORDER BY i.created_at DESC
+         LIMIT 100",
+        $params
+    ) ?: [];
+    foreach ($interviews as &$iv) {
+        $iv['duration'] = $iv['duration_min'] ? $iv['duration_min'].'m' : null;
+        $iv['completed_at'] = $iv['completed_at'] ? date('d M Y', strtotime($iv['completed_at'])) : null;
+    }
+    unset($iv);
+    $counts = [
+        'total'       => count($interviews),
+        'completed'   => count(array_filter($interviews, fn($i)=>$i['status']==='completed')),
+        'in_progress' => count(array_filter($interviews, fn($i)=>$i['status']==='in_progress')),
+        'strong'      => count(array_filter($interviews, fn($i)=>$i['recommendation']==='strong')),
+    ];
+} catch (\Exception $e) {
+    $jobs = [];
+    $interviews = [];
+    $counts = ['total'=>0,'completed'=>0,'in_progress'=>0,'strong'=>0];
+}
 
 $pageTitle   = 'AI Interviews';
 $activeNav   = 'ai-interviews';

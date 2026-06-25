@@ -300,7 +300,7 @@ async function clearCache() {
     const r = await fetch('/api/v1/admin?action=terminal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ cmd: 'clear_cache' })
+      body: JSON.stringify({ command: 'cache:clear' })
     });
     const d = await r.json();
     showToast(d.ok ? 'Cache cleared successfully.' : (d.message || 'Failed to clear cache.'), d.ok ? 'success' : 'error');
