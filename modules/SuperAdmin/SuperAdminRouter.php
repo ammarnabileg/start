@@ -8,6 +8,7 @@ class SuperAdminRouter {
             $path === '/super/terminal'  => self::render('super-admin/terminal', ['pageTitle'=>'Terminal']),
             $path === '/super/ai-usage'  => self::render('super-admin/ai-analytics', ['pageTitle'=>'AI Analytics']),
             $path === '/super/settings'  => self::render('super-admin/settings', ['pageTitle'=>'System Settings']),
+            $path === '/super/api-keys'  => self::render('super-admin/api-keys', ['pageTitle'=>'API Keys']),
             default => Response::redirect('/super/dashboard')
         };
     }

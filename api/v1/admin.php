@@ -183,6 +183,35 @@ if ($method === 'POST' && $action === 'impersonate') {
     exit;
 }
 
+// ── Save per-tenant API keys ─────────────────────────────────────────────
+if ($method === 'POST' && $action === 'save_tenant_keys') {
+    $tenantId = (int)$request->input('tenant_id');
+    if (!$tenantId) { Response::error('tenant_id required', 422); exit; }
+
+    $updates = ['updated_at' => date('Y-m-d H:i:s')];
+
+    $openai = $request->input('openai');
+    $heygen = $request->input('heygen');
+    $model  = $request->input('openai_model');
+
+    if ($openai !== null) {
+        $val = trim($openai);
+        $updates['openai_api_key'] = $val === '' ? null : ApiKeyManager::encrypt($val);
+    }
+    if ($heygen !== null) {
+        $val = trim($heygen);
+        $updates['heygen_api_key'] = $val === '' ? null : ApiKeyManager::encrypt($val);
+    }
+    if ($model !== null) {
+        $updates['openai_model'] = $model === '' ? null : $model;
+    }
+
+    $db->update('tenants', $updates, ['id' => $tenantId]);
+    ApiKeyManager::clearCache();
+    Response::success(['message' => 'Keys saved']);
+    exit;
+}
+
 // ── Global stats for dashboard ────────────────────────────────────────────
 if ($action === 'stats') {
     $stats = [

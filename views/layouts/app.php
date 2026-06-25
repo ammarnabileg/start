@@ -76,15 +76,18 @@ if (!function_exists('sideIcon')) { function sideIcon(string $path): string {
   <!-- Nav -->
   <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
     <?php if ($isSuper): ?>
-    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Global</div>
+    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Management</div>
     <?= navItem('/super/dashboard', 'Dashboard', sideIcon('home'), $currentPath) ?>
     <?= navItem('/super/companies', 'Companies', sideIcon('building'), $currentPath) ?>
     <?= navItem('/super/users', 'All Users', sideIcon('users'), $currentPath) ?>
+    <div class="border-t border-gray-100 my-2"></div>
+    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Analytics & AI</div>
     <?= navItem('/super/ai-usage', 'AI Analytics', sideIcon('chart'), $currentPath) ?>
+    <?= navItem('/super/api-keys', 'API Keys', sideIcon('shield'), $currentPath) ?>
     <div class="border-t border-gray-100 my-2"></div>
     <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">System</div>
-    <?= navItem('/super/terminal', 'Terminal', sideIcon('terminal'), $currentPath) ?>
     <?= navItem('/super/settings', 'Settings', sideIcon('cog'), $currentPath) ?>
+    <?= navItem('/super/terminal', 'Terminal', sideIcon('terminal'), $currentPath) ?>
     <?php else: ?>
     <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Recruitment</div>
     <?= navItem('/dashboard', 'Dashboard', sideIcon('home'), $currentPath) ?>
