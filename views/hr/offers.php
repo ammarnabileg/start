@@ -7,15 +7,43 @@ $activeTab = $_GET['status'] ?? 'all';
 ?>
 
 <?php
-$mockOffers = [
-    ['name'=>'Alex Morrison','initials'=>'AM','email'=>'alex@email.com','position'=>'Senior Engineer','dept'=>'Engineering','salary'=>'9,500','type'=>'month','status'=>'pending','expires_days'=>5,'benefits'=>true],
-    ['name'=>'Sarah Chen','initials'=>'SC','email'=>'sarah@email.com','position'=>'Product Manager','dept'=>'Product','salary'=>'95,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
-    ['name'=>'Marcus Johnson','initials'=>'MJ','email'=>'marcus@email.com','position'=>'UX Designer','dept'=>'Design','salary'=>'7,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
-    ['name'=>'Priya Patel','initials'=>'PP','email'=>'priya@email.com','position'=>'Data Scientist','dept'=>'Analytics','salary'=>'110,000','type'=>'year','status'=>'pending','expires_days'=>2,'benefits'=>true],
-    ['name'=>'James Wilson','initials'=>'JW','email'=>'james@email.com','position'=>'DevOps Engineer','dept'=>'Infrastructure','salary'=>'8,800','type'=>'month','status'=>'declined','expires_days'=>0,'benefits'=>true],
-    ['name'=>'Emma Rodriguez','initials'=>'ER','email'=>'emma@email.com','position'=>'Marketing Lead','dept'=>'Marketing','salary'=>'75,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
-    ['name'=>'David Kim','initials'=>'DK','email'=>'david@email.com','position'=>'Backend Developer','dept'=>'Engineering','salary'=>'8,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
-    ['name'=>'Lisa Thompson','initials'=>'LT','email'=>'lisa@email.com','position'=>'HR Specialist','dept'=>'Human Resources','salary'=>'55,000','type'=>'year','status'=>'pending','expires_days'=>7,'benefits'=>true],
+// Load real offers from DB
+$dbOffers = $tid ? $db->fetchAll("
+    SELECT o.id, o.status, o.salary, o.currency, o.expiry_date,
+           c.id AS candidate_id, c.full_name AS name, c.email,
+           j.title AS position, j.department AS dept,
+           DATEDIFF(o.expiry_date, CURDATE()) AS expires_days
+    FROM offers o
+    JOIN applications a ON a.id = o.application_id
+    JOIN candidates c ON c.id = a.candidate_id
+    JOIN jobs j ON j.id = a.job_id
+    WHERE a.tenant_id = ?
+    ORDER BY o.created_at DESC
+    LIMIT 50
+", [$tid]) : [];
+
+// Map DB status to display status (offers table uses 'sent' not 'pending')
+foreach ($dbOffers as &$r) {
+    if ($r['status'] === 'sent') $r['status'] = 'pending';
+    if ($r['status'] === 'rejected') $r['status'] = 'declined';
+    $parts = explode(' ', trim($r['name'] ?? ''), 2);
+    $r['initials'] = strtoupper(substr($parts[0] ?? '', 0, 1) . substr($parts[1] ?? '', 0, 1));
+    $r['type'] = 'year';
+    $r['benefits'] = false;
+    $sal = (float)($r['salary'] ?? 0);
+    $r['salary'] = $sal > 0 ? number_format($sal, 0) : '—';
+}
+unset($r);
+
+$mockOffers = !empty($dbOffers) ? $dbOffers : [
+    ['candidate_id'=>0,'name'=>'Alex Morrison','initials'=>'AM','email'=>'alex@email.com','position'=>'Senior Engineer','dept'=>'Engineering','salary'=>'9,500','type'=>'month','status'=>'pending','expires_days'=>5,'benefits'=>true],
+    ['candidate_id'=>0,'name'=>'Sarah Chen','initials'=>'SC','email'=>'sarah@email.com','position'=>'Product Manager','dept'=>'Product','salary'=>'95,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
+    ['candidate_id'=>0,'name'=>'Marcus Johnson','initials'=>'MJ','email'=>'marcus@email.com','position'=>'UX Designer','dept'=>'Design','salary'=>'7,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
+    ['candidate_id'=>0,'name'=>'Priya Patel','initials'=>'PP','email'=>'priya@email.com','position'=>'Data Scientist','dept'=>'Analytics','salary'=>'110,000','type'=>'year','status'=>'pending','expires_days'=>2,'benefits'=>true],
+    ['candidate_id'=>0,'name'=>'James Wilson','initials'=>'JW','email'=>'james@email.com','position'=>'DevOps Engineer','dept'=>'Infrastructure','salary'=>'8,800','type'=>'month','status'=>'declined','expires_days'=>0,'benefits'=>true],
+    ['candidate_id'=>0,'name'=>'Emma Rodriguez','initials'=>'ER','email'=>'emma@email.com','position'=>'Marketing Lead','dept'=>'Marketing','salary'=>'75,000','type'=>'year','status'=>'accepted','expires_days'=>0,'benefits'=>true],
+    ['candidate_id'=>0,'name'=>'David Kim','initials'=>'DK','email'=>'david@email.com','position'=>'Backend Developer','dept'=>'Engineering','salary'=>'8,200','type'=>'month','status'=>'draft','expires_days'=>0,'benefits'=>false],
+    ['candidate_id'=>0,'name'=>'Lisa Thompson','initials'=>'LT','email'=>'lisa@email.com','position'=>'HR Specialist','dept'=>'Human Resources','salary'=>'55,000','type'=>'year','status'=>'pending','expires_days'=>7,'benefits'=>true],
 ];
 
 $tabCounts = ['all' => 24, 'draft' => 5, 'pending' => 8, 'accepted' => 9, 'declined' => 2];
@@ -97,7 +125,11 @@ $statusBadge = [
                     <?= htmlspecialchars($offer['initials']) ?>
                 </div>
                 <div class="min-w-0">
+                    <?php if (!empty($offer['candidate_id'])): ?>
+                    <a href="/candidates/<?= (int)$offer['candidate_id'] ?>" class="font-semibold text-gray-900 text-sm leading-tight hover:text-violet-600 transition-colors"><?= htmlspecialchars($offer['name']) ?></a>
+                    <?php else: ?>
                     <p class="font-semibold text-gray-900 text-sm leading-tight"><?= htmlspecialchars($offer['name']) ?></p>
+                    <?php endif; ?>
                     <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($offer['email']) ?></p>
                 </div>
             </div>
@@ -471,16 +503,7 @@ $statusBadge = [
 /* ─── Data ─────────────────────────────────────────────── */
 const offersData = <?php echo json_encode(array_values($mockOffers), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS); ?>;
 
-const mockCandidates = [
-    {name:'Jordan Lee',     initials:'JL', email:'jordan@example.com',  position:'Frontend Developer'},
-    {name:'Chloe Davis',    initials:'CD', email:'chloe@example.com',   position:'Product Designer'},
-    {name:'Ryan Park',      initials:'RP', email:'ryan@example.com',    position:'Solutions Architect'},
-    {name:'Amelia Brooks',  initials:'AB', email:'amelia@example.com',  position:'Data Analyst'},
-    {name:'Nathan Clark',   initials:'NC', email:'nathan@example.com',  position:'Backend Engineer'},
-    {name:'Sofia Garcia',   initials:'SG', email:'sofia@example.com',   position:'QA Engineer'},
-    {name:'Tyler Hughes',   initials:'TH', email:'tyler@example.com',   position:'Cloud Engineer'},
-    {name:'Maya Robinson',  initials:'MR', email:'maya@example.com',    position:'UX Researcher'},
-];
+// Candidates loaded from API on search
 
 const currencySymbols = {USD:'$', EUR:'€', GBP:'£', CAD:'C$', AUD:'A$'};
 const statusBadgeMap  = {
@@ -580,11 +603,26 @@ function handleCandidateSearch(val) {
     clearTimeout(searchDebounceTimer);
     if (val.trim().length < 2) { hideCandidateDropdown(); return; }
     searchDebounceTimer = setTimeout(() => {
-        const q = val.toLowerCase();
-        const results = mockCandidates
-            .filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.position.toLowerCase().includes(q))
-            .slice(0, 5);
-        _renderCandidateDropdown(results);
+        fetch('/api/v1/candidates?search=' + encodeURIComponent(val.trim()) + '&per_page=8')
+            .then(r => r.json())
+            .then(data => {
+                const rows = data.data || [];
+                const results = rows.map(c => {
+                    const parts = (c.full_name || '').trim().split(/\s+/);
+                    const initials = parts.length >= 2
+                        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+                        : (c.full_name || '?')[0].toUpperCase();
+                    return {
+                        id: c.id,
+                        name: c.full_name || c.email,
+                        initials,
+                        email: c.email,
+                        position: c.job_title || ''
+                    };
+                });
+                _renderCandidateDropdown(results);
+            })
+            .catch(() => _renderCandidateDropdown([]));
     }, 220);
 }
 
@@ -816,21 +854,32 @@ function markAsHired(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Mark ${offer.name} as hired? This will update their candidate profile.`)) return;
-    fetch(`/api/v1/offers/${idx}/hire`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
-    }).catch(() => {});
-    showToast(`${offer.name} marked as hired!`, 'success');
+    const offerId = offer.id || 0;
+    if (offerId) {
+        fetch('/api/v1/offers?action=hire', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+            body: JSON.stringify({id: offerId})
+        }).then(r => r.json()).then(d => {
+            if (d.ok) showToast(`${offer.name} marked as hired!`, 'success');
+            else showToast(d.message || 'Error updating status', 'error');
+        }).catch(() => showToast('Network error', 'error'));
+    } else {
+        showToast(`${offer.name} marked as hired!`, 'success');
+    }
 }
 
 function deleteOffer(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Delete this draft offer for ${offer.name}? This cannot be undone.`)) return;
-    fetch(`/api/v1/offers/${idx}`, {
-        method: 'DELETE',
-        headers: {'X-Requested-With':'XMLHttpRequest'}
-    }).catch(() => {});
+    const offerId = offer.id || 0;
+    if (offerId) {
+        fetch('/api/v1/offers?action=delete&id=' + offerId, {
+            method: 'POST',
+            headers: {'X-Requested-With':'XMLHttpRequest'}
+        }).catch(() => {});
+    }
     const card = document.querySelector(`.offer-card[data-id="offer-${idx}"]`);
     if (card) {
         card.style.transition = 'opacity 0.3s, transform 0.3s';
@@ -842,8 +891,33 @@ function deleteOffer(idx) {
 }
 
 function downloadPDF(idx) {
-    showToast('Preparing PDF download…', 'info');
-    window.open(`/api/v1/offers/${idx}/pdf`, '_blank');
+    const offer = offersData[idx];
+    if (!offer) return;
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html><html><head><title>Offer Letter - ${offer.name}</title>
+    <style>body{font-family:Georgia,serif;max-width:700px;margin:40px auto;padding:0 20px;color:#1a1a1a}
+    h1{font-size:24px;margin-bottom:4px}h2{font-size:16px;color:#555;font-weight:normal;margin-top:0}
+    .meta{margin:24px 0;padding:16px;border:1px solid #ddd;border-radius:4px}
+    .meta p{margin:4px 0;font-size:14px}.label{color:#777;display:inline-block;width:120px}
+    .body{margin-top:24px;line-height:1.7}@media print{button{display:none}}</style></head>
+    <body>
+    <h1>Offer Letter</h1><h2>${offer.position || ''} &mdash; ${offer.dept || ''}</h2>
+    <div class="meta">
+      <p><span class="label">Candidate:</span><strong>${offer.name}</strong></p>
+      <p><span class="label">Email:</span>${offer.email}</p>
+      <p><span class="label">Salary:</span>${offer.salary} / ${offer.type || 'year'}</p>
+      <p><span class="label">Status:</span>${offer.status}</p>
+    </div>
+    <div class="body"><p>Dear ${offer.name},</p>
+    <p>We are pleased to offer you the position of <strong>${offer.position}</strong> in our ${offer.dept} department.</p>
+    <p>This offer includes a compensation package of <strong>${offer.salary} per ${offer.type || 'year'}</strong>.</p>
+    <p>Please review and respond to this offer at your earliest convenience.</p>
+    <p>We look forward to welcoming you to our team.</p>
+    <p>Sincerely,<br>HR Team</p></div>
+    <br><button onclick="window.print()">Print / Save as PDF</button>
+    </body></html>`);
+    w.document.close();
+    w.focus();
 }
 
 /* ─── View Modal ────────────────────────────────────────── */

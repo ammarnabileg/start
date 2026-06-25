@@ -178,6 +178,35 @@ Write a warm, professional offer letter in HTML format (use <p> and <br> tags, n
     Response::success(['offer_letter' => $letter]);
 }
 
+// ── Mark as hired ─────────────────────────────────────────────────────────
+elseif ($method === 'POST' && $action === 'hire') {
+    Auth::requirePermission('offers.edit');
+    $id = (int)$request->input('id');
+    $offer = $db->fetch("SELECT * FROM offers WHERE id = ? AND tenant_id = ?", [$id, $tid]);
+    if (!$offer) { Response::error('Not found', 404); exit; }
+
+    if ($offer['application_id']) {
+        $db->update('applications', ['current_stage' => 'hired', 'updated_at' => date('Y-m-d H:i:s')], ['id' => $offer['application_id']]);
+    }
+    $db->insert('audit_logs', [
+        'tenant_id' => $tid, 'user_id' => $userId,
+        'action' => 'offer.hired', 'entity_type' => 'offer', 'entity_id' => $id,
+        'meta' => json_encode(['offer_id' => $id]),
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
+    Response::success(['message' => 'Marked as hired']);
+}
+
+// ── Delete offer ───────────────────────────────────────────────────────────
+elseif ($method === 'POST' && $action === 'delete') {
+    Auth::requirePermission('offers.edit');
+    $id = (int)$request->get('id');
+    $offer = $db->fetch("SELECT id FROM offers WHERE id = ? AND tenant_id = ?", [$id, $tid]);
+    if (!$offer) { Response::error('Not found', 404); exit; }
+    $db->query("DELETE FROM offers WHERE id = ? AND tenant_id = ?", [$id, $tid]);
+    Response::success(['message' => 'Deleted']);
+}
+
 else {
     Response::error('Unknown action', 400);
 }

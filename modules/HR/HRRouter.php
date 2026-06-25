@@ -11,6 +11,7 @@ class HRRouter {
         match(true) {
             $path === '/dashboard'               => self::render('hr/dashboard', ['pageTitle'=>'Dashboard', 'tenant'=>$tenant]),
             $path === '/jobs'                    => self::render('hr/jobs/index', ['pageTitle'=>'Jobs', 'tenant'=>$tenant]),
+            $path === '/jobs/create'             => self::render('hr/jobs/create', ['pageTitle'=>'Create Job', 'tenant'=>$tenant]),
             $path === '/pipeline'                => self::render('hr/pipeline', ['pageTitle'=>'Pipeline', 'tenant'=>$tenant]),
             $path === '/candidates'              => self::render('hr/candidates/index', ['pageTitle'=>'Candidates', 'tenant'=>$tenant]),
             $path === '/ai-interviews'           => self::render('hr/interviews/index', ['pageTitle'=>'AI Interviews', 'tenant'=>$tenant]),
