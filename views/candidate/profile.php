@@ -1013,7 +1013,6 @@ async function saveProfile() {
   const fullName = document.getElementById('full_name')?.value?.trim() ?? '';
   const nameParts = fullName.split(' ');
   const payload = {
-    full_name:            fullName,
     first_name:           nameParts[0] ?? '',
     last_name:            nameParts.slice(1).join(' ') || nameParts[0] || '',
     phone:                document.getElementById('phone')?.value?.trim() ?? '',
@@ -1041,17 +1040,17 @@ async function saveProfile() {
   }
 
   try {
-    const res  = await fetch('/api/v1/profile', {
+    const res  = await fetch('/api/v1/profile?action=update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (res.ok && !data.error) {
+    if (data.ok) {
       showToast('Profile saved successfully!', 'success');
       recalcCompletion();
     } else {
-      throw new Error(data.error ?? data.message ?? 'Save failed');
+      throw new Error(data.message ?? data.error ?? 'Save failed');
     }
   } catch (e) {
     showToast('Error saving: ' + e.message, 'error');

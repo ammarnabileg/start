@@ -16,7 +16,6 @@ function offerStatusBadge(string $status): string {
     return match($status) {
         'pending'  => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>Pending</span>',
         'accepted' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Accepted</span>',
-        'declined' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
         'rejected' => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Declined</span>',
         default    => '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">' . htmlspecialchars(ucfirst($status)) . '</span>',
     };
@@ -107,7 +106,7 @@ $avatarColors = [
   <p class="text-sm text-gray-400 text-center max-w-sm mb-6">
     When an employer sends you a job offer, it will appear here. Keep applying and acing those interviews!
   </p>
-  <a href="/candidate/jobs"
+  <a href="/c/jobs"
     class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-colors">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
     Browse Jobs
@@ -493,14 +492,14 @@ async function confirmAccept() {
   btn.disabled = true;
   btn.textContent = 'Accepting...';
   try {
-    const res = await apiFetch(`/api/v1/offers/${activeOfferId}/accept`, 'POST', {});
-    if (res.ok) {
+    const res = await apiFetch(`/api/v1/offers?action=accept&id=${activeOfferId}`, 'POST', {});
+    const d = await res.json();
+    if (d.ok) {
       closeModal('modal-accept');
       showToast('Offer accepted! Congratulations!', 'success');
       updateCardStatus(activeOfferId, 'accepted');
     } else {
-      const d = await res.json();
-      throw new Error(d.error ?? 'Accept failed');
+      throw new Error(d.message ?? 'Accept failed');
     }
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
@@ -526,14 +525,14 @@ async function confirmDecline() {
   btn.disabled = true;
   btn.textContent = 'Declining...';
   try {
-    const res = await apiFetch(`/api/v1/offers/${activeOfferId}/decline`, 'POST', { reason });
-    if (res.ok) {
+    const res = await apiFetch(`/api/v1/offers?action=decline&id=${activeOfferId}`, 'POST', { reason });
+    const d = await res.json();
+    if (d.ok) {
       closeModal('modal-decline');
       showToast('Offer declined.', 'info');
       updateCardStatus(activeOfferId, 'rejected');
     } else {
-      const d = await res.json();
-      throw new Error(d.error ?? 'Decline failed');
+      throw new Error(d.message ?? 'Decline failed');
     }
   } catch (e) {
     showToast('Error: ' + e.message, 'error');

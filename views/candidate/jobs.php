@@ -302,7 +302,7 @@ $departments = $db->fetchAll(
         Applied ✓
       </span>
       <?php else: ?>
-      <a href="/jobs/<?= (int)$job['id'] ?>/apply"
+      <a href="/c/jobs/<?= (int)$job['id'] ?>/apply"
         class="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm shadow-violet-200 group-hover:shadow-violet-300">
         Apply Now
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

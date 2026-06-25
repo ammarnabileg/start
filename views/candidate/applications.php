@@ -107,7 +107,7 @@ function scoreBar(int $score): string {
       <?= $counts['all'] ?> application<?= $counts['all'] !== 1 ? 's' : '' ?> total
     </p>
   </div>
-  <a href="/candidate/jobs"
+  <a href="/c/jobs"
     class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm shadow-violet-200 self-start sm:self-auto">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -160,7 +160,7 @@ function scoreBar(int $score): string {
       You don't have any <?= $activeTab ?> applications at the moment.
     <?php endif; ?>
   </p>
-  <a href="/candidate/jobs"
+  <a href="/c/jobs"
     class="mt-5 inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-full text-sm font-medium transition-colors">
     Browse Open Jobs
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -499,7 +499,7 @@ function scoreBar(int $score): string {
 
         <!-- Job details quick look -->
         <div class="bg-gray-50 rounded-xl px-4 py-3 flex flex-wrap items-center gap-4 text-sm border border-gray-100">
-          <a href="/candidate/jobs/<?= (int)($app['job_id'] ?? 0) ?>"
+          <a href="/c/jobs/<?= (int)($app['job_id'] ?? 0) ?>"
             class="text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
             View job posting

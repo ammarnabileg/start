@@ -75,7 +75,7 @@ unset($_SESSION['login_error']);
       <?php endif; ?>
 
       <form method="POST" action="/login" id="loginForm" novalidate>
-        <input type="hidden" name="_csrf" value="<?= (new Request())->csrf() ?>">
+        <input type="hidden" name="_csrf" value="<?= $request->csrf() ?>">
         <div class="space-y-5">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>

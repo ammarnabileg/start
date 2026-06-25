@@ -727,12 +727,12 @@ try {
           dd.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">No candidates found</div>';
         } else {
           dd.innerHTML = candidates.map(function (c) {
-            var name = (c.full_name || c.name || '').replace(/'/g, "\\'");
-            var initial = (c.full_name || c.name || 'U')[0].toUpperCase();
+            var name = (c.full_name || ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.name || '').replace(/'/g, "\\'");
+            var initial = (c.full_name || c.first_name || c.name || 'U')[0].toUpperCase();
             var email = c.email ? '<div class="text-xs text-gray-400">' + c.email + '</div>' : '';
             return '<div class="px-4 py-2.5 hover:bg-violet-50 cursor-pointer flex items-center gap-3 transition-colors" onclick="selectCandidate(' + c.id + ', \'' + name + '\')">' +
               '<div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold flex-shrink-0">' + initial + '</div>' +
-              '<div><div class="text-sm font-medium text-gray-900">' + (c.full_name || c.name || '') + '</div>' + email + '</div></div>';
+              '<div><div class="text-sm font-medium text-gray-900">' + (c.full_name || ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.name || '') + '</div>' + email + '</div></div>';
           }).join('');
         }
         dd.classList.remove('hidden');
@@ -842,7 +842,7 @@ try {
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (res.ok && res.data.success !== false) {
+      if (res.ok && res.data.ok) {
         showToast('Interview scheduled successfully', 'success');
         closeModal('scheduleModal');
         setTimeout(function () { location.reload(); }, 900);
@@ -908,7 +908,7 @@ try {
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (res.ok && res.data.success !== false) {
+      if (res.ok && res.data.ok) {
         showToast('Interview updated successfully', 'success');
         closeModal('editModal');
         setTimeout(function () { location.reload(); }, 900);
@@ -929,7 +929,7 @@ try {
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (res.ok && res.data.success !== false) {
+      if (res.ok && res.data.ok) {
         showToast('Interview cancelled', 'warning');
         setTimeout(function () { location.reload(); }, 900);
       } else {
@@ -948,7 +948,7 @@ try {
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (res.ok && res.data.success !== false) {
+      if (res.ok && res.data.ok) {
         showToast('Reminder sent successfully', 'success');
       } else {
         showToast(res.data.message || 'Failed to send reminder', 'error');
@@ -1014,7 +1014,7 @@ try {
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (res.ok && res.data.success !== false) {
+      if (res.ok && res.data.ok) {
         showToast('Interview marked as complete', 'success');
         closeModal('completeModal');
         setTimeout(function () { location.reload(); }, 900);

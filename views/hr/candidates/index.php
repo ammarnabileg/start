@@ -52,7 +52,7 @@ try {
     }
     unset($c);
     $jobsList = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? ORDER BY title", [$tid]) ?: [];
-    $jobsList = array_column($jobsList, 'title');
+    // Keep full [{id, title}] structure so filter <select> can submit real IDs.
 } catch (\Exception $e) {
     $candidates = demo_candidates();
     $total = count($candidates);
@@ -114,7 +114,7 @@ ob_start();
             <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Job</label>
             <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none">
                 <option value="">All Jobs</option>
-                <?php foreach ($jobsList as $j): ?><option><?= e($j) ?></option><?php endforeach; ?>
+                <?php foreach ($jobsList as $j): ?><option value="<?= (int)$j['id'] ?>"><?= e($j['title']) ?></option><?php endforeach; ?>
             </select>
         </div>
         <div>
@@ -179,7 +179,7 @@ ob_start();
                 <?php foreach ($candidates as $c):
                     $sc = score_color((float)$c['score']); [$recLabel,$recCls]=recommendation_badge($c['rec']); [$stLabel,$stCls]=stage_meta($c['stage']); ?>
                     <tr class="cand-row hover:bg-gray-50 transition-colors" data-search="<?= e(strtolower($c['full_name'].' '.$c['email'])) ?>">
-                        <td class="px-4 py-3.5"><input type="checkbox" data-cand class="rounded border-gray-300 text-violet-600 focus:ring-violet-500"></td>
+                        <td class="px-4 py-3.5"><input type="checkbox" data-cand value="<?= (int)$c['application_id'] ?>" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500"></td>
                         <td class="px-4 py-3.5">
                             <button onclick="toggleExpand(<?= (int)$c['id'] ?>)" class="flex items-center gap-3 text-left group">
                                 <span class="w-9 h-9 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center shrink-0"><?= e(initials($c['full_name'])) ?></span>
@@ -193,7 +193,7 @@ ob_start();
                         <td class="px-4 py-3.5"><span class="inline-flex items-center justify-center w-10 h-7 rounded-lg text-sm font-bold <?= $sc['soft'] ?>"><?= (int)$c['score'] ?></span></td>
                         <td class="px-4 py-3.5"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ring-1 <?= $recCls ?>"><?= e($recLabel) ?></span></td>
                         <td class="px-4 py-3.5"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium <?= $stCls ?>"><?= e($stLabel) ?></span></td>
-                        <td class="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap"><?= e(time_ago($c['applied'])) ?></td>
+                        <td class="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap"><?= e(time_ago($c['applied_at'])) ?></td>
                         <td class="px-4 py-3.5 text-right"><a href="/candidates/<?= (int)$c['id'] ?>" class="text-sm font-medium text-violet-600 hover:text-violet-700">View</a></td>
                     </tr>
                     <tr id="expand-<?= (int)$c['id'] ?>" class="hidden bg-gray-50/60">
@@ -256,8 +256,8 @@ async function bulkAction(type){
             if(!ok) return;
             var res = await fetch('/api/v1/candidates?action=bulk_delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
             var d = await res.json().catch(()=>({}));
-            App.toast(d.success?ids.length+' deleted':d.message||'Delete failed', d.success?'success':'error');
-            if(d.success) setTimeout(()=>location.reload(),900);
+            App.toast(d.ok?ids.length+' deleted':d.message||'Delete failed', d.ok?'success':'error');
+            if(d.ok) setTimeout(()=>location.reload(),900);
         }); return;
     }
     if(type==='export'){
@@ -270,14 +270,14 @@ async function bulkAction(type){
         if(!stage) return;
         var res = await fetch('/api/v1/candidates?action=bulk_move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,stage})});
         var d = await res.json().catch(()=>({}));
-        App.toast(d.success?ids.length+' moved to '+stage:d.message||'Failed','success');
-        if(d.success) setTimeout(()=>location.reload(),900);
+        App.toast(d.ok?ids.length+' moved to '+stage:d.message||'Failed', d.ok?'success':'error');
+        if(d.ok) setTimeout(()=>location.reload(),900);
         return;
     }
     if(type==='pool'){
         var res = await fetch('/api/v1/talent-pool?action=bulk_add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({candidate_ids:ids})});
         var d = await res.json().catch(()=>({}));
-        App.toast(d.success?ids.length+' added to talent pool':d.message||'Failed', d.success?'success':'error');
+        App.toast(d.ok?ids.length+' added to talent pool':d.message||'Failed', d.ok?'success':'error');
     }
 }
 </script>

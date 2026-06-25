@@ -92,7 +92,7 @@ elseif ($method === 'POST' && $action === 'move_stage') {
         'action'      => 'application.stage_changed',
         'resource_type' => 'application',
         'resource_id'   => $appId,
-        'meta'        => json_encode(['from' => $app['current_stage'], 'to' => $newStage]),
+        'details'     => json_encode(['from' => $app['current_stage'], 'to' => $newStage]),
         'created_at'  => date('Y-m-d H:i:s')
     ]);
 

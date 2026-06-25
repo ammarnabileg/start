@@ -5,7 +5,7 @@ $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
 $activeTab = $_GET['status'] ?? 'all';
 
-$tabs      = ['all' => 'All', 'draft' => 'Draft', 'pending' => 'Pending', 'accepted' => 'Accepted', 'declined' => 'Declined'];
+$tabs      = ['all' => 'All', 'draft' => 'Draft', 'sent' => 'Sent', 'accepted' => 'Accepted', 'rejected' => 'Rejected'];
 $statusBadge = [
     'draft'     => 'bg-gray-100 text-gray-600',
     'pending'   => 'bg-amber-100 text-amber-700',
@@ -15,7 +15,9 @@ $statusBadge = [
 ];
 
 try {
-    $whereStatus = $activeTab !== 'all' ? " AND o.status = '$activeTab'" : '';
+    $validStatuses = ['draft', 'sent', 'accepted', 'rejected', 'negotiating'];
+    $whereStatus = ($activeTab !== 'all' && in_array($activeTab, $validStatuses)) ? ' AND o.status = ?' : '';
+    $queryParams = $whereStatus ? [$tid, $activeTab] : [$tid];
     $rawOffers = $db->fetchAll(
         "SELECT o.id, o.status, o.salary, o.currency, o.salary_period, o.start_date, o.expires_at,
                 o.include_benefits,
@@ -32,7 +34,7 @@ try {
          WHERE o.tenant_id = ? $whereStatus
          ORDER BY o.created_at DESC
          LIMIT 50",
-        [$tid]
+        $queryParams
     ) ?: [];
     $mockOffers = [];
     foreach ($rawOffers as $r) {
@@ -50,13 +52,13 @@ try {
     $tabCounts = [
         'all'      => array_sum($countMap),
         'draft'    => $countMap['draft']    ?? 0,
-        'pending'  => $countMap['pending']  ?? 0,
+        'sent'     => $countMap['sent']     ?? 0,
         'accepted' => $countMap['accepted'] ?? 0,
-        'declined' => $countMap['declined'] ?? 0,
+        'rejected' => $countMap['rejected'] ?? 0,
     ];
 } catch (\Exception $e) {
     $mockOffers = [];
-    $tabCounts = ['all'=>0,'draft'=>0,'pending'=>0,'accepted'=>0,'declined'=>0];
+    $tabCounts = ['all'=>0,'draft'=>0,'sent'=>0,'accepted'=>0,'rejected'=>0];
 }
 ?>
 
@@ -515,10 +517,11 @@ const mockCandidates = [
 
 const currencySymbols = {USD:'$', EUR:'€', GBP:'£', CAD:'C$', AUD:'A$'};
 const statusBadgeMap  = {
-    draft:    'bg-gray-100 text-gray-600',
-    pending:  'bg-amber-100 text-amber-700',
-    accepted: 'bg-green-100 text-green-700',
-    declined: 'bg-red-100 text-red-700',
+    draft:       'bg-gray-100 text-gray-600',
+    sent:        'bg-amber-100 text-amber-700',
+    accepted:    'bg-green-100 text-green-700',
+    rejected:    'bg-red-100 text-red-700',
+    negotiating: 'bg-blue-100 text-blue-700',
 };
 
 let currentSalaryType   = 'monthly';
@@ -785,26 +788,28 @@ function _gatherFormData() {
 function saveAsDraft() {
     const payload = _gatherFormData();
     payload.status = 'draft';
-    fetch('/api/v1/offers', {
+    fetch('/api/v1/offers?action=create', {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
         body: JSON.stringify(payload)
-    }).catch(() => {});
-    showToast('Offer saved as draft.', 'success');
-    closeCreateModal();
+    }).then(r => r.json()).then(d => {
+        if (d.ok) { showToast('Offer saved as draft.', 'success'); closeCreateModal(); setTimeout(() => location.reload(), 900); }
+        else showToast(d.message || 'Failed to save draft', 'error');
+    }).catch(() => showToast('Network error', 'error'));
 }
 
 function submitSendOffer() {
     if (!confirm('Send this offer to the candidate? They will receive an email notification.')) return;
     const payload = _gatherFormData();
-    payload.status = 'pending';
-    fetch('/api/v1/offers', {
+    payload.status = 'sent';
+    fetch('/api/v1/offers?action=create', {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
         body: JSON.stringify(payload)
-    }).catch(() => {});
-    showToast('Offer sent to candidate!', 'success');
-    closeCreateModal();
+    }).then(r => r.json()).then(d => {
+        if (d.ok) { showToast('Offer sent to candidate!', 'success'); closeCreateModal(); setTimeout(() => location.reload(), 900); }
+        else showToast(d.message || 'Failed to send offer', 'error');
+    }).catch(() => showToast('Network error', 'error'));
 }
 
 /* ─── Card Actions ──────────────────────────────────────── */
@@ -812,12 +817,14 @@ function confirmSendCard(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Send the offer to ${offer.name}?`)) return;
-    fetch('/api/v1/offers', {
+    fetch('/api/v1/offers?action=send', {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
-        body: JSON.stringify({idx, status: 'pending'})
-    }).catch(() => {});
-    showToast(`Offer sent to ${offer.name}!`, 'success');
+        body: JSON.stringify({id: offer.id})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) { showToast(`Offer sent to ${offer.name}!`, 'success'); setTimeout(() => location.reload(), 900); }
+        else showToast(d.message || 'Failed to send offer', 'error');
+    }).catch(() => showToast('Network error', 'error'));
 }
 
 function resendOffer(idx) {
@@ -835,12 +842,14 @@ function withdrawOffer(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Withdraw the offer for ${offer.name}? This cannot be undone.`)) return;
-    fetch(`/api/v1/offers/${idx}/withdraw`, {
+    fetch('/api/v1/offers?action=withdraw', {
         method: 'POST',
-        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
-    }).catch(() => {});
-    showToast('Offer withdrawn.', 'info');
-    closeViewModal();
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({id: offer.id})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) { showToast('Offer withdrawn.', 'info'); closeViewModal(); setTimeout(() => location.reload(), 900); }
+        else showToast(d.message || 'Failed to withdraw offer', 'error');
+    }).catch(() => showToast('Network error', 'error'));
 }
 
 function markAsHired(idx) {
@@ -858,23 +867,29 @@ function deleteOffer(idx) {
     const offer = offersData[idx];
     if (!offer) return;
     if (!confirm(`Delete this draft offer for ${offer.name}? This cannot be undone.`)) return;
-    fetch(`/api/v1/offers/${idx}`, {
-        method: 'DELETE',
-        headers: {'X-Requested-With':'XMLHttpRequest'}
-    }).catch(() => {});
-    const card = document.querySelector(`.offer-card[data-id="offer-${idx}"]`);
-    if (card) {
-        card.style.transition = 'opacity 0.3s, transform 0.3s';
-        card.style.opacity = '0';
-        card.style.transform = 'translateX(16px)';
-        setTimeout(() => card.remove(), 320);
-    }
-    showToast('Draft offer deleted.', 'success');
+    fetch('/api/v1/offers?action=delete', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({id: offer.id})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) {
+            const card = document.querySelector(`.offer-card[data-id="offer-${idx}"]`);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(16px)';
+                setTimeout(() => card.remove(), 320);
+            }
+            showToast('Draft offer deleted.', 'success');
+        } else showToast(d.message || 'Failed to delete offer', 'error');
+    }).catch(() => showToast('Network error', 'error'));
 }
 
 function downloadPDF(idx) {
+    const offer = offersData[idx];
+    if (!offer) return;
     showToast('Preparing PDF download…', 'info');
-    window.open(`/api/v1/offers/${idx}/pdf`, '_blank');
+    window.open(`/api/v1/offers/${offer.id}/pdf`, '_blank');
 }
 
 /* ─── View Modal ────────────────────────────────────────── */

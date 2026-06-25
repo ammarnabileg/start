@@ -148,7 +148,7 @@ async function submitNewAvatar(e) {
             body: JSON.stringify(data)
         });
         var json = await res.json();
-        if (json.success) {
+        if (json.ok) {
             App.toast('Avatar created!', 'success');
             App.closeModal('newAvatarModal');
             setTimeout(function(){ location.reload(); }, 800);
@@ -166,7 +166,7 @@ async function testAvatar(id, heygenId) {
             body: JSON.stringify({avatar_id: id, heygen_avatar_id: heygenId})
         });
         var data = await res.json();
-        App.toast(data.success ? 'Avatar is connected and working!' : (data.message||'Test failed'), data.success?'success':'error');
+        App.toast(data.ok ? 'Avatar is connected and working!' : (data.message||'Test failed'), data.ok?'success':'error');
     } catch(e) { App.toast('Error testing avatar', 'error'); }
 }
 
@@ -196,7 +196,7 @@ async function testAvatarPreview(btn) {
             body: JSON.stringify({heygen_avatar_id: heygenId})
         });
         var data = await res.json();
-        App.toast(data.success ? 'Avatar ID is valid!' : (data.message||'Invalid avatar ID'), data.success?'success':'error');
+        App.toast(data.ok ? 'Avatar ID is valid!' : (data.message||'Invalid avatar ID'), data.ok?'success':'error');
     } catch(e) { App.toast('Error testing connection', 'error'); }
 }
 </script>

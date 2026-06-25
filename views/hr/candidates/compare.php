@@ -154,11 +154,11 @@ function compareAsk() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
             question: q,
-            candidates: <?= json_encode(array_map(fn($c)=>['id'=>$c['id']??null,'name'=>$c['name'],'score'=>$c['score'],'years'=>$c['years'],'rec'=>$c['rec'],'skills'=>$c['skills']],$candidates)) ?>
+            candidates: <?= json_encode(array_map(fn($c)=>['id'=>$c['id']??null,'name'=>$c['full_name'],'score'=>$c['score'],'years'=>$c['years'],'rec'=>$c['rec'],'skills'=>$c['skills']],$candidates)) ?>
         })
     }).then(r=>r.json()).then(function(d){
         t.remove();
-        var ans = (d && (d.answer || d.message)) || 'Unable to compare at this time.';
+        var ans = (d && ((d.data && d.data.answer) || d.message)) || 'Unable to compare at this time.';
         box.insertAdjacentHTML('beforeend','<div class="flex justify-start"><div class="max-w-[80%] bg-violet-50 text-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">'+App.escapeHtml(ans)+'</div></div>');
         box.scrollTop = box.scrollHeight;
     }).catch(function(){

@@ -49,11 +49,21 @@ $old    = $old ?? [];
       <?php endif; ?>
 
       <form method="POST" action="/register" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-          <input type="text" name="full_name" value="<?= htmlspecialchars($old['full_name'] ?? '') ?>" required
-            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            placeholder="John Smith">
+        <input type="hidden" name="_csrf" value="<?= $request->csrf() ?>">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input type="text" name="first_name" value="<?= htmlspecialchars($old['first_name'] ?? '') ?>" required
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              placeholder="John">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input type="text" name="last_name" value="<?= htmlspecialchars($old['last_name'] ?? '') ?>" required
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              placeholder="Smith">
+          </div>
+        </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>

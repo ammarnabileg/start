@@ -487,7 +487,7 @@ async function savePermissions() {
       body: JSON.stringify({ permission_ids: permIds })
     });
     const json = await res.json();
-    if (json.success) {
+    if (json.ok) {
       // Update local cache
       const map = {};
       permIds.forEach(id => { map[id] = true; });
@@ -536,7 +536,7 @@ async function createRole() {
       body: JSON.stringify({ name, description: desc, copy_from_role_id: copyFrom || null })
     });
     const json = await res.json();
-    if (json.success) {
+    if (json.ok) {
       closeCreateRoleModal();
       showToast(`Role "${name}" created!`);
       setTimeout(() => location.reload(), 1200);
@@ -570,7 +570,7 @@ async function updateRole() {
       body: JSON.stringify({ name, description: desc })
     });
     const json = await res.json();
-    if (json.success) {
+    if (json.ok) {
       closeEditRoleModal();
       showToast('Role updated!');
       // Patch UI without reload

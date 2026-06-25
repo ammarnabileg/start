@@ -8,7 +8,7 @@ $stats = Cache::remember(Cache::tenantKey('dashboard_stats', $tenantId), 300, fu
     return [
         'active_jobs'     => $db->fetchColumn("SELECT COUNT(*) FROM jobs WHERE tenant_id = ? AND status = 'published'", [$tenantId]) ?? 0,
         'total_candidates'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ?", [$tenantId]) ?? 0,
-        'interviews_today'=> $db->fetchColumn("SELECT COUNT(*) FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.tenant_id = ? AND DATE(i.created_at) = CURDATE()", [$tenantId]) ?? 0,
+        'interviews_today'=> $db->fetchColumn("SELECT COUNT(*) FROM interviews i JOIN applications a ON a.id = i.application_id WHERE a.tenant_id = ? AND DATE(COALESCE(i.scheduled_at, i.created_at)) = CURDATE()", [$tenantId]) ?? 0,
         'hired_month'     => $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage = 'hired' AND updated_at >= DATE_FORMAT(NOW(),'%Y-%m-01')", [$tenantId]) ?? 0,
         'pending_decision'=> $db->fetchColumn("SELECT COUNT(*) FROM applications WHERE tenant_id = ? AND current_stage IN ('qualified','tech_interview','manager_interview','final_review')", [$tenantId]) ?? 0,
     ];
@@ -120,7 +120,7 @@ function scoreBadge(?float $score): string {
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <h3 class="font-semibold text-gray-900 mb-4">Quick Actions</h3>
       <div class="space-y-2">
-        <a href="/jobs" class="flex items-center gap-3 p-3 bg-violet-700 hover:bg-violet-800 text-white rounded-xl transition-colors text-sm font-semibold">
+        <a href="/jobs/create" class="flex items-center gap-3 p-3 bg-violet-700 hover:bg-violet-800 text-white rounded-xl transition-colors text-sm font-semibold">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           Create New Job
         </a>

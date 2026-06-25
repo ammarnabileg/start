@@ -26,7 +26,7 @@ if (isset($report) && is_array($report)) {
         'duration_minutes' => $report['duration_minutes'] ?? 0,
         'status'           => $report['status'] ?? '',
         'ai_model'         => $report['ai_model'] ?? '',
-        'tokens_used'      => $report['ai_tokens_used'] ?? $report['tokens_used'] ?? 0,
+        'tokens_used'      => $report['ai_tokens_used'] ?? 0,
     ], fn($v) => $v !== null);
     if (!isset($evaluation) && !empty($report['evaluation'])) {
         $ev = $report['evaluation'];
@@ -42,7 +42,13 @@ if (isset($report) && is_array($report)) {
             'strengths'             => $ev['strengths'] ?? [],
             'areas_for_development' => $ev['weaknesses'] ?? $ev['areas_for_development'] ?? [],
             'skills'                => array_map(fn($s) => ['name'=>$s['name']??'','score'=>$s['score']??0,'color'=>'bg-blue-500'], $ev['skills_analysis'] ?? []),
-            'disc'                  => array_map(fn($k, $v) => ['label'=>ucfirst($k),'value'=>$v,'color'=>'bg-blue-500','soft'=>'bg-blue-50','text'=>'text-blue-700','desc'=>''], array_keys($ev['disc_profile'] ?? []), array_values($ev['disc_profile'] ?? [])),
+            'disc'                  => (function($disc) {
+                $out = [];
+                foreach ($disc as $k => $v) {
+                    $out[$k] = ['label'=>ucfirst(strtolower($k)),'value'=>$v,'color'=>'bg-blue-500','soft'=>'bg-blue-50','text'=>'text-blue-700','desc'=>''];
+                }
+                return $out;
+            })($ev['disc_profile'] ?? []),
             'big_five'              => array_map(fn($k, $v) => ['trait'=>$k,'score'=>$v,'desc'=>''], array_keys($ev['big_five'] ?? []), array_values($ev['big_five'] ?? [])),
             'red_flags'             => $ev['red_flags'] ?? [],
             'transcript'            => $transcript,

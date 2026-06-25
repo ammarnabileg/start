@@ -475,16 +475,8 @@ $jobId = isset($jobId) ? (int) $jobId : 0;
 
   async function loadInterviews() {
     try {
-      const list = await AR.Api.get('/interviews');
-      let arr = Array.isArray(list) ? list : [];
-      // Filter to this job when the field is present; otherwise we cannot reliably
-      // attribute, so fall back to the friendly empty state.
-      const hasJobField = arr.some(function (i) { return i && i.job_id != null; });
-      if (hasJobField) {
-        arr = arr.filter(function (i) { return String(i.job_id) === String(JOB_ID); });
-      } else {
-        arr = [];
-      }
+      const list = await AR.Api.get('/interviews?job_id=' + encodeURIComponent(JOB_ID));
+      const arr = Array.isArray(list) ? list : [];
       if (!arr.length) { ivEmpty(); return; }
       ivBox.innerHTML = arr.map(ivRow).join('');
     } catch (err) {
@@ -503,7 +495,7 @@ $jobId = isset($jobId) ? (int) $jobId : 0;
     const prev = label.textContent;
     label.textContent = 'Publishing…';
     try {
-      await AR.Api.post('/jobs/' + JOB_ID + '/publish', {});
+      await AR.Api.post('/jobs?action=publish', { job_id: JOB_ID });
       AR.Toast.success('Job published');
       await loadJob();
     } catch (err) {

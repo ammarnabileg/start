@@ -705,7 +705,7 @@ document.getElementById('general-form')?.addEventListener('submit', async e => {
   const body = Object.fromEntries(fd.entries());
   try {
     const res = await apiPost('/api/v1/settings', { action: 'save_general', ...body });
-    toast(res.message || 'Settings saved', res.ok || res.success ? 'success' : 'error');
+    toast(res.message || 'Settings saved', res.ok ? 'success' : 'error');
   } catch { toast('Failed to save settings', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -723,8 +723,8 @@ document.getElementById('openai-form')?.addEventListener('submit', async e => {
     const payload = { action: 'save_api_keys', openai_model: model };
     if (key && !key.includes('••')) payload.openai = key;
     const res = await apiPost('/api/v1/settings', payload);
-    toast(res.message || 'OpenAI settings saved', res.ok || res.success ? 'success' : 'error');
-    if (res.ok || res.success) refreshAIStatusBadges();
+    toast(res.message || 'OpenAI settings saved', res.ok ? 'success' : 'error');
+    if (res.ok) refreshAIStatusBadges();
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -738,7 +738,7 @@ async function testOpenAI() {
     if (key && !key.includes('••')) payload.key = key;
     const res = await apiPost('/api/v1/settings', payload);
     const badge = document.getElementById('openai-status-badge');
-    if (res.ok || res.success) {
+    if (res.ok) {
       badge.innerHTML = '<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>Connected</span>';
       toast('OpenAI connected successfully', 'success');
     } else {

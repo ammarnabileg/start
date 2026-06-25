@@ -47,6 +47,7 @@ try {
     ) ?: [];
     foreach ($interviews as &$iv) {
         $iv['duration'] = $iv['duration_min'] ? $iv['duration_min'].'m' : null;
+        $iv['completed_at_raw'] = $iv['completed_at'] ?: null;
         $iv['completed_at'] = $iv['completed_at'] ? date('d M Y', strtotime($iv['completed_at'])) : null;
     }
     unset($iv);
@@ -219,7 +220,7 @@ ob_start();
             <?= $iv['duration'] ? e($iv['duration']) : '<span class="text-gray-300">—</span>' ?>
           </td>
           <td class="px-4 py-3.5 text-sm text-gray-500">
-            <?= $iv['completed_at'] ? e(time_ago($iv['completed_at'])) : '<span class="text-amber-500 font-medium text-xs">In Progress</span>' ?>
+            <?= $iv['completed_at_raw'] ? e(time_ago($iv['completed_at_raw'])) : '<span class="text-amber-500 font-medium text-xs">In Progress</span>' ?>
           </td>
           <td class="px-4 py-3.5">
             <div class="flex items-center justify-end gap-1">

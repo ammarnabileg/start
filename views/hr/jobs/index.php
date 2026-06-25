@@ -346,7 +346,7 @@ ob_start();
         <!-- Footer -->
         <div class="border-t border-gray-100 p-4 flex justify-end gap-3 shrink-0">
             <button onclick="submitNewJob('draft')" class="rounded-full px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Save as Draft</button>
-            <button onclick="submitNewJob('active')" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-sm transition-all">Publish</button>
+            <button onclick="submitNewJob('published')" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-sm transition-all">Publish</button>
         </div>
     </div>
 </div>
@@ -374,21 +374,48 @@ function addCriterion() {
     var html = '<div class="flex gap-2 items-center"><input type="text" placeholder="Criterion name" class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"><input type="number" placeholder="Weight" class="w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"><span class="text-xs text-gray-400">%</span></div>';
     document.getElementById('criteriaList').insertAdjacentHTML('beforeend', html);
 }
-function generateJobAI() {
-    var title = document.getElementById('aiJobTitle').value.trim() || 'this role';
+async function generateJobAI() {
+    var title = document.getElementById('aiJobTitle').value.trim();
+    var seniority = document.getElementById('aiSeniority')?.value || '';
+    if (!title) { App.toast('Please enter a job title', 'error'); return; }
     var box = document.getElementById('aiJobResult');
+    box.classList.remove('hidden');
     App.aiThinking(box, 'AI is drafting the job description…');
-    setTimeout(function () {
+    try {
+        var res = await fetch('/api/v1/ai?action=build-job', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({title: title, seniority: seniority})
+        });
+        var d = await res.json().catch(()=>({}));
+        if (!d.ok) throw new Error(d.message || 'AI generation failed');
+        var job = d.data || d;
         box.innerHTML =
             '<div class="rounded-xl border border-gray-200 overflow-hidden animate-fade-in">' +
               '<div class="bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 flex items-center gap-1.5"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg> AI-generated draft</div>' +
               '<div class="p-4 space-y-3 text-sm">' +
-                '<div><div class="font-semibold text-gray-900 mb-1">About the role</div><p class="text-gray-600 leading-relaxed">We are looking for a ' + App.escapeHtml(title) + ' to join our growing team. You will design, build and ship reliable software, collaborate across functions, and mentor peers.</p></div>' +
-                '<div><div class="font-semibold text-gray-900 mb-1">Requirements</div><ul class="list-disc pl-5 text-gray-600 space-y-0.5"><li>5+ years of relevant experience</li><li>Strong fundamentals in system design</li><li>Excellent communication skills</li></ul></div>' +
+                '<div><div class="font-semibold text-gray-900 mb-1">About the role</div><p class="text-gray-600 leading-relaxed">' + App.escapeHtml(job.description || '') + '</p></div>' +
+                '<div><div class="font-semibold text-gray-900 mb-1">Requirements</div><p class="text-gray-600 leading-relaxed">' + App.escapeHtml(job.requirements || '') + '</p></div>' +
               '</div>' +
-              '<div class="px-4 py-3 bg-gray-50 flex gap-2 justify-end"><button onclick="App.activateTab(document.getElementById(\'newJobTabs\'),\'manual\')" class="text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-full px-4 py-1.5">Edit</button><button onclick="App.toast(\'Draft accepted\',\'success\')" class="text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-full px-4 py-1.5">Accept</button></div>' +
+              '<div class="px-4 py-3 bg-gray-50 flex gap-2 justify-end">' +
+                '<button onclick="acceptAIDraft(this._job)" data-job=\'' + JSON.stringify(job).replace(/'/g,"&#39;") + '\' class="text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-full px-4 py-1.5" onmousedown="this._job=JSON.parse(this.dataset.job)">Accept &amp; Submit</button>' +
+              '</div>' +
             '</div>';
-    }, 1500);
+    } catch(e) {
+        box.innerHTML = '<p class="text-sm text-red-600 p-3">' + App.escapeHtml(e.message) + '</p>';
+    }
+}
+async function acceptAIDraft(job) {
+    if (!job) return;
+    job.status = 'published';
+    try {
+        var res = await fetch('/api/v1/jobs?action=create', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(job)
+        });
+        var d = await res.json().catch(()=>({}));
+        App.toast(d.ok ? 'Job published!' : (d.message||'Failed'), d.ok?'success':'error');
+        if (d.ok) { App.closeModal('newJobPanel'); setTimeout(()=>location.reload(), 900); }
+    } catch(e) { App.toast('Error saving job','error'); }
 }
 async function generateJobLink(id) {
     try {
@@ -410,8 +437,8 @@ async function duplicateJob(id) {
             body: JSON.stringify({job_id: id})
         });
         var d = await res.json().catch(()=>({}));
-        App.toast(d.success ? 'Job duplicated' : (d.message||'Failed'), d.success?'success':'error');
-        if (d.success) setTimeout(()=>location.reload(), 900);
+        App.toast(d.ok ? 'Job duplicated' : (d.message||'Failed'), d.ok?'success':'error');
+        if (d.ok) setTimeout(()=>location.reload(), 900);
     } catch(e) { App.toast('Error duplicating job','error'); }
 }
 async function archiveJob(id) {
@@ -423,8 +450,8 @@ async function archiveJob(id) {
             body: JSON.stringify({job_id: id})
         });
         var d = await res.json().catch(()=>({}));
-        App.toast(d.success ? 'Job archived' : (d.message||'Failed'), d.success?'success':'error');
-        if (d.success) setTimeout(()=>location.reload(), 900);
+        App.toast(d.ok ? 'Job archived' : (d.message||'Failed'), d.ok?'success':'error');
+        if (d.ok) setTimeout(()=>location.reload(), 900);
     } catch(e) { App.toast('Error archiving job','error'); }
 }
 async function submitNewJob(status) {
@@ -441,8 +468,8 @@ async function submitNewJob(status) {
             body: JSON.stringify(data)
         });
         var d = await res.json().catch(()=>({}));
-        App.toast(d.success ? (status === 'draft' ? 'Draft saved' : 'Job published!') : (d.message||'Failed'), d.success?'success':'error');
-        if (d.success) { App.closeModal('newJobPanel'); setTimeout(()=>location.reload(), 900); }
+        App.toast(d.ok ? (status === 'draft' ? 'Draft saved' : 'Job published!') : (d.message||'Failed'), d.ok?'success':'error');
+        if (d.ok) { App.closeModal('newJobPanel'); setTimeout(()=>location.reload(), 900); }
     } catch(e) { App.toast('Error saving job','error'); }
     finally { if (btn) { btn.disabled = false; btn.textContent = status === 'draft' ? 'Save as Draft' : 'Publish'; } }
 }
