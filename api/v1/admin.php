@@ -222,6 +222,9 @@ if ($method === 'POST' && $action === 'delete_company') {
     $tenantId = (int)($request->input('tenant_id') ?: $request->input('id'));
     if (!$tenantId) { Response::error('Company ID required', 422); exit; }
 
+    // Wipe API keys first (secure overwrite before row deletion)
+    ApiKeyManager::wipeTenantKeys($tenantId);
+
     // Cascade delete: users, jobs, applications, interviews, settings
     $db->query("DELETE FROM system_settings WHERE tenant_id = ?", [$tenantId]);
     $db->query("DELETE FROM notifications WHERE tenant_id = ?", [$tenantId]);
@@ -319,6 +322,34 @@ if ($method === 'POST' && $action === 'save_tenant_keys') {
     $db->update('tenants', $updates, ['id' => $tenantId]);
     ApiKeyManager::clearCache();
     Response::success(['message' => 'Keys saved']);
+    exit;
+}
+
+// ── Per-tenant AI key status (super admin — no actual key values) ─────────
+if ($action === 'tenant_ai_status') {
+    $rows = $db->fetchAll(
+        "SELECT id, name, slug, plan, status,
+                (openai_api_key IS NOT NULL AND openai_api_key != '') AS has_openai_raw,
+                (heygen_api_key IS NOT NULL AND heygen_api_key != '') AS has_heygen_raw,
+                openai_model
+         FROM tenants ORDER BY name ASC"
+    ) ?? [];
+    $result = [];
+    foreach ($rows as $r) {
+        $openaiConnected = (bool)$r['has_openai_raw'] && ApiKeyManager::decrypt($r['openai_api_key'] ?? '') !== '';
+        $heygenConnected = (bool)$r['has_heygen_raw'] && ApiKeyManager::decrypt($r['heygen_api_key'] ?? '') !== '';
+        $result[] = [
+            'id'              => (int)$r['id'],
+            'name'            => $r['name'],
+            'slug'            => $r['slug'],
+            'plan'            => $r['plan'],
+            'status'          => $r['status'],
+            'openai_model'    => $r['openai_model'] ?? 'gpt-4o',
+            'openai_connected' => $openaiConnected,
+            'heygen_connected' => $heygenConnected,
+        ];
+    }
+    Response::success($result);
     exit;
 }
 

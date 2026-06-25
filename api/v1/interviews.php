@@ -49,6 +49,13 @@ class InterviewApi
             Response::error('This interview link is invalid or has expired.', 404);
         }
 
+        // AI interviews require both OpenAI (evaluation) and HeyGen (video avatar).
+        // status/complete/feedback are allowed without keys so candidates aren't blocked mid-session.
+        $aiRequiredActions = ['start', 'message'];
+        if (in_array($action, $aiRequiredActions, true)) {
+            \TenantAIProvider::requireOpenAI();
+        }
+
         switch ($action) {
             case 'start':
                 $this->requireMethod($method, 'POST');

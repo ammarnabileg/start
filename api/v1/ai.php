@@ -42,6 +42,12 @@ class AiApi
 
         $action = (string) ($segments[1] ?? '');
 
+        // usage and compare do not call OpenAI — allow without key check
+        $noKeyRequired = ['usage', 'compare'];
+        if (!in_array($action, $noKeyRequired, true)) {
+            \TenantAIProvider::requireOpenAI();
+        }
+
         switch ($action) {
             case 'build-job':
                 $this->requireMethod($method, 'POST');
@@ -63,6 +69,11 @@ class AiApi
                 $this->copilot();
                 break;
 
+            case 'compare':
+                $this->requireMethod($method, 'POST');
+                $this->compare();
+                break;
+
             case 'usage':
                 $this->requireMethod($method, 'GET');
                 $this->usage();
@@ -71,6 +82,22 @@ class AiApi
             default:
                 Response::error('Unknown AI action.', 404);
         }
+    }
+
+    private function compare(): void
+    {
+        // If tenant has OpenAI configured, use it; otherwise return structured error
+        if (!\TenantAIProvider::hasOpenAI()) {
+            Response::error('OpenAI API key not configured.', 402, ['code' => 'ai_key_missing']);
+        }
+        \TenantAIProvider::requireOpenAI();
+        $question   = trim((string) $this->request->input('question', ''));
+        $candidates = (array) $this->request->input('candidates', []);
+        if ($question === '') { Response::error('question is required', 422); }
+        $copilot = new RecruitmentCopilot();
+        $context = ['candidates' => $candidates, 'compare_mode' => true];
+        $result  = $copilot->ask($question, $context);
+        Response::success(['answer' => $result['answer'] ?? $result['message'] ?? 'Unable to compare.']);
     }
 
     // ==================================================================

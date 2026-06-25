@@ -47,16 +47,44 @@ class ApiKeyManager
 
     /**
      * Return the active tenant's OpenAI API key (decrypted).
-     * Falls back to the platform ENV key if the tenant hasn't set one.
+     * STRICT — returns ONLY the tenant's own key, never falls back to ENV.
+     * Returns '' if no tenant key is configured.
      */
-    public static function getTenantOpenAIKey(?int $tenantId = null): string
+    public static function getTenantOpenAIKeyStrict(?int $tenantId = null): string
     {
         $row = self::tenantRow($tenantId);
         if ($row && !empty($row['openai_api_key'])) {
-            $key = self::decrypt($row['openai_api_key']);
-            if ($key !== '') return $key;
+            return self::decrypt($row['openai_api_key']);
         }
-        // Platform-level fallback (optional, set in .env by super admin)
+        return '';
+    }
+
+    /**
+     * Check whether the current tenant has a non-empty OpenAI key stored.
+     */
+    public static function hasTenantOpenAIKey(?int $tenantId = null): bool
+    {
+        return self::getTenantOpenAIKeyStrict($tenantId) !== '';
+    }
+
+    /**
+     * Check whether the current tenant has a non-empty HeyGen key stored.
+     */
+    public static function hasTenantHeyGenKey(?int $tenantId = null): bool
+    {
+        return self::getTenantHeyGenKeyStrict($tenantId) !== '';
+    }
+
+    /**
+     * Return the active tenant's OpenAI API key (decrypted).
+     * With ENV fallback — used only in legacy/backward-compat contexts.
+     * Prefer getTenantOpenAIKeyStrict() for new code.
+     */
+    public static function getTenantOpenAIKey(?int $tenantId = null): string
+    {
+        $strict = self::getTenantOpenAIKeyStrict($tenantId);
+        if ($strict !== '') return $strict;
+        // Legacy fallback: allow platform ENV key so existing integrations keep working
         return $_ENV['OPENAI_API_KEY'] ?? '';
     }
 
@@ -75,19 +103,71 @@ class ApiKeyManager
 
     /**
      * Return the active tenant's HeyGen API key (decrypted).
-     * Falls back to the platform ENV key if the tenant hasn't set one.
+     * STRICT — returns ONLY the tenant's own key, never falls back to ENV.
      */
-    public static function getTenantHeyGenKey(?int $tenantId = null): string
+    public static function getTenantHeyGenKeyStrict(?int $tenantId = null): string
     {
         $row = self::tenantRow($tenantId);
         if ($row && !empty($row['heygen_api_key'])) {
-            $key = self::decrypt($row['heygen_api_key']);
-            if ($key !== '') return $key;
+            return self::decrypt($row['heygen_api_key']);
         }
+        return '';
+    }
+
+    /**
+     * Return the active tenant's HeyGen API key (decrypted).
+     * With ENV fallback — legacy compat only.
+     */
+    public static function getTenantHeyGenKey(?int $tenantId = null): string
+    {
+        $strict = self::getTenantHeyGenKeyStrict($tenantId);
+        if ($strict !== '') return $strict;
+        return $_ENV['HEYGEN_API_KEY'] ?? '';
+    }
+
+    // ── Platform key getters (super admin context only) ──────────────────────
+
+    /** Platform-level OpenAI key from ENV — never use for per-tenant calls. */
+    public static function getPlatformOpenAIKey(): string
+    {
+        return $_ENV['OPENAI_API_KEY'] ?? '';
+    }
+
+    /** Platform-level HeyGen key from ENV — never use for per-tenant calls. */
+    public static function getPlatformHeyGenKey(): string
+    {
         return $_ENV['HEYGEN_API_KEY'] ?? '';
     }
 
     // ── Tenant key setters ───────────────────────────────────────────────
+
+    /**
+     * Securely wipe all API keys for a tenant (call when deleting a company).
+     * Sets both encrypted key columns to NULL and logs the wipe in audit_logs.
+     */
+    public static function wipeTenantKeys(int $tenantId): void
+    {
+        try {
+            $db = Database::getInstance();
+            $db->query(
+                "UPDATE tenants SET openai_api_key = NULL, heygen_api_key = NULL, updated_at = NOW() WHERE id = ?",
+                [$tenantId]
+            );
+            // Audit trail
+            try {
+                $db->insert('audit_logs', [
+                    'tenant_id'  => $tenantId,
+                    'user_id'    => null,
+                    'action'     => 'api_keys_wiped',
+                    'target'     => 'tenant',
+                    'target_id'  => $tenantId,
+                    'meta'       => json_encode(['reason' => 'tenant_deleted']),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+            } catch (\Throwable) {}
+            self::clearCache();
+        } catch (\Throwable) {}
+    }
 
     /**
      * Save an API key for a tenant.

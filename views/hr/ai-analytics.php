@@ -1,8 +1,16 @@
 <?php
-ob_start();
+require_once __DIR__ . '/../partials/helpers.php';
 $pageTitle = 'AI Analytics';
-$db = Database::getInstance();
+$activeNav = 'ai-analytics';
+$breadcrumbs = [['label'=>'Home','url'=>'/dashboard'],['label'=>'AI Analytics']];
+$db  = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
+$aiMissingOpenAI = !ApiKeyManager::hasTenantOpenAIKey();
+$aiFeatureLabel  = 'AI Analytics';
+ob_start();
+?>
+<?php require VIEWS_PATH . '/partials/ai-keys-banner.php'; ?>
+<?php
 $days = (int)($_GET['days'] ?? 30);
 $since = date('Y-m-d H:i:s', strtotime("-{$days} days"));
 // fetch from ai_usage_logs where tenant_id = $tid and created_at >= $since

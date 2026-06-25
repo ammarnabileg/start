@@ -155,6 +155,7 @@ elseif ($method === 'POST' && in_array($action, ['accept','decline'])) {
 // ── AI generate offer letter ──────────────────────────────────────────────
 elseif ($method === 'POST' && $action === 'generate') {
     Auth::requirePermission('ai.use');
+    \TenantAIProvider::requireOpenAI();
     $offerId = (int)$request->input('offer_id');
     $offer   = $db->fetch(
         "SELECT o.*, c.full_name, j.title as job_title, j.department

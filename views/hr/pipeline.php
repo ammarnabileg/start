@@ -53,9 +53,14 @@ $activeNav   = 'pipeline';
 $breadcrumbs = [['label'=>'Home','url'=>'/dashboard'],['label'=>'Pipeline']];
 $csrf = $_SESSION['_csrf'] ?? '';
 
+$aiMissingOpenAI = !ApiKeyManager::hasTenantOpenAIKey();
+$aiFeatureLabel  = 'AI Ranking & Screening';
+
 ob_start();
 ?>
 <meta name="csrf-token" content="<?= e($csrf) ?>">
+
+<?php require VIEWS_PATH . '/partials/ai-keys-banner.php'; ?>
 
 <!-- Top bar -->
 <div class="flex flex-col lg:flex-row lg:items-center gap-3 mb-5">

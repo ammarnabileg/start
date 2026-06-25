@@ -66,8 +66,13 @@ $pageTitle   = 'AI Interviews';
 $activeNav   = 'ai-interviews';
 $breadcrumbs = [['label'=>'Home','url'=>'/dashboard'],['label'=>'AI Interviews']];
 
+$aiMissingOpenAI = !ApiKeyManager::hasTenantOpenAIKey();
+$aiMissingHeyGen = !ApiKeyManager::hasTenantHeyGenKey();
+$aiFeatureLabel  = 'AI Video Interviews';
+
 ob_start();
 ?>
+<?php require VIEWS_PATH . '/partials/ai-keys-banner.php'; ?>
 
 <!-- Filter bar -->
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5">

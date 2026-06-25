@@ -173,6 +173,10 @@ try {
                     'openai_model'  => $row['openai_model'] ?? 'gpt-4o',
                 ]);
 
+            } elseif ($action === 'get_ai_status') {
+                if (!$tid) Response::error('No tenant context', 403);
+                Response::success(\TenantAIProvider::status($tid));
+
             } else {
                 Response::error('Unknown settings action', 400);
             }

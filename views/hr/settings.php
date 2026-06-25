@@ -1,13 +1,27 @@
 <?php
+require_once __DIR__ . '/../partials/helpers.php';
 ob_start();
 $pageTitle = 'Company Settings';
-$db = Database::getInstance();
+$activeNav = 'settings';
+$breadcrumbs = [['label'=>'Home','url'=>'/dashboard'],['label'=>'Settings']];
+$db  = Database::getInstance();
 $tid = Auth::user()['tenant_id'];
 $tenant = $db->fetch("SELECT * FROM tenants WHERE id = ?", [$tid]);
-$settings = $db->fetchAll("SELECT setting_key, setting_value FROM system_settings WHERE tenant_id = ?", [$tid]) ?: [];
+$settings    = $db->fetchAll("SELECT setting_key, setting_value FROM system_settings WHERE tenant_id = ?", [$tid]) ?: [];
 $settingsMap = array_column($settings, 'setting_value', 'setting_key');
-$teamMembers = $db->fetchAll("SELECT u.id, u.full_name, u.email, u.avatar_url, r.name as role_name FROM users u LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id WHERE u.tenant_id = ? ORDER BY u.full_name ASC", [$tid]) ?: [];
+$teamMembers = $db->fetchAll(
+    "SELECT u.id, CONCAT(u.first_name,' ',u.last_name) as full_name, u.email, u.avatar_url,
+            r.name as role_name
+     FROM users u
+     LEFT JOIN user_roles ur ON ur.user_id = u.id
+     LEFT JOIN roles r ON r.id = ur.role_id
+     WHERE u.tenant_id = ? ORDER BY u.first_name ASC",
+    [$tid]
+) ?: [];
 $activeTab = $_GET['tab'] ?? 'general';
+
+// AI key status for the integrations tab
+$aiStatus = TenantAIProvider::status($tid);
 ?>
 
 <div class="max-w-4xl mx-auto">
@@ -152,7 +166,13 @@ $activeTab = $_GET['tab'] ?? 'general';
           <h3 class="font-semibold text-gray-900">OpenAI</h3>
           <p class="text-xs text-gray-500 mt-0.5">Powers AI screening, evaluation, and letter generation</p>
         </div>
-        <div class="ml-auto" id="openai-status-badge"></div>
+        <div class="ml-auto" id="openai-status-badge">
+          <?php if ($aiStatus['openai']['configured']): ?>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Connected</span>
+          <?php else: ?>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Not Connected</span>
+          <?php endif; ?>
+        </div>
       </div>
       <form id="openai-form" class="space-y-4">
         <div>
@@ -197,7 +217,13 @@ $activeTab = $_GET['tab'] ?? 'general';
           <h3 class="font-semibold text-gray-900">HeyGen</h3>
           <p class="text-xs text-gray-500 mt-0.5">AI video avatar for automated interview sessions</p>
         </div>
-        <div class="ml-auto" id="heygen-status-badge"></div>
+        <div class="ml-auto" id="heygen-status-badge">
+          <?php if ($aiStatus['heygen']['configured']): ?>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Connected</span>
+          <?php else: ?>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Not Connected</span>
+          <?php endif; ?>
+        </div>
       </div>
       <form id="heygen-form" class="space-y-4">
         <div>
@@ -698,6 +724,7 @@ document.getElementById('openai-form')?.addEventListener('submit', async e => {
     if (key && !key.includes('••')) payload.openai = key;
     const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'OpenAI settings saved', res.ok || res.success ? 'success' : 'error');
+    if (res.ok || res.success) refreshAIStatusBadges();
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -734,6 +761,7 @@ document.getElementById('heygen-form')?.addEventListener('submit', async e => {
     if (key && !key.includes('••')) payload.heygen = key;
     const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'HeyGen settings saved', res.ok || res.success ? 'success' : 'error');
+    if (res.ok || res.success) refreshAIStatusBadges();
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
 });
@@ -766,6 +794,22 @@ async function testHeyGen() {
     }
   } catch { toast('Connection test failed', 'error'); }
   finally { setLoading(btn, false); }
+}
+
+// ── Refresh AI status badges after save ──────────────────────────────────
+async function refreshAIStatusBadges() {
+  try {
+    const res = await fetch('/api/v1/settings?action=get_ai_status', {headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const d = await res.json().catch(()=>({}));
+    if (!d.data) return;
+    const renderBadge = (connected) => connected
+      ? '<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Connected</span>'
+      : '<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-3 py-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Not Connected</span>';
+    const ob = document.getElementById('openai-status-badge');
+    const hb = document.getElementById('heygen-status-badge');
+    if (ob) ob.innerHTML = renderBadge(d.data.openai?.configured);
+    if (hb) hb.innerHTML = renderBadge(d.data.heygen?.configured);
+  } catch {}
 }
 
 // ── SMTP save + test ───────────────────────────────────────────────────────
