@@ -1050,9 +1050,15 @@ let feedbackRating = 0;
 let aspectRatings  = {};
 
 function showFeedbackPopup() {
-  // Don't show if already submitted or dismissed within 24h
   const stored = localStorage.getItem(FEEDBACK_KEY);
-  if (stored) return;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      // Submitted: never show again. Dismissed: respect 24h window only.
+      if (parsed.submitted) return;
+      if (parsed.dismissed && (Date.now() - parsed.at) < 24 * 60 * 60 * 1000) return;
+    } catch(e) { /* corrupt entry — show popup */ }
+  }
   setTimeout(() => {
     document.getElementById('feedback-popup').classList.remove('hidden');
   }, 3000);

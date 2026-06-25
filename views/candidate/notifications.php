@@ -14,12 +14,6 @@ $db->query("UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_
 <div class="max-w-3xl mx-auto px-4 py-8">
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
-    <?php if ($notifications): ?>
-    <form method="POST" action="/api/v1/notifications?action=clear_all" onsubmit="return confirm('Clear all notifications?')">
-      <input type="hidden" name="_method" value="DELETE">
-      <button class="text-sm text-gray-500 hover:text-red-600 transition-colors">Clear all</button>
-    </form>
-    <?php endif; ?>
   </div>
 
   <?php if (empty($notifications)): ?>
