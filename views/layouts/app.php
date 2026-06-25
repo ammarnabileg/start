@@ -1,7 +1,11 @@
 <?php
 $user = $user ?? Auth::user();
 $platformName = $_ENV['APP_NAME'] ?? 'HireAI';
-$isSuper = $user && in_array('super_admin', $user['roles'] ?? []);
+$isSuper = $user && (
+    ($user['type'] ?? '') === 'super_admin' ||
+    !empty($user['is_super_admin']) ||
+    in_array('super_admin', $user['roles'] ?? [])
+);
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 if (!function_exists('navItem')) { function navItem(string $href, string $label, string $icon, string $current): string {

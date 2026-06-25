@@ -35,7 +35,8 @@ $companies = $db->fetchAll(
     "SELECT t.*,
             COUNT(DISTINCT u.id) AS user_count,
             COUNT(DISTINCT j.id) AS job_count,
-            COUNT(DISTINCT i.id) AS interview_count
+            COUNT(DISTINCT i.id) AS interview_count,
+            (SELECT CONCAT(u2.first_name,' ',u2.last_name,'|',u2.email) FROM users u2 WHERE u2.tenant_id = t.id AND u2.status='active' ORDER BY u2.id ASC LIMIT 1) AS owner_info
        FROM tenants t
   LEFT JOIN users u ON u.tenant_id = t.id
   LEFT JOIN jobs j  ON j.tenant_id = t.id
@@ -48,6 +49,19 @@ $companies = $db->fetchAll(
       LIMIT {$perPage} OFFSET {$offset}",
     $params
 ) ?? [];
+
+// Parse owner info
+foreach ($companies as &$co) {
+    if (!empty($co['owner_info'])) {
+        [$ownerName, $ownerEmail] = explode('|', $co['owner_info'], 2) + ['', ''];
+        $co['owner_name']  = trim($ownerName);
+        $co['owner_email'] = trim($ownerEmail);
+    } else {
+        $co['owner_name']  = '';
+        $co['owner_email'] = '';
+    }
+}
+unset($co);
 
 $statusCounts = $db->fetchAll(
     "SELECT status, COUNT(*) AS cnt FROM tenants GROUP BY status"
@@ -166,6 +180,9 @@ function planBadge(string $p): string {
               <div>
                 <div class="font-medium text-gray-900 text-sm"><?= htmlspecialchars($co['name'] ?? '') ?></div>
                 <div class="text-xs text-gray-400"><?= htmlspecialchars($co['slug'] ?? '') ?></div>
+                <?php if ($co['owner_email']): ?>
+                <div class="text-xs text-violet-500 mt-0.5 cursor-pointer hover:text-violet-700" onclick="copyText('<?= htmlspecialchars($co['owner_email']) ?>')" title="Click to copy"><?= htmlspecialchars($co['owner_email']) ?></div>
+                <?php endif; ?>
               </div>
             </div>
           </td>
@@ -177,8 +194,8 @@ function planBadge(string $p): string {
           <td class="px-4 py-3.5 text-xs text-gray-400 whitespace-nowrap"><?= isset($co['created_at']) ? date('M j, Y', strtotime($co['created_at'])) : '—' ?></td>
           <td class="px-4 py-3.5">
             <div class="flex items-center gap-1">
-              <button onclick="viewCompany(<?= (int)$co['id'] ?>)" class="p-1.5 text-gray-400 hover:text-violet-600 rounded-lg hover:bg-violet-50 transition-colors" title="View">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <button onclick="sendCredentials(<?= (int)$co['id'] ?>, '<?= htmlspecialchars(addslashes($co['name'] ?? ''), ENT_QUOTES) ?>')" class="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors" title="Send Login Credentials">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </button>
               <button onclick="openEditModal(<?= htmlspecialchars(json_encode($co), ENT_QUOTES) ?>)" class="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -257,10 +274,16 @@ function planBadge(string $p): string {
             <option value="enterprise">Enterprise</option>
           </select>
         </div>
-        <div class="col-span-2">
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Owner Email <span class="text-red-500">*</span></label>
           <input type="email" name="owner_email" required placeholder="admin@acme.com"
                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Owner Password <span class="text-red-500">*</span></label>
+          <input type="text" name="owner_password" required placeholder="Temp password"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none">
+          <p class="text-xs text-gray-400 mt-1">Share this with the company admin.</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Max Users</label>
@@ -356,9 +379,18 @@ async function submitAddCompany(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const data = Object.fromEntries(fd.entries());
-  const d = await apiPost('/api/v1/admin?action=create_company', data);
-  if (d.ok) { showToast('Company created!', 'success'); setTimeout(() => location.reload(), 1000); }
-  else showToast(d.message || 'Failed to create company.', 'error');
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const d = await apiPost('/api/v1/admin?action=create_company', data);
+    if (d.ok) {
+      closeModal('addCompanyModal');
+      showToast('✓ Company created! Login: ' + data.owner_email, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showToast(d.message || 'Failed to create company.', 'error');
+    }
+  } finally { btn.disabled = false; btn.textContent = 'Create Company'; }
 }
 
 async function submitEditCompany(e) {
@@ -425,6 +457,27 @@ async function bulkAction(action) {
   const d = await apiPost('/api/v1/admin?action=bulk_companies', { ids, action });
   if (d.ok) { showToast('Bulk action applied.', 'success'); setTimeout(() => location.reload(), 800); }
   else showToast(d.message || 'Failed.', 'error');
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof showToast === 'function') showToast('Copied: ' + text, 'success');
+  });
+}
+
+async function sendCredentials(id, name) {
+  const newPass = prompt('Set a new password for "' + name + '" (min 8 chars):\nLeave blank to just send their current login email.');
+  if (newPass === null) return; // cancelled
+  if (newPass && newPass.length < 8) { alert('Password must be at least 8 characters.'); return; }
+  const d = await apiPost('/api/v1/admin?action=reset_company_password', { id, password: newPass });
+  if (d.ok) {
+    const info = 'Login: ' + (d.data?.email || '') + (newPass ? '\nNew Password: ' + newPass : '');
+    if (confirm('✓ Done!\n\n' + info + '\n\nCopy to clipboard?')) {
+      navigator.clipboard.writeText(info);
+    }
+  } else {
+    showToast(d.message || 'Failed.', 'error');
+  }
 }
 
 // Auto-generate slug from name
