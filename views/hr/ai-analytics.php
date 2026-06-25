@@ -21,21 +21,21 @@ $totalTokens = (int)($db->fetchColumn(
 $estimatedCost = round($totalTokens / 1000 * 0.002, 4);
 
 $mostUsedFeature = $db->fetchColumn(
-    "SELECT action_type FROM ai_usage_logs
+    "SELECT feature FROM ai_usage_logs
      WHERE tenant_id = ? AND created_at >= ?
-     GROUP BY action_type ORDER BY COUNT(*) DESC LIMIT 1",
+     GROUP BY feature ORDER BY COUNT(*) DESC LIMIT 1",
     [$tid, $since]
 ) ?? '—';
 
 // Usage breakdown by feature
 $breakdown = $db->fetchAll(
-    "SELECT action_type,
+    "SELECT feature,
             COUNT(*) as request_count,
             COALESCE(SUM(tokens_used), 0) as total_tokens,
             COALESCE(AVG(tokens_used), 0) as avg_tokens
      FROM ai_usage_logs
      WHERE tenant_id = ? AND created_at >= ?
-     GROUP BY action_type
+     GROUP BY feature
      ORDER BY request_count DESC",
     [$tid, $since]
 ) ?: [];
@@ -230,7 +230,7 @@ function featureIcon(string $key, array $icons): string {
           $pct = $totalRequests > 0 ? round($row['request_count'] / $totalRequests * 100, 1) : 0;
         ?>
         <div class="flex items-center justify-between text-xs">
-          <span class="text-gray-600 font-medium truncate"><?= htmlspecialchars(featureName($row['action_type'], $featureNames)) ?></span>
+          <span class="text-gray-600 font-medium truncate"><?= htmlspecialchars(featureName($row['feature'], $featureNames)) ?></span>
           <span class="text-gray-400 ml-2 flex-shrink-0"><?= $pct ?>%</span>
         </div>
         <?php endforeach; ?>
@@ -277,8 +277,8 @@ function featureIcon(string $key, array $icons): string {
             $cost   = round($row['total_tokens'] / 1000 * 0.002, 4);
             $avg    = round($row['avg_tokens']);
             $pct    = $totalRequests > 0 ? round($row['request_count'] / $totalRequests * 100, 1) : 0;
-            $icon   = featureIcon($row['action_type'], $featureIcons);
-            $fname  = featureName($row['action_type'], $featureNames);
+            $icon   = featureIcon($row['feature'], $featureIcons);
+            $fname  = featureName($row['feature'], $featureNames);
           ?>
           <tr class="hover:bg-gray-50 transition-colors">
             <td class="px-6 py-4">
@@ -365,7 +365,7 @@ function featureIcon(string $key, array $icons): string {
           <?php else: ?>
           <?php foreach ($recentLogs as $log):
             $ts = date('M j, Y · H:i', strtotime($log['created_at']));
-            $fname = featureName($log['action_type'] ?? '', $featureNames);
+            $fname = featureName($log['feature'] ?? '', $featureNames);
             $model = $log['model'] ?? 'gpt-4o';
             $tokens = (int)($log['tokens_used'] ?? 0);
             $triggeredBy = $log['user_name'] ?? 'System';
@@ -518,7 +518,7 @@ function featureIcon(string $key, array $icons): string {
     '#7C3AED','#3B82F6','#F59E0B','#10B981','#EC4899','#8B5CF6','#06B6D4','#EF4444','#84CC16','#F97316'
   ];
 
-  const labels = breakdown.map(r => featureNames[r.action_type] || r.action_type.replace(/_/g, ' '));
+  const labels = breakdown.map(r => featureNames[r.feature] || r.feature.replace(/_/g, ' '));
   const data   = breakdown.map(r => parseInt(r.request_count, 10));
 
   new Chart(ctx, {

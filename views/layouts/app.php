@@ -4,14 +4,14 @@ $platformName = $_ENV['APP_NAME'] ?? 'HireAI';
 $isSuper = $user && in_array('super_admin', $user['roles'] ?? []);
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-function navItem(string $href, string $label, string $icon, string $current): string {
+if (!function_exists('navItem')) { function navItem(string $href, string $label, string $icon, string $current): string {
     $active = str_starts_with($current, $href) && ($href !== '/dashboard' || $current === '/dashboard') && ($href !== '/super/dashboard' || $current === '/super/dashboard');
     $cls = $active
         ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold bg-violet-700 text-white'
         : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors';
     return "<a href='{$href}' class='{$cls}'>{$icon}<span>{$label}</span></a>";
-}
-function sideIcon(string $path): string {
+} }
+if (!function_exists('sideIcon')) { function sideIcon(string $path): string {
     $icons = [
         'home' => '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
         'briefcase' => '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
@@ -30,7 +30,7 @@ function sideIcon(string $path): string {
         'terminal' => '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
     ];
     return $icons[$path] ?? '';
-}
+} }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -146,10 +146,21 @@ function sideIcon(string $path): string {
     </div>
     <div class="flex items-center gap-2">
       <!-- Notification Bell -->
-      <button class="relative p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-600" onclick="toggleNotifications()">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-violet-600 rounded-full"></span>
-      </button>
+      <div class="relative">
+        <button id="notifBtn" class="relative p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-600" onclick="toggleNotifications()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span id="notifDot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-violet-600 rounded-full hidden"></span>
+        </button>
+        <div id="notifPanel" class="hidden absolute right-0 top-12 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+            <span class="font-semibold text-gray-900 text-sm">Notifications</span>
+            <button onclick="markAllRead()" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Mark all read</button>
+          </div>
+          <div id="notifList" class="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            <div class="py-8 text-center text-sm text-gray-400">Loading…</div>
+          </div>
+        </div>
+      </div>
       <!-- Avatar -->
       <div class="w-9 h-9 rounded-xl bg-violet-700 flex items-center justify-center text-white font-bold text-sm cursor-pointer" onclick="toggleUserMenu()">
         <?= strtoupper(substr($user['full_name'] ?? 'U', 0, 1)) ?>
@@ -216,7 +227,35 @@ function toggleUserMenu() {
   document.getElementById('userMenu').classList.toggle('hidden');
 }
 
-function toggleNotifications() { /* TODO */ }
+let notifLoaded = false;
+async function toggleNotifications() {
+  const panel = document.getElementById('notifPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden') && !notifLoaded) {
+    notifLoaded = true;
+    try {
+      const r = await fetch('/api/v1/notifications');
+      const d = await r.json();
+      const list = document.getElementById('notifList');
+      const items = d.data || [];
+      if (!items.length) { list.innerHTML = '<div class="py-8 text-center text-sm text-gray-400">No notifications</div>'; return; }
+      list.innerHTML = items.map(n => `<div class="px-4 py-3 ${n.read_at ? '' : 'bg-violet-50'} hover:bg-gray-50 transition-colors">
+        <div class="text-sm font-medium text-gray-900">${n.title || ''}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${n.body || ''}</div>
+      </div>`).join('');
+      const unread = items.filter(n => !n.read_at).length;
+      document.getElementById('notifDot').classList.toggle('hidden', unread === 0);
+    } catch(e) { document.getElementById('notifList').innerHTML = '<div class="py-8 text-center text-sm text-gray-400">Failed to load</div>'; }
+  }
+}
+async function markAllRead() {
+  await fetch('/api/v1/notifications', {method:'POST'});
+  notifLoaded = false;
+  document.getElementById('notifDot').classList.add('hidden');
+  document.getElementById('notifPanel').classList.add('hidden');
+}
+// Load unread count on page load
+(async () => { try { const r = await fetch('/api/v1/notifications'); const d = await r.json(); const unread = (d.data||[]).filter(n=>!n.read_at).length; if (unread > 0) document.getElementById('notifDot').classList.remove('hidden'); } catch(e){} })();
 
 function toggleCopilot() {
   const panel = document.getElementById('copilotPanel');
@@ -282,6 +321,9 @@ function confirm2(msg, callback) {
 document.addEventListener('click', function(e) {
   if (!e.target.closest('#userMenu') && !e.target.closest('[onclick*="toggleUserMenu"]')) {
     document.getElementById('userMenu')?.classList.add('hidden');
+  }
+  if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) {
+    document.getElementById('notifPanel')?.classList.add('hidden');
   }
 });
 </script>

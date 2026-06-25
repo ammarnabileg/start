@@ -195,6 +195,24 @@ try {
             Response::success($pools);
             break;
 
+        case 'notifications':
+            Auth::requireAuth();
+            $db  = Database::getInstance();
+            $uid = (int)(Auth::user()['id'] ?? 0);
+            $tid = (int)(Auth::user()['tenant_id'] ?? 0);
+            if ($method === 'POST') {
+                // Mark all as read
+                $db->query("UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL", [$uid]);
+                Response::success(['message' => 'Marked as read']);
+            } else {
+                $items = $db->fetchAll(
+                    "SELECT id, type, title, COALESCE(message, body) as body, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
+                    [$uid]
+                ) ?: [];
+                Response::success($items);
+            }
+            break;
+
         case '':
             Response::success(['name' => 'AI Recruitment API', 'version' => 'v1', 'status' => 'ok']);
             break;

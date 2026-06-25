@@ -22,6 +22,7 @@ class HRRouter {
             $path === '/users'                   => self::render('hr/users', ['pageTitle'=>'Users', 'tenant'=>$tenant]),
             $path === '/roles'                   => self::render('hr/roles', ['pageTitle'=>'Roles & Permissions', 'tenant'=>$tenant]),
             $path === '/settings'                => self::render('hr/settings', ['pageTitle'=>'Settings', 'tenant'=>$tenant]),
+            $path === '/profile'                 => self::render('hr/profile', ['pageTitle'=>'My Profile', 'tenant'=>$tenant]),
             preg_match('#^/candidates/(\d+)$#', $path, $m) => self::render('hr/candidates/show', ['pageTitle'=>'Candidate', 'id'=>(int)$m[1], 'tenant'=>$tenant]),
             preg_match('#^/ai-interviews/(\d+)$#', $path, $m) => self::render('hr/interviews/report', ['pageTitle'=>'Interview Report', 'id'=>(int)$m[1], 'tenant'=>$tenant]),
             default => (function() { http_response_code(404); echo "Page not found"; })()

@@ -319,7 +319,8 @@ $activeTab = $_GET['tab'] ?? 'general';
   $usedJobs       = (int)($db->fetch("SELECT COUNT(*) c FROM jobs WHERE tenant_id=? AND status='published'", [$tid])['c'] ?? 12);
   $usedMembers    = count($teamMembers);
   $usedCredits    = (int)($db->fetch("SELECT SUM(tokens_used) c FROM ai_usage_logs WHERE tenant_id=? AND created_at BETWEEN ? AND ?", [$tid, $monthStart, $monthEnd])['c'] ?? 0);
-  $invoices = $db->fetchAll("SELECT * FROM invoices WHERE tenant_id=? ORDER BY created_at DESC LIMIT 6", [$tid]) ?: [
+  try { $invoices = $db->fetchAll("SELECT * FROM invoices WHERE tenant_id=? ORDER BY created_at DESC LIMIT 6", [$tid]) ?: []; } catch (\Exception $e) { $invoices = []; }
+  if (empty($invoices)) $invoices = [
     ['id'=>'INV-2026-006','period'=>'June 2026',  'amount'=>4900,'status'=>'paid'],
     ['id'=>'INV-2026-005','period'=>'May 2026',   'amount'=>4900,'status'=>'paid'],
     ['id'=>'INV-2026-004','period'=>'April 2026', 'amount'=>4900,'status'=>'paid'],
