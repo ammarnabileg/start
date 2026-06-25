@@ -1,8 +1,9 @@
 <?php
 /**
- * Setup Wizard — runs once, then locks itself
- * Accessible at /setup
+ * Setup Wizard — runs once, then locks itself.
+ * Loaded BEFORE bootstrap.php so it works with no .env file.
  */
+ob_start(); // catch any stray output before JSON responses
 
 define('ROOT_DIR', dirname(__DIR__));
 
@@ -11,6 +12,7 @@ $lockFile = ROOT_DIR . '/.setup_complete';
 
 // ── AJAX handler ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_SETUP_ACTION'])) {
+    ob_end_clean(); // discard any buffered output
     header('Content-Type: application/json');
 
     if (file_exists($lockFile)) {
@@ -497,8 +499,8 @@ async function nextStep() {
                     setLoading(false);
                     g('btn-area').classList.remove('hidden');
                     g('btn-label').textContent = 'Retry';
-                    currentStep = 0;
-                    activateStep(0);
+                    currentStep = 1;
+                    activateStep(1);
                     return;
                 }
                 addLog(res.message || 'Done.', 'ok');
@@ -508,8 +510,8 @@ async function nextStep() {
                 setLoading(false);
                 g('btn-area').classList.remove('hidden');
                 g('btn-label').textContent = 'Retry';
-                currentStep = 0;
-                activateStep(0);
+                currentStep = 1;
+                activateStep(1);
                 return;
             }
         }

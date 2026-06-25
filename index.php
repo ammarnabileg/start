@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+// ── Setup must run before bootstrap (no .env yet) ─────────────────────────────
+$_earlyPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if (str_starts_with($_earlyPath, '/setup')) {
+    if (file_exists(__DIR__ . '/setup/index.php')) require __DIR__ . '/setup/index.php';
+    else echo 'Setup not available.';
+    exit;
+}
+
 require __DIR__ . '/bootstrap.php';
 
 $req    = new Request();
@@ -30,13 +38,6 @@ function view(string $tpl, array $data = [], string $layout = 'app'): void {
 // ── API ───────────────────────────────────────────────────────────────────────
 if (str_starts_with($path, '/api/v1')) {
     require __DIR__ . '/api/v1/index.php';
-    exit;
-}
-
-// ── Setup ─────────────────────────────────────────────────────────────────────
-if (str_starts_with($path, '/setup')) {
-    if (file_exists(__DIR__ . '/setup/index.php')) require __DIR__ . '/setup/index.php';
-    else echo 'Setup not available.';
     exit;
 }
 
