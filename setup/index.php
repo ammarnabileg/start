@@ -10,21 +10,21 @@ define('ROOT_DIR', dirname(__DIR__));
 // ── Lock check ────────────────────────────────────────────────────────────────
 $lockFile = ROOT_DIR . '/.setup_complete';
 
-// ── AJAX handler ──────────────────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_SETUP_ACTION'])) {
+// ── AJAX handler — action comes from query string to avoid header stripping ────
+$action = $_GET['action'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
     ob_end_clean(); // discard any buffered output
     header('Content-Type: application/json');
+    // Read JSON body once
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    if (file_exists($lockFile)) {
+    if (file_exists($lockFile) && $action !== 'lock') {
         echo json_encode(['ok' => false, 'message' => 'Setup already completed.']);
         exit;
     }
 
-    $action = $_SERVER['HTTP_X_SETUP_ACTION'];
-
     // ── Step 1: Write .env ────────────────────────────────────────────────────
     if ($action === 'write_env') {
-        $body   = json_decode(file_get_contents('php://input'), true) ?? [];
         $appUrl = trim($body['app_url']  ?? 'http://localhost:8000');
         $dbHost = trim($body['db_host']  ?? 'localhost');
         $dbPort = trim($body['db_port']  ?? '3306');
@@ -54,7 +54,6 @@ ENV;
 
     // ── Step 2: Test DB connection ────────────────────────────────────────────
     if ($action === 'test_db') {
-        $body   = json_decode(file_get_contents('php://input'), true) ?? [];
         $host   = trim($body['db_host'] ?? 'localhost');
         $port   = trim($body['db_port'] ?? '3306');
         $user   = trim($body['db_user'] ?? 'root');
@@ -70,7 +69,6 @@ ENV;
 
     // ── Step 3: Create DB + run schema ────────────────────────────────────────
     if ($action === 'run_schema') {
-        $body   = json_decode(file_get_contents('php://input'), true) ?? [];
         $host   = trim($body['db_host'] ?? 'localhost');
         $port   = trim($body['db_port'] ?? '3306');
         $dbName = trim($body['db_name'] ?? 'recruitai');
@@ -116,7 +114,6 @@ ENV;
 
     // ── Step 4: Create Super Admin ────────────────────────────────────────────
     if ($action === 'create_admin') {
-        $body     = json_decode(file_get_contents('php://input'), true) ?? [];
         $host     = trim($body['db_host']     ?? 'localhost');
         $port     = trim($body['db_port']     ?? '3306');
         $dbName   = trim($body['db_name']     ?? 'recruitai');
@@ -439,11 +436,15 @@ function fields() {
 }
 
 async function api(action, body) {
-    const r = await fetch('/setup', {
+    const r = await fetch('/setup?action=' + encodeURIComponent(action), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Setup-Action': action },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
+    if (!r.ok) {
+        const text = await r.text();
+        throw new Error('Server returned ' + r.status + ': ' + text.substring(0, 120));
+    }
     return r.json();
 }
 
@@ -505,8 +506,8 @@ async function nextStep() {
                 }
                 addLog(res.message || 'Done.', 'ok');
             } catch(e) {
-                addLog('Network error: ' + e.message, 'err');
-                showError('Network error — is the server running?');
+                addLog('Error: ' + e.message, 'err');
+                showError(e.message);
                 setLoading(false);
                 g('btn-area').classList.remove('hidden');
                 g('btn-label').textContent = 'Retry';
