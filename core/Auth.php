@@ -85,7 +85,8 @@ class Auth {
     public static function can(string $permission): bool {
         $user = self::user();
         if (!$user) return false;
-        if (in_array('super_admin', $user['roles'] ?? [])) return true;
+        // Super admins have all permissions
+        if (self::isSuper()) return true;
         return in_array($permission, $user['permissions'] ?? []);
     }
 
