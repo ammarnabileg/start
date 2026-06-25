@@ -384,11 +384,65 @@ window._interviewActive = true;
       Thank you for completing the interview. Our team will review your responses and get back to you soon.
     </div>
 
-    <a href="/candidate/applications" id="return-btn"
+    <a href="/c/applications" id="return-btn"
       class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-full font-semibold transition-colors">
       Return to My Applications
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
     </a>
+  </div>
+</div>
+
+<!-- ═══ FEEDBACK POPUP (auto-shows after interview, disappears after submit or 24h) ═══ -->
+<div id="feedback-popup" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-gray-900">How was your interview experience?</h2>
+      <button onclick="dismissFeedback()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="text-gray-500 text-sm mb-5">Your feedback helps us improve. This takes less than a minute.</p>
+
+    <!-- Star rating -->
+    <div class="mb-5">
+      <p class="text-sm font-medium text-gray-700 mb-2">Overall experience</p>
+      <div class="flex gap-2" id="star-row">
+        <?php for ($i = 1; $i <= 5; $i++): ?>
+        <button onclick="setRating(<?= $i ?>)" id="star-<?= $i ?>"
+          class="w-10 h-10 text-gray-300 hover:text-amber-400 transition-colors text-2xl leading-none">★</button>
+        <?php endfor; ?>
+      </div>
+    </div>
+
+    <!-- Aspect ratings -->
+    <div class="mb-5 space-y-3">
+      <?php foreach (['Questions relevance', 'AI clarity', 'Interface ease', 'Overall fairness'] as $aspect): ?>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-600"><?= $aspect ?></span>
+        <div class="flex gap-1">
+          <?php for ($i = 1; $i <= 5; $i++): $slug = strtolower(preg_replace('/\W+/', '_', $aspect)); ?>
+          <button onclick="setAspect('<?= $slug ?>', <?= $i ?>)" id="<?= $slug ?>-<?= $i ?>"
+            class="w-6 h-6 text-gray-300 hover:text-amber-400 transition-colors text-lg leading-none">★</button>
+          <?php endfor; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- Comment -->
+    <textarea id="feedback-comment" rows="3" placeholder="Any additional thoughts? (optional)"
+      class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none mb-4"></textarea>
+
+    <div class="flex gap-3">
+      <button onclick="submitFeedback()"
+        class="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        Submit Feedback
+      </button>
+      <button onclick="dismissFeedback()"
+        class="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+        Skip
+      </button>
+    </div>
   </div>
 </div>
 
@@ -933,6 +987,9 @@ async function endInterview(reason = 'completed', score = null) {
   const screen = document.getElementById('completion-screen');
   if (screen) screen.classList.add('visible');
 
+  // Show feedback popup after delay
+  showFeedbackPopup();
+
   // Animate score
   if (score !== null) {
     animateScore(parseInt(score));
@@ -983,6 +1040,61 @@ function escHtml(s) {
   const d = document.createElement('div');
   d.appendChild(document.createTextNode(s));
   return d.innerHTML;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INTERVIEW FEEDBACK
+// ══════════════════════════════════════════════════════════════
+const FEEDBACK_KEY = 'interview_feedback_' + INTERVIEW_ID;
+let feedbackRating = 0;
+let aspectRatings  = {};
+
+function showFeedbackPopup() {
+  // Don't show if already submitted or dismissed within 24h
+  const stored = localStorage.getItem(FEEDBACK_KEY);
+  if (stored) return;
+  setTimeout(() => {
+    document.getElementById('feedback-popup').classList.remove('hidden');
+  }, 3000);
+}
+
+function setRating(val) {
+  feedbackRating = val;
+  for (let i = 1; i <= 5; i++) {
+    const s = document.getElementById('star-' + i);
+    if (s) s.classList.toggle('text-amber-400', i <= val);
+    if (s) s.classList.toggle('text-gray-300',  i > val);
+  }
+}
+
+function setAspect(slug, val) {
+  aspectRatings[slug] = val;
+  for (let i = 1; i <= 5; i++) {
+    const s = document.getElementById(slug + '-' + i);
+    if (s) s.classList.toggle('text-amber-400', i <= val);
+    if (s) s.classList.toggle('text-gray-300',  i > val);
+  }
+}
+
+function dismissFeedback() {
+  document.getElementById('feedback-popup').classList.add('hidden');
+  // Remember dismissal for 24 hours
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify({ dismissed: true, at: Date.now() }));
+}
+
+async function submitFeedback() {
+  if (!feedbackRating) { alert('Please select an overall rating.'); return; }
+  const comment = document.getElementById('feedback-comment').value.trim();
+  try {
+    await fetch('/api/v1/interviews/' + TOKEN + '/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ rating: feedbackRating, feedback: comment, suggestions: JSON.stringify(aspectRatings) })
+    });
+  } catch(e) { /* fail silently */ }
+  localStorage.setItem(FEEDBACK_KEY, JSON.stringify({ submitted: true, at: Date.now() }));
+  document.getElementById('feedback-popup').classList.add('hidden');
+  showToast('Thank you for your feedback! 🙏');
 }
 
 // ══════════════════════════════════════════════════════════════

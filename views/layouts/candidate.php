@@ -3,17 +3,17 @@
 // Variables: $pageTitle, $user, $content
 $platformName = $_ENV['APP_NAME'] ?? 'HireAI';
 $pageTitle    = $pageTitle ?? 'Candidate Portal';
-$userName     = htmlspecialchars($user['full_name'] ?? $user['name'] ?? 'Candidate');
+$userName     = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: ($user['full_name'] ?? $user['name'] ?? 'Candidate'));
 $userEmail    = htmlspecialchars($user['email'] ?? '');
 $userAvatar   = $user['avatar'] ?? null;
-$initials     = strtoupper(substr($user['full_name'] ?? $user['name'] ?? 'C', 0, 1));
+$initials     = strtoupper(substr($user['first_name'] ?? $user['full_name'] ?? $user['name'] ?? 'C', 0, 1));
 
 $currentPath  = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 function candNavItem(string $href, string $label, string $currentPath): string {
     $active = str_starts_with($currentPath, $href);
-    if ($href === '/candidate' && $currentPath === '/candidate') $active = true;
-    if ($href === '/candidate' && $currentPath !== '/candidate') $active = false;
+    if ($href === '/c/dashboard' && $currentPath === '/c/dashboard') $active = true;
+    if ($href === '/c/dashboard' && $currentPath !== '/c/dashboard') $active = false;
     $cls = $active
         ? 'text-violet-700 font-semibold border-b-2 border-violet-600 pb-0.5'
         : 'text-gray-600 hover:text-gray-900 font-medium transition-colors';
@@ -53,7 +53,7 @@ function candNavItem(string $href, string $label, string $currentPath): string {
   <div class="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center gap-6">
 
     <!-- Logo -->
-    <a href="/candidate" class="flex items-center gap-2.5 flex-shrink-0 mr-2">
+    <a href="/c/dashboard" class="flex items-center gap-2.5 flex-shrink-0 mr-2">
       <div class="w-8 h-8 bg-violet-700 rounded-xl flex items-center justify-center">
         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2M9 9h6"/></svg>
       </div>
@@ -62,11 +62,11 @@ function candNavItem(string $href, string $label, string $currentPath): string {
 
     <!-- Desktop Nav Links -->
     <div class="hidden md:flex items-center gap-6 flex-1">
-      <?= candNavItem('/candidate', 'Dashboard', $currentPath) ?>
-      <?= candNavItem('/candidate/jobs', 'Find Jobs', $currentPath) ?>
-      <?= candNavItem('/candidate/applications', 'My Applications', $currentPath) ?>
-      <?= candNavItem('/candidate/profile', 'My Profile', $currentPath) ?>
-      <?= candNavItem('/candidate/offers', 'Offers', $currentPath) ?>
+      <?= candNavItem('/c/dashboard', 'Dashboard', $currentPath) ?>
+      <?= candNavItem('/c/jobs', 'Find Jobs', $currentPath) ?>
+      <?= candNavItem('/c/applications', 'My Applications', $currentPath) ?>
+      <?= candNavItem('/c/profile', 'My Profile', $currentPath) ?>
+      <?= candNavItem('/c/offers', 'Offers', $currentPath) ?>
     </div>
 
     <div class="flex items-center gap-3 ml-auto">
@@ -89,7 +89,7 @@ function candNavItem(string $href, string $label, string $currentPath): string {
             <div class="px-4 py-8 text-center text-sm text-gray-400">No new notifications</div>
           </div>
           <div class="px-4 py-2.5 border-t border-gray-100">
-            <a href="/candidate/notifications" class="text-xs text-violet-600 hover:text-violet-800 font-medium">View all notifications →</a>
+            <a href="/c/notifications" class="text-xs text-violet-600 hover:text-violet-800 font-medium">View all notifications →</a>
           </div>
         </div>
       </div>
@@ -115,13 +115,13 @@ function candNavItem(string $href, string $label, string $currentPath): string {
             <div class="text-sm font-semibold text-gray-900 truncate"><?= $userName ?></div>
             <div class="text-xs text-gray-400 truncate"><?= $userEmail ?></div>
           </div>
-          <a href="/candidate/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+          <a href="/c/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             My Profile
           </a>
-          <a href="/candidate/settings" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+          <a href="/c/notifications" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Account Settings
+            Notifications
           </a>
           <div class="border-t border-gray-100 mt-1 pt-1">
             <a href="/logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -141,11 +141,12 @@ function candNavItem(string $href, string $label, string $currentPath): string {
 
   <!-- Mobile nav panel -->
   <div id="mobile-nav" class="md:hidden bg-white border-t border-gray-100 px-4 py-3 space-y-1">
-    <a href="/candidate" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Dashboard</a>
-    <a href="/candidate/jobs" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Find Jobs</a>
-    <a href="/candidate/applications" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">My Applications</a>
-    <a href="/candidate/profile" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">My Profile</a>
-    <a href="/candidate/offers" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Offers</a>
+    <a href="/c/dashboard" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Dashboard</a>
+    <a href="/c/jobs" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Find Jobs</a>
+    <a href="/c/applications" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">My Applications</a>
+    <a href="/c/profile" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">My Profile</a>
+    <a href="/c/offers" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Offers</a>
+    <a href="/c/notifications" class="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Notifications</a>
     <div class="border-t border-gray-100 pt-2 mt-2">
       <a href="/logout" class="block px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50">Sign Out</a>
     </div>
@@ -285,7 +286,7 @@ async function sendHelpMessage() {
 
 function markAllRead() {
   document.getElementById('notif-dot')?.classList.add('hidden');
-  fetch('/api/v1/notifications/read-all', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+  fetch('/api/v1/notifications', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
 }
 
 // Load notifications on page load
@@ -293,14 +294,15 @@ async function loadNotifications() {
   try {
     const res = await fetch('/api/v1/notifications?limit=5', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
-    if (data.notifications?.length) {
+    const items = data.data ?? data.notifications ?? [];
+    if (items.length) {
       document.getElementById('notif-dot')?.classList.remove('hidden');
       const list = document.getElementById('notif-list');
       if (list) {
-        list.innerHTML = data.notifications.map(n => `
+        list.innerHTML = items.map(n => `
           <div class="px-4 py-3 hover:bg-gray-50 transition-colors">
             <div class="text-sm font-medium text-gray-800">${n.title ?? ''}</div>
-            <div class="text-xs text-gray-400 mt-0.5">${n.body ?? ''}</div>
+            <div class="text-xs text-gray-400 mt-0.5">${n.message ?? n.body ?? ''}</div>
           </div>
         `).join('');
       }
