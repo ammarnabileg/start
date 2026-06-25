@@ -26,6 +26,7 @@ if ($action === 'terminal') {
             if (is_dir($dir)) {
                 foreach (glob("$dir/*.cache") ?: [] as $f) { unlink($f); $count++; }
             }
+            if (function_exists('opcache_reset')) { opcache_reset(); return "Cleared $count cache files. OPcache reset."; }
             return "Cleared $count cache files.";
         },
         'list_tenants'      => function() use ($db) {
@@ -76,8 +77,12 @@ if ($action === 'terminal') {
         return round($bytes / 1024, 2) . ' KB';
     }
 
+    // Aliases: frontend uses colon-style, API uses underscore-style
+    $aliases = ['cache:clear'=>'clear_cache','tenants:list'=>'list_tenants','logs:tail'=>'view_logs','migrate:status'=>'show_stats','queue:status'=>'show_stats','users:count'=>'show_stats','ai:usage'=>'show_stats','status'=>'show_stats','version'=>'php_version','whoami'=>'env_check'];
+    if (isset($aliases[$cmd])) $cmd = $aliases[$cmd];
+
     if (!isset($allowed[$cmd])) {
-        Response::error("Command not allowed. Available: " . implode(', ', array_keys($allowed)), 403);
+        Response::error("Command not found: $cmd. Type 'help' for available commands.", 403);
         exit;
     }
 

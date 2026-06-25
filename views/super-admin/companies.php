@@ -15,9 +15,9 @@ $where  = ['1=1'];
 $params = [];
 
 if ($search !== '') {
-    $where[]  = '(t.name LIKE ? OR t.slug LIKE ? OR t.owner_email LIKE ?)';
+    $where[]  = '(t.name LIKE ? OR t.slug LIKE ?)';
     $s = '%' . $search . '%';
-    $params = array_merge($params, [$s, $s, $s]);
+    $params = array_merge($params, [$s, $s]);
 }
 if ($statusTab !== 'all') {
     $where[]  = 't.status = ?';
@@ -41,7 +41,7 @@ $companies = $db->fetchAll(
   LEFT JOIN jobs j  ON j.tenant_id = t.id
   LEFT JOIN interviews i ON i.application_id IN (
                SELECT a.id FROM applications a WHERE a.tenant_id = t.id
-               AND a.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))
+               AND a.applied_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))
       WHERE {$whereSQL}
       GROUP BY t.id
       ORDER BY t.created_at DESC
