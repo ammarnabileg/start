@@ -90,8 +90,8 @@ elseif ($method === 'POST' && $action === 'move_stage') {
         'tenant_id'   => $tid,
         'user_id'     => $userId,
         'action'      => 'application.stage_changed',
-        'entity_type' => 'application',
-        'entity_id'   => $appId,
+        'resource_type' => 'application',
+        'resource_id'   => $appId,
         'meta'        => json_encode(['from' => $app['current_stage'], 'to' => $newStage]),
         'created_at'  => date('Y-m-d H:i:s')
     ]);

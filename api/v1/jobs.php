@@ -96,8 +96,8 @@ elseif ($method === 'POST' && (!$action || $action === 'create')) {
 
     $db->insert('audit_logs', [
         'tenant_id' => $tid, 'user_id' => $userId,
-        'action' => 'job.created', 'entity_type' => 'job', 'entity_id' => $jobId,
-        'meta' => json_encode(['title' => $data['title']]),
+        'action' => 'job.created', 'resource_type' => 'job', 'resource_id' => $jobId,
+        'details' => json_encode(['title' => $data['title']]),
         'created_at' => date('Y-m-d H:i:s')
     ]);
 

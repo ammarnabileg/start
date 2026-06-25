@@ -9,7 +9,16 @@ $db     = Database::getInstance();
 $userId = Auth::user()['id'];
 $tid    = Auth::user()['tenant_id'] ?? null;
 $method = $_SERVER['REQUEST_METHOD'];
+// Support both ?action=X and REST path /offers/{id}/{action}
 $action = $request->get('action') ?? $request->input('action') ?? '';
+$pathOfferId = isset($segments[1]) && is_numeric($segments[1]) ? (int)$segments[1] : 0;
+$pathAction  = $segments[2] ?? '';
+if ($pathOfferId && $pathAction && !$action) {
+    $action = $pathAction;
+    // Inject id into request
+    $_GET['id'] = $pathOfferId;
+    $_POST['id'] = $pathOfferId;
+}
 
 // ── List offers ───────────────────────────────────────────────────────────
 if ($method === 'GET' && !$action) {
@@ -73,8 +82,8 @@ elseif ($method === 'POST' && !$action) {
 
     $db->insert('audit_logs', [
         'tenant_id' => $tid, 'user_id' => $userId,
-        'action' => 'offer.created', 'entity_type' => 'offer', 'entity_id' => $offerId,
-        'meta' => json_encode(['application_id' => $appId]),
+        'action' => 'offer.created', 'resource_type' => 'offer', 'resource_id' => $offerId,
+        'details' => json_encode(['application_id' => $appId]),
         'created_at' => date('Y-m-d H:i:s')
     ]);
 
@@ -150,6 +159,28 @@ elseif ($method === 'POST' && in_array($action, ['accept','decline'])) {
     }
 
     Response::success(['message' => ucfirst($status)]);
+}
+
+// ── Negotiate offer (candidate counter-proposal) ─────────────────────────
+elseif ($method === 'POST' && $action === 'negotiate') {
+    $id    = (int)$request->input('id');
+    $offer = $db->fetch("SELECT * FROM offers WHERE id = ?", [$id]);
+    if (!$offer) { Response::error('Not found', 404); exit; }
+
+    $negSalary   = (float)$request->input('negotiated_salary', 0);
+    $negCurrency = $request->input('currency', $offer['salary_currency'] ?? 'USD');
+    $negMessage  = trim($request->input('message', ''));
+
+    $db->update('offers', [
+        'status'              => 'negotiating',
+        'negotiated_salary'   => $negSalary ?: null,
+        'negotiated_currency' => $negCurrency,
+        'negotiation_message' => $negMessage,
+        'responded_at'        => date('Y-m-d H:i:s'),
+        'updated_at'          => date('Y-m-d H:i:s'),
+    ], ['id' => $id]);
+
+    Response::success(['message' => 'Negotiation request submitted']);
 }
 
 // ── AI generate offer letter ──────────────────────────────────────────────

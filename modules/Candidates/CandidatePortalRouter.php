@@ -6,7 +6,8 @@ class CandidatePortalRouter {
             $path === '/c/jobs'         => self::render('candidate/jobs', ['pageTitle'=>'Available Jobs']),
             $path === '/c/applications' => self::render('candidate/applications', ['pageTitle'=>'My Applications']),
             $path === '/c/profile'      => self::render('candidate/profile', ['pageTitle'=>'My Profile']),
-            $path === '/c/offers'       => self::render('candidate/offers', ['pageTitle'=>'My Offers']),
+            $path === '/c/offers'         => self::render('candidate/offers', ['pageTitle'=>'My Offers']),
+            $path === '/c/notifications'  => self::render('candidate/notifications', ['pageTitle'=>'Notifications']),
             default => Response::redirect('/c/dashboard')
         };
     }

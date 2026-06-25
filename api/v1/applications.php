@@ -84,10 +84,11 @@ elseif ($method === 'POST' && $action === 'move_stage') {
     $db->update('applications', ['current_stage' => $newStage, 'updated_at' => date('Y-m-d H:i:s')], ['id' => $appId]);
 
     $db->insert('audit_logs', [
-        'tenant_id' => $tid, 'user_id' => $userId,
-        'action' => 'application.stage_changed', 'entity_type' => 'application', 'entity_id' => $appId,
-        'meta' => json_encode(['from' => $app['current_stage'], 'to' => $newStage]),
-        'created_at' => date('Y-m-d H:i:s')
+        'tenant_id'     => $tid, 'user_id' => $userId,
+        'action'        => 'application.stage_changed',
+        'resource_type' => 'application', 'resource_id' => $appId,
+        'details'       => json_encode(['from' => $app['current_stage'], 'to' => $newStage]),
+        'created_at'    => date('Y-m-d H:i:s')
     ]);
 
     Response::success(['stage' => $newStage]);
@@ -150,8 +151,8 @@ elseif ($method === 'POST' && $action === 'add_note') {
 
     $db->insert('audit_logs', [
         'tenant_id' => $tid, 'user_id' => $userId,
-        'action' => 'application.note_added', 'entity_type' => 'application', 'entity_id' => $appId,
-        'meta' => json_encode(['note' => $note]),
+        'action' => 'application.note_added', 'resource_type' => 'application', 'resource_id' => $appId,
+        'details' => json_encode(['note' => $note]),
         'created_at' => date('Y-m-d H:i:s')
     ]);
 
