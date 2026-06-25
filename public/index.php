@@ -60,7 +60,21 @@ function renderView(string $view, array $data = [], string $layout = 'app'): voi
 }
 
 // ── Auth Routes ──────────────────────────────────────────
-if ($path === '/login' || $path === '') {
+
+// Root path: landing page (redirect logged-in users to their dashboard)
+if ($path === '/' || $path === '') {
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user['type'] === 'super_admin') { header('Location: /super/dashboard'); exit; }
+        if ($user['type'] === 'candidate') { header('Location: /c/dashboard'); exit; }
+        header('Location: /dashboard'); exit;
+    }
+    $platformName = $_ENV['APP_NAME'] ?? 'HireAI';
+    require VIEWS_PATH . '/landing.php';
+    exit;
+}
+
+if ($path === '/login') {
     if ($method === 'POST') {
         require MODULES_PATH . '/Auth/AuthController.php';
         AuthController::login($request);
