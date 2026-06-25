@@ -1,0 +1,22 @@
+Options -Indexes
+RewriteEngine On
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options SAMEORIGIN
+Header always set X-XSS-Protection "1; mode=block"
+
+# Block sensitive files
+<FilesMatch "\.(env|sql|log|sh|json|lock|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow storage access for uploaded files
+RewriteRule ^storage/cvs/(.+)$ storage/cvs/$1 [L]
+RewriteRule ^storage/uploads/(.+)$ storage/uploads/$1 [L]
+
+# Route everything to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]

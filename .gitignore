@@ -1,0 +1,13 @@
+.env
+*.log
+storage/logs/*.log
+storage/uploads/*
+storage/cvs/*
+!storage/logs/.gitkeep
+!storage/uploads/.gitkeep
+!storage/cvs/.gitkeep
+vendor/
+node_modules/
+.DS_Store
+*.sqlite
+.claude/worktrees/
