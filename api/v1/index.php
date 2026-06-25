@@ -71,6 +71,10 @@ try {
             }
             break;
 
+        case 'auth':
+            require __DIR__ . '/auth.php';
+            break;
+
         case 'jobs':
             require __DIR__ . '/jobs.php';
             break;

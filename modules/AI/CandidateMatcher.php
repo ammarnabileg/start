@@ -41,14 +41,19 @@ PROMPT;
 
         $user = $this->singleMatchPrompt($candidate, $application, $evaluation, $job);
 
-        $result = $this->ai->chatJson(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-            $this->singleSchema(),
-            ['temperature' => 0.2, 'max_tokens' => 1200]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                $this->singleSchema(),
+                ['temperature' => 0.2, 'max_tokens' => 1200]
+            );
+        } catch (\Throwable $e) {
+            error_log('[CandidateMatcher] OpenAI error: ' . $e->getMessage());
+            return ['match_score' => 0, 'recommendation' => 'not_recommended', 'summary' => '', 'strengths' => [], 'concerns' => [], 'skill_overlap' => [], 'skill_gaps' => []];
+        }
 
         $this->ai->logUsage(
             (int) ($job['tenant_id'] ?? $candidate['tenant_id'] ?? 0),
@@ -89,14 +94,19 @@ PROMPT;
 
         $user = $this->rankPrompt($candidates, $job);
 
-        $result = $this->ai->chatJson(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-            $this->rankSchema(),
-            ['temperature' => 0.2, 'max_tokens' => 3000]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                $this->rankSchema(),
+                ['temperature' => 0.2, 'max_tokens' => 3000]
+            );
+        } catch (\Throwable $e) {
+            error_log('[CandidateMatcher] OpenAI error: ' . $e->getMessage());
+            return [];
+        }
 
         $this->ai->logUsage(
             (int) ($job['tenant_id'] ?? 0),
@@ -138,14 +148,19 @@ PROMPT;
 
         $user = "Search query:\n\"{$query}\"\n\n=== CANDIDATES ===\n" . $this->formatCandidatesForSearch($candidates);
 
-        $result = $this->ai->chatJson(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-            $this->searchSchema(),
-            ['temperature' => 0.2, 'max_tokens' => 2000]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                $this->searchSchema(),
+                ['temperature' => 0.2, 'max_tokens' => 2000]
+            );
+        } catch (\Throwable $e) {
+            error_log('[CandidateMatcher] OpenAI error: ' . $e->getMessage());
+            return [];
+        }
 
         $this->ai->logUsage(
             $tenantId,

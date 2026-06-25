@@ -1,69 +1,45 @@
 <?php
+declare(strict_types=1);
 /**
- * /api/v1/auth
- *   POST   /login     POST /logout     POST /refresh     GET /me
+ * api/v1/auth.php — Authentication endpoints
+ *   POST /api/v1/auth?action=login
+ *   POST /api/v1/auth?action=logout
+ *   GET  /api/v1/auth?action=me
  */
 
-use App\Core\Auth;
-use App\Core\JWT;
-use App\Core\Request;
-use App\Core\Response;
+$method = $_SERVER['REQUEST_METHOD'];
+$action = $request->get('action') ?? $request->input('action') ?? '';
 
-$api = $GLOBALS['__api'];
-$req = new Request();
-$auth = new Auth();
-$action = $api['sub'];
+if ($method === 'POST' && $action === 'login') {
+    $email    = trim((string) $request->input('email', ''));
+    $password = (string) $request->input('password', '');
+    $slug     = trim((string) $request->input('tenant_slug', ''));
 
-switch ($api['method'] . ':' . $action) {
-    case 'POST:login':
-        $email = trim((string) $req->post('email', ''));
-        $password = (string) $req->post('password', '');
-        $tenantId = (new App\Core\Tenant())->currentId();
-        if ($email === '' || $password === '') {
-            Response::error('Email and password are required', 422);
-            return;
-        }
-        $token = $auth->login($email, $password, $tenantId);
-        if ($token === false) {
-            Response::error('Invalid credentials', 401);
-            return;
-        }
-        Response::success([
-            'token' => $token,
-            'user'  => sanitizeUser($auth->user()),
-        ], 'Logged in');
-        return;
+    if ($email === '' || $password === '') {
+        Response::error('Email and password are required', 422);
+    }
 
-    case 'POST:logout':
-        $auth->logout();
-        Response::success(null, 'Logged out');
-        return;
+    $result = Auth::login($email, $password, $slug ?: null);
+    if ($result === false) {
+        Response::error('Invalid credentials', 401);
+    }
 
-    case 'POST:refresh':
-        $token = $req->bearerToken() ?? (string) $req->post('token', '');
-        $cfg = config('app')['jwt'];
-        $new = JWT::refresh($token, $cfg['secret'], $cfg['expiry']);
-        if ($new === false) {
-            Response::error('Invalid or expired token', 401);
-            return;
-        }
-        Response::success(['token' => $new]);
-        return;
-
-    case 'GET:me':
-        $auth->requireAuth();
-        Response::success(['user' => sanitizeUser($auth->user())]);
-        return;
-
-    default:
-        Response::error('Not found', 404);
+    unset($result['user']['password_hash'], $result['user']['remember_token']);
+    Response::success(['token' => $result['token'], 'user' => $result['user']], 'Logged in');
 }
 
-function sanitizeUser(?array $user): ?array
-{
-    if (!$user) {
-        return null;
-    }
-    unset($user['password_hash']);
-    return $user;
+elseif ($method === 'POST' && $action === 'logout') {
+    Auth::logout();
+    Response::success(null, 'Logged out');
+}
+
+elseif ($method === 'GET' && $action === 'me') {
+    Auth::requireAuth();
+    $user = Auth::user();
+    unset($user['password_hash'], $user['remember_token']);
+    Response::success(['user' => $user]);
+}
+
+else {
+    Response::error('Unknown auth action', 400);
 }

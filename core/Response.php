@@ -15,8 +15,13 @@ class Response {
         static::json(['ok' => false, 'message' => $message, 'errors' => $errors], $status);
     }
 
-    public static function paginated(array $data, array $meta): never {
-        static::json(['ok' => true, 'data' => $data, 'meta' => $meta]);
+    public static function paginated(array $data, int $total, int $page, int $perPage): never {
+        static::json(['ok' => true, 'data' => $data, 'meta' => [
+            'total'    => $total,
+            'page'     => $page,
+            'per_page' => $perPage,
+            'pages'    => $perPage > 0 ? (int) ceil($total / $perPage) : 1,
+        ]]);
     }
 
     public static function redirect(string $url, int $status = 302): never {

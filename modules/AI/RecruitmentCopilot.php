@@ -65,11 +65,20 @@ class RecruitmentCopilot
             'content' => "=== RECRUITMENT DATA (the only data you may use) ===\n{$contextBlock}\n\n=== QUESTION ===\n{$question}",
         ];
 
-        $result = $this->ai->chatJson(
-            $messages,
-            $this->schema(),
-            ['temperature' => 0.3, 'max_tokens' => 1800]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                $messages,
+                $this->schema(),
+                ['temperature' => 0.3, 'max_tokens' => 1800]
+            );
+        } catch (\Throwable $e) {
+            error_log('[RecruitmentCopilot] OpenAI error: ' . $e->getMessage());
+            return [
+                'answer'      => 'I encountered an error processing your request. Please try again.',
+                'data'        => [],
+                'suggestions' => $this->defaultSuggestions(),
+            ];
+        }
 
         $this->ai->logUsage(
             $tenantId,

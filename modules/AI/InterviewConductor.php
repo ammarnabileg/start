@@ -63,13 +63,18 @@ Keep it concise and friendly. Output only the message text the candidate will
 read — no labels, no JSON.
 TASK;
 
-        $result = $this->ai->chat(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $kickoff],
-            ],
-            ['temperature' => 0.7, 'max_tokens' => 400]
-        );
+        try {
+            $result = $this->ai->chat(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $kickoff],
+                ],
+                ['temperature' => 0.7, 'max_tokens' => 400]
+            );
+        } catch (\Throwable $e) {
+            error_log('[InterviewConductor] OpenAI error: ' . $e->getMessage());
+            return "Hello {$candName}, welcome! I'm your AI interviewer for the {$jobTitle} position. To get us started, could you briefly introduce yourself and tell me what attracted you to this role?";
+        }
 
         $this->logUsage($interview, $result, 'interview_start');
 
@@ -141,11 +146,26 @@ TASK;
         $conversation[] = ['role' => 'system', 'content' => $system];
         $conversation[] = ['role' => 'user', 'content' => $decision];
 
-        $result = $this->ai->chatJson(
-            $conversation,
-            $this->turnSchema(),
-            ['temperature' => 0.6, 'max_tokens' => 500]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                $conversation,
+                $this->turnSchema(),
+                ['temperature' => 0.6, 'max_tokens' => 500]
+            );
+        } catch (\Throwable $e) {
+            error_log('[InterviewConductor] OpenAI error: ' . $e->getMessage());
+            $fallback = $language === 'ar'
+                ? 'شكراً على إجابتك. هل يمكنك أن تخبرني المزيد عن خبرتك ذات الصلة بهذا الدور؟'
+                : 'Thank you for that. Could you tell me a bit more about your relevant experience for this role?';
+            return [
+                'message'        => $fallback,
+                'is_question'    => true,
+                'is_followup'    => false,
+                'is_closing'     => false,
+                'skill_assessed' => '',
+                'language'       => $language,
+            ];
+        }
 
         $this->logUsage($interview, ['tokens' => $result['tokens'], 'cost' => $result['cost'], 'model' => $result['model']], 'interview_turn');
 
@@ -189,7 +209,14 @@ TASK;
         $conversation[] = ['role' => 'system', 'content' => $system];
         $conversation[] = ['role' => 'user', 'content' => $task];
 
-        $result = $this->ai->chat($conversation, ['temperature' => 0.6, 'max_tokens' => 250]);
+        try {
+            $result = $this->ai->chat($conversation, ['temperature' => 0.6, 'max_tokens' => 250]);
+        } catch (\Throwable $e) {
+            error_log('[InterviewConductor] OpenAI error: ' . $e->getMessage());
+            return $language === 'ar'
+                ? 'شكراً جزيلاً على وقتك وإجاباتك المدروسة اليوم. سيقوم فريقنا بمراجعة المقابلة والتواصل معك بالخطوات التالية قريباً. نتمنى لك كل التوفيق!'
+                : 'Thank you so much for your time and thoughtful answers today. Our team will review the conversation and reach out with next steps soon. We wish you the very best!';
+        }
         $this->logUsage($interview, $result, 'interview_close');
 
         $message = trim($result['content']);

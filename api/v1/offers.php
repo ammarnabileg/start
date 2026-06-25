@@ -106,15 +106,15 @@ elseif ($method === 'POST' && $action === 'send') {
     $offer = $db->fetch("SELECT * FROM offers WHERE id = ? AND tenant_id = ?", [$id, $tid]);
     if (!$offer) { Response::error('Not found', 404); exit; }
 
-    $db->update('offers', ['status' => 'pending', 'sent_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], ['id' => $id]);
+    $db->update('offers', ['status' => 'sent', 'sent_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], ['id' => $id]);
 
-    // Create notification for candidate
+    // Create notification for candidate (using correct column names)
     $db->insert('notifications', [
-        'user_id'    => $offer['candidate_id'],
         'tenant_id'  => $tid,
+        'user_id'    => $offer['candidate_id'] ?? 0,
         'type'       => 'offer_received',
         'title'      => 'You have received a job offer',
-        'body'       => 'A new offer has been sent to you. Please review and respond.',
+        'message'    => 'A new offer has been sent to you. Please review and respond.',
         'data'       => json_encode(['offer_id' => $id]),
         'created_at' => date('Y-m-d H:i:s')
     ]);
@@ -128,7 +128,17 @@ elseif ($method === 'POST' && in_array($action, ['accept','decline'])) {
     $offer = $db->fetch("SELECT * FROM offers WHERE id = ? AND tenant_id = ?", [$id, $tid]);
     if (!$offer) { Response::error('Not found', 404); exit; }
 
-    $status = $action === 'accept' ? 'accepted' : 'declined';
+    // Verify ownership: only the candidate who received the offer (or HR) can respond
+    $currentUser = Auth::user();
+    if (Auth::isCandidate()) {
+        $candidateRow = $db->fetch("SELECT id FROM candidates WHERE email = ? LIMIT 1", [$currentUser['email'] ?? '']);
+        $candidateId  = $candidateRow['id'] ?? 0;
+        if ((int)($offer['candidate_id'] ?? 0) !== $candidateId) {
+            Response::error('Forbidden', 403); exit;
+        }
+    }
+
+    $status = $action === 'accept' ? 'accepted' : 'rejected';
     $db->update('offers', [
         'status'       => $status,
         'responded_at' => date('Y-m-d H:i:s'),

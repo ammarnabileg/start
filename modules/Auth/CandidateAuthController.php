@@ -36,7 +36,7 @@ class CandidateAuthController {
             renderView('candidate/register', [
                 'pageTitle' => 'Create Account',
                 'errors'    => $errors,
-                'old'       => compact('name', 'email')
+                'old'       => ['full_name' => $name, 'email' => $email]
             ], 'auth');
             return;
         }
@@ -47,7 +47,7 @@ class CandidateAuthController {
             renderView('candidate/register', [
                 'pageTitle' => 'Create Account',
                 'errors'    => ['An account with this email already exists.'],
-                'old'       => compact('name', 'email')
+                'old'       => ['full_name' => $name, 'email' => $email]
             ], 'auth');
             return;
         }

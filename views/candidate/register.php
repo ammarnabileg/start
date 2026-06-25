@@ -51,7 +51,7 @@ $old    = $old ?? [];
       <form method="POST" action="/register" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-          <input type="text" name="full_name" value="<?= htmlspecialchars($old['name'] ?? '') ?>" required
+          <input type="text" name="full_name" value="<?= htmlspecialchars($old['full_name'] ?? '') ?>" required
             class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             placeholder="John Smith">
         </div>

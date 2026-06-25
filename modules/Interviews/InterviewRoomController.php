@@ -19,16 +19,61 @@ class InterviewRoomController {
             echo self::errorPage('Link Expired', 'This interview link has expired. Please contact the company for a new link.');
             return;
         }
-        if ($application['interview_link_used'] && $application['stage'] === 'ai_screening') {
-            // Check if interview is completed
-            $interview = $db->fetch("SELECT status FROM interviews WHERE application_id = ?", [$application['id']]);
-            if ($interview && $interview['status'] === 'completed') {
-                echo self::errorPage('Interview Completed', 'You have already completed this interview. Thank you!');
-                return;
+        // Load the interview record
+        $interview = $db->fetch(
+            "SELECT * FROM interviews WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+            [$application['id']]
+        );
+
+        if ($interview && $interview['status'] === 'completed') {
+            echo self::errorPage('Interview Completed', 'You have already completed this interview. Thank you!');
+            return;
+        }
+
+        // If no interview exists yet, create one via InterviewService
+        if (!$interview) {
+            require_once MODULES_PATH . '/Interviews/InterviewService.php';
+            try {
+                $service = new InterviewService();
+                $result  = $service->createInterview((int)$application['id']);
+                $interview = $db->fetch(
+                    "SELECT * FROM interviews WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+                    [$application['id']]
+                );
+            } catch (\Throwable $e) {
+                $interview = null;
             }
         }
 
-        extract(['application' => $application, 'token' => $token, 'pageTitle' => 'Interview Room']);
+        // Fetch the first AI question
+        $firstQuestion = 'Hello! Thank you for joining this interview. Tell me about yourself and your background.';
+        if ($interview) {
+            $msg = $db->fetch(
+                "SELECT content FROM interview_messages WHERE interview_id = ? AND role = 'ai' ORDER BY id ASC LIMIT 1",
+                [$interview['id']]
+            );
+            if ($msg) $firstQuestion = $msg['content'];
+        }
+
+        $candidate = [
+            'full_name' => $application['candidate_name'] ?? 'Candidate',
+            'email'     => $application['candidate_email'] ?? '',
+        ];
+        $job = [
+            'title'        => $application['job_title'] ?? 'Position',
+            'company_name' => $application['tenant_name'] ?? '',
+            'interview_type' => $application['interview_type'] ?? 'text',
+        ];
+
+        extract([
+            'application'   => $application,
+            'interview'     => $interview,
+            'candidate'     => $candidate,
+            'job'           => $job,
+            'firstQuestion' => $firstQuestion,
+            'token'         => $token,
+            'pageTitle'     => 'Interview Room',
+        ]);
         require VIEWS_PATH . '/interview/room.php';
     }
 

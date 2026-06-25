@@ -185,8 +185,8 @@ class AiApi
                        a.cv_match_score
                   FROM candidates c
              LEFT JOIN applications a ON a.candidate_id = c.id AND a.job_id = ?
-                 WHERE c.id IN ({$placeholders})
-            ", array_merge([$jobId], $candidateIds));
+                 WHERE c.id IN ({$placeholders}) AND c.tenant_id = ?
+            ", array_merge([$jobId], $candidateIds, [$this->tenantId]));
         }
 
         if (empty($rows)) {

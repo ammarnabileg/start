@@ -140,7 +140,7 @@ class JobService
             'department' => '',
             'location'   => 'Remote',
             'job_type'   => 'full-time',
-            'currency'   => 'USD',
+            'salary_currency' => 'USD',
             'ai_criteria' => [
                 ['criterion_name' => 'Technical Skills', 'weight' => 30, 'description' => 'Depth of role-specific expertise.'],
                 ['criterion_name' => 'Experience', 'weight' => 25, 'description' => 'Years and relevance of prior work.'],
@@ -183,7 +183,7 @@ class JobService
     {
         $columns = [
             'title', 'description', 'requirements', 'department', 'location',
-            'salary_min', 'salary_max', 'currency', 'avatar_id',
+            'salary_min', 'salary_max', 'salary_currency', 'avatar_id',
         ];
         $row = [];
         foreach ($columns as $col) {

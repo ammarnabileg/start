@@ -40,14 +40,19 @@ class JobBuilder
         $system = $this->systemPrompt();
         $user   = $this->userPrompt($title, $seniority, $industry, $context);
 
-        $result = $this->ai->chatJson(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-            $this->schema(),
-            ['temperature' => 0.6, 'max_tokens' => 3000]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                $this->schema(),
+                ['temperature' => 0.6, 'max_tokens' => 3000]
+            );
+        } catch (\Throwable $e) {
+            error_log('[JobBuilder] OpenAI error: ' . $e->getMessage());
+            return $this->defaults($title);
+        }
 
         $this->ai->logUsage(
             (int) ($context['tenant_id'] ?? 0),
@@ -313,5 +318,18 @@ PROMPT;
             return 'N/A';
         }
         return is_numeric($value) ? (string) (int) $value : (string) $value;
+    }
+
+    private function defaults(string $title): array
+    {
+        return [
+            'description'      => '',
+            'requirements'     => [],
+            'responsibilities' => [],
+            'benefits'         => [],
+            'salary_suggestion' => ['min' => 0, 'max' => 0, 'currency' => 'USD'],
+            'suggested_criteria'  => [],
+            'suggested_questions' => [],
+        ];
     }
 }

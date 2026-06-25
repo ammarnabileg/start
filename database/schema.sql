@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS applications (
 
 CREATE TABLE IF NOT EXISTS interviews (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT UNSIGNED NULL,
   application_id BIGINT UNSIGNED NOT NULL,
   type VARCHAR(40) NOT NULL DEFAULT 'ai_text',
   status ENUM('pending','in_progress','completed','expired') NOT NULL DEFAULT 'pending',
@@ -199,7 +200,8 @@ CREATE TABLE IF NOT EXISTS interviews (
   completed_at TIMESTAMP NULL,
   duration_seconds INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_interview_app (application_id)
+  KEY idx_interview_app (application_id),
+  KEY idx_interview_tenant (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS interview_messages (
@@ -218,6 +220,7 @@ CREATE TABLE IF NOT EXISTS interview_messages (
 
 CREATE TABLE IF NOT EXISTS interview_evaluations (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT UNSIGNED NULL,
   interview_id BIGINT UNSIGNED NOT NULL,
   application_id BIGINT UNSIGNED NULL,
   overall_score DECIMAL(5,2) NULL,
@@ -291,16 +294,32 @@ CREATE TABLE IF NOT EXISTS human_interview_evaluators (
 
 CREATE TABLE IF NOT EXISTS offers (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tenant_id BIGINT UNSIGNED NULL,
   application_id BIGINT UNSIGNED NOT NULL,
+  candidate_id BIGINT UNSIGNED NULL,
+  job_id BIGINT UNSIGNED NULL,
+  created_by BIGINT UNSIGNED NULL,
+  title VARCHAR(255) NULL,
   salary DECIMAL(12,2) NULL,
   currency VARCHAR(10) DEFAULT 'USD',
+  salary_amount DECIMAL(12,2) NULL,
+  salary_currency VARCHAR(10) DEFAULT 'USD',
+  salary_type ENUM('annual','monthly','hourly') DEFAULT 'annual',
+  benefits JSON NULL,
+  conditions TEXT NULL,
+  offer_letter LONGTEXT NULL,
   start_date DATE NULL,
   expiry_date DATE NULL,
   status ENUM('draft','sent','accepted','rejected','expired') NOT NULL DEFAULT 'draft',
   token VARCHAR(80) NULL UNIQUE,
   notes TEXT NULL,
+  sent_at TIMESTAMP NULL,
+  responded_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_offer_app (application_id)
+  updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_offer_app (application_id),
+  KEY idx_offer_tenant (tenant_id),
+  KEY idx_offer_candidate (candidate_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS talent_pools (
@@ -362,6 +381,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   type VARCHAR(80) NULL,
   title VARCHAR(255) NULL,
   message TEXT NULL,
+  body TEXT NULL,
+  data JSON NULL,
   read_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_notif_user (user_id)
@@ -370,8 +391,11 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS interview_feedback (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   interview_id BIGINT UNSIGNED NOT NULL,
+  candidate_id BIGINT UNSIGNED NULL,
   rating TINYINT NULL,
   comments TEXT NULL,
+  feedback TEXT NULL,
+  suggestions TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_feedback_interview (interview_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -63,14 +63,19 @@ class InterviewEvaluator
         $system = $this->systemPrompt();
         $user   = $this->userPrompt($interview, $messages, $job, $criteria, $candidateCv);
 
-        $result = $this->ai->chatJson(
-            [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-            $this->schema(),
-            ['temperature' => 0.2, 'max_tokens' => 4000]
-        );
+        try {
+            $result = $this->ai->chatJson(
+                [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+                $this->schema(),
+                ['temperature' => 0.2, 'max_tokens' => 4000]
+            );
+        } catch (\Throwable $e) {
+            error_log('[InterviewEvaluator] OpenAI error: ' . $e->getMessage());
+            return $this->emptyEvaluation();
+        }
 
         $this->ai->logUsage(
             (int) ($interview['tenant_id'] ?? 0),
@@ -500,7 +505,7 @@ PROMPT;
         ];
     }
 
-    private function emptyEvaluation(string $note): array
+    private function emptyEvaluation(string $note = 'Evaluation could not be completed.'): array
     {
         $skills = [];
         foreach ($this->skillWeights as $skill => $weight) {
