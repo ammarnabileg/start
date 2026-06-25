@@ -5,13 +5,13 @@ $db = Database::getInstance();
 $tid = Auth::user()['tenant_id'] ?? 0;
 $activeTab = $_GET['status'] ?? 'all';
 
-$tabs      = ['all' => 'All', 'draft' => 'Draft', 'sent' => 'Sent', 'accepted' => 'Accepted', 'rejected' => 'Rejected'];
+$tabs      = ['all' => 'All', 'draft' => 'Draft', 'sent' => 'Sent', 'accepted' => 'Accepted', 'rejected' => 'Rejected', 'negotiating' => 'Negotiating'];
 $statusBadge = [
-    'draft'     => 'bg-gray-100 text-gray-600',
-    'pending'   => 'bg-amber-100 text-amber-700',
-    'accepted'  => 'bg-green-100 text-green-700',
-    'rejected'  => 'bg-red-100 text-red-700',
-    'withdrawn' => 'bg-rose-100 text-rose-700',
+    'draft'       => 'bg-gray-100 text-gray-600',
+    'sent'        => 'bg-amber-100 text-amber-700',
+    'accepted'    => 'bg-green-100 text-green-700',
+    'rejected'    => 'bg-red-100 text-red-700',
+    'negotiating' => 'bg-blue-100 text-blue-700',
 ];
 
 try {
@@ -112,10 +112,11 @@ try {
             $badge       = $statusBadge[$offer['status']];
             $salaryLabel = '$' . $offer['salary'] . ' / ' . $offer['type'];
             $dotCls      = [
-                'draft'    => 'bg-gray-400',
-                'pending'  => 'bg-amber-500',
-                'accepted' => 'bg-green-500',
-                'rejected' => 'bg-red-500',
+                'draft'       => 'bg-gray-400',
+                'sent'        => 'bg-amber-500',
+                'accepted'    => 'bg-green-500',
+                'rejected'    => 'bg-red-500',
+                'negotiating' => 'bg-blue-500',
             ][$offer['status']] ?? 'bg-gray-400';
         ?>
         <div
@@ -315,10 +316,18 @@ try {
                             </select>
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Salary Amount</label>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Salary Min</label>
                             <div class="relative">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium select-none" id="currencySymbol">$</span>
-                                <input type="text" id="offerSalary" placeholder="0" oninput="formatSalaryInput(this)"
+                                <input type="text" id="offerSalaryMin" placeholder="0" oninput="formatSalaryInput(this)"
+                                    class="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
+                            </div>
+                        </div>
+                        <div class="col-span-2 mt-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Salary Max</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium select-none">$</span>
+                                <input type="text" id="offerSalaryMax" placeholder="0" oninput="formatSalaryInput(this)"
                                     class="w-full pl-7 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow">
                             </div>
                         </div>
@@ -375,6 +384,10 @@ try {
                     </h3>
                     <textarea id="offerTerms" rows="3"
                         placeholder="Add any additional conditions, requirements, or notes to be included in the offer letter..."
+                        class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-shadow"></textarea>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 mt-3">Offer Letter</label>
+                    <textarea id="offerLetter" rows="4"
+                        placeholder="Paste or type the offer letter body here (or use AI generation below)..."
                         class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none transition-shadow"></textarea>
                 </div>
 
@@ -772,14 +785,18 @@ function _gatherFormData() {
     document.querySelectorAll('input[name="benefits[]"]:checked').forEach(cb => benefits.push(cb.value));
     return {
         candidate:       selectedCandidate,
-        position:        document.getElementById('offerPosition')?.value   || '',
-        startDate:       document.getElementById('offerStartDate')?.value  || '',
-        expiryDate:      document.getElementById('offerExpiryDate')?.value || '',
-        salary:          (document.getElementById('offerSalary')?.value || '').replace(/,/g, ''),
-        currency:        document.getElementById('offerCurrency')?.value   || 'USD',
+        position:        document.getElementById('offerPosition')?.value      || '',
+        start_date:      document.getElementById('offerStartDate')?.value     || '',
+        expires_at:      document.getElementById('offerExpiryDate')?.value    || '',
+        salary_min:      (document.getElementById('offerSalaryMin')?.value || '').replace(/,/g, ''),
+        salary_max:      (document.getElementById('offerSalaryMax')?.value || '').replace(/,/g, ''),
+        currency:        document.getElementById('offerCurrency')?.value      || 'USD',
         salaryType:      currentSalaryType,
         benefits,
-        additionalTerms: document.getElementById('offerTerms')?.value      || '',
+        additionalTerms: document.getElementById('offerTerms')?.value         || '',
+        offer_letter:    aiLetterAccepted
+                            ? (document.getElementById('aiLetterContent')?.innerHTML || '')
+                            : (document.getElementById('offerLetter')?.value || ''),
         aiLetterAccepted,
     };
 }
@@ -835,9 +852,9 @@ function resendOffer(idx) {
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
         body: JSON.stringify({id: offer.id})
     }).then(r => r.json()).then(d => {
-        if (!d.ok) showToast(d.message || 'Failed to resend offer', 'error');
+        if (d.ok) showToast(`Offer resent to ${offer.name}.`, 'success');
+        else showToast(d.message || 'Failed to resend offer', 'error');
     }).catch(() => showToast('Network error', 'error'));
-    showToast(`Offer resent to ${offer.name}.`, 'success');
 }
 
 function withdrawOffer(idx) {
@@ -863,9 +880,9 @@ function markAsHired(idx) {
         headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
         body: JSON.stringify({id: offer.id})
     }).then(r => r.json()).then(d => {
-        if (!d.ok) showToast(d.message || 'Failed to mark as hired', 'error');
+        if (d.ok) showToast(`${offer.name} marked as hired!`, 'success');
+        else showToast(d.message || 'Failed to mark as hired', 'error');
     }).catch(() => showToast('Network error', 'error'));
-    showToast(`${offer.name} marked as hired!`, 'success');
 }
 
 function deleteOffer(idx) {
@@ -947,7 +964,7 @@ function openViewModal(idx) {
             </div>
         </div>`;
 
-    const expText = (offer.status === 'pending' && offer.expires_days > 0)
+    const expText = (offer.status === 'sent' && offer.expires_days > 0)
         ? `<span class="${offer.expires_days <= 3 ? 'text-red-500 font-semibold' : 'text-amber-600 font-semibold'}">Expires in ${offer.expires_days} day${offer.expires_days !== 1 ? 's' : ''}</span>`
         : '<span class="text-gray-500">—</span>';
 

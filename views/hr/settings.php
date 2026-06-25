@@ -720,7 +720,7 @@ document.getElementById('openai-form')?.addEventListener('submit', async e => {
   const model = fd.get('openai_model') || 'gpt-4o';
   try {
     // Only send key if user typed something (not the masked placeholder)
-    const payload = { action: 'save_api_keys', openai_model: model };
+    const payload = { action: 'save_api_key', openai_model: model };
     if (key && !key.includes('••')) payload.openai = key;
     const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'OpenAI settings saved', res.ok ? 'success' : 'error');
@@ -757,7 +757,7 @@ document.getElementById('heygen-form')?.addEventListener('submit', async e => {
   const fd = new FormData(e.target);
   const key = fd.get('heygen_api_key') || '';
   try {
-    const payload = { action: 'save_api_keys' };
+    const payload = { action: 'save_api_key' };
     if (key && !key.includes('••')) payload.heygen = key;
     const res = await apiPost('/api/v1/settings', payload);
     toast(res.message || 'HeyGen settings saved', res.ok ? 'success' : 'error');
@@ -771,7 +771,7 @@ async function testHeyGen() {
   setLoading(btn, true, 'Testing...');
   try {
     const key = document.getElementById('heygen-key').value;
-    const res = await apiPost('/api/v1/settings', { action: 'test_heygen', key });
+    const payload = { action: 'test_heygen' }; if (key && !key.includes('•')) payload.key = key; const res = await apiPost('/api/v1/settings', payload);
     const badge = document.getElementById('heygen-status-badge');
     if (res.ok) {
       badge.innerHTML = '<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>Connected</span>';
@@ -819,7 +819,9 @@ document.getElementById('smtp-form')?.addEventListener('submit', async e => {
   setLoading(btn, true, 'Saving...');
   const fd = new FormData(e.target);
   try {
-    const res = await apiPost('/api/v1/settings', { action: 'save_smtp', ...Object.fromEntries(fd.entries()) });
+    const body = { action: 'save_smtp', ...Object.fromEntries(fd.entries()) };
+    if (body.smtp_password && body.smtp_password.includes('•')) delete body.smtp_password;
+    const res = await apiPost('/api/v1/settings', body);
     toast(res.message || 'SMTP settings saved', res.ok ? 'success' : 'error');
   } catch { toast('Failed to save', 'error'); }
   finally { setLoading(btn, false); }
@@ -830,7 +832,9 @@ async function testSmtp() {
   setLoading(btn, true, 'Sending...');
   const fd = new FormData(document.getElementById('smtp-form'));
   try {
-    const res = await apiPost('/api/v1/settings', { action: 'test_smtp', ...Object.fromEntries(fd.entries()) });
+    const body = { action: 'test_smtp', ...Object.fromEntries(fd.entries()) };
+    if (body.smtp_password && body.smtp_password.includes('•')) delete body.smtp_password;
+    const res = await apiPost('/api/v1/settings', body);
     toast(res.message || (res.ok ? 'Test email sent!' : 'SMTP test failed'), res.ok ? 'success' : 'error');
   } catch { toast('SMTP test failed', 'error'); }
   finally { setLoading(btn, false); }

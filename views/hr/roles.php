@@ -242,7 +242,7 @@ foreach ($rolePermRows as $rp) {
           </div>
           <div class="ml-auto flex items-center gap-3">
             <span id="permSaveMsg" class="text-sm text-emerald-600 font-medium hidden">Saved!</span>
-            <button onclick="savePermissions()"
+            <button id="savePermBtn" onclick="savePermissions()"
               class="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
               Save Permissions
@@ -411,9 +411,10 @@ function selectRole(roleId, role) {
   const isSystem = role.is_system == 1 || role.is_system === true;
   document.getElementById('systemRoleBadge').classList.toggle('hidden', !isSystem);
   document.getElementById('editRoleBtn').classList.toggle('hidden', isSystem);
+  document.getElementById('savePermBtn').classList.toggle('hidden', isSystem);
 
   // Load checkboxes
-  const currentPerms = localRolePerms[roleId] || {};
+  const currentPerms = localRolePerms[String(roleId)] || {};
   document.querySelectorAll('.perm-checkbox').forEach(cb => {
     const permId = parseInt(cb.dataset.permId, 10);
     const checked = !!currentPerms[permId];
@@ -477,6 +478,7 @@ function toggleAllPermissions(enable) {
 // ===== Save Permissions =====
 async function savePermissions() {
   if (!activeRoleId) return;
+  if (activeRoleData && activeRoleData.is_system) return;
   const permIds = [];
   document.querySelectorAll('.perm-checkbox:checked').forEach(cb => permIds.push(parseInt(cb.dataset.permId, 10)));
 
@@ -491,7 +493,7 @@ async function savePermissions() {
       // Update local cache
       const map = {};
       permIds.forEach(id => { map[id] = true; });
-      localRolePerms[activeRoleId] = map;
+      localRolePerms[String(activeRoleId)] = map;
 
       // Update card perm count
       const card = document.querySelector(`.role-card[data-role-id="${activeRoleId}"]`);
@@ -567,7 +569,7 @@ async function updateRole() {
     const res = await fetch('/api/v1/roles?action=update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ id, name, description: desc })
+      body: JSON.stringify({ id: parseInt(id, 10), name, description: desc })
     });
     const json = await res.json();
     if (json.ok) {
@@ -577,10 +579,15 @@ async function updateRole() {
       document.getElementById('activeRoleName').textContent = name;
       document.getElementById('activeRoleDesc').textContent = desc || 'Custom role';
       document.getElementById('saveRoleName').textContent   = name;
-      const nameEl = document.querySelector(`.role-card[data-role-id="${id}"] .font-semibold`);
+      const card = document.querySelector(`.role-card[data-role-id="${id}"]`);
+      const nameEl = card ? card.querySelector('.font-semibold') : null;
       if (nameEl) nameEl.textContent = name;
       activeRoleData.name        = name;
       activeRoleData.description = desc;
+      // Update the inline onclick so re-clicking the card uses updated data
+      if (card) {
+        card.setAttribute('onclick', `selectRole(${id}, ${JSON.stringify(activeRoleData)})`);
+      }
     } else {
       showToast(json.message || 'Failed to update role.', 'error');
     }

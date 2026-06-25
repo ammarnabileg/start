@@ -12,6 +12,7 @@ ob_start();
 <?php require VIEWS_PATH . '/partials/ai-keys-banner.php'; ?>
 <?php
 $days = (int)($_GET['days'] ?? 30);
+$days = in_array($days, [7, 30, 90]) ? $days : 30;
 $since = date('Y-m-d H:i:s', strtotime("-{$days} days"));
 // fetch from ai_usage_logs where tenant_id = $tid and created_at >= $since
 
@@ -161,7 +162,7 @@ function featureIcon(string $key, array $icons): string {
         </div>
         <span class="text-xs text-gray-400 font-medium"><?= $days ?>d</span>
       </div>
-      <div class="text-3xl font-bold text-gray-900 mb-1"><?= $totalTokens >= 1000000 ? number_format($totalTokens / 1000000, 1) . 'M' : number_format($totalTokens / 1000, 1) . 'K' ?></div>
+      <div class="text-3xl font-bold text-gray-900 mb-1"><?= $totalTokens === 0 ? '0' : ($totalTokens >= 1000000 ? number_format($totalTokens / 1000000, 1) . 'M' : number_format($totalTokens / 1000, 1) . 'K') ?></div>
       <div class="text-sm font-medium text-gray-700">Tokens Used</div>
       <div class="text-xs text-gray-400 mt-0.5">Prompt + completion</div>
     </div>
@@ -396,7 +397,8 @@ function featureIcon(string $key, array $icons): string {
             <td class="px-6 py-3">
               <div class="flex items-center gap-2">
                 <?php
-                $initials = strtoupper(implode('', array_map(fn($p) => $p[0], array_slice(explode(' ', $triggeredBy), 0, 2))));
+                $parts = array_filter(explode(' ', $triggeredBy));
+                $initials = strtoupper(implode('', array_map(fn($p) => $p[0], array_slice(array_values($parts), 0, 2)))) ?: '?';
                 ?>
                 <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
                   <?= $initials ?>
@@ -568,7 +570,7 @@ function featureIcon(string $key, array $icons): string {
 // ===== Export CSV =====
 function exportLogs() {
   const days  = new URLSearchParams(location.search).get('days') || '30';
-  window.location.href = `/api/v1/ai-analytics/export?days=${days}`;
+  window.location.href = `/api/v1/ai-analytics?action=export&days=${days}`;
 }
 </script>
 <?php $content = ob_get_clean(); require VIEWS_PATH . '/layouts/app.php'; ?>

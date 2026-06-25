@@ -26,6 +26,14 @@ try {
       <p class="text-sm text-gray-500 mt-1">Manage and track all scheduled interviews</p>
     </div>
     <div class="flex items-center gap-3">
+      <!-- Export Button -->
+      <button onclick="exportInterviews()"
+        class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        Export
+      </button>
       <!-- View Toggle -->
       <div class="flex items-center bg-gray-100 rounded-full p-1">
         <button id="btnListView" onclick="setView('list')"
@@ -55,6 +63,29 @@ try {
 
   <!-- List View -->
   <div id="listView">
+    <!-- Status Filter Bar -->
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <button onclick="filterByStatus('all')" id="filter-all"
+        class="status-filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-violet-600 text-white transition-colors">
+        All
+      </button>
+      <button onclick="filterByStatus('scheduled')" id="filter-scheduled"
+        class="status-filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+        Scheduled
+      </button>
+      <button onclick="filterByStatus('completed')" id="filter-completed"
+        class="status-filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+        Completed
+      </button>
+      <button onclick="filterByStatus('cancelled')" id="filter-cancelled"
+        class="status-filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+        Cancelled
+      </button>
+      <button onclick="filterByStatus('no_show')" id="filter-no_show"
+        class="status-filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+        No Show
+      </button>
+    </div>
     <?php if (empty($interviews)): ?>
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
       <div class="flex justify-center mb-4">
@@ -141,7 +172,7 @@ try {
                 'interviewers' => $interviewers,
               ]), ENT_QUOTES, 'UTF-8');
             ?>
-            <tr class="hover:bg-gray-50 transition-colors">
+            <tr class="hover:bg-gray-50 transition-colors" data-status="<?= htmlspecialchars($rawStatus) ?>">
               <!-- Candidate -->
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
@@ -540,6 +571,7 @@ try {
             ['key' => 'cultural_fit',     'label' => 'Cultural Fit'],
             ['key' => 'problem_solving',  'label' => 'Problem Solving'],
             ['key' => 'overall',          'label' => 'Overall Impression'],
+            ['key' => 'experience',       'label' => 'Relevant Experience'],
           ];
           foreach ($ratingCriteria as $criterion): ?>
           <div class="flex items-center justify-between gap-4">
@@ -959,8 +991,8 @@ try {
 
   /* ──────────────────── Mark Complete Modal ────────────────── */
   window.openCompleteModal = function (id) {
-    document.getElementById('completeInterviewId').value = id;
     document.getElementById('completeForm').reset();
+    document.getElementById('completeInterviewId').value = id;
     // Reset all star displays
     document.querySelectorAll('.star-group').forEach(function (group) {
       var key = group.dataset.key;
@@ -996,6 +1028,7 @@ try {
       btn.classList.toggle('text-amber-400', v <= value && !isHover);
       btn.classList.toggle('text-amber-300', v <= value && isHover);
       btn.classList.toggle('text-gray-300', v > value);
+      if (v > value) btn.classList.remove('text-amber-300');
     });
   }
 
@@ -1023,6 +1056,32 @@ try {
       }
     })
     .catch(function () { showToast('Network error. Please try again.', 'error'); });
+  };
+
+  /* ──────────────────────── Status Filter ────────────────────── */
+  window.filterByStatus = function (status) {
+    var rows = document.querySelectorAll('#listView tbody tr');
+    rows.forEach(function (row) {
+      if (status === 'all' || row.dataset.status === status) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    document.querySelectorAll('.status-filter-btn').forEach(function (btn) {
+      btn.classList.remove('bg-violet-600', 'text-white');
+      btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    var activeBtn = document.getElementById('filter-' + status);
+    if (activeBtn) {
+      activeBtn.classList.remove('bg-gray-100', 'text-gray-600');
+      activeBtn.classList.add('bg-violet-600', 'text-white');
+    }
+  };
+
+  /* ──────────────────────── Export ───────────────────────────── */
+  window.exportInterviews = function () {
+    window.location = '/api/v1/hr-interviews?action=export';
   };
 
 })();

@@ -23,7 +23,7 @@ $REJECTED_STAGES  = ['rejected', 'withdrawn'];
 
 $counts = ['all' => count($applications), 'active' => 0, 'completed' => 0, 'rejected' => 0];
 foreach ($applications as $app) {
-    $stage = $app['current_stage'] ?? $app['stage'] ?? 'applied';
+    $stage = $app['current_stage'] ?? 'applied';
     if (in_array($stage, $ACTIVE_STAGES))    $counts['active']++;
     elseif (in_array($stage, $COMPLETED_STAGES)) $counts['completed']++;
     elseif (in_array($stage, $REJECTED_STAGES))  $counts['rejected']++;
@@ -31,9 +31,9 @@ foreach ($applications as $app) {
 
 // ── Filter by active tab ────────────────────────────────────────────────────────
 $filtered = match($activeTab) {
-    'active'    => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? $a['stage'] ?? 'applied', $ACTIVE_STAGES)),
-    'completed' => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? $a['stage'] ?? '', $COMPLETED_STAGES)),
-    'rejected'  => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? $a['stage'] ?? '', $REJECTED_STAGES)),
+    'active'    => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? 'applied', $ACTIVE_STAGES)),
+    'completed' => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? '', $COMPLETED_STAGES)),
+    'rejected'  => array_filter($applications, fn($a) => in_array($a['current_stage'] ?? '', $REJECTED_STAGES)),
     default     => $applications,
 };
 $filtered = array_values($filtered);
@@ -174,7 +174,7 @@ function scoreBar(int $score): string {
 <div class="space-y-4" id="applications-list">
 
   <?php foreach ($filtered as $idx => $app):
-    $stage           = $app['current_stage'] ?? $app['stage'] ?? 'applied';
+    $stage           = $app['current_stage'] ?? 'applied';
     $pipeIdx         = pipelineIndex($stage);
     $isRejected      = in_array($stage, ['rejected', 'withdrawn']);
     $token           = $app['interview_token'] ?? null;
@@ -307,7 +307,7 @@ function scoreBar(int $score): string {
               Start AI Interview
             </a>
             <?php elseif ($stage === 'offer'): ?>
-            <a href="/candidate/offers"
+            <a href="/c/offers"
               class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors shadow-sm shadow-emerald-200">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               View Offer

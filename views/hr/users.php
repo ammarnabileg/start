@@ -81,7 +81,7 @@ $roles = $db->fetchAll("SELECT * FROM roles WHERE is_system=0 OR is_system=1 ORD
             </div>
           </td>
           <td class="px-6 py-4">
-            <span class="text-sm text-gray-700"><?= htmlspecialchars(str_replace('_', ' ', $u['role'])) ?></span>
+            <span class="text-sm text-gray-700"><?= htmlspecialchars($u['role'] ?? 'No role') ?></span>
           </td>
           <td class="px-6 py-4">
             <?php $sc = $u['status'] === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'; ?>
@@ -96,7 +96,7 @@ $roles = $db->fetchAll("SELECT * FROM roles WHERE is_system=0 OR is_system=1 ORD
           <td class="px-6 py-4 text-right">
             <div class="flex items-center justify-end gap-2">
               <?php if ($canEdit): ?>
-              <button onclick="editUser(<?= $u['id'] ?>, '<?= htmlspecialchars($u['full_name']) ?>', '<?= htmlspecialchars($u['role']) ?>')"
+              <button onclick="editUser(<?= $u['id'] ?>, '<?= htmlspecialchars($u['full_name']) ?>', '<?= htmlspecialchars(explode(',', $u['roles'] ?? '')[0] ?? '') ?>')"
                 class="text-xs text-violet-600 hover:text-violet-800 font-medium">Edit</button>
               <?php endif; ?>
               <?php if ($canDelete && $u['id'] !== Auth::user()['id']): ?>
@@ -138,8 +138,8 @@ $roles = $db->fetchAll("SELECT * FROM roles WHERE is_system=0 OR is_system=1 ORD
         <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
         <select name="role" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
           <?php foreach ($roles as $r): ?>
-          <?php if ($r['name'] !== 'super_admin' && $r['name'] !== 'candidate'): ?>
-          <option value="<?= htmlspecialchars($r['name']) ?>"><?= htmlspecialchars(str_replace('_', ' ', $r['name'])) ?></option>
+          <?php if ($r['slug'] !== 'super_admin' && $r['slug'] !== 'candidate'): ?>
+          <option value="<?= htmlspecialchars($r['slug']) ?>"><?= htmlspecialchars($r['display_name'] ?? str_replace('_', ' ', $r['name'])) ?></option>
           <?php endif; ?>
           <?php endforeach; ?>
         </select>
@@ -164,8 +164,8 @@ $roles = $db->fetchAll("SELECT * FROM roles WHERE is_system=0 OR is_system=1 ORD
     <p class="text-sm text-gray-600 mb-4">Changing role for: <strong id="edit-user-name"></strong></p>
     <select id="edit-user-role" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-violet-500">
       <?php foreach ($roles as $r): ?>
-      <?php if ($r['name'] !== 'super_admin' && $r['name'] !== 'candidate'): ?>
-      <option value="<?= htmlspecialchars($r['name']) ?>"><?= htmlspecialchars(str_replace('_', ' ', $r['name'])) ?></option>
+      <?php if ($r['slug'] !== 'super_admin' && $r['slug'] !== 'candidate'): ?>
+      <option value="<?= htmlspecialchars($r['slug']) ?>"><?= htmlspecialchars($r['display_name'] ?? str_replace('_', ' ', $r['name'])) ?></option>
       <?php endif; ?>
       <?php endforeach; ?>
     </select>
@@ -190,6 +190,9 @@ document.getElementById('invite-form')?.addEventListener('submit', async e => {
   setLoading(btn, true, 'Inviting...');
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd);
+  body.full_name = (body.first_name + ' ' + body.last_name).trim();
+  delete body.first_name;
+  delete body.last_name;
   try {
     const res = await ajax('/api/v1/users', { method: 'POST', body });
     if (res.ok) {

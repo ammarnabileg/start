@@ -494,7 +494,7 @@ $cvUploadDate = !empty($cv['created_at']) ? date('M j, Y', strtotime($cv['create
         <?php foreach ($languages as $lang): ?>
         <div class="lang-entry flex items-center gap-3">
           <input type="text" name="lang_name[]"
-            value="<?= htmlspecialchars($lang['language'] ?? '') ?>"
+            value="<?= htmlspecialchars(is_string($lang) ? $lang : ($lang['language'] ?? '')) ?>"
             placeholder="Language name (e.g. English)"
             class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-colors">
           <select name="lang_level[]"
@@ -731,6 +731,7 @@ async function rewriteBio() {
         skills: document.getElementById('skills-value')?.value ?? ''
       })
     });
+    if (!res.ok) throw new Error('Server error ' + res.status);
     const data = await res.json();
     const result = data.result ?? data.rewritten ?? data.bio ?? null;
     if (result) {
@@ -868,6 +869,7 @@ async function uploadPhoto(input) {
       method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Server error ' + res.status);
     if (data.url) {
       const initialsEl = document.getElementById('profile-photo-initials');
       const imgEl      = document.getElementById('profile-photo-img');
@@ -943,11 +945,11 @@ async function processCV(file) {
     });
     if (bar) bar.style.width = '100%';
     const data = await res.json();
-    if (res.ok && !data.error) {
+    if (data.ok) {
       showToast('CV uploaded successfully!', 'success');
       setTimeout(() => location.reload(), 1200);
     } else {
-      throw new Error(data.error ?? 'Upload failed');
+      throw new Error(data.message ?? data.error ?? 'Upload failed');
     }
   } catch (e) {
     showToast('CV upload failed: ' + e.message, 'error');
@@ -962,14 +964,15 @@ async function deleteCV() {
     const res = await fetch('/api/v1/cv/delete', {
       method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
-    if (res.ok) {
+    const data = await res.json();
+    if (data.ok) {
       document.getElementById('cv-existing')?.remove();
       const dz = document.getElementById('cv-drop-zone');
       if (dz) dz.classList.remove('hidden');
       showToast('CV removed.', 'success');
       scheduleCompletionUpdate();
     } else {
-      throw new Error('Delete failed');
+      throw new Error(data.error ?? 'Delete failed');
     }
   } catch (e) {
     showToast('Could not delete CV. Please try again.', 'error');

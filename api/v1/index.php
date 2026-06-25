@@ -33,7 +33,7 @@ if (!headers_sent()) {
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Tenant-ID');
     header('Vary: Origin');
 }
@@ -206,7 +206,7 @@ try {
 
             } elseif ($action === 'save_api_keys') {
                 // Per-tenant API key storage (encrypted)
-                if (!$tid) Response::error('No tenant context', 403);
+                if (!$tid) { Response::error('No tenant context', 403); break; }
                 $updated = [];
                 foreach (['openai' => 'openai_api_key', 'heygen' => 'heygen_api_key', 'openai_model' => 'openai_model'] as $input => $col) {
                     $val = $request->input($input);
@@ -229,7 +229,7 @@ try {
                     // Test the tenant's stored key
                     $key = ApiKeyManager::getTenantOpenAIKey($tid ?: null);
                 }
-                if ($key === '') Response::error('No OpenAI key configured', 400);
+                if ($key === '') { Response::error('No OpenAI key configured', 400); break; }
                 Response::json(ApiKeyManager::testOpenAIKey($key));
 
             } elseif ($action === 'test_heygen') {
@@ -237,12 +237,12 @@ try {
                 if ($key === '') {
                     $key = ApiKeyManager::getTenantHeyGenKey($tid ?: null);
                 }
-                if ($key === '') Response::error('No HeyGen key configured', 400);
+                if ($key === '') { Response::error('No HeyGen key configured', 400); break; }
                 Response::json(ApiKeyManager::testHeyGenKey($key));
 
             } elseif ($action === 'get_api_keys') {
                 // Return masked keys so the UI can show whether keys are set
-                if (!$tid) Response::error('No tenant context', 403);
+                if (!$tid) { Response::error('No tenant context', 403); break; }
                 $row = $db->fetch('SELECT openai_api_key, heygen_api_key, openai_model FROM tenants WHERE id = ?', [$tid]);
                 $mask = fn(?string $enc) => $enc
                     ? (function(string $plain) { return $plain !== '' ? '***' . substr($plain, -4) : null; })(ApiKeyManager::decrypt($enc))
@@ -256,7 +256,7 @@ try {
                 ]);
 
             } elseif ($action === 'get_ai_status') {
-                if (!$tid) Response::error('No tenant context', 403);
+                if (!$tid) { Response::error('No tenant context', 403); break; }
                 Response::success(\TenantAIProvider::status($tid));
 
             } else {
@@ -286,7 +286,14 @@ try {
             $db  = Database::getInstance();
             $uid = (int)(Auth::user()['id'] ?? 0);
             $tid = (int)(Auth::user()['tenant_id'] ?? 0);
-            if ($method === 'POST') {
+            $notifAction = $request->get('action') ?? $request->input('action') ?? '';
+            if ($method === 'POST' && $notifAction === 'mark-read') {
+                // Mark a single notification as read by id
+                $nid = (int)($request->input('id') ?? $request->get('id') ?? 0);
+                if (!$nid) { Response::error('Notification id required', 422); break; }
+                $db->query("UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ? AND read_at IS NULL", [$nid, $uid]);
+                Response::success(['message' => 'Marked as read']);
+            } elseif ($method === 'POST' && ($notifAction === 'mark-all-read' || !$notifAction)) {
                 // Mark all as read
                 $db->query("UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL", [$uid]);
                 Response::success(['message' => 'Marked as read']);
@@ -379,7 +386,7 @@ try {
             $tid = (int)(Auth::user()['tenant_id'] ?? 0);
             $hiAction = $request->get('action') ?? $request->input('action') ?? '';
 
-            if ($hiAction === 'schedule' || ($method === 'POST' && !$hiAction)) {
+            if ($hiAction === 'create' || $hiAction === 'schedule' || ($method === 'POST' && !$hiAction)) {
                 $candidateId   = (int)$request->input('candidate_id');
                 $jobId         = (int)$request->input('job_id');
                 $scheduledAt   = $request->input('scheduled_at') ?? $request->input('date') . ' ' . $request->input('time');
@@ -464,6 +471,44 @@ try {
                     ], ['id' => $hiId]);
                 }
                 Response::success(['message' => 'Interview marked as complete']);
+
+            } elseif ($hiAction === 'evaluate') {
+                // Store per-interviewer scores in human_interview_evaluations table
+                $hiId        = (int)$request->input('id');
+                $interviewerId = (int)(Auth::user()['id'] ?? 0);
+                $scores      = $request->input('scores', []);
+                $feedback    = $request->input('feedback', '');
+                $recommendation = $request->input('recommendation', '');
+                if (!$hiId) { Response::error('Interview id required', 422); break; }
+                // Upsert evaluation record for this interviewer
+                $existing = $db->fetch(
+                    "SELECT id FROM human_interview_evaluations WHERE interview_id = ? AND interviewer_id = ?",
+                    [$hiId, $interviewerId]
+                );
+                $evalData = [
+                    'interview_id'   => $hiId,
+                    'interviewer_id' => $interviewerId,
+                    'scores'         => is_array($scores) ? json_encode($scores) : $scores,
+                    'feedback'       => $feedback,
+                    'recommendation' => $recommendation,
+                    'updated_at'     => date('Y-m-d H:i:s'),
+                ];
+                if ($existing) {
+                    $db->update('human_interview_evaluations', $evalData, ['id' => $existing['id']]);
+                } else {
+                    $evalData['created_at'] = date('Y-m-d H:i:s');
+                    $db->insert('human_interview_evaluations', $evalData);
+                }
+                Response::success(['message' => 'Evaluation saved']);
+
+            } elseif ($hiAction === 'delete') {
+                // Hard delete the human interview record
+                $hiId = (int)$request->input('id');
+                if (!$hiId) { Response::error('Interview id required', 422); break; }
+                $db->query("DELETE FROM human_interview_evaluations WHERE interview_id = ?", [$hiId]);
+                $db->query("DELETE FROM human_interview_evaluators WHERE interview_id = ?", [$hiId]);
+                $db->query("DELETE FROM human_interviews WHERE id = ?", [$hiId]);
+                Response::success(['message' => 'Interview deleted']);
 
             } else {
                 // List human interviews for this tenant

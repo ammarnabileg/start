@@ -3,11 +3,47 @@ $pageTitle = 'Find Jobs';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
 $page = max(1, (int)($_GET['page'] ?? 1));
+
+// Build server-side filter clauses
+$filterWhere  = [];
+$filterParams = [$cid];
+
+$fq       = trim($_GET['q']        ?? '');
+$fType    = trim($_GET['type']     ?? '');
+$fLoc     = trim($_GET['location'] ?? '');
+$fDept    = trim($_GET['dept']     ?? '');
+$fExp     = trim($_GET['exp']      ?? '');
+
+if ($fq !== '') {
+    $filterWhere[]  = "(j.title LIKE ? OR t.name LIKE ?)";
+    $filterParams[] = '%' . $fq . '%';
+    $filterParams[] = '%' . $fq . '%';
+}
+if ($fType !== '') {
+    $filterWhere[]  = "j.job_type = ?";
+    $filterParams[] = $fType;
+}
+if ($fLoc !== '') {
+    $filterWhere[]  = "j.location LIKE ?";
+    $filterParams[] = '%' . $fLoc . '%';
+}
+if ($fDept !== '') {
+    $filterWhere[]  = "j.department = ?";
+    $filterParams[] = $fDept;
+}
+if ($fExp !== '') {
+    $filterWhere[]  = "(j.experience_level = ? OR j.seniority = ?)";
+    $filterParams[] = $fExp;
+    $filterParams[] = $fExp;
+}
+
+$extraWhere = $filterWhere ? ' AND ' . implode(' AND ', $filterWhere) : '';
+
 $jobs = $db->paginate("SELECT j.*, t.name as company_name,
     (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id AND a.candidate_id = ?) as applied_count
     FROM jobs j JOIN tenants t ON t.id = j.tenant_id
-    WHERE j.status = 'published'
-    ORDER BY j.published_at DESC", [$cid], $page, 12);
+    WHERE j.status = 'published'" . $extraWhere . "
+    ORDER BY j.published_at DESC", $filterParams, $page, 12);
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function timeAgo(string $datetime): string {
@@ -85,11 +121,11 @@ $departments = $db->fetchAll(
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
       </div>
-      <input id="search-input" type="text" placeholder="Search titles, keywords, company…"
+      <input id="search-input" type="text" placeholder="Search titles, company…"
         value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
         class="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
         oninput="debounceFilter()">
-      <button id="search-clear-btn" onclick="clearSearchInput()" class="hidden absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
+      <button id="search-clear-btn" onclick="clearSearchInput()" class="hidden absolute inset-y-0 right-3 items-center text-gray-400 hover:text-gray-600">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
@@ -486,7 +522,7 @@ if ($totalPages > 1):
     cards.forEach(card => {
       const matchQ    = !f.q    || card.dataset.title.includes(f.q)    || card.dataset.company.includes(f.q);
       const matchLoc  = !f.loc  || card.dataset.location.includes(f.loc);
-      const matchType = !f.type || card.dataset.type.includes(f.type);
+      const matchType = !f.type || card.dataset.type === f.type;
       const matchDept = !f.dept || card.dataset.dept.includes(f.dept);
       const matchExp  = !f.exp  || card.dataset.exp.includes(f.exp);
 
@@ -501,7 +537,8 @@ if ($totalPages > 1):
 
     // Hide pagination when filtering client-side
     const pagWrap = document.getElementById('pagination-wrap');
-    if (pagWrap) pagWrap.classList.toggle('hidden', Object.values(f).some(v => v !== ''));
+    // Pagination is now handled server-side; always keep it visible so the server-filtered result set is navigable
+    // (hiding it here was only needed when filtering was purely client-side)
 
     // Update result count text
     const countEl = document.getElementById('result-count');
@@ -509,7 +546,10 @@ if ($totalPages > 1):
 
     // Search clear button
     const searchClearBtn = document.getElementById('search-clear-btn');
-    if (searchClearBtn) searchClearBtn.classList.toggle('hidden', !f.q);
+    if (searchClearBtn) {
+      searchClearBtn.classList.toggle('hidden', !f.q);
+      searchClearBtn.classList.toggle('flex', !!f.q);
+    }
 
     // Active chips + clear button
     updateChips(f);

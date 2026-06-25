@@ -27,7 +27,6 @@ $bestSkill = [];
 foreach ($skillNames as $s) { $bestSkill[$s] = max(array_map(fn($c)=>$c['skills'][$s] ?? 0, $candidates)); }
 
 $cols = count($candidates);
-$gridCls = ['1'=>'grid-cols-2','2'=>'grid-cols-3','3'=>'grid-cols-4','4'=>'grid-cols-5'][$cols] ?? 'grid-cols-4';
 
 $pageTitle   = 'Compare Candidates';
 $activeNav   = 'candidates';
@@ -93,7 +92,7 @@ ob_start();
             <?php foreach ($skillNames as $s): ?>
                 <tr>
                     <td class="sticky left-0 bg-white z-10 px-5 py-3 font-medium text-gray-500"><?= e($s) ?></td>
-                    <?php foreach ($candidates as $c): $v=$c['skills'][$s]??0; $isBest=$v===$bestSkill[$s] && $v>0; $skc=score_color((float)$v); ?>
+                    <?php foreach ($candidates as $c): $v=$c['skills'][$s]??0; $isBest=(int)$v==(int)$bestSkill[$s] && $v>0; $skc=score_color((float)$v); ?>
                         <td class="px-5 py-3 border-l border-gray-100">
                             <div class="flex items-center gap-2 <?= $isBest?'rounded-lg ring-1 ring-emerald-200 bg-emerald-50 px-2 py-1 -mx-1':'' ?>">
                                 <div class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div class="h-full rounded-full <?= $isBest?'bg-emerald-500':$skc['bg'] ?>" style="width:<?= (int)$v ?>%"></div></div>
@@ -154,12 +153,13 @@ function compareAsk() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
             question: q,
+            application_ids: <?= json_encode(array_column($candidates, 'id')) ?>,
             candidates: <?= json_encode(array_map(fn($c)=>['id'=>$c['id']??null,'name'=>($c['first_name']??'').' '.($c['last_name']??''),'score'=>$c['score'],'years'=>$c['years'],'rec'=>$c['rec'],'skills'=>$c['skills']],$candidates)) ?>
         })
-    }).then(r=>r.json()).then(function(d){
+    }).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(function(d){
         t.remove();
         var ans = (d && d.ok && d.data && d.data.answer) ? d.data.answer : (d && d.message ? d.message : 'Unable to compare at this time.');
-        box.insertAdjacentHTML('beforeend','<div class="flex justify-start"><div class="max-w-[80%] bg-violet-50 text-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">'+App.escapeHtml(ans)+'</div></div>');
+        box.insertAdjacentHTML('beforeend','<div class="flex justify-start"><div class="max-w-[80%] bg-violet-50 text-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm">'+ans+'</div></div>');
         box.scrollTop = box.scrollHeight;
     }).catch(function(){
         t.remove();

@@ -190,7 +190,7 @@ function ivTypeIcon(string $type): string {
               Start Interview
             </a>
             <?php else: ?>
-            <a href="/candidate/applications/<?= (int)($app['id'] ?? 0) ?>"
+            <a href="/c/applications/<?= (int)($app['id'] ?? 0) ?>"
                class="flex-shrink-0 text-xs text-violet-600 hover:text-violet-800 font-medium">
               View →
             </a>
@@ -225,8 +225,8 @@ function ivTypeIcon(string $type): string {
             <div class="text-xs text-gray-500 mt-0.5"><?= htmlspecialchars($iv['company_name'] ?? '') ?> · <?= ucfirst(str_replace('_',' ',$iv['interview_type'] ?? 'text')) ?> Interview</div>
             <div class="text-xs text-amber-600 font-medium mt-0.5">AI Interview — Available Now</div>
           </div>
-          <?php if (!empty($iv['access_token'])): ?>
-          <a href="/interview/<?= htmlspecialchars($iv['access_token']) ?>"
+          <?php if (!empty($iv['token'])): ?>
+          <a href="/interview/<?= htmlspecialchars($iv['token']) ?>"
              class="flex-shrink-0 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors">
             Start
           </a>
