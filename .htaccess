@@ -1,5 +1,4 @@
-Options -Indexes
-Options +FollowSymLinks
+Options -Indexes +SymLinksIfOwnerMatch
 
 # ── Protect sensitive files ───────────────────────────────────────────────────
 <FilesMatch "\.(env|installed|json|lock|md|sql|sh|log|bak|swp)$">
@@ -65,6 +64,7 @@ AddDefaultCharset UTF-8
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+    RewriteOptions Inherit
 
     # Allow direct access to setup wizard
     RewriteRule ^setup(/.*)?$ - [L]
