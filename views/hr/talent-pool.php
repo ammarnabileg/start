@@ -6,7 +6,62 @@
  */
 require_once __DIR__ . '/../partials/helpers.php';
 
-$selectedPoolId = (int)($_GET['pool'] ?? 1);
+$selectedPoolId = (int)($_GET['pool'] ?? 0);
+
+// Load real data from DB.
+if (!isset($pools) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $pools = $db->fetchAll(
+            "SELECT tp.*, (SELECT COUNT(*) FROM talent_pool_candidates tpc WHERE tpc.pool_id = tp.id) AS count
+             FROM talent_pools tp WHERE tp.tenant_id = ? ORDER BY tp.created_at DESC",
+            [$tenantId]
+        ) ?: [];
+
+        if ($selectedPoolId === 0 && !empty($pools)) {
+            $selectedPoolId = (int) $pools[0]['id'];
+        }
+
+        if ($selectedPoolId > 0) {
+            $poolCandidates = $db->fetchAll(
+                "SELECT tpc.added_at, c.id, c.full_name, c.location, a.ai_match_score AS score,
+                        a.ai_recommendation AS rec, j.title AS job_title, c.years_experience
+                 FROM talent_pool_candidates tpc
+                 JOIN candidates c ON c.id = tpc.candidate_id
+                 LEFT JOIN applications a ON a.candidate_id = c.id AND a.tenant_id = ?
+                 LEFT JOIN jobs j ON j.id = a.job_id
+                 WHERE tpc.pool_id = ?
+                 GROUP BY c.id
+                 ORDER BY tpc.added_at DESC",
+                [$tenantId, $selectedPoolId]
+            ) ?: [];
+            // Normalize candidates for view.
+            $poolCandidates = array_map(function($row) {
+                return [
+                    'id'        => (int) $row['id'],
+                    'full_name' => $row['full_name'] ?? '',
+                    'headline'  => ($row['job_title'] ?? 'Candidate') . ($row['years_experience'] ? ' · '.(int)$row['years_experience'].' yrs experience' : ''),
+                    'skills'    => [],
+                    'score'     => (float) ($row['score'] ?? 0),
+                    'rec'       => $row['rec'] ?? null,
+                    'added_at'  => $row['added_at'] ?? null,
+                    'location'  => $row['location'] ?? '',
+                ];
+            }, $poolCandidates);
+        }
+    }
+}
+
+// Assign pool colors based on index.
+$poolColors = ['bg-violet-600','bg-blue-600','bg-emerald-600','bg-amber-500','bg-rose-600','bg-indigo-600'];
+if (!empty($pools)) {
+    foreach ($pools as $i => &$p) {
+        $p['color'] = $p['color'] ?? $poolColors[$i % count($poolColors)];
+    }
+    unset($p);
+}
 
 $pools = $pools ?? [
     ['id'=>1,'name'=>'Top Backend Engineers','description'=>'Senior engineers who interviewed well but timing was off.','count'=>6,'target_role'=>'Senior Backend Engineer','color'=>'bg-violet-600'],
@@ -14,9 +69,10 @@ $pools = $pools ?? [
     ['id'=>3,'name'=>'Future Leaders','description'=>'Candidates with leadership potential for manager roles.','count'=>3,'target_role'=>'Engineering Manager','color'=>'bg-emerald-600'],
     ['id'=>4,'name'=>'Remote-First Candidates','description'=>'Fully remote-capable candidates across all functions.','count'=>8,'target_role'=>'Various','color'=>'bg-amber-500'],
 ];
+if ($selectedPoolId === 0) { $selectedPoolId = 1; }
 
 $selectedPool = null;
-foreach ($pools as $p) { if ($p['id'] === $selectedPoolId) { $selectedPool = $p; break; } }
+foreach ($pools as $p) { if ((int)$p['id'] === $selectedPoolId) { $selectedPool = $p; break; } }
 $selectedPool = $selectedPool ?? $pools[0];
 
 $poolCandidates = $poolCandidates ?? [

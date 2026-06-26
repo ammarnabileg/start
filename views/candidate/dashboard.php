@@ -24,19 +24,19 @@ $offersReceived = (int)($db->fetchColumn(
     [$candidateId]
 ) ?? 0);
 
-// Profile completion score
-$candidate = $db->fetchRow("SELECT * FROM candidates WHERE user_id = ?", [$candidateId])
-             ?? $db->fetchRow("SELECT * FROM candidates WHERE id = ?", [$candidateId])
-             ?? [];
-$profileFields = ['full_name','phone','location','bio','linkedin_url','avatar'];
+// Profile completion score — look up candidate by email (users.email = candidates.email)
+$candidate = [];
+$authUser2 = Auth::user();
+if (!empty($authUser2['email'])) {
+    $candidate = $db->fetch("SELECT * FROM candidates WHERE email = ? LIMIT 1", [$authUser2['email']]) ?: [];
+}
+$profileFields = ['first_name','phone','location','linkedin_url'];
 $filled = 0;
 foreach ($profileFields as $f) { if (!empty($candidate[$f])) $filled++; }
-$hasCV     = !empty($candidate['cv_path']);
-$hasExp    = (bool)($db->fetchColumn("SELECT COUNT(*) FROM candidate_experiences WHERE candidate_id = ?", [$candidateId]) ?? 0);
-$hasEdu    = (bool)($db->fetchColumn("SELECT COUNT(*) FROM candidate_education WHERE candidate_id = ?", [$candidateId]) ?? 0);
-$hasSkills = (bool)($db->fetchColumn("SELECT COUNT(*) FROM candidate_skills WHERE candidate_id = ?", [$candidateId]) ?? 0);
-$totalScore  = count($profileFields) + 4;
-$filledScore = $filled + (int)$hasCV + (int)$hasExp + (int)$hasEdu + (int)$hasSkills;
+$hasCV     = !empty($candidate['cv_url'])
+             || (bool)$db->fetchColumn("SELECT COUNT(*) FROM candidate_cvs WHERE candidate_id = ?", [(int)($candidate['id'] ?? 0)]);
+$totalScore  = count($profileFields) + 1;
+$filledScore = $filled + (int)$hasCV;
 $profilePct  = $totalScore > 0 ? (int)round(($filledScore / $totalScore) * 100) : 0;
 
 // ── Active Applications ────────────────────────────────────────────────────

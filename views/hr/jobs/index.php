@@ -8,6 +8,39 @@ require_once __DIR__ . '/../../partials/helpers.php';
 
 $activeStatus = $activeStatus ?? ($_GET['status'] ?? 'all');
 
+// Load real jobs from DB.
+if (!isset($jobs) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $rows = $db->fetchAll(
+            "SELECT j.*,
+                    j.experience_level AS seniority,
+                    j.job_type AS work_type,
+                    j.interview_type AS interview_type,
+                    COALESCE(j.published_at, j.created_at) AS posted,
+                    (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applications,
+                    (SELECT COUNT(*) FROM interviews i JOIN applications a2 ON a2.id = i.application_id WHERE a2.job_id = j.id) AS interviews,
+                    (SELECT COUNT(*) FROM applications a3 WHERE a3.job_id = j.id AND a3.pipeline_stage = 'hired') AS hired
+             FROM jobs j
+             WHERE j.tenant_id = ?
+             ORDER BY j.created_at DESC",
+            [$tenantId]
+        ) ?: [];
+        $jobs = $rows;
+        $departments = array_unique(array_filter(array_column($rows, 'department')));
+        sort($departments);
+        $counts = [
+            'all'       => count($jobs),
+            'published' => count(array_filter($jobs, fn($j) => ($j['status'] ?? '') === 'published')),
+            'draft'     => count(array_filter($jobs, fn($j) => ($j['status'] ?? '') === 'draft')),
+            'archived'  => count(array_filter($jobs, fn($j) => ($j['status'] ?? '') === 'archived')),
+            'closed'    => count(array_filter($jobs, fn($j) => ($j['status'] ?? '') === 'closed')),
+        ];
+    }
+}
+
 $jobs = $jobs ?? [
     ['id'=>1,'title'=>'Senior Backend Engineer','department'=>'Engineering','seniority'=>'senior','location'=>'London, UK','work_type'=>'hybrid','status'=>'published','interview_type'=>'video','posted'=>'-4 days','applications'=>64,'interviews'=>41,'hired'=>2,'salary_min'=>90000,'salary_max'=>120000,'currency'=>'GBP'],
     ['id'=>2,'title'=>'Product Designer','department'=>'Design','seniority'=>'mid','location'=>'Remote','work_type'=>'remote','status'=>'published','interview_type'=>'voice','posted'=>'-6 days','applications'=>38,'interviews'=>22,'hired'=>1,'salary_min'=>70000,'salary_max'=>95000,'currency'=>'USD'],

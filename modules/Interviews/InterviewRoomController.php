@@ -2,8 +2,10 @@
 class InterviewRoomController {
     public static function show(string $token, Request $request): void {
         $db = Database::getInstance();
-        $application = $db->fetch("SELECT a.*, j.title as job_title, j.interview_type, j.interview_duration, j.max_questions,
-            c.full_name as candidate_name, c.email as candidate_email, t.name as tenant_name, t.id as tenant_id
+        $application = $db->fetch("SELECT a.*, j.title as job_title, j.interview_type, j.interview_duration,
+            j.max_questions, j.time_limit_minutes, j.question_bank,
+            c.full_name as candidate_name, c.email as candidate_email,
+            t.name as tenant_name, t.id as tenant_id
             FROM applications a
             JOIN jobs j ON j.id = a.job_id
             JOIN candidates c ON c.id = a.candidate_id
@@ -28,7 +30,53 @@ class InterviewRoomController {
             }
         }
 
-        extract(['application' => $application, 'token' => $token, 'pageTitle' => 'Interview Room']);
+        // Look up any existing interview record for this application.
+        $existingInterview = $db->fetch(
+            "SELECT id, status, type, language_detected, started_at, completed_at FROM interviews WHERE application_id = ? ORDER BY id DESC LIMIT 1",
+            [$application['id']]
+        );
+
+        // Build the separate arrays room.php expects.
+        $interview = [
+            'id'               => $existingInterview['id'] ?? null,
+            'interview_type'   => $application['interview_type'] ?? 'text',
+            'time_limit_minutes' => (int) ($application['time_limit_minutes'] ?? $application['interview_duration'] ?? 30),
+            'total_questions'  => (int) ($application['max_questions'] ?? 10),
+            'current_question' => 1,
+            'status'           => $existingInterview['status'] ?? 'pending',
+        ];
+
+        $job = [
+            'title'        => $application['job_title'] ?? '',
+            'company_name' => $application['tenant_name'] ?? '',
+            'company'      => $application['tenant_name'] ?? '',
+        ];
+
+        $candidate = [
+            'full_name' => $application['candidate_name'] ?? '',
+            'name'      => $application['candidate_name'] ?? '',
+            'email'     => $application['candidate_email'] ?? '',
+        ];
+
+        // Decode question bank to get first question.
+        $questionBank = [];
+        if (!empty($application['question_bank'])) {
+            $decoded = json_decode($application['question_bank'], true);
+            if (is_array($decoded)) {
+                $questionBank = $decoded;
+            }
+        }
+        $firstQuestion = $questionBank[0]['question'] ?? $questionBank[0] ?? null;
+
+        extract([
+            'application'   => $application,
+            'interview'     => $interview,
+            'job'           => $job,
+            'candidate'     => $candidate,
+            'firstQuestion' => $firstQuestion,
+            'token'         => $token,
+            'pageTitle'     => 'Interview Room',
+        ]);
         require VIEWS_PATH . '/interview/room.php';
     }
 

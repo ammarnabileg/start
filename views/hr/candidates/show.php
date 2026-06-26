@@ -7,6 +7,122 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
+// Load real data from DB when $id (application ID) is available.
+if (!empty($id) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    $row = $tenantId ? $db->fetch(
+        "SELECT a.*, c.full_name, c.email, c.phone, c.location, c.years_experience,
+                c.expected_salary, c.salary_currency, c.linkedin_url, c.skills,
+                j.title AS job_title, j.department, t.name AS tenant_name
+         FROM applications a
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = a.job_id
+         JOIN tenants t ON t.id = a.tenant_id
+         WHERE a.id = ? AND a.tenant_id = ?",
+        [(int)$id, $tenantId]
+    ) : null;
+
+    if ($row) {
+        $candidate = [
+            'id'               => (int) $row['candidate_id'],
+            'full_name'        => $row['full_name'] ?? '',
+            'email'            => $row['email'] ?? '',
+            'phone'            => $row['phone'] ?? '',
+            'location'         => $row['location'] ?? '',
+            'years_experience' => (int) ($row['years_experience'] ?? 0),
+            'expected_salary'  => (float) ($row['expected_salary'] ?? 0),
+            'salary_currency'  => $row['salary_currency'] ?? 'USD',
+            'nationality'      => '',
+            'linkedin_url'     => $row['linkedin_url'] ?? '',
+            'languages_spoken' => [],
+        ];
+        $job = ['title' => $row['job_title'] ?? '', 'department' => $row['department'] ?? ''];
+        $application = [
+            'id'                => (int) $row['id'],
+            'stage'             => $row['pipeline_stage'] ?? $row['current_stage'] ?? 'applied',
+            'final_score'       => (float) ($row['ai_match_score'] ?? 0),
+            'ai_recommendation' => $row['ai_recommendation'] ?? null,
+            'applied_at'        => $row['applied_at'] ?? null,
+        ];
+
+        // Load AI interview + evaluation.
+        $ivRow = $db->fetch(
+            "SELECT i.id, i.type, i.status, i.started_at, i.completed_at, i.duration_seconds, i.language_detected,
+                    ie.overall_score, ie.recommendation, ie.executive_summary, ie.strengths, ie.weaknesses,
+                    ie.skills_analysis, ie.disc_profile, ie.big_five, ie.red_flags, ie.cv_analysis,
+                    ie.criteria_scores, ie.ai_tokens_used
+             FROM interviews i
+             LEFT JOIN interview_evaluations ie ON ie.interview_id = i.id
+             WHERE i.application_id = ? ORDER BY i.id DESC LIMIT 1",
+            [(int)$row['id']]
+        );
+        if ($ivRow && !empty($ivRow['overall_score'])) {
+            $jd = fn($v) => is_string($v) ? (json_decode($v, true) ?: []) : ($v ?: []);
+            $cv = $jd($ivRow['cv_analysis'] ?? null);
+            $evaluation = [
+                'overall_score'     => (float) $ivRow['overall_score'],
+                'recommendation'    => $ivRow['recommendation'] ?? $row['ai_recommendation'],
+                'executive_summary' => $ivRow['executive_summary'] ?? '',
+                'strengths'         => $jd($ivRow['strengths'] ?? null),
+                'weaknesses'        => $jd($ivRow['weaknesses'] ?? null),
+                'skills_analysis'   => $jd($ivRow['skills_analysis'] ?? null),
+                'disc'              => $jd($ivRow['disc_profile'] ?? null),
+                'big_five'          => $jd($ivRow['big_five'] ?? null),
+                'red_flags'         => $jd($ivRow['red_flags'] ?? null),
+                'criteria_scores'   => $jd($ivRow['criteria_scores'] ?? null),
+                'cv_match'          => (float) ($row['ai_match_score'] ?? 0),
+                'risk_level'        => 'low',
+                'cv_skills_found'   => $cv['skills_found']   ?? [],
+                'cv_skills_missing' => $cv['skills_missing'] ?? [],
+                'cv_companies'      => $cv['companies']      ?? [],
+                'cv_gaps'           => $cv['gaps']           ?? [],
+            ];
+        }
+        if (!empty($ivRow['id'])) {
+            $msgs = $db->fetchAll(
+                "SELECT role, content, is_question, timestamp FROM interview_messages WHERE interview_id = ? ORDER BY message_index ASC",
+                [(int)$ivRow['id']]
+            ) ?: [];
+            if ($msgs) {
+                $qn = 0;
+                $transcript = array_map(function($m) use (&$qn) {
+                    $e = ['role' => $m['role'], 'content' => $m['content'], 'time' => $m['timestamp'] ?? ''];
+                    if ($m['role'] === 'ai' && $m['is_question']) { $e['q'] = ++$qn; }
+                    return $e;
+                }, $msgs);
+            }
+        }
+
+        // Load human interviews for this application.
+        $hiRows = $db->fetchAll(
+            "SELECT h.*, GROUP_CONCAT(u.name SEPARATOR ', ') AS evaluators
+             FROM human_interviews h
+             LEFT JOIN human_interview_evaluators hie ON hie.human_interview_id = h.id
+             LEFT JOIN users u ON u.id = hie.user_id
+             WHERE h.application_id = ?
+             GROUP BY h.id ORDER BY h.scheduled_at DESC",
+            [(int)$row['id']]
+        ) ?: [];
+        if ($hiRows) { $humanInterviews = $hiRows; }
+
+        // Build timeline.
+        $tl = [];
+        if (!empty($row['applied_at'])) {
+            $tl[] = ['icon'=>'user','title'=>'Application received','desc'=>'Applied via career page','time'=>$row['applied_at'],'color'=>'gray'];
+        }
+        if (!empty($row['ai_match_score'])) {
+            $tl[] = ['icon'=>'doc','title'=>'CV analyzed','desc'=>'Match score '.(int)$row['ai_match_score'].'% computed by AI','time'=>$row['applied_at'],'color'=>'blue'];
+        }
+        if (!empty($ivRow)) {
+            if ($ivRow['started_at'])   { $tl[] = ['icon'=>'play','title'=>'AI interview started','desc'=>ucfirst($ivRow['type'] ?? 'text').' interview','time'=>$ivRow['started_at'],'color'=>'violet']; }
+            if ($ivRow['completed_at']) { $tl[] = ['icon'=>'check','title'=>'AI interview completed','desc'=>'Score '.(int)($ivRow['overall_score'] ?? 0),'time'=>$ivRow['completed_at'],'color'=>'emerald']; }
+        }
+        if ($tl) { $timeline = $tl; }
+    }
+}
+
 $candidate = $candidate ?? [
     'id' => 1, 'full_name' => 'James Carter', 'email' => 'james.carter@mail.com', 'phone' => '+44 7700 900123',
     'location' => 'London, UK', 'years_experience' => 7, 'expected_salary' => 110000, 'salary_currency' => 'GBP',

@@ -5,6 +5,79 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
+// Load real data from DB when $id (interview ID) is available.
+if (!empty($id) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    $ivRow = $tenantId ? $db->fetch(
+        "SELECT i.*, ie.overall_score, ie.recommendation, ie.executive_summary, ie.strengths,
+                ie.weaknesses, ie.skills_analysis, ie.disc_profile, ie.big_five, ie.red_flags,
+                ie.cv_analysis, ie.criteria_scores, ie.ai_tokens_used,
+                c.full_name AS candidate_name, c.email AS candidate_email, c.phone AS candidate_phone, c.location AS candidate_location,
+                j.title AS job_title, j.department AS job_department,
+                a.id AS application_id, a.candidate_id, a.job_id, a.pipeline_stage
+         FROM interviews i
+         JOIN applications a ON a.id = i.application_id
+         JOIN candidates c ON c.id = a.candidate_id
+         JOIN jobs j ON j.id = a.job_id
+         WHERE i.id = ? AND a.tenant_id = ?",
+        [(int)$id, $tenantId]
+    ) : null;
+
+    if ($ivRow) {
+        $jd = fn($v) => is_string($v) ? (json_decode($v, true) ?: []) : ($v ?: []);
+        $candidate = [
+            'id'       => (int) $ivRow['candidate_id'],
+            'full_name'=> $ivRow['candidate_name'] ?? '',
+            'email'    => $ivRow['candidate_email'] ?? '',
+            'phone'    => $ivRow['candidate_phone'] ?? '',
+            'location' => $ivRow['candidate_location'] ?? '',
+        ];
+        $job = ['id' => (int) $ivRow['job_id'], 'title' => $ivRow['job_title'] ?? '', 'department' => $ivRow['job_department'] ?? ''];
+        $interview = [
+            'id'               => (int) $ivRow['id'],
+            'started_at'       => $ivRow['started_at'] ?? null,
+            'completed_at'     => $ivRow['completed_at'] ?? null,
+            'duration_minutes' => $ivRow['duration_seconds'] ? (int)ceil($ivRow['duration_seconds'] / 60) : 0,
+            'status'           => $ivRow['status'] ?? 'completed',
+            'ai_model'         => $_ENV['OPENAI_MODEL'] ?? 'gpt-4o',
+            'tokens_used'      => (int) ($ivRow['ai_tokens_used'] ?? 0),
+        ];
+        if (!empty($ivRow['overall_score'])) {
+            $cv = $jd($ivRow['cv_analysis'] ?? null);
+            $evaluation = [
+                'overall_score'          => (float) $ivRow['overall_score'],
+                'recommendation'         => $ivRow['recommendation'] ?? '',
+                'executive_summary'      => $ivRow['executive_summary'] ?? '',
+                'ai_verdict'             => $ivRow['executive_summary'] ?? '',
+                'strengths'              => $jd($ivRow['strengths'] ?? null),
+                'areas_for_development'  => $jd($ivRow['weaknesses'] ?? null),
+                'skills'                 => $jd($ivRow['skills_analysis'] ?? null),
+                'disc'                   => $jd($ivRow['disc_profile'] ?? null),
+                'big_five'               => $jd($ivRow['big_five'] ?? null),
+                'red_flags'              => $jd($ivRow['red_flags'] ?? null),
+                'criteria_scores'        => $jd($ivRow['criteria_scores'] ?? null),
+            ];
+        }
+        $msgs = $db->fetchAll(
+            "SELECT role, content, is_question, timestamp FROM interview_messages WHERE interview_id = ? ORDER BY message_index ASC",
+            [(int)$ivRow['id']]
+        ) ?: [];
+        if ($msgs) {
+            $qn = 0;
+            $trs = [];
+            foreach ($msgs as $m) {
+                $e = ['role' => $m['role'] === 'ai' ? 'ai' : 'cand', 'content' => $m['content'], 'timestamp' => $m['timestamp'] ?? ''];
+                if ($m['role'] === 'ai' && $m['is_question']) { $e['q'] = ++$qn; }
+                $trs[] = $e;
+            }
+            if (!isset($evaluation)) { $evaluation = []; }
+            $evaluation['transcript'] = $trs;
+        }
+    }
+}
+
 $candidate = $candidate ?? [
     'id' => 1, 'full_name' => 'James Carter', 'email' => 'james.carter@mail.com',
     'phone' => '+44 7700 900123', 'location' => 'London, UK',

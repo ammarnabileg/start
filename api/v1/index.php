@@ -57,6 +57,10 @@ $group    = $segments[0] ?? '';
 
 try {
     switch ($group) {
+        case 'auth':
+            require __DIR__ . '/auth.php';
+            break;
+
         case 'interviews':
             require __DIR__ . '/interviews.php';
             if (class_exists('InterviewApi')) {

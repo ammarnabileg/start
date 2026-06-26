@@ -13,6 +13,48 @@ $filters = $filters ?? [
     'status' => $_GET['status'] ?? '',
 ];
 
+// Load real data from DB.
+if (!isset($interviews) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $jobs = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? ORDER BY title", [$tenantId]) ?: [];
+        $rows = $db->fetchAll(
+            "SELECT i.id, i.status, i.started_at, i.completed_at, i.duration_seconds, i.type,
+                    ie.overall_score AS score, ie.recommendation,
+                    c.full_name AS candidate, c.id AS candidate_id,
+                    j.title AS job, j.id AS job_id
+             FROM interviews i
+             JOIN applications a ON a.id = i.application_id
+             JOIN candidates c ON c.id = a.candidate_id
+             JOIN jobs j ON j.id = a.job_id
+             WHERE a.tenant_id = ? ORDER BY i.created_at DESC LIMIT 100",
+            [$tenantId]
+        ) ?: [];
+        $interviews = array_map(function($r) {
+            return [
+                'id'             => (int) $r['id'],
+                'candidate_id'   => (int) $r['candidate_id'],
+                'candidate'      => $r['candidate'] ?? '',
+                'job_id'         => (int) $r['job_id'],
+                'job'            => $r['job'] ?? '',
+                'score'          => $r['score'] !== null ? (int)$r['score'] : null,
+                'recommendation' => $r['recommendation'] ?? null,
+                'duration'       => $r['duration_seconds'] ? ((int)ceil($r['duration_seconds'] / 60)) . 'm' : null,
+                'completed_at'   => $r['completed_at'] ?? null,
+                'status'         => $r['status'] ?? 'pending',
+            ];
+        }, $rows);
+        $counts = [
+            'total'       => count($interviews),
+            'completed'   => count(array_filter($interviews, fn($i) => $i['status'] === 'completed')),
+            'in_progress' => count(array_filter($interviews, fn($i) => $i['status'] === 'in_progress')),
+            'pending'     => count(array_filter($interviews, fn($i) => $i['status'] === 'pending')),
+        ];
+    }
+}
+
 $jobs = $jobs ?? [
     ['id'=>1,'title'=>'Senior Backend Engineer'],
     ['id'=>2,'title'=>'Product Designer'],

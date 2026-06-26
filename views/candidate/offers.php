@@ -4,11 +4,12 @@ $pageTitle = 'My Offers';
 $db = Database::getInstance();
 $cid = Auth::user()['id'];
 $offers = $db->fetchAll(
-    "SELECT o.*, j.title as job_title, t.name as company_name
+    "SELECT o.*, j.title AS job_title, t.name AS company_name
      FROM offers o
-     JOIN jobs j ON j.id = o.job_id
-     JOIN tenants t ON t.id = j.tenant_id
-     WHERE o.candidate_id = ? ORDER BY o.created_at DESC",
+     JOIN applications a ON a.id = o.application_id
+     JOIN jobs j ON j.id = a.job_id
+     JOIN tenants t ON t.id = a.tenant_id
+     WHERE a.candidate_id = ? ORDER BY o.created_at DESC",
     [$cid]
 ) ?: [];
 

@@ -6,12 +6,46 @@
  */
 require_once __DIR__ . '/../../partials/helpers.php';
 
-$candidates = $candidates ?? demo_candidates();
-$jobsList = $jobsList ?? ['Senior Backend Engineer','Product Designer','Frontend Engineer','Data Analyst'];
+// Load real candidates from DB.
+if (!isset($candidates) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $perPage = 25;
+        $page    = max(1, (int)($_GET['page'] ?? 1));
+        $offset  = ($page - 1) * $perPage;
+        $total   = (int) ($db->fetchColumn(
+            "SELECT COUNT(*) FROM applications a WHERE a.tenant_id = ?",
+            [$tenantId]
+        ) ?: 0);
+        $rows = $db->fetchAll(
+            "SELECT a.id, a.ai_match_score AS score, a.ai_recommendation AS rec,
+                    a.pipeline_stage AS stage, a.applied_at AS applied,
+                    c.full_name, c.email, c.location, c.years_experience AS years,
+                    j.title AS job
+             FROM applications a
+             JOIN candidates c ON c.id = a.candidate_id
+             JOIN jobs j ON j.id = a.job_id
+             WHERE a.tenant_id = ?
+             ORDER BY a.applied_at DESC
+             LIMIT ? OFFSET ?",
+            [$tenantId, $perPage, $offset]
+        ) ?: [];
+        $candidates = array_map(fn($r) => array_merge($r, ['skills' => []]), $rows);
+        $jobsList = array_column(
+            $db->fetchAll("SELECT DISTINCT title FROM jobs WHERE tenant_id = ? ORDER BY title", [$tenantId]) ?: [],
+            'title'
+        );
+    }
+}
 
-$perPage = $perPage ?? 25;
-$page    = max(1, (int)($page ?? ($_GET['page'] ?? 1)));
-$total   = $total ?? count($candidates);
+$candidates = $candidates ?? demo_candidates();
+$jobsList   = $jobsList   ?? ['Senior Backend Engineer','Product Designer','Frontend Engineer','Data Analyst'];
+
+$perPage    = $perPage    ?? 25;
+$page       = max(1, (int)($page ?? ($_GET['page'] ?? 1)));
+$total      = $total      ?? count($candidates);
 $totalPages = max(1, (int)ceil($total / $perPage));
 
 $pageTitle   = 'Candidates';

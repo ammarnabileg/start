@@ -10,17 +10,59 @@ require_once __DIR__ . '/../partials/helpers.php';
 
 $stages = ['applied','ai_screening','qualified','disqualified','tech_interview','manager_interview','final_review','offer','hired','rejected','withdrawn'];
 
+// Load real applications from DB when available.
+if (!isset($columns) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $cacheKey = \Cache::tenantKey('pipeline_cards', $tenantId) . ($activeJobId ? '_j' . (int)$activeJobId : '');
+        $rawCards = \Cache::remember($cacheKey, 120, function() use ($db, $tenantId, $activeJobId) {
+            $sql  = "SELECT a.id, c.full_name, j.title AS job, a.ai_match_score AS score,
+                            a.ai_recommendation AS rec, a.pipeline_stage AS stage, a.applied_at AS applied
+                     FROM applications a
+                     JOIN candidates c ON c.id = a.candidate_id
+                     JOIN jobs j ON j.id = a.job_id
+                     WHERE a.tenant_id = ? AND a.is_archived = 0";
+            $params = [$tenantId];
+            if (!empty($activeJobId)) {
+                $sql    .= ' AND a.job_id = ?';
+                $params[] = (int) $activeJobId;
+            }
+            $sql .= ' ORDER BY a.applied_at DESC LIMIT 500';
+            return $db->fetchAll($sql, $params) ?: [];
+        });
+
+        $columns = array_fill_keys($stages, []);
+        foreach ($rawCards as $card) {
+            $stage = isset($columns[$card['stage']]) ? $card['stage'] : 'applied';
+            $columns[$stage][] = [
+                'id'        => (int) $card['id'],
+                'full_name' => $card['full_name'] ?? 'Unknown',
+                'job'       => $card['job'] ?? '',
+                'score'     => (float) ($card['score'] ?? 0),
+                'rec'       => $card['rec'] ?? null,
+                'stage'     => $stage,
+                'applied'   => $card['applied'] ?? null,
+            ];
+        }
+    }
+}
+
+// Fallback demo data when DB is unavailable or empty.
 if (!isset($columns)) {
     $columns = array_fill_keys($stages, []);
     foreach (demo_candidates() as $c) {
         $columns[$c['stage']][] = $c;
     }
-    // Add a couple more cards so busy columns look realistic.
     $columns['applied'][] = ['id'=>11,'full_name'=>'Hana Yamamoto','job'=>'Data Analyst','score'=>0,'rec'=>null,'stage'=>'applied','applied'=>'-3 hours'];
     $columns['applied'][] = ['id'=>12,'full_name'=>'Marco Bianchi','job'=>'Frontend Engineer','score'=>0,'rec'=>null,'stage'=>'applied','applied'=>'-5 hours'];
     $columns['ai_screening'][] = ['id'=>13,'full_name'=>'Yuki Tanaka','job'=>'Senior Backend Engineer','score'=>58,'rec'=>'possible','stage'=>'ai_screening','applied'=>'-1 days'];
 }
 
+if (!isset($jobsList) && isset($db, $tenantId) && $tenantId > 0) {
+    $jobsList = $db->fetchAll("SELECT id, title FROM jobs WHERE tenant_id = ? AND status IN ('active','draft') ORDER BY title", [$tenantId]) ?: [];
+}
 $jobsList = $jobsList ?? [
     ['id'=>1,'title'=>'Senior Backend Engineer'],
     ['id'=>2,'title'=>'Product Designer'],

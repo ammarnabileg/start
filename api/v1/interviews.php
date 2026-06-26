@@ -232,8 +232,7 @@ class InterviewApi
             Response::error('Rating must be between 1 and 5.', 422, ['rating' => 'Rating must be 1-5.']);
         }
 
-        $feedback    = trim((string) $this->request->input('feedback', ''));
-        $suggestions = trim((string) $this->request->input('suggestions', ''));
+        $comments = trim((string) $this->request->input('feedback', $this->request->input('comments', '')));
 
         // Upsert: interview_feedback has a UNIQUE key on interview_id.
         $existing = $this->db->fetch(
@@ -243,17 +242,14 @@ class InterviewApi
 
         if ($existing) {
             $this->db->update('interview_feedback', [
-                'rating'      => $rating,
-                'feedback'    => $feedback !== '' ? $feedback : null,
-                'suggestions' => $suggestions !== '' ? $suggestions : null,
+                'rating'   => $rating,
+                'comments' => $comments !== '' ? $comments : null,
             ], ['id' => (int) $existing['id']]);
         } else {
             $this->db->insert('interview_feedback', [
                 'interview_id' => (int) $interview['id'],
-                'candidate_id' => (int) $application['candidate_id'],
                 'rating'       => $rating,
-                'feedback'     => $feedback !== '' ? $feedback : null,
-                'suggestions'  => $suggestions !== '' ? $suggestions : null,
+                'comments'     => $comments !== '' ? $comments : null,
             ]);
         }
 
