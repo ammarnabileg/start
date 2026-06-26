@@ -215,8 +215,7 @@ class JobController
             setFlash('success', 'Settings saved.');
             Response::redirect('/jobs/' . $id . '?tab=settings');
         } else {
-            $settings = $db->fetch("SELECT * FROM job_settings WHERE job_id = ?", [$id]) ?: [];
-            renderView('hr/jobs/settings', compact('job', 'settings'), 'app');
+            Response::redirect('/jobs/' . $id . '?tab=settings');
         }
     }
 

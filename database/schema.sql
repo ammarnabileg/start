@@ -52,6 +52,23 @@ CREATE TABLE IF NOT EXISTS `tenant_ai_settings` (
   CONSTRAINT `fk_tenant_ai_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `tenant_subscriptions` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `tenant_id` INT UNSIGNED NOT NULL,
+  `plan` ENUM('starter','pro','enterprise') NOT NULL DEFAULT 'starter',
+  `status` ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+  `max_jobs` INT NOT NULL DEFAULT 5,
+  `max_users` INT NOT NULL DEFAULT 3,
+  `max_ai_interviews_per_month` INT NOT NULL DEFAULT 100,
+  `current_period_start` DATE DEFAULT NULL,
+  `current_period_end` DATE DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tenant_subscriptions_tenant` (`tenant_id`),
+  CONSTRAINT `fk_tenant_subscriptions_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `system_settings` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `key` VARCHAR(100) NOT NULL,
@@ -482,7 +499,7 @@ CREATE TABLE IF NOT EXISTS `applications` (
   `tenant_id` INT UNSIGNED NOT NULL,
   `job_id` INT UNSIGNED NOT NULL,
   `user_id` INT UNSIGNED DEFAULT NULL,
-  `status` ENUM('applied','ai_screening','qualified','disqualified','tech_interview','manager_interview','final_review','offer','hired','rejected','withdrawn') NOT NULL DEFAULT 'applied',
+  `status` ENUM('applied','screening','ai_interview','technical_test','human_interview','shortlisted','reference_check','offer_extended','offer_accepted','offer_declined','hired','rejected','withdrawn') NOT NULL DEFAULT 'applied',
   `source` ENUM('direct','invite','career_page','linkedin','referral') NOT NULL DEFAULT 'direct',
   `cover_letter` TEXT DEFAULT NULL,
   `expected_salary` DECIMAL(12,2) DEFAULT NULL,

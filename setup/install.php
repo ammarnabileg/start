@@ -246,19 +246,28 @@ function seedOnboardingSteps(PDO $pdo): void
     }
 
     $steps = [
-        ['title' => 'Complete your profile',    'description' => 'Add your personal details and profile photo.',  'order' => 1, 'type' => 'profile'],
-        ['title' => 'Configure AI settings',    'description' => 'Connect your OpenAI key to enable AI features.','order' => 2, 'type' => 'ai_setup'],
-        ['title' => 'Create your first job',    'description' => 'Post a job opening to start receiving applications.','order' => 3, 'type' => 'first_job'],
-        ['title' => 'Invite team members',      'description' => 'Add recruiters and hiring managers to your team.','order' => 4, 'type' => 'invite_team'],
-        ['title' => 'Set up email templates',   'description' => 'Customise candidate communication templates.',   'order' => 5, 'type' => 'email_templates'],
-        ['title' => 'Review pipeline stages',   'description' => 'Configure your hiring pipeline stages.',         'order' => 6, 'type' => 'pipeline'],
+        // Super Admin
+        ['slug'=>'sa_platform_setup',   'title'=>'Platform Setup',        'description'=>'Configure your platform settings',              'step_order'=>1, 'user_type'=>'super_admin', 'icon'=>'settings'],
+        ['slug'=>'sa_create_company',   'title'=>'Create First Company',  'description'=>'Add your first company/tenant',                 'step_order'=>2, 'user_type'=>'super_admin', 'icon'=>'building'],
+        ['slug'=>'sa_create_admin',     'title'=>'Create Admin User',     'description'=>'Create the first HR admin for the company',     'step_order'=>3, 'user_type'=>'super_admin', 'icon'=>'user-plus'],
+        ['slug'=>'sa_review_dashboard', 'title'=>'Explore Dashboard',     'description'=>'Review the super admin dashboard',              'step_order'=>4, 'user_type'=>'super_admin', 'icon'=>'chart-bar'],
+        // Company / HR
+        ['slug'=>'co_ai_settings',      'title'=>'Connect AI',            'description'=>'Add your OpenAI API key to enable AI features', 'step_order'=>1, 'user_type'=>'company',     'icon'=>'cpu'],
+        ['slug'=>'co_create_job',       'title'=>'Create First Job',      'description'=>'Create your first job opening',                 'step_order'=>2, 'user_type'=>'company',     'icon'=>'briefcase'],
+        ['slug'=>'co_create_avatar',    'title'=>'Setup AI Interviewer',  'description'=>'Create your AI interviewer avatar',             'step_order'=>3, 'user_type'=>'company',     'icon'=>'user-circle'],
+        ['slug'=>'co_invite_team',      'title'=>'Invite Team Members',   'description'=>'Invite your HR team to the platform',           'step_order'=>4, 'user_type'=>'company',     'icon'=>'users'],
+        ['slug'=>'co_generate_link',    'title'=>'Generate Interview Link','description'=>'Generate your first AI interview link',        'step_order'=>5, 'user_type'=>'company',     'icon'=>'link'],
+        // Candidate
+        ['slug'=>'ca_complete_profile', 'title'=>'Complete Your Profile', 'description'=>'Add your details and experience',              'step_order'=>1, 'user_type'=>'candidate',   'icon'=>'user'],
+        ['slug'=>'ca_upload_cv',        'title'=>'Upload Your CV',        'description'=>'Upload your resume/CV',                        'step_order'=>2, 'user_type'=>'candidate',   'icon'=>'upload'],
+        ['slug'=>'ca_browse_jobs',      'title'=>'Browse Jobs',           'description'=>'Explore available positions',                   'step_order'=>3, 'user_type'=>'candidate',   'icon'=>'search'],
     ];
 
     $stmt = $pdo->prepare(
-        "INSERT IGNORE INTO `onboarding_steps` (`title`, `description`, `order`, `type`) VALUES (?, ?, ?, ?)"
+        "INSERT IGNORE INTO `onboarding_steps` (`slug`, `title`, `description`, `step_order`, `user_type`, `icon`) VALUES (?, ?, ?, ?, ?, ?)"
     );
     foreach ($steps as $s) {
-        $stmt->execute([$s['title'], $s['description'], $s['order'], $s['type']]);
+        $stmt->execute([$s['slug'], $s['title'], $s['description'], $s['step_order'], $s['user_type'], $s['icon']]);
     }
 }
 
@@ -382,6 +391,18 @@ function createDefaultTenant(PDO $pdo, array $data): int
             "INSERT IGNORE INTO `tenant_ai_settings`
                 (`tenant_id`, `enable_video_interviews`, `enable_voice_interviews`, `enable_text_interviews`)
              VALUES (?, 1, 1, 1)"
+        )->execute([$newId]);
+    } catch (Throwable) {
+        // Non-fatal: table may not exist yet
+    }
+
+    // Seed subscription for the tenant
+    try {
+        $pdo->prepare(
+            "INSERT IGNORE INTO `tenant_subscriptions`
+                (`tenant_id`, `plan`, `status`, `max_jobs`, `max_users`, `max_ai_interviews_per_month`,
+                 `current_period_start`, `current_period_end`)
+             VALUES (?, 'enterprise', 'active', 9999, 9999, 9999, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR))"
         )->execute([$newId]);
     } catch (Throwable) {
         // Non-fatal: table may not exist yet

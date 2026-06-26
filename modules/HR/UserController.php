@@ -29,7 +29,7 @@ class UserController
 
     public static function create(Request $r): void
     {
-        Auth::requirePermission('users.manage');
+        Auth::requirePermission('users.create');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -74,7 +74,7 @@ class UserController
 
     public static function toggle(Request $r, int $id): void
     {
-        Auth::requirePermission('users.manage');
+        Auth::requirePermission('users.edit');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -91,7 +91,7 @@ class UserController
 
     public static function syncRoles(Request $r, int $id): void
     {
-        Auth::requirePermission('users.manage');
+        Auth::requirePermission('users.edit');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -110,7 +110,7 @@ class UserController
 
     public static function delete(Request $r, int $id): void
     {
-        Auth::requirePermission('users.manage');
+        Auth::requirePermission('users.delete');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 

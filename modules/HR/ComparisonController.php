@@ -110,7 +110,7 @@ class ComparisonController
                     [(int)$item['ai_interview_id']]
                 );
                 $item['personality'] = $db->fetch(
-                    "SELECT * FROM ai_personality_analysis WHERE interview_id = ?",
+                    "SELECT * FROM ai_personality_analyses WHERE interview_id = ?",
                     [(int)$item['ai_interview_id']]
                 );
             } else {

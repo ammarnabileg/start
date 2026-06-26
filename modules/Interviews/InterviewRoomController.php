@@ -154,7 +154,7 @@ class InterviewRoomController
             'tenant_id'  => $link['tenant_id'],
             'job_id'     => $link['job_id'],
             'user_id'    => $userId,
-            'status'     => 'ai_screening',
+            'status'     => 'ai_interview',
             'source'     => 'invite',
             'cv_document_id' => $cvDocId,
             'applied_at' => date('Y-m-d H:i:s'),

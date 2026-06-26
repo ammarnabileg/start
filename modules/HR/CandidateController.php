@@ -86,7 +86,7 @@ class CandidateController
         ) : [];
 
         $personality = $aiInterview ? $db->fetch(
-            "SELECT * FROM ai_personality_analysis WHERE interview_id = ?",
+            "SELECT * FROM ai_personality_analyses WHERE interview_id = ?",
             [(int)$aiInterview['id']]
         ) : null;
 
@@ -187,7 +187,7 @@ class CandidateController
 
     public static function scheduleInterview(Request $r, int $id): void
     {
-        Auth::requirePermission('interviews.manage');
+        Auth::requirePermission('human_interviews.schedule');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -238,22 +238,41 @@ class CandidateController
             return;
         }
 
-        $token     = bin2hex(random_bytes(16));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+14 days'));
         $now       = date('Y-m-d H:i:s');
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+14 days'));
 
-        $existing = $db->fetch("SELECT id FROM ai_interviews WHERE application_id = ?", [$id]);
-        if (!$existing) {
-            $db->insert('ai_interviews', [
+        // Check if a link already exists for this application
+        $existingLink = $db->fetch(
+            "SELECT il.*, ai.id AS ai_interview_id FROM interview_links il
+             LEFT JOIN ai_interviews ai ON ai.link_id = il.id
+             WHERE il.application_id = ? AND il.tenant_id = ? ORDER BY il.created_at DESC LIMIT 1",
+            [$id, $tenantId]
+        );
+
+        if ($existingLink) {
+            $token   = $existingLink['token'];
+            $linkId  = $existingLink['id'];
+        } else {
+            $token  = bin2hex(random_bytes(16));
+            $linkId = $db->insert('interview_links', [
+                'tenant_id'      => $tenantId,
+                'job_id'         => (int)$app['job_id'],
                 'application_id' => $id,
                 'token'          => $token,
-                'status'         => 'pending',
                 'expires_at'     => $expiresAt,
+                'created_by'     => Auth::id(),
                 'created_at'     => $now,
                 'updated_at'     => $now,
             ]);
-        } else {
-            $token = $db->fetchColumn("SELECT token FROM ai_interviews WHERE application_id = ?", [$id]);
+
+            $db->insert('ai_interviews', [
+                'tenant_id'      => $tenantId,
+                'application_id' => $id,
+                'link_id'        => $linkId,
+                'status'         => 'pending',
+                'created_at'     => $now,
+                'updated_at'     => $now,
+            ]);
         }
 
         $interviewUrl = (Env::get('APP_URL', '') ?: '') . '/interview/' . $token;

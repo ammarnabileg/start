@@ -25,7 +25,7 @@ class OfferController
 
     public static function create(Request $r): void
     {
-        Auth::requirePermission('offers.manage');
+        Auth::requirePermission('offers.create');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -75,7 +75,7 @@ class OfferController
 
     public static function send(Request $r, int $id): void
     {
-        Auth::requirePermission('offers.manage');
+        Auth::requirePermission('offers.send');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -103,7 +103,7 @@ class OfferController
 
     public static function revoke(Request $r, int $id): void
     {
-        Auth::requirePermission('offers.manage');
+        Auth::requirePermission('offers.withdraw');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 

@@ -96,7 +96,7 @@ class CandidateController
             'job_id'          => $jobId,
             'user_id'         => $userId,
             'status'          => 'applied',
-            'source'          => 'candidate_portal',
+            'source'          => 'direct',
             'cover_letter'    => trim((string)$r->post('cover_letter', '')),
             'expected_salary' => $r->post('expected_salary') ? (float)$r->post('expected_salary') : null,
             'applied_at'      => $now,

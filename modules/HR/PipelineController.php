@@ -70,10 +70,9 @@ class PipelineController
         $db->update('applications', ['status' => $newStatus, 'updated_at' => $now], ['id' => $appId]);
         $db->insert('application_stage_history', [
             'application_id' => $appId,
-            'from_stage'     => $app['status'],
-            'to_stage'       => $newStatus,
+            'from_status'    => $app['status'],
+            'to_status'      => $newStatus,
             'changed_by'     => Auth::id(),
-            'changed_at'     => $now,
         ]);
 
         Audit::log('application.moved', 'application', $appId, ['status' => $app['status']], ['status' => $newStatus]);
@@ -105,10 +104,9 @@ class PipelineController
             $db->update('applications', ['status' => $newStatus, 'updated_at' => $now], ['id' => $id]);
             $db->insert('application_stage_history', [
                 'application_id' => $id,
-                'from_stage'     => $app['status'],
-                'to_stage'       => $newStatus,
+                'from_status'    => $app['status'],
+                'to_status'      => $newStatus,
                 'changed_by'     => Auth::id(),
-                'changed_at'     => $now,
             ]);
             $moved++;
         }

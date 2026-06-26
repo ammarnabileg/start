@@ -5,7 +5,7 @@ class HumanInterviewController
 {
     public static function index(Request $r): void
     {
-        Auth::requirePermission('interviews.view');
+        Auth::requirePermission('human_interviews.schedule');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -36,7 +36,7 @@ class HumanInterviewController
 
     public static function create(Request $r): void
     {
-        Auth::requirePermission('interviews.manage');
+        Auth::requirePermission('human_interviews.schedule');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 
@@ -74,7 +74,7 @@ class HumanInterviewController
 
     public static function evaluate(Request $r, int $id): void
     {
-        Auth::requirePermission('interviews.manage');
+        Auth::requirePermission('human_interviews.evaluate');
         $db       = Database::getInstance();
         $tenantId = (int)Auth::tenantId();
 

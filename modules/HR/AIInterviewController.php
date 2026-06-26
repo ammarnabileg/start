@@ -66,7 +66,7 @@ class AIInterviewController
         );
 
         $personality = $db->fetch(
-            "SELECT * FROM ai_personality_analysis WHERE interview_id = ?",
+            "SELECT * FROM ai_personality_analyses WHERE interview_id = ?",
             [$id]
         );
 
