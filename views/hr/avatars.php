@@ -5,6 +5,21 @@
  */
 require_once __DIR__ . '/../partials/helpers.php';
 
+// Load real avatars from DB.
+if (!isset($avatars) && class_exists('Database') && class_exists('Auth')) {
+    $db       = \Database::getInstance();
+    $authUser = \Auth::user();
+    $tenantId = (int) ($authUser['tenant_id'] ?? 0);
+    if ($tenantId > 0) {
+        $rows = $db->fetchAll(
+            "SELECT av.*, (SELECT COUNT(*) FROM jobs j WHERE j.avatar_id = av.id) AS jobs
+             FROM avatars av WHERE av.tenant_id = ? ORDER BY av.created_at DESC",
+            [$tenantId]
+        ) ?: [];
+        if ($rows) { $avatars = $rows; }
+    }
+}
+
 $avatars = $avatars ?? [
     ['id'=>1,'name'=>'Sophia','gender'=>'female','personality'=>'professional','language'=>'en','jobs'=>4,'is_active'=>1,'heygen_avatar_id'=>'avt_sophia_01','image_url'=>null],
     ['id'=>2,'name'=>'Marcus','gender'=>'male','personality'=>'friendly','language'=>'both','jobs'=>2,'is_active'=>1,'heygen_avatar_id'=>'avt_marcus_02','image_url'=>null],

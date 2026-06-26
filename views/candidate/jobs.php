@@ -2,14 +2,13 @@
 ob_start();
 $pageTitle = 'Find Jobs';
 $db = Database::getInstance();
-$cid = Auth::user()['id'];
-$tid = Auth::user()['tenant_id'];
+$cid = $candidateId ?? (int)(Auth::user()['id'] ?? 0);
 $page = max(1, (int)($_GET['page'] ?? 1));
 $jobs = $db->paginate("SELECT j.*, t.name as company_name,
     (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id AND a.candidate_id = ?) as applied_count
     FROM jobs j JOIN tenants t ON t.id = j.tenant_id
-    WHERE j.status = 'published' AND j.tenant_id = ?
-    ORDER BY j.published_at DESC", [$cid, $tid], $page, 12);
+    WHERE j.status = 'published'
+    ORDER BY j.published_at DESC", [$cid], $page, 12);
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function timeAgo(string $datetime): string {

@@ -3,7 +3,7 @@ ob_start();
 // Candidate Dashboard — rendered inside candidate.php layout via $content
 // Variables: $user
 $db          = Database::getInstance();
-$candidateId = $user['id'] ?? 0;
+$candidateId = $candidateId ?? (int)($user['id'] ?? 0); // $candidateId passed by CandidatePortalRouter
 $userName    = $user['full_name'] ?? $user['name'] ?? 'there';
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -24,12 +24,8 @@ $offersReceived = (int)($db->fetchColumn(
     [$candidateId]
 ) ?? 0);
 
-// Profile completion score — look up candidate by email (users.email = candidates.email)
-$candidate = [];
-$authUser2 = Auth::user();
-if (!empty($authUser2['email'])) {
-    $candidate = $db->fetch("SELECT * FROM candidates WHERE email = ? LIMIT 1", [$authUser2['email']]) ?: [];
-}
+// Profile completion score
+$candidate = $candidateId ? ($db->fetch("SELECT * FROM candidates WHERE id = ? LIMIT 1", [$candidateId]) ?: []) : [];
 $profileFields = ['first_name','phone','location','linkedin_url'];
 $filled = 0;
 foreach ($profileFields as $f) { if (!empty($candidate[$f])) $filled++; }

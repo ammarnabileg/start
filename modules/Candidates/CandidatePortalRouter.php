@@ -12,7 +12,22 @@ class CandidatePortalRouter {
     }
     private static function render(string $view, array $data): void {
         global $request;
-        $data['request'] = $request; $data['user'] = Auth::user(); extract($data);
+        $data['request'] = $request;
+        $data['user']    = Auth::user();
+        // Resolve actual candidates.id from users.email so portal queries work correctly.
+        if (!isset($data['candidateId'])) {
+            $email = $data['user']['email'] ?? '';
+            if ($email) {
+                $db = Database::getInstance();
+                $data['candidateId'] = (int) ($db->fetchColumn(
+                    "SELECT id FROM candidates WHERE email = ? LIMIT 1",
+                    [$email]
+                ) ?: 0);
+            } else {
+                $data['candidateId'] = 0;
+            }
+        }
+        extract($data);
         $viewFile = VIEWS_PATH . '/' . str_replace('.', '/', $view) . '.php';
         if (file_exists($viewFile)) {
             require $viewFile;

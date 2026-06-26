@@ -2,7 +2,7 @@
 ob_start();
 $pageTitle = 'My Offers';
 $db = Database::getInstance();
-$cid = Auth::user()['id'];
+$cid = $candidateId ?? (int)(Auth::user()['id'] ?? 0);
 $offers = $db->fetchAll(
     "SELECT o.*, j.title AS job_title, t.name AS company_name
      FROM offers o

@@ -2,7 +2,7 @@
 ob_start();
 $pageTitle = 'My Applications';
 $db = Database::getInstance();
-$cid = Auth::user()['id'];
+$cid = $candidateId ?? (int)(Auth::user()['id'] ?? 0);
 $activeTab = $_GET['status'] ?? 'all';
 $applications = $db->fetchAll(
     "SELECT a.*, j.title as job_title, t.name as company_name,

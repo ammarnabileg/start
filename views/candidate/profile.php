@@ -2,8 +2,8 @@
 ob_start();
 $pageTitle = 'My Profile';
 $db = Database::getInstance();
-$cid = Auth::user()['id'];
-$profile = $db->fetch("SELECT * FROM candidates WHERE id = ?", [$cid]);
+$cid = $candidateId ?? (int)(Auth::user()['id'] ?? 0);
+$profile = $cid ? $db->fetch("SELECT * FROM candidates WHERE id = ?", [$cid]) : false;
 $cv = $db->fetch("SELECT * FROM candidate_cvs WHERE candidate_id = ? ORDER BY created_at DESC LIMIT 1", [$cid]);
 
 // Parse JSON fields safely
