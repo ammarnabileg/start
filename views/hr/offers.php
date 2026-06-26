@@ -46,7 +46,12 @@ $mockOffers = !empty($dbOffers) ? $dbOffers : [
     ['candidate_id'=>0,'name'=>'Lisa Thompson','initials'=>'LT','email'=>'lisa@email.com','position'=>'HR Specialist','dept'=>'Human Resources','salary'=>'55,000','type'=>'year','status'=>'pending','expires_days'=>7,'benefits'=>true],
 ];
 
-$tabCounts = ['all' => 24, 'draft' => 5, 'pending' => 8, 'accepted' => 9, 'declined' => 2];
+// Compute tab counts from real data.
+$tabCounts = ['all' => count($mockOffers), 'draft' => 0, 'pending' => 0, 'accepted' => 0, 'declined' => 0];
+foreach ($mockOffers as $o) {
+    $s = $o['status'] ?? '';
+    if (isset($tabCounts[$s])) { $tabCounts[$s]++; }
+}
 $tabs      = ['all' => 'All', 'draft' => 'Draft', 'pending' => 'Pending', 'accepted' => 'Accepted', 'declined' => 'Declined'];
 
 $statusBadge = [

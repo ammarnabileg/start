@@ -36,10 +36,19 @@ class InterviewRoomController {
             [$application['id']]
         );
 
+        // Normalize interview_type (DB stores 'ai_text','ai_voice','ai_video'; room.php expects 'text','voice','video').
+        $rawType = $application['interview_type'] ?? 'text';
+        $normalizedType = match($rawType) {
+            'ai_text', 'text'   => 'text',
+            'ai_voice', 'voice' => 'voice',
+            'ai_video', 'video' => 'video',
+            default             => 'text',
+        };
+
         // Build the separate arrays room.php expects.
         $interview = [
             'id'               => $existingInterview['id'] ?? null,
-            'interview_type'   => $application['interview_type'] ?? 'text',
+            'interview_type'   => $normalizedType,
             'time_limit_minutes' => (int) ($application['time_limit_minutes'] ?? $application['interview_duration'] ?? 30),
             'total_questions'  => (int) ($application['max_questions'] ?? 10),
             'current_question' => 1,
