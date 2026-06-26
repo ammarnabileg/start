@@ -1,0 +1,85 @@
+Options -Indexes
+Options +FollowSymLinks
+
+# ── Protect sensitive files ───────────────────────────────────────────────────
+<FilesMatch "\.(env|installed|json|lock|md|sql|sh|log|bak|swp)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^(composer\.(json|lock)|package\.json|webpack\.mix\.js)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ── PHP settings ──────────────────────────────────────────────────────────────
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 22M
+    php_value memory_limit 256M
+    php_value max_execution_time 120
+</IfModule>
+
+# ── Charset & MIME types ──────────────────────────────────────────────────────
+AddDefaultCharset UTF-8
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/css .css
+    AddType image/svg+xml .svg
+</IfModule>
+
+# ── Security headers ──────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # Remove X-Powered-By
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+</IfModule>
+
+# ── Gzip compression ──────────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/css
+    AddOutputFilterByType DEFLATE application/json application/javascript
+    AddOutputFilterByType DEFLATE image/svg+xml text/xml
+</IfModule>
+
+# ── Browser caching ───────────────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg  "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif  "access plus 1 year"
+    ExpiresByType image/png  "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType text/css   "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType application/x-font-woff "access plus 1 year"
+</IfModule>
+
+# ── URL Rewriting ─────────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Allow direct access to setup wizard
+    RewriteRule ^setup(/.*)?$ - [L]
+
+    # Allow direct access to public/ directory assets
+    RewriteRule ^public(/.*)?$ - [L]
+
+    # Allow direct access to api/ directory
+    RewriteRule ^api(/.*)?$ - [L]
+
+    # Skip rewrite for actual files and directories
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route everything else through public/index.php
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+</IfModule>
