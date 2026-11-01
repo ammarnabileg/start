@@ -2,356 +2,105 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Use Your Voice | كورس إنجليزي برايفت VIP</title>
-<meta name="description" content="محاضرات إنجليزي فردية برايفت مكثفة بمواعيد مرنة. تحديد مستوى مجاني في نفس اليوم. ابدأ تتكلم إنجليزي بثقة خلال 4 أسابيع.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070d">
+<title>Use Your Voice | هديتك المجانية</title>
+<meta name="description" content="شوف الفيديو وسجّل بياناتك عشان تستلم هديتك: جلسة تحديد مستوى وخطة تعلّم إنجليزي شخصية مجاناً.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-:root{--ink:#0f172a;--muted:#5b6476;--bg:#fbfaf7;--card:#fff;--line:#e8e4dc;--brand:#0b3d2e;--brand2:#13644a;--gold:#c9a24a;--gold2:#f3e6c4;--wa:#25d366}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.75;font-size:17px}
-img{max-width:100%;display:block}
-a{color:inherit;text-decoration:none}
-.wrap{max-width:1140px;margin:auto;padding:0 20px}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 30px;border-radius:999px;font-weight:800;font-size:17px;border:0;cursor:pointer;transition:.2s;font-family:inherit}
-.btn-gold{background:var(--gold);color:#1b1404;box-shadow:0 10px 30px -10px rgba(201,162,74,.8)}
-.btn-gold:hover{transform:translateY(-2px);background:#d8b25a}
-.btn-ghost{border:2px solid rgba(255,255,255,.35);color:#fff}
-.btn-ghost:hover{background:rgba(255,255,255,.1)}
-.btn-wa{background:var(--wa);color:#fff}
-.tag{display:inline-block;background:var(--gold2);color:#7a5b12;font-weight:700;font-size:14px;padding:5px 14px;border-radius:999px}
-h2{font-size:clamp(28px,4vw,40px);line-height:1.3;font-weight:900;margin:12px 0 14px}
-.sec{padding:90px 0}
-.center{text-align:center}
-.lead{color:var(--muted);max-width:640px;margin:0 auto}
-
-/* nav */
-nav{position:sticky;top:0;z-index:50;background:rgba(11,61,46,.92);backdrop-filter:blur(10px);color:#fff}
-nav .wrap{display:flex;justify-content:space-between;align-items:center;height:66px}
-.logo{font-weight:900;font-size:20px;direction:ltr}.logo span{color:var(--gold)}
-nav .btn{padding:9px 20px;font-size:15px}
-
-/* hero */
-.hero{background:radial-gradient(1200px 500px at 80% -10%,#1d7a5a 0,transparent 60%),linear-gradient(160deg,#0b3d2e,#06261c);color:#fff;padding:70px 0 90px;overflow:hidden}
-.hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:50px;align-items:center}
-.hero h1{font-size:clamp(34px,5.2vw,58px);line-height:1.2;font-weight:900;margin:16px 0}
-.hero h1 em{font-style:normal;color:var(--gold)}
-.hero p.sub{font-size:19px;color:#cfe3da;max-width:560px}
-.hero .ctas{display:flex;gap:14px;flex-wrap:wrap;margin:30px 0 26px}
-.trust{display:flex;gap:26px;flex-wrap:wrap;font-size:15px;color:#b9d4c8}
-.trust b{color:#fff;font-size:22px;display:block;line-height:1.2}
-.photo{position:relative}
-.photo img{border-radius:28px;aspect-ratio:1;object-fit:cover;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);border:6px solid rgba(255,255,255,.08)}
-.badge{position:absolute;background:#fff;color:var(--ink);border-radius:16px;padding:12px 16px;font-weight:800;font-size:14px;box-shadow:0 15px 40px -10px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center}
-.badge small{display:block;font-weight:600;color:var(--muted);font-size:12px}
-.b1{bottom:24px;right:-18px}.b2{top:24px;left:-18px}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--wa);box-shadow:0 0 0 4px rgba(37,211,102,.25)}
-
-/* pain */
-.pains{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px}
-.pain{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px}
-.pain .x{color:#c2410c;font-weight:900;font-size:22px}
-.pain h3{font-size:19px;margin:6px 0}
-.pain p{color:var(--muted);font-size:15.5px}
-
-/* features */
-.feat-bg{background:#fff;border-block:1px solid var(--line)}
-.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:44px}
-.feat{padding:28px;border-radius:22px;background:var(--bg);border:1px solid var(--line)}
-.ico{width:52px;height:52px;border-radius:14px;background:var(--brand);color:var(--gold);display:grid;place-items:center;font-size:24px;margin-bottom:14px}
-.feat h3{font-size:19px;margin-bottom:6px}
-.feat p{color:var(--muted);font-size:15.5px}
-
-/* programs */
-.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:30px}
-.chip{background:#fff;border:1px solid var(--line);padding:10px 18px;border-radius:999px;font-weight:700;font-size:15px}
-
-/* testimonials */
-.reviews{columns:2;column-gap:22px;margin-top:44px}
-.review{break-inside:avoid;margin-bottom:22px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 30px -18px rgba(0,0,0,.25)}
-.review img{border-radius:12px;width:100%}
-.review .q{font-weight:700;margin-top:12px;font-size:15.5px;color:var(--brand)}
-.stars{color:var(--gold);letter-spacing:2px}
-
-/* pricing */
-.price-bg{background:linear-gradient(180deg,var(--bg),#f1ede4)}
-.toggle{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px;margin-top:22px}
-.toggle button{border:0;background:none;padding:10px 22px;border-radius:999px;font:inherit;font-weight:800;cursor:pointer;color:var(--muted)}
-.toggle button.on{background:var(--brand);color:#fff}
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:36px auto 0;max-width:860px}
-.plan{background:#fff;border:1px solid var(--line);border-radius:26px;padding:34px;position:relative}
-.plan.best{border:2px solid var(--gold);box-shadow:0 30px 60px -30px rgba(201,162,74,.7)}
-.ribbon{position:absolute;top:-14px;right:30px;background:var(--gold);color:#1b1404;font-weight:800;font-size:13px;padding:4px 14px;border-radius:999px}
-.plan h3{font-size:21px}
-.plan .amt{font-size:52px;font-weight:900;direction:ltr;text-align:right;line-height:1.1;margin:14px 0 2px}
-.plan .amt small{font-size:18px;color:var(--muted);font-weight:700}
-.plan .per{color:var(--muted);font-size:15px}
-.save{display:inline-block;background:#dcfce7;color:#166534;font-weight:800;font-size:14px;padding:3px 12px;border-radius:999px;margin-top:8px}
-.plan ul{list-style:none;margin:22px 0 26px}
-.plan li{padding:7px 0;border-bottom:1px dashed var(--line);font-size:15.5px}
-.plan li:before{content:"✓";color:var(--brand2);font-weight:900;margin-left:10px}
-.plan .btn{width:100%;justify-content:center}
-.note{color:var(--muted);font-size:14px;margin-top:20px}
-
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:44px;counter-reset:s}
-.step{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px;counter-increment:s}
-.step:before{content:counter(s);display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--gold2);color:#7a5b12;font-weight:900;margin-bottom:12px}
-.step h3{font-size:18px}.step p{color:var(--muted);font-size:15px}
-
-/* form */
-.form-sec{background:linear-gradient(160deg,#0b3d2e,#06261c);color:#fff}
-.form-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:50px;align-items:start}
-.form-sec .lead{color:#cfe3da;margin:0}
-form{background:#fff;color:var(--ink);border-radius:26px;padding:32px;display:grid;gap:14px}
-label{font-weight:700;font-size:15px;display:grid;gap:6px}
-input,select{font:inherit;font-size:16px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);width:100%}
-input:focus,select:focus{outline:none;border-color:var(--brand2)}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.req{color:#c2410c}
-form .btn{justify-content:center;margin-top:6px}
-.bank{margin-top:28px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:20px;font-size:15px}
-.bank code{direction:ltr;display:inline-block;background:rgba(0,0,0,.25);padding:2px 10px;border-radius:8px;font-size:15px;letter-spacing:.5px;cursor:pointer}
-
-/* faq */
-details{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin-bottom:12px}
-summary{font-weight:800;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
-summary:after{content:"+";color:var(--gold);font-size:22px;line-height:1}
-details[open] summary:after{content:"−"}
-details p{color:var(--muted);margin-top:10px}
-
-footer{background:#06261c;color:#9fbcb0;padding:30px 0;text-align:center;font-size:14px}
-.fab{position:fixed;bottom:20px;left:20px;z-index:60;width:60px;height:60px;border-radius:50%;background:var(--wa);display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.3)}
-.fab svg{width:32px;fill:#fff}
-
-@media(max-width:900px){
- .hero .wrap,.form-grid{grid-template-columns:1fr}
- .photo{max-width:380px;margin:auto}
- .pains,.feats,.plans{grid-template-columns:1fr}
- .steps{grid-template-columns:1fr 1fr}
- .reviews{columns:1}
- .sec{padding:64px 0}
- .b1{right:-6px}.b2{left:-6px}
-}
-@media(max-width:520px){.steps,.row{grid-template-columns:1fr}nav .btn{display:none}}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Marcellus&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/brand.css">
 </head>
 <body>
+<div class="wrap">
 
-<nav><div class="wrap">
- <a class="logo" href="#">#Use<span>Your</span>Voice</a>
- <a class="btn btn-gold" href="#register">احجز تحديد مستوى مجاني</a>
-</div></nav>
+ <div class="top">
+  <a class="brand" href="#"><svg viewBox="0 0 40 40" fill="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f1dcae"/><stop offset="1" stop-color="#8f7340"/></linearGradient></defs><circle cx="20" cy="20" r="19" stroke="url(#g)" stroke-width="1.2"/><path d="M11 13l9 16 9-16" stroke="url(#g)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 13v5M20 11v9M25 13v5" stroke="url(#g)" stroke-width="2" stroke-linecap="round"/></svg><b>Use<span>Your</span>Voice</b></a>
+  <span class="pill">VIP · 1:1</span>
+ </div>
 
-<header class="hero"><div class="wrap">
- <div>
-  <span class="tag">برنامج VIP — محاضرات فردية برايفت 1:1</span>
-  <h1>اتكلم إنجليزي <em>بثقة</em> في شغلك وحياتك اليومية — من غير ما تغيّر جدولك</h1>
-  <p class="sub">محاضرات فردية مكثفة مع محاضر خاص ليك وحدك، بمواعيد تختارها أنت، وممارسة عملية من أول يوم. مستوى كامل في 4 أسابيع.</p>
-  <div class="ctas">
-   <a class="btn btn-gold" href="#register">ابدأ بتحديد مستوى مجاني ←</a>
-   <a class="btn btn-ghost" href="#pricing">شوف الأسعار</a>
+ <section style="padding:14px 0 6px">
+  <span class="eyebrow">هدية مجانية لفترة محدودة</span>
+  <h1>تفهم إنجليزي… بس <span class="gold">صوتك</span> يختفي أول ما تبي تتكلم؟</h1>
+  <p class="muted">شوف الفيديو (دقيقتين) وبتعرف ليش كثير من الموظفين في الخليج يتكلمون بثقة خلال 4 أسابيع — بمحاضرات خاصة على وقتهم.</p>
+ </section>
+
+ <section style="padding:18px 0">
+  <div class="video" id="video">
+   <div class="poster" id="poster">
+    <img src="assets/coach.webp" alt="">
+    <div class="play"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></div>
+    <div class="vcap">▶ شوف ليش الطريقة هذي تختلف</div>
+   </div>
   </div>
-  <div class="trust">
-   <div><b>1:1</b>محاضر لك وحدك</div>
-   <div><b>4 أسابيع</b>مدة المستوى</div>
-   <div><b>نفس اليوم</b>تحديد المستوى</div>
-  </div>
- </div>
- <div class="photo">
-  <img src="assets/coach.webp" alt="المحاضر" width="540" height="540">
-  <div class="badge b1"><span class="dot"></span><div>محاضرتك القادمة<small>في الميعاد اللي يناسبك</small></div></div>
-  <div class="badge b2">🎯<div>تحديد مستوى<small>مجاني في نفس اليوم</small></div></div>
- </div>
-</div></header>
+ </section>
 
-<section class="sec"><div class="wrap center">
- <span class="tag">لو ده بيحصل معاك…</span>
- <h2>بتفهم إنجليزي… بس لما تيجي تتكلم بتقف؟</h2>
- <div class="pains" style="text-align:right">
-  <div class="pain"><div class="x">✕</div><h3>جربت كورسات جماعية</h3><p>وقت المحاضرة بيروح على غيرك، وأنت بتتكلم دقيقتين بالكتير.</p></div>
-  <div class="pain"><div class="x">✕</div><h3>جدولك مش بيسمح</h3><p>شغل وسفر ومسؤوليات… ومواعيد الكورسات الثابتة مستحيل تلتزم بيها.</p></div>
-  <div class="pain"><div class="x">✕</div><h3>بتبدأ وبتقف</h3><p>من غير متابعة ومراجعة، الكسل بيكسب وبترجع لنقطة الصفر.</p></div>
- </div>
-</div></section>
-
-<section class="sec feat-bg"><div class="wrap center">
- <span class="tag">ليه البرنامج ده مختلف</span>
- <h2>اتصمم علشان يتماشى مع حياتك — مش العكس</h2>
- <p class="lead">كل حاجة في البرنامج قابلة للتخصيص: نوع التدريب، كثافته، مدة المحاضرة، ومواعيدها.</p>
- <div class="feats" style="text-align:right">
-  <div class="feat"><div class="ico">👤</div><h3>محاضرات فردية برايفت مكثفة</h3><p>المحاضرة كلها ليك. كل دقيقة ممارسة وتصحيح على مستواك وأهدافك أنت.</p></div>
-  <div class="feat"><div class="ico">🗓️</div><h3>مواعيد مرنة بالكامل</h3><p>تختار مواعيد المحاضرات حسب الأنسب لك وللمحاضر. شغلك مش هيتعارض مع الكورس.</p></div>
-  <div class="feat"><div class="ico">⏱️</div><h3>30 أو 60 دقيقة أو أكثر</h3><p>اختار مدة المحاضرة حسب جدولك وهدفك. كل مدة ليها معدل ممارسة وعدد أنشطة مختلف.</p></div>
-  <div class="feat"><div class="ico">🎯</div><h3>نوع التدريب اللي يناسبك</h3><p>عام، بزنس ومجال عملك، Phonetics، تحدث فقط، أو أطفال — وبالكثافة اللي تختارها.</p></div>
-  <div class="feat"><div class="ico">📖</div><h3>مراجعة أسبوعية + قاموس شخصي</h3><p>مراجعة لمحتوى كل أسبوع وتنظيم الكلمات الجديدة في قاموسك الشخصي علشان متتنساش.</p></div>
-  <div class="feat"><div class="ico">💬</div><h3>ممارسة يومية ومتابعة</h3><p>متابعة مستمرة بتمنعك من الكسل وتخليك ملتزم — لأن اللغة محتاجة daily practice.</p></div>
- </div>
-</div></section>
-
-<section class="sec"><div class="wrap center">
- <span class="tag">برامج التدريب</span>
- <h2>اختار البرنامج على حسب هدفك</h2>
- <div class="chips">
-  <span class="chip">General Speaking — مواقف حياتية</span>
-  <span class="chip">Busy People Program — للأوقات الضيقة</span>
-  <span class="chip">For Your Career — بزنس ومجال عملك</span>
-  <span class="chip">Phonetics — النطق</span>
-  <span class="chip">Only Speaking — تحدث ودردشة</span>
-  <span class="chip">Kids — للأطفال</span>
-  <span class="chip">تأسيس من الصفر</span>
- </div>
-</div></section>
-
-<section class="sec feat-bg" id="reviews"><div class="wrap center">
- <span class="tag">كلام الطلاب — مش كلامنا</span>
- <h2>رسائل حقيقية من طلابنا</h2>
- <p class="lead">لقطات من محادثات الطلاب كما وصلتنا بالضبط.</p>
- <div class="reviews" style="text-align:right">
-  <div class="review"><img src="assets/review-1.jpg" alt="رأي طالب" loading="lazy"><div class="q"><span class="stars">★★★★★</span> «الكورس شامل لكل الـ skills… ومتابعة بتمنعك من الكسل»</div></div>
-  <div class="review"><img src="assets/review-2.jpg" alt="رأي طالب" loading="lazy"><div class="q"><span class="stars">★★★★★</span> «المواعيد مريحة جداً بالنسبالي ومكانش بيسبب لي أزمة خالص مع شغلي»</div></div>
-  <div class="review"><img src="assets/review-3.jpg" alt="رأي طالب" loading="lazy"><div class="q"><span class="stars">★★★★★</span> «I found that I can speak English»</div></div>
-  <div class="review"><img src="assets/review-4.jpg" alt="رأي طالب" loading="lazy"><div class="q"><span class="stars">★★★★★</span> «بقيت أقدر أعمل conversation أو short story بسهولة»</div></div>
- </div>
-</div></section>
-
-<section class="sec price-bg" id="pricing"><div class="wrap center">
- <span class="tag">الأسعار</span>
- <h2>استثمار واضح — من غير مفاجآت</h2>
- <p class="lead">اختار مدة المحاضرة، وبعدين اختار مستوى واحد أو عرض الـ 90 يوم ووفّر.</p>
- <div class="toggle" role="tablist">
-  <button class="on" data-d="30">محاضرة 30 دقيقة</button>
-  <button data-d="60">محاضرة 60 دقيقة</button>
- </div>
- <div class="plans" style="text-align:right">
-  <div class="plan">
-   <h3>مستوى واحد</h3>
-   <div class="per">4 أسابيع — VIP فردي</div>
-   <div class="amt"><span data-p="150|280">$150</span> <small>/ مستوى</small></div>
-   <ul>
-    <li>محاضرات فردية برايفت 1:1</li>
-    <li>مدة المحاضرة: <b data-t="30 دقيقة|60 دقيقة">30 دقيقة</b></li>
-    <li>مواعيد مرنة تختارها أنت</li>
-    <li>مراجعة أسبوعية + قاموس شخصي</li>
-    <li>تحديد مستوى مجاني</li>
+ <section style="padding:10px 0 30px" id="form-sec">
+  <div class="card">
+   <span class="eyebrow">افتح هديتك</span>
+   <h2 style="font-size:22px">سجّل بياناتك واستلم الهدية الحين</h2>
+   <ul class="ticks" style="margin:6px 0 18px;font-size:15px">
+    <li>جلسة تحديد مستوى خاصة — مجاناً وفي نفس اليوم</li>
+    <li>خطة تعلّم شخصية مبنية على هدفك وجدولك</li>
+    <li>عرض أسعار VIP الحصري لمسجّلي الصفحة</li>
    </ul>
-   <a class="btn btn-ghost" style="color:var(--brand);border-color:var(--brand)" href="#register" data-pick="1">اختار مستوى واحد</a>
+   <form id="lead" novalidate>
+    <label>الاسم<input name="name" required autocomplete="name" placeholder="اسمك الكريم"></label>
+    <label>رقم الواتساب
+     <div class="phone">
+      <select name="cc" aria-label="رمز الدولة">
+       <option value="+966">🇸🇦 +966</option><option value="+971">🇦🇪 +971</option><option value="+965">🇰🇼 +965</option>
+       <option value="+974">🇶🇦 +974</option><option value="+968">🇴🇲 +968</option><option value="+973">🇧🇭 +973</option>
+       <option value="+20">🇪🇬 +20</option><option value="">أخرى</option>
+      </select>
+      <input name="phone" type="tel" inputmode="tel" required autocomplete="tel-national" placeholder="5X XXX XXXX">
+     </div></label>
+    <label>الإيميل<input name="email" type="email" inputmode="email" required dir="ltr" autocomplete="email" placeholder="name@email.com"></label>
+    <label>وش تبي تحقق بالإنجليزي؟
+     <select name="goal" required>
+      <option value="">اختر هدفك</option>
+      <option>أتكلم بثقة في الشغل والاجتماعات</option>
+      <option>محادثة يومية وسفر</option>
+      <option>أبدأ من الصفر (تأسيس)</option>
+      <option>النطق Phonetics</option>
+      <option>دروس لأطفالي</option>
+     </select></label>
+    <p class="err" id="err">فضلاً كمّل البيانات المطلوبة بشكل صحيح.</p>
+    <button class="btn btn-gold" type="submit">افتح هديتي المجانية 🎁</button>
+    <div class="lock">🔒 بياناتك محمية وما نشاركها مع أحد</div>
+   </form>
   </div>
-  <div class="plan best">
-   <span class="ribbon">الأكثر توفيراً</span>
-   <h3>عرض 90 يوم — 3 مستويات</h3>
-   <div class="per">12 أسبوع — VIP فردي</div>
-   <div class="amt"><span data-p="400|750">$400</span> <small>/ 3 مستويات</small></div>
-   <span class="save" data-t="وفّر $50|وفّر $90">وفّر $50</span>
-   <ul>
-    <li>كل مميزات المستوى الواحد</li>
-    <li>3 مستويات متتالية بدون انقطاع</li>
-    <li>مدة المحاضرة: <b data-t="30 دقيقة|60 دقيقة">30 دقيقة</b></li>
-    <li>متابعة تقدم ممتدة لـ 90 يوم</li>
-    <li>أفضل نتيجة: الاستمرارية بتصنع الفرق</li>
-   </ul>
-   <a class="btn btn-gold" href="#register" data-pick="3">احجز عرض الـ 90 يوم</a>
-  </div>
- </div>
- <p class="note">محتاج مدة أطول من 60 دقيقة أو البرنامج الأقل تكثيفاً (3 محاضرات أسبوعياً)؟ <a href="https://wa.me/96877828030" style="color:var(--brand2);font-weight:800">كلمنا على واتساب</a></p>
-</div></section>
+ </section>
 
-<section class="sec"><div class="wrap center">
- <span class="tag">إزاي تبدأ</span>
- <h2>4 خطوات وتبدأ في نفس اليوم</h2>
- <div class="steps" style="text-align:right">
-  <div class="step"><h3>املأ الاستمارة</h3><p>بياناتك ونوع التدريب في أقل من دقيقة.</p></div>
-  <div class="step"><h3>تحديد مستوى مجاني</h3><p>على واتساب، وفي نفس اليوم توفيراً لوقتك.</p></div>
-  <div class="step"><h3>حوّل الاشتراك</h3><p>على حساب Bank Muscat وابعت صورة الإيصال.</p></div>
-  <div class="step"><h3>ابدأ اتكلم</h3><p>محاضرتك الأولى والممارسة المستمرة للغة.</p></div>
- </div>
-</div></section>
+</div>
 
-<section class="sec form-sec" id="register"><div class="wrap form-grid">
- <div>
-  <span class="tag">ابدأ دلوقتي</span>
-  <h2>احجز تحديد المستوى المجاني</h2>
-  <p class="lead">املأ البيانات وهتتحول على واتساب برسالة جاهزة فيها كل التفاصيل — وهنحدد مستواك في نفس اليوم.</p>
-  <div class="bank">
-   <b>بيانات التحويل (بعد تحديد المستوى):</b><br>
-   Bank Muscat<br>
-   Account: <code title="اضغط للنسخ">0216081509710017</code><br>
-   IBAN: <code title="اضغط للنسخ">OM400270216081509710017</code><br>
-   <small style="color:#9fbcb0">ابعت صورة الإيصال على واتساب <span dir="ltr">+968 7782 8030</span> لتأكيد الحجز.</small>
-  </div>
- </div>
- <form id="f" novalidate>
-  <label>الاسم <span class="req">*</span><input name="name" required autocomplete="name"></label>
-  <div class="row">
-   <label>رقم واتساب / تليجرام <span class="req">*</span><input name="phone" type="tel" dir="ltr" required></label>
-   <label>رقم آخر<input name="phone2" type="tel" dir="ltr"></label>
-  </div>
-  <div class="row">
-   <label>البريد الإلكتروني <span class="req">*</span><input name="email" type="email" dir="ltr" required></label>
-   <label>الوظيفة <span class="req">*</span><input name="job" required></label>
-  </div>
-  <label>مستوى الكورس <span class="req">*</span>
-   <select name="level" required>
-    <option value="">اختار…</option>
-    <option>تحديد مستوى للبدء بأنسب مادة علمية</option>
-    <option>أبدأ من البداية (تأسيس من الصفر) — 3 محاضرات أسبوعياً</option>
-   </select></label>
-  <label>نوع التدريب <span class="req">*</span>
-   <select name="type" required>
-    <option value="">اختار…</option>
-    <option>General Speaking — التحدث العام</option>
-    <option>Busy People Program — ذوي الأوقات الضيقة</option>
-    <option>Phonetics</option>
-    <option>For Your Career — البزنس ومجال العمل</option>
-    <option>Kids — للأطفال</option>
-    <option>Only Speaking — تحدث ودردشة فقط</option>
-   </select></label>
-  <label>الباقة <span class="req">*</span>
-   <select name="plan" id="plan" required>
-    <option value="">اختار…</option>
-    <option value="1-30">VIP مستوى واحد — 30 دقيقة — $150</option>
-    <option value="3-30">عرض 90 يوم (3 مستويات) — 30 دقيقة — $400</option>
-    <option value="1-60">VIP مستوى واحد — 60 دقيقة — $280</option>
-    <option value="3-60">عرض 90 يوم (3 مستويات) — 60 دقيقة — $750</option>
-    <option value="low">البرنامج الأقل تكثيفاً — 3 محاضرات أسبوعياً</option>
-   </select></label>
-  <p id="err" style="color:#c2410c;font-size:14px;display:none">من فضلك املأ كل الحقول المطلوبة بشكل صحيح.</p>
-  <button class="btn btn-wa" type="submit">إرسال وحجز تحديد المستوى على واتساب</button>
-  <small style="color:var(--muted);text-align:center">بياناتك بتتبعت لنا مباشرة على واتساب فقط.</small>
- </form>
-</div></section>
-
-<section class="sec"><div class="wrap" style="max-width:800px">
- <div class="center"><span class="tag">أسئلة شائعة</span><h2>عندك سؤال؟</h2></div>
- <details><summary>أنا مبتدئ تماماً، ينفع أشترك؟</summary><p>أيوه. فيه مسار تأسيس من الصفر بممارسة عملية متكاملة من أول يوم.</p></details>
- <details><summary>لو مواعيدي متغيرة كل أسبوع؟</summary><p>المواعيد بتتحدد بشكل مرن حسب الأنسب لك وللمحاضر، وده من أهم مميزات البرنامج.</p></details>
- <details><summary>أختار 30 ولا 60 دقيقة؟</summary><p>30 دقيقة مناسبة للأوقات الضيقة والممارسة المركزة. 60 دقيقة فيها ممارسة وأنشطة أكثر وتقدم أسرع. نقدر نرشحلك بعد تحديد المستوى.</p></details>
- <details><summary>تحديد المستوى بفلوس؟</summary><p>لا، مجاني تماماً وبيتم في نفس يوم التسجيل.</p></details>
- <details><summary>إزاي أدفع من خارج عُمان؟</summary><p>بتحويل بنكي على حساب Bank Muscat بقيمة الاشتراك بعملتك، وبعدها تبعت صورة الإيصال على واتساب.</p></details>
-</div></section>
-
-<footer>#Use_Your_Voice — © <span id="y"></span></footer>
-
-<a class="fab" href="https://wa.me/96877828030" aria-label="WhatsApp"><svg viewBox="0 0 32 32"><path d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3zm0 23.7c-2 0-3.9-.5-5.6-1.5l-.4-.2-3.9 1 1-3.8-.3-.4A10.7 10.7 0 1 1 16 26.7zm5.9-8c-.3-.2-1.9-1-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6.3-.5v-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.7 5 .8.4 1.4.6 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg></a>
+<div class="sticky" id="sticky"><a class="btn btn-gold" href="#form-sec">سجّل واستلم هديتك 🎁</a></div>
+<footer>© <span class="en">Use Your Voice</span></footer>
 
 <script>
-document.getElementById('y').textContent=new Date().getFullYear();
-let dur='30';
-document.querySelectorAll('.toggle button').forEach(b=>b.onclick=()=>{
- document.querySelectorAll('.toggle button').forEach(x=>x.classList.remove('on'));b.classList.add('on');dur=b.dataset.d;const i=dur==='30'?0:1;
- document.querySelectorAll('[data-p]').forEach(e=>e.textContent='$'+e.dataset.p.split('|')[i]);
- document.querySelectorAll('[data-t]').forEach(e=>e.textContent=e.dataset.t.split('|')[i]);
-});
-document.querySelectorAll('[data-pick]').forEach(a=>a.addEventListener('click',()=>{document.getElementById('plan').value=a.dataset.pick+'-'+dur}));
-document.querySelectorAll('.bank code').forEach(c=>c.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(c.textContent);const t=c.textContent;c.textContent='✓ تم النسخ';setTimeout(()=>c.textContent=t,1200)});
-document.getElementById('f').addEventListener('submit',e=>{
+/* ===== CONFIG ===== */
+const VIDEO_URL = "";      // ضع رابط YouTube أو ملف mp4 (مثال: assets/promo.mp4)
+const LEAD_ENDPOINT = "";  // اختياري: رابط Google Apps Script / Webhook لحفظ البيانات في شيت
+/* ================== */
+
+const poster=document.getElementById('poster');
+poster.onclick=()=>{
+ const v=document.getElementById('video');
+ if(!VIDEO_URL){poster.querySelector('.vcap').textContent='الفيديو قريباً — سجّل تحت واستلم هديتك';return}
+ const yt=VIDEO_URL.match(/(?:youtu\.be\/|v=|shorts\/)([\w-]{11})/);
+ v.innerHTML=yt?`<iframe src="https://www.youtube.com/embed/${yt[1]}?autoplay=1&playsinline=1&rel=0" allow="autoplay;encrypted-media" allowfullscreen></iframe>`
+   :`<video src="${VIDEO_URL}" controls autoplay playsinline></video>`;
+};
+
+const sticky=document.getElementById('sticky'),fs=document.getElementById('form-sec');
+new IntersectionObserver(([e])=>sticky.classList.toggle('hide',e.isIntersecting),{threshold:.15}).observe(fs);
+
+document.getElementById('lead').addEventListener('submit',async e=>{
  e.preventDefault();const f=e.target,err=document.getElementById('err');
  if(!f.checkValidity()){err.style.display='block';f.querySelector(':invalid').focus();return}
- err.style.display='none';const d=new FormData(f),s=k=>d.get(k)||'-';
- const msg=`مرحباً، أريد حجز تحديد مستوى مجاني\n\nالاسم: ${s('name')}\nالهاتف: ${s('phone')}\nرقم آخر: ${s('phone2')}\nالإيميل: ${s('email')}\nالوظيفة: ${s('job')}\nالمستوى: ${s('level')}\nنوع التدريب: ${s('type')}\nالباقة: ${f.plan.options[f.plan.selectedIndex].text}`;
- window.open('https://wa.me/96877828030?text='+encodeURIComponent(msg),'_blank');
+ const d=Object.fromEntries(new FormData(f));d.phone=(d.cc||'')+d.phone.replace(/^0+/,'');delete d.cc;d.at=new Date().toISOString();
+ try{localStorage.setItem('uyv_lead',JSON.stringify(d))}catch(_){}
+ if(LEAD_ENDPOINT){try{await fetch(LEAD_ENDPOINT,{method:'POST',mode:'no-cors',body:JSON.stringify(d)})}catch(_){}}
+ location.href='gift.html?n='+encodeURIComponent(d.name.split(' ')[0]);
 });
 </script>
 </body>
