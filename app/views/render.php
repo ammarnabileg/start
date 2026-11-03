@@ -2,8 +2,9 @@
 require_once __DIR__ . '/head.php';
 
 /** يلف محتوى الصفحة بالتصميم العام */
-function render(string $title, string $active, callable $body): void
+function render(string $title, string $active, callable $body, array $opts = []): void
 {
+    $hideTitle = !empty($opts['hideTitle']);
     ob_start();
     $body();
     $content = ob_get_clean();

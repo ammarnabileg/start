@@ -22,39 +22,54 @@ if ($z) {
 }
 
 render('الرئيسية', 'dashboard', function () use ($z, $stats, $upcoming, $apiError) {
+    $h = (int)(new DateTime('now', new DateTimeZone(site_timezone())))->format('G');
+    $greet = $h < 12 ? 'صباح الخير' : 'مساء الخير';
+    $u = current_user();
+    ?>
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-7">
+      <h1 class="text-3xl font-semibold text-ink-900"><?= $greet ?>، <?= e(explode(' ', trim($u['name']))[0]) ?></h1>
+      <div class="flex gap-2">
+        <a href="<?= e(url('inbox')) ?>" class="btn-ghost">الرسائل</a>
+        <a href="<?= e(url('compose')) ?>" class="btn-primary">+ منشور جديد</a>
+      </div>
+    </div>
+    <?php
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     $cards = [
-        ['الحسابات المربوطة', $stats['accounts'], url('accounts'), 'text-indigo-700'],
-        ['منشورات مجدولة', $stats['scheduled'], url('posts', ['status' => 'scheduled']), 'text-blue-700'],
-        ['رسائل غير مقروءة', $stats['unread'], url('inbox'), 'text-rose-700'],
+        ['الحسابات المربوطة', $stats['accounts'], 'على ' . e(ws('name')), url('accounts'), 'إدارة'],
+        ['منشورات مجدولة', $stats['scheduled'], 'مستنية ميعاد نشرها', url('calendar'), 'التقويم'],
+        ['رسائل غير مقروءة', $stats['unread'], 'في كل الحسابات', url('inbox'), 'رد'],
     ];
     ?>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      <?php foreach ($cards as [$label, $num, $link, $color]): ?>
-        <a href="<?= e($link) ?>" class="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm">
-          <div class="text-sm text-slate-500"><?= e($label) ?></div>
-          <div class="text-3xl font-bold mt-1 <?= $color ?>"><?= (int)$num ?></div>
-        </a>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <?php foreach ($cards as [$label, $num, $sub, $link, $btn]): ?>
+        <div class="card p-5">
+          <div class="text-[15px] text-ink-700"><?= e($label) ?></div>
+          <div class="flex items-end justify-between gap-3 mt-6">
+            <div>
+              <div class="text-3xl font-semibold text-ink-900"><?= (int)$num ?></div>
+              <div class="text-sm text-ink-500 mt-1"><?= $sub ?></div>
+            </div>
+            <a href="<?= e($link) ?>" class="btn-ghost"><?= e($btn) ?></a>
+          </div>
+        </div>
       <?php endforeach; ?>
     </div>
 
-    <div class="flex flex-wrap gap-3 mb-8">
-      <a href="<?= e(url('compose')) ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-lg">+ منشور جديد</a>
-      <a href="<?= e(url('inbox')) ?>" class="bg-white border border-slate-300 font-semibold px-5 py-3 rounded-lg hover:bg-slate-50">رد على الرسائل</a>
-      <a href="<?= e(url('comments')) ?>" class="bg-white border border-slate-300 font-semibold px-5 py-3 rounded-lg hover:bg-slate-50">رد على التعليقات</a>
-    </div>
-
-    <?= card_open() ?>
-      <div class="px-5 py-4 border-b border-slate-200 font-bold">المنشورات القادمة</div>
+    <div class="card">
+      <div class="px-5 py-4 flex items-center justify-between">
+        <span class="text-[15px] text-ink-700">المنشورات القادمة</span>
+        <a href="<?= e(url('posts', ['status' => 'scheduled'])) ?>" class="link text-sm">عرض الكل</a>
+      </div>
       <?php if (!$upcoming): ?>
-        <p class="p-5 text-slate-500 text-sm">مفيش منشورات مجدولة.</p>
+        <p class="px-5 pb-6 text-ink-500 text-sm">مفيش منشورات مجدولة. <a class="link" href="<?= e(url('compose')) ?>">اعمل واحد</a></p>
       <?php else: foreach ($upcoming as $p): ?>
-        <div class="px-5 py-4 border-b last:border-0 border-slate-100 flex items-start justify-between gap-4">
-          <p class="text-sm line-clamp-2 flex-1"><?= e(mb_substr((string)($p['content'] ?? ''), 0, 200)) ?: '<span class="text-slate-400">(بدون نص)</span>' ?></p>
-          <span class="text-xs text-slate-500 whitespace-nowrap"><?= e(fmt_date($p['scheduledFor'] ?? null)) ?></span>
+        <div class="px-5 py-4 border-t border-ink-200 flex items-start justify-between gap-4">
+          <p class="text-sm text-ink-800 line-clamp-2 flex-1"><?= e(mb_substr((string)($p['content'] ?? ''), 0, 200)) ?: '<span class="text-ink-400">(بدون نص)</span>' ?></p>
+          <span class="badge whitespace-nowrap"><?= e(fmt_date($p['scheduledFor'] ?? null, 'd/m h:i A')) ?></span>
         </div>
       <?php endforeach; endif; ?>
     </div>
     <?php
-});
+}, ['hideTitle' => true]);
