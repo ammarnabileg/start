@@ -14,15 +14,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $st = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $st->execute([$email]);
         $u = $st->fetch();
-        if ($u && password_verify($pass, $u['password_hash'])) {
+        if ($u && password_verify($pass, $u['password_hash']) && ($u['status'] ?? 'active') !== 'active') {
+            flash('error', t('الحساب ده موقوف. كلم مدير النظام.'));
+        } elseif ($u && password_verify($pass, $u['password_hash']) && setting('maintenance', '0') === '1' && $u['role'] !== 'admin') {
+            flash('error', t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.'));
+        } elseif ($u && password_verify($pass, $u['password_hash'])) {
             clear_attempts($pdo);
+            $pdo->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?")->execute([$u['id']]);
             session_regenerate_id(true);
             $_SESSION['uid'] = (int)$u['id'];
             log_activity('login');
             after_login_redirect();
         }
-        record_failed_attempt($pdo);
-        flash('error', t('الإيميل أو كلمة السر غلط.'));
+        else {
+            record_failed_attempt($pdo);
+            flash('error', t('الإيميل أو كلمة السر غلط.'));
+        }
     }
 }
 

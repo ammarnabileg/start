@@ -175,9 +175,17 @@ function current_user(): ?array
     if ($user === false) {
         $user = null;
         if (!empty($_SESSION['uid'])) {
-            $st = db()->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
+            $st = db()->prepare("SELECT * FROM users WHERE id = ?");
             $st->execute([$_SESSION['uid']]);
             $user = $st->fetch() ?: null;
+            if ($user) {
+                unset($user['password_hash']);
+                // حساب موقوف: يخرج فوراً
+                if (($user['status'] ?? 'active') !== 'active') {
+                    $user = null;
+                    unset($_SESSION['uid'], $_SESSION['impersonator']);
+                }
+            }
         }
     }
     return $user;
@@ -214,7 +222,7 @@ function user_workspaces(bool $fresh = false): array
         }
         $st = db()->prepare("SELECT w.*, wu.role AS my_role FROM workspaces w
             JOIN workspace_users wu ON wu.workspace_id = w.id
-            WHERE wu.user_id = ? AND wu.status = 'active' ORDER BY w.name");
+            WHERE wu.user_id = ? AND wu.status = 'active'" . (is_admin() ? '' : " AND COALESCE(w.status, 'active') = 'active'") . " ORDER BY w.name");
         $st->execute([$u['id']]);
         $list = $st->fetchAll();
     }

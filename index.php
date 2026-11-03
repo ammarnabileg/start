@@ -47,9 +47,18 @@ if (!in_array($page, $public, true) && !current_user()) {
     redirect(url('login'));
 }
 
-// إعدادات النظام لمدير النظام بس
-if ($page === 'system' && !is_admin()) {
+// لوحة إدارة النظام لمدير النظام بس
+$adminPages = ['system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity'];
+if (in_array($page, $adminPages, true) && !is_admin()) {
     redirect(url('dashboard'));
+}
+
+// وضع الصيانة: الموقع مقفول على الكل ما عدا مديري النظام
+if (current_user() && !is_admin() && empty($_SESSION['impersonator']) && setting('maintenance', '0') === '1' && $page !== 'logout') {
+    auth_page(t('وضع الصيانة'), function () {
+        echo '<p class="text-center text-sm text-ink-600">' . e(setting('maintenance_message', '') ?: t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.')) . '</p>';
+        echo '<form method="post" action="' . e(url('logout')) . '">' . csrf_field() . '<button class="btn-ghost w-full">' . e(t('تسجيل خروج')) . '</button></form>';
+    });
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -57,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'logout', 'workspaces', 'switch', 'account', 'system'];
+$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }

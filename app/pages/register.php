@@ -3,7 +3,7 @@ if (current_user()) {
     after_login_redirect();
 }
 
-$open = setting('allow_signup', '1') === '1' || !empty($_SESSION['invite_token']);
+$open = (setting('allow_signup', '1') === '1' || !empty($_SESSION['invite_token'])) && setting('maintenance', '0') !== '1';
 $old = ['name' => '', 'email' => ''];
 
 if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -129,4 +129,11 @@ return [
     '004_workspace_modules' => [
         "ALTER TABLE workspaces ADD COLUMN disabled_modules TEXT NULL",
     ],
+
+    // 1.9.0: لوحة إدارة النظام: إيقاف مستخدمين وشركات، وآخر دخول
+    '005_admin' => [
+        "ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active', ADD COLUMN last_login_at DATETIME NULL",
+        "ALTER TABLE workspaces ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'",
+        "ALTER TABLE activity_log ADD INDEX (user_id), ADD INDEX (workspace_id), ADD INDEX (action)",
+    ],
 ];

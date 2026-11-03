@@ -6,13 +6,29 @@
 
 function lang(): string
 {
-    $l = $_COOKIE['lang'] ?? 'en';
+    $l = $_COOKIE['lang'] ?? platform_default('default_lang', 'en');
     return $l === 'ar' ? 'ar' : 'en';
 }
 
 function theme(): string
 {
-    return ($_COOKIE['theme'] ?? 'light') === 'dark' ? 'dark' : 'light';
+    return ($_COOKIE['theme'] ?? platform_default('default_theme', 'light')) === 'dark' ? 'dark' : 'light';
+}
+
+/** الافتراضي اللي المدير اختاره من إعدادات النظام (لو البرنامج متسطب) */
+function platform_default(string $name, string $fallback): string
+{
+    static $cache = [];
+    if (!array_key_exists($name, $cache)) {
+        $cache[$name] = $fallback;
+        try {
+            if (function_exists('is_installed') && is_installed()) {
+                $cache[$name] = (string)setting($name, $fallback);
+            }
+        } catch (Throwable $t) {
+        }
+    }
+    return $cache[$name];
 }
 
 function is_rtl(): bool
