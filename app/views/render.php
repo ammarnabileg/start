@@ -22,7 +22,7 @@ function no_api_box(): void
 {
     echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5">';
     echo t('<p class="font-bold mb-1">البرنامج لسه مش مربوط بخدمة النشر</p>');
-    if (is_ws_owner()) {
+    if (can('integrations.manage')) {
         echo '<p class="text-sm"><a class="underline font-semibold" href="' . e(url('connectors')) . '">' . e(t('اربط الشركة من صفحة التكاملات.')) . '</a></p>';
     } else {
         echo t('<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح الـ API.</p>');

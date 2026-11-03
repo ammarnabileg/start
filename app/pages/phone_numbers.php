@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     $back = url('phone_numbers');
     try {
-        if (!is_ws_owner()) {
+        if (!can('phone.spend')) {
             flash('error', t('شراء وإلغاء الأرقام بيكلف فلوس، فصاحب الشركة بس اللي يقدر يعمله.'));
         } elseif ($action === 'buy') {
             $country = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['country'] ?? 'US')));
@@ -102,7 +102,7 @@ foreach ($countries as $c) {
 render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $apiError, $data, $countries, $results, $showBuy, $country, $numberType, $areaCode, $smsOnly, $price, $typeInfo, $link, $searchError) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
-    $owner = is_ws_owner();
+    $owner = can('phone.spend');
     $numbers = array_values(array_filter($data['numbers'] ?? [], function ($n) { return ($n['status'] ?? '') !== 'released'; }));
     ?>
     <?php if ($link): ?>

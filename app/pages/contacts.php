@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if (!empty($r['warning'])) flash('error', (string)$r['warning']);
             }
         } elseif ($action === 'delete') {
-            if (!is_ws_owner()) {
+            if (!can('whatsapp.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 $id = (string)($_POST['id'] ?? '');
@@ -226,7 +226,7 @@ Ahmed Ali,201001234567,ahmed@example.com,ACME,vip;cairo</pre>
             <td class="p-3 text-xs text-ink-500 whitespace-nowrap"><?= $last ? e(fmt_date($last, 'd/m h:i A')) : '—' ?></td>
             <td class="p-3 text-end whitespace-nowrap">
               <a class="link text-xs" href="<?= e(url('contacts', ['edit' => $c['id'], 'q' => $q, 'tag' => $tag])) ?>"><?= e(t('تعديل')) ?></a>
-              <?php if (is_ws_owner()): ?>
+              <?php if (can('whatsapp.manage')): ?>
               <form method="post" class="inline ms-2" onsubmit="return confirm('<?= tjs('حذف جهة الاتصال دي نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($c['id']) ?>"><button class="text-xs text-red-600"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </td>

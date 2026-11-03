@@ -74,6 +74,47 @@
       mp.appendChild(el);
     });
   });
+  // القوائم المنسدلة: بتتفتح "طايرة" فوق الصفحة، عشان ماتتقصش جوه الجداول أو الكروت اللي ليها سكرول
+  function placeMenu(d) {
+    var m = d.querySelector(':scope > .menu, :scope > form.menu, :scope > div.menu');
+    var sum = d.querySelector('summary');
+    if (!m || !sum) return;
+    // القايمة اللي في آخر السايد بار بتفتح لفوق ومكانها مظبوط أصلاً
+    if (m.classList.contains('bottom-full')) return;
+    m.style.position = 'fixed';
+    m.style.insetInlineStart = 'auto'; m.style.insetInlineEnd = 'auto'; m.style.left = 'auto'; m.style.right = 'auto';
+    m.style.marginTop = '0';
+    var r = sum.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, vw = innerWidth, vh = innerHeight, gap = 6;
+    var rtl = document.documentElement.dir === 'rtl';
+    // نحاذي طرف القايمة مع طرف الزرار (حسب اتجاه اللغة) ونتأكد إنها جوه الشاشة
+    var left = rtl ? r.left : r.right - mw;
+    if (m.classList.contains('end-0')) left = rtl ? r.left : r.right - mw;
+    if (m.classList.contains('start-0') || m.classList.contains('right-0')) left = rtl ? r.right - mw : r.left;
+    left = Math.max(8, Math.min(left, vw - mw - 8));
+    var top = r.bottom + gap;
+    if (top + mh > vh - 8 && r.top - gap - mh > 8) top = r.top - gap - mh; // مفيش مكان تحت: نفتح لفوق
+    top = Math.max(8, Math.min(top, vh - mh - 8));
+    m.style.left = left + 'px'; m.style.top = top + 'px';
+    m.style.maxHeight = (vh - 16) + 'px'; m.style.overflowY = 'auto';
+  }
+  document.addEventListener('toggle', function (e) {
+    var d = e.target;
+    if (d.tagName === 'DETAILS' && d.hasAttribute('data-dropdown') && d.open) {
+      // قايمة واحدة مفتوحة بس في المرة
+      document.querySelectorAll('details[data-dropdown][open]').forEach(function (x) { if (x !== d && !x.contains(d)) x.removeAttribute('open'); });
+      placeMenu(d);
+    }
+  }, true);
+  // السكرول أو تغيير حجم الشاشة بيقفل القوايم المفتوحة (عشان ماتفضلش طايرة في مكان غلط)
+  function closeFloating(e) {
+    document.querySelectorAll('details[data-dropdown][open]').forEach(function (d) {
+      var m = d.querySelector('.menu');
+      if (m && m.style.position === 'fixed' && !(e && e.target && m.contains(e.target))) d.removeAttribute('open');
+    });
+  }
+  window.addEventListener('resize', closeFloating);
+  document.addEventListener('scroll', closeFloating, true);
+
   // قفل القوايم المنسدلة لما تدوس برا
   document.addEventListener('click', function (e) {
     document.querySelectorAll('details[data-dropdown][open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     try {
         if (!in_array($platform, ads_campaign_platforms(), true)) {
             flash('error', t('بيانات الحملة ناقصة.'));
-        } elseif ($needsOwner && !is_ws_owner()) {
+        } elseif ($needsOwner && !can('ads.spend')) {
             flash('error', t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'));
         } elseif ($needsOwner && empty($_POST['confirm_spend'])) {
             flash('error', t('لازم تعلّم على خانة التأكيد الأول.'));
@@ -83,7 +83,7 @@ function ad_toggle_form(string $action, string $status, string $platform, array 
         <button class="btn-ghost !py-1 !px-3"><?= e(t('إيقاف')) ?></button>
       </form>
     <?php } elseif ($status === 'paused') {
-        if (!is_ws_owner()) { echo '<span class="text-xs text-ink-400">' . e(t('التشغيل لصاحب الشركة')) . '</span>'; return; } ?>
+        if (!can('ads.spend')) { echo '<span class="text-xs text-ink-400">' . e(t('التشغيل لصاحب الشركة')) . '</span>'; return; } ?>
       <details class="relative inline-block">
         <summary class="btn-ghost !py-1 !px-3 cursor-pointer list-none"><?= e(t('تشغيل…')) ?></summary>
         <form method="post" class="absolute end-0 z-10 mt-1 w-72 card p-3 space-y-2 text-start">
@@ -99,7 +99,7 @@ function ad_toggle_form(string $action, string $status, string $platform, array 
 /** فورم تعديل الميزانية (لصاحب الشركة) */
 function ad_budget_form(?array $budget, ?string $cur, string $platform, string $adSetId = ''): void
 {
-    if (!is_ws_owner()) return; ?>
+    if (!can('ads.spend')) return; ?>
     <details class="mt-2">
       <summary class="link text-xs cursor-pointer"><?= e(t('تعديل الميزانية')) ?></summary>
       <form method="post" class="mt-2 space-y-2 max-w-md" data-budget-form>

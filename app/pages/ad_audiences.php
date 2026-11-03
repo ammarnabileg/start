@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         if ($connId === '' || $adAccId === '') {
             flash('error', t('اختار حساب الإعلانات.'));
         } elseif ($action === 'delete') {
-            if (!is_ws_owner()) {
+            if (!can('ads.spend')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 $id = (string)($_POST['audience_id'] ?? '');
@@ -120,7 +120,7 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
                     <?php if (isset($a['size'])): ?> · <?= e(t('حوالي %s شخص', ads_num($a['size']))) ?><?php endif; ?>
                     <?php if (!empty($a['status'])): ?> · <?= e($a['status']) ?><?php endif; ?></div>
                 </div>
-                <?php if (is_ws_owner() && !empty($a['id'])): ?>
+                <?php if (can('ads.spend') && !empty($a['id'])): ?>
                   <form method="post" onsubmit="return confirm('<?= tjs('حذف الجمهور ده من المنصة نهائياً؟ أي إعلان بيستخدمه ممكن يتأثر.') ?>')">
                     <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="t" value="<?= e($sel) ?>"><input type="hidden" name="audience_id" value="<?= e($a['id']) ?>">
                     <button class="text-sm text-red-600 hover:underline"><?= e(t('حذف')) ?></button>

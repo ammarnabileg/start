@@ -96,7 +96,7 @@ function gmb_no_account_box(): void
       </div>
       <p class="font-bold text-ink-900 mb-1"><?= e(t('مفيش حساب جوجل بيزنس مربوط')) ?></p>
       <p class="text-sm text-ink-500 mb-4"><?= e(t('اربط Google Business Profile عشان تدير التقييمات وبيانات الفرع والصور من هنا.')) ?></p>
-      <?php if (is_ws_owner()): ?>
+      <?php if (can('gmb.manage')): ?>
         <form method="post" action="<?= e(url('accounts')) ?>" class="inline">
           <?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="googlebusiness">
           <button class="btn-primary"><?= e(t('ربط جوجل بيزنس')) ?></button>

@@ -2,7 +2,7 @@
 $err = null;
 $z = zernio_or_null($err);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'delete') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'delete' && can('posts.manage')) {
     try {
         $z->deletePost((string)$_POST['id']);
         log_activity('post.delete', (string)$_POST['id']);

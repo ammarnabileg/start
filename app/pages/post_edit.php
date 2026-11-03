@@ -54,7 +54,7 @@ if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             log_activity('post.retry', $id);
             flash('success', t('تمت إعادة المحاولة. راجع الحالة بعد شوية.'));
         } elseif ($action === 'unpublish') {
-            if (!is_ws_owner()) throw new ZernioException(t('الإجراء ده لصاحب الشركة بس.'));
+            if (!can('posts.manage')) throw new ZernioException(t('الإجراء ده لصاحب الشركة بس.'));
             pub_unpublish($z, $id, (string)$_POST['platform'], (string)($_POST['accountId'] ?? '') ?: null);
             log_activity('post.unpublish', $id . ' ' . $_POST['platform']);
             flash('success', t('تم مسح المنشور من المنصة.'));
@@ -219,7 +219,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $pos
                 </form>
               </details>
             <?php endif; ?>
-            <?php if ($isPub && is_ws_owner() && in_array($plat, pub_unpublishable_platforms(), true)): ?>
+            <?php if ($isPub && can('posts.manage') && in_array($plat, pub_unpublishable_platforms(), true)): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('تحذير: المنشور هيتمسح نهائياً من المنصة دي ومش هينفع يرجع. متأكد؟') ?>')">
                 <?= csrf_field() ?><input type="hidden" name="action" value="unpublish">
                 <input type="hidden" name="platform" value="<?= e($plat) ?>"><input type="hidden" name="accountId" value="<?= e($accId) ?>">

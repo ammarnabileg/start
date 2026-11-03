@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             log_activity('automation.' . ($on ? 'enable' : 'disable'), $id);
             flash('success', $on ? t('الأتمتة اشتغلت.') : t('الأتمتة اتوقفت.'));
         } elseif ($action === 'delete' && $id !== '') {
-            if (!is_ws_owner()) {
+            if (!can('automations.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 ip_delete_automation($z, $id);
@@ -208,7 +208,7 @@ render(t('الردود التلقائية على التعليقات'), 'automati
             <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= e($a['id']) ?>"><input type="hidden" name="on" value="<?= $on ? '' : '1' ?>">
               <button class="btn-ghost text-xs"><?= e($on ? t('إيقاف') : t('تشغيل')) ?></button></form>
             <a href="<?= e(url('automations', ['id' => $a['id']])) ?>" class="btn-ghost text-xs"><?= e(t('تعديل')) ?></a>
-            <?php if (is_ws_owner()): ?>
+            <?php if (can('automations.manage')): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف الأتمتة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($a['id']) ?>">
                 <button class="btn-ghost text-xs text-red-600"><?= e(t('حذف')) ?></button></form>
             <?php endif; ?>

@@ -144,4 +144,18 @@ return [
         "ALTER TABLE connectors ADD INDEX ws_provider (workspace_id, provider)",
         "ALTER TABLE connectors DROP INDEX workspace_id",
     ],
+
+    // 2.1.0: أدوار مخصصة لكل شركة بصلاحيات يختارها المالك
+    // workspace_users.role بقى: owner أو editor (أدوار جاهزة) أو r<رقم الدور> للأدوار المخصصة
+    '007_roles' => [
+        "CREATE TABLE IF NOT EXISTS workspace_roles (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(80) NOT NULL,
+            permissions TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (workspace_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     $back = url('calls');
     try {
-        if (!is_ws_owner()) {
+        if (!can('phone.spend')) {
             flash('error', t('المكالمات وإعداداتها لصاحب الشركة بس لأنها بتكلف فلوس.'));
         } elseif ($action === 'call') {
             $to = ph_e164((string)($_POST['to'] ?? ''));
@@ -108,7 +108,7 @@ if ($z) {
 render(t('المكالمات'), 'calls', function () use ($z, $apiError, $numbers, $calls, $next, $detail, $direction, $channel, $showDial, $showSettings, $estimate, $estimateErr, $dialTo, $dialFrom, $branded) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
-    $owner = is_ws_owner();
+    $owner = can('phone.spend');
     $voice = ph_voice_numbers($numbers);
 
     if ($detail) {

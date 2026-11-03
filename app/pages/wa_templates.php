@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
     $action = (string)($_POST['action'] ?? '');
     try {
         if ($action === 'delete') {
-            if (!is_ws_owner()) {
+            if (!can('whatsapp.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 $name = (string)($_POST['name'] ?? '');
@@ -215,7 +215,7 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
             <?php if ($f && !empty($f['text'])): ?><p class="text-xs text-ink-500 mt-2"><?= e($f['text']) ?></p><?php endif; ?>
             <?php if ($bt): ?><div class="flex flex-wrap gap-1 mt-2"><?php foreach ($bt['buttons'] ?? [] as $x): ?><span class="badge bg-white border border-ink-200"><?= e($x['text'] ?? ($x['type'] ?? '')) ?></span><?php endforeach; ?></div><?php endif; ?>
           </div>
-          <?php if (is_ws_owner() && !$sb): ?>
+          <?php if (can('whatsapp.manage') && !$sb): ?>
           <form method="post" class="mt-3 text-end" onsubmit="return confirm('<?= tjs('حذف القالب ده نهائياً من واتساب؟ مش هينفع ترجعه، ولازم تستنى قبل ما تستخدم نفس الاسم تاني.') ?>')">
             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="wa" value="<?= e($acc) ?>">
             <input type="hidden" name="name" value="<?= e($tpl['name'] ?? '') ?>"><input type="hidden" name="language" value="<?= e($tpl['language'] ?? '') ?>">

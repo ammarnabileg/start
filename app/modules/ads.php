@@ -299,7 +299,7 @@ function ads_empty_state(): void
 
 function ads_connect_buttons(): void
 {
-    if (!is_ws_owner()) {
+    if (!can('ads.spend')) {
         echo '<p class="text-sm text-ink-500 mt-4">' . e(t('اطلب من صاحب الشركة يربط حساب الإعلانات.')) . '</p>';
         return;
     }

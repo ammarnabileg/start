@@ -77,9 +77,10 @@ if (current_workspace() && !module_enabled(page_module($page))) {
     redirect(url('dashboard'));
 }
 
-// إعدادات الشركة وفريقها لصاحب الشركة بس
-if (in_array($page, ['settings', 'team', 'connectors'], true) && !is_ws_owner()) {
-    flash('error', t('الصفحة دي لصاحب الشركة بس.'));
+// الصلاحيات: كل صفحة ليها صلاحية مطلوبة حسب دور المستخدم في الشركة
+$need = page_permission($page);
+if ($need !== null && current_workspace() && !can($need)) {
+    flash('error', t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.'));
     redirect(url('dashboard'));
 }
 

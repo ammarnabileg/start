@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             gmb_add_media($z, $loc['account'], $loc['location'], $url, $cat, trim((string)($_POST['description'] ?? '')));
             log_activity('gmb.media_add', $cat);
             flash('success', t('تم رفع الصورة. ممكن تاخد شوية وقت لحد ما تظهر على جوجل.'));
-        } elseif ($action === 'delete' && is_ws_owner()) {
+        } elseif ($action === 'delete' && can('gmb.manage')) {
             $mediaId = (string)($_POST['media_id'] ?? '');
             if ($mediaId === '') throw new ZernioException(t('الصورة مش موجودة.'));
             gmb_delete_media($z, $loc['account'], $loc['location'], $mediaId);
@@ -118,7 +118,7 @@ render(t('صور جوجل بيزنس'), 'gmb_media', function () use ($z, $accou
           </a>
           <div class="p-2 flex items-center gap-1 text-[11px]">
             <span class="flex-1 min-w-0 truncate text-ink-600"><?= e($cats[$c] ?? ($c ?: (($m['mediaFormat'] ?? '') === 'VIDEO' ? t('فيديو') : t('صورة')))) ?> · <?= e(fmt_date($m['createTime'] ?? null, 'd/m/Y')) ?></span>
-            <?php if (is_ws_owner() && $id !== ''): ?>
+            <?php if (can('gmb.manage') && $id !== ''): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف الصورة من جوجل؟') ?>')">
                 <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="loc" value="<?= e($loc['key']) ?>"><input type="hidden" name="media_id" value="<?= e($id) ?>">
                 <button class="text-red-600" title="<?= e(t('حذف')) ?>"><?= e(t('حذف')) ?></button>

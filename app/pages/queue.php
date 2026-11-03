@@ -53,7 +53,7 @@ if ($z && $profileId && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             flash('success', t('تم حفظ الطابور.'));
         } elseif ($action === 'delete') {
-            if (!is_ws_owner()) throw new ZernioException(t('الإجراء ده لصاحب الشركة بس.'));
+            if (!can('posts.manage')) throw new ZernioException(t('الإجراء ده لصاحب الشركة بس.'));
             $qid = (string)($_POST['queueId'] ?? '');
             if ($qid === '') throw new ZernioException(t('مفيش طابور محدد.'));
             pub_queue_delete($z, $profileId, $qid);
@@ -164,7 +164,7 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $apiError, $q
           <?php endif; ?>
           <div class="flex gap-2 pt-2">
             <a class="btn-ghost text-sm" href="<?= e(url('queue', ['edit' => $q['_id']])) ?>"><?= e(t('تعديل')) ?></a>
-            <?php if (is_ws_owner()): ?>
+            <?php if (can('posts.manage')): ?>
             <form method="post" onsubmit="return confirm('<?= tjs('متأكد إنك عاوز تحذف الطابور ده؟ المنشورات اللي متحطة فيه ممكن تتأثر.') ?>')">
               <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="queueId" value="<?= e($q['_id']) ?>">
               <button class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"><?= e(t('حذف')) ?></button>

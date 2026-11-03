@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             log_activity('sequence.unenroll', $sid);
             flash('success', t('اتشال من السلسلة.'));
         } elseif ($action === 'delete') {
-            if (!is_ws_owner()) {
+            if (!can('whatsapp.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 wa_delete_sequence($z, $sid);
@@ -129,7 +129,7 @@ render(t('السلاسل التلقائية'), 'sequences', function () use ($z,
                 <?php if ($st === 'active'): ?><button name="action" value="pause" class="btn-ghost"><?= e(t('إيقاف مؤقت')) ?></button>
                 <?php else: ?><button name="action" value="activate" class="btn-primary" onclick="return confirm('<?= tjs('تفعيل السلسلة؟ الرسايل هتبدأ تتبعت للمسجلين حسب المواعيد، وكل رسالة بتتحاسب.') ?>')"><?= e(t('تفعيل')) ?></button><?php endif; ?>
               </form>
-              <?php if (is_ws_owner()): ?>
+              <?php if (can('whatsapp.manage')): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف السلسلة دي نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost text-red-600"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </div>

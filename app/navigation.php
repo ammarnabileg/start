@@ -59,9 +59,21 @@ function nav_items(): array
         $items[] = ['key' => 'admin', 'label' => t('إدارة المنصة'), 'section' => t('النظام'),
             'tabs' => ['admin' => t('نظرة عامة'), 'admin_workspaces' => t('الشركات'), 'admin_users' => t('المستخدمين'), 'admin_activity' => t('سجل النشاط'), 'system' => t('إعدادات المنصة')]];
     }
-    return array_values(array_filter($items, function ($i) use ($owner) {
-        return module_enabled($i['module'] ?? null) && (empty($i['owner']) || $owner);
-    }));
+    $out = [];
+    foreach ($items as $i) {
+        if (!module_enabled($i['module'] ?? null)) continue;
+        if ($i['key'] === 'admin') { $out[] = $i; continue; }
+        // التابات اللي مالوش صلاحية عليها بتختفي، ولو مفضلش حاجة العنصر كله بيختفي
+        if (isset($i['tabs'])) {
+            $i['tabs'] = array_filter($i['tabs'], function ($tk) { $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
+            if (!$i['tabs']) continue;
+        } else {
+            $p = page_permission($i['key']);
+            if ($p !== null && !can($p)) continue;
+        }
+        $out[] = $i;
+    }
+    return $out;
 }
 
 /** العنصر اللي الصفحة دي تابعة له */

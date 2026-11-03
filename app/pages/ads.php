@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     try {
         if ($action === 'connect') {
-            if (!is_ws_owner()) {
+            if (!can('ads.spend')) {
                 flash('error', t('ربط حساب الإعلانات لصاحب الشركة بس.'));
             } else {
                 $pfm = (string)($_POST['platform'] ?? '');
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $to = ($_POST['to'] ?? '') === 'active' ? 'active' : 'paused';
             if ($cid === '' || !in_array($cpf, ads_campaign_platforms(), true)) {
                 flash('error', t('بيانات الحملة ناقصة.'));
-            } elseif ($to === 'active' && !is_ws_owner()) {
+            } elseif ($to === 'active' && !can('ads.spend')) {
                 flash('error', t('تشغيل الحملات (صرف فلوس) لصاحب الشركة بس.'));
             } elseif ($to === 'active' && empty($_POST['confirm_spend'])) {
                 flash('error', t('لازم تعلّم على خانة التأكيد قبل التشغيل.'));
@@ -294,7 +294,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
                         <button class="btn-ghost !py-1 !px-3"><?= e(t('إيقاف')) ?></button>
                       </form>
                     <?php elseif ($st === 'paused'): ?>
-                      <?php if (is_ws_owner()): ?>
+                      <?php if (can('ads.spend')): ?>
                         <details class="relative">
                           <summary class="btn-ghost !py-1 !px-3 cursor-pointer list-none"><?= e(t('تشغيل…')) ?></summary>
                           <form method="post" class="absolute end-0 z-10 mt-1 w-72 card p-3 space-y-2 text-start">

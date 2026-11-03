@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         } elseif ($action === 'send' || $action === 'schedule') {
             $b = wa_broadcast($z, $bid);
             $count = (int)($b['recipientCount'] ?? 0);
-            if (!is_ws_owner()) {
+            if (!can('whatsapp.manage')) {
                 flash('error', t('الإرسال بيكلف فلوس، فصاحب الشركة بس اللي يقدر يبعت أو يجدول.'));
             } elseif (($b['status'] ?? '') !== 'draft') {
                 flash('error', t('الحملة دي مش مسودة.'));
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             log_activity('broadcast.cancel', $bid);
             flash('success', t('الحملة اتلغت.'));
         } elseif ($action === 'delete') {
-            if (!is_ws_owner()) {
+            if (!can('whatsapp.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 wa_delete_broadcast($z, $bid);
@@ -172,7 +172,7 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
               <?php if (in_array($st, ['scheduled', 'sending'], true)): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('إلغاء الحملة؟ الرسايل اللي اتبعتت خلاص مش هترجع.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="cancel"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost"><?= e(t('إلغاء الحملة')) ?></button></form>
               <?php endif; ?>
-              <?php if (is_ws_owner() && in_array($st, ['draft', 'cancelled', 'completed', 'failed'], true)): ?>
+              <?php if (can('whatsapp.manage') && in_array($st, ['draft', 'cancelled', 'completed', 'failed'], true)): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('حذف الحملة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($id) ?>"><button class="btn-ghost text-red-600"><?= e(t('حذف')) ?></button></form>
               <?php endif; ?>
             </div>

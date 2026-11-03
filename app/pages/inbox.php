@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         }
         if ($action === 'label_delete') {
             $labelId = (string)($_POST['label_id'] ?? '');
-            if (!is_ws_owner()) {
+            if (!can('inbox.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } elseif (preg_match('/^\d+$/', $labelId)) {
                 ip_delete_label($z, $accId, $labelId);
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 $back = url('inbox', $base);
                 break;
             case 'delete_conv':
-                if (!is_ws_owner()) {
+                if (!can('inbox.manage')) {
                     flash('error', t('الحذف لصاحب الشركة بس.'));
                 } else {
                     ip_delete_conversation($z, $convId, $accId);
@@ -118,7 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             case 'react':
                 $emoji = (string)($_POST['emoji'] ?? '');
                 if ($msgId !== '' && in_array($emoji, ['👍', '❤️', '😂', '😮', '😢', '🙏'], true)) {
-                    ip_react($z, $convId, $msgId, $accId, $emoji);
+                    try {
+                        ip_react($z, $convId, $msgId, $accId, $emoji);
+                    } catch (ZernioException $rx) {
+                        // التفاعلات مش متاحة على كل الأرقام (زي الرقم التجريبي) أو بعد 24 ساعة من آخر رسالة على فيسبوك وانستجرام
+                        flash('error', $rx->status === 404
+                            ? t('التفاعل مش متاح على المحادثة دي. لو ده الرقم التجريبي، التفاعلات بتشتغل بس على رقمك الحقيقي.')
+                            : t('ماقدرناش نضيف التفاعل: %s', $rx->getMessage()));
+                    }
                 }
                 break;
             case 'unreact':
@@ -262,6 +269,16 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     if ($apiError) { error_box($apiError); }
     $folders = ['inbox' => t('الوارد'), 'requests' => t('طلبات الرسائل'), 'comments' => t('رد خاص على تعليق')];
     $plat = $current['platform'] ?? '';
+    // الرقم التجريبي المشترك لواتساب: الإرسال بس، من غير تفاعلات
+    $isSandboxConv = false;
+    if ($plat === 'whatsapp' && $accId !== '') {
+        try {
+            foreach ($z->request('GET', '/v1/accounts', ['platform' => 'whatsapp', 'includeSandbox' => 'true'])['accounts'] ?? [] as $wa) {
+                if (($wa['_id'] ?? '') === $accId && !empty($wa['metadata']['isSandbox'])) $isSandboxConv = true;
+            }
+        } catch (Throwable $t) {
+        }
+    }
     ?>
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
     <!-- الفلاتر -->
@@ -397,7 +414,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="<?= $archived ? 'unarchive' : 'archive' ?>">
                   <button class="btn-ghost text-xs"><?= e($archived ? t('رجّعها للنشطة') : t('أرشفة')) ?></button></form>
               <?php endif; ?>
-              <?php if (is_ws_owner()): ?>
+              <?php if (can('inbox.manage')): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('حذف المحادثة دي وكل رسايلها من Zernio؟ مش هينفع ترجعها.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_conv">
                   <button class="btn-ghost text-xs text-red-600"><?= e(t('حذف المحادثة')) ?></button></form>
               <?php endif; ?>
@@ -424,7 +441,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                     <?php if (!in_array($l['id'], $onIds, true)): ?>
                       <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="label_add"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>"><button class="link" title="<?= e(t('حط التصنيف على المحادثة')) ?>">+</button></form>
                     <?php endif; ?>
-                    <?php if (is_ws_owner()): ?>
+                    <?php if (can('inbox.manage')): ?>
                       <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التصنيف من الصفحة كلها؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="label_delete"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>"><button class="text-red-600" title="<?= e(t('حذف التصنيف')) ?>">×</button></form>
                     <?php endif; ?>
                   </span>
@@ -468,7 +485,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                   <?php endif; ?>
                   <?php if ($mid !== '' && empty($m['isDeleted'])): ?>
                     <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-ink-500 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition <?= $out ? '' : 'justify-end' ?>">
-                      <?php if (ip_can_react($plat)): ?>
+                      <?php if (ip_can_react($plat) && !$isSandboxConv): ?>
                         <form method="post" class="inline-flex gap-0.5"><?= csrf_field() ?><input type="hidden" name="action" value="react"><input type="hidden" name="message_id" value="<?= e($mid) ?>">
                           <?php foreach (['👍', '❤️', '😂', '😮', '😢', '🙏'] as $em): ?><button name="emoji" value="<?= e($em) ?>" class="hover:scale-125 transition" title="<?= e(t('تفاعل')) ?>"><?= $em ?></button><?php endforeach; ?>
                         </form>

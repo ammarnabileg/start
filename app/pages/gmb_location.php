@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             gmb_update_place_action($z, $acc, $lid, (string)($_POST['name'] ?? ''), $uri);
             log_activity('gmb.place_action_edit', (string)($_POST['name'] ?? ''));
             flash('success', t('تم تعديل الرابط.'));
-        } elseif ($action === 'action_delete' && is_ws_owner()) {
+        } elseif ($action === 'action_delete' && can('gmb.manage')) {
             gmb_delete_place_action($z, $acc, $lid, (string)($_POST['name'] ?? ''));
             log_activity('gmb.place_action_delete', (string)($_POST['name'] ?? ''));
             flash('success', t('تم حذف الرابط.'));
@@ -394,7 +394,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
                 <input name="uri" type="url" class="input !mt-0 flex-1 min-w-0" dir="ltr" value="<?= e($a['uri'] ?? '') ?>" required>
                 <button class="btn-ghost"><?= e(t('حفظ')) ?></button>
               </form>
-              <?php if (is_ws_owner()): ?>
+              <?php if (can('gmb.manage')): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف الرابط ده؟') ?>')">
                 <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="action_delete"><input type="hidden" name="name" value="<?= e($a['name'] ?? '') ?>">
                 <button class="text-red-600 text-xs"><?= e(t('حذف')) ?></button>

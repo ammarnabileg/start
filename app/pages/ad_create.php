@@ -91,7 +91,7 @@ function adc_read_form(array $in, array $goals, array $ctas): array
         if (!empty($i['id']) && !empty($i['name'])) $f['interest_list'][] = ['id' => (string)$i['id'], 'name' => (string)$i['name']];
     }
     $f['interests'] = json_encode($f['interest_list'], JSON_UNESCAPED_UNICODE);
-    if ($f['launch'] === 'active' && !is_ws_owner()) $errors[] = t('تشغيل الحملة فوراً لصاحب الشركة بس. اختار "متوقفة".');
+    if ($f['launch'] === 'active' && !can('ads.spend')) $errors[] = t('تشغيل الحملة فوراً لصاحب الشركة بس. اختار "متوقفة".');
     return [$f, $errors];
 }
 
@@ -385,7 +385,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
           <section class="card p-5 space-y-3">
             <h2 class="font-bold text-ink-900"><?= e(t('5. بعد الإنشاء')) ?></h2>
             <label class="flex items-center gap-2 text-sm"><input type="radio" name="launch" value="paused" <?= $v('launch', 'paused') === 'paused' ? 'checked' : '' ?>> <?= e(t('اعملها متوقفة (مُستحسن) — أراجعها وأشغلها بعدين')) ?></label>
-            <?php if (is_ws_owner()): ?>
+            <?php if (can('ads.spend')): ?>
               <label class="flex items-center gap-2 text-sm"><input type="radio" name="launch" value="active" <?= $v('launch') === 'active' ? 'checked' : '' ?>> <?= e(t('شغّلها فوراً (هتبدأ تصرف)')) ?></label>
             <?php endif; ?>
           </section>

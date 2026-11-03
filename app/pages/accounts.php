@@ -2,14 +2,49 @@
 $err = null;
 $z = zernio_or_null($err);
 
-$connectable = ['facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'youtube', 'threads', 'pinterest', 'reddit', 'googlebusiness'];
+/**
+ * كل طرق الربط المتاحة، متقسمة لمجموعات.
+ * mode: oauth = صفحة المنصة نفسها، ads = حساب إعلانات، service = موقع/متجر/أداة، apikey = مفتاح
+ */
+function connect_catalog(): array
+{
+    $o = function (array $keys, string $mode, array $extra = []) {
+        $out = [];
+        foreach ($keys as $k => $api) {
+            if (is_int($k)) { $k = $api; }
+            $out[$k] = ['mode' => $mode, 'api' => $api] + ($extra[$k] ?? []);
+        }
+        return $out;
+    };
+    return [
+        'social' => [t('السوشيال ميديا'), $o(['facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'youtube', 'threads', 'pinterest', 'reddit', 'bluesky', 'googlebusiness', 'snapchat'], 'oauth')],
+        'messaging' => [t('المراسلة'), $o(['whatsapp', 'telegram', 'discord', 'slack'], 'oauth')],
+        'ads' => [t('الإعلانات'), $o(['metaads' => 'facebook', 'googleads' => 'googleads', 'tiktokads' => 'tiktok', 'linkedinads' => 'linkedin', 'xads' => 'twitter', 'pinterestads' => 'pinterest', 'redditads' => 'redditads', 'microsoftads' => 'microsoftads'], 'ads')
+            + ['openaiads' => ['mode' => 'apikey', 'api' => 'openai-ads']]],
+        'sites' => [t('المواقع والمتاجر'), $o(['shopify', 'wordpress', 'wix', 'webflow'], 'service', ['shopify' => ['field' => 'shop']])],
+        'crm' => [t('CRM والتحليلات'), $o(['hubspot', 'googleanalytics'], 'service')],
+        'email' => [t('البريد والتقويم'), $o(['google', 'microsoft'], 'oauth')],
+    ];
+}
+
+function connect_item(string $key): ?array
+{
+    foreach (connect_catalog() as $g) {
+        if (isset($g[1][$key])) return $g[1][$key];
+    }
+    return null;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     try {
         if ($action === 'connect') {
-            $platform = (string)($_POST['platform'] ?? '');
-            if (!in_array($platform, $connectable, true)) {
+            if (!can('accounts.manage')) {
+                throw new ZernioException(t('مالكش صلاحية تربط حسابات. اطلبها من صاحب الشركة.'));
+            }
+            $key = (string)($_POST['platform'] ?? '');
+            $item = connect_item($key);
+            if (!$item) {
                 throw new ZernioException(t('منصة غير مدعومة.'));
             }
             $back = base_url() . '/' . url('accounts', ['connected' => 1]);
@@ -17,14 +52,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $conn = (int)($_POST['conn'] ?? 0);
             $target = ($z instanceof ZernioMulti && $z->isMulti() && in_array($conn, $z->connectionIds(), true)) ? $z->client($conn) : $z;
             $profile = ($z instanceof ZernioMulti && $target !== $z) ? ($z->profileOf($conn) ?: current_profile_id($target)) : current_profile_id($z);
-            $auth = $target->connectUrl($platform, $profile, $back);
+            $api = $item['api'];
+            $auth = '';
+
+            if ($item['mode'] === 'oauth') {
+                $auth = $target->connectUrl($api, $profile, $back);
+            } elseif ($item['mode'] === 'ads') {
+                $q = ['profileId' => $profile, 'redirect_url' => $back];
+                // إعلانات X محتاجة حساب X مربوط، وباقي منصات Meta/لينكدإن/بنترست بتستخدم الحساب الموجود لو فيه
+                if (in_array($api, ['twitter', 'facebook', 'linkedin', 'pinterest', 'tiktok'], true)) {
+                    $pick = null;
+                    foreach ($target->accounts($profile) as $a) {
+                        if (($a['platform'] ?? '') === $api) { $pick = $a['_id']; break; }
+                    }
+                    if ($api === 'twitter' && !$pick) {
+                        throw new ZernioException(t('اربط حساب X الأول من تاب السوشيال ميديا، وبعدها اربط إعلاناته.'));
+                    }
+                    if ($pick) $q['accountId'] = $pick;
+                }
+                $r = $target->request('GET', '/v1/connect/' . rawurlencode($api) . '/ads', $q);
+                if (!empty($r['alreadyConnected'])) {
+                    // الإعلانات مربوطة بالفعل على نفس الحساب
+                    flash('success', t('إعلانات %s مربوطة بالفعل (%s).', platform_label($key), trim((string)($r['displayName'] ?? $r['username'] ?? ''))));
+                    redirect(url('accounts'));
+                }
+                $auth = (string)($r['authUrl'] ?? '');
+            } elseif ($item['mode'] === 'service') {
+                $q = ['profileId' => $profile, 'redirect_url' => $back];
+                if (($item['field'] ?? '') === 'shop') {
+                    $shop = strtolower(trim((string)($_POST['shop'] ?? '')));
+                    $shop = preg_replace('#^https?://#', '', rtrim($shop, '/'));
+                    if ($shop === '') throw new ZernioException(t('اكتب عنوان متجر Shopify (مثلاً: mystore.myshopify.com).'));
+                    $q['shop'] = $shop;
+                }
+                $auth = (string)($target->request('GET', '/v1/connect/' . rawurlencode($api), $q)['authUrl'] ?? '');
+            } elseif ($item['mode'] === 'apikey') {
+                $key2 = trim((string)($_POST['api_key'] ?? ''));
+                if ($key2 === '') throw new ZernioException(t('اكتب مفتاح الـ API.'));
+                $target->request('POST', '/v1/connect/' . $api . '/credentials', [], ['apiKey' => $key2, 'profileId' => $profile]);
+                log_activity('account.connect', $key);
+                flash('success', t('اتربط %s.', platform_label($key)));
+                redirect(url('accounts'));
+            }
             if (!$auth) {
                 throw new ZernioException(t('خدمة النشر لم ترجع رابط الربط.'));
             }
-            log_activity('account.connect', $platform);
+            log_activity('account.connect', $key);
             redirect($auth);
         }
-        if ($action === 'disconnect' && is_ws_owner()) {
+        if ($action === 'disconnect' && can('accounts.manage')) {
             $z->disconnect((string)$_POST['id']);
             log_activity('account.disconnect', (string)$_POST['id']);
             flash('success', t('تم فصل الحساب.'));
@@ -34,6 +110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     }
     redirect(url('accounts'));
 }
+
+// إعادة الربط بتستخدم نفس طريقة الربط
+$connectable = [];
+foreach (connect_catalog() as $g) { $connectable = array_merge($connectable, array_keys($g[1])); }
 
 if (isset($_GET['connected'])) {
     flash('success', t('لو كملت خطوات الربط، الحساب هيظهر في القائمة تحت.'));
@@ -128,7 +208,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
                   <button class="btn-primary !py-1.5 text-xs"><?= e(t('إعادة ربط')) ?></button></form>
               <?php endif; ?>
-              <?php if (is_ws_owner()): ?>
+              <?php if (can('accounts.manage')): ?>
                 <form method="post" class="ms-auto" onsubmit="return confirm('<?= tjs('فصل الحساب ده؟ مش هتقدر تنشر عليه لحد ما تربطه تاني.') ?>')"><?= csrf_field() ?>
                   <input type="hidden" name="action" value="disconnect"><input type="hidden" name="id" value="<?= e($a['_id']) ?>">
                   <button class="text-xs text-ink-400 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 transition"><?= e(t('فصل')) ?></button></form>
@@ -141,7 +221,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
     <p id="accNone" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش حسابات بالبحث ده.')) ?></p>
 
     <!-- نافذة ربط حساب -->
-    <dialog id="addAcc" class="w-[min(720px,95vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-black/50">
+    <dialog id="addAcc" class="w-[min(820px,95vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-black/50">
       <div class="flex items-center justify-between px-6 h-14 border-b border-ink-200">
         <b class="text-ink-900"><?= e(t('اربط حساب جديد')) ?></b>
         <button type="button" onclick="this.closest('dialog').close()" class="p-2 rounded-lg hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>">✕</button>
@@ -152,17 +232,36 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
           <label class="block mb-5 max-w-sm"><span class="label"><?= e(t('اربطه على أنهي اتصال؟')) ?></span>
             <select id="connPick" class="input"><?php foreach ($z->connectionIds() as $cid): ?><option value="<?= (int)$cid ?>"><?= e($z->label($cid)) ?></option><?php endforeach; ?></select></label>
         <?php endif; ?>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          <?php foreach ($connectable as $p): $col = platform_icons()[$p][0] ?? '#64748B'; ?>
-            <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
-              <?php if ($multi): ?><input type="hidden" name="conn" class="connField" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
-              <button class="w-full flex flex-col items-center gap-2 rounded-xl border border-ink-200 py-4 text-sm text-ink-700 hover:-translate-y-0.5 hover:shadow-md transition" style="--c:<?= e($col) ?>" onmouseover="this.style.borderColor=this.style.getPropertyValue('--c')" onmouseout="this.style.borderColor=''">
-                <?= platform_icon($p, 'w-8 h-8') ?><span><?= e(platform_label($p)) ?></span>
-              </button>
-            </form>
-          <?php endforeach; ?>
+        <?php $cat = connect_catalog(); ?>
+        <div class="flex gap-1 border-b border-ink-200 mb-5 overflow-x-auto" style="scrollbar-width:none" id="connTabs">
+          <?php $first = true; foreach ($cat as $gk => [$gl, $items]): ?>
+            <button type="button" data-tab="<?= e($gk) ?>" class="whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px <?= $first ? 'border-brand-600 text-brand-700 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($gl) ?> <span class="text-xs text-ink-400"><?= count($items) ?></span></button>
+          <?php $first = false; endforeach; ?>
         </div>
-        <p class="text-xs text-ink-400 mt-5"><?= e(t('واتساب وتليجرام وباقي المنصات بتتربط من لوحة التكامل نفسها، وهتظهر هنا تلقائياً.')) ?></p>
+        <?php $first = true; foreach ($cat as $gk => [$gl, $items]): ?>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 <?= $first ? '' : 'hidden' ?>" data-panel="<?= e($gk) ?>">
+            <?php foreach ($items as $p => $it): $col = platform_icons()[$p][0] ?? '#64748B'; $needsInput = !empty($it['field']) || $it['mode'] === 'apikey'; ?>
+              <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
+                <?php if ($multi): ?><input type="hidden" name="conn" class="connField" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
+                <?php if ($needsInput): ?>
+                  <details class="rounded-xl border border-ink-200 hover:shadow-md transition">
+                    <summary class="flex flex-col items-center gap-2 py-4 text-sm text-ink-700 cursor-pointer"><?= platform_icon($p, 'w-8 h-8') ?><span><?= e(platform_label($p)) ?></span></summary>
+                    <div class="px-3 pb-3 space-y-2">
+                      <?php if (($it['field'] ?? '') === 'shop'): ?><input name="shop" class="input !mt-0 text-xs" dir="ltr" placeholder="mystore.myshopify.com" required>
+                      <?php else: ?><input name="api_key" type="password" class="input !mt-0 text-xs" dir="ltr" placeholder="API Key" required><?php endif; ?>
+                      <button class="btn-primary w-full !py-1.5 text-xs"><?= e(t('ربط')) ?></button>
+                    </div>
+                  </details>
+                <?php else: ?>
+                  <button class="w-full flex flex-col items-center gap-2 rounded-xl border border-ink-200 py-4 text-sm text-ink-700 hover:-translate-y-0.5 hover:shadow-md transition" style="--c:<?= e($col) ?>" onmouseover="this.style.borderColor=this.style.getPropertyValue('--c')" onmouseout="this.style.borderColor=''">
+                    <?= platform_icon($p, 'w-8 h-8') ?><span class="text-center leading-tight px-1"><?= e(platform_label($p)) ?></span>
+                  </button>
+                <?php endif; ?>
+              </form>
+            <?php endforeach; ?>
+          </div>
+        <?php $first = false; endforeach; ?>
+        <p class="text-xs text-ink-400 mt-5"><?= e(t('بعض المنصات بتطلب خطوة اختيار (زي اختيار الصفحة أو حساب الإعلانات) قبل ما ترجع هنا.')) ?></p>
       </div>
     </dialog>
 
@@ -180,6 +279,12 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
       if (q) q.addEventListener('input', apply);
       document.querySelectorAll('#accStatus a').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); st = a.dataset.st; document.querySelectorAll('#accStatus a').forEach(function (x) { x.classList.toggle('on', x === a); }); apply(); }); });
       document.querySelectorAll('#accPlat .chip').forEach(function (b) { b.addEventListener('click', function () { pf = b.dataset.pf; document.querySelectorAll('#accPlat .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); apply(); }); });
+      document.querySelectorAll('#connTabs [data-tab]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          document.querySelectorAll('#connTabs [data-tab]').forEach(function (x) { var on = x === b; x.classList.toggle('border-brand-600', on); x.classList.toggle('text-brand-700', on); x.classList.toggle('font-medium', on); x.classList.toggle('border-transparent', !on); x.classList.toggle('text-ink-500', !on); });
+          document.querySelectorAll('[data-panel]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.panel !== b.dataset.tab); });
+        });
+      });
       var pick = document.getElementById('connPick');
       if (pick) pick.addEventListener('change', function () { document.querySelectorAll('.connField').forEach(function (i) { i.value = pick.value; }); });
       <?php if (isset($_GET['connected'])): ?>history.replaceState(null, '', location.href.replace(/&connected=1/, ''));<?php endif; ?>

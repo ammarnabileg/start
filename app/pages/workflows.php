@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             flash('success', $action === 'activate' ? t('الـ Workflow اشتغل.') : t('الـ Workflow اتوقف.'));
             $back = !empty($_POST['from_view']) ? url('workflows', ['id' => $id]) : url('workflows');
         } elseif ($action === 'delete' && $id !== '') {
-            if (!is_ws_owner()) {
+            if (!can('automations.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 ip_delete_workflow($z, $id);
@@ -155,7 +155,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
           <form method="post"><?= csrf_field() ?><input type="hidden" name="from_view" value="1"><input type="hidden" name="id" value="<?= e($wf['id'] ?? $viewId) ?>">
             <input type="hidden" name="action" value="<?= $st === 'active' ? 'pause' : 'activate' ?>">
             <button class="<?= $st === 'active' ? 'btn-ghost' : 'btn-primary' ?>"><?= e($st === 'active' ? t('إيقاف') : t('تشغيل')) ?></button></form>
-          <?php if (is_ws_owner()): ?>
+          <?php if (can('automations.manage')): ?>
             <form method="post" action="<?= e(url('workflows')) ?>" onsubmit="return confirm('<?= tjs('حذف الـ Workflow ده؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($wf['id'] ?? $viewId) ?>">
               <button class="btn-ghost text-red-600"><?= e(t('حذف')) ?></button></form>
           <?php endif; ?>
@@ -215,7 +215,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
             <form method="post"><?= csrf_field() ?><input type="hidden" name="id" value="<?= e($w['id']) ?>"><input type="hidden" name="action" value="<?= $st === 'active' ? 'pause' : 'activate' ?>">
               <button class="btn-ghost text-xs"><?= e($st === 'active' ? t('إيقاف') : t('تشغيل')) ?></button></form>
             <a href="<?= e(url('workflows', ['id' => $w['id']])) ?>" class="btn-ghost text-xs"><?= e(t('عرض')) ?></a>
-            <?php if (is_ws_owner()): ?>
+            <?php if (can('automations.manage')): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف الـ Workflow ده؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($w['id']) ?>">
                 <button class="btn-ghost text-xs text-red-600"><?= e(t('حذف')) ?></button></form>
             <?php endif; ?>

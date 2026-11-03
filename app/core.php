@@ -9,6 +9,7 @@ require_once __DIR__ . '/crypto.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/navigation.php';
 require_once __DIR__ . '/platforms.php';
+require_once __DIR__ . '/permissions.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');
@@ -289,7 +290,8 @@ function owners_count(int $workspaceId): int
 
 function role_label(string $r): string
 {
-    return $r === 'owner' ? t('صاحب الشركة') : t('محرر');
+    $o = function_exists('role_options') ? role_options() : [];
+    return $o[$r] ?? ($r === 'owner' ? t('صاحب الشركة') : t('محرر'));
 }
 
 function ws(string $field)
@@ -371,6 +373,10 @@ function platform_label(string $p): string
         'pinterest' => t('بنترست'), 'reddit' => t('ريديت'), 'bluesky' => t('بلوسكاي'),
         'threads' => t('ثريدز'), 'googlebusiness' => t('جوجل بيزنس'), 'snapchat' => t('سناب شات'),
         'whatsapp' => t('واتساب'), 'telegram' => t('تليجرام'), 'discord' => t('ديسكورد'),
+        'slack' => 'Slack', 'metaads' => 'Meta Ads', 'googleads' => 'Google Ads', 'linkedinads' => 'LinkedIn Ads', 'tiktokads' => 'TikTok Ads',
+        'xads' => 'X Ads', 'pinterestads' => 'Pinterest Ads', 'redditads' => 'Reddit Ads', 'microsoftads' => 'Microsoft Ads', 'openaiads' => 'OpenAI Ads',
+        'shopify' => 'Shopify', 'wordpress' => 'WordPress', 'wix' => 'Wix', 'webflow' => 'Webflow', 'hubspot' => 'HubSpot',
+        'googleanalytics' => 'Google Analytics', 'google' => t('جوجل (بريد وتقويم)'), 'microsoft' => t('مايكروسوفت (بريد وتقويم)'),
     ];
     return $map[$p] ?? $p;
 }
