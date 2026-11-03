@@ -53,7 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         } elseif ($action === 'send' || $action === 'schedule') {
             $b = wa_broadcast($z, $bid);
             $count = (int)($b['recipientCount'] ?? 0);
-            if (($b['status'] ?? '') !== 'draft') {
+            if (!is_ws_owner()) {
+                flash('error', t('الإرسال بيكلف فلوس، فصاحب الشركة بس اللي يقدر يبعت أو يجدول.'));
+            } elseif (($b['status'] ?? '') !== 'draft') {
                 flash('error', t('الحملة دي مش مسودة.'));
             } elseif (empty($_POST['confirm']) || (int)($_POST['expected'] ?? -1) !== $count) {
                 flash('error', t('لازم تعلّم على مربع التأكيد. (لو عدد المستلمين اتغير، راجعه تاني.)'));

@@ -48,8 +48,8 @@
   var modes = document.querySelectorAll('.mode'), whenBox = document.getElementById('whenBox'), submitBtn = document.getElementById('submitBtn');
   function syncMode() {
     var m = document.querySelector('.mode:checked'); if (!m) return;
-    whenBox.classList.toggle('hidden', m.value !== 'schedule');
-    submitBtn.textContent = { schedule: T.schedule, now: T.now, draft: T.draft }[m.value];
+    if (whenBox) whenBox.classList.toggle('hidden', m.value !== 'schedule');
+    var lbl = { schedule: T.schedule, now: T.now, draft: T.draft }[m.value]; if (submitBtn && lbl) submitBtn.textContent = lbl;
   }
   modes.forEach(function (r) { r.addEventListener('change', syncMode); }); if (modes.length) syncMode();
 

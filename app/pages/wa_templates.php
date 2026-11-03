@@ -13,6 +13,10 @@ if ($z) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc && wa_is_sandbox($accounts, $acc)) {
+    flash('error', t('مينفعش تعدل على الرقم التجريبي.'));
+    redirect(url('wa_templates', ['wa' => $acc]));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
     $action = (string)($_POST['action'] ?? '');
     try {
@@ -123,6 +127,8 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
     if ($apiError) { error_box($apiError); return; }
     if (!$acc) { wa_no_account_box(); return; }
     wa_account_picker($accounts, $acc, 'wa_templates');
+    $sb = wa_is_sandbox($accounts, $acc);
+    if ($sb) { wa_sandbox_note(); $showNew = false; }
     $o = function ($k, $d = '') use ($old) { return (string)($old[$k] ?? $d); };
     ?>
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -131,7 +137,7 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
           <a class="<?= $status === $k ? 'on' : '' ?>" href="<?= e(url('wa_templates', ['wa' => $acc, 'status' => $k])) ?>"><?= e($l) ?></a>
         <?php endforeach; ?>
       </div>
-      <a href="<?= e(url('wa_templates', ['wa' => $acc, 'new' => 1])) ?>" class="btn-primary"><?= e(t('+ قالب جديد')) ?></a>
+      <?php if (!$sb): ?><a href="<?= e(url('wa_templates', ['wa' => $acc, 'new' => 1])) ?>" class="btn-primary"><?= e(t('+ قالب جديد')) ?></a><?php endif; ?>
     </div>
 
     <?php if ($showNew): ?>
@@ -209,7 +215,7 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
             <?php if ($f && !empty($f['text'])): ?><p class="text-xs text-ink-500 mt-2"><?= e($f['text']) ?></p><?php endif; ?>
             <?php if ($bt): ?><div class="flex flex-wrap gap-1 mt-2"><?php foreach ($bt['buttons'] ?? [] as $x): ?><span class="badge bg-white border border-ink-200"><?= e($x['text'] ?? ($x['type'] ?? '')) ?></span><?php endforeach; ?></div><?php endif; ?>
           </div>
-          <?php if (is_ws_owner()): ?>
+          <?php if (is_ws_owner() && !$sb): ?>
           <form method="post" class="mt-3 text-end" onsubmit="return confirm('<?= tjs('حذف القالب ده نهائياً من واتساب؟ مش هينفع ترجعه، ولازم تستنى قبل ما تستخدم نفس الاسم تاني.') ?>')">
             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="wa" value="<?= e($acc) ?>">
             <input type="hidden" name="name" value="<?= e($tpl['name'] ?? '') ?>"><input type="hidden" name="language" value="<?= e($tpl['language'] ?? '') ?>">

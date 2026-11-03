@@ -6,16 +6,17 @@
 
 /* ---------- حسابات واتساب ---------- */
 
-/** كل حسابات واتساب المربوطة في الـ Profile الحالي */
+/** كل حسابات واتساب المربوطة في الـ Profile الحالي (ومعاها رقم Zernio التجريبي Sandbox لو مفعل، في الآخر) */
 function wa_accounts(Zernio $z): array
 {
-    $out = [];
-    foreach ($z->allAccounts(zernio_profile()) as $a) {
-        if (($a['platform'] ?? '') === 'whatsapp') {
-            $out[] = $a;
-        }
+    $r = $z->request('GET', '/v1/accounts', ['profileId' => zernio_profile(), 'platform' => 'whatsapp', 'includeSandbox' => 'true']);
+    $real = [];
+    $sandbox = [];
+    foreach ($r['accounts'] ?? [] as $a) {
+        if (($a['platform'] ?? '') !== 'whatsapp') continue;
+        if (!empty($a['metadata']['isSandbox'])) $sandbox[] = $a; else $real[] = $a;
     }
-    return $out;
+    return array_merge($real, $sandbox);
 }
 
 /** يختار حساب واتساب: من ?wa= أو آخر اختيار في الجلسة أو أول حساب */
@@ -37,13 +38,14 @@ function wa_account_label(array $a): string
 {
     $n = trim((string)($a['displayName'] ?? $a['username'] ?? ''));
     $phone = (string)($a['metadata']['displayPhoneNumber'] ?? $a['phoneNumber'] ?? '');
-    return $phone && strpos($n, $phone) === false ? trim($n . ' · ' . $phone, ' ·') : ($n ?: (string)($a['_id'] ?? ''));
+    $label = $phone && strpos($n, $phone) === false ? trim($n . ' · ' . $phone, ' ·') : ($n ?: (string)($a['_id'] ?? ''));
+    return !empty($a['metadata']['isSandbox']) ? t('%s (تجريبي)', $label) : $label;
 }
 
 /** قائمة اختيار الحساب لو فيه أكتر من رقم واتساب */
 function wa_account_picker(array $accounts, ?string $current, string $page): void
 {
-    if (count($accounts) < 2) {
+    if (!$accounts || (count($accounts) < 2 && empty($accounts[0]['metadata']['isSandbox']))) {
         return;
     }
     ?>
@@ -378,4 +380,18 @@ function wa_profile_photo_url(Zernio $z, string $accountId, string $url): void
 function wa_number_info(Zernio $z, string $accountId): array
 {
     return $z->request('GET', '/v1/whatsapp/number-info', ['accountId' => $accountId]);
+}
+
+/** هل الحساب المختار هو رقم Zernio التجريبي المشترك؟ (ممنوع عليه التعديل والحذف) */
+function wa_is_sandbox(array $accounts, ?string $acc): bool
+{
+    foreach ($accounts as $a) {
+        if (($a['_id'] ?? '') === $acc) return !empty($a['metadata']['isSandbox']);
+    }
+    return false;
+}
+
+function wa_sandbox_note(): void
+{
+    echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-sm mb-4">' . e(t('ده رقم Zernio التجريبي المشترك (Sandbox). تقدر تتفرج بس، والتعديل والحذف مقفولين. اربط رقمك الحقيقي من صفحة الحسابات.')) . '</div>';
 }

@@ -2,6 +2,9 @@
 // English translations for the WhatsApp Business module (templates, contacts, broadcasts, sequences, profile).
 return [
     'رقم الواتساب:' => 'WhatsApp number:',
+    '%s (تجريبي)' => '%s (sandbox)',
+    'مينفعش تعدل على الرقم التجريبي.' => 'The sandbox number cannot be changed.',
+    'ده رقم Zernio التجريبي المشترك (Sandbox). تقدر تتفرج بس، والتعديل والحذف مقفولين. اربط رقمك الحقيقي من صفحة الحسابات.' => 'This is the shared Zernio sandbox number. You can only view it; editing and deleting are disabled. Connect your real number from the Accounts page.',
     'مفيش رقم واتساب بيزنس مربوط' => 'No WhatsApp Business number connected',
     'اربط رقم واتساب من صفحة الحسابات.' => 'Connect a WhatsApp number from the Accounts page.',
     'مقبول' => 'Approved',

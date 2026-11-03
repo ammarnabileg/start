@@ -9,6 +9,19 @@ $owner = is_ws_owner();
 
 // أيقونات بسيطة (خطوط)
 $I = [
+    'compose_pro' => 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4M17 15v6m-3-3h6',
+    'queue' => 'M4 6h16M4 12h10M4 18h6m10-6l-4 4 4 4',
+    'bulk' => 'M14 3v5h5M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8zM9 13h6M9 17h6',
+    'inbox_pro' => 'M4 13h4l2 3h4l2-3h4M5 5h14l2 8v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6z',
+    'automations' => 'M13 3L4 14h7l-1 7 9-11h-7z',
+    'workflows' => 'M6 3a3 3 0 100 6 3 3 0 000-6zm12 12a3 3 0 100 6 3 3 0 000-6zM9 6h6a3 3 0 013 3v6',
+    'broadcasts' => 'M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14',
+    'wa_templates' => 'M4 5h16v10H8l-4 4zM8 9h8M8 12h5',
+    'contacts' => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0',
+    'sequences' => 'M5 6h3v3H5zm0 9h3v3H5zm11-9h3v3h-3zM8 7.5h8M6.5 9v6M17.5 9v4l-9 3.5',
+    'wa_profile' => 'M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21zM9 10h.01M15 10h.01M9.5 14a3.5 3.5 0 005 0',
+    'analytics' => 'M4 20V10m6 10V4m6 16v-7m4 7H3',
+    'inbox_analytics' => 'M21 12a8.5 8.5 0 01-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1121 12zM9 14v-2m3 2V9m3 5v-3',
     'dashboard' => 'M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z',
     'compose' => 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z',
     'posts' => 'M4 6h16M4 12h16M4 18h10',
@@ -23,8 +36,10 @@ $I = [
 $sections = [];
 if ($curWs) {
     $sections[''] = ['dashboard' => t('الرئيسية')];
-    $sections[t('المحتوى')] = ['compose' => t('منشور جديد'), 'posts' => t('المنشورات'), 'calendar' => t('التقويم')];
-    $sections[t('التواصل')] = ['inbox' => t('الرسائل'), 'comments' => t('التعليقات')];
+    $sections[t('المحتوى')] = ['compose' => t('منشور جديد'), 'compose_pro' => t('منشور متقدم'), 'posts' => t('المنشورات'), 'calendar' => t('التقويم'), 'queue' => t('طابور النشر'), 'bulk' => t('رفع من ملف CSV')];
+    $sections[t('التواصل')] = ['inbox' => t('الرسائل'), 'inbox_pro' => t('صندوق الرسائل المتقدم'), 'comments' => t('التعليقات'), 'automations' => t('الرد التلقائي'), 'workflows' => 'Workflows'];
+    $sections[t('واتساب')] = ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'contacts' => t('جهات الاتصال'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('بروفايل واتساب')];
+    $sections[t('التحليلات')] = ['analytics' => t('أداء المنشورات'), 'inbox_analytics' => t('تحليلات الرسائل')];
     $sections[t('الشركة')] = ['accounts' => t('الحسابات المربوطة')];
     if ($owner) {
         $sections[t('الشركة')] += ['team' => t('الفريق'), 'connectors' => 'Connectors', 'settings' => t('الإعدادات')];

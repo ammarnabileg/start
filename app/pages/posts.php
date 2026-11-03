@@ -82,6 +82,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
             <?= e(t('اتعمل:')) ?> <?= e(fmt_date($p['createdAt'] ?? null)) ?>
           </p>
         </div>
+        <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="text-sm link px-3 py-1.5 whitespace-nowrap"><?= e(t('التفاصيل / تعديل')) ?></a>
         <?php if (($p['status'] ?? '') !== 'publishing'): ?>
         <form method="post" onsubmit="return confirm('<?= tjs('متأكد إنك عاوز تحذف المنشور ده؟') ?>')">
           <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($p['_id']) ?>">

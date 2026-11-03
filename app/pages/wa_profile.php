@@ -13,6 +13,10 @@ if ($z) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc && wa_is_sandbox($accounts, $acc)) {
+    flash('error', t('مينفعش تعدل على الرقم التجريبي.'));
+    redirect(url('wa_profile', ['wa' => $acc]));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
     $action = (string)($_POST['action'] ?? '');
     try {
@@ -73,6 +77,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $acc
     if (!$z) { no_api_box(); return; }
     if (!$acc && !$apiError) { wa_no_account_box(); return; }
     wa_account_picker($accounts, $acc, 'wa_profile');
+    if (wa_is_sandbox($accounts, $acc)) { wa_sandbox_note(); }
     if ($apiError) { error_box($apiError); }
     $ph = $info['phone'] ?? [];
     $waba = $info['waba'] ?? [];
@@ -106,6 +111,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $acc
         <?php endif; ?>
       </div>
 
+      <?php if (!$apiError && !wa_is_sandbox($accounts, $acc)): ?>
       <div class="lg:col-span-2 space-y-4">
         <form method="post" class="card p-5 space-y-3">
           <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="wa" value="<?= e($acc) ?>">
@@ -134,6 +140,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $acc
           <button class="btn-ghost"><?= e(t('تغيير الصورة')) ?></button>
         </form>
       </div>
+      <?php endif; ?>
     </div>
     <?php
 });
