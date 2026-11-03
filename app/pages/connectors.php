@@ -65,7 +65,7 @@ if (connector('zernio')) {
     }
 }
 
-render('Connectors', 'connectors', function () use ($registry, $profiles, $profilesError) {
+render(t('التكاملات'), 'connectors', function () use ($registry, $profiles, $profilesError) {
     ?>
     <p class="text-sm text-ink-500 mb-6 max-w-2xl"><?= e(t('كل شركة ليها مفاتيحها الخاصة. المفاتيح بتتخزن مشفرة، ومحدش يقدر يشوفها تاني بعد الحفظ، حتى صاحب الشركة.')) ?></p>
     <div class="grid md:grid-cols-2 gap-5">
@@ -90,7 +90,7 @@ render('Connectors', 'connectors', function () use ($registry, $profiles, $profi
                 <input name="f[<?= e($f['key']) ?>]" type="<?= !empty($f['secret']) ? 'password' : 'text' ?>" autocomplete="off" dir="ltr" class="input"
                   placeholder="<?= $has ? t('•••••••••• متخزن (اكتب جديد لو عاوز تغيره)') : e($f['placeholder'] ?? '') ?>" <?= $has ? '' : 'required' ?>></label>
             <?php endforeach; ?>
-            <p class="text-xs text-ink-400"><?= e($def['help']) ?> <a href="<?= e($def['docs']) ?>" target="_blank" rel="noopener" class="link"><?= e(t('افتح ↗')) ?></a></p>
+            <p class="text-xs text-ink-400"><?= e($def['help']) ?><?php if ($def['docs']): ?> <a href="<?= e($def['docs']) ?>" target="_blank" rel="noopener" class="link"><?= e(t('افتح ↗')) ?></a><?php endif; ?></p>
             <button class="btn btn-primary"><?= $c ? t('تحديث المفتاح') : t('ربط') ?></button>
           </form>
 
@@ -99,14 +99,14 @@ render('Connectors', 'connectors', function () use ($registry, $profiles, $profi
               <?= csrf_field() ?><input type="hidden" name="provider" value="zernio"><input type="hidden" name="action" value="settings">
               <?php if ($profilesError) error_box($profilesError); ?>
               <?php if ($profiles): ?>
-                <label class="block"><span class="label"><?= e(t('الـ Profile في Zernio')) ?></span>
+                <label class="block"><span class="label"><?= e(t('الـ Profile في التكامل')) ?></span>
                   <select name="profile_id" class="input" onchange="this.form.requestSubmit()">
                     <option value=""><?= e(t('كل البروفايلات')) ?></option>
                     <?php foreach ($profiles as $p): ?>
                       <option value="<?= e($p['_id']) ?>" <?= ($c['settings']['profile_id'] ?? '') === $p['_id'] ? 'selected' : '' ?>><?= e($p['name']) ?> (<?= (int)($p['accountCount'] ?? 0) ?> <?= e(t('حساب)')) ?></option>
                     <?php endforeach; ?>
                   </select></label>
-                <p class="text-xs text-ink-400"><?= e(t('لو حساب Zernio فيه أكتر من شركة، اختار البروفايل بتاع الشركة دي عشان حساباتها بس هي اللي تظهر.')) ?></p>
+                <p class="text-xs text-ink-400"><?= e(t('لو حساب التكامل فيه أكتر من شركة، اختار البروفايل بتاع الشركة دي عشان حساباتها بس هي اللي تظهر.')) ?></p>
               <?php endif; ?>
             </form>
           <?php endif; ?>

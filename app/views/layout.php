@@ -46,6 +46,7 @@ $I = [
 $I['whatsapp'] = 'M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21zM8.5 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 01-2.5-2.5l1-1-1-2z';
 $I['gmb'] = $I['gmb_location'];
 $I['phone'] = $I['phone_numbers'];
+$I['connectors'] = 'M14 7h3a5 5 0 010 10h-3m-4 0H7A5 5 0 017 7h3m-2 5h8';
 $navItems = $curWs ? nav_items() : [];
 $navActive = nav_item_for($active);
 $icon = function (string $d, string $cls = 'w-5 h-5') {
@@ -148,7 +149,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <?php elseif (empty($hideTitle)): ?><div class="mb-2"></div><?php endif; ?>
     <?php foreach (take_flashes() as $f):
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>
-      <div class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
+      <div data-flash="<?= e($f['type']) ?>" class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
     <?php endforeach; ?>
     <?php if ($invites && $active !== 'workspaces'): ?>
       <a href="<?= e(url('workspaces')) ?>" class="block mb-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm"><?= e(t('عندك')) ?> <?= count($invites) ?> <?= e(t('دعوة لشركة مستنية ردك ←')) ?></a>
@@ -165,5 +166,6 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <iframe id="modalFrame" class="w-full h-[calc(100%-3.5rem)] bg-ink-50" title=""></iframe>
 </dialog>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
+<script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 </body>
 </html>

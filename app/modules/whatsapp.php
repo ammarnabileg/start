@@ -37,6 +37,7 @@ function wa_pick_account(array $accounts): ?string
 function wa_account_label(array $a): string
 {
     $n = trim((string)($a['displayName'] ?? $a['username'] ?? ''));
+    if (!empty($a['metadata']['isSandbox'])) $n = t('رقم تجريبي'); // من غير اسم مزود الخدمة
     $phone = (string)($a['metadata']['displayPhoneNumber'] ?? $a['phoneNumber'] ?? '');
     $label = $phone && strpos($n, $phone) === false ? trim($n . ' · ' . $phone, ' ·') : ($n ?: (string)($a['_id'] ?? ''));
     return !empty($a['metadata']['isSandbox']) ? t('%s (تجريبي)', $label) : $label;
@@ -393,5 +394,5 @@ function wa_is_sandbox(array $accounts, ?string $acc): bool
 
 function wa_sandbox_note(): void
 {
-    echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-sm mb-4">' . e(t('ده رقم Zernio التجريبي المشترك (Sandbox). تقدر تتفرج بس، والتعديل والحذف مقفولين. اربط رقمك الحقيقي من صفحة الحسابات.')) . '</div>';
+    echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-sm mb-4">' . e(t('ده الرقم التجريبي المشترك (Sandbox). تقدر تتفرج بس، والتعديل والحذف مقفولين. اربط رقمك الحقيقي من صفحة الحسابات.')) . '</div>';
 }

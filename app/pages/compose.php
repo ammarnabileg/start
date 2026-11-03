@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     if ($platforms) {
         try {
             $validation = pub_validate_post($z, ['content' => $old['content'], 'platforms' => $platforms]);
-            if (empty($validation['valid'])) $errors[] = t('Zernio لقى مشاكل في المنشور، راجعها تحت.');
+            if (empty($validation['valid'])) $errors[] = t('خدمة النشر لقت مشاكل في المنشور، راجعها تحت.');
         } catch (ZernioException $ex) {
             $errors[] = $ex->getMessage();
         }
@@ -333,7 +333,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         <div class="space-y-2">
           <button name="action" value="validate" class="btn-ghost w-full"><?= e(t('افحص المنشور بس')) ?></button>
           <button name="action" value="submit" id="submitBtn" class="btn-primary w-full !py-3" onclick="var m=this.form.querySelector('.mode:checked');return !m||m.value!=='now'||confirm('<?= tjs('المنشور هيتنشر فوراً على كل الحسابات المختارة. تكمل؟') ?>')"><?= e(t('تنفيذ')) ?></button>
-          <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند Zernio، ولو فيه مشكلة مش هيتنشر.')) ?></p>
+          <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند خدمة النشر، ولو فيه مشكلة مش هيتنشر.')) ?></p>
         </div>
       </div>
     </form>

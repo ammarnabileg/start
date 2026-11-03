@@ -34,7 +34,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
     $cols = [
         ['post_content', t('نص المنشور.'), true],
         ['platforms', t('المنصات، مفصولة بـ | لو أكتر من واحدة (مثلاً facebook|instagram).'), true],
-        ['profiles', t('اسم أو رقم الـ Profile في Zernio.'), true],
+        ['profiles', t('اسم أو رقم الـ Profile في التكامل.'), true],
         ['schedule_time', t('ميعاد النشر بالشكل 2026-12-01 10:00.'), true],
         ['tz', t('المنطقة الزمنية (مثلاً Africa/Cairo). لو فاضي بياخد منطقة الـ Profile.'), false],
         ['media_urls', t('روابط صور أو فيديو عامة، مفصولة بـ |.'), false],

@@ -50,12 +50,15 @@ function nav_items(): array
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
             'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات')]],
+        ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الشركة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('الإعدادات'), 'section' => t('الشركة'),
             'tabs' => $owner
-                ? ['settings' => t('عام'), 'accounts' => t('الحسابات المربوطة'), 'team' => t('الفريق'), 'connectors' => 'Connectors']
+                ? ['settings' => t('عام'), 'accounts' => t('الحسابات المربوطة'), 'team' => t('الفريق')]
                 : ['accounts' => t('الحسابات المربوطة')]],
     ];
-    return array_values(array_filter($items, function ($i) { return module_enabled($i['module'] ?? null); }));
+    return array_values(array_filter($items, function ($i) use ($owner) {
+        return module_enabled($i['module'] ?? null) && (empty($i['owner']) || $owner);
+    }));
 }
 
 /** العنصر اللي الصفحة دي تابعة له */

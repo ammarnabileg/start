@@ -171,13 +171,13 @@ function ph_reg_status_badge(string $s): string
 function ph_next_step(array $n): string
 {
     $s = (string)($n['status'] ?? '');
-    if ($s === 'regulatory_declined') return t('المراجعة رفضت بيانات الرقم. صحح البيانات وابعته تاني من لوحة Zernio.');
-    if (($n['regulatoryInfoStatus'] ?? '') === 'action_required') return t('المراجع مستني رد منك. افتح لوحة Zernio ورد عليه.');
+    if ($s === 'regulatory_declined') return t('المراجعة رفضت بيانات الرقم. صحح البيانات وابعته تاني من لوحة التكامل.');
+    if (($n['regulatoryInfoStatus'] ?? '') === 'action_required') return t('المراجع مستني رد منك. افتح لوحة التكامل ورد عليه.');
     if ($s === 'pending_regulatory') return !empty($n['verifyUrl']) ? t('لازم صاحب الرقم يأكد هويته من لينك التحقق.') : t('الرقم تحت المراجعة. مش محتاج تعمل حاجة دلوقتي.');
-    if ($s === 'pending_payment') return t('ضيف طريقة دفع في حساب Zernio عشان الرقم يتفعل.');
-    if ($s === 'suspended') return t('الرقم متوقف. كلم دعم Zernio.');
+    if ($s === 'pending_payment') return t('ضيف طريقة دفع في حساب التكامل عشان الرقم يتفعل.');
+    if ($s === 'suspended') return t('الرقم متوقف. كلم الدعم الفني.');
     if ($s === 'active' && !empty($n['smsRequested']) && empty($n['smsSendApproved'])) {
-        return !empty($n['smsRegistrationPending']) ? t('تسجيل الـ SMS تحت المراجعة عند شركات المحمول.') : t('الرسايل لأرقام أمريكا محتاجة تسجيل 10DLC الأول (من لوحة Zernio).');
+        return !empty($n['smsRegistrationPending']) ? t('تسجيل الـ SMS تحت المراجعة عند شركات المحمول.') : t('الرسايل لأرقام أمريكا محتاجة تسجيل 10DLC الأول (من لوحة التكامل).');
     }
     return '';
 }

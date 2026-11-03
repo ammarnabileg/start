@@ -137,7 +137,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
           <h3 class="font-bold text-ink-900"><?= e(t('ملاحظات')) ?></h3>
           <p><?= e(t('الـ Workflow بيتعمل كمسودة، ومش هيشتغل غير لما تدوس تشغيل.')) ?></p>
           <p><?= e(t('الرسائل بتتبعت بس جوه نافذة الـ 24 ساعة بتاعة المنصة.')) ?></p>
-          <p><?= e(t('لو عايز فروع وشروط وانتظار رد، اعمله من لوحة Zernio وهيظهر هنا.')) ?></p>
+          <p><?= e(t('لو عايز فروع وشروط وانتظار رد، اعمله من لوحة التكامل وهيظهر هنا.')) ?></p>
         </div>
       </div>
     <?php return; endif;
@@ -195,7 +195,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
     <div class="card p-5 mb-4 flex flex-wrap items-start gap-4">
       <div class="flex-1 min-w-[16rem] text-sm text-ink-600">
         <p class="font-bold text-ink-900 mb-1"><?= e(t('الـ Workflows')) ?></p>
-        <p><?= e(t('محادثات أوتوماتيك: لما حد يبعت رسالة أو يكتب تعليق فيه كلمة معينة، Zernio يرد عليه بالخطوات اللي حددتها.')) ?></p>
+        <p><?= e(t('محادثات أوتوماتيك: لما حد يبعت رسالة أو يكتب تعليق فيه كلمة معينة، البرنامج يرد عليه بالخطوات اللي حددتها.')) ?></p>
       </div>
       <form method="get" class="flex items-center gap-2"><input type="hidden" name="p" value="workflows">
         <select name="status" class="input w-auto text-sm py-1.5" onchange="this.form.submit()">

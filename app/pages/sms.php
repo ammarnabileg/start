@@ -88,9 +88,9 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
       <div class="lg:col-span-2 space-y-6">
         <div class="card p-5">
           <h2 class="font-bold mb-1"><?= e(t('ابعت SMS جديدة')) ?></h2>
-          <p class="text-xs text-ink-500 mb-3"><?= e(t('كل رسالة بتتحسب على فاتورة Zernio حسب عدد الأجزاء (الجزء 160 حرف إنجليزي أو 70 حرف عربي) ودولة المستلم.')) ?></p>
+          <p class="text-xs text-ink-500 mb-3"><?= e(t('كل رسالة بتتحسب على فاتورة الاشتراك حسب عدد الأجزاء (الجزء 160 حرف إنجليزي أو 70 حرف عربي) ودولة المستلم.')) ?></p>
           <?php if (!$smsNumbers): ?>
-            <p class="text-sm text-amber-700"><?= e(t('مفيش رقم من أرقام الشركة شغال عليه SMS. فعّل الـ SMS على رقم من لوحة Zernio أو اشتري رقم بيبعت SMS.')) ?></p>
+            <p class="text-sm text-amber-700"><?= e(t('مفيش رقم من أرقام الشركة شغال عليه SMS. فعّل الـ SMS على رقم من لوحة التكامل أو اشتري رقم بيبعت SMS.')) ?></p>
           <?php else: ?>
             <form method="post" class="space-y-3" onsubmit="return confirm(<?= tjs('الرسالة هتتبعت فعلاً وهتتحسب. نكمل؟') ?>)">
               <?= csrf_field() ?>
@@ -121,8 +121,8 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
 
         <div class="card p-5">
           <h2 class="font-bold mb-2"><?= e(t('تسجيل الـ SMS عند شركات المحمول (10DLC)')) ?></h2>
-          <p class="text-xs text-ink-500 mb-3"><?= e(t('عشان تبعت لأرقام أمريكية لازم الشركة والحملة يتسجلوا الأول. التسجيل بيتعمل من لوحة Zernio لأنه محتاج ورق ومراجعة.')) ?></p>
-          <?php if (!$regs): ?><p class="text-sm text-ink-500"><?= e(t('مفيش تسجيلات لسه. لو هتبعت لأمريكا، ابدأ التسجيل من لوحة Zernio.')) ?></p><?php endif; ?>
+          <p class="text-xs text-ink-500 mb-3"><?= e(t('عشان تبعت لأرقام أمريكية لازم الشركة والحملة يتسجلوا الأول. التسجيل بيتعمل من لوحة التكامل لأنه محتاج ورق ومراجعة.')) ?></p>
+          <?php if (!$regs): ?><p class="text-sm text-ink-500"><?= e(t('مفيش تسجيلات لسه. لو هتبعت لأمريكا، ابدأ التسجيل من لوحة التكامل.')) ?></p><?php endif; ?>
           <?php foreach ($regs as $r): ?>
             <div class="border-t border-ink-100 pt-3 mt-3 text-sm">
               <div class="flex justify-between gap-2"><span class="font-medium"><?= e($r['displayName'] ?? $r['registrationType'] ?? '') ?></span><?= ph_reg_status_badge((string)($r['status'] ?? '')) ?></div>
@@ -132,7 +132,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
               $msg = '';
               if (!empty($r['awaitingOtp'])) $msg = t('صاحب النشاط لازم يدخل كود التأكيد اللي وصله على الموبايل.');
               elseif ($s === 'changes_requested') $msg = t('المراجع طالب تعديلات: %s', (string)($r['adminReviewNote'] ?? ''));
-              elseif ($s === 'rejected') $msg = t('اترفض: %s. تقدر تعمل طعن أو تعدل من لوحة Zernio.', (string)($r['declineReason'] ?? ''));
+              elseif ($s === 'rejected') $msg = t('اترفض: %s. تقدر تعمل طعن أو تعدل من لوحة التكامل.', (string)($r['declineReason'] ?? ''));
               elseif ($s === 'pending' || $s === 'requested') $msg = t('تحت المراجعة، بتاخد عادة من أيام لأسبوعين.');
               ?>
               <?php if ($msg): ?><p class="text-xs text-amber-700 mt-1"><?= e($msg) ?></p><?php endif; ?>
@@ -179,7 +179,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
         <div class="card p-5">
           <h2 class="font-bold mb-2"><?= e(t('رسايل RCS (رسايل غنية على أندرويد)')) ?></h2>
           <?php if (!$rcs): ?>
-            <p class="text-sm text-ink-500"><?= e(t('مفيش حساب RCS. ده محتاج طلب وموافقة من جوجل وشركات المحمول، وبيتعمل من لوحة Zernio.')) ?></p>
+            <p class="text-sm text-ink-500"><?= e(t('مفيش حساب RCS. ده محتاج طلب وموافقة من جوجل وشركات المحمول، وبيتعمل من لوحة التكامل.')) ?></p>
           <?php else: foreach ($rcs as $a): ?>
             <div class="text-sm flex justify-between gap-2 py-1"><span><?= e($a['displayName'] ?? $a['name'] ?? $a['_id'] ?? '') ?></span><span class="badge"><?= e((string)($a['status'] ?? $a['launchStatus'] ?? '')) ?></span></div>
           <?php endforeach; endif; ?>

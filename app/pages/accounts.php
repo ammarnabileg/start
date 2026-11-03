@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $back = base_url() . '/' . url('accounts', ['connected' => 1]);
             $auth = $z->connectUrl($platform, current_profile_id($z), $back);
             if (!$auth) {
-                throw new ZernioException(t('Zernio لم يرجع رابط الربط.'));
+                throw new ZernioException(t('خدمة النشر لم ترجع رابط الربط.'));
             }
             log_activity('account.connect', $platform);
             redirect($auth);
@@ -88,7 +88,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
           </form>
         <?php endforeach; ?>
       </div>
-      <p class="text-xs text-slate-500 mt-4"><?= e(t('واتساب وتليجرام وباقي المنصات بتتربط من لوحة Zernio نفسها، وهتظهر هنا تلقائياً.')) ?></p>
+      <p class="text-xs text-slate-500 mt-4"><?= e(t('واتساب وتليجرام وباقي المنصات بتتربط من لوحة التكامل نفسها، وهتظهر هنا تلقائياً.')) ?></p>
     </div>
     <?php
 });

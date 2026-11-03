@@ -22,7 +22,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script>window.T = <?= json_encode([
     'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
-    'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'),
+    'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'), 'sending' => t('جاري الإرسال...'), 'notSent' => t('ما اتبعتتش · اتأكد من النت وجرب تاني'), 'liveFailed' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script>
 (function () {

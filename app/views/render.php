@@ -21,11 +21,11 @@ function error_box(string $msg): void
 function no_api_box(): void
 {
     echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5">';
-    echo t('<p class="font-bold mb-1">البرنامج لسه مش مربوط بـ Zernio</p>');
+    echo t('<p class="font-bold mb-1">البرنامج لسه مش مربوط بخدمة النشر</p>');
     if (is_ws_owner()) {
-        echo '<p class="text-sm"><a class="underline font-semibold" href="' . e(url('connectors')) . '">' . e(t('اربط الشركة بـ Zernio من صفحة Connectors.')) . '</a></p>';
+        echo '<p class="text-sm"><a class="underline font-semibold" href="' . e(url('connectors')) . '">' . e(t('اربط الشركة من صفحة التكاملات.')) . '</a></p>';
     } else {
-        echo t('<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح Zernio API.</p>');
+        echo t('<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح الـ API.</p>');
     }
     echo '</div>';
 }

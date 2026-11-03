@@ -178,7 +178,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
               </div>
               <div class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
                 <label class="flex items-start gap-2"><input type="checkbox" name="confirm" value="1" required class="mt-1">
-                  <span><?= e(t('فاهم إن الرقم هيتحسب عليه %s كل شهر على فاتورة Zernio لحد ما ألغيه.', ph_money_cents($price))) ?></span></label>
+                  <span><?= e(t('فاهم إن الرقم هيتحسب عليه %s كل شهر على فاتورة الاشتراك لحد ما ألغيه.', ph_money_cents($price))) ?></span></label>
               </div>
               <button class="btn-primary mt-3"><?= e(t('اشتري الرقم المختار')) ?></button>
             </form>
@@ -252,7 +252,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
     <?php endif; ?>
 
     <?php if (!empty($data['sandbox']['phoneNumber'])): ?>
-      <p class="text-xs text-ink-500 mt-6"><?= e(t('رقم Zernio التجريبي لواتساب: %s (للتجربة بس، مش رقمك).', "\u{2066}" . $data['sandbox']['phoneNumber'] . "\u{2069}")) ?></p>
+      <p class="text-xs text-ink-500 mt-6"><?= e(t('الرقم التجريبي لواتساب: %s (للتجربة بس، مش رقمك).', "\u{2066}" . $data['sandbox']['phoneNumber'] . "\u{2069}")) ?></p>
     <?php endif; ?>
     <?php
 });

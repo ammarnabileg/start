@@ -33,7 +33,7 @@ function an_try(callable $fn): array
         $msg = $ex->getMessage();
         $st = (int)($ex->status ?? 0);
         if ($st === 402 || $st === 403 || stripos($msg, 'add-on') !== false || stripos($msg, 'addon') !== false || stripos($msg, 'upgrade') !== false || stripos($msg, 'plan') !== false) {
-            return [null, t('الجزء ده محتاج إضافة التحليلات (Analytics add-on) في اشتراك Zernio. ممكن صاحب الشركة يفعّلها من حسابه على zernio.com.')];
+            return [null, t('الجزء ده محتاج إضافة التحليلات (Analytics add-on) في الاشتراك. صاحب الشركة يقدر يفعّلها من حساب التكامل.')];
         }
         return [null, $msg];
     } catch (Throwable $t) {

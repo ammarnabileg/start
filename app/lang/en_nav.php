@@ -23,4 +23,12 @@ return [
     'القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.' => 'This section is turned off for this company. The owner can turn it on in Settings.',
     'ضيف للطابور' => 'Add to queue',
     'كل المنشورات' => 'All posts',
+    'Enter للإرسال · Shift+Enter لسطر جديد' => 'Enter to send · Shift+Enter for a new line',
+    'جاري الإرسال...' => 'Sending...',
+    'حصلت مشكلة في الاتصال. جرب تاني.' => 'Connection problem. Please try again.',
+    'ما اتبعتتش · اتأكد من النت وجرب تاني' => 'Not sent · check your connection and try again',
+    'السوشيال ميديا' => 'Social media',
+    'حط مفتاح الـ API اللي استلمته من مزود الخدمة.' => 'Paste the API key you received from your service provider.',
+    'التكاملات' => 'Integrations',
+    'رقم تجريبي' => 'Test number',
 ];

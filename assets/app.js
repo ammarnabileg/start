@@ -6,20 +6,20 @@
   if (btn) btn.addEventListener('click', function () { toggle(!sb.classList.contains('sb-open')); });
   if (bd) bd.addEventListener('click', function () { toggle(false); });
 
-  // منع الضغط مرتين على أي زرار إرسال
-  document.querySelectorAll('form').forEach(function (f) {
-    f.addEventListener('submit', function (ev) {
-      var b = ev.submitter || f.querySelector('button:not([type=button])');
-      if (!b) return;
-      setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.label = b.textContent; b.textContent = T.working; }, 0);
-    });
+  // منع الضغط مرتين على أي زرار إرسال (الفورمز اللي بتتبعت من غير ريفرش ليها معاملة خاصة في live.js)
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target;
+    if (f.closest('[data-live-root]')) return;
+    var b = ev.submitter || f.querySelector('button:not([type=button])');
+    if (!b) return;
+    setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.label = b.textContent; b.textContent = T.working; }, 0);
   });
 
   // Enter يبعت، و Shift+Enter سطر جديد
-  document.querySelectorAll('textarea[data-enter-submit]').forEach(function (t) {
-    t.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (t.value.trim()) t.form.requestSubmit(); }
-    });
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (!t.matches || !t.matches('textarea[data-enter-submit]')) return;
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (t.value.trim() || (t.form.querySelector('input[type=file]') || {}).value) t.form.requestSubmit(); }
   });
 
   // نزّل لآخر المحادثة
@@ -27,17 +27,22 @@
   if (thread) thread.scrollTop = thread.scrollHeight;
 
   // الرد على تعليق معين
-  var replyTo = document.getElementById('replyTo'), hint = document.getElementById('replyHint');
-  document.querySelectorAll('[data-reply-to]').forEach(function (b) {
-    b.addEventListener('click', function () {
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-reply-to]');
+    if (b) {
+      var replyTo = document.getElementById('replyTo'), hint = document.getElementById('replyHint');
+      if (!replyTo || !hint) return;
       replyTo.value = b.dataset.replyTo;
       hint.classList.remove('hidden');
       hint.querySelector('span').textContent = b.dataset.replyName || T.comment;
-      var ta = document.querySelector('#replyForm textarea'); ta.focus();
-    });
+      var ta = document.querySelector('#replyForm textarea'); if (ta) ta.focus();
+      return;
+    }
+    if (e.target.closest && e.target.closest('#cancelReply')) {
+      document.getElementById('replyTo').value = '';
+      document.getElementById('replyHint').classList.add('hidden');
+    }
   });
-  var cancel = document.getElementById('cancelReply');
-  if (cancel) cancel.addEventListener('click', function () { replyTo.value = ''; hint.classList.add('hidden'); });
 
   // صفحة المنشور الجديد
   var content = document.getElementById('content'), count = document.getElementById('charCount');
@@ -75,13 +80,13 @@
   });
 
   // أزرار النسخ
-  document.querySelectorAll('[data-copy]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var el = document.querySelector(b.dataset.copy), v = el.value;
-      var done = function () { var t = b.textContent; b.textContent = T.copied; setTimeout(function () { b.textContent = t; }, 1500); };
-      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(done);
-      else { var ta = document.createElement('textarea'); ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
-    });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-copy]');
+    if (!b) return;
+    var el = document.querySelector(b.dataset.copy), v = el.value;
+    var done = function () { var t = b.textContent; b.textContent = T.copied; setTimeout(function () { b.textContent = t; }, 1500); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(done);
+    else { var ta = document.createElement('textarea'); ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
   });
 
   // النوافذ المنبثقة: أي عنصر فيه data-modal="رابط" بيفتح الصفحة دي جوه نافذة

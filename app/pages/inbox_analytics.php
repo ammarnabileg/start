@@ -126,7 +126,7 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
           <?php elseif (empty($res['source-breakdown']['sources'])): ?>
             <p class="text-sm text-ink-500"><?= e(t('مفيش بيانات في الفترة دي.')) ?></p>
           <?php else:
-            $srcNames = ['contact' => t('من العملاء'), 'api' => t('من البرنامج / API'), 'recipient' => t('قراءة من العميل'), 'dashboard' => t('من لوحة Zernio'), 'automation' => t('ردود تلقائية'), 'broadcast' => t('رسائل جماعية'), 'sequence' => t('رسائل متتابعة')];
+            $srcNames = ['contact' => t('من العملاء'), 'api' => t('من البرنامج / API'), 'recipient' => t('قراءة من العميل'), 'dashboard' => t('من لوحة التكامل'), 'automation' => t('ردود تلقائية'), 'broadcast' => t('رسائل جماعية'), 'sequence' => t('رسائل متتابعة')];
             $srcs = $res['source-breakdown']['sources']; $mx = 0;
             foreach ($srcs as $s) $mx = max($mx, ($s['received'] ?? 0) + ($s['sent'] ?? 0) + ($s['read'] ?? 0));
             ?>

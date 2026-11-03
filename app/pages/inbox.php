@@ -263,6 +263,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     $folders = ['inbox' => t('الوارد'), 'requests' => t('طلبات الرسائل'), 'comments' => t('رد خاص على تعليق')];
     $plat = $current['platform'] ?? '';
     ?>
+    <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
     <!-- الفلاتر -->
     <div class="flex flex-wrap items-center gap-2 mb-3">
       <div class="flex rounded-lg border border-ink-200 overflow-hidden text-sm">
@@ -305,7 +306,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
 
     <?php if ($folder === 'comments'): ?>
     <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-19rem)] min-h-[500px]">
-      <div class="card overflow-y-auto min-h-0 <?= $postId ? 'hidden lg:block' : '' ?>">
+      <div data-live="list" class="card overflow-y-auto min-h-0 <?= $postId ? 'hidden lg:block' : '' ?>">
         <?php if (!$posts): ?><p class="p-5 text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p><?php endif; ?>
         <?php foreach ($posts as $p): $on = $p['id'] === $postId; ?>
           <a href="<?= e(url('inbox', ['folder' => 'comments', 'acct' => $acctFilter, 'post' => $p['id'], 'a' => $p['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 <?= $on ? 'bg-brand-50' : '' ?>">
@@ -326,18 +327,19 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
             <a href="<?= e(url('inbox', ['folder' => 'comments'])) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
             <p class="text-sm line-clamp-2 flex-1"><?= e(mb_substr((string)($currentPost['content'] ?? ''), 0, 200)) ?></p>
           </div>
-          <div class="p-4 space-y-5">
+          <div class="p-4 space-y-5" id="thread">
             <?php if (!$comments): ?><p class="text-sm text-ink-500"><?= e(t('مفيش تعليقات.')) ?></p><?php endif; ?>
             <?php foreach ($comments as $c) ip_private_reply_block($c, $postId, $accId); ?>
           </div>
         <?php endif; ?>
       </div>
     </div>
+    </div>
     <?php return; endif; ?>
 
     <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-19rem)] min-h-[500px]">
       <!-- قائمة المحادثات -->
-      <div class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
+      <div data-live="list" class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
         <?php if (!$convs): ?><p class="p-5 text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p><?php endif; ?>
         <?php foreach ($convs as $c): $on = $c['id'] === $convId; ?>
           <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 <?= $on ? 'bg-brand-50' : '' ?>">
@@ -412,7 +414,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                     <?php else: ?>
                       <?php if (($m['message'] ?? '') !== ''): ?><p class="whitespace-pre-line break-words"><?= e($m['message']) ?></p><?php endif; ?>
                       <?php foreach ($m['attachments'] ?? [] as $att): $u = $att['url'] ?? $att['payload']['url'] ?? null; if (!$u) continue; $at = $att['type'] ?? ''; ?>
-                        <?php if ($at === 'image' || $at === 'sticker'): ?><img src="<?= e($u) ?>" class="mt-2 rounded-lg max-h-60" referrerpolicy="no-referrer" loading="lazy" alt="">
+                        <?php if ($at === 'image' || $at === 'sticker'): ?><img src="<?= e($u) ?>" class="mt-2 rounded-lg max-h-60" referrerpolicy="no-referrer" alt="">
                         <?php else: ?><a href="<?= e($u) ?>" target="_blank" rel="noopener" class="underline block mt-1"><?= e(t('مرفق (%s)', $at ?: t('ملف'))) ?></a><?php endif; ?>
                       <?php endforeach; ?>
                     <?php endif; ?>
@@ -457,7 +459,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <button class="btn-primary"><?= e(t('قبول ورد')) ?></button>
             </form>
           <?php else: ?>
-            <form method="post" enctype="multipart/form-data" class="p-3 border-t border-ink-200 flex gap-2 items-end">
+            <form method="post" enctype="multipart/form-data" data-optimistic class="p-3 border-t border-ink-200 flex gap-2 items-end">
               <?= csrf_field() ?><input type="hidden" name="action" value="send">
               <label class="p-2.5 rounded-lg hover:bg-ink-100 cursor-pointer" title="<?= e(t('إرفاق ملف')) ?>">
                 <svg class="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.2 7l-6.6 6.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.5a6 6 0 108.5 8.5L20.5 13"/></svg>
@@ -466,10 +468,11 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <textarea name="message" rows="2" class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك...')) ?>" data-enter-submit></textarea>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
+            <p class="px-4 pb-2 -mt-1 text-[11px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>
           <?php endif; ?>
         <?php endif; ?>
       </div>
     </div>
-    <script>(function(){var t=document.getElementById('thread');if(t)t.scrollTop=t.scrollHeight;})();</script>
+    </div>
     <?php
 });

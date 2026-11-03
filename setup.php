@@ -195,7 +195,7 @@ $input = 'input';
   <div class="text-center space-y-4">
     <div class="text-5xl">✅</div>
     <h1 class="text-2xl font-bold"><?= e(t('تم التسطيب بنجاح')) ?></h1>
-    <p class="text-slate-600"><?= e(t('ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها اعمل أول شركة واربطها من صفحة Connectors.')) ?></p>
+    <p class="text-slate-600"><?= e(t('ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها اعمل أول شركة واربطها من صفحة التكاملات.')) ?></p>
     <a href="index.php" class="btn-primary !px-8 !py-3"><?= e(t('ادخل للموقع')) ?></a>
   </div>
 

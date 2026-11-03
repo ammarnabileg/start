@@ -185,7 +185,7 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
             <label class="block"><span class="label"><?= e(t('وصّلها على (رقمك)')) ?></span><input name="forward" class="input" dir="ltr" placeholder="+201001234567" value="<?= e($fwdDefault) ?>"></label>
             <label class="block"><span class="label"><?= e(t('رسالة تتقال للعميل لما يرد (اختياري)')) ?></span><input name="greeting" maxlength="1000" class="input"></label>
             <label class="flex items-start gap-2 text-sm p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900"><input type="checkbox" name="confirm" value="1" required class="mt-1">
-              <span><?= e(t('فاهم إن المكالمة بتتحسب بالدقيقة على فاتورة Zernio.')) ?></span></label>
+              <span><?= e(t('فاهم إن المكالمة بتتحسب بالدقيقة على فاتورة الاشتراك.')) ?></span></label>
             <button class="btn-primary"><?= e(t('اتصل دلوقتي')) ?></button>
           </form>
         <?php endif; ?>
@@ -205,7 +205,7 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
             <label class="flex items-center gap-2 text-sm mt-6"><input type="checkbox" name="voicemail" value="1" <?= !isset($n['voicemailEnabled']) || $n['voicemailEnabled'] ? 'checked' : '' ?>> <?= e(t('البريد الصوتي شغال')) ?></label>
             <label class="block sm:col-span-2"><span class="label"><?= e(t('رسالة البريد الصوتي (فاضية = الرسالة الافتراضية)')) ?></span><textarea name="greeting" maxlength="1000" rows="2" class="input"><?= e($n['voicemailGreeting'] ?? '') ?></textarea></label>
             <?php if (!empty($n['ivrEnabled']) || (!empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']))): ?>
-              <p class="sm:col-span-2 text-xs text-amber-700"><?= e(t('الرقم ده عليه إعدادات متقدمة (قايمة اختيارات أو تحويل لنظام آلي). عدلها من لوحة Zernio عشان ماتتمسحش.')) ?></p>
+              <p class="sm:col-span-2 text-xs text-amber-700"><?= e(t('الرقم ده عليه إعدادات متقدمة (قايمة اختيارات أو تحويل لنظام آلي). عدلها من لوحة التكامل عشان ماتتمسحش.')) ?></p>
             <?php endif; ?>
             <div><button class="btn-primary" onclick="return confirm(<?= tjs('حفظ الإعدادات هيفعّل المكالمات على الرقم ده. نكمل؟') ?>)"><?= e(t('احفظ')) ?></button></div>
           </form>
