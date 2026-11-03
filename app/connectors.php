@@ -26,7 +26,7 @@ function connector_registry(): array
         ],
         'smtp' => [
             'name' => t('الإيميل (SMTP)'),
-            'single' => true,
+            'owner_only' => true, 'single' => true,
             'logo' => '@',
             'description' => t('سيرفر إيميل خاص بالشركة دي لإرسال التقارير والتنبيهات. لو مش موجود، بيستخدم إيميل المنصة.'),
             'docs' => '',

@@ -12,6 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(url('connectors'));
     }
     $def = $registry[$provider];
+    if (!empty($def['owner_only']) && !is_ws_owner()) {
+        flash('error', t('تعديل الاتصال ده لصاحب الشركة بس.'));
+        redirect(url('connectors'));
+    }
     $existing = null;
     foreach (connections($provider) as $c) {
         if ((int)$c['id'] === $cid) $existing = $c;
@@ -106,7 +110,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
     ?>
     <p class="text-sm text-ink-500 mb-6 max-w-3xl"><?= e(t('اربط الشركة بالخدمات اللي بتستخدمها. تقدر تضيف أكتر من اتصال لنفس الخدمة، وكل الحسابات من كل الاتصالات بتظهر مع بعض في البرنامج. المفاتيح بتتخزن مشفرة ومحدش يقدر يشوفها بعد الحفظ.')) ?></p>
 
-    <?php foreach ($registry as $key => $def): $conns = connections($key); ?>
+    <?php foreach ($registry as $key => $def): $conns = connections($key); $locked = !empty($def['owner_only']) && !is_ws_owner(); ?>
       <section class="mb-10">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center">
@@ -134,10 +138,10 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                     <?php else: ?><span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e($c['info'] ?: t('شغال')) ?></span><?php endif; ?>
                   </p>
                 </div>
-                <form method="post" onsubmit="return confirm('<?= tjs('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label']) ?>')">
+                <?php if (!$locked): ?><form method="post" onsubmit="return confirm('<?= tjs('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label']) ?>')">
                   <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="delete">
                   <button class="text-xs text-red-600 hover:underline"><?= e(t('فصل')) ?></button>
-                </form>
+                </form><?php endif; ?>
               </div>
 
               <?php if ($key === 'openrouter'): $tier = $c['settings']['tier'] ?? 'cheap'; ?>
@@ -167,6 +171,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 </form>
               <?php endif; ?>
 
+              <?php if ($locked): ?><p class="text-xs text-ink-500"><?= e(t('تعديل الاتصال ده لصاحب الشركة بس.')) ?></p><?php else: ?>
               <details>
                 <summary class="text-sm link cursor-pointer"><?= e(t('تعديل الاسم أو المفتاح')) ?></summary>
                 <form method="post" class="mt-3 space-y-3">
@@ -179,10 +184,13 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                   <button class="btn-ghost"><?= e(t('حفظ')) ?></button>
                 </form>
               </details>
+              <?php endif; ?>
             </div>
           <?php endforeach; ?>
 
-          <?php if (empty($def['single']) || !$conns): ?>
+          <?php if ($locked && !$conns): ?>
+          <div class="card p-5 border-dashed text-sm text-ink-500"><?= e(t('تعديل الاتصال ده لصاحب الشركة بس.')) ?></div>
+          <?php elseif (!$locked && (empty($def['single']) || !$conns)): ?>
           <form method="post" class="card p-5 space-y-3 border-dashed">
             <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="action" value="save">
             <b class="text-ink-900"><?= $conns ? e(t('+ اتصال جديد')) : e(t('ربط')) ?></b>

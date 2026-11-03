@@ -1,6 +1,7 @@
 <?php
 // English: SMTP email (2.4.0)
 return [
+    'تعديل الاتصال ده لصاحب الشركة بس.' => 'Only the workspace owner can change this connection.',
     'الإيميل مش صحيح: %s' => 'Invalid email: %s',
     'الاستضافة رفضت الإرسال. اظبط SMTP من إعدادات المنصة.' => 'The host refused to send. Set up SMTP in platform settings.',
     'مقدرناش نوصل لسيرفر SMTP (%s): %s' => 'Couldn\'t connect to the SMTP server (%s): %s',
