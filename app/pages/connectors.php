@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (in_array($action, ['primary', 'toggle', 'ai_mode'], true) && !is_ws_owner()) {
+    if (in_array($action, ['primary', 'ai_mode'], true) && !is_ws_owner()) {
         flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.'));
         redirect(url('connectors') . '#' . $provider);
     }
@@ -313,8 +313,8 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 <?php if (!empty($c['checked_at'])): ?><p class="text-[11px] text-ink-400 mt-0.5"><?= e(t('آخر فحص: %s', $c['checked_at'])) ?></p><?php endif; ?>
               </div>
               <?php $on = empty($c['settings']['disabled']); ?>
-              <form method="post" title="<?= $owner ? ($on ? e(t('إيقاف')) : e(t('تفعيل'))) : e(t('هذا الإعداد متاح لمالك الشركة فقط.')) ?>"><?= $hid($key, $c, 'toggle') ?>
-                <button type="submit" role="switch" aria-checked="<?= $on ? 'true' : 'false' ?>" data-switch <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-11 h-6 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed <?= $on ? 'bg-lime-500' : 'bg-ink-300' ?>">
+              <form method="post" title="<?= !$locked ? ($on ? e(t('إيقاف')) : e(t('تفعيل'))) : e(t('تعديل الاتصال ده لصاحب الشركة بس.')) ?>"><?= $hid($key, $c, 'toggle') ?>
+                <button type="submit" role="switch" aria-checked="<?= $on ? 'true' : 'false' ?>" data-switch <?= !$locked ? '' : 'disabled' ?> class="relative inline-flex w-11 h-6 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed <?= $on ? 'bg-lime-500' : 'bg-ink-300' ?>">
                   <span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform <?= $on ? 'translate-x-5 rtl:-translate-x-5' : '' ?>"></span></button></form>
             </div>
 
