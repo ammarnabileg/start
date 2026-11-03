@@ -93,7 +93,7 @@ render(t('إعدادات المنصة'), 'system', function () {
     </form>
 
     <!-- إعدادات الإيميل (SMTP) -->
-    <?php $sm = smtp_config(); ?>
+    <?php $sm = smtp_platform_config(); ?>
     <form method="post" id="smtp" class="card p-6 space-y-4 max-w-5xl mt-5">
       <?= csrf_field() ?>
       <div class="flex flex-wrap items-center gap-3">

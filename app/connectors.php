@@ -24,8 +24,31 @@ function connector_registry(): array
                 return count($profiles) . ' Profile';
             },
         ],
+        'smtp' => [
+            'name' => t('الإيميل (SMTP)'),
+            'single' => true,
+            'logo' => '@',
+            'description' => t('سيرفر إيميل خاص بالشركة دي لإرسال التقارير والتنبيهات. لو مش موجود، بيستخدم إيميل المنصة.'),
+            'docs' => '',
+            'help' => t('بيانات الإيميل من الاستضافة (cPanel ← Email Accounts) أو Gmail / Outlook. البرنامج بيجرب الدخول قبل الحفظ.'),
+            'color' => '#0F766E',
+            'fields' => [
+                ['key' => 'host', 'label' => t('سيرفر SMTP'), 'placeholder' => 'mail.yourdomain.com'],
+                ['key' => 'port', 'label' => t('البورت'), 'placeholder' => '465', 'default' => '465'],
+                ['key' => 'secure', 'label' => t('التشفير'), 'type' => 'select', 'options' => ['ssl' => 'SSL (465)', 'tls' => 'TLS (587)', 'none' => t('من غير تشفير (25)')], 'default' => 'ssl'],
+                ['key' => 'user', 'label' => t('اسم المستخدم'), 'placeholder' => 'reports@yourdomain.com'],
+                ['key' => 'pass', 'label' => t('كلمة السر'), 'secret' => true],
+                ['key' => 'from', 'label' => t('إيميل المرسل'), 'placeholder' => 'reports@yourdomain.com', 'optional' => true],
+                ['key' => 'from_name', 'label' => t('اسم المرسل'), 'optional' => true],
+            ],
+            'test' => function (array $c): string {
+                smtp_check(['host' => $c['host'], 'port' => (int)$c['port'], 'secure' => $c['secure'], 'user' => $c['user'], 'pass' => $c['pass']]);
+                return t('الدخول شغال · %s', $c['host']);
+            },
+        ],
         'openrouter' => [
             'name' => 'OpenRouter',
+            'single' => true,
             'logo' => 'AI',
             'description' => t('الذكاء الاصطناعي للمساعد الذكي. بيبدأ بالموديلات المجانية وبعدها الأرخص.'),
             'docs' => 'https://openrouter.ai/settings/keys',

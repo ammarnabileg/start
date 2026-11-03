@@ -149,8 +149,9 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
             </div>
             <p class="text-xs text-ink-500"><?= e(t('الرابط ده سري. أي حد معاه يقدر يشغل الإرسال، فما تشاركهوش.')) ?></p>
             <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs">
-              <?php if (smtp_config()): ?>
-                <?= e(t('الإيميلات بتتبعت عن طريق SMTP (%s).', smtp_config()['host'])) ?>
+              <?php $smc = smtp_config(); if ($smc): ?>
+                <?= e($smc['scope'] === 'workspace' ? t('الإيميلات بتتبعت من SMTP الخاص بالشركة (%s).', $smc['host']) : t('الإيميلات بتتبعت عن طريق SMTP (%s).', $smc['host'])) ?>
+                <?php if ($smc['scope'] !== 'workspace' && can('integrations.manage')): ?><a class="underline" href="<?= e(url('connectors')) ?>"><?= e(t('استخدم إيميل خاص بالشركة')) ?></a><?php endif; ?>
               <?php else: ?>
                 <?= e(t('الإيميلات بتتبعت من الاستضافة مباشرة، وممكن توصل الـ Spam أو ما توصلش. الأضمن تظبط SMTP.')) ?>
                 <?php if (is_admin()): ?><a class="underline" href="<?= e(url('system')) ?>#smtp"><?= e(t('اظبط SMTP')) ?></a><?php endif; ?>

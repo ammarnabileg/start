@@ -429,7 +429,7 @@ function rp_send_report(int $wid, array $recipients, string $kind, string $lang)
     $ok = 0; $fail = 0;
     foreach ($recipients as $to) {
         try {
-            send_mail($to, $subject, $html);
+            send_mail($to, $subject, $html, null, $wid);
             $ok++;
         } catch (MailException $e) {
             $fail++;

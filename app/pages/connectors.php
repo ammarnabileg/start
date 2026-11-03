@@ -25,7 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($v === '' && $existing) {
                 $v = (string)($existing['credentials'][$f['key']] ?? ''); // خانة سرية فاضية = سيب القديمة
             }
-            if ($v === '') {
+            if (($f['type'] ?? '') === 'select' && !isset($f['options'][$v])) $v = (string)($f['default'] ?? array_key_first($f['options']));
+            if ($v === '' && empty($f['optional'])) {
                 flash('error', t('اكتب %s.', $f['label']));
                 redirect(url('connectors'));
             }
@@ -83,6 +84,22 @@ foreach (connections('zernio') as $c) {
         $d['error'] = $ex->getMessage();
     }
     $details[(int)$c['id']] = $d;
+}
+
+/** خانة إعداد واحدة: سرية (password)، أو قائمة، أو نص عادي بقيمته الحالية */
+function connector_field(array $f, ?array $c, bool $isNew): string
+{
+    $name = 'f[' . e($f['key']) . ']';
+    $cur = $c['credentials'][$f['key']] ?? ($f['default'] ?? '');
+    if (($f['type'] ?? '') === 'select') {
+        $h = '<select name="' . $name . '" class="input">';
+        foreach ($f['options'] as $ov => $ol) $h .= '<option value="' . e($ov) . '"' . ((string)$cur === (string)$ov ? ' selected' : '') . '>' . e($ol) . '</option>';
+        return $h . '</select>';
+    }
+    if (!empty($f['secret'])) {
+        return '<input name="' . $name . '" type="password" autocomplete="new-password" dir="ltr" class="input" placeholder="' . e($isNew ? ($f['placeholder'] ?? '') : t('•••••••••• متخزن (اكتب جديد لو عاوز تغيره)')) . '"' . ($isNew && empty($f['optional']) ? ' required' : '') . '>';
+    }
+    return '<input name="' . $name . '" type="text" dir="ltr" class="input" value="' . e($isNew ? ($f['default'] ?? '') : (string)$cur) . '" placeholder="' . e($f['placeholder'] ?? '') . '"' . ($isNew && empty($f['optional']) ? ' required' : '') . '>';
 }
 
 render(t('التكاملات'), 'connectors', function () use ($registry, $details) {
@@ -157,8 +174,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                   <label class="block"><span class="label"><?= e(t('اسم الاتصال')) ?></span>
                     <input name="label" class="input" value="<?= e($c['label']) ?>" maxlength="120"></label>
                   <?php foreach ($def['fields'] as $f): ?>
-                    <label class="block"><span class="label"><?= e($f['label']) ?></span>
-                      <input name="f[<?= e($f['key']) ?>]" type="password" autocomplete="off" dir="ltr" class="input" placeholder="<?= e(t('•••••••••• متخزن (اكتب جديد لو عاوز تغيره)')) ?>"></label>
+                    <label class="block"><span class="label"><?= e($f['label']) ?></span><?= connector_field($f, $c, false) ?></label>
                   <?php endforeach; ?>
                   <button class="btn-ghost"><?= e(t('حفظ')) ?></button>
                 </form>
@@ -166,18 +182,21 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             </div>
           <?php endforeach; ?>
 
+          <?php if (empty($def['single']) || !$conns): ?>
           <form method="post" class="card p-5 space-y-3 border-dashed">
             <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="action" value="save">
             <b class="text-ink-900"><?= $conns ? e(t('+ اتصال جديد')) : e(t('ربط')) ?></b>
             <label class="block"><span class="label"><?= e(t('اسم الاتصال')) ?></span>
               <input name="label" class="input" maxlength="120" placeholder="<?= e(t('مثلاً: فيسبوك وانستجرام')) ?>"></label>
+            <div class="<?= count($def['fields']) > 2 ? 'grid sm:grid-cols-2 gap-3' : 'space-y-3' ?>">
             <?php foreach ($def['fields'] as $f): ?>
-              <label class="block"><span class="label"><?= e($f['label']) ?></span>
-                <input name="f[<?= e($f['key']) ?>]" type="password" autocomplete="off" dir="ltr" class="input" placeholder="<?= e($f['placeholder'] ?? '') ?>" required></label>
+              <label class="block"><span class="label"><?= e($f['label']) ?><?= !empty($f['optional']) ? ' <span class="text-ink-400 font-normal">' . e(t('(اختياري)')) . '</span>' : '' ?></span><?= connector_field($f, null, true) ?></label>
             <?php endforeach; ?>
+            </div>
             <p class="text-xs text-ink-400"><?= e($def['help']) ?></p>
             <button class="btn-primary"><?= e(t('ربط')) ?></button>
           </form>
+          <?php endif; ?>
         </div>
       </section>
     <?php endforeach; ?>

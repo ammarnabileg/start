@@ -34,4 +34,11 @@ return [
     'Outlook / Microsoft 365: السيرفر smtp.office365.com، البورت 587 TLS.' => 'Outlook / Microsoft 365: server smtp.office365.com, port 587 TLS.',
     'ابعت تجربة لـ' => 'Send a test to',
     'حفظ وإرسال تجربة' => 'Save and send test',
+    'الإيميل (SMTP)' => 'Email (SMTP)',
+    'سيرفر إيميل خاص بالشركة دي لإرسال التقارير والتنبيهات. لو مش موجود، بيستخدم إيميل المنصة.' => 'This company\'s own mail server for reports and alerts. If not set, the platform email is used.',
+    'بيانات الإيميل من الاستضافة (cPanel ← Email Accounts) أو Gmail / Outlook. البرنامج بيجرب الدخول قبل الحفظ.' => 'Use your hosting email (cPanel → Email Accounts) or Gmail / Outlook. The app tests the login before saving.',
+    'الدخول شغال · %s' => 'Login works · %s',
+    '(اختياري)' => '(optional)',
+    'الإيميلات بتتبعت من SMTP الخاص بالشركة (%s).' => 'Emails are sent through this company\'s SMTP (%s).',
+    'استخدم إيميل خاص بالشركة' => 'Use a company email',
 ];

@@ -8,8 +8,27 @@ class MailException extends Exception
 {
 }
 
-/** إعدادات SMTP (الباسورد مفكوك التشفير) أو null لو مش متظبط */
-function smtp_config(): ?array
+/**
+ * إعدادات SMTP (الباسورد مفكوك التشفير) أو null لو مش متظبط.
+ * الأولوية: SMTP الخاص بالشركة (من التكاملات)، وبعده SMTP العام بتاع المنصة.
+ */
+function smtp_config(?int $workspaceId = null): ?array
+{
+    $wid = $workspaceId ?? (int)(function_exists('ws') ? ws('id') : 0);
+    if ($wid && function_exists('connector') && ($w = connector('smtp', $wid)) && trim((string)($w['credentials']['host'] ?? '')) !== '') {
+        $cr = $w['credentials'];
+        return [
+            'host' => trim($cr['host']), 'port' => (int)($cr['port'] ?? 587) ?: 587, 'secure' => (string)($cr['secure'] ?? 'tls'),
+            'user' => (string)($cr['user'] ?? ''), 'pass' => (string)($cr['pass'] ?? ''),
+            'from' => (string)($cr['from'] ?? ''), 'from_name' => (string)($cr['from_name'] ?? '') ?: (string)ws('name'),
+            'scope' => 'workspace',
+        ];
+    }
+    return smtp_platform_config();
+}
+
+/** SMTP العام بتاع المنصة */
+function smtp_platform_config(): ?array
 {
     $host = trim((string)setting('smtp_host', ''));
     if ($host === '') return null;
@@ -21,7 +40,14 @@ function smtp_config(): ?array
         'pass' => decrypt_secret((string)setting('smtp_pass', '')),
         'from' => (string)setting('smtp_from', ''),
         'from_name' => (string)setting('smtp_from_name', '') ?: (string)setting('site_name', ''),
+        'scope' => 'platform',
     ];
+}
+
+/** بيتأكد إن السيرفر شغال والدخول صح، من غير ما يبعت إيميل */
+function smtp_check(array $c): void
+{
+    smtp_send($c, '', '', [], '', true);
 }
 
 function mail_from_address(): string
@@ -34,10 +60,10 @@ function mail_from_address(): string
 }
 
 /** بيبعت إيميل HTML لمستلم واحد. بيرمي MailException لو فشل. */
-function send_mail(string $to, string $subject, string $html, ?array $config = null): void
+function send_mail(string $to, string $subject, string $html, ?array $config = null, ?int $workspaceId = null): void
 {
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) throw new MailException(t('الإيميل مش صحيح: %s', $to));
-    $c = $config ?? smtp_config();
+    $c = $config ?? smtp_config($workspaceId);
     $from = $c && ($c['from'] ?? '') !== '' ? $c['from'] : mail_from_address();
     $name = $c['from_name'] ?? (string)setting('site_name', '');
     $enc = function ($s) { return '=?UTF-8?B?' . base64_encode($s) . '?='; };
@@ -59,7 +85,7 @@ function send_mail(string $to, string $subject, string $html, ?array $config = n
     smtp_send($c, $from, $to, array_merge(['To: <' . $to . '>', 'Subject: ' . $enc($subject)], $headers), $body);
 }
 
-function smtp_send(array $c, string $from, string $to, array $headers, string $body): void
+function smtp_send(array $c, string $from, string $to, array $headers, string $body, bool $checkOnly = false): void
 {
     $remote = ($c['secure'] === 'ssl' ? 'ssl://' : 'tcp://') . $c['host'] . ':' . $c['port'];
     $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true, 'peer_name' => $c['host']]]);
@@ -104,6 +130,10 @@ function smtp_send(array $c, string $from, string $to, array $headers, string $b
             } catch (MailException $e) {
                 throw new MailException(t('اسم المستخدم أو الباسورد بتاع SMTP غلط.'));
             }
+        }
+        if ($checkOnly) {
+            $cmd('QUIT', [221, 250]);
+            return;
         }
         $cmd('MAIL FROM:<' . $from . '>', [250]);
         $cmd('RCPT TO:<' . $to . '>', [250, 251]);
