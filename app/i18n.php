@@ -26,7 +26,11 @@ function t(string $s, ...$args): string
     static $map = null;
     if (lang() === 'en') {
         if ($map === null) {
-            $map = is_file(__DIR__ . '/lang/en.php') ? (require __DIR__ . '/lang/en.php') : [];
+            // en.php الأساسي + ملف لكل جزء (en_analytics.php, en_whatsapp.php ...)
+            $map = [];
+            foreach (glob(__DIR__ . '/lang/en*.php') ?: [] as $f) {
+                $map += (array)(require $f);
+            }
         }
         $s = $map[$s] ?? $s;
     }

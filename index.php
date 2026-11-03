@@ -2,6 +2,10 @@
 require __DIR__ . '/app/core.php';
 require __DIR__ . '/app/zernio.php';
 require __DIR__ . '/app/views/render.php';
+// الأجزاء الإضافية (تحليلات، واتساب، ...): كل ملف في app/modules بيضيف دوال Zernio بتاعته
+foreach (glob(__DIR__ . '/app/modules/*.php') ?: [] as $m) {
+    require $m;
+}
 
 // تغيير اللغة/الوضع شغال حتى قبل التسطيب
 if (($_GET['p'] ?? '') === 'pref') {
