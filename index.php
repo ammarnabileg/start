@@ -18,6 +18,8 @@ if (!is_installed()) {
 }
 
 date_default_timezone_set('UTC');
+// ?refresh=1 بيجيب البيانات جديدة من غير الحفظ المؤقت
+if (!empty($_GET['refresh'])) Zernio::$noCache = true;
 start_session();
 
 try {

@@ -36,7 +36,101 @@ class Zernio
         return false;
     }
 
+    /** تقدر تقفل الكاش لطلب معين (مثلاً زرار "تحديث") */
+    public static $noCache = false;
+
+    /** مدة الحفظ المؤقت بالثواني لكل نوع بيانات (القراءة بس) */
+    private static function ttl(string $path): int
+    {
+        $rules = [
+            '#^/v1/inbox/conversations/[^/]+/messages#' => 8,
+            '#^/v1/inbox/conversations#' => 15,
+            '#^/v1/inbox/comments/#' => 20,
+            '#^/v1/inbox/#' => 30,
+            '#^/v1/analytics#' => 600,
+            '#^/v1/accounts/follower-stats#' => 600,
+            '#^/v1/accounts/[^/]+/(gmb-|linkedin-|facebook-|pinterest-boards)#' => 300,
+            '#^/v1/accounts#' => 120,
+            '#^/v1/profiles#' => 600,
+            '#^/v1/posts#' => 30,
+            '#^/v1/queue#' => 60,
+            '#^/v1/ads#' => 120,
+            '#^/v1/connect/#' => 0, // روابط الربط لازم تكون جديدة كل مرة
+            '#^/v1/media#' => 0,
+        ];
+        foreach ($rules as $rx => $sec) {
+            if (preg_match($rx, $path)) return $sec;
+        }
+        return 30;
+    }
+
+    private static function cacheDir(): ?string
+    {
+        $dir = ROOT_DIR . '/uploads/cache';
+        if (!is_dir($dir) && !@mkdir($dir, 0750, true)) return null;
+        return is_writable($dir) ? $dir : null;
+    }
+
+    /** "جيل" الكاش لكل مفتاح: أي تعديل بيزوّده، فكل البيانات القديمة بتتجاهل فوراً */
+    private function cacheGen(): string
+    {
+        $dir = self::cacheDir();
+        $f = $dir ? $dir . '/gen_' . sha1($this->key) : null;
+        return ($f && is_file($f)) ? (string)@file_get_contents($f) : '0';
+    }
+
+    private function bumpCacheGen(): void
+    {
+        $dir = self::cacheDir();
+        if ($dir) @file_put_contents($dir . '/gen_' . sha1($this->key), (string)microtime(true), LOCK_EX);
+    }
+
     public function request(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
+    {
+        $ttl = $method === 'GET' ? self::ttl($path) : 0;
+        $cacheFile = null;
+        if ($ttl > 0 && ($dir = self::cacheDir())) {
+            $q = array_filter($query, function ($v) { return $v !== null && $v !== ''; });
+            ksort($q);
+            $h = sha1($this->key . '|' . $this->cacheGen() . '|' . $path . '?' . http_build_query($q));
+            $cacheFile = $dir . '/' . substr($h, 0, 2) . '/' . $h . '.json';
+            if (!self::$noCache && is_file($cacheFile) && filemtime($cacheFile) > time() - $ttl) {
+                $hit = json_decode((string)@file_get_contents($cacheFile), true);
+                if (is_array($hit)) return $hit;
+            }
+        }
+        try {
+            $data = $this->send($method, $path, $query, $body, $multipart);
+        } catch (ZernioException $ex) {
+            // كتر الطلبات أو مشكلة مؤقتة: نرجّع آخر نسخة محفوظة بدل الخطأ
+            if ($cacheFile && in_array($ex->status, [429, 500, 502, 503, 504], true) && is_file($cacheFile)) {
+                $stale = json_decode((string)@file_get_contents($cacheFile), true);
+                if (is_array($stale)) return $stale;
+            }
+            throw $ex;
+        }
+        if ($method !== 'GET') {
+            $this->bumpCacheGen(); // اتعمل تغيير: الكاش القديم مبقاش صالح
+        } elseif ($cacheFile) {
+            @mkdir(dirname($cacheFile), 0750, true);
+            $tmp = $cacheFile . '.' . getmypid() . '.tmp';
+            if (@file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_UNICODE)) !== false) @rename($tmp, $cacheFile);
+            if (mt_rand(1, 200) === 1) self::cacheGc();
+        }
+        return $data;
+    }
+
+    /** تنظيف ملفات الكاش القديمة (أقدم من ساعة) */
+    private static function cacheGc(): void
+    {
+        $dir = self::cacheDir();
+        if (!$dir) return;
+        foreach (glob($dir . '/*/*.json') ?: [] as $f) {
+            if (@filemtime($f) < time() - 3600) @unlink($f);
+        }
+    }
+
+    private function send(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
     {
         $url = self::BASE . $path;
         $query = array_filter($query, function ($v) { return $v !== null && $v !== ''; });
