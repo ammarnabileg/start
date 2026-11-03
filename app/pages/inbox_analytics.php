@@ -17,7 +17,42 @@ if ($z) {
     }
 }
 
-render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $res, $errs, $days, $plat, $platforms) {
+// ---- الفريق وخدمة العملا ----
+$team = ia2_member_replies($days);
+$sample = ['byUser' => [], 'samples' => 0, 'within1h' => 0];
+$sampleConvs = 0; $words = []; $ads = []; $convErr = null; $IA2_SAMPLE = 3;
+if ($z) {
+    [$cl, $convErr] = an_try(function () use ($z, $plat) {
+        return $z->conversations(['limit' => 100, 'profileId' => zernio_profile(), 'platform' => $plat ?: null]);
+    });
+    $convs = $cl['data'] ?? [];
+    $byId = [];
+    foreach ($convs as $c) if (!empty($c['id'])) $byId[$c['id']] = $c;
+    $ads = ia2_ad_conversations($convs, time() - $days * 86400);
+    // العينة: أحدث المحادثات اللي اترد عليها من هنا، ولو مفيش نستخدم أحدث المحادثات للكلمات بس
+    $pick = [];
+    foreach ($team['recent'] as $r) {
+        if (count($pick) >= $IA2_SAMPLE) break;
+        if (isset($byId[$r['conv_id']]) && !isset($pick[$r['conv_id']])) $pick[$r['conv_id']] = $byId[$r['conv_id']]['accountId'] ?? '';
+    }
+    if (!$pick) foreach (array_slice($convs, 0, $IA2_SAMPLE) as $c) $pick[$c['id']] = $c['accountId'] ?? '';
+    $msgsBy = []; $texts = [];
+    foreach ($pick as $cid => $acc) {
+        if ($acc === '') continue;
+        [$mr] = an_try(function () use ($z, $cid, $acc) { return $z->messages($cid, $acc); });
+        $ms = $mr['messages'] ?? ($mr['data'] ?? []);
+        if (!is_array($ms)) continue;
+        $msgsBy[$cid] = $ms; $sampleConvs++;
+        foreach ($ms as $m) {
+            $t = ia2_ts($m['createdAt'] ?? null);
+            if (($m['direction'] ?? '') === 'incoming' && !empty($m['message']) && ($t === null || $t >= time() - $days * 86400)) $texts[] = $m['message'];
+        }
+    }
+    $sample = ia2_response_sample($team['recent'], $msgsBy);
+    $words = ia2_top_words($texts, 20);
+}
+
+render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr) {
     if (!$z) { no_api_box(); return; }
     $q = function (array $over = []) use ($days, $plat) {
         return url('inbox_analytics', array_filter($over + ['d' => $days, 'pl' => $plat], function ($v) { return $v !== '' && $v !== null; }));
@@ -217,6 +252,7 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
           </div>
         <?php endif; ?>
       </section>
+      <?php ia2_section($team, $sample, $sampleConvs, $words, $ads, $convErr, $res['response-time'] ?? null, $errs['response-time'] ?? null); ?>
     </div>
     <?php
 });
