@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'add') {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '') {
-            flash('error', 'اكتب اسم الشركة.');
+            flash('error', t('اكتب اسم الشركة.'));
             redirect(url('workspaces'));
         }
         $pdo->prepare("INSERT INTO workspaces (name, created_by) VALUES (?, ?)")
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$wid, $me['id']]);
         $_SESSION['ws'] = $wid;
         log_activity('workspace.add', $name);
-        flash('success', 'اتعملت شركة "' . $name . '" وانت صاحبها. اربطها بـ Zernio عشان تبدأ.');
+        flash('success', t('اتعملت شركة "%s" وانت صاحبها. اربطها بـ Zernio عشان تبدأ.', $name));
         redirect(url('connectors'));
     }
 
@@ -31,11 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($action === 'accept') {
                 $pdo->prepare("UPDATE workspace_users SET status = 'active' WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
                 $_SESSION['ws'] = $id;
-                flash('success', 'انضميت للشركة.');
+                flash('success', t('انضميت للشركة.'));
                 redirect(url('dashboard'));
             }
             $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
-            flash('success', 'رفضت الدعوة.');
+            flash('success', t('رفضت الدعوة.'));
         }
         redirect(url('workspaces'));
     }
@@ -45,10 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$id, $me['id']]);
         $role = $st->fetchColumn();
         if ($role === 'owner' && owners_count($id) <= 1) {
-            flash('error', 'انت صاحب الشركة الوحيد. اعمل حد تاني صاحب شركة الأول، أو احذف الشركة.');
+            flash('error', t('انت صاحب الشركة الوحيد. اعمل حد تاني صاحب شركة الأول، أو احذف الشركة.'));
         } elseif ($role !== false) {
             $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
-            flash('success', 'خرجت من الشركة.');
+            flash('success', t('خرجت من الشركة.'));
         }
         redirect(url('workspaces'));
     }
@@ -59,13 +59,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$id, $me['id']]);
         $name = $st->fetchColumn();
         if ($name === false) {
-            flash('error', 'صاحب الشركة بس هو اللي يقدر يحذفها.');
+            flash('error', t('صاحب الشركة بس هو اللي يقدر يحذفها.'));
         } elseif (trim((string)($_POST['confirm'] ?? '')) !== $name) {
-            flash('error', 'عشان تحذف، اكتب اسم الشركة بالظبط زي ما هو.');
+            flash('error', t('عشان تحذف، اكتب اسم الشركة بالظبط زي ما هو.'));
         } else {
             $pdo->prepare("DELETE FROM workspaces WHERE id = ?")->execute([$id]);
             log_activity('workspace.delete', $name);
-            flash('success', 'اتحذفت "' . $name . '" من البرنامج. حساباتها ومنشوراتها في Zernio زي ما هي.');
+            flash('success', t('اتحذفت "%s" من البرنامج. حساباتها ومنشوراتها في Zernio زي ما هي.', $name));
         }
         redirect(url('workspaces'));
     }
@@ -75,19 +75,19 @@ $list = user_workspaces(true);
 $invites = pending_invites();
 $cur = current_workspace();
 
-render('شركاتي', 'workspaces', function () use ($list, $invites, $cur) {
+render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur) {
     if ($invites): ?>
       <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-        <h2 class="font-bold mb-3">دعوات مستنية ردك</h2>
+        <h2 class="font-bold mb-3"><?= e(t('دعوات مستنية ردك')) ?></h2>
         <?php foreach ($invites as $inv): ?>
           <div class="flex flex-wrap items-center gap-3 py-2">
             <div class="flex-1 min-w-[200px] text-sm">
-              <b><?= e($inv['invited_by_name'] ?: 'حد') ?></b> ضافك على شركة <b><?= e($inv['name']) ?></b> كـ <?= e(role_label($inv['role'])) ?>
+              <b><?= e($inv['invited_by_name'] ?: t('حد')) ?></b> <?= e(t('ضافك على شركة')) ?> <b><?= e($inv['name']) ?></b> <?= e(t('كـ')) ?> <?= e(role_label($inv['role'])) ?>
             </div>
             <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="accept"><input type="hidden" name="id" value="<?= (int)$inv['id'] ?>">
-              <button class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg px-4 py-2">موافق</button></form>
+              <button class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg px-4 py-2"><?= e(t('موافق')) ?></button></form>
             <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="decline"><input type="hidden" name="id" value="<?= (int)$inv['id'] ?>">
-              <button class="border border-slate-300 bg-white text-sm rounded-lg px-4 py-2">رفض</button></form>
+              <button class="border border-slate-300 bg-white text-sm rounded-lg px-4 py-2"><?= e(t('رفض')) ?></button></form>
           </div>
         <?php endforeach; ?>
       </div>
@@ -97,34 +97,34 @@ render('شركاتي', 'workspaces', function () use ($list, $invites, $cur) {
       <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl">
         <?php if (!$list): ?>
           <div class="p-8 text-center">
-            <p class="font-bold text-lg mb-1">لسه مالكش شركات</p>
-            <p class="text-sm text-slate-500">اعمل شركة جديدة من الفورم، أو اطلب من صاحب شركة يبعتلك لينك دعوة.</p>
+            <p class="font-bold text-lg mb-1"><?= e(t('لسه مالكش شركات')) ?></p>
+            <p class="text-sm text-slate-500"><?= e(t('اعمل شركة جديدة من الفورم، أو اطلب من صاحب شركة يبعتلك لينك دعوة.')) ?></p>
           </div>
         <?php endif; ?>
         <?php foreach ($list as $w): $isCur = $cur && (int)$cur['id'] === (int)$w['id']; $owner = $w['my_role'] === 'owner'; ?>
           <div class="p-5 border-b last:border-0 border-slate-100">
             <div class="flex flex-wrap items-center gap-3">
               <div class="flex-1 min-w-0">
-                <div class="font-bold"><?= e($w['name']) ?> <?= $isCur ? '<span class="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 mr-1">مفتوحة دلوقتي</span>' : '' ?></div>
+                <div class="font-bold"><?= e($w['name']) ?> <?= $isCur ? t('<span class="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 ms-1">مفتوحة دلوقتي</span>') : '' ?></div>
                 <div class="text-xs text-slate-500 mt-0.5"><?= e(role_label($w['my_role'])) ?> ·
-                  <?= connector('zernio', (int)$w['id']) ? '<span class="text-emerald-700">مربوطة بـ Zernio</span>' : '<span class="text-red-700">مش مربوطة بـ Zernio</span>' ?></div>
+                  <?= connector('zernio', (int)$w['id']) ? t('<span class="text-emerald-700">مربوطة بـ Zernio</span>') : t('<span class="text-red-700">مش مربوطة بـ Zernio</span>') ?></div>
               </div>
               <?php if (!$isCur): ?>
               <form method="post" action="<?= e(url('switch')) ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
-                <button class="text-sm bg-indigo-600 text-white rounded-lg px-3 py-1.5">افتح</button></form>
+                <button class="text-sm bg-indigo-600 text-white rounded-lg px-3 py-1.5"><?= e(t('افتح')) ?></button></form>
               <?php endif; ?>
-              <form method="post" onsubmit="return confirm('تخرج من الشركة دي؟')"><?= csrf_field() ?><input type="hidden" name="action" value="leave"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
-                <button class="text-sm text-slate-500 hover:bg-slate-100 rounded-lg px-3 py-1.5">خروج منها</button></form>
+              <form method="post" onsubmit="return confirm('<?= tjs('تخرج من الشركة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="leave"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
+                <button class="text-sm text-slate-500 hover:bg-slate-100 rounded-lg px-3 py-1.5"><?= e(t('خروج منها')) ?></button></form>
             </div>
             <?php if ($owner): ?>
             <details class="mt-3">
-              <summary class="text-xs text-red-600 cursor-pointer">حذف الشركة</summary>
+              <summary class="text-xs text-red-600 cursor-pointer"><?= e(t('حذف الشركة')) ?></summary>
               <form method="post" class="flex flex-wrap gap-2 mt-2"><?= csrf_field() ?>
                 <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
-                <input name="confirm" placeholder="اكتب: <?= e($w['name']) ?>" class="border border-red-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[180px]">
-                <button class="text-sm bg-red-600 text-white rounded-lg px-3 py-1.5">حذف نهائي</button>
+                <input name="confirm" placeholder="<?= e(t('اكتب: %s', $w['name'])) ?>" class="border border-red-300 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[180px]">
+                <button class="text-sm bg-red-600 text-white rounded-lg px-3 py-1.5"><?= e(t('حذف نهائي')) ?></button>
               </form>
-              <p class="text-xs text-slate-500 mt-1">بيشيلها من البرنامج لكل الفريق. حساباتها ومنشوراتها في Zernio مش بتتمسح.</p>
+              <p class="text-xs text-slate-500 mt-1"><?= e(t('بيشيلها من البرنامج لكل الفريق. حساباتها ومنشوراتها في Zernio مش بتتمسح.')) ?></p>
             </details>
             <?php endif; ?>
           </div>
@@ -133,10 +133,10 @@ render('شركاتي', 'workspaces', function () use ($list, $invites, $cur) {
 
       <form method="post" class="bg-white border border-slate-200 rounded-xl p-5 space-y-3 h-fit">
         <?= csrf_field() ?><input type="hidden" name="action" value="add">
-        <h2 class="font-bold">شركة جديدة</h2>
-        <input name="name" placeholder="اسم الشركة" required class="w-full border border-slate-300 rounded-lg px-3 py-2">
-        <p class="text-xs text-slate-500">بعد ما تعملها هتربطها بمفتاح Zernio بتاعها من صفحة Connectors. كل شركة ليها مفاتيحها وفريقها لوحدها.</p>
-        <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-2.5">إنشاء</button>
+        <h2 class="font-bold"><?= e(t('شركة جديدة')) ?></h2>
+        <input name="name" placeholder="<?= e(t('اسم الشركة')) ?>" required class="w-full border border-slate-300 rounded-lg px-3 py-2">
+        <p class="text-xs text-slate-500"><?= e(t('بعد ما تعملها هتربطها بمفتاح Zernio بتاعها من صفحة Connectors. كل شركة ليها مفاتيحها وفريقها لوحدها.')) ?></p>
+        <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-2.5"><?= e(t('إنشاء')) ?></button>
       </form>
     </div>
     <?php

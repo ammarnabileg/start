@@ -21,11 +21,11 @@ function error_box(string $msg): void
 function no_api_box(): void
 {
     echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5">';
-    echo '<p class="font-bold mb-1">البرنامج لسه مش مربوط بـ Zernio</p>';
+    echo t('<p class="font-bold mb-1">البرنامج لسه مش مربوط بـ Zernio</p>');
     if (is_ws_owner()) {
-        echo '<p class="text-sm">روح <a class="underline font-semibold" href="' . e(url('settings')) . '">إعدادات الشركة</a> وضيف مفتاح Zernio API.</p>';
+        echo '<p class="text-sm"><a class="underline font-semibold" href="' . e(url('connectors')) . '">' . e(t('اربط الشركة بـ Zernio من صفحة Connectors.')) . '</a></p>';
     } else {
-        echo '<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح Zernio API.</p>';
+        echo t('<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح Zernio API.</p>');
     }
     echo '</div>';
 }
@@ -47,16 +47,17 @@ function card_open(string $extra = ''): string
 /** صفحة بسيطة في النص (الدخول، التسجيل، الدعوة) */
 function auth_page(string $title, callable $body): void
 {
-    $siteName = setting('site_name', 'لوحة النشر');
+    $siteName = setting('site_name', t('لوحة النشر'));
     ?><!doctype html>
-<html lang="ar" dir="rtl">
+<?= html_open() ?>
 <head>
 <?php page_head($title . ' · ' . $siteName); ?>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-brand-50 to-ink-50">
+<body class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-brand-50 via-ink-50 to-cyan-50">
+  <div class="fixed top-4 end-4 flex gap-2"><?= pref_switch() ?></div>
   <div class="w-full max-w-sm card p-8 space-y-5">
     <div class="text-center">
-      <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-brand-600 text-white flex items-center justify-center text-xl font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></div>
+      <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center text-xl font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></div>
       <h1 class="text-xl font-bold text-ink-900"><?= e($siteName) ?></h1>
       <p class="text-slate-500 text-sm mt-1"><?= e($title) ?></p>
     </div>

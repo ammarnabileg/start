@@ -1,7 +1,7 @@
 <?php
 /** @var string $title  @var string $content  @var string $active */
 $user = current_user();
-$siteName = setting('site_name', 'لوحة النشر');
+$siteName = setting('site_name', t('لوحة النشر'));
 $myWorkspaces = user_workspaces();
 $curWs = current_workspace();
 $invites = pending_invites();
@@ -22,12 +22,12 @@ $I = [
 ];
 $sections = [];
 if ($curWs) {
-    $sections[''] = ['dashboard' => 'الرئيسية'];
-    $sections['المحتوى'] = ['compose' => 'منشور جديد', 'posts' => 'المنشورات', 'calendar' => 'التقويم'];
-    $sections['التواصل'] = ['inbox' => 'الرسائل', 'comments' => 'التعليقات'];
-    $sections['الشركة'] = ['accounts' => 'الحسابات المربوطة'];
+    $sections[''] = ['dashboard' => t('الرئيسية')];
+    $sections[t('المحتوى')] = ['compose' => t('منشور جديد'), 'posts' => t('المنشورات'), 'calendar' => t('التقويم')];
+    $sections[t('التواصل')] = ['inbox' => t('الرسائل'), 'comments' => t('التعليقات')];
+    $sections[t('الشركة')] = ['accounts' => t('الحسابات المربوطة')];
     if ($owner) {
-        $sections['الشركة'] += ['team' => 'الفريق', 'connectors' => 'Connectors', 'settings' => 'الإعدادات'];
+        $sections[t('الشركة')] += ['team' => t('الفريق'), 'connectors' => 'Connectors', 'settings' => t('الإعدادات')];
     }
 }
 $icon = function (string $d, string $cls = 'w-5 h-5') {
@@ -35,24 +35,25 @@ $icon = function (string $d, string $cls = 'w-5 h-5') {
 };
 $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 ?><!doctype html>
-<html lang="ar" dir="rtl">
+<?= html_open() ?>
 <head>
 <?php page_head($title . ' · ' . $siteName); ?>
 </head>
 <body class="min-h-screen">
 
 <!-- الشريط العلوي -->
-<header class="fixed top-0 inset-x-0 h-16 z-40 bg-[#1a1918] border-b border-ink-200 flex items-center gap-3 px-4">
-  <button id="menuBtn" class="lg:hidden p-2 rounded-lg hover:bg-ink-100" aria-label="القائمة"><?= $icon('M4 6h16M4 12h16M4 18h16', 'w-6 h-6') ?></button>
+<header class="fixed top-0 inset-x-0 h-16 z-40 bg-white/90 backdrop-blur border-b border-ink-200 flex items-center gap-3 px-4">
+  <button id="menuBtn" class="lg:hidden p-2 rounded-lg hover:bg-ink-100" aria-label="<?= e(t('القائمة')) ?>"><?= $icon('M4 6h16M4 12h16M4 18h16', 'w-6 h-6') ?></button>
   <a href="<?= e(url('dashboard')) ?>" class="flex items-center gap-2.5">
-    <span class="w-8 h-8 rounded-lg bg-[#d97757] text-[#1a1918] flex items-center justify-center font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></span>
-    <span class="serif text-xl font-bold text-ink-900 hidden sm:inline"><?= e($siteName) ?></span>
+    <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></span>
+    <span class="text-lg font-semibold text-ink-900 hidden sm:inline"><?= e($siteName) ?></span>
   </a>
   <div class="flex-1"></div>
+  <div class="hidden sm:flex items-center gap-2"><?= pref_switch() ?></div>
   <?php if ($invites): ?>
-    <a href="<?= e(url('workspaces')) ?>" class="relative p-2 rounded-lg hover:bg-ink-100" title="دعوات">
+    <a href="<?= e(url('workspaces')) ?>" class="relative p-2 rounded-lg hover:bg-ink-100" title="<?= e(t('دعوات')) ?>">
       <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
-      <span class="absolute top-0.5 left-0.5 bg-[#e5484d] text-[#1a1918] text-[10px] font-bold rounded-full min-w-[17px] h-[17px] flex items-center justify-center"><?= count($invites) ?></span>
+      <span class="absolute top-0.5 end-0.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[17px] h-[17px] flex items-center justify-center"><?= count($invites) ?></span>
     </a>
   <?php else: ?>
     <span class="p-2 text-ink-400"><?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?></span>
@@ -62,18 +63,19 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       <span class="w-6 h-6 rounded-full bg-ink-300 text-ink-900 text-xs flex items-center justify-center font-bold"><?= e($initial) ?></span>
       <span class="text-sm text-ink-900 hidden sm:inline"><?= e($user['name'] ?? '') ?></span>
     </summary>
-    <div class="menu left-0 mt-2">
-      <div class="px-3 py-2 text-xs text-ink-500" dir="ltr" style="text-align:right"><?= e($user['email'] ?? '') ?></div>
-      <a href="<?= e(url('account')) ?>" class="menu-item">حسابي</a>
-      <?php if (is_admin()): ?><a href="<?= e(url('system')) ?>" class="menu-item">إعدادات النظام</a><?php endif; ?>
+    <div class="menu end-0 mt-2">
+      <div class="px-3 py-2 text-xs text-ink-500" dir="ltr" style="text-align:start"><?= e($user['email'] ?? '') ?></div>
+      <div class="sm:hidden flex gap-2 px-3 py-2"><?= pref_switch() ?></div>
+      <a href="<?= e(url('account')) ?>" class="menu-item"><?= e(t('حسابي')) ?></a>
+      <?php if (is_admin()): ?><a href="<?= e(url('system')) ?>" class="menu-item"><?= e(t('إعدادات النظام')) ?></a><?php endif; ?>
       <div class="border-t border-ink-200 my-1.5"></div>
-      <form method="post" action="<?= e(url('logout')) ?>"><?= csrf_field() ?><button class="menu-item">تسجيل خروج</button></form>
+      <form method="post" action="<?= e(url('logout')) ?>"><?= csrf_field() ?><button class="menu-item"><?= e(t('تسجيل خروج')) ?></button></form>
     </div>
   </details>
 </header>
 
 <!-- القائمة الجانبية: ثابتة، واختيار الشركة في آخرها -->
-<aside id="sidebar" class="fixed top-16 bottom-0 right-0 w-64 z-30 bg-[#1a1918] border-l border-ink-200 flex flex-col translate-x-full lg:translate-x-0 transition-transform">
+<aside id="sidebar" class="fixed top-16 bottom-0 start-0 w-64 z-30 bg-white border-e border-ink-200 flex flex-col ltr:-translate-x-full rtl:translate-x-full lg:!translate-x-0 transition-transform">
   <nav class="flex-1 overflow-y-auto p-3">
     <?php foreach ($sections as $label => $items): ?>
       <?php if ($label !== ''): ?><div class="nav-label"><?= e($label) ?></div><?php endif; ?>
@@ -82,21 +84,21 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       <?php endforeach; ?>
     <?php endforeach; ?>
     <?php if (!$curWs): ?>
-      <a href="<?= e(url('workspaces')) ?>" class="nav-item nav-on"><?= $icon($I['team']) ?><span>شركاتي</span></a>
+      <a href="<?= e(url('workspaces')) ?>" class="nav-item nav-on"><?= $icon($I['team']) ?><span><?= e(t('شركاتي')) ?></span></a>
     <?php endif; ?>
   </nav>
 
   <details class="relative border-t border-ink-200" data-dropdown>
     <summary class="flex items-center gap-3 p-4 cursor-pointer hover:bg-ink-100">
-      <span class="w-10 h-10 rounded-lg border border-ink-300 bg-ink-100 flex items-center justify-center text-ink-700"><?= $icon('M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18M8 8h3m-3 4h3m-3 4h3') ?></span>
+      <span class="w-10 h-10 rounded-xl border border-ink-200 bg-brand-50 text-brand-700 flex items-center justify-center text-ink-700"><?= $icon('M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18M8 8h3m-3 4h3m-3 4h3') ?></span>
       <span class="flex-1 min-w-0">
-        <span class="block text-[15px] text-ink-900 truncate"><?= e($curWs['name'] ?? 'مفيش شركة') ?></span>
-        <span class="block text-xs text-ink-500 truncate"><?= $curWs ? e(role_label($curWs['my_role'])) : 'اعمل شركة أو اقبل دعوة' ?><?= $invites ? ' · <span class="text-[#e5484d]">' . count($invites) . ' دعوة</span>' : '' ?></span>
+        <span class="block text-[15px] text-ink-900 truncate"><?= e($curWs['name'] ?? t('مفيش شركة')) ?></span>
+        <span class="block text-xs text-ink-500 truncate"><?= $curWs ? e(role_label($curWs['my_role'])) : t('اعمل شركة أو اقبل دعوة') ?><?= $invites ? ' · <span class="text-rose-600">' . e(t('%s دعوة', count($invites))) . '</span>' : '' ?></span>
       </span>
       <?= $icon('M8 15l4 4 4-4M8 9l4-4 4 4', 'w-4 h-4 text-ink-500') ?>
     </summary>
-    <div class="menu bottom-full right-3 mb-2">
-      <?php if ($myWorkspaces): ?><div class="px-3 pt-2 pb-1 text-xs text-ink-400">شركاتك</div><?php endif; ?>
+    <div class="menu bottom-full start-3 mb-2">
+      <?php if ($myWorkspaces): ?><div class="px-3 pt-2 pb-1 text-xs text-ink-400"><?= e(t('شركاتك')) ?></div><?php endif; ?>
       <?php foreach ($myWorkspaces as $w): $on = $curWs && (int)$curWs['id'] === (int)$w['id']; ?>
         <form method="post" action="<?= e(url('switch')) ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
           <button class="menu-item <?= $on ? 'bg-ink-200/60 text-ink-900' : '' ?>">
@@ -107,26 +109,26 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         </form>
       <?php endforeach; ?>
       <div class="border-t border-ink-200 my-1.5"></div>
-      <a href="<?= e(url('workspaces')) ?>" class="menu-item"><?= $icon('M12 5v14M5 12h14', 'w-4 h-4') ?> شركة جديدة / إدارة الشركات<?= $invites ? ' <span class="badge bg-rose-50 text-rose-600 mr-auto">' . count($invites) . '</span>' : '' ?></a>
+      <a href="<?= e(url('workspaces')) ?>" class="menu-item"><?= $icon('M12 5v14M5 12h14', 'w-4 h-4') ?> <?= e(t('شركة جديدة / إدارة الشركات')) ?><?= $invites ? ' <span class="badge bg-rose-50 text-rose-600 ms-auto">' . count($invites) . '</span>' : '' ?></a>
     </div>
   </details>
 </aside>
 <div id="backdrop" class="fixed inset-0 top-16 bg-black/60 z-20 hidden lg:hidden"></div>
 
-<main class="pt-16 lg:pr-64 min-h-screen">
+<main class="pt-16 lg:ps-64 min-h-screen">
   <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 lg:py-10">
     <?php if (empty($hideTitle)): ?>
-      <h1 class="text-3xl font-semibold text-ink-900 mb-7"><?= e($title) ?></h1>
+      <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 mb-7"><?= e($title) ?></h1>
     <?php endif; ?>
     <?php foreach (take_flashes() as $f):
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>
       <div class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
     <?php endforeach; ?>
     <?php if ($invites && $active !== 'workspaces'): ?>
-      <a href="<?= e(url('workspaces')) ?>" class="block mb-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm">عندك <?= count($invites) ?> دعوة لشركة مستنية ردك ←</a>
+      <a href="<?= e(url('workspaces')) ?>" class="block mb-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm"><?= e(t('عندك')) ?> <?= count($invites) ?> <?= e(t('دعوة لشركة مستنية ردك ←')) ?></a>
     <?php endif; ?>
     <?= $content ?>
-    <p class="mt-12 text-xs text-ink-400">الإصدار <?= e(APP_VERSION) ?></p>
+    <p class="mt-12 text-xs text-ink-400"><?= e(t('الإصدار')) ?> <?= e(APP_VERSION) ?></p>
   </div>
 </main>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>

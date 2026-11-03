@@ -1,8 +1,9 @@
 (function () {
+  var T = window.T || {};
   // القائمة الجانبية على الموبايل
   var sb = document.getElementById('sidebar'), bd = document.getElementById('backdrop'), btn = document.getElementById('menuBtn');
-  function toggle(open) { if (!sb) return; sb.classList.toggle('translate-x-full', !open); bd.classList.toggle('hidden', !open); }
-  if (btn) btn.addEventListener('click', function () { toggle(sb.classList.contains('translate-x-full')); });
+  function toggle(open) { if (!sb) return; sb.classList.toggle('sb-open', open); bd.classList.toggle('hidden', !open); }
+  if (btn) btn.addEventListener('click', function () { toggle(!sb.classList.contains('sb-open')); });
   if (bd) bd.addEventListener('click', function () { toggle(false); });
 
   // منع الضغط مرتين على أي زرار إرسال
@@ -10,7 +11,7 @@
     f.addEventListener('submit', function (ev) {
       var b = ev.submitter || f.querySelector('button:not([type=button])');
       if (!b) return;
-      setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.label = b.textContent; b.textContent = 'جاري التنفيذ...'; }, 0);
+      setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.label = b.textContent; b.textContent = T.working; }, 0);
     });
   });
 
@@ -31,7 +32,7 @@
     b.addEventListener('click', function () {
       replyTo.value = b.dataset.replyTo;
       hint.classList.remove('hidden');
-      hint.querySelector('span').textContent = b.dataset.replyName || 'تعليق';
+      hint.querySelector('span').textContent = b.dataset.replyName || T.comment;
       var ta = document.querySelector('#replyForm textarea'); ta.focus();
     });
   });
@@ -48,7 +49,7 @@
   function syncMode() {
     var m = document.querySelector('.mode:checked'); if (!m) return;
     whenBox.classList.toggle('hidden', m.value !== 'schedule');
-    submitBtn.textContent = { schedule: 'جدولة المنشور', now: 'انشر دلوقتي', draft: 'حفظ المسودة' }[m.value];
+    submitBtn.textContent = { schedule: T.schedule, now: T.now, draft: T.draft }[m.value];
   }
   modes.forEach(function (r) { r.addEventListener('change', syncMode); }); if (modes.length) syncMode();
 
@@ -77,7 +78,7 @@
   document.querySelectorAll('[data-copy]').forEach(function (b) {
     b.addEventListener('click', function () {
       var el = document.querySelector(b.dataset.copy), v = el.value;
-      var done = function () { var t = b.textContent; b.textContent = 'اتنسخ ✓'; setTimeout(function () { b.textContent = t; }, 1500); };
+      var done = function () { var t = b.textContent; b.textContent = T.copied; setTimeout(function () { b.textContent = t; }, 1500); };
       if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(done);
       else { var ta = document.createElement('textarea'); ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
     });

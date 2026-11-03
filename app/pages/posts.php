@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
     try {
         $z->deletePost((string)$_POST['id']);
         log_activity('post.delete', (string)$_POST['id']);
-        flash('success', 'تم حذف المنشور.');
+        flash('success', t('تم حذف المنشور.'));
     } catch (ZernioException $ex) {
         flash('error', $ex->getMessage());
     }
@@ -39,9 +39,9 @@ if ($z) {
     }
 }
 
-render('المنشورات', 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $apiError, $accountNames) {
+render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $apiError, $accountNames) {
     if (!$z) { no_api_box(); return; }
-    $tabs = ['' => 'الكل', 'scheduled' => 'مجدول', 'published' => 'تم النشر', 'draft' => 'مسودات', 'failed' => 'فشل'];
+    $tabs = ['' => t('الكل'), 'scheduled' => t('مجدول'), 'published' => t('تم النشر'), 'draft' => t('مسودات'), 'failed' => t('فشل')];
     ?>
     <div class="flex flex-wrap gap-2 mb-5">
       <?php foreach ($tabs as $k => $l): ?>
@@ -51,7 +51,7 @@ render('المنشورات', 'posts', function () use ($z, $posts, $pages, $page
     <?php if ($apiError) { error_box($apiError); return; } ?>
     <?= card_open() ?>
     <?php if (!$posts): ?>
-      <p class="p-6 text-slate-500 text-sm">مفيش منشورات هنا.</p>
+      <p class="p-6 text-slate-500 text-sm"><?= e(t('مفيش منشورات هنا.')) ?></p>
     <?php else: foreach ($posts as $p):
         [$label, $cls] = status_label((string)($p['status'] ?? ''));
         $thumb = $p['mediaItems'][0]['url'] ?? null;
@@ -61,7 +61,7 @@ render('المنشورات', 'posts', function () use ($z, $posts, $pages, $page
         <?php if ($thumb && $thumbType !== 'video' && $thumbType !== 'document'): ?>
           <img src="<?= e($thumb) ?>" class="w-16 h-16 rounded-lg object-cover bg-slate-100 shrink-0" loading="lazy" alt="">
         <?php elseif ($thumb): ?>
-          <div class="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-xs text-slate-500 shrink-0"><?= $thumbType === 'video' ? 'فيديو' : 'ملف' ?></div>
+          <div class="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-xs text-slate-500 shrink-0"><?= $thumbType === 'video' ? t('فيديو') : t('ملف') ?></div>
         <?php endif; ?>
         <div class="flex-1 min-w-0">
           <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -78,14 +78,14 @@ render('المنشورات', 'posts', function () use ($z, $posts, $pages, $page
           </div>
           <p class="text-sm whitespace-pre-line line-clamp-3"><?= e(mb_substr((string)($p['content'] ?? ''), 0, 400)) ?></p>
           <p class="text-xs text-slate-500 mt-1">
-            <?php if (!empty($p['scheduledFor'])): ?>موعد النشر: <?= e(fmt_date($p['scheduledFor'])) ?> · <?php endif; ?>
-            اتعمل: <?= e(fmt_date($p['createdAt'] ?? null)) ?>
+            <?php if (!empty($p['scheduledFor'])): ?><?= e(t('موعد النشر:')) ?> <?= e(fmt_date($p['scheduledFor'])) ?> · <?php endif; ?>
+            <?= e(t('اتعمل:')) ?> <?= e(fmt_date($p['createdAt'] ?? null)) ?>
           </p>
         </div>
         <?php if (($p['status'] ?? '') !== 'publishing'): ?>
-        <form method="post" onsubmit="return confirm('متأكد إنك عاوز تحذف المنشور ده؟')">
+        <form method="post" onsubmit="return confirm('<?= tjs('متأكد إنك عاوز تحذف المنشور ده؟') ?>')">
           <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($p['_id']) ?>">
-          <button class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg">حذف</button>
+          <button class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"><?= e(t('حذف')) ?></button>
         </form>
         <?php endif; ?>
       </div>
@@ -93,9 +93,9 @@ render('المنشورات', 'posts', function () use ($z, $posts, $pages, $page
     </div>
     <?php if ($pages > 1): ?>
       <div class="flex gap-2 justify-center mt-5">
-        <?php if ($pageNo > 1): ?><a class="px-4 py-2 bg-white border rounded-lg" href="<?= e(url('posts', ['status' => $status, 'n' => $pageNo - 1])) ?>">السابق</a><?php endif; ?>
-        <span class="px-4 py-2 text-sm text-slate-500">صفحة <?= $pageNo ?> من <?= $pages ?></span>
-        <?php if ($pageNo < $pages): ?><a class="px-4 py-2 bg-white border rounded-lg" href="<?= e(url('posts', ['status' => $status, 'n' => $pageNo + 1])) ?>">التالي</a><?php endif; ?>
+        <?php if ($pageNo > 1): ?><a class="px-4 py-2 bg-white border rounded-lg" href="<?= e(url('posts', ['status' => $status, 'n' => $pageNo - 1])) ?>"><?= e(t('السابق')) ?></a><?php endif; ?>
+        <span class="px-4 py-2 text-sm text-slate-500"><?= e(t('صفحة')) ?> <?= $pageNo ?> <?= e(t('من')) ?> <?= $pages ?></span>
+        <?php if ($pageNo < $pages): ?><a class="px-4 py-2 bg-white border rounded-lg" href="<?= e(url('posts', ['status' => $status, 'n' => $pageNo + 1])) ?>"><?= e(t('التالي')) ?></a><?php endif; ?>
       </div>
     <?php endif;
 });

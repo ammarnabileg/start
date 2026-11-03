@@ -24,7 +24,7 @@ class Zernio
     {
         $this->key = $key ?? connector_secret('zernio', 'api_key');
         if ($this->key === '') {
-            throw new ZernioException('الشركة دي لسه مش مربوطة بـ Zernio. صاحب الشركة يربطها من صفحة Connectors.');
+            throw new ZernioException(t('الشركة دي لسه مش مربوطة بـ Zernio. صاحب الشركة يربطها من صفحة Connectors.'));
         }
     }
 
@@ -65,7 +65,7 @@ class Zernio
         curl_close($ch);
 
         if ($raw === false) {
-            throw new ZernioException('تعذر الاتصال بـ Zernio: ' . $err);
+            throw new ZernioException(t('تعذر الاتصال بـ Zernio: ') . $err);
         }
         $data = json_decode($raw, true);
         if (!is_array($data)) {
@@ -84,12 +84,12 @@ class Zernio
             $msg = json_encode($msg, JSON_UNESCAPED_UNICODE);
         }
         if ($status === 401) {
-            return 'مفتاح Zernio API غير صحيح أو منتهي، أو الحساب محتاج إعادة ربط. ' . $msg;
+            return t('مفتاح Zernio API غير صحيح أو منتهي، أو الحساب محتاج إعادة ربط. ') . $msg;
         }
         if ($status === 429) {
-            return 'Zernio بيقول إن الطلبات كتير. استنى دقيقة وجرب تاني.';
+            return t('Zernio بيقول إن الطلبات كتير. استنى دقيقة وجرب تاني.');
         }
-        return 'خطأ من Zernio (' . $status . '): ' . ($msg ?: 'غير معروف');
+        return t('خطأ من Zernio (%s): %s', $status, $msg ?: t('غير معروف'));
     }
 
     /* ---------- البروفايلات والحسابات ---------- */
@@ -151,7 +151,7 @@ class Zernio
             'size' => filesize($path),
         ]);
         if (empty($r['uploadUrl']) || empty($r['publicUrl'])) {
-            throw new ZernioException('Zernio لم يرجع رابط رفع للملف.');
+            throw new ZernioException(t('Zernio لم يرجع رابط رفع للملف.'));
         }
         $fh = fopen($path, 'rb');
         $ch = curl_init($r['uploadUrl']);
@@ -169,7 +169,7 @@ class Zernio
         curl_close($ch);
         fclose($fh);
         if ($status < 200 || $status >= 300) {
-            throw new ZernioException('فشل رفع الملف (' . $status . ') ' . $err);
+            throw new ZernioException(t('فشل رفع الملف (%s) %s', $status, $err));
         }
         return $r['publicUrl'];
     }
@@ -268,7 +268,7 @@ function current_profile_id(Zernio $z): string
         }
     }
     if (!$profiles) {
-        throw new ZernioException('مفيش أي Profile في حساب Zernio. اعمل واحد من لوحة Zernio.');
+        throw new ZernioException(t('مفيش أي Profile في حساب Zernio. اعمل واحد من لوحة Zernio.'));
     }
     return $profiles[0]['_id'];
 }

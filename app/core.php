@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/version.php';
+require_once __DIR__ . '/i18n.php';
 require_once __DIR__ . '/crypto.php';
 require_once __DIR__ . '/connectors.php';
 
@@ -132,7 +133,7 @@ function check_csrf(): void
     $sent = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
     if (!is_string($sent) || !hash_equals(csrf_token(), $sent)) {
         http_response_code(419);
-        exit('انتهت صلاحية الصفحة. ارجع وحدّث الصفحة وحاول تاني.');
+        exit(t('انتهت صلاحية الصفحة. ارجع وحدّث الصفحة وحاول تاني.'));
     }
 }
 
@@ -278,7 +279,7 @@ function owners_count(int $workspaceId): int
 
 function role_label(string $r): string
 {
-    return $r === 'owner' ? 'صاحب الشركة' : 'محرر';
+    return $r === 'owner' ? t('صاحب الشركة') : t('محرر');
 }
 
 function ws(string $field)
@@ -346,11 +347,11 @@ function fmt_date(?string $iso, string $format = 'Y-m-d h:i A'): string
 function platform_label(string $p): string
 {
     $map = [
-        'twitter' => 'X (تويتر)', 'instagram' => 'انستجرام', 'facebook' => 'فيسبوك',
-        'linkedin' => 'لينكدإن', 'tiktok' => 'تيك توك', 'youtube' => 'يوتيوب',
-        'pinterest' => 'بنترست', 'reddit' => 'ريديت', 'bluesky' => 'بلوسكاي',
-        'threads' => 'ثريدز', 'googlebusiness' => 'جوجل بيزنس', 'snapchat' => 'سناب شات',
-        'whatsapp' => 'واتساب', 'telegram' => 'تليجرام', 'discord' => 'ديسكورد',
+        'twitter' => t('X (تويتر)'), 'instagram' => t('انستجرام'), 'facebook' => t('فيسبوك'),
+        'linkedin' => t('لينكدإن'), 'tiktok' => t('تيك توك'), 'youtube' => t('يوتيوب'),
+        'pinterest' => t('بنترست'), 'reddit' => t('ريديت'), 'bluesky' => t('بلوسكاي'),
+        'threads' => t('ثريدز'), 'googlebusiness' => t('جوجل بيزنس'), 'snapchat' => t('سناب شات'),
+        'whatsapp' => t('واتساب'), 'telegram' => t('تليجرام'), 'discord' => t('ديسكورد'),
     ];
     return $map[$p] ?? $p;
 }
@@ -358,14 +359,14 @@ function platform_label(string $p): string
 function status_label(string $s): array
 {
     $map = [
-        'draft' => ['مسودة', 'bg-gray-100 text-gray-700'],
-        'pending_approval' => ['في انتظار الموافقة', 'bg-amber-100 text-amber-800'],
-        'scheduled' => ['مجدول', 'bg-blue-100 text-blue-800'],
-        'publishing' => ['جاري النشر', 'bg-indigo-100 text-indigo-800'],
-        'published' => ['تم النشر', 'bg-green-100 text-green-800'],
-        'failed' => ['فشل', 'bg-red-100 text-red-800'],
-        'partial' => ['نُشر جزئياً', 'bg-orange-100 text-orange-800'],
-        'cancelled' => ['ملغي', 'bg-gray-100 text-gray-600'],
+        'draft' => [t('مسودة'), 'bg-gray-100 text-gray-700'],
+        'pending_approval' => [t('في انتظار الموافقة'), 'bg-amber-100 text-amber-800'],
+        'scheduled' => [t('مجدول'), 'bg-blue-100 text-blue-800'],
+        'publishing' => [t('جاري النشر'), 'bg-indigo-100 text-indigo-800'],
+        'published' => [t('تم النشر'), 'bg-green-100 text-green-800'],
+        'failed' => [t('فشل'), 'bg-red-100 text-red-800'],
+        'partial' => [t('نُشر جزئياً'), 'bg-orange-100 text-orange-800'],
+        'cancelled' => [t('ملغي'), 'bg-gray-100 text-gray-600'],
     ];
     return $map[$s] ?? [$s, 'bg-gray-100 text-gray-700'];
 }

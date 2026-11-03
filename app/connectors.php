@@ -10,9 +10,9 @@ function connector_registry(): array
     return [
         'zernio' => [
             'name' => 'Zernio',
-            'description' => 'النشر والجدولة والرسائل والتعليقات على السوشيال ميديا.',
+            'description' => t('النشر والجدولة والرسائل والتعليقات على السوشيال ميديا.'),
             'docs' => 'https://zernio.com/dashboard/api-keys',
-            'help' => 'هتلاقي المفتاح في zernio.com ← API Keys ← Create.',
+            'help' => t('هتلاقي المفتاح في zernio.com ← API Keys ← Create.'),
             'color' => '#111827',
             'fields' => [
                 ['key' => 'api_key', 'label' => 'API Key', 'secret' => true, 'placeholder' => 'sk_...'],

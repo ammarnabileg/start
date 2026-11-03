@@ -9,6 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(url($to));
         }
     }
-    flash('error', 'مالكش صلاحية على الشركة دي.');
+    flash('error', t('مالكش صلاحية على الشركة دي.'));
 }
 redirect(url('dashboard'));

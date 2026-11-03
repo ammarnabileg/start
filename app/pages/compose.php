@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
 
     $errors = [];
     if (!$platforms && $old['mode'] !== 'draft') {
-        $errors[] = 'اختار حساب واحد على الأقل.';
+        $errors[] = t('اختار حساب واحد على الأقل.');
     }
 
     // رفع الصور والفيديوهات
@@ -52,16 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             $code = $_FILES['media']['error'][$i];
             if ($code === UPLOAD_ERR_NO_FILE) continue;
             if ($code === UPLOAD_ERR_INI_SIZE || $code === UPLOAD_ERR_FORM_SIZE) {
-                $errors[] = 'الملف "' . $_FILES['media']['name'][$i] . '" أكبر من الحجم المسموح على السيرفر (' . ini_get('upload_max_filesize') . ').';
+                $errors[] = t('الملف "%s" أكبر من الحجم المسموح على السيرفر (%s).', $_FILES['media']['name'][$i], ini_get('upload_max_filesize'));
                 continue;
             }
             if ($code !== UPLOAD_ERR_OK || !is_uploaded_file($tmp)) {
-                $errors[] = 'فشل رفع ملف "' . $_FILES['media']['name'][$i] . '".';
+                $errors[] = t('فشل رفع ملف "%s".', $_FILES['media']['name'][$i]);
                 continue;
             }
             $mime = $finfo->file($tmp);
             if (!isset($allowedMime[$mime])) {
-                $errors[] = 'نوع الملف "' . $_FILES['media']['name'][$i] . '" غير مدعوم.';
+                $errors[] = t('نوع الملف "%s" غير مدعوم.', $_FILES['media']['name'][$i]);
                 continue;
             }
             try {
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     }
 
     if ($old['content'] === '' && !$media) {
-        $errors[] = 'اكتب نص المنشور أو ارفع صورة/فيديو.';
+        $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
     }
 
     $payload = ['content' => $old['content'], 'platforms' => $platforms, 'timezone' => site_timezone()];
@@ -88,9 +88,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     } else {
         $dt = DateTime::createFromFormat('Y-m-d\TH:i', $old['when'], new DateTimeZone(site_timezone()));
         if (!$dt) {
-            $errors[] = 'اختار تاريخ ووقت النشر.';
+            $errors[] = t('اختار تاريخ ووقت النشر.');
         } elseif ($dt < new DateTime('now', new DateTimeZone(site_timezone()))) {
-            $errors[] = 'وقت النشر لازم يكون في المستقبل.';
+            $errors[] = t('وقت النشر لازم يكون في المستقبل.');
         } else {
             $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
         }
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
         try {
             $z->createPost($payload);
             log_activity('post.create', $old['mode'] . ' ' . count($platforms) . ' accounts');
-            $msg = ['now' => 'تم نشر المنشور.', 'draft' => 'تم حفظ المسودة.', 'schedule' => 'تمت جدولة المنشور.'][$old['mode']];
+            $msg = ['now' => t('تم نشر المنشور.'), 'draft' => t('تم حفظ المسودة.'), 'schedule' => t('تمت جدولة المنشور.')][$old['mode']];
             flash('success', $msg);
             redirect(url('posts'));
         } catch (ZernioException $ex) {
@@ -123,11 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     }
 }
 
-render('منشور جديد', 'compose', function () use ($z, $accounts, $apiError, $old) {
+render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $apiError, $old) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     if (!$accounts) {
-        echo '<div class="bg-white border border-slate-200 rounded-xl p-6">مفيش حسابات مربوطة. <a class="text-indigo-700 underline font-semibold" href="' . e(url('accounts')) . '">اربط حساب الأول</a>.</div>';
+        echo '<div class="card p-6">' . e(t('مفيش حسابات مربوطة.')) . ' <a class="link" href="' . e(url('accounts')) . '">' . e(t('اربط حساب الأول')) . '</a></div>';
         return;
     }
     $defaultWhen = (new DateTime('+1 hour', new DateTimeZone(site_timezone())))->format('Y-m-d\TH:00');
@@ -136,25 +136,25 @@ render('منشور جديد', 'compose', function () use ($z, $accounts, $apiErr
       <?= csrf_field() ?>
       <div class="lg:col-span-2 space-y-6">
         <?= card_open('p-5') ?>
-          <label class="block font-bold mb-2">نص المنشور</label>
-          <textarea name="content" rows="8" id="content" class="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="اكتب هنا..."><?= e($old['content']) ?></textarea>
-          <div class="text-xs text-slate-500 mt-1"><span id="charCount">0</span> حرف · تويتر (X) بيقبل 280 حرف بس</div>
+          <label class="block font-bold mb-2"><?= e(t('نص المنشور')) ?></label>
+          <textarea name="content" rows="8" id="content" class="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea>
+          <div class="text-xs text-slate-500 mt-1"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div>
         </div>
 
         <?= card_open('p-5') ?>
-          <label class="block font-bold mb-2">صور أو فيديو (اختياري)</label>
+          <label class="block font-bold mb-2"><?= e(t('صور أو فيديو (اختياري)')) ?></label>
           <input type="file" name="media[]" multiple accept="image/*,video/*,application/pdf" id="mediaInput"
-                 class="block w-full text-sm file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-semibold">
+                 class="block w-full text-sm file:me-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-semibold">
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
-          <p class="text-xs text-slate-500 mt-2">أقصى حجم للملف على السيرفر بتاعك: <?= e(ini_get('upload_max_filesize')) ?></p>
+          <p class="text-xs text-slate-500 mt-2"><?= e(t('أقصى حجم للملف على السيرفر بتاعك:')) ?> <?= e(ini_get('upload_max_filesize')) ?></p>
         </div>
       </div>
 
       <div class="space-y-6">
         <?= card_open('p-5') ?>
           <div class="flex items-center justify-between mb-3">
-            <span class="font-bold">انشر على</span>
-            <button type="button" id="selectAll" class="text-xs text-indigo-700 font-semibold">اختار الكل</button>
+            <span class="font-bold"><?= e(t('انشر على')) ?></span>
+            <button type="button" id="selectAll" class="text-xs text-indigo-700 font-semibold"><?= e(t('اختار الكل')) ?></button>
           </div>
           <div class="space-y-2 max-h-80 overflow-auto">
             <?php foreach ($accounts as $a): $checked = in_array($a['_id'], $old['accounts'], true); ?>
@@ -171,15 +171,15 @@ render('منشور جديد', 'compose', function () use ($z, $accounts, $apiErr
         </div>
 
         <?= card_open('p-5 space-y-3') ?>
-          <span class="font-bold block">إمتى؟</span>
-          <?php foreach (['schedule' => 'جدولة لوقت محدد', 'now' => 'انشر دلوقتي', 'draft' => 'احفظ كمسودة'] as $k => $l): ?>
+          <span class="font-bold block"><?= e(t('إمتى؟')) ?></span>
+          <?php foreach (['schedule' => t('جدولة لوقت محدد'), 'now' => t('انشر دلوقتي'), 'draft' => t('احفظ كمسودة')] as $k => $l): ?>
             <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode accent-indigo-600"> <?= $l ?></label>
           <?php endforeach; ?>
           <div id="whenBox">
             <input type="datetime-local" name="when" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="w-full border border-slate-300 rounded-lg px-3 py-2" dir="ltr">
-            <p class="text-xs text-slate-500 mt-1">بتوقيت: <?= e(site_timezone()) ?></p>
+            <p class="text-xs text-slate-500 mt-1"><?= e(t('بتوقيت:')) ?> <?= e(site_timezone()) ?></p>
           </div>
-          <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3 disabled:opacity-60" id="submitBtn">تنفيذ</button>
+          <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3 disabled:opacity-60" id="submitBtn"><?= e(t('تنفيذ')) ?></button>
         </div>
       </div>
     </form>

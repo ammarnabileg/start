@@ -12,26 +12,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $w['id'],
     ]);
     log_activity('settings.update');
-    flash('success', 'اتحفظ.');
+    flash('success', t('اتحفظ.'));
     redirect(url('settings'));
 }
 
-render('إعدادات الشركة', 'settings', function () use ($w, $zones) {
+render(t('إعدادات الشركة'), 'settings', function () use ($w, $zones) {
     $cur = site_timezone();
     if (!in_array($cur, $zones, true)) $zones[] = $cur;
     ?>
     <form method="post" class="card p-6 max-w-xl space-y-5">
       <?= csrf_field() ?>
-      <label class="block"><span class="label">اسم الشركة</span>
+      <label class="block"><span class="label"><?= e(t('اسم الشركة')) ?></span>
         <input name="ws_name" value="<?= e($w['name']) ?>" required class="input"></label>
-      <label class="block"><span class="label">المنطقة الزمنية</span>
+      <label class="block"><span class="label"><?= e(t('المنطقة الزمنية')) ?></span>
         <select name="timezone" class="input" dir="ltr">
           <?php foreach ($zones as $z): ?><option <?= $z === $cur ? 'selected' : '' ?>><?= e($z) ?></option><?php endforeach; ?>
         </select>
-        <span class="text-xs text-ink-400">مواعيد الجدولة والتواريخ بتظهر بالتوقيت ده.</span></label>
+        <span class="text-xs text-ink-400"><?= e(t('مواعيد الجدولة والتواريخ بتظهر بالتوقيت ده.')) ?></span></label>
       <div class="flex items-center gap-3">
-        <button class="btn-primary">حفظ</button>
-        <a href="<?= e(url('connectors')) ?>" class="link text-sm">مفاتيح الربط (Connectors) ←</a>
+        <button class="btn-primary"><?= e(t('حفظ')) ?></button>
+        <a href="<?= e(url('connectors')) ?>" class="link text-sm"><?= e(t('مفاتيح الربط (Connectors) ←')) ?></a>
       </div>
     </form>
     <?php

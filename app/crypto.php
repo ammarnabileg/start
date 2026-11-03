@@ -9,7 +9,7 @@ function app_key(): string
     $k = app_config()['app_key'] ?? ($GLOBALS['__app_key'] ?? '');
     $raw = base64_decode((string)$k, true);
     if ($raw === false || strlen($raw) !== 32) {
-        throw new RuntimeException('مفتاح التشفير مش موجود. افتح صفحة setup.php وشغّل التحديث.');
+        throw new RuntimeException(t('مفتاح التشفير مش موجود. افتح صفحة setup.php وشغّل التحديث.'));
     }
     return $raw;
 }
@@ -50,7 +50,7 @@ function write_config(array $config): void
     $tmp = CONFIG_FILE . '.tmp';
     if (file_put_contents($tmp, $php, LOCK_EX) === false || !rename($tmp, CONFIG_FILE)) {
         @unlink($tmp);
-        throw new RuntimeException('مقدرناش نكتب ملف config.php. اطلب من الاستضافة صلاحية الكتابة على مجلد الموقع.');
+        throw new RuntimeException(t('مقدرناش نكتب ملف config.php. اطلب من الاستضافة صلاحية الكتابة على مجلد الموقع.'));
     }
     @chmod(CONFIG_FILE, 0640);
 }
