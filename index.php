@@ -28,19 +28,30 @@ if (setting('app_version') !== APP_VERSION) {
 
 $page = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'dashboard'));
 
-$public = ['login'];
+$public = ['login', 'register', 'invite'];
 if (!in_array($page, $public, true) && !current_user()) {
     redirect(url('login'));
 }
 
-$adminOnly = ['users', 'settings'];
-if (in_array($page, $adminOnly, true) && !is_admin()) {
-    flash('error', 'الصفحة دي للمدير بس.');
+// إعدادات النظام لمدير النظام بس
+if ($page === 'system' && !is_admin()) {
     redirect(url('dashboard'));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+}
+
+// كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
+$noWorkspacePages = ['login', 'register', 'invite', 'logout', 'workspaces', 'switch', 'account', 'system'];
+if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
+    redirect(url('workspaces'));
+}
+
+// إعدادات الشركة وفريقها لصاحب الشركة بس
+if (in_array($page, ['settings', 'team'], true) && !is_ws_owner()) {
+    flash('error', 'الصفحة دي لصاحب الشركة بس.');
+    redirect(url('dashboard'));
 }
 
 $file = __DIR__ . '/app/pages/' . $page . '.php';

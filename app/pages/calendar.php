@@ -14,7 +14,7 @@ if ($z) {
     try {
         $r = $z->posts([
             'dateFrom' => $first->format('Y-m-d'), 'dateTo' => $last->format('Y-m-d'),
-            'limit' => 500, 'sortBy' => 'scheduled-asc', 'profileId' => setting('profile_id') ?: null,
+            'limit' => 500, 'sortBy' => 'scheduled-asc', 'profileId' => ws('profile_id') ?: null,
         ]);
         foreach ($r['posts'] ?? [] as $p) {
             $when = $p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? null;

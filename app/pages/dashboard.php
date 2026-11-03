@@ -7,12 +7,12 @@ $apiError = null;
 
 if ($z) {
     try {
-        $accounts = $z->accounts(setting('profile_id') ?: null);
+        $accounts = $z->accounts(ws('profile_id') ?: null);
         $stats['accounts'] = count($accounts);
-        $r = $z->posts(['status' => 'scheduled', 'limit' => 5, 'sortBy' => 'scheduled-asc', 'profileId' => setting('profile_id') ?: null]);
+        $r = $z->posts(['status' => 'scheduled', 'limit' => 5, 'sortBy' => 'scheduled-asc', 'profileId' => ws('profile_id') ?: null]);
         $upcoming = $r['posts'] ?? [];
         $stats['scheduled'] = (int)($r['pagination']['total'] ?? count($upcoming));
-        $c = $z->conversations(['limit' => 50, 'profileId' => setting('profile_id') ?: null]);
+        $c = $z->conversations(['limit' => 50, 'profileId' => ws('profile_id') ?: null]);
         foreach ($c['data'] ?? [] as $conv) {
             $stats['unread'] += (int)($conv['unreadCount'] ?? 0);
         }

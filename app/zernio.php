@@ -22,15 +22,15 @@ class Zernio
 
     public function __construct(?string $key = null)
     {
-        $this->key = $key ?? (string)setting('zernio_api_key', '');
+        $this->key = $key ?? (string)ws('api_key');
         if ($this->key === '') {
-            throw new ZernioException('لم يتم إدخال مفتاح Zernio API بعد. روح لصفحة الإعدادات وضيفه.');
+            throw new ZernioException('الشركة دي لسه مالهاش مفتاح Zernio API. المدير يضيفه من صفحة الشركات.');
         }
     }
 
     public static function configured(): bool
     {
-        return (string)setting('zernio_api_key', '') !== '';
+        return (string)ws('api_key') !== '';
     }
 
     public function request(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
@@ -257,7 +257,7 @@ function zernio_or_null(?string &$error = null): ?Zernio
 /** البروفايل المستخدم: اللي اختاره المدير، وإلا البروفايل الافتراضي في Zernio */
 function current_profile_id(Zernio $z): string
 {
-    $id = (string)setting('profile_id', '');
+    $id = (string)ws('profile_id');
     if ($id !== '') {
         return $id;
     }

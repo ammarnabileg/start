@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             log_activity('account.connect', $platform);
             redirect($auth);
         }
-        if ($action === 'disconnect' && is_admin()) {
+        if ($action === 'disconnect' && is_ws_owner()) {
             $z->disconnect((string)$_POST['id']);
             log_activity('account.disconnect', (string)$_POST['id']);
             flash('success', 'تم فصل الحساب.');
@@ -39,7 +39,7 @@ $accounts = [];
 $apiError = null;
 if ($z) {
     try {
-        $accounts = $z->allAccounts(setting('profile_id') ?: null);
+        $accounts = $z->allAccounts(ws('profile_id') ?: null);
     } catch (ZernioException $ex) {
         $apiError = $ex->getMessage();
     }
@@ -69,7 +69,7 @@ render('الحسابات المربوطة', 'accounts', function () use ($z, $ac
           <?php else: ?>
             <span class="text-xs bg-green-100 text-green-800 rounded-full px-2 py-1">شغال</span>
           <?php endif; ?>
-          <?php if (is_admin()): ?>
+          <?php if (is_ws_owner()): ?>
             <form method="post" onsubmit="return confirm('فصل الحساب ده؟ مش هتقدر تنشر عليه لحد ما تربطه تاني.')"><?= csrf_field() ?>
               <input type="hidden" name="action" value="disconnect"><input type="hidden" name="id" value="<?= e($a['_id']) ?>">
               <button class="text-sm text-red-600 hover:bg-red-50 rounded-lg px-3 py-1.5">فصل</button></form>

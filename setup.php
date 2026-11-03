@@ -72,7 +72,6 @@ if ($mode === 'install') {
             $email = strtolower(post('admin_email'));
             $pass = (string)($_POST['admin_pass'] ?? '');
             $pass2 = (string)($_POST['admin_pass2'] ?? '');
-            $apiKey = post('api_key');
 
             if ($site === '') $errors[] = 'اكتب اسم الموقع.';
             if ($name === '') $errors[] = 'اكتب اسمك.';
@@ -96,8 +95,6 @@ if ($mode === 'install') {
                             ->execute([$name, $email, password_hash($pass, PASSWORD_DEFAULT)]);
                     }
                     save_setting('site_name', $site, $pdo);
-                    save_setting('timezone', 'Africa/Cairo', $pdo);
-                    if ($apiKey !== '') save_setting('zernio_api_key', $apiKey, $pdo);
                     save_setting('app_version', APP_VERSION, $pdo);
 
                     $config = [
@@ -196,7 +193,7 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
   <div class="text-center space-y-4">
     <div class="text-5xl">✅</div>
     <h1 class="text-2xl font-bold">تم التسطيب بنجاح</h1>
-    <p class="text-slate-600">ادخل بالإيميل وكلمة السر اللي لسه كاتبهم.</p>
+    <p class="text-slate-600">ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها ضيف شركاتك من صفحة "الشركات".</p>
     <a href="index.php" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg">ادخل للموقع</a>
   </div>
 
@@ -250,7 +247,7 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
   <?php else: ?>
     <form method="post" class="space-y-4">
       <?= csrf_field() ?><input type="hidden" name="action" value="site">
-      <h2 class="font-bold">بيانات الموقع وحساب المدير</h2>
+      <h2 class="font-bold">بيانات الموقع وحسابك</h2>
       <label class="block"><span class="text-sm font-semibold">اسم الموقع</span>
         <input name="site_name" required value="<?= e($_POST['site_name'] ?? '') ?>" class="<?= $input ?>"></label>
       <label class="block"><span class="text-sm font-semibold">اسمك</span>
@@ -261,8 +258,6 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
         <input name="admin_pass" type="password" minlength="8" required class="<?= $input ?>" dir="ltr"></label>
       <label class="block"><span class="text-sm font-semibold">اكتب كلمة السر تاني</span>
         <input name="admin_pass2" type="password" minlength="8" required class="<?= $input ?>" dir="ltr"></label>
-      <label class="block"><span class="text-sm font-semibold">مفتاح Zernio API <span class="font-normal text-slate-400">(اختياري، ممكن تضيفه بعدين من الإعدادات)</span></span>
-        <input name="api_key" type="password" autocomplete="off" placeholder="sk_..." class="<?= $input ?>" dir="ltr"></label>
       <div class="flex gap-3">
         <button name="action" value="back" formnovalidate class="px-5 border border-slate-300 rounded-lg">→ رجوع</button>
         <button class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3">تسطيب</button>

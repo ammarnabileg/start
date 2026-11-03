@@ -7,7 +7,7 @@ $old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule'];
 
 if ($z) {
     try {
-        $accounts = $z->accounts(setting('profile_id') ?: null);
+        $accounts = $z->accounts(ws('profile_id') ?: null);
         $accounts = array_values(array_filter($accounts, function ($a) {
             return ($a['isActive'] ?? true) && empty($a['needsReconnection']);
         }));

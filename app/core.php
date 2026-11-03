@@ -185,11 +185,100 @@ function log_activity(string $action, string $details = ''): void
 {
     try {
         $u = current_user();
-        db()->prepare("INSERT INTO activity_log (user_id, action, details) VALUES (?, ?, ?)")
-            ->execute([$u['id'] ?? null, $action, mb_substr($details, 0, 2000)]);
+        $w = current_workspace();
+        db()->prepare("INSERT INTO activity_log (user_id, workspace_id, action, details) VALUES (?, ?, ?, ?)")
+            ->execute([$u['id'] ?? null, $w['id'] ?? null, $action, mb_substr($details, 0, 2000)]);
     } catch (Throwable $t) {
         // لا نوقف البرنامج بسبب السجل
     }
+}
+
+/* ---------- الشركات (Workspaces) ---------- */
+
+/** الشركات اللي المستخدم عضو فيها (موافق على دعوتها). كل شركة فيها my_role. */
+function user_workspaces(bool $fresh = false): array
+{
+    static $list = null;
+    if ($list === null || $fresh) {
+        $u = current_user();
+        if (!$u) {
+            return $list = [];
+        }
+        $st = db()->prepare("SELECT w.*, wu.role AS my_role FROM workspaces w
+            JOIN workspace_users wu ON wu.workspace_id = w.id
+            WHERE wu.user_id = ? AND wu.status = 'active' ORDER BY w.name");
+        $st->execute([$u['id']]);
+        $list = $st->fetchAll();
+    }
+    return $list;
+}
+
+/** الشركة المفتوحة دلوقتي. دايماً من ضمن شركات المستخدم، فمستحيل يشوف شركة مش بتاعته. */
+function current_workspace(): ?array
+{
+    $list = user_workspaces();
+    if (!$list) {
+        return null;
+    }
+    $id = (int)($_SESSION['ws'] ?? 0);
+    foreach ($list as $w) {
+        if ((int)$w['id'] === $id) {
+            return $w;
+        }
+    }
+    $_SESSION['ws'] = (int)$list[0]['id'];
+    return $list[0];
+}
+
+function is_ws_owner(): bool
+{
+    return ws('my_role') === 'owner';
+}
+
+/** الدعوات اللي مستنية رد المستخدم */
+function pending_invites(): array
+{
+    $u = current_user();
+    if (!$u) {
+        return [];
+    }
+    $st = db()->prepare("SELECT w.id, w.name, wu.role, inv.name AS invited_by_name FROM workspace_users wu
+        JOIN workspaces w ON w.id = wu.workspace_id
+        LEFT JOIN users inv ON inv.id = wu.invited_by
+        WHERE wu.user_id = ? AND wu.status = 'pending' ORDER BY wu.created_at");
+    $st->execute([$u['id']]);
+    return $st->fetchAll();
+}
+
+/** دعوات بالإيميل اتعملت قبل ما الشخص يسجل: تتحول لإشعارات أول ما يعمل حساب */
+function claim_email_invites(int $userId, string $email): void
+{
+    $pdo = db();
+    $st = $pdo->prepare("SELECT * FROM workspace_invites WHERE email = ? AND expires_at > NOW()");
+    $st->execute([strtolower($email)]);
+    foreach ($st->fetchAll() as $inv) {
+        $pdo->prepare("INSERT IGNORE INTO workspace_users (workspace_id, user_id, role, status, invited_by) VALUES (?, ?, ?, 'pending', ?)")
+            ->execute([$inv['workspace_id'], $userId, $inv['role'], $inv['created_by']]);
+    }
+    $pdo->prepare("DELETE FROM workspace_invites WHERE email = ?")->execute([strtolower($email)]);
+}
+
+function owners_count(int $workspaceId): int
+{
+    $st = db()->prepare("SELECT COUNT(*) FROM workspace_users WHERE workspace_id = ? AND role = 'owner' AND status = 'active'");
+    $st->execute([$workspaceId]);
+    return (int)$st->fetchColumn();
+}
+
+function role_label(string $r): string
+{
+    return $r === 'owner' ? 'صاحب الشركة' : 'محرر';
+}
+
+function ws(string $field)
+{
+    $w = current_workspace();
+    return $w[$field] ?? null;
 }
 
 /* ---------- مساعدات ---------- */
@@ -229,7 +318,7 @@ function take_flashes(): array
 
 function site_timezone(): string
 {
-    $tz = setting('timezone', 'Africa/Cairo');
+    $tz = (string)(ws('timezone') ?: 'Africa/Cairo');
     return in_array($tz, timezone_identifiers_list(), true) ? $tz : 'Africa/Cairo';
 }
 

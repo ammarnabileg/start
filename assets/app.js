@@ -68,4 +68,13 @@
       mp.appendChild(el);
     });
   });
+  // أزرار النسخ
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var el = document.querySelector(b.dataset.copy), v = el.value;
+      var done = function () { var t = b.textContent; b.textContent = 'اتنسخ ✓'; setTimeout(function () { b.textContent = t; }, 1500); };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(done);
+      else { var ta = document.createElement('textarea'); ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+    });
+  });
 })();

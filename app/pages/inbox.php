@@ -35,7 +35,7 @@ $current = null;
 $apiError = null;
 if ($z) {
     try {
-        $r = $z->conversations(['limit' => 30, 'cursor' => $cursor ?: null, 'profileId' => setting('profile_id') ?: null]);
+        $r = $z->conversations(['limit' => 30, 'cursor' => $cursor ?: null, 'profileId' => ws('profile_id') ?: null]);
         $convs = $r['data'] ?? [];
         $next = ($r['pagination']['hasMore'] ?? false) ? ($r['pagination']['nextCursor'] ?? null) : null;
         foreach ($convs as $c) {

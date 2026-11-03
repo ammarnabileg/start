@@ -27,11 +27,11 @@ if ($z) {
         $r = $z->posts([
             'status' => $status ?: null, 'page' => $pageNo, 'limit' => 20,
             'sortBy' => $status === 'scheduled' ? 'scheduled-asc' : 'created-desc',
-            'profileId' => setting('profile_id') ?: null,
+            'profileId' => ws('profile_id') ?: null,
         ]);
         $posts = $r['posts'] ?? [];
         $pages = max(1, (int)($r['pagination']['pages'] ?? 1));
-        foreach ($z->accounts(setting('profile_id') ?: null) as $a) {
+        foreach ($z->accounts(ws('profile_id') ?: null) as $a) {
             $accountNames[$a['_id']] = $a['displayName'] ?? $a['username'] ?? '';
         }
     } catch (ZernioException $ex) {
