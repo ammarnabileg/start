@@ -85,7 +85,7 @@ function ia2_stopwords(): array
 {
     static $s = null;
     if ($s !== null) return $s;
-    $ar = 'في من على الى إلى عن مع هو هي انا أنا انت إنت انتي احنا إحنا هم ده دي دا اللي الذي التي ان أن إن كان كانت يكون مش مو لا لأ ما لم لن و او أو ثم بس كده كدا ايه إيه ازاي إزاي فين امتى ليه عشان علشان لو بعد قبل كل ممكن عايز عاوز عايزة محتاج يا ياريت هل هذا هذه ذلك تلك هنا هناك بتاع بتاعت بتاعي عند عندي عندك لي ليا ليك له لها لكم لنا منه منها فيه فيها عليه عليها اي أي اية حاجة حد طيب تمام اه أه ايوه آه شكرا شكراً السلام عليكم وعليكم مساء صباح الخير النور اهلا أهلا مرحبا والله لسه برضه برده كمان جدا جداً اوي قوي يعني';
+    $ar = 'في من على الى إلى عن مع هو هي انا أنا انت إنت انتي احنا إحنا هم ده دي دا اللي الذي التي ان أن إن كان كانت يكون مش مو لا لأ ما لم لن و او أو ثم بس كده كدا ايه إيه ازاي إزاي فين امتى ليه عشان علشان لو بعد قبل كل ممكن عايز عاوز عايزة محتاج يا ياريت هل هذا هذه ذلك تلك هنا هناك بتاع بتاعت بتاعي عند عندي عندك لي ليا ليك له لها لكم لنا منه منها فيه فيها عليه عليها اي أي اية حاجة حد طيب تمام اه أه ايوه آه شكرا شكراً السلام عليكم وعليكم مساء صباح الخير النور اهلا أهلا مرحبا والله لسه برضه برده كمان كام عليكم جدا جداً اوي قوي يعني';
     $en = 'a an the and or but if of to in on at for from with by is are was were be been am i you he she it we they me my your our their this that these those there here what which who how why when where do does did not no yes so can could would should will just please hi hello hey thanks thank ok okay im its dont ive about as have has had get got want need any some all more very also than then too';
     $s = array_flip(array_merge(preg_split('/\s+/u', $ar), preg_split('/\s+/u', $en)));
     return $s;
@@ -107,13 +107,16 @@ function ia2_top_words(array $texts, int $limit = 20): array
     $words = []; $bi = [];
     foreach ($texts as $txt) {
         $txt = preg_replace('~https?://\S+~u', ' ', (string)$txt);
-        $toks = preg_split('/[^\p{Arabic}\p{L}\p{N}]+/u', $txt, -1, PREG_SPLIT_NO_EMPTY);
+        $toks = preg_split('/[^\p{L}\p{N}\p{Mn}]+/u', $txt, -1, PREG_SPLIT_NO_EMPTY);
         $prev = null;
         foreach ($toks as $t) {
             $t = ia2_norm($t);
             if (preg_match('/^\p{N}+$/u', $t)) { $prev = null; continue; }
             // "ال" التعريف: نشيلها لو الكلمة طويلة كفاية
-            $base = (mb_strlen($t) > 4 && mb_substr($t, 0, 2) === 'ال') ? mb_substr($t, 2) : $t;
+            $base = $t;
+            foreach (['وال', 'بال', 'فال', 'لل', 'ال'] as $pre) {
+                if (mb_strlen($t) > mb_strlen($pre) + 2 && mb_substr($t, 0, mb_strlen($pre)) === $pre) { $base = mb_substr($t, mb_strlen($pre)); break; }
+            }
             if (mb_strlen($base) < 2 || isset($stop[$t]) || isset($stop[$base])) { $prev = null; continue; }
             $words[$base] = ($words[$base] ?? 0) + 1;
             if ($prev !== null) { $k = $prev . ' ' . $base; $bi[$k] = ($bi[$k] ?? 0) + 1; }
@@ -147,7 +150,7 @@ function ia2_ad_conversations(array $convs, int $fromTs): array
 }
 
 /** قسم "الفريق وخدمة العملا" */
-function ia2_section(array $team, array $sample, int $sampleConvs, array $words, array $ads, ?string $convErr, ?array $rt, ?string $rtErr): void
+function ia2_section(array $team, array $sample, int $sampleConvs, bool $fromReplies, array $words, array $ads, ?string $convErr, ?array $rt, ?string $rtErr): void
 {
     $rows = $team['rows'];
     $maxC = 0; foreach ($rows as $r) $maxC = max($maxC, (int)$r['convs']);
@@ -224,7 +227,7 @@ function ia2_section(array $team, array $sample, int $sampleConvs, array $words,
 
           <div class="card p-5">
             <h3 class="font-bold text-ink-900 mb-1"><?= e(t('أكتر كلمات بيكتبها العملا')) ?></h3>
-            <p class="text-xs text-ink-500 mb-3"><?= e(t('من الرسايل الواردة في عينة %s محادثات، من غير الكلمات الشائعة زي "في" و"the".', $sampleConvs)) ?></p>
+            <p class="text-xs text-ink-500 mb-3"><?= e($fromReplies ? t('من الرسايل الواردة في عينة %s محادثات، من غير الكلمات الشائعة زي "في" و"the".', $sampleConvs) : t('من الرسايل الواردة في أحدث %s محادثات، من غير الكلمات الشائعة زي "في" و"the".', $sampleConvs)) ?></p>
             <?php if (!$words): ?>
               <?= an_empty(t('مفيش كلام كفاية نحلله'), t('هتظهر الكلمات هنا لما يوصل رسايل نصية من العملا.'), '💬') ?>
             <?php else: ?>

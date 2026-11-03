@@ -20,7 +20,7 @@ if ($z) {
 // ---- الفريق وخدمة العملا ----
 $team = ia2_member_replies($days);
 $sample = ['byUser' => [], 'samples' => 0, 'within1h' => 0];
-$sampleConvs = 0; $words = []; $ads = []; $convErr = null; $IA2_SAMPLE = 3;
+$sampleConvs = 0; $fromReplies = false; $words = []; $ads = []; $convErr = null; $IA2_SAMPLE = 3;
 if ($z) {
     [$cl, $convErr] = an_try(function () use ($z, $plat) {
         return $z->conversations(['limit' => 100, 'profileId' => zernio_profile(), 'platform' => $plat ?: null]);
@@ -35,6 +35,7 @@ if ($z) {
         if (count($pick) >= $IA2_SAMPLE) break;
         if (isset($byId[$r['conv_id']]) && !isset($pick[$r['conv_id']])) $pick[$r['conv_id']] = $byId[$r['conv_id']]['accountId'] ?? '';
     }
+    $fromReplies = (bool)$pick;
     if (!$pick) foreach (array_slice($convs, 0, $IA2_SAMPLE) as $c) $pick[$c['id']] = $c['accountId'] ?? '';
     $msgsBy = []; $texts = [];
     foreach ($pick as $cid => $acc) {
@@ -52,7 +53,7 @@ if ($z) {
     $words = ia2_top_words($texts, 20);
 }
 
-render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr) {
+render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies) {
     if (!$z) { no_api_box(); return; }
     $q = function (array $over = []) use ($days, $plat) {
         return url('inbox_analytics', array_filter($over + ['d' => $days, 'pl' => $plat], function ($v) { return $v !== '' && $v !== null; }));
@@ -252,7 +253,7 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
           </div>
         <?php endif; ?>
       </section>
-      <?php ia2_section($team, $sample, $sampleConvs, $words, $ads, $convErr, $res['response-time'] ?? null, $errs['response-time'] ?? null); ?>
+      <?php ia2_section($team, $sample, $sampleConvs, $fromReplies, $words, $ads, $convErr, $res['response-time'] ?? null, $errs['response-time'] ?? null); ?>
     </div>
     <?php
 });
