@@ -304,8 +304,15 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode"> <?= e($l) ?></label>
           <?php endforeach; ?>
           <div id="whenBox">
-            <input type="datetime-local" name="when" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="input" dir="ltr">
+            <input type="datetime-local" name="when" id="whenInput" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="input" dir="ltr">
             <p class="text-xs text-ink-500 mt-1"><?= e(t('بتوقيت:')) ?> <?= e(site_timezone()) ?></p>
+            <?php $nb = (module_enabled('analytics') && function_exists('next_best_time')) ? next_best_time($z) : null; if ($nb): ?>
+              <button type="button" class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-lime-300 bg-lime-50 text-lime-700 px-3 py-2 text-sm hover:bg-lime-100 transition"
+                onclick="document.getElementById('whenInput').value='<?= e($nb->format('Y-m-d\TH:i')) ?>'">
+                ⚡ <?= e(t('انشر في أحسن وقت: %s', weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A'))) ?>
+              </button>
+              <p class="text-[11px] text-ink-400 mt-1"><?= e(t('محسوب من تفاعل منشوراتك اللي فاتت.')) ?></p>
+            <?php endif; ?>
           </div>
           <p class="text-xs text-ink-500"><?= e(t('الطابور: مواعيد ثابتة في الأسبوع، والمنشور بياخد أقرب ميعاد فاضي.')) ?>
             <a class="link" href="<?= e(url('queue')) ?>" data-modal="<?= e(url('queue')) ?>" data-modal-title="<?= e(t('مواعيد الطابور')) ?>"><?= e(t('إدارة المواعيد')) ?></a></p>

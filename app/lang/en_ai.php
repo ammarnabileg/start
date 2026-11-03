@@ -38,4 +38,8 @@ return [
     'لو المجاني زحمة، بيستخدم موديل رخيص (أقل من نص سنت للسؤال).' => 'If free models are busy, uses a cheap model (under half a cent per question).',
     'أي موديل' => 'Any model',
     'بيبدأ برضه بالأرخص، بس مسموحله يطلع لموديلات أغلى لو اللي قبلها فشل.' => 'Still starts with the cheapest, but may move to pricier models if the cheaper ones fail.',
+    'انشر في أحسن وقت: %s' => 'Publish at the best time: %s',
+    'محسوب من تفاعل منشوراتك اللي فاتت.' => 'Based on engagement on your past posts.',
+    'مواعيد مقترحة من أحسن أوقات التفاعل' => 'Suggested slots from your best engagement times',
+    'اعمل طابور بالمواعيد دي' => 'Create a queue with these slots',
 ];

@@ -90,8 +90,23 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $apiError, $q
       <?= e(t('الطابور هو مواعيد ثابتة في الأسبوع (مثلاً الاتنين 10 الصبح)، ولما تختار "ضيف للطابور" وأنت بتكتب منشور، بيتحط تلقائي في أقرب ميعاد فاضي.')) ?>
     </div>
 
+    <?php
+      $suggested = (module_enabled('analytics') && function_exists('best_slots_local') && $z) ? best_slots_local($z, 5) : [];
+      if ($suggested && !$editing): ?>
+      <div class="card p-5 mb-6">
+        <b class="text-ink-900 text-sm"><?= e(t('مواعيد مقترحة من أحسن أوقات التفاعل')) ?></b>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <?php foreach ($suggested as $s): ?><span class="chip !cursor-default">⚡ <?= e(weekday_name($s['dow'])) ?> · <span dir="ltr"><?= sprintf('%02d:00', $s['hour']) ?></span></span><?php endforeach; ?>
+        </div>
+        <a href="<?= e(url('queue', ['new' => 1, 'suggest' => 1])) ?>" class="btn-ghost text-sm mt-4"><?= e(t('اعمل طابور بالمواعيد دي')) ?></a>
+      </div>
+    <?php endif; ?>
+
     <?php if ($editing || $isNew):
         $slots = $editing['slots'] ?? [['dayOfWeek' => 1, 'time' => '10:00']];
+        if (!$editing && !empty($_GET['suggest']) && $suggested) {
+            $slots = array_map(function ($s) { return ['dayOfWeek' => $s['dow'], 'time' => sprintf('%02d:00', $s['hour'])]; }, $suggested);
+        }
         ?>
       <form method="post" class="card p-5 space-y-4 mb-6" id="queueForm">
         <?= csrf_field() ?><input type="hidden" name="action" value="save">
