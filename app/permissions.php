@@ -25,6 +25,7 @@ function permission_catalog(): array
             'whatsapp.view' => t('عرض أدوات واتساب'),
             'whatsapp.manage' => t('إرسال الرسائل الجماعية وإدارة القوالب والجهات'),
             'analytics.view' => t('عرض التحليلات'),
+            'ai.use' => t('استخدام المساعد الذكي (بيستهلك رصيد OpenRouter)'),
             'ads.view' => t('عرض الإعلانات والحملات'),
             'ads.spend' => t('تشغيل الحملات وتعديل الميزانيات (بيصرف فلوس)'),
             'gmb.view' => t('عرض Google Business'),
@@ -54,7 +55,7 @@ function all_permissions(): array
 function editor_permissions(): array
 {
     return ['posts.view', 'posts.create', 'posts.manage', 'inbox.reply', 'comments.reply', 'whatsapp.view',
-        'analytics.view', 'ads.view', 'gmb.view', 'phone.view', 'accounts.view'];
+        'analytics.view', 'ai.use', 'ads.view', 'gmb.view', 'phone.view', 'accounts.view'];
 }
 
 /** الأدوار المخصصة للشركة */
@@ -120,7 +121,7 @@ function page_permission(string $page): ?string
         'inbox' => 'inbox.reply', 'comments' => 'comments.reply',
         'automations' => 'automations.manage', 'workflows' => 'automations.manage',
         'broadcasts' => 'whatsapp.view', 'wa_templates' => 'whatsapp.view', 'contacts' => 'whatsapp.view', 'sequences' => 'whatsapp.view', 'wa_profile' => 'whatsapp.view',
-        'analytics' => 'analytics.view', 'inbox_analytics' => 'analytics.view',
+        'analytics' => 'analytics.view', 'inbox_analytics' => 'analytics.view', 'assistant' => 'ai.use',
         'ads' => 'ads.view', 'ad_campaign' => 'ads.view', 'ad_audiences' => 'ads.view', 'leads' => 'ads.view', 'ad_create' => 'ads.spend',
         'gmb_reviews' => 'gmb.view', 'gmb_location' => 'gmb.view', 'gmb_media' => 'gmb.view',
         'phone_numbers' => 'phone.view', 'sms' => 'phone.view', 'calls' => 'phone.view',

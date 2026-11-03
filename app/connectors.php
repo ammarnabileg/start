@@ -9,7 +9,8 @@ function connector_registry(): array
 {
     return [
         'zernio' => [
-            'name' => t('السوشيال ميديا'),
+            'name' => 'Zernio',
+            'logo' => 'Z',
             'description' => t('النشر والجدولة والرسائل والتعليقات على السوشيال ميديا.'),
             'docs' => '',
             'help' => t('حط مفتاح الـ API اللي استلمته من مزود الخدمة.'),
@@ -21,6 +22,22 @@ function connector_registry(): array
             'test' => function (array $c): string {
                 $profiles = (new Zernio($c['api_key']))->profiles();
                 return count($profiles) . ' Profile';
+            },
+        ],
+        'openrouter' => [
+            'name' => 'OpenRouter',
+            'logo' => 'AI',
+            'description' => t('الذكاء الاصطناعي للمساعد الذكي. بيبدأ بالموديلات المجانية وبعدها الأرخص.'),
+            'docs' => 'https://openrouter.ai/settings/keys',
+            'help' => t('هتلاقي المفتاح في openrouter.ai ← Keys.'),
+            'color' => '#6467F2',
+            'fields' => [
+                ['key' => 'api_key', 'label' => 'API Key', 'secret' => true, 'placeholder' => 'sk-or-...'],
+            ],
+            'test' => function (array $c): string {
+                $info = ai_key_info($c['api_key']);
+                $left = $info['limit_remaining'] ?? null;
+                return $left === null ? t('شغال') : t('الرصيد المتبقي: $%s', number_format((float)$left, 2));
             },
         ],
     ];

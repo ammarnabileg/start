@@ -10,6 +10,7 @@ require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/navigation.php';
 require_once __DIR__ . '/platforms.php';
 require_once __DIR__ . '/permissions.php';
+require_once __DIR__ . '/ai.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');

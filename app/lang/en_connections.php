@@ -20,4 +20,7 @@ return [
     'الحساب ده موقوف. كلم مدير النظام.' => 'This account is suspended. Contact the system admin.',
     'المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.' => 'The platform is under maintenance. Please try again later.',
     'وضع الصيانة' => 'Maintenance',
+    'تعذر الاتصال بـ Zernio: ' => 'Couldn\'t reach Zernio: ',
+    'Zernio بيقول إن الطلبات كتير. استنى دقيقة وجرب تاني.' => 'Zernio says there are too many requests. Wait a minute and try again.',
+    'خطأ من Zernio (%s): %s' => 'Zernio error (%s): %s',
 ];

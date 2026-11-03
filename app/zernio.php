@@ -162,7 +162,7 @@ class Zernio
         curl_close($ch);
 
         if ($raw === false) {
-            throw new ZernioException(t('تعذر الاتصال بخدمة النشر: ') . $err);
+            throw new ZernioException(t('تعذر الاتصال بـ Zernio: ') . $err);
         }
         $data = json_decode($raw, true);
         if (!is_array($data)) {
@@ -184,9 +184,9 @@ class Zernio
             return t('مفتاح الـ API غير صحيح أو منتهي، أو الحساب محتاج إعادة ربط. ') . $msg;
         }
         if ($status === 429) {
-            return t('خدمة النشر بتقول إن الطلبات كتير. استنى دقيقة وجرب تاني.');
+            return t('Zernio بيقول إن الطلبات كتير. استنى دقيقة وجرب تاني.');
         }
-        return t('خطأ من خدمة النشر (%s): %s', $status, $msg ?: t('غير معروف'));
+        return t('خطأ من Zernio (%s): %s', $status, $msg ?: t('غير معروف'));
     }
 
     /* ---------- البروفايلات والحسابات ---------- */

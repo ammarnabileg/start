@@ -49,6 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('success', $existing ? t('اتحفظ الاتصال.') : t('اتضاف اتصال جديد بنجاح.'));
     }
 
+    if ($action === 'tier' && $existing && $provider === 'openrouter') {
+        $settings = $existing['settings'];
+        $settings['tier'] = in_array($_POST['tier'] ?? '', ['free', 'cheap', 'any'], true) ? $_POST['tier'] : 'cheap';
+        $pdo->prepare("UPDATE connectors SET settings = ? WHERE id = ?")->execute([json_encode($settings), $existing['id']]);
+        flash('success', t('اتحفظ.'));
+    }
+
     if ($action === 'profile' && $existing) {
         $settings = $existing['settings'];
         $settings['profile_id'] = trim((string)($_POST['profile_id'] ?? '')) ?: null;
@@ -106,7 +113,8 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                   </div>
                   <p class="text-xs mt-1 <?= $d['error'] ? 'text-red-600' : 'text-ink-500' ?>">
                     <?php if ($d['error']): ?><?= e($d['error']) ?>
-                    <?php else: ?><span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e(t('شغال')) ?></span> · <?= e(t('%s حساب مربوط', (int)$d['accounts'])) ?><?php endif; ?>
+                    <?php elseif ($key === 'zernio'): ?><span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e(t('شغال')) ?></span> · <?= e(t('%s حساب مربوط', (int)$d['accounts'])) ?>
+                    <?php else: ?><span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e($c['info'] ?: t('شغال')) ?></span><?php endif; ?>
                   </p>
                 </div>
                 <form method="post" onsubmit="return confirm('<?= tjs('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label']) ?>')">
@@ -115,6 +123,20 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 </form>
               </div>
 
+              <?php if ($key === 'openrouter'): $tier = $c['settings']['tier'] ?? 'cheap'; ?>
+                <form method="post">
+                  <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="tier">
+                  <span class="label"><?= e(t('الموديلات المسموحة')) ?></span>
+                  <div class="grid gap-2 mt-2">
+                    <?php foreach (['free' => [t('مجاني بس'), t('مفيش أي تكلفة. ممكن يبقى أبطأ أو زحمة أحياناً.')], 'cheap' => [t('مجاني الأول، وبعده الرخيص'), t('لو المجاني زحمة، بيستخدم موديل رخيص (أقل من نص سنت للسؤال).')], 'any' => [t('أي موديل'), t('بيبدأ برضه بالأرخص، بس مسموحله يطلع لموديلات أغلى لو اللي قبلها فشل.')]] as $tk => [$tl, $td]): ?>
+                      <label class="flex items-start gap-2 rounded-xl border border-ink-200 px-3 py-2 cursor-pointer <?= $tier === $tk ? 'bg-brand-50 border-brand-300' : '' ?>">
+                        <input type="radio" name="tier" value="<?= $tk ?>" <?= $tier === $tk ? 'checked' : '' ?> onchange="this.form.requestSubmit()" class="mt-1">
+                        <span><span class="block text-sm text-ink-900"><?= e($tl) ?></span><span class="block text-xs text-ink-500"><?= e($td) ?></span></span>
+                      </label>
+                    <?php endforeach; ?>
+                  </div>
+                </form>
+              <?php endif; ?>
               <?php if ($d['profiles']): ?>
                 <form method="post">
                   <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="profile">
