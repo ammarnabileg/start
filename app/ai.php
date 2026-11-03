@@ -92,21 +92,201 @@ function ai_allowed_models(string $tier): array
     return array_merge($free, $paid);
 }
 
+/** مزودين الذكاء الاصطناعي اللي البرنامج بيدعمهم */
+function ai_provider_keys(): array
+{
+    return ['openrouter', 'anthropic', 'openai', 'gemini'];
+}
+
+/** طريقة اختيار المزود: auto = الأرخص فالأغلى، manual = المزود اللي اختاره المالك بس */
+function ai_mode(?int $wid = null): string
+{
+    $wid = $wid ?? (int)ws('id');
+    return setting('ai_mode_' . $wid, 'auto') === 'manual' ? 'manual' : 'auto';
+}
+
+/** تقدير تقريبي لتكلفة الاتصال (الأقل = الأرخص). OpenRouter بيبدأ بالمجاني، و Gemini ليه حصة مجانية. */
+function ai_cost_score(array $c): float
+{
+    if ($c['provider'] === 'openrouter') return ($c['settings']['tier'] ?? 'cheap') === 'any' ? 0.5 : 0;
+    $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
+    return ai_model_rank($model) + ($c['provider'] === 'gemini' ? -0.8 : ($c['provider'] === 'openai' ? 0.4 : 0.6));
+}
+
+/** اتصالات الذكاء الاصطناعي المفعّلة بالترتيب اللي هتتجرب بيه */
+function ai_connections(): array
+{
+    $list = [];
+    foreach (ai_provider_keys() as $p) {
+        $c = connector($p);
+        if ($c && ($c['credentials']['api_key'] ?? '') !== '') { $c['provider'] = $p; $list[] = $c; }
+    }
+    if (ai_mode() === 'manual') {
+        foreach ($list as $c) if (!empty($c['settings']['primary'])) return [$c];
+        return array_slice($list, 0, 1);
+    }
+    usort($list, function ($a, $b) { return ai_cost_score($a) <=> ai_cost_score($b); });
+    return $list;
+}
+
 function ai_connection(): ?array
 {
-    $c = connector('openrouter');
-    return ($c && ($c['credentials']['api_key'] ?? '') !== '') ? $c : null;
+    return ai_connections()[0] ?? null;
+}
+
+/** العنوان الأساسي لكل مزود. AI_MOCK_BASE للاختبار المحلي بس. */
+function ai_base(string $p): string
+{
+    $mock = getenv('AI_MOCK_BASE');
+    if ($mock) return rtrim($mock, '/') . '/' . $p;
+    return ['anthropic' => 'https://api.anthropic.com/v1', 'openai' => 'https://api.openai.com/v1', 'gemini' => 'https://generativelanguage.googleapis.com/v1beta'][$p];
+}
+
+/** طلب HTTP لأي مزود */
+function ai_req(string $p, string $method, string $path, string $key, $body = null, int $timeout = 90): array
+{
+    $headers = ['Accept: application/json'];
+    $url = ai_base($p) . $path;
+    if ($p === 'anthropic') { $headers[] = 'x-api-key: ' . $key; $headers[] = 'anthropic-version: 2023-06-01'; }
+    elseif ($p === 'gemini') { $headers[] = 'x-goog-api-key: ' . $key; }
+    else { $headers[] = 'Authorization: Bearer ' . $key; }
+    $ch = curl_init($url);
+    if ($body !== null) { $headers[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $headers]);
+    $raw = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    $name = ai_provider_name($p);
+    if ($raw === false) throw new AiException(t('تعذر الاتصال بـ %s: %s', $name, $err), 0);
+    $data = json_decode($raw, true) ?: [];
+    if ($status >= 400) {
+        $e = $data['error'] ?? $data;
+        if (isset($e[0])) $e = $e[0]['error'] ?? $e[0];
+        $msg = is_array($e) ? ($e['message'] ?? ('HTTP ' . $status)) : (string)$e;
+        if (in_array($status, [401, 403], true) || stripos((string)$msg, 'api key') !== false && $status === 400) {
+            throw new AiException(t('مفتاح %s غير صحيح أو ليس له صلاحية.', $name), 401);
+        }
+        throw new AiException(is_string($msg) ? $msg : json_encode($msg), $status);
+    }
+    return $data;
+}
+
+function ai_provider_name(string $p): string
+{
+    return ['openrouter' => 'OpenRouter', 'anthropic' => 'Anthropic (Claude)', 'openai' => 'OpenAI', 'gemini' => 'Google Gemini'][$p] ?? $p;
+}
+
+/** الموديلات المتاحة للمفتاح (للنصوص بس)، مترتبة بحيث الأرخص الأول */
+function ai_list_models(string $p, string $key): array
+{
+    $ids = [];
+    if ($p === 'gemini') {
+        foreach (ai_req($p, 'GET', '/models?pageSize=1000', $key)['models'] ?? [] as $m) {
+            if (in_array('generateContent', $m['supportedGenerationMethods'] ?? [], true)) {
+                $id = preg_replace('#^models/#', '', (string)$m['name']);
+                if (strpos($id, 'gemini') === 0 && !preg_match('/image|tts|audio|live|embedding|vision|thinking-exp/i', $id)) $ids[] = $id;
+            }
+        }
+    } else {
+        foreach (ai_req($p, 'GET', '/models' . ($p === 'anthropic' ? '?limit=1000' : ''), $key)['data'] ?? [] as $m) {
+            $id = (string)($m['id'] ?? '');
+            if ($p === 'openai' && (!preg_match('/^(gpt-|o\d|chatgpt)/', $id) || preg_match('/audio|realtime|tts|transcribe|image|search|instruct|embedding|codex|moderation/i', $id))) continue;
+            if ($id !== '') $ids[] = $id;
+        }
+    }
+    $ids = array_values(array_unique($ids));
+    usort($ids, function ($a, $b) { return ai_model_rank($a) <=> ai_model_rank($b) ?: strcmp($b, $a); });
+    return array_slice($ids, 0, 60);
+}
+
+/** ترتيب تقريبي للتكلفة من الاسم: الموديلات الصغيرة الأول */
+function ai_model_rank(string $id): int
+{
+    foreach (['flash-lite' => 0, 'nano' => 1, 'haiku' => 1, 'mini' => 2, 'flash' => 2, 'sonnet' => 4, 'pro' => 5, 'opus' => 6] as $k => $r) {
+        if (ai_model_has($id, $k)) return $r;
+    }
+    return 3;
+}
+
+/** الكلمة موجودة كجزء مستقل من اسم الموديل (عشان "gemini" ماتتحسبش "mini") */
+function ai_model_has(string $id, string $word): bool
+{
+    return (bool)preg_match('/(^|[-_.\/])' . preg_quote($word, '/') . '($|[-_.])/i', $id);
+}
+
+/** الموديل الافتراضي: أرخص واحد مناسب (مش nano/lite لأنهم ضعاف في العربي) */
+function ai_default_model(array $models): string
+{
+    foreach (['haiku', 'mini', 'flash'] as $k) {
+        foreach ($models as $m) if (ai_model_has($m, $k) && !ai_model_has($m, 'lite') && !ai_model_has($m, 'nano') && !preg_match('/preview|exp|latest/i', $m)) return $m;
+    }
+    return $models[0] ?? '';
+}
+
+/** يختبر المفتاح ويرجع الموديلات المتاحة */
+function ai_test_key(string $p, string $key): array
+{
+    $models = ai_list_models($p, $key);
+    if (!$models) throw new Exception(t('المفتاح يعمل، لكن لا توجد موديلات نصية متاحة له.'));
+    return $models;
+}
+
+/** سؤال لمزود مباشر (Anthropic / OpenAI / Gemini) */
+function ai_chat_direct(array $c, array $messages, int $maxTokens): array
+{
+    $p = $c['provider'];
+    $key = $c['credentials']['api_key'];
+    $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
+    if ($model === '') throw new AiException(t('اختر موديل لـ %s من صفحة التكاملات.', ai_provider_name($p)));
+    if ($p === 'anthropic') {
+        $system = implode("\n\n", array_column(array_filter($messages, function ($m) { return $m['role'] === 'system'; }), 'content'));
+        $msgs = array_values(array_filter($messages, function ($m) { return $m['role'] !== 'system'; }));
+        $body = ['model' => $model, 'max_tokens' => $maxTokens, 'messages' => $msgs];
+        if ($system !== '') $body['system'] = $system;
+        $r = ai_req($p, 'POST', '/messages', $key, $body);
+        $text = '';
+        foreach ($r['content'] ?? [] as $b) if (($b['type'] ?? '') === 'text') $text .= $b['text'];
+        $u = $r['usage'] ?? [];
+        $u['total_tokens'] = (int)($u['input_tokens'] ?? 0) + (int)($u['output_tokens'] ?? 0);
+        return ['text' => trim($text), 'model' => (string)($r['model'] ?? $model), 'usage' => $u];
+    }
+    // OpenAI، و Gemini من خلال الواجهة المتوافقة مع OpenAI
+    $path = $p === 'gemini' ? '/openai/chat/completions' : '/chat/completions';
+    $body = ['model' => $model, 'messages' => $messages];
+    $body[$p === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = $p === 'openai' && preg_match('/^(o\d|gpt-5)/', $model) ? $maxTokens * 4 : $maxTokens;
+    $r = ai_req($p, 'POST', $path, $key, $body);
+    return ['text' => trim((string)($r['choices'][0]['message']['content'] ?? '')), 'model' => (string)($r['model'] ?? $model), 'usage' => $r['usage'] ?? []];
 }
 
 /**
- * يسأل الموديل. بيجرب كل مجموعة من 3 موديلات بالترتيب (OpenRouter بيحاول التلاتة)،
- * ولو المجموعة كلها فشلت بيطلع للمجموعة اللي بعدها.
- * بيرجع: text, model, usage
+ * يسأل الذكاء الاصطناعي: بيبدأ بالمزود الأساسي، ولو فشل بيجرب اللي بعده.
+ * بيرجع: text, model, usage, provider
  */
 function ai_chat(array $messages, int $maxTokens = 900): array
 {
-    $c = ai_connection();
-    if (!$c) throw new AiException(t('اربط OpenRouter الأول من صفحة التكاملات.'));
+    $conns = ai_connections();
+    if (!$conns) throw new AiException(t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).'));
+    $errors = [];
+    foreach ($conns as $c) {
+        try {
+            $r = $c['provider'] === 'openrouter' ? ai_chat_openrouter($c, $messages, $maxTokens) : ai_chat_direct($c, $messages, $maxTokens);
+            if ($r['text'] === '') throw new AiException(t('الموديل رجع رد فاضي.'));
+            $r['provider'] = $c['provider'];
+            return $r;
+        } catch (AiException $e) {
+            $errors[] = ai_provider_name($c['provider']) . ': ' . $e->getMessage();
+        }
+    }
+    throw new AiException(count($errors) === 1 ? $errors[0] : t('كل المزودين فشلوا: %s', implode(' | ', $errors)));
+}
+
+/**
+ * OpenRouter: بيجرب كل مجموعة من 3 موديلات بالترتيب،
+ * ولو المجموعة كلها فشلت بيطلع للمجموعة اللي بعدها.
+ */
+function ai_chat_openrouter(array $c, array $messages, int $maxTokens): array
+{
     $tier = (string)($c['settings']['tier'] ?? 'cheap');
     $models = array_column(ai_allowed_models($tier), 'id');
     if (!$models) throw new AiException(t('مفيش موديلات متاحة في المستوى ده. وسّع المستوى من صفحة التكاملات.'));

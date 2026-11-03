@@ -9,7 +9,7 @@ function connector_registry(): array
 {
     return [
         'zernio' => [
-            'name' => 'Zernio',
+            'name' => 'Zernio', 'category' => 'social',
             'logo' => 'Z',
             'description' => t('النشر والجدولة والرسائل والتعليقات على السوشيال ميديا.'),
             'docs' => '',
@@ -25,7 +25,7 @@ function connector_registry(): array
             },
         ],
         'smtp' => [
-            'name' => t('الإيميل (SMTP)'),
+            'name' => t('الإيميل (SMTP)'), 'category' => 'email',
             'owner_only' => true, 'single' => true,
             'logo' => '@',
             'description' => t('سيرفر إيميل خاص بالشركة دي لإرسال التقارير والتنبيهات. لو مش موجود، بيستخدم إيميل المنصة.'),
@@ -47,7 +47,7 @@ function connector_registry(): array
             },
         ],
         'openrouter' => [
-            'name' => 'OpenRouter',
+            'name' => 'OpenRouter', 'category' => 'ai',
             'single' => true,
             'logo' => 'AI',
             'description' => t('الذكاء الاصطناعي للمساعد الذكي. بيبدأ بالموديلات المجانية وبعدها الأرخص.'),
@@ -63,12 +63,48 @@ function connector_registry(): array
                 return $left === null ? t('شغال') : t('الرصيد المتبقي: $%s', number_format((float)$left, 2));
             },
         ],
+        'anthropic' => [
+            'name' => 'Anthropic (Claude)', 'category' => 'ai', 'single' => true, 'ai_models' => true,
+            'logo' => 'A', 'color' => '#D97757',
+            'description' => t('موديلات Claude للمساعد الذكي. الافتراضي Haiku لأنه الأسرع والأرخص.'),
+            'docs' => 'https://console.anthropic.com/settings/keys',
+            'help' => t('المفتاح من console.anthropic.com ← API Keys. يتطلب رصيدًا مدفوعًا.'),
+            'fields' => [['key' => 'api_key', 'label' => 'API Key', 'secret' => true, 'placeholder' => 'sk-ant-...']],
+            'test' => function (array $c): string {
+                return t('%s موديل متاح', count(ai_test_key('anthropic', $c['api_key'])));
+            },
+        ],
+        'openai' => [
+            'name' => 'OpenAI', 'category' => 'ai', 'single' => true, 'ai_models' => true,
+            'logo' => 'O', 'color' => '#10A37F',
+            'description' => t('موديلات GPT للمساعد الذكي. الافتراضي موديل mini لأنه الأرخص.'),
+            'docs' => 'https://platform.openai.com/api-keys',
+            'help' => t('المفتاح من platform.openai.com ← API keys. يتطلب رصيدًا مدفوعًا.'),
+            'fields' => [['key' => 'api_key', 'label' => 'API Key', 'secret' => true, 'placeholder' => 'sk-...']],
+            'test' => function (array $c): string {
+                return t('%s موديل متاح', count(ai_test_key('openai', $c['api_key'])));
+            },
+        ],
+        'gemini' => [
+            'name' => 'Google Gemini', 'category' => 'ai', 'single' => true, 'ai_models' => true,
+            'logo' => 'G', 'color' => '#4285F4',
+            'description' => t('موديلات Gemini للمساعد الذكي. فيه حصة مجانية يومية.'),
+            'docs' => 'https://aistudio.google.com/apikey',
+            'help' => t('المفتاح من aistudio.google.com ← Get API key. الخطة المجانية كافية للاستخدام الخفيف.'),
+            'fields' => [['key' => 'api_key', 'label' => 'API Key', 'secret' => true, 'placeholder' => 'AIza...']],
+            'test' => function (array $c): string {
+                return t('%s موديل متاح', count(ai_test_key('gemini', $c['api_key'])));
+            },
+        ],
     ];
 }
 
 /** كل اتصالات خدمة معينة في الشركة (مفكوكة التشفير)، الأقدم الأول */
-function connections(string $provider, ?int $workspaceId = null): array
+function connections(string $provider, ?int $workspaceId = null, bool $includeDisabled = false): array
 {
+    if (!$includeDisabled) {
+        return array_values(array_filter(connections($provider, $workspaceId, true), function ($c) { return empty($c['settings']['disabled']); }));
+    }
     static $cache = [];
     $wid = $workspaceId ?? (int)ws('id');
     if (!$wid) {

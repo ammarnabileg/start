@@ -96,9 +96,9 @@ render(t('المساعد الذكي'), 'assistant', function () use ($hist, $con
     <?php if (!$connected): ?>
       <div class="card p-10 text-center max-w-xl mx-auto">
         <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center text-xl font-bold mb-4">AI</div>
-        <h2 class="text-lg font-semibold text-ink-900"><?= e(t('المساعد محتاج OpenRouter')) ?></h2>
-        <p class="text-sm text-ink-500 mt-1 mb-5"><?= e(t('اربط مفتاح OpenRouter من صفحة التكاملات. بيبدأ بالموديلات المجانية، فممكن تستخدمه من غير أي تكلفة.')) ?></p>
-        <?php if (can('integrations.manage')): ?><a href="<?= e(url('connectors')) ?>" class="btn-primary"><?= e(t('ربط OpenRouter')) ?></a><?php else: ?><p class="text-xs text-ink-400"><?= e(t('اطلب من صاحب الشركة يربطه.')) ?></p><?php endif; ?>
+        <h2 class="text-lg font-semibold text-ink-900"><?= e(t('المساعد يحتاج مزود ذكاء اصطناعي')) ?></h2>
+        <p class="text-sm text-ink-500 mt-1 mb-5"><?= e(t('اربط مفتاح OpenRouter (فيه موديلات مجانية) أو Anthropic أو OpenAI أو Gemini من صفحة التكاملات.')) ?></p>
+        <?php if (can('integrations.manage')): ?><a href="<?= e(url('connectors')) ?>" class="btn-primary"><?= e(t('فتح التكاملات')) ?></a><?php else: ?><p class="text-xs text-ink-400"><?= e(t('اطلب من صاحب الشركة يربطه.')) ?></p><?php endif; ?>
       </div>
     <?php return; endif; ?>
 
