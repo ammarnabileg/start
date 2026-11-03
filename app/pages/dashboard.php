@@ -7,12 +7,12 @@ $apiError = null;
 
 if ($z) {
     try {
-        $accounts = $z->accounts(ws('profile_id') ?: null);
+        $accounts = $z->accounts(zernio_profile());
         $stats['accounts'] = count($accounts);
-        $r = $z->posts(['status' => 'scheduled', 'limit' => 5, 'sortBy' => 'scheduled-asc', 'profileId' => ws('profile_id') ?: null]);
+        $r = $z->posts(['status' => 'scheduled', 'limit' => 5, 'sortBy' => 'scheduled-asc', 'profileId' => zernio_profile()]);
         $upcoming = $r['posts'] ?? [];
         $stats['scheduled'] = (int)($r['pagination']['total'] ?? count($upcoming));
-        $c = $z->conversations(['limit' => 50, 'profileId' => ws('profile_id') ?: null]);
+        $c = $z->conversations(['limit' => 50, 'profileId' => zernio_profile()]);
         foreach ($c['data'] ?? [] as $conv) {
             $stats['unread'] += (int)($conv['unreadCount'] ?? 0);
         }

@@ -5,6 +5,7 @@
  * - بعد كده: بتطلب إيميل وكلمة سر المدير، وتحدّث قاعدة البيانات.
  */
 require __DIR__ . '/app/core.php';
+require __DIR__ . '/app/views/head.php';
 
 date_default_timezone_set('UTC');
 start_session();
@@ -43,14 +44,16 @@ if ($mode === 'install') {
         }
 
         if ($action === 'db') {
-            $db = ['host' => post('db_host') ?: 'localhost', 'name' => post('db_name'), 'user' => post('db_user'), 'pass' => (string)($_POST['db_pass'] ?? '')];
+            $db = ['site' => post('site_name'), 'host' => post('db_host') ?: 'localhost', 'name' => post('db_name'), 'user' => post('db_user'), 'pass' => (string)($_POST['db_pass'] ?? '')];
             $port = 3306;
             if (strpos($db['host'], ':') !== false) {
                 [$db['host'], $p] = explode(':', $db['host'], 2);
                 $port = (int)$p ?: 3306;
             }
             $db['port'] = $port;
-            if ($db['name'] === '' || $db['user'] === '') {
+            if ($db['site'] === '') {
+                $errors[] = 'اكتب اسم الموقع.';
+            } elseif ($db['name'] === '' || $db['user'] === '') {
                 $errors[] = 'اكتب اسم قاعدة البيانات واسم المستخدم.';
             } else {
                 try {
@@ -67,7 +70,7 @@ if ($mode === 'install') {
         }
 
         if ($action === 'site' && !empty($_SESSION['setup_db'])) {
-            $site = post('site_name');
+            $site = (string)$_SESSION['setup_db']['site'];
             $name = post('admin_name');
             $email = strtolower(post('admin_email'));
             $pass = (string)($_POST['admin_pass'] ?? '');
@@ -83,6 +86,7 @@ if ($mode === 'install') {
                 $db = $_SESSION['setup_db'];
                 try {
                     $pdo = make_pdo($db['host'], $db['name'], $db['user'], $db['pass'], $db['port']);
+                    $GLOBALS['__app_key'] = new_app_key(); // مفتاح تشفير المفاتيح السرية
                     run_migrations($pdo);
 
                     $exists = $pdo->prepare("SELECT id FROM users WHERE email = ?");
@@ -97,16 +101,12 @@ if ($mode === 'install') {
                     save_setting('site_name', $site, $pdo);
                     save_setting('app_version', APP_VERSION, $pdo);
 
-                    $config = [
+                    write_config([
                         'db_host' => $db['host'], 'db_port' => $db['port'], 'db_name' => $db['name'],
                         'db_user' => $db['user'], 'db_pass' => $db['pass'],
+                        'app_key' => $GLOBALS['__app_key'],
                         'installed_at' => gmdate('c'),
-                    ];
-                    $php = "<?php\n// تم إنشاؤه تلقائياً من صفحة التسطيب. لا تشاركه مع أحد.\nreturn " . var_export($config, true) . ";\n";
-                    if (file_put_contents(CONFIG_FILE, $php, LOCK_EX) === false) {
-                        throw new RuntimeException('مقدرناش نكتب ملف config.php. اطلب من الاستضافة صلاحية الكتابة على مجلد الموقع.');
-                    }
-                    @chmod(CONFIG_FILE, 0640);
+                    ]);
 
                     unset($_SESSION['setup_db'], $_SESSION['setup_step']);
                     $done = 'install';
@@ -142,6 +142,11 @@ if ($mode === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 clear_attempts($pdo);
                 $before = setting('app_version', 'غير معروف');
+                // النسخ القديمة مكانش فيها مفتاح تشفير: نضيفه لـ config.php
+                if (empty(app_config()['app_key'])) {
+                    $GLOBALS['__app_key'] = new_app_key();
+                    write_config(app_config() + ['app_key' => $GLOBALS['__app_key']]);
+                }
                 $ran = run_migrations($pdo);
                 save_setting('app_version', APP_VERSION, $pdo);
                 // تنظيف ملفات قديمة لو موجودة في قائمة الحذف
@@ -175,26 +180,22 @@ if ($mode === 'update' && !$done) {
     }
 }
 
-$input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none';
+$input = 'input';
 ?><!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<?php page_head($mode === 'install' ? 'تسطيب البرنامج' : 'تحديث البرنامج'); ?>
 <meta name="robots" content="noindex">
-<title><?= $mode === 'install' ? 'تسطيب البرنامج' : 'تحديث البرنامج' ?></title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com/3.4.16"></script>
-<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Cairo','sans-serif']}}}}</script>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 min-h-screen flex items-start sm:items-center justify-center p-4">
-<div class="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8 my-6">
+<body class="min-h-screen flex items-start sm:items-center justify-center p-4 bg-gradient-to-b from-brand-50 to-ink-50">
+<div class="w-full max-w-lg card p-6 sm:p-8 my-6">
 
 <?php if ($done === 'install'): ?>
   <div class="text-center space-y-4">
     <div class="text-5xl">✅</div>
     <h1 class="text-2xl font-bold">تم التسطيب بنجاح</h1>
-    <p class="text-slate-600">ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها ضيف شركاتك من صفحة "الشركات".</p>
-    <a href="index.php" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg">ادخل للموقع</a>
+    <p class="text-slate-600">ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها اعمل أول شركة واربطها من صفحة Connectors.</p>
+    <a href="index.php" class="btn-primary !px-8 !py-3">ادخل للموقع</a>
   </div>
 
 <?php elseif ($done === 'update'): ?>
@@ -203,7 +204,7 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
     <h1 class="text-2xl font-bold">تم التحديث بنجاح</h1>
     <p class="text-slate-600">من الإصدار <b><?= e($updateResult['from']) ?></b> إلى <b><?= e($updateResult['to']) ?></b></p>
     <p class="text-sm text-slate-500"><?= $updateResult['ran'] ? 'تحديثات قاعدة البيانات: ' . count($updateResult['ran']) : 'قاعدة البيانات كانت محدثة.' ?></p>
-    <a href="index.php" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg">ارجع للموقع</a>
+    <a href="index.php" class="btn-primary !px-8 !py-3">ارجع للموقع</a>
   </div>
 
 <?php elseif ($mode === 'install'): ?>
@@ -228,39 +229,39 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
   <?php if ($step === 1): $d = $_SESSION['setup_db'] ?? []; ?>
     <form method="post" class="space-y-4">
       <?= csrf_field() ?><input type="hidden" name="action" value="db">
-      <h2 class="font-bold">بيانات قاعدة البيانات</h2>
+      <label class="block"><span class="label">اسم الموقع</span>
+        <input name="site_name" required value="<?= e($_POST['site_name'] ?? $d['site'] ?? '') ?>" placeholder="مثلاً: لوحة وتد للنشر" class="<?= $input ?>"></label>
+      <h2 class="font-bold pt-2">بيانات قاعدة البيانات</h2>
       <p class="text-sm text-slate-500 -mt-2">بتعملها من لوحة الاستضافة (cPanel ← MySQL Databases). اعمل قاعدة ومستخدم، وضيف المستخدم للقاعدة بكل الصلاحيات.</p>
-      <label class="block"><span class="text-sm font-semibold">اسم قاعدة البيانات</span>
+      <label class="block"><span class="label">اسم قاعدة البيانات</span>
         <input name="db_name" required value="<?= e($_POST['db_name'] ?? $d['name'] ?? '') ?>" class="<?= $input ?>" dir="ltr"></label>
-      <label class="block"><span class="text-sm font-semibold">اسم المستخدم</span>
+      <label class="block"><span class="label">اسم المستخدم</span>
         <input name="db_user" required value="<?= e($_POST['db_user'] ?? $d['user'] ?? '') ?>" class="<?= $input ?>" dir="ltr"></label>
-      <label class="block"><span class="text-sm font-semibold">كلمة السر</span>
+      <label class="block"><span class="label">كلمة السر</span>
         <input name="db_pass" type="password" class="<?= $input ?>" dir="ltr"></label>
       <details class="text-sm">
         <summary class="cursor-pointer text-slate-500">إعدادات متقدمة (سيبها زي ما هي)</summary>
-        <label class="block mt-2"><span class="text-sm font-semibold">السيرفر (Host)</span>
+        <label class="block mt-2"><span class="label">السيرفر (Host)</span>
           <input name="db_host" value="<?= e($_POST['db_host'] ?? $d['host'] ?? 'localhost') ?>" class="<?= $input ?>" dir="ltr"></label>
       </details>
-      <button <?= $serverOk ? '' : 'disabled' ?> class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-lg py-3">التالي ←</button>
+      <button <?= $serverOk ? '' : 'disabled' ?> class="btn-primary w-full !py-3">التالي ←</button>
     </form>
 
   <?php else: ?>
     <form method="post" class="space-y-4">
       <?= csrf_field() ?><input type="hidden" name="action" value="site">
-      <h2 class="font-bold">بيانات الموقع وحسابك</h2>
-      <label class="block"><span class="text-sm font-semibold">اسم الموقع</span>
-        <input name="site_name" required value="<?= e($_POST['site_name'] ?? '') ?>" class="<?= $input ?>"></label>
-      <label class="block"><span class="text-sm font-semibold">اسمك</span>
+      <h2 class="font-bold">حسابك (مدير النظام)</h2>
+      <label class="block"><span class="label">اسمك</span>
         <input name="admin_name" required value="<?= e($_POST['admin_name'] ?? '') ?>" class="<?= $input ?>"></label>
-      <label class="block"><span class="text-sm font-semibold">إيميلك (هتدخل بيه)</span>
+      <label class="block"><span class="label">إيميلك (هتدخل بيه)</span>
         <input name="admin_email" type="email" required value="<?= e($_POST['admin_email'] ?? '') ?>" class="<?= $input ?>" dir="ltr"></label>
-      <label class="block"><span class="text-sm font-semibold">كلمة السر (8 حروف على الأقل)</span>
+      <label class="block"><span class="label">كلمة السر (8 حروف على الأقل)</span>
         <input name="admin_pass" type="password" minlength="8" required class="<?= $input ?>" dir="ltr"></label>
-      <label class="block"><span class="text-sm font-semibold">اكتب كلمة السر تاني</span>
+      <label class="block"><span class="label">اكتب كلمة السر تاني</span>
         <input name="admin_pass2" type="password" minlength="8" required class="<?= $input ?>" dir="ltr"></label>
       <div class="flex gap-3">
-        <button name="action" value="back" formnovalidate class="px-5 border border-slate-300 rounded-lg">→ رجوع</button>
-        <button class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3">تسطيب</button>
+        <button name="action" value="back" formnovalidate class="btn-ghost">→ رجوع</button>
+        <button class="btn-primary flex-1 !py-3">تسطيب</button>
       </div>
     </form>
   <?php endif; ?>
@@ -274,12 +275,12 @@ $input = 'mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-
   <?php foreach ($errors as $er): ?><div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm mb-3 break-words"><?= e($er) ?></div><?php endforeach; ?>
   <form method="post" class="space-y-4">
     <?= csrf_field() ?>
-    <p class="text-sm font-semibold">ادخل بحساب مدير النظام:</p>
-    <label class="block"><span class="text-sm font-semibold">الإيميل</span>
+    <p class="label">ادخل بحساب مدير النظام:</p>
+    <label class="block"><span class="label">الإيميل</span>
       <input name="email" type="email" required class="<?= $input ?>" dir="ltr"></label>
-    <label class="block"><span class="text-sm font-semibold">كلمة السر</span>
+    <label class="block"><span class="label">كلمة السر</span>
       <input name="password" type="password" required class="<?= $input ?>" dir="ltr"></label>
-    <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3">تحديث البيانات</button>
+    <button class="btn-primary w-full !py-3">تحديث البيانات</button>
   </form>
 <?php endif; ?>
 

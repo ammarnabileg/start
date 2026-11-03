@@ -35,7 +35,7 @@ $current = null;
 $apiError = null;
 if ($z) {
     try {
-        $r = $z->conversations(['limit' => 30, 'cursor' => $cursor ?: null, 'profileId' => ws('profile_id') ?: null]);
+        $r = $z->conversations(['limit' => 30, 'cursor' => $cursor ?: null, 'profileId' => zernio_profile()]);
         $convs = $r['data'] ?? [];
         $next = ($r['pagination']['hasMore'] ?? false) ? ($r['pagination']['nextCursor'] ?? null) : null;
         foreach ($convs as $c) {
@@ -56,7 +56,7 @@ render('الرسائل', 'inbox', function () use ($z, $convs, $next, $messages,
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
     ?>
-    <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-11rem)] min-h-[500px]">
+    <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-16rem)] min-h-[500px]">
       <!-- قائمة المحادثات -->
       <div class="bg-white border border-slate-200 rounded-xl overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
         <?php if (!$convs): ?><p class="p-5 text-sm text-slate-500">مفيش رسائل.</p><?php endif; ?>

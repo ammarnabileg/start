@@ -49,7 +49,7 @@ if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
 }
 
 // إعدادات الشركة وفريقها لصاحب الشركة بس
-if (in_array($page, ['settings', 'team'], true) && !is_ws_owner()) {
+if (in_array($page, ['settings', 'team', 'connectors'], true) && !is_ws_owner()) {
     flash('error', 'الصفحة دي لصاحب الشركة بس.');
     redirect(url('dashboard'));
 }

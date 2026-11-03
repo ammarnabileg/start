@@ -68,6 +68,11 @@
       mp.appendChild(el);
     });
   });
+  // قفل القوايم المنسدلة لما تدوس برا
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details[data-dropdown][open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
+  });
+
   // أزرار النسخ
   document.querySelectorAll('[data-copy]').forEach(function (b) {
     b.addEventListener('click', function () {

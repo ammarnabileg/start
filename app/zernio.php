@@ -22,15 +22,15 @@ class Zernio
 
     public function __construct(?string $key = null)
     {
-        $this->key = $key ?? (string)ws('api_key');
+        $this->key = $key ?? connector_secret('zernio', 'api_key');
         if ($this->key === '') {
-            throw new ZernioException('الشركة دي لسه مالهاش مفتاح Zernio API. المدير يضيفه من صفحة الشركات.');
+            throw new ZernioException('الشركة دي لسه مش مربوطة بـ Zernio. صاحب الشركة يربطها من صفحة Connectors.');
         }
     }
 
     public static function configured(): bool
     {
-        return (string)ws('api_key') !== '';
+        return connector_secret('zernio', 'api_key') !== '';
     }
 
     public function request(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
@@ -257,7 +257,7 @@ function zernio_or_null(?string &$error = null): ?Zernio
 /** البروفايل المستخدم: اللي اختاره المدير، وإلا البروفايل الافتراضي في Zernio */
 function current_profile_id(Zernio $z): string
 {
-    $id = (string)ws('profile_id');
+    $id = (string)zernio_profile();
     if ($id !== '') {
         return $id;
     }
@@ -271,4 +271,11 @@ function current_profile_id(Zernio $z): string
         throw new ZernioException('مفيش أي Profile في حساب Zernio. اعمل واحد من لوحة Zernio.');
     }
     return $profiles[0]['_id'];
+}
+
+/** الـ Profile المختار في Zernio للشركة الحالية (أو null = كلهم) */
+function zernio_profile(): ?string
+{
+    $p = connector_setting('zernio', 'profile_id');
+    return $p ? (string)$p : null;
 }

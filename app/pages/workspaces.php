@@ -9,28 +9,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add') {
         $name = trim((string)($_POST['name'] ?? ''));
-        $key = trim((string)($_POST['api_key'] ?? ''));
         if ($name === '') {
             flash('error', 'اكتب اسم الشركة.');
             redirect(url('workspaces'));
         }
-        if ($key !== '') {
-            try {
-                (new Zernio($key))->profiles();
-            } catch (ZernioException $ex) {
-                flash('error', 'الشركة ما اتعملتش. المفتاح فيه مشكلة: ' . $ex->getMessage());
-                redirect(url('workspaces'));
-            }
-        }
-        $pdo->prepare("INSERT INTO workspaces (name, api_key, created_by) VALUES (?, ?, ?)")
-            ->execute([mb_substr($name, 0, 120), $key ?: null, $me['id']]);
+        $pdo->prepare("INSERT INTO workspaces (name, created_by) VALUES (?, ?)")
+            ->execute([mb_substr($name, 0, 120), $me['id']]);
         $wid = (int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
             ->execute([$wid, $me['id']]);
         $_SESSION['ws'] = $wid;
         log_activity('workspace.add', $name);
-        flash('success', 'اتعملت شركة "' . $name . '" وانت صاحبها.' . ($key ? '' : ' ضيف مفتاح Zernio من الإعدادات.'));
-        redirect(url($key ? 'accounts' : 'settings'));
+        flash('success', 'اتعملت شركة "' . $name . '" وانت صاحبها. اربطها بـ Zernio عشان تبدأ.');
+        redirect(url('connectors'));
     }
 
     if ($action === 'accept' || $action === 'decline') {
@@ -116,7 +107,7 @@ render('شركاتي', 'workspaces', function () use ($list, $invites, $cur) {
               <div class="flex-1 min-w-0">
                 <div class="font-bold"><?= e($w['name']) ?> <?= $isCur ? '<span class="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 mr-1">مفتوحة دلوقتي</span>' : '' ?></div>
                 <div class="text-xs text-slate-500 mt-0.5"><?= e(role_label($w['my_role'])) ?> ·
-                  <?= $w['api_key'] ? '<span class="text-green-700">مربوطة بـ Zernio</span>' : '<span class="text-red-700">مفيش مفتاح API</span>' ?></div>
+                  <?= connector('zernio', (int)$w['id']) ? '<span class="text-emerald-700">مربوطة بـ Zernio</span>' : '<span class="text-red-700">مش مربوطة بـ Zernio</span>' ?></div>
               </div>
               <?php if (!$isCur): ?>
               <form method="post" action="<?= e(url('switch')) ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
@@ -144,8 +135,7 @@ render('شركاتي', 'workspaces', function () use ($list, $invites, $cur) {
         <?= csrf_field() ?><input type="hidden" name="action" value="add">
         <h2 class="font-bold">شركة جديدة</h2>
         <input name="name" placeholder="اسم الشركة" required class="w-full border border-slate-300 rounded-lg px-3 py-2">
-        <input name="api_key" type="password" autocomplete="off" placeholder="مفتاح Zernio API (اختياري)" class="w-full border border-slate-300 rounded-lg px-3 py-2" dir="ltr">
-        <p class="text-xs text-slate-500">كل شركة ليها مفتاح Zernio وفريق منفصلين. ممكن تضيف المفتاح بعدين.</p>
+        <p class="text-xs text-slate-500">بعد ما تعملها هتربطها بمفتاح Zernio بتاعها من صفحة Connectors. كل شركة ليها مفاتيحها وفريقها لوحدها.</p>
         <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-2.5">إنشاء</button>
       </form>
     </div>

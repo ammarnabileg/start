@@ -33,8 +33,8 @@ auth_page('سجّل دخولك', function () use ($email, $canRegister) {
       <?= csrf_field() ?>
       <?= auth_input('email', 'الإيميل', 'email', $email, true) ?>
       <label class="block"><span class="text-sm font-semibold">كلمة السر</span>
-        <input type="password" name="password" required class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none" dir="ltr"></label>
-      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3">دخول</button>
+        <input type="password" name="password" required class="input" dir="ltr"></label>
+      <button class="btn-primary w-full !py-3">دخول</button>
     </form>
     <?php if ($canRegister): ?>
       <p class="text-center text-sm text-slate-500">معندكش حساب؟ <a href="<?= e(url('register')) ?>" class="text-indigo-700 font-semibold">اعمل حساب</a></p>

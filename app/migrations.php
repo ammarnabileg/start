@@ -98,4 +98,30 @@ return [
 
         "DELETE FROM settings WHERE name IN ('zernio_api_key', 'profile_id', 'timezone')",
     ],
+
+    // 1.2.0: المفاتيح بقت في جدول connectors ومشفرة، عشان نقدر نضيف خدمات تانية بعدين
+    '003_connectors' => [
+        "CREATE TABLE IF NOT EXISTS connectors (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            provider VARCHAR(50) NOT NULL,
+            credentials TEXT NOT NULL,
+            settings TEXT NULL,
+            info VARCHAR(255) NULL,
+            checked_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY (workspace_id, provider),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        function (PDO $pdo) {
+            $rows = $pdo->query("SELECT id, api_key, profile_id FROM workspaces WHERE api_key IS NOT NULL AND api_key <> ''")->fetchAll();
+            foreach ($rows as $r) {
+                save_connector($pdo, (int)$r['id'], 'zernio', ['api_key' => $r['api_key']],
+                    $r['profile_id'] ? ['profile_id' => $r['profile_id']] : []);
+            }
+        },
+
+        "ALTER TABLE workspaces DROP COLUMN api_key, DROP COLUMN profile_id",
+    ],
 ];

@@ -4,6 +4,8 @@
  */
 
 require_once __DIR__ . '/version.php';
+require_once __DIR__ . '/crypto.php';
+require_once __DIR__ . '/connectors.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');
@@ -59,7 +61,11 @@ function run_migrations(PDO $pdo): array
             continue;
         }
         foreach ($statements as $sql) {
-            $pdo->exec($sql);
+            if ($sql instanceof Closure) {
+                $sql($pdo); // تحديث محتاج كود PHP (زي تشفير البيانات)
+            } else {
+                $pdo->exec($sql);
+            }
         }
         $st = $pdo->prepare("INSERT INTO migrations (name) VALUES (?)");
         $st->execute([$name]);

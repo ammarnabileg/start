@@ -39,7 +39,7 @@ $accounts = [];
 $apiError = null;
 if ($z) {
     try {
-        $accounts = $z->allAccounts(ws('profile_id') ?: null);
+        $accounts = $z->allAccounts(zernio_profile());
     } catch (ZernioException $ex) {
         $apiError = $ex->getMessage();
     }
