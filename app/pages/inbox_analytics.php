@@ -199,7 +199,7 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
               <tbody>
                 <?php foreach ($res['top-accounts']['accounts'] as $a): ?>
                   <tr class="border-b border-ink-100">
-                    <td class="py-2 pe-3"><p class="font-semibold text-ink-800"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></p><p class="text-[11px] text-ink-500"><?= e(platform_label($a['platform'] ?? '')) ?></p></td>
+                    <td class="py-2 pe-3"><p class="font-semibold text-ink-800"><?= e(stripos((string)($a['displayName'] ?? ''), 'sandbox') !== false ? t('رقم تجريبي') : ($a['displayName'] ?? $a['username'] ?? '')) ?></p><p class="text-[11px] text-ink-500"><?= e(platform_label($a['platform'] ?? '')) ?></p></td>
                     <td class="py-2 px-2 tabular-nums"><?= (int)($a['received'] ?? 0) ?></td>
                     <td class="py-2 px-2 tabular-nums"><?= (int)($a['sent'] ?? 0) ?></td>
                     <td class="py-2 px-2 tabular-nums"><?= (int)($a['conversations'] ?? 0) ?></td>

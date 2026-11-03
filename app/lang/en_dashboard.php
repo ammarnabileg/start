@@ -45,4 +45,5 @@ return [
     'عمل الشركة' => 'created the company',
     'الهاتف' => 'Phone',
     'عمل تغيير في %s' => 'made a change in %s',
+    'الأهداف' => 'Goals',
 ];

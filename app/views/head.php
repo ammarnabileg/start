@@ -50,7 +50,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     .btn-primary { @apply btn text-[#fff] bg-gradient-to-l from-brand-600 to-cyan-600 hover:brightness-110 shadow-sm shadow-brand-600/25; }
     .btn-ghost { @apply btn bg-ink-100 text-ink-900 border border-ink-200 hover:bg-ink-200; }
     .link { @apply text-brand-600 dark:text-brand-700 font-medium hover:underline underline-offset-4; }
-    .badge { @apply inline-flex items-center rounded-lg bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600; }
+    .badge { @apply inline-flex items-center rounded-lg bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 dark:bg-ink-200 dark:text-ink-800; }
     .badge-green { @apply bg-lime-100 text-lime-700; }
     .nav-item { @apply flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] text-ink-600 hover:bg-ink-100 hover:text-ink-900; }
     .nav-on { @apply bg-brand-50 text-brand-700 font-medium; }

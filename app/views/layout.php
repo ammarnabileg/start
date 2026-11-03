@@ -71,14 +71,15 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   </a>
   <div class="flex-1"></div>
   <div class="hidden sm:flex items-center gap-2"><?= pref_switch() ?></div>
-  <?php if ($invites): ?>
-    <a href="<?= e(url('workspaces')) ?>" class="relative p-2 rounded-lg hover:bg-ink-100" title="<?= e(t('دعوات')) ?>">
-      <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
-      <span class="absolute top-0.5 end-0.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[17px] h-[17px] flex items-center justify-center"><?= count($invites) ?></span>
-    </a>
-  <?php else: ?>
-    <span class="p-2 text-ink-400"><?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?></span>
-  <?php endif; ?>
+  <?php
+    $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
+    $bellN = count($invites) + $alertsN;
+    $bellHref = $invites ? url('workspaces') : url('alerts');
+  ?>
+  <a href="<?= e($bellHref) ?>" class="relative p-2 rounded-lg hover:bg-ink-100 <?= $bellN ? '' : 'text-ink-400' ?>" title="<?= e(t('التنبيهات')) ?>">
+    <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
+    <?php if ($bellN): ?><span class="absolute top-0.5 end-0.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[17px] h-[17px] flex items-center justify-center"><?= (int)$bellN ?></span><?php endif; ?>
+  </a>
   <details class="relative" data-dropdown>
     <summary class="flex items-center gap-2 rounded-lg bg-ink-100 border border-ink-200 px-2.5 py-1.5 cursor-pointer hover:bg-ink-200/60">
       <span class="w-6 h-6 rounded-full bg-ink-300 text-ink-900 text-xs flex items-center justify-center font-bold"><?= e($initial) ?></span>

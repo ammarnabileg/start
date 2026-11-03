@@ -44,13 +44,13 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['login', 'register', 'invite', 'pref'];
+$public = ['login', 'register', 'invite', 'pref', 'cron'];
 if (!in_array($page, $public, true) && !current_user()) {
     redirect(url('login'));
 }
 
 // لوحة إدارة النظام لمدير النظام بس
-$adminPages = ['system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity'];
+$adminPages = ['system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare'];
 if (in_array($page, $adminPages, true) && !is_admin()) {
     redirect(url('dashboard'));
 }
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'impersonate_stop'];
+$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'cron', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }

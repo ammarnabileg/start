@@ -227,7 +227,7 @@ function rp_chart(array $dates, array $vals, bool $email): string
     }
     $W = 680; $H = 170; $pad = 24;
     $bw = ($W - $pad) / $n;
-    $svg = '<svg viewBox="0 0 ' . $W . ' ' . ($H + 18) . '" width="100%" role="img" aria-label="' . e(t('مرات الظهور يوم بيوم')) . '" style="display:block" dir="ltr">';
+    $svg = '<svg viewBox="0 0 ' . $W . ' ' . ($H + 18) . '" width="100%" role="img" aria-label="' . e(t('مرات الظهور يوم بيوم')) . '" style="display:block;direction:ltr;unicode-bidi:isolate">';
     foreach ([0, 0.5, 1] as $g) {
         $y = $H - $g * ($H - 10);
         $svg .= '<line x1="' . $pad . '" x2="' . $W . '" y1="' . $y . '" y2="' . $y . '" stroke="#e2e8f0" stroke-width="1"/>';
