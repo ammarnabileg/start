@@ -124,7 +124,7 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
     if (!$z) { no_api_box(); return; }
     ?>
     <div class="space-y-5">
-      <a href="<?= e(url('ads', ['r' => $range])) ?>" class="link text-sm"><?= e(t('← رجوع للحملات')) ?></a>
+      <a href="<?= e(url('ads', ['r' => $range])) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$camp && !$apiError): ?>
         <div class="card p-8 text-center text-ink-500 text-sm"><?= e(t('الحملة دي مش موجودة أو مالهاش بيانات في الفترة دي.')) ?></div>
@@ -160,7 +160,7 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
 
         <div class="flex flex-wrap gap-1">
           <?php foreach (ads_date_presets() as $k => $v): ?>
-            <a href="<?= e(url('ad_campaign', ['id' => $cid, 'pf' => $pf, 'r' => $k])) ?>" class="px-3 py-1.5 rounded-lg text-sm border <?= $k === $range ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-700 hover:bg-ink-50' ?>"><?= e($v) ?></a>
+            <a href="<?= e(url('ad_campaign', ['id' => $cid, 'pf' => $pf, 'r' => $k])) ?>" class="px-3 py-1.5 rounded-lg text-sm border <?= (string)$k === $range ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-700 hover:bg-ink-50' ?>"><?= e($v) ?></a>
           <?php endforeach; ?>
           <span class="text-xs text-ink-500 ms-auto self-center" dir="ltr"><?= e($from . ' → ' . $to) ?></span>
         </div>

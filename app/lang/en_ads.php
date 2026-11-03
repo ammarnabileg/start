@@ -256,5 +256,5 @@ return [
     'يومي' => 'Daily',
     'يومية' => 'Daily',
     '— اختار —' => '— Choose —',
-    '← رجوع للحملات' => '← Back to campaigns',
+    '→ رجوع للحملات' => '← Back to campaigns',
 ];

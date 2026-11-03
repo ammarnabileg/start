@@ -189,7 +189,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         <div>
           <label class="label"><?= e(t('الفترة')) ?></label>
           <select name="r" class="input" onchange="this.form.submit()">
-            <?php foreach (ads_date_presets() as $k => $v): ?><option value="<?= e($k) ?>" <?= $k === $range ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?>
+            <?php foreach (ads_date_presets() as $k => $v): ?><option value="<?= e($k) ?>" <?= (string)$k === $range ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?>
           </select>
         </div>
         <div>

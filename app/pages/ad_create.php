@@ -232,7 +232,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
     $v = function ($k, $d = '') use ($f) { return $f[$k] ?? $d; };
     ?>
     <div class="max-w-3xl space-y-5">
-      <a href="<?= e(url('ads')) ?>" class="link text-sm"><?= e(t('← رجوع للحملات')) ?></a>
+      <a href="<?= e(url('ads')) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$targets && !$apiError): ?>
         <?php ads_empty_state(); ?>
