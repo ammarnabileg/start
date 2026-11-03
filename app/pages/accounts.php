@@ -13,7 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 throw new ZernioException(t('منصة غير مدعومة.'));
             }
             $back = base_url() . '/' . url('accounts', ['connected' => 1]);
-            $auth = $z->connectUrl($platform, current_profile_id($z), $back);
+            // مع أكتر من اتصال: الحساب الجديد بيتربط على الاتصال اللي اخترته
+            $conn = (int)($_POST['conn'] ?? 0);
+            $target = ($z instanceof ZernioMulti && $z->isMulti() && in_array($conn, $z->connectionIds(), true)) ? $z->client($conn) : $z;
+            $profile = ($z instanceof ZernioMulti && $target !== $z) ? ($z->profileOf($conn) ?: current_profile_id($target)) : current_profile_id($z);
+            $auth = $target->connectUrl($platform, $profile, $back);
             if (!$auth) {
                 throw new ZernioException(t('خدمة النشر لم ترجع رابط الربط.'));
             }
@@ -57,7 +61,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
           <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? $a['username'] ?? '') ?>
           <div class="flex-1 min-w-0">
             <div class="font-semibold truncate"><?= e(trim($a['displayName'] ?? $a['username'] ?? '')) ?></div>
-            <div class="text-xs text-slate-500"><?= e(platform_label($a['platform'] ?? '')) ?>
+            <div class="text-xs text-slate-500"><?= e(platform_label($a['platform'] ?? '')) ?><?php if (!empty($a['_connection']) && $z instanceof ZernioMulti && $z->isMulti()): ?> · <span class="badge"><?= e($a['_connection']) ?></span><?php endif; ?>
               <?php if (!empty($a['profileUrl'])): ?> · <a class="underline" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener"><?= e(t('فتح')) ?></a><?php endif; ?>
             </div>
           </div>
@@ -81,13 +85,21 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
     <?= card_open('p-5') ?>
       <h2 class="font-bold mb-1"><?= e(t('اربط حساب جديد')) ?></h2>
       <p class="text-sm text-slate-500 mb-4"><?= e(t('هتتنقل لصفحة المنصة، تسجل دخول وتوافق، وبعدها هترجع هنا تلقائياً.')) ?></p>
+      <?php $multi = $z instanceof ZernioMulti && $z->isMulti(); if ($multi): ?>
+        <label class="block mb-4 max-w-sm"><span class="label"><?= e(t('اربطه على أنهي اتصال؟')) ?></span>
+          <select id="connPick" class="input">
+            <?php foreach ($z->connectionIds() as $cid): ?><option value="<?= (int)$cid ?>"><?= e($z->label($cid)) ?></option><?php endforeach; ?>
+          </select></label>
+      <?php endif; ?>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <?php foreach ($connectable as $p): ?>
           <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
+            <?php if ($multi): ?><input type="hidden" name="conn" class="connField" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
             <button class="w-full border border-slate-200 rounded-lg py-3 font-semibold text-sm hover:bg-indigo-50 hover:border-indigo-300"><?= e(platform_label($p)) ?></button>
           </form>
         <?php endforeach; ?>
       </div>
+      <?php if ($multi): ?><script>document.getElementById('connPick').addEventListener('change',function(){var v=this.value;document.querySelectorAll('.connField').forEach(function(i){i.value=v;});});</script><?php endif; ?>
       <p class="text-xs text-slate-500 mt-4"><?= e(t('واتساب وتليجرام وباقي المنصات بتتربط من لوحة التكامل نفسها، وهتظهر هنا تلقائياً.')) ?></p>
     </div>
     <?php

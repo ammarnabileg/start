@@ -31,4 +31,7 @@ return [
     'حط مفتاح الـ API اللي استلمته من مزود الخدمة.' => 'Paste the API key you received from your service provider.',
     'التكاملات' => 'Integrations',
     'رقم تجريبي' => 'Test number',
+    'عشان تستخدم تصنيفات المحادثات، فيسبوك محتاج توافق على شروطه مرة واحدة للصفحة دي.' => 'To use conversation labels, Facebook needs you to accept its terms once for this Page.',
+    'وافق من فيسبوك ↗' => 'Accept on Facebook ↗',
+    'بعد الموافقة ارجع وحدّث الصفحة.' => 'After accepting, come back and refresh.',
 ];

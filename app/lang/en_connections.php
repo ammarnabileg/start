@@ -1,0 +1,23 @@
+<?php
+// English: multiple connections per integration, account status, maintenance (1.9.0)
+return [
+    'اتصال %s' => 'Connection %s',
+    'الاتصال ده مش موجود.' => "This connection doesn't exist.",
+    'اربطه على أنهي اتصال؟' => 'Connect it to which connection?',
+    'المفتاح ده متضاف قبل كده باسم "%s".' => 'This key is already added as "%s".',
+    'اتحفظ الاتصال.' => 'Connection saved.',
+    'اتضاف اتصال جديد بنجاح.' => 'New connection added.',
+    'اتشال الاتصال "%s". الحسابات اللي عليه مش هتظهر هنا تاني.' => 'Connection "%s" removed. Its accounts will no longer show here.',
+    'اربط الشركة بالخدمات اللي بتستخدمها. تقدر تضيف أكتر من اتصال لنفس الخدمة، وكل الحسابات من كل الاتصالات بتظهر مع بعض في البرنامج. المفاتيح بتتخزن مشفرة ومحدش يقدر يشوفها بعد الحفظ.' => 'Connect the company to the services you use. You can add several connections to the same service, and all accounts from all connections appear together in the app. Keys are stored encrypted and can\'t be viewed after saving.',
+    '%s اتصال' => '%s connections',
+    '%s حساب مربوط' => '%s connected accounts',
+    'تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).' => 'Remove connection "%s"? Its accounts will disappear from the app (they are not deleted at the provider).',
+    'الـ Profile' => 'Profile',
+    'تعديل الاسم أو المفتاح' => 'Edit name or key',
+    'اسم الاتصال' => 'Connection name',
+    '+ اتصال جديد' => '+ New connection',
+    'مثلاً: فيسبوك وانستجرام' => 'e.g. Facebook & Instagram',
+    'الحساب ده موقوف. كلم مدير النظام.' => 'This account is suspended. Contact the system admin.',
+    'المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.' => 'The platform is under maintenance. Please try again later.',
+    'وضع الصيانة' => 'Maintenance',
+];

@@ -382,7 +382,17 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <?php endif; ?>
             </div>
           </div>
-          <?php if ($labelError): ?><p class="px-3 py-1 text-[11px] text-ink-400 border-b border-ink-100"><?= e(t('التصنيفات مش متاحة: %s', $labelError)) ?></p><?php endif; ?>
+          <?php if ($labelError):
+              // فيسبوك محتاج موافقة على شروط التصنيفات مرة واحدة للصفحة: نعرض زرار واضح بدل الخطأ
+              $tosUrl = preg_match('#https://www\.facebook\.com/[^\s"]+page_contact_tos/?#', $labelError, $mm) ? $mm[0] : null; ?>
+            <?php if ($tosUrl): ?>
+              <div class="px-3 py-2 border-b border-ink-100 bg-amber-50 text-amber-800 text-xs flex flex-wrap items-center gap-2">
+                <span><?= e(t('عشان تستخدم تصنيفات المحادثات، فيسبوك محتاج توافق على شروطه مرة واحدة للصفحة دي.')) ?></span>
+                <a href="<?= e($tosUrl) ?>" target="_blank" rel="noopener" class="btn-ghost !py-1 text-xs"><?= e(t('وافق من فيسبوك ↗')) ?></a>
+                <span class="text-amber-700/80"><?= e(t('بعد الموافقة ارجع وحدّث الصفحة.')) ?></span>
+              </div>
+            <?php endif; ?>
+          <?php endif; ?>
           <?php if (is_array($pageLabels)): ?>
             <details class="px-3 py-2 border-b border-ink-100 text-sm">
               <summary class="cursor-pointer text-xs font-semibold text-brand-700"><?= e(t('تصنيفات الصفحة (فيسبوك)')) ?></summary>

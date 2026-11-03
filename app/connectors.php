@@ -26,26 +26,35 @@ function connector_registry(): array
     ];
 }
 
-/** بيانات connector في الشركة الحالية (مفكوكة التشفير) أو null */
-function connector(string $provider, ?int $workspaceId = null): ?array
+/** كل اتصالات خدمة معينة في الشركة (مفكوكة التشفير)، الأقدم الأول */
+function connections(string $provider, ?int $workspaceId = null): array
 {
     static $cache = [];
     $wid = $workspaceId ?? (int)ws('id');
     if (!$wid) {
-        return null;
+        return [];
     }
     $k = $wid . ':' . $provider;
     if (!array_key_exists($k, $cache)) {
-        $st = db()->prepare("SELECT * FROM connectors WHERE workspace_id = ? AND provider = ?");
+        $st = db()->prepare("SELECT * FROM connectors WHERE workspace_id = ? AND provider = ? ORDER BY id");
         $st->execute([$wid, $provider]);
-        $row = $st->fetch();
-        if ($row) {
+        $rows = $st->fetchAll();
+        foreach ($rows as &$row) {
             $row['credentials'] = json_decode(decrypt_secret($row['credentials']), true) ?: [];
             $row['settings'] = json_decode((string)$row['settings'], true) ?: [];
+            $row['label'] = (string)($row['label'] ?? '') !== '' ? $row['label'] : t('اتصال %s', $row['id']);
         }
-        $cache[$k] = $row ?: null;
+        unset($row);
+        $cache[$k] = $rows;
     }
     return $cache[$k];
+}
+
+/** أول اتصال (الأساسي) للخدمة، أو null */
+function connector(string $provider, ?int $workspaceId = null): ?array
+{
+    $all = connections($provider, $workspaceId);
+    return $all[0] ?? null;
 }
 
 function connector_secret(string $provider, string $field): string
@@ -60,10 +69,16 @@ function connector_setting(string $provider, string $field)
     return $c['settings'][$field] ?? null;
 }
 
-function save_connector(PDO $pdo, int $wid, string $provider, array $credentials, array $settings = [], string $info = ''): void
+/** يضيف اتصال جديد، أو يعدّل اتصال موجود لو اتبعت $id */
+function save_connector(PDO $pdo, int $wid, string $provider, array $credentials, array $settings = [], string $info = '', ?string $label = null, ?int $id = null): int
 {
-    $pdo->prepare("INSERT INTO connectors (workspace_id, provider, credentials, settings, info, checked_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE credentials = VALUES(credentials), settings = VALUES(settings), info = VALUES(info), checked_at = NOW()")
-        ->execute([$wid, $provider, encrypt_secret(json_encode($credentials)), json_encode($settings), $info]);
+    $enc = encrypt_secret(json_encode($credentials));
+    if ($id) {
+        $pdo->prepare("UPDATE connectors SET credentials = ?, settings = ?, info = ?, label = COALESCE(?, label), checked_at = NOW() WHERE id = ? AND workspace_id = ?")
+            ->execute([$enc, json_encode($settings), $info, $label, $id, $wid]);
+        return $id;
+    }
+    $pdo->prepare("INSERT INTO connectors (workspace_id, provider, credentials, settings, info, label, checked_at) VALUES (?, ?, ?, ?, ?, ?, NOW())")
+        ->execute([$wid, $provider, $enc, json_encode($settings), $info, $label]);
+    return (int)$pdo->lastInsertId();
 }

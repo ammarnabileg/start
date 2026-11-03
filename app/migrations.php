@@ -117,8 +117,9 @@ return [
         function (PDO $pdo) {
             $rows = $pdo->query("SELECT id, api_key, profile_id FROM workspaces WHERE api_key IS NOT NULL AND api_key <> ''")->fetchAll();
             foreach ($rows as $r) {
-                save_connector($pdo, (int)$r['id'], 'zernio', ['api_key' => $r['api_key']],
-                    $r['profile_id'] ? ['profile_id' => $r['profile_id']] : []);
+                // SQL مباشر (مش save_connector) عشان التحديث ده يفضل شغال حتى لو الجدول اتغير بعدين
+                $pdo->prepare("INSERT INTO connectors (workspace_id, provider, credentials, settings, info, checked_at) VALUES (?, 'zernio', ?, ?, '', NOW())")
+                    ->execute([(int)$r['id'], encrypt_secret(json_encode(['api_key' => $r['api_key']])), json_encode($r['profile_id'] ? ['profile_id' => $r['profile_id']] : [])]);
             }
         },
 
@@ -135,5 +136,12 @@ return [
         "ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active', ADD COLUMN last_login_at DATETIME NULL",
         "ALTER TABLE workspaces ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'",
         "ALTER TABLE activity_log ADD INDEX (user_id), ADD INDEX (workspace_id), ADD INDEX (action)",
+    ],
+
+    // 1.9.0: أكتر من اتصال لنفس الخدمة في الشركة الواحدة (كل اتصال ليه اسم)
+    '006_multi_connections' => [
+        "ALTER TABLE connectors ADD COLUMN label VARCHAR(120) NULL",
+        "ALTER TABLE connectors ADD INDEX ws_provider (workspace_id, provider)",
+        "ALTER TABLE connectors DROP INDEX workspace_id",
     ],
 ];
