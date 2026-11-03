@@ -436,7 +436,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <p class="text-sm text-ink-400 mt-2"><?= e(t('مش متاح')) ?></p>
                 <?php else: ?>
                   <p class="text-2xl font-bold text-ink-900 tabular-nums mt-1 text-start"><bdi dir="ltr"><?= !empty($k['pct']) ? e(number_format($k['cur'], 2)) . '%' : e((!empty($k['signed']) && $k['cur'] > 0 ? '+' : '') . an_num($k['cur'])) ?></bdi></p>
-                  <div class="flex items-center gap-1.5 whitespace-nowrap"><?= an_delta((float)$k['cur'], (float)$k['prev'], !empty($k['pct'])) ?><span class="text-[10px] text-ink-400"><?= e(t('عن الفترة السابقة')) ?></span></div>
+                  <div class="flex items-center gap-1.5 whitespace-nowrap"><?= an_delta((float)$k['cur'], (float)$k['prev'], !empty($k['pct'])) ?><span class="sr-only"><?= e(t('عن الفترة السابقة')) ?></span></div>
                   <div class="mt-auto pt-2"><?= an_sparkline($k['spark'], $k['color']) ?></div>
                 <?php endif; ?>
               </div>
@@ -489,7 +489,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
             <?php endif; ?>
           </section>
 
-          <div class="grid lg:grid-cols-3 gap-5">
+          <div class="grid lg:grid-cols-3 gap-5 [&>*]:min-w-0">
             <section class="card p-5">
               <h2 class="font-bold text-ink-900 mb-3"><?= e(t('حسب المنصة')) ?></h2>
               <?php
@@ -759,7 +759,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 function detail(x) {
                   var m = [['impressions', x.impressions], ['reach', x.reach], ['likes', x.likes], ['comments', x.comments], ['shares', x.shares], ['clicks', x.clicks]].map(function (a) { return [L[a[0]], a[1]]; }).concat(x.extra);
                   var mx = Math.max.apply(null, m.map(function (a) { return a[1]; }).concat([1]));
-                  var h = '<div class="grid lg:grid-cols-3 gap-5"><div><p class="text-xs font-semibold text-ink-700 mb-2">' + esc(L.breakdown) + '</p><ul class="space-y-1.5">';
+                  var h = '<div class="grid lg:grid-cols-3 gap-5 [&>*]:min-w-0"><div><p class="text-xs font-semibold text-ink-700 mb-2">' + esc(L.breakdown) + '</p><ul class="space-y-1.5">';
                   m.forEach(function (a) { h += '<li><div class="flex justify-between text-xs"><span class="text-ink-600">' + esc(a[0]) + '</span><b class="tabular-nums text-ink-900">' + num(a[1]) + '</b></div><div class="h-1.5 rounded-full bg-ink-200 overflow-hidden"><div class="h-full bg-brand-500 rounded-full" style="width:' + (a[1] / mx * 100) + '%"></div></div></li>'; });
                   h += '</ul>' + (x.url ? '<a class="link text-xs mt-3 inline-block" href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(L.open) + '</a>' : '') +
                     (x.sync === 'pending' ? '<p class="text-[11px] text-amber-700 mt-2">' + esc(L.pending) + '</p>' : '') +
@@ -837,7 +837,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
           </section>
 
           <?php if (!$E['posts'] && $rows): ?>
-          <div class="grid lg:grid-cols-2 gap-5">
+          <div class="grid lg:grid-cols-2 gap-5 [&>*]:min-w-0">
             <section class="card p-5">
               <h2 class="font-bold text-ink-900 mb-1"><?= e(t('الأداء حسب الوسم')) ?></h2>
               <p class="text-xs text-ink-500 mb-4"><?= e(t('الوسوم دي بتحطها أنت على المنشورات (من تفاصيل المنشور) وبتتحفظ هنا بس.')) ?></p>
@@ -1119,7 +1119,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               }
               usort($slots, function ($a, $b) { return $b[2] <=> $a[2] ?: $b[3] <=> $a[3]; });
               ?>
-              <div class="grid xl:grid-cols-4 gap-5">
+              <div class="grid xl:grid-cols-4 gap-5 [&>*]:min-w-0">
                 <div class="xl:col-span-3">
                   <?= an_heatmap($grid, function ($d, $h, $v) use ($dn, $cnt) { return t('%s %s: متوسط تفاعل %s من %s منشور', $dn[$d], an_hour_label($h), an_num($v), (int)($cnt[$d][$h] ?? 0)); }) ?>
                   <div class="flex items-center gap-2 text-[11px] text-ink-500 mt-2" dir="ltr">
@@ -1144,7 +1144,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
             <?php endif; ?>
           </section>
 
-          <div class="grid lg:grid-cols-2 gap-5">
+          <div class="grid lg:grid-cols-2 gap-5 [&>*]:min-w-0">
             <section class="card p-5">
               <h2 class="font-bold text-ink-900 mb-1"><?= e(t('عدد المنشورات في الأسبوع مقابل التفاعل')) ?></h2>
               <p class="text-xs text-ink-500 mb-4"><?= e(t('متوسط معدل التفاعل في الأسابيع اللي نشرت فيها بالعدد ده.')) ?></p>
@@ -1310,7 +1310,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
             uasort($ranked, function ($a, $b) { return an_group_stats($b)[2] <=> an_group_stats($a)[2]; });
             $dn = an_day_names();
             ?>
-            <div class="grid lg:grid-cols-2 gap-5">
+            <div class="grid lg:grid-cols-2 gap-5 [&>*]:min-w-0">
               <section class="card p-5">
                 <h2 class="font-bold text-ink-900 mb-1"><?= e(t('تحليل الهاشتاجات')) ?></h2>
                 <p class="text-xs text-ink-500 mb-4"><?= e(t('مترتبة حسب متوسط معدل التفاعل. الهاشتاج لازم يكون في منشورين على الأقل.')) ?></p>
@@ -1358,7 +1358,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                           </div>
                         <?php endfor; ?>
                       </div>
-                      <div class="grid grid-cols-7 gap-1 text-[10px] text-ink-500 text-center mt-1"><?php for ($d = 0; $d < 7; $d++): ?><span class="truncate"><?= e(mb_substr($dn[$d], 0, 3)) ?></span><?php endfor; ?></div>
+                      <div class="grid grid-cols-7 gap-1 text-[10px] text-ink-500 text-center mt-1"><?php for ($d = 0; $d < 7; $d++): ?><span class="truncate text-[9px]" title="<?= e($dn[$d]) ?>"><?= e($dn[$d]) ?></span><?php endfor; ?></div>
                     </div>
                   <?php endforeach; ?>
                 </div>
@@ -1380,6 +1380,14 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
       <?php
       /* =========================== المنصات =========================== */
       elseif ($tab === 'platforms'):
+          $secs = ['insights' => t('إحصائيات الحسابات'), 'facebook' => t('فيسبوك: إشارات وأرباح'), 'youtube' => t('يوتيوب: الفيديوهات'), 'ga' => t('جوجل أناليتكس')];
+          ?>
+          <div class="flex flex-wrap gap-2" role="tablist">
+            <?php foreach ($secs as $k => $l): ?>
+              <a href="<?= e($q(['sec' => $k === 'insights' ? null : $k, 'v' => null])) ?>" class="px-3 py-1.5 rounded-full text-xs font-semibold border <?= $sec === $k ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-700 hover:bg-ink-50' ?>" <?= $sec === $k ? 'aria-current="page"' : '' ?>><?= e($l) ?></a>
+            <?php endforeach; ?>
+          </div>
+          <?php if ($sec === 'insights'):
           $mLabels = [
               'page_media_view' => t('مرات ظهور المحتوى'), 'page_total_media_view_unique' => t('المشاهدين الفريدين'), 'page_post_engagements' => t('التفاعل مع المنشورات'),
               'page_views_total' => t('زيارات الصفحة'), 'page_video_views' => t('مشاهدات الفيديو'), 'page_follows' => t('المتابعين'),
@@ -1403,7 +1411,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
           <?php if (empty($D['native'])): ?>
             <div class="card p-5"><?= an_empty(t('مفيش حساب متصل بإحصائيات مباشرة.'), t('الإحصائيات المباشرة متاحة لفيسبوك وإنستجرام ولينكدإن ويوتيوب وتيك توك وملف النشاط التجاري على جوجل.'), '🧩') ?></div>
           <?php else: ?>
-            <div class="grid lg:grid-cols-2 gap-5">
+            <div class="grid lg:grid-cols-2 gap-5 [&>*]:min-w-0">
               <?php foreach ($D['native'] as $id => $row): $a = $accMap[$id] ?? []; $pl = (string)($a['platform'] ?? ''); ?>
                 <section class="card p-5">
                   <div class="flex items-center gap-3 mb-4">
@@ -1470,6 +1478,137 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               </div>
             </div>
           <?php endif; ?>
+        <?php else:
+          $sa = $D['secAccounts'][0] ?? null;
+          $connect = can('accounts.view') ? ' ' . t('تقدر تربطه من صفحة الحسابات المرتبطة.') : '';
+          if (!$sa): ?>
+            <div class="card p-5">
+              <?= an_empty(t('مفيش حساب %s مربوط.', $sec === 'ga' ? t('جوجل أناليتكس') : platform_label($sec)), trim(t('الجزء ده بيظهر لما تربط الحساب.') . $connect), '🔌') ?>
+              <?php if (can('accounts.view')): ?><p class="text-center mt-3"><a class="link text-sm" href="<?= e(url('accounts')) ?>"><?= e(t('الحسابات المرتبطة')) ?></a></p><?php endif; ?>
+            </div>
+          <?php elseif ($sec === 'facebook'): ?>
+            <section class="card p-5">
+              <h2 class="font-bold text-ink-900 mb-1"><?= e(t('أرباح المنشورات')) ?></h2>
+              <p class="text-xs text-ink-500 mb-4"><?= e(t('أرباح أعلى منشورات الصفحة في الفترة (من بداية المنشور). بتظهر بس لو الصفحة مفعّل فيها تحقيق الدخل.')) ?></p>
+              <?php
+              $earn = array_filter($D['earnings'] ?? [], function ($r) { return !empty($r['data']['metrics']); });
+              if (!empty($E['fbPosts'])): ?><?= an_notice($E['fbPosts']) ?>
+              <?php elseif (!$earn): ?><?= an_empty(t('الصفحة مفيهاش أرباح للمنشورات دي.'), t('ده طبيعي لو الصفحة مش مشتركة في برنامج تحقيق الدخل من ميتا.'), '💰') ?>
+              <?php else: ?>
+                <ul class="space-y-3">
+                  <?php foreach ($earn as $r): ?>
+                    <li class="rounded-lg bg-ink-50 p-3">
+                      <p class="text-sm text-ink-800 line-clamp-1"><?= e(mb_substr((string)($r['post']['content'] ?? ''), 0, 90) ?: t('(منشور بدون نص)')) ?></p>
+                      <div class="flex flex-wrap gap-4 mt-1">
+                        <?php foreach ($r['data']['metrics'] as $mk => $mv): $amt = (float)($mv['total'] ?? 0); if (($mv['unit'] ?? '') === 'micro_amount') $amt /= 1000000; ?>
+                          <span class="text-xs text-ink-600"><?= e($mk === 'content_monetization_earnings' ? t('أرباح المحتوى') : t('أرباح تقريبية')) ?>: <b class="text-ink-900 tabular-nums" dir="ltr"><?= e(number_format($amt, 2) . (!empty($mv['currency']) ? ' ' . $mv['currency'] : '')) ?></b></span>
+                        <?php endforeach; ?>
+                      </div>
+                    </li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endif; ?>
+            </section>
+            <div class="grid lg:grid-cols-2 gap-5 [&>*]:min-w-0">
+              <?php foreach (['tagged' => [t('منشورات الصفحة متاشة فيها'), t('مفيش حد عمل تاج للصفحة مؤخراً.')], 'visitor' => [t('منشورات الزوار على الصفحة'), t('مفيش زوار نشروا على الصفحة مؤخراً.')]] as $k => [$title, $none]): ?>
+                <section class="card p-5">
+                  <h2 class="font-bold text-ink-900 mb-3"><?= e($title) ?></h2>
+                  <?php if (!empty($E[$k])): ?><?= an_notice($E[$k]) ?>
+                  <?php elseif (empty($D[$k])): ?><?= an_empty($none, '', '💬') ?>
+                  <?php else: ?>
+                    <ul class="divide-y divide-ink-100">
+                      <?php foreach ($D[$k] as $fp): ?>
+                        <li class="py-2.5">
+                          <p class="text-xs text-ink-500"><b class="text-ink-800"><?= e($fp['from']['name'] ?? t('مستخدم')) ?></b> · <?= e(fmt_date($fp['taggedTime'] ?? $fp['createdTime'] ?? null, 'd/m/Y h:i A')) ?></p>
+                          <p class="text-sm text-ink-800 line-clamp-2 mt-0.5"><?= e((string)($fp['message'] ?? '')) ?: e(t('(منشور بدون نص)')) ?></p>
+                          <?php if (!empty($fp['permalinkUrl'])): ?><a class="link text-xs" href="<?= e($fp['permalinkUrl']) ?>" target="_blank" rel="noopener"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
+                        </li>
+                      <?php endforeach; ?>
+                    </ul>
+                  <?php endif; ?>
+                </section>
+              <?php endforeach; ?>
+            </div>
+          <?php elseif ($sec === 'youtube'): ?>
+            <section class="card p-5">
+              <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+                <h2 class="font-bold text-ink-900"><?= e(t('أداء فيديو')) ?></h2>
+                <?php if (!empty($D['videos'])): ?>
+                  <form method="get" class="flex gap-2 items-end min-w-0">
+                    <input type="hidden" name="p" value="analytics"><input type="hidden" name="tab" value="platforms"><input type="hidden" name="sec" value="youtube">
+                    <?php if ($acc !== ''): ?><input type="hidden" name="a" value="<?= e($acc) ?>"><?php endif; ?>
+                    <?php if ($per['custom']): ?><input type="hidden" name="from" value="<?= e($per['from']) ?>"><input type="hidden" name="to" value="<?= e($per['to']) ?>"><?php else: ?><input type="hidden" name="d" value="<?= (int)$per['days'] ?>"><?php endif; ?>
+                    <select name="v" class="input py-1.5 max-w-xs" onchange="this.form.submit()" aria-label="<?= e(t('اختار فيديو')) ?>">
+                      <?php foreach ($D['videos'] as $vid => $title): ?><option value="<?= e($vid) ?>" <?= $vid === $D['video'] ? 'selected' : '' ?>><?= e($title) ?></option><?php endforeach; ?>
+                    </select>
+                    <noscript><button class="btn-ghost"><?= e(t('عرض')) ?></button></noscript>
+                  </form>
+                <?php endif; ?>
+              </div>
+              <?php if (!empty($E['ytPosts'])): ?><?= an_notice($E['ytPosts']) ?>
+              <?php elseif (empty($D['videos'])): ?><?= an_empty(t('مفيش فيديوهات يوتيوب في آخر سنة.'), '', '🎬') ?>
+              <?php else: ?>
+                <div class="grid lg:grid-cols-2 gap-6">
+                  <div>
+                    <p class="text-xs font-semibold text-ink-700 mb-2"><?= e(t('منحنى الاحتفاظ بالمشاهدين')) ?></p>
+                    <?php $rc = (array)($D['retention']['retentionCurve'] ?? []);
+                    if (!empty($E['retention'])): ?><?= an_notice($E['retention']) ?>
+                    <?php elseif (count($rc) < 2): ?><?= an_empty(t('يوتيوب لسه مارجعش منحنى الاحتفاظ للفيديو ده.')) ?>
+                    <?php else: ?>
+                      <div id="an-ret"></div>
+                      <script>AnCharts.line(document.getElementById('an-ret'), {height: 200, aria: <?= json_encode(t('منحنى الاحتفاظ بالمشاهدين'), $jsonFlags) ?>,
+                        labels: <?= json_encode(array_map(function ($r) { return round((float)($r['elapsedVideoTimeRatio'] ?? 0) * 100) . '%'; }, $rc)) ?>,
+                        fmt: function (v) { return Math.round(v) + '%'; },
+                        series: [{key: 'r', label: <?= json_encode(t('مكمّلين مشاهدة'), $jsonFlags) ?>, color: 'rgb(var(--red-500))', values: <?= json_encode(array_map(function ($r) { return round((float)($r['audienceWatchRatio'] ?? 0) * 100, 1); }, $rc)) ?>}]});</script>
+                      <p class="text-[11px] text-ink-400 mt-1"><?= e(t('المحور الأفقي: نسبة مدة الفيديو.')) ?></p>
+                    <?php endif; ?>
+                  </div>
+                  <div>
+                    <p class="text-xs font-semibold text-ink-700 mb-2"><?= e(t('المشاهدات اليومية')) ?></p>
+                    <?php $dv = (array)($D['dviews']['dailyViews'] ?? []);
+                    if (!empty($E['dviews'])): ?><?= an_notice($E['dviews']) ?>
+                    <?php elseif (!$dv): ?><?= an_empty(t('مفيش مشاهدات للفيديو ده في الفترة.')) ?>
+                    <?php else: ?>
+                      <p class="text-2xl font-bold text-ink-900 tabular-nums mb-2"><?= e(an_num($D['dviews']['totalViews'] ?? array_sum(array_column($dv, 'views')))) ?> <span class="text-xs font-normal text-ink-500"><?= e(t('مشاهدة')) ?></span></p>
+                      <div id="an-dv"></div>
+                      <script>AnCharts.line(document.getElementById('an-dv'), {height: 170, aria: <?= json_encode(t('المشاهدات اليومية'), $jsonFlags) ?>,
+                        labels: <?= json_encode(array_map(function ($r) { return date('d/m', strtotime((string)$r['date'])); }, $dv)) ?>,
+                        series: [{key: 'v', label: <?= json_encode(t('مشاهدات'), $jsonFlags) ?>, color: 'rgb(var(--brand-600))', values: <?= json_encode(array_map(function ($r) { return (int)($r['views'] ?? 0); }, $dv)) ?>},
+                                 {key: 'm', label: <?= json_encode(t('دقائق المشاهدة'), $jsonFlags) ?>, color: 'rgb(var(--cyan-500))', values: <?= json_encode(array_map(function ($r) { return round((float)($r['estimatedMinutesWatched'] ?? 0), 1); }, $dv)) ?>}]});</script>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              <?php endif; ?>
+            </section>
+          <?php elseif ($sec === 'ga'):
+            $gaSum = function ($rep) {
+                $out = ['sessions' => 0, 'activeUsers' => 0, 'rows' => []];
+                $names = array_map(function ($h) { return $h['name'] ?? ''; }, (array)($rep['metricHeaders'] ?? []));
+                foreach ((array)($rep['rows'] ?? []) as $r) {
+                    $vals = [];
+                    foreach ((array)($r['metricValues'] ?? []) as $i => $mv) $vals[$names[$i] ?? $i] = (float)($mv['value'] ?? 0);
+                    $out['sessions'] += $vals['sessions'] ?? 0; $out['activeUsers'] += $vals['activeUsers'] ?? 0;
+                    $out['rows'][] = [(string)($r['dimensionValues'][0]['value'] ?? ''), $vals['sessions'] ?? 0];
+                }
+                return $out;
+            };
+            ?>
+            <section class="card p-5">
+              <h2 class="font-bold text-ink-900 mb-1"><?= e(t('زيارات الموقع من السوشيال ميديا')) ?></h2>
+              <p class="text-xs text-ink-500 mb-4"><?= e(t('من جوجل أناليتكس: الجلسات والمستخدمين اللي جم من مصادر السوشيال في الفترة.')) ?></p>
+              <?php if (!empty($E['ga'])): ?><?= an_notice($E['ga']) ?>
+              <?php else: $g = $gaSum($D['ga']); $gp = empty($E['gaPrev']) ? $gaSum($D['gaPrev']) : null; ?>
+                <div class="grid grid-cols-2 gap-3 mb-5 max-w-md">
+                  <?php foreach (['sessions' => t('الجلسات'), 'activeUsers' => t('المستخدمين')] as $k => $l): ?>
+                    <div class="rounded-xl bg-ink-50 p-3"><p class="text-xs text-ink-500"><?= e($l) ?></p><p class="text-2xl font-bold text-ink-900 tabular-nums"><?= e(an_num($g[$k])) ?></p><?= $gp ? an_delta($g[$k], $gp[$k]) : '' ?></div>
+                  <?php endforeach; ?>
+                </div>
+                <?php if ($g['rows']): ?><?= an_hbars($g['rows'], 'bg-lime-500', 10) ?>
+                <?php else: ?><?= an_empty(t('مفيش زيارات من السوشيال في الفترة دي.')) ?><?php endif; ?>
+              <?php endif; ?>
+            </section>
+          <?php endif; ?>
+        <?php endif; ?>
       <?php endif; ?>
     </div>
     <script>
