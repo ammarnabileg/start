@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($fail === 0) {
             flash('success', t('السيرفر قبل الإيميل لـ %s. لو ما وصلش، راجع الـ Spam أو إعدادات الإيميل في الاستضافة.', implode(', ', $emails)));
         } else {
-            flash('error', t('السيرفر رفض يبعت %s إيميل. الاستضافة غالباً مش مفعّل فيها إرسال الإيميل من PHP.', $fail));
+            flash('error', t('ما اتبعتش %s إيميل: %s', $fail, (string)($GLOBALS['rp_last_mail_error'] ?? '')));
         }
     }
     redirect(url('reports'));
@@ -149,7 +149,12 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
             </div>
             <p class="text-xs text-ink-500"><?= e(t('الرابط ده سري. أي حد معاه يقدر يشغل الإرسال، فما تشاركهوش.')) ?></p>
             <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs">
-              <?= e(t('الإيميلات بتتبعت بدالة mail() في PHP على نفس السيرفر. وصولها بيعتمد على إعدادات الإيميل في الاستضافة (SPF/DKIM)، وممكن توصل الـ Spam أو ما توصلش خالص لو الاستضافة قافلة الإرسال. جرب "ابعت تجربة دلوقتي" الأول.')) ?>
+              <?php if (smtp_config()): ?>
+                <?= e(t('الإيميلات بتتبعت عن طريق SMTP (%s).', smtp_config()['host'])) ?>
+              <?php else: ?>
+                <?= e(t('الإيميلات بتتبعت من الاستضافة مباشرة، وممكن توصل الـ Spam أو ما توصلش. الأضمن تظبط SMTP.')) ?>
+                <?php if (is_admin()): ?><a class="underline" href="<?= e(url('system')) ?>#smtp"><?= e(t('اظبط SMTP')) ?></a><?php endif; ?>
+              <?php endif; ?>
             </div>
           </div>
         <?php endif; ?>

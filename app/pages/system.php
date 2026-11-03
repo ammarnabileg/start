@@ -1,5 +1,32 @@
 <?php
 /** إدارة المنصة: إعدادات المنصة (لمدير النظام) */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['smtp_save', 'smtp_test'], true)) {
+    $host = trim((string)($_POST['smtp_host'] ?? ''));
+    save_setting('smtp_host', mb_substr($host, 0, 190));
+    save_setting('smtp_port', (string)max(1, min(65535, (int)($_POST['smtp_port'] ?? 587))));
+    save_setting('smtp_secure', in_array($_POST['smtp_secure'] ?? '', ['ssl', 'tls', 'none'], true) ? $_POST['smtp_secure'] : 'tls');
+    save_setting('smtp_user', mb_substr(trim((string)($_POST['smtp_user'] ?? '')), 0, 190));
+    $pw = (string)($_POST['smtp_pass'] ?? '');
+    if ($pw !== '') save_setting('smtp_pass', encrypt_secret($pw)); // فاضي = سيب القديم
+    $from = trim((string)($_POST['smtp_from'] ?? ''));
+    save_setting('smtp_from', filter_var($from, FILTER_VALIDATE_EMAIL) ? $from : '');
+    save_setting('smtp_from_name', mb_substr(trim((string)($_POST['smtp_from_name'] ?? '')), 0, 120));
+    log_activity('system.smtp_save', $host);
+    if ($_POST['action'] === 'smtp_test') {
+        $to = trim((string)($_POST['test_to'] ?? '')) ?: (string)(current_user()['email'] ?? '');
+        try {
+            send_mail($to, t('تجربة إيميل من %s', (string)setting('site_name', '')),
+                '<div style="font-family:sans-serif;padding:20px"><h2>✅ ' . e(t('إعدادات الإيميل شغالة')) . '</h2><p>' . e(t('لو الرسالة دي وصلتك، يبقى التقارير والتنبيهات هتوصل كمان.')) . '</p></div>');
+            flash('success', t('اتبعت إيميل تجريبي لـ %s. لو ما لقيتوش، بص في الـ Spam.', $to));
+        } catch (MailException $ex) {
+            flash('error', t('فشل الإرسال: %s', $ex->getMessage()));
+        }
+    } else {
+        flash('success', t('اتحفظت إعدادات الإيميل.'));
+    }
+    redirect(url('system') . '#smtp');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $siteName = trim((string)($_POST['site_name'] ?? ''));
     if ($siteName !== '') save_setting('site_name', mb_substr($siteName, 0, 100));
@@ -63,6 +90,57 @@ render(t('إعدادات المنصة'), 'system', function () {
         <button class="btn-primary !px-8"><?= e(t('حفظ')) ?></button>
         <a href="setup.php" class="btn-ghost"><?= e(t('صفحة التحديث')) ?></a>
       </div>
+    </form>
+
+    <!-- إعدادات الإيميل (SMTP) -->
+    <?php $sm = smtp_config(); ?>
+    <form method="post" id="smtp" class="card p-6 space-y-4 max-w-5xl mt-5">
+      <?= csrf_field() ?>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex-1"><h2 class="font-semibold text-ink-900"><?= e(t('إعدادات الإيميل (SMTP)')) ?></h2>
+          <p class="text-xs text-ink-500"><?= e(t('بيستخدمه البرنامج لإرسال التقارير والتنبيهات. لو سبته فاضي، الإيميلات بتتبعت من الاستضافة مباشرة وممكن توصل الـ Spam.')) ?></p></div>
+        <span class="badge <?= $sm ? 'badge-green' : '' ?>"><?= e($sm ? t('متظبط') : t('مش متظبط')) ?></span>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <label class="block lg:col-span-2"><span class="label"><?= e(t('سيرفر SMTP')) ?></span>
+          <input name="smtp_host" value="<?= e((string)setting('smtp_host', '')) ?>" class="input" dir="ltr" placeholder="smtp.gmail.com / mail.yourdomain.com"></label>
+        <label class="block"><span class="label"><?= e(t('البورت')) ?></span>
+          <input name="smtp_port" type="number" value="<?= e((string)setting('smtp_port', '587')) ?>" class="input" dir="ltr"></label>
+        <label class="block"><span class="label"><?= e(t('التشفير')) ?></span>
+          <select name="smtp_secure" class="input" id="smtpSecure">
+            <?php $sec = (string)setting('smtp_secure', 'tls'); foreach (['tls' => 'TLS (587)', 'ssl' => 'SSL (465)', 'none' => t('من غير تشفير (25)')] as $k => $l): ?>
+              <option value="<?= $k ?>" <?= $sec === $k ? 'selected' : '' ?>><?= e($l) ?></option>
+            <?php endforeach; ?>
+          </select></label>
+        <label class="block lg:col-span-2"><span class="label"><?= e(t('اسم المستخدم')) ?></span>
+          <input name="smtp_user" value="<?= e((string)setting('smtp_user', '')) ?>" class="input" dir="ltr" autocomplete="off" placeholder="reports@yourdomain.com"></label>
+        <label class="block lg:col-span-2"><span class="label"><?= e(t('كلمة السر')) ?></span>
+          <input name="smtp_pass" type="password" class="input" dir="ltr" autocomplete="new-password" placeholder="<?= e(setting('smtp_pass', '') ? t('•••••••••• متخزن (اكتب جديد لو عاوز تغيره)') : '') ?>"></label>
+        <label class="block lg:col-span-2"><span class="label"><?= e(t('إيميل المرسل')) ?></span>
+          <input name="smtp_from" type="email" value="<?= e((string)setting('smtp_from', '')) ?>" class="input" dir="ltr" placeholder="reports@yourdomain.com"></label>
+        <label class="block lg:col-span-2"><span class="label"><?= e(t('اسم المرسل')) ?></span>
+          <input name="smtp_from_name" value="<?= e((string)setting('smtp_from_name', '')) ?>" class="input" placeholder="<?= e((string)setting('site_name', '')) ?>"></label>
+      </div>
+      <details class="text-xs text-ink-500">
+        <summary class="cursor-pointer link"><?= e(t('بجيب البيانات دي منين؟')) ?></summary>
+        <ul class="list-disc ps-5 mt-2 space-y-1">
+          <li><?= e(t('إيميل على نفس الاستضافة (cPanel): السيرفر mail.دومينك، البورت 465 SSL، واسم المستخدم هو الإيميل كامل وكلمة سره.')) ?></li>
+          <li><?= e(t('Gmail / Google Workspace: السيرفر smtp.gmail.com، البورت 587 TLS، وكلمة السر لازم تكون App Password مش كلمة سر الحساب.')) ?></li>
+          <li><?= e(t('Outlook / Microsoft 365: السيرفر smtp.office365.com، البورت 587 TLS.')) ?></li>
+        </ul>
+      </details>
+      <div class="flex flex-wrap items-end gap-3 pt-2 border-t border-ink-100">
+        <button name="action" value="smtp_save" class="btn-primary"><?= e(t('حفظ')) ?></button>
+        <label class="block flex-1 min-w-[14rem]"><span class="label"><?= e(t('ابعت تجربة لـ')) ?></span>
+          <input name="test_to" type="email" value="<?= e((string)(current_user()['email'] ?? '')) ?>" class="input" dir="ltr"></label>
+        <button name="action" value="smtp_test" class="btn-ghost"><?= e(t('حفظ وإرسال تجربة')) ?></button>
+      </div>
+      <script>
+        document.getElementById('smtpSecure').addEventListener('change', function () {
+          var p = document.querySelector('[name=smtp_port]'); var map = {tls: 587, ssl: 465, none: 25};
+          if (['587', '465', '25', ''].indexOf(p.value) > -1) p.value = map[this.value];
+        });
+      </script>
     </form>
     <?php
 });

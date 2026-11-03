@@ -425,16 +425,16 @@ function rp_send_report(int $wid, array $recipients, string $kind, string $lang)
     } finally {
         if ($oldLang === null) unset($_COOKIE['lang']); else $_COOKIE['lang'] = $oldLang;
     }
-    $host = preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
-    $from = (string)setting('mail_from', '') ?: 'no-reply@' . $host;
-    $site = (string)setting('site_name', '') ?: $R['ws'];
-    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n"
-        . 'From: =?UTF-8?B?' . base64_encode($site) . "?= <{$from}>\r\n";
-    $subj = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $body = chunk_split(base64_encode($html));
+    // SMTP لو متظبط من إعدادات المنصة، وإلا mail() بتاعة الاستضافة
     $ok = 0; $fail = 0;
     foreach ($recipients as $to) {
-        if (@mail($to, $subj, $body, $headers)) $ok++; else $fail++;
+        try {
+            send_mail($to, $subject, $html);
+            $ok++;
+        } catch (MailException $e) {
+            $fail++;
+            $GLOBALS['rp_last_mail_error'] = $e->getMessage();
+        }
     }
     return [$ok, $fail];
 }

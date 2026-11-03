@@ -11,6 +11,7 @@ require_once __DIR__ . '/navigation.php';
 require_once __DIR__ . '/platforms.php';
 require_once __DIR__ . '/permissions.php';
 require_once __DIR__ . '/ai.php';
+require_once __DIR__ . '/mailer.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');
@@ -83,14 +84,14 @@ function run_migrations(PDO $pdo): array
 
 function setting(string $name, $default = null)
 {
-    static $cache = null;
-    if ($cache === null) {
-        $cache = [];
+    // متخزنة في الذاكرة طول الطلب، وsave_setting بيحدثها عشان القيمة الجديدة تتقري فوراً
+    if (!isset($GLOBALS['__settings'])) {
+        $GLOBALS['__settings'] = [];
         foreach (db()->query("SELECT name, value FROM settings") as $row) {
-            $cache[$row['name']] = $row['value'];
+            $GLOBALS['__settings'][$row['name']] = $row['value'];
         }
     }
-    return array_key_exists($name, $cache) ? $cache[$name] : $default;
+    return array_key_exists($name, $GLOBALS['__settings']) ? $GLOBALS['__settings'][$name] : $default;
 }
 
 function save_setting(string $name, ?string $value, ?PDO $pdo = null): void
@@ -98,6 +99,7 @@ function save_setting(string $name, ?string $value, ?PDO $pdo = null): void
     $pdo = $pdo ?: db();
     $st = $pdo->prepare("INSERT INTO settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
     $st->execute([$name, $value]);
+    if (isset($GLOBALS['__settings'])) $GLOBALS['__settings'][$name] = $value;
 }
 
 /* ---------- الجلسة والحماية ---------- */
