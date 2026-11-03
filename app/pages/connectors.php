@@ -293,7 +293,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
               <span class="text-ink-400"><?= e(t('الترتيب:')) ?></span>
               <?php foreach ($aiConns as $i => $c): ?>
                 <?php if ($i): ?><svg class="w-3 h-3 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg><?php endif; ?>
-                <span class="px-2 py-1 rounded-lg <?= $i ? 'bg-ink-100 text-ink-600' : 'bg-brand-600 text-[#fff] font-medium' ?>"><?= e($registry[$c['provider']]['name']) ?> <span dir="ltr" class="opacity-70"><?= e($c['provider'] === 'openrouter' ? ($c['settings']['tier'] ?? 'cheap') : ($c['settings']['model'] ?? '')) ?></span></span>
+                <span class="px-2 py-1 rounded-lg <?= $i ? 'bg-ink-100 text-ink-600' : 'bg-brand-600 text-[#fff] font-medium' ?>"><?= e($registry[$c['provider']]['name']) ?> <span dir="ltr" class="opacity-70"><?= e($c['provider'] === 'openrouter' ? ($c['settings']['tier'] ?? 'cheap') : ($c['settings']['model'] ?? '')) ?> · <?= e(ai_fmt_cost(ai_connection_cost($c))) ?></span></span>
               <?php endforeach; ?>
             </div>
             <?php endif; ?>
@@ -330,7 +330,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 <?php foreach ($aiProviders as $p): $c = $all[$p][0]; if (!empty($c['settings']['disabled'])) continue; ?>
                   <optgroup label="<?= e($registry[$p]['name']) ?>">
                     <?php if ($p === 'openrouter'): ?><option value="openrouter|" <?= $choice === 'openrouter|' ? 'selected' : '' ?>>OpenRouter · <?= e($c['settings']['tier'] ?? 'cheap') ?></option>
-                    <?php else: foreach ($c['settings']['models'] ?? [] as $m): ?><option value="<?= e($p . '|' . $m) ?>" <?= $choice === $p . '|' . $m ? 'selected' : '' ?>><?= e($m) ?></option><?php endforeach; endif; ?>
+                    <?php else: foreach ($c['settings']['models'] ?? [] as $m): ?><option value="<?= e($p . '|' . $m) ?>" <?= $choice === $p . '|' . $m ? 'selected' : '' ?>><?= e($m) ?> · <?= e(ai_fmt_cost(ai_question_cost(ai_model_price($m)))) ?></option><?php endforeach; endif; ?>
                   </optgroup>
                 <?php endforeach; ?>
               </select>
@@ -338,6 +338,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <div class="text-sm">
               <?php if ($now): ?>
                 <div class="flex items-center gap-2"><?= connector_logo($registry[$now['provider']], 'w-6 h-6 text-[10px] !rounded-lg') ?><span class="text-ink-900"><?= e($registry[$now['provider']]['name']) ?></span></div>
+                <div class="text-xs mt-1"><span class="inline-flex rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 font-medium" dir="ltr">≈ <?= e(ai_fmt_cost(ai_connection_cost($now))) ?></span> <span class="text-ink-400"><?= e(t('للسؤال')) ?></span></div>
                 <div class="text-xs text-ink-500 mt-1" dir="ltr" style="text-align:start"><?= e($nowModel) ?><?= (!$manual || $choice === 'auto') && count($chain) > 1 ? ' · +' . (count($chain) - 1) . ' ' . e(t('بديل')) : '' ?></div>
                 <?php if ($fallback): ?><div class="text-[11px] text-amber-700 mt-1"><?= e(t('الموديل المختار غير متاح الآن، فيُستخدم التلقائي.')) ?></div><?php endif; ?>
               <?php else: ?><span class="text-xs text-ink-400"><?= e(t('لا يوجد مزود')) ?></span><?php endif; ?>
@@ -345,6 +346,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
           </div>
           <?php endforeach; ?>
         </div>
+        <p class="text-xs text-ink-400"><?= e(t('الأسعار الرسمية لكل مزود، من كتالوج OpenRouter العام، وتتحدث كل 12 ساعة. OpenRouter محسوب مجانيًا لأنه يبدأ بالموديلات المجانية. الحصة المجانية في Gemini غير محسوبة.')) ?></p>
       </div>
     </div>
 
@@ -403,9 +405,15 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="model">
                 <label class="block"><span class="label"><?= e(t('الموديل')) ?></span>
                   <select name="model" class="input" dir="ltr" onchange="this.form.requestSubmit()" <?= $locked ? 'disabled' : '' ?>>
-                    <?php foreach ($c['settings']['models'] as $m): ?><option value="<?= e($m) ?>" <?= $m === $curM ? 'selected' : '' ?>><?= e($m) ?><?= $m === ai_default_model($c['settings']['models']) ? '  · ' . e(t('مقترح')) : '' ?></option><?php endforeach; ?>
+                    <?php foreach ($c['settings']['models'] as $m): ?><option value="<?= e($m) ?>" <?= $m === $curM ? 'selected' : '' ?>><?= e($m) ?> · <?= e(ai_fmt_cost(ai_question_cost(ai_model_price($m)))) ?><?= $m === ai_default_model($c['settings']['models']) ? '  · ' . e(t('مقترح')) : '' ?></option><?php endforeach; ?>
                   </select></label>
-                <p class="text-xs text-ink-400 mt-1.5"><?= e(t('الموديلات مرتبة من الأرخص تقريبًا. المقترح هو الأفضل من حيث السعر والسرعة.')) ?></p>
+                <?php $mp = ai_model_price($curM); ?>
+                <div class="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 px-2 py-2"><div class="text-[11px] text-ink-500"><?= e(t('المدخلات / مليون')) ?></div><div class="text-sm font-medium text-ink-900" dir="ltr"><?= $mp ? '$' . e(rtrim(rtrim(number_format($mp['in'], 3), '0'), '.')) : '—' ?></div></div>
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 px-2 py-2"><div class="text-[11px] text-ink-500"><?= e(t('المخرجات / مليون')) ?></div><div class="text-sm font-medium text-ink-900" dir="ltr"><?= $mp ? '$' . e(rtrim(rtrim(number_format($mp['out'], 3), '0'), '.')) : '—' ?></div></div>
+                  <div class="rounded-xl bg-brand-50 border border-brand-200 px-2 py-2"><div class="text-[11px] text-brand-700"><?= e(t('السؤال الواحد')) ?></div><div class="text-sm font-semibold text-brand-700" dir="ltr">≈ <?= e(ai_fmt_cost(ai_question_cost($mp))) ?></div></div>
+                </div>
+                <p class="text-xs text-ink-400 mt-1.5"><?= e(t('مرتبة من الأرخص بالأسعار الرسمية. السؤال الواحد محسوب على 3000 توكن داخلة و800 خارجة.')) ?></p>
               </form>
             <?php endif; ?>
 

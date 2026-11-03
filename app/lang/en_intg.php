@@ -86,4 +86,11 @@ return [
     'الموديل المختار غير متاح الآن، فيُستخدم التلقائي.' => 'The chosen model isn\'t available right now, so automatic is used.',
     'لا يوجد مزود' => 'No provider',
     'استخدام الذكاء الاصطناعي (بيستهلك رصيد المزود)' => 'Use AI features (consumes provider credit)',
+    'السعر غير معروف' => 'Price unknown',
+    'للسؤال' => 'per question',
+    'الأسعار الرسمية لكل مزود، من كتالوج OpenRouter العام، وتتحدث كل 12 ساعة. OpenRouter محسوب مجانيًا لأنه يبدأ بالموديلات المجانية. الحصة المجانية في Gemini غير محسوبة.' => 'Official prices for each provider, from OpenRouter\'s public catalog, refreshed every 12 hours. OpenRouter counts as free because it starts with free models. Gemini\'s free quota isn\'t counted.',
+    'المدخلات / مليون' => 'Input / 1M',
+    'المخرجات / مليون' => 'Output / 1M',
+    'السؤال الواحد' => 'Per question',
+    'مرتبة من الأرخص بالأسعار الرسمية. السؤال الواحد محسوب على 3000 توكن داخلة و800 خارجة.' => 'Sorted from cheapest by official prices. A question is calculated as 3,000 input and 800 output tokens.',
 ];

@@ -143,12 +143,19 @@ function ai_mode(?int $wid = null): string
     return setting('ai_mode_' . $wid, 'auto') === 'manual' ? 'manual' : 'auto';
 }
 
-/** تقدير تقريبي لتكلفة الاتصال (الأقل = الأرخص). OpenRouter بيبدأ بالمجاني، و Gemini ليه حصة مجانية. */
+/** تكلفة سؤال عادي بالدولار للاتصال ده بالموديل المختار. OpenRouter بيبدأ بالمجاني دايمًا = 0. null = مش معروف. */
+function ai_connection_cost(array $c): ?float
+{
+    if ($c['provider'] === 'openrouter') return 0.0;
+    $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
+    return ai_question_cost(ai_model_price($model));
+}
+
+/** للترتيب: المعروف سعره بالسعر، والمجهول في الآخر */
 function ai_cost_score(array $c): float
 {
-    if ($c['provider'] === 'openrouter') return ($c['settings']['tier'] ?? 'cheap') === 'any' ? 0.5 : 0;
-    $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
-    return ai_model_rank($model) + ($c['provider'] === 'gemini' ? -0.8 : ($c['provider'] === 'openai' ? 0.4 : 0.6));
+    $cost = ai_connection_cost($c);
+    return $cost === null ? 1000 + ai_model_rank((string)($c['settings']['model'] ?? '')) : $cost;
 }
 
 /** اتصالات الذكاء الاصطناعي المفعّلة بالترتيب اللي هتتجرب بيه */
@@ -230,11 +237,77 @@ function ai_list_models(string $p, string $key): array
         }
     }
     $ids = array_values(array_unique($ids));
-    usort($ids, function ($a, $b) { return ai_model_rank($a) <=> ai_model_rank($b) ?: strcmp($b, $a); });
+    usort($ids, function ($a, $b) {
+        $ca = ai_question_cost(ai_model_price($a)); $cb = ai_question_cost(ai_model_price($b));
+        if ($ca !== null && $cb !== null && $ca != $cb) return $ca <=> $cb;
+        if (($ca === null) !== ($cb === null)) return $ca === null ? 1 : -1; // المعروف سعره الأول
+        return ai_model_rank($a) <=> ai_model_rank($b) ?: strcmp($b, $a);
+    });
     return array_slice($ids, 0, 60);
 }
 
-/** ترتيب تقريبي للتكلفة من الاسم: الموديلات الصغيرة الأول */
+/**
+ * الأسعار الحقيقية (دولار لكل مليون توكن) من كتالوج OpenRouter العام، اللي بينشر أسعار كل المزودين.
+ * بتتحفظ 12 ساعة، ولو الكتالوج مش متاح بنستخدم آخر نسخة محفوظة.
+ */
+function ai_price_map(): array
+{
+    static $map = null;
+    if ($map !== null) return $map;
+    $file = ROOT_DIR . '/uploads/cache/ai_prices.json';
+    $old = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    if ($old && filemtime($file) > time() - 43200) return $map = $old;
+    try {
+        $map = [];
+        foreach (ai_http('GET', '/models', null, null, 20)['data'] ?? [] as $m) {
+            $id = (string)($m['id'] ?? '');
+            if ($id === '' || strpos($id, ':') !== false) continue; // :free و :batch نسخ تانية
+            $in = (float)($m['pricing']['prompt'] ?? -1);
+            $out = (float)($m['pricing']['completion'] ?? -1);
+            if ($in < 0 || $out < 0) continue;
+            $map[ai_price_key($id)] = ['in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4)];
+        }
+        if ($map) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($map)); }
+        else $map = $old;
+    } catch (Throwable $e) {
+        $map = $old;
+    }
+    return $map;
+}
+
+/** توحيد اسم الموديل: anthropic/claude-haiku-5.5 = claude-haiku-5-5 */
+function ai_price_key(string $id): string
+{
+    $id = strtolower($id);
+    $id = preg_replace('#^(anthropic|openai|google|models)/#', '', $id);
+    $id = preg_replace('/-(\d{8}|\d{4}-\d{2}-\d{2})$/', '', $id); // تاريخ الإصدار
+    return str_replace('.', '-', $id);
+}
+
+/** سعر موديل مزود مباشر: ['in' => $, 'out' => $] لكل مليون توكن، أو null لو مش معروف */
+function ai_model_price(string $model): ?array
+{
+    $map = ai_price_map();
+    $k = ai_price_key($model);
+    if (isset($map[$k])) return $map[$k];
+    $k2 = preg_replace('/-(latest|preview(-\d+)?)$/', '', $k);
+    return $map[$k2] ?? null;
+}
+
+/** تكلفة سؤال عادي بالدولار (3000 توكن داخلة و 800 خارجة)، أو null */
+function ai_question_cost(?array $price): ?float
+{
+    return $price ? ($price['in'] * 3000 + $price['out'] * 800) / 1e6 : null;
+}
+
+function ai_fmt_cost(?float $c): string
+{
+    if ($c === null) return t('السعر غير معروف');
+    if ($c == 0.0) return t('مجاني');
+    return '$' . ($c < 0.001 ? rtrim(rtrim(number_format($c, 5), '0'), '.') : number_format($c, 4));
+}
+
+/** ترتيب تقريبي للتكلفة من الاسم (بيتستخدم بس لو السعر الحقيقي مش معروف): الموديلات الصغيرة الأول */
 function ai_model_rank(string $id): int
 {
     foreach (['flash-lite' => 0, 'nano' => 1, 'haiku' => 1, 'mini' => 2, 'flash' => 2, 'sonnet' => 4, 'pro' => 5, 'opus' => 6] as $k => $r) {
