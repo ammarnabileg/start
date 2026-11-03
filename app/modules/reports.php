@@ -222,7 +222,7 @@ function rp_chart(array $dates, array $vals, bool $email): string
                 . '<div style="background:#3b6ff0;height:' . max(1, $h) . 'px;line-height:1px;font-size:1px;border-radius:2px 2px 0 0">&nbsp;</div></td>';
         }
         $out .= '</tr></table>';
-        $out .= '<table role="presentation" width="100%" style="font-size:10px;color:#64748b" dir="ltr"><tr><td>' . e(date('d/m', strtotime($dates[0]))) . '</td><td style="text-align:right">' . e(date('d/m', strtotime($dates[$n - 1]))) . '</td></tr></table>';
+        $out .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:10px;color:#64748b" dir="ltr"><tr><td width="50%" style="text-align:left">' . e(date('d/m', strtotime($dates[0]))) . '</td><td width="50%" style="text-align:right">' . e(date('d/m', strtotime($dates[$n - 1]))) . '</td></tr></table>';
         return $out;
     }
     $W = 680; $H = 170; $pad = 24;
@@ -534,7 +534,7 @@ function rp_rules_for(int $wid): array
 
 function rp_add_alert(int $wid, string $rule, string $fp, array $data): void
 {
-    db()->prepare("INSERT IGNORE INTO alerts (workspace_id, rule, fingerprint, data) VALUES (?, ?, ?, ?)")
+    db()->prepare("INSERT IGNORE INTO alerts (workspace_id, rule, fingerprint, data, created_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())")
         ->execute([$wid, $rule, mb_substr($fp, 0, 190), json_encode($data, JSON_UNESCAPED_UNICODE)]);
 }
 

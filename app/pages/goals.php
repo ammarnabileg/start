@@ -87,7 +87,7 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
             $val = $act['values'][$k] ?? null;
             $errKey = $k === 'response' ? 'response' : ($k === 'followers' ? 'followers' : 'daily');
             $err = $act['errors'][$errKey] ?? null;
-            $pct = ($val !== null && $target > 0) ? ($mt['lower'] ? ($val > 0 ? $target / $val * 100 : 100) : $val / $target * 100) : 0;
+            $pct = ($val !== null && $target > 0) ? ($mt['lower'] ? ($val <= $target ? 100 : $target / $val * 100) : $val / $target * 100) : 0;
             if ($month > $thisMonth) { $status = ['badge', t('لسه ما بدأش')]; }
             elseif ($val === null) { $status = ['badge', t('مفيش بيانات')]; }
             elseif ($mt['lower']) { $status = $val <= $target ? ['badge badge-green', t('ماشي كويس')] : ['badge bg-red-50 text-red-700', t('متأخر')]; }
