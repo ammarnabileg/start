@@ -2,3 +2,4 @@
 /uploads/*
 !/uploads/.htaccess
 /dist/
+*.zip
