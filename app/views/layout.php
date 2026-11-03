@@ -43,21 +43,11 @@ $I = [
     'connectors' => 'M15 7a4 4 0 11-3.5 6L5 19.5 2.5 17l1.5-1.5L2.5 14 4 12.5l1.5 1.5 6-6A4 4 0 0115 7z',
     'settings' => 'M12 15a3 3 0 100-6 3 3 0 000 6zm7.4-3a7.4 7.4 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 00-2-1.2L14.5 3h-5l-.4 2.6a7.6 7.6 0 00-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 000 2.4l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 002 1.2l.4 2.6h5l.4-2.6a7.6 7.6 0 002-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z',
 ];
-$sections = [];
-if ($curWs) {
-    $sections[''] = ['dashboard' => t('الرئيسية')];
-    $sections[t('المحتوى')] = ['compose' => t('منشور جديد'), 'compose_pro' => t('منشور متقدم'), 'posts' => t('المنشورات'), 'calendar' => t('التقويم'), 'queue' => t('طابور النشر'), 'bulk' => t('رفع من ملف CSV')];
-    $sections[t('التواصل')] = ['inbox' => t('الرسائل'), 'inbox_pro' => t('صندوق الرسائل المتقدم'), 'comments' => t('التعليقات'), 'automations' => t('الرد التلقائي'), 'workflows' => 'Workflows'];
-    $sections[t('واتساب')] = ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'contacts' => t('جهات الاتصال'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('بروفايل واتساب')];
-    $sections[t('التحليلات')] = ['analytics' => t('أداء المنشورات'), 'inbox_analytics' => t('تحليلات الرسائل')];
-    $sections[t('الإعلانات')] = ['ads' => t('الحملات'), 'ad_create' => t('حملة جديدة'), 'ad_audiences' => t('الجماهير'), 'leads' => 'Leads'];
-    $sections['Google Business'] = ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')];
-    $sections[t('التليفون')] = ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات')];
-    $sections[t('الشركة')] = ['accounts' => t('الحسابات المربوطة')];
-    if ($owner) {
-        $sections[t('الشركة')] += ['team' => t('الفريق'), 'connectors' => 'Connectors', 'settings' => t('الإعدادات')];
-    }
-}
+$I['whatsapp'] = 'M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21zM8.5 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 01-2.5-2.5l1-1-1-2z';
+$I['gmb'] = $I['gmb_location'];
+$I['phone'] = $I['phone_numbers'];
+$navItems = $curWs ? nav_items() : [];
+$navActive = nav_item_for($active);
 $icon = function (string $d, string $cls = 'w-5 h-5') {
     return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' . $d . '"/></svg>';
 };
@@ -105,11 +95,9 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <!-- القائمة الجانبية: ثابتة، واختيار الشركة في آخرها -->
 <aside id="sidebar" class="fixed top-16 bottom-0 start-0 w-64 z-30 bg-white border-e border-ink-200 flex flex-col ltr:-translate-x-full rtl:translate-x-full lg:!translate-x-0 transition-transform">
   <nav class="flex-1 overflow-y-auto p-3">
-    <?php foreach ($sections as $label => $items): ?>
-      <?php if ($label !== ''): ?><div class="nav-label"><?= e($label) ?></div><?php endif; ?>
-      <?php foreach ($items as $key => $text): ?>
-        <a href="<?= e(url($key)) ?>" class="nav-item <?= $active === $key ? 'nav-on' : '' ?>"><?= $icon($I[$key]) ?><span><?= e($text) ?></span></a>
-      <?php endforeach; ?>
+    <?php $lastSection = null; foreach ($navItems as $it): ?>
+      <?php if ($it['section'] !== $lastSection): $lastSection = $it['section']; if ($lastSection !== ''): ?><div class="nav-label"><?= e($lastSection) ?></div><?php endif; endif; ?>
+      <a href="<?= e(nav_href($it)) ?>" class="nav-item <?= $navActive && $navActive['key'] === $it['key'] ? 'nav-on' : '' ?>"><?= $icon($I[$it['key']] ?? $I['dashboard']) ?><span><?= e($it['label']) ?></span></a>
     <?php endforeach; ?>
     <?php if (!$curWs): ?>
       <a href="<?= e(url('workspaces')) ?>" class="nav-item nav-on"><?= $icon($I['team']) ?><span><?= e(t('شركاتي')) ?></span></a>
@@ -145,9 +133,19 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 
 <main class="pt-16 lg:ps-64 min-h-screen">
   <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 lg:py-10">
-    <?php if (empty($hideTitle)): ?>
-      <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 mb-7"><?= e($title) ?></h1>
+    <?php if (!empty($navActive['tabs']) && count($navActive['tabs']) > 1 && $navActive['label'] !== $title): ?>
+      <div class="text-sm text-ink-500 mb-1"><?= e($navActive['label']) ?></div>
     <?php endif; ?>
+    <?php if (empty($hideTitle)): ?>
+      <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 mb-5"><?= e($title) ?></h1>
+    <?php endif; ?>
+    <?php if (!empty($navActive['tabs']) && count($navActive['tabs']) > 1): ?>
+      <nav class="flex gap-1 border-b border-ink-200 mb-7 overflow-x-auto" style="scrollbar-width:none">
+        <?php foreach ($navActive['tabs'] as $tk => $tl): $on = $tk === $active || ($tk === $navActive['key'] && in_array($active, $navActive['also'] ?? [], true)); ?>
+          <a href="<?= e(url($tk)) ?>" class="whitespace-nowrap px-4 py-2.5 text-sm border-b-2 -mb-px <?= $on ? 'border-brand-600 text-brand-700 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($tl) ?></a>
+        <?php endforeach; ?>
+      </nav>
+    <?php elseif (empty($hideTitle)): ?><div class="mb-2"></div><?php endif; ?>
     <?php foreach (take_flashes() as $f):
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>
       <div class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
@@ -159,6 +157,13 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <p class="mt-12 text-xs text-ink-400"><?= e(t('الإصدار')) ?> <?= e(APP_VERSION) ?></p>
   </div>
 </main>
+<dialog id="modal" class="w-[min(960px,95vw)] h-[min(760px,90vh)] p-0 rounded-2xl border border-ink-200 bg-ink-50 shadow-2xl backdrop:bg-black/50">
+  <div class="flex items-center justify-between px-5 h-14 border-b border-ink-200 bg-white">
+    <b id="modalTitle" class="text-ink-900"></b>
+    <button type="button" data-modal-close class="p-2 rounded-lg hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>">✕</button>
+  </div>
+  <iframe id="modalFrame" class="w-full h-[calc(100%-3.5rem)] bg-ink-50" title=""></iframe>
+</dialog>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
 </body>
 </html>

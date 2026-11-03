@@ -8,7 +8,7 @@ function render(string $title, string $active, callable $body, array $opts = [])
     ob_start();
     $body();
     $content = ob_get_clean();
-    require __DIR__ . '/layout.php';
+    require __DIR__ . (is_embed() ? '/embed.php' : '/layout.php');
     exit;
 }
 

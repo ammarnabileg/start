@@ -1,0 +1,26 @@
+<?php
+// English: navigation, merged pages and module toggles (1.7.0)
+return [
+    'الردود التلقائية والـ Workflows' => 'Auto-replies & Workflows',
+    'واتساب للبيزنس' => 'WhatsApp Business',
+    'التليفون وSMS' => 'Phone & SMS',
+    'الردود التلقائية' => 'Automations',
+    'الرد على التعليقات' => 'Comment auto-replies',
+    'الأدوات' => 'Tools',
+    'البروفايل' => 'Profile',
+    'عام' => 'General',
+    'اختار الحسابات اللي هتنشر عليها، وتقدر تخصص النص والإعدادات لكل حساب هنا.' => 'Pick the accounts to post to. You can customize the text and settings for each account here.',
+    'تخصيص (اختياري)' => 'Customize (optional)',
+    'الطابور: مواعيد ثابتة في الأسبوع، والمنشور بياخد أقرب ميعاد فاضي.' => 'Queue: fixed weekly time slots; the post takes the next free slot.',
+    'مواعيد الطابور' => 'Queue times',
+    'إدارة المواعيد' => 'Manage times',
+    'خيارات إضافية' => 'More options',
+    'رفع منشورات من ملف CSV' => 'Upload posts from CSV',
+    'الإعدادات العامة' => 'General settings',
+    'الأقسام' => 'Sections',
+    'اقفل الأقسام اللي الشركة دي مش بتستخدمها، عشان القائمة تبقى أبسط للفريق. مفيش بيانات بتتمسح.' => "Turn off sections this company doesn't use to keep the menu simple for the team. No data is deleted.",
+    'إغلاق' => 'Close',
+    'القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.' => 'This section is turned off for this company. The owner can turn it on in Settings.',
+    'ضيف للطابور' => 'Add to queue',
+    'كل المنشورات' => 'All posts',
+];

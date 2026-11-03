@@ -124,4 +124,9 @@ return [
 
         "ALTER TABLE workspaces DROP COLUMN api_key, DROP COLUMN profile_id",
     ],
+
+    // 1.7.0: كل شركة تقدر تقفل الأقسام اللي مش بتستخدمها (قائمة JSON بالأقسام المقفولة)
+    '004_workspace_modules' => [
+        "ALTER TABLE workspaces ADD COLUMN disabled_modules TEXT NULL",
+    ],
 ];

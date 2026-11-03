@@ -22,7 +22,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script>window.T = <?= json_encode([
     'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
-    'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'),
+    'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script>
 (function () {
@@ -39,6 +39,8 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     b, strong { @apply font-semibold; }
     input, textarea, select { color-scheme: inherit; }
     input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { @apply bg-white text-ink-900; }
+    input[type=file] { @apply text-sm text-ink-600 file:me-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100 file:cursor-pointer; }
+    input[type=checkbox], input[type=radio] { accent-color: rgb(var(--brand-600)); }
   }
   @layer components {
     .card { @apply bg-white rounded-2xl border border-ink-200 shadow-[0_1px_2px_rgba(13,22,48,.04)]; }

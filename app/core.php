@@ -7,6 +7,7 @@ require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/i18n.php';
 require_once __DIR__ . '/crypto.php';
 require_once __DIR__ . '/connectors.php';
+require_once __DIR__ . '/navigation.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');
@@ -299,9 +300,18 @@ function base_url(): string
     return ($https ? 'https' : 'http') . '://' . $host . $dir;
 }
 
+/** الصفحة مفتوحة جوه نافذة منبثقة (popup) */
+function is_embed(): bool
+{
+    return !empty($_GET['embed']);
+}
+
 function url(string $page, array $params = []): string
 {
     $params = array_merge(['p' => $page], $params);
+    if (is_embed() && !isset($params['embed'])) {
+        $params['embed'] = 1; // الروابط جوه النافذة المنبثقة تفضل جواها
+    }
     return 'index.php?' . http_build_query($params);
 }
 

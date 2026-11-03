@@ -36,6 +36,11 @@ if (setting('app_version') !== APP_VERSION) {
 }
 
 $page = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'dashboard'));
+// صفحات اتدمجت في 1.7.0
+$merged = ['compose_pro' => 'compose', 'inbox_pro' => 'inbox'];
+if (isset($merged[$page])) {
+    redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
+}
 
 $public = ['login', 'register', 'invite', 'pref'];
 if (!in_array($page, $public, true) && !current_user()) {
@@ -55,6 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $noWorkspacePages = ['login', 'register', 'invite', 'pref', 'logout', 'workspaces', 'switch', 'account', 'system'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
+}
+
+// قسم مقفول للشركة دي
+if (current_workspace() && !module_enabled(page_module($page))) {
+    flash('error', t('القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.'));
+    redirect(url('dashboard'));
 }
 
 // إعدادات الشركة وفريقها لصاحب الشركة بس

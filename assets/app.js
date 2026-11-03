@@ -49,14 +49,14 @@
   function syncMode() {
     var m = document.querySelector('.mode:checked'); if (!m) return;
     if (whenBox) whenBox.classList.toggle('hidden', m.value !== 'schedule');
-    var lbl = { schedule: T.schedule, now: T.now, draft: T.draft }[m.value]; if (submitBtn && lbl) submitBtn.textContent = lbl;
+    var lbl = { schedule: T.schedule, now: T.now, draft: T.draft, queue: T.queue }[m.value]; if (submitBtn && lbl) submitBtn.textContent = lbl;
   }
   modes.forEach(function (r) { r.addEventListener('change', syncMode); }); if (modes.length) syncMode();
 
   var all = document.getElementById('selectAll');
   if (all) all.addEventListener('click', function () {
     var boxes = document.querySelectorAll('.acc'), on = Array.prototype.some.call(boxes, function (b) { return !b.checked; });
-    boxes.forEach(function (b) { b.checked = on; });
+    boxes.forEach(function (b) { b.checked = on; b.dispatchEvent(new Event('change')); });
   });
 
   var mi = document.getElementById('mediaInput'), mp = document.getElementById('mediaPreview');
@@ -83,4 +83,23 @@
       else { var ta = document.createElement('textarea'); ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
     });
   });
+
+  // النوافذ المنبثقة: أي عنصر فيه data-modal="رابط" بيفتح الصفحة دي جوه نافذة
+  var modal = document.getElementById('modal'), frame = document.getElementById('modalFrame'), reloadOnClose = false;
+  document.querySelectorAll('[data-modal]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      if (!modal || !modal.showModal) return; // متصفح قديم: يفتح الصفحة عادي
+      e.preventDefault();
+      var u = el.getAttribute('data-modal');
+      frame.src = u + (u.indexOf('?') < 0 ? '?' : '&') + 'embed=1';
+      document.getElementById('modalTitle').textContent = el.getAttribute('data-modal-title') || el.textContent.trim();
+      reloadOnClose = el.hasAttribute('data-modal-reload');
+      modal.showModal();
+    });
+  });
+  if (modal) {
+    modal.addEventListener('close', function () { frame.src = 'about:blank'; if (reloadOnClose) location.reload(); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.close(); });
+    document.querySelectorAll('[data-modal-close]').forEach(function (b) { b.addEventListener('click', function () { modal.close(); }); });
+  }
 })();
