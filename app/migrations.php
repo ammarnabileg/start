@@ -158,4 +158,65 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+
+    // 2.3.0: التقارير والأهداف الشهرية والتنبيهات
+    '008_reports' => [
+        "CREATE TABLE IF NOT EXISTS report_schedules (
+            workspace_id INT UNSIGNED PRIMARY KEY,
+            recipients TEXT NULL,
+            frequency VARCHAR(10) NOT NULL DEFAULT 'off',
+            lang VARCHAR(5) NOT NULL DEFAULT 'en',
+            last_sent DATETIME NULL,
+            last_result VARCHAR(255) NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS report_goals (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            month CHAR(7) NOT NULL,
+            metric VARCHAR(30) NOT NULL,
+            target DOUBLE NOT NULL DEFAULT 0,
+            achieved DOUBLE NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_month_metric (workspace_id, month, metric),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS alert_rules (
+            workspace_id INT UNSIGNED NOT NULL,
+            rule VARCHAR(30) NOT NULL,
+            enabled TINYINT(1) NOT NULL DEFAULT 1,
+            threshold DOUBLE NOT NULL DEFAULT 0,
+            PRIMARY KEY (workspace_id, rule),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS alerts (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            rule VARCHAR(30) NOT NULL,
+            fingerprint VARCHAR(190) NOT NULL,
+            data TEXT NULL,
+            seen TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_fp (workspace_id, fingerprint),
+            INDEX ws_seen (workspace_id, seen),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
+    // وسوم محلية على المنشورات لمقارنة الأداء حسب الوسم (التحليلات)
+    '009_post_tags' => [
+        "CREATE TABLE IF NOT EXISTS post_tags (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            post_id VARCHAR(64) NOT NULL,
+            tag VARCHAR(40) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_post_tag (workspace_id, post_id, tag),
+            INDEX ws_tag (workspace_id, tag),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

@@ -14,6 +14,7 @@ $tabs = [
     'platforms' => t('المنصات'),
 ];
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? (string)$_GET['tab'] : 'overview';
+$sec = in_array($_GET['sec'] ?? '', ['insights', 'facebook', 'youtube', 'ga'], true) ? (string)$_GET['sec'] : 'insights';
 $per = an_period($_GET);
 $acc = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)($_GET['a'] ?? ''));
 $pid = zernio_profile();
@@ -67,6 +68,20 @@ if (isset($_GET['detail'])) {
     exit;
 }
 
+/* ---------- حفظ وسوم منشور (محلي في قاعدة البيانات) ---------- */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'tags') {
+    $postId = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)($_POST['post_id'] ?? ''));
+    if ($postId !== '' && an_tags_available()) {
+        an_set_tags($postId, explode(',', str_replace('،', ',', (string)($_POST['tags'] ?? ''))));
+        log_activity('analytics.tags', $postId);
+        flash('success', t('اتحفظت الوسوم.'));
+    } else {
+        flash('error', t('مش قادرين نحفظ الوسوم دلوقتي.'));
+    }
+    $back = (string)($_POST['back'] ?? '');
+    redirect(strpos($back, 'index.php?p=analytics') === 0 ? $back : url('analytics', ['tab' => 'posts']));
+}
+
 /* ---------- تحميل البيانات حسب التبويب ---------- */
 $D = [];   // البيانات
 $E = [];   // رسائل الأخطاء لكل جزء
@@ -104,12 +119,40 @@ if ($z) {
         [$D['folPrev'], $E['folPrev']] = an_try(function () use ($z, $folQ, $per) { return an_follower_stats($z, ['fromDate' => $per['pfrom'], 'toDate' => $per['pto']] + $folQ); });
         [$D['top'], $E['top']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc']); });
         [$D['bottom'], $E['bottom']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'asc']); });
+        [$D['freq'], $E['freq']] = an_try(function () use ($z, $pid, $acc) { return an_posting_frequency($z, ['profileId' => $pid, 'accountId' => $acc ?: null]); });
     } elseif ($tab === 'posts') {
         [$D['posts'], $E['posts']] = an_try(function () use ($collectPosts) { return $collectPosts(3); });
+        // أنواع التفاعلات لأعلى منشورات فيسبوك/لينكدإن (في حدود الميزانية: 8 نداءات للصفحة)
+        $D['reactions'] = [];
+        $left = min(5, 8 - 1 - max(1, (int)ceil(count($D['posts']['posts'] ?? []) / 100)));
+        $cand = array_values(array_filter((array)($D['posts']['posts'] ?? []), function ($p) { return in_array($p['platform'] ?? '', ['facebook', 'linkedin'], true) && !empty($p['platforms'][0]['platformPostId']); }));
+        usort($cand, function ($a, $b) { return an_engagement((array)($b['analytics'] ?? [])) <=> an_engagement((array)($a['analytics'] ?? [])); });
+        foreach (array_slice($cand, 0, max(0, $left)) as $p) {
+            $pl0 = $p['platforms'][0];
+            [$re, $rerr] = an_try(function () use ($z, $p, $pl0) { return an_post_reactions($z, (string)$p['platform'], (string)$pl0['accountId'], (string)$pl0['platformPostId']); });
+            $D['reactions'][] = ['post' => $p, 'data' => $re, 'error' => $rerr];
+        }
     } elseif ($tab === 'audience') {
         [$D['fol'], $E['fol']] = an_try(function () use ($z, $folQ) { return an_follower_stats($z, $folQ); });
         $D['demo'] = [];
         $budget = 6;
+        $cw = (int)($_GET['cw'] ?? 0);
+        $D['cw'] = null;
+        if ($cw && $cw !== (int)ws('id')) {
+            $oprof = null;
+            $oz = an_other_workspace_client($cw, $oprof);
+            $row = ['id' => $cw, 'error' => null];
+            if (!$oz) {
+                $row['error'] = t('الشركة دي مش مربوطة بخدمة النشر.');
+            } else {
+                $oq = ['profileId' => $oprof, 'fromDate' => $per['from'], 'toDate' => $per['to']];
+                [$row['fol'], $row['folError']] = an_try(function () use ($oz, $oq) { return an_follower_stats($oz, $oq); });
+                [$row['daily'], $row['dailyError']] = an_try(function () use ($oz, $oq) { return an_daily_full($oz, $oq); });
+            }
+            [$row['mine'], $row['mineError']] = an_try(function () use ($z, $base) { return an_daily_full($z, $base); });
+            $D['cw'] = $row;
+            $budget = 3;
+        }
         foreach ($curAcc ? [$curAcc] : $accounts as $a) {
             $pl = (string)($a['platform'] ?? '');
             if (!in_array($pl, ['facebook', 'instagram', 'linkedin'], true)) continue;
@@ -130,6 +173,42 @@ if ($z) {
         [$D['freq'], $E['freq']] = an_try(function () use ($z, $tq) { return an_posting_frequency($z, $tq); });
         [$D['decay'], $E['decay']] = an_try(function () use ($z, $tq) { return an_content_decay($z, $tq); });
         [$D['posts'], $E['posts']] = an_try(function () use ($collectPosts) { return $collectPosts(3); });
+    } elseif ($tab === 'platforms' && in_array($sec, ['facebook', 'youtube', 'ga'], true)) {
+        $want = ['facebook' => 'facebook', 'youtube' => 'youtube', 'ga' => 'googleanalytics'][$sec];
+        $D['secAccounts'] = array_values(array_filter($curAcc ? [$curAcc] : $accounts, function ($a) use ($want) { return ($a['platform'] ?? '') === $want; }));
+        $sa = $D['secAccounts'][0] ?? null;
+        if ($sa && $sec === 'facebook') {
+            $id = (string)$sa['_id'];
+            [$D['tagged'], $E['tagged']] = an_try(function () use ($z, $id) { return an_fb_page_posts($z, $id, 'tagged'); });
+            [$D['visitor'], $E['visitor']] = an_try(function () use ($z, $id) { return an_fb_page_posts($z, $id, 'visitor'); });
+            [$fp, $E['fbPosts']] = an_try(function () use ($z, $base, $id) { return an_posts($z, ['accountId' => $id] + $base + ['limit' => 3, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc']); });
+            $D['earnings'] = [];
+            foreach ((array)($fp['posts'] ?? []) as $p) {
+                $ppid = (string)($p['platforms'][0]['platformPostId'] ?? '');
+                if ($ppid === '') continue;
+                [$er, $eerr] = an_try(function () use ($z, $id, $ppid) { return an_fb_earnings($z, $id, $ppid); });
+                $D['earnings'][] = ['post' => $p, 'data' => $er, 'error' => $eerr];
+            }
+        } elseif ($sa && $sec === 'youtube') {
+            $id = (string)$sa['_id'];
+            [$yp, $E['ytPosts']] = an_try(function () use ($z, $base, $id) { return an_posts($z, ['accountId' => $id, 'fromDate' => gmdate('Y-m-d', time() - 365 * 86400)] + $base + ['limit' => 50, 'page' => 1, 'sortBy' => 'date', 'order' => 'desc']); });
+            $D['videos'] = [];
+            foreach ((array)($yp['posts'] ?? []) as $p) {
+                $vid = (string)($p['platforms'][0]['platformPostId'] ?? '');
+                if ($vid !== '') $D['videos'][$vid] = mb_substr(trim((string)($p['content'] ?? '')) ?: $vid, 0, 70);
+            }
+            $v = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)($_GET['v'] ?? ''));
+            $D['video'] = isset($D['videos'][$v]) ? $v : (string)(array_key_first($D['videos']) ?? '');
+            if ($D['video'] !== '') {
+                $vv = $D['video'];
+                [$D['retention'], $E['retention']] = an_try(function () use ($z, $id, $vv) { return an_yt_retention($z, $id, $vv); });
+                [$D['dviews'], $E['dviews']] = an_try(function () use ($z, $id, $vv, $per) { return an_yt_daily_views($z, $id, $vv, $per['from'], $per['to']); });
+            }
+        } elseif ($sa && $sec === 'ga') {
+            $id = (string)$sa['_id'];
+            [$D['ga'], $E['ga']] = an_try(function () use ($z, $id, $per) { return an_ga_social($z, $id, $per['from'], $per['to']); });
+            [$D['gaPrev'], $E['gaPrev']] = an_try(function () use ($z, $id, $per) { return an_ga_social($z, $id, $per['pfrom'], $per['pto']); });
+        }
     } elseif ($tab === 'platforms') {
         $D['native'] = [];
         $budget = 7;
@@ -152,12 +231,14 @@ if ($z) {
     }
 }
 
-render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $per, $acc, $curAcc, $accounts, $accMap, $D, $E) {
+render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $sec, $per, $acc, $curAcc, $accounts, $accMap, $D, $E) {
     if (!$z) { no_api_box(); return; }
 
-    $q = function (array $over = []) use ($tab, $per, $acc) {
+    $q = function (array $over = []) use ($tab, $sec, $per, $acc) {
         $p = ['tab' => $tab, 'a' => $acc];
         if ($per['custom']) { $p['from'] = $per['from']; $p['to'] = $per['to']; } else { $p['d'] = $per['days']; }
+        if ($tab === 'platforms' && $sec !== 'insights') $p['sec'] = $sec;
+        if ($tab === 'audience' && !empty($_GET['cw'])) $p['cw'] = (int)$_GET['cw'];
         $p = array_merge($p, $over);
         return url('analytics', array_filter($p, function ($v) { return $v !== '' && $v !== null; }));
     };
@@ -283,6 +364,70 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               ['label' => t('منشورات اتنشرت'), 'cur' => $cur['postCount'], 'prev' => $prev['postCount'], 'spark' => $series($curBy, $dates, function ($m) { return $m['postCount'] ?? 0; }), 'color' => 'text-ink-500', 'err' => $E['cur']],
           ];
           ?>
+          <?php
+          // ---- صحة الحساب والانخفاض المفاجئ ----
+          $folNow = an_follower_totals($D['fol']);
+          $folBefore = an_follower_totals($D['folPrev']);
+          $scope = $curAcc ? [$curAcc] : $accounts;
+          $bad = count(array_filter($scope, function ($a) { return !empty($a['needsReconnection']) || (isset($a['isActive']) && !$a['isActive']); }));
+          $bestF = $E['freq'] ? null : an_best_frequency((array)$D['freq']);
+          $ppw = $cur['postCount'] / max(1, $per['len'] / 7);
+          $health = an_health_score(['followers' => $folNow['current'], 'growth' => $fg, 'rate' => $cur['rate'], 'ratePrev' => $prev['rate'],
+              'postsPerWeek' => $ppw, 'bestFrequency' => $bestF, 'accounts' => max(1, count($scope)), 'needsReconnect' => $bad]);
+          $drops = ($E['cur'] || $E['prev']) ? [] : an_drop_signals_from($cur, $prev, $E['fol'] ? [] : $folNow, $E['folPrev'] ? [] : $folBefore);
+          $dropNames = ['impressions' => t('مرات الظهور'), 'followers' => t('المتابعين'), 'followers_gained' => t('المتابعين الجداد')];
+          $hs = $health['score'];
+          $hc = $hs >= 70 ? 'lime' : ($hs >= 40 ? 'amber' : 'red');
+          $partNames = ['growth' => t('نمو المتابعين'), 'engagement' => t('معدل التفاعل مقارنة بالفترة السابقة'), 'consistency' => t('انتظام النشر'), 'connection' => t('حالة ربط الحسابات')];
+          $partHint = function ($p) {
+              switch ($p[0]) {
+                  case 'growth': return t('نمو %s%% في الفترة (ثابت = نص الدرجة، +2%% أو أكتر = الدرجة كاملة).', number_format((float)$p[3], 2));
+                  case 'engagement': return $p[3] === null ? t('مفيش فترة سابقة للمقارنة.') : t('الفرق عن الفترة السابقة %s نقطة (نفس المعدل = نص الدرجة، الضعف = الدرجة كاملة).', number_format((float)$p[3], 2));
+                  case 'consistency': return t('%s منشور في الأسبوع من أفضل عدد %s.', number_format((float)$p[3][0], 1), number_format((float)$p[3][1], 0));
+                  default: return $p[3] ? t('%s حساب محتاج إعادة ربط.', (int)$p[3]) : t('كل الحسابات مربوطة وشغالة.');
+              }
+          };
+          ?>
+          <?php if ($drops): ?>
+            <div class="rounded-xl border border-red-200 bg-red-50 text-red-800 p-4 text-sm flex gap-3" role="alert">
+              <span aria-hidden="true" class="text-lg">⚠️</span>
+              <div>
+                <p class="font-bold"><?= e(t('انخفاض مفاجئ مقارنة بالفترة السابقة')) ?></p>
+                <ul class="mt-1 space-y-0.5">
+                  <?php foreach ($drops as $d): ?>
+                    <li><?= e(t('%s نزلت %s%% (من %s إلى %s).', $dropNames[$d['metric']] ?? $d['metric'], number_format(abs($d['change']), 1), an_num($d['previous']), an_num($d['current']))) ?></li>
+                  <?php endforeach; ?>
+                </ul>
+              </div>
+            </div>
+          <?php endif; ?>
+          <section class="card p-5 flex flex-col sm:flex-row gap-5 sm:items-start">
+            <div class="flex items-center gap-4 shrink-0">
+              <div class="relative w-20 h-20" role="img" aria-label="<?= e(t('درجة صحة الحساب %s من 100', $hs)) ?>">
+                <svg viewBox="0 0 36 36" class="w-20 h-20 -rotate-90"><circle cx="18" cy="18" r="15.9" fill="none" stroke="rgb(var(--ink-200))" stroke-width="3.5"/>
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgb(var(--<?= $hc ?>-500))" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="<?= $hs ?> 100" pathLength="100"/></svg>
+                <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-ink-900 tabular-nums"><?= $hs ?></span>
+              </div>
+              <div>
+                <h2 class="font-bold text-ink-900"><?= e(t('صحة الحساب')) ?></h2>
+                <p class="text-xs text-ink-500"><?= e($curAcc ? $accName($curAcc) : t('كل الحسابات')) ?></p>
+                <p class="text-sm font-semibold text-<?= $hc ?>-700 mt-1"><?= e($hs >= 70 ? t('ممتازة') : ($hs >= 40 ? t('محتاجة اهتمام') : t('ضعيفة'))) ?></p>
+              </div>
+            </div>
+            <details class="flex-1 min-w-0" <?= $hs < 40 ? 'open' : '' ?>>
+              <summary class="text-sm link cursor-pointer"><?= e(t('الدرجة محسوبة إزاي؟')) ?></summary>
+              <ul class="mt-3 grid sm:grid-cols-2 gap-3">
+                <?php foreach ($health['parts'] as $hp): ?>
+                  <li class="rounded-lg bg-ink-50 p-3">
+                    <div class="flex justify-between text-xs gap-2"><span class="font-semibold text-ink-800"><?= e($partNames[$hp[0]]) ?></span><span class="tabular-nums text-ink-600" dir="ltr"><?= e($hp[1] . ' / ' . $hp[2]) ?></span></div>
+                    <?= an_hbar((float)$hp[1], (float)$hp[2], 'bg-' . $hc . '-500') ?>
+                    <p class="text-[11px] text-ink-500 mt-1"><?= e($partHint($hp)) ?></p>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
+            </details>
+          </section>
+
           <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <?php foreach ($kpis as $k): ?>
               <div class="card p-4 flex flex-col" <?= !empty($k['hint']) ? 'title="' . e($k['hint']) . '"' : '' ?>>
@@ -424,6 +569,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
       /* =========================== المنشورات =========================== */
       elseif ($tab === 'posts'):
           $posts = (array)($D['posts']['posts'] ?? []);
+          $tagsMap = an_tags_map();
           $rows = [];
           foreach ($posts as $p) {
               $an = (array)($p['analytics'] ?? []);
@@ -453,6 +599,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   'engagement' => an_engagement($an), 'rate' => (float)($an['engagementRate'] ?? an_rate(an_engagement($an), (float)($an['impressions'] ?? 0))),
                   'extra' => $extra,
                   'sync' => (string)($p['syncStatus'] ?? ''),
+                  'tags' => $tagsMap[(string)($p['_id'] ?? '')] ?? [],
               ];
           }
           $platforms = array_values(array_unique(array_column($rows, 'platform')));
@@ -467,19 +614,26 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               'breakdown' => t('تفاصيل المقاييس'), 'shown' => t('معروض %s من %s منشور'), 'more' => t('عرض المزيد'),
               'none' => t('مفيش منشورات بتطابق الفلتر.'), 'url' => t('الرابط'), 'pending' => t('الأرقام لسه بتتحدث'),
               'medias' => $mediaLabels, 'loadError' => t('حصلت مشكلة وإحنا بنجيب البيانات. جرب تاني بعد شوية.'),
+              'select' => t('اختار للمقارنة'), 'compare' => t('قارن (%s)'), 'compareTitle' => t('مقارنة المنشورات'), 'close' => t('اقفل'),
+              'pickHint' => t('اختار من 2 لـ 4 منشورات.'), 'published' => t('اتنشر'), 'tags' => t('الوسوم'), 'tagsHint' => t('افصل بين الوسوم بفاصلة'),
+              'save' => t('حفظ'), 'noTags' => t('مفيش وسوم'), 'best' => t('الأعلى'),
           ];
+          $tagStats = [];
+          foreach ($rows as $r) foreach ($r['tags'] as $tg) { $tagStats[$tg][] = $r; }
+          $allTags = array_keys($tagStats);
+          sort($allTags);
           ?>
           <section class="card p-5">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 class="font-bold text-ink-900"><?= e(t('كل المنشورات')) ?></h2>
-              <?php if ($rows): ?><button type="button" class="btn-ghost text-sm" id="an-csv">⤓ <?= e(t('تصدير CSV')) ?></button><?php endif; ?>
+              <?php if ($rows): ?><div class="flex flex-wrap gap-2"><button type="button" class="btn-primary text-sm hidden" id="an-cmp-btn"></button><button type="button" class="btn-ghost text-sm" id="an-csv">⤓ <?= e(t('تصدير CSV')) ?></button></div><?php endif; ?>
             </div>
             <?php if ($E['posts']): ?>
               <?= an_notice($E['posts']) ?>
             <?php elseif (!$rows): ?>
               <?= an_empty(t('مفيش منشورات في الفترة دي.'), t('جرب فترة أطول أو حساب تاني.')) ?>
             <?php else: ?>
-              <div class="grid sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-4" id="an-pf">
+              <div class="grid sm:grid-cols-2 lg:grid-cols-6 xl:grid-cols-7 gap-3 mb-4" id="an-pf">
                 <div class="lg:col-span-2">
                   <label class="label" for="an-q"><?= e(t('بحث في النص')) ?></label>
                   <input id="an-q" type="search" class="input" placeholder="<?= e(t('اكتب كلمة...')) ?>">
@@ -496,6 +650,14 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                     <?php foreach ($medias as $m): ?><option value="<?= e($m) ?>"><?= e($mediaLabels[$m] ?? $m) ?></option><?php endforeach; ?>
                   </select>
                 </div>
+                <?php if ($allTags): ?>
+                <div>
+                  <label class="label" for="an-ft"><?= e(t('الوسم')) ?></label>
+                  <select id="an-ft" class="input"><option value=""><?= e(t('الكل')) ?></option>
+                    <?php foreach ($allTags as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?>
+                  </select>
+                </div>
+                <?php endif; ?>
                 <div class="flex gap-2 lg:col-span-2 min-w-0">
                   <div class="flex-1 min-w-0"><label class="label" for="an-df"><?= e(t('تاريخ البداية')) ?></label><input id="an-df" type="date" class="input px-2" min="<?= e($per['from']) ?>" max="<?= e($per['to']) ?>"></div>
                   <div class="flex-1 min-w-0"><label class="label" for="an-dt"><?= e(t('تاريخ النهاية')) ?></label><input id="an-dt" type="date" class="input px-2" min="<?= e($per['from']) ?>" max="<?= e($per['to']) ?>"></div>
@@ -504,6 +666,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <?php if ((int)($D['posts']['total'] ?? 0) > count($rows)): ?>
                 <p class="text-xs text-amber-700 mb-2"><?= e(t('معروض أحدث %s منشور من %s. ضيّق الفترة عشان تشوف الباقي.', count($rows), (int)$D['posts']['total'])) ?></p>
               <?php endif; ?>
+              <div id="an-cmp" class="hidden mb-4 rounded-xl border border-brand-200 bg-brand-50/40 p-4"></div>
               <p class="text-xs text-ink-500 mb-2"><span id="an-count"></span> · <?= e(t('دوس على عنوان العمود عشان ترتب بيه، ودوس على أي منشور عشان تشوف تفاصيله.')) ?></p>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm" id="an-table">
@@ -512,20 +675,21 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 </table>
               </div>
               <div class="text-center mt-3"><button type="button" class="btn-ghost text-sm hidden" id="an-more"></button></div>
-              <script type="application/json" id="an-posts-data"><?= json_encode(['rows' => $rows, 'L' => $L, 'detailUrl' => url('analytics', ['detail' => '__ID__'])], $jsonFlags) ?></script>
+              <script type="application/json" id="an-posts-data"><?= json_encode(['rows' => $rows, 'L' => $L, 'detailUrl' => url('analytics', ['detail' => '__ID__']), 'csrf' => csrf_token(), 'back' => $q(), 'tagsOk' => an_tags_available()], $jsonFlags) ?></script>
               <script>
               (function () {
                 var D = JSON.parse(document.getElementById('an-posts-data').textContent), L = D.L, rows = D.rows;
-                var cols = [['post', 0], ['date', 0], ['impressions', 1], ['reach', 1], ['likes', 1], ['comments', 1], ['shares', 1], ['clicks', 1], ['engagement', 1], ['rate', 1]];
+                var sel = {};
+                var cols = [['sel', 0], ['post', 0], ['date', 0], ['impressions', 1], ['reach', 1], ['likes', 1], ['comments', 1], ['shares', 1], ['clicks', 1], ['engagement', 1], ['rate', 1]];
                 var sort = 'date', dir = -1, limit = 25, open = {};
                 var $ = function (id) { return document.getElementById(id); };
                 var head = document.querySelector('#an-table thead tr'), body = document.querySelector('#an-table tbody');
                 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]; }); }
                 function num(v) { return AnCharts.fmt(v); }
                 function filtered() {
-                  var q = $('an-q').value.trim().toLowerCase(), pl = $('an-fpl').value, m = $('an-fm').value, df = $('an-df').value, dt = $('an-dt').value;
+                  var q = $('an-q').value.trim().toLowerCase(), pl = $('an-fpl').value, m = $('an-fm').value, df = $('an-df').value, dt = $('an-dt').value, tg = $('an-ft') ? $('an-ft').value : '';
                   var r = rows.filter(function (x) {
-                    return (!q || (x.text + ' ' + x.account).toLowerCase().indexOf(q) >= 0) && (!pl || x.platform === pl) && (!m || x.media === m) && (!df || x.date >= df) && (!dt || x.date <= dt);
+                    return (!tg || x.tags.indexOf(tg) >= 0) && (!q || (x.text + ' ' + x.account).toLowerCase().indexOf(q) >= 0) && (!pl || x.platform === pl) && (!m || x.media === m) && (!df || x.date >= df) && (!dt || x.date <= dt);
                   });
                   r.sort(function (a, b) {
                     var k = sort === 'post' ? 'text' : sort, va = a[k], vb = b[k];
@@ -535,6 +699,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 }
                 function drawHead() {
                   head.innerHTML = cols.map(function (c) {
+                    if (c[0] === 'sel') return '<th class="py-2 ps-2 w-6"><span class="sr-only">' + esc(L.select) + '</span></th>';
                     var on = sort === c[0];
                     return '<th class="py-2 px-2 font-semibold whitespace-nowrap text-start" aria-sort="' + (on ? (dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button type="button" data-s="' + c[0] + '" class="' + (on ? 'text-brand-700' : 'hover:text-ink-800') + '">' + esc(L[c[0]]) + (on ? (dir > 0 ? ' ↑' : ' ↓') : '') + '</button></th>';
                   }).join('');
@@ -544,21 +709,52 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   var r = filtered(), h = '';
                   r.slice(0, limit).forEach(function (x) {
                     h += '<tr class="border-b border-ink-100 align-top cursor-pointer hover:bg-ink-50" data-id="' + esc(x.id) + '" tabindex="0" aria-expanded="' + (open[x.id] ? 'true' : 'false') + '">' +
+                      '<td class="py-2 ps-2 align-top"><input type="checkbox" class="an-sel mt-1" data-id="' + esc(x.id) + '"' + (sel[x.id] ? ' checked' : '') + (!sel[x.id] && Object.keys(sel).length >= 4 ? ' disabled' : '') + ' aria-label="' + esc(L.select) + '"></td>' +
                       '<td class="py-2 px-2 min-w-[16rem] max-w-md"><div class="flex gap-2">' +
                       (x.thumb ? '<img src="' + esc(x.thumb) + '" alt="" class="w-10 h-10 rounded-lg object-cover bg-ink-100 shrink-0" loading="lazy" referrerpolicy="no-referrer">' : '') +
                       '<div class="min-w-0"><p class="line-clamp-2 text-ink-800">' + (x.text ? esc(x.text) : '<span class="text-ink-400">' + esc(L.noText) + '</span>') + '</p>' +
-                      '<p class="text-[11px] text-ink-500 flex items-center gap-1 mt-0.5">' + x.icon + '<span>' + esc(x.account || x.platformLabel) + '</span> · <span>' + esc(L.medias[x.media] || x.media) + '</span></p></div></div></td>' +
+                      '<p class="text-[11px] text-ink-500 flex flex-wrap items-center gap-1 mt-0.5">' + x.icon + '<span>' + esc(x.account || x.platformLabel) + '</span> · <span>' + esc(L.medias[x.media] || x.media) + '</span>' + x.tags.map(function (t) { return '<span class="badge !py-0 !text-[10px]">#' + esc(t) + '</span>'; }).join('') + '</p></div></div></td>' +
                       '<td class="py-2 px-2 whitespace-nowrap text-ink-600 text-xs">' + esc(x.dateLabel) + '</td>' +
                       ['impressions', 'reach', 'likes', 'comments', 'shares', 'clicks', 'engagement'].map(function (k) { return '<td class="py-2 px-2 tabular-nums">' + num(x[k]) + '</td>'; }).join('') +
                       '<td class="py-2 px-2 tabular-nums font-semibold" dir="ltr">' + x.rate.toFixed(2) + '%</td></tr>';
-                    if (open[x.id]) h += '<tr class="bg-ink-50/60 border-b border-ink-200"><td colspan="10" class="p-4" id="an-d-' + esc(x.id) + '">' + detail(x) + '</td></tr>';
+                    if (open[x.id]) h += '<tr class="bg-ink-50/60 border-b border-ink-200"><td colspan="11" class="p-4" id="an-d-' + esc(x.id) + '">' + detail(x) + '</td></tr>';
                   });
-                  body.innerHTML = h || '<tr><td colspan="10" class="py-8 text-center text-ink-500">' + esc(L.none) + '</td></tr>';
+                  body.innerHTML = h || '<tr><td colspan="11" class="py-8 text-center text-ink-500">' + esc(L.none) + '</td></tr>';
                   $('an-count').textContent = L.shown.replace('%s', Math.min(limit, r.length)).replace('%s', r.length);
                   var more = $('an-more');
                   more.classList.toggle('hidden', r.length <= limit);
                   more.textContent = L.more;
                   Object.keys(open).forEach(function (id) { if (open[id] && open[id] !== 1) render(id); });
+                  var n = Object.keys(sel).length, cb = $('an-cmp-btn');
+                  cb.textContent = L.compare.replace('%s', n);
+                  cb.classList.toggle('hidden', n < 1);
+                  cb.disabled = n < 2; cb.title = n < 2 ? L.pickHint : '';
+                  if (n < 2) $('an-cmp').classList.add('hidden'); else if (!$('an-cmp').classList.contains('hidden')) compare();
+                }
+                function compare() {
+                  var list = rows.filter(function (r) { return sel[r.id]; }), box = $('an-cmp');
+                  var ms = ['impressions', 'reach', 'likes', 'comments', 'shares', 'clicks', 'engagement', 'rate'];
+                  var col = ['rgb(var(--brand-600))', 'rgb(var(--cyan-500))', 'rgb(var(--lime-500))', 'rgb(var(--amber-500))'];
+                  var h = '<div class="flex items-center justify-between mb-3"><h3 class="font-bold text-ink-900">' + esc(L.compareTitle) + '</h3><button type="button" class="btn-ghost text-xs" id="an-cmp-x">' + esc(L.close) + '</button></div>';
+                  h += '<div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))">';
+                  list.forEach(function (x, i) {
+                    h += '<div class="rounded-lg bg-white border border-ink-200 p-3 min-w-0"><div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:' + col[i] + '"></span>' + x.icon + '<span class="text-xs text-ink-500 truncate">' + esc(L.medias[x.media] || x.media) + '</span></div>' +
+                      '<p class="text-xs text-ink-800 line-clamp-3 mt-1">' + esc(x.text || L.noText) + '</p><p class="text-[11px] text-ink-500 mt-1">' + esc(L.published) + ': ' + esc(x.dateLabel) + '</p>' +
+                      '<p class="text-lg font-bold text-ink-900 mt-1" dir="ltr">' + x.rate.toFixed(2) + '%</p><p class="text-[11px] text-ink-500">' + esc(L.rate) + '</p></div>';
+                  });
+                  h += '</div><div class="mt-4 space-y-3">';
+                  ms.forEach(function (k) {
+                    var mx = Math.max.apply(null, list.map(function (x) { return x[k]; }).concat([0.0001]));
+                    h += '<div><p class="text-xs font-semibold text-ink-700 mb-1">' + esc(L[k]) + '</p>';
+                    list.forEach(function (x, i) {
+                      var v = x[k];
+                      h += '<div class="flex items-center gap-2 text-[11px]"><div class="flex-1 h-2.5 rounded-full bg-ink-100 overflow-hidden" dir="ltr"><div class="h-full rounded-full" style="width:' + (v / mx * 100) + '%;background:' + col[i] + '"></div></div><span class="w-14 text-end tabular-nums text-ink-700" dir="ltr">' + (k === 'rate' ? v.toFixed(2) + '%' : num(v)) + (v === mx && v > 0 && list.length > 1 ? ' ★' : '') + '</span></div>';
+                    });
+                    h += '</div>';
+                  });
+                  box.innerHTML = h + '</div>';
+                  box.classList.remove('hidden');
+                  $('an-cmp-x').addEventListener('click', function () { box.classList.add('hidden'); });
                 }
                 function detail(x) {
                   var m = [['impressions', x.impressions], ['reach', x.reach], ['likes', x.likes], ['comments', x.comments], ['shares', x.shares], ['clicks', x.clicks]].map(function (a) { return [L[a[0]], a[1]]; }).concat(x.extra);
@@ -566,7 +762,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   var h = '<div class="grid lg:grid-cols-3 gap-5"><div><p class="text-xs font-semibold text-ink-700 mb-2">' + esc(L.breakdown) + '</p><ul class="space-y-1.5">';
                   m.forEach(function (a) { h += '<li><div class="flex justify-between text-xs"><span class="text-ink-600">' + esc(a[0]) + '</span><b class="tabular-nums text-ink-900">' + num(a[1]) + '</b></div><div class="h-1.5 rounded-full bg-ink-200 overflow-hidden"><div class="h-full bg-brand-500 rounded-full" style="width:' + (a[1] / mx * 100) + '%"></div></div></li>'; });
                   h += '</ul>' + (x.url ? '<a class="link text-xs mt-3 inline-block" href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(L.open) + '</a>' : '') +
-                    (x.sync === 'pending' ? '<p class="text-[11px] text-amber-700 mt-2">' + esc(L.pending) + '</p>' : '') + '</div>' +
+                    (x.sync === 'pending' ? '<p class="text-[11px] text-amber-700 mt-2">' + esc(L.pending) + '</p>' : '') +
+                    (D.tagsOk ? '<form method="post" class="mt-4 an-tagform"><input type="hidden" name="_csrf" value="' + esc(D.csrf) + '"><input type="hidden" name="action" value="tags"><input type="hidden" name="back" value="' + esc(D.back) + '"><input type="hidden" name="post_id" value="' + esc(x.id) + '">' +
+                      '<label class="label">' + esc(L.tags) + '</label><div class="flex gap-2"><input name="tags" class="input py-1.5 text-sm" maxlength="300" value="' + esc(x.tags.join(', ')) + '" placeholder="' + esc(L.tagsHint) + '"><button class="btn-ghost text-sm">' + esc(L.save) + '</button></div></form>' : '') + '</div>' +
                     '<div class="lg:col-span-2 space-y-4"><div><p class="text-xs font-semibold text-ink-700 mb-2">' + esc(L.growth) + '</p><div class="an-tl text-xs text-ink-500">' + esc(L.loading) + '</div></div>' +
                     '<div><p class="text-xs font-semibold text-ink-700 mb-2">' + esc(L.reactions) + '</p><div class="an-re text-xs text-ink-500">' + esc(L.loading) + '</div></div></div></div>';
                   return h;
@@ -607,15 +805,20 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   draw();
                 });
                 body.addEventListener('click', function (ev) {
-                  if (ev.target.closest('a')) return;
+                  if (ev.target.closest('a, form, input, button')) {
+                    var cb = ev.target.closest('input.an-sel');
+                    if (cb) { if (cb.checked) sel[cb.dataset.id] = 1; else delete sel[cb.dataset.id]; draw(); }
+                    return;
+                  }
                   var tr = ev.target.closest('tr[data-id]'); if (tr) toggle(tr.dataset.id);
                 });
                 body.addEventListener('keydown', function (ev) {
                   var tr = ev.target.closest('tr[data-id]');
-                  if (tr && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggle(tr.dataset.id); }
+                  if (tr && ev.target === tr && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggle(tr.dataset.id); }
                 });
-                ['an-q', 'an-fpl', 'an-fm', 'an-df', 'an-dt'].forEach(function (id) { $(id).addEventListener('input', function () { limit = 25; draw(); }); });
+                ['an-q', 'an-fpl', 'an-fm', 'an-df', 'an-dt', 'an-ft'].forEach(function (id) { if ($(id)) $(id).addEventListener('input', function () { limit = 25; draw(); }); });
                 $('an-more').addEventListener('click', function () { limit += 25; draw(); });
+                $('an-cmp-btn').addEventListener('click', function () { if (Object.keys(sel).length >= 2) { compare(); $('an-cmp').scrollIntoView({behavior: 'smooth', block: 'nearest'}); } });
                 $('an-csv').addEventListener('click', function () {
                   var keys = ['dateLabel', 'platformLabel', 'account', 'media', 'text', 'impressions', 'reach', 'likes', 'comments', 'shares', 'clicks', 'engagement', 'rate', 'url'];
                   var hd = [L.date, L.platform, L.account, L.media, L.post, L.impressions, L.reach, L.likes, L.comments, L.shares, L.clicks, L.engagement, L.rate, L.url];
@@ -632,6 +835,81 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               </script>
             <?php endif; ?>
           </section>
+
+          <?php if (!$E['posts'] && $rows): ?>
+          <div class="grid lg:grid-cols-2 gap-5">
+            <section class="card p-5">
+              <h2 class="font-bold text-ink-900 mb-1"><?= e(t('الأداء حسب الوسم')) ?></h2>
+              <p class="text-xs text-ink-500 mb-4"><?= e(t('الوسوم دي بتحطها أنت على المنشورات (من تفاصيل المنشور) وبتتحفظ هنا بس.')) ?></p>
+              <?php if (!an_tags_available()): ?>
+                <?= an_notice(t('الوسوم محتاجة تحديث قاعدة البيانات. شغّل صفحة التحديث الأول.')) ?>
+              <?php elseif (!$tagStats): ?>
+                <?= an_empty(t('لسه مفيش وسوم على منشورات الفترة دي.'), t('افتح أي منشور في الجدول وأضف له وسوم زي: عرض، توعية، منتج.'), '🏷️') ?>
+              <?php else:
+                $ts = [];
+                foreach ($tagStats as $tg => $list) {
+                    $n = count($list); $imp = array_sum(array_column($list, 'impressions')); $rt = array_sum(array_column($list, 'rate'));
+                    $ts[] = [$tg, $n, $imp / $n, $rt / $n];
+                }
+                usort($ts, function ($a, $b) { return $b[3] <=> $a[3]; });
+                $mxr = max(array_column($ts, 3)) ?: 1;
+                ?>
+                <div class="overflow-x-auto"><table class="w-full text-sm">
+                  <thead><tr class="text-ink-500 text-xs border-b border-ink-200">
+                    <th class="text-start py-2 pe-2 font-semibold"><?= e(t('الوسم')) ?></th><th class="text-start py-2 px-2 font-semibold"><?= e(t('منشورات')) ?></th>
+                    <th class="text-start py-2 px-2 font-semibold"><?= e(t('متوسط الظهور')) ?></th><th class="text-start py-2 px-2 font-semibold w-2/5"><?= e(t('متوسط معدل التفاعل')) ?></th>
+                  </tr></thead><tbody>
+                  <?php foreach ($ts as $r): ?>
+                    <tr class="border-b border-ink-100"><td class="py-2 pe-2 font-medium text-ink-800">#<?= e($r[0]) ?></td><td class="py-2 px-2 tabular-nums"><?= (int)$r[1] ?></td>
+                      <td class="py-2 px-2 tabular-nums"><?= e(an_num($r[2])) ?></td>
+                      <td class="py-2 px-2"><div class="flex items-center gap-2"><div class="flex-1"><?= an_hbar($r[3], $mxr, 'bg-brand-500') ?></div><span class="text-xs tabular-nums w-14 text-end" dir="ltr"><?= e(number_format($r[3], 2)) ?>%</span></div></td></tr>
+                  <?php endforeach; ?>
+                </tbody></table></div>
+              <?php endif; ?>
+            </section>
+
+            <section class="card p-5">
+              <h2 class="font-bold text-ink-900 mb-1"><?= e(t('أنواع التفاعلات في أعلى المنشورات')) ?></h2>
+              <p class="text-xs text-ink-500 mb-4"><?= e(t('لأعلى %s منشورات على فيسبوك ولينكدإن في الفترة.', count($D['reactions']))) ?></p>
+              <?php
+              $rcol = ['bg-brand-600', 'bg-red-500', 'bg-amber-500', 'bg-lime-500', 'bg-cyan-500', 'bg-ink-400', 'bg-brand-300'];
+              $rl = ['like' => t('إعجاب'), 'love' => t('حب'), 'haha' => t('ضحك'), 'wow' => t('اندهاش'), 'sad' => t('حزن'), 'angry' => t('غضب'), 'care' => t('اهتمام'),
+                  'LIKE' => t('إعجاب'), 'PRAISE' => t('احتفاء'), 'EMPATHY' => t('حب'), 'INTEREST' => t('اهتمام'), 'APPRECIATION' => t('دعم'), 'ENTERTAINMENT' => t('ضحك'), 'MAYBE' => t('فضول')];
+              $bars = []; $types = [];
+              foreach ($D['reactions'] as $r) {
+                  $bd = [];
+                  if (is_array($r['data'])) {
+                      if (($r['post']['platform'] ?? '') === 'facebook') { foreach ((array)($r['data']['breakdown'] ?? []) as $k => $v) if ((int)$v > 0) $bd[$rl[$k] ?? $k] = (int)$v; }
+                      else foreach ((array)($r['data']['reactions'] ?? []) as $x) { $k = (string)($x['reactionType'] ?? ''); $l = $rl[$k] ?? $k; $bd[$l] = ($bd[$l] ?? 0) + 1; }
+                  }
+                  foreach ($bd as $k => $_) $types[$k] = true;
+                  $bars[] = [$r['post'], $bd, $r['error']];
+              }
+              $types = array_keys($types);
+              if (!$bars): ?>
+                <?= an_empty(t('مفيش منشورات فيسبوك أو لينكدإن في الفترة دي.'), '', '👍') ?>
+              <?php elseif (!$types): ?>
+                <?= an_empty(t('المنصة مارجعتش تفاصيل تفاعلات للمنشورات دي.'), '', '👍') ?>
+              <?php else: ?>
+                <div class="flex flex-wrap gap-3 text-[11px] text-ink-600 mb-3">
+                  <?php foreach ($types as $i => $tp): ?><span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full <?= $rcol[$i % 7] ?>"></span><?= e($tp) ?></span><?php endforeach; ?>
+                </div>
+                <ul class="space-y-3">
+                  <?php foreach ($bars as [$p, $bd, $er]): $tot = array_sum($bd); ?>
+                    <li>
+                      <div class="flex justify-between gap-2 text-xs mb-1"><span class="truncate text-ink-800 flex items-center gap-1"><?= platform_icon((string)$p['platform'], 'w-3.5 h-3.5') ?><?= e(mb_substr(an_plain_text((string)($p['content'] ?? '')), 0, 60) ?: t('(منشور بدون نص)')) ?></span><span class="tabular-nums text-ink-500 shrink-0"><?= (int)$tot ?></span></div>
+                      <?php if ($tot > 0): ?>
+                        <div class="flex h-3 rounded-full overflow-hidden bg-ink-100" dir="ltr">
+                          <?php foreach ($types as $i => $tp): if (empty($bd[$tp])) continue; ?><div class="<?= $rcol[$i % 7] ?>" style="width:<?= round($bd[$tp] / $tot * 100, 2) ?>%" title="<?= e($tp . ': ' . $bd[$tp]) ?>"></div><?php endforeach; ?>
+                        </div>
+                      <?php else: ?><p class="text-[11px] text-ink-400"><?= e($er ?: t('مفيش تفاعلات')) ?></p><?php endif; ?>
+                    </li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endif; ?>
+            </section>
+          </div>
+          <?php endif; ?>
 
       <?php
       /* =========================== الجمهور =========================== */
@@ -685,6 +963,17 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                     <?php else: ?>
                       <p class="text-[11px] text-ink-400 mt-3"><?= e(t('لسه مفيش تاريخ كفاية لرسم النمو.')) ?></p>
                     <?php endif; ?>
+                    <?php $fc = an_follower_forecast($pts, 30); ?>
+                    <div class="mt-3 rounded-lg border border-dashed border-ink-200 p-3">
+                      <p class="text-[11px] font-semibold text-ink-700"><?= e(t('توقع المتابعين بعد 30 يوم')) ?></p>
+                      <?php if (!$fc): ?>
+                        <p class="text-[11px] text-ink-400 mt-0.5"><?= e(t('مفيش تاريخ كفاية للتوقع (محتاجين 7 نقط على الأقل، عندنا %s).', count($pts))) ?></p>
+                      <?php else: $dl = $fc['value'] - $fc['last']; ?>
+                        <p class="text-lg font-bold text-ink-900 tabular-nums"><bdi dir="ltr"><?= e(an_num(round($fc['value']))) ?></bdi>
+                          <span class="text-xs font-semibold <?= $dl >= 0 ? 'text-lime-700' : 'text-red-600' ?>" dir="ltr"><?= $dl >= 0 ? '+' : '' ?><?= e(an_num(round($dl))) ?></span></p>
+                        <p class="text-[11px] text-ink-500"><?= e(t('بمعدل %s متابع في اليوم (انحدار خطي على آخر %s نقطة).', number_format($fc['perDay'], 1), count($pts))) ?></p>
+                      <?php endif; ?>
+                    </div>
                   </div>
                 <?php endforeach; ?>
               </div>
@@ -750,6 +1039,58 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                         </div>
                       <?php endif; ?>
                     <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
+          </section>
+
+          <?php $others = array_values(array_filter(user_workspaces(), function ($w) { return (int)$w['id'] !== (int)ws('id'); })); ?>
+          <section class="card p-5">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+              <div>
+                <h2 class="font-bold text-ink-900"><?= e(t('مقارنة الجمهور بشركة تانية')) ?></h2>
+                <p class="text-xs text-ink-500"><?= e(t('قارن المتابعين والنمو ومعدل التفاعل لنفس الفترة.')) ?></p>
+              </div>
+              <?php if ($others): ?>
+                <form method="get" class="flex gap-2 items-end">
+                  <input type="hidden" name="p" value="analytics"><input type="hidden" name="tab" value="audience">
+                  <?php if ($per['custom']): ?><input type="hidden" name="from" value="<?= e($per['from']) ?>"><input type="hidden" name="to" value="<?= e($per['to']) ?>"><?php else: ?><input type="hidden" name="d" value="<?= (int)$per['days'] ?>"><?php endif; ?>
+                  <select name="cw" class="input py-1.5" aria-label="<?= e(t('الشركة اللي هتقارن بيها')) ?>">
+                    <option value=""><?= e(t('اختار شركة...')) ?></option>
+                    <?php foreach ($others as $w): ?><option value="<?= (int)$w['id'] ?>" <?= (int)($_GET['cw'] ?? 0) === (int)$w['id'] ? 'selected' : '' ?>><?= e($w['name']) ?></option><?php endforeach; ?>
+                  </select>
+                  <button class="btn-ghost"><?= e(t('قارن')) ?></button>
+                </form>
+              <?php endif; ?>
+            </div>
+            <?php if (!$others): ?>
+              <?= an_empty(t('إنت عضو في شركة واحدة بس.'), t('المقارنة بتظهر لما تكون عضو في أكتر من شركة.'), '🏢') ?>
+            <?php elseif (empty($D['cw'])): ?>
+              <?= an_empty(t('اختار شركة من فوق عشان تقارن.'), '', '🏢') ?>
+            <?php elseif ($D['cw']['error']): ?>
+              <?= an_notice($D['cw']['error']) ?>
+            <?php else:
+              $cwName = '';
+              foreach ($others as $w) if ((int)$w['id'] === (int)$D['cw']['id']) $cwName = (string)$w['name'];
+              $sideA = ['name' => (string)ws('name'), 'fol' => $E['fol'] ? null : an_follower_totals($D['fol']), 'daily' => $D['cw']['mineError'] ? null : an_sum_daily($D['cw']['mine'])[0]];
+              $sideB = ['name' => $cwName, 'fol' => $D['cw']['folError'] ? null : an_follower_totals($D['cw']['fol']), 'daily' => $D['cw']['dailyError'] ? null : an_sum_daily($D['cw']['daily'])[0]];
+              $metrics = [
+                  [t('المتابعين'), function ($x) { return $x['fol'] ? $x['fol']['current'] : null; }, false],
+                  [t('صافي النمو'), function ($x) { return $x['fol'] ? $x['fol']['growth'] : null; }, false],
+                  [t('مرات الظهور'), function ($x) { return $x['daily'] ? $x['daily']['impressions'] : null; }, false],
+                  [t('معدل التفاعل'), function ($x) { return $x['daily'] ? $x['daily']['rate'] : null; }, true],
+              ];
+              ?>
+              <?php if ($curAcc): ?><p class="text-[11px] text-amber-700 mb-3"><?= e(t('المقارنة على مستوى الشركة كلها (فلتر الحساب مش بيتطبق على الشركة التانية).')) ?></p><?php endif; ?>
+              <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <?php foreach ($metrics as [$ml, $fn, $pct]): $va = $fn($sideA); $vb = $fn($sideB); $mx = max((float)$va, (float)$vb) ?: 1; ?>
+                  <div class="rounded-xl bg-ink-50 p-4">
+                    <p class="text-xs font-semibold text-ink-700 mb-2"><?= e($ml) ?></p>
+                    <?php foreach ([[$sideA['name'], $va, 'bg-brand-600'], [$sideB['name'], $vb, 'bg-cyan-500']] as [$nm, $v, $c]): ?>
+                      <div class="mb-2"><div class="flex justify-between gap-2 text-[11px]"><span class="truncate text-ink-600"><?= e($nm) ?></span><b class="tabular-nums text-ink-900" dir="ltr"><?= $v === null ? '—' : ($pct ? e(number_format($v, 2)) . '%' : e(an_num($v))) ?></b></div>
+                        <?= an_hbar(max(0, (float)$v), $mx, $c) ?></div>
+                    <?php endforeach; ?>
                   </div>
                 <?php endforeach; ?>
               </div>
@@ -922,6 +1263,119 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <?php if (count($mt) < 2): ?><p class="text-xs text-ink-500 mt-3"><?= e(t('كل منشورات الفترة دي من نفس النوع، جرب تنوّع (صور، فيديو، نص) عشان تقارن.')) ?></p><?php endif; ?>
             <?php endif; ?>
           </section>
+
+          <?php
+          // ---------- تحليلات المحتوى من قائمة المنشورات ----------
+          $plist = (array)($D['posts']['posts'] ?? []);
+          $cmpBars = function (array $groups) {
+              // $groups = [[label, [posts]], ...]
+              $stats = array_map(function ($g) { return [$g[0]] + [1 => an_group_stats($g[1])]; }, $groups);
+              $mx = 0;
+              foreach ($stats as $st) $mx = max($mx, $st[1][2]);
+              $h = '<ul class="space-y-2.5">';
+              foreach ($stats as $st) {
+                  [$n, , $r] = $st[1];
+                  $h .= '<li><div class="flex justify-between gap-2 text-xs mb-0.5"><span class="text-ink-800">' . e($st[0]) . ' <span class="text-ink-400">(' . e(t('%s منشور', $n)) . ')</span></span><span class="tabular-nums font-semibold text-ink-700" dir="ltr">' . ($n ? e(number_format($r, 2)) . '%' : '—') . '</span></div>'
+                      . an_hbar($r, $mx ?: 1, $n ? 'bg-brand-500' : 'bg-ink-200') . '</li>';
+              }
+              return $h . '</ul>';
+          };
+          ?>
+          <?php if (!$E['posts'] && $plist):
+            $tags = [];
+            $len = [[t('قصير (أقل من 100 حرف)'), []], [t('متوسط (100–500 حرف)'), []], [t('طويل (أكتر من 500 حرف)'), []]];
+            $feat = ['link' => [[], []], 'emoji' => [[], []], 'question' => [[], []]];
+            $byDay = []; $sched = ['immediate' => [], 'scheduled' => [], 'external' => []];
+            foreach ($plist as $p) {
+                $txt = an_plain_text((string)($p['content'] ?? ''));
+                foreach (an_hashtags((string)($p['content'] ?? '')) as $h) $tags[$h][] = $p;
+                $l = mb_strlen(trim($txt));
+                $len[$l < 100 ? 0 : ($l <= 500 ? 1 : 2)][1][] = $p;
+                $feat['link'][preg_match('~https?://|www\.~i', $txt) ? 0 : 1][] = $p;
+                $feat['emoji'][an_has_emoji($txt) ? 0 : 1][] = $p;
+                $feat['question'][preg_match('/[?؟]/u', $txt) ? 0 : 1][] = $p;
+                if (!empty($p['publishedAt'])) {
+                    $dow = ((int)fmt_date($p['publishedAt'], 'N') + 6) % 7;
+                    $byDay[(string)($p['platform'] ?? '')][$dow][] = (float)($p['analytics']['engagementRate'] ?? 0);
+                }
+                $created = $p['createdAt'] ?? null;
+                if ($created) {
+                    $when = strtotime((string)($p['scheduledFor'] ?? $p['publishedAt'] ?? $created));
+                    $sched[$when - strtotime((string)$created) < 300 ? 'immediate' : 'scheduled'][] = $p;
+                } else {
+                    $sched['external'][] = $p;
+                }
+            }
+            $ranked = array_filter($tags, function ($l) { return count($l) >= 2; });
+            uasort($ranked, function ($a, $b) { return an_group_stats($b)[2] <=> an_group_stats($a)[2]; });
+            $dn = an_day_names();
+            ?>
+            <div class="grid lg:grid-cols-2 gap-5">
+              <section class="card p-5">
+                <h2 class="font-bold text-ink-900 mb-1"><?= e(t('تحليل الهاشتاجات')) ?></h2>
+                <p class="text-xs text-ink-500 mb-4"><?= e(t('مترتبة حسب متوسط معدل التفاعل. الهاشتاج لازم يكون في منشورين على الأقل.')) ?></p>
+                <?php if (!$tags): ?>
+                  <?= an_empty(t('مفيش هاشتاجات في منشورات الفترة دي.'), '', '#') ?>
+                <?php elseif (!$ranked): ?>
+                  <?= an_empty(t('كل هاشتاج اتستخدم مرة واحدة بس، فمش كفاية للترتيب.'), t('اتستخدم %s هاشتاج مختلف.', count($tags)), '#') ?>
+                <?php else: $mx = max(array_map(function ($l) { return an_group_stats($l)[2]; }, $ranked)) ?: 1; ?>
+                  <ol class="space-y-2.5">
+                    <?php foreach (array_slice($ranked, 0, 10, true) as $h => $l): [$n, $imp, $r] = an_group_stats($l); ?>
+                      <li><div class="flex justify-between gap-2 text-xs mb-0.5"><span class="font-medium text-ink-800" dir="auto">#<?= e($h) ?> <span class="text-ink-400">(<?= e(t('%s منشور', $n)) ?> · <?= e(t('%s ظهور', an_num($imp))) ?>)</span></span><span class="tabular-nums font-semibold" dir="ltr"><?= e(number_format($r, 2)) ?>%</span></div>
+                        <?= an_hbar($r, $mx, 'bg-cyan-500') ?></li>
+                    <?php endforeach; ?>
+                  </ol>
+                <?php endif; ?>
+              </section>
+
+              <section class="card p-5">
+                <h2 class="font-bold text-ink-900 mb-1"><?= e(t('طول النص والتفاعل')) ?></h2>
+                <p class="text-xs text-ink-500 mb-4"><?= e(t('متوسط معدل التفاعل حسب عدد حروف المنشور.')) ?></p>
+                <?= $cmpBars($len) ?>
+                <h3 class="font-semibold text-ink-900 text-sm mt-6 mb-3"><?= e(t('روابط وإيموجي وأسئلة')) ?></h3>
+                <div class="grid sm:grid-cols-3 gap-4">
+                  <?php foreach (['link' => [t('فيه رابط'), t('من غير رابط')], 'emoji' => [t('فيه إيموجي'), t('من غير إيموجي')], 'question' => [t('فيه سؤال'), t('من غير سؤال')]] as $k => [$yes, $no]): ?>
+                    <div><?= $cmpBars([[$yes, $feat[$k][0]], [$no, $feat[$k][1]]]) ?></div>
+                  <?php endforeach; ?>
+                </div>
+              </section>
+
+              <section class="card p-5">
+                <h2 class="font-bold text-ink-900 mb-1"><?= e(t('أفضل يوم في الأسبوع لكل منصة')) ?></h2>
+                <p class="text-xs text-ink-500 mb-4"><?= e(t('متوسط معدل التفاعل حسب يوم النشر بتوقيت الشركة.')) ?></p>
+                <div class="space-y-5">
+                  <?php foreach ($byDay as $pl => $days):
+                    $avg = []; foreach ($days as $d => $vals) $avg[$d] = array_sum($vals) / count($vals);
+                    $mx = max($avg) ?: 1; $bestD = array_search(max($avg), $avg, true);
+                    ?>
+                    <div>
+                      <p class="text-xs font-semibold text-ink-700 mb-2 flex items-center gap-1.5"><?= platform_icon($pl, 'w-4 h-4') ?><?= e(platform_label($pl)) ?> · <span class="text-lime-700"><?= e(t('الأفضل: %s', $dn[$bestD])) ?></span></p>
+                      <div class="grid grid-cols-7 gap-1 items-end h-24">
+                        <?php for ($d = 0; $d < 7; $d++): $v = $avg[$d] ?? null; ?>
+                          <div class="h-full flex flex-col justify-end items-center gap-0.5" title="<?= e($dn[$d] . ': ' . ($v === null ? t('مفيش منشورات') : number_format($v, 2) . '% · ' . t('%s منشور', count($days[$d])))) ?>">
+                            <span class="text-[9px] text-ink-500 tabular-nums"><?= $v === null ? '' : e(number_format($v, 1)) ?></span>
+                            <div class="w-full rounded-t <?= $d === $bestD ? 'bg-lime-500' : ($v === null ? 'bg-ink-100' : 'bg-brand-500') ?>" style="height:<?= $v === null ? 3 : max(4, round($v / $mx * 80)) ?>%"></div>
+                          </div>
+                        <?php endfor; ?>
+                      </div>
+                      <div class="grid grid-cols-7 gap-1 text-[10px] text-ink-500 text-center mt-1"><?php for ($d = 0; $d < 7; $d++): ?><span class="truncate"><?= e(mb_substr($dn[$d], 0, 3)) ?></span><?php endfor; ?></div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </section>
+
+              <section class="card p-5">
+                <h2 class="font-bold text-ink-900 mb-1"><?= e(t('مجدول ولا اتنشر فوراً')) ?></h2>
+                <p class="text-xs text-ink-500 mb-4"><?= e(t('فوراً = اتنشر في خلال 5 دقايق من إنشائه.')) ?></p>
+                <?php if (!$sched['immediate'] && !$sched['scheduled']): ?>
+                  <?= an_empty(t('المنشورات دي اتنشرت من برّه اللوحة، فمعرفناش وقت إنشائها.'), t('المقارنة بتظهر للمنشورات اللي بتتعمل من صفحة منشور جديد.'), '⏱️') ?>
+                <?php else: ?>
+                  <?= $cmpBars([[t('اتنشر فوراً'), $sched['immediate']], [t('مجدول'), $sched['scheduled']]]) ?>
+                  <?php if ($sched['external']): ?><p class="text-[11px] text-ink-500 mt-3"><?= e(t('%s منشور اتنشر من برّه اللوحة ومش داخل في المقارنة.', count($sched['external']))) ?></p><?php endif; ?>
+                <?php endif; ?>
+              </section>
+            </div>
+          <?php endif; ?>
 
       <?php
       /* =========================== المنصات =========================== */

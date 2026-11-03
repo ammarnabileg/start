@@ -387,3 +387,277 @@ function an_post_reactions(Zernio $z, string $platform, string $accountId, strin
     if ($platform === 'linkedin') return $z->request('GET', '/v1/accounts/' . rawurlencode($accountId) . '/linkedin-post-reactions', ['urn' => $platformPostId, 'limit' => 100]);
     return null;
 }
+
+/* ======================================================================
+ * المرحلة التانية: صحة الحساب، الانخفاض المفاجئ، التوقعات، الوسوم، تحليل المحتوى.
+ * ====================================================================== */
+
+/** مجموع مقاييس daily-metrics: [totals, byDate] */
+function an_sum_daily($resp): array
+{
+    $t = ['impressions' => 0, 'reach' => 0, 'likes' => 0, 'comments' => 0, 'shares' => 0, 'saves' => 0, 'clicks' => 0, 'views' => 0, 'postCount' => 0];
+    $by = [];
+    foreach ((array)($resp['dailyData'] ?? []) as $d) {
+        $m = (array)($d['metrics'] ?? []);
+        foreach ($t as $k => $_) $t[$k] += $k === 'postCount' ? (int)($d['postCount'] ?? 0) : (float)($m[$k] ?? 0);
+        $by[substr((string)($d['date'] ?? ''), 0, 10)] = $m + ['postCount' => (int)($d['postCount'] ?? 0)];
+    }
+    $t['engagement'] = an_engagement($t);
+    $t['rate'] = an_rate($t['engagement'], $t['impressions']);
+    return [$t, $by];
+}
+
+/** صافي نمو المتابعين وعددهم من رد follower-stats */
+function an_follower_totals($resp): array
+{
+    $growth = 0; $current = 0;
+    foreach ((array)($resp['accounts'] ?? []) as $a) {
+        $growth += (float)($a['growth'] ?? 0);
+        $current += (float)($a['currentFollowers'] ?? 0);
+    }
+    return ['growth' => $growth, 'current' => $current];
+}
+
+/**
+ * يكتشف الانخفاض المفاجئ (> $threshold%) في مرات الظهور أو المتابعين مقارنة بالفترة السابقة،
+ * من بيانات متجمعة جاهزة (من غير نداءات).
+ */
+function an_drop_signals_from(array $cur, array $prev, array $folCur, array $folPrev, float $threshold = 30): array
+{
+    $out = [];
+    $c = an_change((float)($cur['impressions'] ?? 0), (float)($prev['impressions'] ?? 0));
+    if ($c !== null && $c <= -$threshold) {
+        $out[] = ['metric' => 'impressions', 'current' => (float)$cur['impressions'], 'previous' => (float)$prev['impressions'], 'change' => round($c, 1)];
+    }
+    // المتابعين: بنقارن صافي الزيادة، أو العدد الحالي لو العدد نزل فعلاً
+    $fc = (float)($folCur['current'] ?? 0); $fp = $fc - (float)($folCur['growth'] ?? 0);
+    $c2 = an_change($fc, $fp);
+    if ($c2 !== null && $c2 <= -$threshold) {
+        $out[] = ['metric' => 'followers', 'current' => $fc, 'previous' => $fp, 'change' => round($c2, 1)];
+    } else {
+        $gc = (float)($folCur['growth'] ?? 0); $gp = (float)($folPrev['growth'] ?? 0);
+        $c3 = $gp > 0 ? an_change($gc, $gp) : null;
+        if ($c3 !== null && $c3 <= -$threshold) {
+            $out[] = ['metric' => 'followers_gained', 'current' => $gc, 'previous' => $gp, 'change' => round($c3, 1)];
+        }
+    }
+    return $out;
+}
+
+/**
+ * للاستخدام من أي موديول (زي التنبيهات): بيجيب البيانات ويرجع الانخفاضات.
+ * $q: profileId?, accountId?, fromDate, toDate (Y-m-d)، threshold? (افتراضي 30).
+ * بيرجع [['metric' => impressions|followers|followers_gained, 'current', 'previous', 'change'], ...]
+ * 4 نداءات قراءة. لو حصل خطأ بيرجع [] (مفيش إنذار كاذب).
+ */
+function an_drop_signals(Zernio $z, array $q): array
+{
+    $from = (string)($q['fromDate'] ?? gmdate('Y-m-d', time() - 29 * 86400));
+    $to = (string)($q['toDate'] ?? gmdate('Y-m-d'));
+    $len = max(1, (int)round((strtotime($to) - strtotime($from)) / 86400) + 1);
+    $pto = gmdate('Y-m-d', strtotime($from) - 86400);
+    $pfrom = gmdate('Y-m-d', strtotime($pto) - ($len - 1) * 86400);
+    $acc = $q['accountId'] ?? null;
+    $pid = $q['profileId'] ?? null;
+    try {
+        [$cur] = an_sum_daily(an_daily_full($z, ['profileId' => $pid, 'accountId' => $acc, 'fromDate' => $from, 'toDate' => $to]));
+        [$prev] = an_sum_daily(an_daily_full($z, ['profileId' => $pid, 'accountId' => $acc, 'fromDate' => $pfrom, 'toDate' => $pto]));
+        $fc = an_follower_totals(an_follower_stats($z, ['profileId' => $pid, 'accountIds' => $acc, 'fromDate' => $from, 'toDate' => $to]));
+        $fp = an_follower_totals(an_follower_stats($z, ['profileId' => $pid, 'accountIds' => $acc, 'fromDate' => $pfrom, 'toDate' => $pto]));
+    } catch (Throwable $e) {
+        return [];
+    }
+    return an_drop_signals_from($cur, $prev, $fc, $fp, (float)($q['threshold'] ?? 30));
+}
+
+/** أفضل عدد منشورات في الأسبوع من posting-frequency (موزون بعدد الأسابيع) */
+function an_best_frequency(array $freq): ?int
+{
+    $agg = [];
+    foreach ($freq as $f) {
+        $k = (int)($f['posts_per_week'] ?? 0);
+        $w = max(1, (int)($f['weeks_count'] ?? 1));
+        $agg[$k] = $agg[$k] ?? ['w' => 0, 'r' => 0];
+        $agg[$k]['w'] += $w;
+        $agg[$k]['r'] += (float)($f['avg_engagement_rate'] ?? 0) * $w;
+    }
+    $best = null; $mx = -1;
+    foreach ($agg as $k => $v) { $r = $v['r'] / $v['w']; if ($r > $mx) { $mx = $r; $best = $k; } }
+    return $best;
+}
+
+/**
+ * درجة صحة الحساب 0..100 = نمو (25) + معدل التفاعل مقابل الفترة السابقة (30) + انتظام النشر (30) + حالة الاتصال (15).
+ * بيرجع ['score' => int, 'parts' => [[key, points, max, detail], ...]]
+ */
+function an_health_score(array $in): array
+{
+    $parts = [];
+    // النمو: 12.5 = ثابت، 25 = نمو 2% أو أكتر، 0 = خسارة 2% أو أكتر
+    $cur = (float)($in['followers'] ?? 0); $g = (float)($in['growth'] ?? 0);
+    $gp = $cur - $g > 0 ? $g / ($cur - $g) * 100 : ($g > 0 ? 2 : 0);
+    $parts[] = ['growth', round(max(0, min(25, 12.5 + $gp / 2 * 12.5)), 1), 25, $gp];
+    // التفاعل: 15 = زي الفترة السابقة، 30 = ضعفها، 0 = صفر
+    $r = (float)($in['rate'] ?? 0); $rp = (float)($in['ratePrev'] ?? 0);
+    $er = $rp > 0 ? min(30, $r / $rp * 15) : ($r > 0 ? 22.5 : 0);
+    $parts[] = ['engagement', round(max(0, $er), 1), 30, $rp > 0 ? ($r - $rp) : null];
+    // الانتظام: منشورات في الأسبوع ÷ أفضل عدد (لو مش معروف: 3)
+    $ppw = (float)($in['postsPerWeek'] ?? 0); $best = (float)($in['bestFrequency'] ?? 0) ?: 3;
+    $parts[] = ['consistency', round(max(0, min(30, $ppw / $best * 30)), 1), 30, [$ppw, $best]];
+    // الاتصال: 15 لو كل الحسابات شغالة
+    $tot = max(1, (int)($in['accounts'] ?? 1)); $bad = (int)($in['needsReconnect'] ?? 0);
+    $parts[] = ['connection', round(15 * (1 - $bad / $tot), 1), 15, $bad];
+    $score = 0;
+    foreach ($parts as $p) $score += $p[1];
+    return ['score' => (int)round($score), 'parts' => $parts];
+}
+
+/** انحدار خطي بسيط: بيرجع [slope, intercept] أو null */
+function an_linreg(array $ys): ?array
+{
+    $n = count($ys);
+    if ($n < 2) return null;
+    $sx = $sy = $sxy = $sxx = 0;
+    foreach (array_values($ys) as $x => $y) { $sx += $x; $sy += $y; $sxy += $x * $y; $sxx += $x * $x; }
+    $den = $n * $sxx - $sx * $sx;
+    if ($den == 0) return null;
+    $m = ($n * $sxy - $sx * $sy) / $den;
+    return [$m, ($sy - $m * $sx) / $n];
+}
+
+/** توقع المتابعين بعد $days يوم من نقاط follower-stats (null لو أقل من 7 نقط) */
+function an_follower_forecast(array $points, int $days = 30): ?array
+{
+    $ys = [];
+    $dates = [];
+    foreach ($points as $p) { $ys[] = (float)($p['followers'] ?? 0); $dates[] = substr((string)($p['date'] ?? ''), 0, 10); }
+    if (count($ys) < 7) return null;
+    $lr = an_linreg($ys);
+    if (!$lr) return null;
+    [$m, $b] = $lr;
+    $n = count($ys);
+    // المسافة بالأيام بين النقط (لو weekly مثلاً)
+    $span = max(1, (strtotime(end($dates)) - strtotime($dates[0])) / 86400 / max(1, $n - 1));
+    $steps = $days / $span;
+    $future = [];
+    for ($i = 1; $i <= (int)ceil($steps); $i++) $future[] = max(0, $m * ($n - 1 + $i) + $b);
+    return ['perDay' => $m / $span, 'value' => max(0, $m * ($n - 1 + $steps) + $b), 'fitted' => array_map(function ($x) use ($m, $b) { return $m * $x + $b; }, range(0, $n - 1)), 'future' => $future, 'last' => end($ys)];
+}
+
+/** الهاشتاجات من النص (عربي ولاتيني). صيغة لينكدإن {hashtag|\#|X} مدعومة */
+function an_hashtags(string $text): array
+{
+    $text = preg_replace('/\{hashtag\|\\\\?#\|([^}]+)\}/u', '#$1', $text);
+    preg_match_all('/(?<![\p{L}\p{N}_&])#([\p{L}\p{M}\p{N}_]{2,60})/u', $text, $m);
+    $out = [];
+    foreach ($m[1] as $h) $out[mb_strtolower($h)] = true;
+    return array_keys($out);
+}
+
+/** نص المنشور من غير صيغة لينكدإن للهاشتاجات/المنشن */
+function an_plain_text(string $text): string
+{
+    $text = preg_replace('/\{hashtag\|\\\\?#\|([^}]+)\}/u', '#$1', $text);
+    return preg_replace('/@\[([^\]]+)\]\([^)]*\)/u', '$1', $text);
+}
+
+function an_has_emoji(string $s): bool
+{
+    return (bool)preg_match('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{1F000}-\x{1F2FF}\x{2B00}-\x{2BFF}]/u', $s);
+}
+
+/** مجموعة من المنشورات: [count, avgImpressions, avgRate] */
+function an_group_stats(array $posts): array
+{
+    $n = count($posts); $imp = 0; $rate = 0;
+    foreach ($posts as $p) { $an = (array)($p['analytics'] ?? []); $imp += (float)($an['impressions'] ?? 0); $rate += (float)($an['engagementRate'] ?? 0); }
+    return [$n, $n ? $imp / $n : 0, $n ? $rate / $n : 0];
+}
+
+/* ---------- وسوم المنشورات المحلية (جدول post_tags) ---------- */
+
+function an_tags_available(): bool
+{
+    static $ok = null;
+    if ($ok === null) {
+        try { db()->query("SELECT 1 FROM post_tags LIMIT 1"); $ok = true; } catch (Throwable $e) { $ok = false; }
+    }
+    return $ok;
+}
+
+/** [postId => [tag, ...]] للشركة الحالية */
+function an_tags_map(): array
+{
+    if (!an_tags_available()) return [];
+    $st = db()->prepare("SELECT post_id, tag FROM post_tags WHERE workspace_id = ? ORDER BY tag");
+    $st->execute([(int)ws('id')]);
+    $out = [];
+    foreach ($st->fetchAll() as $r) $out[$r['post_id']][] = $r['tag'];
+    return $out;
+}
+
+function an_clean_tag(string $t): string
+{
+    $t = trim(preg_replace('/\s+/u', ' ', $t));
+    return mb_substr(ltrim($t, '#'), 0, 40);
+}
+
+/** يحفظ وسوم منشور (بيستبدل القديمة) */
+function an_set_tags(string $postId, array $tags): void
+{
+    $wid = (int)ws('id');
+    $pdo = db();
+    $pdo->prepare("DELETE FROM post_tags WHERE workspace_id = ? AND post_id = ?")->execute([$wid, $postId]);
+    $ins = $pdo->prepare("INSERT IGNORE INTO post_tags (workspace_id, post_id, tag) VALUES (?, ?, ?)");
+    foreach (array_slice(array_unique(array_filter(array_map('an_clean_tag', $tags))), 0, 10) as $t) $ins->execute([$wid, $postId, $t]);
+}
+
+/* ---------- نداءات المرحلة التانية ---------- */
+
+/** عميل لشركة تانية المستخدم عضو فيها (للمقارنة)، أو null */
+function an_other_workspace_client(int $wid, ?string &$profile = null): ?Zernio
+{
+    $mine = false;
+    foreach (user_workspaces() as $w) if ((int)$w['id'] === $wid) $mine = true;
+    if (!$mine) return null;
+    foreach (connections('zernio', $wid) as $c) {
+        $key = (string)($c['credentials']['api_key'] ?? '');
+        if ($key !== '') { $profile = $c['settings']['profile_id'] ?? null; return new Zernio($key); }
+    }
+    return null;
+}
+
+function an_yt_retention(Zernio $z, string $accountId, string $videoId): array
+{
+    return $z->request('GET', '/v1/analytics/youtube/video-retention', ['accountId' => $accountId, 'videoId' => $videoId]);
+}
+
+function an_yt_daily_views(Zernio $z, string $accountId, string $videoId, string $from, string $to): array
+{
+    return $z->request('GET', '/v1/analytics/youtube/daily-views', ['accountId' => $accountId, 'videoId' => $videoId, 'fromDate' => $from, 'toDate' => $to]);
+}
+
+function an_fb_earnings(Zernio $z, string $accountId, string $platformPostId): array
+{
+    return $z->request('GET', '/v1/analytics/facebook/post-earnings', ['accountId' => $accountId, 'postId' => $platformPostId]);
+}
+
+function an_fb_page_posts(Zernio $z, string $accountId, string $kind): array
+{
+    $path = $kind === 'tagged' ? 'facebook-tagged-posts' : 'facebook-visitor-posts';
+    return $z->request('GET', '/v1/accounts/' . rawurlencode($accountId) . '/' . $path, ['limit' => 10])['data'] ?? [];
+}
+
+/** تقرير جوجل أناليتكس (قراءة بس): الجلسات والمستخدمين من مصادر السوشيال */
+function an_ga_social(Zernio $z, string $accountId, string $from, string $to): array
+{
+    return $z->request('POST', '/v1/analytics/googleanalytics/report', [], [
+        'accountId' => $accountId,
+        'dimensions' => ['sessionSource'],
+        'metrics' => ['sessions', 'activeUsers', 'engagementRate'],
+        'dateRanges' => [['startDate' => $from, 'endDate' => $to]],
+        'dimensionFilter' => ['filter' => ['fieldName' => 'sessionDefaultChannelGroup', 'stringFilter' => ['matchType' => 'CONTAINS', 'value' => 'Social', 'caseSensitive' => false]]],
+        'orderBys' => [['metric' => ['metricName' => 'sessions'], 'desc' => true]],
+        'limit' => 15,
+    ]);
+}
