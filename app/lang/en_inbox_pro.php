@@ -154,4 +154,5 @@ return [
     'منشور واحد' => 'One post',
     'منشور واحد: %s' => 'One post: %s',
     'يبدأ لما' => 'Starts when',
+    'التصنيفات مش متاحة: %s' => 'Labels unavailable: %s',
 ];

@@ -163,6 +163,7 @@ $current = null;
 $apiError = null;
 $pageLabels = null;   // null = not loaded / not supported
 $convLabels = [];
+$labelError = null;
 $posts = [];
 $comments = [];
 $currentPost = null;
@@ -215,6 +216,7 @@ if ($z) {
                         $convLabels = ip_conversation_labels($z, $convId, $accId);
                     } catch (ZernioException $ex) {
                         $pageLabels = null;
+                        $labelError = $ex->getMessage();
                     }
                 }
             }
@@ -255,7 +257,7 @@ function ip_private_reply_block(array $c, string $postId, string $accId, bool $i
     <?php
 }
 
-render(t('الرسائل المتقدمة'), 'inbox_pro', function () use ($z, $folder, $status, $platform, $acctFilter, $q, $base, $accounts, $convs, $next, $messages, $current, $convId, $accId, $apiError, $pageLabels, $convLabels, $posts, $comments, $currentPost, $postId, $msgPlatforms) {
+render(t('الرسائل المتقدمة'), 'inbox_pro', function () use ($z, $folder, $status, $platform, $acctFilter, $q, $base, $accounts, $convs, $next, $messages, $current, $convId, $accId, $apiError, $pageLabels, $convLabels, $labelError, $posts, $comments, $currentPost, $postId, $msgPlatforms) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
     $folders = ['inbox' => t('الوارد'), 'requests' => t('طلبات الرسائل'), 'comments' => t('رد خاص على تعليق')];
@@ -378,6 +380,7 @@ render(t('الرسائل المتقدمة'), 'inbox_pro', function () use ($z, $
               <?php endif; ?>
             </div>
           </div>
+          <?php if ($labelError): ?><p class="px-3 py-1 text-[11px] text-ink-400 border-b border-ink-100"><?= e(t('التصنيفات مش متاحة: %s', $labelError)) ?></p><?php endif; ?>
           <?php if (is_array($pageLabels)): ?>
             <details class="px-3 py-2 border-b border-ink-100 text-sm">
               <summary class="cursor-pointer text-xs font-semibold text-brand-700"><?= e(t('تصنيفات الصفحة (فيسبوك)')) ?></summary>
@@ -403,7 +406,7 @@ render(t('الرسائل المتقدمة'), 'inbox_pro', function () use ($z, $
           <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-ink-50" id="thread">
             <?php foreach ($messages as $m): $out = ($m['direction'] ?? '') === 'outgoing'; $mid = (string)($m['id'] ?? ''); ?>
               <div class="flex <?= $out ? 'justify-start' : 'justify-end' ?>">
-                <div class="max-w-[80%]">
+                <div class="max-w-[80%] group">
                   <div class="rounded-2xl px-4 py-2 text-sm <?= $out ? 'bg-brand-600 text-white' : 'bg-white border border-ink-200' ?>">
                     <?php if (!empty($m['isDeleted'])): ?><em class="opacity-70"><?= e(t('رسالة محذوفة')) ?></em>
                     <?php else: ?>
@@ -425,7 +428,7 @@ render(t('الرسائل المتقدمة'), 'inbox_pro', function () use ($z, $
                     </div>
                   <?php endif; ?>
                   <?php if ($mid !== '' && empty($m['isDeleted'])): ?>
-                    <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-ink-500 <?= $out ? '' : 'justify-end' ?>">
+                    <div class="flex flex-wrap items-center gap-2 mt-1 text-xs text-ink-500 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition <?= $out ? '' : 'justify-end' ?>">
                       <?php if (ip_can_react($plat)): ?>
                         <form method="post" class="inline-flex gap-0.5"><?= csrf_field() ?><input type="hidden" name="action" value="react"><input type="hidden" name="message_id" value="<?= e($mid) ?>">
                           <?php foreach (['👍', '❤️', '😂', '😮', '😢', '🙏'] as $em): ?><button name="emoji" value="<?= e($em) ?>" class="hover:scale-125 transition" title="<?= e(t('تفاعل')) ?>"><?= $em ?></button><?php endforeach; ?>
