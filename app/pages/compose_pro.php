@@ -1,0 +1,346 @@
+<?php
+$err = null;
+$z = zernio_or_null($err);
+$accounts = [];
+$boards = [];
+$apiError = null;
+$profileId = null;
+$validation = null;
+$old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule', 'opt' => [], 'rec' => []];
+
+if ($z) {
+    try {
+        $profileId = current_profile_id($z);
+        $accounts = array_values(array_filter($z->accounts(zernio_profile()), function ($a) {
+            return ($a['isActive'] ?? true) && empty($a['needsReconnection']);
+        }));
+        foreach ($accounts as $a) {
+            if ($a['platform'] === 'pinterest') {
+                try {
+                    $boards[$a['_id']] = pub_pinterest_boards($z, $a['_id']);
+                } catch (ZernioException $ex) {
+                    $boards[$a['_id']] = [];
+                }
+            }
+        }
+    } catch (ZernioException $ex) {
+        $apiError = $ex->getMessage();
+    }
+}
+
+/** يبني إعدادات كل منصة من الفورم */
+function cpro_platform_item(array $acc, array $o): array
+{
+    $p = $acc['platform'];
+    $item = ['platform' => $p, 'accountId' => $acc['_id']];
+    $custom = trim((string)($o['custom'] ?? ''));
+    if ($custom !== '') $item['customContent'] = $custom;
+    $d = [];
+    $s = function ($k) use ($o) { return trim((string)($o[$k] ?? '')); };
+    switch ($p) {
+        case 'tiktok':
+            $priv = in_array($s('privacy'), ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'], true) ? $s('privacy') : 'PUBLIC_TO_EVERYONE';
+            $d = ['privacyLevel' => $priv, 'allowComment' => !empty($o['comment']), 'allowDuet' => !empty($o['duet']), 'allowStitch' => !empty($o['stitch']),
+                  'contentPreviewConfirmed' => true, 'expressConsentGiven' => true];
+            break;
+        case 'youtube':
+            if ($s('title') !== '') $d['title'] = mb_substr($s('title'), 0, 100);
+            $d['visibility'] = in_array($s('visibility'), ['public', 'private', 'unlisted'], true) ? $s('visibility') : 'public';
+            $d['madeForKids'] = !empty($o['kids']);
+            if ($s('first_comment') !== '') $d['firstComment'] = $s('first_comment');
+            break;
+        case 'pinterest':
+            if ($s('board') !== '') $d['boardId'] = $s('board');
+            if ($s('title') !== '') $d['title'] = mb_substr($s('title'), 0, 100);
+            if ($s('link') !== '') $d['link'] = $s('link');
+            break;
+        case 'instagram':
+            if ($s('type') === 'story') $d['contentType'] = 'story';
+            if ($s('type') === 'reel_only') $d['shareToFeed'] = false;
+            if ($s('first_comment') !== '' && $s('type') !== 'story') $d['firstComment'] = $s('first_comment');
+            break;
+        case 'facebook':
+            if (in_array($s('type'), ['story', 'reel'], true)) $d['contentType'] = $s('type');
+            if ($s('first_comment') !== '' && $s('type') !== 'story') $d['firstComment'] = $s('first_comment');
+            break;
+        case 'linkedin':
+            if ($s('first_comment') !== '') $d['firstComment'] = $s('first_comment');
+            if (!empty($o['no_preview'])) $d['disableLinkPreview'] = true;
+            break;
+    }
+    if ($d) $item['platformSpecificData'] = $d;
+    return $item;
+}
+
+$allowedMime = [
+    'image/jpeg' => 'image', 'image/png' => 'image', 'image/webp' => 'image', 'image/gif' => 'gif',
+    'video/mp4' => 'video', 'video/quicktime' => 'video', 'video/webm' => 'video',
+    'application/pdf' => 'document',
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
+    $old['content'] = trim((string)($_POST['content'] ?? ''));
+    $old['accounts'] = array_map('strval', (array)($_POST['accounts'] ?? []));
+    $old['when'] = (string)($_POST['when'] ?? '');
+    $old['mode'] = in_array($_POST['mode'] ?? '', ['now', 'schedule', 'draft', 'queue'], true) ? $_POST['mode'] : 'schedule';
+    $old['opt'] = (array)($_POST['opt'] ?? []);
+    $old['rec'] = (array)($_POST['rec'] ?? []);
+    $onlyCheck = ($_POST['action'] ?? '') === 'validate';
+
+    $byId = [];
+    foreach ($accounts as $a) $byId[$a['_id']] = $a;
+    $platforms = [];
+    foreach ($old['accounts'] as $id) {
+        if (isset($byId[$id])) $platforms[] = cpro_platform_item($byId[$id], (array)($old['opt'][$id] ?? []));
+    }
+
+    $errors = [];
+    if (!$platforms && $old['mode'] !== 'draft') $errors[] = t('اختار حساب واحد على الأقل.');
+
+    // فحص المحتوى عند Zernio قبل أي حاجة
+    if ($platforms) {
+        try {
+            $validation = pub_validate_post($z, ['content' => $old['content'], 'platforms' => $platforms]);
+            if (empty($validation['valid'])) $errors[] = t('Zernio لقى مشاكل في المنشور، راجعها تحت.');
+        } catch (ZernioException $ex) {
+            $errors[] = $ex->getMessage();
+        }
+    }
+
+    if ($onlyCheck) {
+        if (!$errors) flash('success', t('المنشور سليم وجاهز.'));
+        foreach ($errors as $m) flash('error', $m);
+    } else {
+        $media = [];
+        if (!$errors && !empty($_FILES['media']['name'][0])) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            foreach ($_FILES['media']['tmp_name'] as $i => $tmp) {
+                $code = $_FILES['media']['error'][$i];
+                if ($code === UPLOAD_ERR_NO_FILE) continue;
+                if ($code !== UPLOAD_ERR_OK || !is_uploaded_file($tmp)) {
+                    $errors[] = t('فشل رفع ملف "%s".', $_FILES['media']['name'][$i]);
+                    continue;
+                }
+                $mime = $finfo->file($tmp);
+                if (!isset($allowedMime[$mime])) {
+                    $errors[] = t('نوع الملف "%s" غير مدعوم.', $_FILES['media']['name'][$i]);
+                    continue;
+                }
+                try {
+                    $name = preg_replace('/[^\w.\-]+/u', '_', basename($_FILES['media']['name'][$i]));
+                    $media[] = ['type' => $allowedMime[$mime], 'url' => $z->uploadFile($tmp, $name, $mime)];
+                } catch (ZernioException $ex) {
+                    $errors[] = $ex->getMessage();
+                }
+            }
+        }
+        if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
+
+        $payload = ['content' => $old['content'], 'platforms' => $platforms, 'timezone' => site_timezone()];
+        if ($media) $payload['mediaItems'] = $media;
+        if ($old['mode'] === 'now') {
+            $payload['publishNow'] = true;
+        } elseif ($old['mode'] === 'draft') {
+            $payload['isDraft'] = true;
+        } elseif ($old['mode'] === 'queue') {
+            $payload['queuedFromProfile'] = $profileId;
+        } else {
+            $dt = DateTime::createFromFormat('Y-m-d\TH:i', $old['when'], new DateTimeZone(site_timezone()));
+            if (!$dt) {
+                $errors[] = t('اختار تاريخ ووقت النشر.');
+            } elseif ($dt < new DateTime('now', new DateTimeZone(site_timezone()))) {
+                $errors[] = t('وقت النشر لازم يكون في المستقبل.');
+            } else {
+                $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
+            }
+        }
+        if (!empty($old['rec']['on'])) {
+            $gap = max(1, (int)($old['rec']['gap'] ?? 1));
+            $rec = ['enabled' => true, 'gap' => $gap, 'gapFreq' => ($old['rec']['freq'] ?? '') === 'week' ? 'week' : 'month'];
+            if ((int)($old['rec']['count'] ?? 0) > 0) $rec['expireCount'] = (int)$old['rec']['count'];
+            $payload['recycling'] = $rec;
+        }
+
+        if (!$errors) {
+            try {
+                $r = $z->createPost($payload);
+                log_activity('post.create_pro', $old['mode'] . ' ' . count($platforms) . ' accounts');
+                $msg = ['now' => t('تم نشر المنشور.'), 'draft' => t('تم حفظ المسودة.'), 'schedule' => t('تمت جدولة المنشور.'), 'queue' => t('المنشور اتحط في الطابور.')][$old['mode']];
+                flash('success', $msg);
+                $newId = $r['post']['_id'] ?? '';
+                redirect($newId ? url('post_edit', ['id' => $newId]) : url('posts'));
+            } catch (ZernioException $ex) {
+                $errors[] = $ex->getMessage();
+            }
+        }
+        foreach ($errors as $m) flash('error', $m);
+    }
+}
+
+render(t('منشور متقدم'), 'compose_pro', function () use ($z, $accounts, $boards, $apiError, $old, $validation) {
+    if (!$z) { no_api_box(); return; }
+    if ($apiError) { error_box($apiError); return; }
+    if (!$accounts) {
+        echo '<div class="card p-6">' . e(t('مفيش حسابات مربوطة.')) . ' <a class="link" href="' . e(url('accounts')) . '">' . e(t('اربط حساب الأول')) . '</a></div>';
+        return;
+    }
+    $defaultWhen = (new DateTime('+1 hour', new DateTimeZone(site_timezone())))->format('Y-m-d\TH:00');
+    $o = function ($acc, $k, $def = '') use ($old) { return $old['opt'][$acc][$k] ?? $def; };
+    $posted = $_SERVER['REQUEST_METHOD'] === 'POST';
+    $chk = function ($acc, $k, $def = true) use ($old, $posted) { return ($posted ? !empty($old['opt'][$acc][$k]) : $def) ? 'checked' : ''; };
+    ?>
+    <?php if ($validation && (!empty($validation['errors']) || !empty($validation['warnings']))): ?>
+      <div class="card p-4 mb-5 space-y-1 text-sm">
+        <?php foreach ($validation['errors'] ?? [] as $v): ?><p class="text-red-700">✕ <b><?= e(platform_label((string)($v['platform'] ?? ''))) ?>:</b> <?= e($v['error'] ?? '') ?></p><?php endforeach; ?>
+        <?php foreach ($validation['warnings'] ?? [] as $v): ?><p class="text-amber-700">! <b><?= e(platform_label((string)($v['platform'] ?? ''))) ?>:</b> <?= e($v['warning'] ?? '') ?></p><?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <form method="post" enctype="multipart/form-data" class="grid lg:grid-cols-3 gap-6">
+      <?= csrf_field() ?>
+      <div class="lg:col-span-2 space-y-6">
+        <div class="card p-5">
+          <label class="block"><span class="label"><?= e(t('النص الأساسي (بيتنشر على كل المنصات إلا لو كتبت نص خاص)')) ?></span>
+            <textarea name="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label>
+          <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
+            <input type="file" name="media[]" multiple accept="image/*,video/*,application/pdf" class="input"></label>
+          <p class="text-xs text-ink-500 mt-1"><?= e(t('أقصى حجم للملف على السيرفر بتاعك:')) ?> <?= e(ini_get('upload_max_filesize')) ?></p>
+        </div>
+
+        <div class="space-y-4" id="platformPanels">
+          <p class="text-sm text-ink-500" id="noPanels"><?= e(t('اختار حسابات من الجنب عشان تظهر إعدادات كل منصة هنا.')) ?></p>
+          <?php foreach ($accounts as $a): $id = $a['_id']; $p = $a['platform']; $n = 'opt[' . $id . ']'; ?>
+            <div class="card p-5 space-y-3 hidden panel" data-acc="<?= e($id) ?>">
+              <div class="flex items-center gap-2">
+                <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? '', 'w-7 h-7') ?>
+                <b class="text-sm"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></b>
+                <span class="badge"><?= e(platform_label($p)) ?></span>
+              </div>
+              <label class="block"><span class="label"><?= e(t('نص خاص بالحساب ده (اختياري)')) ?></span>
+                <textarea name="<?= e($n) ?>[custom]" rows="3" class="input" placeholder="<?= e(t('سيبه فاضي عشان يستخدم النص الأساسي')) ?>"><?= e($o($id, 'custom')) ?></textarea></label>
+
+              <?php if ($p === 'tiktok'): ?>
+                <label class="block"><span class="label"><?= e(t('مين يشوف الفيديو؟')) ?></span>
+                  <select name="<?= e($n) ?>[privacy]" class="input">
+                    <?php foreach (['PUBLIC_TO_EVERYONE' => t('الكل'), 'MUTUAL_FOLLOW_FRIENDS' => t('الأصحاب بس'), 'FOLLOWER_OF_CREATOR' => t('المتابعين بس'), 'SELF_ONLY' => t('أنا بس')] as $k => $l): ?>
+                      <option value="<?= $k ?>" <?= $o($id, 'privacy') === $k ? 'selected' : '' ?>><?= e($l) ?></option>
+                    <?php endforeach; ?>
+                  </select></label>
+                <div class="flex flex-wrap gap-4 text-sm">
+                  <label class="flex items-center gap-2"><input type="checkbox" name="<?= e($n) ?>[comment]" value="1" <?= $chk($id, 'comment') ?>> <?= e(t('اسمح بالتعليقات')) ?></label>
+                  <label class="flex items-center gap-2"><input type="checkbox" name="<?= e($n) ?>[duet]" value="1" <?= $chk($id, 'duet') ?>> <?= e(t('اسمح بالـ Duet')) ?></label>
+                  <label class="flex items-center gap-2"><input type="checkbox" name="<?= e($n) ?>[stitch]" value="1" <?= $chk($id, 'stitch') ?>> <?= e(t('اسمح بالـ Stitch')) ?></label>
+                </div>
+              <?php elseif ($p === 'youtube'): ?>
+                <label class="block"><span class="label"><?= e(t('عنوان الفيديو')) ?></span>
+                  <input name="<?= e($n) ?>[title]" maxlength="100" class="input" value="<?= e($o($id, 'title')) ?>"></label>
+                <label class="block"><span class="label"><?= e(t('مين يشوف الفيديو؟')) ?></span>
+                  <select name="<?= e($n) ?>[visibility]" class="input">
+                    <?php foreach (['public' => t('عام للكل'), 'unlisted' => t('باللينك بس'), 'private' => t('خاص')] as $k => $l): ?>
+                      <option value="<?= $k ?>" <?= $o($id, 'visibility') === $k ? 'selected' : '' ?>><?= e($l) ?></option>
+                    <?php endforeach; ?>
+                  </select></label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="<?= e($n) ?>[kids]" value="1" <?= $chk($id, 'kids', false) ?>> <?= e(t('الفيديو معمول للأطفال')) ?></label>
+                <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري)')) ?></span>
+                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+              <?php elseif ($p === 'pinterest'): ?>
+                <label class="block"><span class="label"><?= e(t('اللوحة (Board)')) ?></span>
+                  <select name="<?= e($n) ?>[board]" class="input">
+                    <option value=""><?= e(t('أول لوحة (تلقائي)')) ?></option>
+                    <?php foreach ($boards[$id] ?? [] as $b): ?>
+                      <option value="<?= e($b['id']) ?>" <?= $o($id, 'board') === $b['id'] ? 'selected' : '' ?>><?= e($b['name'] ?? $b['id']) ?></option>
+                    <?php endforeach; ?>
+                  </select></label>
+                <label class="block"><span class="label"><?= e(t('عنوان الـ Pin')) ?></span>
+                  <input name="<?= e($n) ?>[title]" maxlength="100" class="input" value="<?= e($o($id, 'title')) ?>"></label>
+                <label class="block"><span class="label"><?= e(t('رابط الـ Pin (اختياري)')) ?></span>
+                  <input name="<?= e($n) ?>[link]" type="url" class="input" dir="ltr" value="<?= e($o($id, 'link')) ?>"></label>
+              <?php elseif ($p === 'instagram' || $p === 'facebook'): ?>
+                <label class="block"><span class="label"><?= e(t('نوع المنشور')) ?></span>
+                  <select name="<?= e($n) ?>[type]" class="input">
+                    <?php $types = $p === 'instagram'
+                        ? ['' => t('منشور عادي أو Reel (حسب الميديا)'), 'reel_only' => t('Reel في تبويب الريلز بس'), 'story' => t('ستوري (24 ساعة)')]
+                        : ['' => t('منشور عادي'), 'reel' => t('Reel'), 'story' => t('ستوري (24 ساعة)')];
+                    foreach ($types as $k => $l): ?>
+                      <option value="<?= $k ?>" <?= $o($id, 'type') === $k ? 'selected' : '' ?>><?= e($l) ?></option>
+                    <?php endforeach; ?>
+                  </select></label>
+                <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري، مش للستوري)')) ?></span>
+                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+              <?php elseif ($p === 'linkedin'): ?>
+                <label class="block"><span class="label"><?= e(t('أول تعليق (اختياري)')) ?></span>
+                  <input name="<?= e($n) ?>[first_comment]" class="input" value="<?= e($o($id, 'first_comment')) ?>"></label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="<?= e($n) ?>[no_preview]" value="1" <?= $chk($id, 'no_preview', false) ?>> <?= e(t('متعرضش معاينة للروابط')) ?></label>
+              <?php endif; ?>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div class="card p-5">
+          <span class="font-bold block mb-3"><?= e(t('انشر على')) ?></span>
+          <div class="space-y-2 max-h-80 overflow-auto">
+            <?php foreach ($accounts as $a): ?>
+              <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-ink-50 cursor-pointer">
+                <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $old['accounts'], true) ? 'checked' : '' ?> class="acc w-4 h-4">
+                <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? $a['username'] ?? '', 'w-8 h-8') ?>
+                <span class="text-sm leading-tight"><span class="block font-semibold"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span>
+                  <span class="block text-xs text-ink-500"><?= e(platform_label($a['platform'])) ?></span></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <div class="card p-5 space-y-3">
+          <span class="font-bold block"><?= e(t('إمتى؟')) ?></span>
+          <?php foreach (['schedule' => t('جدولة لوقت محدد'), 'queue' => t('ضيف للطابور (أقرب ميعاد فاضي)'), 'now' => t('انشر دلوقتي'), 'draft' => t('احفظ كمسودة')] as $k => $l): ?>
+            <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode"> <?= e($l) ?></label>
+          <?php endforeach; ?>
+          <div id="whenBox">
+            <input type="datetime-local" name="when" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="input" dir="ltr">
+            <p class="text-xs text-ink-500 mt-1"><?= e(t('بتوقيت:')) ?> <?= e(site_timezone()) ?></p>
+          </div>
+          <p class="text-xs text-ink-500"><a class="link" href="<?= e(url('queue')) ?>"><?= e(t('إدارة مواعيد الطابور')) ?></a></p>
+        </div>
+
+        <div class="card p-5 space-y-3">
+          <label class="flex items-center gap-2 font-bold"><input type="checkbox" name="rec[on]" value="1" <?= !empty($old['rec']['on']) ? 'checked' : '' ?>> <?= e(t('إعادة النشر تلقائياً')) ?></label>
+          <p class="text-xs text-ink-500"><?= e(t('بعد النشر، المنشور هيتنشر تاني كل فترة. مش متاح ليوتيوب وتيك توك.')) ?></p>
+          <div class="flex gap-2 items-center text-sm">
+            <span><?= e(t('كل')) ?></span>
+            <input type="number" min="1" name="rec[gap]" value="<?= e($old['rec']['gap'] ?? '1') ?>" class="input !mt-0 w-20">
+            <select name="rec[freq]" class="input !mt-0 w-28">
+              <option value="week" <?= ($old['rec']['freq'] ?? '') === 'week' ? 'selected' : '' ?>><?= e(t('أسبوع')) ?></option>
+              <option value="month" <?= ($old['rec']['freq'] ?? 'month') === 'month' ? 'selected' : '' ?>><?= e(t('شهر')) ?></option>
+            </select>
+          </div>
+          <label class="block text-sm"><?= e(t('يقف بعد كام مرة؟ (فاضي = مفيش حد)')) ?>
+            <input type="number" min="1" name="rec[count]" value="<?= e($old['rec']['count'] ?? '') ?>" class="input"></label>
+        </div>
+
+        <div class="space-y-2">
+          <button name="action" value="validate" class="btn-ghost w-full"><?= e(t('افحص المنشور بس')) ?></button>
+          <button name="action" value="submit" class="btn-primary w-full" onclick="var m=this.form.querySelector('.mode:checked');return !m||m.value!=='now'||confirm('<?= tjs('المنشور هيتنشر فوراً على كل الحسابات المختارة. تكمل؟') ?>')"><?= e(t('تنفيذ')) ?></button>
+          <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند Zernio، ولو فيه مشكلة مش هيتنشر.')) ?></p>
+        </div>
+      </div>
+    </form>
+    <script>
+      (function () {
+        function sync() {
+          var any = false;
+          document.querySelectorAll('.acc').forEach(function (c) {
+            var p = document.querySelector('.panel[data-acc="' + c.value + '"]');
+            if (p) p.classList.toggle('hidden', !c.checked);
+            if (c.checked) any = true;
+          });
+          document.getElementById('noPanels').classList.toggle('hidden', any);
+          var m = document.querySelector('.mode:checked');
+          document.getElementById('whenBox').classList.toggle('hidden', !m || m.value !== 'schedule');
+        }
+        document.querySelectorAll('.acc,.mode').forEach(function (el) { el.addEventListener('change', sync); });
+        sync();
+      })();
+    </script>
+    <?php
+});

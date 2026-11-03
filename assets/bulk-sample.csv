@@ -1,0 +1,3 @@
+post_content,platforms,profiles,schedule_time,tz,media_urls,custom_content_facebook
+"Good morning! Our new menu is out today.",facebook,MyProfile,2026-12-01 10:00,Africa/Cairo,,
+"Weekend offer: 20% off everything",facebook,MyProfile,2026-12-05 18:30,Africa/Cairo,https://example.com/offer.jpg,"Weekend offer on Facebook only: 20% off!"
