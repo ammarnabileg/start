@@ -520,6 +520,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
               <textarea name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
+              <?php if (ai_connection() && can('ai.use')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
             <p class="px-4 pb-2 -mt-1 text-[11px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>

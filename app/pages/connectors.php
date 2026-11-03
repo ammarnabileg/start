@@ -100,15 +100,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (in_array($action, ['primary', 'ai_mode'], true) && !is_ws_owner()) {
+    if (in_array($action, ['primary', 'ai_mode', 'ai_task'], true) && !is_ws_owner()) {
         flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.'));
         redirect(url('connectors') . '#' . $provider);
     }
 
     if ($action === 'ai_mode') {
-        save_setting('ai_mode_' . $wid, ($_POST['mode'] ?? '') === 'manual' ? 'manual' : 'auto');
-        flash('success', ($_POST['mode'] ?? '') === 'manual' ? t('المساعد سيستخدم المزود الذي اخترته فقط.') : t('المساعد سيبدأ بالمزود الأرخص، ثم الأغلى إذا فشل.'));
-        redirect(url('connectors'));
+        $manual = ($_POST['mode'] ?? '') === 'manual';
+        save_setting('ai_mode_' . $wid, $manual ? 'manual' : 'auto');
+        flash('success', $manual ? t('تم إيقاف التشغيل التلقائي. كل مهمة ستستخدم الموديل الذي تختاره لها.') : t('تم تفعيل التشغيل التلقائي: كل المهام تبدأ بالمزود الأرخص، ثم الأغلى إذا فشل.'));
+        redirect(url('connectors') . '#ai');
+    }
+
+    if ($action === 'ai_task' && is_ws_owner()) {
+        $task = (string)($_POST['task'] ?? '');
+        $choice = (string)($_POST['choice'] ?? 'auto');
+        if (isset(ai_tasks()[$task])) {
+            $all = ai_task_choices();
+            $all[$task] = preg_match('/^(auto|(openrouter|anthropic|openai|gemini)\|[\w.:\/-]*)$/', $choice) ? $choice : 'auto';
+            save_setting('ai_tasks_' . $wid, json_encode($all));
+            flash('success', t('تم حفظ موديل مهمة "%s".', ai_tasks()[$task]['name']));
+        }
+        redirect(url('connectors') . '#ai');
     }
 
     if ($action === 'toggle' && $existing) {
@@ -210,29 +223,16 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <p class="text-sm text-ink-500 mt-0.5"><?= e(t('اضغط على أي خدمة لربطها أو إدارتها. المفاتيح تُخزَّن مشفرة ولا تظهر لأحد بعد الحفظ.')) ?></p>
           </div>
         </div>
-        <?php $anyAi = array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); }); if ($anyAi): ?>
-        <div class="relative mt-5 pt-5 border-t border-ink-100 grid lg:grid-cols-[1fr_auto] gap-4 items-center">
-          <div>
-            <div class="text-sm font-medium text-ink-900"><?= e(t('اختيار مزود الذكاء الاصطناعي')) ?></div>
-            <p class="text-xs text-ink-500 mt-0.5"><?= e($aiMode === 'auto' ? t('تلقائي: كل ميزات الذكاء الاصطناعي في المنصة تبدأ بالمزود الأرخص، وإذا فشل تنتقل للأغلى.') : t('يدوي: يُستخدم المزود المختار (★) فقط، ولا يتم الانتقال لغيره.')) ?></p>
-            <div class="flex items-center gap-1.5 flex-wrap mt-3 text-xs">
-              <?php if (!$aiConns): ?><span class="text-amber-700"><?= e(t('كل مزودي الذكاء الاصطناعي متوقفون.')) ?></span><?php endif; ?>
-              <?php foreach ($aiConns as $i => $c): ?>
-                <?php if ($i): ?><svg class="w-3 h-3 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg><?php endif; ?>
-                <button type="button" data-open="<?= e($c['provider']) ?>" class="px-2.5 py-1 rounded-lg transition hover:brightness-110 <?= $i ? 'bg-white border border-ink-200 text-ink-600' : 'bg-brand-600 text-[#fff] font-medium' ?>"><span class="opacity-70"><?= $i + 1 ?>.</span> <?= e($registry[$c['provider']]['name']) ?> <span dir="ltr" class="opacity-70"><?= e($c['provider'] === 'openrouter' ? ($c['settings']['tier'] ?? 'cheap') : ($c['settings']['model'] ?? '')) ?></span></button>
-              <?php endforeach; ?>
-            </div>
-          </div>
-          <form method="post" class="seg !p-1 !text-sm" title="<?= $owner ? '' : e(t('هذا الإعداد متاح لمالك الشركة فقط.')) ?>">
-            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_mode">
-            <?php foreach (['auto' => t('الأرخص أولًا'), 'manual' => t('مزود واحد أختاره')] as $mk => $ml): ?>
-              <button name="mode" value="<?= $mk ?>" <?= $owner ? '' : 'disabled' ?> class="px-3 py-1.5 rounded-lg transition <?= $aiMode === $mk ? 'bg-brand-600 text-[#fff] shadow-sm font-medium' : 'text-ink-500 hover:text-ink-900' ?> disabled:cursor-not-allowed"><?= e($ml) ?></button>
-            <?php endforeach; ?>
-          </form>
-        </div>
-        <?php endif; ?>
       </div>
 
+      <!-- التبويبات -->
+      <div class="flex items-center gap-1 border-b border-ink-200" role="tablist" id="intg-tabs">
+        <?php foreach (['services' => [t('الخدمات'), count($registry)], 'ai' => [t('مهام الذكاء الاصطناعي'), count(ai_tasks())]] as $tk => [$tl, $tn]): ?>
+          <button type="button" role="tab" data-tab="<?= $tk ?>" class="intg-tab relative -mb-px px-4 py-2.5 text-sm font-medium text-ink-500 hover:text-ink-900 border-b-2 border-transparent transition"><?= e($tl) ?> <span class="ms-1 rounded-md bg-ink-100 px-1.5 py-0.5 text-[11px] text-ink-500"><?= $tn ?></span></button>
+        <?php endforeach; ?>
+      </div>
+
+      <div data-pane="services" class="space-y-6">
       <!-- البحث والفلاتر -->
       <div class="flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-[220px] max-w-md">
@@ -252,7 +252,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
 
       <!-- الكروت -->
       <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="intg-grid">
-        <?php foreach ($registry as $key => $def): $conns = $all[$key]; $active = array_filter($conns, function ($c) { return empty($c['settings']['disabled']); }); $err = false; foreach ($active as $c) if (!empty($details[(int)$c['id']]['error'])) $err = true; $isPrimary = $aiMode === 'manual' && $conns && (int)$conns[0]['id'] === $primaryId; ?>
+        <?php foreach ($registry as $key => $def): $conns = $all[$key]; $active = array_filter($conns, function ($c) { return empty($c['settings']['disabled']); }); $err = false; foreach ($active as $c) if (!empty($details[(int)$c['id']]['error'])) $err = true; $isPrimary = false; ?>
           <button type="button" data-open="<?= e($key) ?>" data-cat="<?= e($def['category'] ?? '') ?>" data-st="<?= $conns ? 'on' : 'off' ?>" data-q="<?= e(mb_strtolower($def['name'] . ' ' . $def['description'] . ' ' . ($cats[$def['category'] ?? ''] ?? ''))) ?>"
             class="intg-card group card p-5 text-start <?= $conns && !$active ? 'opacity-70' : '' ?> transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-ink-900/5 hover:border-brand-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 relative">
             <div class="flex items-start gap-3.5">
@@ -278,6 +278,74 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
         <?php endforeach; ?>
       </div>
       <div id="intg-empty" class="hidden card p-10 text-center text-sm text-ink-500"><?= e(t('لا توجد خدمات مطابقة.')) ?></div>
+      </div>
+
+      <!-- مهام الذكاء الاصطناعي -->
+      <div data-pane="ai" class="hidden space-y-5">
+        <?php $choices = ai_task_choices(); $manual = $aiMode === 'manual'; $aiProviders = array_values(array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); })); ?>
+        <div class="card p-5 sm:p-6 flex flex-wrap items-center gap-5 <?= !$manual ? 'ring-2 ring-brand-500/20 border-brand-300' : '' ?>">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+          <div class="flex-1 min-w-[240px]">
+            <div class="flex items-center gap-2"><h3 class="font-semibold text-ink-900"><?= e(t('التشغيل التلقائي من خلال المنصة')) ?></h3><span class="badge <?= !$manual ? 'badge-green' : '' ?>"><?= !$manual ? e(t('مفعّل')) : e(t('متوقف')) ?></span></div>
+            <p class="text-sm text-ink-500 mt-1"><?= !$manual ? e(t('المنصة تختار لكل مهمة أرخص مزود متصل، وإذا فشل تنتقل تلقائيًا للأغلى. لا تحتاج لأي إعداد.')) : e(t('كل مهمة تستخدم الموديل الذي تختاره لها في الجدول بالأسفل.')) ?></p>
+            <?php if (!$manual && $aiConns): ?>
+            <div class="flex items-center gap-1.5 flex-wrap mt-3 text-xs">
+              <span class="text-ink-400"><?= e(t('الترتيب:')) ?></span>
+              <?php foreach ($aiConns as $i => $c): ?>
+                <?php if ($i): ?><svg class="w-3 h-3 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg><?php endif; ?>
+                <span class="px-2 py-1 rounded-lg <?= $i ? 'bg-ink-100 text-ink-600' : 'bg-brand-600 text-[#fff] font-medium' ?>"><?= e($registry[$c['provider']]['name']) ?> <span dir="ltr" class="opacity-70"><?= e($c['provider'] === 'openrouter' ? ($c['settings']['tier'] ?? 'cheap') : ($c['settings']['model'] ?? '')) ?></span></span>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+          </div>
+          <form method="post" title="<?= $owner ? '' : e(t('هذا الإعداد متاح لمالك الشركة فقط.')) ?>">
+            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_mode"><input type="hidden" name="mode" value="<?= $manual ? 'auto' : 'manual' ?>">
+            <button type="submit" role="switch" aria-checked="<?= $manual ? 'false' : 'true' ?>" data-switch id="ai-auto" <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-14 h-8 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed <?= !$manual ? 'bg-lime-500' : 'bg-ink-300' ?>">
+              <span class="absolute top-1 start-1 w-6 h-6 rounded-full bg-[#fff] shadow transition-transform <?= !$manual ? 'translate-x-6 rtl:-translate-x-6' : '' ?>"></span></button>
+          </form>
+        </div>
+
+        <?php if (!$aiProviders): ?>
+          <div class="card p-8 text-center">
+            <p class="text-ink-900 font-medium"><?= e(t('لا يوجد مزود ذكاء اصطناعي متصل')) ?></p>
+            <p class="text-sm text-ink-500 mt-1 mb-4"><?= e(t('اربط مزودًا واحدًا على الأقل لتشغيل المهام. OpenRouter و Gemini فيهما استخدام مجاني.')) ?></p>
+            <div class="flex flex-wrap justify-center gap-2"><?php foreach (ai_provider_keys() as $p): ?><button type="button" data-open="<?= $p ?>" class="chip"><?= e($registry[$p]['name']) ?></button><?php endforeach; ?></div>
+          </div>
+        <?php endif; ?>
+
+        <div class="card overflow-hidden">
+          <div class="hidden md:grid grid-cols-[1.4fr_1.2fr_1fr] gap-4 px-5 py-3 bg-ink-50 border-b border-ink-200 text-xs font-medium text-ink-500">
+            <div><?= e(t('المهمة')) ?></div><div><?= e(t('الموديل')) ?></div><div><?= e(t('يعمل الآن بـ')) ?></div>
+          </div>
+          <?php foreach (ai_tasks() as $tk => $task): $choice = (string)($choices[$tk] ?? 'auto'); $chain = ai_task_chain($tk); $now = $chain[0] ?? null; $nowModel = $now ? ($now['provider'] === 'openrouter' ? t('حسب المستوى: %s', $now['settings']['tier'] ?? 'cheap') : ($now['settings']['model'] ?? '')) : ''; $fallback = $manual && $choice !== 'auto' && count($chain) > 1; ?>
+          <div class="grid md:grid-cols-[1.4fr_1.2fr_1fr] gap-4 px-5 py-4 border-b border-ink-100 last:border-0 items-center hover:bg-ink-50/60 transition">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24"><path d="<?= $task['icon'] ?>"/></svg></div>
+              <div><div class="font-medium text-ink-900"><?= e($task['name']) ?></div><div class="text-xs text-ink-500 mt-0.5"><?= e($task['desc']) ?></div><div class="text-[11px] text-ink-400 mt-1">💡 <?= e($task['hint']) ?></div></div>
+            </div>
+            <form method="post">
+              <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_task"><input type="hidden" name="task" value="<?= e($tk) ?>">
+              <select name="choice" class="input !mt-0 text-sm" dir="ltr" onchange="this.form.requestSubmit()" <?= ($manual && $owner && $aiProviders) ? '' : 'disabled' ?> title="<?= !$manual ? e(t('أوقف التشغيل التلقائي لاختيار موديل لكل مهمة.')) : '' ?>">
+                <option value="auto" <?= $choice === 'auto' ? 'selected' : '' ?>><?= e(t('تلقائي (الأرخص أولًا)')) ?></option>
+                <?php foreach ($aiProviders as $p): $c = $all[$p][0]; if (!empty($c['settings']['disabled'])) continue; ?>
+                  <optgroup label="<?= e($registry[$p]['name']) ?>">
+                    <?php if ($p === 'openrouter'): ?><option value="openrouter|" <?= $choice === 'openrouter|' ? 'selected' : '' ?>>OpenRouter · <?= e($c['settings']['tier'] ?? 'cheap') ?></option>
+                    <?php else: foreach ($c['settings']['models'] ?? [] as $m): ?><option value="<?= e($p . '|' . $m) ?>" <?= $choice === $p . '|' . $m ? 'selected' : '' ?>><?= e($m) ?></option><?php endforeach; endif; ?>
+                  </optgroup>
+                <?php endforeach; ?>
+              </select>
+            </form>
+            <div class="text-sm">
+              <?php if ($now): ?>
+                <div class="flex items-center gap-2"><?= connector_logo($registry[$now['provider']], 'w-6 h-6 text-[10px] !rounded-lg') ?><span class="text-ink-900"><?= e($registry[$now['provider']]['name']) ?></span></div>
+                <div class="text-xs text-ink-500 mt-1" dir="ltr" style="text-align:start"><?= e($nowModel) ?><?= (!$manual || $choice === 'auto') && count($chain) > 1 ? ' · +' . (count($chain) - 1) . ' ' . e(t('بديل')) : '' ?></div>
+                <?php if ($fallback): ?><div class="text-[11px] text-amber-700 mt-1"><?= e(t('الموديل المختار غير متاح الآن، فيُستخدم التلقائي.')) ?></div><?php endif; ?>
+              <?php else: ?><span class="text-xs text-ink-400"><?= e(t('لا يوجد مزود')) ?></span><?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
     </div>
 
     <!-- اللوحة الجانبية -->
@@ -301,7 +369,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                 <div class="flex items-center gap-2">
                   <b class="text-ink-900 truncate"><?= e($c['label']) ?></b>
                   <?php if ($i === 0 && count($conns) > 1): ?><span class="badge"><?= e(t('الأساسي')) ?></span><?php endif; ?>
-                  <?php if ($aiMode === 'manual' && (int)$c['id'] === $primaryId): ?><span class="badge !bg-brand-50 !text-brand-700">★ <?= e(t('المزود المختار')) ?></span><?php endif; ?>
+                  
                   <?php if (!empty($c['settings']['disabled'])): ?><span class="badge !bg-amber-100 !text-amber-700"><?= e(t('متوقف')) ?></span><?php endif; ?>
                 </div>
                 <p class="text-xs mt-1 <?= $d['error'] ? 'text-red-600' : 'text-ink-500' ?>">
@@ -322,10 +390,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <div class="flex flex-wrap gap-2">
               <form method="post"><?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="retest">
                 <button class="btn-ghost !py-1.5 !px-3 !text-xs"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M5 13a7 7 0 0012.9 3M19 11A7 7 0 006.1 8"/></svg><?= e(t('اختبار الاتصال')) ?></button></form>
-              <?php if ($owner && $aiMode === 'manual' && ($def['category'] ?? '') === 'ai' && (int)$c['id'] !== $primaryId && empty($c['settings']['disabled'])): ?>
-              <form method="post"><?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="primary">
-                <button class="btn-ghost !py-1.5 !px-3 !text-xs">★ <?= e(t('استخدمه للمساعد')) ?></button></form>
-              <?php endif; ?>
+
               <form method="post" class="ms-auto" onsubmit="return confirm('<?= tjs('تشيل الاتصال "%s"؟ الحسابات اللي عليه هتختفي من البرنامج (مش هتتمسح من عندهم).', $c['label']) ?>')">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($key) ?>"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="delete">
                 <button class="!py-1.5 !px-3 !text-xs btn text-red-600 hover:bg-red-50"><?= e(t('فصل')) ?></button>
@@ -456,9 +521,16 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
         var i = b.parentNode.querySelector('input'); i.type = i.type === 'password' ? 'text' : 'password'; b.classList.toggle('text-brand-600'); }); });
       // زرار الحفظ: حالة انتظار عشان الاختبار بياخد ثواني
       document.querySelectorAll('.intg-drawer form').forEach(function (f) { f.addEventListener('submit', function () {
-        var b = f.querySelector('button:not([type=button])'); if (b && b.hasAttribute('data-switch')) { b.classList.toggle('bg-lime-500'); b.classList.toggle('bg-ink-300'); b.firstElementChild.classList.toggle('translate-x-5'); b.firstElementChild.classList.toggle('rtl:-translate-x-5'); return; } if (b && b.name === 'mode') return; if (b && !b.disabled) { setTimeout(function () { b.disabled = true; b.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>' + (window.T ? T.working : ''); }, 0); } }); });
-      if (location.hash.length > 1) open(location.hash.slice(1), false);
-      window.addEventListener('hashchange', function () { if (location.hash.length > 1) open(location.hash.slice(1), false); });
+        var b = f.querySelector('button:not([type=button])'); if (b && b.hasAttribute('data-switch')) { b.classList.toggle('bg-lime-500'); b.classList.toggle('bg-ink-300'); var k = b.id === 'ai-auto' ? '6' : '5'; b.firstElementChild.classList.toggle('translate-x-' + k); b.firstElementChild.classList.toggle('rtl:-translate-x-' + k); return; } if (b && b.name === 'mode') return; if (b && !b.disabled) { setTimeout(function () { b.disabled = true; b.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>' + (window.T ? T.working : ''); }, 0); } }); });
+      function tab(name) {
+        document.querySelectorAll('[data-pane]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.pane !== name); });
+        document.querySelectorAll('.intg-tab').forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('text-brand-700', on); b.classList.toggle('border-brand-600', on); b.classList.toggle('text-ink-500', !on); b.setAttribute('aria-selected', on); });
+      }
+      document.querySelectorAll('.intg-tab').forEach(function (b) { b.addEventListener('click', function () { tab(b.dataset.tab); history.replaceState(null, '', b.dataset.tab === 'ai' ? '#ai' : location.pathname + location.search); }); });
+      document.addEventListener('click', function (e) { var b = e.target.closest('[data-pane=ai] [data-open]'); if (b) open(b.dataset.open); });
+      tab(location.hash === '#ai' ? 'ai' : 'services');
+      if (location.hash.length > 1 && location.hash !== '#ai') open(location.hash.slice(1), false);
+      window.addEventListener('hashchange', function () { if (location.hash === '#ai') { close(true); tab('ai'); } else if (location.hash.length > 1) { tab('services'); open(location.hash.slice(1), false); } });
     })();
     </script>
     <?php

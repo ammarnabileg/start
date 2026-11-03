@@ -98,6 +98,44 @@ function ai_provider_keys(): array
     return ['openrouter', 'anthropic', 'openai', 'gemini'];
 }
 
+/** مهام الذكاء الاصطناعي في المنصة. كل مهمة ليها موديل خاص لو التشغيل التلقائي مقفول. */
+function ai_tasks(): array
+{
+    return [
+        'assistant' => ['name' => t('المساعد الذكي'), 'desc' => t('الإجابة عن أسئلة الأداء والأرقام من بيانات الشركة.'), 'icon' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z', 'hint' => t('يحتاج موديلًا قويًا في التحليل'), 'max' => 900],
+        'compose' => ['name' => t('كتابة المنشورات'), 'desc' => t('كتابة منشور من فكرة، أو تحسين نص مكتوب.'), 'icon' => 'M4 20h4L18.5 9.5a2.1 2.1 0 00-4-4L4 16v4z', 'hint' => t('الموديلات السريعة كافية'), 'max' => 600],
+        'reply' => ['name' => t('اقتراح الردود'), 'desc' => t('اقتراح رد على رسالة أو تعليق من سياق المحادثة.'), 'icon' => 'M4 5h16v10H8l-4 4z', 'hint' => t('الأرخص والأسرع هو الأنسب'), 'max' => 300],
+    ];
+}
+
+/** اختيار كل مهمة: 'auto' أو 'provider|model' */
+function ai_task_choices(?int $wid = null): array
+{
+    $wid = $wid ?? (int)ws('id');
+    $v = json_decode((string)setting('ai_tasks_' . $wid, ''), true);
+    return is_array($v) ? $v : [];
+}
+
+/** الاتصالات اللي المهمة دي هتجربها بالترتيب */
+function ai_task_chain(string $task): array
+{
+    $conns = ai_connections();
+    if (ai_mode() !== 'manual') return $conns;
+    $choice = (string)(ai_task_choices()[$task] ?? 'auto');
+    if ($choice === 'auto' || strpos($choice, '|') === false) return $conns;
+    [$p, $model] = explode('|', $choice, 2);
+    foreach ($conns as $c) {
+        if ($c['provider'] !== $p) continue;
+        if ($p !== 'openrouter' && $model !== '') {
+            if (!in_array($model, $c['settings']['models'] ?? [], true)) break;
+            $c['settings']['model'] = $model;
+        }
+        return [$c];
+    }
+    // المزود المختار اتشال أو اتوقف: نرجع للتلقائي بدل ما المهمة تقف
+    return $conns;
+}
+
 /** طريقة اختيار المزود: auto = الأرخص فالأغلى، manual = المزود اللي اختاره المالك بس */
 function ai_mode(?int $wid = null): string
 {
@@ -120,10 +158,6 @@ function ai_connections(): array
     foreach (ai_provider_keys() as $p) {
         $c = connector($p);
         if ($c && ($c['credentials']['api_key'] ?? '') !== '') { $c['provider'] = $p; $list[] = $c; }
-    }
-    if (ai_mode() === 'manual') {
-        foreach ($list as $c) if (!empty($c['settings']['primary'])) return [$c];
-        return array_slice($list, 0, 1);
     }
     usort($list, function ($a, $b) { return ai_cost_score($a) <=> ai_cost_score($b); });
     return $list;
@@ -263,9 +297,9 @@ function ai_chat_direct(array $c, array $messages, int $maxTokens): array
  * يسأل الذكاء الاصطناعي: بيبدأ بالمزود الأساسي، ولو فشل بيجرب اللي بعده.
  * بيرجع: text, model, usage, provider
  */
-function ai_chat(array $messages, int $maxTokens = 900): array
+function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistant'): array
 {
-    $conns = ai_connections();
+    $conns = ai_task_chain($task);
     if (!$conns) throw new AiException(t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).'));
     $errors = [];
     foreach ($conns as $c) {

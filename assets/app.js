@@ -149,3 +149,30 @@
     document.querySelectorAll('[data-modal-close]').forEach(function (b) { b.addEventListener('click', function () { modal.close(); }); });
   }
 })();
+
+/* مهام الذكاء الاصطناعي: كتابة منشور / اقتراح رد */
+function aiToast(msg) {
+  var t = document.createElement('div');
+  t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] max-w-md rounded-xl bg-red-600 text-[#fff] text-sm px-4 py-3 shadow-xl';
+  t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 6000);
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-ai-task]'); if (!b || b.disabled) return;
+  var task = b.dataset.aiTask, form = b.closest('form');
+  var ta = b.dataset.aiTarget ? document.querySelector(b.dataset.aiTarget) : (form && form.querySelector('textarea'));
+  if (!ta) return;
+  var th = document.getElementById('thread');
+  var fd = new FormData(); fd.append('task', task); fd.append('text', ta.value);
+  if (task === 'reply' && th) fd.append('context', th.innerText.replace(/\n{3,}/g, '\n\n').slice(-3000));
+  var label = b.querySelector('span'), old = label ? label.textContent : '';
+  b.disabled = true; b.classList.add('animate-pulse'); if (label) label.textContent = (window.T && T.working) || '...';
+  fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': (document.querySelector('meta[name=csrf-token]') || {}).content || '' } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error) { aiToast(d.error); return; }
+      ta.value = d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
+      ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
+    })
+    .catch(function () { var m = (window.T && T.liveFailed) || 'Error'; aiToast(m); })
+    .finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); if (label) label.textContent = old; });
+});
