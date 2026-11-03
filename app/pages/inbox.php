@@ -298,6 +298,27 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
       </form>
     </div>
 
+    <?php if ($folder !== 'comments'):
+        // شريط القنوات: كل منصة بعدد المحادثات وغير المقروء
+        $byPlat = [];
+        foreach ($convs as $cv) {
+            $pp = (string)($cv['platform'] ?? '');
+            if ($pp === '') continue;
+            $byPlat[$pp]['n'] = ($byPlat[$pp]['n'] ?? 0) + 1;
+            $byPlat[$pp]['u'] = ($byPlat[$pp]['u'] ?? 0) + (int)($cv['unreadCount'] ?? 0);
+        }
+        if (count($byPlat) > 1 || $platform !== ''): ?>
+      <div class="flex gap-2 overflow-x-auto pb-1 mb-3" style="scrollbar-width:none">
+        <a href="<?= e(url('inbox', array_diff_key($base, ['platform' => 1]))) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $platform === '' ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= e(t('كل القنوات')) ?></a>
+        <?php foreach ($byPlat as $pp => $info): ?>
+          <a href="<?= e(url('inbox', ['platform' => $pp] + $base)) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $platform === $pp ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>">
+            <?= platform_icon($pp, 'w-4 h-4') ?><?= e(platform_label($pp)) ?>
+            <?php if ($info['u']): ?><span class="bg-red-600 text-white text-[10px] rounded-full px-1.5 min-w-[18px] text-center"><?= (int)$info['u'] ?></span><?php else: ?><span class="text-xs text-ink-400"><?= (int)$info['n'] ?></span><?php endif; ?>
+          </a>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; endif; ?>
+
     <?php if ($folder === 'requests'): ?>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('طلبات الرسائل: ناس بعتولك لأول مرة على صفحة فيسبوك. أول رد منك بيقبل الطلب وينقل المحادثة للوارد.')) ?></p>
     <?php elseif ($folder === 'comments'): ?>
@@ -342,8 +363,8 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
       <div data-live="list" class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
         <?php if (!$convs): ?><p class="p-5 text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p><?php endif; ?>
         <?php foreach ($convs as $c): $on = $c['id'] === $convId; ?>
-          <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 <?= $on ? 'bg-brand-50' : '' ?>">
-            <?= avatar($c['participantPicture'] ?? null, $c['participantName'] ?? '') ?>
+          <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
+            <?= avatar_with_platform($c['participantPicture'] ?? null, $c['participantName'] ?? '', (string)($c['platform'] ?? '')) ?>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between gap-2">
                 <span class="font-semibold text-sm truncate"><?= e($c['participantName'] ?? $c['participantUsername'] ?? t('بدون اسم')) ?></span>
@@ -366,7 +387,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <div class="p-3 border-b border-ink-200 flex flex-wrap items-center gap-2">
             <a href="<?= e(url('inbox', $base)) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
             <span class="font-bold"><?= e($current['participantName'] ?? $current['participantUsername'] ?? t('محادثة')) ?></span>
-            <?php if ($plat): ?><span class="text-xs text-ink-500"><?= e(platform_label($plat)) ?></span><?php endif; ?>
+            <?php if ($plat): ?><span class="inline-flex items-center gap-1.5 text-xs text-ink-500 bg-ink-100 rounded-full px-2 py-0.5"><?= platform_icon($plat, 'w-3.5 h-3.5') ?><?= e(platform_label($plat)) ?><?php if (!empty($current['accountUsername'])): ?> · <?= e(trim($current['accountUsername'])) ?><?php endif; ?></span><?php endif; ?>
             <?php foreach ($convLabels as $l): ?>
               <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="label_remove"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>">
                 <button class="badge" title="<?= e(t('شيل التصنيف')) ?>"><?= e($l['name'] ?? '') ?> ×</button></form>
@@ -416,19 +437,25 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
             </details>
           <?php endif; ?>
           <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-ink-50" id="thread">
-            <?php foreach ($messages as $m): $out = ($m['direction'] ?? '') === 'outgoing'; $mid = (string)($m['id'] ?? ''); ?>
+            <?php $lastDay = null; foreach ($messages as $m): $out = ($m['direction'] ?? '') === 'outgoing'; $mid = (string)($m['id'] ?? '');
+                $day = fmt_date($m['createdAt'] ?? null, 'Y-m-d');
+                if ($day !== $lastDay): $lastDay = $day;
+                    $label = $day === (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d') ? t('النهارده') : ($day === (new DateTime('yesterday', new DateTimeZone(site_timezone())))->format('Y-m-d') ? t('امبارح') : fmt_date($m['createdAt'] ?? null, 'd/m/Y')); ?>
+              <div class="flex justify-center my-2"><span class="text-[11px] text-ink-500 bg-white border border-ink-200 rounded-full px-3 py-0.5"><?= e($label) ?></span></div>
+            <?php endif; ?>
               <div class="flex <?= $out ? 'justify-start' : 'justify-end' ?>">
                 <div class="max-w-[80%] group">
                   <div class="rounded-2xl px-4 py-2 text-sm <?= $out ? 'bg-brand-600 text-white' : 'bg-white border border-ink-200' ?>">
                     <?php if (!empty($m['isDeleted'])): ?><em class="opacity-70"><?= e(t('رسالة محذوفة')) ?></em>
                     <?php else: ?>
-                      <?php if (($m['message'] ?? '') !== ''): ?><p class="whitespace-pre-line break-words"><?= e($m['message']) ?></p><?php endif; ?>
+                      <?php if (($m['message'] ?? '') !== ''): ?><p class="whitespace-pre-line break-words"><?= e($m['message']) ?></p>
+                      <?php elseif (empty($m['attachments'])): ?><p class="italic opacity-60"><?= e(t('(رسالة من غير نص، زي ستيكر أو تفاعل)')) ?></p><?php endif; ?>
                       <?php foreach ($m['attachments'] ?? [] as $att): $u = $att['url'] ?? $att['payload']['url'] ?? null; if (!$u) continue; $at = $att['type'] ?? ''; ?>
                         <?php if ($at === 'image' || $at === 'sticker'): ?><img src="<?= e($u) ?>" class="mt-2 rounded-lg max-h-60" referrerpolicy="no-referrer" alt="">
                         <?php else: ?><a href="<?= e($u) ?>" target="_blank" rel="noopener" class="underline block mt-1"><?= e(t('مرفق (%s)', $at ?: t('ملف'))) ?></a><?php endif; ?>
                       <?php endforeach; ?>
                     <?php endif; ?>
-                    <div class="text-[10px] mt-1 <?= $out ? 'text-brand-100' : 'text-ink-400' ?>"><?= e(fmt_date($m['createdAt'] ?? null, 'd/m h:i A')) ?><?php if (!empty($m['isEdited'])): ?> · <?= e(t('متعدلة')) ?><?php endif; ?></div>
+                    <div class="text-[10px] mt-1 <?= $out ? 'text-brand-100' : 'text-ink-400' ?>"><?= e(fmt_date($m['createdAt'] ?? null, 'h:i A')) ?><?php if (!empty($m['isEdited'])): ?> · <?= e(t('متعدلة')) ?><?php endif; ?></div>
                   </div>
                   <?php if (!empty($m['reactions'])): ?>
                     <div class="flex gap-1 mt-1 text-sm">
@@ -475,7 +502,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <svg class="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.2 7l-6.6 6.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.5a6 6 0 108.5 8.5L20.5 13"/></svg>
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
-              <textarea name="message" rows="2" class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك...')) ?>" data-enter-submit></textarea>
+              <textarea name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
             <p class="px-4 pb-2 -mt-1 text-[11px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>

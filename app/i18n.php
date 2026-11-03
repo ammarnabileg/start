@@ -39,17 +39,16 @@ function is_rtl(): bool
 /** يترجم نص. لو مفيش ترجمة بيرجع النص الأصلي. يقبل %s للقيم المتغيرة. */
 function t(string $s, ...$args): string
 {
-    static $map = null;
-    if (lang() === 'en') {
-        if ($map === null) {
-            // en.php الأساسي + ملف لكل جزء (en_analytics.php, en_whatsapp.php ...)
-            $map = [];
-            foreach (glob(__DIR__ . '/lang/en*.php') ?: [] as $f) {
-                $map += (array)(require $f);
-            }
+    static $maps = [];
+    $l = lang();
+    if (!isset($maps[$l])) {
+        // الإنجليزي: en*.php. العربي: ar*.php (صياغة بالفصحى لنفس النصوص)
+        $maps[$l] = [];
+        foreach (glob(__DIR__ . '/lang/' . $l . '*.php') ?: [] as $f) {
+            $maps[$l] += (array)(require $f);
         }
-        $s = $map[$s] ?? $s;
     }
+    $s = $maps[$l][$s] ?? $s;
     return $args ? vsprintf($s, $args) : $s;
 }
 

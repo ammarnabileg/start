@@ -47,7 +47,8 @@ $I['whatsapp'] = 'M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21zM8.5 9.5c0 3 2.
 $I['gmb'] = $I['gmb_location'];
 $I['phone'] = $I['phone_numbers'];
 $I['connectors'] = 'M14 7h3a5 5 0 010 10h-3m-4 0H7A5 5 0 017 7h3m-2 5h8';
-$navItems = $curWs ? nav_items() : [];
+$navItems = $curWs ? nav_items() : array_values(array_filter(nav_items(), function ($i) { return $i['key'] === 'admin'; }));
+$I['admin'] = 'M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7zm-3 9l2 2 4-4';
 $navActive = nav_item_for($active);
 $icon = function (string $d, string $cls = 'w-5 h-5') {
     return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' . $d . '"/></svg>';
@@ -151,6 +152,18 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>
       <div data-flash="<?= e($f['type']) ?>" class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
     <?php endforeach; ?>
+    <?php if (!empty($_SESSION['impersonator'])): ?>
+      <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3 text-sm flex flex-wrap items-center gap-3">
+        <span><?= e(t('انت داخل دلوقتي بحساب %s عشان تشوف اللي هو شايفه.', ($user['name'] ?? '') . ' (' . ($user['email'] ?? '') . ')')) ?></span>
+        <form method="post" action="<?= e(url('impersonate_stop')) ?>" class="ms-auto"><?= csrf_field() ?><button class="btn-ghost !py-1 text-xs"><?= e(t('رجوع لحسابي')) ?></button></form>
+      </div>
+    <?php endif; ?>
+    <?php $ann = trim((string)setting('announcement', '')); if ($ann !== ''): $annType = setting('announcement_type', 'info'); ?>
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm <?= $annType === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-brand-50 border-brand-200 text-brand-800' ?>"><?= nl2br(e($ann)) ?></div>
+    <?php endif; ?>
+    <?php if (setting('maintenance', '0') === '1' && is_admin()): ?>
+      <div class="mb-4 rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-2 text-xs"><?= e(t('وضع الصيانة شغال: المستخدمين العاديين مش هيقدروا يدخلوا.')) ?> <a class="underline" href="<?= e(url('system')) ?>"><?= e(t('إعدادات المنصة')) ?></a></div>
+    <?php endif; ?>
     <?php if ($invites && $active !== 'workspaces'): ?>
       <a href="<?= e(url('workspaces')) ?>" class="block mb-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm"><?= e(t('عندك')) ?> <?= count($invites) ?> <?= e(t('دعوة لشركة مستنية ردك ←')) ?></a>
     <?php endif; ?>

@@ -59,7 +59,7 @@ function comment_block(array $c, bool $isReply = false): void
     $mine = !empty($from['isOwner']);
     ?>
     <div class="flex gap-3 <?= $isReply ? 'ms-12 mt-3' : '' ?>">
-      <?= avatar($from['picture'] ?? null, $from['name'] ?? $from['username'] ?? '', 'w-9 h-9') ?>
+      <?= !empty($c['platform']) && !$isReply ? avatar_with_platform($from['picture'] ?? null, $from['name'] ?? $from['username'] ?? '', (string)$c['platform'], 'w-9 h-9') : avatar($from['picture'] ?? null, $from['name'] ?? $from['username'] ?? '', 'w-9 h-9') ?>
       <div class="flex-1 min-w-0">
         <div class="rounded-2xl px-4 py-2 inline-block max-w-full <?= $mine ? 'bg-indigo-50' : 'bg-slate-100' ?> <?= !empty($c['isHidden']) ? 'opacity-50' : '' ?>">
           <div class="text-xs font-bold"><?= e($from['name'] ?? $from['username'] ?? t('مستخدم')) ?><?= $mine ? ' ' . e(t('(أنت)')) : '' ?></div>
@@ -88,12 +88,29 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
     if ($apiError) { error_box($apiError); }
     ?>
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
+    <?php
+      $pf = preg_replace('/[^a-z]/', '', (string)($_GET['pf'] ?? ''));
+      $plats = [];
+      foreach ($posts as $pp) { $k = (string)($pp['platform'] ?? ''); if ($k !== '') $plats[$k] = ($plats[$k] ?? 0) + (int)($pp['commentCount'] ?? 0); }
+      if (count($plats) > 1 || $pf !== ''): ?>
+      <div class="flex gap-2 overflow-x-auto pb-1 mb-3" style="scrollbar-width:none">
+        <a href="<?= e(url('comments')) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $pf === '' ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= e(t('كل القنوات')) ?></a>
+        <?php foreach ($plats as $k => $cnt): ?>
+          <a href="<?= e(url('comments', ['pf' => $k])) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $pf === $k ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= platform_icon($k, 'w-4 h-4') ?><?= e(platform_label($k)) ?> <span class="text-xs text-ink-400"><?= (int)$cnt ?></span></a>
+        <?php endforeach; ?>
+      </div>
+    <?php endif;
+      if ($pf !== '') $posts = array_values(array_filter($posts, function ($pp) use ($pf) { return ($pp['platform'] ?? '') === $pf; })); ?>
     <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-15rem)] min-h-[520px]">
       <div data-live="list" class="card overflow-y-auto min-h-0 <?= $postId ? 'hidden lg:block' : '' ?>">
         <?php if (!$posts): ?><p class="p-5 text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p><?php endif; ?>
         <?php foreach ($posts as $p): $on = $p['id'] === $postId; ?>
-          <a href="<?= e(url('comments', ['post' => $p['id'], 'a' => $p['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50' : '' ?>">
-            <?php if (!empty($p['picture'])): ?><img src="<?= e($p['picture']) ?>" class="w-12 h-12 rounded-xl object-cover bg-ink-100 shrink-0" loading="lazy" referrerpolicy="no-referrer" alt=""><?php endif; ?>
+          <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
+            <span class="relative shrink-0">
+              <?php if (!empty($p['picture'])): ?><img src="<?= e($p['picture']) ?>" class="w-12 h-12 rounded-xl object-cover bg-ink-100" loading="lazy" referrerpolicy="no-referrer" alt="">
+              <?php else: ?><span class="w-12 h-12 rounded-xl bg-ink-100 flex items-center justify-center"><?= platform_icon((string)($p['platform'] ?? ''), 'w-6 h-6') ?></span><?php endif; ?>
+              <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($p['platform'] ?? ''), 'w-[18px] h-[18px]', 'badge') ?></span>
+            </span>
             <div class="flex-1 min-w-0">
               <p class="text-sm line-clamp-2 text-ink-800"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 120)) : '<span class="text-ink-400">' . e(t('(منشور بدون نص)')) . '</span>' ?></p>
               <p class="text-[11px] text-ink-500 mt-1 flex items-center gap-1.5">
@@ -117,6 +134,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
           <div class="p-4 border-b border-ink-200 flex items-center gap-3">
             <a href="<?= e(url('comments')) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
             <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-10 h-10 rounded-lg object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
+            <?php if (!empty($current['platform'])): ?><span class="inline-flex items-center gap-1.5 text-xs text-ink-500 bg-ink-100 rounded-full px-2 py-0.5 whitespace-nowrap"><?= platform_icon((string)$current['platform'], 'w-3.5 h-3.5') ?><?= e(platform_label((string)$current['platform'])) ?></span><?php endif; ?>
             <p class="text-sm line-clamp-2 flex-1 text-ink-800"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 200)) ?></p>
             <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="btn-ghost text-xs whitespace-nowrap"><?= e(t('فتح المنشور ↗')) ?></a><?php endif; ?>
           </div>

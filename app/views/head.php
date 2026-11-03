@@ -59,6 +59,8 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     .menu-item { @apply flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-ink-100 hover:text-ink-900 w-full text-start; }
     .seg { @apply flex rounded-xl bg-ink-100 p-0.5 text-xs; }
     .seg a { @apply px-2.5 py-1 rounded-lg text-ink-500 hover:text-ink-900; }
+    .chip { @apply inline-flex items-center gap-2 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-600 whitespace-nowrap hover:bg-ink-50 transition; }
+    .chip.on { @apply border-brand-600 bg-brand-50 text-brand-700 font-medium; }
     .seg a.on { @apply bg-brand-600 text-[#fff] shadow-sm font-medium; }
   }
   #sidebar.sb-open { transform: none !important; }

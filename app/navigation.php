@@ -50,12 +50,15 @@ function nav_items(): array
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
             'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات')]],
+        ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الشركة')],
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الشركة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('الإعدادات'), 'section' => t('الشركة'),
-            'tabs' => $owner
-                ? ['settings' => t('عام'), 'accounts' => t('الحسابات المربوطة'), 'team' => t('الفريق')]
-                : ['accounts' => t('الحسابات المربوطة')]],
+            'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
     ];
+    if (is_admin()) {
+        $items[] = ['key' => 'admin', 'label' => t('إدارة المنصة'), 'section' => t('النظام'),
+            'tabs' => ['admin' => t('نظرة عامة'), 'admin_workspaces' => t('الشركات'), 'admin_users' => t('المستخدمين'), 'admin_activity' => t('سجل النشاط'), 'system' => t('إعدادات المنصة')]];
+    }
     return array_values(array_filter($items, function ($i) use ($owner) {
         return module_enabled($i['module'] ?? null) && (empty($i['owner']) || $owner);
     }));

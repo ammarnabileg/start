@@ -23,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?")->execute([$u['id']]);
             session_regenerate_id(true);
             $_SESSION['uid'] = (int)$u['id'];
-            log_activity('login');
+            // مباشرة بالـ id، لأن current_user() متخزن قبل الدخول
+            $pdo->prepare("INSERT INTO activity_log (user_id, action) VALUES (?, 'login')")->execute([$u['id']]);
             after_login_redirect();
         }
         else {

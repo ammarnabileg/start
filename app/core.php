@@ -8,6 +8,7 @@ require_once __DIR__ . '/i18n.php';
 require_once __DIR__ . '/crypto.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/navigation.php';
+require_once __DIR__ . '/platforms.php';
 
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_FILE', ROOT_DIR . '/config.php');
