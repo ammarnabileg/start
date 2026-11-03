@@ -49,11 +49,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             if ($fwdRaw !== '' && $fwd === '') {
                 flash('error', t('رقم التحويل لازم يكون بالصيغة الدولية، مثلاً +201001234567.'));
             } else {
-                ph_voice_settings($z, $id, [
+                $body = [
                     'forwardTo' => $fwd !== '' ? 'tel:' . $fwd : '',
                     'voicemailEnabled' => !empty($_POST['voicemail']),
                     'voicemailGreeting' => mb_substr(trim((string)($_POST['greeting'] ?? '')), 0, 1000),
-                ]);
+                ];
+                // تحويل متقدم (sip/wss) موجود والخانة فاضية: سيبه زي ما هو
+                if ($fwd === '' && !empty($_POST['keep_fwd'])) unset($body['forwardTo']);
+                ph_voice_settings($z, $id, $body);
                 log_activity('call.settings', $id);
                 flash('success', t('إعدادات المكالمات اتحفظت.'));
             }
@@ -196,8 +199,9 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
         <?php foreach ($numbers as $n): if (($n['status'] ?? '') !== 'active' || (isset($n['hostedByZernio']) && !$n['hostedByZernio'])) continue; ?>
           <form method="post" class="border-t border-ink-100 pt-4 mt-4 grid sm:grid-cols-2 gap-3">
             <?= csrf_field() ?><input type="hidden" name="action" value="settings"><input type="hidden" name="id" value="<?= e($n['_id'] ?? '') ?>">
+            <?php $customFwd = !empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']); ?><?php if ($customFwd): ?><input type="hidden" name="keep_fwd" value="1"><?php endif; ?>
             <div class="sm:col-span-2 font-semibold" dir="ltr" style="unicode-bidi:plaintext"><?= e($n['phoneNumber'] ?? '') ?> <?php if (empty($n['pstnVoiceEnabled'])): ?><span class="badge"><?= e(t('المكالمات مقفولة')) ?></span><?php endif; ?></div>
-            <label class="block"><span class="label"><?= e(t('حوّل المكالمات على')) ?></span><input name="forward" class="input" dir="ltr" placeholder="+201001234567" value="<?= e(preg_replace('/^tel:/', '', (string)($n['pstnForwardTo'] ?? ''))) ?>"></label>
+            <label class="block"><span class="label"><?= e(t('حوّل المكالمات على')) ?></span><input name="forward" class="input" dir="ltr" placeholder="+201001234567" value="<?= e($customFwd ? '' : preg_replace('/^tel:/', '', (string)($n['pstnForwardTo'] ?? ''))) ?>"></label>
             <label class="flex items-center gap-2 text-sm mt-6"><input type="checkbox" name="voicemail" value="1" <?= !isset($n['voicemailEnabled']) || $n['voicemailEnabled'] ? 'checked' : '' ?>> <?= e(t('البريد الصوتي شغال')) ?></label>
             <label class="block sm:col-span-2"><span class="label"><?= e(t('رسالة البريد الصوتي (فاضية = الرسالة الافتراضية)')) ?></span><textarea name="greeting" maxlength="1000" rows="2" class="input"><?= e($n['voicemailGreeting'] ?? '') ?></textarea></label>
             <?php if (!empty($n['ivrEnabled']) || (!empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']))): ?>
