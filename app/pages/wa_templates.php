@@ -197,10 +197,18 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
     <?php if (!$templates): ?>
       <div class="card p-6 text-sm text-ink-500"><?= e(t('مفيش قوالب هنا.')) ?></div>
     <?php endif; ?>
-    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <?php if ($templates): $langs = array_values(array_unique(array_map(function ($x) { return (string)($x['language'] ?? ''); }, $templates))); $cats = array_values(array_unique(array_map(function ($x) { return strtoupper((string)($x['category'] ?? '')); }, $templates))); ?>
+    <div class="flex flex-wrap items-center gap-2 mb-4" id="wa-tf">
+      <div class="relative flex-1 min-w-[12rem] max-w-sm"><svg class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><input type="search" id="wa-q" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" dir="auto" placeholder="<?= e(t('ابحث في القوالب...')) ?> (/)"></div>
+      <div class="tb p-0.5 gap-0.5"><button type="button" data-cat="" class="on h-8 px-3 rounded-lg text-xs bg-white shadow-sm text-ink-900 font-medium"><?= e(t('الكل')) ?></button><?php foreach ($cats as $c): ?><button type="button" data-cat="<?= e($c) ?>" class="h-8 px-3 rounded-lg text-xs text-ink-600 hover:bg-ink-100"><?= e(wa_category_label($c)) ?></button><?php endforeach; ?></div>
+      <?php if (count($langs) > 1): ?><select id="wa-lang" class="input !mt-0 !h-10 !py-0 !w-auto text-sm" dir="ltr"><option value=""><?= e(t('كل اللغات')) ?></option><?php foreach ($langs as $l): ?><option><?= e($l) ?></option><?php endforeach; ?></select><?php endif; ?>
+      <span class="text-xs text-ink-500 tabular-nums" id="wa-tn"></span>
+    </div>
+    <?php endif; ?>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="wa-tgrid">
       <?php foreach ($templates as $tpl):
         $h = wa_component($tpl, 'header'); $b = wa_component($tpl, 'body'); $f = wa_component($tpl, 'footer'); $bt = wa_component($tpl, 'buttons'); ?>
-        <div class="card p-4 flex flex-col">
+        <div class="wa-tcard card p-4 flex flex-col transition hover:shadow-md" data-cat="<?= e(strtoupper((string)($tpl['category'] ?? ''))) ?>" data-lang="<?= e($tpl['language'] ?? '') ?>" data-q="<?= e(mb_strtolower(($tpl['name'] ?? '') . ' ' . ($b['text'] ?? ''))) ?>">
           <div class="flex items-start justify-between gap-2 mb-2">
             <div class="min-w-0">
               <div class="font-mono font-semibold truncate" dir="ltr"><?= e($tpl['name'] ?? '') ?></div>
@@ -208,12 +216,17 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
             </div>
             <?= wa_template_status_badge((string)($tpl['status'] ?? '')) ?>
           </div>
-          <div class="rounded-xl bg-lime-50 border border-lime-200 p-3 text-sm flex-1">
+          <div class="rounded-xl p-3 flex-1" style="background:#e5ddd5;background-image:radial-gradient(rgba(0,0,0,.05) 1px,transparent 1px);background-size:14px 14px"><div class="rounded-lg rounded-tl-none bg-[#fff] shadow-sm px-3 py-2 text-[13px] text-[#111b21] max-w-[95%]" dir="auto">
             <?php if ($h && !empty($h['text'])): ?><p class="font-semibold mb-1"><?= e($h['text']) ?></p>
             <?php elseif ($h): ?><p class="text-xs text-ink-500 mb-1">[<?= e(strtolower((string)($h['format'] ?? ''))) ?>]</p><?php endif; ?>
-            <p class="whitespace-pre-line break-words"><?= e($b['text'] ?? '') ?></p>
+            <p class="wa-body whitespace-pre-line break-words"><?= preg_replace('/\{\{(\w+)\}\}/', '<span class="rounded bg-brand-100 text-brand-700 px-1 text-[11px] font-mono">{{$1}}</span>', e($b['text'] ?? '')) ?></p>
             <?php if ($f && !empty($f['text'])): ?><p class="text-xs text-ink-500 mt-2"><?= e($f['text']) ?></p><?php endif; ?>
-            <?php if ($bt): ?><div class="flex flex-wrap gap-1 mt-2"><?php foreach ($bt['buttons'] ?? [] as $x): ?><span class="badge bg-white border border-ink-200"><?= e($x['text'] ?? ($x['type'] ?? '')) ?></span><?php endforeach; ?></div><?php endif; ?>
+          </div>
+            <?php if ($bt): ?><div class="grid gap-1 mt-1 max-w-[95%]"><?php foreach ($bt['buttons'] ?? [] as $x): ?><span class="rounded-lg bg-[#fff] shadow-sm text-center text-[12px] text-[#00a5f4] py-1.5"><?= e($x['text'] ?? ($x['type'] ?? '')) ?></span><?php endforeach; ?></div><?php endif; ?>
+          </div>
+          <div class="flex items-center gap-2 mt-3 text-xs">
+            <?php if (strtoupper((string)($tpl['status'] ?? '')) === 'APPROVED'): ?><a href="<?= e(url('broadcasts', ['new' => 1, 'wa' => $acc, 'tpl' => ($tpl['name'] ?? '') . '|' . ($tpl['language'] ?? '')])) ?>" class="rounded-lg px-2 py-1 font-medium text-brand-700 hover:bg-brand-50"><?= e(t('استخدمه في حملة')) ?></a><?php endif; ?>
+            <button type="button" class="wa-copy rounded-lg px-2 py-1 text-ink-600 hover:bg-ink-100"><?= e(t('نسخ النص')) ?></button>
           </div>
           <?php if (can('whatsapp.manage') && !$sb): ?>
           <form method="post" class="mt-3 text-end" onsubmit="return confirm('<?= tjs('حذف القالب ده نهائياً من واتساب؟ مش هينفع ترجعه، ولازم تستنى قبل ما تستخدم نفس الاسم تاني.') ?>')">
@@ -225,5 +238,17 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
         </div>
       <?php endforeach; ?>
     </div>
+    <div id="wa-tempty" class="hidden card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش نتائج.')) ?></div>
+    <script>
+    (function () {
+      var q = document.getElementById('wa-q'), lang = document.getElementById('wa-lang'), cat = '', cards = [].slice.call(document.querySelectorAll('.wa-tcard'));
+      function apply() { var v = q ? q.value.trim().toLowerCase() : '', l = lang ? lang.value : '', n = 0; cards.forEach(function (c) { var hit = (!v || c.dataset.q.indexOf(v) > -1) && (!cat || c.dataset.cat === cat) && (!l || c.dataset.lang === l); c.style.display = hit ? '' : 'none'; if (hit) n++; }); var tn = document.getElementById('wa-tn'); if (tn) tn.textContent = n + ' / ' + cards.length; var em = document.getElementById('wa-tempty'); if (em) em.classList.toggle('hidden', n > 0 || !cards.length); }
+      if (q) q.addEventListener('input', apply); if (lang) lang.addEventListener('change', apply);
+      document.querySelectorAll('#wa-tf [data-cat]').forEach(function (b) { b.addEventListener('click', function () { cat = b.dataset.cat; document.querySelectorAll('#wa-tf [data-cat]').forEach(function (x) { var on = x === b; ['on', 'bg-white', 'shadow-sm', 'text-ink-900', 'font-medium'].forEach(function (k) { x.classList.toggle(k, on); }); }); apply(); }); });
+      document.addEventListener('click', function (e) { var b = e.target.closest('.wa-copy'); if (!b) return; var t = b.closest('.wa-tcard').querySelector('.wa-body'); navigator.clipboard && navigator.clipboard.writeText(t ? t.textContent : ''); var o = b.textContent; b.textContent = '✓'; setTimeout(function () { b.textContent = o; }, 1000); });
+      document.addEventListener('keydown', function (e) { if (e.key === '/' && q && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) { e.preventDefault(); q.focus(); } });
+      apply();
+    })();
+    </script>
     <?php
 });

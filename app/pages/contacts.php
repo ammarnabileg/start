@@ -218,7 +218,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
           <th class="text-start p-3"><?= e(t('آخر رسالة')) ?></th><th class="p-3"></th></tr></thead>
         <tbody>
         <?php foreach ($contacts as $c): $last = max((string)($c['lastMessageSentAt'] ?? ''), (string)($c['lastMessageReceivedAt'] ?? '')); ?>
-          <tr class="border-b border-ink-100 last:border-0">
+          <tr class="ct-row border-b border-ink-100 last:border-0 hover:bg-ink-50 transition" data-q="<?= e(mb_strtolower(($c['name'] ?? '') . ' ' . ($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? '') . ' ' . ($c['email'] ?? '') . ' ' . ($c['company'] ?? '') . ' ' . implode(' ', (array)($c['tags'] ?? [])))) ?>">
             <td class="p-3"><div class="flex items-center gap-2"><?= avatar($c['avatarUrl'] ?? null, $c['name'] ?? '', 'w-8 h-8') ?><div class="min-w-0"><div class="font-medium truncate"><?= e($c['name'] ?? '') ?></div><div class="text-xs text-ink-500 truncate"><?= e(trim(($c['email'] ?? '') . ' ' . ($c['company'] ?? ''))) ?></div></div></div></td>
             <td class="p-3 text-xs"><span dir="ltr"><?= e($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? '') ?></span> <?php if (!empty($c['platform'])): ?><span class="text-ink-500"><?= e(platform_label((string)$c['platform'])) ?></span><?php endif; ?></td>
             <td class="p-3"><?= $tagLinks($c['tags'] ?? []) ?></td>
@@ -236,6 +236,15 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
       </table>
       <?php endif; ?>
     </div>
+    <script>
+    (function () {
+      // فلترة فورية في الصفحة الحالية وانت بتكتب (البحث الكامل بيفضل بزرار "بحث")
+      var f = document.querySelector('input[name=q]'), rows = [].slice.call(document.querySelectorAll('.ct-row')); if (!f || !rows.length) return;
+      var start = f.value.trim().toLowerCase();
+      f.addEventListener('input', function () { var v = f.value.trim().toLowerCase(); if (v === start) { rows.forEach(function (r) { r.style.display = ''; }); return; } rows.forEach(function (r) { r.style.display = !v || r.dataset.q.indexOf(v) > -1 ? '' : 'none'; }); });
+      document.addEventListener('keydown', function (e) { if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) { e.preventDefault(); f.focus(); } });
+    })();
+    </script>
     <div class="flex items-center justify-between mt-3 text-sm text-ink-500">
       <span><?= e(t('الإجمالي: %s', $total)) ?></span>
       <div class="flex gap-3">

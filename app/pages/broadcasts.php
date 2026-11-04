@@ -237,7 +237,7 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
     /* ---------- حملة جديدة ---------- */
     if ($showNew) {
         ?>
-        <form method="post" class="card p-5 space-y-5">
+        <form method="post" class="card p-5 space-y-5" id="wa-new">
           <?= csrf_field() ?><input type="hidden" name="action" value="create"><input type="hidden" name="wa" value="<?= e($acc) ?>">
           <div class="flex justify-between"><h2 class="font-semibold text-lg"><?= e(t('حملة جديدة (خطوة 1 من 2: مسودة)')) ?></h2><a class="text-sm text-ink-500" href="<?= e(url('broadcasts', ['wa' => $acc])) ?>"><?= e(t('إلغاء')) ?></a></div>
           <p class="text-sm text-ink-500"><?= e(t('هنعمل مسودة الأول ومش هيتبعت أي حاجة. في الخطوة الجاية هتشوف عدد المستلمين بالظبط وتأكد الإرسال أو تجدوله.')) ?></p>
@@ -247,7 +247,7 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
           </div>
           <div data-wa-step>
             <label class="block"><span class="label"><?= e(t('القالب (المقبولة بس)')) ?></span>
-              <select name="template" required class="input wa-tpl"><?= wa_template_options($templates) ?></select></label>
+              <select name="template" required class="input wa-tpl"><?= wa_template_options($templates, (string)($_GET['tpl'] ?? '')) ?></select></label>
             <?php if (!$templates): ?><p class="text-sm text-amber-700 mt-1"><?= e(t('مفيش قوالب مقبولة لسه.')) ?> <a class="link" href="<?= e(url('wa_templates', ['wa' => $acc, 'new' => 1])) ?>"><?= e(t('اعمل قالب')) ?></a></p><?php endif; ?>
             <p class="text-xs text-ink-500 mt-2"><?= e(t('املى كل متغير في القالب من بيانات جهة الاتصال أو بقيمة ثابتة:')) ?></p>
             <?= wa_mapping_fields('map') ?>
@@ -263,7 +263,7 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
             <div id="modeContacts" class="ps-6 hidden max-h-72 overflow-y-auto border border-ink-200 rounded-xl p-3 space-y-1">
               <?php if (!$contacts): ?><p class="text-sm text-ink-500"><?= e(t('مفيش جهات اتصال مشتركة على واتساب.')) ?></p><?php endif; ?>
               <?php foreach ($contacts as $c): ?>
-                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="contacts[]" value="<?= e($c['id']) ?>"> <?= e($c['name'] ?? '') ?> <span class="text-xs text-ink-500" dir="ltr"><?= e($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? '') ?></span></label>
+                <label class="wa-crow flex items-center gap-2 text-sm rounded-lg px-2 py-1.5 hover:bg-ink-50 cursor-pointer has-[:checked]:bg-brand-50" data-q="<?= e(mb_strtolower(($c['name'] ?? '') . ' ' . ($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? ''))) ?>"><input type="checkbox" name="contacts[]" value="<?= e($c['id']) ?>" class="accent-brand-600"> <?= e($c['name'] ?? '') ?> <span class="text-xs text-ink-500" dir="ltr"><?= e($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? '') ?></span></label>
               <?php endforeach; ?>
             </div>
           </fieldset>
@@ -271,6 +271,11 @@ render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, 
         </form>
         <script>function waMode(){var c=document.querySelector('input[name=mode]:checked').value;document.getElementById('modeTags').classList.toggle('hidden',c!=='tags');document.getElementById('modeContacts').classList.toggle('hidden',c!=='contacts');}</script>
         <?= wa_mapping_script() ?>
+        <script>window.WAB = <?= json_encode(['contacts' => array_map(function ($c) { return ['id' => (string)($c['id'] ?? ''), 'name' => (string)($c['name'] ?? ''), 'phone' => (string)($c['displayIdentifier'] ?? $c['platformIdentifier'] ?? ''), 'email' => (string)($c['email'] ?? ''), 'company' => (string)($c['company'] ?? ''), 'tags' => array_values((array)($c['tags'] ?? []))]; }, $contacts),
+          'biz' => ws('name'), 'sample' => t('أحمد'), 'searchTpl' => t('ابحث في القوالب...'), 'searchC' => t('ابحث بالاسم أو الرقم...'), 'selAll' => t('تحديد الظاهر'), 'none' => t('مفيش'),
+          'approx' => t('حوالي %s شخص هيستلموها'), 'exact' => t('%s شخص هيستلموها'), 'allSubs' => t('كل المشتركين (%s)'), 'noTpl' => t('اختار قالب'), 'pickTpl' => t('اختار قالب عشان تشوف المعاينة'),
+          'sumName' => t('الحملة'), 'sumTpl' => t('القالب'), 'sumTo' => t('المستلمين'), 'note' => t('العدد النهائي بيتحسب في الخطوة الجاية قبل الإرسال.'), 'cat' => ['MARKETING' => t('تسويق'), 'UTILITY' => t('خدمي'), 'AUTHENTICATION' => t('تحقق')], 'tplCats' => array_combine(array_map(function ($t) { return ($t['name'] ?? '') . '|' . ($t['language'] ?? ''); }, $templates), array_map(function ($t) { return strtoupper((string)($t['category'] ?? '')); }, $templates)) ?: new stdClass()], JSON_UNESCAPED_UNICODE) ?>;</script>
+        <script src="assets/wa-ux.js?v=<?= e(APP_VERSION) ?>"></script>
         <?php
         return;
     }
