@@ -166,3 +166,62 @@ function ai_page_insights(string $page): array
     $keys = $map[$page] ?? ['dash_summary', 'help'];
     return array_values(array_filter($keys, function ($k) { return isset(ai_insights()[$k]) && ai_feature_on($k); }));
 }
+
+/** أيقونات الأوامر بنفس ستايل أيقونات السايد بار (خط رفيع 1.6) */
+function ai_icon(string $key, string $cls = 'w-5 h-5'): string
+{
+    static $p = [
+        'spark' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+        'dash_summary' => 'M9 4h6v3H9zM8 5H6a1 1 0 00-1 1v14a1 1 0 001 1h12a1 1 0 001-1V6a1 1 0 00-1-1h-2M9 12h6M9 16h4',
+        'dash_todo' => 'M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zM8 12l3 3 5-6',
+        'dash_anomaly' => 'M12 4l9 16H3zM12 10v4M12 17.5v.01',
+        'dash_forecast' => 'M3 17l6-6 4 4 8-8M15 7h6v6',
+        'best_time' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',
+        'content_plan' => 'M4 6a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6',
+        'occasions' => 'M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7C10.5 4 7 4 7 6s3 1 5 1zm0 0c1.5-3 5-3 5-1s-3 1-5 1z',
+        'queue_check' => 'M4 6h10M4 12h6M4 18h6M16 16a3 3 0 100-6 3 3 0 000 6zM18.2 15.2L21 18',
+        'revive' => 'M4 4v6h6M20 20v-6h-6M5.6 15a7 7 0 0012.3 2M18.4 9A7 7 0 006.1 7',
+        'post_perf' => 'M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3M7.5 15h9',
+        'explain' => 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0012 3z',
+        'monthly' => 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
+        'platforms' => 'M12 4v16M6 20h12M5 7h14M7 7l-3 6a3 3 0 006 0zM17 7l-3 6a3 3 0 006 0z',
+        'goals' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z',
+        'content_types' => 'M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4',
+        'faq' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1-1.5 2M12 17h.01',
+        'canned' => 'M4 5h12v8H8l-4 3zM20 9v10l-3-2h-6v-2',
+        'bulk_generate' => 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+        'bulk_check' => 'M7 3h7l5 5v13H7zM14 3v5h5M9.5 15l2 2 3.5-4',
+        'kw_suggest' => 'M3 12V4h8l10 10-8 8zM7.5 8.5h.01',
+        'rule_test' => 'M7 4l12 8-12 8z',
+        'rules_conflict' => 'M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
+        'workflow_design' => 'M4 4h6v6H4zM14 14h6v6h-6zM10 7h4a3 3 0 013 3v4M7 10v4a3 3 0 003 3h4',
+        'tpl_rejects' => 'M8 3h8l5 5v8l-5 5H8l-5-5V8zM9.5 9.5l5 5M14.5 9.5l-5 5',
+        'segments' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
+        'contacts_clean' => 'M16 3l5 5-11 11H5l-2-2zM9 9l6 6M10 21h11',
+        'sequence_write' => 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
+        'ads_analyze' => 'M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM15 8a5 5 0 010 8M18 5a9 9 0 010 14',
+        'audience' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 3v4M12 17v4M3 12h4M17 12h4M12 13a1 1 0 100-2 1 1 0 000 2z',
+        'budget_advice' => 'M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4',
+        'competitors' => 'M4 20V10M10 20V4M16 20v-8M21 20H3',
+        'leads_score' => 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+        'leads_followup' => 'M3 6h18v12H3zM3 7l9 6 9-6',
+        'reviews_analyze' => 'M4 5h16v11H9l-5 4zM12 7.5l.9 1.9 2.1.3-1.5 1.5.4 2.1-1.9-1-1.9 1 .4-2.1-1.5-1.5 2.1-.3z',
+        'gmb_posts' => 'M12 21s-7-6.2-7-11.5a7 7 0 1114 0C19 14.8 12 21 12 21zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+        'team_perf' => 'M8 8a3 3 0 100-6 3 3 0 000 6zM2 16v-1a5 5 0 019-3M14 20v-4M18 20v-8M22 20v-6',
+        'role_suggest' => 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+        'admin_ask' => 'M4 5h16v14H4zM8 10l2 2-2 2M12 14h4',
+        'help' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM15.5 8.5l-2 5-5 2 2-5z',
+    ];
+    return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' . ($p[$key] ?? $p['spark']) . '"/></svg>';
+}
+
+/** التحليلات المفعّلة بالشكل اللي الـ JS محتاجه */
+function ai_insights_js(): array
+{
+    $o = [];
+    foreach (ai_insights() as $k => $i) {
+        if (!ai_feature_on($k)) continue;
+        $o[$k] = ['label' => $i['label'], 'icon' => ai_icon($k, 'w-4 h-4'), 'input' => $i['input'] ?? '', 'csv' => !empty($i['csv']), 'page' => !empty($i['page'])];
+    }
+    return $o;
+}

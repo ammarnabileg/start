@@ -381,9 +381,9 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
         <?php $aiLab = (ai_connection() && can('ai.use') && ai_feature_on('classify_btn')) ? ai_labels((int)ws('id')) : null; ?>
         <?php if ($aiLab !== null && $convs): ?>
           <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-ink-200 px-3 py-2 flex items-center gap-2 text-xs">
-            <button type="button" id="ai-classify" class="inline-flex items-center gap-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 px-2 py-1 hover:bg-brand-100 disabled:opacity-60">✨ <span><?= e(t('صنّف الآن')) ?></span></button>
+            <button type="button" id="ai-classify" class="inline-flex items-center gap-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 px-2 py-1 hover:bg-brand-100 disabled:opacity-60"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <span><?= e(t('صنّف الآن')) ?></span></button>
             <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-urgent" class="w-3.5 h-3.5"> <?= e(t('العاجل أولًا')) ?></label>
-            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-intent" class="w-3.5 h-3.5"> 🛒 <?= e(t('نية شراء')) ?></label>
+            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-intent" class="w-3.5 h-3.5"> <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('نية شراء')) ?></label>
           </div>
         <?php endif; ?>
         <?php if (!$convs): ?><p class="p-5 text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p><?php endif; ?>
@@ -400,9 +400,9 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <?php if ($lb): $catL = ['inquiry' => t('استفسار'), 'complaint' => t('شكوى'), 'purchase' => t('طلب شراء'), 'support' => t('دعم'), 'spam' => t('سبام'), 'other' => t('أخرى')]; ?>
                 <div class="flex flex-wrap gap-1 mt-1" title="<?= e($lb['summary']) ?>">
                   <?php if ((int)$lb['urgency'] === 3): ?><span class="rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('عاجل')) ?></span><?php endif; ?>
-                  <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium">🛒 <?= e(t('نية شراء')) ?></span><?php endif; ?>
+                  <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg><?= e(t('نية شراء')) ?></span><?php endif; ?>
                   <span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($catL[$lb['category']] ?? $lb['category']) ?></span>
-                  <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? '😠 ' . e(t('غاضب')) : '😕 ' . e(t('متضايق')) ?></span><?php endif; ?>
+                  <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? e(t('غاضب')) : e(t('متضايق')) ?></span><?php endif; ?>
                 </div>
               <?php endif; ?>
               <p class="text-[11px] text-ink-400 mt-0.5"><?= e(platform_label($c['platform'] ?? '')) ?><?php if (!empty($c['accountUsername'])): ?> · <?= e(trim($c['accountUsername'])) ?><?php endif; ?> · <?= e(fmt_date($c['updatedTime'] ?? null, 'd/m h:i A')) ?><?php if (($c['status'] ?? '') === 'archived'): ?> · <?= e(t('مؤرشفة')) ?><?php endif; ?></p>
@@ -558,7 +558,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <?php else: ?>
             <?php $dr = ai_drafts((int)ws('id'))[$convId] ?? null; if ($dr && ai_feature_on('auto_reply')): ?>
               <div class="mx-3 mt-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm" id="ai-draft">
-                <div class="text-xs text-brand-700 font-medium mb-1">🤖 <?= e(t('رد مقترح جاهز (خارج المواعيد)')) ?></div>
+                <div class="text-xs text-brand-700 font-medium mb-1 flex items-center gap-1.5"><?= ai_icon('spark', 'w-3.5 h-3.5') ?><?= e(t('رد مقترح جاهز (خارج المواعيد)')) ?></div>
                 <p class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($dr['text']) ?></p>
                 <button type="button" class="btn-ghost !py-1 !px-2.5 !text-xs mt-2" onclick="var t=document.querySelector('#ai-draft ~ form textarea[name=message]');t.value=this.parentNode.querySelector('p').textContent;t.focus();this.parentNode.remove();"><?= e(t('استخدم الرد')) ?></button>
               </div>

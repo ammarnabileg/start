@@ -356,8 +356,8 @@ function ai_features_render(): void
     $groups = [];
     $tasks = ai_tasks();
     foreach (ai_special_features() as $k => [$l, $d]) $groups[t('ميزات أساسية')][$k] = [$l, $d];
-    foreach (ai_presets() as $k => $p) $groups[t('أوامر ✨ على خانات النص') . ' · ' . ($tasks[$p['group']]['name'] ?? $p['group'])][$k] = [$p['label'], ''];
-    foreach (ai_insights() as $k => $i) $groups[t('تحليلات من بياناتك') . ' · ' . ($tasks[$i['group']]['name'] ?? $i['group'])][$k] = [($i['icon'] ?? '') . ' ' . $i['label'], ''];
+    foreach (ai_presets() as $k => $p) $groups[t('أوامر على خانات النص') . ' · ' . ($tasks[$p['group']]['name'] ?? $p['group'])][$k] = [$p['label'], ''];
+    foreach (ai_insights() as $k => $i) $groups[t('تحليلات من بياناتك') . ' · ' . ($tasks[$i['group']]['name'] ?? $i['group'])][$k] = [$i['label'], ''];
     $total = 0; foreach ($groups as $g) $total += count($g);
     ?>
     <div class="card p-5 mb-4 flex flex-wrap items-center gap-4">

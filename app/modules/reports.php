@@ -631,7 +631,7 @@ function rp_alert_text(string $rule, array $d): string
 {
     switch ($rule) {
         case 'ai_anomaly':
-            return '✨ ' . (string)($d['title'] ?? '') . ((string)($d['detail'] ?? '') !== '' ? ' — ' . $d['detail'] : '');
+            return (string)($d['title'] ?? '') . ((string)($d['detail'] ?? '') !== '' ? ' — ' . $d['detail'] : '');
         case 'post_above':
             return t('منشور على %s أداؤه أعلى من المتوسط بـ %s%% (%s مرة ظهور): %s', platform_label((string)($d['platform'] ?? '')), (int)($d['pct'] ?? 0), an_num($d['imp'] ?? 0), (string)($d['text'] ?? ''));
         case 'impressions_drop':

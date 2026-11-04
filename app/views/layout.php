@@ -191,8 +191,8 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   </button>
   <div class="w-6 border-t border-ink-200 my-1"></div>
   <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?>
-    <button type="button" data-cp-insight="<?= e($k) ?>" class="group relative w-10 h-10 rounded-xl text-lg hover:bg-ink-100 transition flex items-center justify-center">
-      <?= e($it['icon']) ?>
+    <button type="button" data-cp-insight="<?= e($k) ?>" class="group relative w-10 h-10 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition flex items-center justify-center" aria-label="<?= e($it['label']) ?>">
+      <?= ai_icon($k) ?>
       <span class="pointer-events-none absolute end-full me-2 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-ink-900 text-[#fff] text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition"><?= e($it['label']) ?></span>
     </button>
   <?php endforeach; ?>
@@ -202,8 +202,8 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 </button>
 <aside id="cp" role="dialog" aria-label="AI" class="fixed z-40 top-16 bottom-0 end-0 lg:end-14 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
   <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200 shrink-0">
-    <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center text-sm">✨</span>
-    <div class="flex-1 min-w-0"><b class="block text-sm text-ink-900 leading-tight"><?= e(t('الذكاء الاصطناعي')) ?></b><span class="block text-[11px] text-ink-500 truncate">📄 <?= e($title) ?></span></div>
+    <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center"><?= ai_icon('spark', 'w-4 h-4') ?></span>
+    <div class="flex-1 min-w-0"><b class="block text-sm text-ink-900 leading-tight"><?= e(t('الذكاء الاصطناعي')) ?></b><span class="block text-[11px] text-ink-500 truncate"><?= e($title) ?></span></div>
     <button type="button" id="cp-clear" class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" title="<?= e(t('محادثة جديدة')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <button type="button" id="cp-wide" class="hidden lg:block p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" title="<?= e(t('توسيع')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/></svg></button>
     <button type="button" data-cp-toggle class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" title="<?= e(t('إغلاق')) ?> (Esc)"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -212,7 +212,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <div class="px-3 py-2 border-b border-ink-100 shrink-0">
     <div class="text-[11px] text-ink-400 mb-1.5"><?= e(t('لهذه الصفحة')) ?></div>
     <div class="flex gap-1.5 overflow-x-auto pb-1" style="scrollbar-width:thin">
-      <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?><button type="button" data-cp-insight="<?= e($k) ?>" class="chip !py-1 !px-2.5 text-xs shrink-0"><?= e($it['icon'] . ' ' . $it['label']) ?></button><?php endforeach; ?>
+      <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?><button type="button" data-cp-insight="<?= e($k) ?>" class="chip !py-1 !px-2.5 text-xs shrink-0 !gap-1.5"><?= ai_icon($k, 'w-3.5 h-3.5 text-ink-500') ?><?= e($it['label']) ?></button><?php endforeach; ?>
     </div>
   </div>
   <?php endif; ?>
@@ -222,7 +222,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <div class="rounded-2xl border border-ink-200 bg-ink-50 focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/15 transition">
       <textarea id="cp-input" rows="1" maxlength="2000" class="block w-full resize-none bg-transparent !bg-transparent border-0 px-3.5 pt-3 pb-1 text-sm focus:ring-0 outline-none max-h-40" placeholder="<?= e(t('اسأل عن أرقامك، اطلب كتابة منشور، أو اسأل كيف تفعل شيئًا...')) ?>"></textarea>
       <div class="flex items-center gap-2 px-2 pb-2">
-        <label class="inline-flex items-center gap-1.5 text-[11px] text-ink-500 cursor-pointer select-none rounded-lg px-2 py-1 hover:bg-ink-100" title="<?= e(t('يرسل محتوى الصفحة الظاهر مع سؤالك')) ?>"><input type="checkbox" id="cp-page" class="w-3.5 h-3.5"> 📄 <?= e(t('اقرأ هذه الصفحة')) ?></label>
+        <label class="inline-flex items-center gap-1.5 text-[11px] text-ink-500 cursor-pointer select-none rounded-lg px-2 py-1 hover:bg-ink-100" title="<?= e(t('يرسل محتوى الصفحة الظاهر مع سؤالك')) ?>"><input type="checkbox" id="cp-page" class="w-3.5 h-3.5"> <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></svg> <?= e(t('اقرأ هذه الصفحة')) ?></label>
         <button id="cp-send" class="ms-auto w-8 h-8 rounded-xl bg-brand-600 text-[#fff] flex items-center justify-center hover:brightness-110 disabled:opacity-40" aria-label="<?= e(t('إرسال')) ?>"><svg class="w-4 h-4 rtl:-scale-x-100" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
     </div>
@@ -233,7 +233,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script>window.CP = <?= json_encode(['title' => $title, 'chat' => ai_feature_on('assistant'),
   'hi' => t('أهلًا! أنا مساعدك في المنصة كلها.'), 'hiSub' => t('أعرف أرقام شركتك والصفحة التي أنت فيها. جرّب:'),
   'samples' => [t('ما أفضل منشور هذا الشهر ولماذا؟'), t('اكتب منشورًا لعرض نهاية الأسبوع'), t('ماذا أفعل اليوم لتحسين التفاعل؟'), t('كيف أجدول منشورًا؟')],
-  'copy' => t('نسخ'), 'insert' => t('إدراج في الخانة'), 'run' => t('تشغيل'), 'thinking' => t('يفكر...'), 'csv' => t('تحميل CSV'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'confirmClear' => t('بدء محادثة جديدة؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+  'spark' => ai_icon('spark', 'w-3.5 h-3.5'), 'sparkBig' => ai_icon('spark', 'w-7 h-7'), 'copy' => t('نسخ'), 'insert' => t('إدراج في الخانة'), 'run' => t('تشغيل'), 'thinking' => t('يفكر...'), 'csv' => t('تحميل CSV'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'confirmClear' => t('بدء محادثة جديدة؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/copilot.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php endif; ?>
 

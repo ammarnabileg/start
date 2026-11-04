@@ -28,7 +28,7 @@
     b.firstChild.innerHTML = html; thread.appendChild(b); scroll(); return b;
   }
   function bubbleAI() {
-    var b = el('<div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center text-xs">✨</span><div class="cp-ai flex-1 min-w-0 rounded-2xl rounded-ss-md bg-ink-50 border border-ink-200 px-3.5 py-2.5 text-sm text-ink-800"><span class="inline-flex gap-1 py-1"><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce"></i><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce [animation-delay:.15s]"></i><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce [animation-delay:.3s]"></i></span></div></div>');
+    var b = el('<div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center">' + (C.spark || '') + '</span><div class="cp-ai flex-1 min-w-0 rounded-2xl rounded-ss-md bg-ink-50 border border-ink-200 px-3.5 py-2.5 text-sm text-ink-800"><span class="inline-flex gap-1 py-1"><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce"></i><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce [animation-delay:.15s]"></i><i class="w-1.5 h-1.5 rounded-full bg-ink-400 animate-bounce [animation-delay:.3s]"></i></span></div></div>');
     thread.appendChild(b); scroll(); return b.querySelector('.cp-ai');
   }
   function fill(box, d) {
@@ -51,7 +51,7 @@
   }
   function welcome() {
     if (thread.children.length) return;
-    var w = el('<div class="cp-welcome text-center pt-6"><div class="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] text-2xl flex items-center justify-center shadow-lg shadow-brand-600/25">✨</div><p class="mt-3 font-medium text-ink-900"></p><p class="text-xs text-ink-500 mt-1"></p><div class="cp-samples mt-4 space-y-2 text-start"></div></div>');
+    var w = el('<div class="cp-welcome text-center pt-6"><div class="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center shadow-lg shadow-brand-600/25">' + (C.sparkBig || '') + '</div><p class="mt-3 font-medium text-ink-900"></p><p class="text-xs text-ink-500 mt-1"></p><div class="cp-samples mt-4 space-y-2 text-start"></div></div>');
     w.querySelector('p').textContent = C.hi; w.querySelectorAll('p')[1].textContent = C.hiSub;
     if (C.chat) (C.samples || []).forEach(function (s) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-700 hover:border-brand-300 hover:bg-brand-50 transition text-start'; b.textContent = s;
@@ -87,13 +87,14 @@
     if (it.input && extra == null) {
       // أمر محتاج مدخلات: كارت صغير جوه المحادثة
       var card = el('<div class="rounded-2xl border border-brand-200 bg-brand-50/50 p-3"><div class="text-sm font-medium text-ink-900 mb-2"></div><textarea rows="3" class="input !mt-0 text-sm"></textarea><div class="flex justify-end gap-2 mt-2"><button type="button" class="cp-x btn-ghost !py-1 !px-2.5 !text-xs">✕</button><button type="button" class="cp-run btn-primary !py-1 !px-3 !text-xs"></button></div></div>');
-      card.querySelector('div').textContent = it.icon + ' ' + it.label; var ta = card.querySelector('textarea'); ta.placeholder = it.input; card.querySelector('.cp-run').textContent = C.run;
+      var hd = card.querySelector('div'); hd.className += ' flex items-center gap-2 text-brand-700'; hd.innerHTML = it.icon; hd.appendChild(document.createTextNode(it.label)); var ta = card.querySelector('textarea'); ta.placeholder = it.input; card.querySelector('.cp-run').textContent = C.run;
       card.querySelector('.cp-x').onclick = function () { card.remove(); welcome(); };
       card.querySelector('.cp-run').onclick = function () { if (!ta.value.trim()) { ta.focus(); return; } card.remove(); insight(key, ta.value); };
       thread.appendChild(card); scroll(); ta.focus(); return;
     }
     busy = true;
-    bubbleUser(it.icon + ' ' + it.label + (extra ? '<div class="text-xs opacity-75 mt-1 line-clamp-2"></div>' : ''), true);
+    var lbl = document.createElement('span'); lbl.textContent = it.label;
+    bubbleUser('<span class="inline-flex items-center gap-1.5 align-middle">' + it.icon + lbl.outerHTML + '</span>' + (extra ? '<div class="text-xs opacity-75 mt-1 line-clamp-2"></div>' : ''), true);
     if (extra) thread.lastChild.querySelector('.line-clamp-2').textContent = extra;
     var box = bubbleAI(), data = { task: 'insight', insight: key, text: extra || '' };
     if (it.page) data.page = pageText();

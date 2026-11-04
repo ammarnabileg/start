@@ -58,7 +58,7 @@ render(t('الذكاء الاصطناعي'), 'assistant', function () use ($hist
     </div>
     <?php
     if ($tab === 'features') { ai_features_render(); return; }
-    if ($connected) echo '<div class="card p-4 mb-5 flex items-center gap-3 text-sm"><span class="text-xl">✨</span><span class="flex-1 text-ink-600">' . e(t('المحادثة مع الذكاء الاصطناعي أصبحت في اللوحة الجانبية، متاحة من أي صفحة. اضغط ✨ أو Ctrl+J.')) . '</span><button type="button" data-cp-toggle class="btn-primary !py-1.5 !text-xs">' . e(t('افتح المحادثة')) . '</button></div>';
+    if ($connected) echo '<div class="card p-4 mb-5 flex items-center gap-3 text-sm"><span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center">' . ai_icon('spark', 'w-4 h-4') . '</span><span class="flex-1 text-ink-600">' . e(t('المحادثة مع الذكاء الاصطناعي أصبحت في اللوحة الجانبية، متاحة من أي صفحة. اضغط ✨ أو Ctrl+J.')) . '</span><button type="button" data-cp-toggle class="btn-primary !py-1.5 !text-xs">' . e(t('افتح المحادثة')) . '</button></div>';
     echo '<div class="space-y-5">'; ai_settings_render($tab); echo '</div>'; return;
     if ($connected && !ai_feature_on('assistant')) { echo '<div class="card p-8 text-center text-sm text-ink-500">' . e(t('المحادثة مع المساعد متوقفة. فعّلها من تبويب الميزات.')) . '</div>'; return; }
     $suggest = [t('إيه أحسن منشور الشهر ده وليه؟'), t('الأداء الأسبوع ده أحسن ولا أسوأ من اللي قبله؟'), t('إمتى أحسن وقت أنشر فيه؟'), t('اقترح عليا 3 أفكار منشورات بناءً على اللي نجح'), t('فيه حسابات محتاجة اهتمام؟'), t('لخصلي الوضع في 5 نقاط')];

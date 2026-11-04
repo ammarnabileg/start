@@ -169,7 +169,7 @@ if ($task === 'insight') {
         }
         $meta = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
         $h = &$_SESSION['copilot'][(int)ws('id')]; if (!is_array($h)) $h = [];
-        $h[] = ['role' => 'user', 'content' => ($in['icon'] ?? '') . ' ' . $in['label'] . ($extra !== '' ? "\n" . mb_substr($extra, 0, 300) : ''), 'label' => 1, 't' => time()];
+        $h[] = ['role' => 'user', 'content' => $in['label'] . ($extra !== '' ? "\n" . mb_substr($extra, 0, 300) : ''), 'label' => 1, 't' => time()];
         $h[] = ['role' => 'assistant', 'content' => $text, 'meta' => $meta, 't' => time()];
         $h = array_slice($h, -30);
         $out(['html' => ai_render($text), 'text' => $text, 'model' => $r['model'], 'cost' => $r['cost'] ?? null, 'meta' => $meta]);

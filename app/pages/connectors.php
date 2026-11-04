@@ -200,7 +200,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
       </div>
 
       <a href="<?= e(url('assistant', ['tab' => 'models'])) ?>" class="card p-4 flex items-center gap-3 hover:border-brand-300 transition">
-        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center">✨</span>
+        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center"><?= ai_icon('spark', 'w-5 h-5') ?></span>
         <span class="flex-1"><b class="text-ink-900 text-sm block"><?= e(t('إعدادات الذكاء الاصطناعي')) ?></b><span class="text-xs text-ink-500"><?= e(t('الموديلات والمهام، تفعيل وإيقاف الميزات، الاستهلاك، ومعلومات الشركة.')) ?></span></span>
         <svg class="w-5 h-5 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </a>

@@ -139,8 +139,8 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('calls') && (!empty($c['transcript']) || !empty($c['recordingUrl']) || !empty($c['recordingEnabled']))): ?>
           <div class="mt-5 rounded-2xl border border-brand-200 bg-brand-50/40 p-4" id="call-ai" data-id="<?= e($c['_id'] ?? '') ?>">
             <div class="flex flex-wrap gap-2">
-              <button type="button" data-mode="summary" class="btn-primary !py-1.5 !text-xs">✨ <?= e(t('لخّص واستخرج المهام')) ?></button>
-              <?php if (setting('ai_call_consent_' . (int)ws('id'), '0') === '1'): ?><button type="button" data-mode="score" class="btn-ghost !py-1.5 !text-xs">📊 <?= e(t('تقييم جودة المكالمة')) ?></button><?php endif; ?>
+              <button type="button" data-mode="summary" class="btn-primary !py-1.5 !text-xs"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <?= e(t('لخّص واستخرج المهام')) ?></button>
+              <?php if (setting('ai_call_consent_' . (int)ws('id'), '0') === '1'): ?><button type="button" data-mode="score" class="btn-ghost !py-1.5 !text-xs"><?= ai_icon('competitors', 'w-3.5 h-3.5') ?> <?= e(t('تقييم جودة المكالمة')) ?></button><?php endif; ?>
             </div>
             <div class="call-out mt-3 text-sm leading-relaxed hidden"></div>
           </div>

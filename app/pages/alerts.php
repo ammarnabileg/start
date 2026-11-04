@@ -48,7 +48,7 @@ $unseen = alerts_unseen_count($wid);
 $lastEval = (int)setting('alerts_eval_' . $wid, 0);
 
 render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval) {
-    $icons = ['ai_anomaly' => '🤖', 'post_above' => '🚀', 'impressions_drop' => '📉', 'follower_drop' => '👥', 'reconnect' => '🔌', 'unread_old' => '💬'];
+    $icons = ['ai_anomaly' => '⚡', 'post_above' => '🚀', 'impressions_drop' => '📉', 'follower_drop' => '👥', 'reconnect' => '🔌', 'unread_old' => '💬'];
     $links = ['post_above' => url('analytics'), 'impressions_drop' => url('analytics'), 'follower_drop' => url('analytics'), 'reconnect' => url('accounts'), 'unread_old' => url('inbox')];
     ?>
     <?php if (!$hasApi): ?><div class="mb-5"><?php no_api_box(); ?></div><?php endif; ?>
