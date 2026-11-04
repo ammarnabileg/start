@@ -361,10 +361,26 @@ function kb_file_store(int $wid, string $name, string $mime, int $size, string $
 {
     $rid = (int)($_POST['replace'] ?? 0);
     if ($rid > 0) {
-        $st = db()->prepare("UPDATE kb_files SET name = ?, mime = ?, size = ?, method = ?, content = ? WHERE id = ? AND workspace_id = ?");
-        $st->execute([$name, $mime, $size, $method, $text, $rid, $wid]);
+        if (($_POST['keep_name'] ?? '') === '1') { $st = db()->prepare("UPDATE kb_files SET method = ?, content = ? WHERE id = ? AND workspace_id = ?"); $st->execute([$method, $text, $rid, $wid]); }
+        else { $st = db()->prepare("UPDATE kb_files SET name = ?, mime = ?, size = ?, method = ?, content = ? WHERE id = ? AND workspace_id = ?"); $st->execute([$name, $mime, $size, $method, $text, $rid, $wid]); }
         if ($st->rowCount() || db()->query("SELECT 1 FROM kb_files WHERE id = " . $rid . " AND workspace_id = " . $wid)->fetchColumn()) { $GLOBALS['kb_last_id'] = $rid; return; }
     }
     db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, $size, $method, $text]);
     $GLOBALS['kb_last_id'] = (int)db()->lastInsertId();
+}
+
+/** نسخة الملف الأصلي على السيرفر (عشان إعادة القراءة من غير ما المستخدم يختاره تاني) */
+function kb_orig_dir(int $wid): string { return ROOT_DIR . '/uploads/kb/' . $wid; }
+function kb_orig(int $wid, int $id): ?string
+{
+    foreach ((array)glob(kb_orig_dir($wid) . '/' . $id . '.*') as $f) if (is_file($f) && substr($f, -5) !== '.part') return $f;
+    return null;
+}
+function kb_orig_del(int $wid, int $id): void { foreach ((array)glob(kb_orig_dir($wid) . '/' . $id . '.*') as $f) @unlink($f); }
+function kb_orig_ext(string $name): string { $e = strtolower(pathinfo($name, PATHINFO_EXTENSION)); return preg_match('/^[a-z0-9]{1,5}$/', $e) ? $e : 'bin'; }
+function kb_orig_save(int $wid, int $id, string $tmp, string $name): void
+{
+    $d = kb_orig_dir($wid); if (!is_dir($d)) @mkdir($d, 0750, true);
+    kb_orig_del($wid, $id);
+    @copy($tmp, $d . '/' . $id . '.' . kb_orig_ext($name));
 }

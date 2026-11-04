@@ -192,7 +192,31 @@
       })(0.85);
     }).catch(function () { return null; });
   }
-  function upload(files, replace) {
+  // رفع الملف الأصلي على أجزاء صغيرة أقل من حد السيرفر
+  function chunkUp(id, file) {
+    var size = Math.max(262144, Math.min(Math.floor((K.maxUp || 2097152) * 0.9), 4194304)), n = Math.max(1, Math.ceil(file.size / size));
+    return (function next(i) {
+      if (i >= n) return Promise.resolve(true);
+      var f = new FormData(); f.append('action', 'kb_chunk'); f.append('id', id); f.append('i', i); f.append('name', file.name); f.append('last', i === n - 1 ? '1' : '0');
+      f.append('part', file.slice(i * size, (i + 1) * size), 'part');
+      return post(f).then(function (d) { if (!d.ok) throw new Error(d.error || 'chunk'); return next(i + 1); });
+    })(0);
+  }
+  // إعادة القراءة: من النسخة اللي على السيرفر، ولو مفيش (ملف قديم) نطلب الملف من الجهاز
+  function reread(row) {
+    var g = new FormData(); g.append('action', 'kb_file_raw'); g.append('id', row.dataset.id);
+    return fetch('index.php?p=knowledge', { method: 'POST', body: g, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) {
+      if (!r.ok) return false;
+      var ext = r.headers.get('X-Ext') || 'bin';
+      return r.blob().then(function (b) {
+        var base = (row.querySelector('.kb-name') || {}).textContent || 'file';
+        var f = new File([b], base.replace(/\.[^.]*$/, '') + '.' + ext, { type: ext === 'pdf' ? 'application/pdf' : (/^(png|jpe?g|webp|bmp)$/.test(ext) ? 'image/' + ext.replace('jpg', 'jpeg') : '') });
+        upload([f], row.dataset.id, { keepName: true, fromOrig: true }); return true;
+      });
+    }).catch(function () { return false; });
+  }
+  function upload(files, replace, opt) {
+    opt = opt || {};
     var okAny = false, bad = false;
     // ملف ورا التاني (الـ OCR تقيل)، ونحدّث الصفحة مرة واحدة في الآخر
     [].slice.call(files).reduce(function (chain, file) { return chain.then(function () { return one(file); }); }, Promise.resolve())
@@ -213,7 +237,11 @@
         // النص اتقرا في المتصفح: نبعت النص بس (أخف بكتير، ومفيش مشكلة حجم على السيرفر)
         if (r && r.text && r.text.replace(/\s/g, '').length >= 15) {
           var t = new FormData(); t.append('action', 'kb_upload'); t.append('client_name', file.name); t.append('client_size', file.size);
-          if (replace) t.append('replace', replace); t.append('client_text', r.text); t.append('client_method', r.method); return post(t);
+          if (replace) t.append('replace', replace); if (opt.keepName) t.append('keep_name', '1'); t.append('client_text', r.text); t.append('client_method', r.method);
+          // الأصل بيترفع بعدها على أجزاء (لإعادة القراءة بعدين)، إلا لو هو أصلًا على السيرفر
+          return post(t).then(function (d) { if (d.ok && !opt.fromOrig && file.size <= 15728640) { st.textContent = K.saving; return chunkUp(d.id, file).then(function () { return d; }, function () { return d; }); } return d; });
+        }
+        if (opt.fromOrig) { var rr = new FormData(); rr.append('action', 'kb_reread'); rr.append('id', replace); return post(rr);
         }
         if (file.size <= max) return post(fd);
         // صورة كبيرة: نصغّرها الأول
@@ -254,9 +282,13 @@
         return;
       }
       if (e.target.closest('.kb-reread')) {
-        var pick = document.createElement('input'); pick.type = 'file'; pick.accept = input ? input.accept : '';
-        pick.onchange = function () { if (pick.files[0]) upload([pick.files[0]], row.dataset.id); };
-        pick.click(); return;
+        var btn = e.target.closest('.kb-reread'); btn.disabled = true;
+        reread(row).then(function (ok) {
+          btn.disabled = false; if (ok) return;
+          var pick = document.createElement('input'); pick.type = 'file'; pick.accept = input ? input.accept : '';
+          pick.onchange = function () { if (pick.files[0]) upload([pick.files[0]], row.dataset.id); };
+          pick.click();
+        }); return;
       }
       if (e.target.closest('.kb-view')) {
         var pv = row.querySelector('.kb-prev'); pv.classList.toggle('hidden');

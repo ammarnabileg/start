@@ -77,8 +77,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $text = mb_substr($text, 0, 200000);
         kb_file_store($wid, $name, $mime, (int)$f['size'], $method, $text);
+        kb_orig_save($wid, (int)$GLOBALS['kb_last_id'], $f['tmp_name'], $name);
         log_activity('kb.file', $name);
         $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
+    }
+
+    // الملف الأصلي بيترفع على أجزاء صغيرة (عشان حد الرفع في الاستضافة)
+    if ($action === 'kb_chunk') {
+        $id = (int)($_POST['id'] ?? 0); $i = (int)($_POST['i'] ?? 0);
+        $st = db()->prepare("SELECT name FROM kb_files WHERE id = ? AND workspace_id = ?"); $st->execute([$id, $wid]); $name = $st->fetchColumn();
+        if ($name === false || empty($_FILES['part']['tmp_name']) || !is_uploaded_file($_FILES['part']['tmp_name'])) $json(['error' => t('فشل رفع الملف.')], 422);
+        $d = kb_orig_dir($wid); if (!is_dir($d)) @mkdir($d, 0750, true);
+        $part = $d . '/' . $id . '.part';
+        if ($i === 0) { kb_orig_del($wid, $id); @unlink($part); }
+        if ((is_file($part) ? filesize($part) : 0) + filesize($_FILES['part']['tmp_name']) > 15 * 1048576) { @unlink($part); $json(['error' => t('الملف أكبر من 15 ميجا.')], 422); }
+        file_put_contents($part, file_get_contents($_FILES['part']['tmp_name']), FILE_APPEND);
+        if (($_POST['last'] ?? '') === '1') rename($part, $d . '/' . $id . '.' . kb_orig_ext((string)($_POST['name'] ?? $name)));
+        $json(['ok' => true]);
+    }
+
+    if ($action === 'kb_file_raw') {
+        $id = (int)($_POST['id'] ?? 0); $st = db()->prepare("SELECT name FROM kb_files WHERE id = ? AND workspace_id = ?"); $st->execute([$id, $wid]);
+        $o = $st->fetchColumn() !== false ? kb_orig($wid, $id) : null;
+        if (!$o) $json(['error' => 'none'], 404);
+        header('Content-Type: application/octet-stream'); header('X-Content-Type-Options: nosniff'); header('X-Ext: ' . pathinfo($o, PATHINFO_EXTENSION));
+        readfile($o); exit;
+    }
+
+    // إعادة قراءة على السيرفر (Word/Excel/نص، أو لو المتصفح ماعرفش يقرا)
+    if ($action === 'kb_reread') {
+        $id = (int)($_POST['id'] ?? 0); $st = db()->prepare("SELECT name, mime FROM kb_files WHERE id = ? AND workspace_id = ?"); $st->execute([$id, $wid]); $row = $st->fetch();
+        $o = $row ? kb_orig($wid, $id) : null; if (!$o) $json(['error' => t('فشل رفع الملف.')], 404);
+        $ext = pathinfo($o, PATHINFO_EXTENSION); $nm = preg_replace('/\.[^.]*$/', '', (string)$row['name']) . '.' . $ext;
+        try { [$text, $method] = kb_extract($o, $nm, (string)mime_content_type($o), null); } catch (Throwable $e) { $json(['error' => $e->getMessage()], 422); }
+        $text = mb_substr($text, 0, 200000);
+        db()->prepare("UPDATE kb_files SET method = ?, content = ? WHERE id = ? AND workspace_id = ?")->execute([$method, $text, $id, $wid]);
+        $json(['ok' => true, 'id' => $id, 'chars' => mb_strlen($text), 'method' => $method]);
     }
 
     if ($action === 'kb_file_rename') {
@@ -96,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (in_array($action, ['kb_file_toggle', 'kb_file_delete', 'kb_file_save'], true)) {
         $id = (int)($_POST['id'] ?? 0);
-        if ($action === 'kb_file_delete') db()->prepare("DELETE FROM kb_files WHERE id = ? AND workspace_id = ?")->execute([$id, $wid]);
+        if ($action === 'kb_file_delete') { db()->prepare("DELETE FROM kb_files WHERE id = ? AND workspace_id = ?")->execute([$id, $wid]); kb_orig_del($wid, $id); }
         elseif ($action === 'kb_file_save') db()->prepare("UPDATE kb_files SET content = ? WHERE id = ? AND workspace_id = ?")->execute([mb_substr((string)($_POST['content'] ?? ''), 0, 200000), $id, $wid]);
         else db()->prepare("UPDATE kb_files SET enabled = ? WHERE id = ? AND workspace_id = ?")->execute([($_POST['on'] ?? '') === '1' ? 1 : 0, $id, $wid]);
         $json(['ok' => true]);
@@ -309,7 +343,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
@@ -328,7 +362,7 @@ function kb_file_row(array $f, bool $canEdit): string
         . '<div class="flex-1 min-w-0"><div class="flex items-center gap-1 min-w-0"><div class="kb-name text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div>'
         . ($canEdit ? '<button type="button" class="kb-ren shrink-0 p-1 rounded-md text-ink-400 hover:text-brand-700 hover:bg-brand-50" title="' . e(t('تغيير الاسم')) . '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>' : '') . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
         . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>'
-        . '<button type="button" class="kb-reread text-xs link" title="' . e(t('اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
+        . '<button type="button" class="kb-reread text-xs link" title="' . e(t('يقرا الملف تاني ويبدّل النص القديم بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
     if ($canEdit) {
         $h .= '<label class="relative inline-flex cursor-pointer" title="' . e(t('استخدام في الردود')) . '"><input type="checkbox" class="kb-on sr-only peer" ' . ($f['enabled'] ? 'checked' : '') . '><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition-transform peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span></label>'
             . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>';

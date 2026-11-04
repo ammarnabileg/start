@@ -654,4 +654,6 @@ Unannounced discounts',
     'اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد' => 'Pick the same file from your device again; the old text will be replaced with the new one',
     'تغيير الاسم' => 'Rename',
     'اكتب اسم للملف.' => 'Enter a file name.',
+    'بيحفظ نسخة من الملف...' => 'Saving a copy of the file...',
+    'يقرا الملف تاني ويبدّل النص القديم بالجديد' => 'Reads the file again and replaces the old text with the new one',
 ];
