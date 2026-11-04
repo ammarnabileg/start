@@ -185,7 +185,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if ($cpOn): $cpKeys = ai_page_insights((string)($GLOBALS['page'] ?? $active)); ?>
 <!-- لوحة ✨ الجانبية -->
-<div id="cp-rail" class="hidden lg:flex fixed top-16 bottom-0 end-0 z-30 w-14 flex-col items-center gap-2 py-3 border-s border-ink-200 bg-white">
+<div id="cp-rail" class="hidden lg:flex fixed top-16 bottom-0 end-0 z-50 w-14 flex-col items-center gap-2 py-3 border-s border-ink-200 bg-white">
   <button type="button" data-cp-toggle class="cp-spark w-10 h-10 rounded-2xl text-[#fff] flex items-center justify-center shadow-lg shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 hover:scale-105 active:scale-95 transition" title="<?= e(t('اسأل الذكاء الاصطناعي')) ?> (Ctrl+J)">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
   </button>
@@ -193,7 +193,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?>
     <button type="button" data-cp-insight="<?= e($k) ?>" class="group relative w-10 h-10 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition flex items-center justify-center" aria-label="<?= e($it['label']) ?>">
       <?= ai_icon($k) ?>
-      <span class="pointer-events-none absolute end-full me-2 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-ink-900 text-[#fff] text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition"><?= e($it['label']) ?></span>
+      <span class="pointer-events-none absolute end-full me-2.5 top-1/2 -translate-y-1/2 translate-x-1 rtl:-translate-x-1 group-hover:translate-x-0 whitespace-nowrap rounded-lg bg-ink-900 text-ink-50 dark:bg-ink-800 dark:text-ink-50 text-xs font-medium px-2.5 py-1.5 shadow-lg opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition z-50"><?= e($it['label']) ?></span>
     </button>
   <?php endforeach; ?>
 </div>
