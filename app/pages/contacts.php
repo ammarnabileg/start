@@ -179,7 +179,7 @@ render(t('جهات الاتصال'), 'contacts', function () use ($z, $accounts,
       <h2 class="font-semibold"><?= e(t('استيراد جهات اتصال من ملف CSV')) ?></h2>
       <p class="text-sm text-ink-500"><?= e(t('أول سطر: أسماء الأعمدة. الأعمدة المدعومة: name (مطلوب)، phone (بالكود الدولي)، email، company، tags (مفصولة بـ ;). أقصى عدد 1000 في المرة.')) ?></p>
       <pre class="text-xs bg-ink-50 border border-ink-200 rounded-xl p-3" dir="ltr">name,phone,email,company,tags
-Ahmed Ali,201001234567,ahmed@example.com,ACME,vip;cairo</pre>
+Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replace('/[^a-z]+/', '', strtolower((string)countries()[ws_country()]['city_en']))) ?></pre>
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="block"><span class="label"><?= e(t('الملف')) ?></span><input type="file" name="csv" accept=".csv,text/csv" required class="input"></label>
         <label class="block"><span class="label"><?= e(t('تاجات تتضاف للكل (اختياري)')) ?></span><input name="tags" class="input" placeholder="<?= e(t('مثال: معرض 2026')) ?>"></label>
@@ -195,7 +195,7 @@ Ahmed Ali,201001234567,ahmed@example.com,ACME,vip;cairo</pre>
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="block"><span class="label"><?= e(t('الاسم')) ?></span><input name="name" required class="input" value="<?= e($c['name'] ?? '') ?>"></label>
         <?php if (!$edit): ?>
-        <label class="block"><span class="label"><?= e(t('رقم الواتساب (بالكود الدولي)')) ?></span><input name="phone" dir="ltr" class="input" placeholder="+201001234567"></label>
+        <label class="block"><span class="label"><?= e(t('رقم الواتساب (بالكود الدولي)')) ?></span><input name="phone" dir="ltr" class="input" placeholder="<?= e(cx_phone()) ?>"></label>
         <?php endif; ?>
         <label class="block"><span class="label"><?= e(t('الإيميل')) ?></span><input name="email" type="email" dir="ltr" class="input" value="<?= e($c['email'] ?? '') ?>"></label>
         <label class="block"><span class="label"><?= e(t('الشركة')) ?></span><input name="company" class="input" value="<?= e($c['company'] ?? '') ?>"></label>

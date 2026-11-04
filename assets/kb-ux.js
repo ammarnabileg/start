@@ -91,7 +91,7 @@
       var src = days.filter(function (d) { return d.value.trim() && d.value.trim() !== U.closed; })[0];
       if (b.dataset.h === 'clear') days.forEach(function (d) { d.value = ''; fire(d); });
       else if (!src) { (days[0] || {}).focus && days[0].focus(); }
-      else days.forEach(function (d, i) { if (b.dataset.h === 'weekdays' && i === 6) d.value = U.closed; else d.value = src.value; fire(d); });
+      else days.forEach(function (d) { var key = (d.name.match(/\[(\w+)\]/) || [])[1]; if (b.dataset.h === 'weekdays' && (U.weekend || ['fri']).indexOf(key) > -1) d.value = U.closed; else d.value = src.value; fire(d); });
     });
     days.forEach(function (d) {
       var c = document.createElement('button'); c.type = 'button'; c.className = 'absolute top-1/2 -translate-y-1/2 right-2 rtl:right-auto rtl:left-2 mt-0.5 rounded-lg px-2 py-1 text-[11px] text-ink-500 hover:text-red-600 hover:bg-red-50'; c.textContent = U.closed;
@@ -126,4 +126,63 @@
     var p = e.target.closest('.kb-pos-stmt [data-pgo]'); if (!p) return;
     go(p.dataset.pgo); setTimeout(function () { var el = root.querySelector('section[data-kb="' + p.dataset.pgo + '"] [name="d[' + p.dataset.pf + ']"]'); if (el) { el.focus(); el.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { el.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200); } }, 60);
   });
+  // 7) ربط الخدمات والمنتجات ↔ التموضع لكل منتج: كل خدمة ليها بطاقة تلقائيًا
+  var sf = root.querySelector('.kb-form[data-section="services"]'), pf = root.querySelector('.kb-form[data-section="pos_offers"]');
+  if (sf && pf) {
+    var names = function () { return [].map.call(sf.querySelectorAll('.kb-row [data-col="name"]'), function (i) { return i.value.trim(); }).filter(Boolean); };
+    var cards = function () { return [].slice.call(pf.querySelectorAll('.kb-row')); };
+    var offerOf = function (c) { var i = c.querySelector('[data-col="offer"]'); return i ? i.value.trim() : ''; };
+    var badge = function (c, kind) {
+      var b = c.querySelector('.kb-link-badge'); if (!b) { b = document.createElement('span'); b.className = 'kb-link-badge absolute top-2.5 end-11 text-[10px] rounded-full px-2 py-0.5'; c.appendChild(b); }
+      b.className = 'kb-link-badge absolute top-2.5 end-11 text-[10px] rounded-full px-2 py-0.5 ' + (kind === 'ok' ? 'bg-lime-100 text-lime-700' : 'bg-amber-100 text-amber-800');
+      b.textContent = kind === 'ok' ? U.linked : U.orphan;
+    };
+    var syncing = false;
+    function sync() {
+      if (syncing) return; syncing = true;
+      var ns = names(), have = cards().map(offerOf);
+      ns.forEach(function (n) {
+        if (have.indexOf(n) > -1) return;
+        var empty = cards().filter(function (c) { return ![].some.call(c.querySelectorAll('[data-col]'), function (x) { return x.value.trim(); }); })[0];
+        var c = empty || cards()[cards().length - 1].cloneNode(true);
+        if (!empty) { c.querySelectorAll('[data-col]').forEach(function (x) { x.value = ''; }); var bb = c.querySelector('.kb-link-badge'); if (bb) bb.remove(); pf.querySelector('.kb-rows').appendChild(c); }
+        c.querySelector('[data-col="offer"]').value = n; have.push(n);
+      });
+      cards().forEach(function (c) {
+        var o = offerOf(c), inp = c.querySelector('[data-col="offer"]'), linked = !!o && ns.indexOf(o) > -1;
+        inp.readOnly = linked; inp.classList.toggle('!bg-ink-50', linked); inp.title = linked ? U.linkedHint : '';
+        if (o) badge(c, linked ? 'ok' : 'orphan'); else { var b = c.querySelector('.kb-link-badge'); if (b) b.remove(); }
+        c.dataset.offer = o;
+      });
+      // ترتيب البطاقات زي ترتيب الخدمات
+      var box = pf.querySelector('.kb-rows');
+      ns.slice().reverse().forEach(function (n) { var c = cards().filter(function (x) { return offerOf(x) === n; })[0]; if (c) box.insertBefore(c, box.firstChild); });
+      // زرار "التموضع" جنب كل خدمة
+      sf.querySelectorAll('.kb-row').forEach(function (r) {
+        var n = (r.querySelector('[data-col="name"]') || {}).value || '', btn = r.querySelector('.kb-to-pos');
+        if (!btn) { btn = document.createElement('button'); btn.type = 'button'; btn.className = 'kb-to-pos self-center whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-medium text-brand-700 bg-brand-50 hover:bg-brand-100'; var del = r.querySelector('.kb-del'); r.insertBefore(btn, del); }
+        btn.textContent = U.toPos; btn.classList.toggle('invisible', !n.trim()); btn.dataset.offer = n.trim();
+        var c = cards().filter(function (x) { return offerOf(x) === n.trim(); })[0], done = c && [].filter.call(c.querySelectorAll('textarea[data-col]'), function (x) { return x.value.trim(); }).length;
+        btn.textContent = U.toPos + (c ? ' ' + (done || 0) + '/5' : '');
+      });
+      syncing = false;
+    }
+    var st = null, later = function () { clearTimeout(st); st = setTimeout(sync, 350); };
+    sf.addEventListener('input', later); pf.addEventListener('input', later);
+    new MutationObserver(later).observe(sf.querySelector('.kb-rows'), { childList: true });
+    new MutationObserver(later).observe(pf.querySelector('.kb-rows'), { childList: true });
+    sf.addEventListener('click', function (e) {
+      var b = e.target.closest('.kb-to-pos'); if (!b) return;
+      go('pos_offers'); setTimeout(function () { var c = cards().filter(function (x) { return offerOf(x) === b.dataset.offer; })[0]; if (!c) return; c.scrollIntoView({ behavior: 'smooth', block: 'center' }); c.classList.add('ring-4', 'ring-brand-500/25'); setTimeout(function () { c.classList.remove('ring-4', 'ring-brand-500/25'); }, 1600); var f = c.querySelector('textarea[data-col]'); if (f) f.focus({ preventScroll: true }); }, 80);
+    });
+    // الخدمات اتعدّلت: المسميات القديمة اللي في الكروت نغيّرها لو اتغير اسم الخدمة وهي لسه بتكتب
+    sf.addEventListener('focusin', function (e) { if (e.target.matches('[data-col="name"]')) e.target.__old = e.target.value.trim(); });
+    sf.addEventListener('change', function (e) {
+      var i = e.target; if (!i.matches('[data-col="name"]') || !i.__old || i.__old === i.value.trim()) return;
+      var c = cards().filter(function (x) { return offerOf(x) === i.__old; })[0];
+      if (c && names().filter(function (n) { return n === i.__old; }).length === 0) { c.querySelector('[data-col="offer"]').value = i.value.trim(); pf.dispatchEvent(new Event('input', { bubbles: true })); }
+      i.__old = i.value.trim(); later();
+    });
+    sync();
+  }
 })();

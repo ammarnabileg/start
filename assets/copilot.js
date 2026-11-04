@@ -125,7 +125,7 @@
     if (thread.children.length) return;
     var w = el('<div class="cp-welcome text-center pt-6"><div class="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center shadow-lg shadow-brand-600/25">' + (C.sparkBig || '') + '</div><p class="mt-3 font-medium text-ink-900"></p><p class="text-xs text-ink-500 mt-1"></p><div class="cp-samples mt-4 space-y-2 text-start"></div></div>');
     w.querySelector('p').textContent = C.hi; w.querySelectorAll('p')[1].textContent = C.hiSub;
-    if (C.chat) (C.samples || []).forEach(function (s) {
+    if (false) (C.samples || []).forEach(function (s) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-700 hover:border-brand-300 hover:bg-brand-50 transition text-start'; b.textContent = s;
       b.onclick = function () { ask(s); }; w.querySelector('.cp-samples').appendChild(b);
     });

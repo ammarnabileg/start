@@ -10,6 +10,7 @@ require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/navigation.php';
 require_once __DIR__ . '/platforms.php';
 require_once __DIR__ . '/permissions.php';
+require_once __DIR__ . '/countries.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/ai_presets.php';
 require_once __DIR__ . '/ai_context.php';

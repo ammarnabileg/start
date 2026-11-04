@@ -18,12 +18,12 @@ function kb_schema(): array
             'name' => [t('اسم الشركة'), 'text', ''], 'industry' => [t('المجال / النشاط'), 'text', t('مثال: مطعم بيتزا، وكالة تسويق، عيادة أسنان')],
             'tagline' => [t('وصف في سطر واحد'), 'text', t('ماذا تقدم ولمن، في جملة واحدة'), 2],
             'about' => [t('نبذة عن الشركة'), 'area', t('التأسيس، الخبرة، الفريق، أهم الإنجازات'), 2],
-            'branches' => [t('العنوان والفروع'), 'area', t('فرع واحد في كل سطر')], 'service_area' => [t('نطاق الخدمة'), 'area', t('المدن أو المناطق التي تخدمها، أو "أونلاين"')],
-            'payment' => [t('طرق الدفع'), 'text', t('كاش، فيزا، فودافون كاش، تحويل بنكي')], 'delivery' => [t('التوصيل والشحن'), 'text', t('المناطق والمدة. بدون أسعار غير مؤكدة')],
+            'branches' => [t('العنوان والفروع'), 'area', t('فرع واحد في كل سطر. مثال: %s', cx('city') . ' - ' . cx('area'))], 'service_area' => [t('نطاق الخدمة'), 'area', t('المدن أو المناطق التي تخدمها، أو "أونلاين"')],
+            'payment' => [t('طرق الدفع'), 'text', t('مثال: %s', cx('pay'))], 'delivery' => [t('التوصيل والشحن'), 'text', t('المناطق والمدة. بدون أسعار غير مؤكدة')],
         ]],
         'contact' => ['group' => 'info', 'label' => t('الموقع وبيانات التواصل'), 'hint' => t('القنوات الرسمية فقط. الذكاء الاصطناعي يعطيها للعملاء كما هي بالضبط.'), 'type' => 'fields', 'fields' => [
             'website' => [t('الموقع الإلكتروني'), 'url', 'https://'], 'mail' => [t('البريد الإلكتروني'), 'email', ''],
-            'phone' => [t('رقم الهاتف'), 'tel', ''], 'whatsapp' => [t('رقم واتساب'), 'tel', ''],
+            'phone' => [t('رقم الهاتف'), 'tel', cx_phone()], 'whatsapp' => [t('رقم واتساب'), 'tel', cx_phone()],
             'maps' => [t('رابط الموقع على الخريطة'), 'url', 'https://maps.google.com/...', 2],
             'social' => [t('حسابات التواصل الاجتماعي'), 'area', t('رابط واحد في كل سطر'), 2],
         ]],
@@ -42,7 +42,7 @@ function kb_schema(): array
         // بيان التموضع (Positioning Statement)
         'audience' => ['group' => 'pos', 'nav' => t('الجمهور ومشكلته'), 'label' => t('الجمهور المستهدف ومشكلته'), 'type' => 'fields',
             'hint' => t('مين بالظبط العميل اللي بتخدمه، وإيه المشكلة أو الاحتياج اللي بيعاني منه وبيخليه يدوّر على حل. كل ما كان أدق كان أقوى.'), 'fields' => [
-            'who' => [t('الجمهور المستهدف'), 'area', t('مثال: أمهات عاملات 28-40 سنة في القاهرة الجديدة'), 2],
+            'who' => [t('الجمهور المستهدف'), 'area', t('مثال: أمهات عاملات 28-40 سنة في %s', cx('city') . ' (' . cx('area') . ')'), 2],
             'traits' => [t('خصائصهم وسلوكهم'), 'area', t('الدخل، الاهتمامات، أين يقضون وقتهم، كيف يشترون')],
             'problem' => [t('المشكلة أو الاحتياج'), 'area', t('مثال: لا وقت لطهي طعام صحي لأطفالهن في أيام العمل')],
             'objections' => [t('مخاوفهم واعتراضاتهم قبل الشراء'), 'area', t('السعر، الثقة، الجودة، الوقت...'), 2],
@@ -59,7 +59,7 @@ function kb_schema(): array
             'hint' => t('ليه العميل هيصدقك لما تقوله إنك أحسن من المنافس؟ دليل حقيقي: أرقام، شهادات، تجربة، ضمان، آراء عملاء.'),
             'ph' => t("مثال:\nأخصائية تغذية معتمدة في الفريق\n+1200 أسرة مشتركة من 2022\nتقدر توقف أو تغيّر الاشتراك في أي وقت")],
         'pos_offers' => ['group' => 'pos', 'nav' => t('لكل منتج أو خدمة'), 'label' => t('تموضع كل منتج أو خدمة'), 'type' => 'rows',
-            'hint' => t('كل منتج أو خدمة ممكن يكون ليه جمهور ومشكلة وفرق مختلف. اعمل بطاقة لكل واحد. الأقسام اللي فوق هي تموضع الشركة ككل.'),
+            'hint' => t('كل خدمة في "الخدمات والمنتجات" لها بطاقة هنا تلقائيًا، لأن لكل منتج جمهورًا ومشكلة وفرقًا مختلفًا. الأقسام السابقة هي تموضع الشركة ككل.'),
             'cols' => ['offer' => t('المنتج أو الخدمة'), 'audience' => t('الجمهور المستهدف'), 'problem' => t('المشكلة أو الاحتياج'), 'frame' => t('الفئة والمنافسين'), 'pod' => t('نقطة الاختلاف'), 'rtb' => t('سبب التصديق')]],
     ];
 }
@@ -109,7 +109,7 @@ function kb_tone_options(): array
 
 function kb_lang_options(): array
 {
-    return ['ar_msa' => t('العربية الفصحى'), 'ar_eg' => t('العامية المصرية'), 'ar_gulf' => t('الخليجية'), 'ar_levant' => t('الشامية'), 'ar_maghreb' => t('المغاربية'),
+    $loc = (string)cx('dialect'); return ($loc !== '' ? ['ar_local' => t('اللهجة %s', $loc)] : []) + ['ar_msa' => t('العربية الفصحى'), 'ar_eg' => t('العامية المصرية'), 'ar_gulf' => t('الخليجية'), 'ar_levant' => t('الشامية'), 'ar_maghreb' => t('المغاربية'),
         'en' => 'English', 'fr' => 'Français', 'de' => 'Deutsch', 'es' => 'Español', 'it' => 'Italiano', 'tr' => 'Türkçe', 'ru' => 'Русский', 'zh' => '中文', 'ur' => 'اردو', 'hi' => 'हिन्दी'];
 }
 
@@ -450,16 +450,48 @@ function kb_orig_save(int $wid, int $id, string $tmp, string $name): void
 /** JSON من رد الموديل حتى لو فيه ``` أو كلام قبله أو أسطر جديدة جوه النصوص */
 function kb_parse_json(string $t): ?array
 {
-    $t = trim(preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($t)));
-    $a = strpos($t, '{'); $b = strrpos($t, '}');
-    if ($a === false || $b === false || $b < $a) return null;
-    $j = substr($t, $a, $b - $a + 1);
-    $d = json_decode($j, true); if (is_array($d)) return $d;
-    // أسطر جديدة وتابات خام جوه النصوص
-    $fixed = preg_replace_callback('/"(?:[^"\\\\]|\\\\.)*"/s', function ($m) { return str_replace(["\r", "\n", "\t"], ['', '\\n', ' '], $m[0]); }, $j);
-    $fixed = preg_replace('/,\s*([}\]])/', '$1', (string)$fixed); // فواصل زيادة
-    $d = json_decode((string)$fixed, true);
-    return is_array($d) ? $d : null;
+    $t = preg_replace('#<think>.*?(</think>|$)#s', '', $t); // موديلات التفكير
+    $t = trim(preg_replace('/^```(?:json)?\s*|\s*```$/im', '', trim($t)));
+    $a = strpos($t, '{'); if ($a === false) return null;
+    $b = strrpos($t, '}');
+    $tries = [];
+    if ($b !== false && $b > $a) $tries[] = substr($t, $a, $b - $a + 1);
+    $tries[] = kb_json_close(substr($t, $a)); // رد مقطوع: نقفل الأقواس
+    foreach ($tries as $j) {
+        $d = json_decode($j, true); if (is_array($d)) return $d;
+        $fixed = preg_replace_callback('/"(?:[^"\\\\]|\\\\.)*"/s', function ($m) { return str_replace(["\r", "\n", "\t"], ['', '\\n', ' '], $m[0]); }, $j);
+        $fixed = preg_replace('/,\s*([}\]])/', '$1', (string)$fixed);
+        $d = json_decode((string)$fixed, true); if (is_array($d)) return $d;
+    }
+    return null;
+}
+
+/** بيقفل JSON مقطوع: النص المفتوح، والمفتاح الناقص، والأقواس */
+function kb_json_close(string $j): string
+{
+    $stack = []; $in = false; $esc = false; $lastSafe = 0;
+    for ($i = 0, $n = strlen($j); $i < $n; $i++) {
+        $c = $j[$i];
+        if ($in) { if ($esc) $esc = false; elseif ($c === '\\') $esc = true; elseif ($c === '"') $in = false; continue; }
+        if ($c === '"') $in = true;
+        elseif ($c === '{' || $c === '[') $stack[] = $c === '{' ? '}' : ']';
+        elseif ($c === '}' || $c === ']') { array_pop($stack); $lastSafe = $i + 1; }
+        elseif ($c === ',') $lastSafe = $i;
+    }
+    if ($in) $j .= '"';
+    $out = rtrim($j);
+    // لو آخر حاجة مفتاح من غير قيمة أو قيمة ناقصة، نرجع لآخر نقطة سليمة
+    if (preg_match('/[:,]\s*$/', $out) || preg_match('/"\s*:\s*"?[^"]*$/', $out) === 0 && preg_match('/,\s*"[^"]*"\s*$/', $out)) $out = substr($j, 0, $lastSafe);
+    $out = preg_replace('/,\s*$/', '', $out);
+    // نعيد حساب الأقواس بعد القص
+    $stack = []; $in = false; $esc = false;
+    for ($i = 0, $n = strlen($out); $i < $n; $i++) {
+        $c = $out[$i];
+        if ($in) { if ($esc) $esc = false; elseif ($c === '\\') $esc = true; elseif ($c === '"') $in = false; continue; }
+        if ($c === '"') $in = true; elseif ($c === '{' || $c === '[') $stack[] = $c === '{' ? '}' : ']'; elseif ($c === '}' || $c === ']') array_pop($stack);
+    }
+    if ($in) $out .= '"';
+    return $out . implode('', array_reverse($stack));
 }
 
 /** الأسعار: أي سعر في اقتراح الذكاء الاصطناعي مش مكتوب في المصادر بيتشال. خانة price بتفضى لو رقمها مش في المصادر. */
@@ -469,7 +501,7 @@ function kb_strip_unsourced_prices(array $d, string $sources): array
     $src = preg_replace('/(?<=\d)[,\s](?=\d{3}\b)/', '', $norm($sources));
     $nums = function ($t) use ($norm) { preg_match_all('/\d+(?:\.\d+)?/', preg_replace('/(?<=\d)[,\s](?=\d{3}\b)/', '', $norm($t)), $m); return $m[0]; };
     $known = function ($n) use ($src) { return (bool)preg_match('/(?<![\d.])' . preg_quote($n, '/') . '(?![\d])/', $src); };
-    $cur = '(?:ج\.?م|جنيه(?:ا|ات)?|جنية|ريال|درهم|دينار|دولار|يورو|EGP|LE|L\.E\.?|SAR|AED|KWD|QAR|USD|EUR|\$|€|£)';
+    $cur = '(?:ج\.?م|جنيه(?:ا|ات)?|جنية|ريال|ر\.س|ر\.ق|ر\.ع|ر\.ي|درهم|د\.إ|د\.م|دينار|د\.ك|د\.ب|د\.أ|د\.ع|د\.ت|د\.ل|دج|ليرة|ل\.ل|شيكل|دولار|يورو|إسترليني|EGP|LE|L\.E\.?|SAR|AED|KWD|QAR|BHD|OMR|JOD|LBP|SYP|ILS|IQD|YER|MAD|DZD|TND|LYD|SDG|TRY|GBP|USD|EUR|\$|€|£)';
     $clean = function ($t) use ($cur, $norm, $known) {
         $t = (string)$t;
         $t = preg_replace('/\[(?:أضف|اضف|add)[^\]]*(?:سعر|price)[^\]]*\]/iu', '', $t);
@@ -505,4 +537,22 @@ function kb_strip_unsourced_facts(array $d, string $sources): array
         if (!$ok) $d[$k] = '';
     }
     return $d;
+}
+
+/** صفوف من الموديل بأسماء مفاتيح مختلفة (service/title/description...) → مفاتيح القسم */
+function kb_norm_rows(array $d, array $cols): array
+{
+    $alias = ['name' => ['name', 'service', 'product', 'title', 'item', 'offer', 'الاسم', 'الخدمة', 'المنتج'], 'details' => ['details', 'description', 'desc', 'info', 'التفاصيل', 'الوصف'], 'price' => ['price', 'cost', 'السعر'],
+        'q' => ['q', 'question', 'السؤال'], 'a' => ['a', 'answer', 'الإجابة'], 'offer' => ['offer', 'name', 'service', 'product', 'title'], 'audience' => ['audience', 'target', 'target_audience'], 'problem' => ['problem', 'need', 'pain'], 'frame' => ['frame', 'category', 'frame_of_reference', 'competitors'], 'pod' => ['pod', 'difference', 'point_of_difference'], 'rtb' => ['rtb', 'proof', 'reason_to_believe', 'reasons']];
+    $rows = $d['rows'] ?? (($d && array_keys($d) === range(0, count($d) - 1)) ? $d : (reset($d) && is_array(reset($d)) ? reset($d) : []));
+    $out = [];
+    foreach ((array)$rows as $r) {
+        if (is_string($r)) $r = ['name' => $r];
+        if (!is_array($r)) continue;
+        $low = []; foreach ($r as $k => $v) $low[mb_strtolower((string)$k)] = is_scalar($v) ? (string)$v : implode('، ', array_map('strval', array_filter((array)$v, 'is_scalar')));
+        $row = [];
+        foreach ($cols as $c) { $row[$c] = ''; foreach ($alias[$c] ?? [$c] as $a) if (isset($low[$a]) && trim($low[$a]) !== '') { $row[$c] = $low[$a]; break; } }
+        if (trim(implode('', $row)) !== '') $out[] = $row;
+    }
+    return ['rows' => $out];
 }

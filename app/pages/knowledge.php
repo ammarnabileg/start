@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'contact' => 'Contact channels. Copy ONLY exact website, emails, phone/WhatsApp numbers, map links and social links found in the sources (account data included). Never invent or guess any of them; leave the field empty if unknown.',
             'hours' => 'Working hours per day. ONLY times written in the sources; never guess. Leave a day empty if unknown. Use one format: 10:00 - 22:00, or مغلق.',
             'company' => 'Describe the company like a professional profile: what it sells, its value, location/branches, hours, payment and delivery. Hard facts only from the sources; placeholders for missing ones.',
-            'services' => 'List every product/service. PRICES: copy a price ONLY if it is written in the sources, exactly as written. If not written, leave "price" as an empty string. Never suggest, estimate, round or use a placeholder for prices.',
+            'services' => 'Extract EVERY product, service, package and plan mentioned anywhere in the DOCUMENTS (catalogues, company profile, price lists), the other sections and the account data. Read the whole documents; do not stop at the first few. Use the exact names as written; put a short concrete description in "details" (what it is, for whom, what is included). PRICES: copy a price ONLY if it is written in the sources, exactly as written. If not written, leave "price" as an empty string. Never suggest, estimate, round or use a placeholder for prices.',
             'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
             'audience' => 'Positioning step 1. Write two short labelled parts: the precise TARGET AUDIENCE (who, age, place, situation) and the PROBLEM/NEED that makes them look for a solution. Base it on posts, messages, documents and the business type; be specific, not generic.',
@@ -180,7 +180,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $st = db()->prepare("SELECT name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
             $st->execute([$wid]);
-            foreach ($st->fetchAll() as $f) { $files .= "\n### " . $f['name'] . "\n" . mb_substr((string)$f['content'], 0, 8000); if (mb_strlen($files) > 24000) break; }
+            $all = $st->fetchAll(); $per = max(6000, intdiv(45000, max(1, count($all))));
+            foreach ($all as $f) { $files .= "\n### " . $f['name'] . "\n" . mb_substr((string)$f['content'], 0, $per); if (mb_strlen($files) > 45000) break; }
         } catch (Throwable $e) {}
         $cur = kb_get($wid)[$sec] ?? [];
         $update = ($_POST['mode'] ?? '') === 'update' && kb_filled($cur, $type); // rewrite/fill: من الأول
@@ -196,20 +197,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . " Return ONLY valid JSON in exactly this shape (no markdown, no comments; use \\n for line breaks inside strings): " . $shape;
         $user = ($update ? "CURRENT CONTENT OF THIS SECTION (JSON):\n" . json_encode($cur, JSON_UNESCAPED_UNICODE) . "\n\n" : '') . "SOURCES\n\n## EXISTING KNOWLEDGE BASE\n" . (kb_compile($wid) ?: '-') . "\n\n## DOCUMENTS" . ($files ?: "\n-") . "\n\n## ACCOUNT DATA (posts, messages, metrics)\n" . assistant_context(true);
         try {
-            $msgs = [['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 60000)]];
-            $r = ai_chat($msgs, 4000, 'analyze');
+            $msgs = [['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 75000)]];
+            $r = ai_chat($msgs, 6000, 'analyze');
             $d = kb_parse_json((string)$r['text']);
             if (!is_array($d)) { // محاولة تانية: نطلب JSON سليم بس
                 $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 6000)];
-                $msgs[] = ['role' => 'user', 'content' => 'That was not valid JSON. Reply again with ONLY the JSON object in the exact shape requested.'];
-                $r = ai_chat($msgs, 4000, 'analyze'); $d = kb_parse_json((string)$r['text']);
+                $msgs[] = ['role' => 'user', 'content' => 'Your reply was cut off or was not valid JSON. Reply again with ONLY a complete JSON object in the exact shape requested. Be more concise (shorter values, at most 10 items) so it fits.'];
+                $r = ai_chat($msgs, 6000, 'analyze'); $d = kb_parse_json((string)$r['text']);
             }
+            if (is_array($d) && $type === 'rows') $d = kb_norm_rows($d, array_keys($schema[$sec]['cols']));
             if (is_array($d)) { $d = kb_strip_unsourced_prices($d, $user); if (in_array($sec, ['contact', 'hours'], true)) $d = kb_strip_unsourced_facts($d, $user); }
             if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = kb_strip_unsourced_prices(['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))], $user);
         } catch (Throwable $e) {
             $json(['error' => $e->getMessage()], 502);
         }
-        if (!is_array($d)) $json(['error' => t('الموديل لم يرجع اقتراحًا مفهومًا. جرّب مرة أخرى أو موديلًا أقوى.')], 502);
+        if (!is_array($d)) $json(['error' => t('الموديل لم يرجع اقتراحًا مفهومًا. جرّب مرة أخرى أو موديلًا أقوى.') . ' (' . ($r['model'] ?? '') . (trim((string)($r['text'] ?? '')) === '' ? ' · ' . t('رد فارغ') : '') . ')'], 502);
         $log = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
         $json(['ok' => true, 'data' => $d, 'meta' => $log, 'mode' => $update ? 'update' : 'fill']);
     }
@@ -263,6 +265,12 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       <?php if (!$canEdit): ?><p class="w-full text-xs text-amber-700"><?= e(t('عرض فقط. التعديل لصاحب الشركة أو من لديه صلاحية الإعدادات.')) ?></p><?php endif; ?>
     </div>
 
+    <?php $cc = countries()[ws_country()]; ?>
+    <a href="<?= e(url('settings')) ?>#cty" class="group mb-4 flex items-center gap-3 rounded-2xl border <?= ws_country_set() ? 'border-ink-200 bg-white' : 'border-amber-200 bg-amber-50' ?> px-4 py-2.5 text-sm hover:border-brand-300 transition">
+      <span class="text-xl leading-none"><?= $cc['flag'] ?></span>
+      <span class="flex-1 text-ink-700"><?= ws_country_set() ? e(t('الأمثلة والذكاء الاصطناعي مبنيين على: %s', cx_name())) : e(t('لم تحدد دولة الشركة بعد. الأمثلة الآن مبنية على %s. حددها ليتكيف كل شيء مع سوقك.', cx_name())) ?> <span class="text-ink-400" dir="ltr">· <?= e($cc['cur']) ?> · <?= e(preg_replace('/^(\+\d{1,3}).*/', '$1', $cc['phone'])) ?></span></span>
+      <span class="text-xs font-medium text-brand-700 group-hover:underline"><?= e(t('تغيير')) ?></span>
+    </a>
     <div class="grid lg:grid-cols-[15rem_1fr] gap-5 items-start" id="kb">
       <nav class="card p-2 lg:sticky lg:top-20 flex lg:flex-col gap-1 overflow-x-auto" id="kb-nav">
         <?php $items = ['files' => [t('ملفات الشركة'), $files ? count($files) : 0]] + array_map(function ($s) { return [$s['nav'] ?? $s['label'], null]; }, $schema) + ['test' => [t('جرّب الرد'), null]]; $grp = null; ?>
@@ -397,7 +405,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'cols' => $schema['pos_offers']['cols'], 'ux' => ['filledOf' => t('%1 من %2 مكتمل'), 'bad_url' => t('الرابط غير صحيح'), 'bad_email' => t('البريد غير صحيح'), 'bad_tel' => t('الرقم غير صحيح'), 'open' => t('فتح'), 'mail' => t('إرسال'), 'call' => t('اتصال'), 'chat' => t('محادثة'), 'sameAll' => t('نفس الميعاد لكل الأيام'), 'weekdays' => t('نفس الميعاد والجمعة إجازة'), 'clearAll' => t('مسح الكل'), 'closed' => t('مغلق'), 'next' => t('التالي')], 'stop' => t('إيقاف'), 'stopped' => t('تم الإيقاف.'), 'stoppedAll' => t('تم إيقاف الملء. الاقتراحات التي اكتملت باقية للمراجعة.'), 'posTpl' => t('لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.'), 'posEmpty' => t('[...]'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'cols' => $schema['pos_offers']['cols'], 'ux' => ['filledOf' => t('%1 من %2 مكتمل'), 'bad_url' => t('الرابط غير صحيح'), 'bad_email' => t('البريد غير صحيح'), 'bad_tel' => t('الرقم غير صحيح'), 'open' => t('فتح'), 'mail' => t('إرسال'), 'call' => t('اتصال'), 'chat' => t('محادثة'), 'sameAll' => t('نفس الميعاد لكل الأيام'), 'weekdays' => t('نفس الميعاد وإجازة %s', implode(' + ', cx_weekend_days())), 'weekend' => array_values((array)cx('weekend')), 'clearAll' => t('مسح الكل'), 'closed' => t('مغلق'), 'next' => t('التالي'), 'linked' => t('مرتبط بالخدمات'), 'orphan' => t('غير موجود في الخدمات'), 'linkedHint' => t('الاسم يأتي من قسم الخدمات والمنتجات. غيّره من هناك.'), 'toPos' => t('التموضع')], 'stop' => t('إيقاف'), 'stopped' => t('تم الإيقاف.'), 'stoppedAll' => t('تم إيقاف الملء. الاقتراحات التي اكتملت باقية للمراجعة.'), 'posTpl' => t('لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.'), 'posEmpty' => t('[...]'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['langs' => t('اللغات التي يتحدث بها'), 'lang_rule' => t('قاعدة اللغة')] + array_merge(...array_map(function ($x) { return array_map(function ($f) { return $f[0]; }, $x['fields'] ?? []); }, array_values($schema))) + ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

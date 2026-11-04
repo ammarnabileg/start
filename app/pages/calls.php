@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $fwd = ph_e164($fwdRaw);
             $back = url('calls', ['settings' => 1]);
             if ($fwdRaw !== '' && $fwd === '') {
-                flash('error', t('رقم التحويل لازم يكون بالصيغة الدولية، مثلاً +201001234567.'));
+                flash('error', t('رقم التحويل لازم يكون بالصيغة الدولية، مثلاً %s.', cx_phone()));
             } else {
                 $body = [
                     'forwardTo' => $fwd !== '' ? 'tel:' . $fwd : '',
@@ -205,7 +205,7 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
           <form method="post" class="mt-4 space-y-3" onsubmit="return confirm(<?= tjs('المكالمة هتتطلب فعلاً وهتتحسب. نكمل؟') ?>)">
             <?= csrf_field() ?><input type="hidden" name="action" value="call"><input type="hidden" name="to" value="<?= e($dialTo) ?>"><input type="hidden" name="from" value="<?= e($sel) ?>">
             <p class="text-sm font-semibold"><?= e(t('التكلفة التقريبية: $%s للدقيقة (%s).', number_format($cost, 3), (string)($estimate['destinationCountry'] ?? ''))) ?></p>
-            <label class="block"><span class="label"><?= e(t('وصّلها على (رقمك)')) ?></span><input name="forward" class="input" dir="ltr" placeholder="+201001234567" value="<?= e($fwdDefault) ?>"></label>
+            <label class="block"><span class="label"><?= e(t('وصّلها على (رقمك)')) ?></span><input name="forward" class="input" dir="ltr" placeholder="<?= e(cx_phone()) ?>" value="<?= e($fwdDefault) ?>"></label>
             <label class="block"><span class="label"><?= e(t('رسالة تتقال للعميل لما يرد (اختياري)')) ?></span><input name="greeting" maxlength="1000" class="input"></label>
             <label class="flex items-start gap-2 text-sm p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900"><input type="checkbox" name="confirm" value="1" required class="mt-1">
               <span><?= e(t('فاهم إن المكالمة بتتحسب بالدقيقة على فاتورة الاشتراك.')) ?></span></label>
@@ -224,7 +224,7 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
             <?= csrf_field() ?><input type="hidden" name="action" value="settings"><input type="hidden" name="id" value="<?= e($n['_id'] ?? '') ?>">
             <?php $customFwd = !empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']); ?><?php if ($customFwd): ?><input type="hidden" name="keep_fwd" value="1"><?php endif; ?>
             <div class="sm:col-span-2 font-semibold" dir="ltr" style="unicode-bidi:plaintext"><?= e($n['phoneNumber'] ?? '') ?> <?php if (empty($n['pstnVoiceEnabled'])): ?><span class="badge"><?= e(t('المكالمات مقفولة')) ?></span><?php endif; ?></div>
-            <label class="block"><span class="label"><?= e(t('حوّل المكالمات على')) ?></span><input name="forward" class="input" dir="ltr" placeholder="+201001234567" value="<?= e($customFwd ? '' : preg_replace('/^tel:/', '', (string)($n['pstnForwardTo'] ?? ''))) ?>"></label>
+            <label class="block"><span class="label"><?= e(t('حوّل المكالمات على')) ?></span><input name="forward" class="input" dir="ltr" placeholder="<?= e(cx_phone()) ?>" value="<?= e($customFwd ? '' : preg_replace('/^tel:/', '', (string)($n['pstnForwardTo'] ?? ''))) ?>"></label>
             <label class="flex items-center gap-2 text-sm mt-6"><input type="checkbox" name="voicemail" value="1" <?= !isset($n['voicemailEnabled']) || $n['voicemailEnabled'] ? 'checked' : '' ?>> <?= e(t('البريد الصوتي شغال')) ?></label>
             <label class="block sm:col-span-2"><span class="label"><?= e(t('رسالة البريد الصوتي (فاضية = الرسالة الافتراضية)')) ?></span><textarea name="greeting" maxlength="1000" rows="2" class="input"><?= e($n['voicemailGreeting'] ?? '') ?></textarea></label>
             <?php if (!empty($n['ivrEnabled']) || (!empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']))): ?>

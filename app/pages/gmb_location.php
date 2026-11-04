@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             log_activity('gmb.attributes_update', $lid);
             flash('success', t('تم حفظ الخصائص.'));
         } elseif ($action === 'services') {
-            $cur = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['currency'] ?? 'EGP'))) ?: 'EGP';
+            $cur = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['currency'] ?? cx('cur')))) ?: cx('cur');
             $items = gmb_parse_services((string)($_POST['services'] ?? ''), $cur);
             // نحافظ على الخدمات المنظمة (structured) اللي اتعملت من جوجل
             foreach ((array)($_POST['keep_structured'] ?? []) as $sid) {
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             log_activity('gmb.services_update', $lid);
             flash('success', t('تم حفظ الخدمات.'));
         } elseif ($action === 'menu') {
-            $cur = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['currency'] ?? 'EGP'))) ?: 'EGP';
+            $cur = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['currency'] ?? cx('cur')))) ?: cx('cur');
             $menuName = trim((string)($_POST['menu_name'] ?? '')) ?: 'Menu';
             $sections = [];
             foreach (preg_split('/\R/', (string)($_POST['menu'] ?? '')) as $line) {
@@ -356,7 +356,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       <?php /* ---------- الخدمات ---------- */
       $lines = [];
       $structured = [];
-      $currency = 'EGP';
+      $currency = cx('cur');
       foreach ($services as $s) {
           if (!empty($s['structuredServiceItem']['serviceTypeId'])) { $structured[] = $s['structuredServiceItem']['serviceTypeId']; continue; }
           $name = $s['freeFormServiceItem']['label']['displayName'] ?? '';
@@ -417,7 +417,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       if ($isFood):
           $mlines = [];
           $menuName = '';
-          $mcur = 'EGP';
+          $mcur = cx('cur');
           foreach (array_slice($menus, 0, 1) as $m) {
               $menuName = $m['labels'][0]['displayName'] ?? '';
               foreach ($m['sections'] ?? [] as $s) {

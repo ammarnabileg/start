@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
                     if (!preg_match('~^https://~i', $val)) { $errors[] = t('رابط الزرار لازم يبدأ بـ https://'); continue; }
                     $buttons[] = ['type' => 'url', 'text' => $text, 'url' => $val];
                 } elseif ($type === 'phone_number') {
-                    if (!preg_match('/^\+?[0-9]{8,15}$/', $val)) { $errors[] = t('رقم زرار الاتصال مش صحيح (مثال: +201001234567).'); continue; }
+                    if (!preg_match('/^\+?[0-9]{8,15}$/', $val)) { $errors[] = t('رقم زرار الاتصال مش صحيح (مثال: %s).', cx_phone()); continue; }
                     $buttons[] = ['type' => 'phone_number', 'text' => $text, 'phone_number' => $val];
                 }
             }

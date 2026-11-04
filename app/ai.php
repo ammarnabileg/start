@@ -224,9 +224,10 @@ function ai_with_kb(array $messages, string $task): array
     // آخر رسالة من المستخدم = اللي بندور على أجزاء الملفات المناسبة ليها
     $query = '';
     for ($i = count($messages) - 1; $i >= 0; $i--) { if (($messages[$i]['role'] ?? '') === 'user') { $c = $messages[$i]['content']; $query = is_array($c) ? (string)($c[0]['text'] ?? '') : (string)$c; break; } }
+    if (!in_array($task, ['assistant', 'compose', 'reply', 'analyze', 'classify'], true)) return $messages;
     $kb = ai_kb((int)ws('id'), mb_substr($query, 0, 2000));
-    if ($kb === '' || !in_array($task, ['assistant', 'compose', 'reply', 'analyze', 'classify'], true)) return $messages;
-    $note = "COMPANY KNOWLEDGE BASE — follow it strictly. Use ONLY these facts for prices, services, hours, addresses, policies and offers; never invent any. Respect TONE, NEVER SAY and ANTI-HYPE rules in everything you write. If something isn't covered, say you'll check and get back.\n\n" . $kb;
+    $note = ai_country_note();
+    if ($kb !== '') $note .= "\n\nCOMPANY KNOWLEDGE BASE — follow it strictly. Use ONLY these facts for prices, services, hours, addresses, policies and offers; never invent any. Respect TONE, NEVER SAY and ANTI-HYPE rules in everything you write. If something isn't covered, say you'll check and get back.\n\n" . $kb;
     if (($messages[0]['role'] ?? '') === 'system') $messages[0]['content'] .= "\n\n" . $note;
     else array_unshift($messages, ['role' => 'system', 'content' => $note]);
     return $messages;

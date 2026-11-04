@@ -192,13 +192,6 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <button type="button" data-cp-toggle class="cp-spark w-10 h-10 rounded-2xl text-[#fff] flex items-center justify-center shadow-lg shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 hover:scale-105 active:scale-95 transition" title="<?= e(t('اسأل الذكاء الاصطناعي')) ?> (Ctrl+J)">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
   </button>
-  <div class="w-6 border-t border-ink-200 my-1"></div>
-  <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?>
-    <button type="button" data-cp-insight="<?= e($k) ?>" class="group relative w-10 h-10 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition flex items-center justify-center" aria-label="<?= e($it['label']) ?>">
-      <?= ai_icon($k) ?>
-      <span class="pointer-events-none absolute end-full me-2.5 top-1/2 -translate-y-1/2 translate-x-1 rtl:-translate-x-1 group-hover:translate-x-0 whitespace-nowrap rounded-lg bg-ink-900 text-ink-50 dark:bg-ink-800 dark:text-ink-50 text-xs font-medium px-2.5 py-1.5 shadow-lg opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition z-50"><?= e($it['label']) ?></span>
-    </button>
-  <?php endforeach; ?>
 </div>
 <button type="button" data-cp-toggle class="lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
@@ -212,14 +205,6 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <button type="button" id="cp-wide" class="hidden lg:block p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" title="<?= e(t('توسيع')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/></svg></button>
     <button type="button" data-cp-toggle class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100" title="<?= e(t('إغلاق')) ?> (Esc)"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
-  <?php if ($cpKeys): ?>
-  <div class="px-3 py-2 border-b border-ink-100 shrink-0">
-    <div class="text-[11px] text-ink-400 mb-1.5"><?= e(t('لهذه الصفحة')) ?></div>
-    <div class="flex gap-1.5 overflow-x-auto pb-1" style="scrollbar-width:thin">
-      <?php foreach ($cpKeys as $k): $it = ai_insights()[$k]; ?><button type="button" data-cp-insight="<?= e($k) ?>" class="chip !py-1 !px-2.5 text-xs shrink-0 !gap-1.5"><?= ai_icon($k, 'w-3.5 h-3.5 text-ink-500') ?><?= e($it['label']) ?></button><?php endforeach; ?>
-    </div>
-  </div>
-  <?php endif; ?>
   <div id="cp-thread" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth"></div>
   <?php if (ai_feature_on('assistant')): ?>
   <form id="cp-form" class="p-3 border-t border-ink-200 shrink-0">
