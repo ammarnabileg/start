@@ -231,7 +231,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
     $f = $form ?? [];
     $v = function ($k, $d = '') use ($f) { return $f[$k] ?? $d; };
     ?>
-    <div class="max-w-3xl space-y-5">
+    <div class="<?= $step === 'review' ? 'max-w-3xl' : '' ?> space-y-5">
       <a href="<?= e(url('ads')) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$targets && !$apiError): ?>
@@ -363,7 +363,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
             <h2 class="font-bold text-ink-900"><?= e(t('4. الجمهور')) ?></h2>
             <div>
               <label class="label"><?= e(t('الدول (أكواد من حرفين مفصولة بفاصلة)')) ?></label>
-              <input name="countries" class="input" dir="ltr" value="<?= e($v('countries', 'EG')) ?>" placeholder="EG, SA, AE">
+              <input name="countries" id="adcCountries" class="input" dir="ltr" value="<?= e($v('countries', ws_country())) ?>" placeholder="EG, SA, AE">
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div><label class="label"><?= e(t('من سن')) ?></label><input name="age_min" type="number" min="18" max="65" class="input" value="<?= e($v('age_min', '18')) ?>"></div>
@@ -396,6 +396,14 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
           </div>
         </form>
         <form method="post" id="adcReset"><?= csrf_field() ?><input type="hidden" name="action" value="reset"></form>
+        <script>window.ADC = <?= json_encode(['preview' => t('معاينة الإعلان'), 'sponsored' => t('مُموَّل'), 'like' => t('إعجاب'), 'comment' => t('تعليق'), 'share' => t('مشاركة'),
+          'ctas' => $ctas, 'noText' => t('نص الإعلان هيظهر هنا'), 'noHead' => t('العنوان'), 'boostHint' => t('هيتروّج المنشور ده زي ما هو'), 'pickPost' => t('اختار منشور عشان تشوف المعاينة'),
+          'budget' => t('الميزانية'), 'perDay' => t('%s في اليوم'), 'total' => t('%s إجمالي'), 'days' => t('%s يوم'), 'estimate' => t('تقريبًا %s لو اشتغلت %s'), 'openEnd' => t('من غير تاريخ نهاية: بنحسب على 30 يوم'),
+          'summary' => t('الملخص'), 'acc' => t('الحساب'), 'audience' => t('الجمهور'), 'age' => t('سن %s-%s'), 'launchPaused' => t('هتتعمل متوقفة، مفيش صرف'), 'launchActive' => t('هتشتغل فورًا وتبدأ تصرف'),
+          'myCountry' => ws_country(), 'nearby' => ['EG' => ['SA', 'AE', 'KW'], 'SA' => ['AE', 'KW', 'QA', 'BH'], 'AE' => ['SA', 'QA', 'OM'], 'KW' => ['SA', 'AE', 'BH'], 'QA' => ['SA', 'AE', 'BH'], 'BH' => ['SA', 'KW', 'AE'], 'OM' => ['AE', 'SA'], 'JO' => ['SA', 'AE', 'PS'], 'MA' => ['DZ', 'TN', 'FR']][ws_country()] ?? ['SA', 'AE', 'EG'],
+          'cNames' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
+          'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير مراجعة؟')], JSON_UNESCAPED_UNICODE) ?>;</script>
+        <script src="assets/ui-ad_create.js?v=<?= e(APP_VERSION) ?>"></script>
         <script>
         (function () {
           var form = document.getElementById('adcForm');
@@ -443,4 +451,4 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
       <?php endif; ?>
     </div>
     <?php
-});
+}, ['full' => true]);
