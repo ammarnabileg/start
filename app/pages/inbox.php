@@ -20,6 +20,29 @@ if ($platform !== '' && !in_array($platform, $msgPlatforms, true)) $platform = '
 // Filters kept on every link
 $base = array_filter(['folder' => $folder !== 'inbox' ? $folder : null, 'status' => $status !== 'active' ? $status : null, 'platform' => $platform, 'acct' => $acctFilter, 'q' => $q], function ($v) { return $v !== null && $v !== ''; });
 
+// صورة من المحادثة عن طريق السيرفر، عشان المتصفح يقدر يقرا النص اللي فيها (OCR)
+// فيسبوك وغيره مش بيسمحوا للمتصفح يقرا صورهم مباشرة. مسموح بس لسيرفرات صور المنصات، وصور بس، وحد 8 ميجا.
+if (isset($_GET['img_proxy'])) {
+    $u = (string)$_GET['img_proxy'];
+    $host = strtolower((string)parse_url($u, PHP_URL_HOST));
+    $okHost = (bool)preg_match('/(^|\.)(fbcdn\.net|fbsbx\.com|cdninstagram\.com|whatsapp\.net|twimg\.com|licdn\.com|telegram\.org|zernio\.com)$/', $host);
+    if (parse_url($u, PHP_URL_SCHEME) !== 'https' || !$okHost || !can('inbox.reply')) { http_response_code(403); exit; }
+    $ch = curl_init($u);
+    $buf = '';
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => false, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 20, CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_WRITEFUNCTION => function ($c, $d) use (&$buf) { $buf .= $d; return strlen($buf) > 8 * 1048576 ? 0 : strlen($d); }]);
+    curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $f = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $buf !== '' ? (string)$f->buffer($buf) : '';
+    if ($code >= 400 || strpos($mime, 'image/') !== 0) { http_response_code(404); exit; }
+    header('Content-Type: ' . $mime);
+    header('Cache-Control: private, max-age=600');
+    header('X-Content-Type-Options: nosniff');
+    exit($buf);
+}
+
 // أدوات الفريق: إسناد، حالة، ملاحظات، ردود محفوظة
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'team_') === 0 || ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'reply_') === 0)) team_post((string)$_POST['action']);
 
@@ -625,7 +648,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                       <?php if (($m['message'] ?? '') !== ''): ?><p class="whitespace-pre-line break-words"><?= e($m['message']) ?></p>
                       <?php elseif (empty($m['attachments'])): ?><p class="italic opacity-60"><?= e(t('(رسالة من غير نص، زي ستيكر أو تفاعل)')) ?></p><?php endif; ?>
                       <?php foreach ($m['attachments'] ?? [] as $att): $u = $att['url'] ?? $att['payload']['url'] ?? null; if (!$u) continue; $at = $att['type'] ?? ''; ?>
-                        <?php if ($at === 'image' || $at === 'sticker'): ?><img src="<?= e($u) ?>" class="mt-2 rounded-lg max-h-60" referrerpolicy="no-referrer" alt="">
+                        <?php if ($at === 'image' || $at === 'sticker'): ?><span class="relative inline-block group/img mt-2"><img src="<?= e($u) ?>" class="rounded-lg max-h-60" referrerpolicy="no-referrer" alt=""><?php if ($at === 'image'): ?><button type="button" data-ocr="<?= e($u) ?>" class="absolute top-1.5 end-1.5 hidden group-hover/img:inline-flex items-center gap-1 rounded-lg bg-black/70 text-[#fff] text-[11px] px-2 py-1" title="<?= e(t('نسخ النص من الصورة (من غير ذكاء اصطناعي)')) ?>"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 9h8M8 12h8M8 15h5"/></svg><?= e(t('نسخ النص')) ?></button><?php endif; ?></span>
                         <?php else: ?><a href="<?= e($u) ?>" target="_blank" rel="noopener" class="underline block mt-1"><?= e(t('مرفق (%s)', $at ?: t('ملف'))) ?></a><?php endif; ?>
                       <?php endforeach; ?>
                     <?php endif; ?>
@@ -786,9 +809,10 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div id="camp-dock" class="hidden fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 lg:start-auto lg:end-20 lg:translate-x-0 rtl:lg:translate-x-0 z-40 w-[min(380px,92vw)] rounded-2xl border border-ink-200 bg-white shadow-2xl"></div>
     <script>window.IBX = <?= json_encode(['n' => t('%s محادثة'), 'sel' => t('محدد'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'done' => t('تم: %s'), 'started' => t('بدأت الحملة: %s محادثة'), 'skipped' => t('اتستبعد %s'),
         'campaigns' => t('الحملات'), 'running' => t('شغالة'), 'paused' => t('متوقفة'), 'done2' => t('خلصت'), 'cancelled' => t('اتلغت'), 'pause' => t('إيقاف مؤقت'), 'resume' => t('كمّل'), 'cancel' => t('إلغاء'),
-        'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.'), 'confirmAi' => t('هيتم تحليل %s محادثة بالذكاء الاصطناعي (طلب واحد لكل 20 محادثة). تكمل؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.'), 'confirmAi' => t('هيتم تحليل %s محادثة بالذكاء الاصطناعي (طلب واحد لكل 20 محادثة). تكمل؟'), 'ocrRun' => t('بيقرا الصورة...'), 'ocrNone' => t('مالقيناش كلام في الصورة.'), 'ocrCors' => t('المنصة مش بتسمح بقراية الصورة دي من المتصفح. افتحها واحفظها وارفعها.'), 'copied' => t('اتنسخ'), 'insert' => t('حطه في الرد'), 'copy' => t('نسخ')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script>window.SAVED_REPLIES = <?= json_encode(['items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

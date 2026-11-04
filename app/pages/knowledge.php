@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = mb_substr(preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', basename((string)$f['name'])), 0, 180);
         $mime = (string)mime_content_type($f['tmp_name']);
         try {
-            [$text, $method] = kb_extract($f['tmp_name'], $name, $mime);
+            [$text, $method] = kb_extract($f['tmp_name'], $name, $mime, isset($_POST['client_text']) ? ['text' => (string)$_POST['client_text'], 'method' => (string)($_POST['client_method'] ?? '')] : null);
         } catch (Throwable $e) {
             $json(['error' => $name . ': ' . $e->getMessage()], 422);
         }
@@ -281,10 +281,11 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'del' => t('حذف الملف؟'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/knowledge.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
@@ -292,7 +293,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 /** صف ملف في القائمة */
 function kb_file_row(array $f, bool $canEdit): string
 {
-    $m = ['pdftotext' => 'PDF', 'claude' => 'PDF · Claude', 'basic' => 'PDF', 'vision' => t('صورة'), 'docx' => 'Word', 'xlsx' => 'Excel', 'pptx' => 'PowerPoint', 'html' => 'HTML', 'text' => t('نص')][$f['method']] ?? $f['method'];
+    $m = ['pdftotext' => 'PDF', 'pdfparser' => 'PDF', 'pdfjs' => 'PDF', 'pdfjs+ocr' => 'PDF · OCR', 'ocr' => 'OCR', 'claude' => 'PDF · ' . t('ذكاء اصطناعي'), 'basic' => 'PDF', 'vision' => t('صورة') . ' · ' . t('ذكاء اصطناعي'), 'docx' => 'Word', 'xlsx' => 'Excel', 'pptx' => 'PowerPoint', 'html' => 'HTML', 'text' => t('نص')][$f['method']] ?? $f['method'];
     $h = '<div class="kb-file rounded-xl border border-ink-200 ' . ($f['enabled'] ? '' : 'opacity-60') . '" data-id="' . (int)$f['id'] . '">'
         . '<div class="flex items-center gap-3 p-3">'
         . '<span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg></span>'

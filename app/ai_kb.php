@@ -158,15 +158,22 @@ function kb_relevant_chunks(int $wid, string $query, int $limit = 5): array
 
 /* ---------- تحويل الملفات لنص ---------- */
 
-/** بيرجع [النص, الطريقة] أو بيرمي Exception */
-function kb_extract(string $path, string $name, string $mime): array
+/**
+ * بيرجع [النص, الطريقة] أو بيرمي Exception.
+ * $client = النص اللي المتصفح طلّعه (PDF.js / OCR)، بيتستخدم قبل الذكاء الاصطناعي عشان نوفّر.
+ */
+function kb_extract(string $path, string $name, string $mime, ?array $client = null): array
 {
+    $client = $client && mb_strlen(preg_replace('/\s+/u', '', (string)$client['text'])) >= 15 ? ['text' => kb_clean((string)$client['text']), 'method' => preg_replace('/[^a-z+]/', '', (string)$client['method']) ?: 'browser'] : null;
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     if (in_array($ext, ['txt', 'md', 'csv', 'tsv', 'json'], true)) return [kb_clean((string)file_get_contents($path)), 'text'];
     if (in_array($ext, ['html', 'htm'], true)) return [kb_clean(html_entity_decode(strip_tags(preg_replace('#<(script|style)[^>]*>.*?</\1>#si', '', (string)file_get_contents($path))), ENT_QUOTES, 'UTF-8')), 'html'];
     if (in_array($ext, ['docx', 'xlsx', 'pptx'], true)) return [kb_office($path, $ext), $ext];
-    if ($ext === 'pdf') return kb_pdf($path, $name);
-    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) return [kb_image($path, $mime), 'vision'];
+    if ($ext === 'pdf') return kb_pdf($path, $name, $client);
+    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'bmp'], true)) {
+        if ($client) return [$client['text'], $client['method']]; // OCR في المتصفح: من غير تكلفة
+        return [kb_image($path, $mime), 'vision'];
+    }
     throw new Exception(t('نوع الملف غير مدعوم: %s', $ext));
 }
 
@@ -174,6 +181,10 @@ function kb_clean(string $s): string
 {
     if (!mb_check_encoding($s, 'UTF-8')) $s = mb_convert_encoding($s, 'UTF-8', 'Windows-1256');
     $s = preg_replace("/^\xEF\xBB\xBF/", '', $s);
+    // أشكال الحروف العربية المرسومة (من الـ PDF) لحروف عادية، عشان البحث يلاقيها
+    if (class_exists('Normalizer')) $s = Normalizer::normalize($s, Normalizer::FORM_KC) ?: $s;
+    // علامات الاتجاه المخفية اللي pdftotext بيحطها
+    $s = preg_replace('/[\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', '', $s);
     $s = preg_replace("/[ \t]+/u", ' ', str_replace("\r", '', $s));
     return trim(preg_replace("/\n{3,}/", "\n\n", $s));
 }
@@ -220,14 +231,29 @@ function kb_office(string $path, string $ext): string
     return $t;
 }
 
-/** PDF: pdftotext لو موجود، وإلا Claude بيقرا الـ PDF، وإلا قارئ بسيط */
-function kb_pdf(string $path, string $name): array
+/**
+ * PDF بالترتيب ده (الأرخص الأول):
+ * 1) pdftotext على السيرفر لو موجود  2) النص اللي المتصفح طلّعه (PDF.js + OCR للصفحات الممسوحة)
+ * 3) smalot/pdfparser (PHP) للملفات غير العربي  4) Claude  5) قارئ بسيط
+ */
+function kb_pdf(string $path, string $name, ?array $client = null): array
 {
     if (function_exists('shell_exec') && !in_array('shell_exec', array_map('trim', explode(',', (string)ini_get('disable_functions'))), true)) {
         $bin = trim((string)@shell_exec('command -v pdftotext 2>/dev/null'));
         if ($bin !== '') {
             $t = kb_clean((string)@shell_exec(escapeshellarg($bin) . ' -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null'));
             if (mb_strlen(preg_replace('/\s+/u', '', $t)) >= 8) return [$t, 'pdftotext'];
+        }
+    }
+    if ($client) return [$client['text'], $client['method']];
+    // smalot: ممتاز للإنجليزي، لكن بيعكس العربي ويلخبط المسافات، فبنستخدمه بس لو النص مش عربي
+    if (is_file(__DIR__ . '/vendor/autoload.php')) {
+        require_once __DIR__ . '/vendor/autoload.php';
+        try {
+            $t = kb_clean((string)(new \Smalot\PdfParser\Parser())->parseFile($path)->getText());
+            $letters = preg_match_all('/\p{L}/u', $t); $arabic = preg_match_all('/\p{Arabic}/u', $t);
+            if ($letters >= 8 && $arabic / max(1, $letters) < 0.2) return [$t, 'pdfparser'];
+        } catch (Throwable $e) {
         }
     }
     $an = connector('anthropic');

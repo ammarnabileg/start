@@ -178,16 +178,29 @@
   // الملفات
   var input = document.getElementById('kb-file'), drop = document.getElementById('kb-drop'), list = document.getElementById('kb-files');
   function upload(files) {
-    [].slice.call(files).forEach(function (file) {
+    var okAny = false;
+    // ملف ورا التاني (الـ OCR تقيل)، ونحدّث الصفحة مرة واحدة في الآخر
+    [].slice.call(files).reduce(function (chain, file) { return chain.then(function () { return one(file); }); }, Promise.resolve())
+      .then(function () { if (okAny) { location.hash = 'files'; location.reload(); } });
+    function one(file) {
       var ph = document.createElement('div'); ph.className = 'rounded-xl border border-brand-200 bg-brand-50/50 p-3 text-sm flex items-center gap-3';
       ph.innerHTML = '<svg class="w-4 h-4 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span class="flex-1 truncate"></span><span class="text-xs text-ink-500"></span>';
-      ph.querySelector('span').textContent = file.name; ph.querySelectorAll('span')[1].textContent = K.uploading; list.prepend(ph);
+      ph.querySelector('span').textContent = file.name; var st = ph.querySelectorAll('span')[1]; st.textContent = K.uploading; list.prepend(ph);
       var fd = new FormData(); fd.append('action', 'kb_upload'); fd.append('file', file);
-      post(fd).then(function (d) {
-        if (d.error) { ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = d.error; setTimeout(function () { ph.remove(); }, 8000); return; }
-        location.hash = 'files'; location.reload();
+      // PDF والصور: المتصفح بيطلّع النص الأول (PDF.js / OCR) عشان مانستخدمش الذكاء الاصطناعي
+      var local = (window.extractText && /\.(pdf|png|jpe?g|webp|bmp)$/i.test(file.name))
+        ? Promise.race([window.extractText(file, function (p, kind) { st.textContent = (kind === 'ocr' ? K.ocr : K.reading) + ' ' + Math.round(p * 100) + '%'; }),
+            new Promise(function (r) { setTimeout(function () { r(null); }, 180000); })]).catch(function () { return null; })
+        : Promise.resolve(null);
+      return local.then(function (r) {
+        if (r && r.text) { fd.append('client_text', r.text); fd.append('client_method', r.method); }
+        st.textContent = K.uploading;
+        return post(fd);
+      }).then(function (d) {
+        if (d.error) { ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = d.error; return; }
+        okAny = true; ph.className = 'rounded-xl border border-lime-200 bg-lime-50 p-3 text-sm flex items-center gap-3'; st.textContent = '✓ ' + d.chars;
       }).catch(function () { ph.textContent = K.err; });
-    });
+    }
   }
   if (input) input.addEventListener('change', function () { upload(input.files); input.value = ''; });
   if (drop) {

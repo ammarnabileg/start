@@ -176,6 +176,29 @@
   }
   if (dockEl) tick(true);
 
+  /* ---------- نسخ النص من صورة في المحادثة (OCR في المتصفح، من غير تكلفة) ---------- */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ocr]'); if (!b || !window.extractText) return;
+    var old = b.innerHTML; b.disabled = true; b.textContent = X.ocrRun;
+    var img = b.parentNode.querySelector('img');
+    // الصورة عن طريق السيرفر بتاعنا (المنصات مش بتسمح للمتصفح يقراها مباشرة)
+    var src = fetch(location.pathname + '?p=inbox&img_proxy=' + encodeURIComponent(b.dataset.ocr), { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); });
+    src.then(function (blob) { return window.extractText(new File([blob], 'image.png', { type: blob.type || 'image/png' })); })
+      .then(function (r) {
+        var text = r && r.text ? r.text : '';
+        if (!text) { toast(X.ocrNone, true); return; }
+        var box = document.createElement('div'); box.className = 'mt-2 rounded-xl border border-ink-200 bg-white text-ink-800 p-2.5 text-xs shadow-sm max-w-sm';
+        box.innerHTML = '<pre class="whitespace-pre-wrap font-sans max-h-48 overflow-auto" dir="auto"></pre><div class="flex gap-1.5 mt-2"><button type="button" class="o-copy btn-ghost !py-1 !px-2 !text-[11px]"></button><button type="button" class="o-ins btn-ghost !py-1 !px-2 !text-[11px]"></button></div>';
+        box.querySelector('pre').textContent = text; box.querySelector('.o-copy').textContent = X.copy; box.querySelector('.o-ins').textContent = X.insert;
+        box.querySelector('.o-copy').onclick = function () { navigator.clipboard && navigator.clipboard.writeText(text); this.textContent = X.copied; };
+        box.querySelector('.o-ins').onclick = function () { var t = document.querySelector('#ibx-compose textarea'); if (t) { t.value = (t.value ? t.value + '\n' : '') + text; t.dispatchEvent(new Event('input', { bubbles: true })); t.focus(); } };
+        b.parentNode.after(box);
+      })
+      .catch(function () { toast(X.ocrCors, true); })
+      .finally(function () { b.disabled = false; b.innerHTML = old; });
+  });
+
   /* ---------- اختصارات الكيبورد ---------- */
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
