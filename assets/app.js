@@ -198,9 +198,36 @@ document.addEventListener('click', function (e) {
   }
   function run(ta, key, btn) {
     var p = P.items[key]; closeMenu();
-    var fd = new FormData(); fd.append('task', 'preset'); fd.append('preset', key); fd.append('text', ta.value); fd.append('context', ctxOf(ta));
+    var fd = new FormData(); fd.append('task', 'preset'); fd.append('preset', key); fd.append('text', ta.value); fd.append('context', ctxOf(ta)); fd.append('stream', '1');
     btn.disabled = true; btn.classList.add('animate-pulse');
-    fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
+    var mode = (P.modes || {})[key] || 'replace', orig = ta.value, acc = '', live = null;
+    // الرد كلمة كلمة: للاستبدال/الإضافة بيتكتب جوه الخانة، وللعرض بيتكتب في صندوق تحت
+    function onDelta(d) {
+      acc += d;
+      if (mode === 'show') {
+        if (!live) { live = panel(ta, '<div class="flex items-center justify-between gap-2 mb-2"><b class="text-brand-700 text-xs"></b></div><div class="ai-body whitespace-pre-wrap leading-relaxed"></div>'); live.querySelector('b').textContent = p; }
+        live.querySelector('.ai-body').textContent = acc;
+      } else {
+        ta.value = mode === 'append' ? (orig.replace(/\s+$/, '') + (orig ? '\n\n' : '') + acc) : acc;
+        ta.scrollTop = ta.scrollHeight;
+      }
+    }
+    fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('text/event-stream') < 0 || !r.body || !window.TextDecoder) return r.json();
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', fin = null;
+      function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) return fin || { error: (window.T && T.liveFailed) || 'Error' };
+          buf += dec.decode(x.value, { stream: true }); var parts = buf.split('\n\n'); buf = parts.pop();
+          parts.forEach(function (ev) { ev.split('\n').forEach(function (l) { if (l.indexOf('data:') !== 0) return; try { var o = JSON.parse(l.slice(5)); } catch (e) { return; } if (o.d != null) onDelta(o.d); else fin = o; }); });
+          return pump();
+        });
+      }
+      return pump();
+    }).then(function (d) {
+      if (d.error && mode !== 'show') ta.value = orig;
+      if (live) live.remove();
       if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return; }
       var cost = d.cost != null ? ' · $' + (+d.cost).toFixed(5).replace(/0+$/, '').replace(/\.$/, '') : '';
       if (d.mode === 'show') {

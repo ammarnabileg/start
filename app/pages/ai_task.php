@@ -13,6 +13,36 @@ if (($_GET['img'] ?? '') !== '') {
 }
 header('Content-Type: application/json; charset=utf-8');
 $out = function (array $d, int $code = 200) { http_response_code($code); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+// الرد كلمة كلمة: Server-Sent Events. لو stream=1 بنبعت الأجزاء أول بأول
+$streaming = !empty($_POST['stream']);
+$sse = function (array $d) { echo 'data: ' . json_encode($d, JSON_UNESCAPED_UNICODE) . "\n\n"; @ob_flush(); @flush(); };
+$sseStart = function () {
+    header('Content-Type: text/event-stream; charset=utf-8');
+    header('Cache-Control: no-cache, no-transform');
+    header('X-Accel-Buffering: no'); // Nginx
+    @ini_set('zlib.output_compression', '0');
+    @ini_set('output_buffering', '0');
+    @ini_set('implicit_flush', '1');
+    while (ob_get_level() > 0) @ob_end_flush();
+    ob_implicit_flush(true);
+    echo ':' . str_repeat(' ', 2048) . "\n\n"; // بعض السيرفرات مش بتبعت قبل ما يتجمع حجم معين
+    @flush();
+};
+// بيشغّل ai_chat، ولو streaming بيبعت الأجزاء، وفي الآخر النتيجة الكاملة
+$run = function (array $msgs, int $max, string $group, callable $finish) use ($streaming, $sse, $sseStart, $out) {
+    if (!$streaming) {
+        try { $r = ai_chat($msgs, $max, $group); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
+        $out($finish($r));
+    }
+    $sseStart();
+    try {
+        $r = ai_chat($msgs, $max, $group, function ($d) use ($sse) { $sse(['d' => $d]); });
+        $sse(['done' => true] + $finish($r));
+    } catch (Throwable $e) {
+        $sse(['error' => $e->getMessage()]);
+    }
+    exit;
+};
 // توليد الصور عن طريق Higgsfield: طلب، وبعدين متابعة الحالة لحد ما تخلص
 if (in_array($task, ['image', 'image_status'], true)) {
     if (!ai_feature_on('image')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
@@ -130,16 +160,15 @@ if (in_array($task, ['chat', 'chat_clear', 'chat_log'], true)) {
     $msgs = [['role' => 'system', 'content' => $system]];
     foreach (array_slice($hist, -8) as $h) $msgs[] = ['role' => $h['role'], 'content' => $h['content']];
     $msgs[] = ['role' => 'user', 'content' => $q];
-    try {
-        $r = ai_chat($msgs, 1000, 'assistant');
+    unset($hist);
+    $run($msgs, 1000, 'assistant', function ($r) use ($q, $wid) {
         $meta = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
-        $hist[] = ['role' => 'user', 'content' => $q, 't' => time()];
-        $hist[] = ['role' => 'assistant', 'content' => $r['text'], 'meta' => $meta, 't' => time()];
-        $hist = array_slice($hist, -30);
-        $out(['html' => ai_render($r['text']), 'text' => $r['text'], 'meta' => $meta]);
-    } catch (Throwable $e) {
-        $out(['error' => $e->getMessage()], 502);
-    }
+        $h = &$_SESSION['copilot'][$wid]; if (!is_array($h)) $h = [];
+        $h[] = ['role' => 'user', 'content' => $q, 't' => time()];
+        $h[] = ['role' => 'assistant', 'content' => $r['text'], 'meta' => $meta, 't' => time()];
+        $h = array_slice($h, -30);
+        return ['html' => ai_render($r['text']), 'text' => $r['text'], 'meta' => $meta];
+    });
 }
 
 // تحليلات من بيانات الشركة
@@ -160,6 +189,17 @@ if ($task === 'insight') {
     if (!empty($in['nav'])) { $nl = []; foreach (nav_items() as $g) { $nl[] = '- ' . ($g['section'] ? $g['section'] . ' › ' : '') . ($g['label'] ?? '') . (!empty($g['tabs']) ? ': ' . implode(', ', array_values($g['tabs'])) : ''); } $user .= "\n\nMENU:\n" . implode("\n", $nl); }
     if (!empty($in['admin'])) $user .= "\n\nPLATFORM:\n" . ai_admin_context();
     $user .= $extra !== '' ? "\n\nUSER REQUEST:\n" . $extra : '';
+    if ($streaming && empty($in['csv'])) {
+        $run([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 1200, $in['group'], function ($r) use ($in, $extra) {
+            $text = trim($r['text']);
+            $meta = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
+            $h = &$_SESSION['copilot'][(int)ws('id')]; if (!is_array($h)) $h = [];
+            $h[] = ['role' => 'user', 'content' => $in['label'] . ($extra !== '' ? "\n" . mb_substr($extra, 0, 300) : ''), 'label' => 1, 't' => time()];
+            $h[] = ['role' => 'assistant', 'content' => $text, 'meta' => $meta, 't' => time()];
+            $h = array_slice($h, -30);
+            return ['html' => ai_render($text), 'text' => $text, 'meta' => $meta];
+        });
+    }
     try {
         $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], !empty($in['csv']) ? 2500 : 1200, $in['group']);
         $text = trim($r['text']);
@@ -198,6 +238,11 @@ if ($task === 'preset') {
     $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? $text : $ctx);
     try {
         $userMsg = $pr['needs'] === 'image' ? ['role' => 'user', 'content' => [['type' => 'text', 'text' => $text !== '' ? "Draft text:\n" . $text : 'Image:'], ['type' => 'image_url', 'image_url' => ['url' => $img]]]] : ['role' => 'user', 'content' => $user];
+        if ($streaming) {
+            $run([['role' => 'system', 'content' => str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $sys)], $userMsg], (int)(ai_tasks()[$pr['group']]['max'] ?? 700), $pr['group'], function ($r) use ($pr) {
+                return ['text' => $pr['mode'] === 'show' ? trim($r['text']) : trim($r['text'], " \n\"'«»"), 'mode' => $pr['mode'], 'model' => $r['model'], 'cost' => $r['cost'] ?? null];
+            });
+        }
         $r = ai_chat([['role' => 'system', 'content' => str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $sys)], $userMsg], (int)(ai_tasks()[$pr['group']]['max'] ?? 700), $pr['group']);
         $out(['text' => $pr['mode'] === 'show' ? trim($r['text']) : trim($r['text'], " \n\"'«»"), 'mode' => $pr['mode'], 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
     } catch (Throwable $e) {

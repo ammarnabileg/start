@@ -474,7 +474,7 @@ function ai_chat_direct(array $c, array $messages, int $maxTokens): array
  * يسأل الذكاء الاصطناعي: بيبدأ بالمزود الأساسي، ولو فشل بيجرب اللي بعده.
  * بيرجع: text, model, usage, provider
  */
-function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistant'): array
+function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistant', ?callable $onDelta = null): array
 {
     $wid = (int)ws('id');
     $budget = ai_budget($wid);
@@ -487,13 +487,20 @@ function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistan
     $errors = [];
     foreach ($conns as $c) {
         try {
-            $r = $c['provider'] === 'openrouter' ? ai_chat_openrouter($c, $messages, $maxTokens) : ai_chat_direct($c, $messages, $maxTokens);
+            $sent = false;
+            if ($onDelta) {
+                $r = ai_stream($c, $messages, $maxTokens, function ($d) use ($onDelta, &$sent) { $sent = true; $onDelta($d); });
+            } else {
+                $r = $c['provider'] === 'openrouter' ? ai_chat_openrouter($c, $messages, $maxTokens) : ai_chat_direct($c, $messages, $maxTokens);
+            }
             if ($r['text'] === '') throw new AiException(t('الموديل رجع رد فاضي.'));
             $r['provider'] = $c['provider'];
             $r['cost'] = ai_log_usage($wid, $task, $c['provider'], (string)$r['model'], (array)($r['usage'] ?? []));
             return $r;
         } catch (AiException $e) {
             $errors[] = ai_provider_name($c['provider']) . ': ' . $e->getMessage();
+            // لو الرد بدأ يوصل للمستخدم، مينفعش نكمل بمزود تاني
+            if (!empty($sent)) break;
         }
     }
     throw new AiException(count($errors) === 1 ? $errors[0] : t('كل المزودين فشلوا: %s', implode(' | ', $errors)));
@@ -554,4 +561,108 @@ function ai_render(string $md): string
     }
     if ($inList) $out .= '</ul>';
     return $out;
+}
+
+
+/* ---------- الرد كلمة كلمة (streaming) ---------- */
+
+/** طلب بيستقبل الرد على أجزاء (SSE). $onLine بتتنده لكل سطر "data:" */
+function ai_stream_request(string $url, array $headers, array $body, callable $onLine, int $timeout = 120): void
+{
+    $buf = ''; $raw = ''; $status = 0;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE), CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_HTTPHEADER => array_merge($headers, ['Content-Type: application/json', 'Accept: text/event-stream']),
+        CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buf, &$raw, &$status, $onLine) {
+            if (!$status) $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($status >= 400) { $raw .= $chunk; return strlen($chunk); }
+            $buf .= $chunk;
+            while (($pos = strpos($buf, "\n")) !== false) {
+                $line = rtrim(substr($buf, 0, $pos), "\r"); $buf = substr($buf, $pos + 1);
+                if (strpos($line, 'data:') === 0) { $d = trim(substr($line, 5)); if ($d !== '' && $d !== '[DONE]') $onLine($d); }
+            }
+            return strlen($chunk);
+        },
+    ]);
+    $ok = curl_exec($ch);
+    $err = curl_error($ch);
+    $status = $status ?: (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($ok === false && $status < 400) throw new AiException($err ?: 'stream failed', 0);
+    if ($status >= 400) {
+        $d = json_decode($raw, true) ?: [];
+        $e = $d['error'] ?? $d; if (isset($e[0])) $e = $e[0]['error'] ?? $e[0];
+        $msg = is_array($e) ? ($e['message'] ?? ('HTTP ' . $status)) : (string)$e;
+        if ($status === 401 || $status === 403) throw new AiException(t('مفتاح %s غير صحيح أو ليس له صلاحية.', ''), $status);
+        throw new AiException(is_string($msg) ? $msg : json_encode($msg), $status);
+    }
+}
+
+/** رد كلمة كلمة من أي مزود. بيرجع نفس شكل ai_chat: text, model, usage */
+function ai_stream(array $c, array $messages, int $maxTokens, callable $onDelta): array
+{
+    $p = $c['provider'];
+    $key = $c['credentials']['api_key'];
+    $text = ''; $model = ''; $usage = [];
+    if ($p === 'anthropic') {
+        $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
+        $system = implode("\n\n", array_column(array_filter($messages, function ($m) { return $m['role'] === 'system'; }), 'content'));
+        $msgs = array_values(array_filter($messages, function ($m) { return $m['role'] !== 'system'; }));
+        foreach ($msgs as &$mm) {
+            if (!is_array($mm['content'])) continue;
+            $mm['content'] = array_map(function ($part) {
+                if (($part['type'] ?? '') !== 'image_url') return $part;
+                if (preg_match('#^data:(image/[a-z]+);base64,(.+)$#', (string)$part['image_url']['url'], $mt)) return ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mt[1], 'data' => $mt[2]]];
+                return ['type' => 'image', 'source' => ['type' => 'url', 'url' => $part['image_url']['url']]];
+            }, $mm['content']);
+        }
+        unset($mm);
+        $body = ['model' => $model, 'max_tokens' => $maxTokens, 'messages' => $msgs, 'stream' => true];
+        if ($system !== '') $body['system'] = $system;
+        ai_stream_request(ai_base('anthropic') . '/messages', ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01'], $body, function ($d) use (&$text, &$model, &$usage, $onDelta) {
+            $e = json_decode($d, true); if (!$e) return;
+            $t = $e['type'] ?? '';
+            if ($t === 'message_start') { $model = (string)($e['message']['model'] ?? $model); $usage['input_tokens'] = (int)($e['message']['usage']['input_tokens'] ?? 0); }
+            elseif ($t === 'content_block_delta' && isset($e['delta']['text'])) { $text .= $e['delta']['text']; $onDelta($e['delta']['text']); }
+            elseif ($t === 'message_delta') { $usage['output_tokens'] = (int)($e['usage']['output_tokens'] ?? 0); }
+            elseif ($t === 'error') throw new AiException((string)($e['error']['message'] ?? 'error'));
+        });
+        $usage['total_tokens'] = ($usage['input_tokens'] ?? 0) + ($usage['output_tokens'] ?? 0);
+        return ['text' => trim($text), 'model' => $model, 'usage' => $usage];
+    }
+    // OpenAI و Gemini و OpenRouter: نفس شكل OpenAI
+    $parse = function ($d) use (&$text, &$model, &$usage, $onDelta) {
+        $e = json_decode($d, true); if (!$e) return;
+        if (isset($e['error'])) throw new AiException((string)($e['error']['message'] ?? 'error'), (int)($e['error']['code'] ?? 0));
+        if (!empty($e['model'])) $model = (string)$e['model'];
+        if (!empty($e['usage'])) $usage = $e['usage'];
+        $piece = $e['choices'][0]['delta']['content'] ?? '';
+        if (is_string($piece) && $piece !== '') { $text .= $piece; $onDelta($piece); }
+    };
+    if ($p === 'openrouter') {
+        $tier = (string)($c['settings']['tier'] ?? 'cheap');
+        $vision = ai_has_image($messages);
+        $models = !empty($c['settings']['or_model']) ? [$c['settings']['or_model']] : array_column(array_filter(ai_allowed_models($tier), function ($m) use ($vision) { return !$vision || !empty($m['vision']); }), 'id');
+        if (!$models) throw new AiException(t('مفيش موديلات متاحة في المستوى ده. وسّع المستوى من صفحة التكاملات.'));
+        $last = null;
+        foreach (array_slice(array_chunk($models, 3), 0, 6) as $group) {
+            try {
+                ai_stream_request(AI_BASE . '/chat/completions', ['Authorization: Bearer ' . $key, 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')],
+                    ['models' => $group, 'messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => 0.3, 'stream' => true, 'usage' => ['include' => true]], $parse);
+                if ($text !== '') return ['text' => trim($text), 'model' => $model ?: $group[0], 'usage' => $usage];
+            } catch (AiException $e) {
+                $last = $e;
+                if ($text !== '' || in_array($e->getCode(), [401, 402, 403], true)) throw $e;
+            }
+        }
+        throw $last ?: new AiException(t('الموديل رجع رد فاضي.'));
+    }
+    $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
+    $path = $p === 'gemini' ? '/openai/chat/completions' : '/chat/completions';
+    $body = ['model' => $model, 'messages' => $messages, 'stream' => true, 'stream_options' => ['include_usage' => true]];
+    $body[$p === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = $p === 'openai' && preg_match('/^(o\d|gpt-5)/', $model) ? $maxTokens * 4 : $maxTokens;
+    $auth = $p === 'gemini' ? ['x-goog-api-key: ' . $key, 'Authorization: Bearer ' . $key] : ['Authorization: Bearer ' . $key];
+    ai_stream_request(ai_base($p) . $path, $auth, $body, $parse);
+    return ['text' => trim($text), 'model' => $model, 'usage' => $usage];
 }

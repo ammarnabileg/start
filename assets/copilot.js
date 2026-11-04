@@ -21,6 +21,51 @@
     return (m.innerText || m.textContent || '').replace(/\n{3,}/g, '\n\n').slice(0, 6000);
   }
   function scroll() { thread.scrollTop = thread.scrollHeight; }
+  // الرد كلمة كلمة: بنقرا الـ stream ونبعت كل جزء لـ onDelta
+  function postStream(data, onDelta) {
+    data.stream = 1;
+    var fd = new FormData(); for (var k in data) fd.append(k, data[k]);
+    return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('text/event-stream') < 0 || !r.body || !window.TextDecoder) return r.json();
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', final = null;
+      function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) return final || { error: C.err };
+          buf += dec.decode(x.value, { stream: true });
+          var parts = buf.split('\n\n'); buf = parts.pop();
+          parts.forEach(function (ev) {
+            ev.split('\n').forEach(function (line) {
+              if (line.indexOf('data:') !== 0) return;
+              try { var o = JSON.parse(line.slice(5)); } catch (e) { return; }
+              if (o.d != null) onDelta(o.d); else final = o;
+            });
+          });
+          return pump();
+        });
+      }
+      return pump();
+    });
+  }
+  // عرض مبدئي بسيط وهو بيكتب (الـ Markdown الكامل بييجي من السيرفر في الآخر)
+  function liveMd(t) {
+    var esc = t.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+    return esc.split('\n').map(function (l) {
+      l = l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      if (/^#{1,4}\s/.test(l)) return '<p class="font-semibold text-ink-900">' + l.replace(/^#{1,4}\s/, '') + '</p>';
+      if (/^\s*[-*•]\s/.test(l)) return '<p class="ps-4 relative"><span class="absolute start-0">•</span>' + l.replace(/^\s*[-*•]\s/, '') + '</p>';
+      return l === '' ? '<div class="h-1"></div>' : '<p>' + l + '</p>';
+    }).join('');
+  }
+  function streamInto(box, data) {
+    var text = '', raf = 0, started = false;
+    box.innerHTML = '<div class="cp-md leading-relaxed space-y-1 break-words"></div>';
+    var md = box.firstChild;
+    return postStream(data, function (d) {
+      text += d; started = true;
+      if (!raf) raf = requestAnimationFrame(function () { raf = 0; md.innerHTML = liveMd(text) + '<span class="cp-caret inline-block w-1.5 h-4 align-middle bg-brand-500 animate-pulse ms-0.5"></span>'; scroll(); });
+    }).then(function (d) { if (raf) cancelAnimationFrame(raf); fill(box, d); return d; });
+  }
   function el(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
 
   function bubbleUser(html, isAction) {
@@ -78,7 +123,7 @@
     var box = bubbleAI(), withPage = document.getElementById('cp-page');
     var data = { task: 'chat', message: q, page_title: C.title };
     if (withPage && withPage.checked) data.page = pageText();
-    post(data).then(function (d) { fill(box, d); }).catch(function () { fill(box, { error: C.err }); })
+    streamInto(box, data).catch(function () { fill(box, { error: C.err }); })
       .finally(function () { busy = false; if (send) send.disabled = false; });
   }
   function insight(key, extra) {
@@ -98,7 +143,7 @@
     if (extra) thread.lastChild.querySelector('.line-clamp-2').textContent = extra;
     var box = bubbleAI(), data = { task: 'insight', insight: key, text: extra || '' };
     if (it.page) data.page = pageText();
-    post(data).then(function (d) { fill(box, d); }).catch(function () { fill(box, { error: C.err }); }).finally(function () { busy = false; });
+    (it.csv ? post(data).then(function (d) { fill(box, d); }) : streamInto(box, data)).catch(function () { fill(box, { error: C.err }); }).finally(function () { busy = false; });
   }
 
   function setOpen(on) {
