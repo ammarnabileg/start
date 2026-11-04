@@ -668,4 +668,39 @@ Unannounced discounts',
     'فاضي' => 'Empty',
     'ابدأ' => 'Start',
     'إلغاء' => 'Cancel',
+    'بيان التموضع' => 'Positioning statement',
+    'الجمهور المستهدف ومشكلته' => 'Target audience & problem',
+    'مين بالظبط العميل اللي بتخدمه، وإيه المشكلة أو الاحتياج اللي بيعاني منه وبيخليه يدوّر على حل. كل ما كان أدق كان أقوى.' => 'Exactly who you serve, and the problem or need that makes them look for a solution. The more precise, the stronger.',
+    'مثال:
+الجمهور: أمهات عاملات 28-40 سنة في القاهرة الجديدة
+المشكلة: مفيش وقت يطبخوا أكل صحي لأولادهم في أيام الشغل، والأكل الجاهز مليان دهون' => 'Example:
+Audience: working mothers aged 28-40 in New Cairo
+Problem: no time to cook healthy food for their kids on work days, and ready meals are full of fat',
+    'الفئة (Frame of Reference)' => 'Frame of reference',
+    'منتجك أو خدمتك بتنتمي لأنهي فئة في دماغ العميل؟ دي الفئة اللي هيقارنك فيها بالمنافسين.' => 'Which category does your product or service belong to in the customer\'s mind? This is where they compare you with competitors.',
+    'مثال:
+خدمة اشتراك وجبات صحية جاهزة للبيوت
+المنافسين في نفس الفئة: مطاعم الأكل الصحي، تطبيقات توصيل الوجبات' => 'Example:
+A healthy ready-meal subscription for homes
+Competitors in the same category: healthy-food restaurants, meal delivery apps',
+    'نقطة الاختلاف (Point of Difference)' => 'Point of difference',
+    'الفرق الجوهري بينك وبين المنافسين في نفس الفئة. حاجة العميل يهتم بيها، ومش موجودة عندهم أو مش بنفس المستوى.' => 'The essential difference between you and competitors in the same category: something customers care about that they lack or do less well.',
+    'مثال:
+الوجبات بتتعمل حسب عمر كل طفل واحتياجه الغذائي بإشراف أخصائية تغذية، مش منيو ثابت للكل' => 'Example:
+Meals are tailored to each child\'s age and nutritional needs under a dietitian, not one fixed menu for everyone',
+    'سبب التصديق (Reason to Believe)' => 'Reason to believe',
+    'ليه العميل هيصدقك لما تقوله إنك أحسن من المنافس؟ دليل حقيقي: أرقام، شهادات، تجربة، ضمان، آراء عملاء.' => 'Why would customers believe you are better than the competitor? Real proof: numbers, certifications, experience, guarantees, reviews.',
+    'مثال:
+أخصائية تغذية معتمدة في الفريق
++1200 أسرة مشتركة من 2022
+تقدر توقف أو تغيّر الاشتراك في أي وقت' => 'Example:
+A certified dietitian on the team
+1,200+ subscribed families since 2022
+Pause or change your plan any time',
+    'الخطوة %s من 4' => 'Step %s of 4',
+    'لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.' => 'For %1 who %2, we are %3. Unlike competitors, %4. The proof: %5.',
+    'الجمهور ومشكلته' => 'Audience & problem',
+    'الفئة' => 'Category',
+    'نقطة الاختلاف' => 'Point of difference',
+    'سبب التصديق' => 'Reason to believe',
 ];

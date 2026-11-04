@@ -5,19 +5,38 @@
  */
 
 /** الأقسام وشكل كل واحد */
+function kb_groups(): array
+{
+    return ['info' => t('معلومات الشركة'), 'pos' => t('بيان التموضع')];
+}
+
 function kb_schema(): array
 {
     return [
-        'company' => ['label' => t('عن الشركة'), 'hint' => t('من أنتم، ماذا تبيعون، العنوان والفروع، مواعيد العمل، طرق الدفع والتوصيل.'), 'type' => 'text'],
-        'services' => ['label' => t('الخدمات والمنتجات'), 'hint' => t('كل خدمة أو منتج بسعره ووصف مختصر. الذكاء الاصطناعي لن يذكر سعرًا غير موجود هنا.'), 'type' => 'rows', 'cols' => ['name' => t('الاسم'), 'price' => t('السعر'), 'details' => t('التفاصيل')]],
-        'faq' => ['label' => t('الأسئلة الشائعة'), 'hint' => t('الأسئلة اللي العملاء بيسألوها كتير وإجابتها المعتمدة.'), 'type' => 'rows', 'cols' => ['q' => t('السؤال'), 'a' => t('الإجابة')]],
-        'tone' => ['label' => t('نبرة الكلام'), 'hint' => t('إزاي الشركة بتتكلم مع عملائها.'), 'type' => 'tone'],
-        'audience' => ['label' => t('الجمهور'), 'hint' => t('مين عملائك: السن، المكان، الاهتمامات، المشاكل اللي بتحلها لهم.'), 'type' => 'text'],
-        'focus' => ['label' => t('التركيز الحالي'), 'hint' => t('إيه اللي عايز تروّج له دلوقتي: عرض، منتج جديد، هدف الشهر.'), 'type' => 'text'],
-        'never_say' => ['label' => t('ممنوع قوله'), 'hint' => t('كلمات أو مواضيع أو وعود ممنوع الذكاء الاصطناعي يذكرها نهائيًا. كل واحدة في سطر.'), 'type' => 'list'],
-        'anti_hype' => ['label' => t('ضد المبالغة'), 'hint' => t('قواعد تمنع الكلام المبالغ فيه والوعود اللي مش هتتحقق.'), 'type' => 'antihype'],
-        'visual_style' => ['label' => t('الهوية البصرية'), 'hint' => t('ألوان وستايل الصور. بيستخدمها توليد الصور تلقائيًا.'), 'type' => 'visual'],
-        'escalation' => ['label' => t('التحويل لموظف'), 'hint' => t('إمتى الذكاء الاصطناعي يوقف ويحوّل المحادثة لموظف، ولمين يبعت إيميل.'), 'type' => 'escalation'],
+        // معلومات الشركة
+        'company' => ['group' => 'info', 'label' => t('عن الشركة'), 'hint' => t('من أنتم، ماذا تبيعون، العنوان والفروع، مواعيد العمل، طرق الدفع والتوصيل.'), 'type' => 'text',
+            'ph' => t("مثال:\nمطعم بيتزا في مدينة نصر، مفتوح يوميًا 12 ظهرًا - 2 صباحًا\nالتوصيل داخل القاهرة 30 جنيه خلال 45 دقيقة\nالدفع كاش أو فيزا أو فودافون كاش")],
+        'services' => ['group' => 'info', 'label' => t('الخدمات والمنتجات'), 'hint' => t('كل خدمة أو منتج بسعره ووصف مختصر. الذكاء الاصطناعي لن يذكر سعرًا غير موجود هنا.'), 'type' => 'rows', 'cols' => ['name' => t('الاسم'), 'price' => t('السعر'), 'details' => t('التفاصيل')]],
+        'faq' => ['group' => 'info', 'label' => t('الأسئلة الشائعة'), 'hint' => t('الأسئلة اللي العملاء بيسألوها كتير وإجابتها المعتمدة.'), 'type' => 'rows', 'cols' => ['q' => t('السؤال'), 'a' => t('الإجابة')]],
+        'tone' => ['group' => 'info', 'label' => t('نبرة الكلام'), 'hint' => t('إزاي الشركة بتتكلم مع عملائها.'), 'type' => 'tone'],
+        'focus' => ['group' => 'info', 'label' => t('التركيز الحالي'), 'hint' => t('إيه اللي عايز تروّج له دلوقتي: عرض، منتج جديد، هدف الشهر.'), 'type' => 'text'],
+        'never_say' => ['group' => 'info', 'label' => t('ممنوع قوله'), 'hint' => t('كلمات أو مواضيع أو وعود ممنوع الذكاء الاصطناعي يذكرها نهائيًا. كل واحدة في سطر.'), 'type' => 'list'],
+        'anti_hype' => ['group' => 'info', 'label' => t('ضد المبالغة'), 'hint' => t('قواعد تمنع الكلام المبالغ فيه والوعود اللي مش هتتحقق.'), 'type' => 'antihype'],
+        'visual_style' => ['group' => 'info', 'label' => t('الهوية البصرية'), 'hint' => t('ألوان وستايل الصور. بيستخدمها توليد الصور تلقائيًا.'), 'type' => 'visual'],
+        'escalation' => ['group' => 'info', 'label' => t('التحويل لموظف'), 'hint' => t('إمتى الذكاء الاصطناعي يوقف ويحوّل المحادثة لموظف، ولمين يبعت إيميل.'), 'type' => 'escalation'],
+        // بيان التموضع (Positioning Statement)
+        'audience' => ['group' => 'pos', 'nav' => t('الجمهور ومشكلته'), 'label' => t('الجمهور المستهدف ومشكلته'), 'type' => 'text',
+            'hint' => t('مين بالظبط العميل اللي بتخدمه، وإيه المشكلة أو الاحتياج اللي بيعاني منه وبيخليه يدوّر على حل. كل ما كان أدق كان أقوى.'),
+            'ph' => t("مثال:\nالجمهور: أمهات عاملات 28-40 سنة في القاهرة الجديدة\nالمشكلة: مفيش وقت يطبخوا أكل صحي لأولادهم في أيام الشغل، والأكل الجاهز مليان دهون")],
+        'frame_ref' => ['group' => 'pos', 'nav' => t('الفئة'), 'label' => t('الفئة (Frame of Reference)'), 'type' => 'text',
+            'hint' => t('منتجك أو خدمتك بتنتمي لأنهي فئة في دماغ العميل؟ دي الفئة اللي هيقارنك فيها بالمنافسين.'),
+            'ph' => t("مثال:\nخدمة اشتراك وجبات صحية جاهزة للبيوت\nالمنافسين في نفس الفئة: مطاعم الأكل الصحي، تطبيقات توصيل الوجبات")],
+        'pod' => ['group' => 'pos', 'nav' => t('نقطة الاختلاف'), 'label' => t('نقطة الاختلاف (Point of Difference)'), 'type' => 'text',
+            'hint' => t('الفرق الجوهري بينك وبين المنافسين في نفس الفئة. حاجة العميل يهتم بيها، ومش موجودة عندهم أو مش بنفس المستوى.'),
+            'ph' => t("مثال:\nالوجبات بتتعمل حسب عمر كل طفل واحتياجه الغذائي بإشراف أخصائية تغذية، مش منيو ثابت للكل")],
+        'rtb' => ['group' => 'pos', 'nav' => t('سبب التصديق'), 'label' => t('سبب التصديق (Reason to Believe)'), 'type' => 'text',
+            'hint' => t('ليه العميل هيصدقك لما تقوله إنك أحسن من المنافس؟ دليل حقيقي: أرقام، شهادات، تجربة، ضمان، آراء عملاء.'),
+            'ph' => t("مثال:\nأخصائية تغذية معتمدة في الفريق\n+1200 أسرة مشتركة من 2022\nتقدر توقف أو تغيّر الاشتراك في أي وقت")],
     ];
 }
 
@@ -94,7 +113,9 @@ function kb_compile(int $wid, string $query = ''): string
         $out[] = "## TONE\n" . ($styles ? 'Style: ' . implode(', ', $styles) . "\n" : '') . (!empty($tone['dialect']) ? 'Language/dialect: ' . (kb_dialect_options()[$tone['dialect']] ?? $tone['dialect']) . "\n" : '')
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
-    if ($v = trim((string)($k['audience']['text'] ?? ''))) $out[] = "## AUDIENCE\n" . $v;
+    $pos = [];
+    foreach (['audience' => 'Target audience & their problem', 'frame_ref' => 'Frame of reference (category we compete in)', 'pod' => 'Point of difference vs competitors', 'rtb' => 'Reasons to believe (proof)'] as $pk => $pl) if ($v = trim((string)($k[$pk]['text'] ?? ''))) $pos[] = "### " . $pl . "\n" . $v;
+    if ($pos) $out[] = "## POSITIONING STATEMENT (use it to frame strategy, content and replies; never overclaim beyond the proof)\n" . implode("\n", $pos);
     if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . $v;
     if ($v = trim((string)($k['never_say']['text'] ?? ''))) $out[] = "## NEVER SAY (strictly forbidden words, topics and promises)\n" . implode("\n", array_map(function ($l) { return '- ' . trim($l); }, array_filter(explode("\n", $v), 'trim')));
     $ah = $k['anti_hype'] ?? [];

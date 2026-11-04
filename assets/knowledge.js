@@ -201,6 +201,21 @@
     document.body.appendChild(d); sync(); d.showModal();
   });
 
+  // بيان التموضع: جملة واحدة بتتجمع من الخطوات الأربعة وانت بتكتب
+  function posVal(sec) { var t = root.querySelector('.kb-form[data-section="' + sec + '"] textarea[name="d[text]"]'); return t ? t.value.trim() : ''; }
+  function strip(l) { return l.replace(/^[^:\uff1a]{1,25}[:\uff1a]\s*/, '').replace(/[.\u3002\s]+$/, ''); }
+  function first(sec) { var l = posVal(sec).split('\n').filter(function (x) { return x.trim() && !/^(\u0645\u062b\u0627\u0644|example)/i.test(x); }); return l.length ? strip(l[0]) : ''; }
+  function posStmt() {
+    var box = root.querySelectorAll('.kb-pos-stmt'); if (!box.length) return;
+    var aud = posVal('audience').split('\n').filter(function (x) { return x.trim(); }), who = '', prob = '';
+    aud.forEach(function (l) { if (/(\u0645\u0634\u0643\u0644|problem|need|\u0627\u062d\u062a\u064a\u0627\u062c)/i.test(l.split(/[:\uff1a]/)[0]) && !prob) prob = strip(l); else if (!who) who = strip(l); });
+    var vals = [who, prob, first('frame_ref'), first('pod'), first('rtb')], e = K.posEmpty;
+    var html = K.posTpl.replace(/%(\d)/g, function (m, i) { var v = vals[i - 1]; return v ? '<b class="text-ink-900">' + esc(v) + '</b>' : '<span class="text-ink-400">' + esc(e) + '</span>'; });
+    box.forEach(function (b) { b.innerHTML = html; });
+  }
+  root.addEventListener('input', function (e) { if (e.target.closest('.kb-form[data-section="audience"],.kb-form[data-section="frame_ref"],.kb-form[data-section="pod"],.kb-form[data-section="rtb"]')) posStmt(); });
+  new MutationObserver(posStmt).observe(root, { subtree: true, attributes: true, attributeFilter: ['class'] }); posStmt();
+
   // تكبير خانة التفاصيل مع الكتابة
   root.addEventListener('input', function (e) { if (e.target.matches('textarea[data-col]')) { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } });
 

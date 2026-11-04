@@ -157,7 +157,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'services' => 'List every product/service. PRICES: copy a price ONLY if it is written in the sources, exactly as written. If not written, leave "price" as an empty string. Never suggest, estimate, round or use a placeholder for prices.',
             'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
-            'audience' => 'Describe the likely audience (age, location, interests, needs) from the posts, messages and documents. Say it is an inference.',
+            'audience' => 'Positioning step 1. Write two short labelled parts: the precise TARGET AUDIENCE (who, age, place, situation) and the PROBLEM/NEED that makes them look for a solution. Base it on posts, messages, documents and the business type; be specific, not generic.',
+            'frame_ref' => 'Positioning step 2 (frame of reference). State the product/service CATEGORY the customer puts this business in, and name the kinds of competitors in that same category.',
+            'pod' => 'Positioning step 3 (point of difference). State the 1-3 most important, customer-relevant differences versus competitors in the same category. Only differences the sources support; mark expert suggestions.',
+            'rtb' => 'Positioning step 4 (reasons to believe). List concrete proof that makes the point of difference credible: facts, numbers, certifications, experience, guarantees, reviews — ONLY those found in the sources; never invent numbers or testimonials. If proof is missing, suggest what proof to collect, marked as a suggestion.',
             'focus' => 'Suggest what to promote now, based on the best-performing posts and the services.',
             'never_say' => 'Suggest things the AI must never say for this kind of business: unlisted prices, delivery promises, competitor talk, medical/legal claims, etc. 5-10 lines.',
             'anti_hype' => 'Choose suitable anti-hype rules and suggest banned hype words in the company language.',
@@ -173,7 +176,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cur = kb_get($wid)[$sec] ?? [];
         $update = ($_POST['mode'] ?? '') === 'update' && kb_filled($cur, $type); // rewrite/fill: من الأول
         if ($update) $guide .= ' UPDATE MODE: the CURRENT CONTENT below was written by the owner. Keep everything that is still correct (do not remove the owner\'s entries unless the sources clearly contradict them), add what is missing from the sources, fix contradictions, and improve clarity. Return the full updated section.';
-        $sys = "You fill one section of a company's knowledge base for an AI customer-service assistant. Section: \"" . $schema[$sec]['label'] . "\". " . $guide
+        $sys = "You fill one section of a company's knowledge base. You are three experts at once: a senior marketing strategist (positioning, audience, messaging), a professional brand consultant for this industry, and an expert prompt engineer."
+            . " This text will be fed back to other AI models as context for replies, posts, ads and strategy, so write it the way an AI uses best: clear, specific, unambiguous and dense."
+            . " STYLE: short labelled lines or bullets; one fact per line; concrete nouns and numbers over adjectives; consistent terms (same name for the same thing everywhere); no filler, no slogans, no hype, no repetition of other sections; state rules as direct instructions (\"Do X\" / \"Never Y\") where the section is about behaviour."
+            . " Section: \"" . $schema[$sec]['label'] . "\". " . $guide
             . " Act as a senior expert consultant for this kind of business. Use EVERYTHING you know from the SOURCES (documents, the other knowledge-base sections, posts, messages, metrics) and connect the dots."
             . " Where the sources are silent, propose what a seasoned professional would recommend for this specific business and market, so the section is complete and useful."
             . " PRICES ARE ABSOLUTE: never suggest, estimate, compare or invent any price, fee, cost or discount anywhere (including FAQ answers); mention a price only if it is written in the sources, copied exactly. HARD LIMITS: never invent hard facts the business would be held to: prices, phone numbers, addresses, opening hours, delivery times, discounts, guarantees or legal/medical claims. If such a fact is missing, leave it empty or write it as a placeholder like [أضف السعر] / [add price]."
@@ -228,7 +234,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         'tone' => 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', 'audience' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
         'focus' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z', 'never_say' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8',
         'anti_hype' => 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4', 'visual_style' => 'M12 21a9 9 0 110-18c5 0 9 3.6 9 8a4 4 0 01-4 4h-2a2 2 0 00-1 3.7A2 2 0 0112 21zM7.5 11h.01M10.5 7.5h.01M15 7.5h.01',
-        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'test' => 'M7 4l12 8-12 8z'];
+        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'frame_ref' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'pod' => 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z', 'rtb' => 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'test' => 'M7 4l12 8-12 8z'];
     $dis = $canEdit ? '' : 'disabled';
     ?>
 
@@ -250,8 +256,12 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 
     <div class="grid lg:grid-cols-[15rem_1fr] gap-5 items-start" id="kb">
       <nav class="card p-2 lg:sticky lg:top-20 flex lg:flex-col gap-1 overflow-x-auto" id="kb-nav">
-        <?php $items = ['files' => [t('ملفات الشركة'), $files ? count($files) : 0]] + array_map(function ($s) { return [$s['label'], null]; }, $schema) + ['test' => [t('جرّب الرد'), null]]; ?>
-        <?php foreach ($items as $k => [$l, $n]): $ok = $k === 'files' ? (bool)$files : ($k === 'test' ? null : kb_filled($kb[$k] ?? [], $schema[$k]['type'])); ?>
+        <?php $items = ['files' => [t('ملفات الشركة'), $files ? count($files) : 0]] + array_map(function ($s) { return [$s['nav'] ?? $s['label'], null]; }, $schema) + ['test' => [t('جرّب الرد'), null]]; $grp = null; ?>
+        <?php foreach ($items as $k => [$l, $n]): $ok = $k === 'files' ? (bool)$files : ($k === 'test' ? null : kb_filled($kb[$k] ?? [], $schema[$k]['type']));
+          $g = $k === 'files' ? 'info' : ($schema[$k]['group'] ?? 'end');
+          if ($g !== $grp): $grp = $g; if ($g === 'end'): ?><div class="hidden lg:block my-1 border-t border-ink-100"></div><?php else: ?>
+          <div class="shrink-0 px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-400 <?= $g !== 'info' ? 'lg:mt-2 lg:border-t lg:border-ink-100 lg:pt-3' : '' ?>"><?= e(kb_groups()[$g]) ?></div>
+          <?php endif; endif; ?>
           <button type="button" data-kb-go="<?= $k ?>" class="kb-tab shrink-0 flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-600 hover:bg-ink-100 hover:text-ink-900 text-start transition">
             <?= $ico($icons[$k]) ?><span class="flex-1 whitespace-nowrap"><?= e($l) ?></span>
             <?php if ($ok !== null): ?><span class="kb-dot w-2 h-2 rounded-full <?= $ok ? 'bg-lime-500' : 'bg-ink-300' ?>" data-dot="<?= $k ?>"></span><?php endif; ?>
@@ -282,6 +292,13 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 
         <?php foreach ($schema as $k => $s): $d = $kb[$k] ?? []; ?>
         <section data-kb="<?= $k ?>" class="card p-5 hidden">
+          <?php if (($s['group'] ?? '') === 'pos'): $steps = ['audience', 'frame_ref', 'pod', 'rtb']; $n = array_search($k, $steps, true); ?>
+          <div class="mb-5">
+            <div class="flex items-center gap-1.5 mb-3"><?php foreach ($steps as $i => $st): ?><button type="button" data-kb-go="<?= $st ?>" class="flex-1 h-1.5 rounded-full <?= $i <= $n ? 'bg-brand-600' : 'bg-ink-200' ?>" title="<?= e($schema[$st]['label']) ?>"></button><?php endforeach; ?></div>
+            <p class="text-[11px] font-semibold text-brand-700"><?= e(t('بيان التموضع')) ?> · <?= e(t('الخطوة %s من 4', (string)($n + 1))) ?></p>
+            <div class="kb-pos-stmt mt-2 rounded-xl bg-gradient-to-br from-brand-50 to-cyan-50 border border-brand-100 p-3.5 text-sm text-ink-700 leading-relaxed" dir="auto"></div>
+          </div>
+          <?php endif; ?>
           <form class="kb-form space-y-4" data-section="<?= $k ?>" data-type="<?= $s['type'] ?>">
             <div class="flex items-start justify-between gap-3">
               <div><h3 class="font-semibold text-ink-900"><?= e($s['label']) ?></h3><p class="text-sm text-ink-500 mt-1"><?= e($s['hint']) ?></p></div>
@@ -294,7 +311,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
               </div>
             </div>
             <?php if ($s['type'] === 'text'): ?>
-              <textarea name="d[text]" rows="9" class="input text-sm leading-relaxed" <?= $dis ?> placeholder="<?= e($k === 'company' ? t("مثال:\nمطعم بيتزا في مدينة نصر، مفتوح يوميًا 12 ظهرًا - 2 صباحًا\nالتوصيل داخل القاهرة 30 جنيه خلال 45 دقيقة\nالدفع كاش أو فيزا أو فودافون كاش") : '') ?>"><?= e($d['text'] ?? '') ?></textarea>
+              <textarea name="d[text]" rows="9" class="input text-sm leading-relaxed" <?= $dis ?> placeholder="<?= e($s['ph'] ?? '') ?>"><?= e($d['text'] ?? '') ?></textarea>
             <?php elseif ($s['type'] === 'rows'): $rows = (array)($d['rows'] ?? []); if (!$rows) $rows = [[]]; ?>
               <div class="kb-rows space-y-2">
                 <?php foreach ($rows as $i => $r): ?>
@@ -352,7 +369,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'posTpl' => t('لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.'), 'posEmpty' => t('[...]'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
