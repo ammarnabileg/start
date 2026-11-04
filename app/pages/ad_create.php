@@ -295,7 +295,7 @@ foreach ((array)($kbAll['services']['rows'] ?? []) as $r) {
     $kbProducts[] = ['name' => $n, 'price' => (string)($r['price'] ?? ''), 'details' => (string)($r['details'] ?? ''), 'audience' => (string)($pp['audience'] ?? ''), 'problem' => (string)($pp['problem'] ?? ''), 'pod' => (string)($pp['pod'] ?? '')];
 }
 $kbSite = (string)($kbAll['contact']['website'] ?? $kbAll['company']['website'] ?? '');
-render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets, $posts, $form, $step, $goals, $ctas, $drafts, $kbProducts, $kbSite) {
+render(t('حملة جديدة'), 'ad_create', function () use ($z, $apiError, $targets, $posts, $form, $step, $goals, $ctas, $drafts, $kbProducts, $kbSite) {
     if (!$z) { no_api_box(); return; }
     $f = $form ?? [];
     if (!empty($f['post']) && !in_array($f['post'], array_column($posts, 'id'), true)) { $f['post_manual'] = $f['post']; $f['post'] = ''; }

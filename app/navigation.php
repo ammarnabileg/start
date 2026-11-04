@@ -46,7 +46,7 @@ function nav_items(): array
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => t('الأدوات'), 'module' => 'analytics',
             'tabs' => ['analytics' => t('المنشورات'), 'inbox_analytics' => t('الرسائل'), 'reports' => t('التقارير'), 'goals' => t('الأهداف'), 'alerts' => t('التنبيهات')], 'also' => ['report_print']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => t('الأدوات'), 'module' => 'ads',
-            'tabs' => ['ads' => t('الحملات'), 'ad_create' => t('حملة جديدة'), 'ad_audiences' => t('الجماهير'), 'leads' => 'Leads'], 'also' => ['ad_campaign']],
+            'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير'), 'leads' => 'Leads'], 'also' => ['ad_campaign']],
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => t('الأدوات'), 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
@@ -96,7 +96,7 @@ function page_module(string $page): ?string
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],
-        'ads' => ['ads', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
+        'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
         'phone' => ['phone_numbers', 'sms', 'calls'],
     ];

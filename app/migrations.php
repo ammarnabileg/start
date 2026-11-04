@@ -362,4 +362,20 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '016_ad_builder' => [
+        "CREATE TABLE IF NOT EXISTS ad_builds (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            platform VARCHAR(30) NOT NULL DEFAULT 'meta',
+            data MEDIUMTEXT NOT NULL,
+            state VARCHAR(20) NOT NULL DEFAULT 'draft',
+            progress MEDIUMTEXT NULL,
+            created_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id, updated_at),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];
