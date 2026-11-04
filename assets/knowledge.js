@@ -192,7 +192,7 @@
       })(0.85);
     }).catch(function () { return null; });
   }
-  function upload(files) {
+  function upload(files, replace) {
     var okAny = false, bad = false;
     // ملف ورا التاني (الـ OCR تقيل)، ونحدّث الصفحة مرة واحدة في الآخر
     [].slice.call(files).reduce(function (chain, file) { return chain.then(function () { return one(file); }); }, Promise.resolve())
@@ -201,7 +201,7 @@
       var ph = document.createElement('div'); ph.className = 'rounded-xl border border-brand-200 bg-brand-50/50 p-3 text-sm flex items-center gap-3';
       ph.innerHTML = '<svg class="w-4 h-4 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span class="flex-1 truncate"></span><span class="text-xs text-ink-500"></span>';
       ph.querySelector('span').textContent = file.name; var st = ph.querySelectorAll('span')[1]; st.textContent = K.uploading; list.prepend(ph);
-      var fd = new FormData(); fd.append('action', 'kb_upload'); fd.append('file', file);
+      var fd = new FormData(); fd.append('action', 'kb_upload'); fd.append('file', file); if (replace) fd.append('replace', replace);
       // PDF والصور: المتصفح بيطلّع النص الأول (PDF.js / OCR) عشان مانستخدمش الذكاء الاصطناعي
       var local = (window.extractText && /\.(pdf|png|jpe?g|webp|bmp)$/i.test(file.name))
         ? Promise.race([window.extractText(file, function (p, kind) { st.textContent = (kind === 'ocr' ? K.ocr : K.reading) + ' ' + Math.round(p * 100) + '%'; }),
@@ -213,13 +213,13 @@
         // النص اتقرا في المتصفح: نبعت النص بس (أخف بكتير، ومفيش مشكلة حجم على السيرفر)
         if (r && r.text && r.text.replace(/\s/g, '').length >= 15) {
           var t = new FormData(); t.append('action', 'kb_upload'); t.append('client_name', file.name); t.append('client_size', file.size);
-          t.append('client_text', r.text); t.append('client_method', r.method); return post(t);
+          if (replace) t.append('replace', replace); t.append('client_text', r.text); t.append('client_method', r.method); return post(t);
         }
         if (file.size <= max) return post(fd);
         // صورة كبيرة: نصغّرها الأول
         if (/^image\//.test(file.type)) { st.textContent = K.shrink; return shrink(file, max).then(function (b) {
           if (!b) return { error: file.name + ': ' + K.tooBig.replace('%s', +(max / 1048576).toFixed(1)) };
-          var s2 = new FormData(); s2.append('action', 'kb_upload'); s2.append('file', b, file.name.replace(/\.\w+$/, '') + '.jpg'); return post(s2);
+          var s2 = new FormData(); s2.append('action', 'kb_upload'); if (replace) s2.append('replace', replace); s2.append('file', b, file.name.replace(/\.\w+$/, '') + '.jpg'); return post(s2);
         }); }
         return { error: file.name + ': ' + K.tooBig.replace('%s', +(max / 1048576).toFixed(1)) };
       }).then(function (d) {
@@ -237,6 +237,11 @@
   if (list) {
     list.addEventListener('click', function (e) {
       var row = e.target.closest('.kb-file'); if (!row) return;
+      if (e.target.closest('.kb-reread')) {
+        var pick = document.createElement('input'); pick.type = 'file'; pick.accept = input ? input.accept : '';
+        pick.onchange = function () { if (pick.files[0]) upload([pick.files[0]], row.dataset.id); };
+        pick.click(); return;
+      }
       if (e.target.closest('.kb-view')) {
         var pv = row.querySelector('.kb-prev'); pv.classList.toggle('hidden');
         if (pv.dataset.full || pv.classList.contains('hidden')) return;

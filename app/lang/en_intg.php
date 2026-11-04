@@ -650,4 +650,6 @@ Unannounced discounts',
     'حفظ النص' => 'Save text',
     'ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.' => 'This is the full text the AI uses. Delete any meaningless lines and save.',
     'حرف' => 'chars',
+    'إعادة قراءة' => 'Re-read',
+    'اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد' => 'Pick the same file from your device again; the old text will be replaced with the new one',
 ];

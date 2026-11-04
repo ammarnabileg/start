@@ -59,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $text = mb_substr($text, 0, 200000);
         $method = preg_replace('/[^a-z+]/', '', (string)($_POST['client_method'] ?? '')) ?: 'browser';
         $mime = $ext === 'pdf' ? 'application/pdf' : 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
-        db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, (int)($_POST['client_size'] ?? 0), $method, $text]);
+        kb_file_store($wid, $name, $mime, (int)($_POST['client_size'] ?? 0), $method, $text);
         log_activity('kb.file', $name);
-        $json(['ok' => true, 'id' => (int)db()->lastInsertId(), 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
+        $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
     }
 
     if ($action === 'kb_upload') {
@@ -76,9 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $json(['error' => $name . ': ' . $e->getMessage()], 422);
         }
         $text = mb_substr($text, 0, 200000);
-        db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, (int)$f['size'], $method, $text]);
+        kb_file_store($wid, $name, $mime, (int)$f['size'], $method, $text);
         log_activity('kb.file', $name);
-        $json(['ok' => true, 'id' => (int)db()->lastInsertId(), 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
+        $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
     }
 
     if ($action === 'kb_file_get') {
@@ -319,7 +319,8 @@ function kb_file_row(array $f, bool $canEdit): string
         . '<div class="flex items-center gap-3 p-3">'
         . '<span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg></span>'
         . '<div class="flex-1 min-w-0"><div class="text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
-        . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>';
+        . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>'
+        . '<button type="button" class="kb-reread text-xs link" title="' . e(t('اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
     if ($canEdit) {
         $h .= '<label class="relative inline-flex cursor-pointer" title="' . e(t('استخدام في الردود')) . '"><input type="checkbox" class="kb-on sr-only peer" ' . ($f['enabled'] ? 'checked' : '') . '><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition-transform peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span></label>'
             . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>';

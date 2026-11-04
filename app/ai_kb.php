@@ -355,3 +355,16 @@ function kb_upload_limit(): int
     $b = function ($v) { $v = trim((string)$v); if ($v === '' || $v === '0') return PHP_INT_MAX; $n = (float)$v; $u = strtolower(substr($v, -1)); return (int)($u === 'g' ? $n * 1073741824 : ($u === 'm' ? $n * 1048576 : ($u === 'k' ? $n * 1024 : $n))); };
     return (int)min($b(ini_get('upload_max_filesize')), $b(ini_get('post_max_size')) - 65536, 15 * 1048576);
 }
+
+/** يحفظ ملف جديد، أو يبدّل نص ملف موجود لو جاي replace (إعادة قراءة) */
+function kb_file_store(int $wid, string $name, string $mime, int $size, string $method, string $text): void
+{
+    $rid = (int)($_POST['replace'] ?? 0);
+    if ($rid > 0) {
+        $st = db()->prepare("UPDATE kb_files SET name = ?, mime = ?, size = ?, method = ?, content = ? WHERE id = ? AND workspace_id = ?");
+        $st->execute([$name, $mime, $size, $method, $text, $rid, $wid]);
+        if ($st->rowCount() || db()->query("SELECT 1 FROM kb_files WHERE id = " . $rid . " AND workspace_id = " . $wid)->fetchColumn()) { $GLOBALS['kb_last_id'] = $rid; return; }
+    }
+    db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, $size, $method, $text]);
+    $GLOBALS['kb_last_id'] = (int)db()->lastInsertId();
+}
