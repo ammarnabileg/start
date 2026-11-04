@@ -47,7 +47,7 @@ function ai_key_info(string $key): array
 /** قائمة الموديلات مترتبة من الأرخص للأغلى (المجاني الأول). بتتحفظ 6 ساعات. */
 function ai_ranked_models(): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_models2.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_models3.json';
     if (is_file($file) && filemtime($file) > time() - 21600) {
         $c = json_decode((string)file_get_contents($file), true);
         if (is_array($c) && $c) return $c;
@@ -67,7 +67,7 @@ function ai_ranked_models(): array
         if (preg_match('#(summarize|embed|guard|moderation|rerank|legal)#i', $id) || substr($id, -6) === ':batch') continue;
         if (strpos($id, 'openrouter/auto') === 0) continue;
         $cost = $in * 3000 + $out * 800; // تكلفة تقريبية لسؤال عادي (3000 كلمة داخلة، 800 خارجة)
-        $rank[] = ['id' => $id, 'name' => (string)($m['name'] ?? $id), 'cost' => $cost, 'free' => $cost == 0.0, 'ctx' => $ctx, 'in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4)];
+        $rank[] = ['id' => $id, 'name' => (string)($m['name'] ?? $id), 'cost' => $cost, 'free' => $cost == 0.0, 'ctx' => $ctx, 'in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4), 'vision' => in_array('image', $mods, true)];
     }
     usort($rank, function ($a, $b) {
         if ($a['cost'] == $b['cost']) return $b['ctx'] <=> $a['ctx'];
@@ -166,6 +166,13 @@ function ai_task_chain(string $task): array
     }
     // مفيش موديل متعلّم عليه للمهمة دي (أو اتشال): نرجع للتلقائي بدل ما المهمة تقف
     return $chain ?: $conns;
+}
+
+/** الرسايل فيها صورة؟ */
+function ai_has_image(array $messages): bool
+{
+    foreach ($messages as $m) if (is_array($m['content'] ?? null)) foreach ($m['content'] as $p) if (($p['type'] ?? '') === 'image_url') return true;
+    return false;
 }
 
 /** حد الاستهلاك الشهري بالدولار (0 = من غير حد) */
@@ -352,7 +359,7 @@ function ai_price_map(): array
             $in = (float)($m['pricing']['prompt'] ?? -1);
             $out = (float)($m['pricing']['completion'] ?? -1);
             if ($in < 0 || $out < 0) continue;
-            $map[ai_price_key($id)] = ['in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4)];
+            $map[ai_price_key($id)] = ['in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4), 'vision' => in_array('image', $mods, true)];
         }
         if ($map) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($map)); }
         else $map = $old;
@@ -436,6 +443,16 @@ function ai_chat_direct(array $c, array $messages, int $maxTokens): array
     if ($p === 'anthropic') {
         $system = implode("\n\n", array_column(array_filter($messages, function ($m) { return $m['role'] === 'system'; }), 'content'));
         $msgs = array_values(array_filter($messages, function ($m) { return $m['role'] !== 'system'; }));
+        // الصور: من صيغة OpenAI لصيغة Anthropic
+        foreach ($msgs as &$mm) {
+            if (!is_array($mm['content'])) continue;
+            $mm['content'] = array_map(function ($part) {
+                if (($part['type'] ?? '') !== 'image_url') return $part;
+                if (preg_match('#^data:(image/[a-z]+);base64,(.+)$#', (string)$part['image_url']['url'], $mt)) return ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mt[1], 'data' => $mt[2]]];
+                return ['type' => 'image', 'source' => ['type' => 'url', 'url' => $part['image_url']['url']]];
+            }, $mm['content']);
+        }
+        unset($mm);
         $body = ['model' => $model, 'max_tokens' => $maxTokens, 'messages' => $msgs];
         if ($system !== '') $body['system'] = $system;
         $r = ai_req($p, 'POST', '/messages', $key, $body);
@@ -489,7 +506,8 @@ function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistan
 function ai_chat_openrouter(array $c, array $messages, int $maxTokens): array
 {
     $tier = (string)($c['settings']['tier'] ?? 'cheap');
-    $models = !empty($c['settings']['or_model']) ? [$c['settings']['or_model']] : array_column(ai_allowed_models($tier), 'id');
+    $vision = ai_has_image($messages);
+    $models = !empty($c['settings']['or_model']) ? [$c['settings']['or_model']] : array_column(array_filter(ai_allowed_models($tier), function ($m) use ($vision) { return !$vision || !empty($m['vision']); }), 'id');
     if (!$models) throw new AiException(t('مفيش موديلات متاحة في المستوى ده. وسّع المستوى من صفحة التكاملات.'));
     $last = null;
     foreach (array_slice(array_chunk($models, 3), 0, 6) as $group) {

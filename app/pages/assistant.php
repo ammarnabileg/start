@@ -7,9 +7,15 @@ $wid = (int)ws('id');
 $hist = &$_SESSION['ai_chat'][$wid];
 if (!is_array($hist)) $hist = [];
 $connected = ai_connection() !== null;
+$tabs = ['chat' => t('المحادثة'), 'models' => t('الموديلات والمهام'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
+$tab = isset($tabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'chat';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? 'ask');
+    // إعدادات الذكاء الاصطناعي
+    if ($action === 'ai_feature') ai_feature_post();
+    if (strpos($action, 'ai_') === 0) { ai_settings_post($action); redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models'])); }
+    if (!ai_feature_on('assistant')) { flash('error', t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')); redirect(url('assistant', ['tab' => 'features'])); }
     if ($action === 'clear') {
         $hist = [];
         unset($_SESSION['ai_ctx'][$wid]);
@@ -42,7 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect(url('assistant'));
 }
 
-render(t('المساعد الذكي'), 'assistant', function () use ($hist, $connected) {
+render(t('الذكاء الاصطناعي'), 'assistant', function () use ($hist, $connected, $tabs, $tab) {
+    ?>
+    <div class="flex items-center gap-1 border-b border-ink-200 mb-6 overflow-x-auto">
+      <?php foreach ($tabs as $tk => $tl): ?>
+        <a href="<?= e(url('assistant', $tk === 'chat' ? [] : ['tab' => $tk])) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition <?= $tab === $tk ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($tl) ?></a>
+      <?php endforeach; ?>
+      <a href="<?= e(url('connectors')) ?>" class="ms-auto px-3 py-2 text-xs link whitespace-nowrap"><?= e(t('ربط المزودين ←')) ?></a>
+    </div>
+    <?php
+    if ($tab === 'features') { ai_features_render(); return; }
+    if ($tab !== 'chat') { echo '<div class="space-y-5">'; ai_settings_render($tab); echo '</div>'; return; }
+    if ($connected && !ai_feature_on('assistant')) { echo '<div class="card p-8 text-center text-sm text-ink-500">' . e(t('المحادثة مع المساعد متوقفة. فعّلها من تبويب الميزات.')) . '</div>'; return; }
     $suggest = [t('إيه أحسن منشور الشهر ده وليه؟'), t('الأداء الأسبوع ده أحسن ولا أسوأ من اللي قبله؟'), t('إمتى أحسن وقت أنشر فيه؟'), t('اقترح عليا 3 أفكار منشورات بناءً على اللي نجح'), t('فيه حسابات محتاجة اهتمام؟'), t('لخصلي الوضع في 5 نقاط')];
     ?>
     <?php if (!$connected): ?>

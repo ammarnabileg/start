@@ -118,3 +118,110 @@ function ai_admin_context(): string
     $users = $pdo->query("SELECT name, email, role, COALESCE(status,'active') status, DATE(created_at) created, DATE(last_login_at) last_login FROM users ORDER BY last_login_at IS NULL, last_login_at DESC LIMIT 300")->fetchAll();
     return json_encode(['today' => gmdate('Y-m-d'), 'workspaces' => $ws, 'users' => $users], JSON_UNESCAPED_UNICODE);
 }
+
+/** نص المكالمة: من Zernio لو موجود، وإلا تفريغ التسجيل عن طريق OpenAI (بيتحفظ) */
+function ai_call_transcript(Zernio $z, string $id): string
+{
+    $wid = (int)ws('id');
+    $key = 'ai_tr_' . $wid . '_' . md5($id);
+    $saved = (string)setting($key, '');
+    if ($saved !== '') return $saved;
+    $c = ph_call($z, $id);
+    $lines = [];
+    foreach ((array)($c['transcript'] ?? []) as $seg) {
+        $sp = $seg['speaker'] ?? $seg['role'] ?? $seg['track'] ?? '';
+        $tx = trim((string)($seg['text'] ?? ''));
+        if ($tx !== '') $lines[] = ($sp !== '' ? $sp . ': ' : '') . $tx;
+    }
+    $text = implode("\n", $lines);
+    if ($text === '') {
+        $oa = connector('openai');
+        if (!$oa || !empty($oa['settings']['disabled'])) throw new AiException(t('لا يوجد نص لهذه المكالمة. اربط OpenAI لتفريغ التسجيل صوتيًا.'));
+        $url = ph_call_recording($z, $id);
+        if ($url === '') throw new AiException(t('هذه المكالمة غير مسجلة.'));
+        $tmp = tempnam(sys_get_temp_dir(), 'call');
+        $ch = curl_init($url); $fp = fopen($tmp, 'wb');
+        curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 120, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
+        $ok = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400; curl_close($ch); fclose($fp);
+        if (!$ok || filesize($tmp) > 24 * 1048576) { @unlink($tmp); throw new AiException(t('تعذر تحميل التسجيل، أو حجمه أكبر من 25 ميجا.')); }
+        $mime = (string)mime_content_type($tmp) ?: 'audio/mpeg';
+        $ch = curl_init(ai_base('openai') . '/audio/transcriptions');
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 180,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $oa['credentials']['api_key']],
+            CURLOPT_POSTFIELDS => ['model' => 'gpt-4o-mini-transcribe', 'file' => new CURLFile($tmp, $mime, 'call.' . (explode('/', $mime)[1] ?? 'mp3'))]]);
+        $raw = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch); @unlink($tmp);
+        $d = json_decode((string)$raw, true) ?: [];
+        if ($st >= 400 || empty($d['text'])) throw new AiException(t('فشل التفريغ الصوتي: %s', (string)($d['error']['message'] ?? ('HTTP ' . $st))));
+        $text = trim((string)$d['text']);
+        // سعر التفريغ: gpt-4o-mini-transcribe حوالي 0.003$ للدقيقة
+        $mins = max(1, (int)ceil(((int)($c['durationSeconds'] ?? 60)) / 60));
+        try { db()->prepare("INSERT INTO ai_usage (workspace_id, user_id, task, provider, model, cost) VALUES (?, ?, 'calls', 'openai', 'gpt-4o-mini-transcribe', ?)")->execute([$wid, (int)(current_user()['id'] ?? 0) ?: null, $mins * 0.003]); } catch (Throwable $e) {}
+    }
+    save_setting($key, mb_substr($text, 0, 60000));
+    return $text;
+}
+
+/** إعدادات الرد التلقائي خارج المواعيد */
+function ai_reply_cfg(int $wid): array
+{
+    $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
+    return ['mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
+        'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
+}
+
+/** دلوقتي مواعيد عمل؟ (بتوقيت الشركة) */
+function ai_in_hours(int $wid): bool
+{
+    $c = ai_reply_cfg($wid);
+    $now = new DateTime('now', new DateTimeZone(site_timezone()));
+    if (!in_array((int)$now->format('w'), $c['days'], true)) return false;
+    $hm = $now->format('H:i');
+    return $c['from'] <= $c['to'] ? ($hm >= $c['from'] && $hm < $c['to']) : ($hm >= $c['from'] || $hm < $c['to']);
+}
+
+/** الردود المقترحة المحفوظة: [conv_id => ['text' => ..., 't' => ...]] */
+function ai_drafts(int $wid): array
+{
+    $d = json_decode((string)setting('ai_drafts_' . $wid, ''), true);
+    return is_array($d) ? array_filter($d, function ($x) { return (int)($x['t'] ?? 0) > time() - 7 * 86400; }) : [];
+}
+
+/**
+ * الرد خارج المواعيد: لكل محادثة فيها رسايل جديدة ومارديناش عليها. حد أقصى 10 كل مرة.
+ * بيرد من معلومات الشركة بس، ولو الإجابة مش فيها بيقول إن الفريق هيرد في المواعيد.
+ */
+function ai_auto_reply(int $wid): int
+{
+    if (ai_in_hours($wid) || !ai_connection() || ai_kb($wid) === '') return 0;
+    $z = zernio_or_null();
+    if (!$z) return 0;
+    $cfg = ai_reply_cfg($wid);
+    $done = json_decode((string)setting('ai_replied_' . $wid, ''), true) ?: [];
+    $drafts = ai_drafts($wid);
+    $conv = $z->conversations(['limit' => 30, 'profileId' => zernio_profile()])['data'] ?? [];
+    $n = 0;
+    foreach ($conv as $c) {
+        if ($n >= 10) break;
+        $id = (string)($c['id'] ?? ''); $acc = (string)($c['accountId'] ?? '');
+        $m = $c['lastMessage'] ?? ''; $m = trim(is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m);
+        if ($id === '' || $acc === '' || $m === '' || (int)($c['unreadCount'] ?? 0) < 1) continue;
+        $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
+        if (($done[$id] ?? '') === $h) continue;
+        $sys = 'You reply to customers of "' . ws('name') . '" outside working hours (' . $cfg['from'] . '-' . $cfg['to'] . ', timezone ' . site_timezone() . '). '
+            . 'Write ONE short, polite reply in the customer\'s language and dialect. Answer ONLY with facts from the knowledge base. '
+            . 'If the answer is not in the knowledge base, or the customer is upset, or it needs a human (orders, refunds, complaints), say the team will reply during working hours. Never promise anything not in the knowledge base. Return ONLY the reply.';
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($m, 0, 1500)]], 300, 'reply');
+            $text = trim($r['text'], " \n\"'«»");
+            if ($text === '') continue;
+            if ($cfg['mode'] === 'send') { $z->sendMessage($id, $acc, $text); log_activity('ai.auto_reply', $id); }
+            else $drafts[$id] = ['text' => $text, 't' => time()];
+            $done[$id] = $h; $n++;
+        } catch (Throwable $e) {
+            break; // حد الاستهلاك أو مشكلة في المزود: نقف
+        }
+    }
+    save_setting('ai_replied_' . $wid, json_encode(array_slice($done, -300, null, true)));
+    save_setting('ai_drafts_' . $wid, json_encode($drafts, JSON_UNESCAPED_UNICODE));
+    return $n;
+}

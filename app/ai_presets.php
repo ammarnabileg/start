@@ -36,6 +36,8 @@ function ai_presets(): array
         // الردود
         'reply_variants' => ['group' => 'reply', 'label' => t('3 صياغات مختلفة للرد'), 'mode' => 'show', 'needs' => 'any', 'sys' => "Write 3 differently-worded versions of this reply (same meaning) so repeated replies to similar comments don't look automated. If the text is empty, write 3 versions of a friendly reply to the latest comment. Number them. $same"],
         'comment_to_dm' => ['group' => 'reply', 'label' => t('رسالة خاصة لصاحب التعليق'), 'mode' => 'replace', 'needs' => 'any', 'sys' => "Write a short private message to send to someone who commented asking about price or availability: thank them, give the answer from the knowledge base if available, and invite them to continue the chat. $only"],
+        'from_image' => ['group' => 'compose', 'label' => t('اكتب منشورًا من الصورة'), 'mode' => 'replace', 'needs' => 'image', 'sys' => "Look at the image and write a ready-to-publish social media post about it for the business (use the knowledge base for product names and prices only if they clearly match). Natural tone, max 3 hashtags. Write in {lang} unless the draft text is in another language. $only"],
+        'alt_text' => ['group' => 'compose', 'label' => t('وصف Alt للصورة'), 'mode' => 'show', 'needs' => 'image', 'sys' => "Write concise alt text (under 125 characters) describing this image for accessibility and SEO, in {lang}. $only"],
         'img_prompt' => ['group' => 'compose', 'label' => t('اكتب وصف صورة من النص'), 'mode' => 'show', 'needs' => 'text', 'sys' => "Write ONE detailed English image-generation prompt (subject, setting, lighting, style, composition) for an image that fits this social media post. No text in the image. $only"],
         'polish_reply' => ['group' => 'reply', 'label' => t('تحسين ردي'), 'mode' => 'replace', 'needs' => 'text', 'sys' => "Polish this customer service reply: polite, clear, correct spelling, same meaning, similar length. $same $only"],
         'reply_review' => ['group' => 'reply', 'label' => t('رد على التقييم'), 'mode' => 'replace', 'needs' => 'context', 'sys' => "Write a short public reply from the business owner to this customer review. Thank them; if negative, apologize without admitting legal fault, and invite them to contact the business privately. Same language as the review. $only"],
@@ -94,9 +96,41 @@ function ai_insights(): array
         'role_suggest' => ['group' => 'analyze', 'label' => t('اقترح صلاحيات لدور'), 'icon' => '🔐', 'input' => t('صف الوظيفة: مثلاً موظف خدمة عملاء يرد على الرسائل فقط'), 'perms' => true, 'nodata' => true, 'sys' => "From the job description, choose the minimal set of permissions from the PERMISSIONS list. Output the chosen permission names as a bullet list (exactly as written), then one line on what you deliberately excluded and why. Answer in {lang}."],
         'admin_ask' => ['group' => 'analyze', 'label' => t('اسأل عن المنصة'), 'icon' => '🛠️', 'input' => t('مثلاً: أي شركة استهلاكها زاد؟ من لم يدخل منذ شهر؟'), 'admin' => true, 'nodata' => true, 'sys' => "You help the platform administrator. Answer ONLY from the PLATFORM data. Be concise with names and numbers. Answer in {lang}."],
         'help' => ['group' => 'analyze', 'label' => t('كيف أستخدم المنصة؟'), 'icon' => '🧭', 'input' => t('مثلاً: كيف أجدول منشورًا؟ أين أربط واتساب؟'), 'nav' => true, 'nodata' => true, 'sys' => "You are the in-app guide. Using the MENU of the app (sections and pages), explain step by step where to go and what to click to do what the user asks. If the app doesn't seem to support it, say so. Answer in {lang}."],
+        'workflow_design' => ['group' => 'analyze', 'label' => t('صمّم Workflow من وصف'), 'icon' => '🧩', 'input' => t('مثلاً: كل عميل جديد يسأل عن السعر نبعت له الكتالوج، وبعد يومين عرض خاص'), 'nodata' => true, 'sys' => "Design an automation for the user's description, as step-by-step instructions the user can build in this app: Trigger (and exact keywords), each Step (action, delay, message text with {{contact.name}} placeholders), and Exit conditions. Then list risks (spamming, wrong triggers). Keep messages short; use the knowledge base for facts. Answer in {lang}."],
+        'budget_advice' => ['group' => 'analyze', 'label' => t('توصيات الميزانية'), 'icon' => '💰', 'page' => true, 'nodata' => true, 'sys' => "From the campaigns shown on the PAGE, recommend budget changes per campaign: increase / keep / decrease / pause, the suggested new daily budget, and the reason (cost per result, CTR, spend vs results). State clearly at the top that NOTHING was changed and the user must apply changes manually. Answer in {lang}."],
+        'competitors' => ['group' => 'analyze', 'label' => t('قارن بالمنافسين'), 'icon' => '🥊', 'input' => t('الصق معلومات عن المنافسين: أسماء صفحاتهم، أمثلة منشورات، أسعار، عدد متابعين...'), 'sys' => "Compare this business (DATA) with the competitors described by the user: content style, posting frequency, offers and pricing, engagement where given. List what competitors do better, where this business is stronger, and 5 concrete actions. Only use what the user pasted for competitors; never invent competitor numbers. $base"],
         'canned' => ['group' => 'compose', 'label' => t('ردود جاهزة للفريق'), 'icon' => '💬', 'sys' => "From the recent customer messages and the knowledge base, write 6-10 ready-made replies for the most common situations. For each: a short title and the reply text. Mark any reply that needs info missing from the knowledge base. $base"],
         // النشر الجماعي
         'bulk_check' => ['group' => 'analyze', 'label' => t('فحص ملف CSV قبل الرفع'), 'icon' => '🧾', 'input' => t('الصق محتوى ملف CSV هنا'), 'sys' => "Check this bulk-upload CSV before publishing. Report by row number: missing content, invalid or past dates, duplicate or near-duplicate posts, posts too long for X (280 chars), broken encoding, and repeated wording across rows. End with a one-line verdict. Answer in {lang}."],
         'bulk_generate' => ['group' => 'compose', 'label' => t('توليد منشورات من قائمة'), 'icon' => '📦', 'csv' => true, 'input' => t("الصق قائمة المنتجات أو الأفكار، كل واحد في سطر:\nقهوة تركي - 45 جنيه\nلاتيه - 60 جنيه"), 'sys' => "For each line of the user's list, write a distinct social media post (vary angle and opening, don't repeat phrases). Output ONLY CSV with header: content,date — dates spread daily starting tomorrow at 18:00 in format YYYY-MM-DD HH:MM. Quote every content field with double quotes and escape inner quotes by doubling them. Same language as the list."],
     ];
+}
+
+/** ميزات خاصة (غير الأوامر والتحليلات) */
+function ai_special_features(): array
+{
+    return [
+        'assistant' => [t('المساعد الذكي (المحادثة)'), t('تسأله عن أرقامك من صفحة المساعد والرئيسية.')],
+        'reply_btn' => [t('زرار اقتراح رد'), t('في الرسائل والتعليقات.')],
+        'classify_btn' => [t('تصنيف الرسائل بزرار'), t('زرار "صنّف الآن" وعلامات العاجل ونية الشراء.')],
+        'image' => [t('توليد الصور (Higgsfield)'), t('في صفحة منشور جديد.')],
+        'video' => [t('توليد الفيديو (Higgsfield)'), t('فيديو من وصف أو من صورة. أغلى بكثير من الصور.')],
+        'vision' => [t('فهم الصور'), t('كتابة المنشور ووصف Alt من الصورة المرفوعة.')],
+        'calls' => [t('تفريغ وتلخيص المكالمات'), t('يحتاج ربط OpenAI للتفريغ الصوتي.')],
+        'auto_reply' => [t('الرد التلقائي خارج المواعيد'), t('يحتاج تفعيلًا منفصلًا وإعدادات من تبويب الاستهلاك والإعدادات.')],
+    ];
+}
+
+/** الميزات المقفولة في الشركة دي */
+function ai_disabled(?int $wid = null): array
+{
+    static $c = [];
+    $wid = $wid ?? (int)ws('id');
+    if (!isset($c[$wid])) { $v = json_decode((string)setting('ai_off_' . $wid, ''), true); $c[$wid] = is_array($v) ? $v : []; }
+    return $c[$wid];
+}
+
+function ai_feature_on(string $key, ?int $wid = null): bool
+{
+    return !in_array($key, ai_disabled($wid), true);
 }

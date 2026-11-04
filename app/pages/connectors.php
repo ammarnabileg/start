@@ -7,22 +7,6 @@ $registry = connector_registry();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $provider = (string)($_POST['provider'] ?? '');
     $action = (string)($_POST['action'] ?? '');
-    if ($action === 'ai_pick') {
-        header('Content-Type: application/json; charset=utf-8');
-        if (!is_ws_owner()) { http_response_code(403); exit(json_encode(['error' => t('هذا الإعداد متاح لمالك الشركة فقط.')], JSON_UNESCAPED_UNICODE)); }
-        $key = (string)($_POST['key'] ?? '');
-        $task = (string)($_POST['task'] ?? '');
-        $on = ($_POST['on'] ?? '') === '1';
-        if (!isset(ai_tasks()[$task]) || !preg_match('/^(openrouter|anthropic|openai|gemini)\|[\w.:\/@-]{1,160}$/', $key)) { http_response_code(400); exit('{}'); }
-        $picks = ai_picks();
-        $list = array_values(array_diff($picks[$key] ?? [], [$task]));
-        if ($on) $list[] = $task;
-        if ($list) $picks[$key] = $list; else unset($picks[$key]);
-        save_setting('ai_picks_' . $wid, json_encode($picks));
-        $count = [];
-        foreach (array_keys(ai_tasks()) as $tk) $count[$tk] = count(array_filter($picks, function ($l) use ($tk) { return in_array($tk, $l, true); }));
-        exit(json_encode(['ok' => true, 'count' => $count], JSON_UNESCAPED_UNICODE));
-    }
     $cid = (int)($_POST['cid'] ?? 0);
     if (!isset($registry[$provider])) {
         redirect(url('connectors'));
@@ -116,37 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'ai_auto') {
-        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('connectors') . '#ai'); }
-        $what = in_array($_POST['what'] ?? '', ['classify', 'alerts'], true) ? $_POST['what'] : 'classify';
-        $on = !ai_auto_enabled($wid, $what);
-        save_setting('ai_auto_' . $what . '_' . $wid, $on ? '1' : '0');
-        flash('success', $on ? t('تم التفعيل. يعمل مع التشغيل الدوري للمنصة.') : t('تم الإيقاف.'));
-        redirect(url('connectors') . '#ai');
-    }
-    if (in_array($action, ['ai_budget', 'ai_kb'], true)) {
-        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('connectors') . '#ai'); }
-        if ($action === 'ai_budget') {
-            $b = max(0, min(100000, round((float)str_replace(',', '.', (string)($_POST['budget'] ?? '0')), 2)));
-            save_setting('ai_budget_' . $wid, (string)$b);
-            flash('success', $b > 0 ? t('حد الاستهلاك الشهري: $%s.', number_format($b, 2)) : t('تم إلغاء حد الاستهلاك.'));
-        } else {
-            save_setting('ai_kb_' . $wid, mb_substr(trim((string)($_POST['kb'] ?? '')), 0, 6000));
-            flash('success', t('تم حفظ معلومات الشركة.'));
-        }
-        redirect(url('connectors') . '#ai');
-    }
-    if (in_array($action, ['primary', 'ai_mode', 'ai_task'], true) && !is_ws_owner()) {
-        flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.'));
-        redirect(url('connectors') . '#' . $provider);
-    }
 
-    if ($action === 'ai_mode') {
-        $manual = ($_POST['mode'] ?? '') === 'manual';
-        save_setting('ai_mode_' . $wid, $manual ? 'manual' : 'auto');
-        flash('success', $manual ? t('تم إيقاف التشغيل التلقائي. كل مهمة ستستخدم الموديل الذي تختاره لها.') : t('تم تفعيل التشغيل التلقائي: كل المهام تبدأ بالمزود الأرخص، ثم الأغلى إذا فشل.'));
-        redirect(url('connectors') . '#ai');
-    }
 
 
     if ($action === 'toggle' && $existing) {
@@ -214,11 +168,6 @@ function connector_field(array $f, ?array $c, bool $isNew): string
     return '<input name="' . $name . '" type="text" dir="ltr" class="input" value="' . e($isNew ? ($f['default'] ?? '') : (string)$cur) . '" placeholder="' . e($f['placeholder'] ?? '') . '"' . ($isNew && empty($f['optional']) ? ' required' : '') . '>';
 }
 
-/** شعار الخدمة: مربع بلونها */
-function connector_logo(array $def, string $size = 'w-12 h-12 text-lg'): string
-{
-    return '<div class="' . $size . ' shrink-0 rounded-2xl text-[#fff] font-semibold flex items-center justify-center shadow-sm" style="background:linear-gradient(135deg,' . e($def['color']) . ',' . e($def['color']) . 'cc)">' . e($def['logo']) . '</div>';
-}
 
 $cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء الاصطناعي'), 'creative' => t('التصميم والصور'), 'email' => t('الإيميل')];
 
@@ -250,13 +199,11 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
         </div>
       </div>
 
-      <!-- التبويبات -->
-      <div class="flex items-center gap-1 border-b border-ink-200" role="tablist" id="intg-tabs">
-        <?php foreach (['services' => [t('الخدمات'), count($registry)], 'ai' => [t('مهام الذكاء الاصطناعي'), count(ai_tasks())]] as $tk => [$tl, $tn]): ?>
-          <button type="button" role="tab" data-tab="<?= $tk ?>" class="intg-tab relative -mb-px px-4 py-2.5 text-sm font-medium text-ink-500 hover:text-ink-900 border-b-2 border-transparent transition"><?= e($tl) ?> <span class="ms-1 rounded-md bg-ink-100 px-1.5 py-0.5 text-[11px] text-ink-500"><?= $tn ?></span></button>
-        <?php endforeach; ?>
-      </div>
-
+      <a href="<?= e(url('assistant', ['tab' => 'models'])) ?>" class="card p-4 flex items-center gap-3 hover:border-brand-300 transition">
+        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center">✨</span>
+        <span class="flex-1"><b class="text-ink-900 text-sm block"><?= e(t('إعدادات الذكاء الاصطناعي')) ?></b><span class="text-xs text-ink-500"><?= e(t('الموديلات والمهام، تفعيل وإيقاف الميزات، الاستهلاك، ومعلومات الشركة.')) ?></span></span>
+        <svg class="w-5 h-5 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
       <div data-pane="services" class="space-y-6">
       <!-- البحث والفلاتر -->
       <div class="flex flex-wrap items-center gap-3">
@@ -305,181 +252,6 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
       <div id="intg-empty" class="hidden card p-10 text-center text-sm text-ink-500"><?= e(t('لا توجد خدمات مطابقة.')) ?></div>
       </div>
 
-      <!-- مهام الذكاء الاصطناعي -->
-      <div data-pane="ai" class="hidden space-y-5">
-        <?php $manual = $aiMode === 'manual'; $aiProviders = array_values(array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); })); ?>
-        <div class="card p-5 sm:p-6 flex flex-wrap items-center gap-5 <?= !$manual ? 'ring-2 ring-brand-500/20 border-brand-300' : '' ?>">
-          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
-          <div class="flex-1 min-w-[240px]">
-            <div class="flex items-center gap-2"><h3 class="font-semibold text-ink-900"><?= e(t('التشغيل التلقائي من خلال المنصة')) ?></h3><span class="badge <?= !$manual ? 'badge-green' : '' ?>"><?= !$manual ? e(t('مفعّل')) : e(t('متوقف')) ?></span></div>
-            <p class="text-sm text-ink-500 mt-1"><?= !$manual ? e(t('المنصة تختار لكل مهمة أرخص مزود متصل، وإذا فشل تنتقل تلقائيًا للأغلى. لا تحتاج لأي إعداد.')) : e(t('كل مهمة تستخدم الموديل الذي تختاره لها في الجدول بالأسفل.')) ?></p>
-            <?php if (!$manual && $aiConns): ?>
-            <div class="flex items-center gap-1.5 flex-wrap mt-3 text-xs">
-              <span class="text-ink-400"><?= e(t('الترتيب:')) ?></span>
-              <?php foreach ($aiConns as $i => $c): ?>
-                <?php if ($i): ?><svg class="w-3 h-3 text-ink-400 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg><?php endif; ?>
-                <span class="px-2 py-1 rounded-lg <?= $i ? 'bg-ink-100 text-ink-600' : 'bg-brand-600 text-[#fff] font-medium' ?>"><?= e($registry[$c['provider']]['name']) ?> <span dir="ltr" class="opacity-70"><?= e($c['provider'] === 'openrouter' ? ($c['settings']['tier'] ?? 'cheap') : ($c['settings']['model'] ?? '')) ?> · <?= e(ai_fmt_cost(ai_connection_cost($c))) ?></span></span>
-              <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-          </div>
-          <form method="post" title="<?= $owner ? '' : e(t('هذا الإعداد متاح لمالك الشركة فقط.')) ?>">
-            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_mode"><input type="hidden" name="mode" value="<?= $manual ? 'auto' : 'manual' ?>">
-            <button type="submit" role="switch" aria-checked="<?= $manual ? 'false' : 'true' ?>" data-switch id="ai-auto" <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-14 h-8 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed <?= !$manual ? 'bg-lime-500' : 'bg-ink-300' ?>">
-              <span class="absolute top-1 start-1 w-6 h-6 rounded-full bg-[#fff] shadow transition-transform <?= !$manual ? 'translate-x-6 rtl:-translate-x-6' : '' ?>"></span></button>
-          </form>
-        </div>
-
-        <?php
-          $spend = ai_month_spend((int)ws('id')); $budget = ai_budget((int)ws('id'));
-          $st = db()->prepare("SELECT task, COUNT(*) n, COALESCE(SUM(cost),0) c FROM ai_usage WHERE workspace_id = ? AND created_at >= ? GROUP BY task ORDER BY c DESC");
-          $st->execute([(int)ws('id'), gmdate('Y-m-01 00:00:00')]); $byTask = $st->fetchAll();
-          $st = db()->prepare("SELECT provider, model, COUNT(*) n, COALESCE(SUM(cost),0) c, SUM(cost IS NULL) unk FROM ai_usage WHERE workspace_id = ? AND created_at >= ? GROUP BY provider, model ORDER BY c DESC, n DESC LIMIT 8");
-          $st->execute([(int)ws('id'), gmdate('Y-m-01 00:00:00')]); $byModel = $st->fetchAll();
-          $calls = array_sum(array_column($byTask, 'n')); $pct = $budget > 0 ? min(100, $spend / $budget * 100) : 0;
-          $money = function ($v) { return '$' . ($v > 0 && $v < 0.01 ? number_format($v, 4) : number_format($v, 2)); };
-        ?>
-        <div class="grid lg:grid-cols-[1fr_1.3fr] gap-4">
-          <div class="card p-5">
-            <div class="flex items-center justify-between"><h3 class="font-semibold text-ink-900"><?= e(t('الاستهلاك هذا الشهر')) ?></h3><span class="text-xs text-ink-400"><?= e(t('%s طلب', $calls)) ?></span></div>
-            <div class="mt-3 flex items-end gap-2"><span class="text-3xl font-semibold text-ink-900" dir="ltr"><?= e($money($spend)) ?></span><?php if ($budget > 0): ?><span class="text-sm text-ink-500 mb-1" dir="ltr">/ <?= e($money($budget)) ?></span><?php endif; ?></div>
-            <?php if ($budget > 0): ?>
-              <div class="mt-3 h-2.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-gradient-to-l from-brand-600 to-lime-500') ?>" style="width:<?= round($pct, 1) ?>%"></div></div>
-              <?php if ($pct >= 100): ?><p class="text-xs text-red-600 mt-2"><?= e(t('تم الوصول للحد. ميزات الذكاء الاصطناعي متوقفة حتى بداية الشهر أو رفع الحد.')) ?></p><?php endif; ?>
-            <?php endif; ?>
-            <form method="post" class="mt-4 flex items-end gap-2">
-              <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_budget">
-              <label class="block flex-1"><span class="label"><?= e(t('حد الاستهلاك الشهري ($)')) ?></span><input name="budget" type="number" min="0" step="0.01" dir="ltr" class="input" value="<?= $budget > 0 ? e((string)$budget) : '' ?>" placeholder="<?= e(t('بدون حد')) ?>" <?= $owner ? '' : 'disabled' ?>></label>
-              <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
-            </form>
-            <?php if ($byTask): ?>
-            <div class="mt-4 pt-4 border-t border-ink-100 space-y-2">
-              <?php foreach ($byTask as $r): $w = $spend > 0 ? (float)$r['c'] / $spend * 100 : 0; ?>
-                <div class="text-xs"><div class="flex justify-between"><span class="text-ink-700"><?= e(ai_tasks()[$r['task']]['name'] ?? $r['task']) ?> <span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 font-medium" dir="ltr"><?= e($money((float)$r['c'])) ?></span></div>
-                  <div class="mt-1 h-1.5 rounded-full bg-ink-100"><div class="h-full rounded-full bg-brand-500" style="width:<?= round($w, 1) ?>%"></div></div></div>
-              <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-            <?php if ($byModel): ?>
-            <div class="mt-4 pt-4 border-t border-ink-100">
-              <div class="text-xs text-ink-500 mb-2"><?= e(t('أكثر الموديلات استهلاكًا')) ?></div>
-              <?php foreach ($byModel as $r): ?>
-                <div class="flex items-center justify-between text-xs py-1"><span class="flex items-center gap-1.5 min-w-0"><?= isset($registry[$r['provider']]) ? connector_logo($registry[$r['provider']], 'w-4 h-4 text-[8px] !rounded') : '' ?><span class="truncate text-ink-700" dir="ltr"><?= e($r['model']) ?></span><span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 shrink-0" dir="ltr"><?= e($money((float)$r['c'])) ?><?= (int)$r['unk'] ? ' *' : '' ?></span></div>
-              <?php endforeach; ?>
-              <?php if (array_sum(array_column($byModel, 'unk'))): ?><p class="text-[11px] text-ink-400 mt-1">* <?= e(t('بعض الطلبات سعرها غير معروف ولم تُحسب.')) ?></p><?php endif; ?>
-            </div>
-            <?php endif; ?>
-          </div>
-
-          <div class="space-y-4 flex flex-col">
-          <div class="card p-5">
-            <h3 class="font-semibold text-ink-900"><?= e(t('العمل في الخلفية')) ?></h3>
-            <p class="text-xs text-ink-500 mt-1"><?= e(t('يعمل تلقائيًا مع التشغيل الدوري للمنصة (cron)، ويحتسب من حد الاستهلاك.')) ?></p>
-            <?php foreach (['classify' => [t('تصنيف الرسائل الجديدة'), t('نوع الرسالة، إحساس العميل، العاجل، ونية الشراء. طلب واحد لكل 20 رسالة.')], 'alerts' => [t('تنبيهات ذكية يومية'), t('مرة في اليوم: يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
-              <form method="post" class="flex items-start gap-3 mt-4">
-                <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_auto"><input type="hidden" name="what" value="<?= $wk ?>">
-                <div class="flex-1"><div class="text-sm text-ink-900"><?= e($wl) ?></div><div class="text-xs text-ink-500"><?= e($wd) ?></div></div>
-                <button type="submit" role="switch" aria-checked="<?= $won ? 'true' : 'false' ?>" data-switch <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-11 h-6 shrink-0 rounded-full transition disabled:opacity-50 <?= $won ? 'bg-lime-500' : 'bg-ink-300' ?>">
-                  <span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform <?= $won ? 'translate-x-5 rtl:-translate-x-5' : '' ?>"></span></button>
-              </form>
-            <?php endforeach; ?>
-          </div>
-          <form method="post" class="card p-5 flex flex-col">
-            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_kb">
-            <h3 class="font-semibold text-ink-900"><?= e(t('معلومات الشركة')) ?></h3>
-            <p class="text-xs text-ink-500 mt-1"><?= e(t('الأسعار والمواعيد والعنوان والسياسات والعروض. الذكاء الاصطناعي يرد منها فقط ولا يخترع غيرها. كلما كانت أدق، كانت الردود أصح.')) ?></p>
-            <textarea name="kb" rows="9" maxlength="6000" class="input flex-1 text-sm leading-relaxed" <?= $owner ? '' : 'disabled' ?> placeholder="<?= e(t("مثال:\nمواعيد العمل: يوميًا 10 ص - 11 م ما عدا الجمعة\nالتوصيل: داخل القاهرة 50 جنيه، خلال 48 ساعة\nالاسترجاع: خلال 14 يوم بالفاتورة\nالأسعار: ...")) ?>"><?= e(ai_kb((int)ws('id'))) ?></textarea>
-            <div class="flex items-center justify-between mt-3"><span class="text-[11px] text-ink-400"><?= e(t('حتى 6000 حرف')) ?></span><button class="btn-primary" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button></div>
-          </form>
-          </div>
-        </div>
-
-        <?php if (!$aiProviders): ?>
-          <div class="card p-8 text-center">
-            <p class="text-ink-900 font-medium"><?= e(t('لا يوجد مزود ذكاء اصطناعي متصل')) ?></p>
-            <p class="text-sm text-ink-500 mt-1 mb-4"><?= e(t('اربط مزودًا واحدًا على الأقل لتشغيل المهام. OpenRouter و Gemini فيهما استخدام مجاني.')) ?></p>
-            <div class="flex flex-wrap justify-center gap-2"><?php foreach (ai_provider_keys() as $p): ?><button type="button" data-open="<?= $p ?>" class="chip"><?= e($registry[$p]['name']) ?></button><?php endforeach; ?></div>
-          </div>
-        <?php endif; ?>
-
-        <?php $picks = ai_picks(); $catalog = ai_catalog(); $canPick = $manual && $owner; ?>
-        <!-- ملخص المهام -->
-        <div class="grid md:grid-cols-3 gap-4">
-          <?php foreach (ai_tasks() as $tk => $task): $chain = ai_task_chain($tk); $now = $chain[0] ?? null; $n = count(array_filter($picks, function ($l) use ($tk) { return in_array($tk, $l, true); })); $noPick = $manual && !$n; ?>
-          <div class="card p-4">
-            <div class="flex items-start gap-3">
-              <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24"><path d="<?= $task['icon'] ?>"/></svg></div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-2"><b class="text-ink-900"><?= e($task['name']) ?></b><?php if ($manual): ?><span class="badge" data-count="<?= $tk ?>"><?= e(t('%s موديل', $n)) ?></span><?php endif; ?></div>
-                <div class="text-xs text-ink-500 mt-0.5"><?= e($task['desc']) ?></div>
-              </div>
-            </div>
-            <div class="mt-3 pt-3 border-t border-ink-100 text-xs">
-              <?php if ($now): ?>
-                <div class="flex items-center gap-2"><span class="text-ink-400"><?= e(t('يعمل الآن بـ')) ?></span><?= connector_logo($registry[$now['provider']], 'w-5 h-5 text-[9px] !rounded-md') ?><span class="text-ink-900 truncate" dir="ltr"><?= e($now['pick']['model'] ?? ($now['provider'] === 'openrouter' ? 'OpenRouter · ' . ($now['settings']['tier'] ?? 'cheap') : ($now['settings']['model'] ?? ''))) ?></span></div>
-                <div class="mt-1.5 flex items-center gap-2"><span class="inline-flex rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 font-medium" dir="ltr">≈ <?= e(ai_fmt_cost(ai_connection_cost($now))) ?></span><?php if (count($chain) > 1): ?><span class="text-ink-400">+<?= count($chain) - 1 ?> <?= e(t('بديل')) ?></span><?php endif; ?></div>
-                <?php if ($noPick): ?><div class="text-amber-700 mt-1.5"><?= e(t('لم تختر موديلات لهذه المهمة، فيُستخدم التلقائي.')) ?></div><?php endif; ?>
-              <?php else: ?><span class="text-ink-400"><?= e(t('لا يوجد مزود')) ?></span><?php endif; ?>
-            </div>
-          </div>
-          <?php endforeach; ?>
-        </div>
-
-        <!-- جدول كل الموديلات -->
-        <?php if ($catalog): $provCount = array_count_values(array_column($catalog, 'provider')); ?>
-        <div class="card overflow-hidden" id="mdl">
-          <div class="p-4 border-b border-ink-200 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 class="font-semibold text-ink-900"><?= e(t('كل الموديلات المتاحة')) ?> <span class="text-ink-400 font-normal text-sm" id="mdl-n"><?= count($catalog) ?></span></h3>
-                <p class="text-xs text-ink-500 mt-0.5"><?= $canPick ? e(t('علّم على المهام التي يمكن لكل موديل أن يعمل عليها. المنصة تبدأ بالأرخص من بين الموديلات المختارة لكل مهمة.')) : ($manual ? e(t('هذا الإعداد متاح لمالك الشركة فقط.')) : e(t('أوقف التشغيل التلقائي لتختار الموديلات بنفسك.'))) ?></p></div>
-              <span id="mdl-saved" class="text-xs text-lime-700 opacity-0 transition">✓ <?= e(t('تم الحفظ')) ?></span>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="relative flex-1 min-w-[200px] max-w-sm"><svg class="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="mdl-q" type="search" class="input !mt-0 !py-2 ps-9 text-sm" dir="ltr" placeholder="claude, gpt, gemini, llama..."></div>
-              <div class="flex gap-1.5 overflow-x-auto" id="mdl-prov">
-                <button type="button" class="chip on !py-1 text-xs" data-p=""><?= e(t('الكل')) ?></button>
-                <?php foreach ($provCount as $pk => $pn): ?><button type="button" class="chip !py-1 text-xs" data-p="<?= e($pk) ?>"><?= e($registry[$pk]['name']) ?> <span class="text-ink-400"><?= $pn ?></span></button><?php endforeach; ?>
-              </div>
-              <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-free" class="w-3.5 h-3.5"> <?= e(t('المجاني فقط')) ?></label>
-              <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-mine" class="w-3.5 h-3.5"> <?= e(t('المختار فقط')) ?></label>
-            </div>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-ink-50 text-xs text-ink-500 sticky top-0">
-                <tr>
-                  <th class="text-start font-medium px-4 py-2.5"><?= e(t('الموديل')) ?></th>
-                  <th class="text-start font-medium px-3 py-2.5"><?= e(t('عن طريق')) ?></th>
-                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('المدخلات / مليون')) ?></th>
-                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('المخرجات / مليون')) ?></th>
-                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('السؤال الواحد')) ?></th>
-                  <?php foreach (ai_tasks() as $tk => $task): ?><th class="text-center font-medium px-3 py-2.5 whitespace-nowrap"><?= e($task['name']) ?></th><?php endforeach; ?>
-                </tr>
-              </thead>
-              <tbody id="mdl-body">
-                <?php foreach ($catalog as $row): $mine = $picks[$row['key']] ?? []; $fmt = function ($v) { return $v === null ? '—' : '$' . rtrim(rtrim(number_format($v, 3), '0'), '.'); }; ?>
-                <tr class="mdl-row border-t border-ink-100 hover:bg-ink-50/70 transition <?= $mine ? 'bg-brand-50/40' : '' ?>" data-p="<?= e($row['provider']) ?>" data-free="<?= $row['free'] ? 1 : 0 ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-q="<?= e(strtolower($row['model'] . ' ' . $row['name'])) ?>">
-                  <td class="px-4 py-2.5"><div class="font-medium text-ink-900" dir="ltr" style="text-align:start"><?= e($row['name']) ?></div><?php if ($row['name'] !== $row['model']): ?><div class="text-[11px] text-ink-400" dir="ltr" style="text-align:start"><?= e($row['model']) ?></div><?php endif; ?></td>
-                  <td class="px-3 py-2.5"><div class="flex items-center gap-1.5 whitespace-nowrap"><?= connector_logo($registry[$row['provider']], 'w-5 h-5 text-[9px] !rounded-md') ?><span class="text-xs text-ink-600"><?= e($registry[$row['provider']]['name']) ?></span></div></td>
-                  <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['in']) ?></td>
-                  <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['out']) ?></td>
-                  <td class="px-3 py-2.5 text-end whitespace-nowrap"><span class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium <?= $row['free'] ? 'bg-lime-100 text-lime-700' : 'bg-ink-100 text-ink-700' ?>" dir="ltr"><?= e(ai_fmt_cost($row['cost'])) ?></span></td>
-                  <?php foreach (ai_tasks() as $tk => $task): ?>
-                    <td class="px-3 py-2.5 text-center"><input type="checkbox" class="mdl-pick w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" data-key="<?= e($row['key']) ?>" data-task="<?= $tk ?>" <?= in_array($tk, $mine, true) ? 'checked' : '' ?> <?= $canPick ? '' : 'disabled' ?> aria-label="<?= e($task['name'] . ' · ' . $row['model']) ?>"></td>
-                  <?php endforeach; ?>
-                </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <div class="p-3 border-t border-ink-200 flex items-center justify-between text-xs text-ink-500">
-            <span id="mdl-shown"></span>
-            <button type="button" id="mdl-more" class="btn-ghost !py-1.5 !px-3 !text-xs hidden"><?= e(t('عرض المزيد')) ?></button>
-          </div>
-        </div>
-        <?php endif; ?>
-        <p class="text-xs text-ink-400"><?= e(t('الأسعار الرسمية لكل مزود، من كتالوج OpenRouter العام، وتتحدث كل 12 ساعة. OpenRouter محسوب مجانيًا لأنه يبدأ بالموديلات المجانية. الحصة المجانية في Gemini غير محسوبة.')) ?></p>
-      </div>
     </div>
 
     <!-- اللوحة الجانبية -->
@@ -662,53 +434,8 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
       // زرار الحفظ: حالة انتظار عشان الاختبار بياخد ثواني
       document.querySelectorAll('.intg-drawer form').forEach(function (f) { f.addEventListener('submit', function () {
         var b = f.querySelector('button:not([type=button])'); if (b && b.hasAttribute('data-switch')) { b.classList.toggle('bg-lime-500'); b.classList.toggle('bg-ink-300'); var k = b.id === 'ai-auto' ? '6' : '5'; b.firstElementChild.classList.toggle('translate-x-' + k); b.firstElementChild.classList.toggle('rtl:-translate-x-' + k); return; } if (b && b.name === 'mode') return; if (b && !b.disabled) { setTimeout(function () { b.disabled = true; b.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>' + (window.T ? T.working : ''); }, 0); } }); });
-      (function () {
-        var body = document.getElementById('mdl-body'); if (!body) return;
-        var rows = [].slice.call(body.querySelectorAll('.mdl-row')), q = document.getElementById('mdl-q'), prov = '', limit = 50;
-        var free = document.getElementById('mdl-free'), mine = document.getElementById('mdl-mine'), more = document.getElementById('mdl-more');
-        function apply(reset) {
-          if (reset) limit = 50;
-          var term = q.value.trim().toLowerCase(), n = 0, shown = 0;
-          rows.forEach(function (r) {
-            var ok = (!prov || r.dataset.p === prov) && (!free.checked || r.dataset.free === '1') && (!mine.checked || r.dataset.mine === '1') && (!term || r.dataset.q.indexOf(term) > -1);
-            if (ok) n++;
-            var vis = ok && n <= limit; r.classList.toggle('hidden', !vis); if (vis) shown++;
-          });
-          document.getElementById('mdl-n').textContent = n;
-          document.getElementById('mdl-shown').textContent = shown + ' / ' + n;
-          more.classList.toggle('hidden', n <= limit);
-        }
-        q.addEventListener('input', function () { apply(true); });
-        free.addEventListener('change', function () { apply(true); }); mine.addEventListener('change', function () { apply(true); });
-        more.addEventListener('click', function () { limit += 100; apply(); });
-        document.querySelectorAll('#mdl-prov [data-p]').forEach(function (b) { b.addEventListener('click', function () {
-          prov = b.dataset.p; document.querySelectorAll('#mdl-prov .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); apply(true); }); });
-        var saved = document.getElementById('mdl-saved'), tmr;
-        body.addEventListener('change', function (e) {
-          var c = e.target.closest('.mdl-pick'); if (!c) return;
-          var fd = new FormData(); fd.append('action', 'ai_pick'); fd.append('key', c.dataset.key); fd.append('task', c.dataset.task); fd.append('on', c.checked ? '1' : '0');
-          var tr = c.closest('tr');
-          fetch('index.php?p=connectors', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } })
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-              if (!d.ok) throw 0;
-              var any = tr.querySelector('.mdl-pick:checked'); tr.dataset.mine = any ? '1' : '0'; tr.classList.toggle('bg-brand-50/40', !!any);
-              Object.keys(d.count).forEach(function (k) { var el = document.querySelector('[data-count=' + k + ']'); if (el) el.textContent = el.textContent.replace(/\d+/, d.count[k]); });
-              saved.classList.remove('opacity-0'); clearTimeout(tmr); tmr = setTimeout(function () { saved.classList.add('opacity-0'); }, 1500);
-            })
-            .catch(function () { c.checked = !c.checked; alert((window.T && T.liveFailed) || 'Error'); });
-        });
-        apply(true);
-      })();
-      function tab(name) {
-        document.querySelectorAll('[data-pane]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.pane !== name); });
-        document.querySelectorAll('.intg-tab').forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('text-brand-700', on); b.classList.toggle('border-brand-600', on); b.classList.toggle('text-ink-500', !on); b.setAttribute('aria-selected', on); });
-      }
-      document.querySelectorAll('.intg-tab').forEach(function (b) { b.addEventListener('click', function () { tab(b.dataset.tab); history.replaceState(null, '', b.dataset.tab === 'ai' ? '#ai' : location.pathname + location.search); }); });
-      document.addEventListener('click', function (e) { var b = e.target.closest('[data-pane=ai] [data-open]'); if (b) open(b.dataset.open); });
-      tab(location.hash === '#ai' ? 'ai' : 'services');
-      if (location.hash.length > 1 && location.hash !== '#ai') open(location.hash.slice(1), false);
-      window.addEventListener('hashchange', function () { if (location.hash === '#ai') { close(true); tab('ai'); } else if (location.hash.length > 1) { tab('services'); open(location.hash.slice(1), false); } });
+      if (location.hash.length > 1) open(location.hash.slice(1), false);
+      window.addEventListener('hashchange', function () { if (location.hash.length > 1) open(location.hash.slice(1), false); });
     })();
     </script>
     <?php

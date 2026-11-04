@@ -123,7 +123,7 @@ function ad_budget_form(?array $budget, ?string $cur, string $platform, string $
 render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $camp, $cid, $pf, $range, $from, $to) {
     if (!$z) { no_api_box(); return; }
     ?>
-    <div data-ai-insights="ads_analyze" class="mb-6"></div>
+    <div data-ai-insights="ads_analyze,budget_advice" class="mb-6"></div>
     <div class="space-y-5">
       <a href="<?= e(url('ads', ['r' => $range])) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
       <?php if ($apiError) error_box($apiError); ?>

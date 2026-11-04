@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             if ($errors || !hf_lib_valid($n) || !is_file($path)) continue;
             try {
                 $mime = (string)mime_content_type($path);
-                $media[] = ['type' => 'image', 'url' => $z->uploadFile($path, 'ai-' . $n, $mime)];
+                $media[] = ['type' => substr($n, -4) === '.mp4' ? 'video' : 'image', 'url' => $z->uploadFile($path, 'ai-' . $n, $mime)];
             } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
         }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
@@ -216,10 +216,45 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
-          <?php if (connector('higgsfield')): ?>
+          <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
+          <div class="flex flex-wrap items-center gap-2 mt-2" id="vis-box">
+            <?php foreach (['from_image', 'alt_text'] as $vk): if (!ai_feature_on($vk)) continue; ?>
+              <button type="button" data-vis="<?= $vk ?>" class="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-60">✨ <?= e(ai_presets()[$vk]['label']) ?></button>
+            <?php endforeach; ?>
+            <span class="text-[11px] text-ink-400"><?= e(t('يستخدم أول صورة مختارة. يحتاج موديلًا يدعم الصور.')) ?></span>
+          </div>
+          <script>
+          (function () {
+            var box = document.getElementById('vis-box'); if (!box) return;
+            function shrink(file) {
+              return new Promise(function (ok, bad) {
+                var img = new Image(), url = URL.createObjectURL(file);
+                img.onload = function () { var k = Math.min(1, 1024 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.85)); };
+                img.onerror = bad; img.src = url;
+              });
+            }
+            box.addEventListener('click', function (e) {
+              var b = e.target.closest('[data-vis]'); if (!b) return;
+              var f = [].slice.call(document.getElementById('mediaInput').files || []).filter(function (x) { return /^image\//.test(x.type); })[0];
+              if (!f) { (window.aiToast || alert)(<?= json_encode(t('اختر صورة أولًا (أقل من 2 ميجا).'), JSON_UNESCAPED_UNICODE) ?>); return; }
+              b.disabled = true; b.classList.add('animate-pulse');
+              shrink(f).then(function (data) {
+                var fd = new FormData(), c = document.getElementById('content'); fd.append('task', 'preset'); fd.append('preset', b.dataset.vis); fd.append('text', c.value); fd.append('image', data);
+                return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); }).then(function (d) {
+                  if (d.error) { (window.aiToast || alert)(d.error); return; }
+                  if (d.mode === 'show') { var p = box.querySelector('.vis-out') || document.createElement('div'); p.className = 'vis-out w-full rounded-xl border border-brand-200 bg-brand-50/60 p-3 text-sm'; p.textContent = d.text; box.appendChild(p); }
+                  else { c.value = d.text; c.dispatchEvent(new Event('input', { bubbles: true })); c.focus(); }
+                });
+              }).catch(function () { (window.aiToast || alert)((window.T && T.liveFailed) || 'Error'); }).finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
+            });
+          })();
+          </script>
+          <?php endif; ?>
+          <?php if (connector('higgsfield') && ai_feature_on('image')): ?>
           <div class="mt-4 rounded-2xl border border-dashed border-ink-300 p-4" id="hf-box">
             <div class="flex items-center gap-2 mb-2"><span class="w-6 h-6 rounded-lg bg-[#0B0B0F] text-[#fff] text-xs font-semibold flex items-center justify-center">H</span><b class="text-sm text-ink-900"><?= e(t('توليد صورة بالذكاء الاصطناعي')) ?></b></div>
             <div class="flex flex-wrap items-center gap-2 mb-2 text-xs">
+<?php if (ai_feature_on('video')): ?><select id="hf-kind" class="input !mt-0 !w-auto !py-1.5 text-xs"><option value="image"><?= e(t('صورة')) ?></option><option value="video"><?= e(t('فيديو (أغلى)')) ?></option></select><?php endif; ?>
               <select id="hf-aspect" class="input !mt-0 !w-auto !py-1.5 text-xs"><option value=""><?= e(t('المقاس الافتراضي')) ?></option><option value="1:1"><?= e(t('مربع 1:1')) ?></option><option value="4:5"><?= e(t('بوست 4:5')) ?></option><option value="9:16"><?= e(t('ستوري 9:16')) ?></option><option value="16:9"><?= e(t('عرضي 16:9')) ?></option></select>
               <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="hf-two" class="w-3.5 h-3.5"> <?= e(t('نسختين')) ?></label>
               <button type="button" id="hf-from-text" class="ms-auto link"><?= e(t('اكتب الوصف من نص المنشور')) ?></button>
@@ -230,7 +265,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             </div>
             <p id="hf-status" class="text-xs text-ink-500 mt-2 hidden"></p>
             <div id="hf-results" class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
-              <?php foreach (hf_lib_list((int)ws('id'), 12) as $n): ?><button type="button" class="hf-img relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100" data-name="<?= e($n) ?>"><img loading="lazy" class="w-full h-full object-cover" src="<?= e(url('ai_task', ['img' => $n])) ?>" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span></button><?php endforeach; ?>
+              <?php foreach (hf_lib_list((int)ws('id'), 12) as $n): $isV = substr($n, -4) === '.mp4'; ?><div class="relative group"><button type="button" class="hf-img relative w-full rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100" data-name="<?= e($n) ?>"><?php if ($isV): ?><video muted preload="metadata" class="w-full h-full object-cover" src="<?= e(url('ai_task', ['img' => $n])) ?>"></video><span class="absolute bottom-1 start-1 text-[10px] bg-ink-900/70 text-[#fff] rounded px-1">▶</span><?php else: ?><img loading="lazy" class="w-full h-full object-cover" src="<?= e(url('ai_task', ['img' => $n])) ?>" alt=""><?php endif; ?><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span></button><?php if (!$isV && ai_feature_on('video') && filemtime(hf_lib_dir((int)ws('id')) . '/' . $n) > time() - 6.5 * 86400): ?><button type="button" class="hf-tovideo absolute bottom-1 end-1 hidden group-hover:flex rounded-lg bg-ink-900/75 text-[#fff] text-[10px] px-1.5 py-0.5" data-src="<?= e($n) ?>" title="<?= e(t('تحويل لفيديو')) ?>">🎬</button><?php endif; ?></div><?php endforeach; ?>
             </div>
             <p class="text-[11px] text-ink-400 mt-2"><?= e(t('اضغط على الصورة لإضافتها للمنشور. التوليد يستهلك من رصيد Higgsfield.')) ?></p>
           </div>
@@ -248,12 +283,16 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               if (on && !inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'ai_media[]'; inp.value = n; form.appendChild(inp); }
               if (!on && inp) inp.remove();
             }
-            res.addEventListener('click', function (e) { var b = e.target.closest('.hf-img'); if (b) toggle(b); });
+            res.addEventListener('click', function (e) {
+              var v = e.target.closest('.hf-tovideo');
+              if (v) { if (!pr.value.trim()) { pr.placeholder = <?= json_encode(t('صف الحركة: مثلاً الكاميرا تقترب ببطء والبخار يتصاعد'), JSON_UNESCAPED_UNICODE) ?>; pr.focus(); return; } start({ task: 'image', kind: 'video', text: pr.value, src: v.dataset.src }); return; }
+              var b = e.target.closest('.hf-img'); if (b) toggle(b);
+            });
             function add(img) {
               var b = document.createElement('button'); b.type = 'button'; b.dataset.name = img.name;
               b.className = 'hf-img relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100';
-              b.innerHTML = '<img class="w-full h-full object-cover" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span>';
-              b.querySelector('img').src = img.src; res.prepend(b); toggle(b);
+              b.innerHTML = (img.video ? '<video muted preload="metadata" class="w-full h-full object-cover"></video>' : '<img class="w-full h-full object-cover" alt="">') + '<span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span>';
+              b.firstChild.src = img.src; res.prepend(b); toggle(b);
             }
             function poll(id, tries) {
               call({ task: 'image_status', id: id }).then(function (s) {
@@ -266,11 +305,16 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             go.addEventListener('click', function () {
               if (!pr.value.trim()) { pr.focus(); return; }
               go.disabled = true; go.textContent = (window.T && T.working) || '...'; msg(<?= json_encode(t('جاري التوليد... غالبًا يأخذ من 10 إلى 60 ثانية.'), JSON_UNESCAPED_UNICODE) ?>);
-              call({ task: 'image', text: pr.value, aspect: document.getElementById('hf-aspect').value, count: document.getElementById('hf-two').checked ? 2 : 1 }).then(function (d) {
-                if (d.error) { msg(d.error, true); go.disabled = false; go.textContent = label; return; }
-                var ids = d.ids || [d.id]; pending = ids.length; ids.forEach(function (id) { poll(id, 0); });
-              }).catch(function () { msg((window.T && T.liveFailed) || 'Error', true); go.disabled = false; go.textContent = label; });
+              var kind = document.getElementById('hf-kind');
+              start({ task: 'image', kind: kind ? kind.value : 'image', text: pr.value, aspect: document.getElementById('hf-aspect').value, count: document.getElementById('hf-two').checked ? 2 : 1 });
             });
+            function start(data) {
+              go.disabled = true; go.textContent = (window.T && T.working) || '...'; msg(data.kind === 'video' ? <?= json_encode(t('جاري توليد الفيديو... قد يأخذ عدة دقائق.'), JSON_UNESCAPED_UNICODE) ?> : <?= json_encode(t('جاري التوليد... غالبًا يأخذ من 10 إلى 60 ثانية.'), JSON_UNESCAPED_UNICODE) ?>);
+              call(data).then(function (d) {
+                if (d.error) { msg(d.error, true); go.disabled = false; go.textContent = label; return; }
+                var ids = d.ids || [d.id]; pending = ids.length; ids.forEach(function (id) { poll(id, data.kind === 'video' ? -140 : 0); });
+              }).catch(function () { msg((window.T && T.liveFailed) || 'Error', true); go.disabled = false; go.textContent = label; });
+            }
             document.getElementById('hf-from-text').addEventListener('click', function () {
               var c = document.getElementById('content'); if (!c || !c.value.trim()) { c && c.focus(); return; }
               var b = this; b.classList.add('animate-pulse');

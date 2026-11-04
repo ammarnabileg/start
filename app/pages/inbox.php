@@ -378,7 +378,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-19rem)] min-h-[500px]">
       <!-- قائمة المحادثات -->
       <div data-live="list" class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
-        <?php $aiLab = (ai_connection() && can('ai.use')) ? ai_labels((int)ws('id')) : null; ?>
+        <?php $aiLab = (ai_connection() && can('ai.use') && ai_feature_on('classify_btn')) ? ai_labels((int)ws('id')) : null; ?>
         <?php if ($aiLab !== null && $convs): ?>
           <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-ink-200 px-3 py-2 flex items-center gap-2 text-xs">
             <button type="button" id="ai-classify" class="inline-flex items-center gap-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 px-2 py-1 hover:bg-brand-100 disabled:opacity-60">✨ <span><?= e(t('صنّف الآن')) ?></span></button>
@@ -556,6 +556,13 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <button class="btn-primary"><?= e(t('قبول ورد')) ?></button>
             </form>
           <?php else: ?>
+            <?php $dr = ai_drafts((int)ws('id'))[$convId] ?? null; if ($dr && ai_feature_on('auto_reply')): ?>
+              <div class="mx-3 mt-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm" id="ai-draft">
+                <div class="text-xs text-brand-700 font-medium mb-1">🤖 <?= e(t('رد مقترح جاهز (خارج المواعيد)')) ?></div>
+                <p class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($dr['text']) ?></p>
+                <button type="button" class="btn-ghost !py-1 !px-2.5 !text-xs mt-2" onclick="var t=document.querySelector('#ai-draft ~ form textarea[name=message]');t.value=this.parentNode.querySelector('p').textContent;t.focus();this.parentNode.remove();"><?= e(t('استخدم الرد')) ?></button>
+              </div>
+            <?php endif; ?>
             <form method="post" enctype="multipart/form-data" data-optimistic class="p-3 border-t border-ink-200 flex gap-2 items-end">
               <?= csrf_field() ?><input type="hidden" name="action" value="send">
               <label class="p-2.5 rounded-lg hover:bg-ink-100 cursor-pointer" title="<?= e(t('إرفاق ملف')) ?>">
@@ -563,7 +570,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
               <textarea data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
-              <?php if (ai_connection() && can('ai.use')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
+              <?php if (ai_connection() && can('ai.use') && ai_feature_on('reply_btn')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
             <p class="px-4 pb-2 -mt-1 text-[11px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>

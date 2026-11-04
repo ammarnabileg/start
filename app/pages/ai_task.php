@@ -15,6 +15,7 @@ header('Content-Type: application/json; charset=utf-8');
 $out = function (array $d, int $code = 200) { http_response_code($code); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
 // توليد الصور عن طريق Higgsfield: طلب، وبعدين متابعة الحالة لحد ما تخلص
 if (in_array($task, ['image', 'image_status'], true)) {
+    if (!ai_feature_on('image')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
     if (!can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
     $hf = connector('higgsfield');
     if (!$hf) $out(['error' => t('اربط Higgsfield أولًا من صفحة التكاملات.')], 422);
@@ -23,10 +24,17 @@ if (in_array($task, ['image', 'image_status'], true)) {
         if ($task === 'image') {
             $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500);
             if ($prompt === '') $out(['error' => t('اكتب وصف الصورة أولًا.')], 422);
-            $path = '/' . ltrim(trim((string)($c['model'] ?? '')) ?: '/higgsfield-ai/soul/v2/standard', '/');
+            $video = ($_POST['kind'] ?? '') === 'video';
+            if ($video && !ai_feature_on('video')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+            $path = '/' . ltrim(trim((string)($video ? ($c['video_model'] ?? '') : ($c['model'] ?? ''))) ?: ($video ? '/higgsfield/cinema-studio/4.0' : '/higgsfield-ai/soul/v2/standard'), '/');
             if (!preg_match('#^/[\w./-]+$#', $path)) $out(['error' => t('مسار الموديل غير صحيح.')], 422);
             $style = trim((string)($c['style'] ?? ''));
             $body = ['prompt' => $prompt . ($style !== '' ? '. Style: ' . $style : '')];
+            if ($video && ($src = (string)($_POST['src'] ?? '')) !== '') {
+                $meta = hf_lib_valid($src) ? json_decode((string)@file_get_contents(hf_lib_dir((int)ws('id')) . '/' . $src . '.json'), true) : null;
+                if (!$meta || time() - (int)$meta['t'] > 6.5 * 86400) $out(['error' => t('يمكن تحويل الصور المولّدة خلال آخر 7 أيام فقط.')], 422);
+                $body['image_urls'] = [$meta['src']];
+            }
             $ar = (string)($_POST['aspect'] ?? '');
             if (in_array($ar, ['1:1', '4:5', '9:16', '16:9'], true)) $body['aspect_ratio'] = $ar;
             $ids = [];
@@ -46,11 +54,12 @@ if (in_array($task, ['image', 'image_status'], true)) {
         $st = (string)($r['status'] ?? '');
         if ($st === 'completed') {
             $urls = array_values(array_filter(array_map(function ($i) { return (string)($i['url'] ?? ''); }, $r['images'] ?? [])));
+            if (!empty($r['video']['url'])) $urls[] = (string)$r['video']['url'];
             unset($_SESSION['hf_req'][$id]);
             // بنحفظها في مكتبة الشركة على طول، لأن روابط Higgsfield بتنتهي بعد 7 أيام
             $lib = [];
             foreach ($urls as $u) { $n = hf_lib_save((int)ws('id'), $u); if ($n) $lib[] = $n; }
-            $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n])]; }, $lib)]);
+            $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n]), 'video' => substr($n, -4) === '.mp4']; }, $lib)]);
         }
         if (in_array($st, ['failed', 'nsfw', 'canceled'], true)) {
             unset($_SESSION['hf_req'][$id]);
@@ -62,8 +71,30 @@ if (in_array($task, ['image', 'image_status'], true)) {
     }
 }
 
+// المكالمات: ملخص ومهام، أو تقييم جودة (بموافقة الموظفين)
+if ($task === 'call') {
+    if (!ai_feature_on('calls')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+    if (!can('phone.view')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    $mode = ($_POST['mode'] ?? '') === 'score' ? 'score' : 'summary';
+    if ($mode === 'score' && setting('ai_call_consent_' . (int)ws('id'), '0') !== '1') $out(['error' => t('تقييم المكالمات يحتاج تأكيد مالك الشركة بموافقة الموظفين (من إعدادات الذكاء الاصطناعي).')], 403);
+    $z = zernio_or_null($err);
+    if (!$z) $out(['error' => $err ?: t('طلب غير صحيح.')], 422);
+    try {
+        $tr = ai_call_transcript($z, (string)($_POST['id'] ?? ''));
+        $lang = lang() === 'ar' ? 'Arabic' : 'English';
+        $sys = $mode === 'summary'
+            ? "Summarize this phone call in $lang: 3-5 bullet summary, then 'Action items' with who should do what and when (e.g. send a quote tomorrow), then customer sentiment in one word. Only from the transcript."
+            : "Evaluate the agent's handling of this call in $lang, fairly and constructively: score out of 10 for greeting, understanding the need, accuracy, politeness, and closing; then 2 strengths and 2 concrete improvements. Base it only on the transcript; note if it is too short to judge.";
+        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($tr, 0, 30000)]], 900, 'analyze');
+        $out(['html' => ai_render($r['text']), 'text' => $r['text'], 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
 // تصنيف المحادثات دلوقتي (بدل ما تستنى التشغيل الدوري)
 if ($task === 'classify_now') {
+    if (!ai_feature_on('classify_btn')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
     if (!can('inbox.reply') && !can('inbox.manage')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
     try {
         $out(['ok' => true, 'count' => ai_classify_conversations((int)ws('id'))]);
@@ -77,6 +108,7 @@ if ($task === 'insight') {
     $all = ai_insights();
     $key = (string)($_POST['insight'] ?? '');
     if (!isset($all[$key])) $out(['error' => t('طلب غير صحيح.')], 400);
+    if (!ai_feature_on($key)) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
     $in = $all[$key];
     $extra = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 6000);
     if (!empty($in['input']) && $extra === '' && empty($in['optional'])) $out(['error' => t('اكتب المطلوب أولًا.')], 422);
@@ -107,21 +139,29 @@ if ($task === 'preset') {
     $presets = ai_presets();
     $key = (string)($_POST['preset'] ?? '');
     if (!isset($presets[$key])) $out(['error' => t('طلب غير صحيح.')], 400);
+    if (!ai_feature_on($key)) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
     $pr = $presets[$key];
     $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 4000);
     $ctx = mb_substr(trim((string)($_POST['context'] ?? '')), -5000);
     if ($pr['needs'] === 'text' && $text === '') $out(['error' => t('اكتب النص أولًا.')], 422);
     if ($pr['needs'] === 'context' && $ctx === '') $out(['error' => t('لا يوجد محتوى لتحليله.')], 422);
+    $img = (string)($_POST['image'] ?? '');
+    if ($pr['needs'] === 'image') {
+        if (!ai_feature_on('vision')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+        if (!preg_match('#^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$#', $img) || strlen($img) > 3 * 1048576) $out(['error' => t('اختر صورة أولًا (أقل من 2 ميجا).')], 422);
+    }
     $sys = str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $pr['sys']) . ' The business is "' . ws('name') . '".';
     $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? $text : $ctx);
     try {
-        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], (int)(ai_tasks()[$pr['group']]['max'] ?? 700), $pr['group']);
+        $userMsg = $pr['needs'] === 'image' ? ['role' => 'user', 'content' => [['type' => 'text', 'text' => $text !== '' ? "Draft text:\n" . $text : 'Image:'], ['type' => 'image_url', 'image_url' => ['url' => $img]]]] : ['role' => 'user', 'content' => $user];
+        $r = ai_chat([['role' => 'system', 'content' => str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $sys)], $userMsg], (int)(ai_tasks()[$pr['group']]['max'] ?? 700), $pr['group']);
         $out(['text' => $pr['mode'] === 'show' ? trim($r['text']) : trim($r['text'], " \n\"'«»"), 'mode' => $pr['mode'], 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
     } catch (Throwable $e) {
         $out(['error' => $e->getMessage()], 502);
     }
 }
 
+if ($task === 'reply' && !ai_feature_on('reply_btn')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !in_array($task, ['compose', 'reply'], true)) $out(['error' => t('طلب غير صحيح.')], 400);
 if ($task === 'compose' && !can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
 if ($task === 'reply' && !can('inbox.reply') && !can('comments.reply')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);

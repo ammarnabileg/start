@@ -106,6 +106,7 @@ function connector_registry(): array
                 ['key' => 'key_id', 'label' => 'Key ID', 'placeholder' => 'xxxxxxxx-xxxx-...'],
                 ['key' => 'key_secret', 'label' => 'Key Secret', 'secret' => true],
                 ['key' => 'model', 'label' => t('مسار الموديل'), 'placeholder' => '/higgsfield-ai/soul/v2/standard', 'default' => '/higgsfield-ai/soul/v2/standard', 'optional' => true],
+                ['key' => 'video_model', 'label' => t('مسار موديل الفيديو'), 'placeholder' => '/higgsfield/cinema-studio/4.0', 'default' => '/higgsfield/cinema-studio/4.0', 'optional' => true],
                 ['key' => 'style', 'label' => t('ستايل ثابت للشركة'), 'placeholder' => t('مثلاً: ألوان أزرق وأبيض، إضاءة طبيعية، تصوير منتجات احترافي'), 'optional' => true],
             ],
             'test' => function (array $c): string {
@@ -220,22 +221,24 @@ function hf_lib_save(int $wid, string $url): ?string
     curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 60, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
     $ok = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400; curl_close($ch); fclose($fp);
     $mime = $ok ? (string)mime_content_type($tmp) : '';
-    $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mime] ?? null;
-    if (!$ok || !$ext || filesize($tmp) > 25 * 1048576) { @unlink($tmp); return null; }
+    $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'video/mp4' => 'mp4'][$mime] ?? null;
+    if (!$ok || !$ext || filesize($tmp) > ($ext === 'mp4' ? 200 : 25) * 1048576) { @unlink($tmp); return null; }
     $name = gmdate('Ymd-His') . '-' . substr(md5($url), 0, 10) . '.' . $ext;
     rename($tmp, $dir . '/' . $name);
+    // رابط Higgsfield الأصلي (صالح 7 أيام) عشان تحويل الصورة لفيديو
+    @file_put_contents($dir . '/' . $name . '.json', json_encode(['src' => $url, 't' => time()]));
     return $name;
 }
 
 /** آخر صور المكتبة (الأحدث الأول) */
 function hf_lib_list(int $wid, int $limit = 24): array
 {
-    $files = glob(hf_lib_dir($wid) . '/*.{png,jpg,webp}', GLOB_BRACE) ?: [];
+    $files = glob(hf_lib_dir($wid) . '/*.{png,jpg,webp,mp4}', GLOB_BRACE) ?: [];
     rsort($files);
     return array_map('basename', array_slice($files, 0, $limit));
 }
 
 function hf_lib_valid(string $name): bool
 {
-    return (bool)preg_match('/^\d{8}-\d{6}-[a-f0-9]{10}\.(png|jpg|webp)$/', $name);
+    return (bool)preg_match('/^\d{8}-\d{6}-[a-f0-9]{10}\.(png|jpg|webp|mp4)$/', $name);
 }

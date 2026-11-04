@@ -136,6 +136,29 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
           <?php elseif (!empty($c['lastTranscriptSnippet'])): ?>
             <p class="text-sm mt-3" dir="auto"><?= e($c['lastTranscriptSnippet']) ?></p>
           <?php endif; ?>
+          <?php if (ai_connection() && can('ai.use') && ai_feature_on('calls') && (!empty($c['transcript']) || !empty($c['recordingUrl']) || !empty($c['recordingEnabled']))): ?>
+          <div class="mt-5 rounded-2xl border border-brand-200 bg-brand-50/40 p-4" id="call-ai" data-id="<?= e($c['_id'] ?? '') ?>">
+            <div class="flex flex-wrap gap-2">
+              <button type="button" data-mode="summary" class="btn-primary !py-1.5 !text-xs">✨ <?= e(t('لخّص واستخرج المهام')) ?></button>
+              <?php if (setting('ai_call_consent_' . (int)ws('id'), '0') === '1'): ?><button type="button" data-mode="score" class="btn-ghost !py-1.5 !text-xs">📊 <?= e(t('تقييم جودة المكالمة')) ?></button><?php endif; ?>
+            </div>
+            <div class="call-out mt-3 text-sm leading-relaxed hidden"></div>
+          </div>
+          <script>
+          (function () {
+            var box = document.getElementById('call-ai'), out = box.querySelector('.call-out');
+            box.addEventListener('click', function (e) {
+              var b = e.target.closest('[data-mode]'); if (!b) return; b.disabled = true; b.classList.add('animate-pulse');
+              out.classList.remove('hidden'); out.textContent = (window.T && T.working) || '...';
+              var fd = new FormData(); fd.append('task', 'call'); fd.append('id', box.dataset.id); fd.append('mode', b.dataset.mode);
+              fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); })
+                .then(function (d) { if (d.error) { out.innerHTML = '<p class="text-red-600"></p>'; out.firstChild.textContent = d.error; } else out.innerHTML = d.html; })
+                .catch(function () { out.textContent = (window.T && T.liveFailed) || 'Error'; })
+                .finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
+            });
+          })();
+          </script>
+          <?php endif; ?>
         </div>
         <?php
         return;
