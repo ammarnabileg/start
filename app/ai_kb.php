@@ -37,6 +37,9 @@ function kb_schema(): array
         'rtb' => ['group' => 'pos', 'nav' => t('سبب التصديق'), 'label' => t('سبب التصديق (Reason to Believe)'), 'type' => 'text',
             'hint' => t('ليه العميل هيصدقك لما تقوله إنك أحسن من المنافس؟ دليل حقيقي: أرقام، شهادات، تجربة، ضمان، آراء عملاء.'),
             'ph' => t("مثال:\nأخصائية تغذية معتمدة في الفريق\n+1200 أسرة مشتركة من 2022\nتقدر توقف أو تغيّر الاشتراك في أي وقت")],
+        'pos_offers' => ['group' => 'pos', 'nav' => t('لكل منتج أو خدمة'), 'label' => t('تموضع كل منتج أو خدمة'), 'type' => 'rows',
+            'hint' => t('كل منتج أو خدمة ممكن يكون ليه جمهور ومشكلة وفرق مختلف. اعمل بطاقة لكل واحد. الأقسام اللي فوق هي تموضع الشركة ككل.'),
+            'cols' => ['offer' => t('المنتج أو الخدمة'), 'audience' => t('الجمهور المستهدف'), 'problem' => t('المشكلة أو الاحتياج'), 'frame' => t('الفئة والمنافسين'), 'pod' => t('نقطة الاختلاف'), 'rtb' => t('سبب التصديق')]],
     ];
 }
 
@@ -115,6 +118,8 @@ function kb_compile(int $wid, string $query = ''): string
     }
     $pos = [];
     foreach (['audience' => 'Target audience & their problem', 'frame_ref' => 'Frame of reference (category we compete in)', 'pod' => 'Point of difference vs competitors', 'rtb' => 'Reasons to believe (proof)'] as $pk => $pl) if ($v = trim((string)($k[$pk]['text'] ?? ''))) $pos[] = "### " . $pl . "\n" . $v;
+    $po = array_filter((array)($k['pos_offers']['rows'] ?? []), function ($r) { return trim((string)($r['offer'] ?? '')) !== ''; });
+    if ($po) $pos[] = "### Per product/service positioning\n" . implode("\n", array_map(function ($r) { $l = '- ' . trim($r['offer']) . ':'; foreach (['audience' => 'audience', 'problem' => 'problem', 'frame' => 'category', 'pod' => 'difference', 'rtb' => 'proof'] as $c => $n) if (trim((string)($r[$c] ?? '')) !== '') $l .= ' ' . $n . ': ' . trim(preg_replace('/\s+/', ' ', $r[$c])) . ';'; return rtrim($l, ';'); }, $po));
     if ($pos) $out[] = "## POSITIONING STATEMENT (use it to frame strategy, content and replies; never overclaim beyond the proof)\n" . implode("\n", $pos);
     if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . $v;
     if ($v = trim((string)($k['never_say']['text'] ?? ''))) $out[] = "## NEVER SAY (strictly forbidden words, topics and promises)\n" . implode("\n", array_map(function ($l) { return '- ' . trim($l); }, array_filter(explode("\n", $v), 'trim')));

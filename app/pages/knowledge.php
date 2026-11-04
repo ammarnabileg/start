@@ -145,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lang = lang() === 'ar' ? 'Arabic' : 'English';
         $shape = [
             'text' => '{"text":"..."}',
-            'rows' => $sec === 'faq' ? '{"rows":[{"q":"question","a":"approved answer"}]}' : '{"rows":[{"name":"","price":"","details":""}]}',
+            'rows' => $sec === 'faq' ? '{"rows":[{"q":"question","a":"approved answer"}]}' : ($sec === 'pos_offers' ? '{"rows":[{"offer":"","audience":"","problem":"","frame":"","pod":"","rtb":""}]}' : '{"rows":[{"name":"","price":"","details":""}]}'),
             'list' => '{"text":"one item per line"}',
             'tone' => '{"style":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_tone_options()))) . '],"dialect":"' . implode('|', array_keys(kb_dialect_options())) . '","emoji":"none|light|normal","notes":"..."}',
             'antihype' => '{"rules":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_antihype_rules()))) . '],"words":"comma separated banned words"}',
@@ -158,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
             'audience' => 'Positioning step 1. Write two short labelled parts: the precise TARGET AUDIENCE (who, age, place, situation) and the PROBLEM/NEED that makes them look for a solution. Base it on posts, messages, documents and the business type; be specific, not generic.',
+            'pos_offers' => 'Per-offering positioning. One row per product/service from the SERVICES section and documents (use the exact offering name). For each: the specific target audience of THAT offering, their problem/need, the category it competes in with competitor types, its point of difference, and reasons to believe (only proof found in the sources; otherwise suggest proof to collect, marked as a suggestion). Different offerings usually have different audiences: do not copy the same audience to every row unless it is truly the same.',
             'frame_ref' => 'Positioning step 2 (frame of reference). State the product/service CATEGORY the customer puts this business in, and name the kinds of competitors in that same category.',
             'pod' => 'Positioning step 3 (point of difference). State the 1-3 most important, customer-relevant differences versus competitors in the same category. Only differences the sources support; mark expert suggestions.',
             'rtb' => 'Positioning step 4 (reasons to believe). List concrete proof that makes the point of difference credible: facts, numbers, certifications, experience, guarantees, reviews — ONLY those found in the sources; never invent numbers or testimonials. If proof is missing, suggest what proof to collect, marked as a suggestion.',
@@ -234,7 +235,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         'tone' => 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', 'audience' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
         'focus' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z', 'never_say' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8',
         'anti_hype' => 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4', 'visual_style' => 'M12 21a9 9 0 110-18c5 0 9 3.6 9 8a4 4 0 01-4 4h-2a2 2 0 00-1 3.7A2 2 0 0112 21zM7.5 11h.01M10.5 7.5h.01M15 7.5h.01',
-        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'frame_ref' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'pod' => 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z', 'rtb' => 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'test' => 'M7 4l12 8-12 8z'];
+        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'pos_offers' => 'M4 6h16M4 12h10M4 18h7M17 15l2 2 3-4', 'frame_ref' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'pod' => 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z', 'rtb' => 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'test' => 'M7 4l12 8-12 8z'];
     $dis = $canEdit ? '' : 'disabled';
     ?>
 
@@ -292,7 +293,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 
         <?php foreach ($schema as $k => $s): $d = $kb[$k] ?? []; ?>
         <section data-kb="<?= $k ?>" class="card p-5 hidden">
-          <?php if (($s['group'] ?? '') === 'pos'): $steps = ['audience', 'frame_ref', 'pod', 'rtb']; $n = array_search($k, $steps, true); ?>
+          <?php $steps = ['audience', 'frame_ref', 'pod', 'rtb']; $n = array_search($k, $steps, true); if ($n !== false): ?>
           <div class="mb-5">
             <div class="flex items-center gap-1.5 mb-3"><?php foreach ($steps as $i => $st): ?><button type="button" data-kb-go="<?= $st ?>" class="flex-1 h-1.5 rounded-full <?= $i <= $n ? 'bg-brand-600' : 'bg-ink-200' ?>" title="<?= e($schema[$st]['label']) ?>"></button><?php endforeach; ?></div>
             <p class="text-[11px] font-semibold text-brand-700"><?= e(t('بيان التموضع')) ?> · <?= e(t('الخطوة %s من 4', (string)($n + 1))) ?></p>
@@ -315,16 +316,18 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
             <?php elseif ($s['type'] === 'rows'): $rows = (array)($d['rows'] ?? []); if (!$rows) $rows = [[]]; ?>
               <div class="kb-rows space-y-2">
                 <?php foreach ($rows as $i => $r): ?>
-                  <div class="kb-row grid gap-2 <?= $k === 'faq' ? 'sm:grid-cols-[1fr_1.4fr_auto]' : 'sm:grid-cols-[1fr_8rem_1.4fr_auto]' ?> items-start rounded-xl border border-ink-200 p-2">
+                  <div class="kb-row grid gap-2 <?= $k === 'faq' ? 'sm:grid-cols-[1fr_1.4fr_auto]' : ($k === 'pos_offers' ? 'sm:grid-cols-2 relative pe-11 !p-3 bg-ink-50/40' : 'sm:grid-cols-[1fr_8rem_1.4fr_auto]') ?> items-start rounded-xl border border-ink-200 p-2">
                     <?php foreach ($s['cols'] as $ck => $cl): ?>
-                      <?php if ($ck === 'details' || $ck === 'a'): ?><textarea data-col="<?= $ck ?>" rows="1" class="input !mt-0 text-sm" placeholder="<?= e($cl) ?>" <?= $dis ?>><?= e($r[$ck] ?? '') ?></textarea>
+                      <?php if ($k === 'pos_offers'): ?><label class="block <?= in_array($ck, ['offer', 'rtb'], true) ? 'sm:col-span-2' : '' ?>"><span class="text-[11px] font-medium text-ink-500"><?= e($cl) ?></span><?php if ($ck === 'offer'): ?><input data-col="offer" list="kb-offers" class="input !mt-1 text-sm font-semibold" placeholder="<?= e(t('اختار من الخدمات أو اكتب اسم')) ?>" value="<?= e($r[$ck] ?? '') ?>" <?= $dis ?>><?php else: ?><textarea data-col="<?= $ck ?>" rows="2" class="input !mt-1 text-sm" <?= $dis ?>><?= e($r[$ck] ?? '') ?></textarea><?php endif; ?></label>
+                      <?php elseif ($ck === 'details' || $ck === 'a'): ?><textarea data-col="<?= $ck ?>" rows="1" class="input !mt-0 text-sm" placeholder="<?= e($cl) ?>" <?= $dis ?>><?= e($r[$ck] ?? '') ?></textarea>
                       <?php else: ?><input data-col="<?= $ck ?>" class="input !mt-0 text-sm" placeholder="<?= e($cl) ?>" value="<?= e($r[$ck] ?? '') ?>" <?= $dis ?>><?php endif; ?>
                     <?php endforeach; ?>
-                    <?php if ($canEdit): ?><button type="button" class="kb-del p-2 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="<?= e(t('حذف')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><?php endif; ?>
+                    <?php if ($canEdit): ?><button type="button" class="kb-del <?= $k === 'pos_offers' ? 'absolute top-2 end-2 ' : '' ?>p-2 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="<?= e(t('حذف')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><?php endif; ?>
                   </div>
                 <?php endforeach; ?>
               </div>
-              <?php if ($canEdit): ?><button type="button" class="kb-add btn-ghost !py-1.5 !text-xs">+ <?= e($k === 'faq' ? t('سؤال جديد') : t('خدمة جديدة')) ?></button><?php endif; ?>
+              <?php if ($canEdit): ?><button type="button" class="kb-add btn-ghost !py-1.5 !text-xs">+ <?= e($k === 'faq' ? t('سؤال جديد') : ($k === 'pos_offers' ? t('منتج أو خدمة') : t('خدمة جديدة'))) ?></button><?php endif; ?>
+              <?php if ($k === 'pos_offers'): ?><datalist id="kb-offers"><?php foreach ((array)($kb['services']['rows'] ?? []) as $sr): if (trim((string)($sr['name'] ?? '')) !== ''): ?><option value="<?= e(trim($sr['name'])) ?>"><?php endif; endforeach; ?></datalist><?php endif; ?>
             <?php elseif ($s['type'] === 'list'): ?>
               <textarea name="d[text]" rows="8" class="input text-sm" <?= $dis ?> placeholder="<?= e(t("مثال:\nأي سعر غير موجود في قائمة الخدمات\nمواعيد توصيل محددة\nالكلام عن المنافسين\nخصومات غير معلنة")) ?>"><?= e($d['text'] ?? '') ?></textarea>
             <?php elseif ($s['type'] === 'tone'): ?>
