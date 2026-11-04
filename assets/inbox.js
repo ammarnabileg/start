@@ -1,5 +1,6 @@
 /* صفحة الرسائل: تحديد محادثات، إجراءات جماعية، حملات رسائل، واختصارات الكيبورد */
 (function () {
+  function setText(el, v) { v = String(v); if (el && el.textContent !== v) el.textContent = v; }
   var X = window.IBX; if (!X) return;
   var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
   var sel = new Set(), filt = { urgent: false, intent: false, unread: false, mine: false, state: '' };
@@ -33,11 +34,11 @@
   function bar() {
     var n = sel.size, b = document.getElementById('ibx-bar'), all = document.getElementById('ibx-all'), vis = items().filter(function (el) { return !el.classList.contains('hidden'); });
     if (b) b.classList.toggle('hidden', !n);
-    var nEl = document.getElementById('ibx-n'); if (nEl) nEl.textContent = n;
-    var cnt = document.getElementById('ibx-count'); if (cnt) cnt.textContent = n ? n + ' ' + X.sel : X.n.replace('%s', vis.length);
+    var nEl = document.getElementById('ibx-n'); setText(nEl, n);
+    var cnt = document.getElementById('ibx-count'); setText(cnt, n ? n + ' ' + X.sel : X.n.replace('%s', vis.length));
     if (all) { var onVis = vis.filter(function (el) { return sel.has(el.dataset.key); }).length; all.checked = vis.length > 0 && onVis === vis.length; all.indeterminate = onVis > 0 && onVis < vis.length; }
     document.querySelectorAll('.ibx-sel').forEach(function (c) { c.classList.toggle('!opacity-100', n > 0); });
-    var cs = document.getElementById('camp-sel-n'); if (cs) cs.textContent = n;
+    var cs = document.getElementById('camp-sel-n'); setText(cs, n);
   }
   new MutationObserver(function () { clearTimeout(apply.t); apply.t = setTimeout(apply, 30); }).observe(document.body, { childList: true, subtree: true });
 

@@ -1,5 +1,6 @@
 /* التعليقات: تحديد، فلاتر، تصنيف، إخفاء، ورد على المحدد على دفعات */
 (function () {
+  function setText(el, v) { v = String(v); if (el && el.textContent !== v) el.textContent = v; }
   var C = window.CMX; if (!C) return;
   var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
   var sel = new Set(), filt = { intent: false, bad: false, unanswered: false };
@@ -17,8 +18,8 @@
     });
     document.querySelectorAll('[data-cm-filter]').forEach(function (b) { var on = filt[b.dataset.cmFilter]; b.classList.toggle('bg-brand-50', on); b.classList.toggle('text-brand-700', on); });
     var n = sel.size, bar = document.getElementById('cm-bar'); if (bar) { bar.classList.toggle('hidden', !n); bar.classList.toggle('flex', !!n); }
-    var ne = document.getElementById('cm-n'); if (ne) ne.textContent = n;
-    var cnt = document.getElementById('cm-count'); if (cnt) cnt.textContent = n ? n + ' ' + C.sel : C.all;
+    var ne = document.getElementById('cm-n'); setText(ne, n);
+    var cnt = document.getElementById('cm-count'); setText(cnt, n ? n + ' ' + C.sel : C.all);
     var all = document.getElementById('cm-all'), vis = items().filter(function (el) { return !el.classList.contains('hidden'); });
     if (all) { var k = vis.filter(function (el) { return sel.has(el.dataset.id); }).length; all.checked = vis.length > 0 && k === vis.length; all.indeterminate = k > 0 && k < vis.length; }
     document.querySelectorAll('.cm-sel').forEach(function (c) { c.classList.toggle('!opacity-100', n > 0); });

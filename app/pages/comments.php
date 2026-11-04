@@ -307,5 +307,11 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
     <script>window.SAVED_REPLIES = <?= json_encode(['items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/comments.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.CMXU = <?= json_encode(['ws' => (int)ws('id'),
+      'chars' => t('حرف'), 'draft' => t('مسودة'), 'draftSaved' => t('المسودة محفوظة'), 'emoji' => t('إيموجي'), 'searchPosts' => t('ابحث في المنشورات'), 'instant' => t('%s منشور مطابق في القائمة الحالية'),
+      'copy' => t('نسخ'), 'copied' => t('اتنسخ'), 'quote' => t('اقتباس في الرد'), 'latest' => t('آخر تعليق'), 'newC' => t('%s تعليق جديد'), 'findPh' => t('ابحث في التعليقات...'), 'findIn' => t('بحث في التعليقات'),
+      'nextUn' => t('التعليق التالي من غير رد'), 'allAnswered' => t('كل التعليقات متردّ عليها'),
+      'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المنشور التالي / السابق')], ['u', t('التعليق التالي من غير رد')], ['r', t('اكتب رد')], ['/', t('ابحث في المنشورات')], ['Ctrl F', t('بحث في التعليقات')], ['g', t('انزل لآخر تعليق')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/comments-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

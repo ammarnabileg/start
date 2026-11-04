@@ -56,9 +56,9 @@
   }
 
   /* ---------- 2) بحث فوري في القايمة المحمّلة (Enter = بحث في كل الرسائل) ---------- */
-  var q = $('#ibx-q');
+  var q = null;
   function instant() {
-    if (!q) return; var v = q.value.trim().toLowerCase(), n = 0;
+    q = $('#ibx-q'); if (!q) return; var v = q.value.trim().toLowerCase(), n = 0;
     $$('.ibx-item').forEach(function (it) {
       var name = it.querySelector('.text-sm.truncate'), snip = it.querySelector('p.text-xs');
       if (name && !name.__t) name.__t = name.textContent;
@@ -70,7 +70,7 @@
     if (!hintEl && q) { hintEl = document.createElement('div'); hintEl.id = 'ibx-qhint'; hintEl.className = 'hidden px-3 py-2 text-[11px] text-ink-500 bg-ink-50 border-b border-ink-100'; var lst = $('.ibx-item') && $('.ibx-item').parentNode; if (lst) lst.prepend(hintEl); }
     if (hintEl) { var ht = U.instant.replace('%s', n); hintEl.classList.toggle('hidden', !v); if (hintEl.textContent !== ht) hintEl.textContent = ht; }
   }
-  if (q) q.addEventListener('input', instant);
+  document.addEventListener('input', function (e) { if (e.target.id === 'ibx-q') instant(); });
 
   /* ---------- 3) أدوات على كل رسالة: نسخ واقتباس في الرد ---------- */
   function decorateThread() {
@@ -89,7 +89,7 @@
       b.appendChild(bar);
     });
   }
-  root.addEventListener('click', function (e) {
+  document.addEventListener('click', function (e) {
     var x = e.target.closest('[data-mt]'); if (!x) return;
     var txt = (x.closest('.group').querySelector('p.whitespace-pre-line') || {}).textContent || '';
     if (x.dataset.mt === 'copy') { navigator.clipboard && navigator.clipboard.writeText(txt); x.querySelector('span').textContent = '✓ ' + U.copied; setTimeout(function () { x.querySelector('span').textContent = U.copy; }, 1200); }
@@ -113,7 +113,7 @@
       var n = $$('#thread .max-w-\\[80\\%\\]').length;
       if (n > lastCount && !near()) unseen += n - lastCount;
       if (n > lastCount) $$('#thread .max-w-\\[80\\%\\]').slice(lastCount).forEach(function (x) { x.classList.add('ibx-new'); });
-      lastCount = n; decorateThread(); paint(); if (finder && finder.v) find(finder.v, true);
+      var changed = n !== lastCount; lastCount = n; decorateThread(); paint(); if (changed && finder && finder.v) find(finder.v, true);
     }).observe(th, { childList: true });
     paint();
     var hdr = $('[data-ibx-archive]'); hdr = hdr && (hdr.closest('form') || hdr);
@@ -173,7 +173,7 @@
     });
     markDrafts(); instant();
   }
-  root.addEventListener('click', function (e) {
+  document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-qa]'); if (!b) return; e.preventDefault(); e.stopPropagation();
     var it = b.closest('.ibx-item'), op = b.dataset.qa; b.disabled = true;
     var fd = new FormData(); fd.append('action', 'bulk'); fd.append('op', op); fd.append('items[]', it.dataset.key);
@@ -192,8 +192,7 @@
     U.keys.forEach(function (k) { var r = document.createElement('div'); r.className = 'flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-ink-50'; r.innerHTML = '<span class="text-ink-700"></span><span class="flex gap-1">' + k[0].split(' ').map(function (x) { return '<kbd class="min-w-[1.6rem] text-center rounded-md border border-ink-300 border-b-2 bg-ink-50 px-1.5 py-0.5 text-[11px] font-mono text-ink-700">' + esc(x) + '</kbd>'; }).join('') + '</span>'; r.querySelector('span').textContent = k[1]; d.querySelector('.grid').appendChild(r); });
     d.querySelector('.x').onclick = function () { d.close(); }; d.addEventListener('close', function () { d.remove(); }); document.body.appendChild(d); d.showModal();
   }
-  var tbar = $('#ibx-q') && $('#ibx-q').closest('form');
-  if (tbar) { var hb = document.createElement('button'); hb.type = 'button'; hb.className = 'tb w-10 justify-center text-sm font-semibold text-ink-500'; hb.title = U.keysTitle + ' (?)'; hb.textContent = '?'; hb.onclick = help; tbar.after(hb); }
+  function setupHelp() { if ($('#ibx-helpbtn')) return; var tbar = $('#ibx-q') && $('#ibx-q').closest('form'); if (!tbar) return; var hb = document.createElement('button'); hb.id = 'ibx-helpbtn'; hb.type = 'button'; hb.className = 'tb w-10 justify-center text-sm font-semibold text-ink-500'; hb.title = U.keysTitle + ' (?)'; hb.textContent = '?'; hb.onclick = help; tbar.after(hb); }
   document.addEventListener('keydown', function (e) {
     var typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && th) { e.preventDefault(); openFind(); return; }
@@ -204,7 +203,7 @@
 
   /* ---------- تشغيل + إعادة بعد كل تحديث/تنقل ---------- */
   var tm = null;
-  function run() { setupThread(); decorateCompose(); decorateThread(); decorateList(); }
+  function run() { setupHelp(); setupThread(); decorateCompose(); decorateThread(); decorateList(); }
   run();
-  new MutationObserver(function () { clearTimeout(tm); tm = setTimeout(run, 60); }).observe(root, { childList: true, subtree: true });
+  new MutationObserver(function () { if (tm) return; tm = setTimeout(function () { tm = null; run(); }, 80); }).observe(document.body, { childList: true, subtree: true });
 })();
