@@ -74,7 +74,10 @@ if ($z) {
             $current = $targets[0];
             $sel = $current['conn']['_id'] . '|' . $current['acc']['id'];
         }
-        if ($current) {
+        $fx = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_audiences.json' : '';
+        if ($fx && is_file($fx)) {
+            $audiences = json_decode((string)file_get_contents($fx), true) ?: [];
+        } elseif ($current) {
             $audiences = ads_audiences($z, $current['conn']['_id'], (string)$current['acc']['id']);
         }
     } catch (ZernioException $ex) {
@@ -106,19 +109,31 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
         <noscript><button class="btn-primary"><?= e(t('عرض')) ?></button></noscript>
       </form>
 
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
       <section class="card overflow-hidden">
-        <div class="p-4 border-b border-ink-200"><h2 class="font-bold text-ink-900"><?= e(t('الجماهير المخصصة')) ?></h2></div>
+        <div class="p-4 border-b border-ink-200 flex flex-wrap items-center gap-2">
+          <h2 class="font-bold text-ink-900 me-auto"><?= e(t('الجماهير المخصصة')) ?> <span class="text-ink-500 font-normal text-sm">(<span id="aud-count"><?= count($audiences) ?></span>)</span></h2>
+          <?php if ($audiences): ?>
+          <input id="aud-q" class="input !py-1.5 w-52 text-sm" placeholder="<?= e(t('ابحث في الجماهير...')) ?>" aria-label="<?= e(t('ابحث في الجماهير...')) ?>">
+          <button type="button" id="aud-help" class="btn-ghost text-sm" aria-label="?">?</button>
+          <div id="aud-chips" class="w-full flex flex-wrap gap-1.5"></div>
+          <?php endif; ?>
+        </div>
         <?php if (!$audiences): ?>
           <p class="p-6 text-sm text-ink-500 text-center"><?= e(t('مفيش جماهير على الحساب ده لسه.')) ?></p>
         <?php else: ?>
           <div class="divide-y divide-ink-100">
-            <?php foreach ($audiences as $a): ?>
-              <div class="p-4 flex flex-wrap items-center gap-3">
+            <?php $maxSize = max(array_map(function ($a) { return (float)($a['size'] ?? 0); }, $audiences ?: [['size' => 0]])) ?: 1; foreach ($audiences as $a): $ty = (string)($a['type'] ?? ''); $stt = (string)($a['status'] ?? ''); ?>
+              <div class="aud-row p-4 flex flex-wrap items-center gap-3" data-type="<?= e($ty) ?>" data-tl="<?= e($types[$ty] ?? $ty) ?>" data-q="<?= e(mb_strtolower(($a['name'] ?? '') . ' ' . ($types[$ty] ?? $ty))) ?>">
                 <div class="flex-1 min-w-0">
-                  <div class="font-medium text-ink-900"><?= e($a['name'] ?? '') ?></div>
+                  <div class="font-medium text-ink-900 flex flex-wrap items-center gap-2"><?= e($a['name'] ?? '') ?>
+                    <?php if ($stt !== ''): $sc = ['ready' => 'bg-lime-100 text-lime-800', 'populating' => 'bg-amber-50 text-amber-800', 'too_small' => 'bg-red-50 text-red-700'][$stt] ?? 'bg-ink-100 text-ink-700'; ?>
+                      <span class="text-[11px] rounded px-1.5 py-0.5 <?= $sc ?>"><?= e(['ready' => t('جاهز'), 'populating' => t('بيتجهّز'), 'too_small' => t('صغير جدًا للإعلان')][$stt] ?? $stt) ?></span>
+                    <?php endif; ?></div>
+                  <?php if (isset($a['size'])): ?><div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden max-w-xs" title="<?= e(t('حوالي %s شخص', ads_num($a['size']))) ?>"><div class="aud-bar h-full bg-brand-500 rounded-full" style="width:0" data-w="<?= e(max(2, round(log10(max(1, $a['size'])) / log10(max(10, $maxSize)) * 100))) ?>"></div></div><?php endif; ?>
                   <div class="text-xs text-ink-500 mt-0.5"><?= e($types[$a['type'] ?? ''] ?? ($a['type'] ?? '')) ?>
                     <?php if (isset($a['size'])): ?> · <?= e(t('حوالي %s شخص', ads_num($a['size']))) ?><?php endif; ?>
-                    <?php if (!empty($a['status'])): ?> · <?= e($a['status']) ?><?php endif; ?></div>
+</div>
                 </div>
                 <?php if (can('ads.spend') && !empty($a['id'])): ?>
                   <form method="post" onsubmit="return confirm('<?= tjs('حذف الجمهور ده من المنصة نهائياً؟ أي إعلان بيستخدمه ممكن يتأثر.') ?>')">
@@ -128,11 +143,12 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
                 <?php endif; ?>
               </div>
             <?php endforeach; ?>
+            <p id="aud-empty" class="p-6 text-sm text-ink-500 text-center" hidden><?= e(t('مفيش جماهير مطابقة')) ?></p>
           </div>
         <?php endif; ?>
       </section>
 
-      <section class="card p-5">
+      <section class="card p-5 lg:sticky lg:top-4" id="aud-new">
         <h2 class="font-bold text-ink-900 mb-3"><?= e(t('جمهور جديد')) ?></h2>
         <form method="post" class="space-y-3" id="audForm">
           <?= csrf_field() ?><input type="hidden" name="action" value="create"><input type="hidden" name="t" value="<?= e($sel) ?>">
@@ -160,7 +176,7 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
           <div data-aud="lookalike" class="grid sm:grid-cols-3 gap-3">
             <div><label class="label"><?= e(t('الجمهور الأصلي')) ?></label>
               <select name="source_audience" class="input"><?php foreach ($audiences as $a): if (empty($a['id'] ?? $a['platformAudienceId'] ?? null)) continue; ?><option value="<?= e($a['id'] ?? $a['platformAudienceId']) ?>"><?= e($a['name'] ?? '') ?></option><?php endforeach; ?></select></div>
-            <div><label class="label"><?= e(t('الدولة (كود من حرفين)')) ?></label><input name="country" class="input" dir="ltr" maxlength="2" value="EG"></div>
+            <div><label class="label"><?= e(t('الدولة (كود من حرفين)')) ?></label><input name="country" class="input" dir="ltr" maxlength="2" value="<?= e(ws_country()) ?>"></div>
             <div><label class="label"><?= e(t('الحجم %')) ?></label><input name="ratio" type="number" min="1" max="20" value="1" class="input"></div>
           </div>
           <p class="text-xs text-ink-500"><?= e(t('الجمهور بيتعمل على المنصة نفسها، ومش بيصرف فلوس لوحده.')) ?></p>
@@ -174,7 +190,11 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
         })();
         </script>
       </section>
+      </div>
+      <script>window.AUDX = <?= json_encode(['all' => t('الكل'), 'keys' => t('اختصارات لوحة المفاتيح'), 'kSearch' => t('البحث في الجماهير'), 'kNew' => t('جمهور جديد'),
+        'hints' => ['meta_engagement' => t('الأنسب للبداية: ناس عرفوك فعلًا، وغالبًا بيتحولوا أسرع.'), 'website' => t('محتاج Pixel متركّب على موقعك، وإلا الجمهور هيفضل فاضي.'), 'lookalike' => t('ابدأ بـ 1% لأدق تشابه، وكبّر الحجم لو عاوز وصول أكبر.')]], JSON_UNESCAPED_UNICODE) ?>;</script>
+      <script src="assets/ui-ad_audiences.js?v=<?= e(APP_VERSION) ?>"></script>
       <?php endif; ?>
     </div>
     <?php
-});
+}, ['full' => true]);
