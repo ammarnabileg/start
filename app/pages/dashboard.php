@@ -21,7 +21,7 @@ $e = [];
 if ($z) {
     if (can('accounts.view') || can('posts.create')) [$d['accounts'], $e['accounts']] = $try(function () use ($z, $pid) { return $z->allAccounts($pid); });
     if (can('posts.view')) [$d['scheduled'], $e['scheduled']] = $try(function () use ($z, $pid) {
-        return $z->posts(['status' => 'scheduled', 'limit' => 6, 'sortBy' => 'scheduled-asc', 'profileId' => $pid]);
+        return $z->posts(['status' => 'scheduled', 'limit' => 50, 'sortBy' => 'scheduled-asc', 'profileId' => $pid]);
     });
     if (can('inbox.reply')) [$d['convs'], $e['convs']] = $try(function () use ($z, $pid) { return $z->conversations(['limit' => 30, 'profileId' => $pid])['data'] ?? []; });
     if (can('comments.reply')) [$d['comments'], $e['comments']] = $try(function () use ($z, $pid) { return $z->commentedPosts(['limit' => 5, 'profileId' => $pid])['data'] ?? []; });
@@ -35,10 +35,15 @@ if ($z) {
 // نشاط الفريق من سجل البرنامج (من غير طلبات خارجية)
 $activity = [];
 try {
-    $st = db()->prepare("SELECT a.action, a.details, a.created_at, u.name FROM activity_log a LEFT JOIN users u ON u.id = a.user_id
-        WHERE a.workspace_id = ? AND a.action NOT IN ('login', 'logout') AND a.action NOT LIKE 'admin.%' AND a.action NOT LIKE 'system.%' ORDER BY a.id DESC LIMIT 6");
+    $st = db()->prepare("SELECT a.action, a.details, a.created_at, TIMESTAMPDIFF(SECOND, a.created_at, NOW()) AS ago, u.name FROM activity_log a LEFT JOIN users u ON u.id = a.user_id
+        WHERE a.workspace_id = ? AND a.action NOT IN ('login', 'logout') AND a.action NOT LIKE 'admin.%' AND a.action NOT LIKE 'system.%' ORDER BY a.id DESC LIMIT 40");
     $st->execute([(int)ws('id')]);
-    $activity = $st->fetchAll();
+    foreach ($st->fetchAll() as $r) {
+        $last = count($activity) - 1;
+        if ($last >= 0 && $activity[$last]['action'] === $r['action'] && $activity[$last]['name'] === $r['name']) { $activity[$last]['n']++; $activity[$last]['first'] = $r['created_at']; continue; }
+        if (count($activity) >= 7) break;
+        $r['n'] = 1; $r['first'] = $r['created_at']; $activity[] = $r;
+    }
 } catch (Throwable $t) {
 }
 $postedBefore = false;
@@ -76,11 +81,16 @@ function dash_action(string $a): string
         'team.transfer_ownership' => t('نقل ملكية الشركة'), 'team.invite_link' => t('عمل لينك دعوة'), 'connector.delete' => t('فصل اتصال'),
         'inbox.private_reply' => t('بعت رد خاص على تعليق'), 'inbox.archive' => t('أرشف محادثة'), 'post.update' => t('عدّل منشور'),
         'broadcast.create' => t('جهّز رسالة جماعية'), 'broadcast.send' => t('بعت رسالة جماعية'), 'invite.accept' => t('انضم للشركة'), 'workspace.add' => t('عمل الشركة'),
+        'kb.save' => t('حدّث قاعدة المعرفة'), 'kb.file' => t('رفع ملف لقاعدة المعرفة'), 'automation.create' => t('عمل رد تلقائي'), 'automation.update' => t('عدّل رد تلقائي'), 'automation.delete' => t('حذف رد تلقائي'),
+        'workflow.create' => t('عمل Workflow'), 'workflow.delete' => t('حذف Workflow'), 'campaign.create' => t('بدأ حملة رسائل'), 'comment.reply_bulk' => t('رد على كذا تعليق'), 'comment.hide_bulk' => t('أخفى كذا تعليق'),
+        'inbox.assign' => t('أسند محادثة'), 'inbox.bulk' => t('عمل إجراء على كذا محادثة'), 'post.duplicate' => t('كرر منشور'), 'post.retry' => t('أعاد محاولة نشر منشور'), 'post.create_pro' => t('عمل منشور'),
+        'ai.auto_reply' => t('جهّز رد تلقائي بالذكاء الاصطناعي'), 'ai.image' => t('ولّد صورة بالذكاء الاصطناعي'), 'review.reply' => t('رد على تقييم'), 'contact.import' => t('استورد جهات اتصال'),
     ];
     if (isset($map[$a])) return $map[$a];
     // أي عملية تانية: نعرض قسمها بشكل مفهوم بدل الاسم التقني
     $areas = ['post' => t('المنشورات'), 'inbox' => t('الرسائل'), 'comment' => t('التعليقات'), 'team' => t('الفريق'), 'account' => t('الحسابات'),
-        'broadcast' => t('واتساب'), 'sequence' => t('واتساب'), 'template' => t('واتساب'), 'ads' => t('الإعلانات'), 'gmb' => 'Google Business', 'phone' => t('الهاتف')];
+        'broadcast' => t('واتساب'), 'sequence' => t('واتساب'), 'template' => t('واتساب'), 'wa_template' => t('واتساب'), 'wa_profile' => t('واتساب'), 'ads' => t('الإعلانات'), 'gmb' => 'Google Business', 'phone' => t('الهاتف'),
+        'kb' => t('قاعدة المعرفة'), 'automation' => t('الردود التلقائية'), 'workflow' => t('الـ Workflows'), 'ai' => t('الذكاء الاصطناعي'), 'connector' => t('التكاملات'), 'contact' => t('جهات الاتصال'), 'queue' => t('مواعيد الطابور'), 'reports' => t('التقارير'), 'alerts' => t('التنبيهات'), 'call' => t('الهاتف'), 'sms' => t('الهاتف'), 'review' => 'Google Business', 'goals' => t('الأهداف'), 'analytics' => t('التحليلات'), 'campaign' => t('الرسائل')];
     $area = explode('.', $a)[0];
     return t('عمل تغيير في %s', $areas[$area] ?? $area);
 }
@@ -95,8 +105,15 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     $convs = $d['convs'] ?? [];
     $unread = array_values(array_filter($convs, function ($c) { return !empty($c['unreadCount']); }));
     $unreadTotal = array_sum(array_map(function ($c) { return (int)$c['unreadCount']; }, $unread));
-    $scheduled = $d['scheduled']['posts'] ?? [];
-    $scheduledTotal = (int)($d['scheduled']['pagination']['total'] ?? count($scheduled));
+    $allScheduled = $d['scheduled']['posts'] ?? [];
+    $scheduled = array_slice($allScheduled, 0, 6);
+    $scheduledTotal = (int)($d['scheduled']['pagination']['total'] ?? count($allScheduled));
+    // الأسبوع الجاي: عدد المنشورات في كل يوم
+    $week = [];
+    for ($i = 0; $i < 7; $i++) { $dt = (clone $now)->setTime(0, 0)->modify('+' . $i . ' day'); $week[$dt->format('Y-m-d')] = ['dt' => $dt, 'n' => 0, 'pf' => []]; }
+    foreach ($allScheduled as $sp) { $k = fmt_date($sp['scheduledFor'] ?? null, 'Y-m-d'); if (isset($week[$k])) { $week[$k]['n']++; foreach ($sp['platforms'] ?? [] as $pl) $week[$k]['pf'][(string)($pl['platform'] ?? '')] = 1; } }
+    $todayN = reset($week)['n'];
+    $emptyDays = count(array_filter($week, function ($w) { return !$w['n']; }));
 
     // الوصول: آخر 7 أيام مقابل الـ 7 اللي قبلهم
     $series = [];
@@ -139,6 +156,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <?php if (can('inbox.reply')): ?><a href="<?= e(url('inbox')) ?>" class="btn-ghost"><?= e(t('الرسائل')) ?><?php if ($unreadTotal): ?> <span class="bg-red-600 text-white text-[11px] rounded-full px-1.5"><?= (int)$unreadTotal ?></span><?php endif; ?></a><?php endif; ?>
         <?php if (can('posts.view')): ?><a href="<?= e(url('calendar')) ?>" class="btn-ghost"><?= e(t('التقويم')) ?></a><?php endif; ?>
         <?php if (can('posts.create')): ?><a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('+ منشور جديد')) ?></a><?php endif; ?>
+        <button type="button" id="dash-edit" class="tb px-3 gap-1.5 text-sm" title="<?= e(t('تخصيص الرئيسية')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="hidden sm:inline"><?= e(t('تخصيص')) ?></span></button>
       </div>
     </div>
 
@@ -163,6 +181,51 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       </div>
     <?php endif; ?>
 
+
+    <?php if ($z): ?>
+    <!-- ملخص اليوم + منشور سريع -->
+    <div class="grid lg:grid-cols-[1fr_24rem] gap-4 mb-6" data-w="brief">
+      <div class="card p-5 relative overflow-hidden">
+        <div class="absolute -top-16 -end-16 w-56 h-56 rounded-full bg-gradient-to-br from-brand-500/10 to-cyan-400/10 blur-2xl pointer-events-none"></div>
+        <b class="text-sm text-ink-900"><?= e(t('النهارده')) ?></b>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <?php
+          $chips = [];
+          if ($d['convs'] !== null) $chips[] = [$unreadTotal ? t('%s رسالة مستنية رد', $unreadTotal) : t('كل الرسائل مقروءة'), url('inbox'), $unreadTotal ? 'border-red-200 bg-red-50 text-red-700' : 'border-lime-200 bg-lime-50 text-lime-700', 'chat'];
+          if ($d['scheduled'] !== null) $chips[] = [$todayN ? t('%s منشور النهارده', $todayN) : t('مفيش منشورات النهارده'), url('posts', ['view' => 'cal']), $todayN ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800', 'calendar'];
+          if ($d['scheduled'] !== null && $emptyDays) $chips[] = [t('%s أيام فاضية الأسبوع ده', $emptyDays), '#dash-week', 'border-ink-200 bg-white text-ink-700', 'clock'];
+          if ($bad) $chips[] = [t('%s حساب محتاج إعادة ربط', count($bad)), url('accounts'), 'border-red-200 bg-red-50 text-red-700', 'alert'];
+          foreach ($chips as [$cl, $ch, $cc, $ci]): ?>
+            <a href="<?= e($ch) ?>" class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-sm <?= $cc ?>"><?= ui_icon($ci, 'w-4 h-4') ?><?= e($cl) ?></a>
+          <?php endforeach; ?>
+        </div>
+        <?php if ($d['scheduled'] !== null): ?>
+        <div id="dash-week" class="grid grid-cols-7 gap-1.5 mt-5">
+          <?php foreach ($week as $wk => $w): $isT = $wk === $now->format('Y-m-d'); $past = $isT && (int)$now->format('G') >= 22; ?>
+            <div class="group relative rounded-xl border <?= $isT ? 'border-brand-300 bg-brand-50/60' : 'border-ink-200 bg-white' ?> p-2 text-center transition hover:border-brand-300">
+              <div class="text-[10px] text-ink-500"><?= e($isT ? t('النهارده') : [t('الأحد'), t('الاثنين'), t('الثلاثاء'), t('الأربعاء'), t('الخميس'), t('الجمعة'), t('السبت')][(int)$w['dt']->format('w')]) ?></div>
+              <div class="text-sm font-semibold text-ink-900 tabular-nums"><?= $w['dt']->format('j') ?></div>
+              <?php if ($w['n']): ?>
+                <a href="<?= e(url('posts', ['view' => 'cal'])) ?>" class="mt-1 flex items-center justify-center gap-0.5"><span class="rounded-full bg-brand-600 text-[#fff] text-[10px] px-1.5 tabular-nums"><?= $w['n'] ?></span></a>
+                <div class="flex justify-center gap-0.5 mt-1"><?php foreach (array_slice(array_keys($w['pf']), 0, 3) as $pp) echo platform_icon($pp, 'w-3 h-3'); ?></div>
+              <?php elseif (can('posts.create') && !$past): ?>
+                <a href="<?= e(url('compose', ['when' => $w['dt']->format('Y-m-d') . 'T' . ($isT ? (new DateTime('+1 hour', $tz))->format('H') . ':00' : '10:00')])) ?>" class="mt-1 mx-auto w-6 h-6 rounded-lg border border-dashed border-ink-300 text-ink-400 flex items-center justify-center text-sm transition group-hover:border-brand-400 group-hover:text-brand-600 group-hover:bg-brand-50" title="<?= e(t('منشور جديد في اليوم ده')) ?>">+</a>
+              <?php else: ?><div class="mt-1 h-6"></div><?php endif; ?>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
+      <?php if (can('posts.create')): ?>
+      <form class="card p-4 flex flex-col" id="dash-quick" action="index.php" method="get">
+        <input type="hidden" name="p" value="compose">
+        <b class="text-sm text-ink-900 flex items-center gap-2"><?= ui_icon('bulb', 'w-4 h-4 text-brand-600') ?><?= e(t('فكرة منشور سريعة')) ?></b>
+        <textarea name="dup_text" rows="4" maxlength="3000" class="input mt-2 text-sm flex-1 resize-none" dir="auto" placeholder="<?= e(t('اكتب الفكرة هنا وكمّلها في صفحة المنشور الجديد...')) ?>"></textarea>
+        <div class="flex items-center gap-2 mt-2"><span class="dq-n text-[11px] text-ink-400 tabular-nums"></span><button class="btn-primary !py-1.5 !text-xs ms-auto"><?= e(t('كمّل في المنشور الجديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">Ctrl ↵</kbd></button></div>
+      </form>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
     <?php if ($bad): ?>
       <a href="<?= e(url('accounts')) ?>" class="flex items-center gap-3 mb-6 rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
         <span class="flex -space-x-2 rtl:space-x-reverse"><?php foreach (array_slice($bad, 0, 4) as $a) echo platform_icon((string)$a['platform'], 'w-6 h-6', 'badge'); ?></span>
@@ -172,7 +235,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     <?php endif; ?>
 
     <!-- الأرقام -->
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6" data-w="kpis">
       <?php
       $kpis = [];
       if ($d['accounts'] !== null) {
@@ -191,20 +254,20 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
           $kpis[] = [t('الظهور آخر 7 أيام'), (int)$last7, '<span class="flex items-center gap-2 text-brand-600">' . $spark($vals) . $chg . '</span>', url('analytics')];
       }
       foreach ($kpis as [$l, $v, $extra, $href]): ?>
-        <a href="<?= e($href) ?>" class="card p-5 hover:border-brand-300 hover:shadow-md hover:shadow-ink-900/5 transition">
+        <a href="<?= e($href) ?>" class="card p-5 hover:border-brand-300 hover:shadow-md hover:shadow-ink-900/5 hover:-translate-y-0.5 transition">
           <div class="text-sm text-ink-500"><?= e($l) ?></div>
           <div class="flex items-end justify-between gap-2 mt-3">
-            <div class="text-3xl font-semibold text-ink-900"><?= e(number_format((int)$v)) ?></div>
+            <div class="text-3xl font-semibold text-ink-900 tabular-nums" data-count="<?= (int)$v ?>"><?= e(number_format((int)$v)) ?></div>
             <?= $extra ?>
           </div>
         </a>
       <?php endforeach; ?>
     </div>
 
-    <div class="grid lg:grid-cols-3 gap-4">
+    <div class="grid lg:grid-cols-3 gap-4" id="dash-grid">
       <!-- مستني رد -->
       <?php if ($d['convs'] !== null): ?>
-      <div class="card lg:col-span-2 flex flex-col">
+      <div class="card lg:col-span-2 flex flex-col" data-w="inbox">
         <div class="px-5 py-4 flex items-center justify-between">
           <b class="text-ink-900"><?= e(t('محادثات مستنية رد')) ?></b>
           <a class="link text-sm" href="<?= e(url('inbox')) ?>"><?= e(t('عرض الكل')) ?></a>
@@ -214,7 +277,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
             <?= avatar_with_platform($c['participantPicture'] ?? null, $c['participantName'] ?? '', (string)($c['platform'] ?? ''), 'w-10 h-10') ?>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2"><span class="font-medium text-ink-900 truncate"><?= e($c['participantName'] ?? t('بدون اسم')) ?></span>
-                <span class="text-[11px] text-ink-400 whitespace-nowrap"><?= e(fmt_date($c['updatedTime'] ?? null, 'd/m h:i A')) ?></span></div>
+                <span class="dash-rel text-[11px] text-ink-400 whitespace-nowrap" data-at="<?= e((string)($c['updatedTime'] ?? '')) ?>"><?= e(fmt_date($c['updatedTime'] ?? null, 'd/m h:i A')) ?></span></div>
               <p class="text-sm text-ink-500 truncate"><?= e($c['lastMessage'] ?? '') ?></p>
             </div>
             <?php if (!empty($c['unreadCount'])): ?><span class="bg-red-600 text-white text-[11px] rounded-full px-2 py-0.5"><?= (int)$c['unreadCount'] ?></span><?php endif; ?>
@@ -227,7 +290,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
 
       <!-- الجاي -->
       <?php if ($d['scheduled'] !== null): ?>
-      <div class="card flex flex-col">
+      <div class="card flex flex-col" data-w="upcoming">
         <div class="px-5 py-4 flex items-center justify-between">
           <b class="text-ink-900"><?= e(t('المنشورات القادمة')) ?></b>
           <a class="link text-sm" href="<?= e(url('calendar')) ?>"><?= e(t('التقويم')) ?></a>
@@ -258,7 +321,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
 
       <!-- آخر التعليقات -->
       <?php if ($d['comments'] !== null): ?>
-      <div class="card">
+      <div class="card" data-w="comments">
         <div class="px-5 py-4 flex items-center justify-between">
           <b class="text-ink-900"><?= e(t('منشورات عليها تعليقات')) ?></b>
           <a class="link text-sm" href="<?= e(url('comments')) ?>"><?= e(t('عرض الكل')) ?></a>
@@ -279,7 +342,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
 
       <!-- الحسابات -->
       <?php if ($d['accounts'] !== null && $accounts): ?>
-      <div class="card">
+      <div class="card" data-w="accounts">
         <div class="px-5 py-4 flex items-center justify-between">
           <b class="text-ink-900"><?= e(t('الحسابات المربوطة')) ?></b>
           <a class="link text-sm" href="<?= e(url('accounts')) ?>"><?= e(t('إدارة')) ?></a>
@@ -296,19 +359,24 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       <?php endif; ?>
 
       <!-- نشاط الفريق -->
-      <div class="card">
+      <div class="card" data-w="activity">
         <div class="px-5 py-4"><b class="text-ink-900"><?= e(t('نشاط الفريق')) ?></b></div>
         <?php foreach ($activity as $a): ?>
           <div class="flex items-start gap-3 px-5 py-2.5 border-t border-ink-100 text-sm">
             <?= avatar(null, (string)($a['name'] ?? '?'), 'w-7 h-7') ?>
             <div class="flex-1 min-w-0">
-              <span class="text-ink-800"><b class="font-medium"><?= e($a['name'] ?? t('محذوف')) ?></b> <?= e(dash_action((string)$a['action'])) ?></span>
-              <span class="block text-[11px] text-ink-400" dir="ltr" style="text-align:start"><?= e(substr((string)$a['created_at'], 0, 16)) ?></span>
+              <span class="text-ink-800"><b class="font-medium"><?= e($a['name'] ?? t('محذوف')) ?></b> <?= e(dash_action((string)$a['action'])) ?><?php if (($a['n'] ?? 1) > 1): ?> <span class="ms-1 rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px] tabular-nums">×<?= (int)$a['n'] ?></span><?php endif; ?></span>
+              <span class="dash-rel block text-[11px] text-ink-400" data-ago="<?= (int)($a['ago'] ?? 0) ?>"><?= e(substr((string)$a['created_at'], 0, 16)) ?></span>
             </div>
           </div>
         <?php endforeach; ?>
         <?php if (!$activity): ?><p class="px-5 pb-5 text-sm text-ink-500"><?= e(t('مفيش نشاط لسه.')) ?></p><?php endif; ?>
       </div>
     </div>
+    <script>window.DSX = <?= json_encode(['ws' => (int)ws('id'), 'tzOff' => (new DateTime('now', $tz))->getOffset(),
+      'past' => t('من %s'), 'min' => t('%s دقيقة'), 'hr' => t('%s ساعة'), 'day' => t('%s يوم'), 'now' => t('دلوقتي'), 'chars' => t('حرف'),
+      'edit' => t('تخصيص'), 'done' => t('تم'), 'reset' => t('رجّع الترتيب الأصلي'), 'hint' => t('اسحب الأقسام لترتيبها، واضغط العين لإخفاء أو إظهار أي قسم.'),
+      'names' => ['brief' => t('النهارده'), 'kpis' => t('الأرقام'), 'inbox' => t('محادثات مستنية رد'), 'upcoming' => t('المنشورات القادمة'), 'comments' => t('منشورات عليها تعليقات'), 'accounts' => t('الحسابات المربوطة'), 'activity' => t('نشاط الفريق')], 'hidden' => t('مخفي')], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/dashboard.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-}, ['hideTitle' => true]);
+}, ['hideTitle' => true, 'full' => true]);
