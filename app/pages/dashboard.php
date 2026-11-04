@@ -16,6 +16,63 @@ $try = function (callable $fn) {
     }
 };
 
+// كارت الإعلانات: بيتحمّل بعد الصفحة (طلب منفصل) عشان الرئيسية ما تستناش زيرنيو، ومتخزن 5 دقايق
+if (($_GET['ajax'] ?? '') === 'ads') {
+    header('Content-Type: text/html; charset=utf-8');
+    if (!$z || !can('ads.view') || !module_enabled('ads')) exit;
+    $ck = 'dash_ads_' . (int)ws('id');
+    if (!isset($_GET['refresh']) && isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 300) { echo $_SESSION[$ck]['h']; exit; }
+    $today = (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d');
+    [$f7, $t7] = ads_date_range('7');
+    try {
+        $fxd = getenv('UI_FIXTURES');
+        $fx = $fxd && is_file($fxd . '/ads.json') ? json_decode((string)file_get_contents($fxd . '/ads.json'), true) : null;
+        $wk = $fx ?: ads_campaigns($z, ['fromDate' => $f7, 'toDate' => $t7, 'limit' => 100]);
+        $td = $fx ? ['campaigns' => array_map(function ($c) { foreach ($c['metrics'] as $k => $v) $c['metrics'][$k] = is_numeric($v) && $k !== 'ctr' && $k !== 'cpc' ? $v / 7 : $v; return $c; }, $fx['campaigns'])] : ads_campaigns($z, ['fromDate' => $today, 'toDate' => $today, 'limit' => 100]);
+    } catch (ZernioException $ex) {
+        echo '<div class="px-5 pb-5 text-sm text-ink-500">' . e($ex->getMessage()) . '</div>'; exit;
+    }
+    $camps = $wk['campaigns'] ?? [];
+    $sum = function (array $list, string $k) { $o = []; foreach ($list as $c) { $cur = (string)($c['currency'] ?? ''); $o[$cur] = ($o[$cur] ?? 0) + (float)($c['metrics'][$k] ?? 0); } return array_filter($o); };
+    $todaySpend = $sum($td['campaigns'] ?? [], 'spend'); $weekSpend = $sum($camps, 'spend');
+    $active = count(array_filter($camps, function ($c) { return ($c['status'] ?? '') === 'active'; }));
+    $res = 0; foreach ($camps as $c) $res += ads_results($c['metrics'] ?? []);
+    // محتاجة انتباهك (نفس قواعد صفحة الحملات)
+    $tI = 0; $tC = 0; foreach ($camps as $c) { $tI += (int)($c['metrics']['impressions'] ?? 0); $tC += (int)($c['metrics']['clicks'] ?? 0); } $avgCtr = $tI ? $tC / $tI * 100 : 0;
+    $iss = [];
+    foreach ($camps as $c) {
+        $m = $c['metrics'] ?? []; $st = (string)($c['status'] ?? ''); $n = (string)($c['campaignName'] ?? '');
+        if ($st === 'rejected') $iss[] = [$c, 'red', t('مرفوضة من المنصة')];
+        elseif ((float)($m['spend'] ?? 0) > 0 && !ads_results($m)) $iss[] = [$c, 'red', t('صرفت %s من غير أي نتيجة', ads_money($m['spend'], $c['currency'] ?? null))];
+        elseif ((int)($m['impressions'] ?? 0) >= 1000 && $avgCtr && (float)($m['ctr'] ?? 0) < $avgCtr * 0.6) $iss[] = [$c, 'amber', t('نسبة الضغط %s أقل من متوسط حساباتك %s', number_format((float)$m['ctr'], 2) . '%', number_format($avgCtr, 2) . '%')];
+        elseif ($st === 'pending_review') $iss[] = [$c, 'amber', t('لسه تحت المراجعة')];
+    }
+    $money = function (array $byCur) { return $byCur ? array_map(function ($v, $k) { return ads_money($v, $k ?: null); }, $byCur, array_keys($byCur)) : ['0']; };
+    ob_start();
+    if (!$camps): ?>
+      <div class="px-5 pb-5 text-sm text-ink-500"><?= e(t('مفيش حملات شغالة آخر 7 أيام.')) ?>
+        <?php if (can('ads.spend')): ?> <a href="<?= e(url('ad_create')) ?>" class="link"><?= e(t('اعمل حملة')) ?></a><?php endif; ?></div>
+    <?php else: ?>
+      <div class="grid grid-cols-3 gap-2 px-5">
+        <?php foreach ([[t('صرف النهارده'), $money($todaySpend)], [t('صرف آخر 7 أيام'), $money($weekSpend)], [t('النتايج آخر 7 أيام'), [ads_num($res)]]] as [$l, $vs]): ?>
+          <div class="rounded-xl bg-ink-50 p-3 min-w-0"><div class="text-[11px] text-ink-500"><?= e($l) ?></div>
+            <?php foreach ($vs as $i => $v): ?><div class="tabular-nums whitespace-nowrap <?= count($vs) > 1 ? 'text-xs font-medium text-ink-800' : 'font-semibold text-ink-900' ?> <?= $i ? '' : 'mt-1' ?>" dir="ltr" style="text-align:start"><?= e($v) ?></div><?php endforeach; ?></div>
+        <?php endforeach; ?>
+      </div>
+      <div class="px-5 pt-3 text-xs text-ink-500"><?= e(t('%s حملة شغالة من %s', $active, count($camps))) ?></div>
+      <div class="px-5 pt-3 pb-5 space-y-2">
+        <?php if (!$iss): ?><p class="text-xs text-lime-700 flex items-center gap-1.5"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('كل الحملات تمام')) ?></p>
+        <?php else: foreach (array_slice($iss, 0, 3) as [$c, $tone, $msg]): ?>
+          <a href="<?= e(url('ad_campaign', ['id' => $c['platformCampaignId'], 'pf' => $c['platform']])) ?>" class="block rounded-xl border px-3 py-2 text-sm hover:shadow-sm transition <?= $tone === 'red' ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-900' ?>">
+            <b class="block truncate"><?= e($c['campaignName'] ?? '') ?></b><span class="text-xs"><?= e($msg) ?></span></a>
+        <?php endforeach; if (count($iss) > 3): ?><a href="<?= e(url('ads')) ?>" class="link text-xs"><?= e(t('و %s كمان', count($iss) - 3)) ?></a><?php endif; endif; ?>
+      </div>
+    <?php endif;
+    $h = ob_get_clean();
+    $_SESSION[$ck] = ['t' => time(), 'h' => $h];
+    echo $h; exit;
+}
+
 $d = ['accounts' => null, 'scheduled' => null, 'convs' => null, 'comments' => null, 'daily' => null];
 $e = [];
 if ($z) {
@@ -285,6 +342,29 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <?php endforeach; ?>
         <?php if (!$convs): ?><p class="px-5 pb-6 text-sm text-ink-500"><?= e($e['convs'] ? $e['convs'] : t('مفيش رسائل.')) ?></p><?php elseif (!$unread): ?>
           <p class="px-5 py-3 border-t border-ink-100 text-xs text-lime-700 flex items-center gap-1.5"><?= ui_icon('check', 'w-4 h-4') ?><?= e(trim(str_replace('👌', '', t('كل الرسائل مقروءة 👌')))) ?></p><?php endif; ?>
+      </div>
+      <?php endif; ?>
+
+      <!-- الإعلانات -->
+      <?php if (can('ads.view') && module_enabled('ads')): ?>
+      <div class="card flex flex-col" data-w="ads" id="dash-ads">
+        <div class="px-5 py-4 flex items-center justify-between">
+          <b class="text-ink-900"><?= e(t('الإعلانات')) ?></b>
+          <a class="link text-sm" href="<?= e(url('ads')) ?>"><?= e(t('الحملات')) ?></a>
+        </div>
+        <div id="dash-ads-body" class="px-5 pb-5 space-y-2 animate-pulse" aria-busy="true">
+          <div class="grid grid-cols-3 gap-2"><div class="h-14 rounded-xl bg-ink-100"></div><div class="h-14 rounded-xl bg-ink-100"></div><div class="h-14 rounded-xl bg-ink-100"></div></div>
+          <div class="h-10 rounded-xl bg-ink-100"></div>
+        </div>
+        <script>
+        (function () {
+          var b = document.getElementById('dash-ads-body'); if (!b || b.dataset.on) return; b.dataset.on = '1';
+          fetch(<?= json_encode(url('dashboard', ['ajax' => 'ads'])) ?>, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
+            if (!h.trim()) { document.getElementById('dash-ads').remove(); return; }
+            b.outerHTML = '<div>' + h + '</div>';
+          }).catch(function () { b.classList.remove('animate-pulse'); b.textContent = <?= json_encode(t('ما قدرناش نحمّل الإعلانات')) ?>; });
+        })();
+        </script>
       </div>
       <?php endif; ?>
 
