@@ -14,8 +14,24 @@ function kb_schema(): array
 {
     return [
         // معلومات الشركة
-        'company' => ['group' => 'info', 'label' => t('عن الشركة'), 'hint' => t('من أنتم، ماذا تبيعون، العنوان والفروع، مواعيد العمل، طرق الدفع والتوصيل.'), 'type' => 'text',
-            'ph' => t("مثال:\nمطعم بيتزا في مدينة نصر، مفتوح يوميًا 12 ظهرًا - 2 صباحًا\nالتوصيل داخل القاهرة 30 جنيه خلال 45 دقيقة\nالدفع كاش أو فيزا أو فودافون كاش")],
+        'company' => ['group' => 'info', 'label' => t('عن الشركة'), 'hint' => t('هوية الشركة بدقة: الاسم، النشاط، الفروع، الدفع والتوصيل.'), 'type' => 'fields', 'fields' => [
+            'name' => [t('اسم الشركة'), 'text', ''], 'industry' => [t('المجال / النشاط'), 'text', t('مثال: مطعم بيتزا، وكالة تسويق، عيادة أسنان')],
+            'tagline' => [t('وصف في سطر واحد'), 'text', t('ماذا تقدم ولمن، في جملة واحدة'), 2],
+            'about' => [t('نبذة عن الشركة'), 'area', t('التأسيس، الخبرة، الفريق، أهم الإنجازات'), 2],
+            'branches' => [t('العنوان والفروع'), 'area', t('فرع واحد في كل سطر')], 'service_area' => [t('نطاق الخدمة'), 'area', t('المدن أو المناطق التي تخدمها، أو "أونلاين"')],
+            'payment' => [t('طرق الدفع'), 'text', t('كاش، فيزا، فودافون كاش، تحويل بنكي')], 'delivery' => [t('التوصيل والشحن'), 'text', t('المناطق والمدة. بدون أسعار غير مؤكدة')],
+        ]],
+        'contact' => ['group' => 'info', 'label' => t('الموقع وبيانات التواصل'), 'hint' => t('القنوات الرسمية فقط. الذكاء الاصطناعي يعطيها للعملاء كما هي بالضبط.'), 'type' => 'fields', 'fields' => [
+            'website' => [t('الموقع الإلكتروني'), 'url', 'https://'], 'mail' => [t('البريد الإلكتروني'), 'email', ''],
+            'phone' => [t('رقم الهاتف'), 'tel', ''], 'whatsapp' => [t('رقم واتساب'), 'tel', ''],
+            'maps' => [t('رابط الموقع على الخريطة'), 'url', 'https://maps.google.com/...', 2],
+            'social' => [t('حسابات التواصل الاجتماعي'), 'area', t('رابط واحد في كل سطر'), 2],
+        ]],
+        'hours' => ['group' => 'info', 'label' => t('ساعات العمل'), 'hint' => t('اكتب المواعيد لكل يوم، أو "مغلق". الذكاء الاصطناعي لن يذكر مواعيد غير مكتوبة هنا.'), 'type' => 'fields', 'fields' => [
+            'sat' => [t('السبت'), 'text', '10:00 - 22:00'], 'sun' => [t('الأحد'), 'text', ''], 'mon' => [t('الاثنين'), 'text', ''], 'tue' => [t('الثلاثاء'), 'text', ''],
+            'wed' => [t('الأربعاء'), 'text', ''], 'thu' => [t('الخميس'), 'text', ''], 'fri' => [t('الجمعة'), 'text', t('مغلق')],
+            'reply' => [t('مواعيد الرد على الرسائل'), 'text', t('مثال: 24 ساعة، أو نفس ساعات العمل')], 'notes' => [t('ملاحظات وإجازات'), 'area', t('الإجازات الرسمية، مواعيد رمضان...'), 2],
+        ]],
         'services' => ['group' => 'info', 'label' => t('الخدمات والمنتجات'), 'hint' => t('كل خدمة أو منتج بسعره ووصف مختصر. الذكاء الاصطناعي لن يذكر سعرًا غير موجود هنا.'), 'type' => 'rows', 'cols' => ['name' => t('الاسم'), 'price' => t('السعر'), 'details' => t('التفاصيل')]],
         'faq' => ['group' => 'info', 'label' => t('الأسئلة الشائعة'), 'hint' => t('الأسئلة اللي العملاء بيسألوها كتير وإجابتها المعتمدة.'), 'type' => 'rows', 'cols' => ['q' => t('السؤال'), 'a' => t('الإجابة')]],
         'tone' => ['group' => 'info', 'label' => t('نبرة الكلام'), 'hint' => t('إزاي الشركة بتتكلم مع عملائها.'), 'type' => 'tone'],
@@ -25,12 +41,18 @@ function kb_schema(): array
         'visual_style' => ['group' => 'info', 'label' => t('الهوية البصرية'), 'hint' => t('ألوان وستايل الصور. بيستخدمها توليد الصور تلقائيًا.'), 'type' => 'visual'],
         'escalation' => ['group' => 'info', 'label' => t('التحويل لموظف'), 'hint' => t('إمتى الذكاء الاصطناعي يوقف ويحوّل المحادثة لموظف، ولمين يبعت إيميل.'), 'type' => 'escalation'],
         // بيان التموضع (Positioning Statement)
-        'audience' => ['group' => 'pos', 'nav' => t('الجمهور ومشكلته'), 'label' => t('الجمهور المستهدف ومشكلته'), 'type' => 'text',
-            'hint' => t('مين بالظبط العميل اللي بتخدمه، وإيه المشكلة أو الاحتياج اللي بيعاني منه وبيخليه يدوّر على حل. كل ما كان أدق كان أقوى.'),
-            'ph' => t("مثال:\nالجمهور: أمهات عاملات 28-40 سنة في القاهرة الجديدة\nالمشكلة: مفيش وقت يطبخوا أكل صحي لأولادهم في أيام الشغل، والأكل الجاهز مليان دهون")],
-        'frame_ref' => ['group' => 'pos', 'nav' => t('الفئة'), 'label' => t('الفئة (Frame of Reference)'), 'type' => 'text',
-            'hint' => t('منتجك أو خدمتك بتنتمي لأنهي فئة في دماغ العميل؟ دي الفئة اللي هيقارنك فيها بالمنافسين.'),
-            'ph' => t("مثال:\nخدمة اشتراك وجبات صحية جاهزة للبيوت\nالمنافسين في نفس الفئة: مطاعم الأكل الصحي، تطبيقات توصيل الوجبات")],
+        'audience' => ['group' => 'pos', 'nav' => t('الجمهور ومشكلته'), 'label' => t('الجمهور المستهدف ومشكلته'), 'type' => 'fields',
+            'hint' => t('مين بالظبط العميل اللي بتخدمه، وإيه المشكلة أو الاحتياج اللي بيعاني منه وبيخليه يدوّر على حل. كل ما كان أدق كان أقوى.'), 'fields' => [
+            'who' => [t('الجمهور المستهدف'), 'area', t('مثال: أمهات عاملات 28-40 سنة في القاهرة الجديدة'), 2],
+            'traits' => [t('خصائصهم وسلوكهم'), 'area', t('الدخل، الاهتمامات، أين يقضون وقتهم، كيف يشترون')],
+            'problem' => [t('المشكلة أو الاحتياج'), 'area', t('مثال: لا وقت لطهي طعام صحي لأطفالهن في أيام العمل')],
+            'objections' => [t('مخاوفهم واعتراضاتهم قبل الشراء'), 'area', t('السعر، الثقة، الجودة، الوقت...'), 2],
+        ]],
+        'frame_ref' => ['group' => 'pos', 'nav' => t('الفئة'), 'label' => t('الفئة (Frame of Reference)'), 'type' => 'fields',
+            'hint' => t('منتجك أو خدمتك بتنتمي لأنهي فئة في دماغ العميل؟ دي الفئة اللي هيقارنك فيها بالمنافسين.'), 'fields' => [
+            'category' => [t('الفئة'), 'text', t('مثال: خدمة اشتراك وجبات صحية جاهزة للمنازل'), 2],
+            'competitors' => [t('المنافسون في نفس الفئة'), 'area', t('منافس أو نوع منافس في كل سطر'), 2],
+        ]],
         'pod' => ['group' => 'pos', 'nav' => t('نقطة الاختلاف'), 'label' => t('نقطة الاختلاف (Point of Difference)'), 'type' => 'text',
             'hint' => t('الفرق الجوهري بينك وبين المنافسين في نفس الفئة. حاجة العميل يهتم بيها، ومش موجودة عندهم أو مش بنفس المستوى.'),
             'ph' => t("مثال:\nالوجبات بتتعمل حسب عمر كل طفل واحتياجه الغذائي بإشراف أخصائية تغذية، مش منيو ثابت للكل")],
@@ -56,6 +78,7 @@ function kb_get(int $wid): array
     }
     // الإصدار القديم: نص واحد في الإعدادات
     if (empty($out['company']['text']) && ($old = trim((string)setting('ai_kb_' . $wid, ''))) !== '') $out['company'] = ['text' => $old];
+    foreach (['company' => 'about', 'audience' => 'who', 'frame_ref' => 'category'] as $sk => $fk) if (isset($out[$sk]['text']) && !isset($out[$sk][$fk])) { $out[$sk][$fk] = $out[$sk]['text']; unset($out[$sk]['text']); }
     return $cache[$wid] = $out;
 }
 
@@ -69,6 +92,7 @@ function kb_save(int $wid, string $section, array $data): void
 function kb_filled(array $sec, string $type): bool
 {
     switch ($type) {
+        case 'fields': return trim(implode('', array_map('strval', array_filter((array)$sec, 'is_scalar')))) !== '';
         case 'rows': return !empty(array_filter((array)($sec['rows'] ?? []), function ($r) { return trim(implode('', (array)$r)) !== ''; }));
         case 'list': return trim((string)($sec['text'] ?? '')) !== '';
         case 'tone': return !empty($sec['style']) || trim((string)($sec['notes'] ?? '')) !== '';
@@ -105,7 +129,11 @@ function kb_compile(int $wid, string $query = ''): string
 {
     $k = kb_get($wid);
     $out = [];
-    if ($v = trim((string)($k['company']['text'] ?? ''))) $out[] = "## COMPANY\n" . $v;
+    $sch = kb_schema();
+    $fields = function ($sec) use ($k, $sch) { $l = []; foreach ($sch[$sec]['fields'] as $fk => $f) if (($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $f[0] . ': ' . (strpos($v, "\n") !== false ? "\n  " . str_replace("\n", "\n  ", $v) : $v); return implode("\n", $l); };
+    if ($v = $fields('company')) $out[] = "## COMPANY\n" . $v;
+    if ($v = $fields('contact')) $out[] = "## CONTACT (give exactly as written; never invent other channels)\n" . $v;
+    if ($v = $fields('hours')) $out[] = "## WORKING HOURS (only these; never guess other times)\n" . $v;
     $rows = array_filter((array)($k['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; });
     if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows));
     $faq = array_filter((array)($k['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; });
@@ -117,7 +145,9 @@ function kb_compile(int $wid, string $query = ''): string
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
     $pos = [];
-    foreach (['audience' => 'Target audience & their problem', 'frame_ref' => 'Frame of reference (category we compete in)', 'pod' => 'Point of difference vs competitors', 'rtb' => 'Reasons to believe (proof)'] as $pk => $pl) if ($v = trim((string)($k[$pk]['text'] ?? ''))) $pos[] = "### " . $pl . "\n" . $v;
+    if ($v = $fields('audience')) $pos[] = "### Target audience & their problem\n" . $v;
+    if ($v = $fields('frame_ref')) $pos[] = "### Frame of reference (category we compete in)\n" . $v;
+    foreach (['pod' => 'Point of difference vs competitors', 'rtb' => 'Reasons to believe (proof)'] as $pk => $pl) if ($v = trim((string)($k[$pk]['text'] ?? ''))) $pos[] = "### " . $pl . "\n" . $v;
     $po = array_filter((array)($k['pos_offers']['rows'] ?? []), function ($r) { return trim((string)($r['offer'] ?? '')) !== ''; });
     if ($po) $pos[] = "### Per product/service positioning\n" . implode("\n", array_map(function ($r) { $l = '- ' . trim($r['offer']) . ':'; foreach (['audience' => 'audience', 'problem' => 'problem', 'frame' => 'category', 'pod' => 'difference', 'rtb' => 'proof'] as $c => $n) if (trim((string)($r[$c] ?? '')) !== '') $l .= ' ' . $n . ': ' . trim(preg_replace('/\s+/', ' ', $r[$c])) . ';'; return rtrim($l, ';'); }, $po));
     if ($pos) $out[] = "## POSITIONING STATEMENT (use it to frame strategy, content and replies; never overclaim beyond the proof)\n" . implode("\n", $pos);
@@ -450,4 +480,23 @@ function kb_strip_unsourced_prices(array $d, string $sources): array
         return trim(preg_replace('/[ \t]{2,}/', ' ', $clean($v)));
     };
     return $walk($d);
+}
+
+/** بيانات التواصل والمواعيد: أي قيمة فيها رقم أو رابط مش موجود في المصادر بتتمسح */
+function kb_strip_unsourced_facts(array $d, string $sources): array
+{
+    $norm = function ($t) { return strtr((string)$t, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']); };
+    $src = mb_strtolower($norm($sources)); $digits = preg_replace('/\D+/', '', $src);
+    foreach ($d as $k => $v) {
+        if (!is_string($v) || trim($v) === '') continue;
+        $t = mb_strtolower($norm($v)); $ok = true;
+        preg_match_all('#(?:https?://)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/[^\s]*)?|[\w.+-]+@[\w-]+\.[\w.]+#u', $t, $m);
+        foreach ($m[0] as $u) { $u = preg_replace('#^https?://(www\.)?#', '', rtrim($u, '/.,')); if ($u !== '' && strpos($src, $u) === false) $ok = false; }
+        preg_match_all('/\+?\d[\d\s-]{6,}\d/', $t, $ph);
+        foreach ($ph[0] as $n) { $n = preg_replace('/\D+/', '', $n); if (strpos($digits, ltrim($n, '0')) === false && strpos($digits, $n) === false) $ok = false; }
+        preg_match_all('/\d{1,2}(?::\d{2})?/', preg_replace('/\+?\d[\d\s-]{6,}\d/', '', $t), $tm);
+        if ($k !== 'notes' && $k !== 'social') foreach ($tm[0] as $x) if (!preg_match('/(?<!\d)' . preg_quote($x, '/') . '(?!\d)/', $src)) $ok = false;
+        if (!$ok) $d[$k] = '';
+    }
+    return $d;
 }

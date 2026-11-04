@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $type = $schema[$sec]['type'];
         $in = (array)($_POST['d'] ?? []);
         switch ($type) {
+            case 'fields':
+                $data = [];
+                foreach ($schema[$sec]['fields'] as $fk => $f) $data[$fk] = $str($in[$fk] ?? '', $f[1] === 'area' ? 4000 : 500);
+                break;
             case 'rows':
                 $rows = [];
                 foreach ((array)($in['rows'] ?? []) as $r) {
@@ -142,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($schema[$sec])) $json(['error' => t('طلب غير صحيح.')], 400);
         if (!ai_connection()) $json(['error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).')], 422);
         $type = $schema[$sec]['type'];
-        $lang = lang() === 'ar' ? 'Arabic' : 'English';
+        $lang = lang() === 'ar' ? 'Modern Standard Arabic (العربية الفصحى المبسطة), never colloquial dialect' : 'English';
         $shape = [
             'text' => '{"text":"..."}',
             'rows' => $sec === 'faq' ? '{"rows":[{"q":"question","a":"approved answer"}]}' : ($sec === 'pos_offers' ? '{"rows":[{"offer":"","audience":"","problem":"","frame":"","pod":"","rtb":""}]}' : '{"rows":[{"name":"","price":"","details":""}]}'),
@@ -151,15 +155,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'antihype' => '{"rules":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_antihype_rules()))) . '],"words":"comma separated banned words"}',
             'visual' => '{"colors":"...","style":"..."}',
             'escalation' => '{"triggers":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_trigger_options()))) . '],"keywords":"comma separated","message":"short polite hand-off message to the customer"}',
+            'fields' => '',
         ][$type];
+        if ($type === 'fields') $shape = json_encode(array_map(function ($f) { return $f[0]; }, $schema[$sec]['fields']), JSON_UNESCAPED_UNICODE) . ' (same keys; each value is the content for that field, empty string if unknown)';
         $guide = [
+            'contact' => 'Contact channels. Copy ONLY exact website, emails, phone/WhatsApp numbers, map links and social links found in the sources (account data included). Never invent or guess any of them; leave the field empty if unknown.',
+            'hours' => 'Working hours per day. ONLY times written in the sources; never guess. Leave a day empty if unknown. Use one format: 10:00 - 22:00, or مغلق.',
             'company' => 'Describe the company like a professional profile: what it sells, its value, location/branches, hours, payment and delivery. Hard facts only from the sources; placeholders for missing ones.',
             'services' => 'List every product/service. PRICES: copy a price ONLY if it is written in the sources, exactly as written. If not written, leave "price" as an empty string. Never suggest, estimate, round or use a placeholder for prices.',
             'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
             'audience' => 'Positioning step 1. Write two short labelled parts: the precise TARGET AUDIENCE (who, age, place, situation) and the PROBLEM/NEED that makes them look for a solution. Base it on posts, messages, documents and the business type; be specific, not generic.',
             'pos_offers' => 'Per-offering positioning. One row per product/service from the SERVICES section and documents (use the exact offering name). For each: the specific target audience of THAT offering, their problem/need, the category it competes in with competitor types, its point of difference, and reasons to believe (only proof found in the sources; otherwise suggest proof to collect, marked as a suggestion). Different offerings usually have different audiences: do not copy the same audience to every row unless it is truly the same.',
-            'frame_ref' => 'Positioning step 2 (frame of reference). State the product/service CATEGORY the customer puts this business in, and name the kinds of competitors in that same category.',
+            'frame_ref' => 'Positioning step 2 (frame of reference). category = the CATEGORY the customer puts this business in (one line); competitors = competitors or competitor types in that same category, one per line.',
             'pod' => 'Positioning step 3 (point of difference). State the 1-3 most important, customer-relevant differences versus competitors in the same category. Only differences the sources support; mark expert suggestions.',
             'rtb' => 'Positioning step 4 (reasons to believe). List concrete proof that makes the point of difference credible: facts, numbers, certifications, experience, guarantees, reviews — ONLY those found in the sources; never invent numbers or testimonials. If proof is missing, suggest what proof to collect, marked as a suggestion.',
             'focus' => 'Suggest what to promote now, based on the best-performing posts and the services.',
@@ -196,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msgs[] = ['role' => 'user', 'content' => 'That was not valid JSON. Reply again with ONLY the JSON object in the exact shape requested.'];
                 $r = ai_chat($msgs, 4000, 'analyze'); $d = kb_parse_json((string)$r['text']);
             }
-            if (is_array($d)) $d = kb_strip_unsourced_prices($d, $user);
+            if (is_array($d)) { $d = kb_strip_unsourced_prices($d, $user); if (in_array($sec, ['contact', 'hours'], true)) $d = kb_strip_unsourced_facts($d, $user); }
             if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = kb_strip_unsourced_prices(['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))], $user);
         } catch (Throwable $e) {
             $json(['error' => $e->getMessage()], 502);
@@ -235,7 +243,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         'tone' => 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', 'audience' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
         'focus' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z', 'never_say' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8',
         'anti_hype' => 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4', 'visual_style' => 'M12 21a9 9 0 110-18c5 0 9 3.6 9 8a4 4 0 01-4 4h-2a2 2 0 00-1 3.7A2 2 0 0112 21zM7.5 11h.01M10.5 7.5h.01M15 7.5h.01',
-        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'pos_offers' => 'M4 6h16M4 12h10M4 18h7M17 15l2 2 3-4', 'frame_ref' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'pod' => 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z', 'rtb' => 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'test' => 'M7 4l12 8-12 8z'];
+        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'pos_offers' => 'M4 6h16M4 12h10M4 18h7M17 15l2 2 3-4', 'contact' => 'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z', 'hours' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2', 'frame_ref' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'pod' => 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z', 'rtb' => 'M9 12l2 2 4-4M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'test' => 'M7 4l12 8-12 8z'];
     $dis = $canEdit ? '' : 'disabled';
     ?>
 
@@ -311,7 +319,16 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
                 <?php endif; ?>
               </div>
             </div>
-            <?php if ($s['type'] === 'text'): ?>
+            <?php if ($s['type'] === 'fields'): ?>
+              <div class="grid sm:grid-cols-2 gap-x-4 gap-y-3">
+                <?php foreach ($s['fields'] as $fk => $f): $span = ($f[3] ?? 1) === 2; ?>
+                  <label class="block <?= $span ? 'sm:col-span-2' : '' ?>"><span class="label"><?= e($f[0]) ?></span>
+                    <?php if ($f[1] === 'area'): ?><textarea name="d[<?= $fk ?>]" rows="<?= $span ? 3 : 2 ?>" class="input text-sm leading-relaxed" dir="auto" placeholder="<?= e($f[2]) ?>" <?= $dis ?>><?= e($d[$fk] ?? '') ?></textarea>
+                    <?php else: ?><input name="d[<?= $fk ?>]" type="<?= in_array($f[1], ['url', 'email', 'tel'], true) ? $f[1] : 'text' ?>" <?= in_array($f[1], ['url', 'email', 'tel'], true) ? 'dir="ltr"' : 'dir="auto"' ?> class="input text-sm" placeholder="<?= e($f[2]) ?>" value="<?= e($d[$fk] ?? '') ?>" <?= $dis ?>><?php endif; ?>
+                  </label>
+                <?php endforeach; ?>
+              </div>
+            <?php elseif ($s['type'] === 'text'): ?>
               <textarea name="d[text]" rows="9" class="input text-sm leading-relaxed" <?= $dis ?> placeholder="<?= e($s['ph'] ?? '') ?>"><?= e($d['text'] ?? '') ?></textarea>
             <?php elseif ($s['type'] === 'rows'): $rows = (array)($d['rows'] ?? []); if (!$rows) $rows = [[]]; ?>
               <div class="kb-rows space-y-2">
@@ -372,10 +389,10 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'posTpl' => t('لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.'), 'posEmpty' => t('[...]'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'cols' => $schema['pos_offers']['cols'], 'posTpl' => t('لـ %1، اللي %2، إحنا %3. على عكس المنافسين، %4. والدليل: %5.'), 'posEmpty' => t('[...]'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
-      'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+      'labels' => array_merge(...array_map(function ($x) { return array_map(function ($f) { return $f[0]; }, $x['fields'] ?? []); }, array_values($schema))) + ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/knowledge.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

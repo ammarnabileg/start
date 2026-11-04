@@ -89,11 +89,11 @@
     var type = form.dataset.type, cur = current(form), body = '', changes = 0;
     var tag = function (kind) { return '<span class="ms-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium ' + (kind === 'new' ? 'bg-lime-100 text-lime-700' : kind === 'chg' ? 'bg-amber-100 text-amber-700' : 'bg-ink-100 text-ink-500') + '">' + (kind === 'new' ? K.newTag : kind === 'chg' ? K.changed : K.same) + '</span>'; };
     if (type === 'rows') {
-      var key = form.dataset.section === 'faq' ? 'q' : 'name';
+      var key = form.dataset.section === 'faq' ? 'q' : (form.dataset.section === 'pos_offers' ? 'offer' : 'name');
       body = (d.rows || []).map(function (r, i) {
         var match = (cur.rows || []).filter(function (c) { return (c[key] || '').trim() === (r[key] || '').trim(); })[0];
         var kind = !match ? 'new' : (JSON.stringify(match) === JSON.stringify(Object.assign({}, match, r)) ? 'same' : 'chg'); if (kind !== 'same') changes++;
-        var main = form.dataset.section === 'faq' ? '<b class="text-ink-900">' + esc(r.q) + '</b>' + tag(kind) + '<div class="text-ink-600 mt-0.5">' + esc(r.a) + '</div>'
+        var main = form.dataset.section === 'pos_offers' ? '<b class="text-ink-900">' + esc(r.offer) + '</b>' + tag(kind) + ['audience', 'problem', 'frame', 'pod', 'rtb'].map(function (c) { return r[c] ? '<div class="text-ink-600 mt-0.5"><span class="text-ink-400">' + esc((K.cols || {})[c] || c) + ':</span> ' + esc(r[c]) + '</div>' : ''; }).join('') : form.dataset.section === 'faq' ? '<b class="text-ink-900">' + esc(r.q) + '</b>' + tag(kind) + '<div class="text-ink-600 mt-0.5">' + esc(r.a) + '</div>'
           : '<b class="text-ink-900">' + esc(r.name) + '</b>' + (r.price ? ' <span class="text-brand-700">— ' + esc(r.price) + '</span>' : '') + tag(kind) + (r.details ? '<div class="text-ink-600 mt-0.5">' + esc(r.details) + '</div>' : '');
         return '<label class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2 cursor-pointer hover:border-brand-300"><input type="checkbox" class="kb-pick mt-1" data-i="' + i + '" checked><span class="flex-1 text-sm">' + main + '</span></label>';
       }).join('');
@@ -207,9 +207,8 @@
   function first(sec) { var l = posVal(sec).split('\n').filter(function (x) { return x.trim() && !/^(\u0645\u062b\u0627\u0644|example)/i.test(x); }); return l.length ? strip(l[0]) : ''; }
   function posStmt() {
     var box = root.querySelectorAll('.kb-pos-stmt'); if (!box.length) return;
-    var aud = posVal('audience').split('\n').filter(function (x) { return x.trim(); }), who = '', prob = '';
-    aud.forEach(function (l) { if (/(\u0645\u0634\u0643\u0644|problem|need|\u0627\u062d\u062a\u064a\u0627\u062c)/i.test(l.split(/[:\uff1a]/)[0]) && !prob) prob = strip(l); else if (!who) who = strip(l); });
-    var vals = [who, prob, first('frame_ref'), first('pod'), first('rtb')], e = K.posEmpty;
+    var fv = function (sec, k) { var el = root.querySelector('.kb-form[data-section="' + sec + '"] [name="d[' + k + ']"]'); var l = el ? el.value.split('\n').filter(function (x) { return x.trim(); }) : []; return l.length ? strip(l[0]) : ''; };
+    var vals = [fv('audience', 'who'), fv('audience', 'problem'), fv('frame_ref', 'category'), first('pod'), first('rtb')], e = K.posEmpty;
     var html = K.posTpl.replace(/%(\d)/g, function (m, i) { var v = vals[i - 1]; return v ? '<b class="text-ink-900">' + esc(v) + '</b>' : '<span class="text-ink-400">' + esc(e) + '</span>'; });
     box.forEach(function (b) { b.innerHTML = html; });
   }
