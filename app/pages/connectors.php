@@ -116,6 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'ai_auto') {
+        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('connectors') . '#ai'); }
+        $what = in_array($_POST['what'] ?? '', ['classify', 'alerts'], true) ? $_POST['what'] : 'classify';
+        $on = !ai_auto_enabled($wid, $what);
+        save_setting('ai_auto_' . $what . '_' . $wid, $on ? '1' : '0');
+        flash('success', $on ? t('تم التفعيل. يعمل مع التشغيل الدوري للمنصة.') : t('تم الإيقاف.'));
+        redirect(url('connectors') . '#ai');
+    }
     if (in_array($action, ['ai_budget', 'ai_kb'], true)) {
         if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('connectors') . '#ai'); }
         if ($action === 'ai_budget') {
@@ -363,6 +371,19 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <?php endif; ?>
           </div>
 
+          <div class="space-y-4 flex flex-col">
+          <div class="card p-5">
+            <h3 class="font-semibold text-ink-900"><?= e(t('العمل في الخلفية')) ?></h3>
+            <p class="text-xs text-ink-500 mt-1"><?= e(t('يعمل تلقائيًا مع التشغيل الدوري للمنصة (cron)، ويحتسب من حد الاستهلاك.')) ?></p>
+            <?php foreach (['classify' => [t('تصنيف الرسائل الجديدة'), t('نوع الرسالة، إحساس العميل، العاجل، ونية الشراء. طلب واحد لكل 20 رسالة.')], 'alerts' => [t('تنبيهات ذكية يومية'), t('مرة في اليوم: يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
+              <form method="post" class="flex items-start gap-3 mt-4">
+                <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_auto"><input type="hidden" name="what" value="<?= $wk ?>">
+                <div class="flex-1"><div class="text-sm text-ink-900"><?= e($wl) ?></div><div class="text-xs text-ink-500"><?= e($wd) ?></div></div>
+                <button type="submit" role="switch" aria-checked="<?= $won ? 'true' : 'false' ?>" data-switch <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-11 h-6 shrink-0 rounded-full transition disabled:opacity-50 <?= $won ? 'bg-lime-500' : 'bg-ink-300' ?>">
+                  <span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform <?= $won ? 'translate-x-5 rtl:-translate-x-5' : '' ?>"></span></button>
+              </form>
+            <?php endforeach; ?>
+          </div>
           <form method="post" class="card p-5 flex flex-col">
             <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_kb">
             <h3 class="font-semibold text-ink-900"><?= e(t('معلومات الشركة')) ?></h3>
@@ -370,6 +391,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <textarea name="kb" rows="9" maxlength="6000" class="input flex-1 text-sm leading-relaxed" <?= $owner ? '' : 'disabled' ?> placeholder="<?= e(t("مثال:\nمواعيد العمل: يوميًا 10 ص - 11 م ما عدا الجمعة\nالتوصيل: داخل القاهرة 50 جنيه، خلال 48 ساعة\nالاسترجاع: خلال 14 يوم بالفاتورة\nالأسعار: ...")) ?>"><?= e(ai_kb((int)ws('id'))) ?></textarea>
             <div class="flex items-center justify-between mt-3"><span class="text-[11px] text-ink-400"><?= e(t('حتى 6000 حرف')) ?></span><button class="btn-primary" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button></div>
           </form>
+          </div>
         </div>
 
         <?php if (!$aiProviders): ?>

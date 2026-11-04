@@ -231,6 +231,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
     $f = $form ?? [];
     $v = function ($k, $d = '') use ($f) { return $f[$k] ?? $d; };
     ?>
+    <div data-ai-insights="audience" class="mb-6"></div>
     <div class="max-w-3xl space-y-5">
       <a href="<?= e(url('ads')) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
       <?php if ($apiError) error_box($apiError); ?>

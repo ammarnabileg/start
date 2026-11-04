@@ -114,6 +114,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         return url('ads', array_filter($over + ['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range], function ($v) { return $v !== '' && $v !== null; }));
     };
     ?>
+    <div data-ai-insights="ads_analyze,audience" class="mb-6"></div>
     <div class="space-y-5">
       <?php if ($apiError) error_box($apiError); ?>
 

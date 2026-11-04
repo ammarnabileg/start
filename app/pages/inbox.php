@@ -253,7 +253,7 @@ function ip_private_reply_block(array $c, string $postId, string $accId, bool $i
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="private_reply">
               <input type="hidden" name="comment_id" value="<?= e($c['id']) ?>">
-              <textarea data-ai="polish_reply" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
+              <textarea data-ai="comment_to_dm,polish_reply" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
           </details>
@@ -378,9 +378,17 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-19rem)] min-h-[500px]">
       <!-- قائمة المحادثات -->
       <div data-live="list" class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
+        <?php $aiLab = (ai_connection() && can('ai.use')) ? ai_labels((int)ws('id')) : null; ?>
+        <?php if ($aiLab !== null && $convs): ?>
+          <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-ink-200 px-3 py-2 flex items-center gap-2 text-xs">
+            <button type="button" id="ai-classify" class="inline-flex items-center gap-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 px-2 py-1 hover:bg-brand-100 disabled:opacity-60">✨ <span><?= e(t('صنّف الآن')) ?></span></button>
+            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-urgent" class="w-3.5 h-3.5"> <?= e(t('العاجل أولًا')) ?></label>
+            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-intent" class="w-3.5 h-3.5"> 🛒 <?= e(t('نية شراء')) ?></label>
+          </div>
+        <?php endif; ?>
         <?php if (!$convs): ?><p class="p-5 text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p><?php endif; ?>
-        <?php foreach ($convs as $c): $on = $c['id'] === $convId; ?>
-          <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
+        <?php foreach ($convs as $c): $on = $c['id'] === $convId; $lb = $aiLab[$c['id']] ?? null; ?>
+          <a data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="ai-conv flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
             <?= avatar_with_platform($c['participantPicture'] ?? null, $c['participantName'] ?? '', (string)($c['platform'] ?? '')) ?>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between gap-2">
@@ -389,12 +397,47 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <?php if (!empty($c['matchCount'])): ?><span class="badge"><?= e(t('%s نتيجة', (int)$c['matchCount'])) ?></span><?php endif; ?>
               </div>
               <p class="text-xs text-ink-500 truncate"><?= e($c['matchSnippet'] ?? $c['lastMessage'] ?? '') ?></p>
+              <?php if ($lb): $catL = ['inquiry' => t('استفسار'), 'complaint' => t('شكوى'), 'purchase' => t('طلب شراء'), 'support' => t('دعم'), 'spam' => t('سبام'), 'other' => t('أخرى')]; ?>
+                <div class="flex flex-wrap gap-1 mt-1" title="<?= e($lb['summary']) ?>">
+                  <?php if ((int)$lb['urgency'] === 3): ?><span class="rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('عاجل')) ?></span><?php endif; ?>
+                  <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium">🛒 <?= e(t('نية شراء')) ?></span><?php endif; ?>
+                  <span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($catL[$lb['category']] ?? $lb['category']) ?></span>
+                  <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? '😠 ' . e(t('غاضب')) : '😕 ' . e(t('متضايق')) ?></span><?php endif; ?>
+                </div>
+              <?php endif; ?>
               <p class="text-[11px] text-ink-400 mt-0.5"><?= e(platform_label($c['platform'] ?? '')) ?><?php if (!empty($c['accountUsername'])): ?> · <?= e(trim($c['accountUsername'])) ?><?php endif; ?> · <?= e(fmt_date($c['updatedTime'] ?? null, 'd/m h:i A')) ?><?php if (($c['status'] ?? '') === 'archived'): ?> · <?= e(t('مؤرشفة')) ?><?php endif; ?></p>
             </div>
           </a>
         <?php endforeach; ?>
         <?php if ($next): ?><a href="<?= e(url('inbox', $base + ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
       </div>
+      <?php if ($aiLab !== null): ?>
+      <script>
+      (function () {
+        function list() { return document.querySelector('[data-live=list]'); }
+        function apply() {
+          var L = list(); if (!L) return; var u = document.getElementById('ai-urgent'), it = document.getElementById('ai-intent');
+          var items = [].slice.call(L.querySelectorAll('a.ai-conv'));
+          items.forEach(function (a, i) { if (!a.dataset.ord) a.dataset.ord = i; a.classList.toggle('hidden', !!(it && it.checked) && a.dataset.intent !== '1'); });
+          items.sort(function (a, b) { return (u && u.checked ? (+b.dataset.urg) - (+a.dataset.urg) : 0) || (+a.dataset.ord) - (+b.dataset.ord); });
+          var anchor = L.querySelector('a.ai-conv'); if (!anchor) return; var parent = anchor.parentNode, tail = parent.querySelector('a:not(.ai-conv)');
+          items.forEach(function (a) { parent.insertBefore(a, tail); });
+        }
+        document.addEventListener('change', function (e) { if (e.target.id === 'ai-urgent' || e.target.id === 'ai-intent') { try { localStorage.setItem(e.target.id, e.target.checked ? '1' : ''); } catch (x) {} apply(); } });
+        document.addEventListener('click', function (e) {
+          var b = e.target.closest('#ai-classify'); if (!b) return;
+          b.disabled = true; b.classList.add('animate-pulse');
+          var fd = new FormData(); fd.append('task', 'classify_now');
+          fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); })
+            .then(function (d) { if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); b.disabled = false; b.classList.remove('animate-pulse'); return; } location.reload(); })
+            .catch(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
+        });
+        function restore() { ['ai-urgent', 'ai-intent'].forEach(function (id) { var el = document.getElementById(id); try { if (el && localStorage.getItem(id)) el.checked = true; } catch (x) {} }); apply(); }
+        restore();
+        new MutationObserver(function () { var L = list(); if (L && !L.dataset.aiSeen) { L.dataset.aiSeen = 1; restore(); } }).observe(document.body, { childList: true, subtree: true });
+      })();
+      </script>
+      <?php endif; ?>
 
       <!-- المحادثة -->
       <div class="lg:col-span-2 card flex flex-col min-h-0 overflow-hidden <?= $convId ? '' : 'hidden lg:flex' ?>">

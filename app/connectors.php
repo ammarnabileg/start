@@ -106,6 +106,7 @@ function connector_registry(): array
                 ['key' => 'key_id', 'label' => 'Key ID', 'placeholder' => 'xxxxxxxx-xxxx-...'],
                 ['key' => 'key_secret', 'label' => 'Key Secret', 'secret' => true],
                 ['key' => 'model', 'label' => t('مسار الموديل'), 'placeholder' => '/higgsfield-ai/soul/v2/standard', 'default' => '/higgsfield-ai/soul/v2/standard', 'optional' => true],
+                ['key' => 'style', 'label' => t('ستايل ثابت للشركة'), 'placeholder' => t('مثلاً: ألوان أزرق وأبيض، إضاءة طبيعية، تصوير منتجات احترافي'), 'optional' => true],
             ],
             'test' => function (array $c): string {
                 hf_request($c, 'GET', '/models/usage?' . http_build_query(['start' => gmdate('Y-m-d', time() - 86400 * 7), 'end' => gmdate('Y-m-d'), 'timeframe' => 'day']));
@@ -201,4 +202,40 @@ function hf_request(array $c, string $method, string $path, ?array $body = null)
         throw new Exception(is_string($m) ? $m : json_encode($m, JSON_UNESCAPED_UNICODE));
     }
     return $d;
+}
+
+/** مكتبة الصور المولدة للشركة: uploads/ai/{wid}/ */
+function hf_lib_dir(int $wid): string
+{
+    return ROOT_DIR . '/uploads/ai/' . $wid;
+}
+
+/** بيحفظ صورة من رابط في مكتبة الشركة ويرجع اسمها، أو null */
+function hf_lib_save(int $wid, string $url): ?string
+{
+    $dir = hf_lib_dir($wid);
+    if (!is_dir($dir)) @mkdir($dir, 0750, true);
+    $tmp = tempnam(sys_get_temp_dir(), 'hf');
+    $ch = curl_init($url); $fp = fopen($tmp, 'wb');
+    curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 60, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
+    $ok = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400; curl_close($ch); fclose($fp);
+    $mime = $ok ? (string)mime_content_type($tmp) : '';
+    $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mime] ?? null;
+    if (!$ok || !$ext || filesize($tmp) > 25 * 1048576) { @unlink($tmp); return null; }
+    $name = gmdate('Ymd-His') . '-' . substr(md5($url), 0, 10) . '.' . $ext;
+    rename($tmp, $dir . '/' . $name);
+    return $name;
+}
+
+/** آخر صور المكتبة (الأحدث الأول) */
+function hf_lib_list(int $wid, int $limit = 24): array
+{
+    $files = glob(hf_lib_dir($wid) . '/*.{png,jpg,webp}', GLOB_BRACE) ?: [];
+    rsort($files);
+    return array_map('basename', array_slice($files, 0, $limit));
+}
+
+function hf_lib_valid(string $name): bool
+{
+    return (bool)preg_match('/^\d{8}-\d{6}-[a-f0-9]{10}\.(png|jpg|webp)$/', $name);
 }

@@ -13,6 +13,7 @@ require_once __DIR__ . '/permissions.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/ai_presets.php';
 require_once __DIR__ . '/ai_context.php';
+require_once __DIR__ . '/ai_jobs.php';
 require_once __DIR__ . '/mailer.php';
 
 define('ROOT_DIR', dirname(__DIR__));
@@ -239,6 +240,8 @@ function user_workspaces(bool $fresh = false): array
 /** الشركة المفتوحة دلوقتي. دايماً من ضمن شركات المستخدم، فمستحيل يشوف شركة مش بتاعته. */
 function current_workspace(): ?array
 {
+    // التشغيل الدوري (cron) بيشتغل باسم شركة معينة من غير مستخدم
+    if (isset($GLOBALS['__ws_override'])) return $GLOBALS['__ws_override'];
     $list = user_workspaces();
     if (!$list) {
         return null;

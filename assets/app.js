@@ -273,6 +273,7 @@ document.addEventListener('click', function (e) {
       out.classList.remove('hidden'); out.innerHTML = '<div class="flex items-center gap-2 text-sm text-ink-500"><svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></div>';
       out.firstChild.appendChild(document.createTextNode(P.thinking));
       var fd = new FormData(); fd.append('task', 'insight'); fd.append('insight', key); fd.append('text', it.input ? ta.value : '');
+      if (it.page) { var main = document.querySelector('main') || document.body, clone = main.cloneNode(true); clone.querySelectorAll('[data-ai-insights],script,style,nav,#sidebar').forEach(function (x) { x.remove(); }); fd.append('page', (clone.innerText || clone.textContent || '').replace(/\n{3,}/g, '\n\n').slice(0, 8000)); }
       fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.error) { out.innerHTML = '<p class="text-sm text-red-600"></p>'; out.firstChild.textContent = d.error; return; }
         var meta = (d.model || '') + (d.cost != null ? ' · $' + (+d.cost).toFixed(5).replace(/0+$/, '').replace(/\.$/, '') : '');

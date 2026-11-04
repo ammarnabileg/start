@@ -135,21 +135,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             }
         }
         // صور Higgsfield: بننزلها ونرفعها لأن روابطها بتنتهي بعد 7 أيام
-        foreach (array_slice((array)($_POST['ai_media'] ?? []), 0, 4) as $u) {
-            $u = (string)$u;
-            if ($errors || empty($_SESSION['hf_urls'][$u])) continue;
-            $tmp = tempnam(sys_get_temp_dir(), 'hf');
-            $ch = curl_init($u);
-            $fp = fopen($tmp, 'wb');
-            curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 60, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
-            $okDl = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400;
-            curl_close($ch); fclose($fp);
-            $mime = $okDl ? (string)mime_content_type($tmp) : '';
-            if (!$okDl || strpos($mime, 'image/') !== 0 || filesize($tmp) > 25 * 1048576) { $errors[] = t('تعذر تحميل الصورة المولدة. ولّدها مرة أخرى.'); @unlink($tmp); continue; }
+        // صور من مكتبة الذكاء الاصطناعي بتاعة الشركة
+        foreach (array_slice(array_unique((array)($_POST['ai_media'] ?? [])), 0, 4) as $n) {
+            $n = (string)$n;
+            $path = hf_lib_dir((int)ws('id')) . '/' . $n;
+            if ($errors || !hf_lib_valid($n) || !is_file($path)) continue;
             try {
-                $media[] = ['type' => 'image', 'url' => $z->uploadFile($tmp, 'ai-' . substr(md5($u), 0, 10) . '.' . (explode('/', $mime)[1] ?? 'jpg'), $mime)];
+                $mime = (string)mime_content_type($path);
+                $media[] = ['type' => 'image', 'url' => $z->uploadFile($path, 'ai-' . $n, $mime)];
             } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
-            @unlink($tmp);
         }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
 
@@ -217,7 +211,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       <div class="lg:col-span-2 space-y-6">
         <div class="card p-5">
           <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
-            <textarea data-ai="from_idea,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label>
+            <textarea data-ai="from_idea,img_prompt,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label>
           <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
@@ -225,53 +219,62 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <?php if (connector('higgsfield')): ?>
           <div class="mt-4 rounded-2xl border border-dashed border-ink-300 p-4" id="hf-box">
             <div class="flex items-center gap-2 mb-2"><span class="w-6 h-6 rounded-lg bg-[#0B0B0F] text-[#fff] text-xs font-semibold flex items-center justify-center">H</span><b class="text-sm text-ink-900"><?= e(t('توليد صورة بالذكاء الاصطناعي')) ?></b></div>
+            <div class="flex flex-wrap items-center gap-2 mb-2 text-xs">
+              <select id="hf-aspect" class="input !mt-0 !w-auto !py-1.5 text-xs"><option value=""><?= e(t('المقاس الافتراضي')) ?></option><option value="1:1"><?= e(t('مربع 1:1')) ?></option><option value="4:5"><?= e(t('بوست 4:5')) ?></option><option value="9:16"><?= e(t('ستوري 9:16')) ?></option><option value="16:9"><?= e(t('عرضي 16:9')) ?></option></select>
+              <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="hf-two" class="w-3.5 h-3.5"> <?= e(t('نسختين')) ?></label>
+              <button type="button" id="hf-from-text" class="ms-auto link"><?= e(t('اكتب الوصف من نص المنشور')) ?></button>
+            </div>
             <div class="flex gap-2 items-start">
               <textarea id="hf-prompt" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('صف الصورة: مثلاً كوب قهوة على طاولة خشب بإضاءة صباحية...')) ?>"></textarea>
               <button type="button" id="hf-go" class="btn-primary shrink-0"><?= e(t('توليد')) ?></button>
             </div>
             <p id="hf-status" class="text-xs text-ink-500 mt-2 hidden"></p>
-            <div id="hf-results" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"></div>
+            <div id="hf-results" class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
+              <?php foreach (hf_lib_list((int)ws('id'), 12) as $n): ?><button type="button" class="hf-img relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100" data-name="<?= e($n) ?>"><img loading="lazy" class="w-full h-full object-cover" src="<?= e(url('ai_task', ['img' => $n])) ?>" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span></button><?php endforeach; ?>
+            </div>
             <p class="text-[11px] text-ink-400 mt-2"><?= e(t('اضغط على الصورة لإضافتها للمنشور. التوليد يستهلك من رصيد Higgsfield.')) ?></p>
           </div>
           <script>
           (function () {
             var go = document.getElementById('hf-go'), pr = document.getElementById('hf-prompt'), st = document.getElementById('hf-status'), res = document.getElementById('hf-results'), form = go.closest('form');
-            var csrf = document.querySelector('meta[name=csrf-token]').content;
+            var csrf = document.querySelector('meta[name=csrf-token]').content, label = go.textContent, pending = 0;
             function call(data) { var fd = new FormData(); for (var k in data) fd.append(k, data[k]); return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf } }).then(function (r) { return r.json(); }); }
             function msg(t, err) { st.textContent = t; st.classList.remove('hidden'); st.classList.toggle('text-red-600', !!err); }
-            function done() { go.disabled = false; go.textContent = <?= json_encode(t('توليد'), JSON_UNESCAPED_UNICODE) ?>; }
+            function done() { if (--pending <= 0) { pending = 0; go.disabled = false; go.textContent = label; } }
+            function toggle(b) {
+              var on = !b.dataset.on; b.dataset.on = on ? '1' : ''; var n = b.dataset.name;
+              b.classList.toggle('border-brand-600', on); b.lastChild.classList.toggle('hidden', !on); b.lastChild.classList.toggle('flex', on);
+              var inp = form.querySelector('input[name="ai_media[]"][value="' + CSS.escape(n) + '"]');
+              if (on && !inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'ai_media[]'; inp.value = n; form.appendChild(inp); }
+              if (!on && inp) inp.remove();
+            }
+            res.addEventListener('click', function (e) { var b = e.target.closest('.hf-img'); if (b) toggle(b); });
+            function add(img) {
+              var b = document.createElement('button'); b.type = 'button'; b.dataset.name = img.name;
+              b.className = 'hf-img relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100';
+              b.innerHTML = '<img class="w-full h-full object-cover" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span>';
+              b.querySelector('img').src = img.src; res.prepend(b); toggle(b);
+            }
+            function poll(id, tries) {
+              call({ task: 'image_status', id: id }).then(function (s) {
+                if (s.error) { msg(s.error, true); done(); return; }
+                if (s.status === 'completed') { (s.images || []).forEach(add); if (pending <= 1) st.classList.add('hidden'); done(); return; }
+                if (tries > 60) { msg(<?= json_encode(t('التوليد أخذ وقتًا أطول من المعتاد. جرّب مرة أخرى.'), JSON_UNESCAPED_UNICODE) ?>, true); done(); return; }
+                setTimeout(function () { poll(id, tries + 1); }, 3000);
+              }).catch(function () { setTimeout(function () { poll(id, tries + 1); }, 5000); });
+            }
             go.addEventListener('click', function () {
               if (!pr.value.trim()) { pr.focus(); return; }
               go.disabled = true; go.textContent = (window.T && T.working) || '...'; msg(<?= json_encode(t('جاري التوليد... غالبًا يأخذ من 10 إلى 60 ثانية.'), JSON_UNESCAPED_UNICODE) ?>);
-              call({ task: 'image', text: pr.value }).then(function (d) {
-                if (d.error) { msg(d.error, true); done(); return; }
-                var tries = 0;
-                (function poll() {
-                  call({ task: 'image_status', id: d.id }).then(function (s) {
-                    if (s.error) { msg(s.error, true); done(); return; }
-                    if (s.status === 'completed') {
-                      st.classList.add('hidden'); done();
-                      s.images.forEach(function (u) {
-                        var b = document.createElement('button'); b.type = 'button';
-                        b.className = 'relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100';
-                        b.innerHTML = '<img class="w-full h-full object-cover" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span>';
-                        b.querySelector('img').src = u;
-                        b.addEventListener('click', function () {
-                          var on = !b.dataset.on; b.dataset.on = on ? '1' : '';
-                          b.classList.toggle('border-brand-600', on); b.lastChild.classList.toggle('hidden', !on); b.lastChild.classList.toggle('flex', on);
-                          var inp = form.querySelector('input[name="ai_media[]"][value="' + CSS.escape(u) + '"]');
-                          if (on && !inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'ai_media[]'; inp.value = u; form.appendChild(inp); }
-                          if (!on && inp) inp.remove();
-                        });
-                        res.prepend(b);
-                      });
-                      return;
-                    }
-                    if (++tries > 60) { msg(<?= json_encode(t('التوليد أخذ وقتًا أطول من المعتاد. جرّب مرة أخرى.'), JSON_UNESCAPED_UNICODE) ?>, true); done(); return; }
-                    setTimeout(poll, 3000);
-                  }).catch(function () { setTimeout(poll, 5000); });
-                })();
-              }).catch(function () { msg((window.T && T.liveFailed) || 'Error', true); done(); });
+              call({ task: 'image', text: pr.value, aspect: document.getElementById('hf-aspect').value, count: document.getElementById('hf-two').checked ? 2 : 1 }).then(function (d) {
+                if (d.error) { msg(d.error, true); go.disabled = false; go.textContent = label; return; }
+                var ids = d.ids || [d.id]; pending = ids.length; ids.forEach(function (id) { poll(id, 0); });
+              }).catch(function () { msg((window.T && T.liveFailed) || 'Error', true); go.disabled = false; go.textContent = label; });
+            });
+            document.getElementById('hf-from-text').addEventListener('click', function () {
+              var c = document.getElementById('content'); if (!c || !c.value.trim()) { c && c.focus(); return; }
+              var b = this; b.classList.add('animate-pulse');
+              call({ task: 'preset', preset: 'img_prompt', text: c.value }).then(function (d) { if (d.error) msg(d.error, true); else { pr.value = d.text; pr.focus(); } }).finally(function () { b.classList.remove('animate-pulse'); });
             });
           })();
           </script>

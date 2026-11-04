@@ -171,6 +171,7 @@ $links = $st->fetchAll();
 $pdo->exec("DELETE FROM workspace_invites WHERE expires_at < NOW()");
 
 render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, $me, $newLink, $w) {
+    echo '<div data-ai-insights="team_perf,role_suggest" class="mb-6"></div>';
     $select = function () {
         $h = '<select name="role" class="input">';
         foreach (role_options() as $k => $l) {

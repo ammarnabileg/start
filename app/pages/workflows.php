@@ -106,6 +106,7 @@ function wf_node_summary(array $n): string
 }
 
 render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $runs, $accounts, $isNew, $viewId, $statusFilter, $apiError) {
+    echo '<div data-ai-insights="kw_suggest,rules_conflict" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
 

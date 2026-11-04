@@ -88,6 +88,7 @@ render(t('العملاء المحتملين'), 'leads', function () use ($z, $ap
     $base = ['c' => $current['_id'] ?? null, 'acc' => $adAcc ?: null, 'form' => $formId ?: null];
     $statuses = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'unreachable' => t('مش بيرد'), 'qualified' => t('مهتم'), 'converted' => t('بقى عميل'), 'disqualified' => t('مش مناسب')];
     ?>
+    <div data-ai-insights="leads_score,leads_followup" class="mb-6"></div>
     <div class="space-y-5">
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$conns && !$apiError): ?>

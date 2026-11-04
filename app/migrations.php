@@ -237,4 +237,21 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    // تصنيف الذكاء الاصطناعي للمحادثات (بيشتغل في الخلفية)
+    '011_ai_labels' => [
+        "CREATE TABLE IF NOT EXISTS ai_labels (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            item_key VARCHAR(120) NOT NULL,
+            category VARCHAR(20) NOT NULL DEFAULT '',
+            sentiment VARCHAR(20) NOT NULL DEFAULT '',
+            urgency TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            intent TINYINT(1) NOT NULL DEFAULT 0,
+            summary VARCHAR(255) NOT NULL DEFAULT '',
+            src_hash CHAR(32) NOT NULL DEFAULT '',
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_item (workspace_id, item_key),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

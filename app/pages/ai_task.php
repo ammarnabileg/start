@@ -1,7 +1,17 @@
 <?php
 /** مهام الذكاء الاصطناعي السريعة (كتابة منشور، اقتراح رد). بترجع JSON. */
-header('Content-Type: application/json; charset=utf-8');
 $task = (string)($_POST['task'] ?? '');
+// عرض صورة من مكتبة الشركة (المجلد مقفول للعامة)
+if (($_GET['img'] ?? '') !== '') {
+    $f = (string)$_GET['img'];
+    $path = hf_lib_dir((int)ws('id')) . '/' . $f;
+    if (!hf_lib_valid($f) || !is_file($path) || !can('posts.create')) { http_response_code(404); exit; }
+    header('Content-Type: ' . mime_content_type($path));
+    header('Cache-Control: private, max-age=86400');
+    readfile($path);
+    exit;
+}
+header('Content-Type: application/json; charset=utf-8');
 $out = function (array $d, int $code = 200) { http_response_code($code); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
 // توليد الصور عن طريق Higgsfield: طلب، وبعدين متابعة الحالة لحد ما تخلص
 if (in_array($task, ['image', 'image_status'], true)) {
@@ -15,12 +25,20 @@ if (in_array($task, ['image', 'image_status'], true)) {
             if ($prompt === '') $out(['error' => t('اكتب وصف الصورة أولًا.')], 422);
             $path = '/' . ltrim(trim((string)($c['model'] ?? '')) ?: '/higgsfield-ai/soul/v2/standard', '/');
             if (!preg_match('#^/[\w./-]+$#', $path)) $out(['error' => t('مسار الموديل غير صحيح.')], 422);
-            $r = hf_request($c, 'POST', $path, ['prompt' => $prompt]);
-            $id = (string)($r['request_id'] ?? '');
-            if ($id === '') throw new Exception(t('لم يرجع Higgsfield رقم الطلب.'));
-            $_SESSION['hf_req'][$id] = 1;
-            log_activity('ai.image', $path);
-            $out(['id' => $id, 'status' => $r['status'] ?? 'queued']);
+            $style = trim((string)($c['style'] ?? ''));
+            $body = ['prompt' => $prompt . ($style !== '' ? '. Style: ' . $style : '')];
+            $ar = (string)($_POST['aspect'] ?? '');
+            if (in_array($ar, ['1:1', '4:5', '9:16', '16:9'], true)) $body['aspect_ratio'] = $ar;
+            $ids = [];
+            for ($k = 0; $k < ((int)($_POST['count'] ?? 1) === 2 ? 2 : 1); $k++) {
+                $r = hf_request($c, 'POST', $path, $body);
+                $id = (string)($r['request_id'] ?? '');
+                if ($id === '') throw new Exception(t('لم يرجع Higgsfield رقم الطلب.'));
+                $_SESSION['hf_req'][$id] = 1;
+                $ids[] = $id;
+            }
+            log_activity('ai.image', $path . ' x' . count($ids));
+            $out(['id' => $ids[0], 'ids' => $ids, 'status' => 'queued']);
         }
         $id = (string)($_POST['id'] ?? '');
         if (!preg_match('/^[\w-]{8,80}$/', $id) || empty($_SESSION['hf_req'][$id])) $out(['error' => t('طلب غير صحيح.')], 400);
@@ -28,15 +46,27 @@ if (in_array($task, ['image', 'image_status'], true)) {
         $st = (string)($r['status'] ?? '');
         if ($st === 'completed') {
             $urls = array_values(array_filter(array_map(function ($i) { return (string)($i['url'] ?? ''); }, $r['images'] ?? [])));
-            foreach ($urls as $u) $_SESSION['hf_urls'][$u] = 1; // بس الروابط دي اللي هنقبلها في المنشور
             unset($_SESSION['hf_req'][$id]);
-            $out(['status' => 'completed', 'images' => $urls]);
+            // بنحفظها في مكتبة الشركة على طول، لأن روابط Higgsfield بتنتهي بعد 7 أيام
+            $lib = [];
+            foreach ($urls as $u) { $n = hf_lib_save((int)ws('id'), $u); if ($n) $lib[] = $n; }
+            $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n])]; }, $lib)]);
         }
         if (in_array($st, ['failed', 'nsfw', 'canceled'], true)) {
             unset($_SESSION['hf_req'][$id]);
             $out(['status' => $st, 'error' => $st === 'nsfw' ? t('رفض Higgsfield الوصف لأنه مخالف لسياسة المحتوى.') : t('فشل توليد الصورة. جرّب وصفًا مختلفًا.')]);
         }
         $out(['status' => $st ?: 'queued']);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
+// تصنيف المحادثات دلوقتي (بدل ما تستنى التشغيل الدوري)
+if ($task === 'classify_now') {
+    if (!can('inbox.reply') && !can('inbox.manage')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    try {
+        $out(['ok' => true, 'count' => ai_classify_conversations((int)ws('id'))]);
     } catch (Throwable $e) {
         $out(['error' => $e->getMessage()], 502);
     }
@@ -52,7 +82,13 @@ if ($task === 'insight') {
     if (!empty($in['input']) && $extra === '' && empty($in['optional'])) $out(['error' => t('اكتب المطلوب أولًا.')], 422);
     if (!can('analytics.view') && $in['group'] === 'analyze') $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
     $sys = strtr($in['sys'], ['{lang}' => lang() === 'ar' ? 'Arabic (Modern Standard Arabic)' : 'English', '{tz}' => site_timezone()]) . ' The business is "' . ws('name') . '".';
-    $user = "DATA:\n" . assistant_context(true) . ($extra !== '' ? "\n\nUSER REQUEST:\n" . $extra : '');
+    if (!empty($in['admin']) && !is_admin()) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    $user = empty($in['nodata']) ? "DATA:\n" . assistant_context(true) : '';
+    if (!empty($in['page'])) $user .= "\n\nPAGE:\n" . mb_substr(trim((string)($_POST['page'] ?? '')), 0, 8000);
+    if (!empty($in['perms'])) { $pl = []; foreach (permission_catalog() as $g => $items) foreach ($items as $k => $l) $pl[] = "$g / $l"; $user .= "\n\nPERMISSIONS:\n" . implode("\n", $pl); }
+    if (!empty($in['nav'])) { $nl = []; foreach (nav_items() as $g) { $nl[] = '- ' . ($g['section'] ? $g['section'] . ' › ' : '') . ($g['label'] ?? '') . (!empty($g['tabs']) ? ': ' . implode(', ', array_values($g['tabs'])) : ''); } $user .= "\n\nMENU:\n" . implode("\n", $nl); }
+    if (!empty($in['admin'])) $user .= "\n\nPLATFORM:\n" . ai_admin_context();
+    $user .= $extra !== '' ? "\n\nUSER REQUEST:\n" . $extra : '';
     try {
         $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], !empty($in['csv']) ? 2500 : 1200, $in['group']);
         $text = trim($r['text']);

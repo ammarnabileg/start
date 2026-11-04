@@ -149,6 +149,7 @@ function wa_stat_bar(array $b): string
 }
 
 render(t('الرسائل الجماعية'), 'broadcasts', function () use ($z, $accounts, $acc, $apiError, $status, $showNew, $list, $detail, $recips, $summary, $templates, $contacts, $allTags, $id) {
+    echo '<div data-ai-insights="best_time,segments" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     if (!$acc) { wa_no_account_box(); return; }
