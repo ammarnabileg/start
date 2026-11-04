@@ -53,6 +53,120 @@
     var del = e.target.closest('.kb-del');
     if (del) { var f = del.closest('form'), row = del.closest('.kb-row'); if (f.querySelectorAll('.kb-row').length > 1) row.remove(); else row.querySelectorAll('[data-col]').forEach(function (x) { x.value = ''; }); save(f); }
   });
+  /* ---------- الملء/التحديث بالذكاء الاصطناعي: اقتراح الأول، ومفيش حفظ غير لما المستخدم يعتمد ---------- */
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function optLabel(form, name, val) { var el = form.querySelector('[name="d[' + name + ']' + (Array.isArray(val) ? '[]' : '') + '"][value="' + val + '"]') || form.querySelector('[name="d[' + name + '][]"][value="' + val + '"]'); if (!el) { var o = form.querySelector('select[name="d[' + name + ']"] option[value="' + val + '"]'); return o ? o.textContent : val; } var l = el.closest('label'); return l ? l.textContent.trim() : val; }
+  function current(form) {
+    var type = form.dataset.type, o = {};
+    if (type === 'rows') { o.rows = [].map.call(form.querySelectorAll('.kb-row'), function (r) { var x = {}; r.querySelectorAll('[data-col]').forEach(function (el) { x[el.dataset.col] = el.value; }); return x; }).filter(function (x) { return Object.values(x).join('').trim(); }); return o; }
+    form.querySelectorAll('[name^="d["]').forEach(function (el) {
+      var m = el.name.match(/^d\[(\w+)\](\[\])?$/); if (!m) return;
+      if (m[2]) { o[m[1]] = o[m[1]] || []; if (el.checked) o[m[1]].push(el.value); } else o[m[1]] = el.value;
+    });
+    return o;
+  }
+  function applyData(form, d) {
+    var type = form.dataset.type;
+    if (type === 'rows') {
+      var box = form.querySelector('.kb-rows'), tpl = box.querySelector('.kb-row');
+      box.querySelectorAll('.kb-row').forEach(function (r, i) { if (i) r.remove(); });
+      tpl.querySelectorAll('[data-col]').forEach(function (x) { x.value = ''; });
+      (d.rows || []).forEach(function (r, i) { var row = i ? tpl.cloneNode(true) : tpl; row.querySelectorAll('[data-col]').forEach(function (el) { el.value = r[el.dataset.col] || ''; }); if (i) box.appendChild(row); });
+    } else {
+      Object.keys(d).forEach(function (k) {
+        var v = d[k];
+        if (Array.isArray(v)) form.querySelectorAll('[name="d[' + k + '][]"]').forEach(function (c) { c.checked = v.indexOf(c.value) > -1; });
+        else { var el = form.querySelector('[name="d[' + k + ']"]'); if (el && !(k === 'email' && !v)) el.value = v; }
+      });
+    }
+    form.querySelectorAll('textarea[data-col]').forEach(function (t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; });
+    form.querySelectorAll('input,textarea,select').forEach(function (el) { if (el.closest('.kb-sug')) return; el.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { el.classList.remove('ring-4', 'ring-brand-500/20'); }, 1800); });
+    save(form);
+  }
+  // كارت الاقتراح: بيعرض الجديد والمتعدّل، والمستخدم يختار
+  function suggest(form, d, meta) {
+    var old = form.querySelector('.kb-sug'); if (old) old.remove();
+    var type = form.dataset.type, cur = current(form), body = '', changes = 0;
+    var tag = function (kind) { return '<span class="ms-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium ' + (kind === 'new' ? 'bg-lime-100 text-lime-700' : kind === 'chg' ? 'bg-amber-100 text-amber-700' : 'bg-ink-100 text-ink-500') + '">' + (kind === 'new' ? K.newTag : kind === 'chg' ? K.changed : K.same) + '</span>'; };
+    if (type === 'rows') {
+      var key = form.dataset.section === 'faq' ? 'q' : 'name';
+      body = (d.rows || []).map(function (r, i) {
+        var match = (cur.rows || []).filter(function (c) { return (c[key] || '').trim() === (r[key] || '').trim(); })[0];
+        var kind = !match ? 'new' : (JSON.stringify(match) === JSON.stringify(Object.assign({}, match, r)) ? 'same' : 'chg'); if (kind !== 'same') changes++;
+        var main = form.dataset.section === 'faq' ? '<b class="text-ink-900">' + esc(r.q) + '</b>' + tag(kind) + '<div class="text-ink-600 mt-0.5">' + esc(r.a) + '</div>'
+          : '<b class="text-ink-900">' + esc(r.name) + '</b>' + (r.price ? ' <span class="text-brand-700">— ' + esc(r.price) + '</span>' : '') + tag(kind) + (r.details ? '<div class="text-ink-600 mt-0.5">' + esc(r.details) + '</div>' : '');
+        return '<label class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2 cursor-pointer hover:border-brand-300"><input type="checkbox" class="kb-pick mt-1" data-i="' + i + '" checked><span class="flex-1 text-sm">' + main + '</span></label>';
+      }).join('');
+      // اللي موجود ومش في الاقتراح بيفضل (مابنمسحش حاجة المستخدم كاتبها)
+      (cur.rows || []).forEach(function (c) { if (!(d.rows || []).some(function (r) { return (r[key] || '').trim() === (c[key] || '').trim(); })) d.rows.push(c); });
+    } else {
+      body = Object.keys(d).map(function (k) {
+        var v = d[k], c = cur[k]; if (k === 'email') return '';
+        var same = JSON.stringify(Array.isArray(v) ? v.slice().sort() : String(v || '').trim()) === JSON.stringify(Array.isArray(c) ? (c || []).slice().sort() : String(c || '').trim());
+        if (!same) changes++;
+        var shown = Array.isArray(v) ? v.map(function (x) { return '<span class="inline-block rounded-lg bg-brand-50 text-brand-700 px-2 py-0.5 text-xs m-0.5">' + esc(optLabel(form, k, x)) + '</span>'; }).join('') : (form.querySelector('select[name="d[' + k + ']"]') ? esc(optLabel(form, k, v)) : '<div class="whitespace-pre-wrap">' + esc(v) + '</div>');
+        return '<div class="rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm">' + (Object.keys(d).length > 1 ? '<div class="text-[11px] text-ink-500 mb-1">' + esc((K.labels || {})[k] || k) + tag(same ? 'same' : (c && String(c).length ? 'chg' : 'new')) + '</div>' : '') + shown + '</div>';
+      }).join('');
+    }
+    var card = document.createElement('div');
+    card.className = 'kb-sug rounded-2xl border-2 border-brand-300 bg-brand-50/60 p-4 space-y-3';
+    card.innerHTML = '<div class="flex items-start gap-2"><span class="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span><div class="flex-1"><b class="text-sm text-ink-900">' + K.sugTitle + '</b><p class="text-xs text-ink-500 mt-0.5">' + (changes ? K.sugHint : K.noChange) + '</p></div></div>'
+      + '<div class="space-y-2 max-h-[26rem] overflow-y-auto">' + body + '</div>'
+      + '<div class="flex flex-wrap items-center gap-2"><button type="button" class="kb-apply btn-primary !py-1.5 !text-xs">' + K.apply + '</button><button type="button" class="kb-dismiss btn-ghost !py-1.5 !text-xs">' + K.dismiss + '</button><span class="ms-auto text-[10px] text-ink-400" dir="ltr">' + esc(meta || '') + '</span></div>';
+    form.querySelector('.kb-saved').closest('.flex.items-start').after(card);
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    card.querySelector('.kb-dismiss').onclick = function () { card.remove(); pendingCount(); };
+    card.querySelector('.kb-apply').onclick = function () {
+      var final = d;
+      if (type === 'rows') {
+        var off = [].map.call(card.querySelectorAll('.kb-pick:not(:checked)'), function (c) { return +c.dataset.i; });
+        final = { rows: d.rows.filter(function (r, i) { return off.indexOf(i) < 0; }) };
+      }
+      form.__undo = cur; form.querySelector('.kb-undo').classList.remove('hidden');
+      applyData(form, final); card.remove(); pendingCount();
+      var lbl = form.querySelector('.kb-fill span'); if (lbl) lbl.textContent = lbl.dataset.lUpdate;
+    };
+    pendingCount();
+  }
+  // عدد الاقتراحات المستنية جنب كل قسم في القايمة
+  function pendingCount() {
+    root.querySelectorAll('.kb-tab').forEach(function (t) {
+      var f = root.querySelector('[data-kb="' + t.dataset.kbGo + '"] .kb-sug'), b = t.querySelector('.kb-pend');
+      if (f && !b) { b = document.createElement('span'); b.className = 'kb-pend w-2 h-2 rounded-full bg-brand-500 animate-pulse'; t.appendChild(b); }
+      if (!f && b) b.remove();
+    });
+  }
+  function fill(form, mode) {
+    var btn = form.querySelector('.kb-fill'), lbl = btn.querySelector('span'), txt = lbl.textContent;
+    btn.disabled = true; btn.classList.add('animate-pulse'); lbl.textContent = K.filling;
+    var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', form.dataset.section); fd.append('mode', mode || 'update');
+    return post(fd).then(function (d) {
+      if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return false; }
+      suggest(form, d.data || {}, d.meta); return true;
+    }).catch(function () { window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
+      .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); lbl.textContent = txt; });
+  }
+  root.addEventListener('click', function (e) {
+    var b = e.target.closest('.kb-fill'); if (b) { fill(b.closest('form'), 'update'); return; }
+    var u = e.target.closest('.kb-undo');
+    if (u) { var f = u.closest('form'); if (f.__undo) { applyData(f, f.__undo); f.__undo = null; u.classList.add('hidden'); } }
+  });
+  // الكل: بيجهز اقتراحات للأقسام واحد ورا التاني، والمستخدم يراجعهم
+  ['kb-fill-all', 'kb-update-all'].forEach(function (id) {
+    var b = document.getElementById(id); if (!b) return;
+    b.addEventListener('click', function () {
+      var mode = b.dataset.mode, forms = [].filter.call(root.querySelectorAll('.kb-form'), function (f) { var dot = root.querySelector('[data-dot="' + f.dataset.section + '"]'); var full = dot && dot.classList.contains('bg-lime-500'); return mode === 'fill' ? !full : full; });
+      if (!forms.length) { window.aiToast ? aiToast(K.none) : alert(K.none); return; }
+      if (mode === 'update' && !confirm(K.confirmAll)) return;
+      var lbl = b.querySelector('span'), txt = lbl.textContent, done = 0; b.disabled = true;
+      (function next(i) {
+        if (i >= forms.length) { b.disabled = false; lbl.textContent = txt; go(forms[0].dataset.section); return; }
+        lbl.textContent = (i + 1) + ' / ' + forms.length; go(forms[i].dataset.section);
+        fill(forms[i], mode === 'fill' ? 'fill' : 'update').then(function (ok) { if (ok) done++; next(i + 1); });
+      })(0);
+    });
+  });
+
   // تكبير خانة التفاصيل مع الكتابة
   root.addEventListener('input', function (e) { if (e.target.matches('textarea[data-col]')) { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; } });
 

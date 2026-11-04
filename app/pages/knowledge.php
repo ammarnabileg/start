@@ -75,6 +75,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true]);
     }
 
+    // ملء قسم بالذكاء الاصطناعي من الملفات والأقسام التانية وبيانات الحساب. بيرجع اقتراح، مش بيحفظ.
+    if ($action === 'kb_fill') {
+        $sec = (string)($_POST['section'] ?? '');
+        if (!isset($schema[$sec])) $json(['error' => t('طلب غير صحيح.')], 400);
+        if (!ai_connection()) $json(['error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).')], 422);
+        $type = $schema[$sec]['type'];
+        $lang = lang() === 'ar' ? 'Arabic' : 'English';
+        $shape = [
+            'text' => '{"text":"..."}',
+            'rows' => $sec === 'faq' ? '{"rows":[{"q":"question","a":"approved answer"}]}' : '{"rows":[{"name":"","price":"","details":""}]}',
+            'list' => '{"text":"one item per line"}',
+            'tone' => '{"style":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_tone_options()))) . '],"dialect":"' . implode('|', array_keys(kb_dialect_options())) . '","emoji":"none|light|normal","notes":"..."}',
+            'antihype' => '{"rules":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_antihype_rules()))) . '],"words":"comma separated banned words"}',
+            'visual' => '{"colors":"...","style":"..."}',
+            'escalation' => '{"triggers":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_trigger_options()))) . '],"keywords":"comma separated","message":"short polite hand-off message to the customer"}',
+        ][$type];
+        $guide = [
+            'company' => 'Describe the company: what it sells, location/branches, hours, payment and delivery — ONLY facts found in the sources.',
+            'services' => 'List every product/service with its exact price as written in the sources. If a price is not written, leave "price" empty. Never estimate prices.',
+            'faq' => 'Write 6-12 FAQs. Prefer questions customers actually asked in the recent messages; answer ONLY with facts from the sources; skip questions you cannot answer.',
+            'tone' => 'Infer the tone from how the company writes its posts and replies.',
+            'audience' => 'Describe the likely audience (age, location, interests, needs) from the posts, messages and documents. Say it is an inference.',
+            'focus' => 'Suggest what to promote now, based on the best-performing posts and the services.',
+            'never_say' => 'Suggest things the AI must never say for this kind of business: unlisted prices, delivery promises, competitor talk, medical/legal claims, etc. 5-10 lines.',
+            'anti_hype' => 'Choose suitable anti-hype rules and suggest banned hype words in the company language.',
+            'visual_style' => 'Infer brand colors and image style from documents/posts if mentioned; otherwise suggest a fitting style and say so in "style".',
+            'escalation' => 'Choose sensible hand-off triggers for this business, instant hand-off keywords in the customer language (incl. dialect), and a short polite hand-off message.',
+        ][$sec] ?? '';
+        $files = '';
+        try {
+            $st = db()->prepare("SELECT name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
+            $st->execute([$wid]);
+            foreach ($st->fetchAll() as $f) { $files .= "\n### " . $f['name'] . "\n" . mb_substr((string)$f['content'], 0, 8000); if (mb_strlen($files) > 24000) break; }
+        } catch (Throwable $e) {}
+        $cur = kb_get($wid)[$sec] ?? [];
+        $update = ($_POST['mode'] ?? '') === 'update' && kb_filled($cur, $type);
+        if ($update) $guide .= ' UPDATE MODE: the CURRENT CONTENT below was written by the owner. Keep everything that is still correct (do not remove the owner\'s entries unless the sources clearly contradict them), add what is missing from the sources, fix contradictions, and improve clarity. Return the full updated section.';
+        $sys = "You fill one section of a company's knowledge base for an AI customer-service assistant. Section: \"" . $schema[$sec]['label'] . "\". " . $guide
+            . " Use ONLY the SOURCES (documents, existing knowledge base, real account data). Never invent facts, prices, phone numbers or policies. Write in $lang (keep product names as written)."
+            . " Return ONLY valid JSON in exactly this shape: " . $shape;
+        $user = ($update ? "CURRENT CONTENT OF THIS SECTION (JSON):\n" . json_encode($cur, JSON_UNESCAPED_UNICODE) . "\n\n" : '') . "SOURCES\n\n## EXISTING KNOWLEDGE BASE\n" . (kb_compile($wid) ?: '-') . "\n\n## DOCUMENTS" . ($files ?: "\n-") . "\n\n## ACCOUNT DATA (posts, messages, metrics)\n" . assistant_context(true);
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 60000)]], 2000, 'analyze');
+        } catch (Throwable $e) {
+            $json(['error' => $e->getMessage()], 502);
+        }
+        $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
+        $d = json_decode($j, true);
+        if (!is_array($d)) $json(['error' => t('الموديل لم يرجع اقتراحًا مفهومًا. جرّب مرة أخرى أو موديلًا أقوى.')], 502);
+        $log = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
+        $json(['ok' => true, 'data' => $d, 'meta' => $log, 'mode' => $update ? 'update' : 'fill']);
+    }
+
     if ($action === 'kb_test') {
         if (!ai_connection()) $json(['error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).')], 422);
         $msg = $str($_POST['message'] ?? '', 2000);
@@ -116,6 +169,10 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         <h2 class="text-lg font-semibold text-ink-900"><?= e(t('كل ما يعرفه الذكاء الاصطناعي عن شركتك')) ?></h2>
         <p class="text-sm text-ink-500 mt-0.5"><?= e(t('يُستخدم في كل الردود والمنشورات والتحليلات. كلما كان أكمل، كانت الردود أدق وأقل خطأ. الحفظ تلقائي.')) ?></p>
       </div>
+      <?php if ($canEdit): ?>
+        <button type="button" id="kb-fill-all" data-mode="fill" class="btn-ghost"><?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('املأ الأقسام الفاضية')) ?></span></button>
+        <button type="button" id="kb-update-all" data-mode="update" class="btn-ghost"><?= ai_icon('revive', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('حدّث الكل')) ?></span></button>
+      <?php endif; ?>
       <button type="button" data-kb-go="test" class="btn-primary"><?= $ico($icons['test']) ?> <?= e(t('جرّب الرد')) ?></button>
       <?php if (!$canEdit): ?><p class="w-full text-xs text-amber-700"><?= e(t('عرض فقط. التعديل لصاحب الشركة أو من لديه صلاحية الإعدادات.')) ?></p><?php endif; ?>
     </div>
@@ -154,10 +211,16 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
 
         <?php foreach ($schema as $k => $s): $d = $kb[$k] ?? []; ?>
         <section data-kb="<?= $k ?>" class="card p-5 hidden">
-          <form class="kb-form space-y-4" data-section="<?= $k ?>">
+          <form class="kb-form space-y-4" data-section="<?= $k ?>" data-type="<?= $s['type'] ?>">
             <div class="flex items-start justify-between gap-3">
               <div><h3 class="font-semibold text-ink-900"><?= e($s['label']) ?></h3><p class="text-sm text-ink-500 mt-1"><?= e($s['hint']) ?></p></div>
-              <span class="kb-saved text-xs text-lime-700 opacity-0 transition whitespace-nowrap"><?= e(t('تم الحفظ')) ?> ✓</span>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="kb-saved text-xs text-lime-700 opacity-0 transition whitespace-nowrap"><?= e(t('تم الحفظ')) ?> ✓</span>
+                <?php if ($canEdit): ?>
+                <button type="button" class="kb-undo hidden btn-ghost !py-1.5 !px-2.5 !text-xs"><?= e(t('تراجع')) ?></button>
+                <button type="button" class="kb-fill inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-60 transition"><?= ui_icon('spark', 'w-3.5 h-3.5') ?><span data-l-fill="<?= e(t('املأ بالذكاء الاصطناعي')) ?>" data-l-update="<?= e(t('حدّث بالذكاء الاصطناعي')) ?>"><?= e(kb_filled($d, $s['type']) ? t('حدّث بالذكاء الاصطناعي') : t('املأ بالذكاء الاصطناعي')) ?></span></button>
+                <?php endif; ?>
+              </div>
             </div>
             <?php if ($s['type'] === 'text'): ?>
               <textarea name="d[text]" rows="9" class="input text-sm leading-relaxed" <?= $dis ?> placeholder="<?= e($k === 'company' ? t("مثال:\nمطعم بيتزا في مدينة نصر، مفتوح يوميًا 12 ظهرًا - 2 صباحًا\nالتوصيل داخل القاهرة 30 جنيه خلال 45 دقيقة\nالدفع كاش أو فيزا أو فودافون كاش") : '') ?>"><?= e($d['text'] ?? '') ?></textarea>
@@ -218,7 +281,10 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'del' => t('حذف الملف؟'), 'total' => $total], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'del' => t('حذف الملف؟'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+      'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
+      'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
+      'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/knowledge.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
