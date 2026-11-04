@@ -41,7 +41,6 @@ function nav_items(): array
         ['key' => 'automations', 'label' => t('الردود التلقائية'), 'section' => t('التواصل'), 'module' => 'automations',
             'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows']],
         ['key' => 'assistant', 'label' => t('الذكاء الاصطناعي'), 'section' => t('الأدوات')],
-        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الأدوات')],
         ['key' => 'whatsapp', 'label' => t('واتساب'), 'section' => t('الأدوات'), 'module' => 'whatsapp',
             'tabs' => ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'contacts' => t('جهات الاتصال'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('البروفايل')]],
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => t('الأدوات'), 'module' => 'analytics',
@@ -56,6 +55,7 @@ function nav_items(): array
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الشركة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('الإعدادات'), 'section' => t('الشركة'),
             'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
+        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
     ];
     if (is_admin()) {
         $items[] = ['key' => 'admin', 'label' => t('إدارة المنصة'), 'section' => t('النظام'),
