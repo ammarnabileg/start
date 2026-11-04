@@ -14,6 +14,7 @@ if ($cid === '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
+    if (($_POST['return'] ?? '') === 'ads') $back = url('ads', ['r' => $range]);
     $action = (string)($_POST['action'] ?? '');
     $platform = (string)($_POST['platform'] ?? $pf);
     $to = ($_POST['to'] ?? '') === 'active' ? 'active' : 'paused';

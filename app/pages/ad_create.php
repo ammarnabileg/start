@@ -135,6 +135,10 @@ function adc_payload(array $f): array
 }
 
 $form = $_SESSION['adc_form'] ?? null;
+if (!$form && !empty($_GET['dup'])) {
+    $form = ['name' => mb_substr(t('نسخة من %s', (string)($_GET['dup_name'] ?? '')), 0, 200), 'dup_acc' => (string)($_GET['dup_acc'] ?? ''),
+        'budget' => (float)($_GET['dup_budget'] ?? 0) ?: '', 'budget_type' => ($_GET['dup_bt'] ?? '') === 'lifetime' ? 'lifetime' : 'daily'];
+}
 $step = 'form';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
@@ -291,7 +295,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
               <label class="label"><?= e(t('حساب الإعلانات')) ?></label>
               <select name="target" class="input" id="adcTarget" required>
                 <?php foreach ($targets as $t): $val = $t['conn']['_id'] . '|' . $t['acc']['id'] . '|' . ($t['acc']['currency'] ?? ''); ?>
-                  <option value="<?= e($val) ?>" data-conn="<?= e($t['conn']['_id']) ?>" data-acc="<?= e($t['acc']['id']) ?>" <?= $v('target') === $val ? 'selected' : '' ?>><?= e(($t['acc']['name'] ?? $t['acc']['id']) . ' · ' . ($t['acc']['currency'] ?? '') . ' — ' . ($t['conn']['displayName'] ?? '')) ?></option>
+                  <option value="<?= e($val) ?>" data-conn="<?= e($t['conn']['_id']) ?>" data-acc="<?= e($t['acc']['id']) ?>" <?= $v('target') === $val || ($v('dup_acc') !== '' && ltrim((string)$v('dup_acc'), 'act_') === ltrim((string)$t['acc']['id'], 'act_')) ? 'selected' : '' ?>><?= e(($t['acc']['name'] ?? $t['acc']['id']) . ' · ' . ($t['acc']['currency'] ?? '') . ' — ' . ($t['conn']['displayName'] ?? '')) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
@@ -402,7 +406,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
           'summary' => t('الملخص'), 'acc' => t('الحساب'), 'audience' => t('الجمهور'), 'age' => t('سن %s-%s'), 'launchPaused' => t('هتتعمل متوقفة، مفيش صرف'), 'launchActive' => t('هتشتغل فورًا وتبدأ تصرف'),
           'myCountry' => ws_country(), 'nearby' => ['EG' => ['SA', 'AE', 'KW'], 'SA' => ['AE', 'KW', 'QA', 'BH'], 'AE' => ['SA', 'QA', 'OM'], 'KW' => ['SA', 'AE', 'BH'], 'QA' => ['SA', 'AE', 'BH'], 'BH' => ['SA', 'KW', 'AE'], 'OM' => ['AE', 'SA'], 'JO' => ['SA', 'AE', 'PS'], 'MA' => ['DZ', 'TN', 'FR']][ws_country()] ?? ['SA', 'AE', 'EG'],
           'cNames' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
-          'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير مراجعة؟')], JSON_UNESCAPED_UNICODE) ?>;</script>
+          'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير مراجعة؟'), 'ref' => $_SESSION['ads_budget_ref'] ?? new stdClass(), 'overWarn' => t('تحذير: ده %s ضعف الميزانية اليومية المعتادة في حملاتك (%s). اتأكد من المبلغ.')], JSON_UNESCAPED_UNICODE) ?>;</script>
         <script src="assets/ui-ad_create.js?v=<?= e(APP_VERSION) ?>"></script>
         <script>
         (function () {

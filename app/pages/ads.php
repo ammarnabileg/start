@@ -13,10 +13,52 @@ if (!isset(ads_date_presets()[$range])) $range = '30';
 $pg = max(1, (int)($_GET['pg'] ?? 1));
 $back = url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range, 'pg' => $pg > 1 ? $pg : null]));
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_analyze') {
+    header('Content-Type: application/json; charset=utf-8');
+    $d = json_decode((string)($_POST['data'] ?? '{}'), true) ?: [];
+    $lines = [];
+    foreach (['name', 'platform', 'status', 'currency', 'budget', 'spend', 'impressions', 'clicks', 'ctr', 'cpc', 'results', 'prev_spend', 'prev_clicks', 'prev_results', 'account_avg_ctr', 'account_avg_cpc', 'period'] as $k) {
+        if (isset($d[$k]) && $d[$k] !== '') $lines[] = $k . ': ' . mb_substr(is_scalar($d[$k]) ? (string)$d[$k] : json_encode($d[$k], JSON_UNESCAPED_UNICODE), 0, 200);
+    }
+    try {
+        $r = ai_chat([
+            ['role' => 'system', 'content' => 'أنت خبير إعلانات ممولة (Meta وLinkedIn) تعمل لصالح صاحب شركة. حلّل أداء الحملة بالأرقام المعطاة فقط، ولا تخترع أرقامًا. اكتب بالعربية الفصحى المبسطة، باختصار، بهذا الشكل: '
+                . '1) الحكم في سطر واحد (جيدة / متوسطة / ضعيفة) مع السبب الرئيسي. 2) أهم 3 ملاحظات مبنية على الأرقام ومقارنتها بمتوسط الحساب والفترة السابقة. 3) أهم 3 خطوات عملية مرتبة بالأولوية. '
+                . 'لو البيانات غير كافية للحكم (ظهور قليل جدًا مثلًا) قل ذلك صراحة. لا تقترح زيادة الميزانية إلا لو الأرقام تبرر ذلك بوضوح.' . ai_country_note()],
+            ['role' => 'user', 'content' => implode("
+", $lines)],
+        ], 700, 'ads_analyze');
+        echo json_encode(['ok' => true, 'text' => $r['text']], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     try {
-        if ($action === 'connect') {
+        if ($action === 'bulk_status') {
+            $to = ($_POST['to'] ?? '') === 'active' ? 'active' : 'paused';
+            $ids = array_slice(array_filter((array)($_POST['ids'] ?? []), 'is_string'), 0, 50);
+            if (!$ids) {
+                flash('error', t('اختار حملة واحدة على الأقل.'));
+            } elseif ($to === 'active' && !can('ads.spend')) {
+                flash('error', t('تشغيل الحملات (صرف فلوس) لصاحب الشركة بس.'));
+            } elseif ($to === 'active' && empty($_POST['confirm_spend'])) {
+                flash('error', t('لازم تعلّم على خانة التأكيد قبل التشغيل.'));
+            } else {
+                $ok = 0; $fail = [];
+                foreach ($ids as $pair) {
+                    [$cid, $cpf] = array_pad(explode('|', $pair, 2), 2, '');
+                    if ($cid === '' || !in_array($cpf, ads_campaign_platforms(), true)) continue;
+                    try { ads_set_campaign_status($z, $cid, $cpf, $to); log_activity('ads.campaign_' . $to, $cid); $ok++; }
+                    catch (ZernioException $ex) { $fail[] = $ex->getMessage(); }
+                }
+                if ($ok) flash('success', $to === 'active' ? t('اتشغّلت %s حملة.', $ok) : t('اتوقفت %s حملة.', $ok));
+                if ($fail) flash('error', t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]));
+            }
+        } elseif ($action === 'connect') {
             if (!can('ads.spend')) {
                 flash('error', t('ربط حساب الإعلانات لصاحب الشركة بس.'));
             } else {
@@ -62,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 $connections = [];
 $adAccounts = [];   // [ ['conn'=>..., 'accounts'=>[...], 'error'=>?] ]
 $campaigns = [];
+$prev = [];
 $pagination = [];
 $apiError = null;
 [$from, $to] = ads_date_range($range);
@@ -85,10 +128,25 @@ if ($z) {
         if ($uiFx) $r['pagination'] = ['total' => count($r['campaigns'])];
         $campaigns = $r['campaigns'] ?? [];
         $pagination = $r['pagination'] ?? [];
+        // الفترة اللي قبلها بنفس الطول، للمقارنة
+        if ($campaigns) {
+            $len = (int)round((strtotime($to) - strtotime($from)) / 86400) + 1;
+            $pTo = date('Y-m-d', strtotime($from . ' -1 day'));
+            $pFrom = date('Y-m-d', strtotime($pTo . ' -' . ($len - 1) . ' days'));
+            try {
+                $pfx = ($fxd ?? '') && is_file($fxd . '/ads_prev.json') ? json_decode((string)file_get_contents($fxd . '/ads_prev.json'), true) : null;
+                $pr = $uiFx ? ($pfx ?: ['campaigns' => []]) : ads_campaigns($z, array_filter(['platform' => $platform ?: null, 'adAccountId' => $adAcc ?: null, 'fromDate' => $pFrom, 'toDate' => $pTo, 'limit' => 100]));
+                foreach ($pr['campaigns'] ?? [] as $pc) $prev[(string)($pc['platformCampaignId'] ?? '')] = $pc['metrics'] ?? [];
+            } catch (ZernioException $ex) { /* المقارنة اختيارية */ }
+        }
     } catch (ZernioException $ex) {
         $apiError = $ex->getMessage();
     }
 }
+
+$ref = [];
+foreach ($campaigns as $c) { $b = $c['campaignBudget'] ?? $c['budget'] ?? null; if ($b && ($b['type'] ?? '') === 'daily' && (float)($b['amount'] ?? 0) > 0) $ref[(string)($c['currency'] ?? '')][] = (float)$b['amount']; }
+foreach ($ref as $k => $arr) { sort($arr); $_SESSION['ads_budget_ref'][$k] = $arr[intdiv(count($arr), 2)]; }
 
 // الصرف لكل حساب إعلانات (من الحملات المعروضة)
 $spendByAcc = [];
@@ -110,7 +168,7 @@ foreach ($adAccounts as $row) {
     foreach ($row['accounts'] as $a) if (ads_account_usable($a)) $usableCount++;
 }
 
-render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccounts, $campaigns, $pagination, $platform, $adAcc, $status, $range, $pg, $spendByAcc, $totals, $usableCount, $from, $to) {
+render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccounts, $campaigns, $pagination, $platform, $adAcc, $status, $range, $pg, $spendByAcc, $totals, $usableCount, $from, $to, $prev) {
     if (!$z) { no_api_box(); return; }
     $q = function (array $over = []) use ($platform, $adAcc, $status, $range) {
         return url('ads', array_filter($over + ['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range], function ($v) { return $v !== '' && $v !== null; }));
@@ -233,8 +291,12 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
       </div>
       <?php endif; ?>
 
+      <!-- محتاج انتباهك -->
+      <section id="ads-attn" class="card p-4 hidden"></section>
+
       <!-- الحملات -->
       <section class="card overflow-hidden">
+        <div id="ads-bulk" class="hidden sticky top-0 z-20 p-3 bg-brand-600 text-white flex flex-wrap items-center gap-2 text-sm"></div>
         <div class="p-4 border-b border-ink-200 flex items-center justify-between">
           <h2 class="font-bold text-ink-900"><?= e(t('الحملات')) ?> <span class="text-xs font-normal text-ink-500"><?= e(t('%s حملة', (int)($pagination['total'] ?? count($campaigns)))) ?></span></h2>
           <?php if ($campaigns): ?><div class="relative w-64 max-w-full"><svg class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><input type="search" id="ads-q" class="input !mt-0 !h-9 !py-0 ps-9 text-sm" dir="auto" placeholder="<?= e(t('ابحث في الحملات...')) ?> (/)"></div><?php endif; ?>
@@ -249,15 +311,16 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
             <table class="w-full text-sm" id="ads-table">
               <thead class="bg-ink-50 text-ink-600 text-xs">
                 <tr>
+                  <th class="p-3 w-8"><input type="checkbox" id="ads-all" aria-label="<?= e(t('اختار الكل')) ?>"></th>
                   <th class="text-start p-3"><?= e(t('الحملة')) ?></th>
                   <th class="text-start p-3"><?= e(t('الحالة')) ?></th>
                   <th class="text-start p-3"><?= e(t('الميزانية')) ?></th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="3"><?= e(t('الصرف')) ?></th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="4"><?= e(t('الظهور')) ?></th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="5"><?= e(t('الضغطات')) ?></th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="6">CTR</th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="7">CPC</th>
-                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="8"><?= e(t('النتايج')) ?></th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="4"><?= e(t('الصرف')) ?></th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="5"><?= e(t('الظهور')) ?></th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="6"><?= e(t('الضغطات')) ?></th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="7">CTR</th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="8">CPC</th>
+                  <th class="text-end p-3 cursor-pointer select-none hover:text-ink-900" data-sort="9"><?= e(t('النتايج')) ?></th>
                   <th class="p-3"></th>
                 </tr>
               </thead>
@@ -271,13 +334,16 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
                 $st = (string)($c['status'] ?? '');
                 $detail = url('ad_campaign', ['id' => $cid, 'pf' => $cpf, 'r' => $range]);
                 ?>
-                <tr class="ads-row align-top hover:bg-ink-50 transition" data-q="<?= e(mb_strtolower(($c['campaignName'] ?? '') . ' ' . ($c['platformAdAccountName'] ?? ''))) ?>" data-v="<?= e(json_encode([(float)($m['spend'] ?? 0), (int)($m['impressions'] ?? 0), (int)($m['clicks'] ?? 0), (float)($m['ctr'] ?? 0), (float)($m['cpc'] ?? 0), ads_results($m)])) ?>">
+                <?php $pm = $prev[$cid] ?? null; $bAmt = (float)($budget['amount'] ?? 0); ?>
+                <tr class="ads-row align-top hover:bg-ink-50 transition cursor-pointer" data-id="<?= e($cid) ?>" data-pf="<?= e($cpf) ?>" data-st="<?= e($st) ?>" data-cur="<?= e((string)$cur) ?>" data-name="<?= e($c['campaignName'] ?? $cid) ?>" data-acc="<?= e((string)($c['platformAdAccountId'] ?? '')) ?>" data-accn="<?= e((string)($c['platformAdAccountName'] ?? '')) ?>"
+                  data-b="<?= e(json_encode($budget && $bAmt > 0 ? [$bAmt, ($budget['type'] ?? 'daily') === 'lifetime' ? 'lifetime' : 'daily', !empty($c['campaignBudget'])] : null)) ?>" data-p="<?= e(json_encode($pm ? [(float)($pm['spend'] ?? 0), (int)($pm['impressions'] ?? 0), (int)($pm['clicks'] ?? 0), (float)($pm['ctr'] ?? 0), (float)($pm['cpc'] ?? 0), ads_results($pm)] : null)) ?>" data-href="<?= e($detail) ?>" data-q="<?= e(mb_strtolower(($c['campaignName'] ?? '') . ' ' . ($c['platformAdAccountName'] ?? ''))) ?>" data-v="<?= e(json_encode([(float)($m['spend'] ?? 0), (int)($m['impressions'] ?? 0), (int)($m['clicks'] ?? 0), (float)($m['ctr'] ?? 0), (float)($m['cpc'] ?? 0), ads_results($m)])) ?>">
+                  <td class="p-3"><input type="checkbox" class="ads-sel" value="<?= e($cid . '|' . $cpf) ?>" aria-label="<?= e(t('اختار %s', $c['campaignName'] ?? $cid)) ?>"></td>
                   <td class="p-3 min-w-[14rem]">
                     <a href="<?= e($detail) ?>" class="font-semibold text-ink-900 hover:underline"><?= e($c['campaignName'] ?? $cid) ?></a>
                     <div class="text-xs text-ink-500 mt-0.5"><?= e(ads_platform_label($cpf)) ?> · <?= e($c['platformAdAccountName'] ?? $c['platformAdAccountId'] ?? '') ?> · <?= e(t('%s إعلان', (int)($c['adCount'] ?? 0))) ?></div>
                   </td>
                   <td class="p-3"><?= ads_status_badge($st) ?></td>
-                  <td class="p-3 whitespace-nowrap"><?= e(ads_budget_text($budget, $cur)) ?></td>
+                  <td class="p-3 whitespace-nowrap"><span class="ads-budget"><?= e(ads_budget_text($budget, $cur)) ?></span></td>
                   <td class="p-3 text-end whitespace-nowrap font-medium"><?= e(ads_money($m['spend'] ?? 0, $cur)) ?></td>
                   <td class="p-3 text-end"><?= e(ads_num($m['impressions'] ?? 0)) ?></td>
                   <td class="p-3 text-end"><?= e(ads_num($m['clicks'] ?? 0)) ?></td>
@@ -307,6 +373,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
                       <?php endif; ?>
                     <?php endif; ?>
                     <a href="<?= e($detail) ?>" class="link text-xs block mt-1"><?= e(t('التفاصيل')) ?></a>
+                    <a href="<?= e(url('ad_create', array_filter(['dup' => 1, 'dup_name' => $c['campaignName'] ?? '', 'dup_acc' => (string)($c['platformAdAccountId'] ?? ''), 'dup_budget' => $bAmt ?: null, 'dup_bt' => $budget['type'] ?? null]))) ?>" class="link text-xs block mt-1"><?= e(t('كرر')) ?></a>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -324,7 +391,22 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         <?php endif; ?>
       </section>
     </div>
+    <script>window.ADX2 = <?= json_encode(['csrf' => csrf_token(), 'canSpend' => can('ads.spend'), 'range' => $range, 'period' => ads_date_presets()[$range] ?? '',
+      'aiUrl' => url('ads'), 'bulkUrl' => url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range])), 'campUrl' => url('ad_campaign'),
+      's' => ['attn' => t('محتاج انتباهك'), 'attnNone' => t('كل الحملات تمام في الفترة دي'), 'rejected' => t('مرفوضة من المنصة'), 'review' => t('لسه تحت المراجعة'),
+        'lowCtr' => t('نسبة الضغط %s أقل من متوسط حساباتك %s'), 'highCpc' => t('تكلفة الضغطة %s أعلى من المتوسط بـ %s'), 'noRes' => t('صرفت %s من غير أي نتيجة'),
+        'selected' => t('%s مختارة'), 'pause' => t('إيقاف'), 'activate' => t('تشغيل…'), 'compare' => t('قارن'), 'clear' => t('إلغاء الاختيار'),
+        'pauseQ' => t('إيقاف %s حملة؟'), 'actTitle' => t('تشغيل الحملات المختارة'), 'actConfirm' => t('موافق إن %s حملة هتبدأ تصرف فلوس فعلاً.'), 'run' => t('تشغيل'), 'cancel' => t('إلغاء'),
+        'cmpTitle' => t('مقارنة الحملات'), 'cmpMax' => t('اختار من 2 لـ 4 حملات للمقارنة'), 'metric' => t('المؤشر'),
+        'cols' => [t('الصرف'), t('الظهور'), t('الضغطات'), 'CTR', 'CPC', t('النتايج')], 'costRes' => t('تكلفة النتيجة'),
+        'vsPrev' => t('مقارنة بالفترة اللي قبلها'), 'share' => t('%s من صرف حملات %s'),
+        'quick' => t('نظرة سريعة'), 'open' => t('افتح التفاصيل كاملة'), 'loading' => t('بيحمّل...'), 'loadErr' => t('ما قدرناش نحمّل التفاصيل'),
+        'ai' => t('حلّل الحملة دي بالذكاء الاصطناعي'), 'aiWait' => t('بيحلل الأرقام...'), 'aiErr' => t('التحليل فشل'),
+        'budget' => t('تعديل الميزانية'), 'amount' => t('المبلغ'), 'daily' => t('يومي'), 'lifetime' => t('إجمالي'), 'save' => t('حفظ'),
+        'budConfirm' => t('موافق على تعديل ميزانية الحملة دي لـ %s.'), 'budWarn' => t('تحذير: ده %s ضعف الميزانية الحالية. اتأكد إنك مش كاتب صفر زيادة.'), 'budOwner' => t('تعديل الميزانية لصاحب الشركة بس'), 'noCbo' => t('ميزانية الحملة دي على مستوى المجموعات، عدّلها من التفاصيل'),
+        'kSel' => t('اختيار الصف'), 'kQuick' => t('نظرة سريعة على الحملة')]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script>window.ADX = <?= json_encode(['keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['/', t('البحث في الحملات')], ['n', t('حملة جديدة')], ['a', t('حسابات الإعلانات')], ['?', t('الاختصارات')]], 'create' => url('ad_create'), 'best' => t('أعلى نسبة ضغط'), 'low' => t('نسبة ضغط ضعيفة')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-ads.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ui-ads2.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

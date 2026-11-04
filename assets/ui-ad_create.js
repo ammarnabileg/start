@@ -62,6 +62,7 @@
     var days = e ? Math.max(1, Math.round((e - s) / 864e5) + 1) : 30, h = '';
     if (type === 'daily') h = '<div class="text-2xl font-bold text-ink-900 tabular-nums">' + esc(fmt(X.perDay, money(amt, cur))) + '</div><div class="text-sm text-ink-600 mt-1">' + esc(fmt(X.estimate, money(amt * days, cur), fmt(X.days, days))) + '</div>' + (e ? '' : '<div class="text-[11px] text-ink-500 mt-1">' + esc(X.openEnd) + '</div>');
     else h = '<div class="text-2xl font-bold text-ink-900 tabular-nums">' + esc(fmt(X.total, money(amt, cur))) + '</div>' + (e ? '<div class="text-sm text-ink-600 mt-1">' + esc(fmt(X.perDay, money(amt / days, cur))) + ' · ' + esc(fmt(X.days, days)) + '</div>' : '');
+    var ref = (X.ref || {})[cur]; if (type === 'daily' && ref > 0 && amt >= ref * 3) h += '<div id="adcOver" class="mt-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">' + esc(fmt(X.overWarn, (amt / ref).toFixed(1), money(ref, cur))) + '</div>';
     document.getElementById('adcBud').innerHTML = h;
     // الملخص
     var cs = (val('countries') || '').split(/[\s,]+/).filter(Boolean).map(function (c) { c = c.toUpperCase(); return (X.flags[c] || '') + ' ' + (X.cNames[c] || c); }).join('، ');

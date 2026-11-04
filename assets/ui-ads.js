@@ -18,7 +18,7 @@
   $$('#ads-table [data-sort]').forEach(function (th) {
     th.insertAdjacentHTML('beforeend', ' <span class="ads-arr text-ink-300">↕</span>');
     th.addEventListener('click', function () {
-      var i = +th.dataset.sort - 3; dir = cur === i ? -dir : -1; cur = i;
+      var i = +th.dataset.sort - 4; dir = cur === i ? -dir : -1; cur = i;
       rows.sort(function (a, b) { return (JSON.parse(a.dataset.v)[i] - JSON.parse(b.dataset.v)[i]) * dir; }).forEach(function (r) { tb.appendChild(r); });
       $$('#ads-table .ads-arr').forEach(function (s) { s.textContent = '↕'; s.className = 'ads-arr text-ink-300'; });
       var s = th.querySelector('.ads-arr'); s.textContent = dir < 0 ? '↓' : '↑'; s.className = 'ads-arr text-brand-600';
