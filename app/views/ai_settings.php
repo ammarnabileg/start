@@ -189,13 +189,11 @@ function ai_settings_render(string $tab): void
               <span><b class="text-ink-900"><?= e(t('تقييم جودة المكالمات')) ?></b><span class="block text-xs text-ink-500"><?= e(t('أؤكد أن الموظفين يعلمون ووافقوا على تحليل مكالماتهم وتقييمها.')) ?></span></span>
             </form>
           </div>
-          <form method="post" class="card p-5 flex flex-col">
-            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="action" value="ai_kb">
-            <h3 class="font-semibold text-ink-900"><?= e(t('معلومات الشركة')) ?></h3>
-            <p class="text-xs text-ink-500 mt-1"><?= e(t('الأسعار والمواعيد والعنوان والسياسات والعروض. الذكاء الاصطناعي يرد منها فقط ولا يخترع غيرها. كلما كانت أدق، كانت الردود أصح.')) ?></p>
-            <textarea name="kb" rows="9" maxlength="6000" class="input flex-1 text-sm leading-relaxed" <?= $owner ? '' : 'disabled' ?> placeholder="<?= e(t("مثال:\nمواعيد العمل: يوميًا 10 ص - 11 م ما عدا الجمعة\nالتوصيل: داخل القاهرة 50 جنيه، خلال 48 ساعة\nالاسترجاع: خلال 14 يوم بالفاتورة\nالأسعار: ...")) ?>"><?= e(ai_kb((int)ws('id'))) ?></textarea>
-            <div class="flex items-center justify-between mt-3"><span class="text-[11px] text-ink-400"><?= e(t('حتى 6000 حرف')) ?></span><button class="btn-primary" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button></div>
-          </form>
+          <a href="<?= e(url('knowledge')) ?>" class="card p-5 flex items-start gap-3 hover:border-brand-300 transition">
+            <span class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><?= ui_icon('bulb', 'w-5 h-5') ?></span>
+            <span class="flex-1"><b class="block text-ink-900"><?= e(t('قاعدة المعرفة')) ?></b><span class="block text-xs text-ink-500 mt-1"><?= e(t('معلومات الشركة، الخدمات والأسعار، الأسئلة الشائعة، النبرة، الممنوعات، الملفات، والتحويل لموظف.')) ?></span></span>
+            <svg class="w-5 h-5 text-ink-400 rtl:rotate-180 mt-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </a>
           </div>
         </div>
 

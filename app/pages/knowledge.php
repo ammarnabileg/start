@@ -1,0 +1,246 @@
+<?php
+/** قاعدة المعرفة: كل اللي الذكاء الاصطناعي يعرفه عن الشركة، والملفات، وقواعد التحويل لموظف */
+$wid = (int)ws('id');
+$schema = kb_schema();
+$canEdit = is_ws_owner() || can('settings.manage');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json; charset=utf-8');
+    $json = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+    $action = (string)($_POST['action'] ?? '');
+    if ($action !== 'kb_test' && !$canEdit) $json(['error' => t('مالكش صلاحية تعدّل قاعدة المعرفة. اطلبها من صاحب الشركة.')], 403);
+    $str = function ($v, $max = 4000) { return mb_substr(trim((string)$v), 0, $max); };
+
+    if ($action === 'kb_save') {
+        $sec = (string)($_POST['section'] ?? '');
+        if (!isset($schema[$sec])) $json(['error' => t('طلب غير صحيح.')], 400);
+        $type = $schema[$sec]['type'];
+        $in = (array)($_POST['d'] ?? []);
+        switch ($type) {
+            case 'rows':
+                $rows = [];
+                foreach ((array)($in['rows'] ?? []) as $r) {
+                    $row = [];
+                    foreach (array_keys($schema[$sec]['cols']) as $c) $row[$c] = $str($r[$c] ?? '', 2000);
+                    if (implode('', $row) !== '') $rows[] = $row;
+                }
+                $data = ['rows' => array_slice($rows, 0, 300)];
+                break;
+            case 'tone':
+                $data = ['style' => array_values(array_intersect((array)($in['style'] ?? []), array_keys(kb_tone_options()))), 'dialect' => isset(kb_dialect_options()[$in['dialect'] ?? '']) ? $in['dialect'] : 'match',
+                    'emoji' => in_array($in['emoji'] ?? '', ['none', 'light', 'normal'], true) ? $in['emoji'] : 'light', 'notes' => $str($in['notes'] ?? '', 2000)];
+                break;
+            case 'antihype':
+                $data = ['rules' => array_values(array_intersect((array)($in['rules'] ?? []), array_keys(kb_antihype_rules()))), 'words' => $str($in['words'] ?? '', 1000)];
+                break;
+            case 'visual':
+                $data = ['colors' => $str($in['colors'] ?? '', 500), 'style' => $str($in['style'] ?? '', 1500)];
+                break;
+            case 'escalation':
+                $emails = array_filter(array_map('trim', preg_split('/[,;\s]+/', (string)($in['email'] ?? ''))));
+                foreach ($emails as $em) if (!filter_var($em, FILTER_VALIDATE_EMAIL)) $json(['error' => t('الإيميل مش صحيح: %s', $em)], 422);
+                $data = ['email' => implode(', ', $emails), 'triggers' => array_values(array_intersect((array)($in['triggers'] ?? []), array_keys(kb_trigger_options()))),
+                    'keywords' => $str($in['keywords'] ?? '', 1000), 'message' => $str($in['message'] ?? '', 600)];
+                break;
+            default:
+                $data = ['text' => $str($in['text'] ?? '', 8000)];
+        }
+        kb_save($wid, $sec, $data);
+        log_activity('kb.save', $sec);
+        $json(['ok' => true, 'filled' => kb_filled($data, $type)]);
+    }
+
+    if ($action === 'kb_upload') {
+        if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $json(['error' => t('فشل رفع الملف.')], 422);
+        $f = $_FILES['file'];
+        if ($f['size'] > 15 * 1048576) $json(['error' => t('الملف أكبر من 15 ميجا.')], 422);
+        $name = mb_substr(preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', basename((string)$f['name'])), 0, 180);
+        $mime = (string)mime_content_type($f['tmp_name']);
+        try {
+            [$text, $method] = kb_extract($f['tmp_name'], $name, $mime);
+        } catch (Throwable $e) {
+            $json(['error' => $name . ': ' . $e->getMessage()], 422);
+        }
+        $text = mb_substr($text, 0, 200000);
+        db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, (int)$f['size'], $method, $text]);
+        log_activity('kb.file', $name);
+        $json(['ok' => true, 'id' => (int)db()->lastInsertId(), 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
+    }
+
+    if (in_array($action, ['kb_file_toggle', 'kb_file_delete', 'kb_file_save'], true)) {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($action === 'kb_file_delete') db()->prepare("DELETE FROM kb_files WHERE id = ? AND workspace_id = ?")->execute([$id, $wid]);
+        elseif ($action === 'kb_file_save') db()->prepare("UPDATE kb_files SET content = ? WHERE id = ? AND workspace_id = ?")->execute([mb_substr((string)($_POST['content'] ?? ''), 0, 200000), $id, $wid]);
+        else db()->prepare("UPDATE kb_files SET enabled = ? WHERE id = ? AND workspace_id = ?")->execute([($_POST['on'] ?? '') === '1' ? 1 : 0, $id, $wid]);
+        $json(['ok' => true]);
+    }
+
+    if ($action === 'kb_test') {
+        if (!ai_connection()) $json(['error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).')], 422);
+        $msg = $str($_POST['message'] ?? '', 2000);
+        if ($msg === '') $json(['error' => t('اكتب رسالة العميل أولًا.')], 422);
+        try {
+            $d = kb_decide($wid, $msg, ($_POST['channel'] ?? '') === 'comment' ? 'comment' : 'message');
+            $json($d + ['ok' => true]);
+        } catch (Throwable $e) {
+            $json(['error' => $e->getMessage()], 502);
+        }
+    }
+    $json(['error' => t('طلب غير صحيح.')], 400);
+}
+
+$kb = kb_get($wid);
+$st = db()->prepare("SELECT id, name, size, method, enabled, CHAR_LENGTH(content) chars, LEFT(content, 600) preview, created_at FROM kb_files WHERE workspace_id = ? ORDER BY id DESC");
+$st->execute([$wid]);
+$files = $st->fetchAll();
+
+render(t('قاعدة المعرفة'), 'assistant', function () use ($schema, $kb, $files, $canEdit) {
+    $filled = 0; foreach ($schema as $k => $s) if (kb_filled($kb[$k] ?? [], $s['type'])) $filled++;
+    $total = count($schema) + 1; $done = $filled + ($files ? 1 : 0);
+    $ico = function ($d) { return '<svg class="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' . $d . '"/></svg>'; };
+    $icons = ['files' => 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6', 'company' => 'M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18M8 8h3M8 12h3M8 16h3',
+        'services' => 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9', 'faq' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1-1.5 2M12 17h.01',
+        'tone' => 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', 'audience' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
+        'focus' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z', 'never_say' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8',
+        'anti_hype' => 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4', 'visual_style' => 'M12 21a9 9 0 110-18c5 0 9 3.6 9 8a4 4 0 01-4 4h-2a2 2 0 00-1 3.7A2 2 0 0112 21zM7.5 11h.01M10.5 7.5h.01M15 7.5h.01',
+        'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'test' => 'M7 4l12 8-12 8z'];
+    $dis = $canEdit ? '' : 'disabled';
+    ?>
+    <div class="flex items-center gap-1 border-b border-ink-200 mb-6 overflow-x-auto">
+      <?php foreach (['models' => t('الموديلات والمهام'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')] as $tk => $tl): ?>
+        <a href="<?= e(url('assistant', $tk === 'models' ? [] : ['tab' => $tk])) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-ink-500 hover:text-ink-900"><?= e($tl) ?></a>
+      <?php endforeach; ?>
+      <a href="<?= e(url('knowledge')) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 border-brand-600 text-brand-700"><?= e(t('قاعدة المعرفة')) ?></a>
+    </div>
+
+    <div class="card p-5 mb-5 flex flex-wrap items-center gap-5">
+      <div class="relative w-16 h-16 shrink-0">
+        <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="rgb(var(--ink-200))" stroke-width="3.5"/><circle id="kb-ring" cx="18" cy="18" r="15.5" fill="none" stroke="rgb(var(--brand-600))" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="<?= round(97.4 * $done / $total, 1) ?> 97.4" style="transition:stroke-dasharray .5s"/></svg>
+        <div class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink-900"><span id="kb-done"><?= $done ?></span>/<?= $total ?></div>
+      </div>
+      <div class="flex-1 min-w-[240px]">
+        <h2 class="text-lg font-semibold text-ink-900"><?= e(t('كل ما يعرفه الذكاء الاصطناعي عن شركتك')) ?></h2>
+        <p class="text-sm text-ink-500 mt-0.5"><?= e(t('يُستخدم في كل الردود والمنشورات والتحليلات. كلما كان أكمل، كانت الردود أدق وأقل خطأ. الحفظ تلقائي.')) ?></p>
+      </div>
+      <button type="button" data-kb-go="test" class="btn-primary"><?= $ico($icons['test']) ?> <?= e(t('جرّب الرد')) ?></button>
+      <?php if (!$canEdit): ?><p class="w-full text-xs text-amber-700"><?= e(t('عرض فقط. التعديل لصاحب الشركة أو من لديه صلاحية الإعدادات.')) ?></p><?php endif; ?>
+    </div>
+
+    <div class="grid lg:grid-cols-[15rem_1fr] gap-5 items-start" id="kb">
+      <nav class="card p-2 lg:sticky lg:top-20 flex lg:flex-col gap-1 overflow-x-auto" id="kb-nav">
+        <?php $items = ['files' => [t('ملفات الشركة'), $files ? count($files) : 0]] + array_map(function ($s) { return [$s['label'], null]; }, $schema) + ['test' => [t('جرّب الرد'), null]]; ?>
+        <?php foreach ($items as $k => [$l, $n]): $ok = $k === 'files' ? (bool)$files : ($k === 'test' ? null : kb_filled($kb[$k] ?? [], $schema[$k]['type'])); ?>
+          <button type="button" data-kb-go="<?= $k ?>" class="kb-tab shrink-0 flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-600 hover:bg-ink-100 hover:text-ink-900 text-start transition">
+            <?= $ico($icons[$k]) ?><span class="flex-1 whitespace-nowrap"><?= e($l) ?></span>
+            <?php if ($ok !== null): ?><span class="kb-dot w-2 h-2 rounded-full <?= $ok ? 'bg-lime-500' : 'bg-ink-300' ?>" data-dot="<?= $k ?>"></span><?php endif; ?>
+          </button>
+        <?php endforeach; ?>
+      </nav>
+
+      <div class="min-w-0">
+        <!-- الملفات -->
+        <section data-kb="files" class="card p-5 hidden">
+          <h3 class="font-semibold text-ink-900"><?= e(t('ملفات الشركة')) ?></h3>
+          <p class="text-sm text-ink-500 mt-1"><?= e(t('ارفع كتالوج، قائمة أسعار، سياسات، أي ملف عن الشركة. يتحول لنص، والذكاء الاصطناعي يستخدم الأجزاء المناسبة لكل سؤال.')) ?></p>
+          <?php if ($canEdit): ?>
+          <label id="kb-drop" class="mt-4 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 px-4 py-8 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition">
+            <span class="w-12 h-12 rounded-2xl bg-white border border-ink-200 text-brand-600 flex items-center justify-center"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg></span>
+            <b class="text-sm text-ink-900"><?= e(t('اسحب الملفات هنا أو اضغط للاختيار')) ?></b>
+            <span class="text-xs text-ink-500">PDF · Word · Excel · PowerPoint · TXT · CSV · HTML · <?= e(t('صور')) ?> — <?= e(t('حتى 15 ميجا للملف')) ?></span>
+            <input type="file" id="kb-file" class="hidden" multiple accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.tsv,.json,.html,.htm,.png,.jpg,.jpeg,.webp">
+          </label>
+          <?php endif; ?>
+          <div id="kb-files" class="mt-4 space-y-2">
+            <?php foreach ($files as $f): ?>
+              <?= kb_file_row($f, $canEdit) ?>
+            <?php endforeach; ?>
+          </div>
+          <p class="text-xs text-ink-400 mt-3"><?= e(t('الملفات الموقوفة لا تُستخدم في الردود. الذكاء الاصطناعي يأخذ أنسب 5 أجزاء من الملفات لكل سؤال، وليس الملف كله.')) ?></p>
+        </section>
+
+        <?php foreach ($schema as $k => $s): $d = $kb[$k] ?? []; ?>
+        <section data-kb="<?= $k ?>" class="card p-5 hidden">
+          <form class="kb-form space-y-4" data-section="<?= $k ?>">
+            <div class="flex items-start justify-between gap-3">
+              <div><h3 class="font-semibold text-ink-900"><?= e($s['label']) ?></h3><p class="text-sm text-ink-500 mt-1"><?= e($s['hint']) ?></p></div>
+              <span class="kb-saved text-xs text-lime-700 opacity-0 transition whitespace-nowrap"><?= e(t('تم الحفظ')) ?> ✓</span>
+            </div>
+            <?php if ($s['type'] === 'text'): ?>
+              <textarea name="d[text]" rows="9" class="input text-sm leading-relaxed" <?= $dis ?> placeholder="<?= e($k === 'company' ? t("مثال:\nمطعم بيتزا في مدينة نصر، مفتوح يوميًا 12 ظهرًا - 2 صباحًا\nالتوصيل داخل القاهرة 30 جنيه خلال 45 دقيقة\nالدفع كاش أو فيزا أو فودافون كاش") : '') ?>"><?= e($d['text'] ?? '') ?></textarea>
+            <?php elseif ($s['type'] === 'rows'): $rows = (array)($d['rows'] ?? []); if (!$rows) $rows = [[]]; ?>
+              <div class="kb-rows space-y-2">
+                <?php foreach ($rows as $i => $r): ?>
+                  <div class="kb-row grid gap-2 <?= $k === 'faq' ? 'sm:grid-cols-[1fr_1.4fr_auto]' : 'sm:grid-cols-[1fr_8rem_1.4fr_auto]' ?> items-start rounded-xl border border-ink-200 p-2">
+                    <?php foreach ($s['cols'] as $ck => $cl): ?>
+                      <?php if ($ck === 'details' || $ck === 'a'): ?><textarea data-col="<?= $ck ?>" rows="1" class="input !mt-0 text-sm" placeholder="<?= e($cl) ?>" <?= $dis ?>><?= e($r[$ck] ?? '') ?></textarea>
+                      <?php else: ?><input data-col="<?= $ck ?>" class="input !mt-0 text-sm" placeholder="<?= e($cl) ?>" value="<?= e($r[$ck] ?? '') ?>" <?= $dis ?>><?php endif; ?>
+                    <?php endforeach; ?>
+                    <?php if ($canEdit): ?><button type="button" class="kb-del p-2 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="<?= e(t('حذف')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+              <?php if ($canEdit): ?><button type="button" class="kb-add btn-ghost !py-1.5 !text-xs">+ <?= e($k === 'faq' ? t('سؤال جديد') : t('خدمة جديدة')) ?></button><?php endif; ?>
+            <?php elseif ($s['type'] === 'list'): ?>
+              <textarea name="d[text]" rows="8" class="input text-sm" <?= $dis ?> placeholder="<?= e(t("مثال:\nأي سعر غير موجود في قائمة الخدمات\nمواعيد توصيل محددة\nالكلام عن المنافسين\nخصومات غير معلنة")) ?>"><?= e($d['text'] ?? '') ?></textarea>
+            <?php elseif ($s['type'] === 'tone'): ?>
+              <div><span class="label"><?= e(t('الأسلوب')) ?></span><div class="flex flex-wrap gap-2 mt-2"><?php foreach (kb_tone_options() as $ok => $ol): ?><label class="chip cursor-pointer has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-700"><input type="checkbox" name="d[style][]" value="<?= $ok ?>" class="sr-only" <?= in_array($ok, (array)($d['style'] ?? []), true) ? 'checked' : '' ?> <?= $dis ?>><?= e($ol) ?></label><?php endforeach; ?></div></div>
+              <div class="grid sm:grid-cols-2 gap-4">
+                <label class="block"><span class="label"><?= e(t('اللغة واللهجة')) ?></span><select name="d[dialect]" class="input" <?= $dis ?>><?php foreach (kb_dialect_options() as $ok => $ol): ?><option value="<?= $ok ?>" <?= ($d['dialect'] ?? 'match') === $ok ? 'selected' : '' ?>><?= e($ol) ?></option><?php endforeach; ?></select></label>
+                <label class="block"><span class="label"><?= e(t('الإيموجي')) ?></span><select name="d[emoji]" class="input" <?= $dis ?>><?php foreach (['none' => t('بدون'), 'light' => t('قليل'), 'normal' => t('عادي')] as $ok => $ol): ?><option value="<?= $ok ?>" <?= ($d['emoji'] ?? 'light') === $ok ? 'selected' : '' ?>><?= e($ol) ?></option><?php endforeach; ?></select></label>
+              </div>
+              <label class="block"><span class="label"><?= e(t('ملاحظات إضافية')) ?></span><textarea name="d[notes]" rows="3" class="input text-sm" <?= $dis ?> placeholder="<?= e(t('مثلاً: نادي العميل باسمه، ونقول "حضرتك"، ونختم بـ "في خدمتك دايمًا"')) ?>"><?= e($d['notes'] ?? '') ?></textarea></label>
+            <?php elseif ($s['type'] === 'antihype'): ?>
+              <div class="space-y-2"><?php foreach (kb_antihype_rules() as $rk => $rl): ?><label class="flex items-start gap-3 rounded-xl border border-ink-200 px-3 py-2.5 cursor-pointer hover:border-brand-300 has-[:checked]:bg-brand-50/50 has-[:checked]:border-brand-300"><input type="checkbox" name="d[rules][]" value="<?= $rk ?>" class="mt-0.5" <?= in_array($rk, (array)($d['rules'] ?? ($kb ? [] : array_keys(kb_antihype_rules()))), true) ? 'checked' : '' ?> <?= $dis ?>><span class="text-sm text-ink-800"><?= e($rl) ?></span></label><?php endforeach; ?></div>
+              <label class="block"><span class="label"><?= e(t('كلمات ممنوعة')) ?></span><input name="d[words]" class="input" value="<?= e($d['words'] ?? '') ?>" <?= $dis ?> placeholder="<?= e(t('مثلاً: خرافي، لا يُصدق، الأفضل في العالم، مضمون 100%')) ?>"></label>
+            <?php elseif ($s['type'] === 'visual'): ?>
+              <label class="block"><span class="label"><?= e(t('الألوان')) ?></span><input name="d[colors]" class="input" value="<?= e($d['colors'] ?? '') ?>" <?= $dis ?> placeholder="<?= e(t('مثلاً: أزرق #1D4ED8 وأبيض، ولمسات ذهبي')) ?>"></label>
+              <div class="flex flex-wrap gap-2" id="kb-swatches"></div>
+              <label class="block"><span class="label"><?= e(t('ستايل الصور')) ?></span><textarea name="d[style]" rows="4" class="input text-sm" <?= $dis ?> placeholder="<?= e(t('مثلاً: تصوير منتجات بإضاءة طبيعية، خلفيات فاتحة بسيطة، أشخاص حقيقيين مش رسومات')) ?>"><?= e($d['style'] ?? '') ?></textarea></label>
+              <p class="text-xs text-ink-400"><?= e(t('بيتضاف تلقائيًا لكل صورة بتتولد من Higgsfield، لو مفيش ستايل مكتوب في إعدادات Higgsfield.')) ?></p>
+            <?php elseif ($s['type'] === 'escalation'): $tr = (array)($d['triggers'] ?? ['angry', 'refund', 'complaint', 'human']); ?>
+              <label class="block"><span class="label"><?= e(t('إيميل الموظف المسؤول')) ?></span><input name="d[email]" dir="ltr" class="input" value="<?= e($d['email'] ?? '') ?>" <?= $dis ?> placeholder="support@company.com, manager@company.com"></label>
+              <div><span class="label"><?= e(t('حوّل لموظف لما')) ?></span><div class="grid sm:grid-cols-2 gap-2 mt-2"><?php foreach (kb_trigger_options() as $tk => $tl): ?><label class="flex items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm cursor-pointer hover:border-brand-300 has-[:checked]:bg-brand-50/50 has-[:checked]:border-brand-300"><input type="checkbox" name="d[triggers][]" value="<?= $tk ?>" <?= in_array($tk, $tr, true) ? 'checked' : '' ?> <?= $dis ?>><?= e($tl) ?></label><?php endforeach; ?></div></div>
+              <label class="block"><span class="label"><?= e(t('كلمات تحوّل فورًا')) ?></span><input name="d[keywords]" class="input" value="<?= e($d['keywords'] ?? '') ?>" <?= $dis ?> placeholder="<?= e(t('مثلاً: محامي، نصب، أبلغ، فلوسي')) ?>"></label>
+              <label class="block"><span class="label"><?= e(t('الرسالة اللي العميل يشوفها وقت التحويل')) ?></span><textarea name="d[message]" rows="2" class="input text-sm" <?= $dis ?> placeholder="<?= e(t('شكرًا لتواصلك، حوّلنا طلبك لأحد الزملاء وهيرد عليك في أقرب وقت.')) ?>"><?= e($d['message'] ?? '') ?></textarea></label>
+            <?php endif; ?>
+          </form>
+        </section>
+        <?php endforeach; ?>
+
+        <!-- جرّب الرد -->
+        <section data-kb="test" class="card p-5 hidden">
+          <h3 class="font-semibold text-ink-900"><?= e(t('جرّب الرد')) ?></h3>
+          <p class="text-sm text-ink-500 mt-1"><?= e(t('اكتب رسالة كأنك عميل، وشوف الذكاء الاصطناعي هيرد إزاي أو هيحوّل لموظف. ده نفس اللي هيحصل في الرد التلقائي.')) ?></p>
+          <div class="seg mt-4 w-fit" id="kb-ch"><a href="#" class="on" data-ch="message"><?= e(t('رسالة خاصة')) ?></a><a href="#" data-ch="comment"><?= e(t('تعليق عام')) ?></a></div>
+          <div class="flex flex-wrap gap-2 mt-3" id="kb-samples">
+            <?php foreach ([t('بكام الأوردر وبيوصل إمتى؟'), t('الطلب وصل بايظ وأنا عايز فلوسي'), t('عندكم فروع فين؟'), t('ممكن أكلم حد من الإدارة؟')] as $smp): ?><button type="button" class="chip !py-1 text-xs"><?= e($smp) ?></button><?php endforeach; ?>
+          </div>
+          <div class="flex gap-2 mt-3 items-end">
+            <textarea id="kb-msg" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('رسالة العميل...')) ?>"></textarea>
+            <button type="button" id="kb-run" class="btn-primary"><?= e(t('جرّب')) ?></button>
+          </div>
+          <div id="kb-out" class="mt-4"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'del' => t('حذف الملف؟'), 'total' => $total], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/knowledge.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php
+});
+
+/** صف ملف في القائمة */
+function kb_file_row(array $f, bool $canEdit): string
+{
+    $m = ['pdftotext' => 'PDF', 'claude' => 'PDF · Claude', 'basic' => 'PDF', 'vision' => t('صورة'), 'docx' => 'Word', 'xlsx' => 'Excel', 'pptx' => 'PowerPoint', 'html' => 'HTML', 'text' => t('نص')][$f['method']] ?? $f['method'];
+    $h = '<div class="kb-file rounded-xl border border-ink-200 ' . ($f['enabled'] ? '' : 'opacity-60') . '" data-id="' . (int)$f['id'] . '">'
+        . '<div class="flex items-center gap-3 p-3">'
+        . '<span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg></span>'
+        . '<div class="flex-1 min-w-0"><div class="text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
+        . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>';
+    if ($canEdit) {
+        $h .= '<label class="relative inline-flex cursor-pointer" title="' . e(t('استخدام في الردود')) . '"><input type="checkbox" class="kb-on sr-only peer" ' . ($f['enabled'] ? 'checked' : '') . '><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition-transform peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span></label>'
+            . '<button type="button" class="kb-rm p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="' . e(t('حذف')) . '"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>';
+    }
+    return $h . '</div><div class="kb-prev hidden border-t border-ink-100 p-3"><pre class="text-xs whitespace-pre-wrap max-h-64 overflow-auto text-ink-700" dir="auto">' . e((string)$f['preview']) . ((int)$f['chars'] > 600 ? "\n…" : '') . '</pre></div></div>';
+}

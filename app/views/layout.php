@@ -71,19 +71,21 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   </a>
   <div class="flex-1"></div>
   <div class="hidden sm:flex items-center gap-2"><?= pref_switch() ?></div>
+  <span class="hidden sm:block w-px h-6 bg-ink-200 mx-1"></span>
   <?php
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
     $bellN = count($invites) + $alertsN;
     $bellHref = $invites ? url('workspaces') : url('alerts');
   ?>
-  <a href="<?= e($bellHref) ?>" class="relative p-2 rounded-lg hover:bg-ink-100 <?= $bellN ? '' : 'text-ink-400' ?>" title="<?= e(t('التنبيهات')) ?>">
+  <a href="<?= e($bellHref) ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
-    <?php if ($bellN): ?><span class="absolute top-0.5 end-0.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[17px] h-[17px] flex items-center justify-center"><?= (int)$bellN ?></span><?php endif; ?>
+    <?php if ($bellN): ?><span class="absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white"><?= (int)$bellN ?></span><?php endif; ?>
   </a>
   <details class="relative" data-dropdown>
-    <summary class="flex items-center gap-2 rounded-lg bg-ink-100 border border-ink-200 px-2.5 py-1.5 cursor-pointer hover:bg-ink-200/60">
-      <span class="w-6 h-6 rounded-full bg-ink-300 text-ink-900 text-xs flex items-center justify-center font-bold"><?= e($initial) ?></span>
-      <span class="text-sm text-ink-900 hidden sm:inline"><?= e($user['name'] ?? '') ?></span>
+    <summary class="tb gap-2 ps-1 pe-3 cursor-pointer !text-ink-900">
+      <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] text-xs flex items-center justify-center font-bold"><?= e($initial) ?></span>
+      <span class="text-sm font-medium hidden sm:inline"><?= e($user['name'] ?? '') ?></span>
+      <svg class="w-3.5 h-3.5 text-ink-400 hidden sm:block" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
     <div class="menu end-0 mt-2">
       <div class="px-3 py-2 text-xs text-ink-500" dir="ltr" style="text-align:start"><?= e($user['email'] ?? '') ?></div>
@@ -200,7 +202,8 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <button type="button" data-cp-toggle class="lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
 </button>
-<aside id="cp" role="dialog" aria-label="AI" class="fixed z-40 top-16 bottom-0 end-0 lg:end-14 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
+<aside id="cp" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 lg:end-14 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
+  <div id="cp-grip" class="hidden lg:block absolute inset-y-0 -start-1 w-2 cursor-col-resize z-10 after:absolute after:inset-y-0 after:start-[3px] after:w-0.5 after:bg-brand-500 after:opacity-0 hover:after:opacity-100 after:transition" title="<?= e(t('اسحب لتغيير العرض')) ?>"></div>
   <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200 shrink-0">
     <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center"><?= ai_icon('spark', 'w-4 h-4') ?></span>
     <div class="flex-1 min-w-0"><b class="block text-sm text-ink-900 leading-tight"><?= e(t('الذكاء الاصطناعي')) ?></b><span class="block text-[11px] text-ink-500 truncate"><?= e($title) ?></span></div>
@@ -223,17 +226,21 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       <textarea id="cp-input" rows="1" maxlength="2000" class="block w-full resize-none bg-transparent !bg-transparent border-0 px-3.5 pt-3 pb-1 text-sm focus:ring-0 outline-none max-h-40" placeholder="<?= e(t('اسأل عن أرقامك، اطلب كتابة منشور، أو اسأل كيف تفعل شيئًا...')) ?>"></textarea>
       <div class="flex items-center gap-2 px-2 pb-2">
         <label class="inline-flex items-center gap-1.5 text-[11px] text-ink-500 cursor-pointer select-none rounded-lg px-2 py-1 hover:bg-ink-100" title="<?= e(t('يرسل محتوى الصفحة الظاهر مع سؤالك')) ?>"><input type="checkbox" id="cp-page" class="w-3.5 h-3.5"> <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></svg> <?= e(t('اقرأ هذه الصفحة')) ?></label>
+        <button type="button" id="cp-mic" class="hidden w-8 h-8 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 flex items-center justify-center transition" title="<?= e(t('تحدّث')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3a3 3 0 013 3v6a3 3 0 01-6 0V6a3 3 0 013-3zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
         <button id="cp-send" class="ms-auto w-8 h-8 rounded-xl bg-brand-600 text-[#fff] flex items-center justify-center hover:brightness-110 disabled:opacity-40" aria-label="<?= e(t('إرسال')) ?>"><svg class="w-4 h-4 rtl:-scale-x-100" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
     </div>
-    <p class="text-[10px] text-ink-400 mt-1.5 px-1">Enter <?= e(t('للإرسال')) ?> · Shift+Enter <?= e(t('لسطر جديد')) ?> · Ctrl+J</p>
+    <p class="text-[10px] text-ink-400 mt-1.5 px-1">Enter <?= e(t('للإرسال')) ?> · Shift+Enter <?= e(t('لسطر جديد')) ?> · <b class="font-semibold text-ink-500">/</b> <?= e(t('للأوامر')) ?> · Ctrl+J</p>
   </form>
   <?php endif; ?>
 </aside>
 <script>window.CP = <?= json_encode(['title' => $title, 'chat' => ai_feature_on('assistant'),
   'hi' => t('أهلًا! أنا مساعدك في المنصة كلها.'), 'hiSub' => t('أعرف أرقام شركتك والصفحة التي أنت فيها. جرّب:'),
   'samples' => [t('ما أفضل منشور هذا الشهر ولماذا؟'), t('اكتب منشورًا لعرض نهاية الأسبوع'), t('ماذا أفعل اليوم لتحسين التفاعل؟'), t('كيف أجدول منشورًا؟')],
-  'spark' => ai_icon('spark', 'w-3.5 h-3.5'), 'sparkBig' => ai_icon('spark', 'w-7 h-7'), 'copy' => t('نسخ'), 'insert' => t('إدراج في الخانة'), 'run' => t('تشغيل'), 'thinking' => t('يفكر...'), 'csv' => t('تحميل CSV'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'confirmClear' => t('بدء محادثة جديدة؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+  'spark' => ai_icon('spark', 'w-3.5 h-3.5'), 'sparkBig' => ai_icon('spark', 'w-7 h-7'), 'copy' => t('نسخ'), 'insert' => t('إدراج في الخانة'), 'run' => t('تشغيل'), 'thinking' => t('يفكر...'), 'csv' => t('تحميل CSV'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'confirmClear' => t('بدء محادثة جديدة؟'),
+  'regen' => t('رد تاني'), 'good' => t('رد مفيد'), 'bad' => t('رد مش مفيد'), 'stop' => t('إيقاف'), 'stopped' => t('تم الإيقاف'), 'newer' => t('رسائل جديدة'), 'page' => $cpKeys,
+  'refine' => [[t('أقصر'), t('اختصر ردك السابق للنصف بنفس المعنى.')], [t('أطول وأوضح'), t('وسّع ردك السابق بتفاصيل وأمثلة أكثر.')], [t('بالإنجليزي'), t('ترجم ردك السابق للإنجليزية.')], [t('نقاط'), t('أعد كتابة ردك السابق كنقاط مختصرة.')], [t('حوّله لمنشور'), t('حوّل ردك السابق لمنشور سوشيال ميديا جاهز للنشر.')]],
+  'cmds' => [[t('اقرأ هذه الصفحة (تشغيل/إيقاف)'), 'page', 'M7 3h7l5 5v13H7zM14 3v5h5'], [t('توسيع اللوحة'), 'wide', 'M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6'], [t('محادثة جديدة'), 'clear', 'M12 5v14M5 12h14'], [t('اكتب منشورًا'), t('اكتب منشورًا لشركتي عن أحدث عروضنا.'), 'M4 20h4L18.5 9.5a2.1 2.1 0 00-4-4L4 16v4z'], [t('لخّص أداء الأسبوع'), t('لخّص أداء الأسبوع الماضي بالأرقام.'), 'M4 20V10M10 20V4M16 20v-8M21 20H3']]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/copilot.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php endif; ?>
 

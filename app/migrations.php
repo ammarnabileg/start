@@ -254,4 +254,28 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    // قاعدة المعرفة: أقسام الشركة، والملفات المرفوعة متقسمة لأجزاء للبحث
+    '012_knowledge_base' => [
+        "CREATE TABLE IF NOT EXISTS kb_sections (
+            workspace_id INT UNSIGNED NOT NULL,
+            section VARCHAR(30) NOT NULL,
+            data MEDIUMTEXT NOT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (workspace_id, section),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS kb_files (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(190) NOT NULL,
+            mime VARCHAR(100) NOT NULL DEFAULT '',
+            size INT UNSIGNED NOT NULL DEFAULT 0,
+            method VARCHAR(30) NOT NULL DEFAULT '',
+            content MEDIUMTEXT NOT NULL,
+            enabled TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

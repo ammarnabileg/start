@@ -62,6 +62,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     .menu-item { @apply flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-ink-100 hover:text-ink-900 w-full text-start; }
     .seg { @apply flex rounded-xl bg-ink-100 p-0.5 text-xs; }
     .seg a { @apply px-2.5 py-1 rounded-lg text-ink-500 hover:text-ink-900; }
+    .tb { @apply h-10 inline-flex items-center rounded-xl border border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:text-ink-900 transition-colors; }
     .chip { @apply inline-flex items-center gap-2 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-600 whitespace-nowrap hover:bg-ink-50 transition; }
     .chip.on { @apply border-brand-600 bg-brand-50 text-brand-700 font-medium; }
     .seg a.on { @apply bg-brand-600 text-[#fff] shadow-sm font-medium; }
@@ -72,16 +73,16 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
   .tt-knob { transition: transform .4s cubic-bezier(.34,1.56,.64,1), background-color .3s; }
   .tt-sun, .tt-moon { transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .25s; }
   .tt-moon { opacity: 0; transform: rotate(-90deg) scale(.4); }
-  html.dark .tt { background-color: rgb(var(--brand-100)); border-color: rgb(var(--brand-300)); }
-  html.dark .tt-knob { transform: translateX(28px); background-color: rgb(var(--brand-600)); }
+  html.dark .tt-knob { transform: translateX(28px); }
   html[dir=rtl].dark .tt-knob { transform: translateX(-28px); }
   html.dark .tt-sun { opacity: 0; transform: rotate(90deg) scale(.4); }
   html.dark .tt-moon { opacity: 1; transform: none; }
-  .tt:active .tt-knob { width: 32px; }
+  .tt:active .tt-knob { width: 36px; }
   /* مؤشر اللغة */
   .lang-pill { transition: inset-inline-start .35s cubic-bezier(.34,1.56,.64,1), left .35s cubic-bezier(.34,1.56,.64,1), right .35s cubic-bezier(.34,1.56,.64,1); }
   html[dir=ltr] .lang-pill[data-on=en], html[dir=rtl] .lang-pill[data-on=en] { inset-inline-start: 3px; }
   .lang-pill[data-on=ar] { inset-inline-start: 41px; }
+  .lang-seg [data-lang] { transition: color .25s; }
   /* انتقال ناعم للألوان وقت تغيير الوضع */
   html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after { transition: background-color .35s ease, border-color .35s ease, color .25s ease, fill .25s ease !important; }
   html.theme-anim .tt-knob { transition: transform .4s cubic-bezier(.34,1.56,.64,1), background-color .3s !important; }
@@ -105,18 +106,18 @@ function pref_switch(): string
     $l = lang(); $dark = theme() === 'dark';
     $sun = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
     $moon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>';
-    $lang = '<div class="lang-seg relative flex items-center rounded-full bg-ink-100 border border-ink-200 p-[3px] text-xs font-medium" role="radiogroup" aria-label="Language">'
-        . '<span class="lang-pill absolute top-[3px] bottom-[3px] w-[38px] rounded-full bg-white shadow-sm ring-1 ring-ink-200 dark:bg-brand-600 dark:ring-0" data-on="' . $l . '"></span>'
-        . '<a href="' . e(url('pref', ['lang' => 'en'])) . '" data-lang="en" role="radio" aria-checked="' . ($l === 'en' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-[26px] flex items-center justify-center rounded-full transition-colors ' . ($l === 'en' ? 'text-ink-900 dark:text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">EN</a>'
-        . '<a href="' . e(url('pref', ['lang' => 'ar'])) . '" data-lang="ar" role="radio" aria-checked="' . ($l === 'ar' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-[26px] flex items-center justify-center rounded-full transition-colors ' . ($l === 'ar' ? 'text-ink-900 dark:text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">ع</a>'
+    $lang = '<div class="lang-seg tb relative p-[3px] text-xs font-semibold" role="radiogroup" aria-label="Language">'
+        . '<span class="lang-pill absolute top-[3px] bottom-[3px] w-[38px] rounded-lg bg-brand-600 shadow-sm shadow-brand-600/30" data-on="' . $l . '"></span>'
+        . '<a href="' . e(url('pref', ['lang' => 'en'])) . '" data-lang="en" role="radio" aria-checked="' . ($l === 'en' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-8 flex items-center justify-center rounded-lg transition-colors ' . ($l === 'en' ? 'text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">EN</a>'
+        . '<a href="' . e(url('pref', ['lang' => 'ar'])) . '" data-lang="ar" role="radio" aria-checked="' . ($l === 'ar' ? 'true' : 'false') . '" class="relative z-10 w-[38px] h-8 flex items-center justify-center rounded-lg transition-colors text-sm ' . ($l === 'ar' ? 'text-[#fff]' : 'text-ink-500 hover:text-ink-900') . '">ع</a>'
         . '</div>';
     $theme = '<button type="button" data-theme-toggle role="switch" aria-checked="' . ($dark ? 'true' : 'false') . '" aria-label="Dark mode" title="' . e(t('الوضع الداكن')) . '"'
         . ' data-url-light="' . e(url('pref', ['theme' => 'light'])) . '" data-url-dark="' . e(url('pref', ['theme' => 'dark'])) . '"'
-        . ' class="tt relative w-[60px] h-[32px] rounded-full bg-ink-100 border border-ink-200 transition-colors hover:border-ink-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20">'
-        . '<span class="absolute inset-y-0 start-[9px] flex items-center text-amber-500 opacity-60">' . $sun . '</span>'
-        . '<span class="absolute inset-y-0 end-[9px] flex items-center text-ink-400">' . $moon . '</span>'
-        . '<span class="tt-knob absolute top-[2px] start-[2px] w-[26px] h-[26px] rounded-full bg-white shadow-md flex items-center justify-center">'
-        . '<span class="tt-sun absolute text-amber-500">' . $sun . '</span><span class="tt-moon absolute text-[#fff]">' . $moon . '</span></span>'
+        . ' class="tt tb relative w-[68px] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20">'
+        . '<span class="absolute inset-y-0 start-[11px] flex items-center text-ink-400">' . $sun . '</span>'
+        . '<span class="absolute inset-y-0 end-[11px] flex items-center text-ink-400">' . $moon . '</span>'
+        . '<span class="tt-knob absolute top-[3px] start-[3px] w-8 h-8 rounded-lg bg-brand-600 text-[#fff] shadow-sm shadow-brand-600/30 flex items-center justify-center">'
+        . '<span class="tt-sun absolute">' . $sun . '</span><span class="tt-moon absolute">' . $moon . '</span></span>'
         . '</button>';
     return $lang . $theme;
 }

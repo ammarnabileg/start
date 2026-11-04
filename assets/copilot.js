@@ -6,7 +6,9 @@
   var form = document.getElementById('cp-form'), input = document.getElementById('cp-input'), send = document.getElementById('cp-send');
   var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
   var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-  var loaded = false, busy = false, wide = store.get('cp-wide') === '1', lastField = null;
+  var loaded = false, busy = false, wide = store.get('cp-wide') === '1', lastField = null, ctrl = null, lastQ = '', stick = true;
+  var SVG = function (d, c) { return '<svg class="' + (c || 'w-3.5 h-3.5') + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' + d + '"/></svg>'; };
+  var IC = { copy: 'M8 8h11v11H8zM5 16V5h11', ins: 'M4 12h12M12 6l6 6-6 6M20 4v16', regen: 'M4 4v6h6M20 20v-6h-6M5.6 15a7 7 0 0012.3 2M18.4 9A7 7 0 006.1 7', up: 'M7 10v11H4V10zM7 10l4-7a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 21H7', down: 'M17 14V3h3v11zM17 14l-4 7a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.2-7A2 2 0 016.2 3H17', send: 'M5 12h14M13 6l6 6-6 6', stop: 'M7 7h10v10H7z', mic: 'M12 3a3 3 0 013 3v6a3 3 0 01-6 0V6a3 3 0 013-3zM5 11a7 7 0 0014 0M12 18v3' };
 
   // آخر خانة نص كان المستخدم فيها (عشان "إدراج في الخانة")
   document.addEventListener('focusin', function (e) { var t = e.target; if ((t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type === 'text')) && !panel.contains(t)) lastField = t; });
@@ -20,12 +22,18 @@
     m.querySelectorAll('script,style,nav,#sidebar,dialog').forEach(function (x) { x.remove(); });
     return (m.innerText || m.textContent || '').replace(/\n{3,}/g, '\n\n').slice(0, 6000);
   }
-  function scroll() { thread.scrollTop = thread.scrollHeight; }
+  function scroll(force) { if (force || stick) thread.scrollTop = thread.scrollHeight; jump.classList.toggle('hidden', stick || thread.scrollHeight - thread.clientHeight < 40); }
+  // لو المستخدم طلع لفوق يقرا، ماننزلوش غصب عنه
+  var jump = document.createElement('button'); jump.type = 'button'; jump.className = 'hidden absolute bottom-28 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-10 rounded-full bg-white border border-ink-200 shadow-lg px-3 py-1.5 text-xs text-ink-700 hover:bg-ink-50';
+  jump.textContent = '↓ ' + (C.newer || ''); panel.appendChild(jump);
+  jump.onclick = function () { stick = true; scroll(true); };
+  thread.addEventListener('scroll', function () { stick = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 60; if (stick) jump.classList.add('hidden'); });
   // الرد كلمة كلمة: بنقرا الـ stream ونبعت كل جزء لـ onDelta
   function postStream(data, onDelta) {
     data.stream = 1;
     var fd = new FormData(); for (var k in data) fd.append(k, data[k]);
-    return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) {
+    ctrl = window.AbortController ? new AbortController() : null;
+    return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ctrl ? ctrl.signal : undefined }).then(function (r) {
       var ct = r.headers.get('content-type') || '';
       if (ct.indexOf('text/event-stream') < 0 || !r.body || !window.TextDecoder) return r.json();
       var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', final = null;
@@ -58,13 +66,19 @@
     }).join('');
   }
   function streamInto(box, data) {
-    var text = '', raf = 0, started = false;
+    var text = '', raf = 0;
     box.innerHTML = '<div class="cp-md leading-relaxed space-y-1 break-words"></div>';
     var md = box.firstChild;
     return postStream(data, function (d) {
-      text += d; started = true;
+      text += d;
       if (!raf) raf = requestAnimationFrame(function () { raf = 0; md.innerHTML = liveMd(text) + '<span class="cp-caret inline-block w-1.5 h-4 align-middle bg-brand-500 animate-pulse ms-0.5"></span>'; scroll(); });
-    }).then(function (d) { if (raf) cancelAnimationFrame(raf); fill(box, d); return d; });
+    }).then(function (d) { if (raf) cancelAnimationFrame(raf); fill(box, d); return d; })
+      .catch(function (e) {
+        if (raf) cancelAnimationFrame(raf);
+        // إيقاف من المستخدم: نسيب اللي اتكتب
+        if (e && e.name === 'AbortError') { fill(box, { html: liveMd(text) + '<p class="text-[11px] text-ink-400 mt-1">— ' + (C.stopped || '') + '</p>', text: text, meta: '' }); return; }
+        throw e;
+      });
   }
   function el(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
 
@@ -79,7 +93,11 @@
   function fill(box, d) {
     if (d.error) { box.className = box.className.replace('bg-ink-50 border-ink-200', 'bg-red-50 border-red-200'); box.innerHTML = '<p class="text-red-700"></p>'; box.firstChild.textContent = d.error; scroll(); return; }
     var text = d.csv != null ? d.csv : (d.text || '');
-    box.innerHTML = '<div class="cp-md leading-relaxed space-y-2 break-words"></div><div class="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-ink-200/70"><button type="button" class="cp-copy text-[11px] rounded-md px-2 py-1 text-ink-500 hover:bg-ink-200/60"></button><button type="button" class="cp-ins text-[11px] rounded-md px-2 py-1 text-ink-500 hover:bg-ink-200/60"></button><span class="ms-auto text-[10px] text-ink-400" dir="ltr"></span></div>';
+    var btn = function (cls, ic, tip) { return '<button type="button" class="' + cls + ' w-7 h-7 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-900 hover:bg-ink-200/60 transition" title="' + tip + '">' + SVG(IC[ic]) + '</button>'; };
+    box.innerHTML = '<div class="cp-md leading-relaxed space-y-2 break-words"></div>'
+      + '<div class="flex flex-wrap items-center gap-0.5 mt-2.5 pt-2 border-t border-ink-200/70">' + btn('cp-copy', 'copy', C.copy) + btn('cp-ins', 'ins', C.insert) + btn('cp-regen', 'regen', C.regen) + btn('cp-up', 'up', C.good) + btn('cp-down', 'down', C.bad)
+      + '<span class="ms-auto text-[10px] text-ink-400" dir="ltr"></span></div>'
+      + '<div class="cp-refine flex flex-wrap gap-1.5 mt-2"></div>';
     var md = box.querySelector('.cp-md');
     if (d.csv != null) {
       var pre = document.createElement('pre'); pre.className = 'text-xs whitespace-pre-wrap max-h-60 overflow-auto bg-white rounded-lg border border-ink-200 p-2'; pre.dir = 'auto'; pre.textContent = d.csv; md.appendChild(pre);
@@ -87,9 +105,18 @@
       a.href = URL.createObjectURL(new Blob(['﻿' + d.csv], { type: 'text/csv;charset=utf-8' })); a.download = 'ai-posts.csv'; md.appendChild(a);
     } else md.innerHTML = d.html || '';
     box.querySelector('span[dir]').textContent = d.meta || '';
-    var cp = box.querySelector('.cp-copy'), ins = box.querySelector('.cp-ins');
-    cp.textContent = '⧉ ' + C.copy; ins.textContent = '↵ ' + C.insert;
-    cp.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(text); cp.textContent = '✓'; setTimeout(function () { cp.textContent = '⧉ ' + C.copy; }, 1200); };
+    var cp = box.querySelector('.cp-copy'), ins = box.querySelector('.cp-ins'), rg = box.querySelector('.cp-regen'), q = box.dataset.q || lastQ;
+    cp.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(text); cp.innerHTML = SVG('M5 12l5 5L20 7'); cp.classList.add('text-lime-600'); setTimeout(function () { cp.innerHTML = SVG(IC.copy); cp.classList.remove('text-lime-600'); }, 1200); };
+    if (q && C.chat) rg.onclick = function () { ask(q); }; else rg.remove();
+    ['cp-up', 'cp-down'].forEach(function (k) { var b = box.querySelector('.' + k); b.onclick = function () { box.querySelectorAll('.cp-up,.cp-down').forEach(function (x) { x.classList.remove('text-brand-600', 'bg-brand-50'); }); b.classList.add('text-brand-600', 'bg-brand-50'); }; });
+    // اقتراحات تعديل سريعة على الرد
+    var rf = box.querySelector('.cp-refine');
+    if (C.chat && text && d.csv == null) (C.refine || []).forEach(function (r) {
+      var c = document.createElement('button'); c.type = 'button'; c.className = 'rounded-full border border-ink-200 bg-white px-2.5 py-1 text-[11px] text-ink-600 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition';
+      c.textContent = r[0]; c.onclick = function () { ask(r[1], r[0]); }; rf.appendChild(c);
+    });
+    // أحدث رد بس اللي يظهر تحته الاقتراحات
+    thread.querySelectorAll('.cp-refine').forEach(function (x) { if (x !== rf) x.innerHTML = ''; });
     if (!lastField || !document.body.contains(lastField)) ins.remove();
     else ins.onclick = function () { lastField.value = text; lastField.dispatchEvent(new Event('input', { bubbles: true })); lastField.focus(); lastField.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { lastField.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200); };
     scroll();
@@ -116,15 +143,21 @@
       welcome(); scroll();
     }).catch(welcome);
   }
-  function ask(q) {
+  function setBusy(on) {
+    busy = on;
+    if (send) { send.innerHTML = SVG(on ? IC.stop : IC.send, 'w-4 h-4' + (on ? '' : ' rtl:-scale-x-100')); send.classList.toggle('bg-ink-900', on); send.classList.toggle('bg-brand-600', !on); send.title = on ? C.stop : ''; }
+  }
+  function ask(q, label) {
     q = (q || '').trim(); if (!q || busy) return;
-    clearWelcome(); busy = true; if (send) send.disabled = true;
-    bubbleUser(q.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }).replace(/\n/g, '<br>'));
+    clearWelcome(); setBusy(true); stick = true;
+    bubbleUser((label || q).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }).replace(/\n/g, '<br>'), !!label);
+    lastQ = label ? lastQ : q;
     var box = bubbleAI(), withPage = document.getElementById('cp-page');
+    box.dataset.q = q;
     var data = { task: 'chat', message: q, page_title: C.title };
     if (withPage && withPage.checked) data.page = pageText();
     streamInto(box, data).catch(function () { fill(box, { error: C.err }); })
-      .finally(function () { busy = false; if (send) send.disabled = false; });
+      .finally(function () { setBusy(false); ctrl = null; });
   }
   function insight(key, extra) {
     var it = I[key]; if (!it || busy) return;
@@ -172,10 +205,87 @@
     if (e.key === 'Escape' && isOpen() && !document.querySelector('dialog[open]')) setOpen(false);
   });
   if (form) {
-    form.addEventListener('submit', function (e) { e.preventDefault(); var q = input.value; input.value = ''; input.style.height = ''; ask(q); });
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (busy) { if (ctrl) ctrl.abort(); return; } // زرار الإرسال بيبقى إيقاف وهو بيكتب
+      var q = input.value; if (slash.open && slash.run()) return; input.value = ''; input.style.height = ''; ask(q);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (slash.open && slash.key(e)) return;
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+      if (e.key === 'ArrowUp' && !input.value && lastQ) { e.preventDefault(); input.value = lastQ; }
+    });
+    input.addEventListener('input', function () { slash.update(); });
     input.addEventListener('input', function () { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; });
   }
+  // قايمة "/" للأوامر
+  var slash = (function () {
+    var box = document.createElement('div'), items = [], idx = 0, api = { open: false };
+    box.className = 'hidden absolute bottom-full mb-2 inset-x-0 max-h-72 overflow-y-auto rounded-2xl border border-ink-200 bg-white shadow-2xl p-1.5 z-20';
+    if (form) { form.style.position = 'relative'; form.appendChild(box); }
+    function all() {
+      var out = Object.keys(I).filter(function (k) { return (C.page || []).indexOf(k) > -1; }).map(function (k) { return { label: I[k].label, icon: I[k].icon, run: function () { insight(k); } }; });
+      (C.cmds || []).forEach(function (c) { out.push({ label: c[0], icon: SVG(c[2] || IC.send, 'w-4 h-4'), run: function () { if (c[1] === 'clear') document.getElementById('cp-clear').click(); else if (c[1] === 'page') { var x = document.getElementById('cp-page'); x.checked = !x.checked; } else if (c[1] === 'wide') setWide(!wide); else ask(c[1], c[0]); } }); });
+      return out;
+    }
+    function render() {
+      box.innerHTML = '';
+      items.forEach(function (it, i) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-start ' + (i === idx ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-ink-100');
+        b.innerHTML = it.icon; b.appendChild(document.createTextNode(it.label)); b.onmousedown = function (e) { e.preventDefault(); idx = i; api.run(); }; box.appendChild(b);
+      });
+      var on = box.children[idx]; if (on) on.scrollIntoView({ block: 'nearest' });
+    }
+    api.update = function () {
+      var v = input.value;
+      if (v.charAt(0) !== '/' || v.indexOf('\n') > -1) { box.classList.add('hidden'); api.open = false; return; }
+      var q = v.slice(1).toLowerCase(); items = all().filter(function (it) { return !q || it.label.toLowerCase().indexOf(q) > -1; }); idx = 0;
+      api.open = items.length > 0; box.classList.toggle('hidden', !api.open); render();
+    };
+    api.key = function (e) {
+      if (e.key === 'ArrowDown') { idx = (idx + 1) % items.length; render(); e.preventDefault(); return true; }
+      if (e.key === 'ArrowUp') { idx = (idx - 1 + items.length) % items.length; render(); e.preventDefault(); return true; }
+      if (e.key === 'Escape') { input.value = ''; api.update(); e.preventDefault(); e.stopPropagation(); return true; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); api.run(); return true; }
+      return false;
+    };
+    api.run = function () { var it = items[idx]; input.value = ''; input.style.height = ''; api.update(); if (it) it.run(); return !!it; };
+    return api;
+  })();
+
+  // الإدخال بالصوت (لو المتصفح بيدعمه)
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, mic = document.getElementById('cp-mic');
+  if (mic && SR) {
+    var rec = null;
+    mic.classList.remove('hidden');
+    mic.onclick = function () {
+      if (rec) { rec.stop(); return; }
+      rec = new SR(); rec.lang = document.documentElement.lang === 'ar' ? 'ar-EG' : 'en-US'; rec.interimResults = true; rec.continuous = false;
+      var base = input.value ? input.value + ' ' : '';
+      rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; input.value = base + t; input.dispatchEvent(new Event('input')); };
+      rec.onend = function () { rec = null; mic.classList.remove('text-red-600', 'bg-red-50', 'animate-pulse'); input.focus(); };
+      mic.classList.add('text-red-600', 'bg-red-50', 'animate-pulse'); rec.start();
+    };
+  }
+
+  // سحب حافة اللوحة لتغيير عرضها
+  var grip = document.getElementById('cp-grip'), cpW = parseInt(store.get('cp-w') || '0', 10) || 416;
+  function applyW() {
+    if (innerWidth < 1024 || wide) { panel.style.width = ''; if (main) main.style.paddingInlineEnd = ''; return; }
+    panel.style.width = cpW + 'px';
+    if (main) main.style.paddingInlineEnd = isOpen() ? (cpW + 56) + 'px' : '';
+  }
+  if (grip) grip.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId); document.body.style.userSelect = 'none'; panel.style.transition = 'none';
+    var rtl = document.documentElement.dir === 'rtl';
+    function mv(ev) { var r = panel.getBoundingClientRect(); cpW = Math.max(340, Math.min(innerWidth - 420, rtl ? ev.clientX - r.left : r.right - ev.clientX)); applyW(); }
+    function up() { grip.removeEventListener('pointermove', mv); document.body.style.userSelect = ''; panel.style.transition = ''; store.set('cp-w', cpW); }
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up, { once: true });
+  });
+  window.addEventListener('resize', applyW);
+  var _setOpen = setOpen; setOpen = function (on) { _setOpen(on); if (main) main.classList.remove('lg:pe-[29.5rem]'); applyW(); };
+  var _setWide = setWide; setWide = function (w) { _setWide(w); if (main) main.classList.remove('lg:pe-[29.5rem]'); applyW(); };
+
   setWide(wide);
   if (store.get('cp-open') === '1' && innerWidth >= 1024) setOpen(true);
 })();

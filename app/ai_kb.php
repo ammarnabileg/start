@@ -1,0 +1,324 @@
+<?php
+/**
+ * قاعدة المعرفة: كل اللي الذكاء الاصطناعي يعرفه عن الشركة.
+ * الأقسام بتتجمع في نص واحد بيتبعت مع الطلبات، والملفات بتتقسم أجزاء ونبعت المناسب للسؤال بس.
+ */
+
+/** الأقسام وشكل كل واحد */
+function kb_schema(): array
+{
+    return [
+        'company' => ['label' => t('عن الشركة'), 'hint' => t('من أنتم، ماذا تبيعون، العنوان والفروع، مواعيد العمل، طرق الدفع والتوصيل.'), 'type' => 'text'],
+        'services' => ['label' => t('الخدمات والمنتجات'), 'hint' => t('كل خدمة أو منتج بسعره ووصف مختصر. الذكاء الاصطناعي لن يذكر سعرًا غير موجود هنا.'), 'type' => 'rows', 'cols' => ['name' => t('الاسم'), 'price' => t('السعر'), 'details' => t('التفاصيل')]],
+        'faq' => ['label' => t('الأسئلة الشائعة'), 'hint' => t('الأسئلة اللي العملاء بيسألوها كتير وإجابتها المعتمدة.'), 'type' => 'rows', 'cols' => ['q' => t('السؤال'), 'a' => t('الإجابة')]],
+        'tone' => ['label' => t('نبرة الكلام'), 'hint' => t('إزاي الشركة بتتكلم مع عملائها.'), 'type' => 'tone'],
+        'audience' => ['label' => t('الجمهور'), 'hint' => t('مين عملائك: السن، المكان، الاهتمامات، المشاكل اللي بتحلها لهم.'), 'type' => 'text'],
+        'focus' => ['label' => t('التركيز الحالي'), 'hint' => t('إيه اللي عايز تروّج له دلوقتي: عرض، منتج جديد، هدف الشهر.'), 'type' => 'text'],
+        'never_say' => ['label' => t('ممنوع قوله'), 'hint' => t('كلمات أو مواضيع أو وعود ممنوع الذكاء الاصطناعي يذكرها نهائيًا. كل واحدة في سطر.'), 'type' => 'list'],
+        'anti_hype' => ['label' => t('ضد المبالغة'), 'hint' => t('قواعد تمنع الكلام المبالغ فيه والوعود اللي مش هتتحقق.'), 'type' => 'antihype'],
+        'visual_style' => ['label' => t('الهوية البصرية'), 'hint' => t('ألوان وستايل الصور. بيستخدمها توليد الصور تلقائيًا.'), 'type' => 'visual'],
+        'escalation' => ['label' => t('التحويل لموظف'), 'hint' => t('إمتى الذكاء الاصطناعي يوقف ويحوّل المحادثة لموظف، ولمين يبعت إيميل.'), 'type' => 'escalation'],
+    ];
+}
+
+function kb_get(int $wid): array
+{
+    static $cache = [];
+    if (isset($cache[$wid])) return $cache[$wid];
+    $out = [];
+    try {
+        $st = db()->prepare("SELECT section, data FROM kb_sections WHERE workspace_id = ?");
+        $st->execute([$wid]);
+        foreach ($st->fetchAll() as $r) $out[$r['section']] = json_decode($r['data'], true);
+    } catch (Throwable $e) {
+    }
+    // الإصدار القديم: نص واحد في الإعدادات
+    if (empty($out['company']['text']) && ($old = trim((string)setting('ai_kb_' . $wid, ''))) !== '') $out['company'] = ['text' => $old];
+    return $cache[$wid] = $out;
+}
+
+function kb_save(int $wid, string $section, array $data): void
+{
+    db()->prepare("INSERT INTO kb_sections (workspace_id, section, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data)")
+        ->execute([$wid, $section, json_encode($data, JSON_UNESCAPED_UNICODE)]);
+}
+
+/** القسم ده متعبّي؟ */
+function kb_filled(array $sec, string $type): bool
+{
+    switch ($type) {
+        case 'rows': return !empty(array_filter((array)($sec['rows'] ?? []), function ($r) { return trim(implode('', (array)$r)) !== ''; }));
+        case 'list': return trim((string)($sec['text'] ?? '')) !== '';
+        case 'tone': return !empty($sec['style']) || trim((string)($sec['notes'] ?? '')) !== '';
+        case 'antihype': return !empty($sec['rules']) || trim((string)($sec['words'] ?? '')) !== '';
+        case 'visual': return trim((string)($sec['colors'] ?? '') . ($sec['style'] ?? '')) !== '';
+        case 'escalation': return trim((string)($sec['email'] ?? '')) !== '';
+        default: return trim((string)($sec['text'] ?? '')) !== '';
+    }
+}
+
+function kb_tone_options(): array
+{
+    return ['friendly' => t('ودود وقريب'), 'professional' => t('رسمي ومحترف'), 'warm' => t('دافئ ومطمئن'), 'energetic' => t('حماسي'), 'premium' => t('فخم وراقي'), 'playful' => t('خفيف ومرح')];
+}
+
+function kb_dialect_options(): array
+{
+    return ['match' => t('نفس لهجة العميل'), 'msa' => t('عربي فصحى مبسطة'), 'egyptian' => t('مصري'), 'gulf' => t('خليجي'), 'levant' => t('شامي'), 'english' => t('English')];
+}
+
+function kb_antihype_rules(): array
+{
+    return [
+        'no_superlatives' => t('ممنوع "الأفضل" و"رقم 1" و"الأرخص" إلا لو فيه دليل مكتوب هنا'),
+        'no_guarantees' => t('ممنوع ضمانات أو نتائج مضمونة غير مكتوبة في السياسات'),
+        'no_fake_urgency' => t('ممنوع استعجال مزيف ("آخر قطعة"، "العرض بينتهي النهارده") إلا لو حقيقي'),
+        'no_invent_numbers' => t('ممنوع أرقام أو إحصائيات أو آراء عملاء مش موجودة هنا'),
+        'emoji_light' => t('إيموجي قليل (واحد أو اتنين بالكتير)'),
+    ];
+}
+
+/** بيجمع كل الأقسام في نص واحد للذكاء الاصطناعي، ومعاه أجزاء الملفات المناسبة للسؤال */
+function kb_compile(int $wid, string $query = ''): string
+{
+    $k = kb_get($wid);
+    $out = [];
+    if ($v = trim((string)($k['company']['text'] ?? ''))) $out[] = "## COMPANY\n" . $v;
+    $rows = array_filter((array)($k['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; });
+    if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows));
+    $faq = array_filter((array)($k['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; });
+    if ($faq) $out[] = "## FAQ (approved answers)\n" . implode("\n", array_map(function ($r) { return 'Q: ' . trim($r['q']) . "\nA: " . trim($r['a']); }, $faq));
+    $tone = $k['tone'] ?? [];
+    if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
+        $styles = array_intersect_key(kb_tone_options(), array_flip((array)($tone['style'] ?? [])));
+        $out[] = "## TONE\n" . ($styles ? 'Style: ' . implode(', ', $styles) . "\n" : '') . (!empty($tone['dialect']) ? 'Language/dialect: ' . (kb_dialect_options()[$tone['dialect']] ?? $tone['dialect']) . "\n" : '')
+            . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
+    }
+    if ($v = trim((string)($k['audience']['text'] ?? ''))) $out[] = "## AUDIENCE\n" . $v;
+    if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . $v;
+    if ($v = trim((string)($k['never_say']['text'] ?? ''))) $out[] = "## NEVER SAY (strictly forbidden words, topics and promises)\n" . implode("\n", array_map(function ($l) { return '- ' . trim($l); }, array_filter(explode("\n", $v), 'trim')));
+    $ah = $k['anti_hype'] ?? [];
+    $rules = array_intersect_key(kb_antihype_rules(), array_flip((array)($ah['rules'] ?? [])));
+    if ($rules || trim((string)($ah['words'] ?? '')) !== '') $out[] = "## ANTI-HYPE RULES\n" . implode("\n", array_map(function ($r) { return '- ' . $r; }, $rules)) . (trim((string)($ah['words'] ?? '')) !== '' ? "\n- Never use these words: " . trim($ah['words']) : '');
+    $vs = $k['visual_style'] ?? [];
+    if (trim((string)($vs['colors'] ?? '') . ($vs['style'] ?? '')) !== '') $out[] = "## VISUAL STYLE\nColors: " . trim((string)($vs['colors'] ?? '')) . "\nStyle: " . trim((string)($vs['style'] ?? ''));
+    $txt = implode("\n\n", $out);
+    // الملفات: أنسب أجزاء للسؤال (أو أول أجزاء لو مفيش سؤال)
+    $chunks = kb_relevant_chunks($wid, $query, $query !== '' ? 5 : 3);
+    if ($chunks) $txt .= "\n\n## FROM COMPANY DOCUMENTS\n" . implode("\n---\n", $chunks);
+    return mb_substr($txt, 0, 14000);
+}
+
+/** بيقسم النص لأجزاء ~900 حرف على حدود الفقرات */
+function kb_chunks(string $text, int $size = 900): array
+{
+    $paras = preg_split("/\n\s*\n/u", $text) ?: [];
+    $out = []; $cur = '';
+    foreach ($paras as $p) {
+        $p = trim($p); if ($p === '') continue;
+        if (mb_strlen($cur) + mb_strlen($p) > $size && $cur !== '') { $out[] = $cur; $cur = ''; }
+        while (mb_strlen($p) > $size) { $out[] = mb_substr($p, 0, $size); $p = mb_substr($p, $size); }
+        $cur = $cur === '' ? $p : $cur . "\n" . $p;
+    }
+    if ($cur !== '') $out[] = $cur;
+    return $out;
+}
+
+/** كلمات للبحث: بنشيل التشكيل والأل والكلمات الصغيرة */
+function kb_terms(string $s): array
+{
+    $s = mb_strtolower(preg_replace('/[\x{064B}-\x{0652}\x{0640}]/u', '', $s));
+    $s = strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي']);
+    preg_match_all('/[\p{L}\p{N}]{3,}/u', $s, $m);
+    return array_values(array_unique(array_map(function ($w) { return preg_replace('/^(ال|وال|بال|لل)(?=\p{L}{3,})/u', '', $w); }, $m[0])));
+}
+
+/** أنسب أجزاء الملفات لسؤال معين (بحث بالكلمات المشتركة) */
+function kb_relevant_chunks(int $wid, string $query, int $limit = 5): array
+{
+    try {
+        $st = db()->prepare("SELECT name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
+        $st->execute([$wid]);
+        $files = $st->fetchAll();
+    } catch (Throwable $e) { return []; }
+    if (!$files) return [];
+    $q = kb_terms($query);
+    $scored = [];
+    foreach ($files as $f) {
+        foreach (kb_chunks((string)$f['content']) as $i => $c) {
+            $score = 0;
+            if ($q) { $ct = kb_terms($c); foreach ($q as $w) foreach ($ct as $x) if ($x === $w || (mb_strlen($w) > 4 && mb_strpos($x, $w) === 0)) { $score++; break; } }
+            else $score = $i === 0 ? 1 : 0;
+            if ($score > 0) $scored[] = [$score, '[' . $f['name'] . "]\n" . $c];
+        }
+    }
+    usort($scored, function ($a, $b) { return $b[0] <=> $a[0]; });
+    return array_column(array_slice($scored, 0, $limit), 1);
+}
+
+/* ---------- تحويل الملفات لنص ---------- */
+
+/** بيرجع [النص, الطريقة] أو بيرمي Exception */
+function kb_extract(string $path, string $name, string $mime): array
+{
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if (in_array($ext, ['txt', 'md', 'csv', 'tsv', 'json'], true)) return [kb_clean((string)file_get_contents($path)), 'text'];
+    if (in_array($ext, ['html', 'htm'], true)) return [kb_clean(html_entity_decode(strip_tags(preg_replace('#<(script|style)[^>]*>.*?</\1>#si', '', (string)file_get_contents($path))), ENT_QUOTES, 'UTF-8')), 'html'];
+    if (in_array($ext, ['docx', 'xlsx', 'pptx'], true)) return [kb_office($path, $ext), $ext];
+    if ($ext === 'pdf') return kb_pdf($path, $name);
+    if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) return [kb_image($path, $mime), 'vision'];
+    throw new Exception(t('نوع الملف غير مدعوم: %s', $ext));
+}
+
+function kb_clean(string $s): string
+{
+    if (!mb_check_encoding($s, 'UTF-8')) $s = mb_convert_encoding($s, 'UTF-8', 'Windows-1256');
+    $s = preg_replace("/^\xEF\xBB\xBF/", '', $s);
+    $s = preg_replace("/[ \t]+/u", ' ', str_replace("\r", '', $s));
+    return trim(preg_replace("/\n{3,}/", "\n\n", $s));
+}
+
+/** Word / Excel / PowerPoint: كلها ZIP فيه XML */
+function kb_office(string $path, string $ext): string
+{
+    $z = new ZipArchive();
+    if ($z->open($path) !== true) throw new Exception(t('الملف تالف أو غير مقروء.'));
+    $parts = [];
+    if ($ext === 'docx') {
+        $xml = (string)$z->getFromName('word/document.xml');
+        $xml = preg_replace(['#</w:p>#', '#<w:tab/>#', '#<w:br[^>]*/>#'], ["\n", "\t", "\n"], $xml);
+        $parts[] = strip_tags($xml);
+    } elseif ($ext === 'pptx') {
+        for ($i = 1; $i <= 300; $i++) {
+            $x = $z->getFromName("ppt/slides/slide$i.xml"); if ($x === false) break;
+            $parts[] = '# ' . $i . "\n" . strip_tags(preg_replace('#</a:p>#', "\n", $x));
+        }
+    } else {
+        $shared = [];
+        if (($ss = $z->getFromName('xl/sharedStrings.xml')) !== false) {
+            preg_match_all('#<si>(.*?)</si>#s', $ss, $m);
+            foreach ($m[1] as $si) $shared[] = html_entity_decode(strip_tags($si), ENT_QUOTES | ENT_XML1, 'UTF-8');
+        }
+        for ($i = 1; $i <= 50; $i++) {
+            $x = $z->getFromName("xl/worksheets/sheet$i.xml"); if ($x === false) break;
+            preg_match_all('#<row[^>]*>(.*?)</row>#s', $x, $rows);
+            foreach ($rows[1] as $row) {
+                preg_match_all('#<c([^>]*)>(?:<f>.*?</f>)?(?:<v>(.*?)</v>|<is>(.*?)</is>)?</c>#s', $row, $cells, PREG_SET_ORDER);
+                $vals = [];
+                foreach ($cells as $c) {
+                    $v = $c[2] ?? ''; if (!empty($c[3])) $v = strip_tags($c[3]);
+                    if (strpos($c[1], 't="s"') !== false) $v = $shared[(int)$v] ?? '';
+                    if (trim((string)$v) !== '') $vals[] = trim((string)$v);
+                }
+                if ($vals) $parts[] = implode(' | ', $vals);
+            }
+        }
+    }
+    $z->close();
+    $t = kb_clean(html_entity_decode(implode("\n", $parts), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+    if ($t === '') throw new Exception(t('لم يتم العثور على نص في الملف.'));
+    return $t;
+}
+
+/** PDF: pdftotext لو موجود، وإلا Claude بيقرا الـ PDF، وإلا قارئ بسيط */
+function kb_pdf(string $path, string $name): array
+{
+    if (function_exists('shell_exec') && !in_array('shell_exec', array_map('trim', explode(',', (string)ini_get('disable_functions'))), true)) {
+        $bin = trim((string)@shell_exec('command -v pdftotext 2>/dev/null'));
+        if ($bin !== '') {
+            $t = kb_clean((string)@shell_exec(escapeshellarg($bin) . ' -layout -enc UTF-8 ' . escapeshellarg($path) . ' - 2>/dev/null'));
+            if (mb_strlen(preg_replace('/\s+/u', '', $t)) >= 8) return [$t, 'pdftotext'];
+        }
+    }
+    $an = connector('anthropic');
+    if ($an && empty($an['settings']['disabled']) && filesize($path) < 20 * 1048576) {
+        $model = (string)($an['settings']['model'] ?? '') ?: ai_default_model($an['settings']['models'] ?? []);
+        $r = ai_req('anthropic', 'POST', '/messages', $an['credentials']['api_key'], ['model' => $model, 'max_tokens' => 8000, 'messages' => [['role' => 'user', 'content' => [
+            ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => base64_encode((string)file_get_contents($path))]],
+            ['type' => 'text', 'text' => 'Extract ALL the text of this document faithfully, in its original language. Keep headings, lists and tables (as "a | b" rows). No commentary.'],
+        ]]]], 180);
+        $t = ''; foreach ($r['content'] ?? [] as $b) if (($b['type'] ?? '') === 'text') $t .= $b['text'];
+        ai_log_usage((int)ws('id'), 'kb', 'anthropic', (string)($r['model'] ?? $model), (array)($r['usage'] ?? []));
+        if (trim($t) !== '') return [kb_clean($t), 'claude'];
+    }
+    // قارئ بسيط: بيشتغل مع ملفات PDF النصية الإنجليزي، وغالبًا مش بيشتغل مع العربي
+    $raw = (string)file_get_contents($path); $out = '';
+    preg_match_all('#stream\r?\n(.*?)\r?\nendstream#s', $raw, $m);
+    foreach ($m[1] as $s) {
+        $d = @gzuncompress($s); if ($d === false) $d = @gzinflate($s); if ($d === false) $d = $s;
+        preg_match_all('#\[(.*?)\]\s*TJ|\((.*?)(?<!\\\\)\)\s*Tj#s', $d, $tm, PREG_SET_ORDER);
+        foreach ($tm as $x) {
+            if ($x[1] !== '') { preg_match_all('#\((.*?)(?<!\\\\)\)#s', $x[1], $pp); $out .= implode('', $pp[1]); } else $out .= $x[2];
+            $out .= ' ';
+        }
+        $out .= "\n";
+    }
+    $out = kb_clean(stripcslashes($out));
+    if (mb_strlen(preg_replace('/\s+/', '', $out)) < 8) throw new Exception(t('تعذر قراءة الـ PDF. اربط Anthropic (Claude) ليقرأه، أو ارفعه كملف Word أو نص.'));
+    return [$out, 'basic'];
+}
+
+/** صورة: موديل بيفهم الصور يطلع النص اللي فيها */
+function kb_image(string $path, string $mime): string
+{
+    if (filesize($path) > 4 * 1048576) throw new Exception(t('الصورة أكبر من 4 ميجا.'));
+    $r = ai_chat([['role' => 'user', 'content' => [['type' => 'text', 'text' => 'Extract all text in this image faithfully (original language). If it is a price list or menu, keep each item with its price on its own line. If there is no text, describe the image in 2 lines.'], ['type' => 'image_url', 'image_url' => ['url' => 'data:' . ($mime ?: 'image/jpeg') . ';base64,' . base64_encode((string)file_get_contents($path))]]]]], 3000, 'analyze');
+    return kb_clean($r['text']);
+}
+
+/* ---------- الرد أو التحويل لموظف ---------- */
+
+function kb_escalation(int $wid): array
+{
+    $e = kb_get($wid)['escalation'] ?? [];
+    return ['email' => trim((string)($e['email'] ?? '')), 'triggers' => (array)($e['triggers'] ?? ['angry', 'refund', 'complaint', 'human']), 'keywords' => trim((string)($e['keywords'] ?? '')), 'message' => trim((string)($e['message'] ?? ''))];
+}
+
+function kb_trigger_options(): array
+{
+    return ['angry' => t('العميل غاضب أو بيشتم'), 'complaint' => t('شكوى من منتج أو خدمة'), 'refund' => t('طلب استرجاع أو استبدال أو فلوس'), 'human' => t('طلب يكلم موظف'), 'order_issue' => t('مشكلة في طلب أو شحنة'), 'unknown' => t('سؤال مش موجود في قاعدة المعرفة'), 'legal' => t('تهديد قانوني أو موضوع حساس')];
+}
+
+/**
+ * قرار الرد: يرد ولا يحوّل لموظف. بيرجع: action (reply|handoff), reply, reason, confidence
+ * ده اللي الرد التلقائي على الرسايل والتعليقات هيشتغل بيه.
+ */
+function kb_decide(int $wid, string $message, string $channel = 'message', string $history = ''): array
+{
+    $esc = kb_escalation($wid);
+    $trig = array_intersect_key(kb_trigger_options(), array_flip($esc['triggers']));
+    // كلمات بتحوّل فورًا من غير ما نسأل الموديل
+    foreach (array_filter(array_map('trim', preg_split('/[,،\n]/u', $esc['keywords']))) as $kw) {
+        if ($kw !== '' && mb_stripos($message, $kw) !== false) return ['action' => 'handoff', 'reply' => $esc['message'], 'reason' => t('فيها كلمة تحويل: %s', $kw), 'confidence' => 1, 'model' => '', 'cost' => 0];
+    }
+    $sys = 'You are the customer service AI for "' . ws('name') . '". Decide whether to answer this customer ' . ($channel === 'comment' ? 'public comment' : 'private message') . ' yourself or hand it off to a human employee.' . "\n"
+        . 'Hand off when ANY of these is true: ' . implode('; ', $trig) . ($trig ? '' : 'never') . '. Also hand off if answering would require facts not in the knowledge base.' . "\n"
+        . 'If you answer: follow TONE, NEVER SAY and ANTI-HYPE rules, use only knowledge-base facts, keep it short' . ($channel === 'comment' ? ' and public-safe (no personal details; invite to DM for specifics)' : '') . '.' . "\n"
+        . 'Return ONLY JSON: {"action":"reply"|"handoff","reply":"the reply text (if handoff: a short polite message saying a team member will follow up)","reason":"short reason in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '","confidence":0-1}';
+    $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 500, 'reply');
+    $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
+    $d = json_decode($j, true);
+    if (!is_array($d)) $d = ['action' => 'reply', 'reply' => trim($r['text']), 'reason' => '', 'confidence' => 0.5];
+    $d['action'] = ($d['action'] ?? '') === 'handoff' ? 'handoff' : 'reply';
+    if ($d['action'] === 'handoff' && $esc['message'] !== '') $d['reply'] = $esc['message'];
+    return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null];
+}
+
+/** إيميل التحويل للموظف المسؤول */
+function kb_handoff_email(int $wid, string $customer, string $channel, string $message, string $reason, string $link = ''): bool
+{
+    $to = kb_escalation($wid)['email'];
+    if ($to === '') return false;
+    $html = '<div style="font-family:sans-serif;line-height:1.6">'
+        . '<h2 style="margin:0 0 8px">' . e(t('محادثة محتاجة موظف')) . '</h2>'
+        . '<p><b>' . e(t('العميل')) . ':</b> ' . e($customer) . ' · ' . e($channel) . '</p>'
+        . '<p><b>' . e(t('السبب')) . ':</b> ' . e($reason) . '</p>'
+        . '<blockquote style="border-inline-start:3px solid #3b6ff0;margin:0;padding:8px 12px;background:#f5f7fb">' . nl2br(e(mb_substr($message, 0, 2000))) . '</blockquote>'
+        . ($link !== '' ? '<p><a href="' . e($link) . '">' . e(t('افتح المحادثة')) . '</a></p>' : '') . '</div>';
+    $ok = 0;
+    foreach (array_filter(array_map('trim', preg_split('/[,;\s]+/', $to)), function ($x) { return filter_var($x, FILTER_VALIDATE_EMAIL); }) as $addr) {
+        try { send_mail($addr, t('تحويل لموظف: %s', $customer), $html, null, $wid); $ok++; } catch (Throwable $e) {}
+    }
+    return $ok > 0;
+}

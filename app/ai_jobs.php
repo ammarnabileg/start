@@ -207,15 +207,16 @@ function ai_auto_reply(int $wid): int
         if ($id === '' || $acc === '' || $m === '' || (int)($c['unreadCount'] ?? 0) < 1) continue;
         $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
         if (($done[$id] ?? '') === $h) continue;
-        $sys = 'You reply to customers of "' . ws('name') . '" outside working hours (' . $cfg['from'] . '-' . $cfg['to'] . ', timezone ' . site_timezone() . '). '
-            . 'Write ONE short, polite reply in the customer\'s language and dialect. Answer ONLY with facts from the knowledge base. '
-            . 'If the answer is not in the knowledge base, or the customer is upset, or it needs a human (orders, refunds, complaints), say the team will reply during working hours. Never promise anything not in the knowledge base. Return ONLY the reply.';
         try {
-            $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($m, 0, 1500)]], 300, 'reply');
-            $text = trim($r['text'], " \n\"'«»");
-            if ($text === '') continue;
+            $d = kb_decide($wid, $m, 'message');
+            $text = trim($d['reply'], " \n\"'«»");
+            if ($d['action'] === 'handoff') {
+                kb_handoff_email($wid, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), $m, $d['reason'], base_url() . '/' . url('inbox', ['c' => $id, 'a' => $acc]));
+                log_activity('ai.handoff', $id . ' ' . $d['reason']);
+            }
+            if ($text === '') { $done[$id] = $h; continue; }
             if ($cfg['mode'] === 'send') { $z->sendMessage($id, $acc, $text); log_activity('ai.auto_reply', $id); }
-            else $drafts[$id] = ['text' => $text, 't' => time()];
+            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => $d['reason']];
             $done[$id] = $h; $n++;
         } catch (Throwable $e) {
             break; // حد الاستهلاك أو مشكلة في المزود: نقف

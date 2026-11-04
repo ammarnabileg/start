@@ -1,3 +1,3 @@
 <?php
 // رقم إصدار البرنامج. يزيد مع كل تحديث.
-define('APP_VERSION', '3.5.2');
+define('APP_VERSION', '3.6.0');

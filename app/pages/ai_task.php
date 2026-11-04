@@ -59,6 +59,7 @@ if (in_array($task, ['image', 'image_status'], true)) {
             $path = '/' . ltrim(trim((string)($video ? ($c['video_model'] ?? '') : ($c['model'] ?? ''))) ?: ($video ? '/higgsfield/cinema-studio/4.0' : '/higgsfield-ai/soul/v2/standard'), '/');
             if (!preg_match('#^/[\w./-]+$#', $path)) $out(['error' => t('مسار الموديل غير صحيح.')], 422);
             $style = trim((string)($c['style'] ?? ''));
+            if ($style === '') { $vs = kb_get((int)ws('id'))['visual_style'] ?? []; $style = trim(trim((string)($vs['style'] ?? '')) . ' ' . (trim((string)($vs['colors'] ?? '')) !== '' ? 'Brand colors: ' . $vs['colors'] : '')); }
             $body = ['prompt' => $prompt . ($style !== '' ? '. Style: ' . $style : '')];
             if ($video && ($src = (string)($_POST['src'] ?? '')) !== '') {
                 $meta = hf_lib_valid($src) ? json_decode((string)@file_get_contents(hf_lib_dir((int)ws('id')) . '/' . $src . '.json'), true) : null;

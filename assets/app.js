@@ -303,7 +303,7 @@ document.addEventListener('click', function (e) {
     if (pill.dataset.on === a.dataset.lang) { e.preventDefault(); return; }
     e.preventDefault();
     pill.dataset.on = a.dataset.lang;
-    seg.querySelectorAll('[data-lang]').forEach(function (x) { x.classList.toggle('text-ink-500', x !== a); });
+    seg.querySelectorAll('[data-lang]').forEach(function (x) { x.classList.toggle('text-ink-500', x !== a); x.classList.toggle('text-[#fff]', x === a); });
     document.body.style.transition = 'opacity .2s'; setTimeout(function () { document.body.style.opacity = '.55'; }, 120);
     setTimeout(function () { location.href = a.href; }, 260);
   }

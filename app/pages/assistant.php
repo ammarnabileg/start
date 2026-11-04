@@ -54,6 +54,7 @@ render(t('الذكاء الاصطناعي'), 'assistant', function () use ($hist
       <?php foreach ($tabs as $tk => $tl): ?>
         <a href="<?= e(url('assistant', $tk === 'models' ? [] : ['tab' => $tk])) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition <?= $tab === $tk ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($tl) ?></a>
       <?php endforeach; ?>
+      <a href="<?= e(url('knowledge')) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-ink-500 hover:text-ink-900"><?= e(t('قاعدة المعرفة')) ?></a>
       <a href="<?= e(url('connectors')) ?>" class="ms-auto px-3 py-2 text-xs link whitespace-nowrap"><?= e(t('ربط المزودين ←')) ?></a>
     </div>
     <?php
