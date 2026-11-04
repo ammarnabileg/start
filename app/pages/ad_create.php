@@ -8,6 +8,37 @@
 $err = null;
 $z = zernio_or_null($err);
 
+// الذكاء الاصطناعي: نسخ إعلان / اقتراح جمهور — JSON
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_copy', 'ai_audience'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $act = $_POST['action'];
+    $focus = mb_substr(trim((string)($_POST['focus'] ?? '')), 0, 300);
+    $goal = mb_substr((string)($_POST['goal'] ?? ''), 0, 40);
+    $ctx = 'الهدف: ' . $goal . ($focus !== '' ? "\nالمنتج/الخدمة أو العرض: " . $focus : '') . "\nدولة الشركة: " . ws_country();
+    if ($act === 'ai_copy') {
+        $sys = 'أنت كاتب إعلانات ممولة محترف لفيسبوك وانستجرام وخبير في علم نفس البيع. اعتمد على معلومات الشركة المتاحة لك فقط، ولا تخترع أسعارًا أو خصومات أو أرقامًا غير موجودة. '
+            . 'اكتب 3 نسخ مختلفة الزاوية (1: الألم والحل، 2: الفائدة المباشرة، 3: الدليل الاجتماعي أو الندرة الحقيقية فقط إن وُجدت). '
+            . 'تجنب العبارات التي ترفضها Meta: الادعاءات المطلقة (الأفضل، الأرخص، مضمون 100%)، ومخاطبة صفات شخصية حساسة (هل أنت سمين؟ هل أنت مديون؟). '
+            . 'العنوان حتى 40 حرفًا، والنص حتى 300 حرف. اكتب بلغة ولهجة جمهور الشركة. '
+            . 'أعد JSON فقط بهذا الشكل بدون أي شرح: {"variants":[{"angle":"...","headline":"...","body":"...","cta":"LEARN_MORE|SHOP_NOW|SIGN_UP|CONTACT_US|BOOK_TRAVEL|GET_QUOTE|SUBSCRIBE"}]}';
+    } else {
+        $sys = 'أنت خبير استهداف إعلانات Meta. اقترح جمهورًا واقعيًا للحملة اعتمادًا على معلومات الشركة وجمهورها. '
+            . 'أعد JSON فقط بدون شرح: {"countries":["رموز ISO من حرفين"],"age_min":18,"age_max":65,"gender":"all|male|female","interests":["4 إلى 6 كلمات بحث عن اهتمامات بالإنجليزية كما تسميها Meta"],"why":"سطر أو سطرين بالعربية يشرحان الاختيار"}. '
+            . 'لا تضيق الجمهور أكثر من اللازم، ولا تحدد الجنس إلا لو المنتج موجه لجنس واحد بوضوح.';
+    }
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => $ctx]], 900, 'ads_copy');
+        $txt = (string)$r['text'];
+        if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $j = json_decode($txt, true);
+        if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        echo json_encode(['ok' => true] + $j, JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 // بحث الاستهداف (اهتمامات/أماكن) — بيرجع JSON للـ JS
 if (isset($_GET['ajax']) && $z) {
     header('Content-Type: application/json; charset=utf-8');
@@ -406,6 +437,17 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
           'summary' => t('الملخص'), 'acc' => t('الحساب'), 'audience' => t('الجمهور'), 'age' => t('سن %s-%s'), 'launchPaused' => t('هتتعمل متوقفة، مفيش صرف'), 'launchActive' => t('هتشتغل فورًا وتبدأ تصرف'),
           'myCountry' => ws_country(), 'nearby' => ['EG' => ['SA', 'AE', 'KW'], 'SA' => ['AE', 'KW', 'QA', 'BH'], 'AE' => ['SA', 'QA', 'OM'], 'KW' => ['SA', 'AE', 'BH'], 'QA' => ['SA', 'AE', 'BH'], 'BH' => ['SA', 'KW', 'AE'], 'OM' => ['AE', 'SA'], 'JO' => ['SA', 'AE', 'PS'], 'MA' => ['DZ', 'TN', 'FR']][ws_country()] ?? ['SA', 'AE', 'EG'],
           'cNames' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
+          'csrf' => csrf_token(), 'goalsMap' => $goals,
+          'ai' => ['copyBtn' => t('اكتب 3 نسخ بالذكاء الاصطناعي'), 'audBtn' => t('اقترح الجمهور بالذكاء الاصطناعي'), 'focus' => t('بتعلن عن إيه؟ (اختياري: منتج أو خدمة أو عرض)'),
+            'wait' => t('بيكتب...'), 'waitAud' => t('بيختار الجمهور...'), 'use' => t('استخدم النسخة دي'), 'err' => t('ما قدرناش نكمل'), 'applied' => t('اتطبق الجمهور المقترح'),
+            'noInt' => t('ما لقيناش الاهتمام "%s" على المنصة'), 'needAcc' => t('اختار حساب الإعلانات الأول')],
+          'chk' => ['title' => t('فحص قبل المراجعة'), 'ok' => t('كله تمام'), 'go' => t('كمّل للمراجعة'), 'fix' => t('ارجع أصلّح'),
+            'words' => ['الأفضل', 'الأرخص', 'أرخص', 'مضمون', '100%', 'مجاني تمامًا', 'اضغط هنا', 'best', 'cheapest', 'guaranteed', 'click here', 'free money'],
+            'wordHit' => t('فيه كلمة ممكن تخلي المنصة ترفض الإعلان: "%s"'), 'personal' => t('النص بيخاطب صفة شخصية ("هل أنت...")، وده ممنوع في سياسة Meta'),
+            'longBody' => t('النص طويل (%s حرف)، اللي بيبان قبل "عرض المزيد" حوالي 125 حرف بس'), 'longHead' => t('العنوان طويل (%s حرف)، ممكن يتقص بعد 40'),
+            'noImg' => t('مفيش صورة، الإعلان الجديد لازم يبقى له صورة'), 'noLink' => t('مفيش رابط، هدف الزيارات محتاج رابط'), 'badLink' => t('الرابط لازم يبدأ بـ https://'),
+            'caps' => t('حروف كبيرة كتير، بتبان كأنها صراخ'), 'emoji' => t('إيموجي كتير (%s)، قللهم'), 'narrow' => t('الجمهور ضيق جدًا (سن %s-%s)، ممكن الإعلان ما يوصلش'),
+            'noPost' => t('ما اخترتش منشور للترويج'), 'endBefore' => t('تاريخ النهاية قبل البداية'), 'warn' => t('تنبيه'), 'block' => t('لازم يتصلح')],
           'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير مراجعة؟'), 'ref' => $_SESSION['ads_budget_ref'] ?? new stdClass(), 'overWarn' => t('تحذير: ده %s ضعف الميزانية اليومية المعتادة في حملاتك (%s). اتأكد من المبلغ.')], JSON_UNESCAPED_UNICODE) ?>;</script>
         <script src="assets/ui-ad_create.js?v=<?= e(APP_VERSION) ?>"></script>
         <script>
@@ -430,6 +472,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
             });
           }
           draw();
+          window.adcAddInterest = function (it) { if (!list.some(function (x) { return x.id === it.id; })) { list.push({ id: it.id, name: it.name }); draw(); } };
           var box = document.getElementById('adcResults'), inp = document.getElementById('adcSearch'), timer;
           inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
           inp.addEventListener('input', function () {
