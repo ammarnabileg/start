@@ -5,6 +5,64 @@ $z = zernio_or_null($err);
 $wid = (int)ws('id');
 $id = (int)($_GET['id'] ?? 0);
 
+// ---- الذكاء الاصطناعي: بناء الحملة، جمهور مجموعة، نسخ إعلان، مراجعة الهيكل
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_build', 'ai_audience', 'ai_copy', 'ai_review'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0));
+    if (!$b) { echo json_encode(['ok' => false, 'error' => t('المشروع مش موجود')]); exit; }
+    $act = $_POST['action']; $d = $b['data']; $p = (string)$d['platform']; $C = ab_caps($p);
+    $in = json_decode((string)($_POST['input'] ?? '{}'), true) ?: [];
+    $clip = function ($v, $n = 400) { return mb_substr(is_scalar($v) ? trim((string)$v) : json_encode($v, JSON_UNESCAPED_UNICODE), 0, $n); };
+    $capTxt = 'المنصة: ' . ab_platform_label($p) . '. الأهداف المسموحة: ' . implode(', ', $C['goals']) . '. أزرار الإجراء المسموحة: ' . implode(', ', array_slice($C['ctas'], 0, 30))
+        . '. أقصى طول للعنوان: ' . $C['maxHeadline'] . ($C['maxBody'] ? '. أقصى طول للنص: ' . $C['maxBody'] : '') . '. ميزانية على مستوى الحملة متاحة: ' . ($C['cbo'] ? 'نعم' : 'لا')
+        . '. إعلانات أكثر من واحد في المجموعة: ' . ($C['maxAdsPerSet'] === 1 ? 'لا (إعلان واحد فقط)' : 'نعم') . '. استهداف الاهتمامات متاح: ' . ($C['targeting']['interests'] ? 'نعم' : 'لا')
+        . '. العملة: ' . $d['currency'] . '. دولة الشركة: ' . ws_country() . '.';
+    $rules = ' قواعد صارمة: استخدم معلومات الشركة المتاحة لك فقط ولا تخترع أسعارًا أو خصومات أو أرقامًا أو شهادات. تجنب العبارات التي ترفضها المنصات (الأفضل، الأرخص، مضمون 100%، مخاطبة صفات شخصية حساسة مثل "هل أنت...؟"). اكتب الإعلانات بلغة ولهجة جمهور الشركة. أعد JSON فقط بدون أي شرح خارجه.';
+    $tasks = [
+        'ai_build' => ['أنت ميديا باير خبير يدير ميزانيات كبيرة. صمّم هيكل حملة كامل جاهز للاختبار المنظم: مجموعات إعلانية بجماهير مختلفة فعلًا (مثل: جمهور واسع، اهتمامات محددة، جمهور مختلف بالسن أو المنطقة) وليست متداخلة، وفي كل مجموعة إعلانات بزوايا إقناع مختلفة (الألم والحل، الفائدة المباشرة، الدليل الاجتماعي الحقيقي، العرض/الندرة الحقيقية فقط إن وُجدت). وزّع الميزانية بنسب منطقية، واختر CBO عندما يكون الهدف التوسع وABO عندما يكون الهدف الاختبار، واشرح السبب. '
+            . 'الشكل: {"campaign":{"name":"","goal":"","budgetLevel":"adset|campaign","dailyBudget":رقم,"why":"سطر"},"adSets":[{"name":"","why":"لماذا هذا الجمهور","budgetShare":نسبة من 100,"targeting":{"countries":["ISO2"],"ageMin":18,"ageMax":65,"gender":"all|male|female","interestQueries":["كلمات بحث إنجليزية عن اهتمامات كما تسميها المنصة"]},"ads":[{"name":"","angle":"","headline":"","body":"","headlines":["بدائل"],"bodies":["بدائل"],"cta":""}]}],"tips":["نصيحة تنفيذية بالأرقام"]}. '
+            . 'من 2 إلى 4 مجموعات، ومن 2 إلى 3 إعلانات في كل مجموعة (أو إعلان واحد إن كانت المنصة لا تسمح بأكثر).', 2600],
+        'ai_audience' => ['أنت خبير استهداف. اقترح جمهورًا لهذه المجموعة الإعلانية يكون مختلفًا عن جماهير المجموعات الأخرى المذكورة حتى لا تتنافس. الشكل: {"name":"اسم قصير للجمهور","why":"سطرين","targeting":{"countries":["ISO2"],"ageMin":18,"ageMax":65,"gender":"all|male|female","interestQueries":["إنجليزي"]}}', 700],
+        'ai_copy' => ['أنت كاتب إعلانات ممولة وخبير علم نفس البيع. اكتب 3 نسخ مختلفة الزاوية لهذا الإعلان تناسب جمهور مجموعته. الشكل: {"variants":[{"angle":"","headline":"","body":"","headlines":["بديلان"],"bodies":["بديل"],"cta":""}]}', 1400],
+        'ai_review' => ['أنت ميديا باير كبير تراجع حملة قبل إطلاقها لعميل. انتقدها بصراحة: تداخل الجماهير، ميزانية غير كافية لعدد المجموعات (القاعدة: كل مجموعة تحتاج ميزانية تكفي 50 نتيجة في الأسبوع تقريبًا لتخرج من مرحلة التعلم)، جماهير ضيقة أو واسعة جدًا، تشابه الإعلانات داخل المجموعة، ضعف الهوك في أول سطر، زر إجراء لا يناسب الهدف، الهدف لا يناسب الغاية. '
+            . 'الشكل: {"score":رقم من 100,"verdict":"سطر","findings":[{"level":"high|medium|low","where":"campaign|set:رقم|ad:رقم المجموعة.رقم الإعلان","msg":"المشكلة بالأرقام","fix":"التصحيح المقترح"}]}. رتب حسب الخطورة، ولا تتجاوز 10 ملاحظات.', 1500],
+    ];
+    [$sys, $max] = $tasks[$act];
+    // ملخص الحملة الحالية للسياق
+    $sum = ['campaign' => ['name' => $d['campaign']['name'], 'goal' => $d['campaign']['goal'], 'budgetLevel' => $d['campaign']['budgetLevel'], 'budget' => $d['campaign']['budget']]];
+    foreach ($d['adSets'] as $si => $st) {
+        $sum['adSets'][] = ['n' => $si + 1, 'name' => $st['name'], 'budget' => $st['budget'], 'countries' => $st['targeting']['countries'], 'age' => [$st['targeting']['ageMin'], $st['targeting']['ageMax']], 'gender' => $st['targeting']['gender'],
+            'interests' => array_map(function ($x) { return $x['name']; }, $st['targeting']['interests'] ?? []), 'cities' => array_map(function ($x) { return $x['name']; }, $st['targeting']['cities'] ?? []),
+            'ads' => array_map(function ($a) { return ['headline' => mb_substr($a['headline'], 0, 120), 'body' => mb_substr($a['body'], 0, 300), 'cta' => $a['cta'], 'format' => $a['format'], 'hasMedia' => (bool)($a['imageUrl'] || $a['videoUrl'] || $a['cards'])]; }, $st['ads'])];
+    }
+    $user = "طلب المستخدم: " . $clip($in['brief'] ?? '', 1200) . "\nالمنتج/الخدمة: " . $clip($in['product'] ?? '', 300) . "\nالميزانية اليومية المتاحة: " . $clip($in['budget'] ?? '', 30) . ' ' . $d['currency']
+        . "\nالمجموعة المقصودة: " . $clip($in['set'] ?? '', 10) . "\nالإعلان المقصود: " . $clip($in['ad'] ?? '', 10) . "\nالحملة الحالية: " . json_encode($sum, JSON_UNESCAPED_UNICODE);
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ' ' . $capTxt . $rules . ai_country_note()], ['role' => 'user', 'content' => $user]], $max, 'ads_builder');
+        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $j = json_decode($txt, true);
+        if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        log_activity('ads.builder_ai', $act);
+        echo json_encode(['ok' => true, 'r' => $j], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+// ---- تقدير الوصول من المنصة (تقدير بس، مفيش إنشاء)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reach') {
+    header('Content-Type: application/json; charset=utf-8');
+    $b = ab_get($wid, (int)($_POST['id'] ?? 0)); $si = (int)($_POST['si'] ?? 0);
+    if (!$b || !$z || empty($b['data']['adSets'][$si]) || !ab_caps((string)$b['data']['platform'])['reach']) { echo json_encode(['ok' => false]); exit; }
+    $tg = json_decode((string)($_POST['targeting'] ?? ''), true) ?: $b['data']['adSets'][$si]['targeting'];
+    try {
+        $r = $z->request('POST', '/v1/ads/targeting/reach-estimate', [], ['accountId' => $b['data']['connId'], 'adAccountId' => $b['data']['adAccountId'], 'spec' => ab_targeting($tg, (string)$b['data']['platform'])]);
+        echo json_encode(['ok' => true, 'available' => (bool)($r['available'] ?? false), 'lower' => $r['lower'] ?? null, 'upper' => $r['upper'] ?? null, 'daily' => $r['daily'] ?? null, 'ready' => $r['estimateReady'] ?? true]);
+    } catch (ZernioException $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); }
+    exit;
+}
+
 // ---- الإطلاق خطوة بخطوة + الفحص على المنصة (validateOnly)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['launch_step', 'validate', 'reset_inflight'], true)) {
     header('Content-Type: application/json; charset=utf-8');
@@ -162,5 +220,6 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ad-builder.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ad-builder-launch.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ad-builder-ai.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);
