@@ -104,6 +104,8 @@ function ai_tasks(): array
     return [
         'assistant' => ['name' => t('المساعد الذكي'), 'desc' => t('الإجابة عن أسئلة الأداء والأرقام من بيانات الشركة.'), 'icon' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z', 'hint' => t('يحتاج موديلًا قويًا في التحليل'), 'max' => 900],
         'compose' => ['name' => t('كتابة المنشورات'), 'desc' => t('كتابة منشور من فكرة، أو تحسين نص مكتوب.'), 'icon' => 'M4 20h4L18.5 9.5a2.1 2.1 0 00-4-4L4 16v4z', 'hint' => t('الموديلات السريعة كافية'), 'max' => 600],
+        'analyze' => ['name' => t('التحليل والتلخيص'), 'desc' => t('تلخيص المحادثات، مراجعة المنشورات، شرح الأرقام والتقييمات.'), 'icon' => 'M4 19V5m0 14h16M8 15l3-4 3 2 4-6', 'hint' => t('موديل متوسط يكفي'), 'max' => 700],
+        'classify' => ['name' => t('التصنيف'), 'desc' => t('تصنيف الرسائل والتعليقات، معرفة إحساس العميل ونية الشراء.'), 'icon' => 'M4 6h16M4 12h10M4 18h6', 'hint' => t('الأرخص هو الأنسب لأنه يعمل كثيرًا'), 'max' => 400],
         'reply' => ['name' => t('اقتراح الردود'), 'desc' => t('اقتراح رد على رسالة أو تعليق من سياق المحادثة.'), 'icon' => 'M4 5h16v10H8l-4 4z', 'hint' => t('الأرخص والأسرع هو الأنسب'), 'max' => 300],
     ];
 }
@@ -164,6 +166,60 @@ function ai_task_chain(string $task): array
     }
     // مفيش موديل متعلّم عليه للمهمة دي (أو اتشال): نرجع للتلقائي بدل ما المهمة تقف
     return $chain ?: $conns;
+}
+
+/** حد الاستهلاك الشهري بالدولار (0 = من غير حد) */
+function ai_budget(int $wid): float
+{
+    return max(0, (float)setting('ai_budget_' . $wid, '0'));
+}
+
+/** المصروف الشهر ده بالدولار */
+function ai_month_spend(int $wid): float
+{
+    $st = db()->prepare("SELECT COALESCE(SUM(cost), 0) FROM ai_usage WHERE workspace_id = ? AND created_at >= ?");
+    $st->execute([$wid, gmdate('Y-m-01 00:00:00')]);
+    return (float)$st->fetchColumn();
+}
+
+/** بيسجل الطلب وتكلفته، وبيرجع التكلفة (أو null لو السعر مش معروف) */
+function ai_log_usage(int $wid, string $task, string $provider, string $model, array $u): ?float
+{
+    $in = (int)($u['prompt_tokens'] ?? $u['input_tokens'] ?? 0);
+    $out = (int)($u['completion_tokens'] ?? $u['output_tokens'] ?? 0);
+    $cost = isset($u['cost']) && is_numeric($u['cost']) ? (float)$u['cost'] : null;
+    if ($cost === null) {
+        $price = null;
+        if ($provider === 'openrouter') {
+            try { foreach (ai_ranked_models() as $m) if ($m['id'] === $model || strpos($model, $m['id']) === 0) { $price = ['in' => $m['in'] ?? 0, 'out' => $m['out'] ?? 0]; break; } } catch (Throwable $e) {}
+            if ($price === null && substr($model, -5) === ':free') $price = ['in' => 0, 'out' => 0];
+        } else {
+            $price = ai_model_price($model);
+        }
+        if ($price) $cost = ($price['in'] * $in + $price['out'] * $out) / 1e6;
+    }
+    try {
+        db()->prepare("INSERT INTO ai_usage (workspace_id, user_id, task, provider, model, tokens_in, tokens_out, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+            ->execute([$wid, (int)(current_user()['id'] ?? 0) ?: null, mb_substr($task, 0, 40), $provider, mb_substr($model, 0, 160), $in, $out, $cost]);
+    } catch (Throwable $e) {
+    }
+    return $cost;
+}
+
+/** قاعدة معلومات الشركة: أسعار، مواعيد، سياسات... الذكاء الاصطناعي بيرد منها بس */
+function ai_kb(int $wid): string
+{
+    return trim((string)setting('ai_kb_' . $wid, ''));
+}
+
+function ai_with_kb(array $messages, string $task): array
+{
+    $kb = ai_kb((int)ws('id'));
+    if ($kb === '' || !in_array($task, ['assistant', 'compose', 'reply', 'analyze'], true)) return $messages;
+    $note = "Company knowledge base. Use ONLY these facts for prices, hours, addresses, policies and offers. Never invent any of them; if something isn't here, say you'll check and get back:\n" . mb_substr($kb, 0, 6000);
+    if (($messages[0]['role'] ?? '') === 'system') $messages[0]['content'] .= "\n\n" . $note;
+    else array_unshift($messages, ['role' => 'system', 'content' => $note]);
+    return $messages;
 }
 
 /** طريقة اختيار المزود: auto = الأرخص فالأغلى، manual = المزود اللي اختاره المالك بس */
@@ -403,6 +459,12 @@ function ai_chat_direct(array $c, array $messages, int $maxTokens): array
  */
 function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistant'): array
 {
+    $wid = (int)ws('id');
+    $budget = ai_budget($wid);
+    if ($budget > 0 && ai_month_spend($wid) >= $budget) {
+        throw new AiException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format($budget, 2)));
+    }
+    $messages = ai_with_kb($messages, $task);
     $conns = ai_task_chain($task);
     if (!$conns) throw new AiException(t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات (OpenRouter أو Anthropic أو OpenAI أو Gemini).'));
     $errors = [];
@@ -411,6 +473,7 @@ function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistan
             $r = $c['provider'] === 'openrouter' ? ai_chat_openrouter($c, $messages, $maxTokens) : ai_chat_direct($c, $messages, $maxTokens);
             if ($r['text'] === '') throw new AiException(t('الموديل رجع رد فاضي.'));
             $r['provider'] = $c['provider'];
+            $r['cost'] = ai_log_usage($wid, $task, $c['provider'], (string)$r['model'], (array)($r['usage'] ?? []));
             return $r;
         } catch (AiException $e) {
             $errors[] = ai_provider_name($c['provider']) . ': ' . $e->getMessage();

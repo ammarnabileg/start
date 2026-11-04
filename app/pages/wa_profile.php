@@ -120,7 +120,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $acc
             <h2 class="font-semibold"><?= e(t('بروفايل البيزنس')) ?></h2>
           </div>
           <label class="block"><span class="label"><?= e(t('نبذة (About)')) ?></span><input name="about" maxlength="139" class="input" value="<?= e($profile['about'] ?? '') ?>"></label>
-          <label class="block"><span class="label"><?= e(t('الوصف')) ?></span><textarea name="description" maxlength="512" rows="3" class="input"><?= e($profile['description'] ?? '') ?></textarea></label>
+          <label class="block"><span class="label"><?= e(t('الوصف')) ?></span><textarea data-ai="wa_about" name="description" maxlength="512" rows="3" class="input"><?= e($profile['description'] ?? '') ?></textarea></label>
           <label class="block"><span class="label"><?= e(t('العنوان')) ?></span><input name="address" class="input" value="<?= e($profile['address'] ?? '') ?>"></label>
           <div class="grid sm:grid-cols-2 gap-3">
             <label class="block"><span class="label"><?= e(t('الإيميل')) ?></span><input name="email" type="email" dir="ltr" class="input" value="<?= e($profile['email'] ?? '') ?>"></label>

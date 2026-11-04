@@ -176,3 +176,81 @@ document.addEventListener('click', function (e) {
     .catch(function () { var m = (window.T && T.liveFailed) || 'Error'; aiToast(m); })
     .finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); if (label) label.textContent = old; });
 });
+
+/* زرار ✨ على أي خانة فيها data-ai="preset1,preset2" */
+(function () {
+  var P = window.AI_PRESETS; if (!P) return;
+  var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
+  var menu = null;
+  function closeMenu() { if (menu) { menu.remove(); menu = null; } }
+  document.addEventListener('click', function (e) { if (menu && !menu.contains(e.target) && !e.target.closest('.ai-spark')) closeMenu(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+
+  function ctxOf(ta) {
+    var el = ta.closest('[data-ai-context]') || document.getElementById('thread') || (ta.form && ta.form.parentElement) || ta.form;
+    return el ? el.innerText.replace(/\n{3,}/g, '\n\n').slice(-5000) : '';
+  }
+  function panel(ta, html) {
+    var old = ta.parentNode.parentNode.querySelector('.ai-result'); if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'ai-result mt-2 rounded-2xl border border-brand-200 bg-brand-50/60 p-3 text-sm text-ink-800';
+    d.innerHTML = html; ta.parentNode.after(d); return d;
+  }
+  function run(ta, key, btn) {
+    var p = P.items[key]; closeMenu();
+    var fd = new FormData(); fd.append('task', 'preset'); fd.append('preset', key); fd.append('text', ta.value); fd.append('context', ctxOf(ta));
+    btn.disabled = true; btn.classList.add('animate-pulse');
+    fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return; }
+      var cost = d.cost != null ? ' · $' + (+d.cost).toFixed(5).replace(/0+$/, '').replace(/\.$/, '') : '';
+      if (d.mode === 'show') {
+        var box = panel(ta, '<div class="flex items-center justify-between gap-2 mb-2"><b class="text-brand-700 text-xs"></b><button type="button" class="ai-x text-ink-400 hover:text-ink-900">✕</button></div><div class="ai-body whitespace-pre-wrap leading-relaxed"></div><div class="flex flex-wrap gap-2 mt-3"><button type="button" class="ai-use btn-ghost !py-1 !px-2.5 !text-xs"></button><button type="button" class="ai-copy btn-ghost !py-1 !px-2.5 !text-xs"></button><span class="ms-auto text-[10px] text-ink-400 self-center" dir="ltr"></span></div>');
+        box.querySelector('b').textContent = '✨ ' + p;
+        box.querySelector('.ai-body').textContent = d.text;
+        box.querySelector('.ai-use').textContent = P.use; box.querySelector('.ai-copy').textContent = P.copy;
+        box.querySelector('span[dir]').textContent = (d.model || '') + cost;
+        box.querySelector('.ai-x').onclick = function () { box.remove(); };
+        box.querySelector('.ai-copy').onclick = function () { navigator.clipboard && navigator.clipboard.writeText(d.text); this.textContent = '✓'; };
+        box.querySelector('.ai-use').onclick = function () { var sel = (window.getSelection() + '').trim(); ta.value = sel && d.text.indexOf(sel) > -1 ? sel : d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); };
+        if (!ta.value && !/review|score/.test(key)) {} // النتيجة بتتعرض بس، المستخدم يختار
+      } else {
+        ta.value = d.mode === 'append' ? (ta.value.replace(/\s+$/, '') + (ta.value ? '\n\n' : '') + d.text) : d.text;
+        ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
+        ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
+      }
+    }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); })
+      .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); });
+  }
+  function openMenu(ta, btn) {
+    closeMenu();
+    var keys = ta.dataset.ai.split(',').map(function (k) { return k.trim(); }).filter(function (k) { return P.items[k]; });
+    menu = document.createElement('div');
+    menu.className = 'fixed z-[60] w-60 max-h-80 overflow-y-auto rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl shadow-ink-900/15';
+    keys.forEach(function (k) {
+      var it = document.createElement('button'); it.type = 'button';
+      it.className = 'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700 text-start';
+      it.textContent = P.items[k]; it.onclick = function () { run(ta, k, btn); }; menu.appendChild(it);
+    });
+    document.body.appendChild(menu);
+    var r = btn.getBoundingClientRect(), mw = 240, mh = menu.offsetHeight;
+    var left = Math.min(Math.max(8, (document.dir === 'rtl' ? r.left : r.right - mw)), innerWidth - mw - 8);
+    var top = r.bottom + 6 + mh > innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6;
+    menu.style.left = left + 'px'; menu.style.top = top + 'px';
+  }
+  function init(root) {
+    (root.querySelectorAll ? root : document).querySelectorAll('textarea[data-ai]:not([data-ai-ready])').forEach(function (ta) {
+      ta.dataset.aiReady = '1';
+      var w = document.createElement('div'); w.className = 'relative' + (ta.classList.contains('flex-1') ? ' flex-1 min-w-0' : '');
+      ta.parentNode.insertBefore(w, ta); w.appendChild(ta);
+      if (ta.classList.contains('flex-1')) ta.classList.add('w-full');
+      ta.classList.add('pe-10');
+      var b = document.createElement('button'); b.type = 'button'; b.title = P.title;
+      b.className = 'ai-spark absolute end-2 top-2 ' + (ta.classList.contains('!mt-0') ? '' : 'mt-1.5 ') + 'w-7 h-7 rounded-lg flex items-center justify-center text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition disabled:opacity-60';
+      b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>';
+      b.onclick = function (e) { e.preventDefault(); menu ? closeMenu() : openMenu(ta, b); };
+      w.appendChild(b);
+    });
+  }
+  init(document);
+  new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) init(n.matches && n.matches('textarea') ? n.parentNode : n); }); }); }).observe(document.body, { childList: true, subtree: true });
+})();

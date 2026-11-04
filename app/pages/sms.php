@@ -103,7 +103,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
               <label class="block"><span class="label"><?= e(t('إلى رقم')) ?></span>
                 <input name="to" required class="input" dir="ltr" placeholder="+14155550100" value="<?= e($draft['to'] ?? '') ?>"></label>
               <label class="block"><span class="label"><?= e(t('الرسالة')) ?></span>
-                <textarea name="text" id="smsText" required maxlength="1530" rows="4" class="input"><?= e($draft['text'] ?? '') ?></textarea></label>
+                <textarea data-ai="sms_short,improve,translate_en,translate_ar" name="text" id="smsText" required maxlength="1530" rows="4" class="input"><?= e($draft['text'] ?? '') ?></textarea></label>
               <p class="text-xs text-ink-500" id="smsCount"></p>
               <label class="flex items-start gap-2 text-sm p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900"><input type="checkbox" name="confirm" value="1" required class="mt-1">
                 <span><?= e(t('فاهم إن الرسالة بتتحسب، وإن المستلم وافق يستقبل رسايل مننا.')) ?></span></label>

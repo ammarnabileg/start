@@ -139,11 +139,11 @@ render(t('الردود التلقائية على التعليقات'), 'automati
               <select name="match_mode" class="input"><?php foreach ($modes as $k => $lbl): ?><option value="<?= e($k) ?>" <?= ($a['matchMode'] ?? 'contains') === $k ? 'selected' : '' ?>><?= e($lbl) ?></option><?php endforeach; ?></select></div>
             <?php if (!$current || ip_automation_dm_platform($plat)): ?>
               <div><label class="label"><?= e(t('الرسالة الخاصة (DM)')) ?></label>
-                <textarea name="dm_message" rows="3" maxlength="1000" class="input" placeholder="<?= e(t('أهلاً! السعر ... وللطلب ابعتلنا هنا')) ?>"><?= e($a['dmMessage'] ?? '') ?></textarea>
+                <textarea data-ai="auto_msg,improve" name="dm_message" rows="3" maxlength="1000" class="input" placeholder="<?= e(t('أهلاً! السعر ... وللطلب ابعتلنا هنا')) ?>"><?= e($a['dmMessage'] ?? '') ?></textarea>
                 <p class="text-xs text-ink-500 mt-1"><?= e(t('مطلوبة لإنستجرام وفيسبوك. باقي المنصات مبتدعمش الرسالة الخاصة وهتتجاهل.')) ?></p></div>
             <?php endif; ?>
             <div><label class="label"><?= e(t('الرد العام على التعليق (اختياري)')) ?></label>
-              <textarea name="comment_reply" rows="2" maxlength="1000" class="input" placeholder="<?= e(t('بعتنالك التفاصيل في الخاص')) ?>"><?= e($a['commentReply'] ?? '') ?></textarea></div>
+              <textarea data-ai="auto_msg,polish_reply" name="comment_reply" rows="2" maxlength="1000" class="input" placeholder="<?= e(t('بعتنالك التفاصيل في الخاص')) ?>"><?= e($a['commentReply'] ?? '') ?></textarea></div>
             <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" value="1" <?= ($a['isActive'] ?? true) ? 'checked' : '' ?>> <?= e(t('شغالة')) ?></label>
             <button class="btn-primary"><?= e($current ? t('حفظ') : t('إنشاء')) ?></button>
           </form>

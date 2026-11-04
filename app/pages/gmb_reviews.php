@@ -220,7 +220,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
                 <input type="hidden" name="review_id" value="<?= e($rv['id']) ?>"><input type="hidden" name="account_id" value="<?= e($rv['accountId'] ?? '') ?>">
                 <?php if (!empty($rv['_gmb'])): ?><input type="hidden" name="gmb" value="1"><?php endif; ?>
                 <div class="flex gap-2 items-end">
-                  <textarea name="message" rows="2" maxlength="4000" required class="input flex-1 !mt-0" placeholder="<?= e(t('اكتب ردك على التقييم…')) ?>"><?= e($rv['reply']['text'] ?? '') ?></textarea>
+                  <textarea data-ai="reply_review,polish_reply" name="message" rows="2" maxlength="4000" required class="input flex-1 !mt-0" placeholder="<?= e(t('اكتب ردك على التقييم…')) ?>"><?= e($rv['reply']['text'] ?? '') ?></textarea>
                   <button class="btn-primary"><?= e(!empty($rv['reply']) ? t('حفظ') : t('رد')) ?></button>
                 </div>
               </form>

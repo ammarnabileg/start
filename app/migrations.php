@@ -219,4 +219,22 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    // سجل استهلاك الذكاء الاصطناعي: كل طلب بتكلفته، عشان حد الاستهلاك الشهري
+    '010_ai_usage' => [
+        "CREATE TABLE IF NOT EXISTS ai_usage (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            task VARCHAR(40) NOT NULL,
+            provider VARCHAR(20) NOT NULL,
+            model VARCHAR(160) NOT NULL,
+            tokens_in INT UNSIGNED NOT NULL DEFAULT 0,
+            tokens_out INT UNSIGNED NOT NULL DEFAULT 0,
+            cost DECIMAL(12,6) NULL,
+            ok TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_time (workspace_id, created_at),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

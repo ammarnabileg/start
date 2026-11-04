@@ -116,6 +116,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (in_array($action, ['ai_budget', 'ai_kb'], true)) {
+        if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('connectors') . '#ai'); }
+        if ($action === 'ai_budget') {
+            $b = max(0, min(100000, round((float)str_replace(',', '.', (string)($_POST['budget'] ?? '0')), 2)));
+            save_setting('ai_budget_' . $wid, (string)$b);
+            flash('success', $b > 0 ? t('حد الاستهلاك الشهري: $%s.', number_format($b, 2)) : t('تم إلغاء حد الاستهلاك.'));
+        } else {
+            save_setting('ai_kb_' . $wid, mb_substr(trim((string)($_POST['kb'] ?? '')), 0, 6000));
+            flash('success', t('تم حفظ معلومات الشركة.'));
+        }
+        redirect(url('connectors') . '#ai');
+    }
     if (in_array($action, ['primary', 'ai_mode', 'ai_task'], true) && !is_ws_owner()) {
         flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.'));
         redirect(url('connectors') . '#' . $provider);
@@ -307,6 +319,56 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
             <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_mode"><input type="hidden" name="mode" value="<?= $manual ? 'auto' : 'manual' ?>">
             <button type="submit" role="switch" aria-checked="<?= $manual ? 'false' : 'true' ?>" data-switch id="ai-auto" <?= $owner ? '' : 'disabled' ?> class="relative inline-flex w-14 h-8 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed <?= !$manual ? 'bg-lime-500' : 'bg-ink-300' ?>">
               <span class="absolute top-1 start-1 w-6 h-6 rounded-full bg-[#fff] shadow transition-transform <?= !$manual ? 'translate-x-6 rtl:-translate-x-6' : '' ?>"></span></button>
+          </form>
+        </div>
+
+        <?php
+          $spend = ai_month_spend((int)ws('id')); $budget = ai_budget((int)ws('id'));
+          $st = db()->prepare("SELECT task, COUNT(*) n, COALESCE(SUM(cost),0) c FROM ai_usage WHERE workspace_id = ? AND created_at >= ? GROUP BY task ORDER BY c DESC");
+          $st->execute([(int)ws('id'), gmdate('Y-m-01 00:00:00')]); $byTask = $st->fetchAll();
+          $st = db()->prepare("SELECT provider, model, COUNT(*) n, COALESCE(SUM(cost),0) c, SUM(cost IS NULL) unk FROM ai_usage WHERE workspace_id = ? AND created_at >= ? GROUP BY provider, model ORDER BY c DESC, n DESC LIMIT 8");
+          $st->execute([(int)ws('id'), gmdate('Y-m-01 00:00:00')]); $byModel = $st->fetchAll();
+          $calls = array_sum(array_column($byTask, 'n')); $pct = $budget > 0 ? min(100, $spend / $budget * 100) : 0;
+          $money = function ($v) { return '$' . ($v > 0 && $v < 0.01 ? number_format($v, 4) : number_format($v, 2)); };
+        ?>
+        <div class="grid lg:grid-cols-[1fr_1.3fr] gap-4">
+          <div class="card p-5">
+            <div class="flex items-center justify-between"><h3 class="font-semibold text-ink-900"><?= e(t('الاستهلاك هذا الشهر')) ?></h3><span class="text-xs text-ink-400"><?= e(t('%s طلب', $calls)) ?></span></div>
+            <div class="mt-3 flex items-end gap-2"><span class="text-3xl font-semibold text-ink-900" dir="ltr"><?= e($money($spend)) ?></span><?php if ($budget > 0): ?><span class="text-sm text-ink-500 mb-1" dir="ltr">/ <?= e($money($budget)) ?></span><?php endif; ?></div>
+            <?php if ($budget > 0): ?>
+              <div class="mt-3 h-2.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $pct >= 90 ? 'bg-red-500' : ($pct >= 70 ? 'bg-amber-500' : 'bg-gradient-to-l from-brand-600 to-lime-500') ?>" style="width:<?= round($pct, 1) ?>%"></div></div>
+              <?php if ($pct >= 100): ?><p class="text-xs text-red-600 mt-2"><?= e(t('تم الوصول للحد. ميزات الذكاء الاصطناعي متوقفة حتى بداية الشهر أو رفع الحد.')) ?></p><?php endif; ?>
+            <?php endif; ?>
+            <form method="post" class="mt-4 flex items-end gap-2">
+              <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_budget">
+              <label class="block flex-1"><span class="label"><?= e(t('حد الاستهلاك الشهري ($)')) ?></span><input name="budget" type="number" min="0" step="0.01" dir="ltr" class="input" value="<?= $budget > 0 ? e((string)$budget) : '' ?>" placeholder="<?= e(t('بدون حد')) ?>" <?= $owner ? '' : 'disabled' ?>></label>
+              <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
+            </form>
+            <?php if ($byTask): ?>
+            <div class="mt-4 pt-4 border-t border-ink-100 space-y-2">
+              <?php foreach ($byTask as $r): $w = $spend > 0 ? (float)$r['c'] / $spend * 100 : 0; ?>
+                <div class="text-xs"><div class="flex justify-between"><span class="text-ink-700"><?= e(ai_tasks()[$r['task']]['name'] ?? $r['task']) ?> <span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 font-medium" dir="ltr"><?= e($money((float)$r['c'])) ?></span></div>
+                  <div class="mt-1 h-1.5 rounded-full bg-ink-100"><div class="h-full rounded-full bg-brand-500" style="width:<?= round($w, 1) ?>%"></div></div></div>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+            <?php if ($byModel): ?>
+            <div class="mt-4 pt-4 border-t border-ink-100">
+              <div class="text-xs text-ink-500 mb-2"><?= e(t('أكثر الموديلات استهلاكًا')) ?></div>
+              <?php foreach ($byModel as $r): ?>
+                <div class="flex items-center justify-between text-xs py-1"><span class="flex items-center gap-1.5 min-w-0"><?= isset($registry[$r['provider']]) ? connector_logo($registry[$r['provider']], 'w-4 h-4 text-[8px] !rounded') : '' ?><span class="truncate text-ink-700" dir="ltr"><?= e($r['model']) ?></span><span class="text-ink-400">· <?= (int)$r['n'] ?></span></span><span class="text-ink-900 shrink-0" dir="ltr"><?= e($money((float)$r['c'])) ?><?= (int)$r['unk'] ? ' *' : '' ?></span></div>
+              <?php endforeach; ?>
+              <?php if (array_sum(array_column($byModel, 'unk'))): ?><p class="text-[11px] text-ink-400 mt-1">* <?= e(t('بعض الطلبات سعرها غير معروف ولم تُحسب.')) ?></p><?php endif; ?>
+            </div>
+            <?php endif; ?>
+          </div>
+
+          <form method="post" class="card p-5 flex flex-col">
+            <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_kb">
+            <h3 class="font-semibold text-ink-900"><?= e(t('معلومات الشركة')) ?></h3>
+            <p class="text-xs text-ink-500 mt-1"><?= e(t('الأسعار والمواعيد والعنوان والسياسات والعروض. الذكاء الاصطناعي يرد منها فقط ولا يخترع غيرها. كلما كانت أدق، كانت الردود أصح.')) ?></p>
+            <textarea name="kb" rows="9" maxlength="6000" class="input flex-1 text-sm leading-relaxed" <?= $owner ? '' : 'disabled' ?> placeholder="<?= e(t("مثال:\nمواعيد العمل: يوميًا 10 ص - 11 م ما عدا الجمعة\nالتوصيل: داخل القاهرة 50 جنيه، خلال 48 ساعة\nالاسترجاع: خلال 14 يوم بالفاتورة\nالأسعار: ...")) ?>"><?= e(ai_kb((int)ws('id'))) ?></textarea>
+            <div class="flex items-center justify-between mt-3"><span class="text-[11px] text-ink-400"><?= e(t('حتى 6000 حرف')) ?></span><button class="btn-primary" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button></div>
           </form>
         </div>
 

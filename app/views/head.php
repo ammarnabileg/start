@@ -24,6 +24,9 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
     'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'), 'sending' => t('جاري الإرسال...'), 'notSent' => t('ما اتبعتتش · اتأكد من النت وجرب تاني'), 'liveFailed' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<?php if (function_exists('ai_presets') && session_status() === PHP_SESSION_ACTIVE && current_user() && current_workspace() && can('ai.use') && ai_connection()): ?>
+<script>window.AI_PRESETS = <?= json_encode(['items' => array_map(function ($p) { return $p['label']; }, ai_presets()), 'title' => t('أوامر الذكاء الاصطناعي'), 'use' => t('استخدم هذا النص'), 'copy' => t('نسخ')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<?php endif; ?>
 <script>
 (function () {
   var v = function (n) { var o = {}; [50,100,200,300,400,500,600,700,800,900].forEach(function (k) { o[k] = 'rgb(var(--' + n + '-' + k + ') / <alpha-value>)'; }); return o; };

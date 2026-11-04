@@ -170,7 +170,7 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
           <input name="header_sample" class="input" value="<?= e($o('header_sample')) ?>"></label>
       </div>
       <label class="block"><span class="label"><?= e(t('نص الرسالة')) ?></span>
-        <textarea name="body" required maxlength="1024" rows="5" class="input" placeholder="<?= e(t('أهلاً {{1}}، طلبك رقم {{2}} اتشحن.')) ?>"><?= e($o('body')) ?></textarea></label>
+        <textarea data-ai="wa_template,improve" name="body" required maxlength="1024" rows="5" class="input" placeholder="<?= e(t('أهلاً {{1}}، طلبك رقم {{2}} اتشحن.')) ?>"><?= e($o('body')) ?></textarea></label>
       <label class="block"><span class="label"><?= e(t('أمثلة للمتغيرات (سطر لكل متغير بالترتيب)')) ?></span>
         <textarea name="body_samples" rows="2" class="input" placeholder="<?= e(t("أحمد\n12345")) ?>"><?= e($o('body_samples')) ?></textarea></label>
       <label class="block"><span class="label"><?= e(t('التذييل (اختياري)')) ?></span>

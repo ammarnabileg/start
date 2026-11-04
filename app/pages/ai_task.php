@@ -42,6 +42,26 @@ if (in_array($task, ['image', 'image_status'], true)) {
     }
 }
 
+// أوامر جاهزة (✨): تحسين، هاشتاجات، نبرة، تلخيص، تصنيف...
+if ($task === 'preset') {
+    $presets = ai_presets();
+    $key = (string)($_POST['preset'] ?? '');
+    if (!isset($presets[$key])) $out(['error' => t('طلب غير صحيح.')], 400);
+    $pr = $presets[$key];
+    $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 4000);
+    $ctx = mb_substr(trim((string)($_POST['context'] ?? '')), -5000);
+    if ($pr['needs'] === 'text' && $text === '') $out(['error' => t('اكتب النص أولًا.')], 422);
+    if ($pr['needs'] === 'context' && $ctx === '') $out(['error' => t('لا يوجد محتوى لتحليله.')], 422);
+    $sys = str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $pr['sys']) . ' The business is "' . ws('name') . '".';
+    $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? $text : $ctx);
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], (int)(ai_tasks()[$pr['group']]['max'] ?? 700), $pr['group']);
+        $out(['text' => $pr['mode'] === 'show' ? trim($r['text']) : trim($r['text'], " \n\"'«»"), 'mode' => $pr['mode'], 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !in_array($task, ['compose', 'reply'], true)) $out(['error' => t('طلب غير صحيح.')], 400);
 if ($task === 'compose' && !can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
 if ($task === 'reply' && !can('inbox.reply') && !can('comments.reply')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);

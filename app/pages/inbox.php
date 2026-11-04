@@ -253,7 +253,7 @@ function ip_private_reply_block(array $c, string $postId, string $accId, bool $i
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="private_reply">
               <input type="hidden" name="comment_id" value="<?= e($c['id']) ?>">
-              <textarea name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
+              <textarea data-ai="polish_reply" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('الرسالة هتوصل له في الخاص (مرة واحدة لكل تعليق، خلال 7 أيام)')) ?>"></textarea>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
           </details>
@@ -509,7 +509,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           <?php if ($isRequest): ?>
             <form method="post" class="p-3 border-t border-ink-200 flex gap-2 items-end">
               <?= csrf_field() ?><input type="hidden" name="action" value="accept">
-              <textarea name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك عشان تقبل الطلب...')) ?>"></textarea>
+              <textarea data-ai="polish_reply,summarize" name="message" rows="2" required class="input flex-1 text-sm" placeholder="<?= e(t('اكتب ردك عشان تقبل الطلب...')) ?>"></textarea>
               <button class="btn-primary"><?= e(t('قبول ورد')) ?></button>
             </form>
           <?php else: ?>
@@ -519,7 +519,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <svg class="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.2 7l-6.6 6.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.5a6 6 0 108.5 8.5L20.5 13"/></svg>
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
-              <textarea name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
+              <textarea data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
               <?php if (ai_connection() && can('ai.use')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>

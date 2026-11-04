@@ -129,7 +129,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
           <div><label class="label"><?= e(t('طريقة المطابقة')) ?></label>
             <select name="match_type" class="input"><option value="contains"><?= e(t('الرسالة فيها الكلمة')) ?></option><option value="exact"><?= e(t('الرسالة هي الكلمة بالظبط')) ?></option></select></div>
           <div><label class="label"><?= e(t('الرسالة اللي هتتبعت')) ?></label>
-            <textarea name="text" required rows="3" maxlength="1000" class="input" placeholder="<?= e(t('أهلاً {{contact.name}}! إزاي نقدر نساعدك؟')) ?>"></textarea>
+            <textarea data-ai="auto_msg,improve" name="text" required rows="3" maxlength="1000" class="input" placeholder="<?= e(t('أهلاً {{contact.name}}! إزاي نقدر نساعدك؟')) ?>"></textarea>
             <p class="text-xs text-ink-500 mt-1"><?= e(t('تقدر تستخدم {{contact.name}} لاسم الشخص.')) ?></p></div>
           <button class="btn-primary"><?= e(t('إنشاء كمسودة')) ?></button>
         </form>

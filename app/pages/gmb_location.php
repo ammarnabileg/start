@@ -274,7 +274,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
         <label class="block"><span class="label"><?= e(t('الموقع الإلكتروني')) ?></span>
           <input name="website" type="url" class="input" dir="ltr" value="<?= e($d['websiteUri'] ?? '') ?>" placeholder="https://"></label>
         <label class="block"><span class="label"><?= e(t('الوصف')) ?></span>
-          <textarea name="description" rows="4" maxlength="750" class="input"><?= e($d['profile']['description'] ?? '') ?></textarea></label>
+          <textarea data-ai="wa_about,improve" name="description" rows="4" maxlength="750" class="input"><?= e($d['profile']['description'] ?? '') ?></textarea></label>
         <div>
           <span class="label"><?= e(t('التصنيفات')) ?></span>
           <div class="flex flex-wrap gap-1">

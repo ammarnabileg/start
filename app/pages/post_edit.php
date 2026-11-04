@@ -145,7 +145,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $pos
           <?= csrf_field() ?><input type="hidden" name="action" value="update">
           <h2 class="font-bold"><?= e(t('تعديل المنشور قبل نشره')) ?></h2>
           <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
-            <textarea name="content" rows="7" class="input"><?= e($post['content'] ?? '') ?></textarea></label>
+            <textarea data-ai="improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" rows="7" class="input"><?= e($post['content'] ?? '') ?></textarea></label>
           <label class="block"><span class="label"><?= e(t('موعد النشر')) ?> (<?= e(site_timezone()) ?>)</span>
             <input type="datetime-local" name="when" value="<?= e($whenVal) ?>" class="input" dir="ltr"></label>
           <p class="text-xs text-ink-500"><?= e(t('سيبه فاضي لو مش عاوز تغير الموعد.')) ?></p>
@@ -213,7 +213,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $pos
                 <form method="post" class="mt-2 space-y-2" onsubmit="return confirm('<?= tjs('التعديل هيظهر على المنصة فوراً. تكمل؟') ?>')">
                   <?= csrf_field() ?><input type="hidden" name="action" value="edit_published">
                   <input type="hidden" name="platform" value="<?= e($plat) ?>"><input type="hidden" name="accountId" value="<?= e($accId) ?>">
-                  <textarea name="content" rows="4" class="input"><?= e($pl['customContent'] ?? $post['content'] ?? '') ?></textarea>
+                  <textarea data-ai="improve,shorten,hashtags,translate_en,translate_ar" name="content" rows="4" class="input"><?= e($pl['customContent'] ?? $post['content'] ?? '') ?></textarea>
                   <?php if ($plat === 'twitter'): ?><p class="text-xs text-amber-700"><?= e(t('في X التعديل بيعمل منشور جديد برقم جديد.')) ?></p><?php endif; ?>
                   <button class="btn-primary text-sm"><?= e(t('احفظ على المنصة')) ?></button>
                 </form>

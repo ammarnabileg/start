@@ -331,7 +331,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
             </div>
             <div data-mode="new" class="space-y-3">
               <div><label class="label"><?= e(t('العنوان')) ?></label><input name="headline" class="input" maxlength="100" value="<?= e($v('headline')) ?>"></div>
-              <div><label class="label"><?= e(t('نص الإعلان')) ?></label><textarea name="body" rows="3" class="input"><?= e($v('body')) ?></textarea></div>
+              <div><label class="label"><?= e(t('نص الإعلان')) ?></label><textarea data-ai="ad_copy,improve,shorten" name="body" rows="3" class="input"><?= e($v('body')) ?></textarea></div>
               <div class="grid sm:grid-cols-2 gap-3">
                 <div><label class="label"><?= e(t('الرابط')) ?></label><input name="link" type="url" class="input" dir="ltr" value="<?= e($v('link')) ?>" placeholder="https://"></div>
                 <div><label class="label"><?= e(t('زرار الإعلان')) ?></label>
