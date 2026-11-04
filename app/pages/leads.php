@@ -7,9 +7,28 @@ $adAcc = (string)($_GET['acc'] ?? '');
 $formId = (string)($_GET['form'] ?? '');
 $cursor = (string)($_GET['cursor'] ?? '');
 
+$stages = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'qualified' => t('مهتم'), 'converted' => t('بقى عميل'), 'lost' => t('مش مناسب')];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'lead_save') {
+    header('Content-Type: application/json; charset=utf-8');
+    $lid = mb_substr((string)($_POST['lead_id'] ?? ''), 0, 120);
+    $stage = (string)($_POST['stage'] ?? 'new');
+    if ($lid === '' || !isset($stages[$stage])) { echo json_encode(['ok' => false, 'error' => t('بيانات ناقصة')]); exit; }
+    $val = trim((string)($_POST['value'] ?? ''));
+    $val = $val === '' ? null : max(0, (float)str_replace(',', '.', $val));
+    $st = db()->prepare("INSERT INTO lead_meta (workspace_id, lead_id, campaign_id, stage, deal_value, note, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE stage = VALUES(stage), deal_value = VALUES(deal_value), note = VALUES(note), campaign_id = COALESCE(VALUES(campaign_id), campaign_id), updated_by = VALUES(updated_by)");
+    $st->execute([(int)ws('id'), $lid, ($_POST['campaign_id'] ?? '') !== '' ? mb_substr((string)$_POST['campaign_id'], 0, 120) : null, $stage, $val, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 500) ?: null, (int)(current_user()['id'] ?? 0) ?: null]);
+    log_activity('leads.stage', $lid . ' ' . $stage);
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
 $conns = [];
 $forms = [];
 $leads = [];
+$recent = [];
+$campMap = [];
+$meta = [];
 $next = null;
 $apiError = null;
 $formsError = null;
@@ -74,18 +93,64 @@ if ($z) {
                 exit;
             }
 
-            $r = ads_leads($z, $filters + ['limit' => 25, 'cursor' => $cursor ?: null]);
-            $leads = $r['leads'] ?? [];
-            $next = ($r['pagination']['hasMore'] ?? false) ? ($r['pagination']['cursor'] ?? null) : null;
+            $fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/leads.json') ? json_decode((string)file_get_contents($fxd . '/leads.json'), true) : null;
+            if ($fx) {
+                $forms = $fx['forms'] ?? [];
+                $leads = array_values(array_filter($fx['leads'] ?? [], function ($l) use ($formId) { return !$formId || ($l['formId'] ?? '') === $formId; }));
+                $recent = $leads;
+            } else {
+                $r = ads_leads($z, $filters + ['limit' => 25, 'cursor' => $cursor ?: null]);
+                $leads = $r['leads'] ?? [];
+                $next = ($r['pagination']['hasMore'] ?? false) ? ($r['pagination']['cursor'] ?? null) : null;
+                // للتحليل حسب الحملة: آخر 300 lead (3 صفحات قراءة بس)، متخزنة 10 دقايق
+                $ck = 'leads_recent_' . md5(json_encode($filters));
+                if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 600 && !isset($_GET['refresh'])) {
+                    $recent = $_SESSION[$ck]['d'];
+                } else {
+                    $recent = $leads; $cur = $next;
+                    for ($i = 0; $i < 2 && $cur; $i++) { $r2 = ads_leads($z, $filters + ['limit' => 100, 'cursor' => $cur]); $recent = array_merge($recent, $r2['leads'] ?? []); $cur = ($r2['pagination']['hasMore'] ?? false) ? ($r2['pagination']['cursor'] ?? null) : null; }
+                    $_SESSION[$ck] = ['t' => time(), 'd' => array_map(function ($l) { return ['id' => $l['id'] ?? $l['leadId'] ?? '', 'campaignId' => $l['campaignId'] ?? '', 'createdTime' => $l['createdTime'] ?? '']; }, $recent)];
+                }
+            }
+            // صرف الحملات آخر 30 يوم (قراءة بس) عشان تكلفة الـ lead
+            [$cFrom, $cTo] = ads_date_range('30');
+            try {
+                $cr = ($fxd && is_file($fxd . '/ads.json')) ? json_decode((string)file_get_contents($fxd . '/ads.json'), true) : ads_campaigns($z, ['fromDate' => $cFrom, 'toDate' => $cTo, 'limit' => 100]);
+                foreach ($cr['campaigns'] ?? [] as $c) $campMap[(string)$c['platformCampaignId']] = ['name' => (string)($c['campaignName'] ?? ''), 'spend' => (float)($c['metrics']['spend'] ?? 0), 'cur' => (string)($c['currency'] ?? ''), 'pf' => (string)($c['platform'] ?? '')];
+            } catch (ZernioException $ex) { /* اختياري */ }
         }
     } catch (ZernioException $ex) {
         $apiError = $ex->getMessage();
     }
 }
 
-render(t('العملاء المحتملين'), 'leads', function () use ($z, $apiError, $formsError, $conns, $current, $adAccounts, $adAcc, $forms, $formId, $leads, $next) {
+// حالات الـ leads المحفوظة عندنا
+$ids = array_values(array_unique(array_filter(array_merge(array_map(function ($l) { return (string)($l['id'] ?? $l['leadId'] ?? ''); }, $leads), array_map(function ($l) { return (string)($l['id'] ?? ''); }, $recent)))));
+if ($ids) {
+    try {
+        $st = db()->prepare("SELECT lead_id, stage, deal_value, note, updated_at FROM lead_meta WHERE workspace_id = ? AND lead_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")");
+        $st->execute(array_merge([(int)ws('id')], $ids));
+        foreach ($st->fetchAll() as $r) $meta[$r['lead_id']] = $r;
+    } catch (Throwable $e) { /* الجدول لسه ما اتعملش: شغّل setup.php */ }
+}
+// التحليل حسب الحملة (آخر 30 يوم)
+$attr = [];
+$since = strtotime('-30 days');
+foreach ($recent as $l) {
+    $t = strtotime((string)($l['createdTime'] ?? '')) ?: 0; if ($t < $since) continue;
+    $cid = (string)($l['campaignId'] ?? ''); $lid = (string)($l['id'] ?? $l['leadId'] ?? '');
+    $a = &$attr[$cid]; $a['leads'] = ($a['leads'] ?? 0) + 1;
+    $m = $meta[$lid] ?? null;
+    if ($m && $m['stage'] === 'converted') { $a['won'] = ($a['won'] ?? 0) + 1; $a['value'] = ($a['value'] ?? 0) + (float)$m['deal_value']; }
+    if ($m && in_array($m['stage'], ['qualified', 'converted'], true)) $a['qual'] = ($a['qual'] ?? 0) + 1;
+    unset($a);
+}
+uasort($attr, function ($x, $y) { return ($y['leads'] ?? 0) <=> ($x['leads'] ?? 0); });
+
+render(t('العملاء المحتملين'), 'leads', function () use ($stages, $meta, $attr, $campMap, $z, $apiError, $formsError, $conns, $current, $adAccounts, $adAcc, $forms, $formId, $leads, $next) {
     if (!$z) { no_api_box(); return; }
     $base = ['c' => $current['_id'] ?? null, 'acc' => $adAcc ?: null, 'form' => $formId ?: null];
+    $campUrl = function ($cid) use ($campMap) { return url('ad_campaign', ['id' => $cid, 'pf' => $campMap[$cid]['pf'] ?? 'facebook']); };
     $statuses = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'unreachable' => t('مش بيرد'), 'qualified' => t('مهتم'), 'converted' => t('بقى عميل'), 'disqualified' => t('مش مناسب')];
     ?>
     <div class="space-y-5">
@@ -140,14 +205,69 @@ render(t('العملاء المحتملين'), 'leads', function () use ($z, $ap
         <?php endif; ?>
       </section>
 
+      <?php if ($attr): ?>
+      <section class="card overflow-hidden" id="ld-attr">
+        <div class="p-4 border-b border-ink-200 flex flex-wrap items-center gap-2">
+          <h2 class="font-bold text-ink-900 me-auto"><?= e(t('العملاء حسب الحملة')) ?> <span class="text-xs font-normal text-ink-500"><?= e(t('آخر 30 يوم')) ?></span></h2>
+          <span class="text-xs text-ink-500"><?= e(t('العائد محسوب من قيمة الصفقات اللي سجلتها هنا للعملاء اللي "بقوا عملاء"')) ?></span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-ink-50 text-ink-600 text-xs"><tr>
+            <th class="text-start p-3"><?= e(t('الحملة')) ?></th><th class="text-end p-3"><?= e(t('العملاء المحتملين')) ?></th><th class="text-end p-3"><?= e(t('الصرف')) ?></th>
+            <th class="text-end p-3"><?= e(t('تكلفة العميل المحتمل')) ?></th><th class="text-end p-3"><?= e(t('مهتمين')) ?></th><th class="text-end p-3"><?= e(t('بقوا عملاء')) ?></th><th class="text-end p-3"><?= e(t('قيمة الصفقات')) ?></th><th class="text-end p-3"><?= e(t('العائد على الصرف')) ?></th>
+          </tr></thead>
+          <tbody class="divide-y divide-ink-100">
+          <?php foreach ($attr as $cid => $a): $c = $campMap[$cid] ?? null; $sp = $c['spend'] ?? 0; $cur = $c['cur'] ?? ''; $roas = $sp > 0 && !empty($a['value']) ? $a['value'] / $sp : null; ?>
+            <tr class="ld-arow cursor-pointer hover:bg-ink-50" data-camp="<?= e($cid) ?>">
+              <td class="p-3"><?php if ($cid === ''): ?><span class="text-ink-500"><?= e(t('من غير حملة (مجاني)')) ?></span><?php else: ?><b class="text-ink-900"><?= e($c['name'] ?? $cid) ?></b><?php if ($c): ?> <a href="<?= e($campUrl($cid)) ?>" class="link text-xs"><?= e(t('التفاصيل')) ?></a><?php endif; ?><?php endif; ?></td>
+              <td class="p-3 text-end tabular-nums font-semibold"><?= (int)$a['leads'] ?></td>
+              <td class="p-3 text-end tabular-nums" dir="ltr" style="text-align:end"><?= $c ? e(ads_money($sp, $cur)) : '—' ?></td>
+              <td class="p-3 text-end tabular-nums font-semibold" dir="ltr" style="text-align:end"><?= $c && $sp > 0 ? e(ads_money($sp / $a['leads'], $cur)) : '—' ?></td>
+              <td class="p-3 text-end tabular-nums"><?= (int)($a['qual'] ?? 0) ?></td>
+              <td class="p-3 text-end tabular-nums"><?= (int)($a['won'] ?? 0) ?><?php if (!empty($a['won'])): ?> <span class="text-xs text-ink-500">(<?= round($a['won'] / $a['leads'] * 100) ?>%)</span><?php endif; ?></td>
+              <td class="p-3 text-end tabular-nums" dir="ltr" style="text-align:end"><?= !empty($a['value']) ? e(ads_money($a['value'], $cur ?: null)) : '—' ?></td>
+              <td class="p-3 text-end tabular-nums"><?php if ($roas !== null): ?><span class="rounded px-1.5 py-0.5 font-semibold <?= $roas >= 1 ? 'bg-lime-100 text-lime-800' : 'bg-red-50 text-red-700' ?>" dir="ltr"><?= e(number_format($roas, 1)) ?>×</span><?php else: ?>—<?php endif; ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table></div>
+      </section>
+      <?php endif; ?>
+
       <section class="card overflow-hidden">
-        <div class="p-4 border-b border-ink-200"><h2 class="font-bold text-ink-900"><?= e(t('الـ Leads')) ?></h2></div>
+        <div class="p-4 border-b border-ink-200 flex flex-wrap items-center gap-2">
+          <h2 class="font-bold text-ink-900 me-auto"><?= e(t('الـ Leads')) ?> <span class="text-xs font-normal text-ink-500">(<span id="ld-count"><?= count($leads) ?></span>)</span></h2>
+          <?php if ($leads): ?>
+          <input id="ld-q" type="search" class="input !mt-0 !h-9 !py-0 w-60 text-sm" placeholder="<?= e(t('ابحث بالاسم أو الرقم أو الإيميل...')) ?> (/)" aria-label="<?= e(t('ابحث بالاسم أو الرقم أو الإيميل...')) ?>">
+          <div id="ld-chips" class="w-full flex flex-wrap gap-1.5"></div>
+          <?php endif; ?>
+        </div>
         <?php if (!$leads): ?>
           <p class="p-6 text-sm text-ink-500 text-center"><?= e(t('مفيش Leads لسه.')) ?></p>
         <?php else: ?>
           <div class="divide-y divide-ink-100">
-            <?php foreach ($leads as $l): ?>
-              <div class="p-4">
+            <?php foreach ($leads as $l):
+              $lid = (string)($l['id'] ?? $l['leadId'] ?? ''); $m = $meta[$lid] ?? null; $stage = $m['stage'] ?? 'new';
+              $fl = []; foreach ((array)($l['fields'] ?? []) as $k => $v) $fl[mb_strtolower((string)$k)] = is_scalar($v) ? (string)$v : '';
+              $pick = function (array $keys) use ($fl) { foreach ($fl as $k => $v) foreach ($keys as $want) if ($v !== '' && strpos($k, $want) !== false) return $v; return ''; };
+              $name = $pick(['full_name', 'name', 'الاسم']); $phone = $pick(['phone', 'mobile', 'whatsapp', 'tel', 'رقم']); $mail = $pick(['email', 'mail']);
+              $cid = (string)($l['campaignId'] ?? ''); $cur = $campMap[$cid]['cur'] ?? '';
+              ?>
+              <div class="ld-row p-4" data-id="<?= e($lid) ?>" data-camp="<?= e($cid) ?>" data-stage="<?= e($stage) ?>" data-t="<?= e((string)($l['createdTime'] ?? '')) ?>" data-phone-raw="<?= e($phone) ?>" data-q="<?= e(mb_strtolower(implode(' ', $fl) . ' ' . ($l['formName'] ?? '') . ' ' . ($campMap[$cid]['name'] ?? ''))) ?>">
+                <div class="flex flex-wrap items-start gap-3 mb-2">
+                  <div class="w-10 h-10 shrink-0 rounded-full bg-brand-100 text-brand-700 grid place-items-center font-bold"><?= e(mb_substr($name ?: '?', 0, 1)) ?></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="font-semibold text-ink-900"><?= e($name ?: t('بدون اسم')) ?></div>
+                    <div class="text-xs text-ink-500 flex flex-wrap gap-x-2" dir="auto"><?php if ($phone): ?><span dir="ltr" class="ld-ph"><?= e($phone) ?></span><?php endif; ?><?php if ($mail): ?><span dir="ltr"><?= e($mail) ?></span><?php endif; ?>
+                      <?php if ($cid !== '' && isset($campMap[$cid])): ?><a href="<?= e($campUrl($cid)) ?>" class="link"><?= e(t('من حملة: %s', $campMap[$cid]['name'])) ?></a><?php endif; ?></div>
+                  </div>
+                  <div class="ld-acts flex items-center gap-1.5"></div>
+                  <div class="flex items-center gap-2">
+                    <select class="ld-stage input !mt-0 !h-9 !py-0 !w-auto text-sm" aria-label="<?= e(t('حالة العميل')) ?>"><?php foreach ($stages as $k => $lbl): ?><option value="<?= e($k) ?>" <?= $k === $stage ? 'selected' : '' ?>><?= e($lbl) ?></option><?php endforeach; ?></select>
+                    <input class="ld-val input !mt-0 !h-9 !py-0 !w-32 text-sm <?= $stage === 'converted' ? '' : 'hidden' ?>" type="number" min="0" step="0.01" inputmode="decimal" dir="ltr" placeholder="<?= e(t('قيمة الصفقة') . ($cur ? ' (' . $cur . ')' : '')) ?>" aria-label="<?= e(t('قيمة الصفقة')) ?>" value="<?= e($m['deal_value'] ?? '') ?>">
+                  </div>
+                </div>
+                <input class="ld-note input !mt-0 !py-1.5 text-sm mb-2" maxlength="500" placeholder="<?= e(t('ملاحظة (اختياري): مثلاً كلمته وعاوز يتصل بكرة')) ?>" value="<?= e($m['note'] ?? '') ?>" aria-label="<?= e(t('ملاحظة')) ?>">
                 <div class="flex flex-wrap items-center gap-2 text-xs text-ink-500">
                   <span><?= e(fmt_date($l['createdTime'] ?? null, 'd/m/Y h:i A')) ?></span>
                   <span>· <?= e($l['formName'] ?? $l['formId'] ?? '') ?></span>
@@ -155,7 +275,7 @@ render(t('العملاء المحتملين'), 'leads', function () use ($z, $ap
                   <?php if (!empty($l['isOrganic'])): ?><span class="badge"><?= e(t('مجاني')) ?></span><?php endif; ?>
                 </div>
                 <dl class="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1 text-sm">
-                  <?php foreach ((array)($l['fields'] ?? []) as $k => $v): ?>
+                  <?php foreach ((array)($l['fields'] ?? []) as $k => $v): if (is_scalar($v) && in_array((string)$v, array_filter([$name, $phone, $mail]), true)) continue; ?>
                     <div class="min-w-0"><dt class="inline text-ink-500"><?= e(str_replace('_', ' ', (string)$k)) ?>:</dt> <dd class="inline text-ink-900 break-words"><?= e(is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE)) ?></dd></div>
                   <?php endforeach; ?>
                 </dl>
@@ -167,5 +287,10 @@ render(t('العملاء المحتملين'), 'leads', function () use ($z, $ap
       </section>
       <?php endif; ?>
     </div>
+    <script>window.LDX = <?= json_encode(['csrf' => csrf_token(), 'url' => url('leads'), 'stages' => $stages, 'all' => t('الكل'), 'saved' => t('اتحفظ'), 'err' => t('ما اتحفظش، جرّب تاني'),
+      'wa' => t('واتساب'), 'call' => t('اتصال'), 'mail' => t('إيميل'), 'copy' => t('انسخ الرقم'), 'copied' => t('اتنسخ'), 'fresh' => t('جديد النهارده'), 'empty' => t('مفيش نتايج'),
+      'filterCamp' => t('بيعرض عملاء حملة واحدة'), 'clear' => t('إلغاء'), 'ago' => ['m' => t('من %s دقيقة'), 'h' => t('من %s ساعة'), 'd' => t('من %s يوم')]], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script>window.__phoneLoad = 1;</script><script src="assets/vendor/libphonenumber-max.js?v=1.11.12"></script><script src="assets/phone.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ui-leads.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-});
+}, ['full' => true]);

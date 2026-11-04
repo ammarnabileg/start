@@ -347,4 +347,19 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '015_lead_pipeline' => [
+        "CREATE TABLE IF NOT EXISTS lead_meta (
+            workspace_id INT UNSIGNED NOT NULL,
+            lead_id VARCHAR(120) NOT NULL,
+            campaign_id VARCHAR(120) NULL,
+            stage VARCHAR(20) NOT NULL DEFAULT 'new',
+            deal_value DECIMAL(14,2) NULL,
+            note VARCHAR(500) NULL,
+            updated_by INT UNSIGNED NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (workspace_id, lead_id),
+            INDEX ws_campaign (workspace_id, campaign_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];
