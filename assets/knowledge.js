@@ -136,34 +136,45 @@
       if (!f && b) b.remove();
     });
   }
+  // ملء قسم؛ ينفع يتوقف في أي لحظة (form.__ac)
+  var STOP = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
   function fill(form, mode) {
-    var btn = form.querySelector('.kb-fill'), lbl = btn.querySelector('span'), txt = lbl.textContent;
-    btn.disabled = true; btn.classList.add('animate-pulse'); lbl.textContent = K.filling;
+    var btn = form.querySelector('.kb-fill'), lbl = btn.querySelector('span'), txt = lbl.textContent, ico = btn.innerHTML;
+    var ac = window.AbortController ? new AbortController() : null; form.__ac = ac;
+    btn.classList.add('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = STOP + '<span></span>'; btn.querySelector('span').textContent = K.filling + ' · ' + K.stop; btn.title = K.stop;
     var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', form.dataset.section); fd.append('mode', mode || 'update');
-    return post(fd).then(function (d) {
+    return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { return r.json(); }).then(function (d) {
       if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return false; }
       suggest(form, d.data || {}, d.meta); return true;
-    }).catch(function () { window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
-      .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); lbl.textContent = txt; });
+    }).catch(function (e) { if (e && e.name === 'AbortError') { window.aiToast && aiToast(K.stopped); return 'stopped'; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
+      .finally(function () { form.__ac = null; btn.classList.remove('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = ico; btn.title = ''; btn.querySelector('span').textContent = txt; });
   }
   root.addEventListener('click', function (e) {
-    var b = e.target.closest('.kb-fill'); if (b) { fill(b.closest('form'), 'update'); return; }
+    var b = e.target.closest('.kb-fill'); if (b) { var fm = b.closest('form'); if (fm.__ac) { fm.__ac.abort(); return; } fill(fm, 'update'); return; }
     var u = e.target.closest('.kb-undo');
     if (u) { var f = u.closest('form'); if (f.__undo) { applyData(f, f.__undo); f.__undo = null; u.classList.add('hidden'); } }
   });
   // اختيار الأقسام اللي الذكاء الاصطناعي يملاها: واحد أو كذا أو الكل
   function isFull(sec) { var d = root.querySelector('[data-dot="' + sec + '"]'); return !!(d && d.classList.contains('bg-lime-500')); }
   function secLabel(sec) { var d = root.querySelector('[data-dot="' + sec + '"]'), a = d && d.closest('a,button'); return a ? a.textContent.trim() : sec; }
+  var batch = null;
   function runFill(forms, keep, btn) {
-    var lbl = btn.querySelector('span'), txt = lbl.textContent; btn.disabled = true;
+    var lbl = btn.querySelector('span'), txt = lbl.textContent; batch = { stop: false };
+    var me = batch; btn.classList.add('!border-red-200', '!bg-red-50', '!text-red-700');
+    function end(stopped) { batch = null; btn.classList.remove('!border-red-200', '!bg-red-50', '!text-red-700'); lbl.textContent = txt; if (stopped) window.aiToast && aiToast(K.stoppedAll); }
     (function next(i) {
-      if (i >= forms.length) { btn.disabled = false; lbl.textContent = txt; go(forms[0].dataset.section); return; }
-      lbl.textContent = (i + 1) + ' / ' + forms.length; go(forms[i].dataset.section);
-      fill(forms[i], isFull(forms[i].dataset.section) && keep ? 'update' : 'fill').then(function () { next(i + 1); });
+      if (me.stop) return end(true);
+      if (i >= forms.length) { end(false); go(forms[0].dataset.section); return; }
+      lbl.textContent = K.stop + ' · ' + (i + 1) + ' / ' + forms.length; go(forms[i].dataset.section);
+      fill(forms[i], isFull(forms[i].dataset.section) && keep ? 'update' : 'fill').then(function (r) { if (r === 'stopped') me.stop = true; next(i + 1); });
     })(0);
   }
+  // إيقاف الدفعة كلها: يقف الطلب الحالي ومايكملش الباقي (الاقتراحات اللي خلصت بتفضل)
+  function stopBatch() { if (!batch) return false; batch.stop = true; root.querySelectorAll('.kb-form').forEach(function (f) { if (f.__ac) f.__ac.abort(); }); return true; }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && (batch || root.querySelector('.kb-running'))) { if (!stopBatch()) root.querySelectorAll('.kb-form').forEach(function (f) { if (f.__ac) f.__ac.abort(); }); } });
   var pickBtn = document.getElementById('kb-ai-pick');
   if (pickBtn) pickBtn.addEventListener('click', function () {
+    if (stopBatch()) return;
     var forms = [].slice.call(root.querySelectorAll('.kb-form'));
     var d = document.createElement('dialog'); d.className = 'w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40';
     var chips = [['all', K.pAll], ['empty', K.pEmpty], ['full', K.pFull], ['none', K.pNone]].map(function (c) { return '<button type="button" data-q="' + c[0] + '" class="rounded-full border border-ink-200 px-3 py-1 text-xs hover:bg-brand-50 hover:border-brand-300">' + c[1] + '</button>'; }).join('');

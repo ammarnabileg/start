@@ -783,4 +783,6 @@ Pause or change your plan any time',
     'يرد دائمًا باللغة الافتراضية' => 'Always reply in the default language',
     'اللغة الافتراضية' => 'Default language',
     'قاعدة اللغة' => 'Language rule',
+    'إيقاف' => 'Stop',
+    'تم إيقاف الملء. الاقتراحات التي اكتملت باقية للمراجعة.' => 'Filling stopped. Completed suggestions are kept for review.',
 ];
