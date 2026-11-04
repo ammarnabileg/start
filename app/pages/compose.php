@@ -7,6 +7,12 @@ $apiError = null;
 $profileId = null;
 $validation = null;
 $old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule', 'opt' => [], 'rec' => []];
+// تكرار منشور من صفحة المنشورات: النص والحسابات بس، والمستخدم يراجع قبل النشر
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['dup_text'])) {
+    $old['content'] = mb_substr((string)$_GET['dup_text'], 0, 10000);
+    $old['accounts'] = array_values(array_filter(array_map('trim', explode(',', (string)($_GET['dup_acc'] ?? ''))), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); }));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', (string)($_GET['when'] ?? ''))) $old['when'] = (string)$_GET['when'];
 
 if ($z) {
     try {
