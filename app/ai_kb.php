@@ -399,3 +399,29 @@ function kb_parse_json(string $t): ?array
     $d = json_decode((string)$fixed, true);
     return is_array($d) ? $d : null;
 }
+
+/** الأسعار: أي سعر في اقتراح الذكاء الاصطناعي مش مكتوب في المصادر بيتشال. خانة price بتفضى لو رقمها مش في المصادر. */
+function kb_strip_unsourced_prices(array $d, string $sources): array
+{
+    $norm = function ($t) { return strtr((string)$t, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '٬' => '', '٫' => '.']); };
+    $src = preg_replace('/(?<=\d)[,\s](?=\d{3}\b)/', '', $norm($sources));
+    $nums = function ($t) use ($norm) { preg_match_all('/\d+(?:\.\d+)?/', preg_replace('/(?<=\d)[,\s](?=\d{3}\b)/', '', $norm($t)), $m); return $m[0]; };
+    $known = function ($n) use ($src) { return (bool)preg_match('/(?<![\d.])' . preg_quote($n, '/') . '(?![\d])/', $src); };
+    $cur = '(?:ج\.?م|جنيه(?:ا|ات)?|جنية|ريال|درهم|دينار|دولار|يورو|EGP|LE|L\.E\.?|SAR|AED|KWD|QAR|USD|EUR|\$|€|£)';
+    $clean = function ($t) use ($cur, $norm, $known) {
+        $t = (string)$t;
+        $t = preg_replace('/\[(?:أضف|اضف|add)[^\]]*(?:سعر|price)[^\]]*\]/iu', '', $t);
+        return preg_replace_callback('/(?:' . $cur . '\s*)?[\d٠-٩][\d٠-٩.,٬٫ ]*\s*' . $cur . '|' . $cur . '\s*[\d٠-٩][\d٠-٩.,٬٫]*/iu', function ($m) use ($norm, $known) {
+            preg_match_all('/\d+(?:\.\d+)?/', preg_replace('/(?<=\d)[,\s](?=\d{3}\b)/', '', $norm($m[0])), $n);
+            foreach ($n[0] as $x) if (!$known($x)) return '';
+            return $m[0];
+        }, $t);
+    };
+    $walk = function ($v, $k = null) use (&$walk, $clean, $nums, $known) {
+        if (is_array($v)) { foreach ($v as $kk => $vv) $v[$kk] = $walk($vv, $kk); return $v; }
+        if (!is_string($v)) return $v;
+        if ($k === 'price') { $ns = $nums($v); if (!$ns) return ''; foreach ($ns as $x) if (!$known($x)) return ''; return $v; }
+        return trim(preg_replace('/[ \t]{2,}/', ' ', $clean($v)));
+    };
+    return $walk($d);
+}

@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ][$type];
         $guide = [
             'company' => 'Describe the company like a professional profile: what it sells, its value, location/branches, hours, payment and delivery. Hard facts only from the sources; placeholders for missing ones.',
-            'services' => 'List every product/service with its exact price as written in the sources. If a price is not written, leave "price" empty. Never estimate prices.',
+            'services' => 'List every product/service. PRICES: copy a price ONLY if it is written in the sources, exactly as written. If not written, leave "price" as an empty string. Never suggest, estimate, round or use a placeholder for prices.',
             'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
             'audience' => 'Describe the likely audience (age, location, interests, needs) from the posts, messages and documents. Say it is an inference.',
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sys = "You fill one section of a company's knowledge base for an AI customer-service assistant. Section: \"" . $schema[$sec]['label'] . "\". " . $guide
             . " Act as a senior expert consultant for this kind of business. Use EVERYTHING you know from the SOURCES (documents, the other knowledge-base sections, posts, messages, metrics) and connect the dots."
             . " Where the sources are silent, propose what a seasoned professional would recommend for this specific business and market, so the section is complete and useful."
-            . " HARD LIMITS: never invent hard facts the business would be held to: prices, phone numbers, addresses, opening hours, delivery times, discounts, guarantees or legal/medical claims. If such a fact is missing, leave it empty or write it as a placeholder like [أضف السعر] / [add price]."
+            . " PRICES ARE ABSOLUTE: never suggest, estimate, compare or invent any price, fee, cost or discount anywhere (including FAQ answers); mention a price only if it is written in the sources, copied exactly. HARD LIMITS: never invent hard facts the business would be held to: prices, phone numbers, addresses, opening hours, delivery times, discounts, guarantees or legal/medical claims. If such a fact is missing, leave it empty or write it as a placeholder like [أضف السعر] / [add price]."
             . " Mark professional assumptions (not from the sources) with \"(" . (lang() === 'ar' ? 'اقتراح' : 'suggested') . ")\" at the end of that line. Write in $lang (keep product names as written)."
             . " Return ONLY valid JSON in exactly this shape (no markdown, no comments; use \\n for line breaks inside strings): " . $shape;
         $user = ($update ? "CURRENT CONTENT OF THIS SECTION (JSON):\n" . json_encode($cur, JSON_UNESCAPED_UNICODE) . "\n\n" : '') . "SOURCES\n\n## EXISTING KNOWLEDGE BASE\n" . (kb_compile($wid) ?: '-') . "\n\n## DOCUMENTS" . ($files ?: "\n-") . "\n\n## ACCOUNT DATA (posts, messages, metrics)\n" . assistant_context(true);
@@ -189,7 +189,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msgs[] = ['role' => 'user', 'content' => 'That was not valid JSON. Reply again with ONLY the JSON object in the exact shape requested.'];
                 $r = ai_chat($msgs, 4000, 'analyze'); $d = kb_parse_json((string)$r['text']);
             }
-            if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = ['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))];
+            if (is_array($d)) $d = kb_strip_unsourced_prices($d, $user);
+            if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = kb_strip_unsourced_prices(['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))], $user);
         } catch (Throwable $e) {
             $json(['error' => $e->getMessage()], 502);
         }
