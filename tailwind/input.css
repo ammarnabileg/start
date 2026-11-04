@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-ink-50 text-ink-800 antialiased font-light; }
+  b, strong { @apply font-semibold; }
+  input, textarea, select { color-scheme: inherit; }
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { @apply bg-white text-ink-900; }
+  input[type=file] { @apply text-sm text-ink-600 file:me-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100 file:cursor-pointer; }
+  input[type=checkbox], input[type=radio] { accent-color: rgb(var(--brand-600)); }
+}
+@layer components {
+  .card { @apply bg-white rounded-2xl border border-ink-200 shadow-[0_1px_2px_rgba(13,22,48,.04)]; }
+  .input { @apply mt-1.5 w-full rounded-xl border border-ink-200 px-3.5 py-2.5 text-sm placeholder:text-ink-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 outline-none transition; }
+  .label { @apply text-sm font-medium text-ink-700; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition disabled:opacity-60; }
+  .btn-primary { @apply btn text-[#fff] bg-gradient-to-l from-brand-600 to-cyan-600 hover:brightness-110 shadow-sm shadow-brand-600/25; }
+  .btn-ghost { @apply btn bg-ink-100 text-ink-900 border border-ink-200 hover:bg-ink-200; }
+  .link { @apply text-brand-600 dark:text-brand-700 font-medium hover:underline underline-offset-4; }
+  .badge { @apply inline-flex items-center rounded-lg bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 dark:bg-ink-200 dark:text-ink-800; }
+  .badge-green { @apply bg-lime-100 text-lime-700; }
+  .nav-item { @apply flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] text-ink-600 hover:bg-ink-100 hover:text-ink-900; }
+  .nav-on { @apply bg-brand-50 text-brand-700 font-medium; }
+  .nav-label { @apply px-3 pt-5 pb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400; }
+  .menu { @apply absolute w-64 rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl shadow-ink-900/15 z-50; }
+  .menu-item { @apply flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-ink-100 hover:text-ink-900 w-full text-start; }
+  .seg { @apply flex rounded-xl bg-ink-100 p-0.5 text-xs; }
+  .seg a { @apply px-2.5 py-1 rounded-lg text-ink-500 hover:text-ink-900; }
+  .tb { @apply h-10 inline-flex items-center rounded-xl border border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:text-ink-900 transition-colors; }
+  .chip { @apply inline-flex items-center gap-2 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-600 whitespace-nowrap hover:bg-ink-50 transition; }
+  .chip.on { @apply border-brand-600 bg-brand-50 text-brand-700 font-medium; }
+  .seg a.on { @apply bg-brand-600 text-[#fff] shadow-sm font-medium; }
+}
+#sidebar.sb-open { transform: none !important; }
+html, body { overflow-x: clip; }
+/* زرار الوضع */
+.tt-knob { transition: transform .4s cubic-bezier(.34,1.56,.64,1), background-color .3s; }
+.tt-sun, .tt-moon { transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .25s; }
+.tt-moon { opacity: 0; transform: rotate(-90deg) scale(.4); }
+html.dark .tt-knob { transform: translateX(28px); }
+html[dir=rtl].dark .tt-knob { transform: translateX(-28px); }
+html.dark .tt-sun { opacity: 0; transform: rotate(90deg) scale(.4); }
+html.dark .tt-moon { opacity: 1; transform: none; }
+.tt:active .tt-knob { width: 36px; }
+/* مؤشر اللغة */
+.lang-pill { transition: inset-inline-start .35s cubic-bezier(.34,1.56,.64,1), left .35s cubic-bezier(.34,1.56,.64,1), right .35s cubic-bezier(.34,1.56,.64,1); }
+html[dir=ltr] .lang-pill[data-on=en], html[dir=rtl] .lang-pill[data-on=en] { inset-inline-start: 3px; }
+.lang-pill[data-on=ar] { inset-inline-start: 41px; }
+.lang-seg [data-lang] { transition: color .25s; }
+/* انتقال ناعم للألوان وقت تغيير الوضع */
+html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after { transition: background-color .35s ease, border-color .35s ease, color .25s ease, fill .25s ease !important; }
+html.theme-anim .tt-knob { transition: transform .4s cubic-bezier(.34,1.56,.64,1), background-color .3s !important; }
+html.theme-anim .tt-sun, html.theme-anim .tt-moon { transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .25s !important; }
+details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }
+/* الأزرار القديمة بخلفية اللون الأساسي: نصها أبيض في الوضعين */
+.bg-indigo-600.text-white, .bg-brand-600.text-white, .bg-rose-600.text-white, .bg-green-600.text-white, .bg-red-600.text-white { color: #fff; }
+

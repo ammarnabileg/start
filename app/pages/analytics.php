@@ -252,6 +252,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     ];
     $metricNames = ['impressions' => t('مرات الظهور'), 'reach' => t('الوصول'), 'likes' => t('إعجابات'), 'comments' => t('تعليقات'), 'shares' => t('مشاركات'), 'clicks' => t('نقرات')];
     ?>
+    <script src="assets/vendor/echarts.min.js?v=5.5.1"></script>
     <script src="assets/charts.js?v=<?= e(APP_VERSION) ?>"></script>
     <div class="space-y-5">
       <!-- التبويبات -->

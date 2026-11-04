@@ -258,6 +258,8 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
     </div>
     <script>window.ACX = <?= json_encode(['collapse' => t('اطوِ الكل'), 'expand' => t('افتح الكل'), 'best' => t('أعلى نسبة ضغط'), 'share' => t('%s من صرف الحملة'), 'ctr' => t('نسبة الضغط %s'),
       'empty' => t('مفيش إعلانات مطابقة'), 'keys' => t('اختصارات لوحة المفاتيح'), 'kSearch' => t('البحث في الإعلانات'), 'kToggle' => t('طي/فتح المجموعات'), 'kBack' => t('رجوع للحملات'), 'back' => url('ads', ['r' => $range])], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/vendor/echarts.min.js?v=5.5.1"></script>
+    <script src="assets/charts.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ad_campaign.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

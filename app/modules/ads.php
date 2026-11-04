@@ -342,6 +342,9 @@ function ads_bar_chart(array $points, string $title, callable $fmt): string
     $svg .= '</svg>';
     $first = $points[0]['label'];
     $last = $points[$n - 1]['label'];
+    $cfg = ['labels' => array_map(function ($p) { return (string)$p['label']; }, $points), 'values' => array_map(function ($p) { return (float)$p['value']; }, $points),
+        'texts' => array_map(function ($p) use ($fmt) { return (string)$fmt($p['value']); }, $points)];
+    $svg = '<div data-echart="bar" data-cfg="' . e(json_encode($cfg, JSON_UNESCAPED_UNICODE)) . '" class="h-36">' . $svg . '</div>';
     return '<div><div class="text-xs text-ink-500 mb-1">' . e($title) . ' · ' . e(t('الأعلى: %s', $fmt($max))) . '</div>' . $svg
         . '<div class="flex justify-between text-[11px] text-ink-400 mt-1" dir="ltr"><span>' . e($first) . '</span><span>' . e($last) . '</span></div></div>';
 }
