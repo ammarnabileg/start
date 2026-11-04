@@ -289,7 +289,7 @@ function ads_empty_state(): void
 {
     ?>
     <div class="card p-6 text-center">
-      <div class="text-4xl mb-2">📣</div>
+      <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-500 flex items-center justify-center"><?= ui_icon('megaphone', 'w-7 h-7') ?></div>
       <h2 class="font-bold text-ink-900 text-lg"><?= e(t('مفيش حساب إعلانات مربوط لسه')) ?></h2>
       <p class="text-sm text-ink-600 mt-2 max-w-xl mx-auto"><?= e(t('عشان تدير إعلاناتك من هنا، لازم تربط حساب إعلانات (Meta، Google، TikTok، LinkedIn ...). الربط بيفتح صفحة المنصة نفسها عشان توافق، وبعدها هترجع هنا تلقائياً.')) ?></p>
       <?php ads_connect_buttons(); ?>

@@ -427,7 +427,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <?php $nb = (module_enabled('analytics') && function_exists('next_best_time')) ? next_best_time($z) : null; if ($nb): ?>
               <button type="button" class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-lime-300 bg-lime-50 text-lime-700 px-3 py-2 text-sm hover:bg-lime-100 transition"
                 onclick="document.getElementById('whenInput').value='<?= e($nb->format('Y-m-d\TH:i')) ?>'">
-                ⚡ <?= e(t('انشر في أحسن وقت: %s', weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A'))) ?>
+                <?= ui_icon('zap', 'w-4 h-4 text-amber-600 inline') ?> <?= e(t('انشر في أحسن وقت: %s', weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A'))) ?>
               </button>
               <p class="text-[11px] text-ink-400 mt-1"><?= e(t('محسوب من تفاعل منشوراتك اللي فاتت.')) ?></p>
             <?php endif; ?>

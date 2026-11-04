@@ -96,7 +96,7 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $apiError, $q
       <div class="card p-5 mb-6">
         <b class="text-ink-900 text-sm"><?= e(t('مواعيد مقترحة من أحسن أوقات التفاعل')) ?></b>
         <div class="flex flex-wrap gap-2 mt-3">
-          <?php foreach ($suggested as $s): ?><span class="chip !cursor-default">⚡ <?= e(weekday_name($s['dow'])) ?> · <span dir="ltr"><?= sprintf('%02d:00', $s['hour']) ?></span></span><?php endforeach; ?>
+          <?php foreach ($suggested as $s): ?><span class="chip !cursor-default"><?= ui_icon('zap', 'w-3.5 h-3.5 text-amber-600') ?><?= e(weekday_name($s['dow'])) ?> · <span dir="ltr"><?= sprintf('%02d:00', $s['hour']) ?></span></span><?php endforeach; ?>
         </div>
         <a href="<?= e(url('queue', ['new' => 1, 'suggest' => 1])) ?>" class="btn-ghost text-sm mt-4"><?= e(t('اعمل طابور بالمواعيد دي')) ?></a>
       </div>

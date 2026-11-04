@@ -255,7 +255,7 @@ function an_sparkline(array $vals, string $class = 'text-brand-600', string $h =
 function an_empty(string $title, string $hint = '', string $icon = '📊'): string
 {
     return '<div class="rounded-xl border border-dashed border-ink-200 p-6 text-center">'
-        . '<div class="text-2xl mb-1" aria-hidden="true">' . $icon . '</div>'
+        . '<div class="w-11 h-11 mx-auto mb-2 rounded-2xl bg-ink-100 text-ink-500 flex items-center justify-center">' . ui_icon($icon, 'w-5 h-5') . '</div>'
         . '<p class="text-sm font-semibold text-ink-700">' . e($title) . '</p>'
         . ($hint !== '' ? '<p class="text-xs text-ink-500 mt-1 max-w-md mx-auto">' . e($hint) . '</p>' : '')
         . '</div>';

@@ -390,7 +390,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
           ?>
           <?php if ($drops): ?>
             <div class="rounded-xl border border-red-200 bg-red-50 text-red-800 p-4 text-sm flex gap-3" role="alert">
-              <span aria-hidden="true" class="text-lg">⚠️</span>
+              <?= ui_icon('alert', 'w-5 h-5 text-amber-600') ?>
               <div>
                 <p class="font-bold"><?= e(t('انخفاض مفاجئ مقارنة بالفترة السابقة')) ?></p>
                 <ul class="mt-1 space-y-0.5">
@@ -1178,7 +1178,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <?php foreach ($agg as $k => $v): ?><span class="flex-1 text-center"><?= (int)$k ?></span><?php endforeach; ?>
                 </div>
                 <p class="text-[11px] text-ink-500 text-center mt-0.5"><?= e(t('منشورات في الأسبوع')) ?></p>
-                <?php if ($best !== null): ?><p class="text-sm text-ink-700 mt-3">💡 <?= e(t('أعلى معدل تفاعل لما بتنشر %s مرة في الأسبوع.', $best)) ?></p><?php endif; ?>
+                <?php if ($best !== null): ?><p class="text-sm text-ink-700 mt-3 flex items-start gap-1.5"><?= ui_icon('bulb', 'w-4 h-4 text-amber-600 mt-0.5') ?><?= e(t('أعلى معدل تفاعل لما بتنشر %s مرة في الأسبوع.', $best)) ?></p><?php endif; ?>
               <?php endif; ?>
             </section>
 

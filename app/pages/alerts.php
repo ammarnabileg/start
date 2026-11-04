@@ -48,7 +48,7 @@ $unseen = alerts_unseen_count($wid);
 $lastEval = (int)setting('alerts_eval_' . $wid, 0);
 
 render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval) {
-    $icons = ['ai_anomaly' => '⚡', 'post_above' => '🚀', 'impressions_drop' => '📉', 'follower_drop' => '👥', 'reconnect' => '🔌', 'unread_old' => '💬'];
+    $icons = ['ai_anomaly' => 'spark', 'post_above' => 'trend_up', 'impressions_drop' => 'trend_down', 'follower_drop' => 'users', 'reconnect' => 'plug', 'unread_old' => 'chat'];
     $links = ['post_above' => url('analytics'), 'impressions_drop' => url('analytics'), 'follower_drop' => url('analytics'), 'reconnect' => url('accounts'), 'unread_old' => url('inbox')];
     ?>
     <?php if (!$hasApi): ?><div class="mb-5"><?php no_api_box(); ?></div><?php endif; ?>
@@ -75,7 +75,7 @@ render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $cat
           <ul class="divide-y divide-ink-100">
             <?php foreach ($alerts as $a): $d = json_decode((string)$a['data'], true) ?: []; ?>
               <li class="py-3 flex gap-3 <?= $a['seen'] ? 'opacity-70' : '' ?>">
-                <span class="text-xl shrink-0" aria-hidden="true"><?= $icons[$a['rule']] ?? '🔔' ?></span>
+                <span class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center <?= ['ai_anomaly' => 'bg-brand-50 text-brand-700', 'post_above' => 'bg-lime-100 text-lime-700', 'impressions_drop' => 'bg-red-100 text-red-700', 'follower_drop' => 'bg-amber-100 text-amber-700', 'reconnect' => 'bg-amber-100 text-amber-700', 'unread_old' => 'bg-cyan-100 text-cyan-700'][$a['rule']] ?? 'bg-ink-100 text-ink-600' ?>"><?= ui_icon($icons[$a['rule']] ?? 'bell', 'w-[18px] h-[18px]') ?></span>
                 <div class="min-w-0 flex-1">
                   <p class="text-sm text-ink-800 <?= $a['seen'] ? '' : 'font-semibold' ?> break-words"><?= e(rp_alert_text((string)$a['rule'], $d)) ?></p>
                   <p class="text-xs text-ink-500 mt-0.5">

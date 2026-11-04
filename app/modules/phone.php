@@ -203,7 +203,7 @@ function ph_empty_numbers(): void
 {
     ?>
     <div class="card p-8 text-center">
-      <div class="text-4xl mb-2">☎</div>
+      <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-500 flex items-center justify-center"><?= ui_icon('phone', 'w-7 h-7') ?></div>
       <p class="font-semibold mb-1"><?= e(t('الشركة لسه معندهاش أرقام تليفون')) ?></p>
       <p class="text-sm text-ink-500 mb-4"><?= e(t('اشتري رقم عشان تستقبل وتعمل مكالمات وتبعت رسايل SMS من اسم شركتك.')) ?></p>
       <a class="btn-primary" href="<?= e(url('phone_numbers', ['buy' => 1])) ?>"><?= e(t('دور على رقم واشتريه')) ?></a>

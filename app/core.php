@@ -404,3 +404,44 @@ function status_label(string $s): array
     ];
     return $map[$s] ?? [$s, 'bg-gray-100 text-gray-700'];
 }
+
+/**
+ * أيقونات الموقع بنفس ستايل السايد بار (خط رفيع 1.6). بتقبل اسم أو إيموجي قديم (بيتحول لأيقونة مرسومة).
+ */
+function ui_icon(string $name, string $cls = 'w-5 h-5'): string
+{
+    static $alias = ['📊' => 'chart', '👥' => 'users', '⏱️' => 'timer', '⏱' => 'timer', '⏳' => 'timer', '🕒' => 'clock', '💬' => 'chat', '📣' => 'megaphone',
+        '🔔' => 'bell', '🚀' => 'trend_up', '📉' => 'trend_down', '🔌' => 'plug', '⚡' => 'zap', '🏷️' => 'tag', '🏷' => 'tag', '👍' => 'thumb', '🔎' => 'search', '🔍' => 'search',
+        '🏢' => 'building', '📅' => 'calendar', '💡' => 'bulb', '🧩' => 'puzzle', '💰' => 'money', '🎬' => 'film', '🎯' => 'target', '☎' => 'phone', '⚠️' => 'alert', '⚠' => 'alert',
+        '✅' => 'check', '❌' => 'x', '👌' => 'check'];
+    static $p = [
+        'chart' => 'M4 20V10M10 20V4M16 20v-8M21 20H3',
+        'users' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
+        'timer' => 'M12 21a8 8 0 100-16 8 8 0 000 16zM12 9v4l2 2M10 2h4M12 2v3',
+        'clock' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',
+        'chat' => 'M4 5h16v11H9l-5 4z',
+        'megaphone' => 'M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM15 8a5 5 0 010 8M18 5a9 9 0 010 14',
+        'bell' => 'M6 16V11a6 6 0 1112 0v5l2 2H4zM10 21h4',
+        'trend_up' => 'M3 17l6-6 4 4 8-8M15 7h6v6',
+        'trend_down' => 'M3 7l6 6 4-4 8 8M15 17h6v-6',
+        'plug' => 'M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0zM12 17v4',
+        'zap' => 'M13 2L4 14h7l-1 8 9-12h-7z',
+        'tag' => 'M3 12V4h8l10 10-8 8zM7.5 8.5h.01',
+        'thumb' => 'M7 10v11H4V10zM7 10l4-7a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 21H7',
+        'search' => 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4',
+        'building' => 'M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18M8 8h3M8 12h3M8 16h3',
+        'calendar' => 'M4 6a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 10h16M8 3v4M16 3v4',
+        'bulb' => 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0012 3z',
+        'puzzle' => 'M4 4h6v6H4zM14 14h6v6h-6zM10 7h4a3 3 0 013 3v4M7 10v4a3 3 0 003 3h4',
+        'money' => 'M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4',
+        'film' => 'M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4',
+        'target' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z',
+        'phone' => 'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1A16 16 0 014 5a1 1 0 011-1z',
+        'alert' => 'M12 4l9 16H3zM12 10v4M12 17.5v.01',
+        'check' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6',
+        'x' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM9 9l6 6M15 9l-6 6',
+        'spark' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+    ];
+    $name = $alias[$name] ?? $name;
+    return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' . ($p[$name] ?? $p['chart']) . '"/></svg>';
+}

@@ -155,7 +155,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <?php foreach ($steps as $i => [$l, $done, $href]): ?>
             <a href="<?= e($href) ?>" class="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition <?= $done ? 'border-lime-200 bg-lime-50 text-lime-700' : 'border-ink-200 hover:border-brand-300 hover:bg-brand-50' ?>">
-              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold <?= $done ? 'bg-lime-500 text-white' : 'bg-ink-100 text-ink-600' ?>"><?= $done ? '✓' : $i + 1 ?></span>
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold <?= $done ? 'bg-lime-500 text-white' : 'bg-ink-100 text-ink-600' ?>"><?= $done ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>' : $i + 1 ?></span>
               <span class="<?= $done ? 'line-through opacity-70' : 'text-ink-800' ?>"><?= e($l) ?></span>
             </a>
           <?php endforeach; ?>
@@ -221,7 +221,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
           </a>
         <?php endforeach; ?>
         <?php if (!$convs): ?><p class="px-5 pb-6 text-sm text-ink-500"><?= e($e['convs'] ? $e['convs'] : t('مفيش رسائل.')) ?></p><?php elseif (!$unread): ?>
-          <p class="px-5 py-3 border-t border-ink-100 text-xs text-lime-700"><?= e(t('كل الرسائل مقروءة 👌')) ?></p><?php endif; ?>
+          <p class="px-5 py-3 border-t border-ink-100 text-xs text-lime-700 flex items-center gap-1.5"><?= ui_icon('check', 'w-4 h-4') ?><?= e(trim(str_replace('👌', '', t('كل الرسائل مقروءة 👌')))) ?></p><?php endif; ?>
       </div>
       <?php endif; ?>
 

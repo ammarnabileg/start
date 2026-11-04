@@ -193,7 +193,7 @@ $input = 'input';
 
 <?php if ($done === 'install'): ?>
   <div class="text-center space-y-4">
-    <div class="text-5xl">✅</div>
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-lime-100 text-lime-700 flex items-center justify-center"><?= ui_icon('check', 'w-9 h-9') ?></div>
     <h1 class="text-2xl font-bold"><?= e(t('تم التسطيب بنجاح')) ?></h1>
     <p class="text-slate-600"><?= e(t('ادخل بالإيميل وكلمة السر اللي لسه كاتبهم، وبعدها اعمل أول شركة واربطها من صفحة التكاملات.')) ?></p>
     <a href="index.php" class="btn-primary !px-8 !py-3"><?= e(t('ادخل للموقع')) ?></a>
@@ -201,7 +201,7 @@ $input = 'input';
 
 <?php elseif ($done === 'update'): ?>
   <div class="text-center space-y-4">
-    <div class="text-5xl">✅</div>
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-lime-100 text-lime-700 flex items-center justify-center"><?= ui_icon('check', 'w-9 h-9') ?></div>
     <h1 class="text-2xl font-bold"><?= e(t('تم التحديث بنجاح')) ?></h1>
     <p class="text-slate-600"><?= e(t('من الإصدار')) ?> <b><?= e($updateResult['from']) ?></b> <?= e(t('إلى')) ?> <b><?= e($updateResult['to']) ?></b></p>
     <p class="text-sm text-slate-500"><?= $updateResult['ran'] ? t('تحديثات قاعدة البيانات: ') . count($updateResult['ran']) : t('قاعدة البيانات كانت محدثة.') ?></p>
@@ -221,7 +221,7 @@ $input = 'input';
   <?php if (!$serverOk): ?>
     <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm space-y-1 mb-4">
       <p class="font-bold text-red-800 mb-2"><?= e(t('السيرفر محتاج شوية حاجات قبل التسطيب. ابعت الصفحة دي للدعم الفني بتاع الاستضافة:')) ?></p>
-      <?php foreach ($checks as $label => $ok): ?><div><?= $ok ? '✅' : '❌' ?> <?= e($label) ?></div><?php endforeach; ?>
+      <?php foreach ($checks as $label => $ok): ?><div class="flex items-center gap-2"><?= $ok ? ui_icon('check', 'w-4 h-4 text-lime-600') : ui_icon('x', 'w-4 h-4 text-red-600') ?><?= e($label) ?></div><?php endforeach; ?>
     </div>
   <?php endif; ?>
 
