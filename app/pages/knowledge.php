@@ -153,9 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'escalation' => '{"triggers":[' . implode('|', array_map(function ($k) { return '"' . $k . '"'; }, array_keys(kb_trigger_options()))) . '],"keywords":"comma separated","message":"short polite hand-off message to the customer"}',
         ][$type];
         $guide = [
-            'company' => 'Describe the company: what it sells, location/branches, hours, payment and delivery — ONLY facts found in the sources.',
+            'company' => 'Describe the company like a professional profile: what it sells, its value, location/branches, hours, payment and delivery. Hard facts only from the sources; placeholders for missing ones.',
             'services' => 'List every product/service with its exact price as written in the sources. If a price is not written, leave "price" empty. Never estimate prices.',
-            'faq' => 'Write 6-12 FAQs. Prefer questions customers actually asked in the recent messages; answer ONLY with facts from the sources; skip questions you cannot answer.',
+            'faq' => 'Write 8-15 FAQs. Prefer questions customers actually asked in the recent messages, then the questions customers of this kind of business usually ask. Answer from the sources; where a hard fact is missing use a placeholder instead of guessing.',
             'tone' => 'Infer the tone from how the company writes its posts and replies.',
             'audience' => 'Describe the likely audience (age, location, interests, needs) from the posts, messages and documents. Say it is an inference.',
             'focus' => 'Suggest what to promote now, based on the best-performing posts and the services.',
@@ -171,19 +171,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($st->fetchAll() as $f) { $files .= "\n### " . $f['name'] . "\n" . mb_substr((string)$f['content'], 0, 8000); if (mb_strlen($files) > 24000) break; }
         } catch (Throwable $e) {}
         $cur = kb_get($wid)[$sec] ?? [];
-        $update = ($_POST['mode'] ?? '') === 'update' && kb_filled($cur, $type);
+        $update = ($_POST['mode'] ?? '') === 'update' && kb_filled($cur, $type); // rewrite/fill: من الأول
         if ($update) $guide .= ' UPDATE MODE: the CURRENT CONTENT below was written by the owner. Keep everything that is still correct (do not remove the owner\'s entries unless the sources clearly contradict them), add what is missing from the sources, fix contradictions, and improve clarity. Return the full updated section.';
         $sys = "You fill one section of a company's knowledge base for an AI customer-service assistant. Section: \"" . $schema[$sec]['label'] . "\". " . $guide
-            . " Use ONLY the SOURCES (documents, existing knowledge base, real account data). Never invent facts, prices, phone numbers or policies. Write in $lang (keep product names as written)."
-            . " Return ONLY valid JSON in exactly this shape: " . $shape;
+            . " Act as a senior expert consultant for this kind of business. Use EVERYTHING you know from the SOURCES (documents, the other knowledge-base sections, posts, messages, metrics) and connect the dots."
+            . " Where the sources are silent, propose what a seasoned professional would recommend for this specific business and market, so the section is complete and useful."
+            . " HARD LIMITS: never invent hard facts the business would be held to: prices, phone numbers, addresses, opening hours, delivery times, discounts, guarantees or legal/medical claims. If such a fact is missing, leave it empty or write it as a placeholder like [أضف السعر] / [add price]."
+            . " Mark professional assumptions (not from the sources) with \"(" . (lang() === 'ar' ? 'اقتراح' : 'suggested') . ")\" at the end of that line. Write in $lang (keep product names as written)."
+            . " Return ONLY valid JSON in exactly this shape (no markdown, no comments; use \\n for line breaks inside strings): " . $shape;
         $user = ($update ? "CURRENT CONTENT OF THIS SECTION (JSON):\n" . json_encode($cur, JSON_UNESCAPED_UNICODE) . "\n\n" : '') . "SOURCES\n\n## EXISTING KNOWLEDGE BASE\n" . (kb_compile($wid) ?: '-') . "\n\n## DOCUMENTS" . ($files ?: "\n-") . "\n\n## ACCOUNT DATA (posts, messages, metrics)\n" . assistant_context(true);
         try {
-            $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 60000)]], 2000, 'analyze');
+            $msgs = [['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 60000)]];
+            $r = ai_chat($msgs, 4000, 'analyze');
+            $d = kb_parse_json((string)$r['text']);
+            if (!is_array($d)) { // محاولة تانية: نطلب JSON سليم بس
+                $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 6000)];
+                $msgs[] = ['role' => 'user', 'content' => 'That was not valid JSON. Reply again with ONLY the JSON object in the exact shape requested.'];
+                $r = ai_chat($msgs, 4000, 'analyze'); $d = kb_parse_json((string)$r['text']);
+            }
+            if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = ['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))];
         } catch (Throwable $e) {
             $json(['error' => $e->getMessage()], 502);
         }
-        $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
-        $d = json_decode($j, true);
         if (!is_array($d)) $json(['error' => t('الموديل لم يرجع اقتراحًا مفهومًا. جرّب مرة أخرى أو موديلًا أقوى.')], 502);
         $log = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
         $json(['ok' => true, 'data' => $d, 'meta' => $log, 'mode' => $update ? 'update' : 'fill']);
@@ -225,15 +234,14 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
     <div class="card p-5 mb-5 flex flex-wrap items-center gap-5">
       <div class="relative w-16 h-16 shrink-0">
         <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" stroke="rgb(var(--ink-200))" stroke-width="3.5"/><circle id="kb-ring" cx="18" cy="18" r="15.5" fill="none" stroke="rgb(var(--brand-600))" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="<?= round(97.4 * $done / $total, 1) ?> 97.4" style="transition:stroke-dasharray .5s"/></svg>
-        <div class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink-900"><span id="kb-done"><?= $done ?></span>/<?= $total ?></div>
+        <div dir="ltr" class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink-900"><span id="kb-done"><?= $done ?></span>/<?= $total ?></div>
       </div>
       <div class="flex-1 min-w-[240px]">
         <h2 class="text-lg font-semibold text-ink-900"><?= e(t('كل ما يعرفه الذكاء الاصطناعي عن شركتك')) ?></h2>
         <p class="text-sm text-ink-500 mt-0.5"><?= e(t('يُستخدم في كل الردود والمنشورات والتحليلات. كلما كان أكمل، كانت الردود أدق وأقل خطأ. الحفظ تلقائي.')) ?></p>
       </div>
       <?php if ($canEdit): ?>
-        <button type="button" id="kb-fill-all" data-mode="fill" class="btn-ghost"><?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('املأ الأقسام الفاضية')) ?></span></button>
-        <button type="button" id="kb-update-all" data-mode="update" class="btn-ghost"><?= ai_icon('revive', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('حدّث الكل')) ?></span></button>
+        <button type="button" id="kb-ai-pick" class="btn-ghost"><?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('املأ بالذكاء الاصطناعي')) ?></span></button>
       <?php endif; ?>
       <button type="button" data-kb-go="test" class="btn-primary"><?= $ico($icons['test']) ?> <?= e(t('جرّب الرد')) ?></button>
       <?php if (!$canEdit): ?><p class="w-full text-xs text-amber-700"><?= e(t('عرض فقط. التعديل لصاحب الشركة أو من لديه صلاحية الإعدادات.')) ?></p><?php endif; ?>
@@ -343,7 +351,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'saving' => t('بيحفظ نسخة من الملف...'), 'saveText' => t('حفظ النص'), 'editHint' => t('ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.'), 'chars' => t('حرف'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'pickTitle' => t('املأ بالذكاء الاصطناعي'), 'pickHint' => t('اختار الأقسام. الذكاء الاصطناعي هيستخدم كل الملفات والأقسام التانية وبيانات حسابك، ويكمّل الناقص كخبير. كل قسم بيطلع كاقتراح تراجعه.'), 'pAll' => t('الكل'), 'pEmpty' => t('الفاضية'), 'pFull' => t('المليانة'), 'pNone' => t('ولا حاجة'), 'mKeep' => t('كمّل على الموجود'), 'mNew' => t('اكتبه من جديد'), 'mLbl' => t('الأقسام المليانة:'), 'stFull' => t('مليان'), 'stEmpty' => t('فاضي'), 'go' => t('ابدأ'), 'cancel' => t('إلغاء'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

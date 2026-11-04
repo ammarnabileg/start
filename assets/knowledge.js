@@ -151,20 +151,54 @@
     var u = e.target.closest('.kb-undo');
     if (u) { var f = u.closest('form'); if (f.__undo) { applyData(f, f.__undo); f.__undo = null; u.classList.add('hidden'); } }
   });
-  // الكل: بيجهز اقتراحات للأقسام واحد ورا التاني، والمستخدم يراجعهم
-  ['kb-fill-all', 'kb-update-all'].forEach(function (id) {
-    var b = document.getElementById(id); if (!b) return;
-    b.addEventListener('click', function () {
-      var mode = b.dataset.mode, forms = [].filter.call(root.querySelectorAll('.kb-form'), function (f) { var dot = root.querySelector('[data-dot="' + f.dataset.section + '"]'); var full = dot && dot.classList.contains('bg-lime-500'); return mode === 'fill' ? !full : full; });
-      if (!forms.length) { window.aiToast ? aiToast(K.none) : alert(K.none); return; }
-      if (mode === 'update' && !confirm(K.confirmAll)) return;
-      var lbl = b.querySelector('span'), txt = lbl.textContent, done = 0; b.disabled = true;
-      (function next(i) {
-        if (i >= forms.length) { b.disabled = false; lbl.textContent = txt; go(forms[0].dataset.section); return; }
-        lbl.textContent = (i + 1) + ' / ' + forms.length; go(forms[i].dataset.section);
-        fill(forms[i], mode === 'fill' ? 'fill' : 'update').then(function (ok) { if (ok) done++; next(i + 1); });
-      })(0);
+  // اختيار الأقسام اللي الذكاء الاصطناعي يملاها: واحد أو كذا أو الكل
+  function isFull(sec) { var d = root.querySelector('[data-dot="' + sec + '"]'); return !!(d && d.classList.contains('bg-lime-500')); }
+  function secLabel(sec) { var d = root.querySelector('[data-dot="' + sec + '"]'), a = d && d.closest('a,button'); return a ? a.textContent.trim() : sec; }
+  function runFill(forms, keep, btn) {
+    var lbl = btn.querySelector('span'), txt = lbl.textContent; btn.disabled = true;
+    (function next(i) {
+      if (i >= forms.length) { btn.disabled = false; lbl.textContent = txt; go(forms[0].dataset.section); return; }
+      lbl.textContent = (i + 1) + ' / ' + forms.length; go(forms[i].dataset.section);
+      fill(forms[i], isFull(forms[i].dataset.section) && keep ? 'update' : 'fill').then(function () { next(i + 1); });
+    })(0);
+  }
+  var pickBtn = document.getElementById('kb-ai-pick');
+  if (pickBtn) pickBtn.addEventListener('click', function () {
+    var forms = [].slice.call(root.querySelectorAll('.kb-form'));
+    var d = document.createElement('dialog'); d.className = 'w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40';
+    var chips = [['all', K.pAll], ['empty', K.pEmpty], ['full', K.pFull], ['none', K.pNone]].map(function (c) { return '<button type="button" data-q="' + c[0] + '" class="rounded-full border border-ink-200 px-3 py-1 text-xs hover:bg-brand-50 hover:border-brand-300">' + c[1] + '</button>'; }).join('');
+    d.innerHTML = '<div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1 text-ink-900"></b><button type="button" class="x p-2 rounded-lg text-ink-400 hover:bg-ink-100">\u2715</button></div>'
+      + '<div class="p-5 space-y-4"><p class="hint text-xs text-ink-500 leading-relaxed"></p><div class="flex flex-wrap gap-2">' + chips + '</div>'
+      + '<div class="lst grid sm:grid-cols-2 gap-1.5 max-h-72 overflow-y-auto"></div>'
+      + '<div class="mode rounded-xl bg-ink-50 border border-ink-200 p-3 text-xs space-y-1.5"><div class="font-medium text-ink-700"></div><label class="flex items-center gap-2"><input type="radio" name="kbm" value="keep" checked> <span class="k"></span></label><label class="flex items-center gap-2"><input type="radio" name="kbm" value="new"> <span class="n"></span></label></div>'
+      + '<div class="flex justify-end gap-2"><button type="button" class="cn btn-ghost !py-1.5 !text-xs"></button><button type="button" class="ok btn-primary !py-1.5 !text-xs"></button></div></div>';
+    d.querySelector('b').textContent = K.pickTitle; d.querySelector('.hint').textContent = K.pickHint;
+    d.querySelector('.mode div').textContent = K.mLbl; d.querySelector('.mode .k').textContent = K.mKeep; d.querySelector('.mode .n').textContent = K.mNew;
+    d.querySelector('.cn').textContent = K.cancel;
+    var lst = d.querySelector('.lst'), ok = d.querySelector('.ok');
+    forms.forEach(function (f) {
+      var sec = f.dataset.section, full = isFull(sec), l = document.createElement('label');
+      l.className = 'flex items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm cursor-pointer hover:bg-ink-50 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50';
+      l.innerHTML = '<input type="checkbox" class="accent-brand-600"><span class="flex-1 truncate"></span><span class="text-[10px] rounded-full px-1.5 py-0.5 ' + (full ? 'bg-lime-100 text-lime-700' : 'bg-ink-100 text-ink-500') + '"></span>';
+      l.querySelector('input').checked = !full; l.querySelector('input').dataset.sec = sec; l.querySelector('input').dataset.full = full ? '1' : '';
+      l.querySelector('span').textContent = secLabel(sec); l.querySelectorAll('span')[1].textContent = full ? K.stFull : K.stEmpty;
+      lst.appendChild(l);
     });
+    function sync() {
+      var on = [].filter.call(lst.querySelectorAll('input'), function (i) { return i.checked; });
+      ok.textContent = K.go + (on.length ? ' (' + on.length + ')' : ''); ok.disabled = !on.length;
+      d.querySelector('.mode').classList.toggle('hidden', !on.some(function (i) { return i.dataset.full; }));
+    }
+    lst.addEventListener('change', sync);
+    d.querySelectorAll('[data-q]').forEach(function (c) { c.onclick = function () { var q = c.dataset.q; lst.querySelectorAll('input').forEach(function (i) { i.checked = q === 'all' || (q === 'empty' && !i.dataset.full) || (q === 'full' && !!i.dataset.full); }); sync(); }; });
+    ok.onclick = function () {
+      var secs = [].filter.call(lst.querySelectorAll('input'), function (i) { return i.checked; }).map(function (i) { return i.dataset.sec; });
+      var keep = d.querySelector('[name=kbm]:checked').value === 'keep'; d.close();
+      runFill(forms.filter(function (f) { return secs.indexOf(f.dataset.section) > -1; }), keep, pickBtn);
+    };
+    d.querySelector('.x').onclick = d.querySelector('.cn').onclick = function () { d.close(); };
+    d.addEventListener('close', function () { d.remove(); });
+    document.body.appendChild(d); sync(); d.showModal();
   });
 
   // تكبير خانة التفاصيل مع الكتابة

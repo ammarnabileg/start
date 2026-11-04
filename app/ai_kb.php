@@ -384,3 +384,18 @@ function kb_orig_save(int $wid, int $id, string $tmp, string $name): void
     kb_orig_del($wid, $id);
     @copy($tmp, $d . '/' . $id . '.' . kb_orig_ext($name));
 }
+
+/** JSON من رد الموديل حتى لو فيه ``` أو كلام قبله أو أسطر جديدة جوه النصوص */
+function kb_parse_json(string $t): ?array
+{
+    $t = trim(preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($t)));
+    $a = strpos($t, '{'); $b = strrpos($t, '}');
+    if ($a === false || $b === false || $b < $a) return null;
+    $j = substr($t, $a, $b - $a + 1);
+    $d = json_decode($j, true); if (is_array($d)) return $d;
+    // أسطر جديدة وتابات خام جوه النصوص
+    $fixed = preg_replace_callback('/"(?:[^"\\\\]|\\\\.)*"/s', function ($m) { return str_replace(["\r", "\n", "\t"], ['', '\\n', ' '], $m[0]); }, $j);
+    $fixed = preg_replace('/,\s*([}\]])/', '$1', (string)$fixed); // فواصل زيادة
+    $d = json_decode((string)$fixed, true);
+    return is_array($d) ? $d : null;
+}
