@@ -48,6 +48,7 @@ $I['gmb'] = $I['gmb_location'];
 $I['phone'] = $I['phone_numbers'];
 $I['connectors'] = 'M14 7h3a5 5 0 010 10h-3m-4 0H7A5 5 0 017 7h3m-2 5h8';
 $navItems = $curWs ? nav_items() : array_values(array_filter(nav_items(), function ($i) { return $i['key'] === 'admin'; }));
+$I['knowledge'] = 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 19V5M19 17H6a2 2 0 00-2 2M9 7h6M9 11h4';
 $I['assistant'] = 'M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z';
 $I['admin'] = 'M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7zm-3 9l2 2 4-4';
 $navActive = nav_item_for($active);

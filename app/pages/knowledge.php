@@ -94,7 +94,7 @@ $st = db()->prepare("SELECT id, name, size, method, enabled, CHAR_LENGTH(content
 $st->execute([$wid]);
 $files = $st->fetchAll();
 
-render(t('قاعدة المعرفة'), 'assistant', function () use ($schema, $kb, $files, $canEdit) {
+render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $kb, $files, $canEdit) {
     $filled = 0; foreach ($schema as $k => $s) if (kb_filled($kb[$k] ?? [], $s['type'])) $filled++;
     $total = count($schema) + 1; $done = $filled + ($files ? 1 : 0);
     $ico = function ($d) { return '<svg class="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' . $d . '"/></svg>'; };
@@ -106,12 +106,6 @@ render(t('قاعدة المعرفة'), 'assistant', function () use ($schema, $k
         'escalation' => 'M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7', 'test' => 'M7 4l12 8-12 8z'];
     $dis = $canEdit ? '' : 'disabled';
     ?>
-    <div class="flex items-center gap-1 border-b border-ink-200 mb-6 overflow-x-auto">
-      <?php foreach (['models' => t('الموديلات والمهام'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')] as $tk => $tl): ?>
-        <a href="<?= e(url('assistant', $tk === 'models' ? [] : ['tab' => $tk])) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-ink-500 hover:text-ink-900"><?= e($tl) ?></a>
-      <?php endforeach; ?>
-      <a href="<?= e(url('knowledge')) ?>" class="relative -mb-px px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 border-brand-600 text-brand-700"><?= e(t('قاعدة المعرفة')) ?></a>
-    </div>
 
     <div class="card p-5 mb-5 flex flex-wrap items-center gap-5">
       <div class="relative w-16 h-16 shrink-0">
