@@ -32,7 +32,8 @@ try {
             $line .= ' alerts=error';
         }
         // الذكاء الاصطناعي في الخلفية (لو صاحب الشركة مفعّله)
-        foreach (['classify' => 'ai_classify_conversations', 'alerts' => 'ai_smart_alerts', 'reply' => 'ai_auto_reply'] as $what => $fn) {
+        // تحليل الرسايل بقى يدوي بس (المستخدم بيختار)، عشان مايستهلكش رصيد لوحده
+        foreach (['alerts' => 'ai_smart_alerts', 'reply' => 'ai_auto_reply'] as $what => $fn) {
             if (!ai_auto_enabled($wid, $what) || !ai_feature_on(['classify' => 'classify_btn', 'alerts' => 'alerts_bg', 'reply' => 'auto_reply'][$what], $wid)) continue;
             try {
                 $line .= ' ai_' . $what . '+' . (int)ai_as_workspace($wid, function () use ($fn, $wid) { return $fn($wid); });

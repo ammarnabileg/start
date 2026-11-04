@@ -314,4 +314,37 @@ return [
             FOREIGN KEY (campaign_id) REFERENCES msg_campaigns(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    // أدوات الفريق في الرسائل: إسناد، حالة، ملاحظات داخلية، وردود محفوظة
+    '014_inbox_team' => [
+        "CREATE TABLE IF NOT EXISTS conv_meta (
+            workspace_id INT UNSIGNED NOT NULL,
+            conv_id VARCHAR(120) NOT NULL,
+            assignee_id INT UNSIGNED NULL,
+            state VARCHAR(12) NOT NULL DEFAULT 'open',
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (workspace_id, conv_id),
+            INDEX ws_assignee (workspace_id, assignee_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS conv_notes (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            conv_id VARCHAR(120) NOT NULL,
+            user_id INT UNSIGNED NULL,
+            body TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_conv (workspace_id, conv_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS saved_replies (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            shortcut VARCHAR(40) NOT NULL,
+            body TEXT NOT NULL,
+            uses INT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

@@ -46,7 +46,7 @@ function ai_settings_post(string $action): void
     }
     if ($action === 'ai_auto') {
         if (!is_ws_owner()) { flash('error', t('هذا الإعداد متاح لمالك الشركة فقط.')); redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models'])); }
-        $what = in_array($_POST['what'] ?? '', ['classify', 'alerts', 'reply'], true) ? $_POST['what'] : 'classify';
+        $what = in_array($_POST['what'] ?? '', ['alerts', 'reply'], true) ? $_POST['what'] : 'alerts';
         if ($what === 'reply' && !ai_auto_enabled($wid, 'reply') && ai_kb($wid) === '') { flash('error', t('اكتب معلومات الشركة أولًا. الرد التلقائي يرد منها فقط.')); redirect(url('assistant', ['tab' => 'usage'])); }
         $on = !ai_auto_enabled($wid, $what);
         save_setting('ai_auto_' . $what . '_' . $wid, $on ? '1' : '0');
@@ -158,7 +158,7 @@ function ai_settings_render(string $tab): void
           <div class="card p-5">
             <h3 class="font-semibold text-ink-900"><?= e(t('العمل في الخلفية')) ?></h3>
             <p class="text-xs text-ink-500 mt-1"><?= e(t('يعمل تلقائيًا مع التشغيل الدوري للمنصة (cron)، ويحتسب من حد الاستهلاك.')) ?></p>
-            <?php foreach (['classify' => [t('تصنيف الرسائل الجديدة'), t('نوع الرسالة، إحساس العميل، العاجل، ونية الشراء. طلب واحد لكل 20 رسالة.')], 'alerts' => [t('تنبيهات ذكية يومية'), t('مرة في اليوم: يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')], 'reply' => [t('الرد التلقائي خارج المواعيد'), t('يرد من معلومات الشركة فقط. مسودة للمراجعة، أو إرسال مباشر.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
+            <?php foreach (['alerts' => [t('تنبيهات ذكية يومية'), t('مرة في اليوم: يكتشف أي هبوط أو ارتفاع غير طبيعي ويضيفه للتنبيهات.')], 'reply' => [t('الرد التلقائي خارج المواعيد'), t('يرد من معلومات الشركة فقط. مسودة للمراجعة، أو إرسال مباشر.')]] as $wk => [$wl, $wd]): $won = ai_auto_enabled((int)ws('id'), $wk); ?>
               <form method="post" class="flex items-start gap-3 mt-4">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="back" value="<?= e($tab) ?>"><input type="hidden" name="action" value="ai_auto"><input type="hidden" name="what" value="<?= $wk ?>">
                 <div class="flex-1"><div class="text-sm text-ink-900"><?= e($wl) ?></div><div class="text-xs text-ink-500"><?= e($wd) ?></div></div>

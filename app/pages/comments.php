@@ -5,6 +5,66 @@ $postId = (string)($_GET['post'] ?? '');
 $accId = (string)($_GET['a'] ?? '');
 $cursor = (string)($_GET['cursor'] ?? '');
 
+// أدوات الفريق (ردود محفوظة)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'reply_') === 0) team_post((string)$_POST['action']);
+
+// إجراءات على تعليقات محددة (JSON): تصنيف، إخفاء، رد على كل واحد
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['c_classify', 'c_hide', 'c_reply'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+    if (!$z || !$postId || !$accId) $J(['error' => $err ?: t('طلب غير صحيح.')], 422);
+    $wid = (int)ws('id');
+    $ids = array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w.:@-]{1,160}$/', $x); }));
+    $act = (string)$_POST['action'];
+    if ($act === 'c_classify') {
+        if (!ai_connection() || !can('ai.use') || !ai_feature_on('classify_btn')) $J(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+        $all = [];
+        $walk = function ($list) use (&$walk, &$all) { foreach ($list as $c) { $all[(string)$c['id']] = $c; $walk($c['replies'] ?? []); } };
+        $walk($z->comments($postId, $accId)['comments'] ?? []);
+        $todo = array_slice(array_values(array_filter(array_intersect_key($all, array_flip($ids)), function ($c) { return empty($c['from']['isOwner']) && trim((string)($c['message'] ?? '')) !== ''; })), 0, 40);
+        if (!$todo) $J(['ok' => true, 'done' => 0]);
+        $lines = [];
+        foreach ($todo as $i => $c) $lines[] = ($i + 1) . '. ' . str_replace("\n", ' ', mb_substr((string)$c['message'], 0, 300));
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => 'Classify each public social-media comment. Return ONLY a JSON array, one object per comment in order: {"n":number,"category":"inquiry|complaint|purchase|support|spam|other","sentiment":"positive|neutral|upset|angry","urgency":1-3,"intent":true|false,"summary":"max 6 words in the comment language"}. intent = asks price/availability or wants to buy. spam = ads, links, abuse.'],
+                ['role' => 'user', 'content' => implode("\n", $lines)]], 1200, 'classify');
+        } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+        $j = $r['text']; if (preg_match('/\[.*\]/s', $j, $m)) $j = $m[0];
+        $arr = json_decode($j, true) ?: [];
+        $st = db()->prepare("INSERT INTO ai_labels (workspace_id, item_key, category, sentiment, urgency, intent, summary, src_hash, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '', NOW()) ON DUPLICATE KEY UPDATE category = VALUES(category), sentiment = VALUES(sentiment), urgency = VALUES(urgency), intent = VALUES(intent), summary = VALUES(summary), updated_at = NOW()");
+        $n = 0;
+        foreach ($arr as $k => $o) {
+            $idx = (int)($o['n'] ?? ($k + 1)) - 1; if (!isset($todo[$idx])) continue;
+            $st->execute([$wid, 'c:' . $todo[$idx]['id'], in_array($o['category'] ?? '', ['inquiry', 'complaint', 'purchase', 'support', 'spam', 'other'], true) ? $o['category'] : 'other',
+                in_array($o['sentiment'] ?? '', ['positive', 'neutral', 'upset', 'angry'], true) ? $o['sentiment'] : 'neutral', max(1, min(3, (int)($o['urgency'] ?? 1))), !empty($o['intent']) ? 1 : 0, mb_substr((string)($o['summary'] ?? ''), 0, 250)]);
+            $n++;
+        }
+        $J(['ok' => true, 'done' => $n]);
+    }
+    if (!can('comments.reply')) $J(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    if ($act === 'c_hide') {
+        $ok = 0; foreach ($ids as $cid) { try { $z->hideComment($postId, $cid, $accId); $ok++; } catch (Throwable $e) {} }
+        log_activity('comment.hide_bulk', $postId . ' ' . $ok);
+        $J(['ok' => true, 'done' => $ok]);
+    }
+    // رد على تعليق واحد (الواجهة بتنادي ده لكل تعليق محدد ورا بعض، بفاصل زمني)
+    $cid = $ids[0] ?? '';
+    $text = mb_substr(trim((string)($_POST['message'] ?? '')), 0, 2000);
+    if ($cid === '' || $text === '') $J(['error' => t('اكتب الرد الأول.')], 422);
+    $name = trim(explode(' ', trim((string)($_POST['name'] ?? '')))[0] ?? '');
+    $text = trim(str_replace(['{name}', '{الاسم}'], $name, $text));
+    if (!empty($_POST['vary']) && ai_connection()) {
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => 'Rewrite this public reply to a social media comment with different wording so repeated replies do not look automated. Keep the meaning, facts, links and roughly the same length. Address the commenter naturally. Same language/dialect. Return ONLY the reply.'],
+                ['role' => 'user', 'content' => "Reply:\n" . $text . "\n\nTheir comment:\n" . mb_substr((string)($_POST['comment'] ?? ''), 0, 400)]], 300, 'reply');
+            $text = trim($r['text'], " \n\"'«»") ?: $text;
+        } catch (Throwable $e) {}
+    }
+    try { $z->replyComment($postId, $accId, $text, $cid); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+    log_activity('comment.reply_bulk', $cid);
+    $J(['ok' => true, 'text' => $text]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $postId && $accId) {
     $action = (string)($_POST['action'] ?? 'reply');
     $commentId = (string)($_POST['comment_id'] ?? '');
@@ -53,31 +113,46 @@ if ($z) {
     }
 }
 
-function comment_block(array $c, bool $isReply = false): void
+/** تعليق واحد: مربع تحديد، صورة، الاسم والوقت، النص، علامات الذكاء الاصطناعي، والإجراءات */
+function comment_block(array $c, array $labels, bool $isReply = false): void
 {
     $from = $c['from'] ?? [];
     $mine = !empty($from['isOwner']);
+    $lb = $labels['c:' . ($c['id'] ?? '')] ?? null;
+    $nm = (string)($from['name'] ?? $from['username'] ?? t('مستخدم'));
+    $answered = (bool)array_filter($c['replies'] ?? [], function ($r) { return !empty($r['from']['isOwner']); });
+    $catL = ['inquiry' => t('استفسار'), 'complaint' => t('شكوى'), 'purchase' => t('طلب شراء'), 'support' => t('دعم'), 'spam' => t('سبام'), 'other' => t('أخرى')];
     ?>
-    <div class="flex gap-3 <?= $isReply ? 'ms-12 mt-3' : '' ?>">
-      <?= !empty($c['platform']) && !$isReply ? avatar_with_platform($from['picture'] ?? null, $from['name'] ?? $from['username'] ?? '', (string)$c['platform'], 'w-9 h-9') : avatar($from['picture'] ?? null, $from['name'] ?? $from['username'] ?? '', 'w-9 h-9') ?>
+    <div class="cm-item group flex gap-2.5 <?= $isReply ? 'ms-11 mt-2.5' : '' ?>" data-id="<?= e($c['id'] ?? '') ?>" data-name="<?= e($nm) ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-hidden="<?= !empty($c['isHidden']) ? 1 : 0 ?>" data-answered="<?= $answered || $isReply ? 1 : 0 ?>"
+      data-cat="<?= e($lb['category'] ?? '') ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-bad="<?= $lb && (in_array($lb['sentiment'], ['angry', 'upset'], true) || in_array($lb['category'], ['complaint', 'spam'], true)) ? 1 : 0 ?>">
+      <?php if (!$mine): ?><label class="pt-2.5 cursor-pointer"><input type="checkbox" class="cm-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label><?php else: ?><span class="w-4"></span><?php endif; ?>
+      <?= !empty($c['platform']) && !$isReply ? avatar_with_platform($from['picture'] ?? null, $nm, (string)$c['platform'], 'w-9 h-9') : avatar($from['picture'] ?? null, $nm, 'w-8 h-8') ?>
       <div class="flex-1 min-w-0">
-        <div class="rounded-2xl px-4 py-2 inline-block max-w-full <?= $mine ? 'bg-indigo-50' : 'bg-slate-100' ?> <?= !empty($c['isHidden']) ? 'opacity-50' : '' ?>">
-          <div class="text-xs font-bold"><?= e($from['name'] ?? $from['username'] ?? t('مستخدم')) ?><?= $mine ? ' ' . e(t('(أنت)')) : '' ?></div>
-          <p class="text-sm whitespace-pre-line break-words"><?= e($c['message'] ?? '') ?></p>
+        <div class="inline-block max-w-full rounded-2xl rounded-ss-md px-3.5 py-2 shadow-sm <?= $mine ? 'bg-brand-50 border border-brand-200' : 'bg-white border border-ink-200' ?> <?= !empty($c['isHidden']) ? 'opacity-50' : '' ?>">
+          <div class="flex items-center gap-2 text-xs"><b class="text-ink-900"><?= e($nm) ?></b><?php if ($mine): ?><span class="rounded-md bg-brand-600 text-[#fff] px-1.5 text-[10px]"><?= e(t('أنت')) ?></span><?php endif; ?><span class="text-ink-400"><?= e(fmt_date($c['createdTime'] ?? null, 'd/m h:i A')) ?></span></div>
+          <p class="text-sm text-ink-800 whitespace-pre-line break-words mt-0.5" dir="auto"><?= e($c['message'] ?? '') ?></p>
         </div>
-        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1 ps-2">
-          <span><?= e(fmt_date($c['createdTime'] ?? null, 'd/m h:i A')) ?></span>
-          <?php if (!empty($c['isHidden'])): ?><span><?= e(t('مخفي')) ?></span><?php endif; ?>
-          <?php if (!$isReply && ($c['canReply'] ?? true)): ?><button type="button" class="font-semibold text-indigo-700" data-reply-to="<?= e($c['id']) ?>" data-reply-name="<?= e($from['name'] ?? '') ?>"><?= e(t('رد')) ?></button><?php endif; ?>
+        <?php if ($lb || !empty($c['isHidden'])): ?>
+          <div class="flex flex-wrap gap-1 mt-1.5 ps-1" title="<?= e($lb['summary'] ?? '') ?>">
+            <?php if (!empty($c['isHidden'])): ?><span class="rounded-md bg-ink-100 text-ink-500 px-1.5 py-0.5 text-[10px]"><?= e(t('مخفي')) ?></span><?php endif; ?>
+            <?php if ($lb): ?>
+              <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('نية شراء')) ?></span><?php endif; ?>
+              <span class="rounded-md px-1.5 py-0.5 text-[10px] <?= $lb['category'] === 'spam' ? 'bg-red-100 text-red-700' : ($lb['category'] === 'complaint' ? 'bg-amber-100 text-amber-700' : 'bg-ink-100 text-ink-600') ?>"><?= e($catL[$lb['category']] ?? $lb['category']) ?></span>
+              <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? e(t('غاضب')) : e(t('متضايق')) ?></span><?php endif; ?>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+        <div class="flex flex-wrap items-center gap-3 text-[11px] text-ink-500 mt-1 ps-1 opacity-70 group-hover:opacity-100 transition">
+          <?php if (!$isReply && ($c['canReply'] ?? true)): ?><button type="button" class="font-semibold text-brand-700 hover:underline" data-reply-to="<?= e($c['id']) ?>" data-reply-name="<?= e($from['name'] ?? '') ?>"><?= e(t('رد')) ?></button><?php endif; ?>
           <?php if (!empty($c['canHide']) && empty($c['isHidden'])): ?>
-            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button><?= e(t('إخفاء')) ?></button></form>
+            <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-ink-900"><?= e(t('إخفاء')) ?></button></form>
           <?php endif; ?>
           <?php if (!empty($c['canDelete'])): ?>
-            <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التعليق نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="text-red-600"><?= e(t('حذف')) ?></button></form>
+            <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التعليق نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-red-600"><?= e(t('حذف')) ?></button></form>
           <?php endif; ?>
-          <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
+          <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="hover:text-ink-900"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
         </div>
-        <?php foreach ($c['replies'] ?? [] as $r) comment_block($r, true); ?>
+        <?php foreach ($c['replies'] ?? [] as $r) comment_block($r, $labels, true); ?>
       </div>
     </div>
     <?php
@@ -86,77 +161,151 @@ function comment_block(array $c, bool $isReply = false): void
 render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, $comments, $current, $postId, $accId, $apiError) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
+    $aiOn = ai_connection() && can('ai.use');
+    $labels = ($aiOn && ai_feature_on('classify_btn')) ? ai_labels((int)ws('id')) : [];
+    $pf = preg_replace('/[^a-z]/', '', (string)($_GET['pf'] ?? ''));
+    $plats = [];
+    foreach ($posts as $pp) { $k = (string)($pp['platform'] ?? ''); if ($k !== '') $plats[$k] = ($plats[$k] ?? 0) + (int)($pp['commentCount'] ?? 0); }
+    if ($pf !== '') $posts = array_values(array_filter($posts, function ($pp) use ($pf) { return ($pp['platform'] ?? '') === $pf; }));
+    $count = function ($list) use (&$count) { $n = 0; foreach ($list as $c) { $n++; $n += $count($c['replies'] ?? []); } return $n; };
+    $totalC = $count($comments);
+    $hiddenC = count(array_filter($comments, function ($c) { return !empty($c['isHidden']); }));
+    $stats = ['intent' => 0, 'complaint' => 0, 'spam' => 0, 'done' => 0];
+    $walk = function ($list) use (&$walk, &$stats, $labels) { foreach ($list as $c) { $lb = $labels['c:' . ($c['id'] ?? '')] ?? null; if ($lb) { $stats['done']++; if ($lb['intent']) $stats['intent']++; if ($lb['category'] === 'complaint') $stats['complaint']++; if ($lb['category'] === 'spam') $stats['spam']++; } $walk($c['replies'] ?? []); } };
+    $walk($comments);
     ?>
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
-    <?php
-      $pf = preg_replace('/[^a-z]/', '', (string)($_GET['pf'] ?? ''));
-      $plats = [];
-      foreach ($posts as $pp) { $k = (string)($pp['platform'] ?? ''); if ($k !== '') $plats[$k] = ($plats[$k] ?? 0) + (int)($pp['commentCount'] ?? 0); }
-      if (count($plats) > 1 || $pf !== ''): ?>
-      <div class="flex gap-2 overflow-x-auto pb-1 mb-3" style="scrollbar-width:none">
-        <a href="<?= e(url('comments')) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $pf === '' ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= e(t('كل القنوات')) ?></a>
-        <?php foreach ($plats as $k => $cnt): ?>
-          <a href="<?= e(url('comments', ['pf' => $k])) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $pf === $k ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= platform_icon($k, 'w-4 h-4') ?><?= e(platform_label($k)) ?> <span class="text-xs text-ink-400"><?= (int)$cnt ?></span></a>
-        <?php endforeach; ?>
-      </div>
-    <?php endif;
-      if ($pf !== '') $posts = array_values(array_filter($posts, function ($pp) use ($pf) { return ($pp['platform'] ?? '') === $pf; })); ?>
-    <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-15rem)] min-h-[520px]">
-      <div data-live="list" class="card overflow-y-auto min-h-0 <?= $postId ? 'hidden lg:block' : '' ?>">
-        <?php if (!$posts): ?><p class="p-5 text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p><?php endif; ?>
-        <?php foreach ($posts as $p): $on = $p['id'] === $postId; ?>
-          <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" class="flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
-            <span class="relative shrink-0">
-              <?php if (!empty($p['picture'])): ?><img src="<?= e($p['picture']) ?>" class="w-12 h-12 rounded-xl object-cover bg-ink-100" loading="lazy" referrerpolicy="no-referrer" alt="">
-              <?php else: ?><span class="w-12 h-12 rounded-xl bg-ink-100 flex items-center justify-center"><?= platform_icon((string)($p['platform'] ?? ''), 'w-6 h-6') ?></span><?php endif; ?>
-              <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($p['platform'] ?? ''), 'w-[18px] h-[18px]', 'badge') ?></span>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm line-clamp-2 text-ink-800"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 120)) : '<span class="text-ink-400">' . e(t('(منشور بدون نص)')) . '</span>' ?></p>
-              <p class="text-[11px] text-ink-500 mt-1 flex items-center gap-1.5">
-                <span><?= e(platform_label($p['platform'] ?? '')) ?></span> ·
-                <span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 9h10M7 13h6m-9 7l3-3h12a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v15z"/></svg><?= (int)($p['commentCount'] ?? 0) ?></span> ·
-                <span><?= e(fmt_date($p['createdTime'] ?? null, 'd/m/Y')) ?></span>
-              </p>
+    <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-11rem)] min-h-[560px]" id="cmx">
+      <!-- المنشورات -->
+      <div class="card flex flex-col min-h-0 overflow-hidden <?= $postId ? 'hidden lg:flex' : 'flex' ?>">
+        <div class="flex items-center gap-2 px-3 h-12 border-b border-ink-200 shrink-0">
+          <b class="text-sm text-ink-900"><?= e(t('المنشورات')) ?></b><span class="text-xs text-ink-400"><?= count($posts) ?></span>
+          <?php if (count($plats) > 1 || $pf !== ''): ?>
+            <div class="ms-auto flex gap-1 overflow-x-auto" style="scrollbar-width:none">
+              <a href="<?= e(url('comments')) ?>" class="h-8 px-2.5 rounded-lg text-xs flex items-center whitespace-nowrap <?= $pf === '' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e(t('الكل')) ?></a>
+              <?php foreach ($plats as $k => $cnt): ?><a href="<?= e(url('comments', ['pf' => $k])) ?>" class="h-8 px-2 rounded-lg flex items-center gap-1 text-xs <?= $pf === $k ? 'bg-brand-50 text-brand-700 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="<?= e(platform_label($k)) ?>"><?= platform_icon($k, 'w-4 h-4') ?><span><?= (int)$cnt ?></span></a><?php endforeach; ?>
             </div>
-          </a>
-        <?php endforeach; ?>
-        <?php if ($next): ?><a href="<?= e(url('comments', ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+          <?php endif; ?>
+        </div>
+        <div data-live="list" class="flex-1 min-h-0 overflow-y-auto">
+          <?php if (!$posts): ?><div class="p-10 text-center"><div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center"><?= ui_icon('chat', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p></div><?php endif; ?>
+          <?php foreach ($posts as $p): $on = $p['id'] === $postId; $cc = (int)($p['commentCount'] ?? 0); ?>
+            <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" class="relative flex gap-3 p-3 border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>">
+              <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
+              <span class="relative shrink-0">
+                <?php if (!empty($p['picture'])): ?><img src="<?= e($p['picture']) ?>" class="w-14 h-14 rounded-xl object-cover bg-ink-100" loading="lazy" referrerpolicy="no-referrer" alt="">
+                <?php else: ?><span class="w-14 h-14 rounded-xl bg-ink-100 flex items-center justify-center"><?= platform_icon((string)($p['platform'] ?? ''), 'w-6 h-6') ?></span><?php endif; ?>
+                <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($p['platform'] ?? ''), 'w-[18px] h-[18px]', 'badge') ?></span>
+              </span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm line-clamp-2 <?= $on ? 'text-ink-900 font-medium' : 'text-ink-800' ?>" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 140)) : '<span class="text-ink-400">' . e(t('(منشور بدون نص)')) . '</span>' ?></p>
+                <div class="flex items-center gap-2 mt-1.5 text-[11px] text-ink-500">
+                  <span class="inline-flex items-center gap-1 rounded-md bg-ink-100 px-1.5 py-0.5 text-ink-700 font-medium"><?= ui_icon('chat', 'w-3 h-3') ?><?= $cc ?></span>
+                  <span><?= e(fmt_date($p['createdTime'] ?? null, 'd/m/Y')) ?></span>
+                </div>
+              </div>
+            </a>
+          <?php endforeach; ?>
+          <?php if ($next): ?><a href="<?= e(url('comments', ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+        </div>
       </div>
 
-      <div class="lg:col-span-2 card flex flex-col min-h-0 overflow-hidden <?= $postId ? '' : 'hidden lg:flex' ?>">
+      <!-- التعليقات -->
+      <div class="card flex flex-col min-h-0 overflow-hidden <?= $postId ? 'flex' : 'hidden lg:flex' ?>">
         <?php if (!$postId): ?>
-          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-ink-400 text-sm">
-            <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7 9h10M7 13h6m-9 7l3-3h12a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v15z"/></svg>
-            <?= e(t('اختار منشور عشان تشوف تعليقاته')) ?>
+          <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><?= ui_icon('chat', 'w-8 h-8') ?></div>
+            <p class="font-medium text-ink-900"><?= e(t('اختار منشور عشان تشوف تعليقاته')) ?></p>
+            <p class="text-xs text-ink-500 mt-1"><?= e(t('تقدر تحدد كذا تعليق وتخفيهم أو ترد عليهم مرة واحدة.')) ?></p>
           </div>
         <?php else: ?>
-          <div class="p-4 border-b border-ink-200 flex items-center gap-3">
-            <a href="<?= e(url('comments')) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
+          <div class="px-4 h-16 border-b border-ink-200 flex items-center gap-3 shrink-0">
+            <a href="<?= e(url('comments')) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
             <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-10 h-10 rounded-lg object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
-            <?php if (!empty($current['platform'])): ?><span class="inline-flex items-center gap-1.5 text-xs text-ink-500 bg-ink-100 rounded-full px-2 py-0.5 whitespace-nowrap"><?= platform_icon((string)$current['platform'], 'w-3.5 h-3.5') ?><?= e(platform_label((string)$current['platform'])) ?></span><?php endif; ?>
-            <p class="text-sm line-clamp-2 flex-1 text-ink-800"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 200)) ?></p>
-            <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="btn-ghost text-xs whitespace-nowrap"><?= e(t('فتح المنشور ↗')) ?></a><?php endif; ?>
+            <div class="min-w-0 flex-1"><p class="text-sm font-medium text-ink-900 line-clamp-1" dir="auto"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 160) ?: t('(منشور بدون نص)')) ?></p>
+              <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?></p></div>
+            <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="tb w-9 !h-9 justify-center" title="<?= e(t('فتح المنشور ↗')) ?>"><svg class="w-4 h-4 rtl:-scale-x-100" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h5"/></svg></a><?php endif; ?>
           </div>
-          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-5 bg-ink-50" id="thread" data-comments>
-            <?php if (!$comments): ?><p class="text-sm text-ink-500"><?= e(t('مفيش تعليقات.')) ?></p><?php endif; ?>
-            <?php foreach ($comments as $c) comment_block($c); ?>
+          <div class="flex items-center gap-2 px-3 h-11 border-b border-ink-100 shrink-0 text-xs">
+            <label class="flex items-center gap-2 text-ink-600 cursor-pointer select-none"><input type="checkbox" id="cm-all" class="w-4 h-4 rounded"><span id="cm-count"><?= e(t('تحديد الكل')) ?></span></label>
+            <div class="ms-auto flex items-center gap-1">
+              <?php if ($labels !== [] || ($aiOn && ai_feature_on('classify_btn'))): ?>
+                <button type="button" data-cm-filter="intent" class="cm-f h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100"><?= e(t('نية شراء')) ?></button>
+                <button type="button" data-cm-filter="bad" class="cm-f h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100"><?= e(t('شكاوي وسبام')) ?></button>
+              <?php endif; ?>
+              <button type="button" data-cm-filter="unanswered" class="cm-f h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100"><?= e(t('من غير رد')) ?></button>
+            </div>
           </div>
-          <form method="post" class="p-3 border-t border-ink-200 bg-white" id="replyForm" data-optimistic="comment">
-            <?= csrf_field() ?>
-            <input type="hidden" name="action" value="reply">
-            <input type="hidden" name="comment_id" id="replyTo" value="">
-            <div id="replyHint" class="hidden text-xs text-brand-700 mb-2"><?= e(t('بترد على:')) ?> <span class="font-semibold"></span> <button type="button" id="cancelReply" class="text-ink-500 underline ms-2"><?= e(t('إلغاء')) ?></button></div>
-            <div class="flex gap-2 items-end">
-              <textarea data-ai="reply_variants,polish_reply,comments_triage,summarize,translate_ctx" name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('اكتب تعليق على المنشور، أو دوس (رد) على تعليق معين')) ?>" data-enter-submit></textarea>
-              <?php if (ai_connection() && can('ai.use') && ai_feature_on('reply_btn')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
+          <div class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-ink-50/70" id="thread" data-comments style="background-image:radial-gradient(rgb(var(--ink-200)/.5) 1px,transparent 1px);background-size:18px 18px">
+            <?php if (!$comments): ?><p class="text-sm text-ink-500 text-center py-8"><?= e(t('مفيش تعليقات.')) ?></p><?php endif; ?>
+            <?php foreach ($comments as $c) comment_block($c, $labels); ?>
+          </div>
+          <!-- شريط الإجراءات على المحدد -->
+          <div id="cm-bar" class="hidden shrink-0 border-t border-ink-200 bg-white px-3 py-2 flex flex-wrap items-center gap-1.5">
+            <b class="text-xs text-ink-900" id="cm-n">0</b><span class="text-xs text-ink-500 me-2"><?= e(t('محدد')) ?></span>
+            <?php if ($aiOn && ai_feature_on('classify_btn')): ?><button type="button" data-cm-op="classify" class="cm-op btn-ghost !py-1.5 !text-xs"><?= ai_icon('spark', 'w-3.5 h-3.5 text-brand-600') ?><?= e(t('تصنيف')) ?></button><?php endif; ?>
+            <button type="button" data-cm-op="hide" class="cm-op btn-ghost !py-1.5 !text-xs"><?= e(t('إخفاء')) ?></button>
+            <button type="button" data-cm-op="reply" class="cm-op btn-primary !py-1.5 !text-xs"><?= e(t('رد على المحدد')) ?></button>
+            <button type="button" id="cm-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
+          </div>
+          <form method="post" class="m-3 mt-2 rounded-2xl border border-ink-200 bg-white focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10 transition p-1.5" id="replyForm" data-optimistic="comment">
+            <?= csrf_field() ?><input type="hidden" name="action" value="reply"><input type="hidden" name="comment_id" id="replyTo" value="">
+            <div id="replyHint" class="hidden text-xs text-brand-700 px-2 pt-1"><?= e(t('بترد على:')) ?> <span class="font-semibold"></span> <button type="button" id="cancelReply" class="text-ink-500 underline ms-2"><?= e(t('إلغاء')) ?></button></div>
+            <div class="flex gap-1.5 items-end">
+              <textarea data-saved-replies data-ai="reply_variants,polish_reply,comments_triage,summarize,translate_ctx" name="message" rows="1" class="input !mt-0 flex-1 text-sm !border-0 !ring-0 !shadow-none max-h-40" placeholder="<?= e(t('اكتب تعليق على المنشور، أو دوس (رد) على تعليق معين')) ?>" data-enter-submit></textarea>
+              <?php if ($aiOn && ai_feature_on('reply_btn')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><?= ai_icon('spark', 'w-4 h-4') ?><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary !py-2.5"><?= e(t('إرسال')) ?></button>
             </div>
-            <p class="text-[11px] text-ink-400 mt-1.5"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>
           </form>
         <?php endif; ?>
       </div>
+
+      <!-- تفاصيل المنشور -->
+      <aside class="hidden 2xl:flex card flex-col min-h-0 overflow-y-auto">
+        <?php if ($postId && $current): ?>
+          <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-full aspect-video object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
+          <div class="p-4 space-y-4 text-sm">
+            <div class="inline-flex items-center gap-1.5 rounded-full bg-ink-100 px-2.5 py-1 text-[11px] text-ink-600"><?= platform_icon((string)($current['platform'] ?? ''), 'w-3.5 h-3.5') ?><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(fmt_date($current['createdTime'] ?? null, 'd/m/Y')) ?></div>
+            <p class="text-ink-800 whitespace-pre-line leading-relaxed line-clamp-[10]" dir="auto"><?= e((string)($current['content'] ?? '')) ?></p>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('التعليقات')) ?></div><div class="font-semibold text-ink-900"><?= $totalC ?></div></div>
+              <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('مخفي')) ?></div><div class="font-semibold text-ink-900"><?= $hiddenC ?></div></div>
+              <?php if ($stats['done']): ?>
+                <div class="rounded-xl bg-lime-50 border border-lime-200 p-2.5"><div class="text-[10px] text-lime-700"><?= e(t('نية شراء')) ?></div><div class="font-semibold text-lime-800"><?= $stats['intent'] ?></div></div>
+                <div class="rounded-xl bg-amber-50 border border-amber-200 p-2.5"><div class="text-[10px] text-amber-700"><?= e(t('شكاوي وسبام')) ?></div><div class="font-semibold text-amber-800"><?= $stats['complaint'] + $stats['spam'] ?></div></div>
+              <?php endif; ?>
+            </div>
+            <?php if (!$stats['done'] && $comments && $aiOn): ?><p class="text-xs text-ink-400"><?= e(t('حدد التعليقات واضغط "تصنيف" عشان تشوف نية الشراء والشكاوي.')) ?></p><?php endif; ?>
+            <?php if ($aiOn): ?>
+              <div class="space-y-1.5"><span class="text-xs font-medium text-ink-500"><?= e(t('إجراءات سريعة')) ?></span>
+                <button type="button" class="w-full btn-ghost !justify-start !text-xs" data-cp-insight-chat="<?= e(t('لخّص التعليقات على المنشور ده: الناس قالت إيه، مين عايز يشتري، وإيه الشكاوي.')) ?>"><?= ai_icon('spark', 'w-3.5 h-3.5 text-brand-600') ?><?= e(t('لخّص التعليقات')) ?></button>
+              </div>
+            <?php endif; ?>
+            <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="w-full btn-ghost !text-xs"><?= e(t('فتح المنشور ↗')) ?></a><?php endif; ?>
+          </div>
+        <?php else: ?>
+          <div class="flex-1 flex items-center justify-center p-6 text-center text-xs text-ink-400"><?= e(t('تفاصيل المنشور هتظهر هنا.')) ?></div>
+        <?php endif; ?>
+      </aside>
     </div>
     </div>
+
+    <!-- رد على المحدد -->
+    <dialog id="cm-dlg" class="w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
+      <form method="dialog" id="cm-form" class="flex flex-col">
+        <div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1 text-ink-900"><?= e(t('رد على المحدد')) ?> (<span id="cm-dn">0</span>)</b><button type="button" data-cm-close class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>
+        <div class="p-5 space-y-3">
+          <textarea name="message" data-saved-replies data-ai="improve,shorten,tone_friendly" rows="4" required class="input text-sm" placeholder="<?= e(t('أهلًا {name}، شكرًا لتعليقك! بعتنالك التفاصيل في الخاص.')) ?>"></textarea>
+          <p class="text-[11px] text-ink-500 -mt-1"><?= e(t('اكتب {name} في أي مكان وهيتبدّل باسم العميل.')) ?></p>
+          <?php if ($aiOn): ?><label class="flex items-start gap-2.5 text-sm"><input type="checkbox" name="vary" value="1" class="mt-1" checked><span><b class="text-ink-900"><?= e(t('صياغة مختلفة لكل تعليق')) ?></b><span class="block text-xs text-ink-500"><?= e(t('عشان الردود ماتبانش آلية، وفيسبوك مايعتبرهاش سبام. بيستهلك طلب لكل تعليق.')) ?></span></span></label><?php endif; ?>
+          <div id="cm-prog" class="hidden"><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-l from-brand-600 to-lime-500 transition-all" style="width:0"></div></div><p class="text-xs text-ink-500 mt-1.5"></p></div>
+        </div>
+        <div class="flex items-center gap-2 px-5 py-3 border-t border-ink-200"><span id="cm-err" class="text-xs text-red-600"></span><button type="button" data-cm-close class="ms-auto btn-ghost"><?= e(t('إلغاء')) ?></button><button type="submit" id="cm-go" class="btn-primary"><?= e(t('ابدأ الرد')) ?></button></div>
+      </form>
+    </dialog>
+    <script>window.CMX = <?= json_encode(['sel' => t('محدد'), 'all' => t('تحديد الكل'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'pick' => t('حدد تعليق واحد على الأقل.'), 'done' => t('تم: %s'), 'confirmAi' => t('هيتم تحليل %s تعليق بالذكاء الاصطناعي. تكمل؟'), 'confirmHide' => t('إخفاء %s تعليق؟'), 'progress' => t('اترد على %s من %s'), 'finished' => t('خلص: اترد على %s، وفشل %s')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.SAVED_REPLIES = <?= json_encode(['items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/comments.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-});
+}, ['full' => true]);

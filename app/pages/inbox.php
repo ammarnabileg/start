@@ -20,6 +20,9 @@ if ($platform !== '' && !in_array($platform, $msgPlatforms, true)) $platform = '
 // Filters kept on every link
 $base = array_filter(['folder' => $folder !== 'inbox' ? $folder : null, 'status' => $status !== 'active' ? $status : null, 'platform' => $platform, 'acct' => $acctFilter, 'q' => $q], function ($v) { return $v !== null && $v !== ''; });
 
+// أدوات الفريق: إسناد، حالة، ملاحظات، ردود محفوظة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'team_') === 0 || ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'reply_') === 0)) team_post((string)$_POST['action']);
+
 // إجراءات جماعية وحملات الرسائل (JSON): على المحادثات اللي المستخدم حددها
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['bulk', 'camp_create', 'camp_status', 'camp_ctl', 'camp_tick'], true)) {
     header('Content-Type: application/json; charset=utf-8');
@@ -473,6 +476,8 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           if ($d < 7 * 86400) return t('%s ي', (int)($d / 86400)); return fmt_date($iso, 'd/m');
       };
       $unreadTotal = array_sum(array_map(function ($c) { return (int)($c['unreadCount'] ?? 0); }, $convs));
+      $meta = conv_meta_all((int)ws('id')); $members = ws_members((int)ws('id')); $me = (int)(current_user()['id'] ?? 0); $states = conv_states();
+      $ini = function ($n) { $n = trim((string)$n); return $n === '' ? '?' : mb_strtoupper(mb_substr($n, 0, 1)); };
     ?>
     <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-13rem)] min-h-[560px]" id="ibx">
       <!-- قائمة المحادثات -->
@@ -489,6 +494,8 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <button type="button" data-ibx-filter="intent" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100 inline-flex items-center gap-1" title="<?= e(t('نية شراء')) ?>"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg><span class="hidden sm:inline"><?= e(t('شراء')) ?></span></button>
             <?php endif; ?>
             <button type="button" data-ibx-filter="unread" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100" title="<?= e(t('غير المقروءة فقط')) ?>"><?= e(t('غير مقروء')) ?></button>
+            <button type="button" data-ibx-filter="mine" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100" title="<?= e(t('المسندة لي')) ?>"><?= e(t('لي')) ?></button>
+            <select id="ibx-state" class="h-8 rounded-lg border-0 bg-transparent text-xs text-ink-600 hover:bg-ink-100 cursor-pointer pe-6" title="<?= e(t('الحالة')) ?>"><option value=""><?= e(t('كل الحالات')) ?></option><?php foreach ($states as $sk => $sl): ?><option value="<?= $sk ?>"><?= e($sl) ?></option><?php endforeach; ?></select>
           </div>
         </div>
         <div data-live="list" class="flex-1 min-h-0 overflow-y-auto">
@@ -496,7 +503,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
             <div class="p-10 text-center"><div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center"><?= ui_icon('chat', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p></div>
           <?php endif; ?>
           <?php foreach ($convs as $c): $on = $c['id'] === $convId; $lb = $aiLab[$c['id']] ?? null; $un = (int)($c['unreadCount'] ?? 0); $nm = (string)($c['participantName'] ?? $c['participantUsername'] ?? t('بدون اسم')); ?>
-            <div class="ibx-item group relative flex items-stretch border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-key="<?= e($c['id'] . '|' . $c['accountId']) ?>" data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-unread="<?= $un ? 1 : 0 ?>">
+            <div class="ibx-item group relative flex items-stretch border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-key="<?= e($c['id'] . '|' . $c['accountId']) ?>" data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-unread="<?= $un ? 1 : 0 ?>" data-mine="<?= (int)(($meta[(string)$c['id']]['assignee_id'] ?? 0) == $me && $me) ?>" data-state="<?= e($meta[(string)$c['id']]['state'] ?? 'open') ?>">
               <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
               <label class="ibx-cb flex items-center ps-3 pe-1 cursor-pointer"><input type="checkbox" class="ibx-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label>
               <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex-1 min-w-0 flex gap-3 py-3 pe-3">
@@ -504,6 +511,8 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <span class="text-sm truncate <?= $un ? 'font-semibold text-ink-900' : 'font-medium text-ink-800' ?>"><?= e($nm) ?></span>
+                    <?php $mt = $meta[(string)$c['id']] ?? null; if ($mt && $mt['state'] !== 'open'): ?><span class="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] <?= $mt['state'] === 'closed' ? 'bg-ink-100 text-ink-500' : 'bg-cyan-100 text-cyan-700' ?>"><?= e($states[$mt['state']] ?? '') ?></span><?php endif; ?>
+                    <?php if ($mt && $mt['assignee_id'] && isset($members[(int)$mt['assignee_id']])): ?><span class="shrink-0 w-5 h-5 rounded-md bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] text-[10px] font-semibold flex items-center justify-center" title="<?= e(t('مسندة إلى %s', $members[(int)$mt['assignee_id']])) ?>"><?= e($ini($members[(int)$mt['assignee_id']])) ?></span><?php endif; ?>
                     <span class="ms-auto shrink-0 text-[11px] <?= $un ? 'text-brand-700 font-medium' : 'text-ink-400' ?>"><?= e($ago($c['lastMessageAt'] ?? $c['updatedTime'] ?? '')) ?></span>
                   </div>
                   <div class="flex items-center gap-2 mt-0.5">
@@ -674,7 +683,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <svg class="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.2 7l-6.6 6.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.5a6 6 0 108.5 8.5L20.5 13"/></svg>
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
-              <textarea data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="1" class="input !mt-0 flex-1 text-sm !border-0 !ring-0 !shadow-none max-h-40" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
+              <textarea data-saved-replies data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="1" class="input !mt-0 flex-1 text-sm !border-0 !ring-0 !shadow-none max-h-40" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
               <?php if (ai_connection() && can('ai.use') && ai_feature_on('reply_btn')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
@@ -707,6 +716,23 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               <?php else: ?><p class="text-xs text-ink-400"><?= e(t('المحادثة دي لسه ما اتحللتش.')) ?></p><?php endif; ?>
             </div>
             <?php if ($convLabels): ?><div><span class="text-xs font-medium text-ink-500"><?= e(t('التصنيفات')) ?></span><div class="flex flex-wrap gap-1.5 mt-2"><?php foreach ($convLabels as $l): ?><span class="badge"><?= e($l['name'] ?? '') ?></span><?php endforeach; ?></div></div><?php endif; ?>
+            <?php $mt = $meta[(string)$convId] ?? ['assignee_id' => null, 'state' => 'open']; $notes = conv_notes((int)ws('id'), (string)$convId); ?>
+            <div class="space-y-2" id="ibx-team" data-conv="<?= e($convId) ?>">
+              <span class="text-xs font-medium text-ink-500"><?= e(t('الفريق')) ?></span>
+              <label class="flex items-center gap-2"><span class="text-xs text-ink-500 w-16 shrink-0"><?= e(t('مسندة إلى')) ?></span>
+                <select id="ibx-assign" class="input !mt-0 !h-9 !py-0 text-sm"><option value=""><?= e(t('بدون')) ?></option><?php foreach ($members as $mid => $mn): ?><option value="<?= $mid ?>" <?= (int)$mt['assignee_id'] === $mid ? 'selected' : '' ?>><?= e($mn) ?><?= $mid === $me ? ' (' . e(t('أنا')) . ')' : '' ?></option><?php endforeach; ?></select></label>
+              <div class="flex items-center gap-2"><span class="text-xs text-ink-500 w-16 shrink-0"><?= e(t('الحالة')) ?></span>
+                <div class="tb p-0.5 gap-0.5 !h-9 flex-1" id="ibx-states"><?php foreach ($states as $sk => $sl): ?><button type="button" data-state="<?= $sk ?>" class="flex-1 h-7 rounded-lg text-[11px] transition <?= $mt['state'] === $sk ? 'bg-brand-600 text-[#fff] font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e($sl) ?></button><?php endforeach; ?></div></div>
+            </div>
+            <div>
+              <span class="text-xs font-medium text-ink-500"><?= e(t('ملاحظات داخلية')) ?> <span class="text-ink-400 font-normal">· <?= e(t('العميل مش بيشوفها')) ?></span></span>
+              <div id="ibx-notes" class="space-y-2 mt-2">
+                <?php foreach ($notes as $n): ?>
+                  <div class="ibx-note group rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs" data-id="<?= (int)$n['id'] ?>"><div class="flex items-center gap-1.5 text-[10px] text-amber-800 mb-1"><b><?= e($n['name'] ?? '') ?></b><span>· <?= e(fmt_date($n['created_at'], 'd/m h:i A')) ?></span><?php if ((int)$n['user_id'] === $me || is_ws_owner()): ?><button type="button" class="ibx-note-del ms-auto opacity-0 group-hover:opacity-100 text-amber-700 hover:text-red-600">✕</button><?php endif; ?></div><div class="text-ink-800 whitespace-pre-wrap" dir="auto"><?= e($n['body']) ?></div></div>
+                <?php endforeach; ?>
+              </div>
+              <div class="flex gap-1.5 mt-2"><input id="ibx-note-in" class="input !mt-0 !h-9 !py-0 text-xs flex-1" placeholder="<?= e(t('اكتب ملاحظة للفريق...')) ?>"><button type="button" id="ibx-note-add" class="btn-ghost !h-9 !py-0 !px-3 !text-xs"><?= e(t('إضافة')) ?></button></div>
+            </div>
             <div class="space-y-1.5">
               <span class="text-xs font-medium text-ink-500"><?= e(t('إجراءات سريعة')) ?></span>
               <?php if ($aiOn): ?>
@@ -760,7 +786,9 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div id="camp-dock" class="hidden fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 lg:start-auto lg:end-20 lg:translate-x-0 rtl:lg:translate-x-0 z-40 w-[min(380px,92vw)] rounded-2xl border border-ink-200 bg-white shadow-2xl"></div>
     <script>window.IBX = <?= json_encode(['n' => t('%s محادثة'), 'sel' => t('محدد'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'done' => t('تم: %s'), 'started' => t('بدأت الحملة: %s محادثة'), 'skipped' => t('اتستبعد %s'),
         'campaigns' => t('الحملات'), 'running' => t('شغالة'), 'paused' => t('متوقفة'), 'done2' => t('خلصت'), 'cancelled' => t('اتلغت'), 'pause' => t('إيقاف مؤقت'), 'resume' => t('كمّل'), 'cancel' => t('إلغاء'),
-        'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.'), 'confirmAi' => t('هيتم تحليل %s محادثة بالذكاء الاصطناعي (طلب واحد لكل 20 محادثة). تكمل؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script>window.SAVED_REPLIES = <?= json_encode(['items' => saved_replies((int)ws('id')), 'manage' => t('إدارة الردود المحفوظة'), 'empty' => t('مفيش ردود محفوظة. اكتب # واختصار جديد عشان تضيف.'), 'add' => t('إضافة رد محفوظ'), 'shortcut' => t('الاختصار'), 'body' => t('نص الرد'), 'save' => t('حفظ'), 'del' => t('حذف'), 'hint' => t('اكتب # للردود المحفوظة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

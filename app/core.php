@@ -16,6 +16,7 @@ require_once __DIR__ . '/ai_context.php';
 require_once __DIR__ . '/ai_jobs.php';
 require_once __DIR__ . '/ai_kb.php';
 require_once __DIR__ . '/campaigns.php';
+require_once __DIR__ . '/inbox_team.php';
 require_once __DIR__ . '/views/ai_settings.php';
 require_once __DIR__ . '/mailer.php';
 

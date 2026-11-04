@@ -2,7 +2,7 @@
 (function () {
   var X = window.IBX; if (!X) return;
   var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
-  var sel = new Set(), filt = { urgent: false, intent: false, unread: false };
+  var sel = new Set(), filt = { urgent: false, intent: false, unread: false, mine: false, state: '' };
   try { var sv = JSON.parse(sessionStorage.getItem('ibx-sel') || '[]'); sv.forEach(function (k) { sel.add(k); }); filt = Object.assign(filt, JSON.parse(localStorage.getItem('ibx-filt') || '{}')); } catch (e) {}
   function persist() { try { sessionStorage.setItem('ibx-sel', JSON.stringify([...sel])); localStorage.setItem('ibx-filt', JSON.stringify(filt)); } catch (e) {} }
   function post(data) {
@@ -20,13 +20,14 @@
       if (!el.dataset.ord) el.dataset.ord = i;
       var cb = el.querySelector('.ibx-sel'), on = sel.has(el.dataset.key);
       if (cb) cb.checked = on; el.classList.toggle('bg-brand-50/40', on);
-      el.classList.toggle('hidden', (filt.intent && el.dataset.intent !== '1') || (filt.unread && el.dataset.unread !== '1'));
+      el.classList.toggle('hidden', (filt.intent && el.dataset.intent !== '1') || (filt.unread && el.dataset.unread !== '1') || (filt.mine && el.dataset.mine !== '1') || (filt.state && el.dataset.state !== filt.state));
     });
     if (filt.urgent) {
       var sorted = its.slice().sort(function (a, b) { return (+b.dataset.urg) - (+a.dataset.urg) || (+a.dataset.ord) - (+b.dataset.ord); });
       var tail = list.querySelector(':scope > a'); sorted.forEach(function (el) { list.insertBefore(el, tail); });
     }
     document.querySelectorAll('[data-ibx-filter]').forEach(function (b) { var on = filt[b.dataset.ibxFilter]; b.classList.toggle('bg-brand-50', on); b.classList.toggle('text-brand-700', on); });
+    var stSel = document.getElementById('ibx-state'); if (stSel && stSel.value !== filt.state) stSel.value = filt.state;
     bar();
   }
   function bar() {
@@ -43,6 +44,8 @@
   document.addEventListener('change', function (e) {
     var c = e.target.closest('.ibx-sel');
     if (c) { var k = c.closest('.ibx-item').dataset.key; c.checked ? sel.add(k) : sel.delete(k); persist(); apply(); return; }
+    if (e.target.id === 'ibx-state') { filt.state = e.target.value; persist(); apply(); return; }
+    if (e.target.id === 'ibx-assign') { team({ action: 'team_assign', user: e.target.value }); return; }
     if (e.target.id === 'ibx-all') { items().forEach(function (el) { if (el.classList.contains('hidden')) return; e.target.checked ? sel.add(el.dataset.key) : sel.delete(el.dataset.key); }); persist(); apply(); }
   });
   // Shift+click: تحديد مجموعة ورا بعض
@@ -71,8 +74,38 @@
     }
   });
 
+  // أدوات الفريق على المحادثة المفتوحة
+  function team(data) {
+    var box = document.getElementById('ibx-team'); if (!box) return Promise.resolve({});
+    data.conv = box.dataset.conv;
+    return post(data).then(function (d) { if (d.error) toast(d.error, true); return d; }).catch(function () { toast(X.err, true); });
+  }
+  document.addEventListener('click', function (e) {
+    var st = e.target.closest('#ibx-states [data-state]');
+    if (st) {
+      document.querySelectorAll('#ibx-states [data-state]').forEach(function (b) { var on = b === st; b.classList.toggle('bg-brand-600', on); b.classList.toggle('text-[#fff]', on); b.classList.toggle('font-medium', on); b.classList.toggle('text-ink-600', !on); });
+      team({ action: 'team_state', state: st.dataset.state }); return;
+    }
+    if (e.target.closest('#ibx-note-add')) { addNote(); return; }
+    var nd = e.target.closest('.ibx-note-del'); if (nd) { var n = nd.closest('.ibx-note'); team({ action: 'team_note_del', id: n.dataset.id }).then(function () { n.remove(); }); }
+  });
+  document.addEventListener('keydown', function (e) { if (e.target.id === 'ibx-note-in' && e.key === 'Enter') { e.preventDefault(); addNote(); } });
+  function addNote() {
+    var inp = document.getElementById('ibx-note-in'); if (!inp || !inp.value.trim()) return;
+    var body = inp.value.trim(); inp.value = '';
+    team({ action: 'team_note', body: body }).then(function (d) {
+      if (!d || !d.ok) return;
+      var n = document.createElement('div'); n.className = 'ibx-note group rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs'; n.dataset.id = d.id;
+      n.innerHTML = '<div class="flex items-center gap-1.5 text-[10px] text-amber-800 mb-1"><b></b><span></span><button type="button" class="ibx-note-del ms-auto opacity-0 group-hover:opacity-100 text-amber-700 hover:text-red-600">✕</button></div><div class="text-ink-800 whitespace-pre-wrap" dir="auto"></div>';
+      n.querySelector('b').textContent = d.name; n.querySelector('span').textContent = '· ' + d.time; n.lastChild.textContent = body;
+      document.getElementById('ibx-notes').appendChild(n);
+    });
+  }
+
   function bulk(op, keys, btn) {
     if (!keys.length) { toast(X.pickFirst, true); return; }
+    // التحليل بيستهلك رصيد: تأكيد بعدد المحادثات قبل ما يبدأ
+    if (op === 'classify' && keys.length > 1 && !confirm(X.confirmAi.replace('%s', keys.length))) return;
     btn.disabled = true; btn.classList.add('animate-pulse');
     post({ action: 'bulk', op: op, items: keys }).then(function (d) {
       if (d.error) { toast(d.error, true); return; }

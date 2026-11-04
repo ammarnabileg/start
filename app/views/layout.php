@@ -64,7 +64,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <body class="min-h-screen">
 
 <!-- الشريط العلوي -->
-<header class="fixed top-0 inset-x-0 h-16 z-40 bg-white/90 backdrop-blur border-b border-ink-200 flex items-center gap-3 px-4">
+<header class="fixed top-0 inset-x-0 h-16 z-[56] bg-white/90 backdrop-blur border-b border-ink-200 flex items-center gap-3 px-4">
   <button id="menuBtn" class="lg:hidden p-2 rounded-lg hover:bg-ink-100" aria-label="<?= e(t('القائمة')) ?>"><?= $icon('M4 6h16M4 12h16M4 18h16', 'w-6 h-6') ?></button>
   <a href="<?= e(url('dashboard')) ?>" class="flex items-center gap-2.5">
     <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></span>
