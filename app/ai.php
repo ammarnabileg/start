@@ -363,6 +363,7 @@ function ai_price_map(): array
             $in = (float)($m['pricing']['prompt'] ?? -1);
             $out = (float)($m['pricing']['completion'] ?? -1);
             if ($in < 0 || $out < 0) continue;
+            $mods = (array)($m['architecture']['input_modalities'] ?? []);
             $map[ai_price_key($id)] = ['in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4), 'vision' => in_array('image', $mods, true)];
         }
         if ($map) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($map)); }
