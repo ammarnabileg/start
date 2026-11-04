@@ -134,6 +134,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 }
             }
         }
+        // صور Higgsfield: بننزلها ونرفعها لأن روابطها بتنتهي بعد 7 أيام
+        foreach (array_slice((array)($_POST['ai_media'] ?? []), 0, 4) as $u) {
+            $u = (string)$u;
+            if ($errors || empty($_SESSION['hf_urls'][$u])) continue;
+            $tmp = tempnam(sys_get_temp_dir(), 'hf');
+            $ch = curl_init($u);
+            $fp = fopen($tmp, 'wb');
+            curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 60, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
+            $okDl = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400;
+            curl_close($ch); fclose($fp);
+            $mime = $okDl ? (string)mime_content_type($tmp) : '';
+            if (!$okDl || strpos($mime, 'image/') !== 0 || filesize($tmp) > 25 * 1048576) { $errors[] = t('تعذر تحميل الصورة المولدة. ولّدها مرة أخرى.'); @unlink($tmp); continue; }
+            try {
+                $media[] = ['type' => 'image', 'url' => $z->uploadFile($tmp, 'ai-' . substr(md5($u), 0, 10) . '.' . (explode('/', $mime)[1] ?? 'jpg'), $mime)];
+            } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
+            @unlink($tmp);
+        }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
 
         $payload = ['content' => $old['content'], 'platforms' => $platforms, 'timezone' => site_timezone()];
@@ -205,6 +222,60 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
+          <?php if (connector('higgsfield')): ?>
+          <div class="mt-4 rounded-2xl border border-dashed border-ink-300 p-4" id="hf-box">
+            <div class="flex items-center gap-2 mb-2"><span class="w-6 h-6 rounded-lg bg-[#0B0B0F] text-[#fff] text-xs font-semibold flex items-center justify-center">H</span><b class="text-sm text-ink-900"><?= e(t('توليد صورة بالذكاء الاصطناعي')) ?></b></div>
+            <div class="flex gap-2 items-start">
+              <textarea id="hf-prompt" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e(t('صف الصورة: مثلاً كوب قهوة على طاولة خشب بإضاءة صباحية...')) ?>"></textarea>
+              <button type="button" id="hf-go" class="btn-primary shrink-0"><?= e(t('توليد')) ?></button>
+            </div>
+            <p id="hf-status" class="text-xs text-ink-500 mt-2 hidden"></p>
+            <div id="hf-results" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"></div>
+            <p class="text-[11px] text-ink-400 mt-2"><?= e(t('اضغط على الصورة لإضافتها للمنشور. التوليد يستهلك من رصيد Higgsfield.')) ?></p>
+          </div>
+          <script>
+          (function () {
+            var go = document.getElementById('hf-go'), pr = document.getElementById('hf-prompt'), st = document.getElementById('hf-status'), res = document.getElementById('hf-results'), form = go.closest('form');
+            var csrf = document.querySelector('meta[name=csrf-token]').content;
+            function call(data) { var fd = new FormData(); for (var k in data) fd.append(k, data[k]); return fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf } }).then(function (r) { return r.json(); }); }
+            function msg(t, err) { st.textContent = t; st.classList.remove('hidden'); st.classList.toggle('text-red-600', !!err); }
+            function done() { go.disabled = false; go.textContent = <?= json_encode(t('توليد'), JSON_UNESCAPED_UNICODE) ?>; }
+            go.addEventListener('click', function () {
+              if (!pr.value.trim()) { pr.focus(); return; }
+              go.disabled = true; go.textContent = (window.T && T.working) || '...'; msg(<?= json_encode(t('جاري التوليد... غالبًا يأخذ من 10 إلى 60 ثانية.'), JSON_UNESCAPED_UNICODE) ?>);
+              call({ task: 'image', text: pr.value }).then(function (d) {
+                if (d.error) { msg(d.error, true); done(); return; }
+                var tries = 0;
+                (function poll() {
+                  call({ task: 'image_status', id: d.id }).then(function (s) {
+                    if (s.error) { msg(s.error, true); done(); return; }
+                    if (s.status === 'completed') {
+                      st.classList.add('hidden'); done();
+                      s.images.forEach(function (u) {
+                        var b = document.createElement('button'); b.type = 'button';
+                        b.className = 'relative rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-400 transition aspect-square bg-ink-100';
+                        b.innerHTML = '<img class="w-full h-full object-cover" alt=""><span class="absolute top-1.5 end-1.5 hidden w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs items-center justify-center">✓</span>';
+                        b.querySelector('img').src = u;
+                        b.addEventListener('click', function () {
+                          var on = !b.dataset.on; b.dataset.on = on ? '1' : '';
+                          b.classList.toggle('border-brand-600', on); b.lastChild.classList.toggle('hidden', !on); b.lastChild.classList.toggle('flex', on);
+                          var inp = form.querySelector('input[name="ai_media[]"][value="' + CSS.escape(u) + '"]');
+                          if (on && !inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'ai_media[]'; inp.value = u; form.appendChild(inp); }
+                          if (!on && inp) inp.remove();
+                        });
+                        res.prepend(b);
+                      });
+                      return;
+                    }
+                    if (++tries > 60) { msg(<?= json_encode(t('التوليد أخذ وقتًا أطول من المعتاد. جرّب مرة أخرى.'), JSON_UNESCAPED_UNICODE) ?>, true); done(); return; }
+                    setTimeout(poll, 3000);
+                  }).catch(function () { setTimeout(poll, 5000); });
+                })();
+              }).catch(function () { msg((window.T && T.liveFailed) || 'Error', true); done(); });
+            });
+          })();
+          </script>
+          <?php endif; ?>
           <p class="text-xs text-ink-500 mt-1"><?= e(t('أقصى حجم للملف على السيرفر بتاعك:')) ?> <?= e(ini_get('upload_max_filesize')) ?></p>
         </div>
 

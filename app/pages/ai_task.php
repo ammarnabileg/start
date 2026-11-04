@@ -3,6 +3,45 @@
 header('Content-Type: application/json; charset=utf-8');
 $task = (string)($_POST['task'] ?? '');
 $out = function (array $d, int $code = 200) { http_response_code($code); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+// توليد الصور عن طريق Higgsfield: طلب، وبعدين متابعة الحالة لحد ما تخلص
+if (in_array($task, ['image', 'image_status'], true)) {
+    if (!can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    $hf = connector('higgsfield');
+    if (!$hf) $out(['error' => t('اربط Higgsfield أولًا من صفحة التكاملات.')], 422);
+    $c = $hf['credentials'];
+    try {
+        if ($task === 'image') {
+            $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500);
+            if ($prompt === '') $out(['error' => t('اكتب وصف الصورة أولًا.')], 422);
+            $path = '/' . ltrim(trim((string)($c['model'] ?? '')) ?: '/higgsfield-ai/soul/v2/standard', '/');
+            if (!preg_match('#^/[\w./-]+$#', $path)) $out(['error' => t('مسار الموديل غير صحيح.')], 422);
+            $r = hf_request($c, 'POST', $path, ['prompt' => $prompt]);
+            $id = (string)($r['request_id'] ?? '');
+            if ($id === '') throw new Exception(t('لم يرجع Higgsfield رقم الطلب.'));
+            $_SESSION['hf_req'][$id] = 1;
+            log_activity('ai.image', $path);
+            $out(['id' => $id, 'status' => $r['status'] ?? 'queued']);
+        }
+        $id = (string)($_POST['id'] ?? '');
+        if (!preg_match('/^[\w-]{8,80}$/', $id) || empty($_SESSION['hf_req'][$id])) $out(['error' => t('طلب غير صحيح.')], 400);
+        $r = hf_request($c, 'GET', '/requests/' . $id . '/status');
+        $st = (string)($r['status'] ?? '');
+        if ($st === 'completed') {
+            $urls = array_values(array_filter(array_map(function ($i) { return (string)($i['url'] ?? ''); }, $r['images'] ?? [])));
+            foreach ($urls as $u) $_SESSION['hf_urls'][$u] = 1; // بس الروابط دي اللي هنقبلها في المنشور
+            unset($_SESSION['hf_req'][$id]);
+            $out(['status' => 'completed', 'images' => $urls]);
+        }
+        if (in_array($st, ['failed', 'nsfw', 'canceled'], true)) {
+            unset($_SESSION['hf_req'][$id]);
+            $out(['status' => $st, 'error' => $st === 'nsfw' ? t('رفض Higgsfield الوصف لأنه مخالف لسياسة المحتوى.') : t('فشل توليد الصورة. جرّب وصفًا مختلفًا.')]);
+        }
+        $out(['status' => $st ?: 'queued']);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !in_array($task, ['compose', 'reply'], true)) $out(['error' => t('طلب غير صحيح.')], 400);
 if ($task === 'compose' && !can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
 if ($task === 'reply' && !can('inbox.reply') && !can('comments.reply')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);

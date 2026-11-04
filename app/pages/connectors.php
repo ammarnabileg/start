@@ -200,7 +200,7 @@ function connector_logo(array $def, string $size = 'w-12 h-12 text-lg'): string
     return '<div class="' . $size . ' shrink-0 rounded-2xl text-[#fff] font-semibold flex items-center justify-center shadow-sm" style="background:linear-gradient(135deg,' . e($def['color']) . ',' . e($def['color']) . 'cc)">' . e($def['logo']) . '</div>';
 }
 
-$cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء الاصطناعي'), 'email' => t('الإيميل')];
+$cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء الاصطناعي'), 'creative' => t('التصميم والصور'), 'email' => t('الإيميل')];
 
 render(t('التكاملات'), 'connectors', function () use ($registry, $details, $cats) {
     $all = [];

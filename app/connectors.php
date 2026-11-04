@@ -96,6 +96,22 @@ function connector_registry(): array
                 return t('%s موديل متاح', count(ai_test_key('gemini', $c['api_key'])));
             },
         ],
+        'higgsfield' => [
+            'name' => 'Higgsfield', 'category' => 'creative', 'single' => true,
+            'logo' => 'H', 'color' => '#0B0B0F',
+            'description' => t('توليد الصور بالذكاء الاصطناعي من وصف مكتوب، وإضافتها للمنشور مباشرة.'),
+            'docs' => 'https://cloud.higgsfield.ai/api-keys',
+            'help' => t('من Higgsfield ← API Keys: انسخ Key ID و Key Secret. التوليد يستهلك من رصيدك هناك.'),
+            'fields' => [
+                ['key' => 'key_id', 'label' => 'Key ID', 'placeholder' => 'xxxxxxxx-xxxx-...'],
+                ['key' => 'key_secret', 'label' => 'Key Secret', 'secret' => true],
+                ['key' => 'model', 'label' => t('مسار الموديل'), 'placeholder' => '/higgsfield-ai/soul/v2/standard', 'default' => '/higgsfield-ai/soul/v2/standard', 'optional' => true],
+            ],
+            'test' => function (array $c): string {
+                hf_request($c, 'GET', '/models/usage?' . http_build_query(['start' => gmdate('Y-m-d', time() - 86400 * 7), 'end' => gmdate('Y-m-d'), 'timeframe' => 'day']));
+                return t('المفتاح يعمل');
+            },
+        ],
     ];
 }
 
@@ -157,4 +173,32 @@ function save_connector(PDO $pdo, int $wid, string $provider, array $credentials
     $pdo->prepare("INSERT INTO connectors (workspace_id, provider, credentials, settings, info, label, checked_at) VALUES (?, ?, ?, ?, ?, ?, NOW())")
         ->execute([$wid, $provider, $enc, json_encode($settings), $info, $label]);
     return (int)$pdo->lastInsertId();
+}
+
+/* ---------- Higgsfield ---------- */
+
+function hf_base(): string
+{
+    $mock = getenv('AI_MOCK_BASE');
+    return $mock ? rtrim($mock, '/') . '/higgsfield' : 'https://api.higgsfield.ai';
+}
+
+/** طلب لـ Higgsfield. $path ممكن يبقى رابط كامل (status_url) بس لازم يكون على نفس الدومين */
+function hf_request(array $c, string $method, string $path, ?array $body = null): array
+{
+    $url = strpos($path, 'https://') === 0 || strpos($path, 'http://') === 0 ? $path : hf_base() . $path;
+    if (strpos($url, hf_base() . '/') !== 0) throw new Exception('Invalid Higgsfield URL');
+    $ch = curl_init($url);
+    $h = ['Accept: application/json', 'Authorization: Key ' . $c['key_id'] . ':' . $c['key_secret']];
+    if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 40, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
+    $raw = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+    if ($raw === false) throw new Exception(t('تعذر الاتصال بـ %s: %s', 'Higgsfield', $err));
+    $d = json_decode($raw, true) ?: [];
+    if ($st === 401 || $st === 403) throw new Exception(t('مفتاح %s غير صحيح أو ليس له صلاحية.', 'Higgsfield'));
+    if ($st >= 400) {
+        $m = $d['detail'] ?? $d['message'] ?? ('HTTP ' . $st);
+        throw new Exception(is_string($m) ? $m : json_encode($m, JSON_UNESCAPED_UNICODE));
+    }
+    return $d;
 }
