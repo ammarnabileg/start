@@ -11,7 +11,8 @@
     history.replaceState(null, '', '#' + k);
   }
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-kb-go]'); if (b) { go(b.dataset.kbGo); if (innerWidth < 1024) root.scrollIntoView({ behavior: 'smooth' }); } });
-  var start = location.hash.slice(1); if (!start || !root.querySelector('[data-kb="' + start + '"]')) start = 'files'; go(start);
+  function fromHash() { var start = location.hash.slice(1); if (!start || !root.querySelector('[data-kb="' + start + '"]')) start = 'files'; go(start); }
+  fromHash(); window.addEventListener('hashchange', fromHash);
 
   function progress() {
     var dots = root.querySelectorAll('.kb-dot'), done = 0; dots.forEach(function (d) { if (d.classList.contains('bg-lime-500')) done++; });
