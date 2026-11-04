@@ -348,3 +348,10 @@ function kb_handoff_email(int $wid, string $customer, string $channel, string $m
     }
     return $ok > 0;
 }
+
+/** أقصى حجم رفع حقيقي على السيرفر (بالبايت): الأصغر بين upload_max_filesize و post_max_size و 15 ميجا */
+function kb_upload_limit(): int
+{
+    $b = function ($v) { $v = trim((string)$v); if ($v === '' || $v === '0') return PHP_INT_MAX; $n = (float)$v; $u = strtolower(substr($v, -1)); return (int)($u === 'g' ? $n * 1073741824 : ($u === 'm' ? $n * 1048576 : ($u === 'k' ? $n * 1024 : $n))); };
+    return (int)min($b(ini_get('upload_max_filesize')), $b(ini_get('post_max_size')) - 65536, 15 * 1048576);
+}

@@ -177,11 +177,26 @@
 
   // الملفات
   var input = document.getElementById('kb-file'), drop = document.getElementById('kb-drop'), list = document.getElementById('kb-files');
+  // تصغير صورة لحد ما تبقى أقل من الحد (أقصى ضلع 2400 ثم أقل)
+  function shrink(file, max) {
+    return createImageBitmap(file).then(function (img) {
+      var side = 2400;
+      return (function tryOnce(q) {
+        var k = Math.min(1, side / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        return new Promise(function (ok) { c.toBlob(ok, 'image/jpeg', q); }).then(function (b) {
+          if (b && b.size <= max) return b;
+          if (side <= 800) return null;
+          side = Math.round(side * 0.7); return tryOnce(0.8);
+        });
+      })(0.85);
+    }).catch(function () { return null; });
+  }
   function upload(files) {
-    var okAny = false;
+    var okAny = false, bad = false;
     // ملف ورا التاني (الـ OCR تقيل)، ونحدّث الصفحة مرة واحدة في الآخر
     [].slice.call(files).reduce(function (chain, file) { return chain.then(function () { return one(file); }); }, Promise.resolve())
-      .then(function () { if (okAny) { location.hash = 'files'; location.reload(); } });
+      .then(function () { if (okAny && !bad) { location.hash = 'files'; location.reload(); } });
     function one(file) {
       var ph = document.createElement('div'); ph.className = 'rounded-xl border border-brand-200 bg-brand-50/50 p-3 text-sm flex items-center gap-3';
       ph.innerHTML = '<svg class="w-4 h-4 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span class="flex-1 truncate"></span><span class="text-xs text-ink-500"></span>';
@@ -192,14 +207,25 @@
         ? Promise.race([window.extractText(file, function (p, kind) { st.textContent = (kind === 'ocr' ? K.ocr : K.reading) + ' ' + Math.round(p * 100) + '%'; }),
             new Promise(function (r) { setTimeout(function () { r(null); }, 180000); })]).catch(function () { return null; })
         : Promise.resolve(null);
+      var max = K.maxUp || 15728640;
       return local.then(function (r) {
-        if (r && r.text) { fd.append('client_text', r.text); fd.append('client_method', r.method); }
         st.textContent = K.uploading;
-        return post(fd);
+        // النص اتقرا في المتصفح: نبعت النص بس (أخف بكتير، ومفيش مشكلة حجم على السيرفر)
+        if (r && r.text && r.text.replace(/\s/g, '').length >= 15) {
+          var t = new FormData(); t.append('action', 'kb_upload'); t.append('client_name', file.name); t.append('client_size', file.size);
+          t.append('client_text', r.text); t.append('client_method', r.method); return post(t);
+        }
+        if (file.size <= max) return post(fd);
+        // صورة كبيرة: نصغّرها الأول
+        if (/^image\//.test(file.type)) { st.textContent = K.shrink; return shrink(file, max).then(function (b) {
+          if (!b) return { error: file.name + ': ' + K.tooBig.replace('%s', +(max / 1048576).toFixed(1)) };
+          var s2 = new FormData(); s2.append('action', 'kb_upload'); s2.append('file', b, file.name.replace(/\.\w+$/, '') + '.jpg'); return post(s2);
+        }); }
+        return { error: file.name + ': ' + K.tooBig.replace('%s', +(max / 1048576).toFixed(1)) };
       }).then(function (d) {
-        if (d.error) { ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = d.error; return; }
+        if (d.error) { bad = true; ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = d.error; return; }
         okAny = true; ph.className = 'rounded-xl border border-lime-200 bg-lime-50 p-3 text-sm flex items-center gap-3'; st.textContent = '✓ ' + d.chars;
-      }).catch(function () { ph.textContent = K.err; });
+      }).catch(function () { bad = true; ph.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'; ph.textContent = file.name + ': ' + K.err; });
     }
   }
   if (input) input.addEventListener('change', function () { upload(input.files); input.value = ''; });

@@ -645,4 +645,6 @@ Unannounced discounts',
     'بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...' => 'Reading the file in your browser (no AI)...',
     'بيقرا الكلام من الصور (OCR)...' => 'Reading text from images (OCR)...',
     'ذكاء اصطناعي' => 'AI',
+    'الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.' => 'The file is larger than the server allows (%s MB) and its text could not be read in the browser. Shrink or split the file.',
+    'بيصغّر الصورة...' => 'Shrinking the image...',
 ];

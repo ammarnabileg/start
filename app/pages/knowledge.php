@@ -50,6 +50,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'filled' => kb_filled($data, $type)]);
     }
 
+    if ($action === 'kb_upload' && empty($_FILES['file']) && isset($_POST['client_text'], $_POST['client_name'])) {
+        // الملف كبير: المتصفح طلّع النص وبعته لوحده من غير الملف نفسه
+        $name = mb_substr(preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', basename((string)$_POST['client_name'])), 0, 180);
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $text = kb_clean((string)$_POST['client_text']);
+        if (!in_array($ext, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'bmp'], true) || mb_strlen(preg_replace('/\s+/u', '', $text)) < 15) $json(['error' => t('فشل رفع الملف.')], 422);
+        $text = mb_substr($text, 0, 200000);
+        $method = preg_replace('/[^a-z+]/', '', (string)($_POST['client_method'] ?? '')) ?: 'browser';
+        $mime = $ext === 'pdf' ? 'application/pdf' : 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
+        db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, (int)($_POST['client_size'] ?? 0), $method, $text]);
+        log_activity('kb.file', $name);
+        $json(['ok' => true, 'id' => (int)db()->lastInsertId(), 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
+    }
+
     if ($action === 'kb_upload') {
         if (empty($_FILES['file']['tmp_name']) || !is_uploaded_file($_FILES['file']['tmp_name'])) $json(['error' => t('فشل رفع الملف.')], 422);
         $f = $_FILES['file'];
@@ -139,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $json(['error' => $e->getMessage()], 502);
         }
     }
+    if (empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) $json(['error' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.', (string)round(kb_upload_limit() / 1048576, 1))], 413);
     $json(['error' => t('طلب غير صحيح.')], 400);
 }
 
@@ -281,7 +296,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
     </div>
 
-    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
+    <script>window.KB = <?= json_encode(['saved' => t('تم الحفظ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'reply' => t('هيرد'), 'handoff' => t('هيحوّل لموظف'), 'reason' => t('السبب'), 'conf' => t('الثقة'), 'uploading' => t('جاري التحويل لنص...'), 'reading' => t('بيقرا الملف في المتصفح (من غير ذكاء اصطناعي)...'), 'ocr' => t('بيقرا الكلام من الصور (OCR)...'), 'del' => t('حذف الملف؟'), 'maxUp' => kb_upload_limit(), 'tooBig' => t('الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.'), 'shrink' => t('بيصغّر الصورة...'), 'total' => $total, 'filling' => t('بيقرا الملفات وبياناتك...'), 'filled' => t('راجع الاقتراح وعدّل عليه. اتحفظ تلقائيًا، وتقدر تتراجع.'), 'allDone' => t('اتملت %s أقسام'), 'none' => t('مفيش أقسام فاضية.'), 'allUpdated' => t('اتحدّثت %s أقسام'), 'updated' => t('اتحدّث القسم. راجع التغييرات، وتقدر تتراجع.'), 'confirmAll' => t('هيتحدّث كل الأقسام المليانة بالذكاء الاصطناعي. تقدر تتراجع في كل قسم لوحده. تكمل؟'),
       'sugTitle' => t('اقتراح الذكاء الاصطناعي'), 'sugHint' => t('مفيش حاجة اتحفظت لسه. راجع الاقتراح، وشيل العلامة من أي عنصر مش عايزه، وبعدين اعتمد.'), 'apply' => t('اعتمد الاقتراح'), 'dismiss' => t('تجاهل'),
       'newTag' => t('جديد'), 'changed' => t('متعدّل'), 'same' => t('زي ما هو'), 'pending' => t('%s اقتراحات مستنية مراجعتك'), 'noChange' => t('الذكاء الاصطناعي ما اقترحش أي تغيير.'),
       'labels' => ['style' => t('الأسلوب'), 'dialect' => t('اللغة واللهجة'), 'emoji' => t('الإيموجي'), 'notes' => t('ملاحظات إضافية'), 'rules' => t('القواعد'), 'words' => t('كلمات ممنوعة'), 'colors' => t('الألوان'), 'triggers' => t('حوّل لموظف لما'), 'keywords' => t('كلمات تحوّل فورًا'), 'message' => t('الرسالة اللي العميل يشوفها وقت التحويل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
