@@ -183,6 +183,9 @@ if ($z) {
 $ref = [];
 foreach ($campaigns as $c) { $b = $c['campaignBudget'] ?? $c['budget'] ?? null; if ($b && ($b['type'] ?? '') === 'daily' && (float)($b['amount'] ?? 0) > 0) $ref[(string)($c['currency'] ?? '')][] = (float)$b['amount']; }
 foreach ($ref as $k => $arr) { sort($arr); $_SESSION['ads_budget_ref'][$k] = $arr[intdiv(count($arr), 2)]; }
+$cpmAgg = [];
+foreach ($campaigns as $c) { $m = $c['metrics'] ?? []; if ((int)($m['impressions'] ?? 0) > 0) { $k = (string)($c['currency'] ?? ''); $cpmAgg[$k][0] = ($cpmAgg[$k][0] ?? 0) + (float)($m['spend'] ?? 0); $cpmAgg[$k][1] = ($cpmAgg[$k][1] ?? 0) + (int)$m['impressions']; } }
+foreach ($cpmAgg as $k => $x) if ($x[1] >= 1000 && $x[0] > 0) $_SESSION['ads_cpm_ref'][$k] = round($x[0] / $x[1] * 1000, 2);
 
 // الصرف لكل حساب إعلانات (من الحملات المعروضة)
 $spendByAcc = [];

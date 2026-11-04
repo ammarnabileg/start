@@ -172,6 +172,29 @@ if (!$form && !empty($_GET['dup'])) {
 }
 $step = 'form';
 
+// المسودات: محفوظة على مستوى الشركة (آخر 20)
+$draftKey = 'adc_drafts_' . (int)ws('id');
+$drafts = json_decode((string)setting($draftKey, '[]'), true) ?: [];
+if (!$form && !empty($_GET['draft'])) {
+    foreach ($drafts as $d) if ($d['id'] === $_GET['draft']) { $form = $d['form']; $form['_draft'] = $d['id']; }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['draft_save', 'draft_delete'], true)) {
+    if ($_POST['action'] === 'draft_save') {
+        [$f] = adc_read_form($_POST, $goals, $ctas);
+        $id = preg_replace('/[^a-f0-9]/', '', (string)($_POST['draft_id'] ?? '')) ?: bin2hex(random_bytes(6));
+        $drafts = array_values(array_filter($drafts, function ($d) use ($id) { return $d['id'] !== $id; }));
+        array_unshift($drafts, ['id' => $id, 'name' => $f['name'] !== '' ? $f['name'] : t('مسودة بدون اسم'), 'saved' => date('Y-m-d H:i'), 'by' => (string)(current_user()['name'] ?? ''), 'form' => $f]);
+        save_setting($draftKey, json_encode(array_slice($drafts, 0, 20), JSON_UNESCAPED_UNICODE));
+        unset($_SESSION['adc_form']);
+        flash('success', t('اتحفظت المسودة. الصورة المرفوعة مش بتتحفظ، رابط الصورة بس.'));
+        redirect(url('ad_create', ['draft' => $id]));
+    }
+    $id = (string)($_POST['draft_id'] ?? '');
+    save_setting($draftKey, json_encode(array_values(array_filter($drafts, function ($d) use ($id) { return $d['id'] !== $id; })), JSON_UNESCAPED_UNICODE));
+    flash('success', t('اتمسحت المسودة.'));
+    redirect(url('ad_create'));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     if ($action === 'review') {
@@ -261,7 +284,17 @@ if ($z) {
     }
 }
 
-render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets, $posts, $form, $step, $goals, $ctas) {
+$kbProducts = [];
+$kbAll = kb_get((int)ws('id'));
+$pos = [];
+foreach ((array)($kbAll['pos_offers']['rows'] ?? []) as $r) if (trim((string)($r['offer'] ?? '')) !== '') $pos[mb_strtolower(trim($r['offer']))] = $r;
+foreach ((array)($kbAll['services']['rows'] ?? []) as $r) {
+    $n = trim((string)($r['name'] ?? '')); if ($n === '') continue;
+    $pp = $pos[mb_strtolower($n)] ?? [];
+    $kbProducts[] = ['name' => $n, 'price' => (string)($r['price'] ?? ''), 'details' => (string)($r['details'] ?? ''), 'audience' => (string)($pp['audience'] ?? ''), 'problem' => (string)($pp['problem'] ?? ''), 'pod' => (string)($pp['pod'] ?? '')];
+}
+$kbSite = (string)($kbAll['contact']['website'] ?? $kbAll['company']['website'] ?? '');
+render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets, $posts, $form, $step, $goals, $ctas, $drafts, $kbProducts, $kbSite) {
     if (!$z) { no_api_box(); return; }
     $f = $form ?? [];
     $v = function ($k, $d = '') use ($f) { return $f[$k] ?? $d; };
@@ -438,6 +471,14 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
           'myCountry' => ws_country(), 'nearby' => ['EG' => ['SA', 'AE', 'KW'], 'SA' => ['AE', 'KW', 'QA', 'BH'], 'AE' => ['SA', 'QA', 'OM'], 'KW' => ['SA', 'AE', 'BH'], 'QA' => ['SA', 'AE', 'BH'], 'BH' => ['SA', 'KW', 'AE'], 'OM' => ['AE', 'SA'], 'JO' => ['SA', 'AE', 'PS'], 'MA' => ['DZ', 'TN', 'FR']][ws_country()] ?? ['SA', 'AE', 'EG'],
           'cNames' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
           'csrf' => csrf_token(), 'goalsMap' => $goals,
+          'products' => $kbProducts, 'site' => $kbSite, 'kbUrl' => url('knowledge'), 'draftId' => (string)$v('_draft'),
+          'drafts' => array_map(function ($d) { return ['id' => $d['id'], 'name' => $d['name'], 'saved' => $d['saved'], 'by' => $d['by'], 'url' => url('ad_create', ['draft' => $d['id']])]; }, $drafts),
+          'cpm' => $_SESSION['ads_cpm_ref'] ?? new stdClass(),
+          'p' => ['pick' => t('اختار منتج أو خدمة من قاعدة المعرفة'), 'none' => t('مفيش منتجات في قاعدة المعرفة لسه'), 'add' => t('ضيفها من هنا'),
+            'fmt' => [t('فيد فيسبوك'), t('ستوري'), t('انستجرام')], 'tpl' => t('ابدأ من قالب'),
+            'tpls' => [['engagement', 'boost', t('تفاعل على منشور'), t('روّج منشور نجح لوحده عشان يوصل لناس أكتر')], ['traffic', 'new', t('زيارات للموقع'), t('إعلان بصورة ورابط يودّي على صفحة المنتج')], ['awareness', 'new', t('انتشار في منطقتك'), t('أكبر وصول بأقل تكلفة لناس في دولتك')], ['video_views', 'boost', t('مشاهدات فيديو'), t('روّج فيديو منشور عندك')]],
+            'reach' => t('الظهور المتوقع'), 'reachTxt' => t('حوالي %s - %s ظهور'), 'reachBase' => t('محسوب من تكلفة الألف ظهور في حملاتك (%s). تقدير تقريبي، مش وعد.'), 'reachNone' => t('مفيش أرقام من حملاتك بالعملة دي عشان نقدّر الوصول'),
+            'save' => t('احفظ كمسودة'), 'drafts' => t('المسودات'), 'del' => t('امسح'), 'delQ' => t('تمسح المسودة دي؟'), 'by' => t('%s · %s')],
           'ai' => ['copyBtn' => t('اكتب 3 نسخ بالذكاء الاصطناعي'), 'audBtn' => t('اقترح الجمهور بالذكاء الاصطناعي'), 'focus' => t('بتعلن عن إيه؟ (اختياري: منتج أو خدمة أو عرض)'),
             'wait' => t('بيكتب...'), 'waitAud' => t('بيختار الجمهور...'), 'use' => t('استخدم النسخة دي'), 'err' => t('ما قدرناش نكمل'), 'applied' => t('اتطبق الجمهور المقترح'),
             'noInt' => t('ما لقيناش الاهتمام "%s" على المنصة'), 'needAcc' => t('اختار حساب الإعلانات الأول')],

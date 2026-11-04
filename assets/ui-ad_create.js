@@ -56,12 +56,28 @@
         + '<div class="-mx-4 px-4 py-2 bg-ink-50 flex items-center gap-2"><div class="min-w-0 flex-1"><div class="text-[11px] text-ink-500 uppercase truncate" dir="ltr">' + esc(host) + '</div><div class="text-sm font-semibold text-ink-900 truncate">' + esc(val('headline') || X.noHead) + '</div></div>'
         + '<span class="shrink-0 rounded-md bg-ink-200 text-ink-800 text-xs font-semibold px-3 py-1.5">' + esc((X.ctas || {})[val('cta')] || '') + '</span></div>';
     }
-    document.getElementById('adcPrev').innerHTML = head + body + foot;
+    var pf = window.adcPrevFmt || 0, prevEl = document.getElementById('adcPrev');
+    if (pf === 1 && mode !== 'boost') { // ستوري 9:16
+      var simg = objUrl || val('image_url');
+      prevEl.innerHTML = '<div class="relative mx-auto w-56 aspect-[9/16] rounded-2xl overflow-hidden bg-ink-800 text-white">' + (simg ? '<img src="' + esc(simg) + '" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">' : '')
+        + '<div class="absolute inset-x-0 top-0 p-3 bg-gradient-to-b from-black/60 to-transparent flex items-center gap-2 text-xs"><span class="w-7 h-7 rounded-full bg-white/30 grid place-items-center font-bold">' + esc(accName.charAt(0)) + '</span><b>' + esc(accName) + '</b><span class="opacity-75">' + esc(X.sponsored) + '</span></div>'
+        + '<div class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-sm"><p class="line-clamp-3">' + esc(val('body') || X.noText) + '</p><div class="mt-2 mx-auto w-max rounded-full bg-white text-ink-900 text-xs font-semibold px-4 py-1.5">' + esc((X.ctas || {})[val('cta')] || '') + '</div></div></div>';
+    } else if (pf === 2 && mode !== 'boost') { // انستجرام مربع
+      var iimg = objUrl || val('image_url');
+      prevEl.innerHTML = '<div class="flex items-center gap-2 mb-2"><div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-pink-500 p-0.5"><div class="w-full h-full rounded-full bg-white grid place-items-center text-xs font-bold">' + esc(accName.charAt(0)) + '</div></div><div class="text-sm"><b>' + esc(accName) + '</b><div class="text-[11px] text-ink-500">' + esc(X.sponsored) + '</div></div></div>'
+        + '<div class="-mx-4 aspect-square bg-ink-100 overflow-hidden">' + (iimg ? '<img src="' + esc(iimg) + '" alt="" class="w-full h-full object-cover" onerror="this.remove()">' : '') + '</div>'
+        + '<div class="-mx-4 px-4 py-2 border-b border-ink-100 flex justify-between text-sm font-semibold text-brand-700"><span>' + esc((X.ctas || {})[val('cta')] || '') + '</span><span>›</span></div>'
+        + '<p class="text-sm mt-2"><b>' + esc(accName) + '</b> ' + esc(val('body') || X.noText) + '</p>';
+    } else prevEl.innerHTML = head + body + foot;
     // الميزانية
     var amt = parseFloat(val('budget')) || 0, type = val('budget_type'), s = val('start') ? new Date(val('start')) : new Date(), e = val('end') ? new Date(val('end')) : null;
     var days = e ? Math.max(1, Math.round((e - s) / 864e5) + 1) : 30, h = '';
     if (type === 'daily') h = '<div class="text-2xl font-bold text-ink-900 tabular-nums">' + esc(fmt(X.perDay, money(amt, cur))) + '</div><div class="text-sm text-ink-600 mt-1">' + esc(fmt(X.estimate, money(amt * days, cur), fmt(X.days, days))) + '</div>' + (e ? '' : '<div class="text-[11px] text-ink-500 mt-1">' + esc(X.openEnd) + '</div>');
     else h = '<div class="text-2xl font-bold text-ink-900 tabular-nums">' + esc(fmt(X.total, money(amt, cur))) + '</div>' + (e ? '<div class="text-sm text-ink-600 mt-1">' + esc(fmt(X.perDay, money(amt / days, cur))) + ' · ' + esc(fmt(X.days, days)) + '</div>' : '');
+    var cpm = (X.cpm || {})[cur], P = X.p || {}, spendTot = type === 'daily' ? amt * days : amt;
+    h += '<div class="mt-3 pt-3 border-t border-ink-100"><div class="text-xs font-semibold text-ink-500">' + esc(P.reach) + '</div>' + (cpm > 0 && spendTot > 0
+      ? '<div class="text-sm font-semibold text-ink-900 mt-1">' + esc(fmt(P.reachTxt, Math.round(spendTot / cpm * 700).toLocaleString('en-US'), Math.round(spendTot / cpm * 1300).toLocaleString('en-US'))) + '</div><div class="text-[11px] text-ink-500">' + esc(fmt(P.reachBase, money(cpm, cur))) + '</div>'
+      : '<div class="text-[11px] text-ink-500 mt-1">' + esc(P.reachNone) + '</div>') + '</div>';
     var ref = (X.ref || {})[cur]; if (type === 'daily' && ref > 0 && amt >= ref * 3) h += '<div id="adcOver" class="mt-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">' + esc(fmt(X.overWarn, (amt / ref).toFixed(1), money(ref, cur))) + '</div>';
     document.getElementById('adcBud').innerHTML = h;
     // الملخص
@@ -154,7 +170,7 @@
   }
   var passed = false;
   form.addEventListener('submit', function (e) {
-    if (passed) return; var res = check(); if (!res.length) return;
+    if (passed || window.adcSkipCheck) return; var res = check(); if (!res.length) return;
     e.preventDefault(); e.stopImmediatePropagation();
     var blocks = res.filter(function (r) { return r[0] === 'block'; }).length;
     var d = document.createElement('dialog'); d.className = 'w-[min(480px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl backdrop:bg-ink-900/40';
@@ -165,4 +181,80 @@
     d.querySelector('.fx').onclick = function () { d.close(); };
     var go = d.querySelector('.go'); if (go) go.onclick = function () { passed = true; d.close(); form.requestSubmit ? form.requestSubmit() : form.submit(); };
   }, true);
+})();
+
+// الدفعة التالتة: منتج من قاعدة المعرفة، قوالب، أشكال المعاينة، مسودات
+(function () {
+  var X = window.ADC || {}, P = X.p || {}, form = document.getElementById('adcForm');
+  if (!form || form.dataset.adc3) return; form.dataset.adc3 = '1';
+  var el = form.elements, esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var redraw = function () { form.dispatchEvent(new Event('input', { bubbles: true })); };
+  // (29) منتج من قاعدة المعرفة
+  var focus = document.getElementById('adcFocus');
+  if (focus) {
+    var prods = X.products || [], wrap = document.createElement('div');
+    wrap.innerHTML = prods.length
+      ? '<select id="adcProd" class="input !bg-white text-sm"><option value="">' + esc(P.pick) + '</option>' + prods.map(function (p, i) { return '<option value="' + i + '">' + esc(p.name + (p.price ? ' · ' + p.price : '')) + '</option>'; }).join('') + '</select>'
+      : '<p class="text-xs text-ink-500">' + esc(P.none) + ' · <a class="link" href="' + esc(X.kbUrl) + '">' + esc(P.add) + '</a></p>';
+    focus.parentNode.insertBefore(wrap, focus);
+    var ps = document.getElementById('adcProd');
+    if (ps) ps.addEventListener('change', function () {
+      var p = prods[+ps.value]; if (!p) return;
+      focus.value = [p.name, p.details, p.problem && ('المشكلة: ' + p.problem), p.audience && ('الجمهور: ' + p.audience), p.pod && ('الاختلاف: ' + p.pod)].filter(Boolean).join(' — ').slice(0, 300);
+      if (el.link && !el.link.value && X.site) el.link.value = X.site;
+      if (el.name && !el.name.value) el.name.value = p.name;
+      redraw();
+    });
+  }
+  // (32) قوالب حسب الهدف
+  var first = form.querySelector('section');
+  if (first && P.tpls) {
+    var t = document.createElement('div'); t.className = 'card p-4'; t.id = 'adcTpls';
+    t.innerHTML = '<div class="text-xs font-semibold text-ink-500 mb-2">' + esc(P.tpl) + '</div><div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">' + P.tpls.map(function (x, i) { return '<button type="button" data-t="' + i + '" class="text-start rounded-xl border border-ink-200 p-3 hover:border-brand-400 hover:bg-brand-50 transition"><b class="block text-sm text-ink-900">' + esc(x[2]) + '</b><span class="text-xs text-ink-500">' + esc(x[3]) + '</span></button>'; }).join('') + '</div>';
+    first.parentNode.insertBefore(t, first);
+    t.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-t]'); if (!b) return; var x = P.tpls[+b.dataset.t];
+      if (el.goal) el.goal.value = x[0];
+      var m = form.querySelector('input[name=mode][value=' + x[1] + ']'); if (m) { m.checked = true; m.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (x[0] === 'awareness' && el.countries && X.myCountry) { el.countries.value = X.myCountry; el.countries.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (x[0] === 'traffic' && el.link && !el.link.value && X.site) el.link.value = X.site;
+      [].forEach.call(t.querySelectorAll('[data-t]'), function (y) { y.classList.toggle('border-brand-500', y === b); y.classList.toggle('bg-brand-50', y === b); });
+      redraw();
+    });
+  }
+  // (31) أشكال المعاينة
+  var prev = document.getElementById('adcPrev');
+  if (prev && P.fmt) {
+    var tabs = document.createElement('div'); tabs.className = 'flex gap-1 mb-3'; tabs.setAttribute('role', 'tablist');
+    tabs.innerHTML = P.fmt.map(function (f, i) { return '<button type="button" role="tab" data-f="' + i + '" class="flex-1 rounded-lg text-xs py-1.5 border">' + esc(f) + '</button>'; }).join('');
+    prev.parentNode.insertBefore(tabs, prev);
+    var paint = function () { [].forEach.call(tabs.children, function (b) { var on = +b.dataset.f === (window.adcPrevFmt || 0); b.className = 'flex-1 rounded-lg text-xs py-1.5 border ' + (on ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-700'); b.setAttribute('aria-selected', on); }); };
+    tabs.addEventListener('click', function (e) { var b = e.target.closest('[data-f]'); if (!b) return; window.adcPrevFmt = +b.dataset.f; paint(); redraw(); });
+    paint();
+  }
+  // (37) مسودات
+  var reviewBtn = [].filter.call(form.querySelectorAll('button'), function (b) { return !b.type || b.type === 'submit'; }).pop();
+  if (reviewBtn) {
+    var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'btn-ghost ms-2'; sb.id = 'adcDraft'; sb.textContent = P.save;
+    reviewBtn.insertAdjacentElement('afterend', sb);
+    sb.onclick = function () {
+      var a = form.querySelector('input[name=action]'); a.value = 'draft_save';
+      var di = document.createElement('input'); di.type = 'hidden'; di.name = 'draft_id'; di.value = X.draftId || ''; form.appendChild(di);
+      form.noValidate = true; window.adcSkipCheck = true; window.onbeforeunload = null;
+      var f = form.querySelector('input[type=file]'); if (f) f.disabled = true;
+      form.dispatchEvent(new Event('submit', { cancelable: true })); form.submit();
+    };
+  }
+  if ((X.drafts || []).length) {
+    var dc = document.createElement('details'); dc.className = 'card p-4'; dc.id = 'adcDrafts'; if (!X.draftId) dc.open = true;
+    dc.innerHTML = '<summary class="cursor-pointer text-sm font-semibold text-ink-900">' + esc(P.drafts) + ' (' + X.drafts.length + ')</summary><div class="mt-3 divide-y divide-ink-100">' + X.drafts.map(function (d) {
+      return '<div class="py-2 flex items-center gap-3 text-sm"><a class="link flex-1 truncate' + (d.id === X.draftId ? ' font-bold' : '') + '" href="' + esc(d.url) + '">' + esc(d.name) + '</a><span class="text-xs text-ink-500">' + esc(P.by.replace('%s', d.saved).replace('%s', d.by)) + '</span><button type="button" data-del="' + esc(d.id) + '" class="text-xs text-red-600 hover:underline">' + esc(P.del) + '</button></div>';
+    }).join('') + '</div>';
+    (document.getElementById('adcTpls') || form.querySelector('section')).insertAdjacentElement('beforebegin', dc);
+    dc.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-del]'); if (!b || !confirm(P.delQ)) return;
+      var f = document.createElement('form'); f.method = 'post'; f.hidden = true; f.innerHTML = '<input name="_csrf"><input name="action" value="draft_delete"><input name="draft_id">';
+      f.elements._csrf.value = X.csrf; f.elements.draft_id.value = b.dataset.del; document.body.appendChild(f); f.submit();
+    });
+  }
 })();
