@@ -64,7 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 $camp = null;
 $apiError = null;
 [$from, $to] = ads_date_range($range);
-if ($z) {
+$fx = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_campaign.json' : '';
+if ($fx && is_file($fx)) {
+    $camp = json_decode((string)file_get_contents($fx), true);
+} elseif ($z) {
     try {
         $camp = ads_campaign_tree($z, $cid, $from, $to, $pf ?: null);
     } catch (ZernioException $ex) {
@@ -165,16 +168,18 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
           <span class="text-xs text-ink-500 ms-auto self-center" dir="ltr"><?= e($from . ' → ' . $to) ?></span>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <?php foreach ([
               [t('الصرف'), ads_money($m['spend'] ?? 0, $cur)],
               [t('مرات الظهور'), ads_num($m['impressions'] ?? 0)],
               [t('الوصول'), ads_num($m['reach'] ?? 0)],
               [t('الضغطات'), ads_num($m['clicks'] ?? 0)],
-              ['CTR / CPC', number_format((float)($m['ctr'] ?? 0), 2) . '% / ' . ads_money($m['cpc'] ?? 0)],
+              [t('نسبة الضغط') . ' / ' . t('تكلفة الضغطة'), number_format((float)($m['ctr'] ?? 0), 2) . '% / ' . ads_money($m['cpc'] ?? 0)],
               [t('النتايج'), ads_num(ads_results($m))],
+              [t('تكلفة الألف ظهور'), ($m['impressions'] ?? 0) > 0 ? ads_money(($m['spend'] ?? 0) / $m['impressions'] * 1000, $cur) : '—'],
+              [t('تكلفة النتيجة'), ads_results($m) > 0 ? ads_money(($m['spend'] ?? 0) / ads_results($m), $cur) : '—'],
           ] as $k): ?>
-            <div class="card p-4"><div class="text-xs text-ink-500"><?= e($k[0]) ?></div><div class="text-lg font-bold text-ink-900 mt-1"><?= e($k[1]) ?></div></div>
+            <div class="card p-4"><div class="text-xs text-ink-500"><?= e($k[0]) ?></div><div class="ads-num text-lg font-bold text-ink-900 mt-1 tabular-nums text-start" dir="ltr"><?= e($k[1]) ?></div></div>
           <?php endforeach; ?>
         </div>
 
@@ -194,7 +199,12 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
 
         <!-- المجموعات والإعلانات -->
         <section class="space-y-4">
-          <h3 class="font-bold text-ink-900"><?= e(t('المجموعات الإعلانية والإعلانات')) ?></h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="font-bold text-ink-900 me-auto"><?= e(t('المجموعات الإعلانية والإعلانات')) ?></h3>
+            <input id="acx-q" class="input !py-1.5 w-56 text-sm" placeholder="<?= e(t('ابحث في الإعلانات...')) ?>" aria-label="<?= e(t('ابحث في الإعلانات...')) ?>">
+            <button type="button" id="acx-toggle" class="btn-ghost text-sm"><?= e(t('اطوِ الكل')) ?></button>
+            <button type="button" id="acx-help" class="btn-ghost text-sm" aria-label="?">?</button>
+          </div>
           <?php if (empty($camp['adSets'])): ?><p class="text-sm text-ink-500"><?= e(t('مفيش مجموعات.')) ?></p><?php endif; ?>
           <?php foreach ($camp['adSets'] ?? [] as $set):
             $sm = $set['metrics'] ?? [];
@@ -202,10 +212,11 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
             $sid = (string)($set['platformAdSetId'] ?? '');
             $sst = (string)($set['status'] ?? '');
             ?>
-            <div class="card p-4">
+            <div class="card p-4 acx-set" data-spend="<?= e((float)($sm['spend'] ?? 0)) ?>">
               <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="font-semibold text-ink-900"><?= e($set['adSetName'] ?? $sid) ?></div>
+                <div class="min-w-0 flex-1">
+                  <button type="button" class="acx-head font-semibold text-ink-900 flex items-center gap-2 text-start"><span class="acx-chev inline-block transition-transform">▾</span><?= e($set['adSetName'] ?? $sid) ?></button>
+                  <div class="acx-share mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden max-w-xs"><div class="h-full bg-brand-500 rounded-full" style="width:0"></div></div>
                   <div class="text-xs text-ink-500 mt-1 flex flex-wrap gap-2 items-center"><?= ads_status_badge($sst) ?>
                     <?php if (!$isCbo): ?><span><?= e(t('الميزانية: %s', ads_budget_text($sb, $cur))) ?></span><?php endif; ?>
                     <span><?= e(t('الصرف: %s', ads_money($sm['spend'] ?? 0, $cur))) ?></span>
@@ -215,14 +226,14 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
                 <?php if ($sid !== '' && strpos($sid, 'ungrouped') === false) ad_toggle_form('adset_status', $sst, $platform, ['adset_id' => $sid], $isCbo ? ads_budget_text($cBudget, $cur) : ads_budget_text($sb, $cur)); ?>
               </div>
               <?php if (!$isCbo && $sid !== '') ad_budget_form($sb, $cur, $platform, $sid); ?>
-              <div class="mt-3 divide-y divide-ink-100 border-t border-ink-100">
+              <div class="acx-body mt-3 divide-y divide-ink-100 border-t border-ink-100">
                 <?php foreach ($set['ads'] ?? [] as $ad):
                   $cr = $ad['creative'] ?? [];
                   $img = $cr['thumbnailUrl'] ?? $cr['imageUrl'] ?? ($cr['mediaUrls'][0] ?? null);
                   $am = $ad['metrics'] ?? [];
                   $ast = (string)($ad['status'] ?? '');
                   ?>
-                  <div class="py-3 flex gap-3">
+                  <div class="acx-ad py-3 flex gap-3" data-q="<?= e(mb_strtolower(($ad['name'] ?? '') . ' ' . ($cr['headline'] ?? '') . ' ' . ($cr['body'] ?? ''))) ?>" data-ctr="<?= e(($am['impressions'] ?? 0) > 0 ? round(($am['clicks'] ?? 0) / $am['impressions'] * 100, 2) : -1) ?>">
                     <?php if ($img): ?><img src="<?= e($img) ?>" alt="" class="w-16 h-16 rounded-lg object-cover bg-ink-100 shrink-0" loading="lazy" referrerpolicy="no-referrer"><?php else: ?><div class="w-16 h-16 rounded-lg bg-ink-100 shrink-0"></div><?php endif; ?>
                     <div class="flex-1 min-w-0">
                       <div class="flex flex-wrap items-center gap-2"><span class="font-medium text-sm text-ink-900"><?= e($ad['name'] ?? '') ?></span><?= ads_status_badge($ast) ?></div>
@@ -244,5 +255,8 @@ render(t('تفاصيل الحملة'), 'ads', function () use ($z, $apiError, $c
         </section>
       <?php endif; ?>
     </div>
+    <script>window.ACX = <?= json_encode(['collapse' => t('اطوِ الكل'), 'expand' => t('افتح الكل'), 'best' => t('أعلى نسبة ضغط'), 'share' => t('%s من صرف الحملة'), 'ctr' => t('نسبة الضغط %s'),
+      'empty' => t('مفيش إعلانات مطابقة'), 'keys' => t('اختصارات لوحة المفاتيح'), 'kSearch' => t('البحث في الإعلانات'), 'kToggle' => t('طي/فتح المجموعات'), 'kBack' => t('رجوع للحملات'), 'back' => url('ads', ['r' => $range])], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/ui-ad_campaign.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-});
+}, ['full' => true]);
