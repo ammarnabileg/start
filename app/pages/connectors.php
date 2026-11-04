@@ -7,6 +7,22 @@ $registry = connector_registry();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $provider = (string)($_POST['provider'] ?? '');
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'ai_pick') {
+        header('Content-Type: application/json; charset=utf-8');
+        if (!is_ws_owner()) { http_response_code(403); exit(json_encode(['error' => t('هذا الإعداد متاح لمالك الشركة فقط.')], JSON_UNESCAPED_UNICODE)); }
+        $key = (string)($_POST['key'] ?? '');
+        $task = (string)($_POST['task'] ?? '');
+        $on = ($_POST['on'] ?? '') === '1';
+        if (!isset(ai_tasks()[$task]) || !preg_match('/^(openrouter|anthropic|openai|gemini)\|[\w.:\/@-]{1,160}$/', $key)) { http_response_code(400); exit('{}'); }
+        $picks = ai_picks();
+        $list = array_values(array_diff($picks[$key] ?? [], [$task]));
+        if ($on) $list[] = $task;
+        if ($list) $picks[$key] = $list; else unset($picks[$key]);
+        save_setting('ai_picks_' . $wid, json_encode($picks));
+        $count = [];
+        foreach (array_keys(ai_tasks()) as $tk) $count[$tk] = count(array_filter($picks, function ($l) use ($tk) { return in_array($tk, $l, true); }));
+        exit(json_encode(['ok' => true, 'count' => $count], JSON_UNESCAPED_UNICODE));
+    }
     $cid = (int)($_POST['cid'] ?? 0);
     if (!isset($registry[$provider])) {
         redirect(url('connectors'));
@@ -112,17 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(url('connectors') . '#ai');
     }
 
-    if ($action === 'ai_task' && is_ws_owner()) {
-        $task = (string)($_POST['task'] ?? '');
-        $choice = (string)($_POST['choice'] ?? 'auto');
-        if (isset(ai_tasks()[$task])) {
-            $all = ai_task_choices();
-            $all[$task] = preg_match('/^(auto|(openrouter|anthropic|openai|gemini)\|[\w.:\/-]*)$/', $choice) ? $choice : 'auto';
-            save_setting('ai_tasks_' . $wid, json_encode($all));
-            flash('success', t('تم حفظ موديل مهمة "%s".', ai_tasks()[$task]['name']));
-        }
-        redirect(url('connectors') . '#ai');
-    }
 
     if ($action === 'toggle' && $existing) {
         $settings = $existing['settings'];
@@ -282,7 +287,7 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
 
       <!-- مهام الذكاء الاصطناعي -->
       <div data-pane="ai" class="hidden space-y-5">
-        <?php $choices = ai_task_choices(); $manual = $aiMode === 'manual'; $aiProviders = array_values(array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); })); ?>
+        <?php $manual = $aiMode === 'manual'; $aiProviders = array_values(array_filter(ai_provider_keys(), function ($p) use ($all) { return !empty($all[$p]); })); ?>
         <div class="card p-5 sm:p-6 flex flex-wrap items-center gap-5 <?= !$manual ? 'ring-2 ring-brand-500/20 border-brand-300' : '' ?>">
           <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center shrink-0"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
           <div class="flex-1 min-w-[240px]">
@@ -313,39 +318,82 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
           </div>
         <?php endif; ?>
 
-        <div class="card overflow-hidden">
-          <div class="hidden md:grid grid-cols-[1.4fr_1.2fr_1fr] gap-4 px-5 py-3 bg-ink-50 border-b border-ink-200 text-xs font-medium text-ink-500">
-            <div><?= e(t('المهمة')) ?></div><div><?= e(t('الموديل')) ?></div><div><?= e(t('يعمل الآن بـ')) ?></div>
-          </div>
-          <?php foreach (ai_tasks() as $tk => $task): $choice = (string)($choices[$tk] ?? 'auto'); $chain = ai_task_chain($tk); $now = $chain[0] ?? null; $nowModel = $now ? ($now['provider'] === 'openrouter' ? t('حسب المستوى: %s', $now['settings']['tier'] ?? 'cheap') : ($now['settings']['model'] ?? '')) : ''; $fallback = $manual && $choice !== 'auto' && count($chain) > 1; ?>
-          <div class="grid md:grid-cols-[1.4fr_1.2fr_1fr] gap-4 px-5 py-4 border-b border-ink-100 last:border-0 items-center hover:bg-ink-50/60 transition">
+        <?php $picks = ai_picks(); $catalog = ai_catalog(); $canPick = $manual && $owner; ?>
+        <!-- ملخص المهام -->
+        <div class="grid md:grid-cols-3 gap-4">
+          <?php foreach (ai_tasks() as $tk => $task): $chain = ai_task_chain($tk); $now = $chain[0] ?? null; $n = count(array_filter($picks, function ($l) use ($tk) { return in_array($tk, $l, true); })); $noPick = $manual && !$n; ?>
+          <div class="card p-4">
             <div class="flex items-start gap-3">
               <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24"><path d="<?= $task['icon'] ?>"/></svg></div>
-              <div><div class="font-medium text-ink-900"><?= e($task['name']) ?></div><div class="text-xs text-ink-500 mt-0.5"><?= e($task['desc']) ?></div><div class="text-[11px] text-ink-400 mt-1">💡 <?= e($task['hint']) ?></div></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2"><b class="text-ink-900"><?= e($task['name']) ?></b><?php if ($manual): ?><span class="badge" data-count="<?= $tk ?>"><?= e(t('%s موديل', $n)) ?></span><?php endif; ?></div>
+                <div class="text-xs text-ink-500 mt-0.5"><?= e($task['desc']) ?></div>
+              </div>
             </div>
-            <form method="post">
-              <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="action" value="ai_task"><input type="hidden" name="task" value="<?= e($tk) ?>">
-              <select name="choice" class="input !mt-0 text-sm" dir="ltr" onchange="this.form.requestSubmit()" <?= ($manual && $owner && $aiProviders) ? '' : 'disabled' ?> title="<?= !$manual ? e(t('أوقف التشغيل التلقائي لاختيار موديل لكل مهمة.')) : '' ?>">
-                <option value="auto" <?= $choice === 'auto' ? 'selected' : '' ?>><?= e(t('تلقائي (الأرخص أولًا)')) ?></option>
-                <?php foreach ($aiProviders as $p): $c = $all[$p][0]; if (!empty($c['settings']['disabled'])) continue; ?>
-                  <optgroup label="<?= e($registry[$p]['name']) ?>">
-                    <?php if ($p === 'openrouter'): ?><option value="openrouter|" <?= $choice === 'openrouter|' ? 'selected' : '' ?>>OpenRouter · <?= e($c['settings']['tier'] ?? 'cheap') ?></option>
-                    <?php else: foreach ($c['settings']['models'] ?? [] as $m): ?><option value="<?= e($p . '|' . $m) ?>" <?= $choice === $p . '|' . $m ? 'selected' : '' ?>><?= e($m) ?> · <?= e(ai_fmt_cost(ai_question_cost(ai_model_price($m)))) ?></option><?php endforeach; endif; ?>
-                  </optgroup>
-                <?php endforeach; ?>
-              </select>
-            </form>
-            <div class="text-sm">
+            <div class="mt-3 pt-3 border-t border-ink-100 text-xs">
               <?php if ($now): ?>
-                <div class="flex items-center gap-2"><?= connector_logo($registry[$now['provider']], 'w-6 h-6 text-[10px] !rounded-lg') ?><span class="text-ink-900"><?= e($registry[$now['provider']]['name']) ?></span></div>
-                <div class="text-xs mt-1"><span class="inline-flex rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 font-medium" dir="ltr">≈ <?= e(ai_fmt_cost(ai_connection_cost($now))) ?></span> <span class="text-ink-400"><?= e(t('للسؤال')) ?></span></div>
-                <div class="text-xs text-ink-500 mt-1" dir="ltr" style="text-align:start"><?= e($nowModel) ?><?= (!$manual || $choice === 'auto') && count($chain) > 1 ? ' · +' . (count($chain) - 1) . ' ' . e(t('بديل')) : '' ?></div>
-                <?php if ($fallback): ?><div class="text-[11px] text-amber-700 mt-1"><?= e(t('الموديل المختار غير متاح الآن، فيُستخدم التلقائي.')) ?></div><?php endif; ?>
-              <?php else: ?><span class="text-xs text-ink-400"><?= e(t('لا يوجد مزود')) ?></span><?php endif; ?>
+                <div class="flex items-center gap-2"><span class="text-ink-400"><?= e(t('يعمل الآن بـ')) ?></span><?= connector_logo($registry[$now['provider']], 'w-5 h-5 text-[9px] !rounded-md') ?><span class="text-ink-900 truncate" dir="ltr"><?= e($now['pick']['model'] ?? ($now['provider'] === 'openrouter' ? 'OpenRouter · ' . ($now['settings']['tier'] ?? 'cheap') : ($now['settings']['model'] ?? ''))) ?></span></div>
+                <div class="mt-1.5 flex items-center gap-2"><span class="inline-flex rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 font-medium" dir="ltr">≈ <?= e(ai_fmt_cost(ai_connection_cost($now))) ?></span><?php if (count($chain) > 1): ?><span class="text-ink-400">+<?= count($chain) - 1 ?> <?= e(t('بديل')) ?></span><?php endif; ?></div>
+                <?php if ($noPick): ?><div class="text-amber-700 mt-1.5"><?= e(t('لم تختر موديلات لهذه المهمة، فيُستخدم التلقائي.')) ?></div><?php endif; ?>
+              <?php else: ?><span class="text-ink-400"><?= e(t('لا يوجد مزود')) ?></span><?php endif; ?>
             </div>
           </div>
           <?php endforeach; ?>
         </div>
+
+        <!-- جدول كل الموديلات -->
+        <?php if ($catalog): $provCount = array_count_values(array_column($catalog, 'provider')); ?>
+        <div class="card overflow-hidden" id="mdl">
+          <div class="p-4 border-b border-ink-200 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div><h3 class="font-semibold text-ink-900"><?= e(t('كل الموديلات المتاحة')) ?> <span class="text-ink-400 font-normal text-sm" id="mdl-n"><?= count($catalog) ?></span></h3>
+                <p class="text-xs text-ink-500 mt-0.5"><?= $canPick ? e(t('علّم على المهام التي يمكن لكل موديل أن يعمل عليها. المنصة تبدأ بالأرخص من بين الموديلات المختارة لكل مهمة.')) : ($manual ? e(t('هذا الإعداد متاح لمالك الشركة فقط.')) : e(t('أوقف التشغيل التلقائي لتختار الموديلات بنفسك.'))) ?></p></div>
+              <span id="mdl-saved" class="text-xs text-lime-700 opacity-0 transition">✓ <?= e(t('تم الحفظ')) ?></span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="relative flex-1 min-w-[200px] max-w-sm"><svg class="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="mdl-q" type="search" class="input !mt-0 !py-2 ps-9 text-sm" dir="ltr" placeholder="claude, gpt, gemini, llama..."></div>
+              <div class="flex gap-1.5 overflow-x-auto" id="mdl-prov">
+                <button type="button" class="chip on !py-1 text-xs" data-p=""><?= e(t('الكل')) ?></button>
+                <?php foreach ($provCount as $pk => $pn): ?><button type="button" class="chip !py-1 text-xs" data-p="<?= e($pk) ?>"><?= e($registry[$pk]['name']) ?> <span class="text-ink-400"><?= $pn ?></span></button><?php endforeach; ?>
+              </div>
+              <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-free" class="w-3.5 h-3.5"> <?= e(t('المجاني فقط')) ?></label>
+              <label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" id="mdl-mine" class="w-3.5 h-3.5"> <?= e(t('المختار فقط')) ?></label>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-ink-50 text-xs text-ink-500 sticky top-0">
+                <tr>
+                  <th class="text-start font-medium px-4 py-2.5"><?= e(t('الموديل')) ?></th>
+                  <th class="text-start font-medium px-3 py-2.5"><?= e(t('عن طريق')) ?></th>
+                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('المدخلات / مليون')) ?></th>
+                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('المخرجات / مليون')) ?></th>
+                  <th class="text-end font-medium px-3 py-2.5 whitespace-nowrap"><?= e(t('السؤال الواحد')) ?></th>
+                  <?php foreach (ai_tasks() as $tk => $task): ?><th class="text-center font-medium px-3 py-2.5 whitespace-nowrap"><?= e($task['name']) ?></th><?php endforeach; ?>
+                </tr>
+              </thead>
+              <tbody id="mdl-body">
+                <?php foreach ($catalog as $row): $mine = $picks[$row['key']] ?? []; $fmt = function ($v) { return $v === null ? '—' : '$' . rtrim(rtrim(number_format($v, 3), '0'), '.'); }; ?>
+                <tr class="mdl-row border-t border-ink-100 hover:bg-ink-50/70 transition <?= $mine ? 'bg-brand-50/40' : '' ?>" data-p="<?= e($row['provider']) ?>" data-free="<?= $row['free'] ? 1 : 0 ?>" data-mine="<?= $mine ? 1 : 0 ?>" data-q="<?= e(strtolower($row['model'] . ' ' . $row['name'])) ?>">
+                  <td class="px-4 py-2.5"><div class="font-medium text-ink-900" dir="ltr" style="text-align:start"><?= e($row['name']) ?></div><?php if ($row['name'] !== $row['model']): ?><div class="text-[11px] text-ink-400" dir="ltr" style="text-align:start"><?= e($row['model']) ?></div><?php endif; ?></td>
+                  <td class="px-3 py-2.5"><div class="flex items-center gap-1.5 whitespace-nowrap"><?= connector_logo($registry[$row['provider']], 'w-5 h-5 text-[9px] !rounded-md') ?><span class="text-xs text-ink-600"><?= e($registry[$row['provider']]['name']) ?></span></div></td>
+                  <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['in']) ?></td>
+                  <td class="px-3 py-2.5 text-end text-ink-600" dir="ltr"><?= $fmt($row['out']) ?></td>
+                  <td class="px-3 py-2.5 text-end whitespace-nowrap"><span class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium <?= $row['free'] ? 'bg-lime-100 text-lime-700' : 'bg-ink-100 text-ink-700' ?>" dir="ltr"><?= e(ai_fmt_cost($row['cost'])) ?></span></td>
+                  <?php foreach (ai_tasks() as $tk => $task): ?>
+                    <td class="px-3 py-2.5 text-center"><input type="checkbox" class="mdl-pick w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" data-key="<?= e($row['key']) ?>" data-task="<?= $tk ?>" <?= in_array($tk, $mine, true) ? 'checked' : '' ?> <?= $canPick ? '' : 'disabled' ?> aria-label="<?= e($task['name'] . ' · ' . $row['model']) ?>"></td>
+                  <?php endforeach; ?>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-3 border-t border-ink-200 flex items-center justify-between text-xs text-ink-500">
+            <span id="mdl-shown"></span>
+            <button type="button" id="mdl-more" class="btn-ghost !py-1.5 !px-3 !text-xs hidden"><?= e(t('عرض المزيد')) ?></button>
+          </div>
+        </div>
+        <?php endif; ?>
         <p class="text-xs text-ink-400"><?= e(t('الأسعار الرسمية لكل مزود، من كتالوج OpenRouter العام، وتتحدث كل 12 ساعة. OpenRouter محسوب مجانيًا لأنه يبدأ بالموديلات المجانية. الحصة المجانية في Gemini غير محسوبة.')) ?></p>
       </div>
     </div>
@@ -530,6 +578,44 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
       // زرار الحفظ: حالة انتظار عشان الاختبار بياخد ثواني
       document.querySelectorAll('.intg-drawer form').forEach(function (f) { f.addEventListener('submit', function () {
         var b = f.querySelector('button:not([type=button])'); if (b && b.hasAttribute('data-switch')) { b.classList.toggle('bg-lime-500'); b.classList.toggle('bg-ink-300'); var k = b.id === 'ai-auto' ? '6' : '5'; b.firstElementChild.classList.toggle('translate-x-' + k); b.firstElementChild.classList.toggle('rtl:-translate-x-' + k); return; } if (b && b.name === 'mode') return; if (b && !b.disabled) { setTimeout(function () { b.disabled = true; b.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>' + (window.T ? T.working : ''); }, 0); } }); });
+      (function () {
+        var body = document.getElementById('mdl-body'); if (!body) return;
+        var rows = [].slice.call(body.querySelectorAll('.mdl-row')), q = document.getElementById('mdl-q'), prov = '', limit = 50;
+        var free = document.getElementById('mdl-free'), mine = document.getElementById('mdl-mine'), more = document.getElementById('mdl-more');
+        function apply(reset) {
+          if (reset) limit = 50;
+          var term = q.value.trim().toLowerCase(), n = 0, shown = 0;
+          rows.forEach(function (r) {
+            var ok = (!prov || r.dataset.p === prov) && (!free.checked || r.dataset.free === '1') && (!mine.checked || r.dataset.mine === '1') && (!term || r.dataset.q.indexOf(term) > -1);
+            if (ok) n++;
+            var vis = ok && n <= limit; r.classList.toggle('hidden', !vis); if (vis) shown++;
+          });
+          document.getElementById('mdl-n').textContent = n;
+          document.getElementById('mdl-shown').textContent = shown + ' / ' + n;
+          more.classList.toggle('hidden', n <= limit);
+        }
+        q.addEventListener('input', function () { apply(true); });
+        free.addEventListener('change', function () { apply(true); }); mine.addEventListener('change', function () { apply(true); });
+        more.addEventListener('click', function () { limit += 100; apply(); });
+        document.querySelectorAll('#mdl-prov [data-p]').forEach(function (b) { b.addEventListener('click', function () {
+          prov = b.dataset.p; document.querySelectorAll('#mdl-prov .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); apply(true); }); });
+        var saved = document.getElementById('mdl-saved'), tmr;
+        body.addEventListener('change', function (e) {
+          var c = e.target.closest('.mdl-pick'); if (!c) return;
+          var fd = new FormData(); fd.append('action', 'ai_pick'); fd.append('key', c.dataset.key); fd.append('task', c.dataset.task); fd.append('on', c.checked ? '1' : '0');
+          var tr = c.closest('tr');
+          fetch('index.php?p=connectors', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (!d.ok) throw 0;
+              var any = tr.querySelector('.mdl-pick:checked'); tr.dataset.mine = any ? '1' : '0'; tr.classList.toggle('bg-brand-50/40', !!any);
+              Object.keys(d.count).forEach(function (k) { var el = document.querySelector('[data-count=' + k + ']'); if (el) el.textContent = el.textContent.replace(/\d+/, d.count[k]); });
+              saved.classList.remove('opacity-0'); clearTimeout(tmr); tmr = setTimeout(function () { saved.classList.add('opacity-0'); }, 1500);
+            })
+            .catch(function () { c.checked = !c.checked; alert((window.T && T.liveFailed) || 'Error'); });
+        });
+        apply(true);
+      })();
       function tab(name) {
         document.querySelectorAll('[data-pane]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.pane !== name); });
         document.querySelectorAll('.intg-tab').forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('text-brand-700', on); b.classList.toggle('border-brand-600', on); b.classList.toggle('text-ink-500', !on); b.setAttribute('aria-selected', on); });

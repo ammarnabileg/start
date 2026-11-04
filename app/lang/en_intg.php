@@ -93,4 +93,13 @@ return [
     'المخرجات / مليون' => 'Output / 1M',
     'السؤال الواحد' => 'Per question',
     'مرتبة من الأرخص بالأسعار الرسمية. السؤال الواحد محسوب على 3000 توكن داخلة و800 خارجة.' => 'Sorted from cheapest by official prices. A question is calculated as 3,000 input and 800 output tokens.',
+    '%s موديل' => '%s models',
+    'لم تختر موديلات لهذه المهمة، فيُستخدم التلقائي.' => 'No models chosen for this task, so automatic is used.',
+    'كل الموديلات المتاحة' => 'All available models',
+    'علّم على المهام التي يمكن لكل موديل أن يعمل عليها. المنصة تبدأ بالأرخص من بين الموديلات المختارة لكل مهمة.' => 'Tick the tasks each model can work on. The platform starts with the cheapest of the chosen models for each task.',
+    'أوقف التشغيل التلقائي لتختار الموديلات بنفسك.' => 'Turn off auto-run to choose models yourself.',
+    'تم الحفظ' => 'Saved',
+    'المجاني فقط' => 'Free only',
+    'المختار فقط' => 'Chosen only',
+    'عن طريق' => 'Via',
 ];

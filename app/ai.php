@@ -47,7 +47,7 @@ function ai_key_info(string $key): array
 /** قائمة الموديلات مترتبة من الأرخص للأغلى (المجاني الأول). بتتحفظ 6 ساعات. */
 function ai_ranked_models(): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_models.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_models2.json';
     if (is_file($file) && filemtime($file) > time() - 21600) {
         $c = json_decode((string)file_get_contents($file), true);
         if (is_array($c) && $c) return $c;
@@ -64,10 +64,10 @@ function ai_ranked_models(): array
         // لازم يكون موديل نصوص بسياق كفاية للبيانات
         // لازم يكون موديل محادثة نصوص بس (مش صور ولا صوت) وبسياق كفاية للبيانات
         if ($id === '' || $ctx < 16000 || array_values($outMods) !== ['text'] || !in_array('text', $mods, true) || $in < 0 || $out < 0) continue;
-        if (preg_match('#(summarize|embed|guard|moderation|rerank|legal)#i', $id)) continue;
+        if (preg_match('#(summarize|embed|guard|moderation|rerank|legal)#i', $id) || substr($id, -6) === ':batch') continue;
         if (strpos($id, 'openrouter/auto') === 0) continue;
         $cost = $in * 3000 + $out * 800; // تكلفة تقريبية لسؤال عادي (3000 كلمة داخلة، 800 خارجة)
-        $rank[] = ['id' => $id, 'name' => (string)($m['name'] ?? $id), 'cost' => $cost, 'free' => $cost == 0.0, 'ctx' => $ctx];
+        $rank[] = ['id' => $id, 'name' => (string)($m['name'] ?? $id), 'cost' => $cost, 'free' => $cost == 0.0, 'ctx' => $ctx, 'in' => round($in * 1e6, 4), 'out' => round($out * 1e6, 4)];
     }
     usort($rank, function ($a, $b) {
         if ($a['cost'] == $b['cost']) return $b['ctx'] <=> $a['ctx'];
@@ -108,12 +108,41 @@ function ai_tasks(): array
     ];
 }
 
-/** اختيار كل مهمة: 'auto' أو 'provider|model' */
-function ai_task_choices(?int $wid = null): array
+/** الموديلات اللي المستخدم علّم عليها لكل مهمة: ['provider|model' => ['assistant', 'reply'], ...] */
+function ai_picks(?int $wid = null): array
 {
     $wid = $wid ?? (int)ws('id');
-    $v = json_decode((string)setting('ai_tasks_' . $wid, ''), true);
+    $v = json_decode((string)setting('ai_picks_' . $wid, ''), true);
     return is_array($v) ? $v : [];
+}
+
+/**
+ * كل الموديلات المتاحة من كل الاتصالات المفعّلة، حتى لو نفس الموديل متاح من أكتر من مزود.
+ * كل صف: key, provider, model, name, in, out, cost (للسؤال), free
+ */
+function ai_catalog(): array
+{
+    $rows = [];
+    foreach (ai_connections() as $c) {
+        $p = $c['provider'];
+        if ($p === 'openrouter') {
+            try { $list = ai_ranked_models(); } catch (Throwable $e) { $list = []; }
+            foreach ($list as $m) {
+                $rows[] = ['key' => 'openrouter|' . $m['id'], 'provider' => $p, 'model' => $m['id'], 'name' => $m['name'], 'in' => $m['in'] ?? null, 'out' => $m['out'] ?? null, 'cost' => (float)$m['cost'], 'free' => !empty($m['free'])];
+            }
+            continue;
+        }
+        foreach ($c['settings']['models'] ?? [] as $m) {
+            $pr = ai_model_price($m);
+            $cost = ai_question_cost($pr);
+            $rows[] = ['key' => $p . '|' . $m, 'provider' => $p, 'model' => $m, 'name' => $m, 'in' => $pr['in'] ?? null, 'out' => $pr['out'] ?? null, 'cost' => $cost, 'free' => false];
+        }
+    }
+    usort($rows, function ($a, $b) {
+        if (($a['cost'] === null) !== ($b['cost'] === null)) return $a['cost'] === null ? 1 : -1;
+        return $a['cost'] <=> $b['cost'] ?: strcmp($a['key'], $b['key']);
+    });
+    return $rows;
 }
 
 /** الاتصالات اللي المهمة دي هتجربها بالترتيب */
@@ -121,19 +150,20 @@ function ai_task_chain(string $task): array
 {
     $conns = ai_connections();
     if (ai_mode() !== 'manual') return $conns;
-    $choice = (string)(ai_task_choices()[$task] ?? 'auto');
-    if ($choice === 'auto' || strpos($choice, '|') === false) return $conns;
-    [$p, $model] = explode('|', $choice, 2);
-    foreach ($conns as $c) {
-        if ($c['provider'] !== $p) continue;
-        if ($p !== 'openrouter' && $model !== '') {
-            if (!in_array($model, $c['settings']['models'] ?? [], true)) break;
-            $c['settings']['model'] = $model;
-        }
-        return [$c];
+    $byP = [];
+    foreach ($conns as $c) $byP[$c['provider']] = $c;
+    $chain = [];
+    foreach (ai_catalog() as $row) {
+        if (!in_array($task, ai_picks()[$row['key']] ?? [], true) || !isset($byP[$row['provider']])) continue;
+        $c = $byP[$row['provider']];
+        if ($row['provider'] === 'openrouter') $c['settings']['or_model'] = $row['model'];
+        else $c['settings']['model'] = $row['model'];
+        $c['pick'] = $row;
+        $chain[] = $c;
+        if (count($chain) >= 6) break;
     }
-    // المزود المختار اتشال أو اتوقف: نرجع للتلقائي بدل ما المهمة تقف
-    return $conns;
+    // مفيش موديل متعلّم عليه للمهمة دي (أو اتشال): نرجع للتلقائي بدل ما المهمة تقف
+    return $chain ?: $conns;
 }
 
 /** طريقة اختيار المزود: auto = الأرخص فالأغلى، manual = المزود اللي اختاره المالك بس */
@@ -146,6 +176,7 @@ function ai_mode(?int $wid = null): string
 /** تكلفة سؤال عادي بالدولار للاتصال ده بالموديل المختار. OpenRouter بيبدأ بالمجاني دايمًا = 0. null = مش معروف. */
 function ai_connection_cost(array $c): ?float
 {
+    if (isset($c['pick'])) return $c['pick']['cost'];
     if ($c['provider'] === 'openrouter') return 0.0;
     $model = (string)($c['settings']['model'] ?? '') ?: ai_default_model($c['settings']['models'] ?? []);
     return ai_question_cost(ai_model_price($model));
@@ -395,7 +426,7 @@ function ai_chat(array $messages, int $maxTokens = 900, string $task = 'assistan
 function ai_chat_openrouter(array $c, array $messages, int $maxTokens): array
 {
     $tier = (string)($c['settings']['tier'] ?? 'cheap');
-    $models = array_column(ai_allowed_models($tier), 'id');
+    $models = !empty($c['settings']['or_model']) ? [$c['settings']['or_model']] : array_column(ai_allowed_models($tier), 'id');
     if (!$models) throw new AiException(t('مفيش موديلات متاحة في المستوى ده. وسّع المستوى من صفحة التكاملات.'));
     $last = null;
     foreach (array_slice(array_chunk($models, 3), 0, 6) as $group) {
