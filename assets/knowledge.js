@@ -209,8 +209,9 @@
     var box = root.querySelectorAll('.kb-pos-stmt'); if (!box.length) return;
     var fv = function (sec, k) { var el = root.querySelector('.kb-form[data-section="' + sec + '"] [name="d[' + k + ']"]'); var l = el ? el.value.split('\n').filter(function (x) { return x.trim(); }) : []; return l.length ? strip(l[0]) : ''; };
     var vals = [fv('audience', 'who'), fv('audience', 'problem'), fv('frame_ref', 'category'), first('pod'), first('rtb')], e = K.posEmpty;
-    var html = K.posTpl.replace(/%(\d)/g, function (m, i) { var v = vals[i - 1]; return v ? '<b class="text-ink-900">' + esc(v) + '</b>' : '<span class="text-ink-400">' + esc(e) + '</span>'; });
-    box.forEach(function (b) { b.innerHTML = html; });
+    var tgt = [['audience', 'who'], ['audience', 'problem'], ['frame_ref', 'category'], ['pod', 'text'], ['rtb', 'text']];
+    var html = K.posTpl.replace(/%(\d)/g, function (m, i) { var v = vals[i - 1], t = tgt[i - 1]; return '<button type="button" data-pgo="' + t[0] + '" data-pf="' + t[1] + '" class="rounded-md px-0.5 transition hover:bg-brand-100 hover:ring-2 hover:ring-brand-200 ' + (v ? 'font-semibold text-ink-900' : 'text-ink-400 border-b border-dashed border-ink-300') + '">' + esc(v || e) + '</button>'; });
+    box.forEach(function (b) { if (b.__h !== html) { b.__h = html; b.innerHTML = html; } });
   }
   root.addEventListener('input', function (e) { if (e.target.closest('.kb-form[data-section="audience"],.kb-form[data-section="frame_ref"],.kb-form[data-section="pod"],.kb-form[data-section="rtb"]')) posStmt(); });
   new MutationObserver(posStmt).observe(root, { subtree: true, attributes: true, attributeFilter: ['class'] }); posStmt();

@@ -29,8 +29,7 @@ function kb_schema(): array
         ]],
         'hours' => ['group' => 'info', 'label' => t('ساعات العمل'), 'hint' => t('اكتب المواعيد لكل يوم، أو "مغلق". الذكاء الاصطناعي لن يذكر مواعيد غير مكتوبة هنا.'), 'type' => 'fields', 'fields' => [
             'sat' => [t('السبت'), 'text', '10:00 - 22:00'], 'sun' => [t('الأحد'), 'text', ''], 'mon' => [t('الاثنين'), 'text', ''], 'tue' => [t('الثلاثاء'), 'text', ''],
-            'wed' => [t('الأربعاء'), 'text', ''], 'thu' => [t('الخميس'), 'text', ''], 'fri' => [t('الجمعة'), 'text', t('مغلق')],
-            'reply' => [t('مواعيد الرد على الرسائل'), 'text', t('مثال: 24 ساعة، أو نفس ساعات العمل')], 'notes' => [t('ملاحظات وإجازات'), 'area', t('الإجازات الرسمية، مواعيد رمضان...'), 2],
+            'wed' => [t('الأربعاء'), 'text', ''], 'thu' => [t('الخميس'), 'text', ''], 'fri' => [t('الجمعة'), 'text', t('مغلق')], 'notes' => [t('ملاحظات وإجازات'), 'area', t('الإجازات الرسمية، مواعيد رمضان...'), 2],
         ]],
         'services' => ['group' => 'info', 'label' => t('الخدمات والمنتجات'), 'hint' => t('كل خدمة أو منتج بسعره ووصف مختصر. الذكاء الاصطناعي لن يذكر سعرًا غير موجود هنا.'), 'type' => 'rows', 'cols' => ['name' => t('الاسم'), 'price' => t('السعر'), 'details' => t('التفاصيل')]],
         'faq' => ['group' => 'info', 'label' => t('الأسئلة الشائعة'), 'hint' => t('الأسئلة اللي العملاء بيسألوها كتير وإجابتها المعتمدة.'), 'type' => 'rows', 'cols' => ['q' => t('السؤال'), 'a' => t('الإجابة')]],
@@ -108,6 +107,12 @@ function kb_tone_options(): array
     return ['friendly' => t('ودود وقريب'), 'professional' => t('رسمي ومحترف'), 'warm' => t('دافئ ومطمئن'), 'energetic' => t('حماسي'), 'premium' => t('فخم وراقي'), 'playful' => t('خفيف ومرح')];
 }
 
+function kb_lang_options(): array
+{
+    return ['ar_msa' => t('العربية الفصحى'), 'ar_eg' => t('العامية المصرية'), 'ar_gulf' => t('الخليجية'), 'ar_levant' => t('الشامية'), 'ar_maghreb' => t('المغاربية'),
+        'en' => 'English', 'fr' => 'Français', 'de' => 'Deutsch', 'es' => 'Español', 'it' => 'Italiano', 'tr' => 'Türkçe', 'ru' => 'Русский', 'zh' => '中文', 'ur' => 'اردو', 'hi' => 'हिन्दी'];
+}
+
 function kb_dialect_options(): array
 {
     return ['match' => t('نفس لهجة العميل'), 'msa' => t('عربي فصحى مبسطة'), 'egyptian' => t('مصري'), 'gulf' => t('خليجي'), 'levant' => t('شامي'), 'english' => t('English')];
@@ -142,6 +147,7 @@ function kb_compile(int $wid, string $query = ''): string
     if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
         $styles = array_intersect_key(kb_tone_options(), array_flip((array)($tone['style'] ?? [])));
         $out[] = "## TONE\n" . ($styles ? 'Style: ' . implode(', ', $styles) . "\n" : '') . (!empty($tone['dialect']) ? 'Language/dialect: ' . (kb_dialect_options()[$tone['dialect']] ?? $tone['dialect']) . "\n" : '')
+            . (!empty($tone['langs']) ? 'Supported languages: ' . implode(', ', array_intersect_key(kb_lang_options(), array_flip((array)$tone['langs']))) . '. ' . (($tone['lang_rule'] ?? 'match') === 'match' ? 'Reply in the language the customer writes in if it is one of these; otherwise use the default language/dialect.' : 'Always reply in the default language/dialect, even if the customer writes in another language.') . "\n" : '')
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
     $pos = [];
