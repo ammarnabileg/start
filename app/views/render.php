@@ -5,6 +5,7 @@ require_once __DIR__ . '/head.php';
 function render(string $title, string $active, callable $body, array $opts = []): void
 {
     $hideTitle = !empty($opts['hideTitle']);
+    $fullWidth = !empty($opts['full']);
     ob_start();
     $body();
     $content = ob_get_clean();

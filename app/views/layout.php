@@ -140,7 +140,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 
 <?php $cpOn = function_exists('ai_connection') && current_workspace() && can('ai.use') && ai_connection() && (ai_feature_on('assistant') || ai_page_insights((string)($GLOBALS['page'] ?? $active))); ?>
 <main class="pt-16 lg:ps-64 min-h-screen transition-[padding] duration-300 <?= $cpOn ? 'lg:pe-14' : '' ?>" id="main">
-  <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 lg:py-10">
+  <div class="<?= !empty($fullWidth) ? 'max-w-[1800px] px-4 sm:px-6 py-6' : 'max-w-6xl px-4 sm:px-8 py-8 lg:py-10' ?> mx-auto">
     <?php if (!empty($navActive['tabs']) && count($navActive['tabs']) > 1 && $navActive['label'] !== $title): ?>
       <div class="text-sm text-ink-500 mb-1"><?= e($navActive['label']) ?></div>
     <?php endif; ?>

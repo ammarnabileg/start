@@ -40,6 +40,13 @@ try {
                 $line .= ' ai_' . $what . '=error';
             }
         }
+        // حملات الرسائل: دفعة لكل شركة
+        try {
+            $n = (int)ai_as_workspace($wid, function () use ($wid) { return camp_tick($wid, 60); });
+            if ($n) $line .= ' campaigns+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' campaigns=error';
+        }
         try {
             $s = rp_schedule($wid);
             $kind = rp_due($s, rp_tz($wid));

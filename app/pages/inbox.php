@@ -20,6 +20,92 @@ if ($platform !== '' && !in_array($platform, $msgPlatforms, true)) $platform = '
 // Filters kept on every link
 $base = array_filter(['folder' => $folder !== 'inbox' ? $folder : null, 'status' => $status !== 'active' ? $status : null, 'platform' => $platform, 'acct' => $acctFilter, 'q' => $q], function ($v) { return $v !== null && $v !== ''; });
 
+// إجراءات جماعية وحملات الرسائل (JSON): على المحادثات اللي المستخدم حددها
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['bulk', 'camp_create', 'camp_status', 'camp_ctl', 'camp_tick'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+    if (!$z) $J(['error' => $err ?: 'Zernio'], 422);
+    $wid = (int)ws('id');
+    $act = (string)$_POST['action'];
+    // العناصر: "conv|account"
+    $items = [];
+    foreach ((array)($_POST['items'] ?? []) as $raw) {
+        [$cv, $ac] = array_pad(explode('|', (string)$raw, 2), 2, '');
+        if (preg_match('/^[\w.:@-]{1,120}$/', $cv) && preg_match('/^[\w.:@-]{1,120}$/', $ac)) $items[$cv] = $ac;
+    }
+    if ($act === 'bulk') {
+        $op = (string)($_POST['op'] ?? '');
+        if (!$items) $J(['error' => t('حدد محادثة واحدة على الأقل.')], 422);
+        if ($op === 'classify') {
+            if (!ai_connection() || !can('ai.use') || !ai_feature_on('classify_btn')) $J(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+            try { $n = ai_classify_conversations($wid, 40, array_keys($items), true); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+            $J(['ok' => true, 'done' => $n]);
+        }
+        if (!can('inbox.reply') && !can('inbox.manage')) $J(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+        $ok = 0; $fail = 0;
+        foreach ($items as $cv => $ac) {
+            $cv = (string)$cv;
+            try {
+                if ($op === 'read') $z->markRead($cv, $ac);
+                elseif ($op === 'archive' || $op === 'unarchive') ip_set_status($z, $cv, $ac, $op === 'archive' ? 'archived' : 'active');
+                else $J(['error' => t('طلب غير صحيح.')], 400);
+                $ok++;
+            } catch (Throwable $e) { $fail++; }
+        }
+        log_activity('inbox.bulk', $op . ' ' . $ok);
+        $J(['ok' => true, 'done' => $ok, 'failed' => $fail]);
+    }
+    if ($act === 'camp_create') {
+        if (!can('inbox.reply')) $J(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+        $message = trim((string)($_POST['message'] ?? ''));
+        if (mb_strlen($message) < 2) $J(['error' => t('اكتب نص الرسالة.')], 422);
+        $mode = (string)($_POST['mode'] ?? 'selected');
+        $limit = max(0, (int)($_POST['limit'] ?? 0));
+        $only24 = !empty($_POST['only24']);
+        $skipBad = !empty($_POST['skip_bad']);
+        // كل المحادثات: بنجيبها صفحة صفحة (حد أقصى 1000)
+        $rows = [];
+        $cursorC = null; $pages = 0;
+        do {
+            $res = $z->conversations(array_filter(['limit' => 100, 'cursor' => $cursorC, 'profileId' => zernio_profile(), 'status' => 'active']));
+            foreach ($res['data'] ?? [] as $c) $rows[(string)$c['id']] = $c;
+            $cursorC = $res['pagination']['nextCursor'] ?? null; $pages++;
+        } while ($mode === 'all' && $cursorC && $pages < 10);
+        if ($mode !== 'all') $rows = array_intersect_key($rows, $items);
+        $rows = array_combine(array_map('strval', array_keys($rows)), array_values($rows)) ?: [];
+        $labels = $skipBad ? ai_labels($wid) : [];
+        $list = []; $skipped = 0;
+        foreach ($rows as $cid => $c) {
+            $cid = (string)$cid;
+            $ac = (string)($c['accountId'] ?? ($items[$cid] ?? ''));
+            if ($ac === '') continue;
+            $last = strtotime((string)($c['lastMessageAt'] ?? $c['updatedTime'] ?? '')) ?: 0;
+            if ($only24 && $last < time() - 86400) { $skipped++; continue; }
+            $lb = $labels[$cid] ?? null;
+            if ($lb && (in_array($lb['sentiment'], ['angry', 'upset'], true) || $lb['category'] === 'complaint' || $lb['category'] === 'spam')) { $skipped++; continue; }
+            $lm = $c['lastMessage'] ?? ''; $lm = is_array($lm) ? (string)($lm['text'] ?? '') : (string)$lm;
+            $list[] = [$cid, $ac, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), mb_substr($lm, 0, 380)];
+            if ($limit && count($list) >= $limit) break;
+        }
+        // المحددين اللي مش في أول صفحات القائمة: نضيفهم من غير معلومات إضافية
+        if ($mode !== 'all') foreach ($items as $cid => $ac) if (!isset($rows[(string)$cid]) && (!$limit || count($list) < $limit) && !$only24) $list[] = [(string)$cid, $ac, '', '', ''];
+        if (!$list) $J(['error' => t('مفيش محادثات تنطبق عليها الشروط (%s اتستبعدت).', $skipped)], 422);
+        $id = camp_create($wid, trim((string)($_POST['name'] ?? '')) ?: t('حملة %s', fmt_date(gmdate('c'), 'd/m h:i A')), $message, $list, !empty($_POST['personalize']), (int)($_POST['per_minute'] ?? 20));
+        $J(['ok' => true, 'id' => $id, 'total' => count($list), 'skipped' => $skipped]);
+    }
+    if ($act === 'camp_ctl') {
+        $c = camp_get($wid, (int)($_POST['id'] ?? 0));
+        $to = ['pause' => 'paused', 'resume' => 'running', 'cancel' => 'cancelled'][(string)($_POST['op'] ?? '')] ?? null;
+        if (!$c || !$to || in_array($c['status'], ['done', 'cancelled'], true)) $J(['error' => t('طلب غير صحيح.')], 400);
+        db()->prepare("UPDATE msg_campaigns SET status = ?" . ($to === 'cancelled' ? ", finished_at = NOW()" : '') . " WHERE id = ?")->execute([$to, $c['id']]);
+        if ($to === 'cancelled') db()->prepare("UPDATE msg_campaign_items SET status = 'cancelled' WHERE campaign_id = ? AND status = 'queued'")->execute([$c['id']]);
+        $J(['ok' => true]);
+    }
+    // الصفحة وهي مفتوحة بتبعت دفعة صغيرة كل شوية، عشان الحملة تمشي حتى لو مفيش cron
+    if ($act === 'camp_tick') { session_write_close(); try { camp_tick($wid, 4); } catch (Throwable $e) {} }
+    $J(['ok' => true, 'campaigns' => array_map('camp_public', camp_list($wid, 8))]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? 'send');
     $msgId = (string)($_POST['message_id'] ?? '');
@@ -283,36 +369,37 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
     <!-- الفلاتر -->
     <div class="flex flex-wrap items-center gap-2 mb-3">
-      <div class="flex rounded-lg border border-ink-200 overflow-hidden text-sm">
+      <div class="tb p-1 gap-1 text-sm">
         <?php foreach ($folders as $k => $lbl): ?>
-          <a href="<?= e(url('inbox', $k === 'inbox' ? [] : ['folder' => $k])) ?>" class="px-3 py-1.5 <?= $folder === $k ? 'bg-brand-600 text-white font-semibold' : 'bg-white hover:bg-ink-50' ?>"><?= e($lbl) ?></a>
+          <a href="<?= e(url('inbox', $k === 'inbox' ? [] : ['folder' => $k])) ?>" class="h-8 px-3 rounded-lg flex items-center whitespace-nowrap transition <?= $folder === $k ? 'bg-brand-600 text-[#fff] font-medium shadow-sm' : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900' ?>"><?= e($lbl) ?></a>
         <?php endforeach; ?>
       </div>
       <form method="get" class="flex flex-wrap items-center gap-2 flex-1">
         <input type="hidden" name="p" value="inbox">
         <?php if ($folder !== 'inbox'): ?><input type="hidden" name="folder" value="<?= e($folder) ?>"><?php endif; ?>
         <?php if ($folder === 'inbox'): ?>
-          <select name="status" class="input w-auto text-sm py-1.5" onchange="this.form.submit()">
+          <select name="status" class="input !mt-0 !w-auto !h-10 !py-0 text-sm" onchange="this.form.submit()">
             <option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= e(t('النشطة')) ?></option>
             <option value="archived" <?= $status === 'archived' ? 'selected' : '' ?>><?= e(t('المؤرشفة')) ?></option>
           </select>
         <?php endif; ?>
         <?php if ($folder !== 'comments'): ?>
-          <select name="platform" class="input w-auto text-sm py-1.5" onchange="this.form.submit()">
+          <select name="platform" class="input !mt-0 !w-auto !h-10 !py-0 text-sm" onchange="this.form.submit()">
             <option value=""><?= e(t('كل المنصات')) ?></option>
             <?php foreach ($msgPlatforms as $pl): ?><option value="<?= e($pl) ?>" <?= $platform === $pl ? 'selected' : '' ?>><?= e(platform_label($pl)) ?></option><?php endforeach; ?>
           </select>
         <?php endif; ?>
-        <select name="acct" class="input w-auto text-sm py-1.5 max-w-[14rem]" onchange="this.form.submit()">
+        <select name="acct" class="input !mt-0 !w-auto !h-10 !py-0 text-sm max-w-[14rem]" onchange="this.form.submit()">
           <option value=""><?= e(t('كل الحسابات')) ?></option>
           <?php foreach ($accounts as $a): ?><option value="<?= e($a['_id']) ?>" <?= $acctFilter === $a['_id'] ? 'selected' : '' ?>><?= e(ip_account_label($a)) ?></option><?php endforeach; ?>
         </select>
         <?php if ($folder === 'inbox'): ?>
-          <input type="search" name="q" value="<?= e($q) ?>" minlength="2" class="input flex-1 min-w-[10rem] text-sm py-1.5" placeholder="<?= e(t('دور في الرسائل والأسماء والأرقام...')) ?>">
-          <button class="btn-ghost text-sm"><?= e(t('بحث')) ?></button>
+          <div class="relative flex-1 min-w-[12rem]"><svg class="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg>
+          <input type="search" name="q" value="<?= e($q) ?>" minlength="2" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('دور في الرسائل والأسماء والأرقام...')) ?>  ( / )" id="ibx-q"></div>
           <?php if ($q !== ''): ?><a href="<?= e(url('inbox', array_diff_key($base, ['q' => 1]))) ?>" class="link text-sm"><?= e(t('مسح البحث')) ?></a><?php endif; ?>
         <?php endif; ?>
       </form>
+      <?php if ($folder === 'inbox'): ?><button type="button" id="camp-dock-btn" class="tb gap-2 px-3 text-sm"><?= ui_icon('megaphone', 'w-4 h-4') ?><span><?= e(t('الحملات')) ?></span><span id="camp-live" class="hidden w-2 h-2 rounded-full bg-lime-500 animate-pulse"></span></button><?php endif; ?>
     </div>
 
     <?php if ($folder !== 'comments'):
@@ -375,91 +462,109 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     </div>
     <?php return; endif; ?>
 
-    <div class="grid lg:grid-cols-3 gap-4 h-[calc(100vh-19rem)] min-h-[500px]">
+    <?php
+      $aiOn = ai_connection() && can('ai.use');
+      $aiLab = ($aiOn && ai_feature_on('classify_btn')) ? ai_labels((int)ws('id')) : [];
+      $catL = ['inquiry' => t('استفسار'), 'complaint' => t('شكوى'), 'purchase' => t('طلب شراء'), 'support' => t('دعم'), 'spam' => t('سبام'), 'other' => t('أخرى')];
+      $ago = function ($iso) {
+          $ts = strtotime((string)$iso); if (!$ts) return '';
+          $d = time() - $ts;
+          if ($d < 60) return t('الآن'); if ($d < 3600) return t('%s د', (int)($d / 60)); if ($d < 86400) return t('%s س', (int)($d / 3600));
+          if ($d < 7 * 86400) return t('%s ي', (int)($d / 86400)); return fmt_date($iso, 'd/m');
+      };
+      $unreadTotal = array_sum(array_map(function ($c) { return (int)($c['unreadCount'] ?? 0); }, $convs));
+    ?>
+    <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-13rem)] min-h-[560px]" id="ibx">
       <!-- قائمة المحادثات -->
-      <div data-live="list" class="card overflow-y-auto min-h-0 <?= $convId ? 'hidden lg:block' : '' ?>">
-        <?php $aiLab = (ai_connection() && can('ai.use') && ai_feature_on('classify_btn')) ? ai_labels((int)ws('id')) : null; ?>
-        <?php if ($aiLab !== null && $convs): ?>
-          <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-ink-200 px-3 py-2 flex items-center gap-2 text-xs">
-            <button type="button" id="ai-classify" class="inline-flex items-center gap-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 px-2 py-1 hover:bg-brand-100 disabled:opacity-60"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <span><?= e(t('صنّف الآن')) ?></span></button>
-            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-urgent" class="w-3.5 h-3.5"> <?= e(t('العاجل أولًا')) ?></label>
-            <label class="inline-flex items-center gap-1.5 text-ink-600 cursor-pointer"><input type="checkbox" id="ai-intent" class="w-3.5 h-3.5"> <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('نية شراء')) ?></label>
+      <div class="card flex flex-col min-h-0 overflow-hidden <?= $convId ? 'hidden lg:flex' : 'flex' ?>">
+        <div class="flex items-center gap-2 px-3 h-12 border-b border-ink-200 shrink-0">
+          <label class="flex items-center gap-2 text-xs text-ink-600 cursor-pointer select-none" title="<?= e(t('تحديد الكل')) ?>">
+            <input type="checkbox" id="ibx-all" class="w-4 h-4 rounded">
+            <span id="ibx-count" class="tabular-nums"><?= e(t('%s محادثة', count($convs))) ?></span>
+          </label>
+          <?php if ($unreadTotal): ?><span class="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[11px] font-medium"><?= e(t('%s غير مقروءة', $unreadTotal)) ?></span><?php endif; ?>
+          <div class="ms-auto flex items-center gap-1">
+            <?php if ($aiLab !== [] || ($aiOn && ai_feature_on('classify_btn'))): ?>
+              <button type="button" data-ibx-filter="urgent" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100 inline-flex items-center gap-1" title="<?= e(t('العاجل أولًا')) ?>"><?= ui_icon('alert', 'w-3.5 h-3.5') ?><span class="hidden sm:inline"><?= e(t('العاجل')) ?></span></button>
+              <button type="button" data-ibx-filter="intent" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100 inline-flex items-center gap-1" title="<?= e(t('نية شراء')) ?>"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg><span class="hidden sm:inline"><?= e(t('شراء')) ?></span></button>
+            <?php endif; ?>
+            <button type="button" data-ibx-filter="unread" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100" title="<?= e(t('غير المقروءة فقط')) ?>"><?= e(t('غير مقروء')) ?></button>
           </div>
-        <?php endif; ?>
-        <?php if (!$convs): ?><p class="p-5 text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p><?php endif; ?>
-        <?php foreach ($convs as $c): $on = $c['id'] === $convId; $lb = $aiLab[$c['id']] ?? null; ?>
-          <a data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="ai-conv flex gap-3 p-4 border-b border-ink-100 hover:bg-ink-50 transition <?= $on ? 'bg-brand-50 border-s-2 border-s-brand-600' : '' ?>">
-            <?= avatar_with_platform($c['participantPicture'] ?? null, $c['participantName'] ?? '', (string)($c['platform'] ?? '')) ?>
-            <div class="flex-1 min-w-0">
-              <div class="flex justify-between gap-2">
-                <span class="font-semibold text-sm truncate"><?= e($c['participantName'] ?? $c['participantUsername'] ?? t('بدون اسم')) ?></span>
-                <?php if (!empty($c['unreadCount'])): ?><span class="bg-red-600 text-white text-[11px] rounded-full px-2 py-0.5"><?= (int)$c['unreadCount'] ?></span><?php endif; ?>
-                <?php if (!empty($c['matchCount'])): ?><span class="badge"><?= e(t('%s نتيجة', (int)$c['matchCount'])) ?></span><?php endif; ?>
-              </div>
-              <p class="text-xs text-ink-500 truncate"><?= e($c['matchSnippet'] ?? $c['lastMessage'] ?? '') ?></p>
-              <?php if ($lb): $catL = ['inquiry' => t('استفسار'), 'complaint' => t('شكوى'), 'purchase' => t('طلب شراء'), 'support' => t('دعم'), 'spam' => t('سبام'), 'other' => t('أخرى')]; ?>
-                <div class="flex flex-wrap gap-1 mt-1" title="<?= e($lb['summary']) ?>">
-                  <?php if ((int)$lb['urgency'] === 3): ?><span class="rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('عاجل')) ?></span><?php endif; ?>
-                  <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg><?= e(t('نية شراء')) ?></span><?php endif; ?>
-                  <span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($catL[$lb['category']] ?? $lb['category']) ?></span>
-                  <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? e(t('غاضب')) : e(t('متضايق')) ?></span><?php endif; ?>
+        </div>
+        <div data-live="list" class="flex-1 min-h-0 overflow-y-auto">
+          <?php if (!$convs): ?>
+            <div class="p-10 text-center"><div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center"><?= ui_icon('chat', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e($q !== '' ? t('مفيش نتائج للبحث ده.') : t('مفيش رسائل.')) ?></p></div>
+          <?php endif; ?>
+          <?php foreach ($convs as $c): $on = $c['id'] === $convId; $lb = $aiLab[$c['id']] ?? null; $un = (int)($c['unreadCount'] ?? 0); $nm = (string)($c['participantName'] ?? $c['participantUsername'] ?? t('بدون اسم')); ?>
+            <div class="ibx-item group relative flex items-stretch border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-key="<?= e($c['id'] . '|' . $c['accountId']) ?>" data-urg="<?= (int)($lb['urgency'] ?? 0) ?>" data-intent="<?= (int)($lb['intent'] ?? 0) ?>" data-unread="<?= $un ? 1 : 0 ?>">
+              <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
+              <label class="ibx-cb flex items-center ps-3 pe-1 cursor-pointer"><input type="checkbox" class="ibx-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e($nm) ?>"></label>
+              <a href="<?= e(url('inbox', $base + ['c' => $c['id'], 'a' => $c['accountId']])) ?>" class="flex-1 min-w-0 flex gap-3 py-3 pe-3">
+                <?= avatar_with_platform($c['participantPicture'] ?? null, $nm, (string)($c['platform'] ?? '')) ?>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm truncate <?= $un ? 'font-semibold text-ink-900' : 'font-medium text-ink-800' ?>"><?= e($nm) ?></span>
+                    <span class="ms-auto shrink-0 text-[11px] <?= $un ? 'text-brand-700 font-medium' : 'text-ink-400' ?>"><?= e($ago($c['lastMessageAt'] ?? $c['updatedTime'] ?? '')) ?></span>
+                  </div>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <p class="text-xs truncate flex-1 <?= $un ? 'text-ink-800' : 'text-ink-500' ?>"><?= e($c['matchSnippet'] ?? $c['lastMessage'] ?? '') ?></p>
+                    <?php if ($un): ?><span class="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-brand-600 text-[#fff] text-[11px] font-semibold flex items-center justify-center"><?= $un ?></span><?php endif; ?>
+                    <?php if (!empty($c['matchCount'])): ?><span class="badge"><?= e(t('%s نتيجة', (int)$c['matchCount'])) ?></span><?php endif; ?>
+                  </div>
+                  <?php if ($lb): ?>
+                    <div class="flex flex-wrap gap-1 mt-1.5" title="<?= e($lb['summary']) ?>">
+                      <?php if ((int)$lb['urgency'] === 3): ?><span class="rounded-md bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('عاجل')) ?></span><?php endif; ?>
+                      <?php if ($lb['intent']): ?><span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px] font-medium"><?= e(t('نية شراء')) ?></span><?php endif; ?>
+                      <span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($catL[$lb['category']] ?? $lb['category']) ?></span>
+                      <?php if (in_array($lb['sentiment'], ['angry', 'upset'], true)): ?><span class="rounded-md bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px]"><?= $lb['sentiment'] === 'angry' ? e(t('غاضب')) : e(t('متضايق')) ?></span><?php endif; ?>
+                    </div>
+                  <?php endif; ?>
                 </div>
-              <?php endif; ?>
-              <p class="text-[11px] text-ink-400 mt-0.5"><?= e(platform_label($c['platform'] ?? '')) ?><?php if (!empty($c['accountUsername'])): ?> · <?= e(trim($c['accountUsername'])) ?><?php endif; ?> · <?= e(fmt_date($c['updatedTime'] ?? null, 'd/m h:i A')) ?><?php if (($c['status'] ?? '') === 'archived'): ?> · <?= e(t('مؤرشفة')) ?><?php endif; ?></p>
+              </a>
             </div>
-          </a>
-        <?php endforeach; ?>
-        <?php if ($next): ?><a href="<?= e(url('inbox', $base + ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+          <?php endforeach; ?>
+          <?php if ($next): ?><a href="<?= e(url('inbox', $base + ['cursor' => $next])) ?>" class="block text-center p-3 text-sm link"><?= e(t('أقدم')) ?></a><?php endif; ?>
+        </div>
+        <!-- شريط الإجراءات على المحدد -->
+        <div id="ibx-bar" class="hidden shrink-0 border-t border-ink-200 bg-white p-2">
+          <div class="flex items-center gap-2 px-1 pb-2 text-xs"><b class="text-ink-900" id="ibx-n">0</b><span class="text-ink-500"><?= e(t('محدد')) ?></span><button type="button" id="ibx-clear" class="ms-auto link !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button></div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <?php if ($aiOn && ai_feature_on('classify_btn')): ?><button type="button" data-op="classify" class="ibx-op btn-ghost !py-1.5 !text-xs !justify-start"><?= ai_icon('spark', 'w-3.5 h-3.5 text-brand-600') ?><?= e(t('تصنيف بالذكاء الاصطناعي')) ?></button><?php endif; ?>
+            <button type="button" data-op="read" class="ibx-op btn-ghost !py-1.5 !text-xs !justify-start"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M2 12l5 5L18 6M12 17l1 1L22 9"/></svg><?= e(t('تعليم كمقروء')) ?></button>
+            <button type="button" data-op="<?= $status === 'archived' ? 'unarchive' : 'archive' ?>" class="ibx-op btn-ghost !py-1.5 !text-xs !justify-start"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4"/></svg><?= e($status === 'archived' ? t('رجّعها للنشطة') : t('أرشفة')) ?></button>
+            <button type="button" id="ibx-camp-open" class="btn-primary !py-1.5 !text-xs !justify-start"><?= ui_icon('megaphone', 'w-3.5 h-3.5') ?><?= e(t('حملة رسائل')) ?></button>
+          </div>
+        </div>
       </div>
-      <?php if ($aiLab !== null): ?>
-      <script>
-      (function () {
-        function list() { return document.querySelector('[data-live=list]'); }
-        function apply() {
-          var L = list(); if (!L) return; var u = document.getElementById('ai-urgent'), it = document.getElementById('ai-intent');
-          var items = [].slice.call(L.querySelectorAll('a.ai-conv'));
-          items.forEach(function (a, i) { if (!a.dataset.ord) a.dataset.ord = i; a.classList.toggle('hidden', !!(it && it.checked) && a.dataset.intent !== '1'); });
-          items.sort(function (a, b) { return (u && u.checked ? (+b.dataset.urg) - (+a.dataset.urg) : 0) || (+a.dataset.ord) - (+b.dataset.ord); });
-          var anchor = L.querySelector('a.ai-conv'); if (!anchor) return; var parent = anchor.parentNode, tail = parent.querySelector('a:not(.ai-conv)');
-          items.forEach(function (a) { parent.insertBefore(a, tail); });
-        }
-        document.addEventListener('change', function (e) { if (e.target.id === 'ai-urgent' || e.target.id === 'ai-intent') { try { localStorage.setItem(e.target.id, e.target.checked ? '1' : ''); } catch (x) {} apply(); } });
-        document.addEventListener('click', function (e) {
-          var b = e.target.closest('#ai-classify'); if (!b) return;
-          b.disabled = true; b.classList.add('animate-pulse');
-          var fd = new FormData(); fd.append('task', 'classify_now');
-          fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content } }).then(function (r) { return r.json(); })
-            .then(function (d) { if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); b.disabled = false; b.classList.remove('animate-pulse'); return; } location.reload(); })
-            .catch(function () { b.disabled = false; b.classList.remove('animate-pulse'); });
-        });
-        function restore() { ['ai-urgent', 'ai-intent'].forEach(function (id) { var el = document.getElementById(id); try { if (el && localStorage.getItem(id)) el.checked = true; } catch (x) {} }); apply(); }
-        restore();
-        new MutationObserver(function () { var L = list(); if (L && !L.dataset.aiSeen) { L.dataset.aiSeen = 1; restore(); } }).observe(document.body, { childList: true, subtree: true });
-      })();
-      </script>
-      <?php endif; ?>
 
       <!-- المحادثة -->
-      <div class="lg:col-span-2 card flex flex-col min-h-0 overflow-hidden <?= $convId ? '' : 'hidden lg:flex' ?>">
+      <div class="card flex flex-col min-h-0 overflow-hidden <?= $convId ? 'flex' : 'hidden lg:flex' ?>">
         <?php if (!$convId): ?>
-          <div class="flex-1 flex items-center justify-center text-ink-400 text-sm"><?= e(t('اختار محادثة من القائمة')) ?></div>
+          <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><?= ui_icon('chat', 'w-8 h-8') ?></div>
+            <p class="font-medium text-ink-900"><?= e(t('اختار محادثة من القائمة')) ?></p>
+            <p class="text-xs text-ink-500 mt-1"><?= e(t('أو حدد كذا محادثة من المربعات علشان تصنّفها أو تبعت لهم حملة.')) ?></p>
+            <p class="text-[11px] text-ink-400 mt-4"><kbd class="px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50">J</kbd> <kbd class="px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50">K</kbd> <?= e(t('للتنقل')) ?> · <kbd class="px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50">X</kbd> <?= e(t('للتحديد')) ?> · <kbd class="px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50">R</kbd> <?= e(t('للرد')) ?></p>
+          </div>
         <?php else: $isRequest = $folder === 'requests' || ($current['folder'] ?? '') === 'requests'; $archived = ($current['status'] ?? '') === 'archived'; ?>
-          <div class="p-3 border-b border-ink-200 flex flex-wrap items-center gap-2">
-            <a href="<?= e(url('inbox', $base)) ?>" class="lg:hidden link text-sm"><?= e(t('رجوع')) ?></a>
-            <span class="font-bold"><?= e($current['participantName'] ?? $current['participantUsername'] ?? t('محادثة')) ?></span>
-            <?php if ($plat): ?><span class="inline-flex items-center gap-1.5 text-xs text-ink-500 bg-ink-100 rounded-full px-2 py-0.5"><?= platform_icon($plat, 'w-3.5 h-3.5') ?><?= e(platform_label($plat)) ?><?php if (!empty($current['accountUsername'])): ?> · <?= e(trim($current['accountUsername'])) ?><?php endif; ?></span><?php endif; ?>
+          <div class="px-4 h-16 border-b border-ink-200 flex items-center gap-3 shrink-0">
+            <a href="<?= e(url('inbox', $base)) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100" aria-label="<?= e(t('رجوع')) ?>"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
+            <?= avatar_with_platform($current['participantPicture'] ?? null, (string)($current['participantName'] ?? ''), $plat) ?>
+            <div class="min-w-0"><div class="font-semibold text-ink-900 truncate"><?= e($current['participantName'] ?? $current['participantUsername'] ?? t('محادثة')) ?></div>
+              <div class="text-[11px] text-ink-500 truncate"><?= e(platform_label($plat)) ?><?php if (!empty($current['participantUsername'])): ?> · <span dir="ltr">@<?= e(ltrim((string)$current['participantUsername'], '@')) ?></span><?php endif; ?></div></div>
             <?php foreach ($convLabels as $l): ?>
               <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="label_remove"><input type="hidden" name="label_id" value="<?= e($l['id']) ?>">
                 <button class="badge" title="<?= e(t('شيل التصنيف')) ?>"><?= e($l['name'] ?? '') ?> ×</button></form>
             <?php endforeach; ?>
-            <div class="ms-auto flex flex-wrap items-center gap-2">
+            <div class="ms-auto flex items-center gap-1.5">
+              <button type="button" id="ibx-info" class="hidden lg:inline-flex 2xl:hidden tb w-9 h-9 !h-9 justify-center" title="<?= e(t('بيانات العميل')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg></button>
               <?php if (!$isRequest): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="<?= $archived ? 'unarchive' : 'archive' ?>">
-                  <button class="btn-ghost text-xs"><?= e($archived ? t('رجّعها للنشطة') : t('أرشفة')) ?></button></form>
+                  <button class="tb w-9 h-9 !h-9 justify-center" title="<?= e($archived ? t('رجّعها للنشطة') : t('أرشفة')) ?> (E)" data-ibx-archive><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4"/></svg></button></form>
               <?php endif; ?>
               <?php if (can('inbox.manage')): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('حذف المحادثة دي وكل رسايلها من Zernio؟ مش هينفع ترجعها.') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete_conv">
-                  <button class="btn-ghost text-xs text-red-600"><?= e(t('حذف المحادثة')) ?></button></form>
+                  <button class="tb w-9 h-9 !h-9 justify-center hover:!text-red-600 hover:!border-red-200" title="<?= e(t('حذف المحادثة')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></form>
               <?php endif; ?>
             </div>
           </div>
@@ -496,7 +601,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <button class="btn-ghost text-xs"><?= e(t('إضافة')) ?></button></form>
             </details>
           <?php endif; ?>
-          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-ink-50" id="thread">
+          <div class="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-2.5 bg-ink-50/70" id="thread" style="background-image:radial-gradient(rgb(var(--ink-200)/.5) 1px,transparent 1px);background-size:18px 18px">
             <?php $lastDay = null; foreach ($messages as $m): $out = ($m['direction'] ?? '') === 'outgoing'; $mid = (string)($m['id'] ?? '');
                 $day = fmt_date($m['createdAt'] ?? null, 'Y-m-d');
                 if ($day !== $lastDay): $lastDay = $day;
@@ -505,7 +610,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
             <?php endif; ?>
               <div class="flex <?= $out ? 'justify-start' : 'justify-end' ?>">
                 <div class="max-w-[80%] group">
-                  <div class="rounded-2xl px-4 py-2 text-sm <?= $out ? 'bg-brand-600 text-white' : 'bg-white border border-ink-200' ?>">
+                  <div class="px-4 py-2.5 text-sm shadow-sm <?= $out ? 'rounded-2xl rounded-ss-md bg-gradient-to-br from-brand-600 to-brand-700 text-[#fff]' : 'rounded-2xl rounded-se-md bg-white border border-ink-200 text-ink-800' ?>">
                     <?php if (!empty($m['isDeleted'])): ?><em class="opacity-70"><?= e(t('رسالة محذوفة')) ?></em>
                     <?php else: ?>
                       <?php if (($m['message'] ?? '') !== ''): ?><p class="whitespace-pre-line break-words"><?= e($m['message']) ?></p>
@@ -563,21 +668,99 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                 <button type="button" class="btn-ghost !py-1 !px-2.5 !text-xs mt-2" onclick="var t=document.querySelector('#ai-draft ~ form textarea[name=message]');t.value=this.parentNode.querySelector('p').textContent;t.focus();this.parentNode.remove();"><?= e(t('استخدم الرد')) ?></button>
               </div>
             <?php endif; ?>
-            <form method="post" enctype="multipart/form-data" data-optimistic class="p-3 border-t border-ink-200 flex gap-2 items-end">
+            <form method="post" enctype="multipart/form-data" data-optimistic class="m-3 mt-2 rounded-2xl border border-ink-200 bg-white focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10 transition flex gap-1.5 items-end p-1.5" id="ibx-compose">
               <?= csrf_field() ?><input type="hidden" name="action" value="send">
               <label class="p-2.5 rounded-lg hover:bg-ink-100 cursor-pointer" title="<?= e(t('إرفاق ملف')) ?>">
                 <svg class="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.2 7l-6.6 6.6a2 2 0 102.8 2.8l6.4-6.6a4 4 0 00-5.6-5.6l-6.4 6.5a6 6 0 108.5 8.5L20.5 13"/></svg>
                 <input type="file" name="attachment" class="hidden" onchange="this.parentNode.classList.add('bg-brand-100')">
               </label>
-              <textarea data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="2" class="input !mt-0 flex-1 text-sm" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
+              <textarea data-ai="polish_reply,summarize,triage,extract,translate_ctx" name="message" rows="1" class="input !mt-0 flex-1 text-sm !border-0 !ring-0 !shadow-none max-h-40" placeholder="<?= e($plat ? t('اكتب ردك على %s...', platform_label($plat)) : t('اكتب ردك...')) ?>" data-enter-submit></textarea>
               <?php if (ai_connection() && can('ai.use') && ai_feature_on('reply_btn')): ?><button type="button" data-ai-task="reply" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-2.5 py-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition disabled:opacity-60" title="<?= e(t('اقتراح رد')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span><?= e(t('اقتراح رد')) ?></span></button><?php endif; ?>
               <button class="btn-primary"><?= e(t('إرسال')) ?></button>
             </form>
-            <p class="px-4 pb-2 -mt-1 text-[11px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>
+            <p class="px-5 pb-2 -mt-1 text-[10px] text-ink-400"><?= e(t('Enter للإرسال · Shift+Enter لسطر جديد')) ?></p>
           <?php endif; ?>
         <?php endif; ?>
       </div>
+
+      <!-- بيانات العميل -->
+      <aside id="ibx-side" class="hidden 2xl:flex card flex-col min-h-0 overflow-y-auto">
+        <?php if ($convId && $current): $lb = $aiLab[$convId] ?? null; $nm = (string)($current['participantName'] ?? $current['participantUsername'] ?? ''); ?>
+          <div class="p-5 text-center border-b border-ink-100">
+            <div class="flex justify-center"><?= str_replace(['w-10 h-10', 'w-11 h-11'], 'w-16 h-16', avatar_with_platform($current['participantPicture'] ?? null, $nm, $plat)) ?></div>
+            <div class="font-semibold text-ink-900 mt-3"><?= e($nm ?: t('بدون اسم')) ?></div>
+            <?php if (!empty($current['participantUsername'])): ?><div class="text-xs text-ink-500" dir="ltr">@<?= e(ltrim((string)$current['participantUsername'], '@')) ?></div><?php endif; ?>
+            <div class="inline-flex items-center gap-1.5 mt-2 rounded-full bg-ink-100 px-2.5 py-1 text-[11px] text-ink-600"><?= platform_icon($plat, 'w-3.5 h-3.5') ?><?= e(platform_label($plat)) ?><?php if (!empty($current['accountUsername'])): ?> · <?= e(trim($current['accountUsername'])) ?><?php endif; ?></div>
+          </div>
+          <div class="p-4 space-y-4 text-sm">
+            <div>
+              <div class="flex items-center justify-between mb-2"><span class="text-xs font-medium text-ink-500"><?= e(t('تحليل الذكاء الاصطناعي')) ?></span>
+                <?php if ($aiOn && ai_feature_on('classify_btn')): ?><button type="button" class="ibx-one link text-xs" data-key="<?= e($convId . '|' . $accId) ?>"><?= e($lb ? t('أعد التحليل') : t('حلّل')) ?></button><?php endif; ?></div>
+              <?php if ($lb): ?>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('النوع')) ?></div><div class="font-medium text-ink-900"><?= e($catL[$lb['category']] ?? $lb['category']) ?></div></div>
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('الإحساس')) ?></div><div class="font-medium <?= in_array($lb['sentiment'], ['angry', 'upset'], true) ? 'text-amber-700' : 'text-ink-900' ?>"><?= e(['positive' => t('راضي'), 'neutral' => t('محايد'), 'upset' => t('متضايق'), 'angry' => t('غاضب')][$lb['sentiment']] ?? $lb['sentiment']) ?></div></div>
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('الأهمية')) ?></div><div class="flex gap-1 mt-1"><?php for ($i = 1; $i <= 3; $i++): ?><span class="h-1.5 flex-1 rounded-full <?= $i <= (int)$lb['urgency'] ? ((int)$lb['urgency'] === 3 ? 'bg-red-500' : 'bg-amber-500') : 'bg-ink-200' ?>"></span><?php endfor; ?></div></div>
+                  <div class="rounded-xl bg-ink-50 border border-ink-200 p-2.5"><div class="text-[10px] text-ink-500"><?= e(t('نية شراء')) ?></div><div class="font-medium <?= $lb['intent'] ? 'text-lime-700' : 'text-ink-500' ?>"><?= $lb['intent'] ? e(t('أيوه')) : e(t('لأ')) ?></div></div>
+                </div>
+                <?php if ($lb['summary'] !== ''): ?><p class="text-xs text-ink-600 mt-2 leading-relaxed"><?= e($lb['summary']) ?></p><?php endif; ?>
+              <?php else: ?><p class="text-xs text-ink-400"><?= e(t('المحادثة دي لسه ما اتحللتش.')) ?></p><?php endif; ?>
+            </div>
+            <?php if ($convLabels): ?><div><span class="text-xs font-medium text-ink-500"><?= e(t('التصنيفات')) ?></span><div class="flex flex-wrap gap-1.5 mt-2"><?php foreach ($convLabels as $l): ?><span class="badge"><?= e($l['name'] ?? '') ?></span><?php endforeach; ?></div></div><?php endif; ?>
+            <div class="space-y-1.5">
+              <span class="text-xs font-medium text-ink-500"><?= e(t('إجراءات سريعة')) ?></span>
+              <?php if ($aiOn): ?>
+                <button type="button" class="w-full btn-ghost !justify-start !text-xs" data-cp-insight-chat="<?= e(t('لخّص المحادثة دي واقترح الخطوة الجاية.')) ?>"><?= ai_icon('spark', 'w-3.5 h-3.5 text-brand-600') ?><?= e(t('لخّص واقترح الخطوة الجاية')) ?></button>
+              <?php endif; ?>
+              <button type="button" class="w-full btn-ghost !justify-start !text-xs" data-ibx-camp-one="<?= e($convId . '|' . $accId) ?>"><?= ui_icon('megaphone', 'w-3.5 h-3.5') ?><?= e(t('ضيفه لحملة رسائل')) ?></button>
+            </div>
+          </div>
+        <?php else: ?>
+          <div class="flex-1 flex items-center justify-center p-6 text-center text-xs text-ink-400"><?= e(t('بيانات العميل هتظهر هنا لما تفتح محادثة.')) ?></div>
+        <?php endif; ?>
+      </aside>
     </div>
     </div>
+
+    <!-- نافذة حملة الرسائل -->
+    <dialog id="camp-dlg" class="w-[min(560px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40 backdrop:backdrop-blur-[2px]">
+      <form method="dialog" id="camp-form" class="flex flex-col max-h-[88vh]">
+        <div class="flex items-center gap-3 px-5 h-14 border-b border-ink-200 shrink-0">
+          <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center"><?= ui_icon('megaphone', 'w-[18px] h-[18px]') ?></span>
+          <b class="flex-1 text-ink-900"><?= e(t('حملة رسائل')) ?></b>
+          <button type="button" data-camp-close class="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100">✕</button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto">
+          <div class="seg w-fit" id="camp-mode"><a href="#" class="on" data-mode="selected"><?= e(t('المحدد')) ?> (<span id="camp-sel-n">0</span>)</a><a href="#" data-mode="all"><?= e(t('كل المحادثات')) ?></a></div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block"><span class="label"><?= e(t('اسم الحملة')) ?></span><input name="name" class="input" placeholder="<?= e(t('مثلاً: عرض نهاية الأسبوع')) ?>"></label>
+            <label class="block"><span class="label"><?= e(t('عدد معين (اختياري)')) ?></span><input name="limit" type="number" min="1" class="input" placeholder="<?= e(t('الكل')) ?>"></label>
+          </div>
+          <label class="block"><span class="label"><?= e(t('الرسالة')) ?></span>
+            <textarea name="message" data-ai="improve,shorten,tone_friendly,tone_excited,cta" rows="5" required class="input text-sm" placeholder="<?= e(t('أهلًا {name}! عندنا عرض خاص النهارده...')) ?>"></textarea></label>
+          <p class="text-[11px] text-ink-500 -mt-2"><?= e(t('اكتب {name} في أي مكان وهيتبدّل باسم العميل.')) ?></p>
+          <div class="space-y-2 text-sm">
+            <?php if ($aiOn): ?><label class="flex items-start gap-2.5"><input type="checkbox" name="personalize" value="1" class="mt-1"><span><b class="text-ink-900"><?= e(t('خصّص كل رسالة بالذكاء الاصطناعي')) ?></b><span class="block text-xs text-ink-500"><?= e(t('بيعدّل الرسالة لكل عميل حسب اسمه وآخر رسالة منه. بيستهلك طلب لكل عميل.')) ?></span></span></label><?php endif; ?>
+            <label class="flex items-start gap-2.5"><input type="checkbox" name="only24" value="1" class="mt-1" checked><span><b class="text-ink-900"><?= e(t('اللي كلّمونا آخر 24 ساعة بس (موصى به)')) ?></b><span class="block text-xs text-ink-500"><?= e(t('فيسبوك وإنستجرام وواتساب بيمنعوا رسايل ترويجية بعد 24 ساعة من آخر رسالة للعميل، وممكن يقفلوا الحساب.')) ?></span></span></label>
+            <label class="flex items-start gap-2.5"><input type="checkbox" name="skip_bad" value="1" class="mt-1" checked><span><b class="text-ink-900"><?= e(t('استبعد الشكاوي والغاضبين والسبام')) ?></b><span class="block text-xs text-ink-500"><?= e(t('حسب تصنيف الذكاء الاصطناعي.')) ?></span></span></label>
+          </div>
+          <label class="block"><span class="label"><?= e(t('السرعة')) ?></span>
+            <select name="per_minute" class="input"><option value="10"><?= e(t('هادية: 10 في الدقيقة')) ?></option><option value="20" selected><?= e(t('عادية: 20 في الدقيقة (موصى به)')) ?></option><option value="40"><?= e(t('سريعة: 40 في الدقيقة')) ?></option></select></label>
+          <p class="text-[11px] text-ink-400"><?= e(t('الرسايل بتتبعت من طابور على دفعات، عشان الخدمة ماتقفش. تقدر توقفها أو تلغيها في أي وقت.')) ?></p>
+        </div>
+        <div class="flex items-center gap-2 px-5 py-3 border-t border-ink-200 shrink-0">
+          <span id="camp-err" class="text-xs text-red-600"></span>
+          <button type="button" data-camp-close class="ms-auto btn-ghost"><?= e(t('إلغاء')) ?></button>
+          <button type="submit" id="camp-go" class="btn-primary"><?= e(t('ابدأ الحملة')) ?></button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- الحملات الشغالة -->
+    <div id="camp-dock" class="hidden fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 lg:start-auto lg:end-20 lg:translate-x-0 rtl:lg:translate-x-0 z-40 w-[min(380px,92vw)] rounded-2xl border border-ink-200 bg-white shadow-2xl"></div>
+    <script>window.IBX = <?= json_encode(['n' => t('%s محادثة'), 'sel' => t('محدد'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'done' => t('تم: %s'), 'started' => t('بدأت الحملة: %s محادثة'), 'skipped' => t('اتستبعد %s'),
+        'campaigns' => t('الحملات'), 'running' => t('شغالة'), 'paused' => t('متوقفة'), 'done2' => t('خلصت'), 'cancelled' => t('اتلغت'), 'pause' => t('إيقاف مؤقت'), 'resume' => t('كمّل'), 'cancel' => t('إلغاء'),
+        'sent' => t('اتبعت'), 'failed' => t('فشل'), 'left' => t('فاضل'), 'eta' => t('حوالي %s دقيقة'), 'confirmCancel' => t('إلغاء الحملة؟ الرسايل اللي اتبعتت مش هترجع.'), 'pickFirst' => t('حدد محادثة واحدة على الأقل.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-});
+}, ['full' => true]);

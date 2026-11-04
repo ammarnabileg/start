@@ -278,4 +278,40 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    // حملات الرسائل: طابور بيتبعت على دفعات عشان الخدمة ماتقفش وماتتحظرش
+    '013_campaigns' => [
+        "CREATE TABLE IF NOT EXISTS msg_campaigns (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            name VARCHAR(160) NOT NULL,
+            message TEXT NOT NULL,
+            personalize TINYINT(1) NOT NULL DEFAULT 0,
+            per_minute SMALLINT UNSIGNED NOT NULL DEFAULT 20,
+            status VARCHAR(12) NOT NULL DEFAULT 'running',
+            total INT UNSIGNED NOT NULL DEFAULT 0,
+            sent INT UNSIGNED NOT NULL DEFAULT 0,
+            failed INT UNSIGNED NOT NULL DEFAULT 0,
+            skipped INT UNSIGNED NOT NULL DEFAULT 0,
+            last_tick DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            finished_at DATETIME NULL,
+            INDEX ws_status (workspace_id, status),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS msg_campaign_items (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            campaign_id INT UNSIGNED NOT NULL,
+            conv_id VARCHAR(120) NOT NULL,
+            account_id VARCHAR(120) NOT NULL,
+            name VARCHAR(190) NOT NULL DEFAULT '',
+            platform VARCHAR(30) NOT NULL DEFAULT '',
+            last_text VARCHAR(400) NOT NULL DEFAULT '',
+            status VARCHAR(10) NOT NULL DEFAULT 'queued',
+            error VARCHAR(255) NOT NULL DEFAULT '',
+            sent_at DATETIME NULL,
+            INDEX camp_status (campaign_id, status),
+            FOREIGN KEY (campaign_id) REFERENCES msg_campaigns(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

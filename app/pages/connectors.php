@@ -255,10 +255,10 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
     </div>
 
     <!-- اللوحة الجانبية -->
-    <div id="intg-overlay" class="fixed inset-0 z-40 bg-ink-900/40 backdrop-blur-[2px] opacity-0 pointer-events-none transition-opacity duration-200"></div>
+    <div id="intg-overlay" class="fixed inset-0 z-[55] bg-ink-900/40 backdrop-blur-[2px] opacity-0 pointer-events-none transition-opacity duration-200"></div>
     <?php foreach ($registry as $key => $def): $conns = $all[$key]; $locked = !empty($def['owner_only']) && !is_ws_owner(); ?>
     <aside id="drawer-<?= e($key) ?>" data-drawer="<?= e($key) ?>" role="dialog" aria-modal="true"
-      class="intg-drawer fixed top-0 bottom-0 end-0 z-50 w-full max-w-lg bg-white border-s border-ink-200 shadow-2xl flex flex-col translate-x-full rtl:-translate-x-full transition-transform duration-300 ease-out">
+      class="intg-drawer fixed top-0 bottom-0 end-0 z-[60] w-full max-w-lg bg-white border-s border-ink-200 shadow-2xl flex flex-col translate-x-full rtl:-translate-x-full transition-transform duration-300 ease-out">
       <div class="p-5 border-b border-ink-200 flex items-start gap-3.5">
         <?= connector_logo($def) ?>
         <div class="flex-1 min-w-0">

@@ -36,13 +36,14 @@ function ai_labels(int $wid): array
  * بيصنف المحادثات اللي آخر رسالة فيها اتغيرت من آخر مرة. طلب واحد لحد 20 محادثة عشان التكلفة.
  * بيرجع عدد اللي اتصنف.
  */
-function ai_classify_conversations(int $wid, int $max = 20): int
+function ai_classify_conversations(int $wid, int $max = 20, ?array $onlyIds = null, bool $force = false): int
 {
     if (!ai_connection()) return 0;
     $z = zernio_or_null();
     if (!$z) return 0;
-    $conv = $z->conversations(['limit' => 40, 'profileId' => zernio_profile()])['data'] ?? [];
-    $known = ai_labels($wid);
+    $conv = $z->conversations(['limit' => $onlyIds ? 100 : 40, 'profileId' => zernio_profile()])['data'] ?? [];
+    if ($onlyIds !== null) { $onlyIds = array_map('strval', $onlyIds); $conv = array_values(array_filter($conv, function ($c) use ($onlyIds) { return in_array((string)($c['id'] ?? ''), $onlyIds, true); })); }
+    $known = $force ? [] : ai_labels($wid);
     $todo = [];
     foreach ($conv as $c) {
         $m = $c['lastMessage'] ?? '';
