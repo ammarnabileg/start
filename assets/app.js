@@ -254,3 +254,51 @@ document.addEventListener('click', function (e) {
   init(document);
   new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) init(n.matches && n.matches('textarea') ? n.parentNode : n); }); }); }).observe(document.body, { childList: true, subtree: true });
 })();
+
+/* تحليلات الذكاء الاصطناعي: أي عنصر فيه data-ai-insights="key1,key2" */
+(function () {
+  var P = window.AI_PRESETS; if (!P || !P.insights) return;
+  var csrf = function () { return (document.querySelector('meta[name=csrf-token]') || {}).content || ''; };
+  document.querySelectorAll('[data-ai-insights]').forEach(function (root) {
+    var keys = root.dataset.aiInsights.split(',').map(function (k) { return k.trim(); }).filter(function (k) { return P.insights[k]; });
+    if (!keys.length) return;
+    root.classList.add('card', 'p-4', 'sm:p-5');
+    root.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center text-sm">✨</span><b class="text-ink-900 text-sm"></b></div><div class="ai-chips flex flex-wrap gap-2"></div><div class="ai-in hidden mt-3"><textarea rows="3" class="input text-sm"></textarea><div class="mt-2"><button type="button" class="ai-go btn-primary !py-1.5 !text-xs"></button></div></div><div class="ai-out hidden mt-4"></div>';
+    root.querySelector('b').textContent = root.dataset.aiTitle || P.aiTitle;
+    var chips = root.querySelector('.ai-chips'), inWrap = root.querySelector('.ai-in'), ta = inWrap.querySelector('textarea'), go = inWrap.querySelector('.ai-go'), out = root.querySelector('.ai-out'), cur = null;
+    go.textContent = P.run;
+    function run(key) {
+      var it = P.insights[key];
+      chips.querySelectorAll('button').forEach(function (b) { b.disabled = true; b.classList.toggle('on', b.dataset.k === key); });
+      out.classList.remove('hidden'); out.innerHTML = '<div class="flex items-center gap-2 text-sm text-ink-500"><svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></div>';
+      out.firstChild.appendChild(document.createTextNode(P.thinking));
+      var fd = new FormData(); fd.append('task', 'insight'); fd.append('insight', key); fd.append('text', it.input ? ta.value : '');
+      fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) { out.innerHTML = '<p class="text-sm text-red-600"></p>'; out.firstChild.textContent = d.error; return; }
+        var meta = (d.model || '') + (d.cost != null ? ' · $' + (+d.cost).toFixed(5).replace(/0+$/, '').replace(/\.$/, '') : '');
+        out.innerHTML = '<div class="rounded-2xl border border-brand-200 bg-brand-50/50 p-4"><div class="ai-md prose-sm text-sm text-ink-800 leading-relaxed space-y-2"></div><div class="flex flex-wrap items-center gap-2 mt-3"><button type="button" class="ai-copy btn-ghost !py-1 !px-2.5 !text-xs"></button><span class="ms-auto text-[10px] text-ink-400" dir="ltr"></span></div></div>';
+        var md = out.querySelector('.ai-md'), cp = out.querySelector('.ai-copy');
+        out.querySelector('span[dir]').textContent = meta; cp.textContent = P.copy;
+        if (d.csv != null) {
+          var pre = document.createElement('pre'); pre.className = 'text-xs whitespace-pre-wrap max-h-72 overflow-auto bg-white rounded-xl border border-ink-200 p-3'; pre.dir = 'auto'; pre.textContent = d.csv; md.appendChild(pre);
+          var dl = document.createElement('a'); dl.className = 'btn-primary !py-1 !px-2.5 !text-xs'; dl.textContent = P.csvBtn + ' (' + d.rows + ' ' + P.rowsTxt + ')';
+          dl.href = URL.createObjectURL(new Blob(['﻿' + d.csv], { type: 'text/csv;charset=utf-8' })); dl.download = 'ai-posts.csv'; cp.before(dl);
+          cp.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(d.csv); cp.textContent = '✓'; };
+        } else {
+          md.innerHTML = d.html; cp.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(d.text); cp.textContent = '✓'; };
+        }
+      }).catch(function () { out.innerHTML = '<p class="text-sm text-red-600"></p>'; out.firstChild.textContent = (window.T && T.liveFailed) || 'Error'; })
+        .finally(function () { chips.querySelectorAll('button').forEach(function (b) { b.disabled = false; }); });
+    }
+    keys.forEach(function (k) {
+      var it = P.insights[k], b = document.createElement('button'); b.type = 'button'; b.dataset.k = k;
+      b.className = 'chip disabled:opacity-60'; b.textContent = it.icon + ' ' + it.label;
+      b.onclick = function () {
+        if (it.input) { cur = k; inWrap.classList.remove('hidden'); ta.placeholder = it.input; chips.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); ta.focus(); return; }
+        inWrap.classList.add('hidden'); run(k);
+      };
+      chips.appendChild(b);
+    });
+    go.onclick = function () { if (!ta.value.trim()) { ta.focus(); return; } run(cur); };
+  });
+})();

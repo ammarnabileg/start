@@ -44,3 +44,37 @@ function ai_presets(): array
         'auto_msg' => ['group' => 'compose', 'label' => t('صياغة رسالة تلقائية'), 'mode' => 'replace', 'needs' => 'text', 'sys' => "Rewrite this automated message to a customer: friendly, short, clear next step. Keep any {{placeholders}} exactly as they are. $same $only"],
     ];
 }
+
+/**
+ * تحليلات الذكاء الاصطناعي من بيانات الشركة الحقيقية. بتظهر كأزرار في أي عنصر فيه data-ai-insights="..."
+ * input = لو محتاج نص من المستخدم (placeholder)، csv = النتيجة ملف CSV
+ */
+function ai_insights(): array
+{
+    $tz = 'Times are UTC in the data; convert them to the company timezone ({tz}).';
+    $base = "Answer in {lang} using short headings and bullet points with concrete numbers from the data. If the data is missing or too small, say so in one line and suggest what to do instead. Never invent numbers.";
+    return [
+        // لوحة التحكم
+        'dash_summary' => ['group' => 'analyze', 'label' => t('ملخص اليوم'), 'icon' => '📋', 'sys' => "Write a short daily briefing for the business owner: how the last 7 days compare to the previous 7 (with % change), the best post, and the inbox status. Max 6 bullets. $base"],
+        'dash_todo' => ['group' => 'analyze', 'label' => t('أهم 3 مهام اليوم'), 'icon' => '✅', 'sys' => "Give exactly 3 prioritized actions for today based on the data (unread messages, weak recent performance, empty schedule, accounts needing reconnection...). Each: one bold title line + one reason line. $base"],
+        'dash_anomaly' => ['group' => 'analyze', 'label' => t('هل فيه شيء غير طبيعي؟'), 'icon' => '⚠️', 'sys' => "Look at the daily metrics for unusual drops or spikes (more than ~30% from the recent average). List each anomaly with the date, the metric, the size, and the most likely cause from the data. If nothing unusual, say so. $base"],
+        'dash_forecast' => ['group' => 'analyze', 'label' => t('توقع الأسبوع القادم'), 'icon' => '📈', 'sys' => "Estimate next week's impressions and engagement from the recent trend. Give a range (low–high), explain the trend in one line, and state clearly that it is an estimate. $base"],
+        // المحتوى والجدولة
+        'best_time' => ['group' => 'analyze', 'label' => t('أفضل أوقات النشر'), 'icon' => '⏰', 'sys' => "Recommend the best posting days and hours per platform from the best-times data and top posts. Give a simple weekly table-like list. $tz $base"],
+        'content_plan' => ['group' => 'compose', 'label' => t('خطة محتوى'), 'icon' => '🗓️', 'input' => t('مثلاً: خطة أسبوعين لمطعم، 4 منشورات أسبوعيًا'), 'sys' => "Create a content plan based on the user's request, the company knowledge base and what performed best in the data. For each post: date (starting tomorrow), platform, post type, and a ready-to-use draft caption. $base"],
+        'occasions' => ['group' => 'compose', 'label' => t('مناسبات قادمة'), 'icon' => '🎉', 'sys' => "List the notable occasions, holidays and shopping seasons in the next 60 days relevant to a business in the region of timezone {tz} (today is in the data). For each: date, why it matters, and one post idea. Mark dates that vary (e.g. lunar holidays) as approximate. $base"],
+        'queue_check' => ['group' => 'analyze', 'label' => t('فحص المنشورات المجدولة'), 'icon' => '🔍', 'sys' => "Review the upcoming scheduled posts: find duplicates or near-duplicates, days that are overcrowded or empty, platforms that are neglected, and posts scheduled at weak times. Suggest a better distribution. $tz $base"],
+        'revive' => ['group' => 'compose', 'label' => t('إعادة إحياء منشور ناجح'), 'icon' => '♻️', 'sys' => "Pick the best-performing post from the data and write 2 fresh rewrites of it (new hook, same core idea) ready to publish again. Mention which post you picked and its numbers. $base"],
+        'post_perf' => ['group' => 'analyze', 'label' => t('لماذا نجحت منشورات وفشلت أخرى؟'), 'icon' => '🧪', 'sys' => "Compare the top posts with the weakest posts: patterns in platform, media type (image/video/text), day/hour, length, topic and tone. Give 3-5 clear lessons and what to do more/less. $tz $base"],
+        // التحليلات
+        'explain' => ['group' => 'analyze', 'label' => t('اشرح لي الأرقام'), 'icon' => '💡', 'sys' => "Explain the analytics in plain language for a non-technical business owner: what is going well, what is not, and why it matters. Then 3 recommendations. $base"],
+        'monthly' => ['group' => 'analyze', 'label' => t('تقرير شهري للإدارة'), 'icon' => '📑', 'sys' => "Write a concise monthly management report for the last 30 days: executive summary (3 lines), key numbers, best content, platforms comparison, inbox activity, risks, and next month's priorities. Formal tone. $base"],
+        'platforms' => ['group' => 'analyze', 'label' => t('مقارنة المنصات'), 'icon' => '⚖️', 'sys' => "Compare the platforms: where the audience and engagement are strongest, where effort is wasted, and how to split effort next month (percentages). $base"],
+        'goals' => ['group' => 'analyze', 'label' => t('اقترح أهدافًا واقعية'), 'icon' => '🎯', 'sys' => "Suggest 3-5 realistic monthly goals (with target numbers) based on the last 30 days and the trend. Explain each target in one line. $base"],
+        'content_types' => ['group' => 'analyze', 'label' => t('أي نوع محتوى ينجح؟'), 'icon' => '🎬', 'sys' => "From the top and weakest posts, which content types (video, image, text) and topics work best per platform. Give a clear recommendation. $base"],
+        'faq' => ['group' => 'analyze', 'label' => t('أكثر ما يسأل عنه العملاء'), 'icon' => '❓', 'sys' => "From the recent customer messages, list the most frequent questions/topics (grouped), with a suggested ready answer for each based on the company knowledge base. If the knowledge base lacks an answer, say it should be added. $base"],
+        // النشر الجماعي
+        'bulk_check' => ['group' => 'analyze', 'label' => t('فحص ملف CSV قبل الرفع'), 'icon' => '🧾', 'input' => t('الصق محتوى ملف CSV هنا'), 'sys' => "Check this bulk-upload CSV before publishing. Report by row number: missing content, invalid or past dates, duplicate or near-duplicate posts, posts too long for X (280 chars), broken encoding, and repeated wording across rows. End with a one-line verdict. Answer in {lang}."],
+        'bulk_generate' => ['group' => 'compose', 'label' => t('توليد منشورات من قائمة'), 'icon' => '📦', 'csv' => true, 'input' => t("الصق قائمة المنتجات أو الأفكار، كل واحد في سطر:\nقهوة تركي - 45 جنيه\nلاتيه - 60 جنيه"), 'sys' => "For each line of the user's list, write a distinct social media post (vary angle and opening, don't repeat phrases). Output ONLY CSV with header: content,date — dates spread daily starting tomorrow at 18:00 in format YYYY-MM-DD HH:MM. Quote every content field with double quotes and escape inner quotes by doubling them. Same language as the list."],
+    ];
+}

@@ -128,6 +128,15 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     }
     $stepsDone = count(array_filter($steps, function ($s) { return $s[1]; }));
     ?>
+    <div data-ai-insights="dash_summary,dash_todo,dash_anomaly,dash_forecast" class="mb-6"></div>
+    <?php if (can('ai.use') && ai_connection()): ?>
+    <form method="post" action="<?= e(url('assistant')) ?>" class="card p-3 mb-6 flex gap-2 items-center">
+      <?= csrf_field() ?><input type="hidden" name="action" value="ask">
+      <span class="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">✨</span>
+      <input name="message" maxlength="1500" required class="input !mt-0 flex-1" placeholder="<?= e(t('اسأل المساعد عن أرقامك... مثلاً: ما أفضل منشور هذا الشهر؟')) ?>">
+      <button class="btn-primary shrink-0"><?= e(t('اسأل')) ?></button>
+    </form>
+    <?php endif; ?>
     <!-- الترحيب -->
     <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
       <div>

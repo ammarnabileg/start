@@ -42,6 +42,7 @@ if ($z) {
 render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $apiError, $accountNames) {
     if (!$z) { no_api_box(); return; }
     ?>
+    <div data-ai-insights="post_perf,revive,content_types" class="mb-6"></div>
     <div class="flex flex-wrap gap-2 mb-5">
       <a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('+ منشور جديد')) ?></a>
       <a href="<?= e(url('bulk')) ?>" data-modal="<?= e(url('bulk')) ?>" data-modal-reload class="btn-ghost"><?= e(t('رفع منشورات من ملف CSV')) ?></a>

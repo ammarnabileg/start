@@ -42,6 +42,30 @@ if (in_array($task, ['image', 'image_status'], true)) {
     }
 }
 
+// تحليلات من بيانات الشركة
+if ($task === 'insight') {
+    $all = ai_insights();
+    $key = (string)($_POST['insight'] ?? '');
+    if (!isset($all[$key])) $out(['error' => t('طلب غير صحيح.')], 400);
+    $in = $all[$key];
+    $extra = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 6000);
+    if (!empty($in['input']) && $extra === '' && empty($in['optional'])) $out(['error' => t('اكتب المطلوب أولًا.')], 422);
+    if (!can('analytics.view') && $in['group'] === 'analyze') $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    $sys = strtr($in['sys'], ['{lang}' => lang() === 'ar' ? 'Arabic (Modern Standard Arabic)' : 'English', '{tz}' => site_timezone()]) . ' The business is "' . ws('name') . '".';
+    $user = "DATA:\n" . assistant_context(true) . ($extra !== '' ? "\n\nUSER REQUEST:\n" . $extra : '');
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], !empty($in['csv']) ? 2500 : 1200, $in['group']);
+        $text = trim($r['text']);
+        if (!empty($in['csv'])) {
+            $text = trim(preg_replace('/^```\w*\s*|```\s*$/m', '', $text));
+            $out(['csv' => $text, 'rows' => max(0, count(array_filter(explode("\n", $text))) - 1), 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
+        }
+        $out(['html' => ai_render($text), 'text' => $text, 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
 // أوامر جاهزة (✨): تحسين، هاشتاجات، نبرة، تلخيص، تصنيف...
 if ($task === 'preset') {
     $presets = ai_presets();

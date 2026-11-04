@@ -39,6 +39,7 @@ render(t('التقويم'), 'calendar', function () use ($z, $first, $byDay, $ap
     $offset = ((int)$first->format('w') + 1) % 7;
     $days = (int)$first->format('t');
     ?>
+    <div data-ai-insights="content_plan,occasions,best_time,queue_check" class="mb-6"></div>
     <div class="flex items-center justify-between mb-4">
       <a href="<?= e(url('calendar', ['m' => $prev])) ?>" class="px-4 py-2 bg-white border border-slate-200 rounded-lg"><?= e(t('→ الشهر اللي فات')) ?></a>
       <h2 class="text-xl font-bold"><?= $months[(int)$first->format('n') - 1] ?> <?= $first->format('Y') ?></h2>

@@ -12,6 +12,7 @@ require_once __DIR__ . '/platforms.php';
 require_once __DIR__ . '/permissions.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/ai_presets.php';
+require_once __DIR__ . '/ai_context.php';
 require_once __DIR__ . '/mailer.php';
 
 define('ROOT_DIR', dirname(__DIR__));

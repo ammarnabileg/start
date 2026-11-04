@@ -52,6 +52,7 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
     $m = rp_period('last_month', $tz);
     $dmy = function ($d) { return date('d/m/Y', strtotime($d)); };
     ?>
+    <div data-ai-insights="monthly" class="mb-6"></div>
     <div class="grid lg:grid-cols-5 gap-5">
       <form method="get" action="index.php" target="_blank" class="card p-6 space-y-5 lg:col-span-3">
         <input type="hidden" name="p" value="report_print">
