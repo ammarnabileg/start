@@ -407,7 +407,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <div class="space-y-2 max-h-80 overflow-auto">
             <?php foreach ($accounts as $a): ?>
               <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-ink-50 cursor-pointer">
-                <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $old['accounts'], true) ? 'checked' : '' ?> class="acc w-4 h-4">
+                <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $old['accounts'], true) ? 'checked' : '' ?> class="acc w-4 h-4" data-plat="<?= e($a['platform'] ?? '') ?>" data-name="<?= e($a['displayName'] ?? $a['username'] ?? '') ?>" data-user="<?= e($a['username'] ?? '') ?>" data-pic="<?= e($a['profilePicture'] ?? '') ?>">
                 <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? $a['username'] ?? '', 'w-8 h-8') ?>
                 <span class="text-sm leading-tight"><span class="block font-semibold"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span>
                   <span class="block text-xs text-ink-500"><?= e(platform_label($a['platform'])) ?></span></span>
@@ -462,6 +462,19 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         </div>
       </div>
     </form>
+    <?php $cpPlats = array_values(array_unique(array_map(function ($a) { return (string)($a['platform'] ?? ''); }, $accounts))); ?>
+    <script>window.CPX = <?= json_encode(['ws' => (int)ws('id'),
+      'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
+      'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
+      'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'),
+      'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
+      'xMax' => t('X بيقبل 4 صور بس'), 'needVideo' => t('تيك توك ويوتيوب محتاجين فيديو'), 'igMedia' => t('إنستجرام محتاج صورة أو فيديو'),
+      'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),
+      'modes' => ['now' => t('هيتنشر دلوقتي'), 'draft' => t('هيتحفظ كمسودة'), 'queue' => t('أقرب ميعاد فاضي في الطابور'), 'schedule' => t('مجدول')],
+      'past' => t('الميعاد ده فات'), 'inMin' => t('بعد %s دقيقة'), 'inHr' => t('بعد %s ساعة'), 'inDay' => t('بعد %s يوم'),
+      'quick' => [[t('بعد ساعة'), 'h1'], [t('بعد 3 ساعات'), 'h3'], [t('النهارده 8 م'), '0:20'], [t('بكرة 10 ص'), '1:10'], [t('بكرة 8 م'), '1:20']],
+      'onN' => t('هيتنشر على %s حساب'), 'draftSaved' => t('المسودة محفوظة'), 'restore' => t('عندك مسودة لسه ماتنشرتش:'), 'restoreBtn' => t('استرجاع'), 'discard' => t('تجاهل')], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/compose-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>
       (function () {
         function sync() {
