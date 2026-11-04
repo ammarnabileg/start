@@ -103,6 +103,45 @@ if ($task === 'classify_now') {
     }
 }
 
+// لوحة ✨ الجانبية: محادثة واحدة على مستوى المنصة، فاكرة الصفحة اللي المستخدم فيها
+if (in_array($task, ['chat', 'chat_clear', 'chat_log'], true)) {
+    $wid = (int)ws('id');
+    $hist = &$_SESSION['copilot'][$wid];
+    if (!is_array($hist)) $hist = [];
+    if ($task === 'chat_clear') { $hist = []; unset($_SESSION['ai_ctx'][$wid], $_SESSION['ai_ctx'][$wid . 'x']); $out(['ok' => true]); }
+    if ($task === 'chat_log') {
+        $out(['items' => array_map(function ($h) { return ['role' => $h['role'], 'html' => $h['role'] === 'assistant' ? ai_render($h['content']) : nl2br(e($h['content'])), 'meta' => $h['meta'] ?? '', 'label' => $h['label'] ?? '']; }, $hist)]);
+    }
+    if (!ai_feature_on('assistant')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+    $q = mb_substr(trim((string)($_POST['message'] ?? '')), 0, 2000);
+    if ($q === '') $out(['error' => t('اكتب سؤالك الأول.')], 422);
+    $pageName = mb_substr(trim((string)($_POST['page_title'] ?? '')), 0, 80);
+    $pageText = mb_substr(trim((string)($_POST['page'] ?? '')), 0, 6000);
+    $lang = lang() === 'ar' ? 'Arabic (Modern Standard Arabic)' : 'English';
+    $system = "You are the AI copilot inside a social media management app for the company \"" . ws('name') . "\". "
+        . "You can answer about the company's data (DATA), about what is on the user's current page (PAGE, if provided), and how to use the app (MENU). "
+        . "Never invent numbers; if something isn't in the data, say so briefly and suggest where to look. "
+        . "Be concise and practical: short paragraphs or bullets, concrete numbers, 1-3 actionable recommendations when useful. "
+        . "When the user asks you to write something (post, reply, message), write it ready to copy. "
+        . "Best-time hours are UTC; convert to " . site_timezone() . ". Reply in $lang."
+        . "\n\nCURRENT PAGE: " . ($pageName ?: '-')
+        . "\n\nMENU:\n" . implode("\n", array_map(function ($g) { return '- ' . ($g['section'] ? $g['section'] . ' › ' : '') . $g['label'] . (!empty($g['tabs']) ? ': ' . implode(', ', array_values($g['tabs'])) : ''); }, nav_items()))
+        . "\n\nDATA:\n" . assistant_context() . ($pageText !== '' ? "\n\nPAGE:\n" . $pageText : '');
+    $msgs = [['role' => 'system', 'content' => $system]];
+    foreach (array_slice($hist, -8) as $h) $msgs[] = ['role' => $h['role'], 'content' => $h['content']];
+    $msgs[] = ['role' => 'user', 'content' => $q];
+    try {
+        $r = ai_chat($msgs, 1000, 'assistant');
+        $meta = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
+        $hist[] = ['role' => 'user', 'content' => $q, 't' => time()];
+        $hist[] = ['role' => 'assistant', 'content' => $r['text'], 'meta' => $meta, 't' => time()];
+        $hist = array_slice($hist, -30);
+        $out(['html' => ai_render($r['text']), 'text' => $r['text'], 'meta' => $meta]);
+    } catch (Throwable $e) {
+        $out(['error' => $e->getMessage()], 502);
+    }
+}
+
 // تحليلات من بيانات الشركة
 if ($task === 'insight') {
     $all = ai_insights();
@@ -128,7 +167,12 @@ if ($task === 'insight') {
             $text = trim(preg_replace('/^```\w*\s*|```\s*$/m', '', $text));
             $out(['csv' => $text, 'rows' => max(0, count(array_filter(explode("\n", $text))) - 1), 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
         }
-        $out(['html' => ai_render($text), 'text' => $text, 'model' => $r['model'], 'cost' => $r['cost'] ?? null]);
+        $meta = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
+        $h = &$_SESSION['copilot'][(int)ws('id')]; if (!is_array($h)) $h = [];
+        $h[] = ['role' => 'user', 'content' => ($in['icon'] ?? '') . ' ' . $in['label'] . ($extra !== '' ? "\n" . mb_substr($extra, 0, 300) : ''), 'label' => 1, 't' => time()];
+        $h[] = ['role' => 'assistant', 'content' => $text, 'meta' => $meta, 't' => time()];
+        $h = array_slice($h, -30);
+        $out(['html' => ai_render($text), 'text' => $text, 'model' => $r['model'], 'cost' => $r['cost'] ?? null, 'meta' => $meta]);
     } catch (Throwable $e) {
         $out(['error' => $e->getMessage()], 502);
     }

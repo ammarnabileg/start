@@ -155,7 +155,6 @@ render(t('جهات الاتصال'), 'contacts', function () use ($z, $accounts,
         return $h;
     };
     ?>
-    <div data-ai-insights="segments,contacts_clean" class="mb-6"></div>
     <div class="flex flex-wrap items-end gap-3 mb-4">
       <form method="get" class="flex flex-wrap items-end gap-2 flex-1">
         <input type="hidden" name="p" value="contacts">

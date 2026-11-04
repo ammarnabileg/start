@@ -46,7 +46,6 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
         ['schedule_time_<platform>', t('ميعاد مختلف لمنصة معينة.'), false],
     ];
     ?>
-    <div data-ai-insights="bulk_generate,bulk_check" class="mb-6"></div>
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
         <form method="post" enctype="multipart/form-data" class="card p-5 space-y-4">

@@ -107,7 +107,6 @@ function wa_seq_badge(string $s): string
 }
 
 render(t('السلاسل التلقائية'), 'sequences', function () use ($z, $accounts, $acc, $apiError, $id, $showNew, $list, $seq, $enrollments, $contacts, $templates) {
-    echo '<div data-ai-insights="sequence_write" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     if (!$acc) { wa_no_account_box(); return; }

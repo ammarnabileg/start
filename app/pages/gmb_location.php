@@ -196,7 +196,6 @@ if ($z && $loc) {
 }
 
 render(t('بيانات الفرع على جوجل'), 'gmb_location', function () use ($z, $accounts, $options, $loc, $d, $attrs, $meta, $services, $menus, $actions, $verif, $errors, $apiError) {
-    echo '<div data-ai-insights="gmb_posts" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if (!$accounts && !$apiError) { gmb_no_account_box(); return; }
     if ($apiError) { error_box($apiError); echo '<div class="h-4"></div>'; }

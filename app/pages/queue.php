@@ -86,7 +86,6 @@ render(t('طوابير النشر'), 'queue', function () use ($z, $apiError, $q
     foreach ($queues as $q) if ($q['_id'] === $editId) $editing = $q;
     $isNew = isset($_GET['new']);
     ?>
-    <div data-ai-insights="queue_check,best_time" class="mb-6"></div>
     <div class="card p-5 mb-6 text-sm text-ink-700">
       <?= e(t('الطابور هو مواعيد ثابتة في الأسبوع (مثلاً الاتنين 10 الصبح)، ولما تختار "ضيف للطابور" وأنت بتكتب منشور، بيتحط تلقائي في أقرب ميعاد فاضي.')) ?>
     </div>

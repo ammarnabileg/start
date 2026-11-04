@@ -105,7 +105,6 @@ if ($z) {
 }
 
 render(t('الردود التلقائية على التعليقات'), 'automations', function () use ($z, $list, $accounts, $current, $logs, $editId, $isNew, $apiError) {
-    echo '<div data-ai-insights="kw_suggest,rule_test,rules_conflict,workflow_design" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
     $modes = ['contains' => t('التعليق فيه الكلمة'), 'word' => t('الكلمة موجودة ككلمة مستقلة'), 'exact' => t('التعليق هو الكلمة بالظبط')];

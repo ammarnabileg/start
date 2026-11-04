@@ -67,6 +67,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     .seg a.on { @apply bg-brand-600 text-[#fff] shadow-sm font-medium; }
   }
   #sidebar.sb-open { transform: none !important; }
+  html, body { overflow-x: clip; }
   details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }
   /* الأزرار القديمة بخلفية اللون الأساسي: نصها أبيض في الوضعين */
   .bg-indigo-600.text-white, .bg-brand-600.text-white, .bg-rose-600.text-white, .bg-green-600.text-white, .bg-red-600.text-white { color: #fff; }

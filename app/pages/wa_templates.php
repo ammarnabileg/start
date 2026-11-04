@@ -131,7 +131,6 @@ render(t('قوالب واتساب'), 'wa_templates', function () use ($z, $accou
     if ($sb) { wa_sandbox_note(); $showNew = false; }
     $o = function ($k, $d = '') use ($old) { return (string)($old[$k] ?? $d); };
     ?>
-    <div data-ai-insights="tpl_rejects" class="mb-6"></div>
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div class="seg">
         <?php foreach (['' => t('الكل'), 'APPROVED' => t('مقبول'), 'PENDING' => t('مستني موافقة'), 'REJECTED' => t('مرفوض')] as $k => $l): ?>

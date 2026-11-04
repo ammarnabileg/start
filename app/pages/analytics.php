@@ -252,7 +252,6 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     ];
     $metricNames = ['impressions' => t('مرات الظهور'), 'reach' => t('الوصول'), 'likes' => t('إعجابات'), 'comments' => t('تعليقات'), 'shares' => t('مشاركات'), 'clicks' => t('نقرات')];
     ?>
-    <div data-ai-insights="explain,platforms,content_types,post_perf,monthly,competitors" class="mb-6"></div>
     <script src="assets/charts.js?v=<?= e(APP_VERSION) ?>"></script>
     <div class="space-y-5">
       <!-- التبويبات -->

@@ -134,3 +134,35 @@ function ai_feature_on(string $key, ?int $wid = null): bool
 {
     return !in_array($key, ai_disabled($wid), true);
 }
+
+/** أوامر التحليل السريعة لكل صفحة (بتظهر في لوحة ✨ الجانبية) */
+function ai_page_insights(string $page): array
+{
+    $map = [
+        'ad_campaign' => ['ads_analyze', 'budget_advice'],
+        'ad_create' => ['audience'],
+        'admin' => ['admin_ask'],
+        'ads' => ['ads_analyze', 'audience', 'budget_advice'],
+        'analytics' => ['explain', 'platforms', 'content_types', 'post_perf', 'monthly', 'competitors'],
+        'automations' => ['kw_suggest', 'rule_test', 'rules_conflict', 'workflow_design'],
+        'broadcasts' => ['best_time', 'segments'],
+        'bulk' => ['bulk_generate', 'bulk_check'],
+        'calendar' => ['content_plan', 'occasions', 'best_time', 'queue_check'],
+        'contacts' => ['segments', 'contacts_clean'],
+        'dashboard' => ['dash_summary', 'dash_todo', 'dash_anomaly', 'dash_forecast', 'help'],
+        'gmb_location' => ['gmb_posts'],
+        'gmb_reviews' => ['reviews_analyze'],
+        'goals' => ['goals'],
+        'inbox_analytics' => ['faq', 'canned', 'team_perf'],
+        'leads' => ['leads_score', 'leads_followup'],
+        'posts' => ['post_perf', 'revive', 'content_types'],
+        'queue' => ['queue_check', 'best_time'],
+        'reports' => ['monthly'],
+        'sequences' => ['sequence_write'],
+        'team' => ['team_perf', 'role_suggest'],
+        'wa_templates' => ['tpl_rejects'],
+        'workflows' => ['kw_suggest', 'rules_conflict', 'workflow_design'],
+    ];
+    $keys = $map[$page] ?? ['dash_summary', 'help'];
+    return array_values(array_filter($keys, function ($k) { return isset(ai_insights()[$k]) && ai_feature_on($k); }));
+}

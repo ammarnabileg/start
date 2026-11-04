@@ -99,7 +99,6 @@ foreach ($reviews as $rv) {
 }
 
 render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $accounts, $options, $loc, $keep, $reviews, $next, $summary, $dist, $unreplied, $failed, $apiError, $stars, $replied, $platform) {
-    echo '<div data-ai-insights="reviews_analyze" class="mb-6"></div>';
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); echo '<div class="h-4"></div>'; }
     if (!$accounts && !$apiError) {

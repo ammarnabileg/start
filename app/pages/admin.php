@@ -63,7 +63,6 @@ render(t('نظرة عامة'), 'admin', function () use ($stats, $days, $topWs, 
     ];
     $max = max(1, max(array_column($days, 'actions')));
     ?>
-    <div data-ai-insights="admin_ask" class="mb-6"></div>
     <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
       <?php foreach ($cards as [$l, $v, $sub, $href]): ?>
         <a href="<?= e($href) ?>" class="card p-5 hover:border-brand-300 transition">

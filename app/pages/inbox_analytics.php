@@ -61,7 +61,6 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
     $vol = $res['volume'] ?? null;
     $sum = $vol['summary'] ?? [];
     ?>
-    <div data-ai-insights="faq,canned,team_perf" class="mb-6"></div>
     <div class="space-y-5">
       <form method="get" class="card p-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="p" value="inbox_analytics">

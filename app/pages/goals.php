@@ -67,7 +67,6 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
     $nextM = date('Y-m', strtotime($month . '-01 +1 month'));
     $fmtVal = function ($k, $v) { return $v === null ? '—' : ($k === 'response' ? t('%s دقيقة', an_num($v)) : an_num($v)); };
     ?>
-    <div data-ai-insights="goals" class="mb-6"></div>
     <div class="flex flex-wrap items-center gap-2 mb-5">
       <a class="btn-ghost" href="<?= e(url('goals', ['m' => $prevM])) ?>" aria-label="<?= e(t('الشهر اللي قبله')) ?>"><?= is_rtl() ? '→' : '←' ?></a>
       <span class="font-bold text-ink-900 text-lg px-2" dir="ltr"><?= e($mLabel($month)) ?></span>
