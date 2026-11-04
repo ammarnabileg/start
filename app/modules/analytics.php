@@ -300,7 +300,7 @@ function an_heatmap(array $grid, callable $tip): string
         for ($h = 0; $h < 24; $h++) {
             $v = (float)($grid[$d][$h] ?? 0);
             $tt = e($tip($d, $h, $v));
-            $out .= '<td class="w-6 h-6 min-w-[1.25rem] rounded" style="' . an_heat_style($mx > 0 ? $v / $mx : 0) . '" title="' . $tt . '" aria-label="' . $tt . '"></td>';
+            $out .= '<td class="an-cell w-6 h-6 min-w-[1.25rem] rounded" data-d="' . $d . '" data-h="' . $h . '" style="' . an_heat_style($mx > 0 ? $v / $mx : 0) . '" title="' . $tt . '" aria-label="' . $tt . '"></td>';
         }
         $out .= '</tr>';
     }

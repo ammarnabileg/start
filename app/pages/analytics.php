@@ -261,34 +261,30 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
         <?php endforeach; ?>
       </nav>
 
-      <!-- الفلاتر -->
-      <div class="card p-4 flex flex-wrap items-end gap-4">
-        <div>
-          <span class="label"><?= e(t('الفترة')) ?></span>
-          <div class="flex gap-1">
-            <?php foreach (an_ranges() as $r): $on = !$per['custom'] && $per['days'] === $r; ?>
-              <a href="<?= e($q(['d' => $r, 'from' => null, 'to' => null])) ?>" class="px-3 py-2 rounded-lg text-sm border <?= $on ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-700 hover:bg-ink-50' ?>"><?= e(t('آخر %s يوم', $r)) ?></a>
+      <!-- الفلاتر: شريط واحد مدمج بيفضل ظاهر وانت بتنزل -->
+      <div id="an-bar" class="sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
+        <div class="card px-3 py-2 flex flex-wrap items-center gap-2">
+          <div class="tb p-0.5 gap-0.5" role="group" aria-label="<?= e(t('الفترة')) ?>">
+            <?php foreach (an_ranges() as $i => $r): $on = !$per['custom'] && $per['days'] === $r; ?>
+              <a href="<?= e($q(['d' => $r, 'from' => null, 'to' => null])) ?>" data-key="<?= $i + 1 ?>" class="h-8 px-3 rounded-lg text-xs flex items-center whitespace-nowrap <?= $on ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e(t('آخر %s يوم', $r)) ?></a>
             <?php endforeach; ?>
           </div>
-        </div>
-        <form method="get" class="flex flex-wrap items-end gap-2">
-          <input type="hidden" name="p" value="analytics">
-          <input type="hidden" name="tab" value="<?= e($tab) ?>">
-          <?php if ($acc !== ''): ?><input type="hidden" name="a" value="<?= e($acc) ?>"><?php endif; ?>
-          <div>
-            <label class="label" for="an-from"><?= e(t('تاريخ البداية')) ?></label>
-            <input id="an-from" type="date" name="from" class="input py-1.5" value="<?= e($per['from']) ?>" max="<?= e(gmdate('Y-m-d')) ?>">
-          </div>
-          <div>
-            <label class="label" for="an-to"><?= e(t('تاريخ النهاية')) ?></label>
-            <input id="an-to" type="date" name="to" class="input py-1.5" value="<?= e($per['to']) ?>" max="<?= e(gmdate('Y-m-d')) ?>">
-          </div>
-          <button class="btn-ghost <?= $per['custom'] ? 'ring-2 ring-brand-500' : '' ?>"><?= e(t('تطبيق')) ?></button>
-        </form>
-        <div class="min-w-[14rem]">
-          <span class="label"><?= e(t('الحساب')) ?></span>
+          <details class="relative" id="an-custom" <?= $per['custom'] ? '' : '' ?>>
+            <summary class="tb h-9 px-3 gap-1.5 text-xs cursor-pointer list-none <?= $per['custom'] ? '!border-brand-500 !bg-brand-50 !text-brand-700 font-medium' : '' ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg><bdi dir="ltr"><?= e($dmy($per['from']) . ' – ' . $dmy($per['to'])) ?></bdi></summary>
+            <form method="get" class="absolute z-40 mt-2 w-[min(22rem,90vw)] rounded-2xl border border-ink-200 bg-white shadow-xl p-4 space-y-3">
+              <input type="hidden" name="p" value="analytics">
+              <input type="hidden" name="tab" value="<?= e($tab) ?>">
+              <?php if ($acc !== ''): ?><input type="hidden" name="a" value="<?= e($acc) ?>"><?php endif; ?>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block"><span class="label"><?= e(t('تاريخ البداية')) ?></span><input id="an-from" type="date" name="from" class="input !mt-1 py-1.5" value="<?= e($per['from']) ?>" max="<?= e(gmdate('Y-m-d')) ?>"></label>
+                <label class="block"><span class="label"><?= e(t('تاريخ النهاية')) ?></span><input id="an-to" type="date" name="to" class="input !mt-1 py-1.5" value="<?= e($per['to']) ?>" max="<?= e(gmdate('Y-m-d')) ?>"></label>
+              </div>
+              <div class="flex flex-wrap gap-1.5" id="an-presets"></div>
+              <button class="btn-primary w-full !py-2"><?= e(t('تطبيق')) ?></button>
+            </form>
+          </details>
           <details class="relative" id="an-acc">
-            <summary class="input flex items-center gap-2 cursor-pointer list-none">
+            <summary class="tb h-9 px-3 gap-2 text-xs cursor-pointer list-none max-w-[16rem]">
               <?php if ($curAcc): ?>
                 <?= avatar_with_platform($curAcc['profilePicture'] ?? null, $accName($curAcc), (string)($curAcc['platform'] ?? ''), 'w-6 h-6') ?>
                 <span class="truncate"><?= e($accName($curAcc)) ?></span>
@@ -298,9 +294,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 </span>
                 <span><?= e(t('كل الحسابات')) ?></span>
               <?php endif; ?>
-              <span class="ms-auto text-ink-400" aria-hidden="true">▾</span>
+              <span class="ms-1 text-ink-400" aria-hidden="true">▾</span>
             </summary>
-            <div class="absolute z-20 mt-1 w-72 max-h-80 overflow-auto rounded-xl border border-ink-200 bg-white shadow-lg p-1">
+            <div class="absolute z-40 mt-2 w-72 max-h-80 overflow-auto rounded-xl border border-ink-200 bg-white shadow-xl p-1">
               <a href="<?= e($q(['a' => null])) ?>" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-ink-50 <?= $acc === '' ? 'font-semibold text-brand-700' : 'text-ink-800' ?>"><?= e(t('كل الحسابات')) ?></a>
               <?php foreach ($accounts as $a): $id = (string)($a['_id'] ?? ''); ?>
                 <a href="<?= e($q(['a' => $id])) ?>" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-ink-50 <?= $acc === $id ? 'font-semibold text-brand-700' : 'text-ink-800' ?>">
@@ -310,11 +306,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <?php endforeach; ?>
             </div>
           </details>
+          <span class="text-[11px] text-ink-500 ms-auto hidden md:inline"><?= e(t('بنقارن بالفترة اللي قبلها:')) ?> <bdi dir="ltr"><?= e($dmy($per['pfrom']) . ' – ' . $dmy($per['pto'])) ?></bdi></span>
+          <button type="button" id="an-help" class="tb w-9 h-9 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
         </div>
-        <p class="text-xs text-ink-500 basis-full">
-          <?= e(t('الفترة:')) ?> <bdi dir="ltr"><?= e($dmy($per['from']) . ' – ' . $dmy($per['to'])) ?></bdi> ·
-          <?= e(t('بنقارن بالفترة اللي قبلها:')) ?> <bdi dir="ltr"><?= e($dmy($per['pfrom']) . ' – ' . $dmy($per['pto'])) ?></bdi>
-        </p>
       </div>
       <?php if (!empty($E['accounts'])): ?><?= an_notice($E['accounts']) ?><?php endif; ?>
 
@@ -356,9 +350,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
           [$fg, $fgDaily] = $folGain($D['fol'], $dates);
           [$fgPrev] = $folGain($D['folPrev'], $pdates);
           $kpis = [
-              ['label' => t('مرات الظهور'), 'cur' => $cur['impressions'], 'prev' => $prev['impressions'], 'spark' => $series($curBy, $dates, function ($m) { return $m['impressions'] ?? 0; }), 'color' => 'text-brand-600', 'err' => $E['cur']],
-              ['label' => t('الوصول'), 'cur' => $cur['reach'], 'prev' => $prev['reach'], 'spark' => $series($curBy, $dates, function ($m) { return $m['reach'] ?? 0; }), 'color' => 'text-cyan-500', 'err' => $E['cur']],
-              ['label' => t('التفاعل'), 'cur' => $cur['engagement'], 'prev' => $prev['engagement'], 'spark' => $series($curBy, $dates, function ($m) { return an_engagement($m); }), 'color' => 'text-lime-500', 'err' => $E['cur'], 'hint' => t('إعجابات + تعليقات + مشاركات + حفظ')],
+              ['m' => 'impressions', 'label' => t('مرات الظهور'), 'cur' => $cur['impressions'], 'prev' => $prev['impressions'], 'spark' => $series($curBy, $dates, function ($m) { return $m['impressions'] ?? 0; }), 'color' => 'text-brand-600', 'err' => $E['cur']],
+              ['m' => 'reach', 'label' => t('الوصول'), 'cur' => $cur['reach'], 'prev' => $prev['reach'], 'spark' => $series($curBy, $dates, function ($m) { return $m['reach'] ?? 0; }), 'color' => 'text-cyan-500', 'err' => $E['cur']],
+              ['m' => 'likes,comments,shares', 'label' => t('التفاعل'), 'cur' => $cur['engagement'], 'prev' => $prev['engagement'], 'spark' => $series($curBy, $dates, function ($m) { return an_engagement($m); }), 'color' => 'text-lime-500', 'err' => $E['cur'], 'hint' => t('إعجابات + تعليقات + مشاركات + حفظ')],
               ['label' => t('معدل التفاعل'), 'cur' => $cur['rate'], 'prev' => $prev['rate'], 'spark' => $series($curBy, $dates, function ($m) { return an_rate(an_engagement($m), (float)($m['impressions'] ?? 0)); }), 'color' => 'text-amber-500', 'err' => $E['cur'], 'pct' => true, 'hint' => t('التفاعل ÷ مرات الظهور')],
               ['label' => t('متابعين جداد'), 'cur' => $fg, 'prev' => $fgPrev, 'spark' => $fgDaily, 'color' => 'text-brand-500', 'err' => $E['fol'], 'signed' => true],
               ['label' => t('منشورات اتنشرت'), 'cur' => $cur['postCount'], 'prev' => $prev['postCount'], 'spark' => $series($curBy, $dates, function ($m) { return $m['postCount'] ?? 0; }), 'color' => 'text-ink-500', 'err' => $E['cur']],
@@ -414,7 +408,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 <p class="text-sm font-semibold text-<?= $hc ?>-700 mt-1"><?= e($hs >= 70 ? t('ممتازة') : ($hs >= 40 ? t('محتاجة اهتمام') : t('ضعيفة'))) ?></p>
               </div>
             </div>
-            <details class="flex-1 min-w-0" <?= $hs < 40 ? 'open' : '' ?>>
+            <details class="flex-1 min-w-0" open>
               <summary class="text-sm link cursor-pointer"><?= e(t('الدرجة محسوبة إزاي؟')) ?></summary>
               <ul class="mt-3 grid sm:grid-cols-2 gap-3">
                 <?php foreach ($health['parts'] as $hp): ?>
@@ -430,7 +424,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
 
           <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <?php foreach ($kpis as $k): ?>
-              <div class="card p-4 flex flex-col" <?= !empty($k['hint']) ? 'title="' . e($k['hint']) . '"' : '' ?>>
+              <div class="an-kpi card p-4 flex flex-col transition <?= !empty($k['m']) && !$k['err'] ? 'cursor-pointer hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5' : '' ?>" <?= !empty($k['m']) && !$k['err'] ? 'data-metric="' . e($k['m']) . '" role="button" tabindex="0"' : '' ?> <?= !empty($k['hint']) ? 'title="' . e($k['hint']) . '"' : '' ?>>
                 <p class="text-xs text-ink-500"><?= e($k['label']) ?></p>
                 <?php if ($k['err']): ?>
                   <p class="text-sm text-ink-400 mt-2"><?= e(t('مش متاح')) ?></p>
@@ -445,7 +439,8 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
 
           <section class="card p-5">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <h2 class="font-bold text-ink-900"><?= e(t('الأداء يوم بيوم')) ?></h2>
+              <h2 class="font-bold text-ink-900 flex items-center gap-2"><?= e(t('الأداء يوم بيوم')) ?>
+                <span class="flex gap-1 ms-2"><button type="button" data-export="csv" class="tb !h-7 px-2 text-[11px]" title="<?= e(t('تنزيل البيانات (CSV)')) ?>">CSV</button><button type="button" data-export="png" class="tb !h-7 px-2 text-[11px]" title="<?= e(t('تنزيل الرسم كصورة')) ?>">PNG</button></span></h2>
               <div class="flex flex-wrap gap-1.5" id="an-daily-toggles" role="group" aria-label="<?= e(t('المقاييس المعروضة')) ?>">
                 <?php foreach ($metricNames as $k => $label): ?>
                   <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-ink-200 text-xs cursor-pointer has-[:checked]:bg-ink-50 select-none">
@@ -480,7 +475,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                 (function () {
                   var cfg = JSON.parse(document.getElementById('an-daily-data').textContent);
                   cfg.aria = <?= json_encode(t('رسم الأداء اليومي'), $jsonFlags) ?>;
-                  var c = AnCharts.line(document.getElementById('an-daily'), cfg);
+                  var c = AnCharts.line(document.getElementById('an-daily'), cfg); window.__anDaily = { chart: c, cfg: cfg };
                   document.querySelectorAll('#an-daily-toggles input').forEach(function (i) {
                     i.addEventListener('change', function () { c.toggle(i.dataset.k, i.checked); });
                   });
@@ -1132,7 +1127,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <p class="text-xs font-semibold text-ink-700 mb-2"><?= e(t('أحسن 3 أوقات')) ?></p>
                   <ol class="space-y-2">
                     <?php foreach (array_slice($slots, 0, 3) as $i => $s): ?>
-                      <li class="flex items-center gap-2 rounded-lg bg-ink-50 p-2.5">
+                      <li class="an-cell flex items-center gap-2 rounded-lg bg-ink-50 p-2.5" data-d="<?= (int)$s[0] ?>" data-h="<?= (int)$s[1] ?>">
                         <span class="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center"><?= $i + 1 ?></span>
                         <div><p class="text-sm font-semibold text-ink-900"><?= e($dn[$s[0]]) ?> · <span dir="ltr"><?= e(an_hour_label($s[1])) ?></span></p>
                           <p class="text-[11px] text-ink-500"><?= e(t('متوسط تفاعل %s من %s منشور', an_num($s[2]), $s[3])) ?></p></div>
@@ -1613,7 +1608,11 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     </div>
     <script>
       // يقفل قايمة الحسابات لما تدوس برّاها
-      document.addEventListener('click', function (ev) { var d = document.getElementById('an-acc'); if (d && d.open && !d.contains(ev.target)) d.open = false; });
+      document.addEventListener('click', function (ev) { ['an-acc', 'an-custom'].forEach(function (id) { var d = document.getElementById(id); if (d && d.open && !d.contains(ev.target)) d.open = false; }); });
     </script>
+    <script>window.ANX = <?= json_encode(['tabs' => array_map(function ($k) use ($q) { return $q(['tab' => $k]); }, array_keys($tabs)), 'tab' => array_search($tab, array_keys($tabs), true),
+      'presets' => [[t('الشهر ده'), 'month'], [t('الشهر اللي فات'), 'lastmonth'], [t('السنة دي'), 'year']], 'date' => t('التاريخ'), 'keysTitle' => t('اختصارات الكيبورد'),
+      'keys' => [['1 2 3', t('آخر 7 / 30 / 90 يوم')], ['[ ]', t('القسم السابق / التالي')], ['a', t('اختيار الحساب')], ['?', t('الاختصارات')]], 'chart' => t('الأداء يوم بيوم'), 'compose' => can('posts.create') ? url('compose') : null, 'schedHint' => t('اضغط عشان تجدول منشور في الوقت ده')], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/analytics-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
-});
+}, ['full' => true]);
