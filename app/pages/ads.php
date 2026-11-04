@@ -38,7 +38,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_an
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     try {
-        if ($action === 'bulk_status') {
+        if ($action === 'bulk_budget') {
+            // تعديل ميزانية كذا حملة بنسبة: items[] = "id|platform|amount|type"
+            $items = array_slice(array_filter((array)($_POST['items'] ?? []), 'is_string'), 0, 50);
+            if (!can('ads.spend')) {
+                flash('error', t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'));
+            } elseif (empty($_POST['confirm_spend'])) {
+                flash('error', t('لازم تعلّم على خانة التأكيد الأول.'));
+            } else {
+                $ok = 0; $fail = [];
+                foreach ($items as $it) {
+                    [$cid, $cpf, $amt, $bt] = array_pad(explode('|', $it, 4), 4, '');
+                    $amt = (float)$amt;
+                    if ($cid === '' || $amt <= 0 || !in_array($cpf, ads_campaign_platforms(), true)) continue;
+                    try { ads_update_campaign_budget($z, $cid, $cpf, $amt, $bt === 'lifetime' ? 'lifetime' : 'daily'); log_activity('ads.budget', $cid . ' ' . $bt . ' ' . $amt); $ok++; }
+                    catch (ZernioException $ex) { $fail[] = $ex->getMessage(); }
+                }
+                if ($ok) flash('success', t('اتعدلت ميزانية %s حملة.', $ok));
+                if ($fail) flash('error', t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]));
+            }
+        } elseif ($action === 'stop_all') {
+            // طوارئ: وقف كل الحملات الشغالة في كل الحسابات (مش بس الصفحة الحالية)
+            if (($_POST['confirm_text'] ?? '') !== 'STOP') {
+                flash('error', t('اكتب STOP بالظبط عشان نوقف كل الحملات.'));
+            } else {
+                $ok = 0; $fail = [];
+                for ($page = 1; $page <= 10; $page++) {
+                    $r = ads_campaigns($z, ['status' => 'active', 'page' => $page, 'limit' => 100]);
+                    foreach ($r['campaigns'] ?? [] as $c) {
+                        try { ads_set_campaign_status($z, (string)$c['platformCampaignId'], (string)$c['platform'], 'paused'); $ok++; }
+                        catch (ZernioException $ex) { $fail[] = $ex->getMessage(); }
+                    }
+                    if (count($r['campaigns'] ?? []) < 100) break;
+                }
+                log_activity('ads.stop_all', (string)$ok);
+                flash($fail ? 'error' : 'success', t('اتوقفت %s حملة.', $ok) . ($fail ? ' ' . t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]) : ''));
+            }
+        } elseif ($action === 'bulk_status') {
             $to = ($_POST['to'] ?? '') === 'active' ? 'active' : 'paused';
             $ids = array_slice(array_filter((array)($_POST['ids'] ?? []), 'is_string'), 0, 50);
             if (!$ids) {
@@ -392,7 +428,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
       </section>
     </div>
     <script>window.ADX2 = <?= json_encode(['csrf' => csrf_token(), 'canSpend' => can('ads.spend'), 'range' => $range, 'period' => ads_date_presets()[$range] ?? '',
-      'aiUrl' => url('ads'), 'bulkUrl' => url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range])), 'campUrl' => url('ad_campaign'),
+      'myCur' => countries()[ws_country()]['cur'] ?? 'USD', 'aiUrl' => url('ads'), 'bulkUrl' => url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range])), 'campUrl' => url('ad_campaign'),
       's' => ['attn' => t('محتاج انتباهك'), 'attnNone' => t('كل الحملات تمام في الفترة دي'), 'rejected' => t('مرفوضة من المنصة'), 'review' => t('لسه تحت المراجعة'),
         'lowCtr' => t('نسبة الضغط %s أقل من متوسط حساباتك %s'), 'highCpc' => t('تكلفة الضغطة %s أعلى من المتوسط بـ %s'), 'noRes' => t('صرفت %s من غير أي نتيجة'),
         'selected' => t('%s مختارة'), 'pause' => t('إيقاف'), 'activate' => t('تشغيل…'), 'compare' => t('قارن'), 'clear' => t('إلغاء الاختيار'),
@@ -404,9 +440,18 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         'ai' => t('حلّل الحملة دي بالذكاء الاصطناعي'), 'aiWait' => t('بيحلل الأرقام...'), 'aiErr' => t('التحليل فشل'),
         'budget' => t('تعديل الميزانية'), 'amount' => t('المبلغ'), 'daily' => t('يومي'), 'lifetime' => t('إجمالي'), 'save' => t('حفظ'),
         'budConfirm' => t('موافق على تعديل ميزانية الحملة دي لـ %s.'), 'budWarn' => t('تحذير: ده %s ضعف الميزانية الحالية. اتأكد إنك مش كاتب صفر زيادة.'), 'budOwner' => t('تعديل الميزانية لصاحب الشركة بس'), 'noCbo' => t('ميزانية الحملة دي على مستوى المجموعات، عدّلها من التفاصيل'),
+        'typeAmt' => t('مبلغ كبير: اكتب المبلغ تاني للتأكيد'),
+        'score' => t('درجة الصحة'), 'scoreTip' => t('محسوبة من نسبة الضغط وتكلفة الضغطة مقارنة بمتوسط حساباتك، ووجود نتايج، والحالة'),
+        'group' => t('تجميع'), 'gNone' => t('من غير تجميع'), 'gAcc' => t('بالحساب'), 'gPf' => t('بالمنصة'), 'gSt' => t('بالحالة'),
+        'view' => t('العرض'), 'vTable' => t('جدول'), 'vCards' => t('كروت'), 'colsBtn' => t('الأعمدة'), 'csv' => t('تصدير CSV'),
+        'cpm' => t('تكلفة الألف ظهور'), 'cpr' => t('تكلفة النتيجة'), 'use' => t('المصروف من الميزانية'),
+        'bBudget' => t('الميزانية ±%'), 'bBudTitle' => t('تعديل ميزانية الحملات المختارة'), 'bBudSkip' => t('%s حملة ميزانيتها على مستوى المجموعات واتشالت'), 'bBudConfirm' => t('موافق على تعديل ميزانية %s حملة.'),
+        'stopAll' => t('وقّف كل الحملات'), 'stopTitle' => t('إيقاف طوارئ'), 'stopText' => t('ده هيوقف كل الحملات الشغالة في كل حسابات الإعلانات، مش بس اللي ظاهرة هنا. اكتب STOP للتأكيد.'),
+        'fxTitle' => t('الإجمالي بعملة واحدة'), 'fxRate' => t('1 %s = كام %s؟'), 'fxTotal' => t('إجمالي الصرف تقريبًا'), 'fxNote' => t('بسعر الصرف اللي كتبته، مش سعر السوق'),
         'kSel' => t('اختيار الصف'), 'kQuick' => t('نظرة سريعة على الحملة')]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script>window.ADX = <?= json_encode(['keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['/', t('البحث في الحملات')], ['n', t('حملة جديدة')], ['a', t('حسابات الإعلانات')], ['?', t('الاختصارات')]], 'create' => url('ad_create'), 'best' => t('أعلى نسبة ضغط'), 'low' => t('نسبة ضغط ضعيفة')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-ads.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads2.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ui-ads3.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

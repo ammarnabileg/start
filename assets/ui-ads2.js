@@ -157,19 +157,24 @@
         + '<label class="mt-3 flex items-start gap-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-3"><input type="checkbox" class="cf mt-0.5"><span class="cft"></span></label>'
         + '<div class="flex justify-end gap-2 mt-4"><button type="button" class="btn-ghost cn">' + esc(S.cancel) + '</button><button type="button" class="btn-primary go" disabled>' + esc(S.save) + '</button></div>');
       var am = $('.am', dg), cf = $('.cf', dg), go = $('.go', dg), warn = $('.warn', dg);
+      warn.insertAdjacentHTML('afterend', '<div class="tc hidden mt-2 text-sm"><label class="label">' + esc(S.typeAmt) + ' <b dir="ltr"></b></label><input class="input" dir="ltr" inputmode="decimal"></div>'); var tc = $('.tc', dg);
+      var typedOk = function () { return tc.classList.contains('hidden') || parseFloat(tc.querySelector('input').value) === parseFloat((parseFloat(am.value) || 0).toFixed(2)); };
+      tc.querySelector('input').addEventListener('input', function () { go.disabled = !cf.checked || !typedOk(); });
       var sync = function () {
         var v = parseFloat(am.value) || 0, x = d.b[0] ? v / d.b[0] : 0;
         $('.cft', dg).textContent = fmt(S.budConfirm, money(v, d.cur));
         warn.classList.toggle('hidden', !(x >= 3)); warn.textContent = fmt(S.budWarn, num(x));
-        cf.checked = false; go.disabled = true;
+        cf.checked = false; go.disabled = true; var big = x >= 3; tc.classList.toggle('hidden', !big); tc.querySelector('input').value = ''; tc.querySelector('b').textContent = (parseFloat(am.value) || 0).toFixed(2);
       };
-      am.addEventListener('input', sync); dg.addEventListener('change', function (e) { if (e.target === cf) go.disabled = !cf.checked || !(parseFloat(am.value) > 0); });
+      am.addEventListener('input', sync); dg.addEventListener('change', function (e) { if (e.target === cf) go.disabled = !cf.checked || !(parseFloat(am.value) > 0) || !typedOk(); });
       $$('[data-pct]', dg).forEach(function (b) { b.onclick = function () { am.value = (d.b[0] * (1 + b.dataset.pct / 100)).toFixed(2); sync(); }; });
       $('.cn', dg).onclick = function () { dg.close(); }; sync(); am.focus(); am.select();
       go.onclick = function () { postForm(C.campUrl + '&id=' + encodeURIComponent(d.id) + '&pf=' + encodeURIComponent(d.pf) + '&r=' + encodeURIComponent(C.range), { action: 'budget', platform: d.pf, amount: am.value, type: $('[name=bt]:checked', dg).value, confirm_spend: '1', 'return': 'ads' }); };
     };
     span.addEventListener('click', open); span.addEventListener('keydown', function (e) { if (e.key === 'Enter') open(); });
   });
+
+  window.ADS2 = { D: D, avg: avg, money: money, num: num, esc: esc, fmt: fmt, dialog: dialog, postForm: postForm, quick: function (d) { quick(d); }, drawBulk: drawBulk };
 
   // اختصارات إضافية
   if (window.ADX && window.ADX.keys) window.ADX.keys.splice(window.ADX.keys.length - 1, 0, ['x', S.kSel], ['Enter', S.kQuick]);
