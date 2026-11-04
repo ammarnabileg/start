@@ -647,4 +647,7 @@ Unannounced discounts',
     'ذكاء اصطناعي' => 'AI',
     'الملف أكبر من المسموح على السيرفر (%s ميجا) ومش قادر أقرا نصه في المتصفح. صغّر الملف أو قسّمه.' => 'The file is larger than the server allows (%s MB) and its text could not be read in the browser. Shrink or split the file.',
     'بيصغّر الصورة...' => 'Shrinking the image...',
+    'حفظ النص' => 'Save text',
+    'ده النص الكامل اللي بيستخدمه الذكاء الاصطناعي. امسح أي سطور ملهاش معنى واحفظ.' => 'This is the full text the AI uses. Delete any meaningless lines and save.',
+    'حرف' => 'chars',
 ];

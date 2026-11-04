@@ -24,6 +24,15 @@
     });
     return worker;
   }
+  // OCR: نسيب السطور اللي Tesseract واثق منها بس (اللوجوهات والرسومات بتطلع حروف عشوائية)
+  function ocrText(r) {
+    var d = r && r.data || {}, out = [];
+    (d.blocks || []).forEach(function (b) { (b.paragraphs || []).forEach(function (p) { (p.lines || []).forEach(function (l) {
+      var t = (l.text || '').trim(), letters = (t.match(/[A-Za-z\u0600-\u06ff]/g) || []).length;
+      if (l.confidence >= 55 && letters >= 3 && letters >= t.replace(/\s/g, '').length * 0.5) out.push(t);
+    }); }); });
+    return d.blocks ? out.join('\n') : (d.text || '');
+  }
   function clean(t) {
     // NFKC: اشكال الحروف العربية المرسومة (ــ) للحروف العادية
     if (t.normalize) t = t.normalize('NFKC');
@@ -57,8 +66,8 @@
     var name = (file.name || '').toLowerCase();
     if (/^image\//.test(file.type) || /\.(png|jpe?g|webp|bmp)$/.test(name)) {
       prog(0, 'ocr');
-      return ocrWorker(function (p) { prog(p, 'ocr'); }).then(function (w) { return w.recognize(file); })
-        .then(function (r) { return { text: clean(r.data.text || ''), method: 'ocr', pages: 1 }; });
+      return ocrWorker(function (p) { prog(p, 'ocr'); }).then(function (w) { return w.recognize(file, {}, { blocks: true }); })
+        .then(function (r) { return { text: clean(ocrText(r)), method: 'ocr', pages: 1 }; });
     }
     if (file.type === 'application/pdf' || /\.pdf$/.test(name)) {
       return Promise.all([loadPdf(), file.arrayBuffer()]).then(function (a) {
@@ -77,8 +86,8 @@
               cv.width = vp.width; cv.height = vp.height;
               return page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise
                 .then(function () { return ocrWorker(function (p) { prog((i - 1 + p) / n, 'ocr'); }); })
-                .then(function (w) { return w.recognize(cv); })
-                .then(function (r) { ocrPages++; parts.push(r.data.text || ''); return next(i + 1); });
+                .then(function (w) { return w.recognize(cv, {}, { blocks: true }); })
+                .then(function (r) { ocrPages++; parts.push(ocrText(r)); return next(i + 1); });
             });
           });
         })(1);

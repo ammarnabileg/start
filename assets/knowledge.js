@@ -237,7 +237,25 @@
   if (list) {
     list.addEventListener('click', function (e) {
       var row = e.target.closest('.kb-file'); if (!row) return;
-      if (e.target.closest('.kb-view')) { row.querySelector('.kb-prev').classList.toggle('hidden'); return; }
+      if (e.target.closest('.kb-view')) {
+        var pv = row.querySelector('.kb-prev'); pv.classList.toggle('hidden');
+        if (pv.dataset.full || pv.classList.contains('hidden')) return;
+        pv.dataset.full = '1';
+        // النص الكامل، وتقدر تعدّله (تمسح سطور الـ OCR اللي ملهاش معنى مثلًا)
+        var g = new FormData(); g.append('action', 'kb_file_get'); g.append('id', row.dataset.id);
+        post(g).then(function (d) {
+          if (d.error) return;
+          pv.innerHTML = '<p class="text-xs text-ink-500 mb-2"></p><textarea class="input !mt-0 text-xs font-mono w-full" rows="16" dir="auto"></textarea><div class="flex items-center gap-3 mt-2"><button type="button" class="kb-save-txt btn-primary !py-1.5 !text-xs"></button><span class="kb-cnt text-xs text-ink-500"></span></div>';
+          pv.querySelector('p').textContent = K.editHint; var ta = pv.querySelector('textarea'), cnt = pv.querySelector('.kb-cnt'), btn = pv.querySelector('button');
+          ta.value = d.content; btn.textContent = K.saveText;
+          var upd = function () { cnt.textContent = ta.value.length.toLocaleString() + ' ' + K.chars; }; upd(); ta.addEventListener('input', upd);
+          btn.onclick = function () {
+            var f = new FormData(); f.append('action', 'kb_file_save'); f.append('id', row.dataset.id); f.append('content', ta.value);
+            btn.disabled = true; post(f).then(function (r) { btn.disabled = false; cnt.textContent = (r.ok ? '✓ ' + K.saved + ' · ' : '') + ta.value.length.toLocaleString() + ' ' + K.chars; });
+          };
+        });
+        return;
+      }
       if (e.target.closest('.kb-rm')) { if (!confirm(K.del)) return; var fd = new FormData(); fd.append('action', 'kb_file_delete'); fd.append('id', row.dataset.id); post(fd).then(function () { row.remove(); if (!list.querySelector('.kb-file')) dot('files', false); }); }
     });
     list.addEventListener('change', function (e) {
