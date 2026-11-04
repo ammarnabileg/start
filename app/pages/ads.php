@@ -13,6 +13,41 @@ if (!isset(ads_date_presets()[$range])) $range = '30';
 $pg = max(1, (int)($_GET['pg'] ?? 1));
 $back = url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range, 'pg' => $pg > 1 ? $pg : null]));
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_advisor') {
+    header('Content-Type: application/json; charset=utf-8');
+    $mode = ($_POST['mode'] ?? '') === 'realloc' ? 'realloc' : 'summary';
+    $rows = array_slice((array)(json_decode((string)($_POST['data'] ?? '[]'), true) ?: []), 0, 40);
+    $lines = [];
+    foreach ($rows as $r) {
+        if (!is_array($r)) continue;
+        $lines[] = implode(' | ', array_map(function ($k) use ($r) { return $k . '=' . mb_substr(is_scalar($r[$k] ?? '') ? (string)($r[$k] ?? '') : '', 0, 80); }, ['id', 'name', 'status', 'currency', 'budget', 'budget_type', 'spend', 'impressions', 'clicks', 'ctr', 'cpc', 'results', 'prev_spend', 'prev_results', 'can_edit_budget']));
+    }
+    $period = mb_substr((string)($_POST['period'] ?? ''), 0, 40);
+    if ($mode === 'summary') {
+        $sys = 'أنت مستشار إعلانات ممولة يكتب ملخصًا لصاحب شركة غير متخصص. استخدم الأرقام المعطاة فقط ولا تخترع أرقامًا. اكتب بالعربية الفصحى المبسطة، بهذا الترتيب وباختصار شديد: '
+            . '1) سطر واحد: كم صرف وكم نتيجة جاء بها في الفترة، ومقارنة بالفترة السابقة إن وُجدت. 2) أفضل حملة ولماذا (بالأرقام). 3) أسوأ حملة ولماذا. 4) قرار واحد مقترح هذا الأسبوع. '
+            . 'لا تجمع مبالغ بعملات مختلفة معًا. إذا كانت البيانات قليلة جدًا للحكم فقل ذلك.';
+        $max = 600;
+    } else {
+        $sys = 'أنت خبير توزيع ميزانيات إعلانات. اقترح نقل ميزانية يومية من الحملات الأضعف إلى الأقوى، اعتمادًا على تكلفة النتيجة ونسبة الضغط. قواعد صارمة: '
+            . 'انقل فقط بين حملتين بنفس العملة، وفقط الحملات التي can_edit_budget=1 والحالة active أو paused للمستقبِل. لا تنقل أكثر من 30% من ميزانية الحملة المصدر. '
+            . 'لا تقترح نقلًا إذا كانت البيانات غير كافية (أقل من 1000 ظهور). المبالغ بنفس وحدة budget. '
+            . 'أعد JSON فقط بدون شرح: {"moves":[{"from":"id","to":"id","amount":رقم,"why":"سطر بالعربية بالأرقام"}],"note":"سطر بالعربية"}. إذا لم يكن هناك نقل منطقي أعد moves فارغة واشرح السبب في note.';
+        $max = 700;
+    }
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => "الفترة: $period\n" . implode("\n", $lines)]], $max, 'ads_advisor');
+        if ($mode === 'summary') { echo json_encode(['ok' => true, 'text' => $r['text']], JSON_UNESCAPED_UNICODE); exit; }
+        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $j = json_decode($txt, true);
+        if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        echo json_encode(['ok' => true, 'moves' => array_values(array_filter((array)($j['moves'] ?? []), 'is_array')), 'note' => (string)($j['note'] ?? '')], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_analyze') {
     header('Content-Type: application/json; charset=utf-8');
     $d = json_decode((string)($_POST['data'] ?? '{}'), true) ?: [];
@@ -451,10 +486,20 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         'bBudget' => t('الميزانية ±%'), 'bBudTitle' => t('تعديل ميزانية الحملات المختارة'), 'bBudSkip' => t('%s حملة ميزانيتها على مستوى المجموعات واتشالت'), 'bBudConfirm' => t('موافق على تعديل ميزانية %s حملة.'),
         'stopAll' => t('وقّف كل الحملات'), 'stopTitle' => t('إيقاف طوارئ'), 'stopText' => t('ده هيوقف كل الحملات الشغالة في كل حسابات الإعلانات، مش بس اللي ظاهرة هنا. اكتب STOP للتأكيد.'),
         'fxTitle' => t('الإجمالي بعملة واحدة'), 'fxRate' => t('1 %s = كام %s؟'), 'fxTotal' => t('إجمالي الصرف تقريبًا'), 'fxNote' => t('بسعر الصرف اللي كتبته، مش سعر السوق'),
+        'adv' => t('مستشار الإعلانات'), 'advSum' => t('لخّص أداء الفترة دي'), 'advRe' => t('أعيد توزيع الميزانية إزاي؟'), 'advWait' => t('بيحلل حملاتك...'),
+        'advNone' => t('مفيش نقل منطقي دلوقتي'), 'advData' => t('بيانات قليلة (أقل من 1000 ظهور)'), 'advApply' => t('طبّق النقلة دي'), 'advMove' => t('انقل %s من "%s" لـ "%s"'), 'advBad' => t('الاقتراح ده مخالف للقواعد واتشال: %s'),
+        'advTitle' => t('نقل ميزانية'), 'advConfirm' => t('موافق على تعديل ميزانية الحملتين: %s ← %s، و %s ← %s.'), 'advHint' => t('الاقتراحات من الذكاء الاصطناعي ولازم توافق على كل نقلة. مفيش حاجة بتتنفذ لوحدها.'),
+        'gl' => ['ctr' => t('نسبة الضغط (CTR): من كل 100 مرة إعلانك ظهر، كام مرة حد ضغط عليه. متوسط حملاتك: %s. أعلى = إعلانك بيشد أكتر.'),
+          'cpc' => t('تكلفة الضغطة (CPC): بتدفع كام في المتوسط عشان حد يضغط. متوسط حملاتك بعملة %s: %s. أقل = أحسن.'),
+          'cpm' => t('تكلفة الألف ظهور (CPM): بتدفع كام عشان إعلانك يظهر 1000 مرة. بتقيس غلاء الجمهور، مش جودة الإعلان.'),
+          'cpr' => t('تكلفة النتيجة: الصرف ÷ النتايج (شراء، رسالة، تفاعل حسب هدف الحملة). ده أهم رقم لو هدفك مبيعات.'),
+          'res' => t('النتايج: اللي الحملة اتعملت عشانه (تحويل أو تفاعل). إجمالي حملاتك: %s.'),
+          'imp' => t('الظهور: عدد المرات اللي الإعلان ظهر فيها، حتى لو لنفس الشخص أكتر من مرة.')],
         'kSel' => t('اختيار الصف'), 'kQuick' => t('نظرة سريعة على الحملة')]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script>window.ADX = <?= json_encode(['keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['/', t('البحث في الحملات')], ['n', t('حملة جديدة')], ['a', t('حسابات الإعلانات')], ['?', t('الاختصارات')]], 'create' => url('ad_create'), 'best' => t('أعلى نسبة ضغط'), 'low' => t('نسبة ضغط ضعيفة')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-ads.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads2.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads3.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ui-ads4.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);
