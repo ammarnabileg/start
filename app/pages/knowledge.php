@@ -81,6 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'id' => $GLOBALS['kb_last_id'], 'name' => $name, 'chars' => mb_strlen($text), 'method' => $method, 'preview' => mb_substr($text, 0, 600)]);
     }
 
+    if ($action === 'kb_file_rename') {
+        $name = trim(mb_substr(preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)($_POST['name'] ?? '')), 0, 180));
+        if ($name === '') $json(['error' => t('اكتب اسم للملف.')], 422);
+        db()->prepare("UPDATE kb_files SET name = ? WHERE id = ? AND workspace_id = ?")->execute([$name, (int)($_POST['id'] ?? 0), $wid]);
+        $json(['ok' => true, 'name' => $name]);
+    }
+
     if ($action === 'kb_file_get') {
         $st = db()->prepare("SELECT content FROM kb_files WHERE id = ? AND workspace_id = ?"); $st->execute([(int)($_POST['id'] ?? 0), $wid]);
         $c = $st->fetchColumn(); if ($c === false) $json(['error' => t('طلب غير صحيح.')], 404);
@@ -318,7 +325,8 @@ function kb_file_row(array $f, bool $canEdit): string
     $h = '<div class="kb-file rounded-xl border border-ink-200 ' . ($f['enabled'] ? '' : 'opacity-60') . '" data-id="' . (int)$f['id'] . '">'
         . '<div class="flex items-center gap-3 p-3">'
         . '<span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/></svg></span>'
-        . '<div class="flex-1 min-w-0"><div class="text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
+        . '<div class="flex-1 min-w-0"><div class="flex items-center gap-1 min-w-0"><div class="kb-name text-sm font-medium text-ink-900 truncate" dir="auto">' . e($f['name']) . '</div>'
+        . ($canEdit ? '<button type="button" class="kb-ren shrink-0 p-1 rounded-md text-ink-400 hover:text-brand-700 hover:bg-brand-50" title="' . e(t('تغيير الاسم')) . '"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>' : '') . '</div><div class="text-xs text-ink-500">' . e($m) . ' · ' . e(t('%s حرف', number_format((int)$f['chars']))) . '</div></div>'
         . '<button type="button" class="kb-view text-xs link">' . e(t('عرض النص')) . '</button>'
         . '<button type="button" class="kb-reread text-xs link" title="' . e(t('اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد')) . '">' . e(t('إعادة قراءة')) . '</button>';
     if ($canEdit) {

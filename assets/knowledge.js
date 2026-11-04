@@ -237,6 +237,22 @@
   if (list) {
     list.addEventListener('click', function (e) {
       var row = e.target.closest('.kb-file'); if (!row) return;
+      if (e.target.closest('.kb-ren')) {
+        var nm = row.querySelector('.kb-name'); if (!nm || row.querySelector('.kb-name-in')) return;
+        var old = nm.textContent, inp = document.createElement('input'), done = false;
+        inp.className = 'kb-name-in input !mt-0 !py-1 text-sm w-full'; inp.value = old; inp.dir = 'auto';
+        nm.replaceWith(inp); e.target.closest('.kb-ren').classList.add('hidden'); inp.focus(); inp.select();
+        var finish = function (save) {
+          if (done) return; done = true; var v = inp.value.trim();
+          var back = function (txt) { nm.textContent = txt; inp.replaceWith(nm); row.querySelector('.kb-ren').classList.remove('hidden'); };
+          if (!save || !v || v === old) return back(old);
+          var f = new FormData(); f.append('action', 'kb_file_rename'); f.append('id', row.dataset.id); f.append('name', v);
+          post(f).then(function (d) { back(d.ok ? d.name : old); if (d.error) alert(d.error); }).catch(function () { back(old); });
+        };
+        inp.addEventListener('keydown', function (k) { if (k.key === 'Enter') { k.preventDefault(); finish(true); } else if (k.key === 'Escape') finish(false); });
+        inp.addEventListener('blur', function () { finish(true); });
+        return;
+      }
       if (e.target.closest('.kb-reread')) {
         var pick = document.createElement('input'); pick.type = 'file'; pick.accept = input ? input.accept : '';
         pick.onchange = function () { if (pick.files[0]) upload([pick.files[0]], row.dataset.id); };

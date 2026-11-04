@@ -652,4 +652,6 @@ Unannounced discounts',
     'حرف' => 'chars',
     'إعادة قراءة' => 'Re-read',
     'اختار نفس الملف من جهازك تاني، والنص القديم هيتبدّل بالجديد' => 'Pick the same file from your device again; the old text will be replaced with the new one',
+    'تغيير الاسم' => 'Rename',
+    'اكتب اسم للملف.' => 'Enter a file name.',
 ];
