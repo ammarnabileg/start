@@ -814,5 +814,11 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.IBXU = <?= json_encode(['ws' => (int)ws('id'), 'conv' => $convId, 'archived' => $status === 'archived', 'canAct' => can('inbox.reply') || can('inbox.manage'),
+      'chars' => t('حرف'), 'draft' => t('مسودة'), 'draftSaved' => t('المسودة محفوظة'), 'emoji' => t('إيموجي'), 'instant' => t('%s نتيجة في القائمة الحالية · Enter للبحث في كل الرسائل'),
+      'copy' => t('نسخ'), 'copied' => t('اتنسخ'), 'quote' => t('اقتباس في الرد'), 'latest' => t('آخر رسالة'), 'newMsgs' => t('%s رسالة جديدة'), 'findPh' => t('ابحث في المحادثة...'), 'findIn' => t('بحث في المحادثة'), 'noHits' => '0',
+      'markRead' => t('تعليم كمقروءة'), 'archive' => t('أرشفة'), 'unarchive' => t('رجّعها للنشطة'), 'doneRead' => t('اتعلمت مقروءة'), 'doneArchive' => t('اتأرشفت'), 'doneUnarchive' => t('رجعت للنشطة'),
+      'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المحادثة التالية / السابقة')], ['r', t('اكتب رد')], ['e', t('أرشفة المحادثة')], ['x', t('تحديد المحادثة')], ['/', t('البحث')], ['Ctrl F', t('بحث جوه المحادثة')], ['g', t('انزل لآخر رسالة')], ['Enter', t('إرسال')], ['Shift Enter', t('سطر جديد')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/inbox-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

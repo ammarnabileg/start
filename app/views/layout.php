@@ -188,15 +188,15 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if ($cpOn): $cpKeys = ai_page_insights((string)($GLOBALS['page'] ?? $active)); ?>
 <!-- لوحة ✨ الجانبية -->
-<div id="cp-rail" class="hidden lg:flex fixed top-16 bottom-0 end-0 z-50 w-14 flex-col items-center gap-2 py-3 border-s border-ink-200 bg-white">
-  <button type="button" data-cp-toggle class="cp-spark w-10 h-10 rounded-2xl text-[#fff] flex items-center justify-center shadow-lg shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 hover:scale-105 active:scale-95 transition" title="<?= e(t('اسأل الذكاء الاصطناعي')) ?> (Ctrl+J)">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
-  </button>
-</div>
+<button type="button" id="cp-rail" data-cp-toggle class="group hidden lg:flex fixed top-16 bottom-0 end-0 z-50 w-14 flex-col items-center gap-4 py-5 border-s border-ink-200 bg-white text-brand-600 hover:bg-gradient-to-b hover:from-brand-50 hover:to-cyan-50/60 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 transition-colors" title="<?= e(t('اسأل الذكاء الاصطناعي')) ?> (Ctrl+J)" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
+  <svg class="w-6 h-6 transition group-hover:scale-110 group-hover:rotate-12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+  <span class="text-xs font-medium tracking-wide text-ink-500 group-hover:text-brand-700 transition" style="writing-mode:vertical-rl"><?= e(t('اسأل الذكاء الاصطناعي')) ?></span>
+  <kbd class="mt-auto rounded-md border border-ink-200 bg-ink-50 px-1 py-0.5 text-[9px] font-mono text-ink-400 opacity-0 group-hover:opacity-100 transition" dir="ltr">Ctrl J</kbd>
+</button>
 <button type="button" data-cp-toggle class="lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
 </button>
-<aside id="cp" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 lg:end-14 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
+<aside id="cp" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
   <div id="cp-grip" class="hidden lg:block absolute inset-y-0 -start-1 w-2 cursor-col-resize z-10 after:absolute after:inset-y-0 after:start-[3px] after:w-0.5 after:bg-brand-500 after:opacity-0 hover:after:opacity-100 after:transition" title="<?= e(t('اسحب لتغيير العرض')) ?>"></div>
   <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200 shrink-0">
     <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center"><?= ai_icon('spark', 'w-4 h-4') ?></span>

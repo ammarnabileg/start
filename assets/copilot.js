@@ -182,7 +182,10 @@
   function setOpen(on) {
     panel.classList.toggle('translate-x-full', !on); panel.classList.toggle('rtl:-translate-x-full', !on);
     panel.classList.toggle('opacity-0', !on); panel.classList.toggle('pointer-events-none', !on);
-    if (main) main.classList.toggle('lg:pe-[29.5rem]', on && !wide);
+    // العمود كله زرار: بيختفي لما الشات يتفتح ويرجع لما يتقفل
+    var rail = document.getElementById('cp-rail');
+    if (rail) { rail.classList.toggle('lg:flex', !on); }
+    if (main) { main.classList.toggle('lg:pe-[26rem]', on && !wide); main.classList.toggle('lg:pe-14', !on && !!rail); }
     document.querySelectorAll('.cp-spark').forEach(function (b) { b.classList.toggle('ring-4', on); b.classList.toggle('ring-brand-500/25', on); });
     store.set('cp-open', on ? '1' : '');
     if (on) { load(); setTimeout(function () { if (input && innerWidth >= 1024) input.focus(); }, 300); }
@@ -273,7 +276,7 @@
   function applyW() {
     if (innerWidth < 1024 || wide) { panel.style.width = ''; if (main) main.style.paddingInlineEnd = ''; return; }
     panel.style.width = cpW + 'px';
-    if (main) main.style.paddingInlineEnd = isOpen() ? (cpW + 56) + 'px' : '';
+    if (main) main.style.paddingInlineEnd = isOpen() ? cpW + 'px' : '';
   }
   if (grip) grip.addEventListener('pointerdown', function (e) {
     e.preventDefault(); grip.setPointerCapture(e.pointerId); document.body.style.userSelect = 'none'; panel.style.transition = 'none';
@@ -283,7 +286,7 @@
     grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up, { once: true });
   });
   window.addEventListener('resize', applyW);
-  var _setOpen = setOpen; setOpen = function (on) { _setOpen(on); if (main) main.classList.remove('lg:pe-[29.5rem]'); applyW(); };
+  var _setOpen = setOpen; setOpen = function (on) { _setOpen(on); if (main) main.classList.remove('lg:pe-[29.5rem]', 'lg:pe-[26rem]'); applyW(); };
   var _setWide = setWide; setWide = function (w) { _setWide(w); if (main) main.classList.remove('lg:pe-[29.5rem]'); applyW(); };
 
   setWide(wide);
