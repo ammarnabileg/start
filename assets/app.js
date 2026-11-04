@@ -282,3 +282,29 @@ document.addEventListener('click', function (e) {
   new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) init(n.matches && n.matches('textarea') ? n.parentNode : n); }); }); }).observe(document.body, { childList: true, subtree: true });
 })();
 
+
+/* زرار الوضع: تبديل فوري من غير تحميل الصفحة، والحفظ في الخلفية */
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-theme-toggle]');
+  if (b) {
+    var html = document.documentElement, dark = !html.classList.contains('dark');
+    html.classList.add('theme-anim');
+    html.classList.toggle('dark', dark);
+    var meta = document.querySelector('meta[name=color-scheme]'); if (meta) meta.content = dark ? 'dark' : 'light';
+    document.querySelectorAll('[data-theme-toggle]').forEach(function (x) { x.setAttribute('aria-checked', dark ? 'true' : 'false'); });
+    clearTimeout(window.__ttT); window.__ttT = setTimeout(function () { html.classList.remove('theme-anim'); }, 450);
+    fetch(b.dataset[dark ? 'urlDark' : 'urlLight'], { credentials: 'same-origin', redirect: 'manual' }).catch(function () {});
+    return;
+  }
+  // اللغة: المؤشر يتحرك الأول، وبعدين الصفحة تتحمل باللغة الجديدة
+  var a = e.target.closest('.lang-seg [data-lang]');
+  if (a && !e.metaKey && !e.ctrlKey) {
+    var seg = a.closest('.lang-seg'), pill = seg.querySelector('.lang-pill');
+    if (pill.dataset.on === a.dataset.lang) { e.preventDefault(); return; }
+    e.preventDefault();
+    pill.dataset.on = a.dataset.lang;
+    seg.querySelectorAll('[data-lang]').forEach(function (x) { x.classList.toggle('text-ink-500', x !== a); });
+    document.body.style.transition = 'opacity .2s'; setTimeout(function () { document.body.style.opacity = '.55'; }, 120);
+    setTimeout(function () { location.href = a.href; }, 260);
+  }
+});
