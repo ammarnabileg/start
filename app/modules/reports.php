@@ -193,8 +193,29 @@ function rp_build(int $wid, array $per, string $acc = ''): array
         'acc' => $acc,
         'cur' => rp_collect($wid, $per['from'], $per['to'], $acc),
         'prev' => rp_collect($wid, $per['pfrom'], $per['pto'], $acc, ['daily', 'followers', 'inbox', 'response']),
+        'ads' => $acc === '' ? rp_ads($wid, $per) : null,
         'generated' => gmdate('c'),
     ];
+}
+
+/** الإعلانات في التقرير: إجمالي لكل عملة + مقارنة بالفترة اللي قبلها + أعلى الحملات صرفًا (قراءة بس) */
+function rp_ads(int $wid, array $per): ?array
+{
+    if (!function_exists('ads_campaigns') || !module_enabled('ads')) return null;
+    $clients = rp_clients($wid); if (!$clients) return null;
+    $z = $clients[0]['z'];
+    $fxd = getenv('UI_FIXTURES');
+    $get = function (string $from, string $to, string $fx) use ($z, $fxd) {
+        if ($fxd && is_file($fxd . '/' . $fx)) return json_decode((string)file_get_contents($fxd . '/' . $fx), true)['campaigns'] ?? [];
+        return ads_campaigns($z, ['fromDate' => $from, 'toDate' => $to, 'limit' => 100])['campaigns'] ?? [];
+    };
+    try { $cur = $get($per['from'], $per['to'], 'ads.json'); $prev = $get($per['pfrom'], $per['pto'], 'ads_prev.json'); }
+    catch (Throwable $e) { return ['error' => $e->getMessage()]; }
+    if (!$cur) return null;
+    $agg = function (array $list) { $o = []; foreach ($list as $c) { $k = (string)($c['currency'] ?? ''); $m = $c['metrics'] ?? [];
+        foreach (['spend', 'impressions', 'clicks'] as $f) $o[$k][$f] = ($o[$k][$f] ?? 0) + (float)($m[$f] ?? 0); $o[$k]['results'] = ($o[$k]['results'] ?? 0) + ads_results($m); } return $o; };
+    usort($cur, function ($a, $b) { return ($b['metrics']['spend'] ?? 0) <=> ($a['metrics']['spend'] ?? 0); });
+    return ['tot' => $agg($cur), 'prev' => $agg($prev), 'top' => array_slice(array_filter($cur, function ($c) { return ($c['metrics']['spend'] ?? 0) > 0; }), 0, 5)];
 }
 
 /* ---------- عرض التقرير (للطباعة وللإيميل) ---------- */
@@ -357,6 +378,38 @@ function rp_render(array $R, bool $email = false): string
                 $o .= '<td width="25%" style="' . $card . 'text-align:' . $al . ';vertical-align:top"><div style="font-size:11px;color:#64748b">' . e($c[0]) . '</div><div style="font-size:18px;font-weight:800">' . e($c[1]) . '</div><div style="font-size:11px">' . $c[2] . '</div></td>';
             }
             $o .= '</tr></table>';
+        }
+    }
+
+    // الإعلانات
+    if (!empty($R['ads'])) {
+        $A = $R['ads'];
+        $o .= '<div style="' . $h2 . '">' . e(t('الإعلانات الممولة')) . '</div>';
+        if (!empty($A['error'])) {
+            $o .= '<div style="' . $card . 'color:#64748b">' . e($A['error']) . '</div>';
+        } else {
+            foreach ($A['tot'] as $curr => $tt) {
+                $pp = $A['prev'][$curr] ?? ['spend' => 0, 'impressions' => 0, 'clicks' => 0, 'results' => 0];
+                $cpr = $tt['results'] > 0 ? $tt['spend'] / $tt['results'] : null; $pcpr = $pp['results'] > 0 ? $pp['spend'] / $pp['results'] : null;
+                $cells = [
+                    [t('الصرف') . ($curr ? ' (' . $curr . ')' : ''), ads_money($tt['spend'], $curr ?: null), $pp['spend'] ? rp_pct_badge($tt['spend'], $pp['spend']) : ''],
+                    [t('مرات الظهور'), an_num($tt['impressions']), $pp['impressions'] ? rp_pct_badge($tt['impressions'], $pp['impressions']) : ''],
+                    [t('النتايج'), an_num($tt['results']), $pp['results'] ? rp_pct_badge($tt['results'], $pp['results']) : ''],
+                    [t('تكلفة النتيجة'), $cpr !== null ? ads_money($cpr, $curr ?: null) : '—', $cpr !== null && $pcpr ? rp_pct_badge($cpr, $pcpr, true) : ''],
+                ];
+                $o .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate"><tr>';
+                foreach ($cells as $c) $o .= '<td width="25%" style="' . $card . 'text-align:' . $al . ';vertical-align:top"><div style="font-size:11px;color:#64748b">' . e($c[0]) . '</div><div style="font-size:18px;font-weight:800">' . e($c[1]) . '</div><div style="font-size:11px">' . $c[2] . '</div></td>';
+                $o .= '</tr></table>';
+            }
+            if ($A['top']) {
+                $o .= '<table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin-top:6px;font-size:12px"><tr style="color:#64748b;font-size:11px">'
+                    . '<td style="text-align:' . $al . '">' . e(t('أعلى الحملات صرفًا')) . '</td><td>' . e(t('الصرف')) . '</td><td>' . e(t('النتايج')) . '</td><td>CTR</td></tr>';
+                foreach ($A['top'] as $c) {
+                    $m = $c['metrics'] ?? [];
+                    $o .= '<tr style="border-top:1px solid #e2e8f0"><td style="text-align:' . $al . ';font-weight:600">' . e($c['campaignName'] ?? '') . '</td><td dir="ltr">' . e(ads_money($m['spend'] ?? 0, $c['currency'] ?? null)) . '</td><td>' . e(an_num(ads_results($m))) . '</td><td dir="ltr">' . e(number_format((float)($m['ctr'] ?? 0), 2)) . '%</td></tr>';
+                }
+                $o .= '</table>';
+            }
         }
     }
 

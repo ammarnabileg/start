@@ -348,3 +348,11 @@ function ads_bar_chart(array $points, string $title, callable $fmt): string
     return '<div><div class="text-xs text-ink-500 mb-1">' . e($title) . ' · ' . e(t('الأعلى: %s', $fmt($max))) . '</div>' . $svg
         . '<div class="flex justify-between text-[11px] text-ink-400 mt-1" dir="ltr"><span>' . e($first) . '</span><span>' . e($last) . '</span></div></div>';
 }
+
+/** رابط "روّج المنشور ده" لصفحة حملة جديدة (فيسبوك/انستجرام بس، ولصاحب صلاحية الصرف) — null لو مش متاح */
+function ads_boost_url(string $platform, string $accountId, string $platformPostId): ?string
+{
+    if ($platformPostId === '' || !in_array($platform, ['facebook', 'instagram'], true)) return null;
+    if (!function_exists('can') || !can('ads.spend') || !module_enabled('ads')) return null;
+    return url('ad_create', ['boost_post' => $platformPostId, 'boost_acc' => $accountId]);
+}

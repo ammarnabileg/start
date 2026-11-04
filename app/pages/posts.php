@@ -31,7 +31,7 @@ $total = null;
 $apiError = null;
 $accounts = [];
 
-$fixture = getenv('POSTS_FIXTURE'); // بيئة الاختبار فقط
+$fixture = getenv('POSTS_FIXTURE') ?: (getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/posts.json' : ''); // بيئة الاختبار فقط
 if ($z && $fixture && is_file($fixture)) {
     $fx = json_decode((string)file_get_contents($fixture), true) ?: [];
     foreach ($fx['posts'] ?? [] as $p) if ($status === '' || ($p['status'] ?? '') === $status) $posts[] = $p;
@@ -140,6 +140,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
               <?php if ($errs): ?><details class="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2"><summary class="cursor-pointer text-[11px] font-medium text-red-700"><?= e(t('سبب الفشل')) ?></summary><?php foreach ($errs as $er): ?><p class="text-[11px] text-red-700 mt-1 break-words"><?= e(mb_substr($er, 0, 300)) ?></p><?php endforeach; ?></details><?php endif; ?>
               <div class="flex items-center gap-1 mt-3 pt-3 border-t border-ink-100 text-xs">
                 <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 font-medium"><?= e(t('التفاصيل / تعديل')) ?></a>
+                <?php foreach ($pls as $pl) { $bu = ($pl['status'] ?? '') === 'published' ? ads_boost_url((string)($pl['platform'] ?? ''), (string)(is_array($pl['accountId'] ?? null) ? ($pl['accountId']['_id'] ?? '') : ($pl['accountId'] ?? '')), (string)($pl['platformPostId'] ?? '')) : null; if ($bu) { ?><a href="<?= e($bu) ?>" class="rounded-lg px-2 py-1 text-amber-800 hover:bg-amber-50 font-medium" title="<?= e(t('روّجه كإعلان على %s', platform_label((string)$pl['platform']))) ?>">⚡ <?= e(t('روّج')) ?></a><?php break; } } ?>
                 <a href="<?= e(url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])) ?>" class="rounded-lg px-2 py-1 text-ink-600 hover:bg-ink-100" title="<?= e(t('منشور جديد بنفس النص والحسابات')) ?>"><?= e(t('تكرار')) ?></a>
                 <button type="button" class="ps-copy rounded-lg px-2 py-1 text-ink-600 hover:bg-ink-100"><?= e(t('نسخ النص')) ?></button>
                 <?php if ($st !== 'publishing' && can('posts.manage')): ?><button type="button" class="ps-del ms-auto rounded-lg px-2 py-1 text-red-600 hover:bg-red-50"><?= e(t('حذف')) ?></button><?php endif; ?>

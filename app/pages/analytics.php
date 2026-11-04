@@ -541,6 +541,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                       <span class="font-semibold text-ink-700"><?= e(t('تفاعل %s%%', number_format((float)($an['engagementRate'] ?? 0), 2))) ?></span> ·
                       <span><?= e(t('%s ظهور', an_num($an['impressions'] ?? 0))) ?></span>
                       <?php if (!empty($p['platformPostUrl'])): ?> · <a class="link" href="<?= e($p['platformPostUrl']) ?>" target="_blank" rel="noopener"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
+                      <?php $pl0 = (array)(($p['platforms'] ?? [])[0] ?? []); if ($good && ($bu = ads_boost_url($pl, (string)($pl0['accountId'] ?? ''), (string)($pl0['platformPostId'] ?? '')))): ?> · <a class="link !text-amber-700" href="<?= e($bu) ?>">⚡ <?= e(t('روّجه كإعلان')) ?></a><?php endif; ?>
                     </p>
                   </div>
                 </li>

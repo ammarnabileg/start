@@ -166,6 +166,7 @@ function adc_payload(array $f): array
 }
 
 $form = $_SESSION['adc_form'] ?? null;
+if (!empty($_GET['boost_post'])) { $form = ['mode' => 'boost', 'post' => (string)$_GET['boost_post'], 'boost_acc' => (string)($_GET['boost_acc'] ?? ''), 'goal' => 'engagement']; unset($_SESSION['adc_form']); }
 if (!$form && !empty($_GET['dup'])) {
     $form = ['name' => mb_substr(t('نسخة من %s', (string)($_GET['dup_name'] ?? '')), 0, 200), 'dup_acc' => (string)($_GET['dup_acc'] ?? ''),
         'budget' => (float)($_GET['dup_budget'] ?? 0) ?: '', 'budget_type' => ($_GET['dup_bt'] ?? '') === 'lifetime' ? 'lifetime' : 'daily'];
@@ -297,6 +298,7 @@ $kbSite = (string)($kbAll['contact']['website'] ?? $kbAll['company']['website'] 
 render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets, $posts, $form, $step, $goals, $ctas, $drafts, $kbProducts, $kbSite) {
     if (!$z) { no_api_box(); return; }
     $f = $form ?? [];
+    if (!empty($f['post']) && !in_array($f['post'], array_column($posts, 'id'), true)) { $f['post_manual'] = $f['post']; $f['post'] = ''; }
     $v = function ($k, $d = '') use ($f) { return $f[$k] ?? $d; };
     ?>
     <div class="<?= $step === 'review' ? 'max-w-3xl' : '' ?> space-y-5">
@@ -359,7 +361,7 @@ render(t('حملة جديدة'), 'ads', function () use ($z, $apiError, $targets
               <label class="label"><?= e(t('حساب الإعلانات')) ?></label>
               <select name="target" class="input" id="adcTarget" required>
                 <?php foreach ($targets as $t): $val = $t['conn']['_id'] . '|' . $t['acc']['id'] . '|' . ($t['acc']['currency'] ?? ''); ?>
-                  <option value="<?= e($val) ?>" data-conn="<?= e($t['conn']['_id']) ?>" data-acc="<?= e($t['acc']['id']) ?>" <?= $v('target') === $val || ($v('dup_acc') !== '' && ltrim((string)$v('dup_acc'), 'act_') === ltrim((string)$t['acc']['id'], 'act_')) ? 'selected' : '' ?>><?= e(($t['acc']['name'] ?? $t['acc']['id']) . ' · ' . ($t['acc']['currency'] ?? '') . ' — ' . ($t['conn']['displayName'] ?? '')) ?></option>
+                  <option value="<?= e($val) ?>" data-conn="<?= e($t['conn']['_id']) ?>" data-acc="<?= e($t['acc']['id']) ?>" <?= $v('target') === $val || ($v('boost_acc') !== '' && $v('boost_acc') === (string)$t['conn']['_id']) || ($v('dup_acc') !== '' && ltrim((string)$v('dup_acc'), 'act_') === ltrim((string)$t['acc']['id'], 'act_')) ? 'selected' : '' ?>><?= e(($t['acc']['name'] ?? $t['acc']['id']) . ' · ' . ($t['acc']['currency'] ?? '') . ' — ' . ($t['conn']['displayName'] ?? '')) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
