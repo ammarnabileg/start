@@ -51,11 +51,11 @@ function nav_items(): array
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
             'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات')]],
+        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الشركة')],
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الشركة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('الإعدادات'), 'section' => t('الشركة'),
             'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
-        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
     ];
     if (is_admin()) {
         $items[] = ['key' => 'admin', 'label' => t('إدارة المنصة'), 'section' => t('النظام'),
