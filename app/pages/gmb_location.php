@@ -270,7 +270,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
           <span class="text-[11px] text-ink-500"><?= e(t('تغيير الاسم بيحتاج مراجعة جوجل، فبيتعمل من Google Business Profile نفسه.')) ?></span>
         </label>
         <label class="block"><span class="label"><?= e(t('التليفون')) ?></span>
-          <input name="phone" class="input" dir="ltr" value="<?= e($d['phoneNumbers']['primaryPhone'] ?? '') ?>"></label>
+          <input name="phone" data-phone="any" data-phone-req class="input" dir="ltr" value="<?= e($d['phoneNumbers']['primaryPhone'] ?? '') ?>"></label>
         <label class="block"><span class="label"><?= e(t('الموقع الإلكتروني')) ?></span>
           <input name="website" type="url" class="input" dir="ltr" value="<?= e($d['websiteUri'] ?? '') ?>" placeholder="https://"></label>
         <label class="block"><span class="label"><?= e(t('الوصف')) ?></span>

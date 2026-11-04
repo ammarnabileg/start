@@ -332,7 +332,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
                 <?php foreach ($s['fields'] as $fk => $f): $span = ($f[3] ?? 1) === 2; ?>
                   <label class="block <?= $span ? 'sm:col-span-2' : '' ?>"><span class="label"><?= e($f[0]) ?></span>
                     <?php if ($f[1] === 'area'): ?><textarea name="d[<?= $fk ?>]" rows="<?= $span ? 3 : 2 ?>" class="input text-sm leading-relaxed" dir="auto" placeholder="<?= e($f[2]) ?>" <?= $dis ?>><?= e($d[$fk] ?? '') ?></textarea>
-                    <?php else: ?><input name="d[<?= $fk ?>]" type="<?= in_array($f[1], ['url', 'email', 'tel'], true) ? $f[1] : 'text' ?>" <?= in_array($f[1], ['url', 'email', 'tel'], true) ? 'dir="ltr"' : 'dir="auto"' ?> class="input text-sm" placeholder="<?= e($f[2]) ?>" value="<?= e($d[$fk] ?? '') ?>" <?= $dis ?>><?php endif; ?>
+                    <?php else: ?><input <?= $f[1] === 'tel' ? 'data-phone="' . ($fk === 'whatsapp' ? 'mobile' : 'any') . '"' : '' ?> name="d[<?= $fk ?>]" type="<?= in_array($f[1], ['url', 'email', 'tel'], true) ? $f[1] : 'text' ?>" <?= in_array($f[1], ['url', 'email', 'tel'], true) ? 'dir="ltr"' : 'dir="auto"' ?> class="input text-sm" placeholder="<?= e($f[2]) ?>" value="<?= e($d[$fk] ?? '') ?>" <?= $dis ?>><?php endif; ?>
                   </label>
                 <?php endforeach; ?>
               </div>

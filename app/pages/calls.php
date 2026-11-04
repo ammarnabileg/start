@@ -197,7 +197,7 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
           <input type="hidden" name="p" value="calls"><input type="hidden" name="dial" value="1">
           <label class="block"><span class="label"><?= e(t('من رقم')) ?></span>
             <select name="from" class="input" dir="ltr"><?php foreach ($voice as $n): ?><option <?= ph_e164($n['phoneNumber']) === $dialFrom ? 'selected' : '' ?>><?= e($n['phoneNumber']) ?></option><?php endforeach; ?></select></label>
-          <label class="block"><span class="label"><?= e(t('رقم العميل')) ?></span><input name="to" required class="input" dir="ltr" placeholder="+14155550100" value="<?= e($dialTo) ?>"></label>
+          <label class="block"><span class="label"><?= e(t('رقم العميل')) ?></span><input name="to" required data-phone="any" data-phone-req class="input" dir="ltr" value="<?= e($dialTo) ?>"></label>
           <button class="btn-ghost"><?= e(t('احسب التكلفة')) ?></button>
         </form>
         <?php if ($estimateErr): ?><div class="mt-3"><?php error_box($estimateErr); ?></div><?php endif; ?>

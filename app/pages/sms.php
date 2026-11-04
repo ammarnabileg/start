@@ -101,7 +101,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $apiError, $numbers, $sm
                   <?php endforeach; ?>
                 </select></label>
               <label class="block"><span class="label"><?= e(t('إلى رقم')) ?></span>
-                <input name="to" required class="input" dir="ltr" placeholder="+14155550100" value="<?= e($draft['to'] ?? '') ?>"></label>
+                <input name="to" required data-phone="mobile" data-phone-req class="input" dir="ltr" value="<?= e($draft['to'] ?? '') ?>"></label>
               <label class="block"><span class="label"><?= e(t('الرسالة')) ?></span>
                 <textarea data-ai="sms_short,improve,translate_en,translate_ar" name="text" id="smsText" required maxlength="1530" rows="4" class="input"><?= e($draft['text'] ?? '') ?></textarea></label>
               <p class="text-xs text-ink-500" id="smsCount"></p>

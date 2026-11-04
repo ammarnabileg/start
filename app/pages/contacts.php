@@ -195,7 +195,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="block"><span class="label"><?= e(t('الاسم')) ?></span><input name="name" required class="input" value="<?= e($c['name'] ?? '') ?>"></label>
         <?php if (!$edit): ?>
-        <label class="block"><span class="label"><?= e(t('رقم الواتساب (بالكود الدولي)')) ?></span><input name="phone" dir="ltr" class="input" placeholder="<?= e(cx_phone()) ?>"></label>
+        <label class="block"><span class="label"><?= e(t('رقم الواتساب (بالكود الدولي)')) ?></span><input name="phone" data-phone="mobile" data-phone-req dir="ltr" class="input" placeholder="<?= e(cx_phone()) ?>"></label>
         <?php endif; ?>
         <label class="block"><span class="label"><?= e(t('الإيميل')) ?></span><input name="email" type="email" dir="ltr" class="input" value="<?= e($c['email'] ?? '') ?>"></label>
         <label class="block"><span class="label"><?= e(t('الشركة')) ?></span><input name="company" class="input" value="<?= e($c['company'] ?? '') ?>"></label>

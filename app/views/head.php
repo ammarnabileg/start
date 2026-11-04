@@ -24,6 +24,17 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
     'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'), 'sending' => t('جاري الإرسال...'), 'notSent' => t('ما اتبعتتش · اتأكد من النت وجرب تاني'), 'liveFailed' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script>window.PHONE = <?= json_encode(['cc' => function_exists('ws_country') && session_status() === PHP_SESSION_ACTIVE && current_workspace() ? ws_country() : 'EG', 'example' => function_exists('cx_phone') && session_status() === PHP_SESSION_ACTIVE && current_workspace() ? cx_phone() : '',
+    'names' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
+    't' => ['bad' => t('ده مش شكل رقم تليفون'), 'invalidFor' => t('الرقم مش صحيح لـ %s، اتأكد من عدد الأرقام'), 'mobile' => t('موبايل'), 'fixed' => t('أرضي'), 'either' => t('موبايل أو أرضي'), 'tollFree' => t('رقم مجاني'),
+      'notMobile' => t('%s رقم أرضي، والخدمة دي محتاجة رقم موبايل'), 'fix' => t('فيه رقم تليفون غلط، صلّحه الأول')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+document.addEventListener('DOMContentLoaded', function () {
+  var go = function () { if (window.__phoneLoad || !document.querySelector('input[data-phone]')) return false; window.__phoneLoad = 1;
+    var a = document.createElement('script'); a.src = 'assets/vendor/libphonenumber-max.js?v=1.11.12';
+    a.onload = function () { var b = document.createElement('script'); b.src = 'assets/phone.js?v=<?= e(APP_VERSION) ?>'; document.head.appendChild(b); }; document.head.appendChild(a); return true; };
+  if (!go()) { var mo = new MutationObserver(function () { if (go()) mo.disconnect(); }); mo.observe(document.body, { childList: true, subtree: true }); }
+});
+</script>
 <?php if (function_exists('ai_presets') && session_status() === PHP_SESSION_ACTIVE && current_user() && current_workspace() && can('ai.use') && ai_connection()): ?>
 <script>window.AI_PRESETS = <?= json_encode(['items' => array_map(function ($p) { return $p['label']; }, array_filter(ai_presets(), function ($k) { return ai_feature_on($k); }, ARRAY_FILTER_USE_KEY)), 'modes' => array_map(function ($p) { return $p['mode']; }, ai_presets()), 'title' => t('أوامر الذكاء الاصطناعي'), 'use' => t('استخدم هذا النص'), 'copy' => t('نسخ'), 'insights' => ai_insights_js(), 'run' => t('تشغيل'), 'csvBtn' => t('تحميل CSV للنشر الجماعي'), 'rowsTxt' => t('منشور'), 'thinking' => t('جاري التحليل من بياناتك...'), 'aiTitle' => t('تحليلات الذكاء الاصطناعي')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <?php endif; ?>
