@@ -43,6 +43,20 @@ function connector_registry(): array
                 return t('متصل · %s موبايل', is_array($d) ? count($d) : 0);
             },
         ],
+        'apollo' => [
+            'name' => 'Apollo.io', 'category' => 'sales', 'single' => true, 'owner_only' => true,
+            'logo' => 'A', 'color' => '#4F46E5',
+            'description' => t('قاعدة بيانات الشركات والأشخاص: البحث عن الشركات المستهدفة وكشف إيميلات وأرقام صناع القرار فيها.'),
+            'docs' => 'https://docs.apollo.io/docs/create-api-key',
+            'help' => t('من Apollo: Settings ← Integrations ← API ← Create new key. فعّل الـ Master Key عشان البحث عن الشركات يشتغل. كل كشف بيخصم كريديت من حسابك هناك.'),
+            'fields' => [
+                ['key' => 'api_key', 'label' => 'API Key', 'secret' => true],
+            ],
+            'test' => function (array $c): string {
+                crm_api('/mixed_companies/search', ['page' => 1, 'per_page' => 1], $c['api_key']);
+                return t('المفتاح شغال');
+            },
+        ],
         'smtp' => [
             'name' => t('الإيميل (SMTP)'), 'category' => 'email',
             'owner_only' => true, 'single' => true,

@@ -7,6 +7,7 @@
 function module_catalog(): array
 {
     return [
+        'crm' => t('إدارة العملاء'),
         'automations' => t('الردود التلقائية والـ Workflows'),
         'whatsapp' => t('واتساب للبيزنس'),
         'analytics' => t('التحليلات'),
@@ -33,6 +34,8 @@ function nav_items(): array
     $owner = is_ws_owner();
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
+        ['key' => 'crm', 'label' => t('إدارة العملاء'), 'section' => t('العملاء'), 'module' => 'crm',
+            'tabs' => ['crm' => t('الشركات المستهدفة'), 'crm_leads' => 'Leads', 'leads' => t('Leads الإعلانات'), 'contacts' => t('جهات الاتصال'), 'calls' => t('المكالمات')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => t('المحتوى')],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => t('المحتوى'),
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم')], 'also' => ['post_edit', 'queue', 'bulk']],
@@ -42,15 +45,15 @@ function nav_items(): array
             'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows']],
         ['key' => 'assistant', 'label' => t('الذكاء الاصطناعي'), 'section' => t('الأدوات')],
         ['key' => 'whatsapp', 'label' => t('واتساب'), 'section' => t('الأدوات'), 'module' => 'whatsapp',
-            'tabs' => ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'contacts' => t('جهات الاتصال'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('البروفايل')]],
+            'tabs' => ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('البروفايل')]],
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => t('الأدوات'), 'module' => 'analytics',
             'tabs' => ['analytics' => t('المنشورات'), 'inbox_analytics' => t('الرسائل'), 'reports' => t('التقارير'), 'goals' => t('الأهداف'), 'alerts' => t('التنبيهات')], 'also' => ['report_print']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => t('الأدوات'), 'module' => 'ads',
-            'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير'), 'leads' => 'Leads'], 'also' => ['ad_campaign']],
+            'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير')], 'also' => ['ad_campaign']],
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => t('الأدوات'), 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
-            'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات'), 'sms_mine' => t('رقمي')]],
+            'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'sms_mine' => t('رقمي')]],
         ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
         ['key' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الشركة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الشركة')],
@@ -94,6 +97,7 @@ function nav_item_for(string $page): ?array
 function page_module(string $page): ?string
 {
     $map = [
+        'crm' => ['crm', 'crm_leads'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],

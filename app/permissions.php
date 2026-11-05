@@ -21,6 +21,11 @@ function permission_catalog(): array
             'comments.reply' => t('قراءة التعليقات والرد عليها'),
             'automations.manage' => t('إدارة الردود التلقائية والـ Workflows'),
         ],
+        t('العملاء') => [
+            'crm.view' => t('عرض الشركات المستهدفة والـ Leads والتعامل مع العملاء بتوعه'),
+            'crm.reveal' => t('كشف أرقام وإيميلات الأشخاص (بيخصم كريديت)'),
+            'crm.manage' => t('إدارة كل الـ Leads وتوزيعها وإعدادات العميل المثالي'),
+        ],
         t('الأدوات') => [
             'whatsapp.view' => t('عرض أدوات واتساب'),
             'whatsapp.manage' => t('إرسال الرسائل الجماعية وإدارة القوالب والجهات'),
@@ -54,7 +59,7 @@ function all_permissions(): array
 
 function editor_permissions(): array
 {
-    return ['posts.view', 'posts.create', 'posts.manage', 'inbox.reply', 'comments.reply', 'whatsapp.view',
+    return ['posts.view', 'posts.create', 'posts.manage', 'crm.view', 'inbox.reply', 'comments.reply', 'whatsapp.view',
         'analytics.view', 'ai.use', 'ads.view', 'gmb.view', 'phone.view', 'accounts.view'];
 }
 
@@ -126,6 +131,7 @@ function page_permission(string $page): ?string
         'ads' => 'ads.view', 'ad_campaign' => 'ads.view', 'ad_audiences' => 'ads.view', 'leads' => 'ads.view', 'ad_create' => 'ads.spend', 'ad_builder' => 'ads.spend',
         'gmb_reviews' => 'gmb.view', 'gmb_location' => 'gmb.view', 'gmb_media' => 'gmb.view',
         'phone_numbers' => 'phone.view', 'phone_kyc' => 'phone.view', 'sms_mine' => 'phone.view', 'sms' => 'phone.view', 'calls' => 'phone.view',
+        'crm' => 'crm.view', 'crm_leads' => 'crm.view',
         'accounts' => 'accounts.view', 'team' => 'team.manage', 'connectors' => 'integrations.manage', 'settings' => 'settings.manage',
     ];
     return $map[$page] ?? null;

@@ -169,7 +169,7 @@ function connector_field(array $f, ?array $c, bool $isNew): string
 }
 
 
-$cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء الاصطناعي'), 'creative' => t('التصميم والصور'), 'phone' => t('التليفون والـ SMS'), 'email' => t('الإيميل')];
+$cats = ['social' => t('السوشيال ميديا'), 'ai' => t('الذكاء الاصطناعي'), 'creative' => t('التصميم والصور'), 'phone' => t('التليفون والـ SMS'), 'email' => t('الإيميل'), 'sales' => t('المبيعات والعملاء')];
 
 render(t('التكاملات'), 'connectors', function () use ($registry, $details, $cats) {
     $all = [];
