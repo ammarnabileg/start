@@ -121,7 +121,10 @@ if (isset($_GET['connected'])) {
 
 $accounts = [];
 $apiError = null;
-if ($z) {
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/accounts.json') ? json_decode((string)file_get_contents($fxd . '/accounts.json'), true) : null;
+if ($fx) {
+    $accounts = $fx;
+} elseif ($z) {
     try {
         $accounts = $z->allAccounts(zernio_profile());
     } catch (ZernioException $ex) {
@@ -129,8 +132,8 @@ if ($z) {
     }
 }
 
-render(t('الحسابات المربوطة'), 'accounts', function () use ($z, $accounts, $apiError, $connectable) {
-    if (!$z) { no_api_box(); return; }
+render(t('الحسابات المربوطة'), 'accounts', function () use ($z, $fx, $accounts, $apiError, $connectable) {
+    if (!$z && !$fx) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     $multi = $z instanceof ZernioMulti && $z->isMulti();
     $isBad = function ($a) { return !empty($a['needsReconnection']) || (isset($a['isActive']) && !$a['isActive']); };
@@ -147,6 +150,34 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
         <div class="card px-5 py-4"><div class="text-xs text-ink-500"><?= e($l) ?></div><div class="text-2xl font-semibold mt-1 <?= $c ?>"><?= (int)$v ?></div></div>
       <?php endforeach; ?>
     </div>
+
+    <?php if ($bad): $badList = array_values(array_filter($accounts, $isBad)); ?>
+      <div class="rounded-2xl border border-red-200 bg-red-50/60 p-4 mb-5">
+        <div class="font-bold text-red-800"><?= e(t('%s حساب وقف — المنشورات والرسايل عليهم مش شغالة', $bad)) ?></div>
+        <p class="text-xs text-red-700 mt-1 mb-3"><?= e(t('ده بيحصل لما تغير كلمة السر أو الصلاحية تخلص. إعادة الربط بتاخد دقيقة ومش بتمسح أي حاجة.')) ?></p>
+        <div class="flex flex-wrap gap-2">
+          <?php foreach ($badList as $a): $pl = (string)($a['platform'] ?? ''); ?>
+            <form method="post" class="inline-flex items-center gap-2 rounded-full bg-white border border-red-200 ps-1.5 pe-1 py-1"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
+              <?= platform_icon($pl, 'w-5 h-5') ?><span class="text-sm text-ink-800"><?= e(trim($a['displayName'] ?? $a['username'] ?? '')) ?></span>
+              <?php if (in_array($pl, $connectable, true)): ?><button class="rounded-full bg-red-600 text-white text-xs px-3 py-1 hover:bg-red-700"><?= e(t('إعادة ربط')) ?></button><?php endif; ?>
+            </form>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+    <?php
+    $key = ['facebook', 'instagram', 'whatsapp', 'tiktok', 'googlebusiness', 'youtube', 'linkedin'];
+    $missing = array_values(array_filter($key, function ($p) use ($byPlat) { return empty($byPlat[$p]); }));
+    if ($accounts && $missing && can('accounts.manage')): ?>
+      <div class="rounded-2xl border border-dashed border-ink-200 p-4 mb-5 flex flex-wrap items-center gap-2">
+        <span class="text-sm text-ink-600 me-2"><?= e(t('منصات مهمة لسه مش مربوطة:')) ?></span>
+        <?php foreach ($missing as $p): ?>
+          <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>"><?php if ($multi): ?><input type="hidden" name="conn" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
+            <button class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm hover:border-brand-400 hover:shadow-sm transition"><?= platform_icon($p, 'w-4 h-4') ?><?= e(platform_label($p)) ?> <span class="text-brand-600">+</span></button>
+          </form>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
 
     <!-- أدوات البحث والفلترة -->
     <div class="flex flex-wrap items-center gap-3 mb-4">
@@ -203,7 +234,9 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
               <?php if ($multi && !empty($a['_connection'])): ?><span class="badge"><?= e($a['_connection']) ?></span><?php endif; ?>
             </div>
             <div class="flex items-center gap-2 mt-4 pt-4 border-t border-ink-100">
-              <?php if (!empty($a['profileUrl'])): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener"><?= e(t('فتح الصفحة ↗')) ?></a><?php endif; ?>
+              <?php if (!$b && !in_array($pl, ['whatsapp', 'telegram', 'discord', 'slack', 'google', 'microsoft', 'googleanalytics', 'hubspot'], true)): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e(url('compose', ['dup_text' => '', 'dup_acc' => $a['_id']])) ?>"><?= e(t('انشر عليه')) ?></a><?php endif; ?>
+              <?php if (!$b && in_array($pl, ['facebook', 'instagram', 'whatsapp', 'telegram', 'twitter', 'linkedin', 'tiktok', 'googlebusiness'], true)): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e(url('inbox', ['acct' => $a['_id']])) ?>"><?= e(t('رسايله')) ?></a><?php endif; ?>
+              <?php if (!empty($a['profileUrl'])): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener" title="<?= e(t('فتح الصفحة ↗')) ?>">↗</a><?php endif; ?>
               <?php if ($b && in_array($pl, $connectable, true)): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
                   <button class="btn-primary !py-1.5 text-xs"><?= e(t('إعادة ربط')) ?></button></form>
@@ -233,6 +266,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
             <select id="connPick" class="input"><?php foreach ($z->connectionIds() as $cid): ?><option value="<?= (int)$cid ?>"><?= e($z->label($cid)) ?></option><?php endforeach; ?></select></label>
         <?php endif; ?>
         <?php $cat = connect_catalog(); ?>
+        <input type="search" id="connQ" class="input !mt-0 mb-4" placeholder="<?= e(t('دوّر على منصة… (فيسبوك، Shopify، واتساب)')) ?>" autocomplete="off">
         <div class="flex gap-1 border-b border-ink-200 mb-5 overflow-x-auto" style="scrollbar-width:none" id="connTabs">
           <?php $first = true; foreach ($cat as $gk => [$gl, $items]): ?>
             <button type="button" data-tab="<?= e($gk) ?>" class="whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px <?= $first ? 'border-brand-600 text-brand-700 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($gl) ?> <span class="text-xs text-ink-400"><?= count($items) ?></span></button>
@@ -240,8 +274,8 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
         </div>
         <?php $first = true; foreach ($cat as $gk => [$gl, $items]): ?>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 <?= $first ? '' : 'hidden' ?>" data-panel="<?= e($gk) ?>">
-            <?php foreach ($items as $p => $it): $col = platform_icons()[$p][0] ?? '#64748B'; $needsInput = !empty($it['field']) || $it['mode'] === 'apikey'; ?>
-              <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
+            <?php foreach ($items as $p => $it): $col = platform_icons()[$p][0] ?? '#64748B'; $needsInput = !empty($it['field']) || $it['mode'] === 'apikey'; $have = (int)($byPlat[$p] ?? 0); ?>
+              <form method="post" class="conn-it contents" data-q="<?= e(mb_strtolower($p . ' ' . platform_label($p))) ?>" data-have="<?= $have ?>"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
                 <?php if ($multi): ?><input type="hidden" name="conn" class="connField" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
                 <?php if ($needsInput): ?>
                   <details class="rounded-xl border border-ink-200 hover:shadow-md transition">
@@ -255,12 +289,14 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
                 <?php else: ?>
                   <button class="w-full flex flex-col items-center gap-2 rounded-xl border border-ink-200 py-4 text-sm text-ink-700 hover:-translate-y-0.5 hover:shadow-md transition" style="--c:<?= e($col) ?>" onmouseover="this.style.borderColor=this.style.getPropertyValue('--c')" onmouseout="this.style.borderColor=''">
                     <?= platform_icon($p, 'w-8 h-8') ?><span class="text-center leading-tight px-1"><?= e(platform_label($p)) ?></span>
+                    <?php if ($have): ?><span class="text-[10px] rounded-full bg-lime-50 text-lime-700 px-2 py-0.5"><?= e(t('مربوط %s', $have)) ?></span><?php endif; ?>
                   </button>
                 <?php endif; ?>
               </form>
             <?php endforeach; ?>
           </div>
         <?php $first = false; endforeach; ?>
+        <p id="connNone" class="hidden text-center text-sm text-ink-500 py-6"><?= e(t('مفيش منصة بالاسم ده.')) ?></p>
         <p class="text-xs text-ink-400 mt-5"><?= e(t('بعض المنصات بتطلب خطوة اختيار (زي اختيار الصفحة أو حساب الإعلانات) قبل ما ترجع هنا.')) ?></p>
       </div>
     </dialog>
@@ -285,6 +321,21 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
           document.querySelectorAll('[data-panel]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.panel !== b.dataset.tab); });
         });
       });
+      // بحث في كل المنصات (بيعرض كل التبويبات وقت البحث)
+      var cq = document.getElementById('connQ');
+      if (cq) cq.addEventListener('input', function () {
+        var s = cq.value.trim().toLowerCase(), n = 0;
+        document.getElementById('connTabs').style.display = s ? 'none' : '';
+        document.querySelectorAll('[data-panel]').forEach(function (p) {
+          var any = false;
+          p.querySelectorAll('.conn-it').forEach(function (f) { var ok = !s || f.dataset.q.indexOf(s) > -1; Array.prototype.forEach.call(f.children, function (c) { if (c.tagName !== 'INPUT') c.style.display = ok ? '' : 'none'; }); if (ok) { any = true; n++; } });
+          p.classList.toggle('hidden', s ? !any : p.dataset.panel !== (document.querySelector('#connTabs .border-brand-600') || {}).dataset.tab);
+        });
+        document.getElementById('connNone').classList.toggle('hidden', n > 0);
+      });
+      document.getElementById('addAcc').addEventListener('close', function () { if (cq && cq.value) { cq.value = ''; cq.dispatchEvent(new Event('input')); } });
+      document.getElementById('addAcc').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+      document.addEventListener('keydown', function (e) { if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); q && q.focus(); } });
       var pick = document.getElementById('connPick');
       if (pick) pick.addEventListener('change', function () { document.querySelectorAll('.connField').forEach(function (i) { i.value = pick.value; }); });
       <?php if (isset($_GET['connected'])): ?>history.replaceState(null, '', location.href.replace(/&connected=1/, ''));<?php endif; ?>
