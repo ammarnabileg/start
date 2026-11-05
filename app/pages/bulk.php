@@ -80,6 +80,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'gen') {
     exit;
 }
 
+/* نص لكل صورة/سطر بالذكاء الاصطناعي (دفعات لحد 20) — بيرجع النصوص بس */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'caption') {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE); exit; }
+    $items = array_slice((array)json_decode((string)($_POST['items'] ?? '[]'), true), 0, 20);
+    $brief = trim(mb_substr((string)($_POST['brief'] ?? ''), 0, 800));
+    $langs = ['eg' => 'العامية المصرية', 'msa' => 'العربية الفصحى المبسطة', 'gulf' => 'اللهجة الخليجية', 'en' => 'English'];
+    $lng = $langs[$_POST['lang'] ?? ''] ?? $langs['eg'];
+    $lines = [];
+    foreach ($items as $k => $it) $lines[] = ($k + 1) . '. ' . mb_substr(trim((string)($it['hint'] ?? '')), 0, 300);
+    if (!$lines) { echo json_encode(['ok' => false, 'error' => t('مفيش سطور')], JSON_UNESCAPED_UNICODE); exit; }
+    $sys = 'BULK_CAPTIONS_JSON. أنت كاتب محتوى سوشيال ميديا. لكل عنصر مرقم في الرسالة (وصف صورة أو اسم ملف أو فكرة) اكتب منشورًا واحدًا مناسبًا له، مختلفًا عن الباقي في البداية والزاوية. '
+        . 'اللغة: ' . $lng . '. استخدم إيموجي باعتدال واختم بـ 2 أو 3 هاشتاجات. كل منشور أقل من 400 حرف. '
+        . ($brief !== '' ? 'معلومات عامة عن الحملة: ' . $brief . '. ' : '')
+        . 'أعد JSON فقط بالشكل {"posts":[{"n":1,"text":"..."}]} بنفس عدد العناصر وبنفس الترقيم.';
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => implode("\n", $lines)]], min(3800, 200 + count($lines) * 140), 'compose');
+        $txt = (string)$r['text'];
+        if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $j = json_decode($txt, true);
+        $out = [];
+        foreach ((array)($j['posts'] ?? []) as $k => $pp) {
+            $n = (int)($pp['n'] ?? ($k + 1)) - 1;
+            $t = trim((string)($pp['text'] ?? ''));
+            if ($t !== '' && isset($items[$n])) $out[] = ['i' => $items[$n]['i'] ?? $n, 'text' => mb_substr($t, 0, 3000)];
+        }
+        if (!$out) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        echo json_encode(['ok' => true, 'posts' => $out], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 /* الرفع على دفعات من الصفحة (كل دفعة 500 سطر أو أقل) — بيرجع JSON */
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1') {
     header('Content-Type: application/json; charset=utf-8');
@@ -88,6 +122,17 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
     try {
         if (trim($csv) === '') throw new ZernioException(t('اختار ملف أو اكتب سطر واحد على الأقل.'));
         if (strlen($csv) > 5 * 1024 * 1024) throw new ZernioException(t('الملف أكبر من 5 ميجا.'));
+        // صور مكتبة الوسائط (lib:ID) → رابط عام. بتترفع لـ Zernio أول مرة بس وبيتحفظ رابطها
+        $wid = (int)ws('id');
+        $libMap = [];
+        $csv = preg_replace_callback('/\blib:(\d+)\b/', function ($m) use ($z, $wid, &$libMap) {
+            $id = (int)$m[1];
+            if (!isset($libMap[$id])) {
+                try { $libMap[$id] = media_public_url($z, $wid, $id, 'bulk'); }
+                catch (Throwable $t) { $libMap[$id] = 'missing-media-' . $id; }
+            }
+            return $libMap[$id];
+        }, $csv);
         $tmp = tempnam(sys_get_temp_dir(), 'bkx');
         file_put_contents($tmp, $csv);
         register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) unlink($tmp); });
@@ -239,7 +284,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
               <button type="button" id="bk-draft-go" class="btn-primary !py-1 text-xs ms-auto"><?= e(t('كمّل')) ?></button>
               <button type="button" id="bk-draft-x" class="btn-ghost !py-1 text-xs"><?= e(t('امسحه')) ?></button>
             </div>
-            <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
               <label id="bk-drop" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 cursor-pointer transition focus-within:ring-2 ring-brand-300">
                 <span class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-xl group-hover:scale-110 transition">⇪</span>
                 <span class="font-semibold text-ink-900" id="bk-fn"><?= e(t('ارفع ملف')) ?></span>
@@ -258,6 +303,11 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                 <span class="text-xs text-ink-500"><?= e(t('اكتب الفكرة وخد 10 أو 30 منشور مختلفين')) ?></span>
               </button>
               <?php endif; ?>
+              <button type="button" id="bk-lib-start" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-white hover:border-sky-400 p-5 transition">
+                <span class="w-11 h-11 rounded-xl bg-sky-100 text-sky-700 grid place-items-center text-xl group-hover:scale-110 transition">🖼</span>
+                <span class="font-semibold text-ink-900"><?= e(t('من مكتبة الوسائط')) ?></span>
+                <span class="text-xs text-ink-500"><?= e(t('اختار 50 صورة وخد 50 منشور، كل صورة في منشور')) ?></span>
+              </button>
               <button type="button" id="bk-new" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 transition">
                 <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 grid place-items-center text-xl group-hover:scale-110 transition">✎</span>
                 <span class="font-semibold text-ink-900"><?= e(t('اكتب هنا')) ?></span>
@@ -284,7 +334,9 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
               <div class="ms-auto flex flex-wrap items-center gap-1.5">
                 <button type="button" id="bk-undo" class="btn-ghost !py-1 text-xs" disabled title="Ctrl+Z">↶ <?= e(t('تراجع')) ?></button>
                 <button type="button" id="bk-add" class="btn-ghost !py-1 text-xs">+ <?= e(t('سطر')) ?></button>
-                <?php if (can('ai.use')): ?><button type="button" id="bk-ai-add" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('زوّد بالذكاء الاصطناعي')) ?></button><?php endif; ?>
+                <button type="button" id="bk-lib-add" class="btn-ghost !py-1 text-xs text-sky-700">🖼 <?= e(t('صور من المكتبة')) ?></button>
+                <?php if (can('ai.use')): ?><button type="button" id="bk-ai-add" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('زوّد بالذكاء الاصطناعي')) ?></button>
+                <button type="button" id="bk-cap-btn" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('اكتب النصوص الفاضية')) ?></button><?php endif; ?>
                 <button type="button" id="bk-dl" class="btn-ghost !py-1 text-xs">⇣ CSV</button>
                 <button type="button" id="bk-reset" class="btn-ghost !py-1 text-xs"><?= e(t('ابدأ من جديد')) ?></button>
               </div>
@@ -404,6 +456,55 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           </div>
         </div>
 
+        <div id="bk-lib" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+          <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+          <div class="absolute inset-2 sm:inset-6 lg:inset-x-16 lg:inset-y-8 card flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="bk-lib-h">
+            <div class="flex flex-wrap items-center gap-2 p-3 border-b border-ink-100">
+              <h3 id="bk-lib-h" class="font-bold text-ink-900">🖼 <?= e(t('مكتبة الوسائط')) ?></h3>
+              <div class="inline-flex rounded-lg border border-ink-200 p-0.5 text-xs" role="group" id="bk-lib-kind">
+                <button type="button" data-k="image" class="px-2.5 py-1 rounded-md bg-ink-900 text-white"><?= e(t('صور')) ?></button>
+                <button type="button" data-k="video" class="px-2.5 py-1 rounded-md text-ink-600"><?= e(t('فيديو')) ?></button>
+              </div>
+              <select id="bk-lib-folder" class="input !h-8 !py-0 text-xs !w-auto"><option value=""><?= e(t('كل الفولدرات')) ?></option></select>
+              <input id="bk-lib-q" type="search" class="input !h-8 text-xs w-40" placeholder="<?= e(t('دوّر…')) ?>">
+              <button type="button" id="bk-lib-all" class="btn-ghost !py-1 text-xs"><?= e(t('اختار الكل')) ?></button>
+              <?php if (can('posts.create')): ?>
+              <label class="btn-ghost !py-1 text-xs cursor-pointer">⇪ <?= e(t('ارفع من جهازك')) ?><input type="file" id="bk-lib-up" multiple accept="image/*,video/*" class="sr-only"></label>
+              <?php endif; ?>
+              <button type="button" class="btn-ghost !py-1 text-xs ms-auto" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
+            </div>
+            <div id="bk-lib-drop" class="flex-1 overflow-y-auto p-3 relative">
+              <div id="bk-lib-grid" class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-2"></div>
+              <div id="bk-lib-more" class="hidden text-center py-3"><button type="button" class="btn-ghost text-xs"><?= e(t('اعرض أكتر')) ?></button></div>
+              <div id="bk-lib-empty" class="hidden text-center text-sm text-ink-500 py-12"><?= e(t('مفيش ملفات هنا. اسحب صور من جهازك على المربع ده عشان ترفعها.')) ?></div>
+              <div id="bk-lib-dz" class="hidden absolute inset-2 rounded-2xl border-2 border-dashed border-sky-500 bg-sky-50/90 grid place-items-center text-sky-800 font-semibold"><?= e(t('سيب الصور هنا عشان ترفعها للمكتبة')) ?></div>
+            </div>
+            <div class="border-t border-ink-100 p-3 flex flex-wrap items-center gap-2">
+              <span class="text-sm"><b id="bk-lib-n">0</b> <?= e(t('متحدد')) ?></span>
+              <span id="bk-lib-msg" class="text-xs text-ink-500"></span>
+              <div class="ms-auto flex flex-wrap items-center gap-2" id="bk-lib-acts">
+                <button type="button" data-a="row" class="btn-primary text-sm hidden"><?= e(t('حطها في السطر ده')) ?></button>
+                <button type="button" data-a="new" class="btn-primary text-sm"><?= e(t('منشور لكل صورة')) ?></button>
+                <button type="button" data-a="spread" class="btn-ghost text-sm"><?= e(t('صورة لكل سطر موجود')) ?></button>
+                <button type="button" data-a="same" class="btn-ghost text-sm"><?= e(t('نفس الصور لكل السطور')) ?></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="bk-cap" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+          <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+          <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-cap-h">
+            <h3 id="bk-cap-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
+            <p class="text-sm text-ink-600" id="bk-cap-info"></p>
+            <textarea id="bk-cap-brief" class="input" rows="3" maxlength="800" placeholder="<?= e(t('معلومة عن الحملة (اختياري): مثلاً "خصم 20% لحد آخر الشهر، التوصيل مجاني"')) ?>"></textarea>
+            <label class="block"><span class="label"><?= e(t('اللغة')) ?></span><select id="bk-cap-lang" class="input"><option value="eg"><?= e(t('مصري')) ?></option><option value="gulf"><?= e(t('خليجي')) ?></option><option value="msa"><?= e(t('فصحى')) ?></option><option value="en">English</option></select></label>
+            <div id="bk-cap-prog" class="hidden"><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div id="bk-cap-bar" class="h-full bg-violet-500 transition-all" style="width:0"></div></div></div>
+            <div class="flex items-center gap-2"><button type="button" id="bk-cap-go" class="btn-primary flex-1"><?= e(t('اكتب')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button></div>
+            <div id="bk-cap-msg" class="text-xs"></div>
+          </div>
+        </div>
+
         <div id="bk-pv" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-label="<?= e(t('معاينة')) ?>">
@@ -469,7 +570,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
     <script>window.BKX = <?= json_encode([
         'tz' => site_timezone(), 'url' => url('bulk'), 'csrf' => csrf_token(), 'cal' => url('calendar'), 'edit' => url('post_edit'),
         'platforms' => array_keys(platform_icons()), 'connected' => $allPl, 'icons' => array_map(function ($i) { return $i; }, $icons),
-        'rtl' => is_rtl(), 'lang' => lang(), 'best' => $best, 'ws' => (int)ws('id'), 'brand' => (string)ws('name'),
+        'rtl' => is_rtl(), 'lang' => lang(), 'media' => ['list' => url('media', ['ajax' => 'list']), 'post' => url('media'), 'thumb' => url('media', ['file' => '__ID__', 'thumb' => 1]), 'file' => url('media', ['file' => '__ID__']), 'canUp' => can('posts.create')], 'best' => $best, 'ws' => (int)ws('id'), 'brand' => (string)ws('name'),
         'lim' => ['twitter' => 280, 'threads' => 500, 'bluesky' => 300, 'instagram' => 2200, 'tiktok' => 2200, 'linkedin' => 3000, 'facebook' => 63206, 'pinterest' => 500, 'youtube' => 5000, 'googlebusiness' => 1500, 'reddit' => 40000, 'telegram' => 4096],
         's' => [
             'rows' => t('%s سطر'), 'ok' => t('%s سليم'), 'bad' => t('%s فيه مشكلة'), 'need' => t('عمود ناقص: %s'), 'req' => t('فاضي'), 'date' => t('الميعاد لازم يكون بالشكل 2026-12-01 10:00'),
@@ -484,6 +585,9 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'tot' => t('السطور'), 'okL' => t('سليم'), 'badL' => t('فيه مشكلة'), 'probs' => t('المشاكل وإزاي تصلحها'), 'nrows' => t('%s سطر'), 'show' => t('اعرضهم في الجدول'),
             'allok' => t('كل السطور سليمة 🎉 اختار "اعمل المنشورات" ودوس ابدأ.'), 'created' => t('اتعمل %s منشور واتشالوا من الجدول.'), 'opencal' => t('افتح التقويم'),
             'srv' => t('Zernio: %s'),
+            'libn' => t('%s ملف'), 'libup' => t('بنرفع %s ملف…'), 'libdone' => t('اترفع %s ملف'), 'libpick' => t('اختار صورة واحدة على الأقل'), 'libnew' => t('اتعمل %s منشور، كل صورة في منشور.'),
+            'libspread' => t('اتحطت صورة لكل سطر في %s سطر'), 'libsame' => t('اتحطت نفس الصور في %s سطر'), 'libcycle' => t('الصور أقل من السطور، فبتتكرر بالترتيب'), 'libmissing' => t('الصورة دي مش موجودة في المكتبة'),
+            'capinfo' => t('هنكتب نص لـ %s سطر نصهم فاضي، من وصف الصورة أو اسمها. بيستهلك من رصيد الذكاء الاصطناعي.'), 'capnone' => t('مفيش سطور نصها فاضي'), 'capwait' => t('بنكتب %s من %s…'), 'capdone' => t('اتكتب %s نص. راجعهم قبل الرفع.'), 'pickrow' => t('اختار صورة'),
             'lim' => t('أطول من حد %s (%s حرف)'), 'dup' => t('النص ده متكرر'), 'dups' => t('%s نص متكرر'), 'sel' => t('%s متحدد'), 'draft' => t('عندك شغل متحفظ: %s سطر من "%s" (%s)'),
             'aiwait' => t('بنكتب…'), 'aidone' => t('اتضاف %s منشور. وزّع المواعيد عليهم من الأدوات.'), 'aitopic' => t('اكتب الفكرة الأول.'), 'nosel' => t('حدد سطور الأول من الخانة اللي على الشمال'),
             'bestt' => t('هنستخدم أحسن أوقاتك: %s'), 'nofit' => t('مفيش مواعيد كفاية في الأيام والساعات دي لـ %s سطر'), 'pv' => t('معاينة'), 'pvof' => t('%s من %s'), 'nowL' => t('فورًا'), 'queueL' => t('في الطابور'), 'draftL' => t('مسودة'), 'left' => t('فاضل %s سطر محتاجين تصليح'), 'reset' => t('هتمسح الجدول وتبدأ من الأول. متأكد؟'), 'empty' => t('مفيش سطور'),
