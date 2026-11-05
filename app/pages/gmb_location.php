@@ -13,7 +13,9 @@ if ($z) {
         $apiError = $ex->getMessage();
     }
 }
-$loc = gmb_pick_location($options);
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/gmb_location.json') ? json_decode((string)file_get_contents($fxd . '/gmb_location.json'), true) : null;
+if ($fx) { $accounts = $accounts ?: [['id' => 'acc_gmb_demo']]; $options = [$fx['location']]; $apiError = null; }
+$loc = $fx ? $fx['location'] : gmb_pick_location($options);
 
 /** يحول سطور "اسم | سعر" لـ serviceItems */
 function gmb_parse_services(string $text, string $currency): array
@@ -175,7 +177,9 @@ $menus = [];
 $actions = [];
 $verif = null;
 $errors = [];
-if ($z && $loc) {
+if ($fx) {
+    foreach (['d', 'attrs', 'meta', 'services', 'menus', 'actions', 'verif'] as $k) $$k = $fx[$k] ?? ($k === 'd' || $k === 'verif' ? null : []);
+} elseif ($z && $loc) {
     $acc = $loc['account'];
     $lid = $loc['location'];
     try {
@@ -196,7 +200,7 @@ if ($z && $loc) {
 }
 
 render(t('بيانات الفرع على جوجل'), 'gmb_location', function () use ($z, $accounts, $options, $loc, $d, $attrs, $meta, $services, $menus, $actions, $verif, $errors, $apiError) {
-    if (!$z) { no_api_box(); return; }
+    if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
     if (!$accounts && !$apiError) { gmb_no_account_box(); return; }
     if ($apiError) { error_box($apiError); echo '<div class="h-4"></div>'; }
     gmb_location_picker($options, $loc, 'gmb_location');
@@ -262,7 +266,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
 
     <div class="grid lg:grid-cols-2 gap-4">
       <?php /* ---------- البيانات الأساسية ---------- */ ?>
-      <form method="post" class="card p-5 space-y-3">
+      <form method="post" class="card p-5 space-y-3" data-gl="basic">
         <?php $sec('basic', t('البيانات الأساسية')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="basic">
         <label class="block"><span class="label"><?= e(t('اسم النشاط')) ?></span>
@@ -288,12 +292,12 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       </form>
 
       <?php /* ---------- مواعيد العمل ---------- */ ?>
-      <form method="post" class="card p-5">
+      <form method="post" class="card p-5" data-gl="hours">
         <?php $sec('hours', t('مواعيد العمل')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="hours">
         <div class="space-y-2">
           <?php foreach (gmb_days() as $day => $label): $p = $byDay[$day] ?? null; ?>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
+            <div class="gl-day flex flex-wrap items-center gap-2 text-sm" data-day="<?= e($day) ?>">
               <label class="w-28 flex items-center gap-2"><input type="checkbox" name="open[<?= $day ?>]" value="1" <?= $p ? 'checked' : '' ?>> <?= e($label) ?></label>
               <input type="time" name="from[<?= $day ?>]" class="input !mt-0 !w-auto" value="<?= e($p ? gmb_time($p['openTime'] ?? '') : '09:00') ?>">
               <span class="text-ink-400">–</span>
@@ -310,12 +314,12 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       $sp[] = [];
       $sp[] = [];
       ?>
-      <form method="post" class="card p-5">
+      <form method="post" class="card p-5" data-gl="special">
         <?php $sec('special', t('مواعيد خاصة (أجازات ومناسبات)')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="special">
-        <div class="space-y-2">
+        <div class="space-y-2" id="gl-sp">
           <?php foreach ($sp as $i => $p): ?>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
+            <div class="gl-sp flex flex-wrap items-center gap-2 text-sm">
               <input type="date" name="sp_date[<?= $i ?>]" class="input !mt-0 !w-36" value="<?= e(gmb_date_str($p['startDate'] ?? null)) ?>">
               <label class="flex items-center gap-1"><input type="checkbox" name="sp_closed[<?= $i ?>]" value="1" <?= !empty($p['closed']) ? 'checked' : '' ?>> <?= e(t('مقفول')) ?></label>
               <input type="time" name="sp_from[<?= $i ?>]" class="input !mt-0 !w-28" value="<?= e(isset($p['openTime']) ? gmb_time($p['openTime']) : '') ?>">
@@ -329,7 +333,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       </form>
 
       <?php /* ---------- الخصائص ---------- */ ?>
-      <form method="post" class="card p-5">
+      <form method="post" class="card p-5" data-gl="attributes">
         <?php $sec('attributes', t('خصائص النشاط')); ?>
         <?php $err('attrs'); $err('meta'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="attributes">
@@ -342,9 +346,9 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
         $others = array_filter($current, function ($a) { return ($a['valueType'] ?? '') !== 'BOOL'; });
         ?>
         <?php if (!$bools && !$others): ?><p class="text-sm text-ink-500"><?= e(t('مفيش خصائص متاحة للتصنيف ده.')) ?></p><?php endif; ?>
-        <div class="grid sm:grid-cols-2 gap-1 max-h-72 overflow-y-auto">
+        <div id="gl-attrs" class="grid sm:grid-cols-2 gap-1 max-h-72 overflow-y-auto">
           <?php foreach ($bools as $k => $m): $on = !empty($current[$k]['values'][0]); ?>
-            <label class="flex items-center gap-2 text-sm"><input type="hidden" name="attr_names[]" value="<?= e($k) ?>"><input type="checkbox" name="attr[<?= e($k) ?>]" value="1" <?= $on ? 'checked' : '' ?>> <?= e($m['displayName'] ?? $k) ?></label>
+            <label class="gl-attr flex items-center gap-2 text-sm"><input type="hidden" name="attr_names[]" value="<?= e($k) ?>"><input type="checkbox" name="attr[<?= e($k) ?>]" value="1" <?= $on ? 'checked' : '' ?>> <?= e($m['displayName'] ?? $k) ?></label>
           <?php endforeach; ?>
         </div>
         <?php foreach ($others as $k => $a): ?>
@@ -366,7 +370,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
           $lines[] = $name . ($pr !== '' ? ' | ' . $pr : '');
       }
       ?>
-      <form method="post" class="card p-5">
+      <form method="post" class="card p-5" data-gl="services">
         <?php $sec('services', t('الخدمات')); ?>
         <?php $err('services'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="services">
@@ -381,7 +385,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       </form>
 
       <?php /* ---------- روابط الحجز والطلب ---------- */ ?>
-      <div class="card p-5">
+      <div class="card p-5" data-gl="actions" data-count="<?= count($actions) ?>">
         <?php $sec('action_add', t('روابط الحجز والطلب')); ?>
         <?php $err('actions'); ?>
         <div class="space-y-2 mb-4">
@@ -431,7 +435,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
               }
           }
       ?>
-      <form method="post" class="card p-5 lg:col-span-2">
+      <form method="post" class="card p-5 lg:col-span-2" data-gl="menu">
         <?php $sec('menu', t('منيو الأكل')); ?>
         <?php $err('menus'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="menu">
@@ -446,5 +450,17 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       </form>
       <?php endif; ?>
     </div>
+    <script>window.GLX = <?= json_encode(['title' => $d['title'] ?? '', 'cat' => $cats['primaryCategory']['displayName'] ?? '', 'maps' => $location['mapsUri'] ?? '', 'review' => $location['reviewUrl'] ?? '', 'verified' => $verified, 'food' => (bool)$isFood, 'days' => array_keys(gmb_days()), 's' => [
+      'score' => t('اكتمال الملف'), 'scoreHint' => t('الملفات الكاملة بتظهر أكتر في بحث جوجل والخرايط.'),
+      'c_phone' => t('رقم تليفون'), 'c_site' => t('موقع إلكتروني'), 'c_desc' => t('وصف 250 حرف على الأقل'), 'c_hours' => t('مواعيد العمل'), 'c_special' => t('مواعيد الأجازات الجاية'), 'c_attrs' => t('3 خصائص على الأقل'), 'c_services' => t('الخدمات'), 'c_actions' => t('رابط حجز أو طلب'), 'c_menu' => t('المنيو'), 'c_verif' => t('التحقق'),
+      'openNow' => t('مفتوح دلوقتي'), 'closedNow' => t('مقفول دلوقتي'), 'closesAt' => t('بيقفل %s'), 'opensAt' => t('بيفتح %s'), 'closed' => t('مقفول'), 'h24' => t('24 ساعة'), 'overnight' => t('لحد تاني يوم'),
+      'copyAll' => t('انسخ لكل الأيام'), 'presets' => t('قوالب سريعة:'), 'p_95' => t('9ص–5م أيام الشغل'), 'p_all' => t('كل يوم 12ظ–12ص'), 'p_247' => t('24/7'), 'p_fri' => t('الجمعة أجازة'), 'weekHours' => t('%s ساعة في الأسبوع'),
+      'addRow' => t('+ يوم كمان'), 'past' => t('التاريخ ده عدّى'), 'dup' => t('التاريخ متكرر'), 'chars' => t('%s / 750 حرف'), 'descShort' => t('الوصف قصير — جوجل بيفضّل 250 حرف أو أكتر'), 'descPhone' => t('جوجل بيرفض الوصف اللي فيه أرقام تليفون أو روابط'),
+      'attrSearch' => t('دوّر في الخصائص...'), 'attrOn' => t('%s من %s مفعّلة'), 'onlyOn' => t('المفعّل بس'),
+      'preview' => t('معاينة الظهور على جوجل'), 'previewNote' => t('تقريبية — شكل جوجل الحقيقي ممكن يختلف.'), 'call' => t('اتصال'), 'site' => t('الموقع'), 'dir' => t('الاتجاهات'),
+      'lines' => t('%s سطر صالح'), 'badLine' => t('سطر %s: السعر مش رقم'), 'unsaved' => t('فيه تعديلات مش محفوظة'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'),
+      'copyLink' => t('انسخ رابط التقييم'), 'copied' => t('اتنسخ'),
+    ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/ui-gmb_location.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
