@@ -138,6 +138,28 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
+// أرقام التفاعل للمنشورات اللي اتنشرت (من التحليلات، قراءة بس، متخزنة 10 دقايق)
+$metrics = [];
+$fxa = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/analytics_posts.json' : '';
+$apiRows = [];
+if ($fxa && is_file($fxa)) $apiRows = (array)(json_decode((string)file_get_contents($fxa), true)['posts'] ?? []);
+elseif ($z && !$apiError && module_enabled('analytics') && can('analytics.view') && function_exists('an_posts')) {
+    $ck = 'ps_metrics_' . (int)ws('id');
+    if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 600 && !isset($_GET['refresh'])) $apiRows = $_SESSION[$ck]['d'];
+    else {
+        try { $apiRows = (array)(an_posts($z, ['limit' => 100, 'page' => 1, 'sortBy' => 'date', 'order' => 'desc', 'profileId' => zernio_profile()])['posts'] ?? []); } catch (Throwable $e) { $apiRows = []; }
+        $_SESSION[$ck] = ['t' => time(), 'd' => array_map(function ($r) { return ['_id' => $r['_id'] ?? '', 'platforms' => array_map(function ($pl) { return ['platformPostId' => $pl['platformPostId'] ?? '']; }, (array)($r['platforms'] ?? [])), 'platformPostId' => $r['platformPostId'] ?? '', 'analytics' => (array)($r['analytics'] ?? [])]; }, $apiRows)];
+    }
+}
+foreach ($apiRows as $r) {
+    $m = (array)($r['analytics'] ?? []); if (!$m) continue;
+    $row = ['imp' => (int)($m['impressions'] ?? $m['views'] ?? 0), 'reach' => (int)($m['reach'] ?? 0), 'likes' => (int)($m['likes'] ?? 0), 'comments' => (int)($m['comments'] ?? 0), 'shares' => (int)($m['shares'] ?? 0), 'saves' => (int)($m['saves'] ?? 0)];
+    $row['eng'] = $row['likes'] + $row['comments'] + $row['shares'] + $row['saves'];
+    $row['rate'] = $row['imp'] > 0 ? round($row['eng'] / $row['imp'] * 100, 1) : null;
+    $keys = array_filter(array_merge([(string)($r['_id'] ?? ''), (string)($r['platformPostId'] ?? '')], array_map(function ($pl) { return (string)($pl['platformPostId'] ?? ''); }, (array)($r['platforms'] ?? []))));
+    foreach ($keys as $k) $metrics[$k] = $row;
+}
+
 $counts = [];
 if ($z && $fixture && is_file($fixture)) {
     $counts = ['scheduled' => 0, 'failed' => 0, 'draft' => 0, 'published' => 0];
@@ -153,7 +175,7 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
-render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view === 'cal' ? 'calendar' : 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts) {
+render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view === 'cal' ? 'calendar' : 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics) {
     if (!$z) { no_api_box(); return; }
     $tabs = ['' => t('الكل'), 'scheduled' => t('مجدول'), 'published' => t('تم النشر'), 'draft' => t('مسودات'), 'failed' => t('فشل')];
     $stCls = ['scheduled' => 'bg-brand-50 text-brand-700', 'published' => 'bg-lime-100 text-lime-700', 'draft' => 'bg-ink-100 text-ink-600', 'failed' => 'bg-red-100 text-red-700', 'partial' => 'bg-amber-100 text-amber-800', 'publishing' => 'bg-cyan-100 text-cyan-700', 'pending_approval' => 'bg-amber-100 text-amber-800', 'cancelled' => 'bg-ink-100 text-ink-500'];
@@ -200,6 +222,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <button type="button" data-dens="cards" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('كروت')) ?>">▦</button>
         <button type="button" data-dens="rows" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('مضغوط')) ?>">☰</button>
       </div>
+ <select id="ps-sort" class="tb !h-10 px-2 text-xs" aria-label="<?= e(t('ترتيب')) ?>">
+        <option value=""><?= e(t('الترتيب العادي')) ?></option>
+        <option value="new"><?= e(t('الأحدث')) ?></option>
+        <option value="old"><?= e(t('الأقدم')) ?></option>
+        <?php if ($metrics): ?><option value="eng"><?= e(t('الأعلى تفاعل')) ?></option><?php endif; ?>
+      </select>
       <button type="button" id="ps-csv" class="tb px-3 text-xs" title="<?= e(t('نزّل المنشورات اللي ظاهرة CSV')) ?>">⇣ CSV</button>
       <?php endif; ?>
       <button type="button" id="ps-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
@@ -247,6 +275,15 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <button type="button" id="ps-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
       </div>
       <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4" id="ps-grid">
+        <?php
+        $pm = function ($p) use ($metrics) {
+            if (isset($metrics[$p['_id']])) return $metrics[$p['_id']];
+            foreach ((array)($p['platforms'] ?? []) as $pl) if (!empty($pl['platformPostId']) && isset($metrics[$pl['platformPostId']])) return $metrics[$pl['platformPostId']];
+            return null;
+        };
+        $engs = []; foreach ($posts as $p0) { $m0 = $pm($p0); if ($m0 && $m0['eng'] > 0) $engs[] = $m0['eng']; }
+        rsort($engs); $topCut = $engs ? $engs[max(0, (int)ceil(count($engs) * 0.2) - 1)] : PHP_INT_MAX;
+        ?>
         <?php $lastDay = null; $tzx = new DateTimeZone(site_timezone()); $today = (new DateTime('now', $tzx))->format('Y-m-d');
         foreach ($posts as $p):
             $st = (string)($p['status'] ?? ''); [$label] = status_label($st);
@@ -272,7 +309,8 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                 'media' => array_values(array_filter(array_map(function ($m) { return ['t' => (string)($m['type'] ?? ''), 'u' => (string)($m['url'] ?? '')]; }, (array)($p['mediaItems'] ?? [])), function ($m) { return $m['u'] !== ''; })),
                 'pl' => $plv, 'dup' => url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])];
           ?>
-          <article class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
+          <?php $mx = $pm($p); if ($mx) $pdata[$p['_id']]['m'] = $mx; ?>
+          <article data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
                 <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center">▶</span></span>
@@ -294,6 +332,16 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                 </div>
               </div>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" data-open="<?= e($p['_id']) ?>" class="ps-open mt-2.5 block flex-1"><p class="ps-txt text-sm text-ink-800 whitespace-pre-line line-clamp-4" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 600)) : '<span class="text-ink-400 italic">' . e(t('(بدون نص)')) . '</span>' ?></p></a>
+              <?php if ($mx): $nf = function ($n) { return $n >= 1000 ? round($n / 1000, $n >= 10000 ? 0 : 1) . 'K' : (string)$n; }; ?>
+                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-500 tabular-nums">
+                  <?php if ($mx['eng'] >= $topCut && $mx['eng'] > 0): ?><span class="rounded-md bg-orange-100 text-orange-800 px-1.5 py-0.5 font-medium">🔥 <?= e(t('الأعلى تفاعل')) ?></span><?php endif; ?>
+                  <?php if ($mx['imp']): ?><span title="<?= e(t('مرات الظهور')) ?>">👁 <?= e($nf($mx['imp'])) ?></span><?php endif; ?>
+                  <span title="<?= e(t('إعجاب')) ?>">♥ <?= e($nf($mx['likes'])) ?></span>
+                  <span title="<?= e(t('تعليق')) ?>">💬 <?= e($nf($mx['comments'])) ?></span>
+                  <?php if ($mx['shares']): ?><span title="<?= e(t('مشاركة')) ?>">↗ <?= e($nf($mx['shares'])) ?></span><?php endif; ?>
+                  <?php if ($mx['rate'] !== null): ?><span class="ms-auto font-medium <?= $mx['rate'] >= 3 ? 'text-lime-700' : 'text-ink-600' ?>" title="<?= e(t('نسبة التفاعل')) ?>"><?= e($mx['rate']) ?>%</span><?php endif; ?>
+                </div>
+              <?php endif; ?>
               <?php if ($errs): ?><details class="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2"><summary class="cursor-pointer text-[11px] font-medium text-red-700"><?= e(t('سبب الفشل')) ?></summary><?php foreach ($errs as $er): ?><p class="text-[11px] text-red-700 mt-1 break-words"><?= e(mb_substr($er, 0, 300)) ?></p><?php endforeach; ?></details><?php endif; ?>
               <div class="flex items-center gap-1 mt-3 pt-3 border-t border-ink-100 text-xs">
                 <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 font-medium">✎ <?= e(t('تعديل')) ?></a>
@@ -356,7 +404,9 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
       'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
-        'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors'],
+        'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors', 'impressions', 'likes', 'comments', 'shares', 'engagement_rate'],
+        'mImp' => t('مرات الظهور'), 'mLikes' => t('إعجاب'), 'mCom' => t('تعليق'), 'mSh' => t('مشاركة'), 'mRate' => t('نسبة التفاعل'), 'perf' => t('الأداء'),
+        'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
         'st' => ['published' => t('اتنشر'), 'failed' => t('فشل'), 'scheduled' => t('مجدول'), 'pending' => t('مستني'), 'publishing' => t('بيتنشر')]],

@@ -77,6 +77,11 @@
       var v = q ? q.value.trim().toLowerCase() : '', by = {};
       X.data.forEach(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return; if (pf && p.pf.indexOf(pf) < 0) return; var d = new Date(p.at); if (isNaN(d)) return; var sp = siteParts(d), kk = sp.y + '-' + sp.m + '-' + sp.d; (by[kk] = by[kk] || []).push(p); });
       $('#cal-title').textContent = cur.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
+      // أيام فاضية في الأسبوعين الجايين (مفيش ولا منشور مجدول)
+      var gapSet = {}, gapN = 0, t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      for (var gi = 0; gi < 14; gi++) { var gd = new Date(t0); gd.setDate(t0.getDate() + gi); var gk = key(gd); var has = (by[gk] || []).some(function (p) { return p.st === 'scheduled'; }); if (!has) { gapSet[gk] = 1; gapN++; } }
+      var gb = $('#cal-gaps'); if (!gb) { gb = document.createElement('span'); gb.id = 'cal-gaps'; gb.className = 'text-[11px] rounded-full px-2 py-0.5'; $('#cal-title').after(gb); }
+      gb.textContent = gapN ? (X.q.gaps || '').replace('%s', gapN) : (X.q.noGaps || ''); gb.className = 'text-[11px] rounded-full px-2 py-0.5 ' + (gapN ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-lime-50 text-lime-700 border border-lime-200');
       grid.innerHTML = '';
       var first = new Date(cur), off = (first.getDay() - start + 7) % 7; first.setDate(1 - off);
       var today = key(new Date());
@@ -98,6 +103,7 @@
         if (items.length > 3) { var mo = document.createElement('button'); mo.type = 'button'; mo.className = 'text-[11px] text-brand-700 px-1.5 hover:underline'; mo.textContent = X.more.replace('%s', items.length - 3);
           mo.onclick = (function (list, c) { return function () { this.remove(); list.slice(3).forEach(function (p) { var a = document.createElement('a'); a.href = X.edit.replace('__ID__', encodeURIComponent(p.id)); a.className = 'flex items-center gap-1 rounded-md px-1.5 py-1 mb-0.5 text-[11px] text-ink-700 bg-ink-50 hover:bg-brand-50'; a.innerHTML = '<span class="w-1.5 h-1.5 rounded-full shrink-0 ' + (dot[p.st] || 'bg-ink-300') + '"></span><span class="truncate" dir="auto"></span>'; a.querySelector('.truncate').textContent = p.txt || '—'; c.appendChild(a); }); }; })(items, cell);
           cell.appendChild(mo); }
+        if (gapSet[key(d)] && inM && !items.some(function (p) { return p.st === 'scheduled'; })) { var gp = document.createElement('a'); gp.href = X.compose + (X.compose.indexOf('?') < 0 ? '?' : '&') + 'when=' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T19:00'; gp.className = 'mt-1 flex items-center justify-center rounded-md border border-dashed border-amber-300 text-[10px] text-amber-700 py-1 hover:bg-amber-50'; gp.textContent = '＋ ' + ((X.q || {}).gapDay || ''); cell.appendChild(gp); }
         grid.appendChild(cell);
       }
     }
@@ -195,6 +201,9 @@
         (media ? '<div class="space-y-2">' + media + '</div>' : '') +
         (canRes ? '<details class="rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-semibold text-ink-800">✎ ' + esc(Q.editT) + '</summary><textarea id="ps-dr-txt" rows="6" class="input mt-2 text-sm" dir="auto">' + esc(d.txt) + '</textarea><div class="flex justify-end mt-2"><button type="button" id="ps-dr-tsave" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></details>' : '') +
         (canRes ? '<div class="rounded-xl border border-brand-200 bg-brand-50/50 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🗓 ' + esc(Q.resched) + '</div><div class="flex gap-2"><input type="datetime-local" id="ps-dr-when" class="input !mt-0 !h-9 text-sm flex-1" dir="ltr" value="' + (d.sched ? (window.__siteDT ? window.__siteDT(new Date(d.sched)) : local(new Date(d.sched))) : '') + '"><button type="button" id="ps-dr-save" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></div>' : '') +
+        (d.m ? '<div class="rounded-xl border border-ink-200 p-3"><div class="text-xs font-semibold text-ink-500 mb-2">📈 ' + esc(Q.perf) + '</div><div class="grid grid-cols-4 gap-2 text-center">' +
+          [[Q.mImp, d.m.imp], [Q.mLikes, d.m.likes], [Q.mCom, d.m.comments], [Q.mSh, d.m.shares]].map(function (x) { return '<div><div class="text-lg font-bold text-ink-900 tabular-nums">' + Number(x[1] || 0).toLocaleString() + '</div><div class="text-[10px] text-ink-500">' + esc(x[0]) + '</div></div>'; }).join('') +
+          '</div>' + (d.m.rate !== null && d.m.rate !== undefined ? '<div class="text-xs text-ink-600 mt-2 text-center">' + esc(Q.mRate) + ': <b>' + d.m.rate + '%</b></div>' : '') + '</div>' : '') +
         (pls ? '<div class="space-y-2"><div class="text-xs font-semibold text-ink-500">' + esc(Q.pfL) + '</div>' + pls + '</div>' : '');
       acts.innerHTML = '<a class="btn-primary !text-xs" href="' + esc(X.edit.replace('__ID__', encodeURIComponent(id))) + '">✎ ' + esc(Q.edit) + '</a>' +
         ((d.st === 'failed' || d.st === 'partial') && X.canDel ? '<button type="button" data-a="retry" class="btn-ghost !text-xs text-red-700">↻ ' + esc(Q.retry) + '</button>' : '') +
@@ -222,9 +231,27 @@
     });
     var cb = $('#ps-csv'); if (cb) cb.onclick = function () {
       var q = function (v) { v = String(v == null ? '' : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-      var rows = [Q.csvH].concat(visibleIds().map(function (id) { var d = P[id] || {}; return [id, d.stl || d.st, d.at ? (window.__siteDT ? window.__siteDT(new Date(d.at)).replace('T', ' ') : new Date(d.at).toLocaleString()) : '', (d.pl || []).map(function (x) { return x.pf; }).join('|'), d.txt, (d.pl || []).map(function (x) { return x.url; }).filter(Boolean).join(' '), (d.pl || []).map(function (x) { return x.err; }).filter(Boolean).join(' | ')]; }));
+      var rows = [Q.csvH].concat(visibleIds().map(function (id) { var d = P[id] || {}; return [id, d.stl || d.st, d.at ? (window.__siteDT ? window.__siteDT(new Date(d.at)).replace('T', ' ') : new Date(d.at).toLocaleString()) : '', (d.pl || []).map(function (x) { return x.pf; }).join('|'), d.txt, (d.pl || []).map(function (x) { return x.url; }).filter(Boolean).join(' '), (d.pl || []).map(function (x) { return x.err; }).filter(Boolean).join(' | '), d.m ? d.m.imp : '', d.m ? d.m.likes : '', d.m ? d.m.comments : '', d.m ? d.m.shares : '', d.m && d.m.rate !== null ? d.m.rate : '']; }));
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(function (r) { return r.map(q).join(','); }).join('\r\n')], { type: 'text/csv' })); a.download = 'posts-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
     };
+    var srt = $('#ps-sort'), pg = $('#ps-grid');
+    if (srt && pg) {
+      var orig = Array.prototype.slice.call(pg.children);
+      try { srt.value = localStorage.getItem('ps-sort') || ''; } catch (e) {}
+      var doSort = function () {
+        var v = srt.value; try { localStorage.setItem('ps-sort', v); } catch (e) {}
+        if (!v) { orig.forEach(function (el) { pg.appendChild(el); }); }
+        else {
+          var cards = $$('.ps-card', pg).sort(function (a, b) {
+            if (v === 'eng') return (+b.dataset.eng) - (+a.dataset.eng);
+            var ta = new Date(a.dataset.t).getTime() || 0, tb = new Date(b.dataset.t).getTime() || 0; return v === 'old' ? ta - tb : tb - ta;
+          });
+          cards.forEach(function (c) { pg.appendChild(c); });
+        }
+        $$('.ps-day', pg).forEach(function (h) { h.classList.toggle('hidden', !!v); });
+      };
+      srt.addEventListener('change', doSort); if (srt.value) doSort();
+    }
     // جماعي
     var all = $('#ps-all'); if (all) all.onchange = function () { visibleIds().forEach(function (id) { if (all.checked) sel.add(id); else sel.delete(id); }); $$('.ps-card').forEach(function (c) { var cb = $('.ps-sel', c); if (cb) cb.checked = sel.has(c.dataset.id); }); bar(); };
     var sh = $('#ps-shift'); if (sh) sh.onclick = function () {
