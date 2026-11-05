@@ -409,7 +409,7 @@ render(t('حملة جديدة'), 'ad_create', function () use ($z, $apiError, $t
               </div>
               <div class="grid sm:grid-cols-2 gap-3">
                 <div><label class="label"><?= e(t('صورة الإعلان (JPG/PNG)')) ?></label><input type="file" name="image" accept="image/jpeg,image/png" class="input"></div>
-                <div><label class="label"><?= e(t('أو رابط صورة')) ?></label><input name="image_url" type="url" class="input" dir="ltr" value="<?= e($v('image_url')) ?>" placeholder="https://"></div>
+                <div><label class="label"><?= e(t('أو رابط صورة')) ?></label><input name="image_url" type="url" data-media="image" class="input" dir="ltr" value="<?= e($v('image_url')) ?>" placeholder="https://"></div>
               </div>
             </div>
           </section>

@@ -24,6 +24,26 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
     'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
     'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'), 'sending' => t('جاري الإرسال...'), 'notSent' => t('ما اتبعتتش · اتأكد من النت وجرب تاني'), 'liveFailed' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<?php if (session_status() === PHP_SESSION_ACTIVE && current_user() && current_workspace()): ?>
+<script>window.MEDIA = <?= json_encode(['list' => url('media', ['ajax' => 'list']), 'post' => url('media'), 'page' => url('media'), 'csrf' => csrf_token(), 'canEdit' => can('posts.create'), 'max' => function_exists('media_max_bytes') ? media_max_bytes() : 2097152, 'lang' => lang(), 's' => [
+  'title' => t('مكتبة الوسائط'), 'pick' => t('اختار من المكتبة'), 'upload' => t('ارفع ملفات'), 'drop' => t('اسحب الملفات هنا أو اضغط للرفع'), 'search' => t('ابحث بالاسم أو الوسم...'), 'all' => t('الكل'),
+  'images' => t('صور'), 'videos' => t('فيديو'), 'docs' => t('ملفات'), 'audio' => t('صوت'), 'allFolders' => t('كل الملفات'), 'noFolder' => t('من غير فولدر'), 'newFolder' => t('فولدر جديد'), 'folderQ' => t('اسم الفولدر:'),
+  'empty' => t('مفيش ملفات هنا لسه. ارفع أول ملف.'), 'uploading' => t('بيرفع %s...'), 'uploaded' => t('اترفع %s ملف'), 'select' => t('اختار'), 'selected' => t('%s مختار'), 'useSel' => t('استخدم المختار'),
+  'rename' => t('غيّر الاسم'), 'renameQ' => t('الاسم الجديد:'), 'move' => t('انقل لفولدر'), 'moveQ' => t('اسم الفولدر (فاضي = من غير فولدر):'), 'del' => t('امسح'), 'delQ' => t('تمسح %s ملف نهائيًا؟ لو مستخدمين في منشورات أو إعلانات اتنشرت مش هيتأثروا.'),
+  'copyLink' => t('انسخ الرابط العام'), 'copied' => t('اتنسخ'), 'download' => t('تحميل'), 'tags' => t('وسوم (افصل بفاصلة)'), 'details' => t('التفاصيل'), 'size' => t('الحجم'), 'dims' => t('المقاس'), 'type' => t('النوع'), 'date' => t('اترفع'),
+  'preparing' => t('بيجهز رابط عام للمنصات...'), 'publicErr' => t('ما قدرناش نجهز رابط عام'), 'maxSize' => t('أقصى حجم للملف على السيرفر: %s'), 'usage' => t('المستخدم: %s'), 'notAllowed' => t('النوع ده مش مناسب هنا'), 'close' => t('اقفل'),
+  'sortNew' => t('الأحدث'), 'sortName' => t('الاسم'), 'sortSize' => t('الحجم'), 'tooBig' => t('%s أكبر من المسموح (%s)'), 'open' => t('افتح المكتبة كاملة')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+window.mediaLoad = function (cb) { if (window.Media) return cb(); (window.__mq = window.__mq || []).push(cb); if (window.__ml) return; window.__ml = 1; var s = document.createElement('script'); s.src = 'assets/media.js?v=<?= e(APP_VERSION) ?>'; s.onload = function () { (window.__mq || []).forEach(function (f) { f(); }); }; document.head.appendChild(s); };
+window.mediaPick = function (o) { return new Promise(function (res) { window.mediaLoad(function () { window.Media.pick(o || {}).then(res); }); }); };
+(function () { // أي input فيه data-media="image|video|any" بياخد زرار "من المكتبة"
+  var scan = function () { [].forEach.call(document.querySelectorAll('input[data-media]:not([data-media-on])'), function (inp) {
+    inp.setAttribute('data-media-on', '1'); var b = document.createElement('button'); b.type = 'button'; b.className = 'media-btn mt-1.5 inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-700 hover:bg-ink-50'; b.textContent = '📁 ' + window.MEDIA.s.pick;
+    b.onclick = function () { if (inp.disabled) return; window.mediaPick({ accept: inp.getAttribute('data-media') || 'image', public: true }).then(function (f) { if (!f || !f[0]) return; inp.value = f[0].public || f[0].url; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); }); };
+    inp.insertAdjacentElement('afterend', b); }); };
+  document.addEventListener('DOMContentLoaded', function () { scan(); var t; new MutationObserver(function () { clearTimeout(t); t = setTimeout(scan, 120); }).observe(document.body, { childList: true, subtree: true }); });
+})();
+</script>
+<?php endif; ?>
 <script>window.PHONE = <?= json_encode(['cc' => function_exists('ws_country') && session_status() === PHP_SESSION_ACTIVE && current_workspace() ? ws_country() : 'EG', 'example' => function_exists('cx_phone') && session_status() === PHP_SESSION_ACTIVE && current_workspace() ? cx_phone() : '',
     'names' => array_map(function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }, countries()), 'flags' => array_map(function ($c) { return $c['flag']; }, countries()),
     't' => ['bad' => t('ده مش شكل رقم تليفون'), 'invalidFor' => t('الرقم مش صحيح لـ %s، اتأكد من عدد الأرقام'), 'mobile' => t('موبايل'), 'fixed' => t('أرضي'), 'either' => t('موبايل أو أرضي'), 'tollFree' => t('رقم مجاني'),

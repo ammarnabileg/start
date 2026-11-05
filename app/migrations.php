@@ -378,4 +378,24 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '017_media_library' => [
+        "CREATE TABLE IF NOT EXISTS media_files (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            folder VARCHAR(120) NOT NULL DEFAULT '',
+            name VARCHAR(255) NOT NULL,
+            mime VARCHAR(100) NOT NULL,
+            size INT UNSIGNED NOT NULL DEFAULT 0,
+            width INT UNSIGNED NULL,
+            height INT UNSIGNED NULL,
+            path VARCHAR(255) NOT NULL,
+            public_url VARCHAR(1000) NULL,
+            tags VARCHAR(500) NULL,
+            uploaded_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_folder (workspace_id, folder),
+            INDEX ws_created (workspace_id, created_at),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

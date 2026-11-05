@@ -121,7 +121,7 @@ function page_permission(string $page): ?string
         'inbox' => 'inbox.reply', 'comments' => 'comments.reply',
         'automations' => 'automations.manage', 'workflows' => 'automations.manage',
         'broadcasts' => 'whatsapp.view', 'wa_templates' => 'whatsapp.view', 'contacts' => 'whatsapp.view', 'sequences' => 'whatsapp.view', 'wa_profile' => 'whatsapp.view',
-        'analytics' => 'analytics.view', 'inbox_analytics' => 'analytics.view', 'assistant' => 'ai.use', 'ai_task' => 'ai.use', 'knowledge' => 'ai.use',
+        'analytics' => 'analytics.view', 'inbox_analytics' => 'analytics.view', 'assistant' => 'ai.use', 'ai_task' => 'ai.use', 'knowledge' => 'ai.use', 'media' => 'posts.view',
         'reports' => 'analytics.view', 'report_print' => 'analytics.view', 'goals' => 'analytics.view', 'alerts' => 'analytics.view',
         'ads' => 'ads.view', 'ad_campaign' => 'ads.view', 'ad_audiences' => 'ads.view', 'leads' => 'ads.view', 'ad_create' => 'ads.spend', 'ad_builder' => 'ads.spend',
         'gmb_reviews' => 'gmb.view', 'gmb_location' => 'gmb.view', 'gmb_media' => 'gmb.view',

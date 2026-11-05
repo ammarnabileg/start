@@ -24,6 +24,7 @@ $I = [
     'inbox_analytics' => 'M21 12a8.5 8.5 0 01-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1121 12zM9 14v-2m3 2V9m3 5v-3',
     'ads' => 'M3 11l15-6v14L3 13zm4 1.5V18a2 2 0 004 0v-3.5',
     'ad_create' => 'M12 5v14M5 12h14',
+    'media' => 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01',
     'ad_builder' => 'M4 5h6v4H4zM14 5h6v4h-6zM9 15h6v4H9zM7 9v3h10V9M12 12v3',
     'ad_audiences' => 'M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M10 11a4 4 0 100-8 4 4 0 000 8m11 9v-1a4 4 0 00-3-3.9',
     'leads' => 'M4 4h16v4H4zm0 6h10v10H4zm14 0h2v10h-2z',
