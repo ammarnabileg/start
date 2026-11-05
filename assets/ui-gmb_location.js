@@ -315,6 +315,30 @@
     c.classList.add('ring-2', 'ring-brand-400'); setTimeout(function () { if (dirty.indexOf(c) < 0) c.classList.remove('ring-2'); c.classList.remove('ring-brand-400'); }, 1400);
   });
 
+  /* ================= تطبيق على فروع تانية ================= */
+  $$('.gl-also').forEach(function (box) {
+    var frm = box.closest('form'), body = $('.gl-also-b', box), chev = $('.gl-also-c', box), n = $('.gl-also-n', box), q = $('.gl-also-q', box);
+    var saveB = $$('button', frm).filter(function (b) { return !b.type || b.type === 'submit'; }).pop(), label0 = saveB.textContent;
+    var picked = function () { return $$('input[name="also[]"]:checked', box); };
+    var paint = function () {
+      var k = picked().length;
+      n.style.display = k ? '' : 'none'; n.textContent = k;
+      saveB.textContent = k ? f(S.saveN, k + 1) : label0;
+    };
+    $('.gl-also-t', box).onclick = function () { var o = body.style.display === 'none'; body.style.display = o ? '' : 'none'; chev.style.transform = o ? 'rotate(180deg)' : ''; if (o) q.focus(); };
+    q.addEventListener('input', function () { var s = q.value.trim().toLowerCase(); $$('.gl-also-i', box).forEach(function (l) { l.style.display = !s || l.dataset.q.indexOf(s) > -1 ? '' : 'none'; }); });
+    var setAll = function (on) { $$('.gl-also-i', box).forEach(function (l) { if (l.style.display !== 'none') $('input', l).checked = on; }); paint(); changed(frm); };
+    $('.gl-also-all', box).onclick = function () { setAll(true); };
+    $('.gl-also-none', box).onclick = function () { setAll(false); };
+    box.addEventListener('change', paint);
+    frm.addEventListener('submit', function (e) {
+      var p = picked(); if (!p.length) return;
+      var names = p.map(function (i) { return '• ' + $$('span span', i.closest('label')).map(function (s) { return s.textContent.trim(); }).join(' — '); }).join('\n');
+      if (!confirm(f(S.confirmN, p.length) + '\n' + names + '\n\n' + S.confirmEnd)) { e.preventDefault(); e.stopImmediatePropagation(); submitting = false; }
+    }, true);
+    paint();
+  });
+
   refresh();
   setInterval(refresh, 60000);
 })();

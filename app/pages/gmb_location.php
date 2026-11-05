@@ -14,6 +14,7 @@ if ($z) {
     }
 }
 $fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/gmb_location.json') ? json_decode((string)file_get_contents($fxd . '/gmb_location.json'), true) : null;
+if ($fx && is_file($fxd . '/gmb_fake_z.php')) $z = require $fxd . '/gmb_fake_z.php'; // اختبارات بس: بيسجّل الكتابات بدل ما يبعتها
 if ($fx) { $accounts = $accounts ?: [['id' => 'acc_gmb_demo']]; $options = $fx['locations'] ?? [$fx['location']]; $apiError = null; }
 $loc = gmb_pick_location($options);
 
@@ -45,6 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     $action = (string)($_POST['action'] ?? '');
     $acc = $loc['account'];
     $lid = $loc['location'];
+    // تطبيق نفس التعديل على فروع تانية مختارة (بس من الفروع اللي المستخدم يقدر يشوفها)
+    $applyAll = function (array $body, string $logKey, string $okMsg) use ($z, $acc, $lid, $loc, $options) {
+        gmb_update_location($z, $acc, $lid, $body);
+        log_activity($logKey, $lid);
+        $want = array_map('strval', (array)($_POST['also'] ?? []));
+        $ok = 1; $fail = [];
+        foreach ($options as $o) {
+            if (!in_array($o['key'], $want, true) || $o['key'] === $loc['key'] || $o['location'] === '') continue;
+            try { gmb_update_location($z, $o['account'], $o['location'], $body); log_activity($logKey, $o['location']); $ok++; }
+            catch (ZernioException $ex) { $fail[] = $o['label'] . ': ' . $ex->getMessage(); }
+        }
+        flash('success', $ok > 1 ? t('%s — اتحفظ على %s فروع.', $okMsg, $ok) : $okMsg);
+        if ($fail) flash('error', t('ما اتحفظش على الفروع دي:') . ' ' . implode(' · ', $fail));
+    };
     try {
         if ($action === 'basic') {
             $web = trim((string)($_POST['website'] ?? ''));
@@ -81,9 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 }
                 $periods[] = ['openDay' => $day, 'openTime' => gmb_time_obj($o), 'closeDay' => $closeDay, 'closeTime' => gmb_time_obj($c === '00:00' ? '24:00' : $c)];
             }
-            gmb_update_location($z, $acc, $lid, ['updateMask' => 'regularHours', 'regularHours' => ['periods' => $periods]]);
-            log_activity('gmb.hours_update', $lid);
-            flash('success', t('تم حفظ مواعيد العمل.'));
+            $applyAll(['updateMask' => 'regularHours', 'regularHours' => ['periods' => $periods]], 'gmb.hours_update', t('تم حفظ مواعيد العمل.'));
         } elseif ($action === 'special') {
             $list = [];
             foreach ((array)($_POST['sp_date'] ?? []) as $i => $date) {
@@ -101,9 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 }
                 $list[] = $p;
             }
-            gmb_update_location($z, $acc, $lid, ['updateMask' => 'specialHours', 'specialHours' => ['specialHourPeriods' => $list]]);
-            log_activity('gmb.special_hours_update', $lid);
-            flash('success', t('تم حفظ المواعيد الخاصة.'));
+            $applyAll(['updateMask' => 'specialHours', 'specialHours' => ['specialHourPeriods' => $list]], 'gmb.special_hours_update', t('تم حفظ المواعيد الخاصة.'));
         } elseif ($action === 'attributes') {
             $names = array_values(array_filter(array_map('strval', (array)($_POST['attr_names'] ?? [])), function ($n) { return preg_match('/^[a-z0-9_]+$/', $n); }));
             if (!$names) throw new ZernioException(t('مفيش خصائص تتحفظ.'));
@@ -239,6 +250,34 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
     $title = $d['title'] ?? ($loc['label'] ?? '');
     $initial = mb_substr(trim($title) ?: '?', 0, 1);
     $splitLabel = function (string $l) { $p = explode(' · ', $l, 2); return [$p[0], $p[1] ?? '']; };
+    $otherLocs = array_values(array_filter($options, function ($o) use ($loc) { return $o['key'] !== $loc['key'] && $o['location'] !== ''; }));
+    $also = function (string $what) use ($otherLocs, $splitLabel) {
+        if (!$otherLocs) return;
+        ?>
+        <div class="gl-also mt-5 rounded-xl border border-ink-200">
+          <button type="button" class="gl-also-t w-full flex items-center gap-2 px-4 py-3 text-sm text-start">
+            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/></svg>
+            <span class="font-medium text-ink-800"><?= e(t('طبّق نفس المواعيد على فروع تانية')) ?></span>
+            <span class="gl-also-n rounded-full bg-brand-600 text-white text-xs px-2 py-0.5" style="display:none"></span>
+            <svg class="gl-also-c w-4 h-4 text-ink-400 ms-auto transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="gl-also-b px-4 pb-4" style="display:none">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <input type="search" class="gl-also-q input !mt-0 !py-1.5 flex-1 min-w-[10rem] text-sm" placeholder="<?= e(t('دوّر على فرع بالاسم أو العنوان...')) ?>">
+              <button type="button" class="gl-also-all text-xs link"><?= e(t('اختار الكل')) ?></button>
+              <button type="button" class="gl-also-none text-xs link"><?= e(t('شيل الكل')) ?></button>
+            </div>
+            <div class="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-0.5">
+              <?php foreach ($otherLocs as $o): [$n, $a] = $splitLabel($o['label']); ?>
+                <label class="gl-also-i cursor-pointer select-none" data-q="<?= e(mb_strtolower($o['label'])) ?>"><input type="checkbox" name="also[]" value="<?= e($o['key']) ?>" class="peer sr-only">
+                  <span class="inline-flex flex-col rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-sm hover:border-brand-400 peer-checked:bg-brand-600 peer-checked:border-brand-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 transition"><span class="font-medium"><?= e($n) ?></span><?php if ($a !== ''): ?><span class="text-[11px] opacity-75"><?= e($a) ?></span><?php endif; ?></span></label>
+              <?php endforeach; ?>
+            </div>
+            <p class="text-xs text-amber-700 mt-3"><?= e($what === 'special' ? t('المواعيد الخاصة الحالية للفروع المختارة هتتمسح وتتبدل باللي هنا بالظبط.') : t('مواعيد العمل الحالية للفروع المختارة هتتمسح وتتبدل باللي هنا بالظبط.')) ?></p>
+          </div>
+        </div>
+        <?php
+    };
     ?>
     <?php /* ================= الهيدر + مبدّل الفروع ================= */ ?>
     <div class="relative rounded-2xl border border-ink-200 bg-white overflow-visible mb-6">
@@ -362,6 +401,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
             </div>
           <?php endforeach; ?>
         </div>
+        <?php $also('hours'); ?>
         <div class="flex justify-end mt-5 pt-4 border-t border-ink-100 items-center gap-3"><span class="gl-week text-xs text-ink-500 me-auto"></span><button class="btn-primary"><?= e(t('حفظ المواعيد')) ?></button></div>
       </form>
 
@@ -385,6 +425,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
           <?php endforeach; ?>
         </div>
         <div id="gl-hol" class="mt-3 flex flex-wrap gap-1.5"></div>
+        <?php $also('special'); ?>
         <?php $saveBtn(t('حفظ المواعيد الخاصة')); ?>
       </form>
 
@@ -529,7 +570,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
       'attrSearch' => t('دوّر في الخصائص...'), 'attrOn' => t('%s من %s مفعّلة'), 'onlyOn' => t('المفعّل بس'),
       'preview' => t('معاينة الظهور على جوجل'), 'previewNote' => t('تقريبية — شكل جوجل الحقيقي ممكن يختلف.'), 'call' => t('اتصال'), 'site' => t('الموقع'), 'dir' => t('الاتجاهات'),
       'badPrice' => t('السعر لازم يكون رقم'), 'addItem' => t('+ ضيف سطر'), 'del' => t('شيل'), 'items' => t('%s عنصر'),
-      'dirtyN' => t('تعديلات مش محفوظة في %s'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'), 'copied' => t('اتنسخ'),
+      'dirtyN' => t('تعديلات مش محفوظة في %s'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'), 'copied' => t('اتنسخ'), 'saveN' => t('حفظ على %s فروع'), 'confirmN' => t('هتستبدل المواعيد في %s فروع تانية غير الفرع ده:'), 'confirmEnd' => t('متأكد؟'),
       'hol' => ws_country() !== 'EG' ? [] : [['12-31', t('ليلة رأس السنة')], ['01-01', t('رأس السنة')], ['01-07', t('عيد الميلاد (شرقي)')], ['04-25', t('تحرير سينا')], ['05-01', t('عيد العمال')], ['07-23', t('ثورة يوليو')], ['10-06', t('6 أكتوبر')]],
     ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ui-gmb_location.js?v=<?= e(APP_VERSION) ?>"></script>
