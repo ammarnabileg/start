@@ -2442,4 +2442,5 @@ Latte - %2$s',
     'اتضاف %s Lead جديد من هنا للـ Leads الموحدة.' => '%s new leads from here were added to the unified leads.',
     'الـ Leads دي متربطة بالـ Leads الموحدة، والمرحلة بتتحدّث في المكانين.' => 'These leads are linked to the unified leads; the stage updates in both places.',
     'افتح الـ Leads الموحدة' => 'Open unified leads',
+    'لو كتبت الرقم من غير كود الدولة هنضيف %s (دولة الشركة من الإعدادات).' => 'If you type the number without a country code we add %s (company country from Settings).',
 ];

@@ -24,7 +24,7 @@ $walk = function ($n) use (&$walk, &$people) {
 $walk($j);
 $n = 0;
 foreach ($people as $p) {
-    $phone = crm_norm_phone(crm_pick_phone($p));
+    $phone = crm_intl_phone(crm_pick_phone($p), ws_country($wid));
     $q = db()->prepare('UPDATE crm_leads SET phone = COALESCE(phone, ?), phone_pending = 0 WHERE workspace_id = ? AND ext_id = ?');
     $q->execute([$phone ?: null, $wid, mb_substr($p['id'], 0, 64)]);
     $n += $q->rowCount();

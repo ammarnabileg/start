@@ -221,10 +221,10 @@ function crm_pick_phone(array $p): string
     return '';
 }
 
-function crm_norm_phone(string $p): string
+/** الرقم بالصيغة الدولية. الدولة: اللي جاية مع العميل، وإلا دولة الشركة من الإعدادات */
+function crm_norm_phone(string $p, ?string $country = null): string
 {
-    $d = preg_replace('/[^0-9+]/', '', $p);
-    return strlen(preg_replace('/\D/', '', $d)) >= 6 ? $d : '';
+    return crm_intl_phone($p, crm_country_code($country) ?: ws_country());
 }
 
 /** المسؤول التالي بالدور (لو التوزيع التلقائي شغال) */
@@ -261,7 +261,7 @@ function crm_lead_upsert(array $d): array
     $wid = (int)ws('id');
     $email = mb_strtolower(trim((string)($d['email'] ?? '')));
     if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $email = '';
-    $phone = crm_norm_phone((string)($d['phone'] ?? ''));
+    $phone = crm_norm_phone((string)($d['phone'] ?? ''), (string)($d['country'] ?? ''));
     $ext = (string)($d['ext_id'] ?? '');
     $conds = [];
     $args = [$wid];
@@ -390,7 +390,7 @@ function crm_import_ad_leads(array $leads): array
     foreach ($ids as $ext => $l) {
         if (isset($have[$ext])) { $old++; continue; }
         $d = crm_ad_lead_map($l);
-        if ($d['email'] === '' && crm_norm_phone($d['phone']) === '') { $old++; continue; } // مفيش حاجة نتواصل بيها
+        if ($d['email'] === '' && crm_norm_phone($d['phone'], $d['country']) === '') { $old++; continue; } // مفيش حاجة نتواصل بيها
         $r = crm_lead_upsert($d);
         if (!$r) continue;
         if (!empty($r['merged'])) { $merged++; continue; }
@@ -445,4 +445,77 @@ function crm_push_ad_stage(array $l): void
             ON DUPLICATE KEY UPDATE stage = VALUES(stage), deal_value = VALUES(deal_value), updated_by = VALUES(updated_by)')
             ->execute([(int)$l['workspace_id'], substr((string)$l['ext_id'], 3), crm_stage_to_ad((string)$l['stage']), $l['deal_value'], (int)(current_user()['id'] ?? 0) ?: null]);
     } catch (Throwable $t) { /* الجدول مش موجود */ }
+}
+
+/* ---------- كود الدولة للأرقام ---------- */
+
+/** اسم الدولة (عربي/إنجليزي/كود) → كود ISO. فاضي لو مش معروف */
+function crm_country_code(?string $name): string
+{
+    static $map = null;
+    $n = mb_strtolower(trim((string)$name));
+    if ($n === '') return '';
+    if ($map === null) {
+        $map = [];
+        foreach (countries() as $code => $c) {
+            $map[mb_strtolower($code)] = $code;
+            foreach (['ar', 'en'] as $k) if (!empty($c[$k])) $map[mb_strtolower($c[$k])] = $code;
+        }
+        $map += ['ksa' => 'SA', 'saudi' => 'SA', 'kingdom of saudi arabia' => 'SA', 'السعوديه' => 'SA', 'المملكة العربية السعودية' => 'SA',
+            'united arab emirates' => 'AE', 'emirates' => 'AE', 'الامارات' => 'AE', 'uk' => 'GB', 'united kingdom' => 'GB', 'usa' => 'US', 'united states' => 'US',
+            'جمهورية مصر العربية' => 'EG', 'مصر العربية' => 'EG'];
+    }
+    return $map[$n] ?? '';
+}
+
+/** يحوّل الرقم للصيغة الدولية (+كود). $iso = الدولة لو الرقم محلي */
+function crm_intl_phone(string $raw, string $iso): string
+{
+    $raw = strtr(trim($raw), ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9']);
+    $plus = strpos(ltrim($raw), '+') === 0;
+    $d = preg_replace('/\D/', '', $raw);
+    if (strlen($d) < 6) return '';
+    if ($plus) return '+' . $d;
+    if (strpos($d, '00') === 0) return '+' . substr($d, 2);
+    if ($d[0] === '0') $iso = crm_guess_country($d, $iso);
+    $dial = ltrim((string)(countries()[$iso]['dial'] ?? ''), '+');
+    if ($dial === '') return $d;
+    // مكتوب بالكود من غير + (مثلاً 966501234567)
+    if ($d[0] !== '0' && strpos($d, $dial) === 0 && strlen($d) - strlen($dial) >= 8) return '+' . $d;
+    // رقم دولة تانية بالكود من غير + (11 رقم أو أكتر ومش بادئ بصفر). الصين أرقامها المحلية 11 رقم فمستثناة
+    if ($d[0] !== '0' && strlen($d) >= 11 && $iso !== 'CN') {
+        static $codes = null;
+        if ($codes === null) { $codes = array_flip(array_map(function ($c) { return ltrim((string)$c['dial'], '+'); }, countries())); }
+        for ($k = 3; $k >= 1; $k--) if (isset($codes[substr($d, 0, $k)]) && strlen($d) - $k >= 8) return '+' . $d;
+    }
+    // الصفر اللي في أول الرقم المحلي بيتشال (ماعدا إيطاليا وسان مارينو والفاتيكان)
+    if ($d[0] === '0' && !in_array($iso, ['IT', 'SM', 'VA'], true)) $d = substr($d, 1);
+    $full = $dial . $d;
+    return strlen($full) >= 8 && strlen($full) <= 15 ? '+' . $full : $d;
+}
+
+/** يصلّح الأرقام المحلية المتخزنة قبل كده (مرة واحدة لكل رقم) */
+function crm_fix_stored_phones(): int
+{
+    $wid = (int)ws('id');
+    $st = db()->prepare("SELECT id, phone, country FROM crm_leads WHERE workspace_id = ? AND phone IS NOT NULL AND phone NOT LIKE '+%' LIMIT 500");
+    $st->execute([$wid]);
+    $n = 0;
+    $up = db()->prepare('UPDATE crm_leads SET phone = ? WHERE id = ?');
+    foreach ($st->fetchAll() as $r) {
+        $p = crm_intl_phone((string)$r['phone'], crm_country_code($r['country']) ?: ws_country());
+        if ($p !== '' && $p !== $r['phone'] && $p[0] === '+') { $up->execute([$p, (int)$r['id']]); $n++; }
+    }
+    return $n;
+}
+
+/** رقم محلي (بادئ بصفر) شكله مش شكل أرقام الدولة الافتراضية؟ نخمّن من شكل الموبايل.
+    السعودية والإمارات نفس الشكل (05 و10 أرقام)، فلو مش الإمارات بنعتبره سعودي. */
+function crm_guess_country(string $d, string $iso): string
+{
+    $mob = ['EG' => '/^01[0125]\d{8}$/', 'SA' => '/^05\d{8}$/', 'AE' => '/^05[024568]\d{7}$/', 'JO' => '/^07[789]\d{7}$/', 'MA' => '/^0[67]\d{8}$/'];
+    if (!isset($mob[$iso]) || preg_match($mob[$iso], $d)) return $iso;
+    foreach (['EG', 'SA', 'JO', 'MA'] as $c) if ($c !== $iso && preg_match($mob[$c], $d)) return $iso === 'AE' && $c === 'SA' ? 'AE' : $c;
+    return $iso;
 }

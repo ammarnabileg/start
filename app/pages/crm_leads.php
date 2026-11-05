@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $next = trim((string)($_POST['next_at'] ?? ''));
         $next = $next !== '' && strtotime($next) ? date('Y-m-d H:i:s', strtotime($next)) : null;
         $tags = implode(', ', array_slice(array_unique(array_filter(array_map(function ($x) { return mb_substr(trim($x), 0, 30); }, explode(',', (string)($_POST['tags'] ?? ''))))), 0, 8));
-        $phone = crm_norm_phone((string)($_POST['phone'] ?? ''));
+        $phone = crm_norm_phone((string)($_POST['phone'] ?? ''), (string)$l['country']);
         $email = mb_strtolower(trim((string)($_POST['email'] ?? '')));
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $json(['ok' => false, 'error' => t('الإيميل مش صحيح')]);
         db()->prepare('UPDATE crm_leads SET name = ?, company = ?, title = ?, email = ?, phone = ?, phone_pending = IF(? IS NULL, phone_pending, 0), stage = ?, deal_value = ?, note = ?, tags = ?, owner_id = ?, next_at = ?, next_note = ? WHERE id = ?')
@@ -80,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
 }
 
+try { crm_fix_stored_phones(); } catch (Throwable $t) { /* مش مهم */ }
 // الموظف العادي بيشوف بتوعه واللي من غير مسؤول، والمدير بيشوف الكل
 $where = 'workspace_id = ?';
 $args = [$wid];
@@ -101,8 +102,9 @@ if (($_GET['export'] ?? '') === 'csv') {
 
 $leads = array_map($out, $rows);
 $adsOn = module_enabled('ads') && can('ads.view');
+$dial = (string)(countries()[ws_country()]['dial'] ?? '+');
 $lastSync = setting('crm_ads_sync_' . $wid);
-render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid, $adsOn, $lastSync) {
+render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid, $adsOn, $lastSync, $dial) {
     $now = time();
     $todayEnd = strtotime('tomorrow') - 1;
     $due = count(array_filter($leads, function ($l) use ($todayEnd) { return $l['next_at'] && strtotime($l['next_at']) <= $todayEnd && !in_array($l['stage'], ['won', 'lost'], true); }));
@@ -200,8 +202,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <h3 id="ld-add-t" class="font-semibold text-ink-900"><?= e(t('Lead جديد')) ?></h3>
         <input class="input" name="name" required placeholder="<?= e(t('الاسم')) ?>" maxlength="255">
         <div class="grid grid-cols-2 gap-3"><input class="input" name="company" placeholder="<?= e(t('الشركة')) ?>"><input class="input" name="title" placeholder="<?= e(t('المسمى الوظيفي')) ?>"></div>
-        <div class="grid grid-cols-2 gap-3"><input class="input" name="phone" dir="ltr" placeholder="+20…"><input class="input" name="email" type="email" dir="ltr" placeholder="name@company.com"></div>
-        <p class="text-xs text-ink-500"><?= e(t('لو الرقم أو الإيميل موجود قبل كده، هندمجهم في نفس العميل بدل ما يتكرر.')) ?></p>
+        <div class="grid grid-cols-2 gap-3"><input class="input" name="phone" dir="ltr" placeholder="<?= e($dial) ?>…"><input class="input" name="email" type="email" dir="ltr" placeholder="name@company.com"></div>
+        <p class="text-xs text-ink-500"><?= e(t('لو كتبت الرقم من غير كود الدولة هنضيف %s (دولة الشركة من الإعدادات).', $dial)) ?> <?= e(t('لو الرقم أو الإيميل موجود قبل كده، هندمجهم في نفس العميل بدل ما يتكرر.')) ?></p>
         <div class="flex gap-2"><button class="btn-primary flex-1"><?= e(t('ضيف')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button></div>
         <div id="ld-add-msg" class="text-xs text-red-600"></div>
       </form>
