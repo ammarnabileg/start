@@ -30,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 $r = ph_purchase($z, $body);
                 log_activity('phone.buy', $number);
                 if (($r['status'] ?? '') === 'kyc_required') {
-                    $_SESSION['ph_link'] = (string)($r['kycUrl'] ?? '');
-                    flash('success', t('الدولة دي محتاجة بيانات هوية (KYC) قبل ما الرقم يتطلب. كمل البيانات من اللينك اللي تحت.'));
+                    flash('success', t('الدولة دي محتاجة بيانات هوية (KYC) قبل ما الرقم يتطلب. املاها هنا.'));
+                    redirect(url('phone_kyc', array_filter(['country' => $country, 'numberType' => (string)($r['numberType'] ?? $type) ?: null, 'phoneNumber' => $number ?: null, 'sms' => $wantsSms ? 1 : null])));
                 } elseif (!empty($r['checkoutUrl'])) {
                     $_SESSION['ph_link'] = (string)$r['checkoutUrl'];
                     flash('success', t('كمل الدفع من اللينك اللي تحت عشان الرقم يتفعل.'));
@@ -255,7 +255,12 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
                   <?php if ($typeInfo && empty($typeInfo['smsAvailable'])): ?><p class="text-xs text-ink-500"><?= e(t('النوع ده مش بيبعت SMS.')) ?></p><?php endif; ?>
                   <label class="flex items-start gap-2 text-sm rounded-xl bg-amber-50 border border-amber-200 p-3 text-amber-900 cursor-pointer"><input type="checkbox" name="confirm" value="1" id="ph-ok" required class="mt-1">
                     <span><?= e(t('فاهم إن الرقم هيتحسب عليه %s كل شهر على فاتورة الاشتراك لحد ما ألغيه.', ph_money_cents($price))) ?></span></label>
+                  <?php if (!empty($typeInfo['needsKyc']) || !empty($ctyJs[$country]['kyc'])): $kb = url('phone_kyc', array_filter(['country' => $country, 'numberType' => $numberType ?: null, 'sms' => $smsOnly ? 1 : null])); ?>
+                    <a id="ph-kyc-go" class="btn-primary w-full text-center block" data-base="<?= e($kb) ?>" href="<?= e($kb) ?>"><?= e(t('املا بيانات الهوية للرقم ده ←')) ?></a>
+                    <p class="text-[11px] text-ink-500"><?= e(t('الأرقام في الدولة دي بتتطلب مع بيانات الهوية في خطوة واحدة.')) ?></p>
+                  <?php else: ?>
                   <button id="ph-buybtn" class="btn-primary w-full disabled:opacity-50" disabled><?= e(t('اشتري الرقم المختار')) ?></button>
+                  <?php endif; ?>
                 <?php endif; ?>
               </aside>
             </form>
@@ -322,7 +327,8 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
           <?php if ($step): ?>
             <div class="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 flex flex-wrap items-center gap-2">
               <span class="flex-1 min-w-[12rem]"><?= e($step) ?></span>
-              <?php if (!empty($n['verifyUrl'])): ?><a class="btn-primary !py-1 text-xs" href="<?= e($n['verifyUrl']) ?>" target="_blank" rel="noopener"><?= e(t('لينك تأكيد الهوية')) ?></a><?php endif; ?>
+              <?php $vu = (string)($n['verifyUrl'] ?? $n['onfidoVerificationUrl'] ?? ''); if ($vu !== ''): ?><a class="btn-primary !py-1 text-xs" href="<?= e($vu) ?>" target="_blank" rel="noopener"><?= e(t('لينك تأكيد الهوية')) ?></a><?php endif; ?>
+              <?php if ($owner && ($st === 'regulatory_declined' || ($n['regulatoryInfoStatus'] ?? '') === 'action_required')): ?><a class="btn-primary !py-1 text-xs" href="<?= e(url('phone_kyc', ['fix' => $n['_id'] ?? ''])) ?>"><?= e(t('صحح البيانات من هنا')) ?></a><?php endif; ?>
             </div>
           <?php endif; ?>
 

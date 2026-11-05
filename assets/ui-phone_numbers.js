@@ -90,13 +90,14 @@
     var paintSel = function () {
       var r = $('input[name=phoneNumber]:checked', form);
       sel.textContent = r ? r.value : S.pick;
-      btn.disabled = !(r && ok.checked);
+      if (btn) btn.disabled = !(r && ok.checked);
+      var kg = $('#ph-kyc-go'); if (kg) kg.href = kg.dataset.base + (r ? '&phoneNumber=' + encodeURIComponent(r.value) : '');
     };
     form.addEventListener('change', paintSel);
     form.addEventListener('submit', function (e) {
       var r = $('input[name=phoneNumber]:checked', form);
       if (!r || !ok.checked || !confirm(f(S.confirm, r.value, B.price))) { e.preventDefault(); return; }
-      btn.disabled = true; // منع الضغط مرتين
+      if (btn) btn.disabled = true; // منع الضغط مرتين
     });
     paintSel();
   }

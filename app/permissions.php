@@ -125,7 +125,7 @@ function page_permission(string $page): ?string
         'reports' => 'analytics.view', 'report_print' => 'analytics.view', 'goals' => 'analytics.view', 'alerts' => 'analytics.view',
         'ads' => 'ads.view', 'ad_campaign' => 'ads.view', 'ad_audiences' => 'ads.view', 'leads' => 'ads.view', 'ad_create' => 'ads.spend', 'ad_builder' => 'ads.spend',
         'gmb_reviews' => 'gmb.view', 'gmb_location' => 'gmb.view', 'gmb_media' => 'gmb.view',
-        'phone_numbers' => 'phone.view', 'sms' => 'phone.view', 'calls' => 'phone.view',
+        'phone_numbers' => 'phone.view', 'phone_kyc' => 'phone.view', 'sms' => 'phone.view', 'calls' => 'phone.view',
         'accounts' => 'accounts.view', 'team' => 'team.manage', 'connectors' => 'integrations.manage', 'settings' => 'settings.manage',
     ];
     return $map[$page] ?? null;

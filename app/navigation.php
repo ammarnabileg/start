@@ -99,7 +99,7 @@ function page_module(string $page): ?string
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],
         'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
-        'phone' => ['phone_numbers', 'sms', 'calls'],
+        'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc'],
     ];
     foreach ($map as $m => $pages) {
         if (in_array($page, $pages, true)) return $m;

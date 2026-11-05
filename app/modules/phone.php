@@ -171,9 +171,9 @@ function ph_reg_status_badge(string $s): string
 function ph_next_step(array $n): string
 {
     $s = (string)($n['status'] ?? '');
-    if ($s === 'regulatory_declined') return t('المراجعة رفضت بيانات الرقم. صحح البيانات وابعته تاني من لوحة التكامل.');
-    if (($n['regulatoryInfoStatus'] ?? '') === 'action_required') return t('المراجع مستني رد منك. افتح لوحة التكامل ورد عليه.');
-    if ($s === 'pending_regulatory') return !empty($n['verifyUrl']) ? t('لازم صاحب الرقم يأكد هويته من لينك التحقق.') : t('الرقم تحت المراجعة. مش محتاج تعمل حاجة دلوقتي.');
+    if ($s === 'regulatory_declined') return t('المراجعة رفضت بيانات الرقم. صحح الحاجات المرفوضة وابعتها تاني من غير ما تدفع تاني.');
+    if (($n['regulatoryInfoStatus'] ?? '') === 'action_required') return t('المراجع طالب تصحيح في البيانات. صححها من الزرار اللي جنب الرسالة.');
+    if ($s === 'pending_regulatory') return (!empty($n['verifyUrl']) || !empty($n['onfidoVerificationUrl'])) ? t('لازم صاحب الرقم يأكد هويته من لينك التحقق.') : t('الرقم تحت المراجعة. مش محتاج تعمل حاجة دلوقتي.');
     if ($s === 'pending_payment') return t('ضيف طريقة دفع في حساب التكامل عشان الرقم يتفعل.');
     if ($s === 'suspended') return t('الرقم متوقف. كلم الدعم الفني.');
     if ($s === 'active' && !empty($n['smsRequested']) && empty($n['smsSendApproved'])) {
@@ -209,4 +209,24 @@ function ph_empty_numbers(): void
       <a class="btn-primary" href="<?= e(url('phone_numbers', ['buy' => 1])) ?>"><?= e(t('دور على رقم واشتريه')) ?></a>
     </div>
     <?php
+}
+
+/* ---------- KYC من جوه المنصة ---------- */
+
+/** مواصفات فورم بيانات الهوية لدولة/نوع (حقول text/date/address/file/action) */
+function ph_kyc_spec(Zernio $z, string $country, string $type = ''): array
+{
+    return $z->request('GET', '/v1/phone-numbers/kyc', array_filter(['country' => $country, 'numberType' => $type]));
+}
+
+/** يبعت بيانات الهوية ويطلب الرقم (بيتحسب) */
+function ph_kyc_submit(Zernio $z, array $body): array
+{
+    return $z->request('POST', '/v1/phone-numbers/kyc', [], $body);
+}
+
+/** يبعت التصحيحات لرقم المراجعة رفضته (نفس الطلب، مش بيتحسب تاني) */
+function ph_remediate_submit(Zernio $z, string $id, array $body): array
+{
+    return $z->request('POST', '/v1/phone-numbers/' . rawurlencode($id) . '/remediate', [], $body);
 }
