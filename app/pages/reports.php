@@ -53,7 +53,7 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
     $dmy = function ($d) { return date('d/m/Y', strtotime($d)); };
     ?>
     <div class="grid lg:grid-cols-5 gap-5">
-      <form method="get" action="index.php" target="_blank" class="card p-6 space-y-5 lg:col-span-3">
+      <form method="get" action="index.php" target="_blank" class="card p-6 space-y-5 lg:col-span-3" id="rp-form">
         <input type="hidden" name="p" value="report_print">
         <div>
           <h2 class="font-bold text-ink-900"><?= e(t('تقرير جاهز للطباعة')) ?></h2>
@@ -77,6 +77,13 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
               <input type="date" name="to" class="input py-1.5 w-auto" value="<?= e($w['to']) ?>" max="<?= e(gmdate('Y-m-d')) ?>" onfocus="document.getElementById('rp-custom').checked=true" aria-label="<?= e(t('إلى')) ?>">
             </span>
           </label>
+          <div class="flex flex-wrap items-center gap-1.5 pt-1" id="rp-quick">
+            <span class="text-xs text-ink-500"><?= e(t('فترات سريعة:')) ?></span>
+            <?php foreach (['d7' => t('آخر 7 أيام'), 'd30' => t('آخر 30 يوم'), 'mtd' => t('الشهر ده لحد النهارده'), 'q' => t('الربع اللي فات'), 'ytd' => t('السنة دي')] as $k => $l): ?>
+              <button type="button" data-q="<?= $k ?>" class="rounded-full border border-ink-200 px-3 py-1 text-xs hover:border-brand-400 hover:bg-brand-50"><?= e($l) ?></button>
+            <?php endforeach; ?>
+            <span id="rp-days" class="text-xs text-ink-500 ms-auto"></span>
+          </div>
         </fieldset>
         <label class="block"><span class="label"><?= e(t('الحساب')) ?></span>
           <select name="a" class="input">
@@ -92,8 +99,10 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
         <?php else: ?>
           <div class="flex flex-wrap items-center gap-2">
             <button class="btn-primary"><?= e(t('إنشاء التقرير')) ?></button>
+            <button type="button" id="rp-save" class="btn-ghost"><?= e(t('احفظ الإعداد ده')) ?></button>
             <span class="text-xs text-ink-500"><?= e(t('بيفتح في تبويب جديد.')) ?></span>
           </div>
+          <div id="rp-saved" class="flex flex-wrap gap-1.5"></div>
         <?php endif; ?>
       </form>
 
@@ -125,6 +134,13 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
                     <option value="ar" <?= $sched['lang'] === 'ar' ? 'selected' : '' ?>>العربية</option>
                   </select></label>
               </div>
+              <?php
+              $nx = null; $nowL = new DateTime('now', new DateTimeZone($tz));
+              if ($sched['frequency'] === 'weekly') $nx = (clone $nowL)->modify('next monday');
+              elseif ($sched['frequency'] === 'monthly') $nx = (clone $nowL)->modify('first day of next month');
+              ?>
+              <?php if ($nx): ?><p class="text-xs rounded-xl bg-brand-50 text-brand-800 px-3 py-2"><?= e(t('الإرسال الجاي: %s (لو الـ Cron شغال).', $nx->format('d/m/Y'))) ?></p><?php endif; ?>
+              <div id="rp-rc" class="flex flex-wrap gap-1"></div>
               <button class="btn-primary"><?= e(t('حفظ')) ?></button>
             </form>
             <form method="post" class="mt-3" onsubmit="return confirm('<?= tjs('نبعت تقرير تجريبي دلوقتي؟') ?>')">
@@ -141,7 +157,11 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
 
         <?php if ($canManage): $cmd = 'curl -s "' . base_url() . '/index.php?p=cron&token=' . $token . '"'; ?>
           <div class="card p-6 space-y-3">
-            <h2 class="font-bold text-ink-900"><?= e(t('تشغيل تلقائي (Cron)')) ?></h2>
+            <?php $cl = (string)setting('cron_last_run', ''); $age = $cl !== '' ? time() - strtotime($cl . ' UTC') : null; ?>
+            <div class="flex items-center gap-2"><h2 class="font-bold text-ink-900 me-auto"><?= e(t('تشغيل تلقائي (Cron)')) ?></h2>
+              <?php if ($age === null): ?><span class="rounded-full bg-red-50 text-red-700 text-[11px] px-2.5 py-0.5"><?= e(t('ما اشتغلش ولا مرة')) ?></span>
+              <?php elseif ($age < 7200): ?><span class="rounded-full bg-lime-50 text-lime-700 text-[11px] px-2.5 py-0.5"><?= e(t('شغال · آخر تشغيل من %s دقيقة', max(1, (int)round($age / 60)))) ?></span>
+              <?php else: ?><span class="rounded-full bg-amber-50 text-amber-700 text-[11px] px-2.5 py-0.5"><?= e(t('متوقف؟ آخر تشغيل من %s ساعة', (int)round($age / 3600))) ?></span><?php endif; ?></div>
             <p class="text-sm text-ink-600"><?= e(t('عشان التقارير تتبعت والتنبيهات تتحدث لوحدها، ضيف الأمر ده في Cron Jobs في لوحة الاستضافة يشتغل كل ساعة:')) ?></p>
             <div class="flex items-stretch gap-2">
               <code id="rp-cron" class="flex-1 min-w-0 block rounded-xl bg-ink-100 text-ink-800 text-xs p-3 break-all" dir="ltr"><?= e($cmd) ?></code>
@@ -161,5 +181,61 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
         <?php endif; ?>
       </div>
     </div>
+    <script>
+    (function () {
+      var f = document.getElementById('rp-form'); if (!f) return;
+      var from = f.querySelector('[name=from]'), to = f.querySelector('[name=to]'), cus = document.getElementById('rp-custom'), days = document.getElementById('rp-days');
+      var T = <?= json_encode(['days' => t('%s يوم'), 'name' => t('اسم للإعداد ده؟'), 'del' => t('امسح'), 'bad' => t('إيميل مش صحيح')], JSON_UNESCAPED_UNICODE) ?>;
+      var iso = function (d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+      function count() {
+        var r = f.querySelector('[name=period]:checked'), a, b;
+        if (r && r.value === 'custom') { a = new Date(from.value); b = new Date(to.value); }
+        else { var sp = r && r.closest('label').querySelector('bdi'); if (!sp) { days.textContent = ''; return; } var m = sp.textContent.match(/(\d\d)\/(\d\d)\/(\d{4}).*?(\d\d)\/(\d\d)\/(\d{4})/); if (!m) return; a = new Date(m[3], m[2] - 1, m[1]); b = new Date(m[6], m[5] - 1, m[4]); }
+        var n = Math.round((b - a) / 864e5) + 1; days.textContent = n > 0 ? T.days.replace('%s', n) : '';
+      }
+      document.getElementById('rp-quick').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-q]'); if (!b) return;
+        var t = new Date(), y = new Date(t); y.setDate(t.getDate() - 1); var s, en = y;
+        switch (b.dataset.q) {
+          case 'd7': s = new Date(y); s.setDate(y.getDate() - 6); break;
+          case 'd30': s = new Date(y); s.setDate(y.getDate() - 29); break;
+          case 'mtd': s = new Date(t.getFullYear(), t.getMonth(), 1); en = t; break;
+          case 'q': var q = Math.floor(t.getMonth() / 3) - 1, yr = t.getFullYear(); if (q < 0) { q = 3; yr--; } s = new Date(yr, q * 3, 1); en = new Date(yr, q * 3 + 3, 0); break;
+          case 'ytd': s = new Date(t.getFullYear(), 0, 1); en = t; break;
+        }
+        from.value = iso(s); to.value = iso(en); cus.checked = true; count();
+        f.querySelectorAll('#rp-quick [data-q]').forEach(function (x) { x.classList.toggle('bg-brand-600', x === b); x.classList.toggle('text-white', x === b); });
+      });
+      f.addEventListener('change', count); count();
+      // إعدادات محفوظة (على الجهاز ده)
+      var KEY = 'rp_saved_<?= (int)$wid ?>', box = document.getElementById('rp-saved');
+      function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+      function paint() {
+        if (!box) return;
+        box.innerHTML = load().map(function (x, i) { return '<span class="inline-flex items-center rounded-full bg-ink-50 text-xs"><button type="button" data-i="' + i + '" class="ps-3 py-1 hover:text-brand-700">★ ' + x.n.replace(/[<>&"]/g, '') + '</button><button type="button" data-d="' + i + '" class="px-2 text-ink-400 hover:text-red-600" title="' + T.del + '">×</button></span>'; }).join('');
+      }
+      if (box) box.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return; var L = load();
+        if (b.dataset.d != null) { L.splice(+b.dataset.d, 1); try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) {} return paint(); }
+        var x = L[+b.dataset.i]; if (!x) return;
+        var r = f.querySelector('[name=period][value="' + x.p + '"]'); if (r) r.checked = true;
+        if (x.p === 'custom') { from.value = x.f; to.value = x.t; }
+        f.querySelector('[name=a]').value = x.a; count();
+      });
+      var sv = document.getElementById('rp-save');
+      if (sv) sv.onclick = function () {
+        var n = prompt(T.name); if (!n) return;
+        var L = load(); L.unshift({ n: n.slice(0, 30), p: f.querySelector('[name=period]:checked').value, f: from.value, t: to.value, a: f.querySelector('[name=a]').value });
+        try { localStorage.setItem(KEY, JSON.stringify(L.slice(0, 8))); } catch (e) {} paint();
+      };
+      paint();
+      // المستلمين: عرض كل إيميل كـ chip وتعليم الغلط
+      var rc = document.querySelector('[name=recipients]'), rb = document.getElementById('rp-rc');
+      if (rc && rb) {
+        var pr = function () { rb.innerHTML = rc.value.split(/[,;\s]+/).filter(Boolean).map(function (m) { var ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m); return '<span class="rounded-full px-2.5 py-0.5 text-[11px] ' + (ok ? 'bg-ink-100 text-ink-700' : 'bg-red-50 text-red-700') + '" dir="ltr" title="' + (ok ? '' : T.bad) + '">' + m.replace(/[<>&"]/g, '') + '</span>'; }).join(''); };
+        rc.addEventListener('input', pr); pr();
+      }
+    })();
+    </script>
     <?php
 });
