@@ -528,22 +528,38 @@
     ['title', 'tags'].forEach(function (k) { var i = col(k); if (i > -1 && r[i]) parts.push(r[i]); });
     return parts.join(' — ') || '—';
   }
+  function imgOf(r) {
+    var mi = col('media_urls'), out = {};
+    mediaList(mi > -1 ? r[mi] : '').some(function (u) {
+      var m = /^lib:(\d+)$/.exec(u);
+      if (m && (!lib[m[1]] || lib[m[1]].kind !== 'video')) { out.lib = +m[1]; return true; }
+      if (/^https:\/\/\S+\.(jpe?g|png|webp|gif)(\?\S*)?$/i.test(u)) { out.url = u; return true; }
+      return false;
+    });
+    return out;
+  }
   if ($('#bk-cap-btn')) $('#bk-cap-btn').onclick = function () {
-    var n = emptyRows().length; $('#bk-cap-info').textContent = n ? f(S.capinfo, n) : S.capnone; $('#bk-cap-go').disabled = !n;
+    var er = emptyRows(), n = er.length, withImg = er.filter(function (i) { var o = imgOf(rows[i]); return o.lib || o.url; }).length;
+    $('#bk-cap-info').textContent = n ? f(S.capinfo, n) : S.capnone; $('#bk-cap-go').disabled = !n;
+    $('#bk-cap-vis').checked = withImg > 0; $('#bk-cap-vis').disabled = !withImg;
+    $('#bk-cap-vis-t').textContent = withImg ? f(S.visinfo, withImg) : S.visnone;
+    $('#bk-cap-vis-l').classList.toggle('opacity-60', !withImg);
     $('#bk-cap-msg').textContent = ''; $('#bk-cap-prog').classList.add('hidden'); openM(cap);
   };
   if ($('#bk-cap-go')) $('#bk-cap-go').onclick = function () {
-    var idx = emptyRows(), btn = this, msg = $('#bk-cap-msg'), bar = $('#bk-cap-bar'), done = 0, k = 0;
+    var idx = emptyRows(), btn = this, msg = $('#bk-cap-msg'), bar = $('#bk-cap-bar'), done = 0, k = 0, vis = $('#bk-cap-vis').checked && !$('#bk-cap-vis').disabled, per = vis ? 5 : 20, saw = 0;
     if (!idx.length) return;
     snap(); var ci = ensure('post_content'); btn.disabled = true; $('#bk-cap-prog').classList.remove('hidden');
     (function next() {
-      if (k >= idx.length) { btn.disabled = false; msg.className = 'text-xs text-lime-700'; msg.textContent = f(S.capdone, done); notes = notes.concat([f(S.capdone, done)]); dirty = true; renderMap(); render(); setTimeout(function () { closeM(cap); }, 700); return; }
-      var part = idx.slice(k, k + 20);
+      if (k >= idx.length) { btn.disabled = false; msg.className = 'text-xs text-lime-700'; var dm = f(S.capdone, done) + (saw ? ' · ' + f(S.saw, saw) : ''); msg.textContent = dm; notes = notes.concat([dm]); dirty = true; renderMap(); render(); setTimeout(function () { closeM(cap); }, 700); return; }
+      var part = idx.slice(k, k + per);
       msg.className = 'text-xs text-violet-700 animate-pulse'; msg.textContent = f(S.capwait, Math.min(k + part.length, idx.length), idx.length);
       var fd = new FormData(); fd.append('_csrf', X.csrf); fd.append('ajax', 'caption'); fd.append('lang', $('#bk-cap-lang').value); fd.append('brief', $('#bk-cap-brief').value);
-      fd.append('items', JSON.stringify(part.map(function (ri) { return { i: ri, hint: hintFor(rows[ri]) }; })));
+      if (vis) fd.append('vision', '1');
+      fd.append('items', JSON.stringify(part.map(function (ri) { var o = vis ? imgOf(rows[ri]) : {}; return { i: ri, hint: hintFor(rows[ri]), lib: o.lib || 0, url: o.url || '' }; })));
       fetch(X.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
         if (!j.ok) throw new Error(j.error || 'error');
+        saw += +j.saw || 0;
         j.posts.forEach(function (p) { if (rows[p.i] && !String(rows[p.i][ci] || '').trim()) { rows[p.i][ci] = p.text; done++; } });
         k += part.length; bar.style.width = Math.round(k / idx.length * 100) + '%'; render(); next();
       }).catch(function (err) { btn.disabled = false; msg.className = 'text-xs text-red-600'; msg.textContent = err.message; render(); });

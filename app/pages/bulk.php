@@ -84,19 +84,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'gen') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'caption') {
     header('Content-Type: application/json; charset=utf-8');
     if (!can('ai.use')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE); exit; }
-    $items = array_slice((array)json_decode((string)($_POST['items'] ?? '[]'), true), 0, 20);
+    $vision = !empty($_POST['vision']);
+    $items = array_slice((array)json_decode((string)($_POST['items'] ?? '[]'), true), 0, $vision ? 5 : 20);
+    $wid = (int)ws('id');
     $brief = trim(mb_substr((string)($_POST['brief'] ?? ''), 0, 800));
     $langs = ['eg' => 'العامية المصرية', 'msa' => 'العربية الفصحى المبسطة', 'gulf' => 'اللهجة الخليجية', 'en' => 'English'];
     $lng = $langs[$_POST['lang'] ?? ''] ?? $langs['eg'];
     $lines = [];
     foreach ($items as $k => $it) $lines[] = ($k + 1) . '. ' . mb_substr(trim((string)($it['hint'] ?? '')), 0, 300);
     if (!$lines) { echo json_encode(['ok' => false, 'error' => t('مفيش سطور')], JSON_UNESCAPED_UNICODE); exit; }
+    // الصور نفسها (لما المستخدم يختار إن الذكاء الاصطناعي يشوفها): من المكتبة كملف مصغر، أو رابط عام
+    $content = [];
+    $libIds = [];
+    if ($vision) {
+        foreach ($items as $k => $it) {
+            $part = null;
+            $lid = (int)($it['lib'] ?? 0);
+            if ($lid && ($mr = media_get($wid, $lid)) && media_kind((string)$mr['mime']) === 'image') {
+                $pth = media_thumb_path($wid, $mr);
+                if (is_file($pth) && filesize($pth) <= 4 * 1048576) {
+                    $mime = strpos($pth, '/thumbs/') !== false ? 'image/jpeg' : (string)$mr['mime'];
+                    $part = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mime . ';base64,' . base64_encode((string)file_get_contents($pth))]];
+                    $libIds[$k] = $lid;
+                }
+            } elseif (preg_match('#^https://\S+\.(jpe?g|png|webp|gif)(\?\S*)?$#i', (string)($it['url'] ?? ''))) {
+                $part = ['type' => 'image_url', 'image_url' => ['url' => (string)$it['url']]];
+            }
+            if ($part) { $content[] = ['type' => 'text', 'text' => 'صورة العنصر رقم ' . ($k + 1) . ':']; $content[] = $part; }
+        }
+    }
     $sys = 'BULK_CAPTIONS_JSON. أنت كاتب محتوى سوشيال ميديا. لكل عنصر مرقم في الرسالة (وصف صورة أو اسم ملف أو فكرة) اكتب منشورًا واحدًا مناسبًا له، مختلفًا عن الباقي في البداية والزاوية. '
+        . ($content ? 'مرفق صور بعض العناصر: اكتب عن اللي باين في الصورة فعلًا (المنتج، الألوان، المكان، الناس)، ومتألفش أسماء أو أسعار أو عروض مش مكتوبة. ورجّع كمان "desc" جملة قصيرة بالعربي بتوصف الصورة. ' : '')
         . 'اللغة: ' . $lng . '. استخدم إيموجي باعتدال واختم بـ 2 أو 3 هاشتاجات. كل منشور أقل من 400 حرف. '
         . ($brief !== '' ? 'معلومات عامة عن الحملة: ' . $brief . '. ' : '')
-        . 'أعد JSON فقط بالشكل {"posts":[{"n":1,"text":"..."}]} بنفس عدد العناصر وبنفس الترقيم.';
+        . 'أعد JSON فقط بالشكل {"posts":[{"n":1,"text":"..."' . ($content ? ',"desc":"..."' : '') . '}]} بنفس عدد العناصر وبنفس الترقيم.';
+    $userMsg = implode("\n", $lines);
+    if ($content) $userMsg = array_merge([['type' => 'text', 'text' => $userMsg]], $content);
     try {
-        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => implode("\n", $lines)]], min(3800, 200 + count($lines) * 140), 'compose');
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => $userMsg]], min(3800, 200 + count($lines) * ($content ? 220 : 140)), 'compose');
         $txt = (string)$r['text'];
         if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
         $j = json_decode($txt, true);
@@ -105,9 +130,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'caption
             $n = (int)($pp['n'] ?? ($k + 1)) - 1;
             $t = trim((string)($pp['text'] ?? ''));
             if ($t !== '' && isset($items[$n])) $out[] = ['i' => $items[$n]['i'] ?? $n, 'text' => mb_substr($t, 0, 3000)];
+            // الوصف بيتحفظ في المكتبة (لو مفيش وصف قبل كده) عشان المرة الجاية يبقى ببلاش
+            $dsc = trim((string)($pp['desc'] ?? ''));
+            if ($dsc !== '' && isset($libIds[$n])) db()->prepare('UPDATE media_files SET ai_desc = ?, ai_at = COALESCE(ai_at, NOW()) WHERE workspace_id = ? AND id = ? AND (ai_desc IS NULL OR ai_desc = \'\')')->execute([mb_substr($dsc, 0, 500), $wid, $libIds[$n]]);
         }
         if (!$out) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
-        echo json_encode(['ok' => true, 'posts' => $out], JSON_UNESCAPED_UNICODE);
+        if ($content) log_activity('ai.bulk_vision', count($libIds) . ' images');
+        echo json_encode(['ok' => true, 'posts' => $out, 'saw' => count(array_filter($content, function ($c) { return $c['type'] === 'image_url'; }))], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $ex) {
         echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
     }
@@ -498,6 +527,11 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             <h3 id="bk-cap-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
             <p class="text-sm text-ink-600" id="bk-cap-info"></p>
             <textarea id="bk-cap-brief" class="input" rows="3" maxlength="800" placeholder="<?= e(t('معلومة عن الحملة (اختياري): مثلاً "خصم 20% لحد آخر الشهر، التوصيل مجاني"')) ?>"></textarea>
+            <label id="bk-cap-vis-l" class="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3 cursor-pointer">
+              <input type="checkbox" id="bk-cap-vis" class="mt-1" checked>
+              <span><span class="font-semibold text-ink-900 text-sm">👁 <?= e(t('خلّي الذكاء الاصطناعي يشوف الصور')) ?></span>
+                <span class="block text-xs text-ink-600 mt-0.5" id="bk-cap-vis-t"></span></span>
+            </label>
             <label class="block"><span class="label"><?= e(t('اللغة')) ?></span><select id="bk-cap-lang" class="input"><option value="eg"><?= e(t('مصري')) ?></option><option value="gulf"><?= e(t('خليجي')) ?></option><option value="msa"><?= e(t('فصحى')) ?></option><option value="en">English</option></select></label>
             <div id="bk-cap-prog" class="hidden"><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div id="bk-cap-bar" class="h-full bg-violet-500 transition-all" style="width:0"></div></div></div>
             <div class="flex items-center gap-2"><button type="button" id="bk-cap-go" class="btn-primary flex-1"><?= e(t('اكتب')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button></div>
@@ -587,6 +621,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'srv' => t('Zernio: %s'),
             'libn' => t('%s ملف'), 'libup' => t('بنرفع %s ملف…'), 'libdone' => t('اترفع %s ملف'), 'libpick' => t('اختار صورة واحدة على الأقل'), 'libnew' => t('اتعمل %s منشور، كل صورة في منشور.'),
             'libspread' => t('اتحطت صورة لكل سطر في %s سطر'), 'libsame' => t('اتحطت نفس الصور في %s سطر'), 'libcycle' => t('الصور أقل من السطور، فبتتكرر بالترتيب'), 'libmissing' => t('الصورة دي مش موجودة في المكتبة'),
+            'visinfo' => t('%s سطر فيهم صورة. النص هيبقى عن اللي في الصورة فعلًا، بس أغلى بكتير وأبطأ (5 صور في كل طلب). الموديل لازم يكون بيقرا صور.'), 'visnone' => t('مفيش صور في السطور الفاضية، فهنكتب من الأسماء.'), 'saw' => t('شاف %s صورة'),
             'capinfo' => t('هنكتب نص لـ %s سطر نصهم فاضي، من وصف الصورة أو اسمها. بيستهلك من رصيد الذكاء الاصطناعي.'), 'capnone' => t('مفيش سطور نصها فاضي'), 'capwait' => t('بنكتب %s من %s…'), 'capdone' => t('اتكتب %s نص. راجعهم قبل الرفع.'), 'pickrow' => t('اختار صورة'),
             'lim' => t('أطول من حد %s (%s حرف)'), 'dup' => t('النص ده متكرر'), 'dups' => t('%s نص متكرر'), 'sel' => t('%s متحدد'), 'draft' => t('عندك شغل متحفظ: %s سطر من "%s" (%s)'),
             'aiwait' => t('بنكتب…'), 'aidone' => t('اتضاف %s منشور. وزّع المواعيد عليهم من الأدوات.'), 'aitopic' => t('اكتب الفكرة الأول.'), 'nosel' => t('حدد سطور الأول من الخانة اللي على الشمال'),

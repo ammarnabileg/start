@@ -2614,4 +2614,8 @@ Latte - %2$s',
     'اتكتب %s نص. راجعهم قبل الرفع.' => '%s texts written. Review them before uploading.',
     'اختار صورة' => 'Pick an image',
     'فيديو' => 'Videos',
+    'خلّي الذكاء الاصطناعي يشوف الصور' => 'Let the AI look at the images',
+    '%s سطر فيهم صورة. النص هيبقى عن اللي في الصورة فعلًا، بس أغلى بكتير وأبطأ (5 صور في كل طلب). الموديل لازم يكون بيقرا صور.' => '%s rows have an image. Texts will describe what is actually in the image, but it costs much more and is slower (5 images per request). The model must support images.',
+    'مفيش صور في السطور الفاضية، فهنكتب من الأسماء.' => 'No images in the empty rows, so we\'ll write from the names.',
+    'شاف %s صورة' => 'Looked at %s images',
 ];
