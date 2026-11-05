@@ -33,9 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $goals = rp_goals($wid, $month);
 $hasApi = (bool)rp_clients($wid);
 $act = null;
-if ($hasApi && $month <= $thisMonth && $goals) {
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/goals.json') ? json_decode((string)file_get_contents($fxd . '/goals.json'), true) : null;
+if ($fx && $month === $thisMonth) { $hasApi = true; $act = ['values' => $fx['values'], 'errors' => []]; }
+elseif ($hasApi && $month <= $thisMonth && $goals) {
     $act = rp_month_actuals($wid, $month);
 }
+// الشهر اللي قبله: أهدافه ونتيجته — للاقتراحات في الفورم
+$prevMonth = date('Y-m', strtotime($month . '-01 -1 month'));
+$prevGoals = rp_goals($wid, $prevMonth);
 
 // السجل: آخر 6 شهور قبل الشهر ده اللي فيها أهداف. الشهور اللي خلصت بنحفظ نتيجتها مرة واحدة.
 $history = [];
@@ -58,7 +63,7 @@ foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $hm) {
     $history[$hm] = $g;
 }
 
-render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $goals, $act, $month, $thisMonth, $now, $history, $canManage, $hasApi) {
+render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $goals, $act, $month, $thisMonth, $now, $history, $canManage, $hasApi, $prevGoals) {
     $mLabel = function ($m) { return date('m/Y', strtotime($m . '-01')); };
     $daysIn = (int)date('t', strtotime($month . '-01'));
     $day = $month === $thisMonth ? (int)$now->format('j') : ($month < $thisMonth ? $daysIn : 0);
@@ -77,6 +82,25 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
 
     <?php if (!$hasApi): ?><div class="mb-5"><?php no_api_box(); ?></div><?php endif; ?>
 
+    <?php
+    // حالة كل هدف (نفس منطق الكروت تحت) للملخص
+    $sum = ['hit' => 0, 'ok' => 0, 'late' => 0];
+    foreach ($metrics as $k => $mt) {
+        if (!isset($goals[$k]) || $month > $thisMonth) continue;
+        $tg = (float)$goals[$k]['target']; $v = $act['values'][$k] ?? null; if ($v === null) continue;
+        if ($mt['lower']) { $v <= $tg ? $sum['ok']++ : $sum['late']++; continue; }
+        if ($v >= $tg) $sum['hit']++; elseif ($v >= $tg * $elapsed * 0.95) $sum['ok']++; else $sum['late']++;
+    }
+    $totG = count($goals);
+    ?>
+    <?php if ($goals && $month <= $thisMonth): ?>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('أهداف الشهر')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $totG ?></div></div>
+      <div class="rounded-2xl border border-lime-200 bg-lime-50/60 p-4"><div class="text-xs text-ink-500"><?= e(t('اتحققت')) ?></div><div class="text-2xl font-bold text-lime-700 mt-1"><?= $sum['hit'] ?></div></div>
+      <div class="rounded-2xl border border-brand-200 bg-brand-50/50 p-4"><div class="text-xs text-ink-500"><?= e(t('ماشية كويس')) ?></div><div class="text-2xl font-bold text-brand-700 mt-1"><?= $sum['ok'] ?></div></div>
+      <div class="rounded-2xl border <?= $sum['late'] ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white' ?> p-4"><div class="text-xs text-ink-500"><?= e($month < $thisMonth ? t('ما اتحققتش') : t('متأخرة')) ?></div><div class="text-2xl font-bold mt-1 <?= $sum['late'] ? 'text-red-600' : 'text-ink-900' ?>"><?= $sum['late'] ?></div></div>
+    </div>
+    <?php endif; ?>
     <div class="grid lg:grid-cols-3 gap-5">
       <div class="lg:col-span-2 space-y-3">
         <?php if (!$goals): ?>
@@ -118,7 +142,13 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
                 <?php endif; ?>
               </div>
               <?php if (!$mt['lower'] && $month === $thisMonth && $val !== null && $val < $target): ?>
-                <p class="text-xs text-ink-500 mt-2"><?= e(t('المتوقع لحد النهارده: %s · محتاج %s في اليوم عشان توصل للهدف.', an_num($target * $elapsed), an_num(($target - $val) / max(1, $daysIn - $day + 1)))) ?></p>
+                <p class="text-xs text-ink-500 mt-2"><?= e(t('المتوقع لحد النهارده: %s · محتاج %s في اليوم عشان توصل للهدف.', an_num(round($target * $elapsed)), an_num(ceil(($target - $val) / max(1, $daysIn - $day + 1))))) ?></p>
+              <?php endif; ?>
+              <?php if (!$mt['lower'] && $month === $thisMonth && $val !== null && $elapsed > 0.05): $proj = $val / $elapsed; $pp = $target > 0 ? $proj / $target * 100 : 0; ?>
+                <div class="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs <?= $pp >= 100 ? 'bg-lime-50 text-lime-800' : ($pp >= 85 ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800') ?>">
+                  <span><?= $pp >= 100 ? '🎯' : ($pp >= 85 ? '⏳' : '⚠️') ?></span>
+                  <span><?= e(t('بنفس السرعة دي هتقفل الشهر على %s (%s%% من الهدف).', an_num($proj), number_format(min(999, $pp), 0))) ?></span>
+                </div>
               <?php endif; ?>
             <?php endif; ?>
           </div>
@@ -131,13 +161,28 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
             <?= csrf_field() ?>
             <input type="hidden" name="month" value="<?= e($month) ?>">
             <h2 class="font-bold text-ink-900"><?= e(t('أهداف شهر %s', $mLabel($month))) ?></h2>
-            <?php foreach ($metrics as $k => $mt): ?>
+            <?php if ($prevGoals): ?>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" class="gl-copy rounded-full border border-ink-200 px-3 py-1 text-xs hover:border-brand-400 hover:bg-brand-50"><?= e(t('زي الشهر اللي فات')) ?></button>
+              <button type="button" class="gl-up rounded-full border border-ink-200 px-3 py-1 text-xs hover:border-brand-400 hover:bg-brand-50" data-f="1.1" dir="ltr">+10%</button>
+              <button type="button" class="gl-up rounded-full border border-ink-200 px-3 py-1 text-xs hover:border-brand-400 hover:bg-brand-50" data-f="1.2" dir="ltr">+20%</button>
+            </div>
+            <?php endif; ?>
+            <?php foreach ($metrics as $k => $mt): $pg = $prevGoals[$k] ?? null; $nf = function ($v) { return rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); }; ?>
               <label class="block"><span class="label"><?= e($mt['label']) ?></span>
-                <input type="number" min="0" step="any" name="target[<?= e($k) ?>]" class="input" dir="ltr" value="<?= isset($goals[$k]) ? e(rtrim(rtrim(number_format((float)$goals[$k]['target'], 2, '.', ''), '0'), '.')) : '' ?>" placeholder="—"></label>
+                <input type="number" min="0" step="any" name="target[<?= e($k) ?>]" class="input gl-in" dir="ltr" data-prev="<?= $pg ? e($nf($pg['target'])) : '' ?>" data-lower="<?= $mt['lower'] ? 1 : 0 ?>" value="<?= isset($goals[$k]) ? e($nf($goals[$k]['target'])) : '' ?>" placeholder="—">
+                <?php if ($pg): ?><span class="text-[11px] text-ink-500"><?= e(t('الشهر اللي فات: الهدف %s', $fmtVal($k, (float)$pg['target']))) ?><?= $pg['achieved'] !== null ? ' · ' . e(t('اللي اتعمل %s', $fmtVal($k, (float)$pg['achieved']))) : '' ?></span><?php endif; ?></label>
             <?php endforeach; ?>
             <p class="text-xs text-ink-500"><?= e(t('سيب الخانة فاضية لو مش عايز هدف للمقياس ده.')) ?></p>
             <button class="btn-primary w-full"><?= e(t('حفظ الأهداف')) ?></button>
           </form>
+          <script>
+          (function () {
+            var ins = document.querySelectorAll('.gl-in');
+            var c = document.querySelector('.gl-copy'); if (c) c.onclick = function () { ins.forEach(function (i) { if (i.dataset.prev) i.value = i.dataset.prev; }); };
+            document.querySelectorAll('.gl-up').forEach(function (b) { b.onclick = function () { var f = +b.dataset.f; ins.forEach(function (i) { var base = +(i.value || i.dataset.prev || 0); if (!base) return; i.value = i.dataset.lower === '1' ? Math.round(base / f) : Math.round(base * f); }); }; });
+          })();
+          </script>
         <?php endif; ?>
 
         <div class="card p-5">
@@ -147,8 +192,10 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
           <?php endif; ?>
           <div class="space-y-4">
             <?php foreach ($history as $hm => $g): ?>
+              <?php $hitN = 0; $known = 0; foreach ($metrics as $k => $mt) { if (!isset($g[$k]) || $g[$k]['achieved'] === null) continue; $known++; $tg = (float)$g[$k]['target']; $a = (float)$g[$k]['achieved']; if ($mt['lower'] ? $a <= $tg : $a >= $tg) $hitN++; } ?>
               <div>
-                <a class="link text-sm" href="<?= e(url('goals', ['m' => $hm])) ?>" dir="ltr"><?= e($mLabel($hm)) ?></a>
+                <div class="flex items-center gap-2"><a class="link text-sm" href="<?= e(url('goals', ['m' => $hm])) ?>" dir="ltr"><?= e($mLabel($hm)) ?></a>
+                  <?php if ($known): ?><span class="ms-auto text-[11px] rounded-full px-2 py-0.5 <?= $hitN === $known ? 'bg-lime-50 text-lime-700' : ($hitN ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700') ?>"><?= e(t('%s من %s', $hitN, $known)) ?></span><?php endif; ?></div>
                 <ul class="mt-1 space-y-1">
                   <?php foreach ($metrics as $k => $mt): if (!isset($g[$k])) continue;
                       $a = $g[$k]['achieved']; $tg = (float)$g[$k]['target'];
