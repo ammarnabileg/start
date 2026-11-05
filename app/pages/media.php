@@ -9,7 +9,9 @@ if (isset($_GET['file'])) {
     if (!$r || !is_file($p)) { http_response_code(404); exit; }
     header('Content-Type: ' . (isset($_GET['thumb']) && substr($p, -4) === '.jpg' && strpos($p, '/thumbs/') !== false ? 'image/jpeg' : $r['mime']));
     header('Content-Length: ' . filesize($p));
-    header('Cache-Control: private, max-age=86400');
+    $etag = '"' . $r['id'] . '-' . substr(md5((string)$r['size'] . $r['path'] . (isset($_GET['thumb']) ? 't' : '')), 0, 12) . '"';
+    header('ETag: ' . $etag); header('Cache-Control: private, max-age=' . (isset($_GET['thumb']) ? 2592000 : 86400));
+    if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) { http_response_code(304); exit; }
     header('X-Content-Type-Options: nosniff');
     $inline = in_array(media_kind($r['mime']), ['image', 'video', 'audio'], true) || $r['mime'] === 'application/pdf';
     header('Content-Disposition: ' . ($inline && !isset($_GET['dl']) ? 'inline' : 'attachment') . "; filename*=UTF-8''" . rawurlencode($r['name']));
@@ -34,6 +36,13 @@ if (isset($_GET['zip'])) {
 $json = function ($a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 if (($_GET['ajax'] ?? '') === 'uses') $json(['ok' => true, 'uses' => media_uses($wid, (int)($_GET['id'] ?? 0))]);
 if (($_GET['ajax'] ?? '') === 'shares') $json(['ok' => true, 'shares' => media_shares($wid, (string)($_GET['folder'] ?? ''))]);
+if (($_GET['ajax'] ?? '') === 'list' && isset($_GET['loc'])) { // صفحات (للسرعة)
+    $off = max(0, (int)($_GET['offset'] ?? 0));
+    if ($off === 0) { try { media_sync_ai($wid); } catch (Throwable $e) {} try { media_purge_old($wid); } catch (Throwable $e) {} }
+    $loc = in_array($_GET['loc'], ['all', 'folder', 'recent', 'star', 'image', 'video', 'doc', 'trash'], true) ? $_GET['loc'] : 'all';
+    [$items, $total] = media_query($wid, $loc, mb_substr((string)($_GET['f'] ?? ''), 0, 120), mb_substr(trim((string)($_GET['q'] ?? '')), 0, 100), (string)($_GET['sort'] ?? 'date'), (int)($_GET['dir'] ?? -1), $off, (int)($_GET['limit'] ?? 200));
+    $json(['ok' => true, 'items' => $items, 'total' => $total, 'offset' => $off] + ($off === 0 ? ['folders' => media_folders($wid), 'counts' => media_counts($wid), 'usage' => media_usage($wid), 'max' => media_max_bytes()] : []));
+}
 if (($_GET['ajax'] ?? '') === 'list') {
     try { media_sync_ai($wid); } catch (Throwable $e) {}
     try { media_purge_old($wid); } catch (Throwable $e) {}
@@ -61,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'derive') { // نسخة معدلة (قص/تصغير) من المتصفح: صورة جديدة جنب الأصل
         $src = media_get($wid, (int)($_POST['src'] ?? 0)); $f = $_FILES['file'] ?? null;
         if (!$src || !$f) $json(['ok' => false, 'error' => t('الملف مش موجود')]);
-        try { $f['name'] = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 200) ?: $src['name']; $row = media_store_upload($wid, $f, (string)$src['folder']); $json(['ok' => true, 'item' => $row]); }
+        try { $f['name'] = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 200) ?: $src['name']; $dest = isset($_POST['folder']) ? $fclean($_POST['folder']) : (string)$src['folder']; if ($dest !== (string)$src['folder'] && $dest !== '') { $fa = $fall(); if (!in_array($dest, $fa, true)) { $fa[] = $dest; save_setting($fkey, json_encode(array_values($fa), JSON_UNESCAPED_UNICODE)); } } $row = media_store_upload($wid, $f, $dest); $json(['ok' => true, 'item' => $row]); }
         catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
     }
     if ($act === 'rename') { $n = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255); if ($n === '') $json(['ok' => false]); db()->prepare('UPDATE media_files SET name = ? WHERE workspace_id = ? AND id = ?')->execute([$n, $wid, $id]); $json(['ok' => true]); }

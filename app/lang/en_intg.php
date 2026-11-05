@@ -1734,4 +1734,5 @@ Latte - %2$s',
     'الذكاء الاصطناعي بيقرا الصور بس' => 'AI can only read images',
     'الصورة كبيرة جدًا للقراءة' => 'The image is too large to read',
     'اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات.' => 'Connect an AI provider first from the Integrations page.',
+    'ظاهر %s' => '%s loaded',
 ];

@@ -42,27 +42,33 @@
       + (opt.picker ? '<div class="mx-foot flex flex-wrap items-center gap-2 px-3 py-2.5 border-t border-ink-200 bg-white"></div>' : '') + '<input type="file" multiple class="hidden mx-file"></div>';
     var win = host.querySelector('.mx-win'), $ = function (s) { return win.querySelector(s); };
 
-    function load() {
-      return fetch(M.list + '&folder=*&q=' + encodeURIComponent(st.q), { credentials: 'same-origin' }).then(function (r) { return r.json(); })
-        .then(function (j) { st.all = j.items || []; st.trash = j.trash || []; st.folders = j.folders || {}; st.usage = j.usage || 0; st.sel = st.sel.filter(function (k) { return k[0] === 'd' || st.all.some(function (x) { return 'f' + x.id === k; }); }); draw(); });
+    var PAGE = 200, reqId = 0, loadingMore = false;
+    function qs(off) { var L = st.loc; return M.list + '&loc=' + encodeURIComponent(L.t) + '&f=' + encodeURIComponent(L.f || '') + '&q=' + encodeURIComponent(st.q) + '&sort=' + st.sort[0] + '&dir=' + st.sort[1] + '&offset=' + off + '&limit=' + PAGE; }
+    function load() { // الصفحة الأولى للمكان الحالي + الأعداد والفولدرات
+      var my = ++reqId; if (!st.all.length) skeleton();
+      return fetch(qs(0), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        if (my !== reqId) return; st.all = j.items || []; st.total = j.total || 0; st.folders = j.folders || {}; st.counts = j.counts || {}; st.usage = j.usage || 0; if (j.max) M.max = j.max;
+        st.trash = st.loc.t === 'trash' ? st.all : []; st.sel = st.sel.filter(function (k) { return k[0] === 'd' || st.all.some(function (x) { return 'f' + x.id === k; }); }); draw(); fillIfShort();
+      });
     }
+    function loadMore() { // الباقي وانت بتنزل لتحت
+      if (loadingMore || st.all.length >= st.total) return; loadingMore = true; var my = reqId;
+      fetch(qs(st.all.length), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        loadingMore = false; if (my !== reqId) return; var seen = {}; st.all.forEach(function (f) { seen[f.id] = 1; }); (j.items || []).forEach(function (f) { if (!seen[f.id]) st.all.push(f); }); st.total = j.total || st.total;
+        if (st.loc.t === 'trash') st.trash = st.all; items(); paintSel(); status(); fillIfShort();
+      }).catch(function () { loadingMore = false; });
+    }
+    function fillIfShort() { var m = win.querySelector('.mx-main'); if (m && m.scrollHeight <= m.clientHeight + 40) loadMore(); }
+    function skeleton() { var el = win.querySelector('.mx-items'); if (el) el.innerHTML = '<div class="flex flex-wrap gap-1">' + Array(18).join('<div class="w-28 p-1.5"><div class="h-20 rounded-md bg-ink-100 animate-pulse"></div><div class="h-2.5 mt-2 rounded bg-ink-100 animate-pulse"></div></div>') + '</div>'; }
     function subfolders(path) { var out = {}; Object.keys(st.folders).forEach(function (f) { if (!f) return; if (path === '' || f.indexOf(path + '/') === 0) { var rest = path === '' ? f : f.slice(path.length + 1), name = rest.split('/')[0]; if (name) out[name] = (out[name] || 0) + (st.folders[f] || 0); } }); return out; }
     function current() {
-      var L = st.loc, week = Date.now() - 7 * 864e5;
-      if (L.t === 'trash') return st.trash.slice().sort(function (a, b) { return String(b.del).localeCompare(String(a.del)); }).map(function (f) { return { key: 'f' + f.id, f: f, trashed: true }; });
-      var files = st.all.filter(function (f) {
-        if (L.t === 'folder') return f.folder === L.f; if (L.t === 'star') return f.star; if (L.t === 'recent') return new Date(String(f.at).replace(' ', 'T')) > week;
-        if (L.t === 'image' || L.t === 'video') return f.kind === L.t; if (L.t === 'doc') return f.kind === 'doc' || f.kind === 'audio'; return true;
-      });
-      var showDirs = L.t === 'folder' || (L.t === 'all' && !st.q), base = L.t === 'folder' ? L.f : '', subs = showDirs ? subfolders(base) : {};
-      if (L.t === 'all' && !st.q) files = files.filter(function (f) { return f.folder === ''; });
-      if (L.t === 'folder' && st.q) files = st.all.filter(function (f) { return f.folder === L.f || f.folder.indexOf(L.f + '/') === 0; });
-      var k = st.sort[0], d = st.sort[1];
-      files.sort(function (a, b) { var r = k === 'name' ? a.name.localeCompare(b.name) : k === 'size' ? a.size - b.size : k === 'type' ? typeName(a).localeCompare(typeName(b)) : String(a.at).localeCompare(String(b.at)); return r * d; });
+      var L = st.loc;
+      if (L.t === 'trash') return st.all.map(function (f) { return { key: 'f' + f.id, f: f, trashed: true }; });
+      var files = st.all, showDirs = (L.t === 'folder' || L.t === 'all') && !st.q, base = L.t === 'folder' ? L.f : '', subs = showDirs ? subfolders(base) : {};
       return Object.keys(subs).sort(function (a, b) { return a.localeCompare(b); }).map(function (n) { return { dir: true, key: 'd' + (base ? base + '/' : '') + n, path: (base ? base + '/' : '') + n, name: n, n: subs[n] }; }).concat(files.map(function (f) { return { key: 'f' + f.id, f: f }; }));
     }
     var locName = function (L) { return L.t === 'folder' ? (L.f.split('/').pop() || S.noFolder) : { all: S.allFolders, recent: S.recent, star: S.starred, trash: S.trash, image: S.images, video: S.videos, doc: S.docs }[L.t]; };
-    function go(L, noHist) { if (!noHist) { st.hist.push(st.loc); st.fwd = []; } st.loc = L; st.sel = []; st.focus = null; if (!opt.picker) store.set('loc', L); draw(); }
+    function go(L, noHist) { if (!noHist) { st.hist.push(st.loc); st.fwd = []; } st.loc = L; st.sel = []; st.focus = null; st.all = []; st.total = 0; if (!opt.picker) store.set('loc', L); toolbar(); nav(); load(); var m = win.querySelector('.mx-main'); if (m) m.scrollTop = 0; }
 
     function draw() { toolbar(); nav(); items(); pane(); status(); foot(); }
     function toolbar() {
@@ -81,8 +87,7 @@
     }
     function nav() {
       var L = st.loc, row = function (attrs, ic, label, n, on, lvl) { return '<button type="button" ' + attrs + ' class="w-full flex items-center gap-2 py-1.5 text-start rounded-md ' + (on ? 'bg-brand-100/70 text-brand-900 font-medium' : 'text-ink-700 hover:bg-ink-200/50') + '" style="padding-inline:' + (8 + (lvl || 0) * 14) + 'px 8px"><span class="w-4 h-4 shrink-0 grid place-items-center">' + ic + '</span><span class="flex-1 truncate">' + esc(label) + '</span>' + (n != null ? '<span class="text-[10px] text-ink-400">' + n + '</span>' : '') + '</button>'; };
-      var counts = { all: st.all.length, image: 0, video: 0, doc: 0, recent: 0, star: st.all.filter(function (f) { return f.star; }).length, trash: st.trash.length }, week = Date.now() - 7 * 864e5;
-      st.all.forEach(function (f) { var k = f.kind === 'audio' ? 'doc' : f.kind; counts[k] = (counts[k] || 0) + 1; if (new Date(String(f.at).replace(' ', 'T')) > week) counts.recent++; });
+      var counts = st.counts || {};
       var h = '<div class="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">' + esc(S.quick) + '</div><div class="px-1.5 space-y-px">'
         + [['all', '🗂', S.allFolders], ['recent', '🕘', S.recent], ['star', '⭐', S.starred], ['image', '🖼', S.images], ['video', '🎬', S.videos], ['doc', '📄', S.docs]].filter(function (x) { return ['all', 'recent', 'star'].indexOf(x[0]) >= 0 || okKind(x[0]); }).map(function (x) { return row('data-go="' + x[0] + '"', x[1], x[2], counts[x[0]], L.t === x[0]); }).join('') + '</div>'
         + '<div class="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 flex items-center">' + esc(S.foldersT) + (M.canEdit ? '<button type="button" class="mx-nf ms-auto text-ink-500 hover:text-ink-900 text-sm leading-none" title="' + esc(S.newFolder) + '">+</button>' : '') + '</div><div class="px-1.5 space-y-px">';
@@ -95,8 +100,8 @@
       $('.mx-nav').innerHTML = h;
     }
     function thumb(f, big) {
-      if (f.kind === 'image') return '<img src="' + esc(f.thumb || f.url) + '" alt="" loading="lazy" draggable="false" class="w-full h-full object-contain drop-shadow-sm">';
-      if (f.kind === 'video') return '<span class="relative block w-full h-full"><video src="' + esc(f.url) + '#t=0.5" preload="metadata" muted class="w-full h-full object-cover rounded-md bg-black"></video><span class="absolute inset-0 grid place-items-center text-white text-xl drop-shadow">▶</span></span>';
+      if (f.kind === 'image') return '<img src="' + esc(f.thumb || f.url) + '" alt="" loading="lazy" decoding="async" draggable="false" class="w-full h-full object-contain drop-shadow-sm">';
+      if (f.kind === 'video') return '<span class="relative block w-full h-full"><video data-src="' + esc(f.url) + '#t=0.5" preload="none" muted playsinline class="w-full h-full object-cover rounded-md bg-ink-800"></video><span class="absolute inset-0 grid place-items-center text-white text-xl drop-shadow">▶</span></span>';
       return '<span class="relative block ' + (big ? 'w-16 h-20' : 'w-10 h-12') + '">' + IC.doc + '<span class="absolute bottom-1.5 inset-x-0 text-center text-[9px] font-bold text-ink-500">' + esc(ext(f.name)) + '</span></span>';
     }
     function items() {
@@ -107,7 +112,7 @@
         el.innerHTML = '<table class="w-full"><thead class="sticky top-0 bg-white text-ink-500 text-[11px] border-b border-ink-200"><tr>' + hd('name', S.name, 'text-start') + hd('date', S.date, 'text-start hidden md:table-cell') + hd('type', S.type, 'text-start hidden sm:table-cell') + hd('size', S.size, 'text-end') + '</tr></thead><tbody>'
           + list.map(function (x) {
             var on = isSel(x.key), dim = x.f && !okKind(x.f.kind);
-            var ic = x.dir ? '<span class="w-5 h-4 inline-block">' + IC.folder + '</span>' : x.f.kind === 'image' ? '<img src="' + esc(x.f.thumb || x.f.url) + '" alt="" loading="lazy" draggable="false" class="w-5 h-5 rounded object-cover">' : x.f.kind === 'video' ? '🎬' : '<span class="w-4 h-5 inline-block">' + IC.doc + '</span>';
+            var ic = x.dir ? '<span class="w-5 h-4 inline-block">' + IC.folder + '</span>' : x.f.kind === 'image' ? '<img src="' + esc(x.f.thumb || x.f.url) + '" alt="" loading="lazy" decoding="async" draggable="false" class="w-5 h-5 rounded object-cover">' : x.f.kind === 'video' ? '🎬' : '<span class="w-4 h-5 inline-block">' + IC.doc + '</span>';
             return '<tr data-k="' + esc(x.key) + '" draggable="' + (M.canEdit && !x.trashed ? 'true' : 'false') + '" class="mx-it' + ((st.clip && st.clip.keys || []).indexOf(x.key) >= 0 ? ' opacity-50' : '') + ' ' + (on ? 'bg-brand-100/80' : 'hover:bg-ink-50') + (dim ? ' opacity-40' : '') + (st.focus === x.key ? ' outline outline-1 outline-brand-400 -outline-offset-1' : '') + '"' + (x.dir ? ' data-drop="' + esc(x.path) + '"' : '') + '>'
               + '<td class="px-3 py-1.5"><span class="flex items-center gap-2 min-w-0"><span class="shrink-0 w-5 grid place-items-center">' + ic + '</span><span class="mx-nm truncate">' + esc(x.dir ? x.name : x.f.name) + '</span>' + (x.f && x.f.star ? '⭐' : '') + (x.f && small(x.f) ? '<span class="text-[9px] rounded bg-amber-100 text-amber-800 px-1">' + esc(S.small) + '</span>' : '') + '</span></td>'
               + '<td class="px-3 py-1.5 text-ink-500 hidden md:table-cell whitespace-nowrap">' + (x.f ? esc(when(x.trashed ? x.f.del : x.f.at)) : '') + '</td><td class="px-3 py-1.5 text-ink-500 hidden sm:table-cell whitespace-nowrap">' + esc(x.dir ? S.folderT : typeName(x.f)) + (x.f && x.f.w ? ' <span dir="ltr">' + x.f.w + '×' + x.f.h + '</span>' : '') + '</td>'
@@ -128,7 +133,7 @@
           + '<span class="mx-tick absolute top-1 start-1 w-5 h-5 rounded-md border-2 grid place-items-center text-[11px] ' + (on ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white/90 border-ink-300') + ' [@media(hover:hover)]:hidden">' + (on ? '✓' : '') + '</span></div>';
       }).join('') + '</div>';
     }
-    function selFiles() { var src = st.loc.t === 'trash' ? st.trash : st.all; return st.sel.filter(function (k) { return k[0] === 'f'; }).map(function (k) { var id = +k.slice(1); return src.filter(function (f) { return f.id === id; })[0]; }).filter(Boolean); }
+    function selFiles() { var src = st.all; return st.sel.filter(function (k) { return k[0] === 'f'; }).map(function (k) { var id = +k.slice(1); return src.filter(function (f) { return f.id === id; })[0]; }).filter(Boolean); }
     function pane() {
       var p = $('.mx-pane'); p.classList.toggle('lg:block', !!st.pane); if (!st.pane) return;
       var fs = selFiles();
@@ -153,8 +158,9 @@
     }
     function status() {
       var list = current(), fs = selFiles();
-      $('.mx-sb').innerHTML = '<span>' + esc(fmt(S.nItems, list.length)) + '</span>' + (st.sel.length ? '<span>' + esc(fmt(S.selected, st.sel.length)) + (fs.length ? ' · ' + esc(size(fs.reduce(function (n, f) { return n + f.size; }, 0))) : '') + '</span>' : '') + (st.clip ? '<span class="text-brand-700">✂ ' + esc(fmt(S.cutN, st.clip.keys.length)) + '</span>' : '') + '<span class="ms-auto hidden lg:inline truncate">' + esc(S.kbdHint) + '</span>'
-        + (st.loc.t === 'trash' && st.trash.length && M.canEdit ? '<button type="button" data-cmd="emptytrash" class="text-red-600 hover:underline">' + esc(S.emptyTrash) + '</button>' : '')
+      var dirsN = list.filter(function (x) { return x.dir; }).length;
+      $('.mx-sb').innerHTML = '<span>' + esc(fmt(S.nItems, dirsN + (st.total || 0))) + (st.all.length < (st.total || 0) ? ' <span class="text-ink-400">(' + esc(fmt(S.loadedN, st.all.length)) + ')</span>' : '') + '</span>' + (st.sel.length ? '<span>' + esc(fmt(S.selected, st.sel.length)) + (fs.length ? ' · ' + esc(size(fs.reduce(function (n, f) { return n + f.size; }, 0))) : '') + '</span>' : '') + (st.clip ? '<span class="text-brand-700">✂ ' + esc(fmt(S.cutN, st.clip.keys.length)) + '</span>' : '') + '<span class="ms-auto hidden lg:inline truncate">' + esc(S.kbdHint) + '</span>'
+        + (st.loc.t === 'trash' && (st.counts || {}).trash && M.canEdit ? '<button type="button" data-cmd="emptytrash" class="text-red-600 hover:underline">' + esc(S.emptyTrash) + '</button>' : '')
         + (st.view !== 'list' ? '<label class="flex items-center gap-1.5" title="' + esc(S.zoomT) + '">🔍<input type="range" class="mx-zoom w-20 accent-brand-600" min="0.7" max="2" step="0.05" value="' + (st.zoom || 1) + '"></label>' : '');
     }
     function foot() {
@@ -174,7 +180,7 @@
     function refreshSel() { paintSel(); pane(); status(); foot(); var one = selFiles(); if (one.length === 1 && st.pane) loadUses(one[0]); }
 
     function itemOf(k) { if (k[0] === 'd') return { dir: true, path: k.slice(1) }; var id = +k.slice(1); return { f: st.all.filter(function (f) { return f.id === id; })[0] }; }
-    function openKey(k) { if (st.loc.t === 'trash') { var tf = st.trash.filter(function (f) { return 'f' + f.id === k; })[0]; if (tf && (tf.kind === 'image' || tf.kind === 'video')) window.open(tf.url, '_blank'); return; } var it = itemOf(k); if (it.dir) return go({ t: 'folder', f: it.path }); if (!it.f) return; if (opt.picker) { if (okKind(it.f.kind)) { st.sel = [k]; finish(); } else toast(S.notAllowed, 'err'); return; } if (it.f.kind === 'image' || it.f.kind === 'video') lightbox(it.f.id); else window.open(it.f.url, '_blank'); }
+    function openKey(k) { if (st.loc.t === 'trash') { var tf = st.all.filter(function (f) { return 'f' + f.id === k; })[0]; if (tf && (tf.kind === 'image' || tf.kind === 'video')) window.open(tf.url, '_blank'); return; } var it = itemOf(k); if (it.dir) return go({ t: 'folder', f: it.path }); if (!it.f) return; if (opt.picker) { if (okKind(it.f.kind)) { st.sel = [k]; finish(); } else toast(S.notAllowed, 'err'); return; } if (it.f.kind === 'image' || it.f.kind === 'video') lightbox(it.f.id); else window.open(it.f.url, '_blank'); }
     function renameKey(k) {
       var node = win.querySelector('[data-k="' + CSS.escape(k) + '"] .mx-nm'), it = itemOf(k); if (!node || !M.canEdit) return;
       var old = it.dir ? it.path.split('/').pop() : it.f.name, inp = document.createElement('input'); inp.value = old; inp.className = 'w-full rounded border border-brand-400 px-1 py-0.5 text-[12px] text-center bg-white text-ink-900';
@@ -232,7 +238,11 @@
       inp.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') commit(true); if (e.key === 'Escape') commit(false); }); inp.addEventListener('blur', function () { commit(true); }); inp.addEventListener('mousedown', function (e) { e.stopPropagation(); });
     }
     function copyLink(f) { toast(S.preparing, 'ok'); post({ action: 'public', id: f.id }).then(function (j) { var u = j.ok && j.urls[f.id]; if (!u) return toast(j.error || S.publicErr, 'err'); (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast(S.copied, 'ok'); }).catch(function () { prompt('URL', u); }); load(); }); }
-    function selectAll() { st.sel = current().map(function (x) { return x.key; }); refreshSel(); }
+    function selectAll() {
+      var done2 = function () { st.sel = current().map(function (x) { return x.key; }); refreshSel(); };
+      if (st.all.length >= (st.total || 0) || st.all.length >= 2000) return done2();
+      fetch(qs(0).replace('&limit=' + PAGE, '&limit=500').replace('&offset=0', '&offset=' + st.all.length), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { var seen = {}; st.all.forEach(function (f) { seen[f.id] = 1; }); (j.items || []).forEach(function (f) { if (!seen[f.id]) st.all.push(f); }); items(); selectAll(); });
+    }
     function upFolder() { if (st.loc.t !== 'folder') return; var f = st.loc.f; go(f.indexOf('/') >= 0 ? { t: 'folder', f: f.slice(0, f.lastIndexOf('/')) } : { t: 'all', f: '' }); }
 
     var queue = [], active = 0, qbox = null, batch = { ok: 0, dup: 0, keys: [] };
@@ -306,6 +316,7 @@
     }
     function onUp() { if (!bandStart) return; var moved = bandStart.moved, add = bandStart.add; bandStart = null; band.classList.add('hidden'); if (!main.isConnected) return; if (!moved && !add) st.sel = []; refreshSel(); }
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    main.addEventListener('scroll', function () { if (main.scrollTop + main.clientHeight > main.scrollHeight - 600) loadMore(); }, { passive: true });
     main.addEventListener('dblclick', function (e) { var it = e.target.closest('[data-k]'); if (it) openKey(it.dataset.k); });
 
     // ---- كليك يمين
@@ -322,7 +333,7 @@
       if (cmd === 'open') return st.sel[0] && openKey(st.sel[0]); if (cmd === 'rename') return st.sel[0] && renameKey(st.sel[0]); if (cmd === 'del') return del(st.sel.slice());
       if (cmd === 'link' && one) return copyLink(one); if (cmd === 'crop' && one) return cropper(one); if (cmd === 'dl' && one) { location.href = one.url + '&dl=1'; return; }
       if (cmd === 'move') return moveDialog(st.sel.slice());
-      if (cmd === 'restore') return restore(st.sel.slice()); if (cmd === 'purge') return del(st.sel.slice(), true); if (cmd === 'emptytrash') { if (confirm(fmt(S.purgeQ, st.trash.length))) post({ action: 'empty_trash' }).then(load); return; }
+      if (cmd === 'restore') return restore(st.sel.slice()); if (cmd === 'purge') return del(st.sel.slice(), true); if (cmd === 'emptytrash') { if (confirm(fmt(S.purgeQ, (st.counts || {}).trash || st.all.length))) post({ action: 'empty_trash' }).then(load); return; }
       if (cmd === 'edit' && one) return editor(one); if (cmd === 'share') return shareDialog(st.sel.length === 1 && st.sel[0][0] === 'd' ? st.sel[0].slice(1) : (st.loc.t === 'folder' ? st.loc.f : ''));
       if (cmd === 'ai') return aiTag(selFiles().filter(function (f) { return f.kind === 'image'; }).map(function (f) { return f.id; }));
       if (cmd === 'autoai') { store.set('autoai', !store.get('autoai', false)); return toast(store.get('autoai', false) ? S.autoOn : S.autoOff, 'ok'); }
@@ -379,7 +390,7 @@
       var g = e.target.closest('[data-go]'), gf = e.target.closest('[data-gof]'), sort = e.target.closest('[data-sort]'), cmd = e.target.closest('[data-cmd]'), c = e.target.closest('button');
       if ((g || gf) && innerWidth < 640) { var nv2 = $('.mx-nav'); if (!nv2.classList.contains('hidden') && nv2.classList.contains('absolute')) { nv2.classList.add('hidden'); nv2.classList.remove('absolute', 'z-30', 'inset-y-0', 'start-0', '!bg-white', 'shadow-2xl'); } }
       if (g) return go({ t: g.dataset.go, f: '' }); if (gf) return go({ t: 'folder', f: gf.dataset.gof });
-      if (sort) { var k = sort.dataset.sort; st.sort = st.sort[0] === k ? [k, -st.sort[1]] : [k, k === 'name' || k === 'type' ? 1 : -1]; store.set('sort', st.sort); return items(); }
+      if (sort) { var k = sort.dataset.sort; st.sort = st.sort[0] === k ? [k, -st.sort[1]] : [k, k === 'name' || k === 'type' ? 1 : -1]; store.set('sort', st.sort); return load(); }
       if (cmd) return run(cmd.dataset.cmd);
       if (!c) return;
       if (c.classList.contains('mx-back') && st.hist.length) { st.fwd.push(st.loc); go(st.hist.pop(), true); }
@@ -400,7 +411,7 @@
     win.addEventListener('input', function (e) { if (e.target.classList.contains('mx-zoom')) setZoom(+e.target.value); });
     main.addEventListener('wheel', function (e) { if ((e.ctrlKey || e.metaKey) && st.view !== 'list') { e.preventDefault(); setZoom((st.zoom || 1) * (e.deltaY < 0 ? 1.1 : 0.9)); } }, { passive: false });
     // فيديو بيشتغل وانت واقف عليه
-    main.addEventListener('mouseover', function (e) { var v = e.target.closest('[data-k]'); v = v && v.querySelector('video'); if (v && v.paused) { v.muted = true; v.play().catch(function () {}); } });
+    main.addEventListener('mouseover', function (e) { var v = e.target.closest('[data-k]'); v = v && v.querySelector('video'); if (v && v.paused) { if (!v.src && v.dataset.src) { v.src = v.dataset.src; v.preload = 'auto'; } v.muted = true; v.play().catch(function () {}); } });
     main.addEventListener('mouseout', function (e) { var v = e.target.closest('[data-k]'); v = v && v.querySelector('video'); if (v && !v.paused && !(e.relatedTarget && v.closest('[data-k]').contains(e.relatedTarget))) { v.pause(); try { v.currentTime = 0.5; } catch (er) {} } });
     win.addEventListener('change', function (e) { if (e.target.classList.contains('mx-tags')) { var f = selFiles()[0]; if (f) post({ action: 'tags', id: f.id, tags: e.target.value }).then(load); } });
 

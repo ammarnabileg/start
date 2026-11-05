@@ -109,13 +109,13 @@ function media_store_path(int $wid, string $src, string $name, string $mime, str
 function media_thumb_path(int $wid, array $r): string
 {
     $src = media_file_path($wid, $r);
-    if (media_kind((string)$r['mime']) !== 'image' || !function_exists('imagecreatetruecolor') || (int)$r['size'] < 120000) return $src;
+    if (media_kind((string)$r['mime']) !== 'image' || !function_exists('imagecreatetruecolor') || (int)$r['size'] < 40000) return $src;
     $dir = media_dir($wid) . '/thumbs'; $t = $dir . '/' . (int)$r['id'] . '.jpg';
     if (is_file($t)) return $t;
     if (!is_dir($dir)) @mkdir($dir, 0750, true);
     $fn = ['image/jpeg' => 'imagecreatefromjpeg', 'image/png' => 'imagecreatefrompng', 'image/webp' => 'imagecreatefromwebp', 'image/gif' => 'imagecreatefromgif'][$r['mime']] ?? null;
     if (!$fn || !function_exists($fn) || !($im = @$fn($src))) return $src;
-    $w = imagesx($im); $h = imagesy($im); $k = min(1, 480 / max($w, $h)); $nw = max(1, (int)round($w * $k)); $nh = max(1, (int)round($h * $k));
+    $w = imagesx($im); $h = imagesy($im); $k = min(1, 360 / max($w, $h)); $nw = max(1, (int)round($w * $k)); $nh = max(1, (int)round($h * $k));
     $out = imagecreatetruecolor($nw, $nh); imagefill($out, 0, 0, imagecolorallocate($out, 255, 255, 255));
     imagecopyresampled($out, $im, 0, 0, 0, 0, $nw, $nh, $w, $h); imagejpeg($out, $t, 78); imagedestroy($im); imagedestroy($out);
     return is_file($t) ? $t : $src;
@@ -266,3 +266,36 @@ function media_ai_tag(int $wid, int $id, bool $rename): array
     return media_row(media_get($wid, $id));
 }
 
+
+/**
+ * قائمة مكان واحد في المكتبة (بالصفحات، الترتيب والفلترة على السيرفر) — للسرعة مع آلاف الملفات.
+ * loc: all (جذر المكتبة، أو كل الملفات لو فيه بحث) | folder | recent | star | image | video | doc | trash
+ */
+function media_query(int $wid, string $loc, string $folder, string $q, string $sort, int $dir, int $offset, int $limit): array
+{
+    $w = ['workspace_id = ?', $loc === 'trash' ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
+    if ($loc === 'folder') {
+        if ($q !== '') { $w[] = '(folder = ? OR folder LIKE ?)'; array_push($a, $folder, $folder . '/%'); } else { $w[] = 'folder = ?'; $a[] = $folder; }
+    } elseif ($loc === 'all' && $q === '') { $w[] = "folder = ''"; }
+    elseif ($loc === 'recent') $w[] = 'created_at > (NOW() - INTERVAL 7 DAY)';
+    elseif ($loc === 'star') $w[] = 'starred = 1';
+    elseif ($loc === 'image' || $loc === 'video') { $w[] = 'mime LIKE ?'; $a[] = $loc . '/%'; }
+    elseif ($loc === 'doc') $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%'";
+    if ($q !== '') { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; array_push($a, '%' . $q . '%', '%' . $q . '%', '%' . $q . '%'); }
+    $col = ['name' => 'name', 'size' => 'size', 'type' => 'mime', 'date' => $loc === 'trash' ? 'deleted_at' : 'created_at'][$sort] ?? 'created_at';
+    $where = implode(' AND ', $w);
+    $st = db()->prepare("SELECT COUNT(*) FROM media_files WHERE $where"); $st->execute($a); $total = (int)$st->fetchColumn();
+    $st = db()->prepare("SELECT * FROM media_files WHERE $where ORDER BY $col " . ($dir > 0 ? 'ASC' : 'DESC') . ", id " . ($dir > 0 ? 'ASC' : 'DESC') . " LIMIT " . max(1, min(500, $limit)) . " OFFSET " . max(0, $offset));
+    $st->execute($a);
+    return [array_map('media_row', $st->fetchAll()), $total];
+}
+
+/** أعداد الوصول السريع في استعلام واحد */
+function media_counts(int $wid): array
+{
+    $st = db()->prepare("SELECT SUM(deleted_at IS NULL) a, SUM(deleted_at IS NULL AND created_at > (NOW() - INTERVAL 7 DAY)) r, SUM(deleted_at IS NULL AND starred = 1) s,
+        SUM(deleted_at IS NULL AND mime LIKE 'image/%') i, SUM(deleted_at IS NULL AND mime LIKE 'video/%') v, SUM(deleted_at IS NULL AND mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%') d, SUM(deleted_at IS NOT NULL) t
+        FROM media_files WHERE workspace_id = ?");
+    $st->execute([$wid]); $r = $st->fetch() ?: [];
+    return ['all' => (int)($r['a'] ?? 0), 'recent' => (int)($r['r'] ?? 0), 'star' => (int)($r['s'] ?? 0), 'image' => (int)($r['i'] ?? 0), 'video' => (int)($r['v'] ?? 0), 'doc' => (int)($r['d'] ?? 0), 'trash' => (int)($r['t'] ?? 0)];
+}
