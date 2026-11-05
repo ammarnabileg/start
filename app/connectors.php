@@ -24,6 +24,25 @@ function connector_registry(): array
                 return count($profiles) . ' Profile';
             },
         ],
+        'sms_gate' => [
+            'name' => t('رقمي من موبايل أندرويد'), 'category' => 'phone', 'single' => true, 'owner_only' => true,
+            'logo' => 'SIM', 'color' => '#16A34A',
+            'description' => t('ابعت واستقبل SMS من رقمك نفسه (أي شبكة، أي دولة) عن طريق موبايل أندرويد عليه تطبيق SMS Gateway المفتوح المصدر.'),
+            'docs' => 'https://docs.sms-gate.app/',
+            'help' => t('نزّل تطبيق SMS Gateway for Android على الموبايل اللي فيه الخط، افتح Settings ← Cloud server وسجّل، وانسخ اليوزر والباسورد من هناك.'),
+            'fields' => [
+                ['key' => 'server', 'label' => t('السيرفر'), 'type' => 'select', 'options' => ['cloud' => t('سحابة التطبيق (الأسهل)'), 'private' => t('سيرفر خاص بيك')], 'default' => 'cloud'],
+                ['key' => 'url', 'label' => t('رابط السيرفر الخاص (للسيرفر الخاص بس)'), 'placeholder' => 'https://sms.yourdomain.com', 'optional' => true],
+                ['key' => 'user', 'label' => t('اسم المستخدم'), 'placeholder' => 'ABCDEF'],
+                ['key' => 'pass', 'label' => t('كلمة السر'), 'secret' => true],
+                ['key' => 'sim', 'label' => t('رقم الشريحة (لو الموبايل فيه أكتر من خط)'), 'placeholder' => '1', 'optional' => true],
+                ['key' => 'signing', 'label' => t('مفتاح التوقيع (Settings ← Webhooks ← Signing Key)'), 'secret' => true, 'optional' => true],
+            ],
+            'test' => function (array $c): string {
+                $d = smsgate_request($c, 'GET', '/devices');
+                return t('متصل · %s موبايل', is_array($d) ? count($d) : 0);
+            },
+        ],
         'smtp' => [
             'name' => t('الإيميل (SMTP)'), 'category' => 'email',
             'owner_only' => true, 'single' => true,

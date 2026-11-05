@@ -5,7 +5,7 @@ module.exports = {
   content: ['./app/**/*.php', './assets/**/*.js', './*.php', './tailwind/safelist.txt'],
   theme: {
     extend: {
-      fontFamily: { sans: ['Alexandria', 'system-ui', 'sans-serif'] },
+      fontFamily: { sans: ['"Twemoji Country Flags"', 'Alexandria', 'system-ui', 'sans-serif'] },
       colors: { white: 'rgb(var(--surface) / <alpha-value>)', ink: v('ink'), brand: v('brand'), cyan: v('cyan'), lime: v('lime'), red: v('red'), amber: v('amber'), slate: v('ink'), gray: v('ink'), indigo: v('brand'), blue: v('brand'), emerald: v('lime'), green: v('lime'), rose: v('red'), orange: v('amber') },
     },
   },

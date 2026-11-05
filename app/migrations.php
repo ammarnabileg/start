@@ -433,4 +433,23 @@ return [
     '021_media_ai' => [
         "ALTER TABLE media_files ADD COLUMN ai_desc VARCHAR(500) NULL, ADD COLUMN ai_at DATETIME NULL",
     ],
+    '022_sms_gate' => [
+        "CREATE TABLE IF NOT EXISTS sms_gate_messages (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            direction ENUM('in','out') NOT NULL,
+            phone VARCHAR(32) NOT NULL,
+            body TEXT NOT NULL,
+            ext_id VARCHAR(64) NULL,
+            state VARCHAR(20) NOT NULL DEFAULT '',
+            error VARCHAR(255) NULL,
+            sim TINYINT UNSIGNED NULL,
+            sent_by INT UNSIGNED NULL,
+            seen TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_phone (workspace_id, phone, id),
+            INDEX ws_ext (workspace_id, ext_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

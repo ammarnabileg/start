@@ -50,7 +50,7 @@ function nav_items(): array
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => t('الأدوات'), 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
-            'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات')]],
+            'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'calls' => t('المكالمات'), 'sms_mine' => t('رقمي')]],
         ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
         ['key' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الشركة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الشركة')],
@@ -99,7 +99,7 @@ function page_module(string $page): ?string
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],
         'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
-        'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc'],
+        'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],
     ];
     foreach ($map as $m => $pages) {
         if (in_array($page, $pages, true)) return $m;
