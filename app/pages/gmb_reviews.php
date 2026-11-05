@@ -25,6 +25,27 @@ $keep = ['loc' => $loc['key'] ?? '', 'stars' => $stars ?: '', 'replied' => $repl
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
+    if (in_array($action, ['ai_themes', 'ai_drafts'], true)) {
+        header('Content-Type: application/json; charset=utf-8');
+        if (!can('ai.use') || !function_exists('ai_connection') || !ai_connection()) { echo json_encode(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات.')], JSON_UNESCAPED_UNICODE); exit; }
+        $rows = array_slice(array_filter((array)(json_decode((string)($_POST['reviews'] ?? '[]'), true) ?: []), 'is_array'), 0, $action === 'ai_themes' ? 80 : 12);
+        $lines = array_map(function ($r) { return '[' . mb_substr((string)($r['id'] ?? ''), 0, 60) . '] ' . (int)($r['rating'] ?? 0) . '★ ' . mb_substr((string)($r['name'] ?? ''), 0, 40) . ': ' . mb_substr(preg_replace('/\s+/u', ' ', (string)($r['text'] ?? '')), 0, 500); }, $rows);
+        if ($action === 'ai_themes') {
+            $sys = 'أنت محلل تجربة عملاء. حلّل تقييمات العملاء المعطاة فقط ولا تخترع شيئًا. اكتب بالعربية الفصحى المبسطة. أعد JSON فقط: {"verdict":"سطر يلخص الانطباع العام","praise":[{"theme":"موضوع","count":عدد التقييمات,"quote":"اقتباس قصير حرفي من تقييم"}],"complaints":[{"theme":"","count":0,"quote":"","fix":"إجراء عملي مقترح"}],"actions":["أهم 3 إجراءات لرفع التقييم مرتبة بالأولوية"]}. حتى 5 لكل قائمة، مرتبة بالعدد.';
+            $max = 1200;
+        } else {
+            $sys = 'أنت مسؤول خدمة العملاء للنشاط التجاري (استخدم معلومات الشركة المتاحة لك). اكتب ردًا لكل تقييم: شخصي ويذكر تفصيلة من كلام العميل، قصير (1-3 جمل)، بنفس لغة ولهجة التقييم. للتقييم السلبي: اعتذر بدون جدال واطلب التواصل الخاص لحل المشكلة، ولا تعد بتعويض أو خصم غير موجود. للتقييم الإيجابي: اشكر وادعُه للعودة. لا تخترع أسماء موظفين أو أرقام. أعد JSON فقط: {"drafts":[{"id":"نفس المعرّف بين الأقواس","reply":"الرد"}]}';
+            $max = 1800;
+        }
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => $sys . (function_exists('ai_country_note') ? ai_country_note() : '')], ['role' => 'user', 'content' => implode("\n", $lines)]], $max, 'reviews');
+            $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+            $j = json_decode($txt, true); if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+            log_activity('review.' . $action, (string)count($rows));
+            echo json_encode(['ok' => true, 'r' => $j], JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); }
+        exit;
+    }
     $reviewId = (string)($_POST['review_id'] ?? '');
     $accId = (string)($_POST['account_id'] ?? '');
     $isGmb = !empty($_POST['gmb']);
@@ -58,7 +79,12 @@ $reviews = [];
 $next = null;
 $summary = ['total' => 0, 'avg' => null];
 $failed = [];
-if ($z && !$apiError) {
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/gmb_reviews.json') ? json_decode((string)file_get_contents($fxd . '/gmb_reviews.json'), true) : null;
+if ($fx) {
+    foreach ($fx['reviews'] ?? [] as $rv) { $rv += ['platform' => 'googlebusiness', 'accountId' => 'acc_gmb_demo', 'hasReply' => !empty($rv['reply']), 'photos' => []]; $reviews[] = $rv; }
+    $reviews = array_values(array_filter($reviews, function ($x) use ($stars, $replied) { return (!$stars || $x['rating'] === $stars) && ($replied !== 'yes' || $x['hasReply']) && ($replied !== 'no' || !$x['hasReply']); }));
+    $summary = $fx['summary'] ?? $summary;
+} elseif ($z && !$apiError) {
     try {
         if ($loc) {
             // فرع جوجل معين: نجيب من gmb-reviews ونفلتر هنا
@@ -123,7 +149,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
       <div class="card p-5 md:col-span-2">
         <p class="text-xs text-ink-500 mb-2"><?= e(t('توزيع النجوم (التقييمات المعروضة)')) ?> · <?= e(t('%s من غير رد', $unreplied)) ?></p>
         <?php foreach ($dist as $n => $c): ?>
-          <a href="<?= e(url('gmb_reviews', array_filter(['stars' => $n] + $keep, 'strlen'))) ?>" class="flex items-center gap-2 text-xs mb-1 hover:opacity-80">
+          <a href="<?= e(url('gmb_reviews', array_filter(['stars' => $n] + $keep, 'strlen'))) ?>" data-star="<?= $n ?>" class="rv-bar flex items-center gap-2 text-xs mb-1 rounded hover:bg-ink-50 px-1 -mx-1">
             <span class="w-4 text-end"><?= $n ?></span>
             <svg class="w-3 h-3 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L10 14.9l-5.3 2.7 1-5.8L1.5 7.7l5.9-.9z"/></svg>
             <span class="flex-1 h-2 rounded-full bg-ink-100 overflow-hidden"><span class="block h-full bg-amber-500 rounded-full" style="width: <?= (int)round($c * 100 / $total) ?>%"></span></span>
@@ -162,13 +188,15 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
       <a href="<?= e(url('gmb_reviews', $loc ? ['loc' => $loc['key']] : [])) ?>" class="btn-ghost"><?= e(t('مسح الفلاتر')) ?></a>
     </form>
 
-    <div class="space-y-3">
+    <div id="rv-tools"></div>
+    <div class="space-y-3" id="rv-list">
       <?php if (!$reviews): ?><div class="card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش تقييمات.')) ?></div><?php endif; ?>
       <?php foreach ($reviews as $rv):
         $isFb = ($rv['platform'] ?? '') === 'facebook';
         $rid = 'rv' . substr(md5((string)$rv['id']), 0, 10);
       ?>
-        <div class="card p-4">
+        <div class="rv-card card p-4 transition" data-id="<?= e((string)$rv['id']) ?>" data-form="<?= e($rid) ?>" data-rating="<?= (int)($rv['rating'] ?? 0) ?>" data-replied="<?= empty($rv['hasReply']) ? 0 : 1 ?>" data-photos="<?= empty($rv['photos']) ? 0 : 1 ?>"
+          data-name="<?= e(($rv['reviewer']['name'] ?? '') ?: t('عميل')) ?>" data-text="<?= e(mb_substr((string)($rv['text'] ?? ''), 0, 600)) ?>" data-q="<?= e(mb_strtolower(($rv['reviewer']['name'] ?? '') . ' ' . ($rv['text'] ?? '') . ' ' . ($rv['reply']['text'] ?? ''))) ?>" data-at="<?= e((string)($rv['created'] ?? '')) ?>">
           <div class="flex gap-3">
             <?= avatar($rv['reviewer']['profileImage'] ?? null, $rv['reviewer']['name'] ?? '', 'w-10 h-10') ?>
             <div class="flex-1 min-w-0">
@@ -232,6 +260,14 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
     <?php if ($next): ?>
       <div class="text-center mt-4"><a class="btn-ghost" href="<?= e(url('gmb_reviews', array_filter(['cursor' => $next] + $keep, 'strlen'))) ?>"><?= e(t('تقييمات أقدم')) ?></a></div>
     <?php endif; ?>
+    <script>window.RVX = <?= json_encode(['csrf' => csrf_token(), 'url' => url('gmb_reviews'), 'ws' => (int)ws('id'), 'canAi' => can('ai.use') && function_exists('ai_connection') && (bool)ai_connection(), 'country' => ws_country(), 's' => [
+      'search' => t('ابحث في التقييمات...'), 'all' => t('الكل'), 'unreplied' => t('محتاج رد'), 'negative' => t('سلبية (1-2★)'), 'positive' => t('إيجابية (4-5★)'), 'photos' => t('فيها صور'), 'empty' => t('مفيش تقييمات مطابقة'),
+      'replyRate' => t('نسبة الرد'), 'needReply' => t('محتاج رد'), 'oldest' => t('أقدم تقييم من غير رد: %s'), 'themes' => t('حلّل التقييمات بالذكاء الاصطناعي'), 'drafts' => t('اكتب مسودات ردود لكل اللي من غير رد'), 'working' => t('بيحلل...'), 'writing' => t('بيكتب المسودات...'),
+      'praise' => t('العملاء بيحبوا'), 'complaints' => t('العملاء بيشتكوا من'), 'actions' => t('إجراءات مقترحة'), 'times' => t('%s تقييم'), 'draftsDone' => t('اتكتبت %s مسودة. راجع كل رد ودوس "رد" عليه — مفيش حاجة اتبعتت.'), 'aiErr' => t('ما قدرناش نكمل'),
+      'tpl' => t('ردود جاهزة'), 'tplSave' => t('احفظ النص ده كرد جاهز'), 'tplSaved' => t('اتحفظ الرد الجاهز'), 'tplNone' => t('مفيش ردود جاهزة لسه. اكتب رد واحفظه من هنا.'), 'tplDel' => t('امسح'), 'tplName' => t('{name} = اسم العميل'), 'nameTok' => t('(الاسم)'),
+      'nextUn' => t('التالي من غير رد ↓'), 'keys' => t('j/k تنقل · r رد · n التالي من غير رد · / بحث'), 'draft' => t('مسودة ✦'),
+      'defaults' => [5 => t('شكرًا يا {name} على كلامك الجميل! سعداء إن التجربة عجبتك، ومستنيينك تاني قريب.'), 3 => t('شكرًا يا {name} على رأيك. يهمنا نعرف إيه اللي كان ممكن يخلي تجربتك أحسن، ابعتلنا رسالة خاصة.'), 1 => t('آسفين جدًا يا {name} على التجربة دي. ده مش المستوى اللي بنقدمه، ياريت تتواصل معانا في رسالة خاصة عشان نحل المشكلة.')]]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/ui-gmb_reviews.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>
       document.querySelectorAll('[data-toggle]').forEach(function (b) {
         b.addEventListener('click', function () { var f = document.getElementById(b.dataset.toggle); f.classList.toggle('hidden'); f.querySelector('textarea').focus(); });
