@@ -2143,4 +2143,8 @@ Latte - %2$s',
     'الصورة مش مربعة (%s×%s) — واتساب هيقصها دايرة من النص.' => 'The image is not square (%s×%s) — WhatsApp will crop a circle from the center.',
     'الصورة صغيرة (%s×%s) — هتبان مش واضحة.' => 'The image is small (%s×%s) — it will look blurry.',
     'مش قادرين نفتح الصورة من الرابط ده.' => 'Could not load the image from this link.',
+    'ده الرقم التجريبي (Sandbox)' => 'This is the sandbox number',
+    'الرقم ده مشترك بين كل المستخدمين عشان تجرّب الرسايل بس. مالوش بروفايل بيزنس ولا جودة ولا حد رسايل خاص بيك، فمفيش حاجة تتعدل أو تتعرض هنا.' => 'This number is shared by all users for testing messages only. It has no business profile, quality rating or messaging limit of its own, so there is nothing to show or edit here.',
+    'افتح بروفايل %s' => 'Open %s profile',
+    'اربط رقم واتساب حقيقي' => 'Connect a real WhatsApp number',
 ];

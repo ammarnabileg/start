@@ -65,7 +65,7 @@ $info = [];
 $infoError = null;
 if ($fx) {
     $profile = $fx['profile']; $info = $fx['info'];
-} elseif ($z && $acc && !$apiError) {
+} elseif ($z && $acc && !$apiError && !wa_is_sandbox($accounts, $acc)) {
     try {
         $profile = wa_business_profile($z, $acc);
     } catch (ZernioException $ex) {
@@ -83,8 +83,28 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx,
     if (!$acc && !$apiError) { wa_no_account_box(); return; }
     wa_account_picker($accounts, $acc, 'wa_profile');
     $sandbox = wa_is_sandbox($accounts, $acc);
-    if ($sandbox) { wa_sandbox_note(); }
     if ($apiError) { error_box($apiError); }
+    if ($sandbox) {
+        $sbNum = '';
+        foreach ($accounts as $a) if (($a['_id'] ?? '') === $acc) $sbNum = (string)($a['metadata']['phoneNumber'] ?? $a['username'] ?? '');
+        $real = array_values(array_filter($accounts, function ($a) { return empty($a['metadata']['isSandbox']); }));
+        ?>
+        <div class="card p-8 text-center max-w-2xl mx-auto">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mb-4">🧪</div>
+          <h2 class="text-lg font-bold text-ink-900"><?= e(t('ده الرقم التجريبي (Sandbox)')) ?></h2>
+          <?php if ($sbNum !== ''): ?><div class="text-sm text-ink-500 mt-1" dir="ltr"><?= e($sbNum) ?></div><?php endif; ?>
+          <p class="text-sm text-ink-600 mt-3 leading-relaxed"><?= e(t('الرقم ده مشترك بين كل المستخدمين عشان تجرّب الرسايل بس. مالوش بروفايل بيزنس ولا جودة ولا حد رسايل خاص بيك، فمفيش حاجة تتعدل أو تتعرض هنا.')) ?></p>
+          <div class="flex flex-wrap justify-center gap-2 mt-5">
+            <?php if ($real): ?>
+              <?php foreach ($real as $a): ?><a class="btn-primary" href="<?= e(url('wa_profile', ['wa' => $a['_id']])) ?>"><?= e(t('افتح بروفايل %s', wa_account_label($a))) ?></a><?php endforeach; ?>
+            <?php else: ?>
+              <a class="btn-primary" href="<?= e(url('accounts')) ?>"><?= e(t('اربط رقم واتساب حقيقي')) ?></a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php
+        return;
+    }
     $ph = $info['phone'] ?? [];
     $waba = $info['waba'] ?? [];
     $q = strtoupper((string)($ph['quality_rating'] ?? 'UNKNOWN'));
