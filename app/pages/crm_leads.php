@@ -148,7 +148,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
     <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-3"></div>
     <div id="ld-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش Leads تطابق الفلاتر')) ?></div>
 
-    <div id="ld-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div id="ld-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <form id="ld-form" class="absolute top-0 bottom-0 end-0 w-full sm:w-[460px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-d-title">
         <input type="hidden" name="id"><input type="hidden" name="action" value="save">
@@ -195,7 +195,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       </form>
     </div>
 
-    <div id="ld-add" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+    <div id="ld-add" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <form id="ld-add-form" class="relative card p-5 w-full max-w-md space-y-3" role="dialog" aria-modal="true" aria-labelledby="ld-add-t">
         <input type="hidden" name="action" value="add">

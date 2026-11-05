@@ -1,6 +1,78 @@
 <?php
 $err = null;
 $z = zernio_or_null($err);
+$fxd0 = getenv('UI_FIXTURES');
+if ($fxd0 && is_file($fxd0 . '/posts_fake_z.php')) $z = require $fxd0 . '/posts_fake_z.php'; // اختبارات بس: الكتابة بتتسجل بدل ما تتبعت
+
+/** المنصات بإعداداتها من منشور موجود (عشان التعديل والنسخ مايضيعوش حاجة) */
+function ps_platforms(array $p): array
+{
+    $pls = [];
+    foreach ($p['platforms'] ?? [] as $pl) {
+        $item = ['platform' => $pl['platform'], 'accountId' => pub_acc_id($pl['accountId'] ?? '')];
+        foreach (['customContent', 'platformSpecificData'] as $k) if (!empty($pl[$k])) $item[$k] = $pl[$k];
+        $pls[] = $item;
+    }
+    return $pls;
+}
+function ps_media(array $p): array
+{
+    return array_map(function ($m) { return array_intersect_key($m, array_flip(['type', 'url', 'altText', 'thumbnail'])); }, (array)($p['mediaItems'] ?? []));
+}
+/** ميعاد جديد لمنشور مجدول/مسودة (بنبعت المنشور كامل زي صفحة التعديل) */
+function ps_reschedule(Zernio $z, string $id, DateTime $dt): void
+{
+    $p = pub_get_post($z, $id);
+    if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص، مينفعش تغير ميعاده.'));
+    $payload = ['content' => (string)($p['content'] ?? ''), 'platforms' => ps_platforms($p), 'timezone' => site_timezone(), 'scheduledFor' => $dt->format('Y-m-d\TH:i:s')];
+    if ($m = ps_media($p)) $payload['mediaItems'] = $m;
+    pub_update_post($z, $id, $payload);
+}
+function ps_duplicate(Zernio $z, string $id): string
+{
+    $p = pub_get_post($z, $id);
+    $copy = ['content' => (string)($p['content'] ?? ''), 'isDraft' => true, 'timezone' => site_timezone()];
+    if ($m = ps_media($p)) $copy['mediaItems'] = $m;
+    if ($pl = ps_platforms($p)) $copy['platforms'] = $pl;
+    $r = $z->createPost($copy);
+    return (string)($r['post']['_id'] ?? '');
+}
+
+// إجراءات سريعة من الصفحة (JSON): ميعاد جديد، إعادة محاولة، نسخة، تأجيل جماعي
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
+    header('Content-Type: application/json; charset=utf-8');
+    $op = (string)($_POST['op'] ?? '');
+    $need = in_array($op, ['dup'], true) ? 'posts.create' : 'posts.manage';
+    if (!can($need)) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
+    $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 50);
+    $tz = new DateTimeZone(site_timezone());
+    $ok = []; $fail = [];
+    @set_time_limit(30 + 3 * count($ids));
+    foreach ($ids as $id) {
+        try {
+            if ($op === 'resched') {
+                $dt = DateTime::createFromFormat('Y-m-d\TH:i', (string)($_POST['when'] ?? ''), $tz);
+                if (!$dt || $dt < new DateTime('now', $tz)) throw new ZernioException(t('وقت النشر لازم يكون في المستقبل.'));
+                ps_reschedule($z, $id, $dt); log_activity('post.reschedule', $id);
+            } elseif ($op === 'shift') {
+                $n = max(-365, min(365, (int)($_POST['n'] ?? 1))); $u = ($_POST['unit'] ?? 'd') === 'h' ? 'hour' : 'day';
+                $p = pub_get_post($z, $id);
+                if (empty($p['scheduledFor'])) throw new ZernioException(t('المنشور ده مش مجدول.'));
+                $dt = new DateTime((string)$p['scheduledFor']); $dt->setTimezone($tz); $dt->modify(($n >= 0 ? '+' : '') . $n . ' ' . $u);
+                if ($dt < new DateTime('now', $tz)) throw new ZernioException(t('الميعاد الجديد هيبقى فات.'));
+                ps_reschedule($z, $id, $dt); log_activity('post.shift', $id . ' ' . $n . $u);
+            } elseif ($op === 'retry') {
+                pub_retry_post($z, $id); log_activity('post.retry', $id);
+            } elseif ($op === 'dup') {
+                ps_duplicate($z, $id); log_activity('post.duplicate', $id);
+            } else {
+                throw new ZernioException('bad op');
+            }
+            $ok[] = $id;
+        } catch (ZernioException $ex) { $fail[$id] = $ex->getMessage(); }
+    }
+    exit(json_encode(['ok' => $ok, 'failed' => $fail], JSON_UNESCAPED_UNICODE));
+}
 
 // حذف من غير تحميل الصفحة (JSON)، أو بالطريقة العادية لو الجافاسكربت مش شغال
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && in_array($_POST['action'] ?? '', ['delete', 'delete_json'], true)) {
@@ -78,6 +150,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     $stCls = ['scheduled' => 'bg-brand-50 text-brand-700', 'published' => 'bg-lime-100 text-lime-700', 'draft' => 'bg-ink-100 text-ink-600', 'failed' => 'bg-red-100 text-red-700', 'partial' => 'bg-amber-100 text-amber-800', 'publishing' => 'bg-cyan-100 text-cyan-700', 'pending_approval' => 'bg-amber-100 text-amber-800', 'cancelled' => 'bg-ink-100 text-ink-500'];
     $plats = []; foreach ($posts as $p) foreach ($p['platforms'] ?? [] as $pl) { $k = (string)($pl['platform'] ?? ''); if ($k !== '') $plats[$k] = ($plats[$k] ?? 0) + 1; }
     $data = [];
+    $pdata = [];
     ?>
     <?php if ($counts): $tiles = [
         'scheduled' => [t('مجدول'), 'border-brand-200 bg-brand-50/50', 'text-brand-700', '🗓'],
@@ -147,8 +220,19 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     <?php else: ?>
 
     <?php if ($view === 'list'): ?>
-      <div id="ps-bar" class="hidden sticky top-20 z-20 mb-3 flex items-center gap-3 rounded-2xl border border-brand-200 bg-white/95 backdrop-blur shadow-lg px-4 py-2.5">
+      <div id="ps-bar" class="hidden sticky top-20 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-200 bg-white/95 backdrop-blur shadow-lg px-4 py-2.5">
         <b class="text-sm text-ink-900" id="ps-n">0</b><span class="text-xs text-ink-500"><?= e(t('محدد')) ?></span>
+        <label class="text-xs text-ink-600 flex items-center gap-1 cursor-pointer"><input type="checkbox" id="ps-all"> <?= e(t('الكل')) ?></label>
+        <?php if (can('posts.manage')): ?>
+          <span class="h-5 w-px bg-ink-200"></span>
+          <span class="text-xs text-ink-500"><?= e(t('أجّل')) ?></span>
+          <input type="number" id="ps-sh-n" value="1" min="-365" max="365" class="input !mt-0 !h-8 !py-0 text-xs !w-16">
+          <select id="ps-sh-u" class="input !mt-0 !h-8 !py-0 text-xs !w-auto"><option value="d"><?= e(t('يوم')) ?></option><option value="h"><?= e(t('ساعة')) ?></option></select>
+          <button type="button" id="ps-shift" class="btn-ghost !py-1.5 !text-xs"><?= e(t('طبّق')) ?></button>
+          <span class="h-5 w-px bg-ink-200"></span>
+          <button type="button" id="ps-bretry" class="btn-ghost !py-1.5 !text-xs">↻ <?= e(t('أعد محاولة الفاشل')) ?></button>
+        <?php endif; ?>
+        <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs">⧉ <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
         <button type="button" id="ps-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
       </div>
@@ -170,8 +254,15 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             foreach ($pls as $pl) { $aid = is_array($pl['accountId'] ?? null) ? ($pl['accountId']['_id'] ?? '') : ($pl['accountId'] ?? ''); $accIds[] = $aid; if (($pl['status'] ?? '') === 'failed' && !empty($pl['errorMessage'])) $errs[] = platform_label($pl['platform'] ?? '') . ': ' . $pl['errorMessage']; }
             $pf = implode(' ', array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $pls)));
             ?>
+          <?php
+            $plv = [];
+            foreach ($pls as $pl) $plv[] = ['pf' => (string)($pl['platform'] ?? ''), 'st' => (string)($pl['status'] ?? ''), 'url' => (string)($pl['platformPostUrl'] ?? ''), 'err' => (string)($pl['errorMessage'] ?? ''),
+                'acc' => $accounts[pub_acc_id($pl['accountId'] ?? '')]['name'] ?? ''];
+            $pdata[$p['_id']] = ['txt' => (string)($p['content'] ?? ''), 'st' => $st, 'stl' => $label, 'at' => (string)$when, 'sched' => (string)($p['scheduledFor'] ?? ''),
+                'media' => array_values(array_filter(array_map(function ($m) { return ['t' => (string)($m['type'] ?? ''), 'u' => (string)($m['url'] ?? '')]; }, (array)($p['mediaItems'] ?? [])), function ($m) { return $m['u'] !== ''; })),
+                'pl' => $plv, 'dup' => url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])];
+          ?>
           <article class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
-            <label class="absolute top-3 start-3 z-10 cursor-pointer"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-0 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition shadow" aria-label="<?= e(t('تحديد')) ?>"></label>
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
                 <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center">▶</span></span>
@@ -182,6 +273,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             <?php endif; ?>
             <div class="p-4 flex-1 flex flex-col">
               <div class="flex items-center gap-2">
+                <label class="shrink-0 cursor-pointer flex"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-40 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e(t('تحديد')) ?>"></label>
                 <span class="rounded-md px-1.5 py-0.5 text-[10px] font-medium <?= $stCls[$st] ?? 'bg-ink-100 text-ink-600' ?>"><?= e($label) ?></span>
                 <span class="ps-when text-[11px] text-ink-500 tabular-nums" data-at="<?= e((string)$when) ?>" data-st="<?= e($st) ?>" title="<?= e(fmt_date($when)) ?>"><?= e(fmt_date($when)) ?></span>
                 <div class="ms-auto flex -space-x-1 rtl:space-x-reverse">
@@ -191,10 +283,11 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                   <?php endforeach; ?>
                 </div>
               </div>
-              <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="mt-2.5 block flex-1"><p class="ps-txt text-sm text-ink-800 whitespace-pre-line line-clamp-4" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 600)) : '<span class="text-ink-400 italic">' . e(t('(بدون نص)')) . '</span>' ?></p></a>
+              <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" data-open="<?= e($p['_id']) ?>" class="ps-open mt-2.5 block flex-1"><p class="ps-txt text-sm text-ink-800 whitespace-pre-line line-clamp-4" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 600)) : '<span class="text-ink-400 italic">' . e(t('(بدون نص)')) . '</span>' ?></p></a>
               <?php if ($errs): ?><details class="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2"><summary class="cursor-pointer text-[11px] font-medium text-red-700"><?= e(t('سبب الفشل')) ?></summary><?php foreach ($errs as $er): ?><p class="text-[11px] text-red-700 mt-1 break-words"><?= e(mb_substr($er, 0, 300)) ?></p><?php endforeach; ?></details><?php endif; ?>
               <div class="flex items-center gap-1 mt-3 pt-3 border-t border-ink-100 text-xs">
                 <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 font-medium">✎ <?= e(t('تعديل')) ?></a>
+                <?php if (in_array($st, ['failed', 'partial'], true) && can('posts.manage')): ?><button type="button" class="ps-retry rounded-lg px-2 py-1 text-red-700 bg-red-50 hover:bg-red-100 font-medium">↻ <?= e(t('أعد المحاولة')) ?></button><?php endif; ?>
                 <?php foreach ($pls as $pl) { $bu = ($pl['status'] ?? '') === 'published' ? ads_boost_url((string)($pl['platform'] ?? ''), (string)(is_array($pl['accountId'] ?? null) ? ($pl['accountId']['_id'] ?? '') : ($pl['accountId'] ?? '')), (string)($pl['platformPostId'] ?? '')) : null; if ($bu) { ?><a href="<?= e($bu) ?>" class="rounded-lg px-2 py-1 text-amber-800 hover:bg-amber-50 font-medium" title="<?= e(t('روّجه كإعلان على %s', platform_label((string)$pl['platform']))) ?>">⚡ <?= e(t('روّج')) ?></a><?php break; } } ?>
                 <a href="<?= e(url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])) ?>" class="w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('منشور جديد بنفس النص والحسابات')) ?>" aria-label="<?= e(t('تكرار')) ?>">⧉</a>
                 <button type="button" class="ps-copy w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('نسخ النص')) ?>" aria-label="<?= e(t('نسخ النص')) ?>">📋</button>
@@ -205,6 +298,19 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <?php endforeach; ?>
       </div>
       <div id="ps-empty" class="hidden card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش نتائج.')) ?></div>
+      <div id="ps-dr" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
+        <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+        <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[480px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ps-dr-h">
+          <div class="flex items-center gap-2 p-4 border-b border-ink-100">
+            <h3 id="ps-dr-h" class="font-semibold text-ink-900 flex-1"><?= e(t('تفاصيل المنشور')) ?></h3>
+            <button type="button" id="ps-dr-prev" class="btn-ghost !px-2 !py-1 text-xs" aria-label="prev"><?= is_rtl() ? '→' : '←' ?></button>
+            <button type="button" id="ps-dr-next" class="btn-ghost !px-2 !py-1 text-xs" aria-label="next"><?= is_rtl() ? '←' : '→' ?></button>
+            <button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
+          </div>
+          <div id="ps-dr-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+          <div id="ps-dr-acts" class="p-3 border-t border-ink-100 flex flex-wrap items-center gap-2"></div>
+        </div>
+      </div>
       <?php if ($pages > 1): ?>
         <div class="flex items-center justify-center gap-1 mt-6">
           <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo - 1]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
@@ -237,7 +343,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     <?php endif; ?>
     <?php endif; ?>
     <script>window.PSX = <?= json_encode(['view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
-      'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'),
+      'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
+      'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
+      'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'),
+        'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
+        'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
+        'st' => ['published' => t('اتنشر'), 'failed' => t('فشل'), 'scheduled' => t('مجدول'), 'pending' => t('مستني'), 'publishing' => t('بيتنشر')]],
       'past' => t('من %s'), 'future' => t('بعد %s'), 'min' => t('%s دقيقة'), 'hr' => t('%s ساعة'), 'day' => t('%s يوم'), 'now' => t('دلوقتي'),
       'del' => t('متأكد إنك عاوز تحذف المنشور ده؟'), 'delN' => t('حذف %s منشور؟ مش هتقدر ترجعهم.'), 'deleted' => t('تم حذف المنشور.'), 'copied' => t('اتنسخ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
       'more' => t('+%s كمان'), 'newHere' => t('منشور جديد في اليوم ده'), 'keysTitle' => t('اختصارات الكيبورد'),

@@ -237,7 +237,7 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
       </aside>
     </div>
 
-    <div id="crm-drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div id="crm-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[440px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="crm-d-title">
         <div class="flex items-center gap-3 p-4 border-b border-ink-100">

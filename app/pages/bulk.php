@@ -462,7 +462,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           </section>
         </form>
 
-        <div id="bk-ai" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+        <div id="bk-ai" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-ai-h">
             <h3 id="bk-ai-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب المنشورات بالذكاء الاصطناعي')) ?></h3>
@@ -485,7 +485,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           </div>
         </div>
 
-        <div id="bk-lib" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+        <div id="bk-lib" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="absolute inset-2 sm:inset-6 lg:inset-x-16 lg:inset-y-8 card flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="bk-lib-h">
             <div class="flex flex-wrap items-center gap-2 p-3 border-b border-ink-100">
@@ -521,7 +521,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           </div>
         </div>
 
-        <div id="bk-cap" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+        <div id="bk-cap" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-cap-h">
             <h3 id="bk-cap-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
@@ -539,7 +539,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           </div>
         </div>
 
-        <div id="bk-pv" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+        <div id="bk-pv" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-label="<?= e(t('معاينة')) ?>">
             <div id="bk-pv-body"></div>
