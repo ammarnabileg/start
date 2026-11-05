@@ -17,11 +17,25 @@ if (isset($_GET['file'])) {
     readfile($p); exit;
 }
 
+// ---- تحميل أكتر من ملف كـ ZIP
+if (isset($_GET['zip'])) {
+    $ids = array_slice(array_filter(array_map('intval', explode(',', (string)$_GET['zip']))), 0, 300);
+    if (!$ids || !class_exists('ZipArchive')) { http_response_code(400); exit; }
+    $tmp = tempnam(sys_get_temp_dir(), 'mz'); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
+    foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
+        $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($n)] = 1;
+        $z->addFile($p, ($r['folder'] !== '' ? $r['folder'] . '/' : '') . $n); }
+    $z->close();
+    header('Content-Type: application/zip'); header('Content-Length: ' . filesize($tmp)); header('Content-Disposition: attachment; filename="media-' . date('Y-m-d') . '.zip"');
+    readfile($tmp); @unlink($tmp); exit;
+}
+
 // ---- JSON
 $json = function ($a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 if (($_GET['ajax'] ?? '') === 'list') {
     try { media_sync_ai($wid); } catch (Throwable $e) {}
-    $json(['ok' => true, 'items' => media_list($wid, ['folder' => (string)($_GET['folder'] ?? '*'), 'kind' => (string)($_GET['kind'] ?? ''), 'q' => mb_substr(trim((string)($_GET['q'] ?? '')), 0, 100)]),
+    try { media_purge_old($wid); } catch (Throwable $e) {}
+    $json(['ok' => true, 'trash' => media_list($wid, ['trash' => true]), 'items' => media_list($wid, ['folder' => (string)($_GET['folder'] ?? '*'), 'kind' => (string)($_GET['kind'] ?? ''), 'q' => mb_substr(trim((string)($_GET['q'] ?? '')), 0, 100)]),
         'folders' => media_folders($wid), 'usage' => media_usage($wid), 'max' => media_max_bytes()]);
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -51,7 +65,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'rename') { $n = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255); if ($n === '') $json(['ok' => false]); db()->prepare('UPDATE media_files SET name = ? WHERE workspace_id = ? AND id = ?')->execute([$n, $wid, $id]); $json(['ok' => true]); }
     if ($act === 'tags') { db()->prepare('UPDATE media_files SET tags = ? WHERE workspace_id = ? AND id = ?')->execute([mb_substr(trim((string)($_POST['tags'] ?? '')), 0, 500), $wid, $id]); $json(['ok' => true]); }
     if ($act === 'move') { $f = $fclean($_POST['folder'] ?? ''); foreach ($ids as $x) db()->prepare('UPDATE media_files SET folder = ? WHERE workspace_id = ? AND id = ?')->execute([$f, $wid, $x]); $json(['ok' => true]); }
-    if ($act === 'delete') { foreach ($ids as $x) media_delete($wid, $x); log_activity('media.delete', (string)count($ids)); $json(['ok' => true]); }
+    if ($act === 'delete') { media_trash($wid, $ids); log_activity('media.trash', (string)count($ids)); $json(['ok' => true]); }
+    if ($act === 'restore') { media_restore($wid, $ids); $json(['ok' => true]); }
+    if ($act === 'purge') { foreach ($ids as $x) { $r = media_get($wid, $x); if ($r && $r['deleted_at']) media_delete($wid, $x); } log_activity('media.delete', (string)count($ids)); $json(['ok' => true]); }
+    if ($act === 'empty_trash') { foreach (media_list($wid, ['trash' => true]) as $r) media_delete($wid, $r['id']); $json(['ok' => true]); }
+    if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ?')->execute([$on, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'folder_rename') { // بيغيّر الفولدر وكل اللي جواه
         $old = $fclean($_POST['from'] ?? ''); $new = $fclean($_POST['to'] ?? ''); if ($old === '' || $new === '') $json(['ok' => false]);
         db()->prepare("UPDATE media_files SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, $old . '/%']);

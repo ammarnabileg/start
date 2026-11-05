@@ -33,12 +33,13 @@ function media_row(array $r): array
 {
     return ['id' => (int)$r['id'], 'folder' => (string)$r['folder'], 'name' => (string)$r['name'], 'mime' => (string)$r['mime'], 'kind' => media_kind((string)$r['mime']),
         'size' => (int)$r['size'], 'w' => $r['width'] !== null ? (int)$r['width'] : null, 'h' => $r['height'] !== null ? (int)$r['height'] : null,
-        'url' => url('media', ['file' => $r['id']]), 'thumb' => url('media', ['file' => $r['id'], 'thumb' => 1]), 'public' => $r['public_url'] ?: null, 'tags' => (string)($r['tags'] ?? ''), 'at' => (string)$r['created_at']];
+        'url' => url('media', ['file' => $r['id']]), 'thumb' => url('media', ['file' => $r['id'], 'thumb' => 1]), 'public' => $r['public_url'] ?: null, 'tags' => (string)($r['tags'] ?? ''), 'at' => (string)$r['created_at'],
+        'star' => !empty($r['starred']), 'del' => !empty($r['deleted_at']) ? (string)$r['deleted_at'] : null];
 }
 
 function media_list(int $wid, array $f = []): array
 {
-    $w = ['workspace_id = ?']; $a = [$wid];
+    $w = ['workspace_id = ?', !empty($f['trash']) ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
     if (isset($f['folder']) && $f['folder'] !== '*') { $w[] = 'folder = ?'; $a[] = (string)$f['folder']; }
     if (!empty($f['kind'])) { $m = ['image' => 'image/%', 'video' => 'video/%', 'audio' => 'audio/%'][$f['kind']] ?? null; if ($m) { $w[] = 'mime LIKE ?'; $a[] = $m; } elseif ($f['kind'] === 'doc') { $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%' AND mime NOT LIKE 'audio/%'"; } }
     if (!empty($f['q'])) { $w[] = '(name LIKE ? OR tags LIKE ?)'; $a[] = '%' . $f['q'] . '%'; $a[] = '%' . $f['q'] . '%'; }
@@ -49,7 +50,7 @@ function media_list(int $wid, array $f = []): array
 
 function media_folders(int $wid): array
 {
-    $st = db()->prepare("SELECT folder, COUNT(*) n FROM media_files WHERE workspace_id = ? GROUP BY folder ORDER BY folder");
+    $st = db()->prepare("SELECT folder, COUNT(*) n FROM media_files WHERE workspace_id = ? AND deleted_at IS NULL GROUP BY folder ORDER BY folder");
     $st->execute([$wid]);
     $out = []; foreach ($st->fetchAll() as $r) $out[(string)$r['folder']] = (int)$r['n'];
     foreach ((array)json_decode((string)setting('media_folders_' . $wid, '[]'), true) as $f) if (!isset($out[$f])) $out[$f] = 0; // فولدرات فاضية
@@ -89,7 +90,7 @@ function media_store_path(int $wid, string $src, string $name, string $mime, str
     $dir = media_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
     // نفس الملف اترفع قبل كده؟ نرجّع القديم بدل نسخة مكررة
     $hash = @sha1_file($src);
-    if ($hash) { $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND sha1 = ? LIMIT 1'); $st->execute([$wid, $hash]); if ($old = $st->fetch()) { if ($uploaded) @unlink($src); return media_row($old) + ['dup' => true]; } }
+    if ($hash) { $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND sha1 = ? LIMIT 1'); $st->execute([$wid, $hash]); if ($old = $st->fetch()) { if ($uploaded) @unlink($src); if (!empty($old['deleted_at'])) { db()->prepare('UPDATE media_files SET deleted_at = NULL, folder = ? WHERE id = ?')->execute([mb_substr(trim($folder), 0, 120), $old['id']]); $old = media_get($wid, (int)$old['id']); } return media_row($old) + ['dup' => true]; } }
     $ext = media_types()[$mime] ?? 'bin';
     $fn = date('Ymd') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
     $dest = $dir . '/' . $fn;
@@ -147,6 +148,15 @@ function media_public_url(Zernio $z, int $wid, int $id): string
     $u = $z->uploadFile(media_file_path($wid, $r), (string)$r['name'], (string)$r['mime']);
     db()->prepare('UPDATE media_files SET public_url = ? WHERE id = ?')->execute([$u, $id]);
     return $u;
+}
+
+/** حذف مؤقت (للسلة) — بيترجع بـ media_restore، وبيتمسح نهائي بعد 30 يوم */
+function media_trash(int $wid, array $ids): void { foreach ($ids as $id) db()->prepare('UPDATE media_files SET deleted_at = NOW() WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)$id]); }
+function media_restore(int $wid, array $ids): void { foreach ($ids as $id) db()->prepare('UPDATE media_files SET deleted_at = NULL WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)$id]); }
+function media_purge_old(int $wid): void
+{
+    $st = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < (NOW() - INTERVAL 30 DAY) LIMIT 100'); $st->execute([$wid]);
+    foreach ($st->fetchAll() as $r) media_delete($wid, (int)$r['id']);
 }
 
 function media_delete(int $wid, int $id): void

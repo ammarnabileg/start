@@ -401,4 +401,7 @@ return [
     '018_media_hash' => [
         "ALTER TABLE media_files ADD COLUMN sha1 CHAR(40) NULL, ADD INDEX ws_sha (workspace_id, sha1)",
     ],
+    '019_media_trash_star' => [
+        "ALTER TABLE media_files ADD COLUMN deleted_at DATETIME NULL, ADD COLUMN starred TINYINT(1) NOT NULL DEFAULT 0, ADD INDEX ws_deleted (workspace_id, deleted_at)",
+    ],
 ];
