@@ -45,24 +45,37 @@ render(t('الإعدادات العامة'), 'settings', function () use ($w, $z
           <?php if (!ws_country_set()): ?><span class="shrink-0 rounded-full bg-amber-100 text-amber-800 text-[11px] px-2 py-0.5"><?= e(t('لم تُحدد بعد')) ?></span><?php endif; ?>
         </div>
         <input type="hidden" name="country" value="<?= e(ws_country_set() ? $cur_c : '') ?>">
-        <input type="search" id="cty-q" class="input !mt-0 text-sm" placeholder="<?= e(t('ابحث عن دولة...')) ?>" autocomplete="off">
-        <div id="cty-list" class="max-h-72 overflow-y-auto rounded-2xl border border-ink-200 p-2 space-y-3">
-          <?php foreach (country_regions() as $rk => $rl): ?>
-            <div class="cty-grp"><div class="px-1 pb-1.5 text-[11px] font-semibold text-ink-400"><?= e($rl) ?></div>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                <?php foreach ($cs as $code => $c): if ($c['region'] !== $rk) continue; ?>
-                  <button type="button" data-cc="<?= $code ?>" data-q="<?= e(mb_strtolower($c['ar'] . ' ' . $c['en'] . ' ' . $code)) ?>" class="cty flex items-center gap-2 rounded-xl border px-2.5 py-2 text-sm text-start transition <?= $code === $cur_c ? 'border-brand-500 bg-brand-50 text-brand-800 font-medium ring-2 ring-brand-500/20' : 'border-ink-200 hover:border-brand-300 hover:bg-ink-50' ?>">
-                    <span class="text-lg leading-none"><?= $c['flag'] ?></span><span class="flex-1 truncate"><?= e(lang() === 'ar' ? $c['ar'] : $c['en']) ?></span><span class="text-[10px] text-ink-400" dir="ltr"><?= e($c['cur']) ?></span>
-                  </button>
-                <?php endforeach; ?>
-              </div></div>
-          <?php endforeach; ?>
+        <?php $curRow = $cs[$cur_c] ?? null; $nm = function ($c) { return lang() === 'ar' ? $c['ar'] : $c['en']; }; ?>
+        <div class="relative" id="cty-dd">
+          <button type="button" id="cty-btn" class="input !mt-0 flex items-center gap-3 text-start" aria-haspopup="listbox" aria-expanded="false">
+            <span id="cty-bflag" class="text-xl leading-none"><?= $curRow && ws_country_set() ? $curRow['flag'] : '🌐' ?></span>
+            <span id="cty-bname" class="flex-1 truncate font-medium text-ink-900"><?= e($curRow && ws_country_set() ? $nm($curRow) : t('اختار الدولة')) ?></span>
+            <span id="cty-bcur" class="text-xs text-ink-400" dir="ltr"><?= e($curRow && ws_country_set() ? $curRow['cur'] : '') ?></span>
+            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div id="cty-pop" class="absolute inset-x-0 top-full mt-2 z-40 rounded-2xl border border-ink-200 bg-white shadow-xl p-2" style="display:none">
+            <input type="search" id="cty-q" class="input !mt-0 mb-2 text-sm" placeholder="<?= e(t('ابحث عن دولة بالعربي أو الإنجليزي أو الكود…')) ?>" autocomplete="off">
+            <div id="cty-list" class="max-h-80 overflow-y-auto" role="listbox">
+              <?php foreach (country_regions() as $rk => $rl): $any = false; foreach ($cs as $c) if ($c['region'] === $rk) { $any = true; break; } if (!$any) continue; ?>
+                <div class="cty-grp"><div class="sticky top-0 bg-white/95 backdrop-blur px-2 py-1.5 text-[11px] font-semibold text-ink-400"><?= e($rl) ?></div>
+                  <?php $grp = array_filter($cs, function ($c) use ($rk) { return $c['region'] === $rk; }); uasort($grp, function ($a, $b) use ($nm) { return strcmp($nm($a), $nm($b)); });
+                  foreach ($grp as $code => $c): ?>
+                    <button type="button" role="option" data-cc="<?= $code ?>" data-q="<?= e(mb_strtolower($c['ar'] . ' ' . $c['en'] . ' ' . $code . ' ' . $c['cur'] . ' ' . $c['dial'])) ?>" class="cty w-full flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-start hover:bg-ink-50 <?= $code === $cur_c && ws_country_set() ? 'bg-brand-50 text-brand-800 font-medium' : 'text-ink-800' ?>">
+                      <span class="text-lg leading-none"><?= $c['flag'] ?></span><span class="flex-1 truncate"><?= e($nm($c)) ?></span>
+                      <span class="text-[10px] text-ink-400" dir="ltr"><?= e($c['dial']) ?> · <?= e($c['cur']) ?></span>
+                    </button>
+                  <?php endforeach; ?>
+                </div>
+              <?php endforeach; ?>
+              <p id="cty-none" class="p-4 text-center text-sm text-ink-500" style="display:none"><?= e(t('مفيش دولة بالاسم ده.')) ?></p>
+            </div>
+          </div>
         </div>
         <div id="cty-prev" class="rounded-2xl bg-gradient-to-br from-brand-50 to-cyan-50 border border-brand-100 p-4 text-sm"></div>
       </div>
       <script>
       (function () {
-        var C = <?= json_encode(array_map(function ($c) { return ['name' => lang() === 'ar' ? $c['ar'] : $c['en'], 'flag' => $c['flag'], 'tz' => $c['tz'], 'cur' => $c['cur'] . ' · ' . (lang() === 'ar' ? $c['cur_ar'] : $c['cur_en']), 'phone' => $c['phone'], 'city' => (lang() === 'ar' ? $c['city_ar'] . '، ' . $c['area_ar'] : $c['city_en'] . ', ' . $c['area_en']), 'pay' => lang() === 'ar' ? $c['pay_ar'] : $c['pay_en'], 'wk' => $c['weekend'], 'dia' => lang() === 'ar' ? $c['dialect_ar'] : $c['dialect_en']]; }, $cs), JSON_UNESCAPED_UNICODE) ?>;
+        var C = <?= json_encode(array_map(function ($c) { return ['code' => $c['cur'], 'name' => lang() === 'ar' ? $c['ar'] : $c['en'], 'flag' => $c['flag'], 'tz' => $c['tz'], 'cur' => $c['cur'] . ' · ' . (lang() === 'ar' ? $c['cur_ar'] : $c['cur_en']), 'phone' => $c['area_en'] === '' ? $c['dial'] . ' …' : $c['phone'], 'city' => implode(lang() === 'ar' ? '، ' : ', ', array_filter(lang() === 'ar' ? [$c['city_ar'], $c['area_ar']] : [$c['city_en'], $c['area_en']])), 'pay' => lang() === 'ar' ? $c['pay_ar'] : $c['pay_en'], 'wk' => $c['weekend'], 'dia' => lang() === 'ar' ? $c['dialect_ar'] : $c['dialect_en']]; }, $cs), JSON_UNESCAPED_UNICODE) ?>;
         var L = <?= json_encode(['cur' => t('العملة'), 'phone' => t('صيغة الأرقام'), 'city' => t('مثال للمدينة'), 'pay' => t('طرق الدفع الشائعة'), 'wk' => t('الإجازة الأسبوعية'), 'dia' => t('اللهجة المحلية'), 'tz' => t('المنطقة الزمنية'), 'title' => t('كده هتبان الأمثلة'), 'days' => ['sat' => t('السبت'), 'sun' => t('الأحد'), 'mon' => t('الاثنين'), 'tue' => t('الثلاثاء'), 'wed' => t('الأربعاء'), 'thu' => t('الخميس'), 'fri' => t('الجمعة')]], JSON_UNESCAPED_UNICODE) ?>;
         var box = document.getElementById('cty'), hid = box.querySelector('[name=country]'), prev = document.getElementById('cty-prev');
         var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -73,18 +86,40 @@ render(t('الإعدادات العامة'), 'settings', function () use ($w, $z
             + row('cur', c.cur) + row('phone', c.phone, true) + row('city', c.city) + row('pay', c.pay) + row('wk', c.wk.map(function (d) { return L.days[d]; }).join(' + ')) + row('dia', c.dia) + row('tz', c.tz, true);
           prev.classList.remove('kb-in'); void prev.offsetWidth; prev.style.animation = 'none'; prev.offsetHeight; prev.style.animation = '';
         }
-        box.addEventListener('click', function (e) {
-          var b = e.target.closest('.cty'); if (!b) return; var cc = b.dataset.cc; hid.value = cc;
-          box.querySelectorAll('.cty').forEach(function (x) { var on = x === b; x.className = x.className.replace(/border-brand-500 bg-brand-50 text-brand-800 font-medium ring-2 ring-brand-500\/20|border-ink-200 hover:border-brand-300 hover:bg-ink-50/, on ? 'border-brand-500 bg-brand-50 text-brand-800 font-medium ring-2 ring-brand-500/20' : 'border-ink-200 hover:border-brand-300 hover:bg-ink-50'); });
+        var pop = document.getElementById('cty-pop'), btn = document.getElementById('cty-btn'), q = document.getElementById('cty-q'), act = -1;
+        var vis = function () { return [].filter.call(box.querySelectorAll('.cty'), function (b) { return b.style.display !== 'none'; }); };
+        function openDD(on) {
+          pop.style.display = on ? '' : 'none'; btn.setAttribute('aria-expanded', on);
+          if (on) { q.value = ''; filt(); q.focus(); var cur = box.querySelector('.cty[data-cc="' + hid.value + '"]'); if (cur) cur.scrollIntoView({ block: 'center' }); }
+        }
+        function hi(i) { var v = vis(); act = Math.max(0, Math.min(i, v.length - 1)); v.forEach(function (b, k) { b.classList.toggle('ring-2', k === act); b.classList.toggle('ring-brand-300', k === act); }); if (v[act]) v[act].scrollIntoView({ block: 'nearest' }); }
+        function pick(b) {
+          var cc = b.dataset.cc, c = C[cc]; hid.value = cc;
+          box.querySelectorAll('.cty').forEach(function (x) { var on = x === b; x.classList.toggle('bg-brand-50', on); x.classList.toggle('text-brand-800', on); x.classList.toggle('font-medium', on); });
+          document.getElementById('cty-bflag').textContent = c.flag; document.getElementById('cty-bname').textContent = c.name; document.getElementById('cty-bcur').textContent = c.code;
           var tz = document.querySelector('select[name=timezone]');
-          if (tz && C[cc].tz) { if (![].some.call(tz.options, function (o) { return o.value === C[cc].tz; })) tz.add(new Option(C[cc].tz, C[cc].tz)); tz.value = C[cc].tz; tz.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { tz.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200); }
-          show(cc);
+          if (tz && c.tz) { if (![].some.call(tz.options, function (o) { return o.value === c.tz; })) tz.add(new Option(c.tz, c.tz)); tz.value = c.tz; tz.dispatchEvent(new Event('change', { bubbles: true })); tz.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { tz.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200); }
+          show(cc); openDD(false); btn.focus();
+          hid.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        function filt() {
+          var s = q.value.trim().toLowerCase(), n = 0; act = -1;
+          box.querySelectorAll('.cty').forEach(function (b) { var ok = !s || b.dataset.q.indexOf(s) > -1; b.style.display = ok ? '' : 'none'; b.classList.remove('ring-2', 'ring-brand-300'); if (ok) n++; });
+          box.querySelectorAll('.cty-grp').forEach(function (g) { g.style.display = [].some.call(g.querySelectorAll('.cty'), function (b) { return b.style.display !== 'none'; }) ? '' : 'none'; });
+          document.getElementById('cty-none').style.display = n ? 'none' : '';
+          if (s && n) hi(0);
+        }
+        btn.addEventListener('click', function (e) { e.stopPropagation(); openDD(pop.style.display === 'none'); });
+        box.addEventListener('click', function (e) { var b = e.target.closest('.cty'); if (b) pick(b); });
+        q.addEventListener('input', filt);
+        q.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowDown') { e.preventDefault(); hi(act + 1); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); hi(act - 1); }
+          else if (e.key === 'Enter') { e.preventDefault(); var v = vis()[act < 0 ? 0 : act]; if (v) pick(v); }
+          else if (e.key === 'Escape') { openDD(false); btn.focus(); }
         });
-        document.getElementById('cty-q').addEventListener('input', function () {
-          var q = this.value.trim().toLowerCase();
-          box.querySelectorAll('.cty').forEach(function (b) { b.classList.toggle('hidden', !!q && b.dataset.q.indexOf(q) < 0); });
-          box.querySelectorAll('.cty-grp').forEach(function (g) { g.classList.toggle('hidden', !g.querySelector('.cty:not(.hidden)')); });
-        });
+        btn.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown' || (e.key.length === 1 && /\S/.test(e.key))) { openDD(true); if (e.key.length === 1) { q.value = e.key; filt(); } e.preventDefault(); } });
+        document.addEventListener('click', function (e) { if (!document.getElementById('cty-dd').contains(e.target)) openDD(false); });
         show(hid.value || <?= json_encode($cur_c) ?>);
       })();
       </script>

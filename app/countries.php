@@ -33,14 +33,34 @@ function countries(): array
         'FR' => ['فرنسا', 'France', '🇫🇷', 'other', 'Europe/Paris', 'EUR', 'يورو', 'EUR', '+33612345678', 'باريس', 'Paris', 'لو ماريه', 'Le Marais', 'بطاقات، PayPal', 'Cards, PayPal', ['sat', 'sun'], '', ''],
     ];
     $keys = ['ar', 'en', 'flag', 'region', 'tz', 'cur', 'cur_ar', 'cur_en', 'phone', 'city_ar', 'city_en', 'area_ar', 'area_en', 'pay_ar', 'pay_en', 'weekend', 'dialect_ar', 'dialect_en'];
+    // باقي دول العالم (بيانات أساسية: الاسم، العملة، التوقيت، كود الاتصال). الدول اللي فوق ليها بيانات أدق
+    $world = is_file(__DIR__ . '/countries_world.php') ? (array)require __DIR__ . '/countries_world.php' : [];
+    $arabOther = ['MR', 'SO', 'DJ', 'KM'];
+    $zoneRegion = function (string $tz): string {
+        return ['Europe' => 'europe', 'Asia' => 'asia', 'Africa' => 'africa', 'America' => 'americas', 'Australia' => 'oceania', 'Pacific' => 'oceania', 'Indian' => 'asia', 'Atlantic' => 'europe'][strtok($tz, '/')] ?? 'other';
+    };
     $c = [];
-    foreach ($rows as $code => $r) $c[$code] = array_combine($keys, $r) + ['code' => $code];
+    foreach ($rows as $code => $r) {
+        $x = array_combine($keys, $r) + ['code' => $code];
+        if ($x['region'] === 'other') $x['region'] = $zoneRegion($x['tz']);
+        $c[$code] = $x;
+    }
+    foreach ($world as $code => $r) {
+        if (isset($c[$code]) || count($r) !== count($keys)) continue;
+        $x = array_combine($keys, $r) + ['code' => $code];
+        if (in_array($code, $arabOther, true)) $x['region'] = 'arab';
+        $c[$code] = $x;
+    }
+    $dial = is_file(__DIR__ . '/country_dial.php') ? (array)require __DIR__ . '/country_dial.php' : [];
+    foreach ($c as $code => &$x) $x['dial'] = isset($dial[$code]) ? '+' . $dial[$code] : preg_replace('/^(\+\d{1,3}).*/', '$1', (string)$x['phone']);
+    unset($x);
     return $c;
 }
 
 function country_regions(): array
 {
-    return ['gulf' => t('الخليج والجزيرة العربية'), 'nile' => t('وادي النيل'), 'levant' => t('الشام والعراق'), 'maghreb' => t('المغرب العربي'), 'other' => t('دول أخرى')];
+    return ['gulf' => t('الخليج والجزيرة العربية'), 'nile' => t('وادي النيل'), 'levant' => t('الشام والعراق'), 'maghreb' => t('المغرب العربي'), 'arab' => t('دول عربية أخرى'),
+        'europe' => t('أوروبا'), 'asia' => t('آسيا'), 'africa' => t('أفريقيا'), 'americas' => t('الأمريكتين'), 'oceania' => t('أوقيانوسيا'), 'other' => t('دول أخرى')];
 }
 
 /** دولة الشركة الحالية. لو مش متحددة: من المنطقة الزمنية */
