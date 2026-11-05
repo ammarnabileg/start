@@ -2079,4 +2079,7 @@ Latte - %2$s',
     'اسم القالب؟' => 'Template name?',
     'الرسالة هتتقسم على %s رسايل وكل واحدة بتتحسب.' => 'It will be split into %s messages, each billed.',
     'الرسالة هتتبعت من خطك. نكمل؟' => 'The message will be sent from your SIM. Continue?',
+    'تنبيه: الرقم ده لغى الاشتراك (STOP) قبل كده. هيتبعت عادي من خطك.' => 'Note: this number opted out (STOP) before. It will still be sent from your SIM.',
+    'تنبيه: الرقم ده لغى الاشتراك (STOP). زيرنيو هيرفض الرسالة من أرقام الشركة، ابعتها من رقمك لو عاوز توصله.' => 'Note: this number opted out (STOP). Zernio will reject it from company numbers; send from your own number to reach them.',
+    'الرقم ده لغى الاشتراك قبل كده.' => 'This number opted out before.',
 ];

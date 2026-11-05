@@ -163,7 +163,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $fx, $gate, $apiError, $
               </div>
               <label class="block"><span class="label"><?= e(t('إلى رقم')) ?></span>
                 <input name="to" id="sms-to" required data-phone="mobile" data-phone-req class="input" dir="ltr" value="<?= e($draft['to'] ?? '') ?>"></label>
-              <p id="sms-opt" class="text-xs text-red-600 -mt-2" style="display:none"><?= e(t('الرقم ده لغى الاشتراك (STOP)، والرسالة هتترفض.')) ?></p>
+              <p id="sms-opt" class="text-xs text-amber-700 -mt-2" style="display:none"></p>
               <div>
                 <div class="flex items-center gap-2 mb-1"><span class="label !mb-0 me-auto"><?= e(t('الرسالة')) ?></span><div id="sms-tpl" class="flex flex-wrap gap-1"></div></div>
                 <textarea data-ai="sms_short,improve,translate_en,translate_ar" name="text" id="smsText" required maxlength="1530" rows="4" class="input" dir="auto"><?= e($draft['text'] ?? '') ?></textarea>
@@ -278,7 +278,7 @@ render(t('رسايل SMS'), 'sms', function () use ($z, $fx, $gate, $apiError, $
     <script>window.SMSX = <?= json_encode(['ws' => (int)ws('id'), 'opt' => array_values(array_filter(array_map(function ($o) { return preg_replace('/\D/', '', (string)($o['phoneNumber'] ?? '')); }, $optOuts))), 's' => [
       'count' => t('%s حرف · %s رسالة'), 'uni' => t('فيه حروف عربي أو رموز، فالرسالة الواحدة 70 حرف بس بدل 160.'), 'stop' => t('للإلغاء ابعت STOP'),
       'saved' => t('اتحفظ القالب'), 'tplName' => t('اسم القالب؟'), 'del' => t('امسح'), 'many' => t('الرسالة هتتقسم على %s رسايل وكل واحدة بتتحسب.'),
-      'confirmPaid' => t('الرسالة هتتبعت فعلاً وهتتحسب. نكمل؟'), 'confirmMine' => t('الرسالة هتتبعت من خطك. نكمل؟'),
+      'confirmPaid' => t('الرسالة هتتبعت فعلاً وهتتحسب. نكمل؟'), 'optMine' => t('تنبيه: الرقم ده لغى الاشتراك (STOP) قبل كده. هيتبعت عادي من خطك.'), 'optPaid' => t('تنبيه: الرقم ده لغى الاشتراك (STOP). زيرنيو هيرفض الرسالة من أرقام الشركة، ابعتها من رقمك لو عاوز توصله.'), 'optConfirm' => t('الرقم ده لغى الاشتراك قبل كده.'), 'confirmMine' => t('الرسالة هتتبعت من خطك. نكمل؟'),
     ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ui-sms.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

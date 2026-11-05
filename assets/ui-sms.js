@@ -38,12 +38,14 @@
     prev.textContent = t;
   }
   function kind() { var r = $('input[name=from]:checked', form); return r ? r.dataset.kind : 'paid'; }
-  function paintFrom() { var k = kind(); paid.style.display = k === 'paid' ? '' : 'none'; $('input', paid).required = k === 'paid'; }
-  function checkOpt() { var d = to.value.replace(/\D/g, ''); opt.style.display = d.length > 6 && X.opt.indexOf(d) > -1 ? '' : 'none'; }
+  function paintFrom() { var k = kind(); paid.style.display = k === 'paid' ? '' : 'none'; $('input', paid).required = k === 'paid'; checkOpt(); }
+  function isOpt() { var d = to.value.replace(/\D/g, ''); return d.length > 6 && X.opt.indexOf(d) > -1; }
+  // تنبيه بس، مش منع: من الخط بيتبعت عادي، ومن أرقام الشركة زيرنيو هو اللي بيرفض
+  function checkOpt() { var o = isOpt(); opt.style.display = o ? '' : 'none'; if (o) opt.textContent = kind() === 'mine' ? S.optMine : S.optPaid; }
   ta.addEventListener('input', seg); to.addEventListener('input', checkOpt); to.addEventListener('change', checkOpt);
   $$('input[name=from]', form).forEach(function (r) { r.addEventListener('change', paintFrom); });
   $('#sms-stop').onclick = function () { if (ta.value.indexOf('STOP') < 0) { ta.value = ta.value.replace(/\s+$/, '') + (ta.value.trim() ? '\n' : '') + S.stop; seg(); ta.focus(); } };
-  form.addEventListener('submit', function (e) { if (!confirm(kind() === 'mine' ? S.confirmMine : S.confirmPaid)) e.preventDefault(); });
+  form.addEventListener('submit', function (e) { if (!confirm((isOpt() ? S.optConfirm + '\n' : '') + (kind() === 'mine' ? S.confirmMine : S.confirmPaid))) e.preventDefault(); });
 
   /* قوالب */
   var KEY = 'sms_tpl_' + X.ws, tBox = $('#sms-tpl');
