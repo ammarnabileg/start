@@ -30,7 +30,7 @@ $result = $_SESSION['bulk_result'] ?? null;
 unset($_SESSION['bulk_result']);
 
 render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $result) {
-    if (!$z) { no_api_box(); return; }
+    if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
     $cols = [
         ['post_content', t('نص المنشور.'), true],
         ['platforms', t('المنصات، مفصولة بـ | لو أكتر من واحدة (مثلاً facebook|instagram).'), true],
@@ -48,17 +48,39 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
     ?>
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
-        <form method="post" enctype="multipart/form-data" class="card p-5 space-y-4">
+        <form method="post" enctype="multipart/form-data" class="card p-5 space-y-4" id="bk-form">
           <?= csrf_field() ?>
           <p class="text-sm text-ink-700"><?= e(t('جهّز ملف Excel أو Google Sheets بالأعمدة اللي تحت، احفظه بصيغة CSV، وارفعه هنا. كل سطر = منشور.')) ?></p>
-          <label class="block"><span class="label"><?= e(t('ملف CSV')) ?></span>
-            <input type="file" name="csv" accept=".csv,text/csv" required class="input"></label>
+          <label id="bk-drop" class="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 hover:border-brand-400 p-6 text-center cursor-pointer transition">
+            <span class="w-11 h-11 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xl">⇪</span>
+            <span class="font-medium text-ink-900" id="bk-fn"><?= e(t('اسحب ملف CSV هنا أو دوس عشان تختاره')) ?></span>
+            <span class="text-xs text-ink-500"><?= e(t('هتشوف الملف في جدول قبل ما يتبعت، وتقدر تصلح أي خانة')) ?></span>
+            <input type="file" name="csv" id="bk-file" accept=".csv,text/csv" class="sr-only">
+          </label>
+          <div class="flex items-center gap-2 text-xs text-ink-500"><span class="flex-1 h-px bg-ink-100"></span><?= e(t('أو')) ?><span class="flex-1 h-px bg-ink-100"></span></div>
+          <button type="button" id="bk-new" class="btn-ghost w-full"><?= e(t('اكتب المنشورات هنا في جدول')) ?></button>
+          <div id="bk-grid-wrap" style="display:none">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span id="bk-sum" class="text-sm"></span>
+              <label class="ms-auto text-xs flex items-center gap-1.5"><input type="checkbox" id="bk-only"> <?= e(t('السطور اللي فيها مشكلة بس')) ?></label>
+              <button type="button" id="bk-add" class="btn-ghost !py-1 text-xs"><?= e(t('+ سطر')) ?></button>
+              <button type="button" id="bk-dl" class="btn-ghost !py-1 text-xs"><?= e(t('نزّل CSV')) ?></button>
+            </div>
+            <div class="overflow-auto max-h-[28rem] rounded-xl border border-ink-200" dir="ltr"><table class="w-full text-xs" id="bk-grid"></table></div>
+            <p class="text-[11px] text-ink-500 mt-1"><?= e(t('دوس على أي خانة عشان تعدّلها. التعديلات بتتبعت مع الملف.')) ?></p>
+          </div>
           <div class="space-y-2 text-sm">
             <label class="flex items-start gap-2"><input type="radio" name="mode" value="check" checked class="mt-1"> <span><b><?= e(t('افحص الملف بس')) ?></b> — <?= e(t('مش هيتعمل أي منشور، بس هنقولك فيه أخطاء ولا لأ.')) ?></span></label>
             <label class="flex items-start gap-2"><input type="radio" name="mode" value="create" class="mt-1"> <span><b><?= e(t('اعمل المنشورات فعلاً')) ?></b> — <?= e(t('كل سطر سليم هيتجدول أو يتنشر حسب الملف.')) ?></span></label>
           </div>
-          <button class="btn-primary" onclick="var m=this.form.querySelector('input[name=mode]:checked');return !m||m.value!=='create'||confirm('<?= tjs('هيتعمل منشور لكل سطر سليم في الملف، والمنشورات اللي عليها publish_now هتتنشر فوراً. تكمل؟') ?>')"><?= e(t('ارفع')) ?></button>
+          <button class="btn-primary" id="bk-go" onclick="var m=this.form.querySelector('input[name=mode]:checked');return !m||m.value!=='create'||confirm('<?= tjs('هيتعمل منشور لكل سطر سليم في الملف، والمنشورات اللي عليها publish_now هتتنشر فوراً. تكمل؟') ?>')"><?= e(t('ارفع')) ?></button>
         </form>
+        <script>window.BKX = <?= json_encode(['tz' => site_timezone(), 'platforms' => array_keys(platform_icons()), 's' => [
+          'rows' => t('%s سطر'), 'ok' => t('%s سليم'), 'bad' => t('%s فيه مشكلة'), 'need' => t('عمود ناقص: %s'), 'req' => t('فاضي'), 'date' => t('الميعاد لازم يكون بالشكل 2026-12-01 10:00'),
+          'past' => t('الميعاد ده عدّى'), 'plat' => t('منصة مش معروفة: %s'), 'x' => t('أطول من 280 حرف (X)'), 'url' => t('الرابط لازم يبدأ بـ http'), 'when' => t('محتاج ميعاد أو use_queue أو publish_now أو is_draft'),
+          'max' => t('أكتر من 5000 سطر'), 'pick' => t('اختار ملف أو اكتب سطر واحد على الأقل.'), 'del' => t('شيل'), 'edited' => t('(متعدّل)'),
+        ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        <script src="assets/ui-bulk.js?v=<?= e(APP_VERSION) ?>"></script>
 
         <?php if ($result): $d = $result['data']; ?>
           <div class="card p-5">
