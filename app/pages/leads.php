@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'lead_
         ON DUPLICATE KEY UPDATE stage = VALUES(stage), deal_value = VALUES(deal_value), note = VALUES(note), campaign_id = COALESCE(VALUES(campaign_id), campaign_id), updated_by = VALUES(updated_by)");
     $st->execute([(int)ws('id'), $lid, ($_POST['campaign_id'] ?? '') !== '' ? mb_substr((string)$_POST['campaign_id'], 0, 120) : null, $stage, $val, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 500) ?: null, (int)(current_user()['id'] ?? 0) ?: null]);
     log_activity('leads.stage', $lid . ' ' . $stage);
+    // نفس المرحلة في الـ Leads الموحدة
+    $st = db()->prepare('UPDATE crm_leads SET stage = ?, deal_value = COALESCE(?, deal_value) WHERE workspace_id = ? AND ext_id = ?');
+    $st->execute([crm_stage_from_ad($stage), $val, (int)ws('id'), mb_substr('ad:' . $lid, 0, 64)]);
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -124,6 +127,11 @@ if ($z) {
     }
 }
 
+// أي lead بيظهر هنا بيتضاف للـ Leads الموحدة (من غير طلبات زيادة على Zernio)
+$crmNew = 0;
+if ($leads && module_enabled('crm')) {
+    try { $crmNew = crm_import_ad_leads($leads)[0]; } catch (Throwable $t) { /* قبل التحديث */ }
+}
 // حالات الـ leads المحفوظة عندنا
 $ids = array_values(array_unique(array_filter(array_merge(array_map(function ($l) { return (string)($l['id'] ?? $l['leadId'] ?? ''); }, $leads), array_map(function ($l) { return (string)($l['id'] ?? ''); }, $recent)))));
 if ($ids) {
@@ -147,7 +155,7 @@ foreach ($recent as $l) {
 }
 uasort($attr, function ($x, $y) { return ($y['leads'] ?? 0) <=> ($x['leads'] ?? 0); });
 
-render(t('العملاء المحتملين'), 'leads', function () use ($stages, $meta, $attr, $campMap, $z, $apiError, $formsError, $conns, $current, $adAccounts, $adAcc, $forms, $formId, $leads, $next) {
+render(t('العملاء المحتملين'), 'leads', function () use ($stages, $meta, $attr, $campMap, $z, $apiError, $formsError, $conns, $current, $adAccounts, $adAcc, $forms, $formId, $leads, $next, $crmNew) {
     if (!$z) { no_api_box(); return; }
     $base = ['c' => $current['_id'] ?? null, 'acc' => $adAcc ?: null, 'form' => $formId ?: null];
     $campUrl = function ($cid) use ($campMap) { return url('ad_campaign', ['id' => $cid, 'pf' => $campMap[$cid]['pf'] ?? 'facebook']); };
@@ -155,6 +163,12 @@ render(t('العملاء المحتملين'), 'leads', function () use ($stages
     ?>
     <div class="space-y-5">
       <?php if ($apiError) error_box($apiError); ?>
+      <?php if (module_enabled('crm') && can('crm.view') && $leads): ?>
+        <div class="rounded-xl border border-lime-200 bg-lime-50/60 px-4 py-2.5 text-sm text-ink-700 flex flex-wrap items-center gap-2">
+          <span>🔗 <?= e($crmNew ? t('اتضاف %s Lead جديد من هنا للـ Leads الموحدة.', $crmNew) : t('الـ Leads دي متربطة بالـ Leads الموحدة، والمرحلة بتتحدّث في المكانين.')) ?></span>
+          <a class="link ms-auto" href="<?= e(url('crm_leads')) ?>"><?= e(t('افتح الـ Leads الموحدة')) ?></a>
+        </div>
+      <?php endif; ?>
       <?php if (!$conns && !$apiError): ?>
         <div class="card p-6 text-center">
           <h2 class="font-bold text-ink-900"><?= e(t('مفيش حساب فيسبوك أو لينكدإن مربوط')) ?></h2>

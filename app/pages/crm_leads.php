@@ -18,6 +18,19 @@ $out = function (array $l) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'sync_ads') {
+        $zerr = null;
+        $z = zernio_or_null($zerr);
+        if (!$z && !getenv('UI_FIXTURES')) { flash('error', $zerr ?: t('اربط Zernio الأول.')); redirect(url('crm_leads')); }
+        try {
+            [$n, $m] = crm_sync_ads($z ?? new Zernio('fixture'), 10);
+            log_activity('crm.sync_ads', $n . ' new');
+            flash('success', $n ? t('اتضاف %s Lead جديد من الإعلانات.', $n) : t('مفيش Leads جديدة في الإعلانات.'));
+        } catch (ZernioException $ex) {
+            flash('error', $ex->getMessage());
+        }
+        redirect(url('crm_leads'));
+    }
     if ($action === 'add') {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '' || (trim((string)($_POST['email'] ?? '')) === '' && trim((string)($_POST['phone'] ?? '')) === '')) $json(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل على الأقل.')]);
@@ -33,7 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($stages[$s])) $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
         db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, (int)$l['id']]);
         log_activity('crm.stage', $l['id'] . ' ' . $s);
-        $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id']))]);
+        $nl = crm_lead((int)$l['id']);
+        crm_push_ad_stage($nl);
+        $json(['ok' => true, 'lead' => $out($nl)]);
     }
     if ($action === 'save') {
         $s = isset($stages[$_POST['stage'] ?? '']) ? $_POST['stage'] : $l['stage'];
@@ -53,7 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mb_substr(trim((string)($_POST['note'] ?? '')), 0, 2000) ?: null, $tags ?: null, $owner, $next,
                 mb_substr(trim((string)($_POST['next_note'] ?? '')), 0, 255) ?: null, (int)$l['id']]);
         log_activity('crm.save', (string)$l['id']);
-        $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id']))]);
+        $nl = crm_lead((int)$l['id']);
+        crm_push_ad_stage($nl);
+        $json(['ok' => true, 'lead' => $out($nl)]);
     }
     if ($action === 'delete' && $canManage) {
         db()->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
@@ -83,7 +100,9 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 $leads = array_map($out, $rows);
-render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid) {
+$adsOn = module_enabled('ads') && can('ads.view');
+$lastSync = setting('crm_ads_sync_' . $wid);
+render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid, $adsOn, $lastSync) {
     $now = time();
     $todayEnd = strtotime('tomorrow') - 1;
     $due = count(array_filter($leads, function ($l) use ($todayEnd) { return $l['next_at'] && strtotime($l['next_at']) <= $todayEnd && !in_array($l['stage'], ['won', 'lost'], true); }));
@@ -110,6 +129,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select>
       <label class="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"><?= e(t('متابعات مستحقة بس')) ?></label>
       <input id="ld-q" type="search" class="input w-full sm:w-52 ms-auto" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
+      <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
+        <button class="btn-ghost" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
       <a class="btn-ghost" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
       <button type="button" id="ld-add-btn" class="btn-primary">+ <?= e(t('Lead جديد')) ?></button>
     </div>

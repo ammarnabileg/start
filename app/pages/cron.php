@@ -41,6 +41,17 @@ try {
                 $line .= ' ai_' . $what . '=error';
             }
         }
+        // leads الإعلانات ← الـ Leads الموحدة (قراءة بس، بيقف عند اللي اتسحب قبل كده)
+        try {
+            $n = (int)ai_as_workspace($wid, function () {
+                if (!module_enabled('crm') || !module_enabled('ads')) return 0;
+                $z = zernio_or_null();
+                return $z ? crm_sync_ads($z, 3)[0] : 0;
+            });
+            if ($n) $line .= ' ad_leads+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' ad_leads=error';
+        }
         // حملات الرسائل: دفعة لكل شركة
         try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return camp_tick($wid, 60); });

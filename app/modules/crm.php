@@ -323,3 +323,126 @@ function crm_wa_digits(?string $p): string
 {
     return preg_replace('/\D/', '', (string)$p);
 }
+
+/* ---------- Leads الإعلانات ← الـ Leads الموحدة ---------- */
+
+/** مرحلة lead_meta (صفحة الإعلانات) ⇄ مرحلة الـ CRM */
+function crm_stage_from_ad(string $s): string
+{
+    return ['new' => 'new', 'contacted' => 'contacted', 'qualified' => 'qualified', 'converted' => 'won', 'lost' => 'lost'][$s] ?? 'new';
+}
+
+function crm_stage_to_ad(string $s): string
+{
+    return ['new' => 'new', 'contacted' => 'contacted', 'qualified' => 'qualified', 'proposal' => 'qualified', 'won' => 'converted', 'lost' => 'lost'][$s] ?? 'new';
+}
+
+/** خانات فورم الإعلان → بيانات Lead. أسماء الخانات بتختلف من فورم لفورم فبندور بالكلمات */
+function crm_ad_lead_map(array $l): array
+{
+    $f = [];
+    foreach ((array)($l['fields'] ?? []) as $k => $v) {
+        if (is_array($v)) $v = implode(', ', array_filter(array_map('strval', $v)));
+        $f[mb_strtolower(trim((string)$k))] = trim((string)$v);
+    }
+    $pick = function (array $keys) use ($f) {
+        foreach ($keys as $k) if (($f[$k] ?? '') !== '') return $f[$k];
+        foreach ($f as $k => $v) foreach ($keys as $want) if ($v !== '' && strpos($k, $want) !== false) return $v;
+        return '';
+    };
+    $name = $pick(['full_name', 'name', 'الاسم']);
+    if ($name === '') $name = trim($pick(['first_name']) . ' ' . $pick(['last_name']));
+    $email = $pick(['email', 'work_email', 'البريد']);
+    $phone = $pick(['phone_number', 'phone', 'mobile', 'whatsapp', 'رقم']);
+    $known = ['full_name', 'name', 'first_name', 'last_name', 'email', 'work_email', 'phone_number', 'phone', 'mobile', 'company_name', 'company', 'job_title', 'country'];
+    $extra = [];
+    foreach ($f as $k => $v) if ($v !== '' && !in_array($k, $known, true) && $v !== $email && $v !== $phone && $v !== $name) $extra[] = $k . ': ' . $v;
+    $form = (string)($l['formName'] ?? $l['formId'] ?? '');
+    return [
+        'source' => 'ads', 'ext_id' => mb_substr('ad:' . (string)($l['id'] ?? $l['leadId'] ?? ''), 0, 64),
+        'name' => $name !== '' ? $name : ($email ?: $phone ?: '—'), 'email' => $email, 'phone' => $phone,
+        'company' => $pick(['company_name', 'company', 'الشركة']), 'title' => $pick(['job_title', 'title']), 'country' => $pick(['country']),
+        'note' => trim(($form !== '' ? t('من فورم: %s', $form) . "\n" : '') . implode("\n", $extra)),
+        'created_at' => !empty($l['createdTime']) && strtotime((string)$l['createdTime']) ? date('Y-m-d H:i:s', strtotime((string)$l['createdTime'])) : null,
+    ];
+}
+
+/** يضيف leads الإعلانات للـ Leads الموحدة. يرجع [جديد, اتدمج, موجود قبل كده] */
+function crm_import_ad_leads(array $leads): array
+{
+    $wid = (int)ws('id');
+    $ids = [];
+    foreach ($leads as $l) { $id = (string)($l['id'] ?? $l['leadId'] ?? ''); if ($id !== '') $ids['ad:' . $id] = $l; }
+    if (!$ids) return [0, 0, 0];
+    $have = [];
+    $st = db()->prepare('SELECT ext_id FROM crm_leads WHERE workspace_id = ? AND ext_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+    $st->execute(array_merge([$wid], array_keys($ids)));
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $e) $have[$e] = 1;
+    // مراحل اتحطت قبل كده من صفحة الإعلانات
+    $meta = [];
+    try {
+        $raw = array_map(function ($k) { return substr($k, 3); }, array_keys($ids));
+        $st = db()->prepare('SELECT lead_id, stage, deal_value, note FROM lead_meta WHERE workspace_id = ? AND lead_id IN (' . implode(',', array_fill(0, count($raw), '?')) . ')');
+        $st->execute(array_merge([$wid], $raw));
+        foreach ($st->fetchAll() as $r) $meta['ad:' . $r['lead_id']] = $r;
+    } catch (Throwable $t) { /* قبل التحديث */ }
+    $new = $merged = $old = 0;
+    foreach ($ids as $ext => $l) {
+        if (isset($have[$ext])) { $old++; continue; }
+        $d = crm_ad_lead_map($l);
+        if ($d['email'] === '' && crm_norm_phone($d['phone']) === '') { $old++; continue; } // مفيش حاجة نتواصل بيها
+        $r = crm_lead_upsert($d);
+        if (!$r) continue;
+        if (!empty($r['merged'])) { $merged++; continue; }
+        $new++;
+        $m = $meta[$ext] ?? null;
+        db()->prepare('UPDATE crm_leads SET created_at = COALESCE(?, created_at), stage = ?, deal_value = COALESCE(?, deal_value), note = ? WHERE id = ?')->execute([
+            $d['created_at'], $m ? crm_stage_from_ad((string)$m['stage']) : 'new', $m['deal_value'] ?? null,
+            trim($d['note'] . (!empty($m['note']) ? "\n" . $m['note'] : '')) ?: null, (int)$r['id']]);
+    }
+    return [$new, $merged, $old];
+}
+
+/** سحب كل leads الإعلانات (قراءة بس). بيقف أول ما يلاقي صفحة كلها متسحبة قبل كده */
+function crm_sync_ads(Zernio $z, int $maxPages = 5): array
+{
+    $tot = [0, 0, 0];
+    $add = function (array $r) use (&$tot) { foreach ($r as $i => $n) $tot[$i] += $n; return $r; };
+    $fxd = getenv('UI_FIXTURES');
+    if ($fxd && is_file($fxd . '/leads.json')) {
+        $add(crm_import_ad_leads((array)(json_decode((string)file_get_contents($fxd . '/leads.json'), true)['leads'] ?? [])));
+    } else {
+        foreach (ads_connections($z) as $c) {
+            $pf = (string)($c['platform'] ?? '');
+            if (!in_array($pf, ['facebook', 'metaads', 'linkedin', 'linkedinads'], true)) continue;
+            $isLi = strpos($pf, 'linkedin') === 0;
+            $accs = [null];
+            if ($isLi) {
+                try { $accs = array_map(function ($a) { return (string)$a['id']; }, array_values(array_filter(ads_ad_accounts($z, $c['_id']), 'ads_account_usable'))); } catch (ZernioException $ex) { $accs = []; }
+            }
+            foreach ($accs as $acc) {
+                $cur = null;
+                for ($i = 0; $i < $maxPages; $i++) {
+                    $r = ads_leads($z, ['accountId' => $c['_id'], 'adAccountId' => $acc, 'platform' => $isLi ? 'linkedin' : 'meta', 'limit' => 100, 'cursor' => $cur]);
+                    $page = (array)($r['leads'] ?? []);
+                    [$n, $m, $o] = $add(crm_import_ad_leads($page));
+                    $cur = ($r['pagination']['hasMore'] ?? false) ? ($r['pagination']['cursor'] ?? null) : null;
+                    if (!$cur || ($page && $n === 0)) break;
+                }
+            }
+        }
+    }
+    save_setting('crm_ads_sync_' . (int)ws('id'), date('Y-m-d H:i:s'));
+    return $tot;
+}
+
+/** تغيير المرحلة في الـ CRM يتنقل لصفحة الإعلانات كمان */
+function crm_push_ad_stage(array $l): void
+{
+    if (strpos((string)$l['ext_id'], 'ad:') !== 0) return;
+    try {
+        db()->prepare('INSERT INTO lead_meta (workspace_id, lead_id, stage, deal_value, updated_by) VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE stage = VALUES(stage), deal_value = VALUES(deal_value), updated_by = VALUES(updated_by)')
+            ->execute([(int)$l['workspace_id'], substr((string)$l['ext_id'], 3), crm_stage_to_ad((string)$l['stage']), $l['deal_value'], (int)(current_user()['id'] ?? 0) ?: null]);
+    } catch (Throwable $t) { /* الجدول مش موجود */ }
+}
