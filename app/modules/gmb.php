@@ -338,3 +338,35 @@ function gmb_media_categories(): array
         'MENU' => t('المنيو'), 'COMMON_AREA' => t('أماكن عامة'), 'ROOMS' => t('غرف'), 'TEAMS' => t('الفريق'), 'AT_WORK' => t('في الشغل'),
     ];
 }
+
+/** مبدّل الفروع (زرار + قايمة ببحث) — شغال بـ assets/gmb-switch.js */
+function gmb_switcher(array $options, ?array $loc, string $page): void
+{
+    if (count($options) < 2) return;
+    $splitLabel = function (string $l) { $p = explode(' · ', $l, 2); return [$p[0], $p[1] ?? '']; };
+    ?>
+        <div class="relative w-full sm:w-auto" id="gl-sw">
+          <button type="button" id="gl-sw-btn" class="w-full sm:w-auto flex items-center gap-2 rounded-xl border border-ink-200 bg-white hover:border-brand-400 hover:shadow-sm px-3 py-2 text-sm transition" aria-haspopup="listbox" aria-expanded="false">
+            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.7 16.7L13.4 21a2 2 0 01-2.8 0l-4.3-4.3a8 8 0 1111.4 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="font-medium text-ink-800"><?= e(t('%s فروع', count($options))) ?></span>
+            <span class="text-ink-400 text-xs"><?= e(t('بدّل')) ?></span>
+            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div id="gl-sw-pop" class="absolute end-0 top-full mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-ink-200 bg-white shadow-xl z-40 p-2" style="display:none">
+            <input id="gl-sw-q" type="search" class="input !mt-0 mb-2" placeholder="<?= e(t('دوّر على فرع بالاسم أو العنوان...')) ?>" autocomplete="off">
+            <div id="gl-sw-list" class="max-h-80 overflow-y-auto space-y-0.5" role="listbox">
+              <?php foreach ($options as $o): [$n, $a] = $splitLabel($o['label']); $cur = $loc && $o['key'] === $loc['key']; ?>
+                <a role="option" href="<?= e(url($page, ['loc' => $o['key']])) ?>" data-q="<?= e(mb_strtolower($o['label'])) ?>"
+                   class="gl-sw-it flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-ink-50 <?= $cur ? 'bg-brand-50' : '' ?>">
+                  <span class="w-9 h-9 shrink-0 rounded-lg <?= $cur ? 'bg-brand-600 text-white' : 'bg-ink-100 text-ink-600' ?> flex items-center justify-center font-bold"><?= e(mb_substr($n, 0, 1)) ?></span>
+                  <span class="min-w-0 flex-1"><span class="block text-sm font-medium text-ink-900 truncate"><?= e($n) ?></span><?php if ($a !== ''): ?><span class="block text-xs text-ink-500 truncate"><?= e($a) ?></span><?php endif; ?></span>
+                  <?php if ($cur): ?><svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><?php endif; ?>
+                </a>
+              <?php endforeach; ?>
+              <p id="gl-sw-none" class="text-sm text-ink-500 text-center py-4" style="display:none"><?= e(t('مفيش فرع بالاسم ده')) ?></p>
+            </div>
+          </div>
+        </div>
+    <script src="assets/gmb-switch.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php
+}
