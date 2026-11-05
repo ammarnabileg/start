@@ -151,6 +151,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 $media[] = ['type' => substr($n, -4) === '.mp4' ? 'video' : 'image', 'url' => $z->uploadFile($path, 'ai-' . $n, $mime)];
             } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
         }
+        // ملفات من مكتبة الوسائط (بتترفع لزيرنيو مرة واحدة ويتحفظ رابطها)
+        foreach (array_slice(array_unique(array_map('intval', (array)($_POST['lib_media'] ?? []))), 0, 10) as $mid) {
+            if ($errors || !$mid || !($mr = media_get((int)ws('id'), $mid))) continue;
+            $kind = media_kind((string)$mr['mime']); if (!in_array($kind, ['image', 'video'], true) && $mr['mime'] !== 'application/pdf') continue;
+            try { $media[] = ['type' => $kind === 'doc' ? 'document' : $kind, 'url' => media_public_url($z, (int)ws('id'), $mid)]; } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
+        }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
 
         $payload = ['content' => $old['content'], 'platforms' => $platforms, 'timezone' => site_timezone()];
@@ -222,6 +228,22 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
+          <div class="mt-2"><button type="button" id="libPick" class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50">📁 <?= e(t('اختار من مكتبة الوسائط')) ?></button></div>
+          <div id="libMedia" class="flex flex-wrap gap-2 mt-2"></div>
+          <script>
+          (function () {
+            var box = document.getElementById('libMedia'), btn = document.getElementById('libPick'); if (!btn || !window.mediaPick) return;
+            var form = btn.closest('form');
+            function add(f) {
+              if (form.querySelector('input[name="lib_media[]"][value="' + f.id + '"]')) return;
+              var w = document.createElement('div'); w.className = 'relative w-20 h-20 rounded-xl overflow-hidden border border-ink-200 bg-ink-100';
+              w.innerHTML = (f.kind === 'video' ? '<video muted preload="metadata" class="w-full h-full object-cover"></video>' : '<img alt="" class="w-full h-full object-cover">') + '<input type="hidden" name="lib_media[]"><button type="button" class="absolute top-1 end-1 w-5 h-5 rounded-full bg-ink-900/70 text-white text-xs leading-5" aria-label="✕">×</button>';
+              w.querySelector('img, video').src = f.kind === 'video' ? f.url + '#t=0.5' : f.thumb || f.url; w.querySelector('input').value = f.id; w.title = f.name;
+              w.querySelector('button').onclick = function () { w.remove(); }; box.appendChild(w);
+            }
+            btn.onclick = function () { window.mediaPick({ accept: 'image,video', multiple: true, public: false }).then(function (fs) { (fs || []).forEach(add); }); };
+          })();
+          </script>
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
           <div class="flex flex-wrap items-center gap-2 mt-2" id="vis-box">
             <?php foreach (['from_image', 'alt_text'] as $vk): if (!ai_feature_on($vk)) continue; ?>

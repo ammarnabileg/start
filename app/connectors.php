@@ -227,6 +227,7 @@ function hf_lib_save(int $wid, string $url): ?string
     rename($tmp, $dir . '/' . $name);
     // رابط Higgsfield الأصلي (صالح 7 أيام) عشان تحويل الصورة لفيديو
     @file_put_contents($dir . '/' . $name . '.json', json_encode(['src' => $url, 't' => time()]));
+    if (function_exists('media_sync_ai')) { try { media_sync_ai($wid); } catch (Throwable $e) {} }
     return $name;
 }
 

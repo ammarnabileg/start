@@ -398,4 +398,7 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '018_media_hash' => [
+        "ALTER TABLE media_files ADD COLUMN sha1 CHAR(40) NULL, ADD INDEX ws_sha (workspace_id, sha1)",
+    ],
 ];

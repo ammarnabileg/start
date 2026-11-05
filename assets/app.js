@@ -151,10 +151,12 @@
 })();
 
 /* مهام الذكاء الاصطناعي: كتابة منشور / اقتراح رد */
-function aiToast(msg) {
-  var t = document.createElement('div');
-  t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] max-w-md rounded-xl bg-red-600 text-[#fff] text-sm px-4 py-3 shadow-xl';
-  t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 6000);
+function aiToast(msg, kind) { // kind: 'ok' = نجاح (أخضر، 3 ثواني)، غير كده = خطأ (أحمر، 6 ثواني)
+  var ok = kind === 'ok', t = document.createElement('div');
+  t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] max-w-md rounded-xl ' + (ok ? 'bg-lime-600' : 'bg-red-600') + ' text-[#fff] text-sm px-4 py-3 shadow-xl';
+  t.setAttribute('role', ok ? 'status' : 'alert');
+  var prev = document.querySelectorAll('.ai-toast'); [].forEach.call(prev, function (p, i) { p.style.bottom = (20 + 56 * (prev.length - i)) + 'px'; });
+  t.classList.add('ai-toast'); t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, ok ? 3000 : 6000);
 }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-ai-task]'); if (!b || b.disabled) return;

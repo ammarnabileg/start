@@ -5,9 +5,9 @@ $wid = (int)ws('id');
 // ---- عرض ملف للمستخدم المسجل
 if (isset($_GET['file'])) {
     $r = media_get($wid, (int)$_GET['file']);
-    $p = $r ? media_file_path($wid, $r) : '';
+    $p = $r ? (isset($_GET['thumb']) ? media_thumb_path($wid, $r) : media_file_path($wid, $r)) : '';
     if (!$r || !is_file($p)) { http_response_code(404); exit; }
-    header('Content-Type: ' . $r['mime']);
+    header('Content-Type: ' . (isset($_GET['thumb']) && substr($p, -4) === '.jpg' && strpos($p, '/thumbs/') !== false ? 'image/jpeg' : $r['mime']));
     header('Content-Length: ' . filesize($p));
     header('Cache-Control: private, max-age=86400');
     header('X-Content-Type-Options: nosniff');
@@ -20,6 +20,7 @@ if (isset($_GET['file'])) {
 // ---- JSON
 $json = function ($a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 if (($_GET['ajax'] ?? '') === 'list') {
+    try { media_sync_ai($wid); } catch (Throwable $e) {}
     $json(['ok' => true, 'items' => media_list($wid, ['folder' => (string)($_GET['folder'] ?? '*'), 'kind' => (string)($_GET['kind'] ?? ''), 'q' => mb_substr(trim((string)($_GET['q'] ?? '')), 0, 100)]),
         'folders' => media_folders($wid), 'usage' => media_usage($wid), 'max' => media_max_bytes()]);
 }
@@ -39,6 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => (bool)$items || !$errs, 'items' => $items, 'errors' => $errs]);
     }
     $id = (int)($_POST['id'] ?? 0); $ids = array_slice(array_map('intval', (array)($_POST['ids'] ?? ($id ? [$id] : []))), 0, 200);
+    if ($act === 'derive') { // نسخة معدلة (قص/تصغير) من المتصفح: صورة جديدة جنب الأصل
+        $src = media_get($wid, (int)($_POST['src'] ?? 0)); $f = $_FILES['file'] ?? null;
+        if (!$src || !$f) $json(['ok' => false, 'error' => t('الملف مش موجود')]);
+        try { $f['name'] = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 200) ?: $src['name']; $row = media_store_upload($wid, $f, (string)$src['folder']); $json(['ok' => true, 'item' => $row]); }
+        catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
+    }
     if ($act === 'rename') { $n = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255); if ($n === '') $json(['ok' => false]); db()->prepare('UPDATE media_files SET name = ? WHERE workspace_id = ? AND id = ?')->execute([$n, $wid, $id]); $json(['ok' => true]); }
     if ($act === 'tags') { db()->prepare('UPDATE media_files SET tags = ? WHERE workspace_id = ? AND id = ?')->execute([mb_substr(trim((string)($_POST['tags'] ?? '')), 0, 500), $wid, $id]); $json(['ok' => true]); }
     if ($act === 'move') { $f = mb_substr(trim((string)($_POST['folder'] ?? '')), 0, 120); foreach ($ids as $x) db()->prepare('UPDATE media_files SET folder = ? WHERE workspace_id = ? AND id = ?')->execute([$f, $wid, $x]); $json(['ok' => true]); }

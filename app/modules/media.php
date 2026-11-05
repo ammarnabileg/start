@@ -33,7 +33,7 @@ function media_row(array $r): array
 {
     return ['id' => (int)$r['id'], 'folder' => (string)$r['folder'], 'name' => (string)$r['name'], 'mime' => (string)$r['mime'], 'kind' => media_kind((string)$r['mime']),
         'size' => (int)$r['size'], 'w' => $r['width'] !== null ? (int)$r['width'] : null, 'h' => $r['height'] !== null ? (int)$r['height'] : null,
-        'url' => url('media', ['file' => $r['id']]), 'public' => $r['public_url'] ?: null, 'tags' => (string)($r['tags'] ?? ''), 'at' => (string)$r['created_at']];
+        'url' => url('media', ['file' => $r['id']]), 'thumb' => url('media', ['file' => $r['id'], 'thumb' => 1]), 'public' => $r['public_url'] ?: null, 'tags' => (string)($r['tags'] ?? ''), 'at' => (string)$r['created_at']];
 }
 
 function media_list(int $wid, array $f = []): array
@@ -87,6 +87,9 @@ function media_store_upload(int $wid, array $file, string $folder = ''): array
 function media_store_path(int $wid, string $src, string $name, string $mime, string $folder = '', bool $uploaded = false): array
 {
     $dir = media_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
+    // نفس الملف اترفع قبل كده؟ نرجّع القديم بدل نسخة مكررة
+    $hash = @sha1_file($src);
+    if ($hash) { $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND sha1 = ? LIMIT 1'); $st->execute([$wid, $hash]); if ($old = $st->fetch()) { if ($uploaded) @unlink($src); return media_row($old) + ['dup' => true]; } }
     $ext = media_types()[$mime] ?? 'bin';
     $fn = date('Ymd') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
     $dest = $dir . '/' . $fn;
@@ -96,9 +99,42 @@ function media_store_path(int $wid, string $src, string $name, string $mime, str
     $w = $h = null;
     if (media_kind($mime) === 'image' && ($sz = @getimagesize($dest))) { $w = (int)$sz[0]; $h = (int)$sz[1]; }
     $clean = trim(preg_replace('/[\x00-\x1f\/\\\\]+/u', '', $name)) ?: $fn;
-    $st = db()->prepare('INSERT INTO media_files (workspace_id, folder, name, mime, size, width, height, path, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    $st->execute([$wid, mb_substr(trim($folder), 0, 120), mb_substr($clean, 0, 255), $mime, (int)filesize($dest), $w, $h, $fn, (int)(current_user()['id'] ?? 0) ?: null]);
+    $st = db()->prepare('INSERT INTO media_files (workspace_id, folder, name, mime, size, width, height, path, uploaded_by, sha1) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $st->execute([$wid, mb_substr(trim($folder), 0, 120), mb_substr($clean, 0, 255), $mime, (int)filesize($dest), $w, $h, $fn, function_exists('current_user') ? ((int)(current_user()['id'] ?? 0) ?: null) : null, $hash ?: null]);
     return media_row(media_get($wid, (int)db()->lastInsertId()));
+}
+
+/** صورة مصغرة 480px (JPEG) متخزنة جنب الملف. لو GD مش موجود بيرجع الأصل */
+function media_thumb_path(int $wid, array $r): string
+{
+    $src = media_file_path($wid, $r);
+    if (media_kind((string)$r['mime']) !== 'image' || !function_exists('imagecreatetruecolor') || (int)$r['size'] < 120000) return $src;
+    $dir = media_dir($wid) . '/thumbs'; $t = $dir . '/' . (int)$r['id'] . '.jpg';
+    if (is_file($t)) return $t;
+    if (!is_dir($dir)) @mkdir($dir, 0750, true);
+    $fn = ['image/jpeg' => 'imagecreatefromjpeg', 'image/png' => 'imagecreatefrompng', 'image/webp' => 'imagecreatefromwebp', 'image/gif' => 'imagecreatefromgif'][$r['mime']] ?? null;
+    if (!$fn || !function_exists($fn) || !($im = @$fn($src))) return $src;
+    $w = imagesx($im); $h = imagesy($im); $k = min(1, 480 / max($w, $h)); $nw = max(1, (int)round($w * $k)); $nh = max(1, (int)round($h * $k));
+    $out = imagecreatetruecolor($nw, $nh); imagefill($out, 0, 0, imagecolorallocate($out, 255, 255, 255));
+    imagecopyresampled($out, $im, 0, 0, 0, 0, $nw, $nh, $w, $h); imagejpeg($out, $t, 78); imagedestroy($im); imagedestroy($out);
+    return is_file($t) ? $t : $src;
+}
+
+/** ضم صور الذكاء الاصطناعي المولدة (uploads/ai/{wid}) للمكتبة في فولدر لوحده */
+function media_ai_folder(): string { return t('مولدة بالذكاء الاصطناعي'); }
+function media_sync_ai(int $wid): int
+{
+    if (!function_exists('hf_lib_dir')) return 0;
+    $files = glob(hf_lib_dir($wid) . '/*.{png,jpg,webp,mp4}', GLOB_BRACE) ?: []; if (!$files) return 0;
+    $done = (array)json_decode((string)setting('media_ai_sync_' . $wid, '[]'), true); $n = 0;
+    foreach ($files as $f) {
+        $b = basename($f); if (in_array($b, $done, true)) continue;
+        $mime = (string)(mime_content_type($f) ?: ''); if (!isset(media_types()[$mime])) { $done[] = $b; continue; }
+        try { media_store_path($wid, $f, 'ai-' . $b, $mime, media_ai_folder()); $n++; } catch (Throwable $e) {}
+        $done[] = $b; if ($n >= 40) break;
+    }
+    save_setting('media_ai_sync_' . $wid, json_encode(array_slice($done, -2000)));
+    return $n;
 }
 
 function media_file_path(int $wid, array $r): string { return media_dir($wid) . '/' . basename((string)$r['path']); }
@@ -117,6 +153,7 @@ function media_delete(int $wid, int $id): void
 {
     $r = media_get($wid, $id); if (!$r) return;
     $p = media_file_path($wid, $r); if (is_file($p)) @unlink($p);
+    $t = media_dir($wid) . '/thumbs/' . (int)$r['id'] . '.jpg'; if (is_file($t)) @unlink($t);
     db()->prepare('DELETE FROM media_files WHERE workspace_id = ? AND id = ?')->execute([$wid, $id]);
 }
 
