@@ -50,6 +50,105 @@ $bkErr = function (string $raw): array {
     return $m[$code] ?? [$raw, ''];
 };
 
+/* مواعيد الطابور الجاية (قراءة بس) بتوقيت الشركة. لو Zernio رجّع أقل من المطلوب بنكمّل بنفس المواعيد الأسبوعية */
+if ($z && ($_GET['ajax'] ?? '') === 'qslots') {
+    header('Content-Type: application/json; charset=utf-8');
+    $n = max(1, min(500, (int)($_GET['count'] ?? 10)));
+    $qid = (string)($_GET['queue'] ?? '');
+    $tz = new DateTimeZone(site_timezone());
+    try {
+        $fxq = getenv('UI_FIXTURES') && is_file(getenv('UI_FIXTURES') . '/queue.json') ? json_decode((string)file_get_contents(getenv('UI_FIXTURES') . '/queue.json'), true) : null;
+        $pid = $fxq ? 'prof_demo' : current_profile_id($z);
+        $queues = $fxq ? $fxq['queues'] : pub_queues($z, $pid);
+        $q = null; foreach ($queues as $qq) if ((string)$qq['_id'] === $qid) $q = $qq;
+        if (!$q) throw new ZernioException(t('الطابور ده مش موجود.'));
+        $prev = $fxq ? (array)($fxq['previews'][$qid] ?? []) : pub_queue_preview($z, $pid, $qid, min($n, 100));
+        $out = [];
+        foreach ($prev as $x) { $t = is_array($x) ? ($x['scheduledFor'] ?? $x['time'] ?? $x['date'] ?? '') : $x; if (!$t) continue; try { $d = new DateTime((string)$t); $d->setTimezone($tz); $out[$d->format('Y-m-d H:i')] = 1; } catch (Throwable $e) {} }
+        $out = array_keys($out); sort($out);
+        // تكملة من المواعيد الأسبوعية
+        $weekly = [];
+        foreach ((array)($q['slots'] ?? []) as $sl) { if (preg_match('/^(\d{1,2}):(\d{2})$/', (string)($sl['time'] ?? ''), $m)) $weekly[] = [(int)$sl['dayOfWeek'], (int)$m[1], (int)$m[2]]; }
+        if ($weekly && count($out) < $n) {
+            $cur = $out ? DateTime::createFromFormat('Y-m-d H:i', end($out), $tz) : new DateTime('now', $tz);
+            $cur->modify('+1 minute');
+            $day = (clone $cur)->setTime(0, 0);
+            for ($i = 0; $i < 800 && count($out) < $n; $i++) {
+                $dow = (int)$day->format('w');
+                $today = array_filter($weekly, function ($w) use ($dow) { return $w[0] === $dow; });
+                usort($today, function ($a, $b) { return $a[1] * 60 + $a[2] - $b[1] * 60 - $b[2]; });
+                foreach ($today as $w) { $c = (clone $day)->setTime($w[1], $w[2]); if ($c >= $cur && count($out) < $n) $out[] = $c->format('Y-m-d H:i'); }
+                $day->modify('+1 day');
+            }
+        }
+        echo json_encode(['ok' => true, 'times' => array_slice($out, 0, $n), 'name' => (string)($q['name'] ?? '')], JSON_UNESCAPED_UNICODE);
+    } catch (ZernioException $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+/* إنشاء/فحص مباشر لكل سطر على حسابات معينة (لما يكون فيه عمود accounts) — دفعات صغيرة من الصفحة */
+if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'direct') {
+    header('Content-Type: application/json; charset=utf-8');
+    $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && !can('posts.create')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE); exit; }
+    $rows = array_slice((array)json_decode((string)($_POST['rows'] ?? '[]'), true), 0, 25);
+    $wid = (int)ws('id'); $tz = new DateTimeZone(site_timezone());
+    $byId = [];
+    try { foreach ($z->accounts(zernio_profile()) as $a) $byId[(string)$a['_id']] = $a; } catch (ZernioException $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
+    $pid = null;
+    @set_time_limit(30 + 5 * count($rows));
+    $res = []; $valid = 0;
+    foreach ($rows as $k => $r) {
+        $errs = [];
+        $g = function ($c) use ($r) { return trim((string)($r[$c] ?? '')); };
+        $tr = function ($c) use ($g) { return (bool)preg_match('/^(true|1|yes)$/i', $g($c)); };
+        $platforms = [];
+        foreach (array_filter(array_map('trim', explode('|', $g('accounts')))) as $aid) {
+            if (!isset($byId[$aid])) { $errs[] = t('حساب مش موجود: %s', $aid); continue; }
+            $pf = (string)$byId[$aid]['platform']; $item = ['platform' => $pf, 'accountId' => $aid];
+            if ($g('custom_content_' . $pf) !== '') $item['customContent'] = $g('custom_content_' . $pf);
+            $platforms[] = $item;
+        }
+        if (!$platforms) $errs[] = t('اختار حساب واحد على الأقل.');
+        $payload = ['content' => $g('post_content'), 'platforms' => $platforms, 'timezone' => $g('tz') ?: site_timezone()];
+        $media = [];
+        foreach (array_filter(array_map('trim', explode('|', $g('media_urls')))) as $u) {
+            if (preg_match('/^lib:(\d+)$/', $u, $m)) { try { $u = media_public_url($z, $wid, (int)$m[1], 'bulk'); } catch (Throwable $e) { $errs[] = t('الصورة دي مش موجودة في المكتبة'); continue; } }
+            if (!preg_match('#^https?://#i', $u)) { $errs[] = t('الرابط لازم يبدأ بـ http'); continue; }
+            $media[] = ['type' => preg_match('/\.(mp4|mov|webm)(\?|$)/i', $u) ? 'video' : 'image', 'url' => $u];
+        }
+        if ($media) $payload['mediaItems'] = $media;
+        if ($tr('publish_now')) $payload['publishNow'] = true;
+        elseif ($tr('is_draft')) $payload['isDraft'] = true;
+        elseif ($tr('use_queue')) { $pid = $pid ?? current_profile_id($z); $payload['queuedFromProfile'] = $pid; }
+        else {
+            $dt = DateTime::createFromFormat('Y-m-d H:i', substr(str_replace('T', ' ', $g('schedule_time')), 0, 16), new DateTimeZone($payload['timezone']));
+            if (!$dt) $errs[] = t('الميعاد لازم يكون بالشكل 2026-12-01 10:00');
+            elseif ($dt < new DateTime('now', $tz)) $errs[] = t('الميعاد ده عدّى');
+            else $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
+        }
+        if ($payload['content'] === '' && !$media) $errs[] = t('نص المنشور فاضي.');
+        $row = ['rowIndex' => $k + 1, 'ok' => false, 'errors' => []];
+        if (!$errs && $platforms) {
+            try {
+                $v = pub_validate_post($z, ['content' => $payload['content'], 'platforms' => $platforms]);
+                foreach ((array)($v['errors'] ?? []) as $ve) $errs[] = platform_label((string)($ve['platform'] ?? '')) . ': ' . (string)($ve['error'] ?? '');
+            } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+        }
+        if (!$errs && !$dry) {
+            try { $c = $z->createPost($payload); $row['createdPostId'] = (string)($c['post']['_id'] ?? ''); } catch (ZernioException $ex) { $errs[] = $ex->getMessage(); }
+        }
+        $row['ok'] = !$errs; $row['errors'] = $errs; if (!$errs) $valid++;
+        $res[] = $row;
+    }
+    if (!$dry && $valid) log_activity('post.bulk_direct', $valid . '/' . count($rows));
+    $explain = []; foreach ($res as $r) foreach ($r['errors'] as $e) $explain[$e] = [$e, ''];
+    echo json_encode(['ok' => true, 'data' => ['total' => count($rows), 'valid' => $valid, 'invalid' => count($rows) - $valid, 'results' => $res, 'warnings' => []], 'explain' => $explain], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /* كتابة منشورات بالذكاء الاصطناعي — بترجع نصوص بس، والمستخدم بيراجعها في الجدول قبل أي رفع */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'gen') {
     header('Content-Type: application/json; charset=utf-8');
@@ -221,8 +320,13 @@ if ($fxd && is_file($fxd . '/bulk.json')) {
                 $pid = (string)($p['_id'] ?? $p['id'] ?? '');
                 if ($pid === '') continue;
                 $pl = [];
-                foreach ($z->accounts($pid) as $a) if (!empty($a['platform']) && ($a['enabled'] ?? true) !== false) $pl[strtolower((string)$a['platform'])] = 1;
-                $profs[] = ['id' => $pid, 'name' => (string)($p['name'] ?? $pid), 'platforms' => array_keys($pl)];
+                $ac = [];
+                foreach ($z->accounts($pid) as $a) {
+                    if (empty($a['platform']) || ($a['enabled'] ?? true) === false || !empty($a['needsReconnection'])) continue;
+                    $pl[strtolower((string)$a['platform'])] = 1;
+                    $ac[] = ['id' => (string)$a['_id'], 'name' => (string)($a['displayName'] ?? $a['username'] ?? ''), 'user' => (string)($a['username'] ?? ''), 'pf' => strtolower((string)$a['platform'])];
+                }
+                $profs[] = ['id' => $pid, 'name' => (string)($p['name'] ?? $pid), 'platforms' => array_keys($pl), 'accounts' => $ac];
             }
             $_SESSION[$ck] = ['t' => time(), 'd' => $profs];
         } catch (ZernioException $ex) { /* الفحص هيبقى من غير البروفايلات */ }
@@ -255,6 +359,10 @@ if (isset($_GET['sample'])) {
 }
 
 
+$bqueues = [];
+if ($fxd && is_file($fxd . '/queue.json')) $bqueues = (array)(json_decode((string)file_get_contents($fxd . '/queue.json'), true)['queues'] ?? []);
+elseif ($z) { try { $bqueues = pub_queues($z, current_profile_id($z)); } catch (Throwable $e) { $bqueues = []; } }
+$bqueues = array_values(array_map(function ($q) { return ['id' => (string)$q['_id'], 'name' => (string)($q['name'] ?? ''), 'active' => !isset($q['active']) || !empty($q['active']), 'n' => count((array)($q['slots'] ?? []))]; }, $bqueues));
 $best = [];
 if ($fxd && is_file($fxd . '/bulk.json')) {
     $best = (array)(json_decode((string)file_get_contents($fxd . '/bulk.json'), true)['best'] ?? []);
@@ -264,11 +372,12 @@ if ($fxd && is_file($fxd . '/bulk.json')) {
     else { $best = best_slots_local($z, 7); $_SESSION[$ck] = ['t' => time(), 'd' => $best]; }
 }
 
-render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $result, $profs, $bkErr, $best) {
+render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $result, $profs, $bkErr, $best, $bqueues) {
     if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
     $cols = [
         ['post_content', t('نص المنشور.'), true],
         ['platforms', t('المنصات، مفصولة بـ | لو أكتر من واحدة (مثلاً facebook|instagram).'), true],
+        ['accounts', t('اختياري: حسابات معينة بالاسم أو @اليوزر، مفصولة بـ | أو فاصلة، أو "الكل". لو موجود، المنشور بيروح على الحسابات دي بس.'), false],
         ['schedule_time', t('ميعاد النشر بالشكل 2026-12-01 10:00.'), true],
         ['tz', t('المنطقة الزمنية (مثلاً %s). لو فاضي بياخد منطقة الـ Profile.', cx('tz')), false],
         ['media_urls', t('روابط صور أو فيديو عامة، مفصولة بـ |.'), false],
@@ -391,12 +500,32 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                   </div>
                   <button type="button" id="bk-pl-apply" class="btn-primary !py-1 text-xs mt-2"><?= e(t('طبّق')) ?></button>
                 </div>
+                <?php $allAcc = []; foreach ($profs as $pp) foreach ((array)($pp['accounts'] ?? []) as $ac) $allAcc[$ac['id']] = $ac; ?>
+                <?php if ($allAcc): ?>
+                <div class="rounded-xl bg-white border border-ink-200 p-3 md:col-span-2 md:order-first">
+                  <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <div class="text-xs font-semibold text-ink-700"><?= e(t('الحسابات')) ?></div>
+                    <span class="text-[11px] text-ink-500"><?= e(t('اختار حسابات معينة، أو كلها. كل سطر بيتعمل منشور على الحسابات دي بالظبط.')) ?></span>
+                    <button type="button" id="bk-acc-all" class="ms-auto link text-xs"><?= e(t('كل الحسابات')) ?></button>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5" id="bk-acc-pick">
+                    <?php foreach ($allAcc as $ac): ?>
+                      <label class="cursor-pointer"><input type="checkbox" value="<?= e($ac['id']) ?>" data-pf="<?= e($ac['pf']) ?>" class="peer sr-only"><span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-ink-200 text-xs text-ink-700 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-800 peer-focus-visible:ring-2 ring-brand-300"><?= $plIcon($ac['pf']) ?><span><?= e($ac['name'] ?: $ac['user']) ?></span><?php if ($ac['user'] && $ac['user'] !== $ac['name']): ?><span class="text-ink-400" dir="ltr">@<?= e($ac['user']) ?></span><?php endif; ?></span></label>
+                    <?php endforeach; ?>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <button type="button" id="bk-acc-apply" class="btn-primary !py-1 text-xs"><?= e(t('طبّق')) ?></button>
+                    <button type="button" id="bk-acc-clear" class="btn-ghost !py-1 text-xs"><?= e(t('ارجع للمنصات بس')) ?></button>
+                  </div>
+                </div>
+                <?php endif; ?>
                 <div class="rounded-xl bg-white border border-ink-200 p-3 space-y-2">
                   <div class="flex items-center gap-2">
                     <div class="text-xs font-semibold text-ink-700"><?= e(t('وزّع المواعيد')) ?></div>
                     <div class="ms-auto inline-flex rounded-lg border border-ink-200 p-0.5 text-[11px]" role="group">
                       <button type="button" class="bk-spm px-2 py-0.5 rounded-md bg-ink-900 text-white" data-m="gap"><?= e(t('مسافة ثابتة')) ?></button>
                       <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $best ? '' : 'opacity-50' ?>" data-m="best" <?= $best ? '' : 'disabled title="' . e(t('محتاج منشورات قديمة عشان نعرف أحسن أوقاتك')) . '"' ?>>★ <?= e(t('أحسن أوقاتك')) ?></button>
+                      <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $bqueues ? '' : 'opacity-50' ?>" data-m="queue" <?= $bqueues ? '' : 'disabled title="' . e(t('اعمل طابور الأول من مواعيد الطابور')) . '"' ?>>📋 <?= e(t('من الطابور')) ?></button>
                     </div>
                   </div>
                   <div class="flex flex-wrap items-center gap-1.5 text-xs">
@@ -411,6 +540,12 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                     <select id="bk-sp-to" class="input !h-8 !py-0 text-xs !w-auto"><?php for ($h = 1; $h <= 24; $h++): ?><option value="<?= $h ?>" <?= $h === 23 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h % 24) ?></option><?php endfor; ?></select>
                   </div>
                   <div class="bk-best hidden text-[11px] text-violet-700" id="bk-best-txt"></div>
+                  <div class="bk-q hidden space-y-1.5">
+                    <select id="bk-q-sel" class="input !h-8 !py-0 text-xs">
+                      <?php foreach ($bqueues as $q): ?><option value="<?= e($q['id']) ?>" <?= $q['active'] ? '' : 'disabled' ?>><?= e($q['name']) ?> · <?= e(t('%s ميعاد في الأسبوع', $q['n'])) ?><?= $q['active'] ? '' : ' (' . e(t('متوقف')) . ')' ?></option><?php endforeach; ?>
+                    </select>
+                    <div class="text-[11px] text-ink-500"><?= e(t('بنحط مواعيد الطابور الجاية في السطور كمواعيد عادية، وتقدر تعدّل أي واحد منهم.')) ?> <a class="link" href="<?= e(url('queue')) ?>" data-modal="<?= e(url('queue')) ?>"><?= e(t('مواعيد الطابور')) ?></a></div>
+                  </div>
                   <div class="flex flex-wrap gap-1" id="bk-sp-days" aria-label="<?= e(t('أيام النشر')) ?>">
                     <?php foreach ([6, 0, 1, 2, 3, 4, 5] as $dw): ?><label class="cursor-pointer"><input type="checkbox" value="<?= $dw ?>" checked class="peer sr-only"><span class="inline-block px-2 text-center py-1 rounded-md border border-ink-200 text-[11px] text-ink-500 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600"><?= e(is_rtl() ? preg_replace('/^ال/u', '', weekday_name($dw)) : mb_substr(weekday_name($dw), 0, 3)) ?></span></label><?php endforeach; ?>
                   </div>
@@ -587,6 +722,8 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             <li><?= e(t('المنصات زي فيسبوك، انستجرام، FB، IG')) ?></li>
             <li><?= e(t('الملفات الكبيرة بتترفع على دفعات 500 سطر')) ?></li>
             <li><?= e(t('عمود profiles بيتجاهل، والبروفايل بيتحط لوحده')) ?></li>
+            <li><?= e(t('أسماء الحسابات في عمود "الحسابات" بتتحول للحسابات الصح')) ?></li>
+            <li><?= e(t('مواعيد الطابور بتتحط في الجدول وتقدر تعدّلها')) ?></li>
           </ul>
         </div>
         <details class="card p-4">
@@ -603,7 +740,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
     </div>
     <script>window.BKX = <?= json_encode([
         'tz' => site_timezone(), 'url' => url('bulk'), 'csrf' => csrf_token(), 'cal' => url('calendar'), 'edit' => url('post_edit'),
-        'platforms' => array_keys(platform_icons()), 'connected' => $allPl, 'icons' => array_map(function ($i) { return $i; }, $icons),
+        'platforms' => array_keys(platform_icons()), 'connected' => $allPl, 'accounts' => array_values($allAcc ?? []), 'qslots' => url('bulk', ['ajax' => 'qslots']), 'icons' => array_map(function ($i) { return $i; }, $icons),
         'rtl' => is_rtl(), 'lang' => lang(), 'media' => ['list' => url('media', ['ajax' => 'list']), 'post' => url('media'), 'thumb' => url('media', ['file' => '__ID__', 'thumb' => 1]), 'file' => url('media', ['file' => '__ID__']), 'canUp' => can('posts.create')], 'best' => $best, 'ws' => (int)ws('id'), 'brand' => (string)ws('name'),
         'lim' => ['twitter' => 280, 'threads' => 500, 'bluesky' => 300, 'instagram' => 2200, 'tiktok' => 2200, 'linkedin' => 3000, 'facebook' => 63206, 'pinterest' => 500, 'youtube' => 5000, 'googlebusiness' => 1500, 'reddit' => 40000, 'telegram' => 4096],
         's' => [
@@ -623,6 +760,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'libspread' => t('اتحطت صورة لكل سطر في %s سطر'), 'libsame' => t('اتحطت نفس الصور في %s سطر'), 'libcycle' => t('الصور أقل من السطور، فبتتكرر بالترتيب'), 'libmissing' => t('الصورة دي مش موجودة في المكتبة'),
             'visinfo' => t('%s سطر فيهم صورة. النص هيبقى عن اللي في الصورة فعلًا، بس أغلى بكتير وأبطأ (5 صور في كل طلب). الموديل لازم يكون بيقرا صور.'), 'visnone' => t('مفيش صور في السطور الفاضية، فهنكتب من الأسماء.'), 'saw' => t('شاف %s صورة'),
             'capinfo' => t('هنكتب نص لـ %s سطر نصهم فاضي، من وصف الصورة أو اسمها. بيستهلك من رصيد الذكاء الاصطناعي.'), 'capnone' => t('مفيش سطور نصها فاضي'), 'capwait' => t('بنكتب %s من %s…'), 'capdone' => t('اتكتب %s نص. راجعهم قبل الرفع.'), 'pickrow' => t('اختار صورة'),
+            'accN' => t('%s حساب'), 'accPick' => t('اختار حساب واحد على الأقل'), 'accBad' => t('حساب مش موجود: %s'), 'qWait' => t('بنجيب مواعيد الطابور…'), 'qDone' => t('اتحط %s ميعاد من طابور "%s"'), 'accMode' => t('السطور فيها حسابات محددة، فكل سطر هيتعمل منشور لوحده (أبطأ شوية).'), 'accCleared' => t('رجعنا للمنصات: كل منشور هيروح على كل حسابات المنصة'),
             'lim' => t('أطول من حد %s (%s حرف)'), 'dup' => t('النص ده متكرر'), 'dups' => t('%s نص متكرر'), 'sel' => t('%s متحدد'), 'draft' => t('عندك شغل متحفظ: %s سطر من "%s" (%s)'),
             'aiwait' => t('بنكتب…'), 'aidone' => t('اتضاف %s منشور. وزّع المواعيد عليهم من الأدوات.'), 'aitopic' => t('اكتب الفكرة الأول.'), 'nosel' => t('حدد سطور الأول من الخانة اللي على الشمال'),
             'bestt' => t('هنستخدم أحسن أوقاتك: %s'), 'nofit' => t('مفيش مواعيد كفاية في الأيام والساعات دي لـ %s سطر'), 'pv' => t('معاينة'), 'pvof' => t('%s من %s'), 'nowL' => t('فورًا'), 'queueL' => t('في الطابور'), 'draftL' => t('مسودة'), 'left' => t('فاضل %s سطر محتاجين تصليح'), 'reset' => t('هتمسح الجدول وتبدأ من الأول. متأكد؟'), 'empty' => t('مفيش سطور'),
