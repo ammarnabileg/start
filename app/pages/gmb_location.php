@@ -14,8 +14,8 @@ if ($z) {
     }
 }
 $fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/gmb_location.json') ? json_decode((string)file_get_contents($fxd . '/gmb_location.json'), true) : null;
-if ($fx) { $accounts = $accounts ?: [['id' => 'acc_gmb_demo']]; $options = [$fx['location']]; $apiError = null; }
-$loc = $fx ? $fx['location'] : gmb_pick_location($options);
+if ($fx) { $accounts = $accounts ?: [['id' => 'acc_gmb_demo']]; $options = $fx['locations'] ?? [$fx['location']]; $apiError = null; }
+$loc = gmb_pick_location($options);
 
 /** يحول سطور "اسم | سعر" لـ serviceItems */
 function gmb_parse_services(string $text, string $currency): array
@@ -203,138 +203,194 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
     if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
     if (!$accounts && !$apiError) { gmb_no_account_box(); return; }
     if ($apiError) { error_box($apiError); echo '<div class="h-4"></div>'; }
-    gmb_location_picker($options, $loc, 'gmb_location');
-    if (!$d) return;
 
-    $hidden = '<input type="hidden" name="loc" value="' . e($loc['key']) . '">';
+    $hidden = '<input type="hidden" name="loc" value="' . e($loc['key'] ?? '') . '">';
     $location = $d['location'] ?? [];
     $cats = $d['categories'] ?? [];
     $catText = strtolower(json_encode($cats));
     $isFood = $menus || preg_match('/restaurant|cafe|food|bakery|pizza|coffee|meal|diner|bar/', $catText);
     $byDay = [];
-    foreach ($d['regularHours']['periods'] ?? [] as $p) {
-        $byDay[$p['openDay'] ?? ''] = $p;
-    }
-    $sec = function (string $id, string $title) {
-        echo '<h2 id="' . e($id) . '" class="font-bold text-ink-900 mb-3 scroll-mt-20">' . e($title) . '</h2>';
-    };
+    foreach ($d['regularHours']['periods'] ?? [] as $p) $byDay[$p['openDay'] ?? ''] = $p;
     $err = function (string $k) use ($errors) {
-        if (!empty($errors[$k])) echo '<p class="text-xs text-red-600 mb-2">' . e($errors[$k]) . '</p>';
+        if (!empty($errors[$k])) echo '<p class="text-xs text-red-600 mb-3 rounded-lg bg-red-50 px-3 py-2">' . e($errors[$k]) . '</p>';
     };
-    ?>
-    <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
-      <h2 class="text-lg font-bold text-ink-900 me-2"><?= e($d['title'] ?? $loc['label']) ?></h2>
-      <?php if (!empty($location['mapsUri'])): ?><a class="link" href="<?= e($location['mapsUri']) ?>" target="_blank" rel="noopener"><?= e(t('على الخريطة ↗')) ?></a><?php endif; ?>
-      <?php if (!empty($location['reviewUrl'])): ?><a class="link" href="<?= e($location['reviewUrl']) ?>" target="_blank" rel="noopener"><?= e(t('رابط طلب تقييم ↗')) ?></a><?php endif; ?>
-      <a class="link" href="<?= e(url('gmb_media', ['loc' => $loc['key']])) ?>"><?= e(t('الصور')) ?></a>
-      <a class="link" href="<?= e(url('gmb_reviews', ['loc' => $loc['key']])) ?>"><?= e(t('التقييمات')) ?></a>
-    </div>
-
-    <?php /* ---------- التحقق ---------- */
+    $ico = [
+        'basic' => 'M3 9l1-5h16l1 5M3 9h18M3 9v11h18V9M9 20v-6h6v6',
+        'hours' => 'M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z',
+        'special' => 'M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z',
+        'attributes' => 'M5 13l4 4L19 7',
+        'services' => 'M4 6h16M4 12h16M4 18h10',
+        'action_add' => 'M13.8 10.2a4 4 0 010 5.6l-3 3a4 4 0 01-5.6-5.6l1.5-1.5m3.5-1.5a4 4 0 010-5.6l3-3a4 4 0 015.6 5.6l-1.5 1.5',
+        'menu' => 'M4 4v7a3 3 0 006 0V4M7 4v16m10-16c-2 0-3 2-3 5s1 4 3 4v7',
+    ];
+    $head = function (string $id, string $title, string $sub = '') use ($ico) {
+        echo '<div class="flex items-start gap-3 mb-5"><span class="w-10 h-10 shrink-0 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">'
+            . '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="' . $ico[$id] . '"/></svg></span>'
+            . '<div class="min-w-0 flex-1"><h2 id="' . e($id) . '" class="font-bold text-ink-900 scroll-mt-24">' . e($title) . '</h2>'
+            . ($sub !== '' ? '<p class="text-xs text-ink-500 mt-0.5">' . e($sub) . '</p>' : '') . '</div>'
+            . '<span class="gl-dot hidden w-2.5 h-2.5 mt-2 rounded-full bg-amber-500" title="' . e(t('فيه تعديلات مش محفوظة')) . '"></span></div>';
+    };
+    $saveBtn = function (string $label) {
+        echo '<div class="flex justify-end mt-5 pt-4 border-t border-ink-100"><button class="btn-primary">' . e($label) . '</button></div>';
+    };
     $vom = $verif['voiceOfMerchantState'] ?? [];
     $verified = !empty($vom['hasVoiceOfMerchant']) || (!$verif && !empty($location['isVerified']));
     $pending = !empty($vom['verify']['hasPendingVerification']);
+    $title = $d['title'] ?? ($loc['label'] ?? '');
+    $initial = mb_substr(trim($title) ?: '?', 0, 1);
+    $splitLabel = function (string $l) { $p = explode(' · ', $l, 2); return [$p[0], $p[1] ?? '']; };
     ?>
-    <div id="verif" class="card p-5 mb-4 <?= $verified ? '' : 'border-amber-300' ?>">
-      <div class="flex flex-wrap items-center gap-2 mb-1">
-        <span class="font-bold text-ink-900"><?= e(t('حالة التحقق')) ?></span>
-        <?php if ($verified): ?><span class="badge badge-green"><?= e(t('متحقق ومنشور')) ?></span>
-        <?php elseif ($pending): ?><span class="badge bg-amber-100 text-amber-800"><?= e(t('في انتظار التحقق')) ?></span>
-        <?php else: ?><span class="badge bg-red-100 text-red-700"><?= e(t('مش متحقق')) ?></span><?php endif; ?>
-      </div>
-      <?php $err('verif'); ?>
-      <?php if ($verified): ?>
-        <p class="text-sm text-ink-600"><?= e(t('الفرع متحقق، وأي تعديل بتعمله هنا بيظهر للناس على جوجل بعد مراجعة جوجل.')) ?></p>
-      <?php elseif ($pending): ?>
-        <p class="text-sm text-ink-600"><?= e(t('فيه طلب تحقق مفتوح. لو اخترت التحقق بالبريد، استنى الكارت اللي فيه الكود (ممكن ياخد لحد 14 يوم)، ولو بالتليفون أو الإيميل هيوصلك كود. دخّل الكود من حساب Google Business Profile.')) ?></p>
-      <?php else: ?>
-        <ol class="text-sm text-ink-600 list-decimal ps-5 space-y-1">
-          <li><?= e(t('افتح business.google.com بنفس حساب جوجل المربوط.')) ?></li>
-          <li><?= e(t('اختار الفرع ودوس "Verify" (تحقق).')) ?></li>
-          <li><?= e(t('اختار طريقة التحقق المتاحة (فيديو، تليفون، إيميل، أو بريد) وكمل الخطوات.')) ?></li>
-          <li><?= e(t('بعد ما التحقق يكتمل، الحالة هنا هتتحدث لوحدها.')) ?></li>
-        </ol>
-      <?php endif; ?>
-      <?php if (!empty($verif['verifications'])): ?>
-        <div class="mt-3 text-xs text-ink-500 space-y-0.5">
-          <?php foreach (array_slice($verif['verifications'], 0, 5) as $v): ?>
-            <div><?= e(fmt_date($v['createTime'] ?? null, 'd/m/Y')) ?> · <?= e((string)($v['method'] ?? '')) ?> · <?= e((string)($v['state'] ?? '')) ?></div>
-          <?php endforeach; ?>
+    <?php /* ================= الهيدر + مبدّل الفروع ================= */ ?>
+    <div class="relative rounded-2xl border border-ink-200 bg-white overflow-visible mb-6">
+      <div class="h-20 rounded-t-2xl bg-gradient-to-l from-brand-600 via-brand-500 to-cyan-500"></div>
+      <div class="px-5 pb-5 -mt-8 flex flex-wrap items-end gap-4">
+        <div class="w-16 h-16 rounded-2xl bg-white shadow-md ring-4 ring-white flex items-center justify-center text-2xl font-bold text-brand-600"><?= e($initial) ?></div>
+        <div class="min-w-0 flex-1 pt-9">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-xl font-bold text-ink-900 truncate"><?= e($title) ?></h2>
+            <?php if ($d): ?>
+              <?php if ($verified): ?><span class="inline-flex items-center gap-1 rounded-full bg-lime-50 text-lime-700 text-xs px-2.5 py-1 whitespace-nowrap"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.7-9.3a1 1 0 00-1.4-1.4L9 10.6 7.7 9.3a1 1 0 00-1.4 1.4l2 2a1 1 0 001.4 0l4-4z" clip-rule="evenodd"/></svg><?= e(t('متحقق ومنشور')) ?></span>
+              <?php elseif ($pending): ?><a href="#verif" class="rounded-full bg-amber-50 text-amber-700 text-xs px-2.5 py-1"><?= e(t('في انتظار التحقق')) ?></a>
+              <?php else: ?><a href="#verif" class="rounded-full bg-red-50 text-red-700 text-xs px-2.5 py-1"><?= e(t('مش متحقق')) ?></a><?php endif; ?>
+              <span id="gl-open" class="rounded-full text-xs px-2.5 py-1 hidden"></span>
+            <?php endif; ?>
+          </div>
+          <div class="text-sm text-ink-500 mt-0.5 truncate"><?= e(implode(' · ', array_filter([$cats['primaryCategory']['displayName'] ?? '', $splitLabel($loc['label'] ?? '')[1]]))) ?></div>
         </div>
+        <?php if (count($options) > 1): ?>
+        <div class="relative w-full sm:w-auto" id="gl-sw">
+          <button type="button" id="gl-sw-btn" class="w-full sm:w-auto flex items-center gap-2 rounded-xl border border-ink-200 bg-white hover:border-brand-400 hover:shadow-sm px-3 py-2 text-sm transition" aria-haspopup="listbox" aria-expanded="false">
+            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.7 16.7L13.4 21a2 2 0 01-2.8 0l-4.3-4.3a8 8 0 1111.4 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="font-medium text-ink-800"><?= e(t('%s فروع', count($options))) ?></span>
+            <span class="text-ink-400 text-xs"><?= e(t('بدّل')) ?></span>
+            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div id="gl-sw-pop" class="absolute end-0 top-full mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-ink-200 bg-white shadow-xl z-40 p-2" style="display:none">
+            <input id="gl-sw-q" type="search" class="input !mt-0 mb-2" placeholder="<?= e(t('دوّر على فرع بالاسم أو العنوان...')) ?>" autocomplete="off">
+            <div id="gl-sw-list" class="max-h-80 overflow-y-auto space-y-0.5" role="listbox">
+              <?php foreach ($options as $o): [$n, $a] = $splitLabel($o['label']); $cur = $loc && $o['key'] === $loc['key']; ?>
+                <a role="option" href="<?= e(url('gmb_location', ['loc' => $o['key']])) ?>" data-q="<?= e(mb_strtolower($o['label'])) ?>"
+                   class="gl-sw-it flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-ink-50 <?= $cur ? 'bg-brand-50' : '' ?>">
+                  <span class="w-9 h-9 shrink-0 rounded-lg <?= $cur ? 'bg-brand-600 text-white' : 'bg-ink-100 text-ink-600' ?> flex items-center justify-center font-bold"><?= e(mb_substr($n, 0, 1)) ?></span>
+                  <span class="min-w-0 flex-1"><span class="block text-sm font-medium text-ink-900 truncate"><?= e($n) ?></span><?php if ($a !== ''): ?><span class="block text-xs text-ink-500 truncate"><?= e($a) ?></span><?php endif; ?></span>
+                  <?php if ($cur): ?><svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><?php endif; ?>
+                </a>
+              <?php endforeach; ?>
+              <p id="gl-sw-none" class="text-sm text-ink-500 text-center py-4" style="display:none"><?= e(t('مفيش فرع بالاسم ده')) ?></p>
+            </div>
+          </div>
+        </div>
+        <?php endif; ?>
+      </div>
+      <?php if ($d): ?>
+      <div class="px-5 pb-4 flex flex-wrap gap-2 text-sm">
+        <?php if (!empty($location['mapsUri'])): ?><a class="btn-ghost !py-1.5" href="<?= e($location['mapsUri']) ?>" target="_blank" rel="noopener"><?= e(t('على الخريطة ↗')) ?></a><?php endif; ?>
+        <?php if (!empty($location['reviewUrl'])): ?><button type="button" id="gl-copy-review" class="btn-ghost !py-1.5"><?= e(t('انسخ رابط التقييم')) ?></button><?php endif; ?>
+        <a class="btn-ghost !py-1.5" href="<?= e(url('gmb_media', ['loc' => $loc['key']])) ?>"><?= e(t('الصور')) ?></a>
+        <a class="btn-ghost !py-1.5" href="<?= e(url('gmb_reviews', ['loc' => $loc['key']])) ?>"><?= e(t('التقييمات')) ?></a>
+      </div>
       <?php endif; ?>
     </div>
+    <?php if (!$d) return; ?>
 
-    <div class="grid lg:grid-cols-2 gap-4">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+      <div id="gl-main" class="space-y-6 min-w-0">
+
+      <?php if (!$verified): ?>
+      <div id="verif" class="rounded-2xl border <?= $pending ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60' ?> p-5">
+        <div class="font-bold text-ink-900 mb-2"><?= e($pending ? t('في انتظار التحقق') : t('الفرع مش متحقق')) ?></div>
+        <?php $err('verif'); ?>
+        <?php if ($pending): ?>
+          <p class="text-sm text-ink-700"><?= e(t('فيه طلب تحقق مفتوح. لو اخترت التحقق بالبريد، استنى الكارت اللي فيه الكود (ممكن ياخد لحد 14 يوم)، ولو بالتليفون أو الإيميل هيوصلك كود. دخّل الكود من حساب Google Business Profile.')) ?></p>
+        <?php else: ?>
+          <ol class="text-sm text-ink-700 list-decimal ps-5 space-y-1">
+            <li><?= e(t('افتح business.google.com بنفس حساب جوجل المربوط.')) ?></li>
+            <li><?= e(t('اختار الفرع ودوس "Verify" (تحقق).')) ?></li>
+            <li><?= e(t('اختار طريقة التحقق المتاحة (فيديو، تليفون، إيميل، أو بريد) وكمل الخطوات.')) ?></li>
+            <li><?= e(t('بعد ما التحقق يكتمل، الحالة هنا هتتحدث لوحدها.')) ?></li>
+          </ol>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+
       <?php /* ---------- البيانات الأساسية ---------- */ ?>
-      <form method="post" class="card p-5 space-y-3" data-gl="basic">
-        <?php $sec('basic', t('البيانات الأساسية')); ?>
+      <form method="post" class="card p-6" data-gl="basic">
+        <?php $head('basic', t('البيانات الأساسية'), t('اللي الناس بتشوفه أول ما تلاقيك على جوجل')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="basic">
-        <label class="block"><span class="label"><?= e(t('اسم النشاط')) ?></span>
-          <input class="input bg-ink-50" value="<?= e($d['title'] ?? '') ?>" readonly>
-          <span class="text-[11px] text-ink-500"><?= e(t('تغيير الاسم بيحتاج مراجعة جوجل، فبيتعمل من Google Business Profile نفسه.')) ?></span>
-        </label>
-        <label class="block"><span class="label"><?= e(t('التليفون')) ?></span>
-          <input name="phone" data-phone="any" data-phone-req class="input" dir="ltr" value="<?= e($d['phoneNumbers']['primaryPhone'] ?? '') ?>"></label>
-        <label class="block"><span class="label"><?= e(t('الموقع الإلكتروني')) ?></span>
-          <input name="website" type="url" class="input" dir="ltr" value="<?= e($d['websiteUri'] ?? '') ?>" placeholder="https://"></label>
-        <label class="block"><span class="label"><?= e(t('الوصف')) ?></span>
-          <textarea data-ai="wa_about,improve" name="description" rows="4" maxlength="750" class="input"><?= e($d['profile']['description'] ?? '') ?></textarea></label>
-        <div>
-          <span class="label"><?= e(t('التصنيفات')) ?></span>
-          <div class="flex flex-wrap gap-1">
-            <?php if (!empty($cats['primaryCategory'])): ?><span class="badge badge-green"><?= e($cats['primaryCategory']['displayName'] ?? $cats['primaryCategory']['name'] ?? '') ?> · <?= e(t('أساسي')) ?></span><?php endif; ?>
-            <?php foreach ($cats['additionalCategories'] ?? [] as $c): ?><span class="badge"><?= e($c['displayName'] ?? $c['name'] ?? '') ?></span><?php endforeach; ?>
-            <?php if (!$cats): ?><span class="text-sm text-ink-500">—</span><?php endif; ?>
-          </div>
-          <p class="text-[11px] text-ink-500 mt-1"><?= e(t('التصنيفات بتتعدل من Google Business Profile.')) ?></p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block"><span class="label"><?= e(t('التليفون')) ?></span>
+            <input name="phone" data-phone="any" data-phone-req class="input" dir="ltr" value="<?= e($d['phoneNumbers']['primaryPhone'] ?? '') ?>"></label>
+          <label class="block"><span class="label"><?= e(t('الموقع الإلكتروني')) ?></span>
+            <input name="website" type="url" class="input" dir="ltr" value="<?= e($d['websiteUri'] ?? '') ?>" placeholder="https://"></label>
         </div>
-        <button class="btn-primary"><?= e(t('حفظ')) ?></button>
+        <label class="block mt-4"><span class="label"><?= e(t('الوصف')) ?></span>
+          <textarea data-ai="wa_about,improve" name="description" rows="5" maxlength="750" class="input"><?= e($d['profile']['description'] ?? '') ?></textarea></label>
+        <div class="mt-4 rounded-xl bg-ink-50 p-3 text-sm flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div><span class="text-xs text-ink-500 block"><?= e(t('اسم النشاط')) ?></span><span class="font-medium text-ink-900"><?= e($d['title'] ?? '') ?></span></div>
+          <div class="flex flex-wrap items-center gap-1">
+            <span class="text-xs text-ink-500 w-full"><?= e(t('التصنيفات')) ?></span>
+            <?php if (!empty($cats['primaryCategory'])): ?><span class="rounded-full bg-brand-600 text-white text-xs px-2.5 py-0.5"><?= e($cats['primaryCategory']['displayName'] ?? $cats['primaryCategory']['name'] ?? '') ?></span><?php endif; ?>
+            <?php foreach ($cats['additionalCategories'] ?? [] as $c): ?><span class="rounded-full bg-white border border-ink-200 text-xs px-2.5 py-0.5"><?= e($c['displayName'] ?? $c['name'] ?? '') ?></span><?php endforeach; ?>
+            <?php if (!$cats): ?><span class="text-ink-500">—</span><?php endif; ?>
+          </div>
+          <p class="text-[11px] text-ink-500 w-full"><?= e(t('الاسم والتصنيفات بيتعدلوا من Google Business Profile لأنهم محتاجين مراجعة جوجل.')) ?></p>
+        </div>
+        <?php $saveBtn(t('حفظ')); ?>
       </form>
 
       <?php /* ---------- مواعيد العمل ---------- */ ?>
-      <form method="post" class="card p-5" data-gl="hours">
-        <?php $sec('hours', t('مواعيد العمل')); ?>
+      <form method="post" class="card p-6" data-gl="hours">
+        <?php $head('hours', t('مواعيد العمل'), t('دوس على المفتاح عشان تفتح أو تقفل اليوم')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="hours">
-        <div class="space-y-2">
+        <div id="gl-presets" class="flex flex-wrap items-center gap-1.5 mb-4"></div>
+        <div class="divide-y divide-ink-100">
           <?php foreach (gmb_days() as $day => $label): $p = $byDay[$day] ?? null; ?>
-            <div class="gl-day flex flex-wrap items-center gap-2 text-sm" data-day="<?= e($day) ?>">
-              <label class="w-28 flex items-center gap-2"><input type="checkbox" name="open[<?= $day ?>]" value="1" <?= $p ? 'checked' : '' ?>> <?= e($label) ?></label>
-              <input type="time" name="from[<?= $day ?>]" class="input !mt-0 !w-auto" value="<?= e($p ? gmb_time($p['openTime'] ?? '') : '09:00') ?>">
-              <span class="text-ink-400">–</span>
-              <input type="time" name="to[<?= $day ?>]" class="input !mt-0 !w-auto" value="<?= e($p ? (gmb_time($p['closeTime'] ?? '') === '24:00' ? '00:00' : gmb_time($p['closeTime'] ?? '')) : '17:00') ?>">
+            <div class="gl-day group flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5" data-day="<?= e($day) ?>">
+              <label class="relative inline-flex items-center gap-3 w-32 cursor-pointer select-none">
+                <input type="checkbox" name="open[<?= $day ?>]" value="1" class="peer sr-only" <?= $p ? 'checked' : '' ?>>
+                <span class="relative w-10 h-6 shrink-0 rounded-full bg-ink-200 peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 transition-colors after:content-[''] after:absolute after:top-1 after:start-1 after:w-4 after:h-4 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:start-5"></span>
+                <span class="text-sm font-medium text-ink-800"><?= e($label) ?></span>
+              </label>
+              <span class="gl-times flex items-center gap-1.5">
+                <input type="time" name="from[<?= $day ?>]" class="input !mt-0 !w-[7.5rem] !py-1.5" value="<?= e($p ? gmb_time($p['openTime'] ?? '') : '09:00') ?>">
+                <span class="text-ink-400">–</span>
+                <input type="time" name="to[<?= $day ?>]" class="input !mt-0 !w-[7.5rem] !py-1.5" value="<?= e($p ? (gmb_time($p['closeTime'] ?? '') === '24:00' ? '00:00' : gmb_time($p['closeTime'] ?? '')) : '17:00') ?>">
+              </span>
+              <span class="gl-tag text-xs text-ink-500"></span>
+              <button type="button" class="gl-copy ms-auto opacity-0 group-hover:opacity-100 focus:opacity-100 text-xs text-brand-700 hover:underline transition"><?= e(t('انسخ لكل الأيام')) ?></button>
+              <div class="gl-bar w-full h-1.5 rounded-full bg-ink-100 relative overflow-hidden" dir="ltr"></div>
             </div>
           <?php endforeach; ?>
         </div>
-        <p class="text-[11px] text-ink-500 mt-2"><?= e(t('اليوم اللي مش متعلم عليه يبقى مقفول. فترة واحدة لكل يوم.')) ?></p>
-        <button class="btn-primary mt-3"><?= e(t('حفظ المواعيد')) ?></button>
+        <div class="flex justify-end mt-5 pt-4 border-t border-ink-100 items-center gap-3"><span class="gl-week text-xs text-ink-500 me-auto"></span><button class="btn-primary"><?= e(t('حفظ المواعيد')) ?></button></div>
       </form>
 
       <?php /* ---------- المواعيد الخاصة ---------- */
       $sp = $d['specialHours']['specialHourPeriods'] ?? [];
       $sp[] = [];
-      $sp[] = [];
       ?>
-      <form method="post" class="card p-5" data-gl="special">
-        <?php $sec('special', t('مواعيد خاصة (أجازات ومناسبات)')); ?>
+      <form method="post" class="card p-6" data-gl="special">
+        <?php $head('special', t('مواعيد خاصة (أجازات ومناسبات)'), t('الأيام اللي مواعيدها مختلفة عن العادي — جوجل بيعرضها للناس بدل المواعيد العادية')); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="special">
         <div class="space-y-2" id="gl-sp">
           <?php foreach ($sp as $i => $p): ?>
-            <div class="gl-sp flex flex-wrap items-center gap-2 text-sm">
-              <input type="date" name="sp_date[<?= $i ?>]" class="input !mt-0 !w-36" value="<?= e(gmb_date_str($p['startDate'] ?? null)) ?>">
-              <label class="flex items-center gap-1"><input type="checkbox" name="sp_closed[<?= $i ?>]" value="1" <?= !empty($p['closed']) ? 'checked' : '' ?>> <?= e(t('مقفول')) ?></label>
-              <input type="time" name="sp_from[<?= $i ?>]" class="input !mt-0 !w-28" value="<?= e(isset($p['openTime']) ? gmb_time($p['openTime']) : '') ?>">
+            <div class="gl-sp flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 p-2.5">
+              <input type="date" name="sp_date[<?= $i ?>]" class="input !mt-0 !w-40 !py-1.5" value="<?= e(gmb_date_str($p['startDate'] ?? null)) ?>">
+              <label class="cursor-pointer"><input type="checkbox" name="sp_closed[<?= $i ?>]" value="1" class="peer sr-only" <?= !empty($p['closed']) ? 'checked' : '' ?>><span class="inline-block rounded-full border border-ink-200 px-3 py-1 text-xs peer-checked:bg-red-600 peer-checked:border-red-600 peer-checked:text-white transition"><?= e(t('مقفول')) ?></span></label>
+              <input type="time" name="sp_from[<?= $i ?>]" class="input !mt-0 !w-[7.5rem] !py-1.5" value="<?= e(isset($p['openTime']) ? gmb_time($p['openTime']) : '') ?>">
               <span class="text-ink-400">–</span>
-              <input type="time" name="sp_to[<?= $i ?>]" class="input !mt-0 !w-28" value="<?= e(isset($p['closeTime']) ? gmb_time($p['closeTime']) : '') ?>">
+              <input type="time" name="sp_to[<?= $i ?>]" class="input !mt-0 !w-[7.5rem] !py-1.5" value="<?= e(isset($p['closeTime']) ? gmb_time($p['closeTime']) : '') ?>">
+              <button type="button" class="gl-sp-del ms-auto w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('شيل')) ?>">✕</button>
             </div>
           <?php endforeach; ?>
         </div>
-        <p class="text-[11px] text-ink-500 mt-2"><?= e(t('امسح التاريخ عشان تشيل اليوم. فيه سطرين فاضيين لإضافة أيام جديدة.')) ?></p>
-        <button class="btn-primary mt-3"><?= e(t('حفظ المواعيد الخاصة')) ?></button>
+        <div id="gl-hol" class="mt-3 flex flex-wrap gap-1.5"></div>
+        <?php $saveBtn(t('حفظ المواعيد الخاصة')); ?>
       </form>
 
       <?php /* ---------- الخصائص ---------- */ ?>
-      <form method="post" class="card p-5" data-gl="attributes">
-        <?php $sec('attributes', t('خصائص النشاط')); ?>
+      <form method="post" class="card p-6" data-gl="attributes">
+        <?php $head('attributes', t('خصائص النشاط'), t('دوس على الخاصية عشان تفعّلها — بتظهر للناس كعلامات على ملفك')); ?>
         <?php $err('attrs'); $err('meta'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="attributes">
         <?php
@@ -346,15 +402,16 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
         $others = array_filter($current, function ($a) { return ($a['valueType'] ?? '') !== 'BOOL'; });
         ?>
         <?php if (!$bools && !$others): ?><p class="text-sm text-ink-500"><?= e(t('مفيش خصائص متاحة للتصنيف ده.')) ?></p><?php endif; ?>
-        <div id="gl-attrs" class="grid sm:grid-cols-2 gap-1 max-h-72 overflow-y-auto">
+        <div id="gl-attrs" class="flex flex-wrap gap-2 max-h-80 overflow-y-auto p-0.5">
           <?php foreach ($bools as $k => $m): $on = !empty($current[$k]['values'][0]); ?>
-            <label class="gl-attr flex items-center gap-2 text-sm"><input type="hidden" name="attr_names[]" value="<?= e($k) ?>"><input type="checkbox" name="attr[<?= e($k) ?>]" value="1" <?= $on ? 'checked' : '' ?>> <?= e($m['displayName'] ?? $k) ?></label>
+            <label class="gl-attr cursor-pointer select-none"><input type="hidden" name="attr_names[]" value="<?= e($k) ?>"><input type="checkbox" name="attr[<?= e($k) ?>]" value="1" class="peer sr-only" <?= $on ? 'checked' : '' ?>>
+              <span class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3.5 py-1.5 text-sm text-ink-700 hover:border-brand-400 peer-checked:bg-brand-600 peer-checked:border-brand-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 transition"><?= e($m['displayName'] ?? $k) ?></span></label>
           <?php endforeach; ?>
         </div>
         <?php foreach ($others as $k => $a): ?>
-          <p class="text-xs text-ink-500 mt-1"><?= e($meta[$k]['displayName'] ?? $k) ?>: <?= e(implode(', ', array_map(function ($v) { return is_scalar($v) ? (string)$v : ''; }, array_merge($a['values'] ?? [], $a['repeatedEnumValue']['setValues'] ?? [], array_column($a['uriValues'] ?? [], 'uri'))))) ?></p>
+          <p class="text-xs text-ink-500 mt-2"><?= e($meta[$k]['displayName'] ?? $k) ?>: <?= e(implode(', ', array_map(function ($v) { return is_scalar($v) ? (string)$v : ''; }, array_merge($a['values'] ?? [], $a['repeatedEnumValue']['setValues'] ?? [], array_column($a['uriValues'] ?? [], 'uri'))))) ?></p>
         <?php endforeach; ?>
-        <?php if ($bools): ?><button class="btn-primary mt-3"><?= e(t('حفظ الخصائص')) ?></button><?php endif; ?>
+        <?php if ($bools) $saveBtn(t('حفظ الخصائص')); ?>
       </form>
 
       <?php /* ---------- الخدمات ---------- */
@@ -370,49 +427,48 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
           $lines[] = $name . ($pr !== '' ? ' | ' . $pr : '');
       }
       ?>
-      <form method="post" class="card p-5" data-gl="services">
-        <?php $sec('services', t('الخدمات')); ?>
+      <form method="post" class="card p-6" data-gl="services">
+        <?php $head('services', t('الخدمات'), t('الخدمات وأسعارها بتظهر في تبويب الخدمات على ملفك')); ?>
         <?php $err('services'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="services">
         <?php foreach ($structured as $sid): ?><input type="hidden" name="keep_structured[]" value="<?= e($sid) ?>"><?php endforeach; ?>
-        <?php if ($structured): ?><p class="text-xs text-ink-500 mb-2"><?= e(t('%s خدمة من قايمة جوجل الجاهزة هتفضل زي ما هي.', count($structured))) ?></p><?php endif; ?>
-        <textarea name="services" rows="7" class="input font-mono text-sm" placeholder="<?= e(t('خدمة واحدة في كل سطر: اسم الخدمة | السعر')) ?>"><?= e(implode("\n", $lines)) ?></textarea>
-        <div class="flex items-center gap-2 mt-2">
-          <label class="text-sm"><?= e(t('العملة')) ?> <input name="currency" class="input !mt-0 !w-20 inline-block" dir="ltr" maxlength="3" value="<?= e($currency) ?>"></label>
-          <button class="btn-primary ms-auto"><?= e(t('حفظ الخدمات')) ?></button>
+        <?php if ($structured): ?><p class="text-xs text-ink-500 mb-3"><?= e(t('%s خدمة من قايمة جوجل الجاهزة هتفضل زي ما هي.', count($structured))) ?></p><?php endif; ?>
+        <textarea name="services" rows="7" class="input font-mono text-sm" data-rows="<?= e(t('اسم الخدمة')) ?>|<?= e(t('السعر')) ?>" placeholder="<?= e(t('خدمة واحدة في كل سطر: اسم الخدمة | السعر')) ?>"><?= e(implode("\n", $lines)) ?></textarea>
+        <div class="flex justify-end items-center gap-3 mt-5 pt-4 border-t border-ink-100">
+          <label class="text-sm me-auto flex items-center gap-2"><?= e(t('العملة')) ?> <input name="currency" class="input !mt-0 !w-20 !py-1.5" dir="ltr" maxlength="3" value="<?= e($currency) ?>"></label>
+          <button class="btn-primary"><?= e(t('حفظ الخدمات')) ?></button>
         </div>
-        <p class="text-[11px] text-ink-500 mt-2"><?= e(t('خدمة واحدة في كل سطر: اسم الخدمة | السعر (السعر اختياري).')) ?></p>
       </form>
 
-      <?php /* ---------- روابط الحجز والطلب ---------- */ ?>
-      <div class="card p-5" data-gl="actions" data-count="<?= count($actions) ?>">
-        <?php $sec('action_add', t('روابط الحجز والطلب')); ?>
+      <?php /* ---------- روابط الحجز والطلب ---------- */ $types = gmb_place_action_types(); ?>
+      <div class="card p-6" data-gl="actions" data-count="<?= count($actions) ?>">
+        <?php $head('action_add', t('روابط الحجز والطلب'), t('زراير "احجز" و"اطلب" اللي بتظهر على ملفك وبتودّي لموقعك')); ?>
         <?php $err('actions'); ?>
         <div class="space-y-2 mb-4">
-          <?php if (!$actions): ?><p class="text-sm text-ink-500"><?= e(t('مفيش روابط لسه.')) ?></p><?php endif; ?>
+          <?php if (!$actions): ?><div class="rounded-xl border border-dashed border-ink-200 p-5 text-center text-sm text-ink-500"><?= e(t('مفيش روابط لسه. ضيف رابط حجز أو طلب عشان العميل يتحول لعميل فعلي من جوجل مباشرة.')) ?></div><?php endif; ?>
           <?php foreach ($actions as $a): ?>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="badge"><?= e(gmb_place_action_types()[$a['placeActionType'] ?? ''] ?? ($a['placeActionType'] ?? '')) ?></span>
+            <div class="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 p-2.5">
+              <span class="rounded-full bg-brand-50 text-brand-700 text-xs px-2.5 py-1"><?= e($types[$a['placeActionType'] ?? ''] ?? ($a['placeActionType'] ?? '')) ?></span>
               <form method="post" class="flex flex-1 gap-2 min-w-0">
                 <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="action_edit"><input type="hidden" name="name" value="<?= e($a['name'] ?? '') ?>">
-                <input name="uri" type="url" class="input !mt-0 flex-1 min-w-0" dir="ltr" value="<?= e($a['uri'] ?? '') ?>" required>
-                <button class="btn-ghost"><?= e(t('حفظ')) ?></button>
+                <input name="uri" type="url" class="input !mt-0 !py-1.5 flex-1 min-w-0" dir="ltr" value="<?= e($a['uri'] ?? '') ?>" required>
+                <button class="btn-ghost !py-1.5"><?= e(t('حفظ')) ?></button>
               </form>
               <?php if (can('gmb.manage')): ?>
               <form method="post" onsubmit="return confirm('<?= tjs('حذف الرابط ده؟') ?>')">
                 <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="action_delete"><input type="hidden" name="name" value="<?= e($a['name'] ?? '') ?>">
-                <button class="text-red-600 text-xs"><?= e(t('حذف')) ?></button>
+                <button class="w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('حذف')) ?>">✕</button>
               </form>
               <?php endif; ?>
             </div>
           <?php endforeach; ?>
         </div>
-        <form method="post" class="flex flex-wrap gap-2 items-end border-t border-ink-100 pt-3">
+        <form method="post" class="flex flex-wrap gap-2 items-center rounded-xl bg-ink-50 p-3">
           <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="action_add">
-          <select name="type" class="input !mt-0 !w-auto" required>
-            <?php foreach (gmb_place_action_types() as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?>
+          <select name="type" class="input !mt-0 !w-auto !py-1.5" required>
+            <?php foreach ($types as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?>
           </select>
-          <input name="uri" type="url" class="input !mt-0 flex-1 min-w-[12rem]" dir="ltr" placeholder="https://" required>
+          <input name="uri" type="url" class="input !mt-0 !py-1.5 flex-1 min-w-[12rem]" dir="ltr" placeholder="https://" required>
           <button class="btn-primary"><?= e(t('إضافة')) ?></button>
         </form>
       </div>
@@ -435,31 +491,46 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
               }
           }
       ?>
-      <form method="post" class="card p-5 lg:col-span-2" data-gl="menu">
-        <?php $sec('menu', t('منيو الأكل')); ?>
+      <form method="post" class="card p-6" data-gl="menu">
+        <?php $head('menu', t('منيو الأكل'), t('الأصناف بتظهر في تبويب المنيو على جوجل')); ?>
         <?php $err('menus'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="menu">
-        <?php if (count($menus) > 1): ?><p class="text-xs text-amber-700 mb-2"><?= e(t('فيه %s منيو، المعروض هنا أول واحد بس، والحفظ هيستبدلهم بالمنيو ده.', count($menus))) ?></p><?php endif; ?>
-        <div class="flex flex-wrap gap-2 mb-2">
-          <label class="text-sm"><?= e(t('اسم المنيو')) ?> <input name="menu_name" class="input !mt-0 !w-48 inline-block" value="<?= e($menuName) ?>"></label>
-          <label class="text-sm"><?= e(t('العملة')) ?> <input name="currency" class="input !mt-0 !w-20 inline-block" dir="ltr" maxlength="3" value="<?= e($mcur) ?>"></label>
+        <?php if (count($menus) > 1): ?><p class="text-xs text-amber-700 mb-3"><?= e(t('فيه %s منيو، المعروض هنا أول واحد بس، والحفظ هيستبدلهم بالمنيو ده.', count($menus))) ?></p><?php endif; ?>
+        <label class="block mb-4"><span class="label"><?= e(t('اسم المنيو')) ?></span><input name="menu_name" class="input sm:!w-64" value="<?= e($menuName) ?>"></label>
+        <textarea name="menu" rows="8" class="input font-mono text-sm" data-rows="<?= e(t('القسم')) ?>|<?= e(t('الصنف')) ?>|<?= e(t('السعر')) ?>" placeholder="<?= e(t('القسم | الصنف | السعر')) ?>"><?= e(implode("\n", $mlines)) ?></textarea>
+        <div class="flex justify-end items-center gap-3 mt-5 pt-4 border-t border-ink-100">
+          <label class="text-sm me-auto flex items-center gap-2"><?= e(t('العملة')) ?> <input name="currency" class="input !mt-0 !w-20 !py-1.5" dir="ltr" maxlength="3" value="<?= e($mcur) ?>"></label>
+          <button class="btn-primary"><?= e(t('حفظ المنيو')) ?></button>
         </div>
-        <textarea name="menu" rows="8" class="input font-mono text-sm" placeholder="<?= e(t('القسم | الصنف | السعر')) ?>"><?= e(implode("\n", $mlines)) ?></textarea>
-        <p class="text-[11px] text-ink-500 mt-1"><?= e(t('صنف واحد في كل سطر: القسم | الصنف | السعر')) ?></p>
-        <button class="btn-primary mt-3"><?= e(t('حفظ المنيو')) ?></button>
       </form>
       <?php endif; ?>
+      </div>
+
+      <?php /* ================= العمود الجانبي ================= */ ?>
+      <aside class="space-y-4 lg:sticky lg:top-4 order-first lg:order-none">
+        <div id="gl-score" class="card p-5"></div>
+        <div id="gl-preview" class="card p-5 hidden lg:block"></div>
+      </aside>
     </div>
-    <script>window.GLX = <?= json_encode(['title' => $d['title'] ?? '', 'cat' => $cats['primaryCategory']['displayName'] ?? '', 'maps' => $location['mapsUri'] ?? '', 'review' => $location['reviewUrl'] ?? '', 'verified' => $verified, 'food' => (bool)$isFood, 'days' => array_keys(gmb_days()), 's' => [
-      'score' => t('اكتمال الملف'), 'scoreHint' => t('الملفات الكاملة بتظهر أكتر في بحث جوجل والخرايط.'),
+
+    <div id="gl-dirty" class="fixed bottom-5 inset-x-0 z-50 flex justify-center pointer-events-none" style="display:none">
+      <div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink-900 text-white shadow-2xl ps-5 pe-2 py-2 text-sm">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span><span id="gl-dirty-t"></span>
+        <button type="button" id="gl-dirty-go" class="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1"><?= e(t('روح للتعديل')) ?></button>
+      </div>
+    </div>
+
+    <script>window.GLX = <?= json_encode(['title' => $d['title'] ?? '', 'cat' => $cats['primaryCategory']['displayName'] ?? '', 'review' => $location['reviewUrl'] ?? '', 'verified' => $verified, 'food' => (bool)$isFood, 'cur' => (string)$currency, 's' => [
+      'score' => t('اكتمال الملف'), 'scoreHint' => t('الملفات الكاملة بتظهر أكتر في بحث جوجل والخرايط.'), 'left' => t('فاضل %s خطوات'), 'allDone' => t('الملف كامل 👌'),
       'c_phone' => t('رقم تليفون'), 'c_site' => t('موقع إلكتروني'), 'c_desc' => t('وصف 250 حرف على الأقل'), 'c_hours' => t('مواعيد العمل'), 'c_special' => t('مواعيد الأجازات الجاية'), 'c_attrs' => t('3 خصائص على الأقل'), 'c_services' => t('الخدمات'), 'c_actions' => t('رابط حجز أو طلب'), 'c_menu' => t('المنيو'), 'c_verif' => t('التحقق'),
       'openNow' => t('مفتوح دلوقتي'), 'closedNow' => t('مقفول دلوقتي'), 'closesAt' => t('بيقفل %s'), 'opensAt' => t('بيفتح %s'), 'closed' => t('مقفول'), 'h24' => t('24 ساعة'), 'overnight' => t('لحد تاني يوم'),
-      'copyAll' => t('انسخ لكل الأيام'), 'presets' => t('قوالب سريعة:'), 'p_95' => t('9ص–5م أيام الشغل'), 'p_all' => t('كل يوم 12ظ–12ص'), 'p_247' => t('24/7'), 'p_fri' => t('الجمعة أجازة'), 'weekHours' => t('%s ساعة في الأسبوع'),
+      'p_95' => t('9ص–5م أيام الشغل'), 'p_all' => t('كل يوم 12ظ–12ص'), 'p_247' => t('24/7'), 'p_fri' => t('الجمعة أجازة'), 'weekHours' => t('%s ساعة في الأسبوع'),
       'addRow' => t('+ يوم كمان'), 'past' => t('التاريخ ده عدّى'), 'dup' => t('التاريخ متكرر'), 'chars' => t('%s / 750 حرف'), 'descShort' => t('الوصف قصير — جوجل بيفضّل 250 حرف أو أكتر'), 'descPhone' => t('جوجل بيرفض الوصف اللي فيه أرقام تليفون أو روابط'),
       'attrSearch' => t('دوّر في الخصائص...'), 'attrOn' => t('%s من %s مفعّلة'), 'onlyOn' => t('المفعّل بس'),
       'preview' => t('معاينة الظهور على جوجل'), 'previewNote' => t('تقريبية — شكل جوجل الحقيقي ممكن يختلف.'), 'call' => t('اتصال'), 'site' => t('الموقع'), 'dir' => t('الاتجاهات'),
-      'lines' => t('%s سطر صالح'), 'badLine' => t('سطر %s: السعر مش رقم'), 'unsaved' => t('فيه تعديلات مش محفوظة'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'),
-      'copyLink' => t('انسخ رابط التقييم'), 'copied' => t('اتنسخ'),
+      'badPrice' => t('السعر لازم يكون رقم'), 'addItem' => t('+ ضيف سطر'), 'del' => t('شيل'), 'items' => t('%s عنصر'),
+      'dirtyN' => t('تعديلات مش محفوظة في %s'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'), 'copied' => t('اتنسخ'),
+      'hol' => ws_country() !== 'EG' ? [] : [['12-31', t('ليلة رأس السنة')], ['01-01', t('رأس السنة')], ['01-07', t('عيد الميلاد (شرقي)')], ['04-25', t('تحرير سينا')], ['05-01', t('عيد العمال')], ['07-23', t('ثورة يوليو')], ['10-06', t('6 أكتوبر')]],
     ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ui-gmb_location.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
