@@ -230,3 +230,10 @@ function ph_remediate_submit(Zernio $z, string $id, array $body): array
 {
     return $z->request('POST', '/v1/phone-numbers/' . rawurlencode($id) . '/remediate', [], $body);
 }
+
+/** علم الدولة كإيموجي (بيترسم على ويندوز بخط الأعلام اللي في app.css) */
+function country_flag(string $cc): string
+{
+    $cc = strtoupper($cc);
+    return preg_match('/^[A-Z]{2}$/', $cc) ? mb_chr(0x1F1E6 + ord($cc[0]) - 65) . mb_chr(0x1F1E6 + ord($cc[1]) - 65) : '🌐';
+}
