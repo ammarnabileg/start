@@ -201,13 +201,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     if ($action === 'review') {
         [$f, $errors] = adc_read_form($_POST, $goals, $ctas);
         // رفع صورة الإعلان (لو فيه)
-        if (!$errors && $f['mode'] === 'new' && !empty($_FILES['image']['tmp_name']) && is_uploaded_file($_FILES['image']['tmp_name'])) {
-            $mime = (string)(mime_content_type($_FILES['image']['tmp_name']) ?: '');
+        $img = media_lib_file('image') ?: ($_FILES['image'] ?? null);
+        if (!$errors && $f['mode'] === 'new' && media_is_file($img)) {
+            $mime = (string)(mime_content_type($img['tmp_name']) ?: '');
             if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
                 $errors[] = t('الصورة لازم تكون JPG أو PNG.');
             } else {
                 try {
-                    $f['image_url'] = $z->uploadFile($_FILES['image']['tmp_name'], basename((string)$_FILES['image']['name']), $mime);
+                    $f['image_url'] = !empty($img['lib']) ? media_public_url($z, (int)ws('id'), (int)$img['lib_id']) : $z->uploadFile($img['tmp_name'], basename((string)$img['name']), $mime);
+                    if (empty($img['lib'])) media_capture($img['tmp_name'], (string)$img['name'], t('الإعلانات'));
                 } catch (ZernioException $ex) {
                     $errors[] = $ex->getMessage();
                 }
@@ -408,7 +410,7 @@ render(t('حملة جديدة'), 'ad_create', function () use ($z, $apiError, $t
                   <select name="cta" class="input"><?php foreach ($ctas as $k => $c): ?><option value="<?= e($k) ?>" <?= $v('cta') === $k ? 'selected' : '' ?>><?= e($c) ?></option><?php endforeach; ?></select></div>
               </div>
               <div class="grid sm:grid-cols-2 gap-3">
-                <div><label class="label"><?= e(t('صورة الإعلان (JPG/PNG)')) ?></label><input type="file" name="image" accept="image/jpeg,image/png" class="input"></div>
+                <div><label class="label"><?= e(t('صورة الإعلان (JPG/PNG)')) ?></label><input type="file" name="image" accept="image/jpeg,image/png" data-lib="image" class="input"></div>
                 <div><label class="label"><?= e(t('أو رابط صورة')) ?></label><input name="image_url" type="url" data-media="image" class="input" dir="ltr" value="<?= e($v('image_url')) ?>" placeholder="https://"></div>
               </div>
             </div>

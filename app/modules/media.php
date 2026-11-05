@@ -161,3 +161,31 @@ function media_fmt_size(int $b): string
 {
     return $b >= 1073741824 ? round($b / 1073741824, 1) . ' GB' : ($b >= 1048576 ? round($b / 1048576, 1) . ' MB' : max(1, round($b / 1024)) . ' KB');
 }
+
+/**
+ * خانة رفع ملف بتقبل كمان ملف من المكتبة: الـ JS بيبعت lib_{field}=ID.
+ * بيرجع شكل $_FILES العادي (tmp_name = مسار الملف في المكتبة، lib = true) أو null.
+ */
+function media_lib_file(string $field): ?array
+{
+    $id = (int)($_POST['lib_' . $field] ?? 0); if (!$id) return null;
+    $r = media_get((int)ws('id'), $id); if (!$r) return null;
+    $p = media_file_path((int)ws('id'), $r); if (!is_file($p)) return null;
+    return ['name' => (string)$r['name'], 'type' => (string)$r['mime'], 'tmp_name' => $p, 'error' => UPLOAD_ERR_OK, 'size' => (int)filesize($p), 'lib' => true, 'lib_id' => $id];
+}
+
+/** ملف مرفوع بأمان؟ (مرفوع فعلًا أو جاي من المكتبة) */
+function media_is_file(?array $f): bool
+{
+    return $f && ($f['error'] ?? 1) === UPLOAD_ERR_OK && (!empty($f['lib']) ? is_file($f['tmp_name']) : is_uploaded_file((string)$f['tmp_name']));
+}
+
+/** نسخة من أي صورة/فيديو اترفع من أي صفحة في المكتبة (فولدر باسم الصفحة) — من غير ما يوقف لو فشل */
+function media_capture(string $path, string $name, string $folder): void
+{
+    try {
+        $mime = (string)(mime_content_type($path) ?: '');
+        if (!isset(media_types()[$mime]) || !in_array(media_kind($mime), ['image', 'video'], true)) return;
+        media_store_path((int)ws('id'), $path, $name, $mime, $folder);
+    } catch (Throwable $e) { /* المكتبة اختيارية هنا */ }
+}

@@ -136,7 +136,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $acc
         <form method="post" class="card p-5 space-y-3">
           <?= csrf_field() ?><input type="hidden" name="action" value="photo"><input type="hidden" name="wa" value="<?= e($acc) ?>">
           <h2 class="font-semibold"><?= e(t('تغيير صورة البروفايل')) ?></h2>
-          <label class="block"><span class="label"><?= e(t('رابط الصورة (https، JPG أو PNG، يفضل 640×640)')) ?></span><input name="photo_url" type="url" dir="ltr" required class="input" placeholder="https://"></label>
+          <label class="block"><span class="label"><?= e(t('رابط الصورة (https، JPG أو PNG، يفضل 640×640)')) ?></span><input name="photo_url" type="url" dir="ltr" required data-media="image" class="input" placeholder="https://"></label>
           <button class="btn-ghost"><?= e(t('تغيير الصورة')) ?></button>
         </form>
       </div>

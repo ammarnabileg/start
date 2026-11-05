@@ -135,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 try {
                     $name = preg_replace('/[^\w.\-]+/u', '_', basename($_FILES['media']['name'][$i]));
                     $media[] = ['type' => $allowedMime[$mime], 'url' => $z->uploadFile($tmp, $name, $mime)];
+                    media_capture($tmp, (string)$_FILES['media']['name'][$i], t('المنشورات'));
                 } catch (ZernioException $ex) {
                     $errors[] = $ex->getMessage();
                 }

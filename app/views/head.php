@@ -35,7 +35,12 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
   'sortNew' => t('الأحدث'), 'sortName' => t('الاسم'), 'sortSize' => t('الحجم'), 'tooBig' => t('%s أكبر من المسموح (%s)'), 'open' => t('افتح المكتبة كاملة'),
   'small' => t('صغيرة'), 'smallHint' => t('أقل من 600 بكسل: هتبان مش واضحة في الإعلانات. الأنسب 1080 أو أكتر.'), 'goodFor' => t('مقاسها %s ومناسبة للإعلانات'), 'view' => t('عرض'), 'crop' => t('قص لمقاس إعلان'),
   'dups' => t('%s ملف كان موجود قبل كده، ما اتكررش'), 'moved' => t('اتنقلوا'), 'zoom' => t('تكبير'), 'saveCopy' => t('احفظ نسخة'), 'saving' => t('بيحفظ...'), 'cropped' => t('اتحفظت نسخة مقصوصة جنب الأصل'),
-  'cropHint' => t('اسحب الصورة لتحريكها. الأصل مش بيتغير، بتتحفظ نسخة جديدة بعرض لحد 1080.'), 'rFeed' => t('فيد'), 'rFeedTall' => t('فيد طولي'), 'rStory' => t('ستوري وريلز'), 'rLink' => t('رابط'), 'rWide' => t('عريض')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+  'cropHint' => t('اسحب الصورة لتحريكها. الأصل مش بيتغير، بتتحفظ نسخة جديدة بعرض لحد 1080.'), 'rFeed' => t('فيد'), 'rFeedTall' => t('فيد طولي'), 'rStory' => t('ستوري وريلز'), 'rLink' => t('رابط'), 'rWide' => t('عريض'),
+  'back' => t('رجوع'), 'fwd' => t('تقدم'), 'up' => t('للفولدر الأعلى'), 'refresh' => t('تحديث'), 'vBig' => t('أيقونات كبيرة'), 'vIcons' => t('أيقونات'), 'vList' => t('تفاصيل'), 'pane' => t('لوحة المعاينة'),
+  'quick' => t('وصول سريع'), 'recent' => t('الأحدث'), 'foldersT' => t('الفولدرات'), 'dropHere' => t('سيب الملفات هنا عشان ترفعها'), 'noRes' => t('مفيش نتايج'), 'name' => t('الاسم'), 'folderT' => t('فولدر'), 'itemsW' => t('ملف'),
+  'tImage' => t('صورة'), 'tVideo' => t('فيديو'), 'tAudio' => t('ملف صوت'), 'tFile' => t('ملف'), 'where' => t('المكان'), 'paneHint' => t('اختار ملف عشان تشوف تفاصيله'), 'nItems' => t('%s عنصر'),
+  'kbdHint' => t('Ctrl+A تحديد الكل · F2 تسمية · Del حذف · Space معاينة · Backspace لفوق'), 'fileName' => t('الملف:'), 'allTypes' => t('كل الأنواع'), 'cancel' => t('إلغاء'), 'choose' => t('اختيار'),
+  'open' => t('فتح'), 'selAll' => t('تحديد الكل'), 'delMixed' => t('تمسح %s ملف و%s فولدر؟ ملفات الفولدرات هتطلع للفولدر الأعلى ومش هتتمسح.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
 window.mediaLoad = function (cb) { if (window.Media) return cb(); (window.__mq = window.__mq || []).push(cb); if (window.__ml) return; window.__ml = 1; var s = document.createElement('script'); s.src = 'assets/media.js?v=<?= e(APP_VERSION) ?>'; s.onload = function () { (window.__mq || []).forEach(function (f) { f(); }); }; document.head.appendChild(s); };
 window.mediaPick = function (o) { return new Promise(function (res) { window.mediaLoad(function () { window.Media.pick(o || {}).then(res); }); }); };
 (function () { // أي input فيه data-media="image|video|any" بياخد زرار "من المكتبة"
@@ -43,7 +48,24 @@ window.mediaPick = function (o) { return new Promise(function (res) { window.med
     inp.setAttribute('data-media-on', '1'); var b = document.createElement('button'); b.type = 'button'; b.className = 'media-btn mt-1.5 inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-700 hover:bg-ink-50'; b.textContent = '📁 ' + window.MEDIA.s.pick;
     b.onclick = function () { if (inp.disabled) return; window.mediaPick({ accept: inp.getAttribute('data-media') || 'image', public: true }).then(function (f) { if (!f || !f[0]) return; inp.value = f[0].public || f[0].url; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); }); };
     inp.insertAdjacentElement('afterend', b); }); };
-  document.addEventListener('DOMContentLoaded', function () { scan(); var t; new MutationObserver(function () { clearTimeout(t); t = setTimeout(scan, 120); }).observe(document.body, { childList: true, subtree: true }); });
+  var scanFiles = function () { [].forEach.call(document.querySelectorAll('input[type=file][data-lib]:not([data-lib-on])'), function (inp) { // خانة رفع ملف: + اختيار من المكتبة
+    inp.setAttribute('data-lib-on', '1'); var form = inp.form, req = inp.required, inline = inp.hasAttribute('data-lib-inline');
+    var b = document.createElement('button'); b.type = 'button'; b.title = window.MEDIA.s.pick; b.setAttribute('aria-label', window.MEDIA.s.pick);
+    b.className = inline ? 'media-btn inline-grid place-items-center w-9 h-9 rounded-xl text-ink-500 hover:bg-ink-100' : 'media-btn mt-1.5 inline-flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-700 hover:bg-ink-50';
+    b.textContent = inline ? '📁' : '📁 ' + window.MEDIA.s.pick;
+    var chip = document.createElement('span'); chip.className = 'media-chip hidden ms-2 inline-flex items-center gap-2 rounded-lg bg-brand-50 text-brand-800 text-xs px-2 py-1 align-middle';
+    b.onclick = function () { window.mediaPick({ accept: inp.getAttribute('data-lib') || 'image', public: false }).then(function (f) {
+      if (!f || !f[0]) return; f = f[0]; var h = form && form.querySelector('input[name="lib_' + inp.name + '"]');
+      if (!h && form) { h = document.createElement('input'); h.type = 'hidden'; h.name = 'lib_' + inp.name; form.appendChild(h); } if (h) h.value = f.id;
+      inp.value = ''; inp.required = false;
+      chip.innerHTML = (f.kind === 'image' ? '<img alt="" class="w-7 h-7 rounded object-cover">' : '') + '<span class="max-w-[12rem] truncate"></span><button type="button" class="opacity-70 hover:opacity-100" aria-label="×">×</button>';
+      if (chip.querySelector('img')) chip.querySelector('img').src = f.thumb || f.url; chip.querySelector('span').textContent = f.name; chip.classList.remove('hidden');
+      chip.querySelector('button').onclick = function () { if (h) h.remove(); inp.required = req; chip.classList.add('hidden'); };
+      if (inline && inp.parentNode) inp.parentNode.classList.add('bg-brand-100');
+    }); };
+    inp.addEventListener('change', function () { var h = form && form.querySelector('input[name="lib_' + inp.name + '"]'); if (inp.files.length && h) { h.remove(); chip.classList.add('hidden'); inp.required = req; } });
+    var anchor = inline ? inp.parentNode : inp; anchor.insertAdjacentElement('afterend', b); b.insertAdjacentElement('afterend', chip); }); };
+  document.addEventListener('DOMContentLoaded', function () { scan(); scanFiles(); var t; new MutationObserver(function () { clearTimeout(t); t = setTimeout(function () { scan(); scanFiles(); }, 120); }).observe(document.body, { childList: true, subtree: true }); });
 })();
 </script>
 <?php endif; ?>

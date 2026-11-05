@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     $action = (string)($_POST['action'] ?? '');
     try {
         if ($action === 'upload') {
-            $f = $_FILES['photo'] ?? null;
+            $f = media_lib_file('photo') ?: ($_FILES['photo'] ?? null);
             $cat = (string)($_POST['category'] ?? 'ADDITIONAL');
             if (!isset($cats[$cat])) $cat = 'ADDITIONAL';
             if (!$f || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             }
             $name = preg_replace('/[^A-Za-z0-9._-]/', '_', basename((string)$f['name'])) ?: 'photo.jpg';
             $url = $z->uploadFile($f['tmp_name'], $name, $mime);
+            if (empty($f['lib'])) media_capture($f['tmp_name'], (string)$f['name'], 'Google Business');
             gmb_add_media($z, $loc['account'], $loc['location'], $url, $cat, trim((string)($_POST['description'] ?? '')));
             log_activity('gmb.media_add', $cat);
             flash('success', t('تم رفع الصورة. ممكن تاخد شوية وقت لحد ما تظهر على جوجل.'));
@@ -86,7 +87,7 @@ render(t('صور جوجل بيزنس'), 'gmb_media', function () use ($z, $accou
     <form method="post" enctype="multipart/form-data" class="card p-5 mb-4 flex flex-wrap items-end gap-3">
       <?= csrf_field() ?><input type="hidden" name="action" value="upload"><input type="hidden" name="loc" value="<?= e($loc['key']) ?>">
       <label class="block"><span class="label"><?= e(t('صورة جديدة (JPG أو PNG)')) ?></span>
-        <input type="file" name="photo" accept="image/jpeg,image/png" required class="input"></label>
+        <input type="file" name="photo" accept="image/jpeg,image/png" required data-lib="image" class="input"></label>
       <label class="block"><span class="label"><?= e(t('مكانها')) ?></span>
         <select name="category" class="input !w-auto">
           <?php foreach ($cats as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?>
