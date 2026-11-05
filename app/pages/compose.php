@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
         foreach (array_slice(array_unique(array_map('intval', (array)($_POST['lib_media'] ?? []))), 0, 10) as $mid) {
             if ($errors || !$mid || !($mr = media_get((int)ws('id'), $mid))) continue;
             $kind = media_kind((string)$mr['mime']); if (!in_array($kind, ['image', 'video'], true) && $mr['mime'] !== 'application/pdf') continue;
-            try { $media[] = ['type' => $kind === 'doc' ? 'document' : $kind, 'url' => media_public_url($z, (int)ws('id'), $mid)]; } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
+            try { $media[] = ['type' => $kind === 'doc' ? 'document' : $kind, 'url' => media_public_url($z, (int)ws('id'), $mid, 'post', mb_substr((string)$old['content'], 0, 80))]; } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
         }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
 

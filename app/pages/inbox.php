@@ -189,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if (media_is_file($att)) {
                     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($att['tmp_name']);
                     $name = preg_replace('/[^\w.\-]+/u', '_', basename($att['name']));
-                    $attachUrl = !empty($att['lib']) ? media_public_url($z, (int)ws('id'), (int)$att['lib_id']) : $z->uploadFile($att['tmp_name'], $name, $mime);
+                    $attachUrl = !empty($att['lib']) ? media_public_url($z, (int)ws('id'), (int)$att['lib_id'], 'message', (string)$convId) : $z->uploadFile($att['tmp_name'], $name, $mime);
                     if (empty($att['lib'])) media_capture($att['tmp_name'], (string)$att['name'], t('الرسائل'));
                     $attachType = strpos($mime, 'image/') === 0 ? 'image' : (strpos($mime, 'video/') === 0 ? 'video' : (strpos($mime, 'audio/') === 0 ? 'audio' : 'file'));
                 }

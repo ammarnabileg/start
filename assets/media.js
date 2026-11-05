@@ -35,7 +35,7 @@
     if (opt.picker && !anyOk && accept.length === 1) st.loc = { t: accept[0], f: '' };
     host.innerHTML = '<div class="mx-win flex flex-col rounded-2xl border border-ink-200 bg-white shadow-sm overflow-hidden select-none text-[13px] outline-none" style="height:' + (opt.picker ? 'min(74vh,660px)' : 'calc(100vh - 170px)') + ';min-height:440px" tabindex="0">'
       + '<div class="mx-tb flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-ink-200 bg-ink-50"></div>'
-      + '<div class="flex flex-1 min-h-0"><nav class="mx-nav w-52 shrink-0 border-e border-ink-200 bg-ink-50/60 overflow-y-auto py-2 hidden sm:block"></nav>'
+      + '<div class="relative flex flex-1 min-h-0"><nav class="mx-nav w-52 shrink-0 border-e border-ink-200 bg-ink-50/60 overflow-y-auto py-2 hidden sm:block"></nav>'
       + '<div class="mx-main relative flex-1 min-w-0 overflow-auto"><div class="mx-items p-3 min-h-full"></div><div class="mx-band hidden absolute border border-brand-500 bg-brand-500/15 pointer-events-none"></div><div class="mx-dropov hidden absolute inset-2 rounded-xl border-2 border-dashed border-brand-500 bg-brand-50/80 grid place-items-center text-brand-800 font-semibold pointer-events-none">' + esc(S.dropHere) + '</div></div>'
       + '<aside class="mx-pane w-72 shrink-0 border-s border-ink-200 overflow-y-auto hidden"></aside></div>'
       + '<div class="mx-prog"></div><div class="mx-sb flex items-center gap-3 px-3 h-7 border-t border-ink-200 bg-ink-50 text-[11px] text-ink-500"></div>'
@@ -71,12 +71,13 @@
       else if (L.t !== 'all') crumbs += sep + '<span class="px-1.5">' + esc(locName(L)) + '</span>';
       var btn = function (cls, ic, title, dis, on, extra) { return '<button type="button" ' + (extra || '') + ' class="' + cls + ' w-8 h-8 grid place-items-center rounded-lg ' + (on ? 'bg-white shadow-sm text-brand-700' : 'text-ink-600 hover:bg-ink-200/60') + ' disabled:opacity-30" title="' + esc(title) + '" aria-label="' + esc(title) + '"' + (dis ? ' disabled' : '') + '>' + ic + '</button>'; };
       var flip = function (ic, f) { return '<span style="display:inline-block;transform:scaleX(' + f + ')">' + ic + '</span>'; };
-      $('.mx-tb').innerHTML = btn('mx-back', flip(IC.back, rtl() ? -1 : 1), S.back, !st.hist.length) + btn('mx-fwd', flip(IC.back, rtl() ? 1 : -1), S.fwd, !st.fwd.length) + btn('mx-up', IC.up, S.up, L.t !== 'folder')
+      $('.mx-tb').innerHTML = btn('mx-navt sm:hidden', '☰', S.foldersT) + btn('mx-back', flip(IC.back, rtl() ? -1 : 1), S.back, !st.hist.length) + btn('mx-fwd', flip(IC.back, rtl() ? 1 : -1), S.fwd, !st.fwd.length) + btn('mx-up', IC.up, S.up, L.t !== 'folder')
         + '<div class="flex-1 min-w-[10rem] flex items-center gap-0.5 h-8 rounded-lg border border-ink-200 bg-white px-2 overflow-x-auto whitespace-nowrap">' + crumbs + '</div>'
         + '<input type="search" class="mx-q input !mt-0 !h-8 !py-0 w-48 text-[13px]" placeholder="' + esc(S.search) + '" value="' + esc(st.q) + '">'
         + '<span class="w-px h-6 bg-ink-200 mx-1"></span>' + (M.canEdit ? btn('mx-nf', IC.newf, S.newFolder) + btn('mx-upl', IC.upl, S.upload) : '') + btn('mx-ref', IC.ref, S.refresh)
         + '<span class="w-px h-6 bg-ink-200 mx-1"></span><div class="flex rounded-lg bg-ink-100 p-0.5">' + btn('mx-v', IC.grid, S.vBig, false, st.view === 'big', 'data-v="big"') + btn('mx-v', IC.gridS, S.vIcons, false, st.view === 'icons', 'data-v="icons"') + btn('mx-v', IC.list, S.vList, false, st.view === 'list', 'data-v="list"') + '</div>'
-        + btn('mx-pn hidden lg:grid', IC.pane, S.pane, false, st.pane);
+        + btn('mx-pn hidden lg:grid', IC.pane, S.pane, false, st.pane)
+        + (!opt.picker && M.canEdit && (L.t === 'folder' || L.t === 'all') ? btn('mx-share', '🔗', S.shareT) : '') + btn('mx-help', '?', S.helpT);
     }
     function nav() {
       var L = st.loc, row = function (attrs, ic, label, n, on, lvl) { return '<button type="button" ' + attrs + ' class="w-full flex items-center gap-2 py-1.5 text-start rounded-md ' + (on ? 'bg-brand-100/70 text-brand-900 font-medium' : 'text-ink-700 hover:bg-ink-200/50') + '" style="padding-inline:' + (8 + (lvl || 0) * 14) + 'px 8px"><span class="w-4 h-4 shrink-0 grid place-items-center">' + ic + '</span><span class="flex-1 truncate">' + esc(label) + '</span>' + (n != null ? '<span class="text-[10px] text-ink-400">' + n + '</span>' : '') + '</button>'; };
@@ -115,12 +116,16 @@
         return;
       }
       var big = st.view === 'big', z = st.zoom || 1, cw = Math.round((big ? 160 : 112) * z), bh = Math.round((big ? 128 : 80) * z), cut = st.clip && st.clip.keys || [];
+      var groupOn = st.sort[0] === 'date' && st.loc.t !== 'trash', lastG = null, now = new Date(), d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var gOf = function (f) { var t = new Date(String(f.at).replace(' ', 'T')).getTime(), days = (d0 - t) / 864e5; return t >= d0 ? S.gToday : days < 1 ? S.gYesterday : days < 7 ? S.gWeek : days < 30 ? S.gMonth : S.gOlder; };
       el.innerHTML = '<div class="flex flex-wrap gap-1 content-start">' + list.map(function (x) {
+        var head = ''; if (groupOn) { var g = x.dir ? S.foldersT : gOf(x.f); if (g !== lastG) { lastG = g; head = '<div class="w-full flex items-center gap-2 pt-3 pb-1 text-[11px] font-semibold text-ink-500 first:pt-0"><span>' + esc(g) + '</span><span class="flex-1 h-px bg-ink-200"></span></div>'; } }
         var on = isSel(x.key), dim = x.f && !okKind(x.f.kind), rb = x.f ? ratioOf(x.f) : null;
-        return '<div data-k="' + esc(x.key) + '" style="width:' + cw + 'px" draggable="' + (M.canEdit && !x.trashed ? 'true' : 'false') + '" class="mx-it' + (cut.indexOf(x.key) >= 0 ? ' opacity-50' : '') + ' rounded-lg p-1.5 flex flex-col items-center text-center cursor-default ' + (on ? 'bg-brand-100/80 ring-1 ring-brand-300' : 'hover:bg-ink-100/70') + (dim ? ' opacity-40' : '') + (st.focus === x.key ? ' outline outline-1 outline-brand-400' : '') + '"' + (x.dir ? ' data-drop="' + esc(x.path) + '"' : '') + ' title="' + esc(x.dir ? x.name : x.f.name + ' · ' + size(x.f.size) + (x.f.w ? ' · ' + x.f.w + '×' + x.f.h : '')) + '">'
+        return head + '<div data-k="' + esc(x.key) + '" style="width:' + cw + 'px" draggable="' + (M.canEdit && !x.trashed ? 'true' : 'false') + '" class="mx-it' + (cut.indexOf(x.key) >= 0 ? ' opacity-50' : '') + ' relative rounded-lg p-1.5 flex flex-col items-center text-center cursor-default ' + (on ? 'bg-brand-100/80 ring-1 ring-brand-300' : 'hover:bg-ink-100/70') + (dim ? ' opacity-40' : '') + (st.focus === x.key ? ' outline outline-1 outline-brand-400' : '') + '"' + (x.dir ? ' data-drop="' + esc(x.path) + '"' : '') + ' title="' + esc(x.dir ? x.name : x.f.name + ' · ' + size(x.f.size) + (x.f.w ? ' · ' + x.f.w + '×' + x.f.h : '')) + '">'
           + '<span class="relative w-full grid place-items-center overflow-hidden" style="height:' + bh + 'px">' + (x.dir ? '<span class="' + (big ? 'w-24 h-20' : 'w-14 h-12') + '">' + IC.folder + '</span>' : thumb(x.f, big))
           + (x.f && big && rb ? '<span class="absolute bottom-0.5 end-0.5 rounded bg-black/60 text-white text-[9px] px-1" dir="ltr">' + rb + '</span>' : '') + (x.f && small(x.f) ? '<span class="absolute top-0.5 end-0.5 rounded bg-amber-500 text-white text-[9px] px-1">' + esc(S.small) + '</span>' : '') + (x.f && x.f.star ? '<span class="absolute top-0.5 start-0.5 text-[13px] drop-shadow">⭐</span>' : '') + '</span>'
-          + '<span class="mx-nm mt-1 w-full text-[12px] leading-4 break-words line-clamp-2 ' + (on ? 'text-brand-900' : 'text-ink-800') + '">' + esc(x.dir ? x.name : x.f.name) + '</span></div>';
+          + '<span class="mx-nm mt-1 w-full text-[12px] leading-4 break-words line-clamp-2 ' + (on ? 'text-brand-900' : 'text-ink-800') + '">' + esc(x.dir ? x.name : x.f.name) + '</span>'
+          + '<span class="mx-tick absolute top-1 start-1 w-5 h-5 rounded-md border-2 grid place-items-center text-[11px] ' + (on ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white/90 border-ink-300') + ' [@media(hover:hover)]:hidden">' + (on ? '✓' : '') + '</span></div>';
       }).join('') + '</div>';
     }
     function selFiles() { var src = st.loc.t === 'trash' ? st.trash : st.all; return st.sel.filter(function (k) { return k[0] === 'f'; }).map(function (k) { var id = +k.slice(1); return src.filter(function (f) { return f.id === id; })[0]; }).filter(Boolean); }
@@ -132,8 +137,16 @@
       var row = function (k, v) { return '<dt class="text-ink-500">' + esc(k) + '</dt><dd class="text-ink-800 break-all" dir="auto">' + esc(v) + '</dd>'; };
       p.innerHTML = '<div class="p-4 space-y-3">' + pv + '<b class="block text-ink-900 break-all">' + esc(f.name) + '</b><dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">' + row(S.type, typeName(f)) + row(S.size, size(f.size)) + (f.w ? row(S.dims, f.w + ' × ' + f.h + (ratioOf(f) ? '  (' + ratioOf(f) + ')' : '')) : '') + row(S.date, when(f.at)) + row(S.where, f.folder || S.noFolder) + '</dl>'
         + (f.kind === 'image' ? '<p class="text-[11px] rounded-lg px-2 py-1.5 ' + (small(f) ? 'bg-amber-50 text-amber-800' : 'bg-lime-50 text-lime-800') + '">' + esc(small(f) ? S.smallHint : fmt(S.goodFor, ratioOf(f) || (f.w + '×' + f.h))) + '</p>' : '')
+        + '<div class="mx-uses text-[11px]"></div>'
         + (M.canEdit ? '<label class="block"><span class="text-[11px] text-ink-500">' + esc(S.tags) + '</span><input class="mx-tags input !mt-1 !py-1 text-[13px]" value="' + esc(f.tags) + '"></label>' : '')
-        + '<div class="grid grid-cols-2 gap-1.5">' + (f.kind === 'image' || f.kind === 'video' ? '<button type="button" data-cmd="open" class="btn-ghost !py-1 text-xs">' + esc(S.view) + '</button>' : '') + (f.kind === 'image' && M.canEdit ? '<button type="button" data-cmd="crop" class="btn-ghost !py-1 text-xs">✂ ' + esc(S.crop) + '</button>' : '') + '<a class="btn-ghost !py-1 text-xs" href="' + esc(f.url) + '&dl=1">' + esc(S.download) + '</a>' + ((f.kind === 'image' || f.kind === 'video') ? '<button type="button" data-cmd="link" class="btn-ghost !py-1 text-xs">' + esc(S.copyLink) + '</button>' : '') + '</div></div>';
+        + '<div class="grid grid-cols-2 gap-1.5">' + (f.kind === 'image' || f.kind === 'video' ? '<button type="button" data-cmd="open" class="btn-ghost !py-1 text-xs">' + esc(S.view) + '</button>' : '') + (f.kind === 'image' && M.canEdit ? '<button type="button" data-cmd="crop" class="btn-ghost !py-1 text-xs">✂ ' + esc(S.crop) + '</button><button type="button" data-cmd="edit" class="btn-ghost !py-1 text-xs">🎨 ' + esc(S.edit) + '</button>' : '') + '<a class="btn-ghost !py-1 text-xs" href="' + esc(f.url) + '&dl=1">' + esc(S.download) + '</a>' + ((f.kind === 'image' || f.kind === 'video') ? '<button type="button" data-cmd="link" class="btn-ghost !py-1 text-xs">' + esc(S.copyLink) + '</button>' : '') + '</div></div>';
+    }
+    var usesCache = {};
+    function loadUses(f) {
+      var box = win.querySelector('.mx-uses'); if (!box) return;
+      var paint = function (u) { box.innerHTML = '<div class="text-ink-500 mb-1">' + esc(S.usedIn) + '</div>' + (u.length ? '<ul class="space-y-0.5">' + u.slice(0, 8).map(function (x) { return '<li class="flex gap-2"><span class="text-ink-800">' + esc(x.what) + '</span><span class="flex-1 truncate text-ink-400" dir="auto">' + esc(x.ref) + '</span><span class="text-ink-400">' + esc(when(x.at).split(' ').slice(0, 3).join(' ')) + '</span></li>'; }).join('') + '</ul>' : '<p class="text-ink-400">' + esc(S.notUsed) + '</p>'); };
+      if (usesCache[f.id]) return paint(usesCache[f.id]);
+      fetch(M.page + '&ajax=uses&id=' + f.id, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { usesCache[f.id] = j.uses || []; if (selFiles()[0] === f) paint(usesCache[f.id]); }).catch(function () {});
     }
     function status() {
       var list = current(), fs = selFiles();
@@ -152,9 +165,10 @@
       [].forEach.call(win.querySelectorAll('.mx-items [data-k]'), function (n) { var on = st.sel.indexOf(n.dataset.k) >= 0, fo = st.focus === n.dataset.k;
         n.classList.toggle('bg-brand-100/80', on); n.classList.toggle(list ? 'hover:bg-ink-50' : 'hover:bg-ink-100/70', !on);
         if (!list) { n.classList.toggle('ring-1', on); n.classList.toggle('ring-brand-300', on); var nm = n.querySelector('.mx-nm'); if (nm) { nm.classList.toggle('text-brand-900', on); nm.classList.toggle('text-ink-800', !on); } }
-        n.classList.toggle('outline', fo); n.classList.toggle('outline-1', fo); n.classList.toggle('outline-brand-400', fo); });
+        n.classList.toggle('outline', fo); n.classList.toggle('outline-1', fo); n.classList.toggle('outline-brand-400', fo);
+        var tk = n.querySelector('.mx-tick'); if (tk) { tk.textContent = on ? '✓' : ''; tk.classList.toggle('bg-brand-600', on); tk.classList.toggle('border-brand-600', on); tk.classList.toggle('text-white', on); tk.classList.toggle('bg-white/90', !on); tk.classList.toggle('border-ink-300', !on); } });
     }
-    function refreshSel() { paintSel(); pane(); status(); foot(); }
+    function refreshSel() { paintSel(); pane(); status(); foot(); var one = selFiles(); if (one.length === 1 && st.pane) loadUses(one[0]); }
 
     function itemOf(k) { if (k[0] === 'd') return { dir: true, path: k.slice(1) }; var id = +k.slice(1); return { f: st.all.filter(function (f) { return f.id === id; })[0] }; }
     function openKey(k) { if (st.loc.t === 'trash') { var tf = st.trash.filter(function (f) { return 'f' + f.id === k; })[0]; if (tf && (tf.kind === 'image' || tf.kind === 'video')) window.open(tf.url, '_blank'); return; } var it = itemOf(k); if (it.dir) return go({ t: 'folder', f: it.path }); if (!it.f) return; if (opt.picker) { if (okKind(it.f.kind)) { st.sel = [k]; finish(); } else toast(S.notAllowed, 'err'); return; } if (it.f.kind === 'image' || it.f.kind === 'video') lightbox(it.f.id); else window.open(it.f.url, '_blank'); }
@@ -269,6 +283,7 @@
     main.addEventListener('mousedown', function (e) {
       if (e.button !== 0 || e.target.closest('input, button, a, video, audio, th')) return; var it = e.target.closest('[data-k]');
       if (it) { var k = it.dataset.k;
+        if (e.target.closest('.mx-tick')) { var ti = st.sel.indexOf(k); if (ti >= 0) st.sel.splice(ti, 1); else st.sel.push(k); anchor = k; st.focus = k; refreshSel(); return; }
         if (e.shiftKey && anchor) { var keys = current().map(function (x) { return x.key; }), a = keys.indexOf(anchor), b = keys.indexOf(k); st.sel = keys.slice(Math.min(a, b), Math.max(a, b) + 1); }
         else if (e.ctrlKey || e.metaKey) { var i = st.sel.indexOf(k); if (i >= 0) st.sel.splice(i, 1); else st.sel.push(k); anchor = k; }
         else if (st.sel.indexOf(k) < 0 || (opt.picker && !opt.multiple)) { st.sel = [k]; anchor = k; }
@@ -304,6 +319,7 @@
       if (cmd === 'link' && one) return copyLink(one); if (cmd === 'crop' && one) return cropper(one); if (cmd === 'dl' && one) { location.href = one.url + '&dl=1'; return; }
       if (cmd === 'move') return moveDialog(st.sel.slice());
       if (cmd === 'restore') return restore(st.sel.slice()); if (cmd === 'purge') return del(st.sel.slice(), true); if (cmd === 'emptytrash') { if (confirm(fmt(S.purgeQ, st.trash.length))) post({ action: 'empty_trash' }).then(load); return; }
+      if (cmd === 'edit' && one) return editor(one); if (cmd === 'share') return shareDialog(st.sel.length === 1 && st.sel[0][0] === 'd' ? st.sel[0].slice(1) : (st.loc.t === 'folder' ? st.loc.f : ''));
       if (cmd === 'star') return star(st.sel.slice()); if (cmd === 'zip') return zip(st.sel.slice());
       if (cmd === 'cut') { st.clip = { keys: st.sel.filter(function (k) { return k[0] === 'f'; }) }; items(); status(); return toast(fmt(S.cutN, st.clip.keys.length), 'ok'); }
       if (cmd === 'paste') { if (!st.clip) return; var dest = st.loc.t === 'folder' ? st.loc.f : ''; moveTo(st.clip.keys, dest); st.clip = null; return; }
@@ -317,7 +333,7 @@
         if (st.sel.indexOf(it.dataset.k) < 0) { st.sel = [it.dataset.k]; refreshSel(); }
         var fs = selFiles(), one = fs.length === 1 && st.sel.length === 1 ? fs[0] : null, isDir = st.sel.length === 1 && st.sel[0][0] === 'd';
         if (st.loc.t === 'trash') return showMenu(e.clientX, e.clientY, [['restore', S.restore], '-', ['purge', S.purge, 'Del', true]]);
-        showMenu(e.clientX, e.clientY, [['open', opt.picker && !isDir ? S.choose : S.open, 'Enter'], '-'].concat(one && one.kind === 'image' && M.canEdit ? [['crop', '✂ ' + S.crop]] : []).concat(one && (one.kind === 'image' || one.kind === 'video') ? [['link', S.copyLink]] : []).concat(one ? [['dl', S.download]] : []).concat(fs.length > 1 ? [['zip', fmt(S.zipN, fs.length)]] : []).concat(fs.length && M.canEdit && !opt.picker ? [['star', fs.every(function (f) { return f.star; }) ? S.unstar : S.star]] : [])
+        showMenu(e.clientX, e.clientY, [['open', opt.picker && !isDir ? S.choose : S.open, 'Enter'], '-'].concat(one && one.kind === 'image' && M.canEdit ? [['crop', '✂ ' + S.crop]] : []).concat(one && one.kind === 'image' && M.canEdit ? [['edit', '🎨 ' + S.edit]] : []).concat(isDir && M.canEdit && !opt.picker ? [['share', '🔗 ' + S.shareT]] : []).concat(one && (one.kind === 'image' || one.kind === 'video') ? [['link', S.copyLink]] : []).concat(one ? [['dl', S.download]] : []).concat(fs.length > 1 ? [['zip', fmt(S.zipN, fs.length)]] : []).concat(fs.length && M.canEdit && !opt.picker ? [['star', fs.every(function (f) { return f.star; }) ? S.unstar : S.star]] : [])
           .concat(M.canEdit ? ['-', ['rename', S.rename, 'F2', false, st.sel.length !== 1], ['cut', S.cut, 'Ctrl+X', false, !fs.length], ['move', S.move, '', false, !fs.length], ['del', S.del, 'Del', true]] : []));
       } else showMenu(e.clientX, e.clientY, (M.canEdit && st.loc.t !== 'trash' ? [['newf', S.newFolder, 'Ctrl+Shift+N'], ['upl', S.upload]].concat(st.clip ? [['paste', fmt(S.pasteN, st.clip.keys.length), 'Ctrl+V']] : []) : []).concat(['-', ['v-big', S.vBig], ['v-icons', S.vIcons], ['v-list', S.vList], '-', ['all', S.selAll, 'Ctrl+A'], ['ref', S.refresh, 'F5']]));
     });
@@ -332,11 +348,12 @@
       if (ctrl && e.key.toLowerCase() === 'f') { e.preventDefault(); return $('.mx-q').focus(); }
       if (ctrl && e.key.toLowerCase() === 'x' && M.canEdit && !opt.picker) { e.preventDefault(); return run('cut'); }
       if (ctrl && e.key.toLowerCase() === 'v' && st.clip && M.canEdit) { e.preventDefault(); return run('paste'); }
-      if (!ctrl && !e.altKey && e.key.length === 1 && e.key !== ' ' && /\S/.test(e.key)) { // كتابة حرف بتنقل لأول ملف بيبدأ بيه
+      if (!ctrl && !e.altKey && e.key.length === 1 && e.key !== ' ' && e.key !== '?' && /\S/.test(e.key)) { // كتابة حرف بتنقل لأول ملف بيبدأ بيه
         clearTimeout(win._ta); win._tq = (win._tq || '') + e.key.toLowerCase(); win._ta = setTimeout(function () { win._tq = ''; }, 700);
         var hit = list.filter(function (x) { return (x.dir ? x.name : x.f.name).toLowerCase().indexOf(win._tq) === 0; })[0];
         if (hit) { st.sel = [hit.key]; st.focus = hit.key; anchor = hit.key; refreshSel(); var hn = main.querySelector('[data-k="' + CSS.escape(hit.key) + '"]'); if (hn) hn.scrollIntoView({ block: 'nearest' }); } return; }
       if (e.key === 'F5') { e.preventDefault(); return load(); }
+      if (e.key === '?') { e.preventDefault(); return helpDialog(); }
       if (e.key === 'Escape') { if (menu) return closeMenu(); if (st.sel.length) { e.preventDefault(); st.sel = []; return refreshSel(); } return; }
       if (e.key === 'Delete' && st.sel.length && M.canEdit) return del(st.sel.slice());
       if (e.key === 'F2' && st.sel.length === 1) { e.preventDefault(); return renameKey(st.sel[0]); }
@@ -353,6 +370,7 @@
     // ---- الأزرار والتنقل
     win.addEventListener('click', function (e) {
       var g = e.target.closest('[data-go]'), gf = e.target.closest('[data-gof]'), sort = e.target.closest('[data-sort]'), cmd = e.target.closest('[data-cmd]'), c = e.target.closest('button');
+      if ((g || gf) && innerWidth < 640) { var nv2 = $('.mx-nav'); if (!nv2.classList.contains('hidden') && nv2.classList.contains('absolute')) { nv2.classList.add('hidden'); nv2.classList.remove('absolute', 'z-30', 'inset-y-0', 'start-0', '!bg-white', 'shadow-2xl'); } }
       if (g) return go({ t: g.dataset.go, f: '' }); if (gf) return go({ t: 'folder', f: gf.dataset.gof });
       if (sort) { var k = sort.dataset.sort; st.sort = st.sort[0] === k ? [k, -st.sort[1]] : [k, k === 'name' || k === 'type' ? 1 : -1]; store.set('sort', st.sort); return items(); }
       if (cmd) return run(cmd.dataset.cmd);
@@ -363,6 +381,9 @@
       else if (c.classList.contains('mx-nf')) newFolder();
       else if (c.classList.contains('mx-upl')) $('.mx-file').click();
       else if (c.classList.contains('mx-ref')) load();
+      else if (c.classList.contains('mx-share')) run('share');
+      else if (c.classList.contains('mx-help')) helpDialog();
+      else if (c.classList.contains('mx-navt')) { var nv = $('.mx-nav'); ['hidden', 'absolute', 'z-30', 'inset-y-0', 'start-0', '!bg-white', 'shadow-2xl'].forEach(function (k) { nv.classList.toggle(k); }); }
       else if (c.classList.contains('mx-pn')) { st.pane = !st.pane; store.set('pane', st.pane); toolbar(); pane(); }
       else if (c.dataset.v) { st.view = c.dataset.v; store.set('view', st.view); toolbar(); items(); }
     });
@@ -421,11 +442,59 @@
       };
     }
 
+    function helpDialog() {
+      var d = document.createElement('dialog'); d.className = 'w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl backdrop:bg-ink-900/40';
+      var keys = [['Enter', S.hOpen], ['Space', S.hPreview], ['F2', S.rename], ['Del', S.hDel], ['Ctrl+A', S.selAll], ['Ctrl+X / Ctrl+V', S.hCut], ['Ctrl+F', S.hSearch], ['Ctrl+Shift+N', S.newFolder], ['Backspace', S.up], ['← → ↑ ↓', S.hArrows], ['Shift + ' + S.hClick, S.hRange], ['Ctrl + ' + S.hClick, S.hToggle], ['Ctrl + ' + S.hWheel, S.zoomT], ['F5', S.refresh], ['?', S.helpT]];
+      d.innerHTML = '<div class="px-5 h-12 flex items-center border-b border-ink-200"><b class="flex-1 text-sm">⌨ ' + esc(S.helpT) + '</b><button type="button" class="x p-1.5 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div><div class="p-4 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">' + keys.map(function (k) { return '<div class="flex items-center justify-between gap-3"><span class="text-ink-700">' + esc(k[1]) + '</span><kbd class="shrink-0 rounded-md border border-ink-300 border-b-2 bg-ink-50 px-1.5 py-0.5 text-[11px] font-mono" dir="ltr">' + esc(k[0]) + '</kbd></div>'; }).join('') + '</div><p class="px-5 pb-4 text-[11px] text-ink-500">' + esc(S.hTips) + '</p>';
+      document.body.appendChild(d); d.querySelector('.x').onclick = function () { d.close(); }; d.addEventListener('close', function () { d.remove(); win.focus(); }); d.showModal();
+    }
+    function shareDialog(folder) {
+      var d = document.createElement('dialog'); d.className = 'w-[min(520px,94vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl backdrop:bg-ink-900/40';
+      d.innerHTML = '<div class="px-5 h-12 flex items-center border-b border-ink-200"><b class="flex-1 text-sm truncate">🔗 ' + esc(fmt(S.shareOf, folder || S.title)) + '</b><button type="button" class="x p-1.5 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>'
+        + '<div class="p-5 space-y-4 text-sm"><p class="text-xs text-ink-600">' + esc(S.shareHint) + '</p><div class="flex flex-wrap items-end gap-3"><label class="block"><span class="text-xs text-ink-500">' + esc(S.validFor) + '</span><select class="dy input !mt-1 !py-1.5 !w-auto"><option value="1">' + esc(S.d1) + '</option><option value="7" selected>' + esc(S.d7) + '</option><option value="30">' + esc(S.d30) + '</option><option value="0">' + esc(S.d0) + '</option></select></label>'
+        + '<label class="flex items-center gap-2 text-xs pb-2"><input type="checkbox" class="dl" checked> ' + esc(S.allowDl) + '</label><button type="button" class="mk btn-primary ms-auto">' + esc(S.makeLink) + '</button></div><div class="ls space-y-2"></div></div>';
+      document.body.appendChild(d); d.addEventListener('close', function () { d.remove(); win.focus(); }); d.querySelector('.x').onclick = function () { d.close(); }; d.showModal();
+      var list = function () { fetch(M.page + '&ajax=shares&folder=' + encodeURIComponent(folder), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        d.querySelector('.ls').innerHTML = (j.shares || []).map(function (x) { return '<div class="rounded-xl border ' + (x.expired ? 'border-ink-200 opacity-60' : 'border-brand-200 bg-brand-50/50') + ' p-3"><div class="flex items-center gap-2"><input readonly class="flex-1 min-w-0 rounded-lg border border-ink-200 bg-white px-2 py-1 text-[11px]" dir="ltr" value="' + esc(x.url) + '"><button type="button" data-cp="' + esc(x.url) + '" class="btn-ghost !py-1 text-xs">' + esc(S.copy) + '</button><button type="button" data-rv="' + x.id + '" class="text-xs text-red-600 hover:underline">' + esc(S.revoke) + '</button></div>'
+          + '<p class="text-[11px] text-ink-500 mt-1.5">' + esc([x.expired ? S.expired : x.exp ? fmt(S.until, when(x.exp)) : S.d0, x.dl ? S.allowDl : S.viewOnly, fmt(S.views, x.views)].join(' · ')) + '</p></div>'; }).join('') || '<p class="text-xs text-ink-400">' + esc(S.noLinks) + '</p>'; }); };
+      d.querySelector('.mk').onclick = function () { post({ action: 'share_create', folder: folder, days: d.querySelector('.dy').value, dl: d.querySelector('.dl').checked ? 1 : '' }).then(function (j) { if (!j.ok) return toast(S.publicErr, 'err'); (navigator.clipboard ? navigator.clipboard.writeText(j.url) : Promise.reject()).then(function () { toast(S.linkCopied, 'ok'); }).catch(function () {}); list(); }); };
+      d.querySelector('.ls').onclick = function (e) { var cp = e.target.closest('[data-cp]'), rv = e.target.closest('[data-rv]'); if (cp) (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.cp) : Promise.reject()).then(function () { toast(S.copied, 'ok'); }).catch(function () {}); if (rv && confirm(S.revokeQ)) post({ action: 'share_revoke', sid: rv.dataset.rv }).then(list); };
+      list();
+    }
+    // محرر الصور: تدوير/قلب/سطوع/تباين/تشبع/مقاس/جودة — بيحفظ نسخة جديدة
+    function editor(f) {
+      var d = document.createElement('dialog'); d.className = 'w-[min(980px,97vw)] p-0 rounded-2xl border border-ink-200 bg-white text-ink-900 shadow-2xl backdrop:bg-ink-900/50';
+      var sl = function (k, l, mn, mx, v, st2) { return '<label class="block"><span class="flex justify-between text-[11px] text-ink-600"><span>' + esc(l) + '</span><span class="v-' + k + '" dir="ltr">' + v + '</span></span><input type="range" data-k="' + k + '" min="' + mn + '" max="' + mx + '" step="' + (st2 || 1) + '" value="' + v + '" class="w-full accent-brand-600"></label>'; };
+      d.innerHTML = '<div class="flex items-center px-5 h-12 border-b border-ink-200"><b class="flex-1 text-sm truncate">🎨 ' + esc(S.edit) + ' · ' + esc(f.name) + '</b><button type="button" class="x p-1.5 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>'
+        + '<div class="grid md:grid-cols-[minmax(0,1fr)_260px]"><div class="bg-ink-900 grid place-items-center p-3" style="min-height:min(60vh,480px)"><canvas class="cv max-w-full max-h-[60vh]"></canvas></div>'
+        + '<div class="p-4 space-y-3 text-[13px] border-s border-ink-200"><div class="grid grid-cols-4 gap-1.5">' + [['rl', '⟲', S.rotL], ['rr', '⟳', S.rotR], ['fh', '⇋', S.flipH], ['fv', '⇅', S.flipV]].map(function (b) { return '<button type="button" data-t="' + b[0] + '" title="' + esc(b[2]) + '" class="btn-ghost !px-0 !py-1.5 text-base">' + b[1] + '</button>'; }).join('') + '</div>'
+        + sl('br', S.bright, 50, 150, 100) + sl('ct', S.contrast, 50, 150, 100) + sl('sa', S.satur, 0, 200, 100)
+        + '<label class="block"><span class="text-[11px] text-ink-600">' + esc(S.maxW) + '</span><select class="mw input !mt-1 !py-1.5"><option value="0">' + esc(S.orig) + '</option><option value="2048">2048</option><option value="1440">1440</option><option value="1080" selected>1080</option><option value="720">720</option></select></label>'
+        + sl('q', S.quality, 50, 95, 85) + '<label class="block"><span class="text-[11px] text-ink-600">' + esc(S.format) + '</span><select class="fm input !mt-1 !py-1.5"><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option><option value="image/png">PNG</option></select></label>'
+        + '<p class="est text-[11px] text-ink-500" dir="auto"></p><div class="flex gap-2"><button type="button" class="rs btn-ghost flex-1">' + esc(S.reset) + '</button><button type="button" class="go btn-primary flex-1">' + esc(S.saveCopy) + '</button></div></div></div>';
+      document.body.appendChild(d); d.addEventListener('close', function () { d.remove(); win.focus(); }); d.querySelector('.x').onclick = function () { d.close(); }; d.showModal();
+      var img = new Image(), cv = d.querySelector('.cv'), S2 = { rot: 0, fh: 1, fv: 1, br: 100, ct: 100, sa: 100, q: 85 }, et;
+      var render = function (target, maxW) { var w0 = img.naturalWidth, h0 = img.naturalHeight, sw = S2.rot % 180 ? h0 : w0, sh = S2.rot % 180 ? w0 : h0, k = maxW && sw > maxW ? maxW / sw : 1;
+        target.width = Math.round(sw * k); target.height = Math.round(sh * k); var c = target.getContext('2d'); c.filter = 'brightness(' + S2.br + '%) contrast(' + S2.ct + '%) saturate(' + S2.sa + '%)';
+        c.translate(target.width / 2, target.height / 2); c.rotate(S2.rot * Math.PI / 180); c.scale(S2.fh, S2.fv); var dw = (S2.rot % 180 ? target.height : target.width), dh = (S2.rot % 180 ? target.width : target.height); c.drawImage(img, -dw / 2, -dh / 2, dw, dh); };
+      var out = function () { return +d.querySelector('.mw').value; };
+      var redraw = function () { render(cv, 900); clearTimeout(et); et = setTimeout(function () { var c2 = document.createElement('canvas'); render(c2, out()); c2.toBlob(function (b) { if (b) d.querySelector('.est').textContent = c2.width + '×' + c2.height + ' · ' + size(b.size) + ' (' + S.wasSize + ' ' + size(f.size) + ')'; }, d.querySelector('.fm').value, S2.q / 100); }, 250); };
+      img.onload = redraw; img.src = f.url;
+      d.addEventListener('input', function (e) { var k = e.target.dataset.k; if (!k) return; S2[k] = +e.target.value; d.querySelector('.v-' + k).textContent = e.target.value; redraw(); });
+      d.addEventListener('change', function (e) { if (e.target.matches('.mw, .fm')) redraw(); });
+      d.querySelector('.grid-cols-4').onclick = function (e) { var b = e.target.closest('[data-t]'); if (!b) return; var t = b.dataset.t; if (t === 'rl') S2.rot = (S2.rot + 270) % 360; if (t === 'rr') S2.rot = (S2.rot + 90) % 360; if (t === 'fh') S2.fh *= -1; if (t === 'fv') S2.fv *= -1; redraw(); };
+      d.querySelector('.rs').onclick = function () { S2 = { rot: 0, fh: 1, fv: 1, br: 100, ct: 100, sa: 100, q: 85 }; [].forEach.call(d.querySelectorAll('input[type=range]'), function (r) { r.value = S2[r.dataset.k]; d.querySelector('.v-' + r.dataset.k).textContent = r.value; }); redraw(); };
+      d.querySelector('.go').onclick = function () {
+        var b = this, c2 = document.createElement('canvas'), mime = d.querySelector('.fm').value, ex2 = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }[mime]; render(c2, out()); b.disabled = true; b.textContent = S.saving;
+        c2.toBlob(function (blob) { var nm = f.name.replace(/\.[^.]+$/, '') + '-' + S.editedSuffix + '.' + ex2, fd = new FormData(); fd.append('_csrf', M.csrf); fd.append('action', 'derive'); fd.append('src', f.id); fd.append('name', nm); fd.append('file', blob, nm);
+          fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = S.saveCopy; return toast(j.error || S.publicErr, 'err'); } toast(S.edited, 'ok'); d.close(); st.sel = ['f' + j.item.id]; load(); }); }, mime, S2.q / 100);
+      };
+    }
     function finish() {
       var out = selFiles().filter(function (f) { return okKind(f.kind); }); if (!out.length) return; if (!opt.multiple) out = out.slice(0, 1);
       if (!opt.public) return opt.onDone && opt.onDone(out);
       var b = win.querySelector('[data-cmd=choose]'); if (b) { b.disabled = true; b.textContent = S.preparing; }
-      post({ action: 'public', 'ids[]': out.map(function (x) { return x.id; }) }).then(function (j) { if (!j.ok) { if (b) { b.disabled = false; b.textContent = S.choose; } return toast(j.error || S.publicErr, 'err'); } out.forEach(function (x) { x.public = j.urls[x.id] || x.public; }); opt.onDone && opt.onDone(out); })
+      post({ action: 'public', ctx: opt.ctx || 'link', ref: opt.ref || '', 'ids[]': out.map(function (x) { return x.id; }) }).then(function (j) { if (!j.ok) { if (b) { b.disabled = false; b.textContent = S.choose; } return toast(j.error || S.publicErr, 'err'); } out.forEach(function (x) { x.public = j.urls[x.id] || x.public; }); opt.onDone && opt.onDone(out); })
         .catch(function () { if (b) { b.disabled = false; b.textContent = S.choose; } toast(S.publicErr, 'err'); });
     }
     load(); setTimeout(function () { win.focus(); }, 50);
@@ -439,7 +508,7 @@
         var d = document.createElement('dialog'), result = null, ex; d.className = 'w-[min(1180px,97vw)] p-0 rounded-2xl bg-transparent backdrop:bg-ink-900/45 overflow-visible';
         d.innerHTML = '<div class="bd"></div>'; document.body.appendChild(d);
         d.addEventListener('close', function () { if (ex) ex.destroy(); d.remove(); res(result); });
-        ex = Explorer(d.querySelector('.bd'), { picker: true, accept: o.accept || 'any', multiple: !!o.multiple, public: o.public !== false, onDone: function (files) { result = files; d.close(); }, onCancel: function () { d.close(); } });
+        ex = Explorer(d.querySelector('.bd'), { picker: true, ctx: o.ctx, ref: o.ref, accept: o.accept || 'any', multiple: !!o.multiple, public: o.public !== false, onDone: function (files) { result = files; d.close(); }, onCancel: function () { d.close(); } });
         d.showModal();
       });
     }

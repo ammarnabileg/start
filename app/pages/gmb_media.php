@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             }
             $name = preg_replace('/[^A-Za-z0-9._-]/', '_', basename((string)$f['name'])) ?: 'photo.jpg';
             $url = $z->uploadFile($f['tmp_name'], $name, $mime);
-            if (empty($f['lib'])) media_capture($f['tmp_name'], (string)$f['name'], 'Google Business');
+            if (empty($f['lib'])) media_capture($f['tmp_name'], (string)$f['name'], 'Google Business'); else media_log_use((int)ws('id'), (int)$f['lib_id'], 'gmb', (string)($loc['location'] ?? ''));
             gmb_add_media($z, $loc['account'], $loc['location'], $url, $cat, trim((string)($_POST['description'] ?? '')));
             log_activity('gmb.media_add', $cat);
             flash('success', t('تم رفع الصورة. ممكن تاخد شوية وقت لحد ما تظهر على جوجل.'));

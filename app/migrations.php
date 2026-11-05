@@ -404,4 +404,30 @@ return [
     '019_media_trash_star' => [
         "ALTER TABLE media_files ADD COLUMN deleted_at DATETIME NULL, ADD COLUMN starred TINYINT(1) NOT NULL DEFAULT 0, ADD INDEX ws_deleted (workspace_id, deleted_at)",
     ],
+    '020_media_share_usage' => [
+        "CREATE TABLE IF NOT EXISTS media_shares (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            token CHAR(40) NOT NULL,
+            folder VARCHAR(120) NOT NULL DEFAULT '',
+            expires_at DATETIME NULL,
+            allow_download TINYINT(1) NOT NULL DEFAULT 1,
+            views INT UNSIGNED NOT NULL DEFAULT 0,
+            created_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY tok (token),
+            INDEX ws (workspace_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS media_usage (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            file_id INT UNSIGNED NOT NULL,
+            ctx VARCHAR(40) NOT NULL,
+            ref VARCHAR(200) NULL,
+            used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_file (workspace_id, file_id),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
 ];

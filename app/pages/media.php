@@ -32,6 +32,8 @@ if (isset($_GET['zip'])) {
 
 // ---- JSON
 $json = function ($a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+if (($_GET['ajax'] ?? '') === 'uses') $json(['ok' => true, 'uses' => media_uses($wid, (int)($_GET['id'] ?? 0))]);
+if (($_GET['ajax'] ?? '') === 'shares') $json(['ok' => true, 'shares' => media_shares($wid, (string)($_GET['folder'] ?? ''))]);
 if (($_GET['ajax'] ?? '') === 'list') {
     try { media_sync_ai($wid); } catch (Throwable $e) {}
     try { media_purge_old($wid); } catch (Throwable $e) {}
@@ -86,10 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $all = (array)json_decode((string)setting('media_folders_' . $wid, '[]'), true); if (!in_array($f, $all, true)) $all[] = $f;
         save_setting('media_folders_' . $wid, json_encode(array_values($all), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $f]);
     }
+    if ($act === 'share_create') {
+        $f = $fclean($_POST['folder'] ?? ''); $days = max(0, min(365, (int)($_POST['days'] ?? 7)));
+        $sh = media_share_create($wid, $f, $days, !empty($_POST['dl'])); log_activity('media.share', $f); $json(['ok' => true] + $sh);
+    }
+    if ($act === 'share_revoke') { db()->prepare('DELETE FROM media_shares WHERE workspace_id = ? AND id = ?')->execute([$wid, (int)($_POST['sid'] ?? 0)]); $json(['ok' => true]); }
     if ($act === 'public') {
         $err = null; $z = zernio_or_null($err); if (!$z) $json(['ok' => false, 'error' => $err ?: t('زيرنيو مش مربوط')]);
         $out = [];
-        try { foreach ($ids as $x) $out[$x] = media_public_url($z, $wid, $x); } catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage(), 'urls' => $out]); }
+        $ctx = preg_replace('/[^a-z_]/', '', (string)($_POST['ctx'] ?? 'link')) ?: 'link';
+        try { foreach ($ids as $x) $out[$x] = media_public_url($z, $wid, $x, $ctx, mb_substr((string)($_POST['ref'] ?? ''), 0, 200)); } catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage(), 'urls' => $out]); }
         $json(['ok' => true, 'urls' => $out]);
     }
     $json(['ok' => false, 'error' => 'bad action']);

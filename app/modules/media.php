@@ -141,9 +141,10 @@ function media_sync_ai(int $wid): int
 function media_file_path(int $wid, array $r): string { return media_dir($wid) . '/' . basename((string)$r['path']); }
 
 /** رابط عام للملف (للمنصات): بيترفع لزيرنيو أول مرة ويتحفظ */
-function media_public_url(Zernio $z, int $wid, int $id): string
+function media_public_url(Zernio $z, int $wid, int $id, string $ctx = '', string $ref = ''): string
 {
     $r = media_get($wid, $id); if (!$r) throw new RuntimeException(t('الملف مش موجود'));
+    if ($ctx !== '') media_log_use($wid, $id, $ctx, $ref);
     if (!empty($r['public_url'])) return (string)$r['public_url'];
     $u = $z->uploadFile(media_file_path($wid, $r), (string)$r['name'], (string)$r['mime']);
     db()->prepare('UPDATE media_files SET public_url = ? WHERE id = ?')->execute([$u, $id]);
@@ -199,3 +200,39 @@ function media_capture(string $path, string $name, string $folder): void
         media_store_path((int)ws('id'), $path, $name, $mime, $folder);
     } catch (Throwable $e) { /* المكتبة اختيارية هنا */ }
 }
+
+/* ---------- مستخدم فين ---------- */
+function media_log_use(int $wid, int $id, string $ctx, string $ref = ''): void
+{
+    try { db()->prepare('INSERT INTO media_usage (workspace_id, file_id, ctx, ref) VALUES (?, ?, ?, ?)')->execute([$wid, $id, mb_substr($ctx, 0, 40), mb_substr($ref, 0, 200) ?: null]); } catch (Throwable $e) {}
+}
+function media_uses(int $wid, int $id): array
+{
+    $st = db()->prepare('SELECT ctx, ref, used_at FROM media_usage WHERE workspace_id = ? AND file_id = ? ORDER BY used_at DESC LIMIT 30'); $st->execute([$wid, $id]);
+    $lab = ['post' => t('منشور'), 'message' => t('رسالة'), 'ad' => t('إعلان'), 'gmb' => 'Google Business', 'builder' => t('منشئ الحملات'), 'link' => t('رابط عام اتنسخ'), 'wa_profile' => t('بروفايل واتساب')];
+    return array_map(function ($r) use ($lab) { return ['what' => $lab[$r['ctx']] ?? $r['ctx'], 'ref' => (string)($r['ref'] ?? ''), 'at' => (string)$r['used_at']]; }, $st->fetchAll());
+}
+
+/* ---------- مشاركة فولدر برابط ---------- */
+function media_share_create(int $wid, string $folder, int $days, bool $download): array
+{
+    $tok = bin2hex(random_bytes(20));
+    db()->prepare('INSERT INTO media_shares (workspace_id, token, folder, expires_at, allow_download, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+        ->execute([$wid, $tok, $folder, $days > 0 ? date('Y-m-d H:i:s', time() + $days * 86400) : null, $download ? 1 : 0, (int)(current_user()['id'] ?? 0) ?: null]);
+    return ['token' => $tok, 'url' => media_share_url($tok)];
+}
+function media_share_url(string $tok): string { return rtrim(base_url(), '/') . '/' . url('share', ['t' => $tok]); }
+function media_shares(int $wid, string $folder): array
+{
+    $st = db()->prepare('SELECT id, token, expires_at, allow_download, views, created_at FROM media_shares WHERE workspace_id = ? AND folder = ? ORDER BY id DESC'); $st->execute([$wid, $folder]);
+    return array_map(function ($r) { return ['id' => (int)$r['id'], 'url' => media_share_url($r['token']), 'exp' => $r['expires_at'], 'expired' => $r['expires_at'] && strtotime($r['expires_at']) < time(), 'dl' => (bool)$r['allow_download'], 'views' => (int)$r['views'], 'at' => $r['created_at']]; }, $st->fetchAll());
+}
+/** مشاركة صالحة من التوكن أو null */
+function media_share_get(string $tok): ?array
+{
+    if (!preg_match('/^[a-f0-9]{40}$/', $tok)) return null;
+    $st = db()->prepare('SELECT * FROM media_shares WHERE token = ?'); $st->execute([$tok]); $r = $st->fetch();
+    if (!$r || ($r['expires_at'] && strtotime($r['expires_at']) < time())) return null;
+    return $r;
+}
+

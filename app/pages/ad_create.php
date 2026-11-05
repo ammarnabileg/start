@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 $errors[] = t('الصورة لازم تكون JPG أو PNG.');
             } else {
                 try {
-                    $f['image_url'] = !empty($img['lib']) ? media_public_url($z, (int)ws('id'), (int)$img['lib_id']) : $z->uploadFile($img['tmp_name'], basename((string)$img['name']), $mime);
+                    $f['image_url'] = !empty($img['lib']) ? media_public_url($z, (int)ws('id'), (int)$img['lib_id'], 'ad', (string)($f['name'] ?? '')) : $z->uploadFile($img['tmp_name'], basename((string)$img['name']), $mime);
                     if (empty($img['lib'])) media_capture($img['tmp_name'], (string)$img['name'], t('الإعلانات'));
                 } catch (ZernioException $ex) {
                     $errors[] = $ex->getMessage();
