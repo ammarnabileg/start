@@ -41,10 +41,10 @@ auth_page(t('سجّل دخولك'), function () use ($email, $canRegister) {
       <?= csrf_field() ?>
       <?= auth_input('email', t('الإيميل'), 'email', $email, true) ?>
       <label class="block"><span class="text-sm font-semibold"><?= e(t('كلمة السر')) ?></span>
-        <input type="password" name="password" required class="input" dir="ltr"></label>
+        <input type="password" name="password" required autocomplete="current-password" class="input" dir="ltr"></label>
       <button class="btn-primary w-full !py-3"><?= e(t('دخول')) ?></button>
     </form>
     <?php if ($canRegister): ?>
-      <p class="text-center text-sm text-slate-500"><?= e(t('معندكش حساب؟')) ?> <a href="<?= e(url('register')) ?>" class="link"><?= e(t('اعمل حساب')) ?></a></p>
+      <p class="text-center text-sm text-ink-500"><?= e(t('معندكش حساب؟')) ?> <a href="<?= e(url('register')) ?>" class="link"><?= e(t('اعمل حساب')) ?></a></p>
     <?php endif;
 });

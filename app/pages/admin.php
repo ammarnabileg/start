@@ -53,6 +53,16 @@ $health = [
     [t('مفتاح التشفير'), !empty(app_config()['app_key']) ? t('موجود') : t('ناقص'), !empty(app_config()['app_key'])],
     [t('ملف config.php محمي من الكتابة'), is_writable(CONFIG_FILE) ? t('قابل للكتابة') : t('محمي'), !is_writable(CONFIG_FILE)],
 ];
+// تشغيل الـ Cron: من غيره التقارير المجدولة والتنبيهات والحملات مش بتشتغل لوحدها
+$cl = (string)setting('cron_last_run', ''); $cAge = $cl !== '' ? time() - strtotime($cl . ' UTC') : null;
+$health[] = [t('الـ Cron'), $cAge === null ? t('ما اشتغلش ولا مرة') : ($cAge < 7200 ? t('شغال (من %s دقيقة)', max(1, (int)round($cAge / 60))) : t('متوقف من %s ساعة', (int)round($cAge / 3600))), $cAge !== null && $cAge < 7200];
+$smc = function_exists('smtp_config') ? smtp_config() : null;
+$health[] = [t('إرسال الإيميل (SMTP)'), $smc ? (string)$smc['host'] : t('من الاستضافة مباشرة'), (bool)$smc];
+$up = dirname(__DIR__, 2) . '/uploads';
+$health[] = [t('فولدر الرفع قابل للكتابة'), is_writable($up) ? t('أيوه') : t('لأ'), is_writable($up)];
+$free = @disk_free_space(dirname(__DIR__, 2));
+if ($free !== false) $health[] = [t('مساحة فاضية على السيرفر'), number_format($free / 1073741824, 1) . ' GB', $free > 1073741824];
+$health[] = ['cURL', function_exists('curl_init') ? t('موجود') : t('ناقص'), function_exists('curl_init')];
 
 render(t('نظرة عامة'), 'admin', function () use ($stats, $days, $topWs, $recent, $health) {
     $cards = [
