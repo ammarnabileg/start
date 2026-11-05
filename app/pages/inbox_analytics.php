@@ -8,13 +8,32 @@ $plat = in_array($_GET['pl'] ?? '', $platforms, true) ? $_GET['pl'] : '';
 
 $res = [];
 $errs = [];
-if ($z) {
+$prevVol = null;
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/inbox_analytics.json') ? json_decode((string)file_get_contents($fxd . '/inbox_analytics.json'), true) : null;
+if ($fx) {
+    foreach (['volume', 'response-time', 'source-breakdown', 'top-accounts', 'heatmap'] as $w) { $res[$w] = $fx[$w] ?? null; $errs[$w] = null; }
+    $prevVol = $fx['prev'] ?? null;
+} elseif ($z) {
     $q = ['fromDate' => $from, 'toDate' => $to, 'profileId' => zernio_profile(), 'platform' => $plat ?: null];
     foreach (['volume', 'response-time', 'source-breakdown', 'top-accounts', 'heatmap'] as $w) {
         [$res[$w], $errs[$w]] = an_try(function () use ($z, $w, $q) {
             return an_inbox($z, $w, $w === 'top-accounts' ? $q + ['limit' => 10] : $q);
         });
     }
+    // نفس الفترة اللي قبلها للمقارنة (قراءة بس)
+    [$prevVol] = an_try(function () use ($z, $q, $days, $from) {
+        return an_inbox($z, 'volume', ['fromDate' => gmdate('Y-m-d', strtotime($from) - $days * 86400), 'toDate' => gmdate('Y-m-d', strtotime($from) - 86400)] + $q);
+    });
+}
+// تصدير CSV للرسايل يوم بيوم
+if (!empty($_GET['csv']) && !empty($res['volume']['timeseries'])) {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="inbox-' . $days . 'd.csv"');
+    $o = fopen('php://output', 'w');
+    fwrite($o, "\xEF\xBB\xBF");
+    fputcsv($o, ['date', 'received', 'sent', 'read', 'failed']);
+    foreach ($res['volume']['timeseries'] as $r) fputcsv($o, [$r['date'] ?? '', (int)($r['received'] ?? 0), (int)($r['sent'] ?? 0), (int)($r['read'] ?? 0), (int)($r['failed'] ?? 0)]);
+    exit;
 }
 
 // ---- الفريق وخدمة العملا ----
@@ -53,8 +72,8 @@ if ($z) {
     $words = ia2_top_words($texts, 20);
 }
 
-render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies) {
-    if (!$z) { no_api_box(); return; }
+render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies, $prevVol) {
+    if (!$z && !$fx) { no_api_box(); return; }
     $q = function (array $over = []) use ($days, $plat) {
         return url('inbox_analytics', array_filter($over + ['d' => $days, 'pl' => $plat], function ($v) { return $v !== '' && $v !== null; }));
     };
@@ -81,7 +100,30 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
           </select>
         </div>
         <noscript><button class="btn-primary"><?= e(t('عرض')) ?></button></noscript>
+        <?php if (!empty($res['volume']['timeseries'])): ?><a class="btn-ghost ms-auto" href="<?= e($q(['csv' => 1])) ?>"><?= e(t('نزّل CSV')) ?></a><?php endif; ?>
       </form>
+
+      <?php
+      // ---- ملاحظات تلقائية: أهم حاجات تتعمل من الأرقام
+      $ins = [];
+      $ps = $prevVol['summary'] ?? null;
+      $rc = (int)($sum['received'] ?? 0); $pr = $ps ? (int)($ps['received'] ?? 0) : null;
+      if ($pr !== null && $pr > 0) { $ch = ($rc - $pr) / $pr * 100; if (abs($ch) >= 10) $ins[] = [$ch > 0 ? '📈' : '📉', $ch > 0 ? t('الرسايل اللي وصلت زادت %s%% عن الـ %s يوم اللي قبلهم.', round($ch), $days) : t('الرسايل اللي وصلت قلّت %s%% عن الـ %s يوم اللي قبلهم.', round(abs($ch)), $days)]; }
+      $sent = (int)($sum['sent'] ?? 0); $fail = (int)($sum['failed'] ?? 0);
+      if ($sent > 0 && $fail / max(1, $sent + $fail) >= 0.03) $ins[] = ['⚠️', t('%s%% من الرسايل اللي اتبعتت فشلت (%s رسالة). راجع ربط الحسابات وقواعد الإرسال (زي نافذة الـ 24 ساعة في واتساب).', round($fail / ($sent + $fail) * 100), $fail)];
+      if ($rc > 0 && $sent < $rc * 0.5) $ins[] = ['💬', t('بترد بأقل من رسالة على كل رسالتين بتوصل. فيه محادثات غالبًا مستنية رد.')];
+      $hg = array_fill(0, 7, array_fill(0, 24, 0)); $hm = 0; $bd = 0; $bh = 0; $dayTot = array_fill(0, 7, 0);
+      foreach ($res['heatmap']['buckets'] ?? [] as $b) { [$d, $h] = an_local_slot(((int)($b['dow'] ?? 1)) - 1, (int)($b['hour'] ?? 0)); $hg[$d][$h] += (int)($b['received'] ?? 0); $dayTot[$d] += (int)($b['received'] ?? 0); if ($hg[$d][$h] > $hm) { $hm = $hg[$d][$h]; $bd = $d; $bh = $h; } }
+      if ($hm > 0) { $dn = an_day_names(); $top = array_search(max($dayTot), $dayTot, true); $ins[] = ['⏰', t('أكتر وقت بتوصل فيه رسايل: %s الساعة %s. وأكتر يوم: %s. خلّي حد متاح للرد في الوقت ده.', $dn[$bd], an_hour_label($bh), $dn[$top])]; }
+      ?>
+      <?php if ($ins): ?>
+      <section class="card p-5 border-brand-200 bg-gradient-to-l from-brand-50/60 to-white">
+        <h2 class="font-bold text-ink-900 mb-3"><?= e(t('أهم الملاحظات')) ?></h2>
+        <ul class="space-y-2">
+          <?php foreach ($ins as $i): ?><li class="flex gap-3 text-sm text-ink-800"><span class="shrink-0"><?= $i[0] ?></span><span><?= e($i[1]) ?></span></li><?php endforeach; ?>
+        </ul>
+      </section>
+      <?php endif; ?>
 
       <!-- حجم الرسائل -->
       <section class="card p-5">
@@ -101,14 +143,32 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
           ?>
           <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
             <?php foreach ($tiles as $k => $label): ?>
-              <div class="rounded-xl bg-ink-50 p-3"><p class="text-xs text-ink-500"><?= e($label) ?></p><p class="text-xl font-bold <?= $k === 'failed' && !empty($sum[$k]) ? 'text-red-600' : 'text-ink-900' ?>"><?= e(an_num($sum[$k] ?? 0)) ?></p></div>
+              <?php $pv = $prevVol['summary'][$k] ?? null; $cv = (float)($sum[$k] ?? 0); $dl = ($pv !== null && $pv > 0) ? round(($cv - $pv) / $pv * 100) : null; $good = $k === 'failed' ? $dl < 0 : $dl > 0; ?>
+              <div class="rounded-xl bg-ink-50 p-3"><p class="text-xs text-ink-500"><?= e($label) ?></p><p class="text-xl font-bold <?= $k === 'failed' && !empty($sum[$k]) ? 'text-red-600' : 'text-ink-900' ?>"><?= e(an_num($sum[$k] ?? 0)) ?></p>
+                <?php if ($dl !== null && $dl != 0): ?><p class="text-[11px] mt-0.5 <?= $good ? 'text-lime-700' : 'text-red-600' ?>" dir="ltr" style="text-align:start"><?= $dl > 0 ? '▲' : '▼' ?> <?= abs($dl) ?>%</p><?php elseif ($dl !== null): ?><p class="text-[11px] mt-0.5 text-ink-400">=</p><?php endif; ?></div>
             <?php endforeach; ?>
           </div>
           <?php if (empty($vol['timeseries'])): ?>
             <p class="text-sm text-ink-500"><?= e(t('مفيش رسائل في الفترة دي.')) ?></p>
           <?php else: ?>
-            <p class="text-xs text-ink-500 mb-2"><?= e(t('الرسائل يوم بيوم (وصلت + اتبعتت)')) ?></p>
-            <?= an_bars($bars, 'bg-cyan-500') ?>
+            <p class="text-xs text-ink-500 mb-2"><?= e(t('الرسائل يوم بيوم')) ?> <?php if ($prevVol): ?><span class="text-ink-400">· <?= e(t('المقارنة مع الـ %s يوم اللي قبلهم', $days)) ?></span><?php endif; ?></p>
+            <?php
+            $lab = []; $rv = []; $sv = [];
+            for ($i = $days - 1; $i >= 0; $i--) { $dt = gmdate('Y-m-d', time() - $i * 86400); $lab[] = gmdate('d/m', strtotime($dt)); $rv[] = (int)($byDate[$dt]['received'] ?? 0); $sv[] = (int)($byDate[$dt]['sent'] ?? 0); }
+            ?>
+            <div id="ia-chart" class="h-64" data-cfg="<?= e(json_encode(['labels' => $lab, 'rv' => $rv, 'sv' => $sv, 'rl' => t('وصلت'), 'sl' => t('اتبعتت')], JSON_UNESCAPED_UNICODE)) ?>"><?= an_bars($bars, 'bg-cyan-500') ?></div>
+            <script src="assets/vendor/echarts.min.js?v=5.5.1"></script>
+            <script src="assets/charts.js?v=<?= e(APP_VERSION) ?>"></script>
+            <script>
+            (function () {
+              var el = document.getElementById('ia-chart'); if (!el || !window.AnCharts) return;
+              var c = JSON.parse(el.dataset.cfg); el.innerHTML = '';
+              AnCharts.line(el, { labels: c.labels, height: 256, aria: 'Messages', series: [
+                { key: 'rv', label: c.rl, color: 'rgb(var(--cyan-500))', values: c.rv },
+                { key: 'sv', label: c.sl, color: 'rgb(var(--brand-600))', values: c.sv }
+              ] });
+            })();
+            </script>
           <?php endif; ?>
           <?php if (!empty($vol['byPlatform'])): $mx = 0; foreach ($vol['byPlatform'] as $b) $mx = max($mx, ($b['received'] ?? 0) + ($b['sent'] ?? 0)); ?>
             <div class="mt-5 space-y-2">
