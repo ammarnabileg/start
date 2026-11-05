@@ -87,7 +87,10 @@ if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect($back);
 }
 
-if ($z && $id !== '') {
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/post_edit.json') ? json_decode((string)file_get_contents($fxd . '/post_edit.json'), true) : null;
+if ($fx && $id !== '') {
+    $post = $fx['post']; $accounts = $fx['accounts'];
+} elseif ($z && $id !== '') {
     try {
         $post = pub_get_post($z, $id);
         $accounts = array_values(array_filter($z->accounts(zernio_profile()), function ($a) {
@@ -98,8 +101,8 @@ if ($z && $id !== '') {
     }
 }
 
-render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $post, $accounts, $apiError) {
-    if (!$z) { no_api_box(); return; }
+render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id, $post, $accounts, $apiError) {
+    if (!$z && !$fx) { no_api_box(); return; }
     if ($id === '') { error_box(t('مفيش منشور محدد.')); return; }
     if ($apiError) { error_box($apiError); return; }
     $status = (string)($post['status'] ?? '');
@@ -141,28 +144,42 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $pos
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
         <?php if ($editable): ?>
-        <form method="post" class="card p-5 space-y-4">
+        <form method="post" class="card p-5 space-y-4" id="pe-form">
           <?= csrf_field() ?><input type="hidden" name="action" value="update">
           <h2 class="font-bold"><?= e(t('تعديل المنشور قبل نشره')) ?></h2>
           <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
-            <textarea data-ai="improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" rows="7" class="input"><?= e($post['content'] ?? '') ?></textarea></label>
+            <textarea data-ai="improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="pe-text" rows="7" class="input" dir="auto"><?= e($post['content'] ?? '') ?></textarea></label>
+          <div id="pe-lim" class="flex flex-wrap gap-1.5 -mt-2"></div>
           <label class="block"><span class="label"><?= e(t('موعد النشر')) ?> (<?= e(site_timezone()) ?>)</span>
-            <input type="datetime-local" name="when" value="<?= e($whenVal) ?>" class="input" dir="ltr"></label>
+            <input type="datetime-local" name="when" id="pe-when" value="<?= e($whenVal) ?>" class="input" dir="ltr"></label>
+          <div class="flex flex-wrap items-center gap-1.5 -mt-2">
+            <?php foreach (['h1' => t('بعد ساعة'), 'tm10' => t('بكرة 10 الصبح'), 'tm19' => t('بكرة 7 بالليل'), 'w' => t('بعد أسبوع')] as $k => $l): ?><button type="button" data-w="<?= $k ?>" class="rounded-full border border-ink-200 px-3 py-1 text-xs hover:border-brand-400 hover:bg-brand-50"><?= e($l) ?></button><?php endforeach; ?>
+            <span id="pe-rel" class="text-xs ms-auto"></span>
+          </div>
           <p class="text-xs text-ink-500"><?= e(t('سيبه فاضي لو مش عاوز تغير الموعد.')) ?></p>
           <div>
             <span class="label"><?= e(t('الحسابات')) ?></span>
             <div class="grid sm:grid-cols-2 gap-2 mt-2">
               <?php foreach ($accounts as $a): ?>
-                <label class="flex items-center gap-2 p-2 rounded-lg border border-ink-200 cursor-pointer">
-                  <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $selected, true) ? 'checked' : '' ?>>
+                <label class="flex items-center gap-2 p-2 rounded-lg border border-ink-200 cursor-pointer has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50/50 transition">
+                  <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" data-pl="<?= e($a['platform'] ?? '') ?>" class="accent-brand-600" <?= in_array($a['_id'], $selected, true) ? 'checked' : '' ?>>
                   <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? '', 'w-7 h-7') ?>
                   <span class="text-sm"><?= e($a['displayName'] ?? $a['username'] ?? '') ?> · <span class="text-ink-500"><?= e(platform_label($a['platform'])) ?></span></span>
                 </label>
               <?php endforeach; ?>
             </div>
           </div>
-          <button class="btn-primary"><?= e(t('احفظ التعديلات')) ?></button>
+          <div class="flex items-center gap-3 pt-2 border-t border-ink-100"><span id="pe-dirty" class="text-xs text-amber-700 me-auto" style="display:none">● <?= e(t('فيه تعديلات مش محفوظة')) ?></span><button class="btn-primary ms-auto"><?= e(t('احفظ التعديلات')) ?></button></div>
         </form>
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3"><h2 class="font-bold text-ink-900"><?= e(t('معاينة')) ?></h2><span class="text-[11px] text-ink-400"><?= e(t('تقريبية')) ?></span></div>
+          <div class="max-w-md rounded-2xl border border-ink-200 overflow-hidden">
+            <div class="flex items-center gap-2 p-3"><span class="w-9 h-9 rounded-full bg-brand-100 text-brand-700 font-bold flex items-center justify-center"><?= e(mb_substr((string)($accounts[0]['displayName'] ?? 'A'), 0, 1)) ?></span>
+              <div><div class="text-sm font-semibold text-ink-900"><?= e($accounts[0]['displayName'] ?? '') ?></div><div id="pe-pwhen" class="text-[11px] text-ink-500"></div></div></div>
+            <div id="pe-prev" class="px-3 pb-3 text-sm text-ink-900 whitespace-pre-line break-words" dir="auto"></div>
+            <?php $m0 = $post['mediaItems'][0] ?? null; if ($m0 && in_array($m0['type'] ?? '', ['image', 'gif'], true)): ?><img src="<?= e($m0['url'] ?? '') ?>" class="w-full max-h-80 object-cover bg-ink-100" alt="" loading="lazy"><?php endif; ?>
+          </div>
+        </div>
         <?php else: ?>
         <div class="card p-5">
           <h2 class="font-bold mb-2"><?= e(t('نص المنشور')) ?></h2>
@@ -231,5 +248,50 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $id, $pos
         <?php if (empty($post['platforms'])): ?><p class="text-sm text-ink-500"><?= e(t('المنشور ده مش متحدد له حسابات لسه.')) ?></p><?php endif; ?>
       </div>
     </div>
+    <script>
+    (function () {
+      var f = document.getElementById('pe-form'); if (!f) return;
+      var ta = document.getElementById('pe-text'), when = document.getElementById('pe-when'), lim = document.getElementById('pe-lim'), rel = document.getElementById('pe-rel');
+      var LIM = { twitter: 280, threads: 500, bluesky: 300, instagram: 2200, tiktok: 2200, linkedin: 3000, facebook: 63206, pinterest: 500, youtube: 5000, googlebusiness: 1500, reddit: 40000, telegram: 4096 };
+      var NAMES = <?= json_encode(array_combine(array_keys(platform_icons()), array_map('platform_label', array_keys(platform_icons()))), JSON_UNESCAPED_UNICODE) ?>;
+      var T = <?= json_encode(['tags' => t('%s هاشتاج'), 'many' => t('إنستجرام بيقبل 30 هاشتاج بالكتير'), 'past' => t('الموعد ده عدّى!'), 'in' => t('بعد %s'), 'd' => t('يوم'), 'h' => t('ساعة'), 'm' => t('دقيقة'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'), 'now' => t('دلوقتي')], JSON_UNESCAPED_UNICODE) ?>;
+      function len(s) { return Array.from(s).length; }
+      function paint() {
+        var t = ta.value, n = len(t), pls = {}, out = [];
+        f.querySelectorAll('input[name="accounts[]"]:checked').forEach(function (i) { pls[i.dataset.pl] = 1; });
+        Object.keys(pls).forEach(function (p) {
+          var L = LIM[p]; if (!L) return; var over = n > L;
+          out.push('<span class="rounded-full px-2.5 py-0.5 text-[11px] ' + (over ? 'bg-red-50 text-red-700' : n > L * 0.9 ? 'bg-amber-50 text-amber-700' : 'bg-ink-50 text-ink-600') + '">' + (NAMES[p] || p) + ' <b dir="ltr">' + n + '/' + L + '</b></span>');
+        });
+        var tags = (t.match(/#[^\s#]+/g) || []).length;
+        if (tags) out.push('<span class="rounded-full px-2.5 py-0.5 text-[11px] ' + (tags > 30 && pls.instagram ? 'bg-red-50 text-red-700' : 'bg-ink-50 text-ink-600') + '" title="' + (tags > 30 ? T.many : '') + '">' + T.tags.replace('%s', tags) + '</span>');
+        lim.innerHTML = out.join('');
+        document.getElementById('pe-prev').textContent = t;
+        // الموعد
+        var v = when.value, txt = '', cls = 'text-ink-500';
+        if (v) { var diff = (new Date(v) - new Date()) / 60000; if (diff < 0) { txt = T.past; cls = 'text-red-600 font-medium'; } else { var d = Math.floor(diff / 1440), h = Math.floor(diff % 1440 / 60), m = Math.round(diff % 60); txt = T['in'].replace('%s', d ? d + ' ' + T.d + (h ? ' ' + h + ' ' + T.h : '') : h ? h + ' ' + T.h + (m ? ' ' + m + ' ' + T.m : '') : Math.max(1, m) + ' ' + T.m); } }
+        rel.textContent = txt; rel.className = 'text-xs ms-auto ' + cls;
+        document.getElementById('pe-pwhen').textContent = v ? v.replace('T', ' ') : T.now;
+      }
+      f.querySelectorAll('[data-w]').forEach(function (b) {
+        b.onclick = function () {
+          var d = new Date();
+          if (b.dataset.w === 'h1') d.setHours(d.getHours() + 1, 0, 0, 0);
+          else if (b.dataset.w === 'tm10') { d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); }
+          else if (b.dataset.w === 'tm19') { d.setDate(d.getDate() + 1); d.setHours(19, 0, 0, 0); }
+          else { d.setDate(d.getDate() + 7); d.setSeconds(0, 0); }
+          var z = function (x) { return ('0' + x).slice(-2); };
+          when.value = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes());
+          when.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+      });
+      var dirty = false, sending = false;
+      f.addEventListener('input', function () { dirty = true; document.getElementById('pe-dirty').style.display = ''; paint(); });
+      f.addEventListener('change', paint);
+      f.addEventListener('submit', function () { sending = true; });
+      window.addEventListener('beforeunload', function (e) { if (dirty && !sending) { e.preventDefault(); e.returnValue = T.leave; return T.leave; } });
+      setInterval(paint, 60000); paint();
+    })();
+    </script>
     <?php
 });
