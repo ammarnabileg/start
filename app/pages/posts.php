@@ -61,6 +61,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 $dt = new DateTime((string)$p['scheduledFor']); $dt->setTimezone($tz); $dt->modify(($n >= 0 ? '+' : '') . $n . ' ' . $u);
                 if ($dt < new DateTime('now', $tz)) throw new ZernioException(t('الميعاد الجديد هيبقى فات.'));
                 ps_reschedule($z, $id, $dt); log_activity('post.shift', $id . ' ' . $n . $u);
+            } elseif ($op === 'text') {
+                $txt = trim((string)($_POST['content'] ?? ''));
+                if ($txt === '') throw new ZernioException(t('النص مينفعش يكون فاضي.'));
+                $p = pub_get_post($z, $id);
+                if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص. عدّله من صفحة التعديل على كل منصة.'));
+                $payload = ['content' => mb_substr($txt, 0, 10000), 'platforms' => ps_platforms($p), 'timezone' => site_timezone()];
+                if (!empty($p['scheduledFor'])) { $d = new DateTime((string)$p['scheduledFor']); $d->setTimezone($tz); $payload['scheduledFor'] = $d->format('Y-m-d\TH:i:s'); }
+                if ($m = ps_media($p)) $payload['mediaItems'] = $m;
+                pub_update_post($z, $id, $payload); log_activity('post.update', $id);
             } elseif ($op === 'retry') {
                 pub_retry_post($z, $id); log_activity('post.retry', $id);
             } elseif ($op === 'dup') {
@@ -191,6 +200,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <button type="button" data-dens="cards" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('كروت')) ?>">▦</button>
         <button type="button" data-dens="rows" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('مضغوط')) ?>">☰</button>
       </div>
+      <button type="button" id="ps-csv" class="tb px-3 text-xs" title="<?= e(t('نزّل المنشورات اللي ظاهرة CSV')) ?>">⇣ CSV</button>
       <?php endif; ?>
       <button type="button" id="ps-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
       <div class="ms-auto flex gap-2">
@@ -321,7 +331,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
 
     <?php else: // التقويم
         foreach ($posts as $p) { $w = $p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? null; if (!$w) continue;
-            $data[] = ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))), 'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : '']; }
+            $data[] = ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'mv' => in_array((string)($p['status'] ?? ''), ['scheduled', 'draft'], true) && !empty($p['scheduledFor']), 'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))), 'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : '']; }
         ?>
       <div class="card p-0 overflow-hidden" id="ps-cal">
         <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200">
@@ -339,13 +349,14 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <div class="grid grid-cols-7 border-b border-ink-100 bg-ink-50 text-[11px] font-medium text-ink-500" id="cal-dow"></div>
         <div class="grid grid-cols-7" id="cal-grid"></div>
       </div>
-      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيعرض لحد 100 منشور مجدول و100 من آخر المنشورات. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?></p>
+      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيعرض لحد 100 منشور مجدول و100 من آخر المنشورات. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
     <?php endif; ?>
     <script>window.PSX = <?= json_encode(['view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
       'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
-      'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'),
+      'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
+        'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors'],
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
         'st' => ['published' => t('اتنشر'), 'failed' => t('فشل'), 'scheduled' => t('مجدول'), 'pending' => t('مستني'), 'publishing' => t('بيتنشر')]],
