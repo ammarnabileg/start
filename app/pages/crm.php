@@ -27,6 +27,9 @@ if (($_GET['ajax'] ?? '') === 'people') {
     foreach ($st->fetchAll() as $l) $known[$l['ext_id'] ?: ('l' . $l['id'])] = $leadOut($l);
     try {
         $ppl = crm_company_people($co, (string)($prefs['icp']['titles'] ?? ''));
+    } catch (CrmPlanException $ex) {
+        save_setting('crm_plan_' . $wid, 'free');
+        $json(['ok' => false, 'plan' => true, 'error' => t('خطة Apollo المجانية مش بتسمح بالبحث عن الأشخاص ولا كشف أرقامهم. لو تعرف حد في الشركة دي ضيفه بإيدك تحت، أو رقّي خطة Apollo.'), 'known' => array_values($known)]);
     } catch (CrmException $ex) {
         $json(['ok' => false, 'error' => $ex->getMessage(), 'known' => array_values($known)]);
     }
@@ -55,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $json(['ok' => true, 'lead' => $leadOut($l), 'merged' => !empty($l['merged']), 'left' => $left - 1]);
     }
+    if ($action === 'manual_lead') {
+        $co = $getCo((int)($_POST['company'] ?? 0));
+        $name = trim((string)($_POST['name'] ?? ''));
+        if (!$co || $name === '' || (trim((string)($_POST['email'] ?? '')) === '' && trim((string)($_POST['phone'] ?? '')) === '')) $json(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل على الأقل.')]);
+        $l = crm_lead_upsert(['source' => 'manual', 'company_id' => (int)$co['id'], 'company' => $co['name'], 'country' => (string)$co['country'], 'name' => $name,
+            'title' => (string)($_POST['title'] ?? ''), 'email' => (string)($_POST['email'] ?? ''), 'phone' => (string)($_POST['phone'] ?? ''), 'owner_id' => $uid ?: null]);
+        log_activity('crm.add', $name . ' @ ' . $co['name']);
+        $json(['ok' => true, 'lead' => $leadOut($l), 'merged' => !empty($l['merged'])]);
+    }
     if ($action === 'hide' || $action === 'unhide') {
         db()->prepare('UPDATE crm_companies SET hidden = ? WHERE id = ? AND workspace_id = ?')->execute([$action === 'hide' ? 1 : 0, (int)($_POST['id'] ?? 0), $wid]);
         $json(['ok' => true]);
@@ -65,6 +77,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($new + $old === 0) flash('error', t('مفيش شركات بالفلاتر دي. وسّع البحث (دولة أو مجال تاني).'));
             elseif ($new === 0) flash('success', t('مفيش شركات جديدة المرة دي، نفس الـ %s شركة اتحدّثت.', $old));
             else flash('success', t('%s شركة جديدة (متعلّم عليها) و%s زي ما هي.', $new, $old) . ($wrapped ? ' ' . t('خلصنا كل النتايج ورجعنا للأول.') : ''));
+        } catch (CrmException $ex) {
+            flash('error', $ex->getMessage());
+        }
+        redirect(url('crm'));
+    }
+    if ($action === 'add_domains') {
+        $list = preg_split('/[\s,،]+/u', (string)($_POST['domains'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+        try {
+            [$added, $dup, $bad] = crm_add_domains($list);
+            flash($added ? 'success' : 'error', t('اتضاف %s شركة', $added) . ($dup ? ' · ' . t('%s موجودين قبل كده', $dup) : '') . ($bad ? ' · ' . t('دومين مش صحيح: %s', implode(', ', array_slice($bad, 0, 5))) : ''));
+            if ($added) log_activity('crm.add_domains', (string)$added);
         } catch (CrmException $ex) {
             flash('error', $ex->getMessage());
         }
@@ -167,7 +190,21 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
       </div>
 
       <aside class="order-1 lg:order-2">
-        <form method="post" class="card p-5 lg:sticky lg:top-20 space-y-4">
+        <?php if (setting('crm_plan_' . (int)ws('id')) === 'free'): ?>
+          <div class="card p-4 mb-4 border-amber-200 bg-amber-50/70 text-sm">
+            <div class="font-semibold text-amber-900"><?= e(t('حسابك على خطة Apollo المجانية')) ?></div>
+            <p class="text-xs text-amber-800 mt-1"><?= e(t('البحث عن الشركات والأشخاص وكشف الأرقام والإيميلات مقفولين فيها. اللي شغال: إضافة الشركات بالدومين، وإضافة الأشخاص اللي تعرفهم بإيدك. البحث والكشف هيشتغلوا لوحدهم لو رقّيت الخطة.')) ?></p>
+            <a class="link text-xs mt-1 inline-block" href="https://www.apollo.io/pricing" target="_blank" rel="noopener"><?= e(t('خطط Apollo')) ?> ↗</a>
+          </div>
+        <?php endif; ?>
+        <form method="post" class="card p-5 mb-4 space-y-2">
+          <?= csrf_field() ?><input type="hidden" name="action" value="add_domains">
+          <h3 class="font-semibold text-ink-900">＋ <?= e(t('ضيف شركات بالدومين')) ?></h3>
+          <p class="text-xs text-ink-500"><?= e(t('اكتب مواقع الشركات اللي عاوز تستهدفها (سطر لكل واحدة، لحد 25). بتشتغل مع أي خطة.')) ?></p>
+          <textarea name="domains" rows="3" class="input font-mono text-xs" dir="ltr" placeholder="talabat.com&#10;elmenus.com" <?= $hasKey ? '' : 'disabled' ?>></textarea>
+          <button class="btn-ghost w-full !text-sm" <?= $hasKey ? '' : 'disabled' ?>><?= e(t('ضيف')) ?></button>
+        </form>
+        <form method="post" class="card p-5 space-y-4">
           <?= csrf_field() ?><input type="hidden" name="action" value="icp">
           <div>
             <h3 class="font-semibold text-ink-900">🎯 <?= e(t('العميل المثالي')) ?></h3>
@@ -217,7 +254,7 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
             'loading' => t('بنجيب صناع القرار…'), 'reveal' => t('اكشف الرقم والإيميل'), 'revealing' => t('بنكشف…'), 'none' => t('Apollo مالقاش أشخاص في الشركة دي.'),
             'added' => t('اتضاف للـ Leads ✓'), 'merged' => t('كان موجود في الـ Leads، كمّلنا بياناته ✓'), 'pending' => t('الرقم جاي في السكة (دقايق)…'), 'nophone' => t('مفيش رقم'),
             'noemail' => t('مفيش إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخ'), 'noperm' => t('مالكش صلاحية الكشف'), 'hasE' => t('عنده إيميل'), 'hasP' => t('عنده رقم'),
-            'other' => t('اتكشفوا قبل كده'), 'open' => t('افتح في الـ Leads'), 'err' => t('حصل خطأ، جرب تاني'), 'site' => t('الموقع'),
+            'other' => t('اتكشفوا قبل كده'), 'manualH' => t('ضيف شخص من الشركة دي بإيدك'), 'mName' => t('الاسم'), 'mTitle' => t('المسمى الوظيفي'), 'mPhone' => t('الرقم'), 'mEmail' => t('الإيميل'), 'mAdd' => t('ضيف للـ Leads'), 'plans' => t('خطط Apollo'), 'open' => t('افتح في الـ Leads'), 'err' => t('حصل خطأ، جرب تاني'), 'site' => t('الموقع'),
         ],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm.js?v=<?= e(APP_VERSION) ?>"></script>

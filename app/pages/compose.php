@@ -1,12 +1,16 @@
 <?php
 $err = null;
 $z = zernio_or_null($err);
+$fxd = getenv('UI_FIXTURES');
+if ($fxd && is_file($fxd . '/compose_fake_z.php')) $z = require $fxd . '/compose_fake_z.php'; // اختبارات بس: مفيش نشر حقيقي
 $accounts = [];
 $boards = [];
 $apiError = null;
 $profileId = null;
 $validation = null;
-$old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule', 'opt' => [], 'rec' => []];
+$old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule', 'opt' => [], 'rec' => [], 'extra' => []];
+$done = $_SESSION['cp_done'] ?? null;
+unset($_SESSION['cp_done']);
 // تكرار منشور من صفحة المنشورات: النص والحسابات بس، والمستخدم يراجع قبل النشر
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['dup_text'])) {
     $old['content'] = mb_substr((string)$_GET['dup_text'], 0, 10000);
@@ -91,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     $old['mode'] = in_array($_POST['mode'] ?? '', ['now', 'schedule', 'draft', 'queue'], true) ? $_POST['mode'] : 'schedule';
     $old['opt'] = (array)($_POST['opt'] ?? []);
     $old['rec'] = (array)($_POST['rec'] ?? []);
+    $old['extra'] = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['extra_when'] ?? [])), function ($x) { return preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $x); })), 0, 60);
     $onlyCheck = ($_POST['action'] ?? '') === 'validate';
 
     $byId = [];
@@ -185,14 +190,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             $payload['recycling'] = $rec;
         }
 
+        // مواعيد إضافية لنفس المنشور (جدولة بس): لازم تبقى في المستقبل ومش مكررة
+        $extraAt = [];
+        if (!$errors && $old['mode'] === 'schedule') {
+            $tz = new DateTimeZone(site_timezone());
+            $main = $payload['scheduledFor'] ?? '';
+            foreach ($old['extra'] as $x) {
+                $dt = DateTime::createFromFormat('Y-m-d\TH:i', $x, $tz);
+                if (!$dt) continue;
+                if ($dt < new DateTime('now', $tz)) { $errors[] = t('الميعاد الإضافي %s فات.', $dt->format('Y-m-d H:i')); continue; }
+                $f = $dt->format('Y-m-d\TH:i:s');
+                if ($f !== $main && !in_array($f, $extraAt, true)) $extraAt[] = $f;
+            }
+        }
         if (!$errors) {
+            if ($extraAt) @set_time_limit(60 + 5 * count($extraAt)); // كل تكرار = منشور منفصل
             try {
                 $r = $z->createPost($payload);
-                log_activity('post.create_pro', $old['mode'] . ' ' . count($platforms) . ' accounts');
-                $msg = ['now' => t('تم نشر المنشور.'), 'draft' => t('تم حفظ المسودة.'), 'schedule' => t('تمت جدولة المنشور.'), 'queue' => t('المنشور اتحط في الطابور.')][$old['mode']];
-                flash('success', $msg);
                 $newId = $r['post']['_id'] ?? '';
-                redirect($newId ? url('post_edit', ['id' => $newId]) : url('posts'));
+                $made = 1; $extraFail = [];
+                foreach ($extraAt as $f) {
+                    try { $z->createPost(['scheduledFor' => $f] + $payload); $made++; }
+                    catch (ZernioException $ex) { $extraFail[] = substr($f, 0, 16) . ': ' . $ex->getMessage(); }
+                }
+                log_activity('post.create_pro', $old['mode'] . ' ' . count($platforms) . ' accounts' . ($made > 1 ? ' x' . $made : ''));
+                foreach ($extraFail as $m) flash('error', t('الميعاد الإضافي ماتعملش: %s', $m));
+                $_SESSION['cp_done'] = ['id' => $newId, 'mode' => $old['mode'], 'n' => $made, 'when' => $payload['scheduledFor'] ?? '', 'more' => $extraAt,
+                    'text' => mb_substr($old['content'], 0, 4000), 'acc' => $old['accounts'], 'count' => count($platforms)];
+                redirect(url('compose', ['done' => 1]));
             } catch (ZernioException $ex) {
                 $errors[] = $ex->getMessage();
             }
@@ -201,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     }
 }
 
-render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation) {
+render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation, $done) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     if (!$accounts) {
@@ -213,6 +238,27 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
     $posted = $_SERVER['REQUEST_METHOD'] === 'POST';
     $chk = function ($acc, $k, $def = true) use ($old, $posted) { return ($posted ? !empty($old['opt'][$acc][$k]) : $def) ? 'checked' : ''; };
     ?>
+    <?php if ($done):
+        $dm = ['now' => t('اتنشر ✓'), 'draft' => t('اتحفظ كمسودة ✓'), 'schedule' => t('اتجدول ✓'), 'queue' => t('اتحط في الطابور ✓')][$done['mode']] ?? t('تم ✓');
+        $times = array_filter(array_merge([$done['when']], $done['more'] ?? []));
+        ?>
+      <div id="cp-done" class="mb-5 rounded-2xl border border-lime-200 bg-gradient-to-br from-lime-50 to-white p-5" role="status">
+        <div class="flex flex-wrap items-start gap-3">
+          <span class="w-11 h-11 rounded-2xl bg-lime-500 text-white grid place-items-center text-xl shrink-0">✓</span>
+          <div class="min-w-0 flex-1">
+            <div class="font-bold text-ink-900 text-lg"><?= e($dm) ?><?php if ((int)$done['n'] > 1): ?> <span class="text-sm font-medium text-lime-700"><?= e(t('%s منشور', (int)$done['n'])) ?></span><?php endif; ?></div>
+            <div class="text-sm text-ink-600 mt-0.5"><?= e(t('على %s حساب', (int)$done['count'])) ?><?php if ($times): ?> · <span dir="ltr"><?= e(implode('  ·  ', array_map(function ($x) { $d = DateTime::createFromFormat('Y-m-d\\TH:i:s', (string)$x); return $d ? $d->format('d/m h:i A') : (string)$x; }, array_slice($times, 0, 4)))) ?><?= count($times) > 4 ? ' …' : '' ?></span><?php endif; ?></div>
+            <?php if ($done['text'] !== ''): ?><p class="text-xs text-ink-500 mt-1 line-clamp-1" dir="auto"><?= e(mb_substr($done['text'], 0, 140)) ?></p><?php endif; ?>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button type="button" id="cp-again" class="btn-primary !text-sm">＋ <?= e(t('منشور تاني بنفس الحسابات')) ?></button>
+          <a class="btn-ghost !text-sm" href="<?= e(url('compose', ['dup_text' => $done['text'], 'dup_acc' => implode(',', $done['acc'])])) ?>"><?= e(t('كرّره بنفس النص')) ?></a>
+          <?php if ($done['id']): ?><a class="btn-ghost !text-sm" href="<?= e(url('post_edit', ['id' => $done['id']])) ?>"><?= e(t('افتح المنشور')) ?></a><?php endif; ?>
+          <a class="btn-ghost !text-sm" href="<?= e(url('calendar')) ?>"><?= e(t('التقويم')) ?></a>
+        </div>
+      </div>
+    <?php endif; ?>
     <?php if ($validation && (!empty($validation['errors']) || !empty($validation['warnings']))): ?>
       <div class="card p-4 mb-5 space-y-1 text-sm">
         <?php foreach ($validation['errors'] ?? [] as $v): ?><p class="text-red-700">✕ <b><?= e(platform_label((string)($v['platform'] ?? ''))) ?>:</b> <?= e($v['error'] ?? '') ?></p><?php endforeach; ?>
@@ -453,6 +499,25 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <div id="whenBox">
             <input type="datetime-local" name="when" id="whenInput" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="input" dir="ltr">
             <p class="text-xs text-ink-500 mt-1"><?= e(t('بتوقيت:')) ?> <?= e(site_timezone()) ?></p>
+            <div id="cp-extra" class="mt-3 space-y-1.5">
+              <?php foreach ($old['extra'] as $x): ?><div class="cp-x flex items-center gap-1.5"><input type="datetime-local" name="extra_when[]" value="<?= e($x) ?>" class="input !mt-0 !h-9 text-sm" dir="ltr"><button type="button" class="cp-x-del w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" aria-label="<?= e(t('حذف')) ?>">✕</button></div><?php endforeach; ?>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px]">
+              <span class="text-ink-500"><?= e(t('انشره كمان:')) ?></span>
+              <button type="button" class="cp-x-add rounded-full border border-dashed border-brand-300 px-2.5 py-1 text-brand-700 hover:bg-brand-50" data-add="custom">＋ <?= e(t('ميعاد تاني')) ?></button>
+              <button type="button" class="cp-x-add rounded-full border border-ink-200 px-2.5 py-1 text-ink-700 hover:border-brand-300" data-add="d1"><?= e(t('بعد يوم')) ?></button>
+              <button type="button" class="cp-x-add rounded-full border border-ink-200 px-2.5 py-1 text-ink-700 hover:border-brand-300" data-add="d7"><?= e(t('بعد أسبوع')) ?></button>
+              <button type="button" class="cp-x-add rounded-full border border-ink-200 px-2.5 py-1 text-ink-700 hover:border-brand-300" data-add="w4"><?= e(t('كل أسبوع لمدة شهر')) ?></button>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-1.5 rounded-xl bg-ink-50 border border-ink-200 p-2 text-xs" id="cp-rep">
+              <span class="font-medium text-ink-700">🔁 <?= e(t('كرّره كل')) ?></span>
+              <input type="number" id="cp-rep-n" min="1" max="365" value="3" class="input !mt-0 !h-8 !py-0 text-xs !w-16">
+              <span><?= e(t('يوم،')) ?></span>
+              <input type="number" id="cp-rep-c" min="1" max="60" value="10" class="input !mt-0 !h-8 !py-0 text-xs !w-16">
+              <span><?= e(t('مرة')) ?></span>
+              <button type="button" id="cp-rep-go" class="btn-primary !py-1 !text-xs"><?= e(t('طبّق')) ?></button>
+              <span class="w-full text-[11px] text-ink-500"><?= e(t('كل مرة بتتعمل منشور منفصل في نفس الساعة، لحد 60 مرة. مش مربوط بحد Zernio لإعادة النشر.')) ?></span>
+            </div>
             <?php $nb = (module_enabled('analytics') && function_exists('next_best_time')) ? next_best_time($z) : null; if ($nb): ?>
               <button type="button" class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-lime-300 bg-lime-50 text-lime-700 px-3 py-2 text-sm hover:bg-lime-100 transition"
                 onclick="document.getElementById('whenInput').value='<?= e($nb->format('Y-m-d\TH:i')) ?>'">
@@ -484,10 +549,22 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           </div>
         </details>
 
-        <div class="space-y-2">
-          <button name="action" value="validate" class="btn-ghost w-full"><?= e(t('افحص المنشور بس')) ?></button>
-          <button name="action" value="submit" id="submitBtn" class="btn-primary w-full !py-3" onclick="var m=this.form.querySelector('.mode:checked');return !m||m.value!=='now'||confirm('<?= tjs('المنشور هيتنشر فوراً على كل الحسابات المختارة. تكمل؟') ?>')"><?= e(t('تنفيذ')) ?></button>
-          <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند خدمة النشر، ولو فيه مشكلة مش هيتنشر.')) ?></p>
+        <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند خدمة النشر، ولو فيه مشكلة مش هيتنشر.')) ?></p>
+      </div>
+
+      <div id="cp-bar" class="lg:col-span-3 sticky bottom-3 z-30">
+        <div class="rounded-2xl border border-ink-200 bg-white/95 backdrop-blur shadow-xl px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ol class="flex items-center gap-1.5 text-xs" id="cp-steps" aria-label="<?= e(t('الخطوات')) ?>">
+            <li><button type="button" data-go="acc" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">1</span><?= e(t('الحسابات')) ?></button></li>
+            <li><button type="button" data-go="txt" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">2</span><?= e(t('المحتوى')) ?></button></li>
+            <li><button type="button" data-go="when" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">3</span><?= e(t('الميعاد')) ?></button></li>
+          </ol>
+          <div id="cp-sum" class="min-w-0 flex-1 text-xs text-ink-600"></div>
+          <span id="cp-draft" class="text-[11px] text-ink-400"></span>
+          <div class="flex items-center gap-2 ms-auto">
+            <button type="submit" name="action" value="validate" class="btn-ghost !text-sm"><?= e(t('افحص بس')) ?></button>
+            <button type="submit" name="action" value="submit" id="submitBtn" class="btn-primary !text-sm !px-5"><span id="cp-go-t"><?= e(t('تنفيذ')) ?></span> <kbd class="hidden sm:inline text-[10px] opacity-70">Ctrl ↵</kbd></button>
+          </div>
         </div>
       </div>
     </form>
@@ -502,6 +579,8 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'modes' => ['now' => t('هيتنشر دلوقتي'), 'draft' => t('هيتحفظ كمسودة'), 'queue' => t('أقرب ميعاد فاضي في الطابور'), 'schedule' => t('مجدول')],
       'past' => t('الميعاد ده فات'), 'inMin' => t('بعد %s دقيقة'), 'inHr' => t('بعد %s ساعة'), 'inDay' => t('بعد %s يوم'),
       'quick' => [[t('بعد ساعة'), 'h1'], [t('بعد 3 ساعات'), 'h3'], [t('النهارده 8 م'), '0:20'], [t('بكرة 10 ص'), '1:10'], [t('بكرة 8 م'), '1:20']],
+      'goT' => ['now' => t('انشر دلوقتي'), 'draft' => t('احفظ المسودة'), 'queue' => t('ضيف للطابور'), 'schedule' => t('جدوِل المنشور')], 'goN' => t('جدول %s منشور'),
+      'confirmNow' => t('المنشور هيتنشر فوراً على كل الحسابات المختارة. تكمل؟'), 'lastAcc' => t('اخترنا الحسابات اللي استخدمتها آخر مرة.'), 'clearAcc' => t('شيلهم'), 'extraN' => t('+%s ميعاد'),
       'onN' => t('هيتنشر على %s حساب'), 'draftSaved' => t('المسودة محفوظة'), 'restore' => t('عندك مسودة لسه ماتنشرتش:'), 'restoreBtn' => t('استرجاع'), 'discard' => t('تجاهل')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/compose-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>

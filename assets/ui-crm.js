@@ -88,13 +88,32 @@
         if (curCard !== card) return;
         setLeft(r.left);
         var h = '';
-        if (!r.ok) h += '<div class="rounded-xl bg-red-50 text-red-700 text-sm p-3">' + esc(r.error || T.err) + '</div>';
+        if (!r.ok) h += '<div class="rounded-xl ' + (r.plan ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-red-50 text-red-700') + ' text-sm p-3">' + esc(r.error || T.err) + (r.plan ? ' <a class="link" target="_blank" rel="noopener" href="https://www.apollo.io/pricing">' + esc(T.plans) + ' ↗</a>' : '') + '</div>';
+        if (r.plan) h += manualForm();
         if (r.people) h += r.people.length ? r.people.map(personHtml).join('') : '<div class="text-sm text-ink-500 text-center py-6">' + T.none + '</div>';
         if (r.known && r.known.length) h += '<div class="text-xs font-semibold text-ink-500 pt-2">' + T.other + '</div>' + r.known.map(function (l) { return personHtml({ id: l.ext, name: l.name, title: l.title, lead: l }); }).join('');
         h += '<a class="link text-sm block text-center pt-2" href="' + esc(C.leadsUrl) + '">' + T.open + '</a>';
         body.innerHTML = h;
       }).catch(function () { body.innerHTML = '<div class="rounded-xl bg-red-50 text-red-700 text-sm p-3">' + T.err + '</div>'; });
   }
+  function manualForm() {
+    var inp = function (n, ph, t, dir) { return '<input name="' + n + '" type="' + (t || 'text') + '" class="input !h-9 text-sm" placeholder="' + esc(ph) + '"' + (dir ? ' dir="ltr"' : '') + '>'; };
+    return '<form class="crm-man rounded-2xl border border-ink-200 p-3 space-y-2"><div class="text-sm font-semibold text-ink-900">＋ ' + esc(T.manualH) + '</div>' +
+      inp('name', T.mName) + inp('title', T.mTitle) + '<div class="grid grid-cols-2 gap-2">' + inp('phone', T.mPhone, 'tel', 1) + inp('email', T.mEmail, 'email', 1) + '</div>' +
+      '<button class="btn-primary w-full !text-sm">' + esc(T.mAdd) + '</button><div class="crm-man-msg text-xs"></div></form>';
+  }
+  body.addEventListener('submit', function (e) {
+    var f = e.target.closest('.crm-man'); if (!f) return; e.preventDefault();
+    var d = { action: 'manual_lead', company: curCard.dataset.id }; ['name', 'title', 'phone', 'email'].forEach(function (k) { d[k] = f.elements[k].value; });
+    post(d).then(function (r) {
+      var m = f.querySelector('.crm-man-msg');
+      if (!r.ok) { m.className = 'crm-man-msg text-xs text-red-600'; m.textContent = r.error || T.err; return; }
+      f.insertAdjacentHTML('beforebegin', personHtml({ id: r.lead.ext || ('l' + r.lead.id), name: r.lead.name, title: r.lead.title, lead: r.lead }));
+      f.reset(); m.className = 'crm-man-msg text-xs text-lime-700'; m.textContent = r.merged ? T.merged : T.added;
+      var lc = document.getElementById('crm-leads'); if (!r.merged) lc.textContent = +lc.textContent + 1;
+      curCard.dataset.rev = +curCard.dataset.rev + 1;
+    });
+  });
   grid.addEventListener('click', function (e) { var c = e.target.closest('.crm-co'); if (c && !e.target.closest('.crm-hide')) open(c); });
   grid.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('crm-co')) { e.preventDefault(); open(e.target); } });
 

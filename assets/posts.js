@@ -22,6 +22,8 @@
     var v = q ? q.value.trim().toLowerCase() : '', n = 0;
     $$('.ps-card').forEach(function (c) { var hit = (!v || c.dataset.q.indexOf(v) > -1) && (!pf || (' ' + c.dataset.pf + ' ').indexOf(' ' + pf + ' ') > -1); c.style.display = hit ? '' : 'none'; if (hit) n++; });
     var em = $('#ps-empty'); if (em) em.classList.toggle('hidden', n > 0 || !$$('.ps-card').length);
+    // عنوان اليوم بيختفي لو مفيش ولا منشور ظاهر تحته
+    $$('.ps-day').forEach(function (h) { var e = h.nextElementSibling, any = false; while (e && !e.classList.contains('ps-day')) { if (e.classList.contains('ps-card') && e.style.display !== 'none') { any = true; break; } e = e.nextElementSibling; } h.style.display = any ? '' : 'none'; });
     if (window.__cal) window.__cal();
   }
   if (q) q.addEventListener('input', apply);
@@ -104,4 +106,20 @@
     else if (e.key === 'v') { var o = $$('#ps-view a').filter(function (a) { return !a.classList.contains('bg-white'); })[0]; if (o) o.click(); }
     else if (e.key === '?') { e.preventDefault(); help(); }
   });
+
+  /* كروت / مضغوط (بيتفتكر) */
+  (function () {
+    var g = document.getElementById('ps-grid'); if (!g) return;
+    var K = 'ps-dens', d = 'cards'; try { d = localStorage.getItem(K) || 'cards'; } catch (e) {}
+    function apply() {
+      var rows = d === 'rows';
+      g.className = rows ? 'flex flex-col gap-2' : 'grid sm:grid-cols-2 xl:grid-cols-3 gap-4';
+      g.querySelectorAll('.ps-media').forEach(function (m) { m.classList.toggle('hidden', rows); });
+      g.querySelectorAll('.ps-txt').forEach(function (t) { t.classList.toggle('line-clamp-4', !rows); t.classList.toggle('line-clamp-2', rows); });
+      g.querySelectorAll('.ps-card > .p-4').forEach(function (c) { c.classList.toggle('!py-3', rows); });
+      document.querySelectorAll('.ps-dens').forEach(function (b) { var on = b.dataset.dens === d; b.classList.toggle('bg-white', on); b.classList.toggle('shadow-sm', on); b.classList.toggle('text-ink-900', on); b.classList.toggle('text-ink-500', !on); b.setAttribute('aria-pressed', on); });
+    }
+    document.querySelectorAll('.ps-dens').forEach(function (b) { b.addEventListener('click', function () { d = b.dataset.dens; try { localStorage.setItem(K, d); } catch (e) {} apply(); }); });
+    apply();
+  })();
 })();

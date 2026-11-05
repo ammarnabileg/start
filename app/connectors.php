@@ -53,8 +53,13 @@ function connector_registry(): array
                 ['key' => 'api_key', 'label' => 'API Key', 'secret' => true],
             ],
             'test' => function (array $c): string {
-                crm_api('/mixed_companies/search', ['page' => 1, 'per_page' => 1], $c['api_key']);
-                return t('المفتاح شغال');
+                // المفتاح الغلط بيرجع 401. لو الخطة مجانية بيرجع رفض للبحث بس، والمفتاح بيتحفظ عادي
+                try {
+                    crm_api('/mixed_companies/search', ['page' => 1, 'per_page' => 1], $c['api_key']);
+                    return t('المفتاح شغال');
+                } catch (CrmPlanException $e) {
+                    return t('المفتاح شغال · خطة مجانية: البحث وكشف الأرقام مقفولين، وإضافة الشركات بالدومين شغالة');
+                }
             },
         ],
         'smtp' => [

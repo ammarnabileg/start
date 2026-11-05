@@ -54,7 +54,7 @@
   function syncMode() {
     var m = document.querySelector('.mode:checked'); if (!m) return;
     if (whenBox) whenBox.classList.toggle('hidden', m.value !== 'schedule');
-    var lbl = { schedule: T.schedule, now: T.now, draft: T.draft, queue: T.queue }[m.value]; if (submitBtn && lbl) submitBtn.textContent = lbl;
+    var lbl = { schedule: T.schedule, now: T.now, draft: T.draft, queue: T.queue }[m.value]; if (submitBtn && lbl && !document.getElementById('cp-go-t')) submitBtn.textContent = lbl; // صفحة الإنشاء الجديدة بتغير النص بنفسها
   }
   modes.forEach(function (r) { r.addEventListener('change', syncMode); }); if (modes.length) syncMode();
 

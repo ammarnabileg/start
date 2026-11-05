@@ -6,6 +6,8 @@
  */
 
 class CrmException extends Exception {}
+/** العملية مش متاحة في خطة Apollo الحالية (المفتاح سليم) */
+class CrmPlanException extends CrmException {}
 
 function crm_stages(): array
 {
@@ -44,17 +46,18 @@ function crm_fake(): ?callable
     return $f;
 }
 
-function crm_api(string $path, array $body, ?string $key = null): array
+function crm_api(string $path, array $body, ?string $key = null, string $method = 'POST'): array
 {
-    if ($fake = crm_fake()) return $fake($path, $body);
+    if ($fake = crm_fake()) return $fake($path, $body, $method);
     $key = $key ?? connector_secret('apollo', 'api_key');
     if ($key === '') throw new CrmException(t('اربط حساب Apollo.io من التكاملات الأول.'));
-    $ch = curl_init('https://api.apollo.io/api/v1' . $path);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CONNECTTIMEOUT => 8,
+    $ch = curl_init('https://api.apollo.io/api/v1' . $path . ($method === 'GET' && $body ? '?' . http_build_query($body) : ''));
+    $opt = [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_CONNECTTIMEOUT => 8,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', 'Cache-Control: no-cache', 'x-api-key: ' . $key],
-        CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
-    ]);
+    ];
+    if ($method === 'POST') { $opt[CURLOPT_POST] = true; $opt[CURLOPT_POSTFIELDS] = json_encode($body, JSON_UNESCAPED_UNICODE); }
+    curl_setopt_array($ch, $opt);
     $raw = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $cerr = curl_error($ch);
@@ -63,7 +66,11 @@ function crm_api(string $path, array $body, ?string $key = null): array
     $j = json_decode((string)$raw, true);
     $msg = is_array($j) ? (string)($j['error'] ?? $j['message'] ?? '') : mb_substr((string)$raw, 0, 200);
     if ($code === 401) throw new CrmException(t('مفتاح Apollo غلط أو اتلغى.'));
-    if ($code === 403) throw new CrmException(t('مفتاح Apollo مش مسموحله بالعملية دي. اعمل Master Key من إعدادات Apollo. (%s)', $msg));
+    if ($code === 403 || ($code >= 400 && preg_match('/free plan|not accessible|API_INACCESSIBLE|upgrade your plan/i', $msg))) {
+        // الخطة مش بتسمح (زي الخطة المجانية) — غير إن المفتاح غلط
+        if (preg_match('/plan|upgrade|INACCESSIBLE|not accessible/i', $msg)) throw new CrmPlanException(t('العملية دي مش متاحة في خطة Apollo بتاعتك (%s).', $path));
+        throw new CrmException(t('مفتاح Apollo مش مسموحله بالعملية دي. اعمل Master Key من إعدادات Apollo. (%s)', $msg));
+    }
     if ($code === 429) throw new CrmException(t('Apollo وقّف الطلبات مؤقتًا (كتير أو الكريديت خلص). جرب كمان شوية.'));
     if ($code >= 400) throw new CrmException(t('Apollo رد بخطأ (%s): %s', $code, $msg));
     return is_array($j) ? $j : [];
@@ -115,16 +122,37 @@ function crm_icp_query(array $icp): array
 function crm_refresh(array $prefs): array
 {
     $page = max(1, (int)$prefs['next_page']);
-    $body = crm_icp_query($prefs['icp']) + ['page' => $page, 'per_page' => 25];
-    $j = crm_api('/mixed_companies/search', $body);
-    $orgs = array_merge((array)($j['organizations'] ?? []), (array)($j['accounts'] ?? []));
+    $fetch = function (int $pg) use ($prefs) {
+        $q = crm_icp_query($prefs['icp']);
+        try {
+            $j = crm_api('/mixed_companies/search', $q + ['page' => $pg, 'per_page' => 25]);
+            save_setting('crm_plan_' . (int)ws('id'), 'full');
+            return array_merge((array)($j['organizations'] ?? []), (array)($j['accounts'] ?? []));
+        } catch (CrmPlanException $e) {
+            // الخطة المجانية: البحث عن الشركات مقفول، فبندور على صناع قرار بنفس الفلاتر ونطلع شركاتهم
+            save_setting('crm_plan_' . (int)ws('id'), 'free');
+            try {
+                $j = crm_api('/mixed_people/api_search', $q + ['person_seniorities' => crm_seniorities(), 'page' => $pg, 'per_page' => 100]);
+            } catch (CrmPlanException $e2) {
+                throw new CrmPlanException(t('خطة Apollo بتاعتك مش بتسمح بالبحث عن الشركات ولا الأشخاص من الـ API. ضيف الشركات بالدومين من الخانة اللي على الجنب، أو رقّي الخطة من apollo.io/pricing.'));
+            }
+            $orgs = [];
+            foreach ((array)($j['people'] ?? []) as $pp) {
+                $o = (array)($pp['organization'] ?? []);
+                $oid = (string)($pp['organization_id'] ?? $o['id'] ?? '');
+                if ($oid === '' || trim((string)($o['name'] ?? '')) === '') continue;
+                $orgs[$oid] = ['id' => $oid] + $o;
+            }
+            return array_values($orgs);
+        }
+    };
+    $orgs = $fetch($page);
     $wrapped = false;
     if (!$orgs && $page > 1) {
         // خلصنا النتايج: نرجع لأول صفحة
         $wrapped = true;
         $page = 1;
-        $j = crm_api('/mixed_companies/search', ['page' => 1] + $body);
-        $orgs = array_merge((array)($j['organizations'] ?? []), (array)($j['accounts'] ?? []));
+        $orgs = $fetch(1);
     }
     $batch = (int)$prefs['batch'] + 1;
     $wid = (int)ws('id');
@@ -156,7 +184,9 @@ function crm_refresh(array $prefs): array
 function crm_company_people(array $co, string $titles = ''): array
 {
     if ($co['people'] && $co['people_at'] && strtotime($co['people_at']) > time() - 86400) return json_decode($co['people'], true) ?: [];
-    $body = ['organization_ids' => [$co['ext_id']], 'person_seniorities' => crm_seniorities(), 'page' => 1, 'per_page' => 5];
+    $body = strpos((string)$co['ext_id'], 'dom:') === 0
+        ? ['q_organization_domains_list' => [substr((string)$co['ext_id'], 4)], 'person_seniorities' => crm_seniorities(), 'page' => 1, 'per_page' => 5]
+        : ['organization_ids' => [$co['ext_id']], 'person_seniorities' => crm_seniorities(), 'page' => 1, 'per_page' => 5];
     $tt = array_values(array_filter(array_map('trim', explode(',', $titles))));
     if ($tt) $body['person_titles'] = $tt;
     $j = crm_api('/mixed_people/api_search', $body);
@@ -518,4 +548,33 @@ function crm_guess_country(string $d, string $iso): string
     if (!isset($mob[$iso]) || preg_match($mob[$iso], $d)) return $iso;
     foreach (['EG', 'SA', 'JO', 'MA'] as $c) if ($c !== $iso && preg_match($mob[$c], $d)) return $iso === 'AE' && $c === 'SA' ? 'AE' : $c;
     return $iso;
+}
+
+
+/** إضافة شركات بالدومين (بتشتغل مع أي خطة): بنحاول نكمّل بياناتها من Apollo، ولو مش متاح بنحفظها بالدومين بس */
+function crm_add_domains(array $domains): array
+{
+    $wid = (int)ws('id');
+    $prefs = crm_prefs();
+    $batch = (int)$prefs['batch'] + 1;
+    $added = 0; $dup = 0; $bad = [];
+    foreach (array_slice($domains, 0, 25) as $d) {
+        $d = strtolower(trim((string)$d));
+        $d = preg_replace('#^(https?://)?(www\.)?#', '', $d);
+        $d = preg_replace('#[/?\#].*$#', '', $d);
+        if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $d)) { if ($d !== '') $bad[] = $d; continue; }
+        $o = [];
+        try { $o = (array)(crm_api('/organizations/enrich', ['domain' => $d], null, 'GET')['organization'] ?? []); } catch (CrmException $e) { $o = []; }
+        $ext = !empty($o['id']) ? (string)$o['id'] : 'dom:' . $d;
+        $st = db()->prepare('SELECT id FROM crm_companies WHERE workspace_id = ? AND (ext_id = ? OR ext_id = ? OR domain = ?) LIMIT 1');
+        $st->execute([$wid, $ext, 'dom:' . $d, $d]);
+        if ($st->fetchColumn()) { $dup++; continue; }
+        db()->prepare('INSERT INTO crm_companies (workspace_id, ext_id, name, domain, industry, employees, city, country, logo, linkedin, first_batch, last_batch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            ->execute([$wid, mb_substr($ext, 0, 64), mb_substr((string)($o['name'] ?? $d), 0, 255), $d, ($o['industry'] ?? '') ?: null,
+                isset($o['estimated_num_employees']) ? (int)$o['estimated_num_employees'] : null, ($o['city'] ?? '') ?: null, ($o['country'] ?? '') ?: null,
+                ($o['logo_url'] ?? '') ?: null, ($o['linkedin_url'] ?? '') ?: null, $batch, $batch]);
+        $added++;
+    }
+    if ($added) crm_save_prefs(['batch' => $batch]);
+    return [$added, $dup, $bad];
 }
