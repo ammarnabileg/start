@@ -13,6 +13,9 @@ if ($z) {
     }
 }
 
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/wa_profile.json') ? json_decode((string)file_get_contents($fxd . '/wa_profile.json'), true) : null;
+if ($fx) { $accounts = $fx['accounts']; $acc = wa_pick_account($accounts); $apiError = null; }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc && wa_is_sandbox($accounts, $acc)) {
     flash('error', t('مينفعش تعدل على الرقم التجريبي.'));
     redirect(url('wa_profile', ['wa' => $acc]));
@@ -60,7 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
 $profile = [];
 $info = [];
 $infoError = null;
-if ($z && $acc && !$apiError) {
+if ($fx) {
+    $profile = $fx['profile']; $info = $fx['info'];
+} elseif ($z && $acc && !$apiError) {
     try {
         $profile = wa_business_profile($z, $acc);
     } catch (ZernioException $ex) {
@@ -73,74 +78,137 @@ if ($z && $acc && !$apiError) {
     }
 }
 
-render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $accounts, $acc, $apiError, $profile, $info, $infoError) {
-    if (!$z) { no_api_box(); return; }
+render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx, $accounts, $acc, $apiError, $profile, $info, $infoError) {
+    if (!$z && !$fx) { no_api_box(); return; }
     if (!$acc && !$apiError) { wa_no_account_box(); return; }
     wa_account_picker($accounts, $acc, 'wa_profile');
-    if (wa_is_sandbox($accounts, $acc)) { wa_sandbox_note(); }
+    $sandbox = wa_is_sandbox($accounts, $acc);
+    if ($sandbox) { wa_sandbox_note(); }
     if ($apiError) { error_box($apiError); }
     $ph = $info['phone'] ?? [];
     $waba = $info['waba'] ?? [];
     $q = strtoupper((string)($ph['quality_rating'] ?? 'UNKNOWN'));
-    $qMap = ['GREEN' => [t('عالية'), 'badge badge-green'], 'YELLOW' => [t('متوسطة'), 'badge bg-amber-100 text-amber-800'], 'RED' => [t('ضعيفة'), 'badge bg-red-100 text-red-700']];
-    [$qLabel, $qCls] = $qMap[$q] ?? [t('غير معروفة'), 'badge'];
-    $tierMap = ['TIER_250' => '250', 'TIER_1K' => '1,000', 'TIER_10K' => '10,000', 'TIER_100K' => '100,000', 'TIER_UNLIMITED' => t('بلا حدود')];
+    $qMap = ['GREEN' => [t('عالية'), '#16a34a', 3], 'YELLOW' => [t('متوسطة'), '#d97706', 2], 'RED' => [t('ضعيفة'), '#dc2626', 1]];
+    [$qLabel, $qCol, $qLvl] = $qMap[$q] ?? [t('غير معروفة'), '#9ca3af', 0];
+    $tiers = ['TIER_250' => '250', 'TIER_1K' => '1,000', 'TIER_10K' => '10,000', 'TIER_100K' => '100,000', 'TIER_UNLIMITED' => '∞'];
     $tier = (string)($ph['messaging_limit_tier'] ?? '');
+    $tierIdx = array_search($tier, array_keys($tiers), true);
     $canSend = (string)($ph['health_status']['can_send_message'] ?? '');
+    $bv = strtolower((string)($waba['business_verification_status'] ?? ''));
     $verticals = ['' => t('— بدون تغيير —'), 'AUTO' => 'Automotive', 'BEAUTY' => 'Beauty, Spa & Salon', 'APPAREL' => 'Clothing & Apparel', 'EDU' => 'Education', 'ENTERTAIN' => 'Entertainment', 'EVENT_PLAN' => 'Event Planning', 'FINANCE' => 'Finance & Banking', 'GROCERY' => 'Food & Grocery', 'GOVT' => 'Public Service', 'HOTEL' => 'Hotel & Lodging', 'HEALTH' => 'Medical & Health', 'NONPROFIT' => 'Non-profit', 'PROF_SERVICES' => 'Professional Services', 'RETAIL' => 'Shopping & Retail', 'TRAVEL' => 'Travel & Transportation', 'RESTAURANT' => 'Restaurant', 'OTHER' => 'Other'];
+    $name = (string)($ph['verified_name'] ?? ($profile['about'] ?? 'WhatsApp'));
+    $w = (array)($profile['websites'] ?? []);
+    $row = function (string $label, string $val, string $tone = '') {
+        echo '<div class="flex items-center justify-between gap-3 py-2.5"><dt class="text-sm text-ink-500">' . e($label) . '</dt><dd class="text-sm font-medium ' . ($tone ?: 'text-ink-900') . ' text-end">' . e($val) . '</dd></div>';
+    };
     ?>
-    <div class="grid lg:grid-cols-3 gap-4">
-      <div class="card p-5 space-y-3">
-        <h2 class="font-semibold"><?= e(t('حالة الرقم')) ?></h2>
-        <?php if ($infoError): ?><?php error_box($infoError); ?><?php else: ?>
-        <div class="text-2xl font-semibold" dir="ltr"><?= e($ph['display_phone_number'] ?? '') ?></div>
-        <div class="text-sm"><?= e($ph['verified_name'] ?? '') ?> <?php if (!empty($ph['is_official_business_account'])): ?><span class="badge badge-green"><?= e(t('حساب رسمي')) ?></span><?php endif; ?></div>
-        <dl class="text-sm divide-y divide-ink-100">
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('جودة الرقم')) ?></dt><dd><span class="<?= $qCls ?>"><?= e($qLabel) ?></span></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('حد الرسايل اليومي')) ?></dt><dd><?= e($tierMap[$tier] ?? ($tier ?: '—')) ?></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('يقدر يبعت؟')) ?></dt><dd><?php if ($canSend === 'AVAILABLE'): ?><span class="badge badge-green"><?= e(t('أيوه')) ?></span><?php elseif ($canSend): ?><span class="badge bg-red-100 text-red-700"><?= e($canSend) ?></span><?php else: ?>—<?php endif; ?></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('حالة الاسم')) ?></dt><dd><?= e($ph['name_status'] ?? '—') ?></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('الحالة')) ?></dt><dd><?= e($ph['status'] ?? '—') ?></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('السرعة')) ?></dt><dd><?= e($ph['throughput']['level'] ?? '—') ?></dd></div>
-          <?php if ($waba): ?>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('حساب البيزنس (WABA)')) ?></dt><dd><?= e($waba['name'] ?? '') ?></dd></div>
-          <div class="flex justify-between py-2"><dt class="text-ink-500"><?= e(t('توثيق البيزنس')) ?></dt><dd><?= e($waba['business_verification_status'] ?? '—') ?></dd></div>
+    <div class="grid xl:grid-cols-[320px_minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+
+      <?php /* ---------- صحة الرقم ---------- */ ?>
+      <div class="space-y-4 lg:order-last xl:order-none">
+        <div class="card p-5">
+          <div class="text-xs text-ink-500"><?= e(t('حالة الرقم')) ?></div>
+          <?php if ($infoError): ?><div class="mt-2"><?php error_box($infoError); ?></div><?php else: ?>
+          <div class="text-xl font-bold text-ink-900 mt-1" dir="ltr" style="text-align:start"><?= e($ph['display_phone_number'] ?? '') ?></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-1 text-sm"><span class="text-ink-700"><?= e($ph['verified_name'] ?? '') ?></span>
+            <?php if (!empty($ph['is_official_business_account'])): ?><span class="rounded-full bg-lime-50 text-lime-700 text-[11px] px-2 py-0.5">✓ <?= e(t('حساب رسمي')) ?></span><?php endif; ?>
+            <?php if ($canSend === 'AVAILABLE'): ?><span class="rounded-full bg-lime-50 text-lime-700 text-[11px] px-2 py-0.5"><?= e(t('بيبعت عادي')) ?></span><?php elseif ($canSend): ?><span class="rounded-full bg-red-50 text-red-700 text-[11px] px-2 py-0.5"><?= e(t('الإرسال متوقف: %s', $canSend)) ?></span><?php endif; ?></div>
+
+          <div class="mt-5">
+            <div class="flex items-center justify-between text-sm mb-2"><span class="text-ink-500"><?= e(t('جودة الرقم')) ?></span><b style="color:<?= $qCol ?>"><?= e($qLabel) ?></b></div>
+            <div class="grid grid-cols-3 gap-1"><?php foreach ([1 => '#dc2626', 2 => '#d97706', 3 => '#16a34a'] as $k => $c): ?><span class="h-2 rounded-full" style="background:<?= $k <= $qLvl ? $c : '#eef0f3' ?>"></span><?php endforeach; ?></div>
+            <p class="text-[11px] text-ink-500 mt-2"><?= e($q === 'GREEN' ? t('ممتاز. كمّل ابعت رسايل الناس طالباها.') : t('الجودة بتقل لما الناس تبلّك أو تبلغ عن رسايلك. ابعت للي طالبين بس، وخلّي فيه طريقة للإلغاء.')) ?></p>
+          </div>
+
+          <div class="mt-5">
+            <div class="text-sm text-ink-500 mb-2"><?= e(t('حد المحادثات اليومي (عملاء جداد في 24 ساعة)')) ?></div>
+            <div class="flex items-end gap-1" dir="ltr">
+              <?php $i = 0; foreach ($tiers as $k => $l): $on = $tierIdx !== false && $i <= $tierIdx; $cur = $i === $tierIdx; ?>
+                <div class="flex-1 text-center">
+                  <div class="rounded-t-md mx-auto <?= $cur ? 'bg-brand-600' : ($on ? 'bg-brand-200' : 'bg-ink-100') ?>" style="height:<?= 10 + $i * 8 ?>px"></div>
+                  <div class="text-[10px] mt-1 <?= $cur ? 'font-bold text-brand-700' : 'text-ink-400' ?>" dir="ltr"><?= e($l) ?></div>
+                </div>
+              <?php $i++; endforeach; ?>
+            </div>
+            <?php if ($tierIdx !== false && $tierIdx < 4): ?><p class="text-[11px] text-ink-500 mt-2"><?= e(t('Meta بترفع الحد لوحدها لما تستخدم نصه على الأقل خلال 7 أيام والجودة مش ضعيفة.')) ?></p><?php endif; ?>
+          </div>
+
+          <dl class="divide-y divide-ink-100 mt-4 border-t border-ink-100">
+            <?php
+            $row(t('حالة الاسم'), (string)($ph['name_status'] ?? '—'), ($ph['name_status'] ?? '') === 'APPROVED' ? 'text-lime-700' : '');
+            $row(t('الحالة'), (string)($ph['status'] ?? '—'));
+            $row(t('السرعة'), (string)($ph['throughput']['level'] ?? '—'));
+            if ($waba) {
+                $row(t('حساب البيزنس (WABA)'), (string)($waba['name'] ?? ''));
+                $row(t('توثيق البيزنس'), $bv === 'verified' ? t('موثّق') : ($bv ? t('مش موثّق') : '—'), $bv === 'verified' ? 'text-lime-700' : 'text-amber-700');
+            }
+            ?>
+          </dl>
+          <?php if ($waba && $bv !== 'verified'): ?><p class="text-[11px] text-amber-700 mt-2"><?= e(t('توثيق البيزنس من Meta Business Manager بيفتح حدود أعلى وبيسمح تطلب العلامة الخضرا.')) ?></p><?php endif; ?>
           <?php endif; ?>
-        </dl>
-        <p class="text-xs text-ink-500"><?= e(t('الجودة بتقل لما الناس تبلّك أو تبلغ عن رسايلك. لو بقت ضعيفة، Meta ممكن تقلل حد الرسايل.')) ?></p>
-        <?php endif; ?>
+        </div>
       </div>
 
-      <?php if (!$apiError && !wa_is_sandbox($accounts, $acc)): ?>
-      <div class="lg:col-span-2 space-y-4">
-        <form method="post" class="card p-5 space-y-3">
+      <?php if (!$apiError && !$sandbox): ?>
+      <?php /* ---------- التعديل ---------- */ ?>
+      <div class="space-y-4 min-w-0">
+        <div class="card p-5" id="wp-score"></div>
+        <form method="post" class="card p-5 space-y-4" id="wp-form">
           <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="wa" value="<?= e($acc) ?>">
-          <div class="flex items-center gap-3">
-            <?= avatar($profile['profilePictureUrl'] ?? null, (string)($ph['verified_name'] ?? 'W'), 'w-16 h-16') ?>
-            <h2 class="font-semibold"><?= e(t('بروفايل البيزنس')) ?></h2>
-          </div>
-          <label class="block"><span class="label"><?= e(t('نبذة (About)')) ?></span><input name="about" maxlength="139" class="input" value="<?= e($profile['about'] ?? '') ?>"></label>
-          <label class="block"><span class="label"><?= e(t('الوصف')) ?></span><textarea data-ai="wa_about" name="description" maxlength="512" rows="3" class="input"><?= e($profile['description'] ?? '') ?></textarea></label>
-          <label class="block"><span class="label"><?= e(t('العنوان')) ?></span><input name="address" class="input" value="<?= e($profile['address'] ?? '') ?>"></label>
-          <div class="grid sm:grid-cols-2 gap-3">
+          <div class="flex items-center gap-2"><h2 class="font-bold text-ink-900 me-auto"><?= e(t('بروفايل البيزنس')) ?></h2><span id="wp-dirty" class="rounded-full bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5" style="display:none"><?= e(t('فيه تعديلات مش محفوظة')) ?></span></div>
+          <label class="block"><span class="label flex justify-between"><span><?= e(t('نبذة (About)')) ?></span><span class="wp-c text-[11px] text-ink-400" dir="ltr" data-for="about" data-max="139"></span></span><input name="about" maxlength="139" class="input" dir="auto" value="<?= e($profile['about'] ?? '') ?>" placeholder="<?= e(t('سطر قصير بيظهر تحت اسمك')) ?>"></label>
+          <label class="block"><span class="label flex justify-between"><span><?= e(t('الوصف')) ?></span><span class="wp-c text-[11px] text-ink-400" dir="ltr" data-for="description" data-max="512"></span></span><textarea data-ai="wa_about" name="description" maxlength="512" rows="4" class="input" dir="auto"><?= e($profile['description'] ?? '') ?></textarea></label>
+          <label class="block"><span class="label"><?= e(t('العنوان')) ?></span><input name="address" class="input" dir="auto" value="<?= e($profile['address'] ?? '') ?>"></label>
+          <div class="grid sm:grid-cols-2 gap-4">
             <label class="block"><span class="label"><?= e(t('الإيميل')) ?></span><input name="email" type="email" dir="ltr" class="input" value="<?= e($profile['email'] ?? '') ?>"></label>
             <label class="block"><span class="label"><?= e(t('المجال')) ?></span><select name="vertical" class="input">
               <?php $cur = (string)($profile['vertical'] ?? ''); foreach ($verticals as $k => $l): ?><option value="<?= e($k) ?>" <?= $k !== '' && $k === $cur ? 'selected' : '' ?>><?= e($l) ?></option><?php endforeach; ?>
             </select></label>
-            <?php $w = (array)($profile['websites'] ?? []); ?>
-            <label class="block"><span class="label"><?= e(t('موقع 1')) ?></span><input name="web1" dir="ltr" class="input" value="<?= e($w[0] ?? '') ?>"></label>
-            <label class="block"><span class="label"><?= e(t('موقع 2')) ?></span><input name="web2" dir="ltr" class="input" value="<?= e($w[1] ?? '') ?>"></label>
+            <label class="block"><span class="label"><?= e(t('موقع 1')) ?></span><input name="web1" type="url" dir="ltr" class="input" value="<?= e($w[0] ?? '') ?>" placeholder="https://"></label>
+            <label class="block"><span class="label"><?= e(t('موقع 2')) ?></span><input name="web2" type="url" dir="ltr" class="input" value="<?= e($w[1] ?? '') ?>" placeholder="https://"></label>
           </div>
-          <button class="btn-primary"><?= e(t('حفظ')) ?></button>
+          <div class="flex justify-end pt-2 border-t border-ink-100"><button class="btn-primary"><?= e(t('حفظ')) ?></button></div>
         </form>
-        <form method="post" class="card p-5 space-y-3">
+        <form method="post" class="card p-5" id="wp-photo">
           <?= csrf_field() ?><input type="hidden" name="action" value="photo"><input type="hidden" name="wa" value="<?= e($acc) ?>">
-          <h2 class="font-semibold"><?= e(t('تغيير صورة البروفايل')) ?></h2>
-          <label class="block"><span class="label"><?= e(t('رابط الصورة (https، JPG أو PNG، يفضل 640×640)')) ?></span><input name="photo_url" type="url" dir="ltr" required data-media="image" class="input" placeholder="https://"></label>
-          <button class="btn-ghost"><?= e(t('تغيير الصورة')) ?></button>
+          <h2 class="font-bold text-ink-900 mb-1"><?= e(t('تغيير صورة البروفايل')) ?></h2>
+          <p class="text-xs text-ink-500 mb-3"><?= e(t('مربعة، JPG أو PNG، يفضل 640×640. اختار من المكتبة أو حط رابط https.')) ?></p>
+          <div class="flex items-start gap-3">
+            <span id="wp-ph-prev" class="w-14 h-14 rounded-full bg-ink-100 overflow-hidden shrink-0"></span>
+            <div class="flex-1 min-w-0 space-y-2">
+              <input name="photo_url" id="wp-ph" type="url" dir="ltr" required data-media="image" class="input !mt-0 w-full" placeholder="https://">
+              <button class="btn-primary"><?= e(t('تغيير الصورة')) ?></button>
+            </div>
+          </div>
+          <p id="wp-ph-warn" class="text-[11px] text-amber-700 mt-2" style="display:none"></p>
         </form>
       </div>
+
+      <?php /* ---------- المعاينة ---------- */ ?>
+      <aside class="lg:sticky lg:top-4">
+        <div class="text-xs text-ink-500 mb-2 text-center"><?= e(t('هيظهر للعميل كده')) ?></div>
+        <div class="mx-auto w-[280px] rounded-[2.2rem] border-[10px] border-ink-900 bg-white overflow-hidden shadow-xl">
+          <div class="bg-[#f0f2f5] h-6"></div>
+          <div class="px-4 pb-5 text-center bg-white">
+            <div id="pv-photo" class="w-24 h-24 rounded-full mx-auto -mt-1 bg-[#dfe5e7] overflow-hidden flex items-center justify-center text-3xl font-bold text-white"><?= e(mb_strtoupper(mb_substr($name, 0, 1))) ?></div>
+            <div class="mt-3 text-lg font-medium text-ink-900"><?= e($name) ?></div>
+            <div class="text-xs text-ink-500" dir="ltr"><?= e($ph['display_phone_number'] ?? '') ?></div>
+            <div id="pv-cat" class="text-[11px] text-ink-400 mt-1"></div>
+          </div>
+          <div class="bg-[#f0f2f5] p-2 space-y-2 text-start">
+            <div class="bg-white rounded-lg p-3"><div id="pv-about" class="text-sm text-ink-900 whitespace-pre-line" dir="auto"></div><div class="text-[10px] text-ink-400 mt-1"><?= e(t('نبذة')) ?></div></div>
+            <div class="bg-white rounded-lg p-3 space-y-2 text-[13px]" id="pv-info"></div>
+          </div>
+        </div>
+        <p class="text-[11px] text-ink-400 mt-3 text-center"><?= e(t('معاينة تقريبية — شكل واتساب الحقيقي ممكن يختلف شوية.')) ?></p>
+      </aside>
       <?php endif; ?>
     </div>
+    <script>window.WPX = <?= json_encode(['verticals' => $verticals, 'cur' => (string)($profile['vertical'] ?? ''), 'photo' => (string)($profile['profilePictureUrl'] ?? ''), 's' => [
+      'score' => t('اكتمال البروفايل'), 'hint' => t('البروفايل الكامل بيخلي العميل يثق ويرد أسرع.'),
+      'c_photo' => t('صورة بروفايل'), 'c_about' => t('نبذة'), 'c_desc' => t('وصف أطول من 80 حرف'), 'c_addr' => t('العنوان'), 'c_email' => t('الإيميل'), 'c_web' => t('موقع إلكتروني'), 'c_cat' => t('المجال'),
+      'leave' => t('فيه تعديلات مش محفوظة. تخرج؟'), 'sq' => t('الصورة مش مربعة (%s×%s) — واتساب هيقصها دايرة من النص.'), 'small' => t('الصورة صغيرة (%s×%s) — هتبان مش واضحة.'), 'bad' => t('مش قادرين نفتح الصورة من الرابط ده.'),
+    ]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/ui-wa_profile.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
