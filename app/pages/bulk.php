@@ -50,6 +50,36 @@ $bkErr = function (string $raw): array {
     return $m[$code] ?? [$raw, ''];
 };
 
+/* كتابة منشورات بالذكاء الاصطناعي — بترجع نصوص بس، والمستخدم بيراجعها في الجدول قبل أي رفع */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'gen') {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE); exit; }
+    $topic = trim(mb_substr((string)($_POST['topic'] ?? ''), 0, 1500));
+    $n = max(1, min(30, (int)($_POST['count'] ?? 10)));
+    $tones = ['normal' => 'ودود وطبيعي', 'formal' => 'رسمي ومحترف', 'fun' => 'خفيف ومرح', 'sales' => 'بيعي ومقنع مع دعوة واضحة لاتخاذ إجراء'];
+    $langs = ['eg' => 'العامية المصرية', 'msa' => 'العربية الفصحى المبسطة', 'gulf' => 'اللهجة الخليجية', 'en' => 'English'];
+    $tone = $tones[$_POST['tone'] ?? ''] ?? $tones['normal'];
+    $lng = $langs[$_POST['lang'] ?? ''] ?? $langs['eg'];
+    if ($topic === '') { echo json_encode(['ok' => false, 'error' => t('اكتب الموضوع أو الفكرة الأول.')], JSON_UNESCAPED_UNICODE); exit; }
+    $sys = 'BULK_POSTS_JSON. أنت كاتب محتوى سوشيال ميديا محترف. اكتب ' . $n . ' منشورات مختلفة عن الموضوع، كل واحد بزاوية مختلفة (معلومة، سؤال للجمهور، عرض، قصة قصيرة، نصيحة...)، بدون تكرار الافتتاحية. '
+        . 'اللغة: ' . $lng . '. الأسلوب: ' . $tone . '. ' . (!empty($_POST['emoji']) ? 'استخدم إيموجي باعتدال. ' : 'بدون إيموجي. ') . (!empty($_POST['tags']) ? 'اختم كل منشور بـ 2 إلى 4 هاشتاجات مناسبة. ' : 'بدون هاشتاجات. ')
+        . 'كل منشور أقل من 600 حرف. أعد JSON فقط بالشكل {"posts":[{"text":"..."}]} بدون أي شرح.';
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => $topic]], min(3800, 200 + $n * 160), 'compose');
+        $txt = (string)$r['text'];
+        if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $j = json_decode($txt, true);
+        $posts = [];
+        foreach ((array)($j['posts'] ?? []) as $p) { $t = trim((string)(is_array($p) ? ($p['text'] ?? '') : $p)); if ($t !== '') $posts[] = mb_substr($t, 0, 3000); }
+        if (!$posts) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        log_activity('ai.bulk_posts', count($posts) . ' ' . mb_substr($topic, 0, 60));
+        echo json_encode(['ok' => true, 'posts' => array_slice($posts, 0, $n)], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 /* الرفع على دفعات من الصفحة (كل دفعة 500 سطر أو أقل) — بيرجع JSON */
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1') {
     header('Content-Type: application/json; charset=utf-8');
@@ -151,7 +181,16 @@ if (isset($_GET['sample'])) {
 }
 
 
-render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $result, $profs, $bkErr) {
+$best = [];
+if ($fxd && is_file($fxd . '/bulk.json')) {
+    $best = (array)(json_decode((string)file_get_contents($fxd . '/bulk.json'), true)['best'] ?? []);
+} elseif ($z && function_exists('best_slots_local') && module_enabled('analytics')) {
+    $ck = 'bulk_best_' . (int)ws('id');
+    if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 3600) $best = $_SESSION[$ck]['d'];
+    else { $best = best_slots_local($z, 7); $_SESSION[$ck] = ['t' => time(), 'd' => $best]; }
+}
+
+render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $result, $profs, $bkErr, $best) {
     if (!$z && !getenv('UI_FIXTURES')) { no_api_box(); return; }
     $cols = [
         ['post_content', t('نص المنشور.'), true],
@@ -195,7 +234,12 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           <section id="bk-start" class="card p-5">
             <h2 class="font-bold text-ink-900"><?= e(t('هتجيب المنشورات منين؟')) ?></h2>
             <p class="text-sm text-ink-500 mt-1"><?= e(t('كل سطر = منشور. هتشوفهم في جدول وتعدّل قبل ما أي حاجة تتبعت.')) ?></p>
-            <div class="grid sm:grid-cols-3 gap-3 mt-4">
+            <div id="bk-draft" class="hidden mt-4 rounded-xl border border-brand-200 bg-brand-50/60 p-3 flex flex-wrap items-center gap-2 text-sm">
+              <span>💾 <span id="bk-draft-t"></span></span>
+              <button type="button" id="bk-draft-go" class="btn-primary !py-1 text-xs ms-auto"><?= e(t('كمّل')) ?></button>
+              <button type="button" id="bk-draft-x" class="btn-ghost !py-1 text-xs"><?= e(t('امسحه')) ?></button>
+            </div>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
               <label id="bk-drop" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 cursor-pointer transition focus-within:ring-2 ring-brand-300">
                 <span class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-xl group-hover:scale-110 transition">⇪</span>
                 <span class="font-semibold text-ink-900" id="bk-fn"><?= e(t('ارفع ملف')) ?></span>
@@ -207,6 +251,13 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                 <span class="font-semibold text-ink-900"><?= e(t('الصق من Excel')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('حدد الخانات في الشيت وانسخها والصقها هنا')) ?></span>
               </button>
+              <?php if (can('ai.use')): ?>
+              <button type="button" id="bk-ai-btn" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white hover:border-violet-400 p-5 transition">
+                <span class="w-11 h-11 rounded-xl bg-violet-100 text-violet-700 grid place-items-center text-xl group-hover:scale-110 transition">✦</span>
+                <span class="font-semibold text-ink-900"><?= e(t('اكتبها بالذكاء الاصطناعي')) ?></span>
+                <span class="text-xs text-ink-500"><?= e(t('اكتب الفكرة وخد 10 أو 30 منشور مختلفين')) ?></span>
+              </button>
+              <?php endif; ?>
               <button type="button" id="bk-new" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 transition">
                 <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 grid place-items-center text-xl group-hover:scale-110 transition">✎</span>
                 <span class="font-semibold text-ink-900"><?= e(t('اكتب هنا')) ?></span>
@@ -231,7 +282,9 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                 <div id="bk-sum" class="text-sm mt-0.5"></div>
               </div>
               <div class="ms-auto flex flex-wrap items-center gap-1.5">
+                <button type="button" id="bk-undo" class="btn-ghost !py-1 text-xs" disabled title="Ctrl+Z">↶ <?= e(t('تراجع')) ?></button>
                 <button type="button" id="bk-add" class="btn-ghost !py-1 text-xs">+ <?= e(t('سطر')) ?></button>
+                <?php if (can('ai.use')): ?><button type="button" id="bk-ai-add" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('زوّد بالذكاء الاصطناعي')) ?></button><?php endif; ?>
                 <button type="button" id="bk-dl" class="btn-ghost !py-1 text-xs">⇣ CSV</button>
                 <button type="button" id="bk-reset" class="btn-ghost !py-1 text-xs"><?= e(t('ابدأ من جديد')) ?></button>
               </div>
@@ -240,8 +293,14 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             <div id="bk-map" class="hidden rounded-xl border border-amber-200 bg-amber-50/60 p-3"></div>
 
             <details id="bk-tools" class="rounded-xl border border-ink-200 bg-ink-50/50" open>
-              <summary class="cursor-pointer px-3 py-2 text-sm font-semibold text-ink-800">⚡ <?= e(t('أدوات سريعة لكل السطور')) ?></summary>
-              <div class="grid md:grid-cols-2 gap-3 p-3 pt-1">
+              <summary class="cursor-pointer px-3 py-2 text-sm font-semibold text-ink-800">⚡ <?= e(t('أدوات سريعة')) ?></summary>
+              <div class="px-3 pb-1 flex flex-wrap items-center gap-1.5 text-xs" role="radiogroup" aria-label="<?= e(t('طبّق على')) ?>">
+                <span class="text-ink-600"><?= e(t('طبّق على:')) ?></span>
+                <label class="cursor-pointer"><input type="radio" name="bk-scope" value="all" checked class="peer sr-only"><span class="inline-block px-2 py-1 rounded-lg border border-ink-200 bg-white peer-checked:bg-ink-900 peer-checked:text-white peer-checked:border-ink-900"><?= e(t('كل السطور')) ?></span></label>
+                <label class="cursor-pointer"><input type="radio" name="bk-scope" value="sel" class="peer sr-only"><span class="inline-block px-2 py-1 rounded-lg border border-ink-200 bg-white peer-checked:bg-ink-900 peer-checked:text-white peer-checked:border-ink-900"><?= e(t('المتحدد بس')) ?> <b id="bk-selc">0</b></span></label>
+                <label class="cursor-pointer"><input type="radio" name="bk-scope" value="empty" class="peer sr-only"><span class="inline-block px-2 py-1 rounded-lg border border-ink-200 bg-white peer-checked:bg-ink-900 peer-checked:text-white peer-checked:border-ink-900"><?= e(t('الخانات الفاضية بس')) ?></span></label>
+              </div>
+              <div class="grid md:grid-cols-2 gap-3 p-3 pt-2">
                 <div class="rounded-xl bg-white border border-ink-200 p-3">
                   <div class="text-xs font-semibold text-ink-700 mb-2"><?= e(t('المنصات')) ?></div>
                   <div class="flex flex-wrap gap-1.5" id="bk-pl-pick">
@@ -249,22 +308,32 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                       <label class="cursor-pointer"><input type="checkbox" value="<?= e($pl) ?>" class="peer sr-only"><span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:ring-2 ring-brand-300"><?= $plIcon($pl) ?><?= e($pl) ?></span></label>
                     <?php endforeach; ?>
                   </div>
-                  <div class="flex flex-wrap items-center gap-2 mt-2">
-                    <button type="button" id="bk-pl-apply" class="btn-primary !py-1 text-xs"><?= e(t('طبّق')) ?></button>
-                    <label class="text-xs text-ink-600 flex items-center gap-1"><input type="checkbox" id="bk-pl-empty"> <?= e(t('على الخانات الفاضية بس')) ?></label>
-                  </div>
+                  <button type="button" id="bk-pl-apply" class="btn-primary !py-1 text-xs mt-2"><?= e(t('طبّق')) ?></button>
                 </div>
-                <div class="rounded-xl bg-white border border-ink-200 p-3">
-                  <div class="text-xs font-semibold text-ink-700 mb-2"><?= e(t('وزّع المواعيد')) ?></div>
+                <div class="rounded-xl bg-white border border-ink-200 p-3 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <div class="text-xs font-semibold text-ink-700"><?= e(t('وزّع المواعيد')) ?></div>
+                    <div class="ms-auto inline-flex rounded-lg border border-ink-200 p-0.5 text-[11px]" role="group">
+                      <button type="button" class="bk-spm px-2 py-0.5 rounded-md bg-ink-900 text-white" data-m="gap"><?= e(t('مسافة ثابتة')) ?></button>
+                      <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $best ? '' : 'opacity-50' ?>" data-m="best" <?= $best ? '' : 'disabled title="' . e(t('محتاج منشورات قديمة عشان نعرف أحسن أوقاتك')) . '"' ?>>★ <?= e(t('أحسن أوقاتك')) ?></button>
+                    </div>
+                  </div>
                   <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                    <span><?= e(t('ابدأ')) ?></span><input type="datetime-local" id="bk-sp-start" class="input !h-8 !py-0 text-xs !w-auto">
-                    <span><?= e(t('وكل')) ?></span><input type="number" id="bk-sp-n" min="1" max="720" value="1" class="input !h-8 !py-0 text-xs !w-16">
-                    <select id="bk-sp-u" class="input !h-8 !py-0 text-xs !w-auto"><option value="d"><?= e(t('يوم')) ?></option><option value="h"><?= e(t('ساعة')) ?></option></select>
+                    <span><?= e(t('من')) ?></span><input type="datetime-local" id="bk-sp-start" class="input !h-8 !py-0 text-xs !w-auto">
+                    <span class="bk-gap"><?= e(t('وكل')) ?></span><input type="number" id="bk-sp-n" min="1" max="720" value="1" class="bk-gap input !h-8 !py-0 text-xs !w-14">
+                    <select id="bk-sp-u" class="bk-gap input !h-8 !py-0 text-xs !w-auto"><option value="d"><?= e(t('يوم')) ?></option><option value="h"><?= e(t('ساعة')) ?></option></select>
                   </div>
-                  <div class="flex flex-wrap items-center gap-2 mt-2">
-                    <button type="button" id="bk-sp-apply" class="btn-primary !py-1 text-xs"><?= e(t('طبّق')) ?></button>
-                    <label class="text-xs text-ink-600 flex items-center gap-1"><input type="checkbox" id="bk-sp-empty"> <?= e(t('على الخانات الفاضية بس')) ?></label>
+                  <div class="bk-gap flex flex-wrap items-center gap-1.5 text-xs">
+                    <span><?= e(t('ساعات النشر')) ?></span>
+                    <select id="bk-sp-from" class="input !h-8 !py-0 text-xs !w-auto"><?php for ($h = 0; $h < 24; $h++): ?><option value="<?= $h ?>" <?= $h === 9 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option><?php endfor; ?></select>
+                    <span>–</span>
+                    <select id="bk-sp-to" class="input !h-8 !py-0 text-xs !w-auto"><?php for ($h = 1; $h <= 24; $h++): ?><option value="<?= $h ?>" <?= $h === 23 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h % 24) ?></option><?php endfor; ?></select>
                   </div>
+                  <div class="bk-best hidden text-[11px] text-violet-700" id="bk-best-txt"></div>
+                  <div class="flex flex-wrap gap-1" id="bk-sp-days" aria-label="<?= e(t('أيام النشر')) ?>">
+                    <?php foreach ([6, 0, 1, 2, 3, 4, 5] as $dw): ?><label class="cursor-pointer"><input type="checkbox" value="<?= $dw ?>" checked class="peer sr-only"><span class="inline-block px-2 text-center py-1 rounded-md border border-ink-200 text-[11px] text-ink-500 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600"><?= e(is_rtl() ? preg_replace('/^ال/u', '', weekday_name($dw)) : mb_substr(weekday_name($dw), 0, 3)) ?></span></label><?php endforeach; ?>
+                  </div>
+                  <button type="button" id="bk-sp-apply" class="btn-primary !py-1 text-xs"><?= e(t('طبّق')) ?></button>
                 </div>
               </div>
             </details>
@@ -278,6 +347,12 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                 <button type="button" class="chip text-xs hidden" data-f="srv"><?= e(t('رفضها Zernio')) ?></button>
               </div>
               <input id="bk-q" type="search" class="input !h-8 text-xs w-full sm:w-48 ms-auto" placeholder="<?= e(t('دوّر في النصوص…')) ?>">
+            </div>
+            <div id="bk-selbar" class="hidden sticky top-16 z-10 rounded-xl bg-ink-900 text-white px-3 py-2 text-xs flex flex-wrap items-center gap-2">
+              <b id="bk-seln"></b>
+              <button type="button" id="bk-sel-dup" class="rounded-md bg-white/10 hover:bg-white/20 px-2 py-1"><?= e(t('كرّرهم')) ?></button>
+              <button type="button" id="bk-sel-del" class="rounded-md bg-red-500/80 hover:bg-red-500 px-2 py-1"><?= e(t('امسحهم')) ?></button>
+              <button type="button" id="bk-sel-x" class="ms-auto rounded-md hover:bg-white/10 px-2 py-1"><?= e(t('إلغاء التحديد')) ?></button>
             </div>
             <div class="overflow-auto max-h-[30rem] rounded-xl border border-ink-200" dir="ltr"><table class="w-full text-xs" id="bk-grid"></table></div>
             <p class="text-[11px] text-ink-500"><?= e(t('دوس على أي خانة عشان تعدّلها. التعديلات بتتبعت مع الملف.')) ?></p>
@@ -305,6 +380,37 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             </div>
           </section>
         </form>
+
+        <div id="bk-ai" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+          <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+          <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-ai-h">
+            <h3 id="bk-ai-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب المنشورات بالذكاء الاصطناعي')) ?></h3>
+            <textarea id="bk-ai-topic" class="input" rows="4" maxlength="1500" placeholder="<?= e(t('الفكرة: مثلاً "عروض رمضان على المشويات، توصيل مجاني فوق 300 جنيه، فرع مدينة نصر والتجمع"')) ?>"></textarea>
+            <div>
+              <span class="label"><?= e(t('العدد')) ?></span>
+              <div class="flex flex-wrap gap-1.5" id="bk-ai-n"><?php foreach ([5, 10, 20, 30] as $i => $n): ?><label class="cursor-pointer"><input type="radio" name="bk-ai-n" value="<?= $n ?>" class="peer sr-only" <?= $n === 10 ? 'checked' : '' ?>><span class="inline-block px-3 py-1 rounded-lg border border-ink-200 text-sm peer-checked:bg-violet-600 peer-checked:text-white peer-checked:border-violet-600"><?= $n ?></span></label><?php endforeach; ?></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block"><span class="label"><?= e(t('الأسلوب')) ?></span><select id="bk-ai-tone" class="input"><option value="normal"><?= e(t('ودود')) ?></option><option value="sales"><?= e(t('بيعي')) ?></option><option value="fun"><?= e(t('مرح')) ?></option><option value="formal"><?= e(t('رسمي')) ?></option></select></label>
+              <label class="block"><span class="label"><?= e(t('اللغة')) ?></span><select id="bk-ai-lang" class="input"><option value="eg"><?= e(t('مصري')) ?></option><option value="gulf"><?= e(t('خليجي')) ?></option><option value="msa"><?= e(t('فصحى')) ?></option><option value="en">English</option></select></label>
+            </div>
+            <div class="flex flex-wrap gap-4 text-sm">
+              <label class="flex items-center gap-1.5"><input type="checkbox" id="bk-ai-emoji" checked> <?= e(t('إيموجي')) ?></label>
+              <label class="flex items-center gap-1.5"><input type="checkbox" id="bk-ai-tags" checked> <?= e(t('هاشتاجات')) ?></label>
+            </div>
+            <p class="text-xs text-ink-500"><?= e(t('المنشورات بتنزل في الجدول وتراجعها وتعدّلها قبل أي رفع. بيستهلك من رصيد الذكاء الاصطناعي.')) ?></p>
+            <div class="flex items-center gap-2"><button type="button" id="bk-ai-go" class="btn-primary flex-1"><?= e(t('اكتب')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button></div>
+            <div id="bk-ai-msg" class="text-xs"></div>
+          </div>
+        </div>
+
+        <div id="bk-pv" class="fixed inset-0 z-50 hidden grid place-items-center p-4" aria-hidden="true">
+          <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+          <div class="relative card w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-label="<?= e(t('معاينة')) ?>">
+            <div id="bk-pv-body"></div>
+            <div class="p-3 border-t border-ink-100 flex items-center gap-2"><button type="button" id="bk-pv-prev" class="btn-ghost !py-1 text-xs"><?= is_rtl() ? '→' : '←' ?></button><span id="bk-pv-n" class="text-xs text-ink-500"></span><button type="button" id="bk-pv-next" class="btn-ghost !py-1 text-xs"><?= is_rtl() ? '←' : '→' ?></button><button type="button" class="btn-ghost !py-1 text-xs ms-auto" data-close><?= e(t('اقفل')) ?></button></div>
+          </div>
+        </div>
 
         <div id="bk-res" aria-live="polite"></div>
 
@@ -363,7 +469,8 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
     <script>window.BKX = <?= json_encode([
         'tz' => site_timezone(), 'url' => url('bulk'), 'csrf' => csrf_token(), 'cal' => url('calendar'), 'edit' => url('post_edit'),
         'platforms' => array_keys(platform_icons()), 'connected' => $allPl, 'icons' => array_map(function ($i) { return $i; }, $icons),
-        'rtl' => is_rtl(), 'lang' => lang(),
+        'rtl' => is_rtl(), 'lang' => lang(), 'best' => $best, 'ws' => (int)ws('id'), 'brand' => (string)ws('name'),
+        'lim' => ['twitter' => 280, 'threads' => 500, 'bluesky' => 300, 'instagram' => 2200, 'tiktok' => 2200, 'linkedin' => 3000, 'facebook' => 63206, 'pinterest' => 500, 'youtube' => 5000, 'googlebusiness' => 1500, 'reddit' => 40000, 'telegram' => 4096],
         's' => [
             'rows' => t('%s سطر'), 'ok' => t('%s سليم'), 'bad' => t('%s فيه مشكلة'), 'need' => t('عمود ناقص: %s'), 'req' => t('فاضي'), 'date' => t('الميعاد لازم يكون بالشكل 2026-12-01 10:00'),
             'past' => t('الميعاد ده عدّى'), 'plat' => t('منصة مش معروفة: %s'), 'x' => t('أطول من 280 حرف (X)'), 'url' => t('الرابط لازم يبدأ بـ http'), 'when' => t('محتاج ميعاد أو use_queue أو publish_now أو is_draft'),
@@ -376,7 +483,10 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             'batch' => t('دفعة %s من %s'), 'done' => t('خلصنا'), 'stopped' => t('وقفنا عند الدفعة %s: %s'), 'res' => t('نتيجة الفحص'), 'resC' => t('نتيجة الرفع'),
             'tot' => t('السطور'), 'okL' => t('سليم'), 'badL' => t('فيه مشكلة'), 'probs' => t('المشاكل وإزاي تصلحها'), 'nrows' => t('%s سطر'), 'show' => t('اعرضهم في الجدول'),
             'allok' => t('كل السطور سليمة 🎉 اختار "اعمل المنشورات" ودوس ابدأ.'), 'created' => t('اتعمل %s منشور واتشالوا من الجدول.'), 'opencal' => t('افتح التقويم'),
-            'srv' => t('Zernio: %s'), 'left' => t('فاضل %s سطر محتاجين تصليح'), 'reset' => t('هتمسح الجدول وتبدأ من الأول. متأكد؟'), 'empty' => t('مفيش سطور'),
+            'srv' => t('Zernio: %s'),
+            'lim' => t('أطول من حد %s (%s حرف)'), 'dup' => t('النص ده متكرر'), 'dups' => t('%s نص متكرر'), 'sel' => t('%s متحدد'), 'draft' => t('عندك شغل متحفظ: %s سطر من "%s" (%s)'),
+            'aiwait' => t('بنكتب…'), 'aidone' => t('اتضاف %s منشور. وزّع المواعيد عليهم من الأدوات.'), 'aitopic' => t('اكتب الفكرة الأول.'), 'nosel' => t('حدد سطور الأول من الخانة اللي على الشمال'),
+            'bestt' => t('هنستخدم أحسن أوقاتك: %s'), 'nofit' => t('مفيش مواعيد كفاية في الأيام والساعات دي لـ %s سطر'), 'pv' => t('معاينة'), 'pvof' => t('%s من %s'), 'nowL' => t('فورًا'), 'queueL' => t('في الطابور'), 'draftL' => t('مسودة'), 'left' => t('فاضل %s سطر محتاجين تصليح'), 'reset' => t('هتمسح الجدول وتبدأ من الأول. متأكد؟'), 'empty' => t('مفيش سطور'),
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ui-bulk.js?v=<?= e(APP_VERSION) ?>"></script>
