@@ -169,8 +169,14 @@ $st = $pdo->prepare("SELECT * FROM workspace_invites WHERE workspace_id = ? AND 
 $st->execute([$wid]);
 $links = $st->fetchAll();
 $pdo->exec("DELETE FROM workspace_invites WHERE expires_at < NOW()");
+$act = [];
+try {
+    $st = $pdo->prepare("SELECT user_id, MAX(created_at) last_at, SUM(created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) n7 FROM activity_log WHERE workspace_id = ? AND user_id IS NOT NULL GROUP BY user_id");
+    $st->execute([$wid]);
+    foreach ($st->fetchAll() as $r) $act[(int)$r['user_id']] = $r;
+} catch (Throwable $ex) { $act = []; }
 
-render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, $me, $newLink, $w) {
+render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, $me, $newLink, $w, $act) {
     $select = function () {
         $h = '<select name="role" class="input">';
         foreach (role_options() as $k => $l) {
@@ -184,21 +190,46 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
         <p class="font-bold mb-2"><?= $newLink['for'] ? e(t('لينك الدعوة لـ %s. انسخه وابعته على واتساب:', $newLink['for'])) : e(t('لينك الدعوة. انسخه وابعته على واتساب:')) ?></p>
         <div class="flex gap-2">
           <input readonly value="<?= e($newLink['url']) ?>" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" dir="ltr" id="newLink">
-          <button type="button" data-copy="#newLink" class="bg-green-600 text-white font-bold rounded-lg px-4"><?= e(t('نسخ')) ?></button>
+          <button type="button" data-copy="#newLink" class="btn-ghost"><?= e(t('نسخ')) ?></button>
+          <a class="btn-primary !bg-[#25D366] hover:!bg-[#1ebe5b]" target="_blank" rel="noopener" href="https://wa.me/?text=<?= rawurlencode(t('انضم لفريق %s على المنصة من اللينك ده:', $w['name']) . ' ' . $newLink['url']) ?>"><?= e(t('ابعت على واتساب')) ?></a>
         </div>
       </div>
     <?php endif; ?>
 
+    <?php
+    $activeN = count(array_filter($members, function ($m) { return $m['status'] === 'active'; }));
+    $pendN = count($members) - $activeN;
+    $live7 = count(array_filter($members, function ($m) use ($act) { return !empty($act[(int)$m['id']]['n7']); }));
+    $ago = function (?string $at) {
+        if (!$at) return t('مفيش نشاط مسجل');
+        $m = max(0, (int)round((time() - strtotime($at)) / 60));
+        if ($m < 60) return t('آخر نشاط: من %s دقيقة', max(1, $m));
+        if ($m < 1440) return t('آخر نشاط: من %s ساعة', (int)round($m / 60));
+        return t('آخر نشاط: من %s يوم', (int)round($m / 1440));
+    };
+    ?>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <?php foreach ([[t('أعضاء'), $activeN, ''], [t('مستنيين يوافقوا'), $pendN, $pendN ? 'text-amber-700' : ''], [t('نشطين آخر 7 أيام'), $live7 . ' / ' . $activeN, ''], [t('لينكات دعوة شغالة'), count($links), count(array_filter($links, function ($l) { return !$l['email']; })) ? 'text-amber-700' : '']] as [$l, $v, $c]): ?>
+        <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e($l) ?></div><div class="text-2xl font-bold mt-1 <?= $c ?: 'text-ink-900' ?>"><?= e((string)$v) ?></div></div>
+      <?php endforeach; ?>
+    </div>
+
     <div class="grid lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
-        <?= card_open() ?>
-          <div class="px-5 py-4 border-b border-slate-200 font-bold"><?= e(t('الأعضاء')) ?></div>
-          <?php foreach ($members as $m): $self = (int)$m['id'] === (int)$me['id']; ?>
-            <div class="px-5 py-4 border-b last:border-0 border-slate-100 flex flex-wrap items-center gap-3">
-              <?= avatar(null, $m['name']) ?>
+        <div class="card overflow-hidden">
+          <div class="px-5 py-4 border-b border-ink-100 flex flex-wrap items-center gap-2">
+            <b class="text-ink-900 me-auto"><?= e(t('الأعضاء')) ?></b>
+            <select id="tm-role" class="input !mt-0 !py-1.5 !w-auto text-sm"><option value=""><?= e(t('كل الأدوار')) ?></option><?php foreach (role_options() as $rk => $rl): ?><option value="<?= e($rk) ?>"><?= e($rl) ?></option><?php endforeach; ?><option value="pending"><?= e(t('مستني يوافق')) ?></option></select>
+            <input type="search" id="tm-q" class="input !mt-0 !py-1.5 text-sm w-full sm:w-56" placeholder="<?= e(t('دوّر بالاسم أو الإيميل…')) ?>">
+          </div>
+          <?php foreach ($members as $m): $self = (int)$m['id'] === (int)$me['id']; $a = $act[(int)$m['id']] ?? null; ?>
+            <div class="tm-row px-5 py-4 border-b last:border-0 border-ink-100 flex flex-wrap items-center gap-3" data-q="<?= e(mb_strtolower($m['name'] . ' ' . $m['email'])) ?>" data-role="<?= e($m['status'] === 'pending' ? 'pending' : $m['role']) ?>">
+              <span class="relative"><?= avatar(null, $m['name']) ?><?php if ($a && strtotime((string)$a['last_at']) > time() - 900): ?><span class="absolute -bottom-0.5 -end-0.5 w-3 h-3 rounded-full bg-lime-500 ring-2 ring-white" title="<?= e(t('نشط دلوقتي')) ?>"></span><?php endif; ?></span>
               <div class="flex-1 min-w-[150px]">
-                <div class="font-semibold"><?= e($m['name']) ?> <?= $self ? t('<span class="text-xs text-slate-400">(أنت)</span>') : '' ?></div>
-                <div class="text-xs text-slate-500" dir="ltr"><?= e($m['email']) ?></div>
+                <div class="font-semibold text-ink-900"><?= e($m['name']) ?> <?= $self ? '<span class="text-xs text-ink-400">' . e(t('(أنت)')) . '</span>' : '' ?>
+                  <?php if ($m['role'] === 'owner'): ?><span class="ms-1 rounded-full bg-amber-50 text-amber-700 text-[10px] px-2 py-0.5"><?= e(t('المالك')) ?></span><?php endif; ?></div>
+                <div class="text-xs text-ink-500" dir="ltr" style="text-align:start"><?= e($m['email']) ?></div>
+                <?php if ($m['status'] === 'active'): ?><div class="text-[11px] text-ink-400 mt-0.5"><?= e($ago($a['last_at'] ?? null)) ?><?php if (!empty($a['n7'])): ?> · <?= e(t('%s عملية في 7 أيام', (int)$a['n7'])) ?><?php endif; ?></div><?php endif; ?>
               </div>
               <?php if ($m['status'] === 'pending'): ?>
                 <span class="text-xs bg-amber-100 text-amber-800 rounded-full px-2 py-1"><?= e(t('مستني يوافق')) ?></span>
@@ -218,6 +249,34 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
               <?php endif; ?>
             </div>
           <?php endforeach; ?>
+          <p id="tm-none" class="p-6 text-center text-sm text-ink-500" style="display:none"><?= e(t('مفيش أعضاء مطابقين.')) ?></p>
+        </div>
+
+        <?php /* مين يقدر يعمل إيه — مقارنة سريعة للأدوار */
+        $matrixRoles = [['owner', t('صاحب الشركة'), all_permissions()], ['editor', t('محرر'), editor_permissions()]];
+        foreach (workspace_roles() as $rk => $r) $matrixRoles[] = [$rk, $r['name'], $r['permissions']];
+        ?>
+        <div class="card overflow-hidden">
+          <div class="px-5 py-4 border-b border-ink-100"><b class="text-ink-900"><?= e(t('مين يقدر يعمل إيه')) ?></b><p class="text-xs text-ink-500 mt-0.5"><?= e(t('عدد الصلاحيات لكل دور في كل قسم. دوس على القسم عشان تشوف التفاصيل.')) ?></p></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="text-xs text-ink-500 bg-ink-50"><th class="text-start font-medium px-4 py-2"><?= e(t('القسم')) ?></th><?php foreach ($matrixRoles as $r): ?><th class="font-medium px-3 py-2 whitespace-nowrap"><?= e($r[1]) ?></th><?php endforeach; ?></tr></thead>
+              <tbody>
+                <?php foreach (permission_catalog() as $group => $perms): ?>
+                  <tr class="border-t border-ink-100 cursor-pointer hover:bg-ink-50 tm-grp">
+                    <td class="px-4 py-2 font-medium text-ink-800"><span class="tm-chev inline-block transition-transform text-ink-400 me-1">›</span><?= e($group) ?></td>
+                    <?php foreach ($matrixRoles as $r): $n = count(array_intersect(array_keys($perms), $r[2])); $all = $n === count($perms); ?>
+                      <td class="px-3 py-2 text-center"><span class="inline-block min-w-[3rem] rounded-full px-2 py-0.5 text-xs <?= $all ? 'bg-lime-50 text-lime-700' : ($n ? 'bg-amber-50 text-amber-700' : 'bg-ink-50 text-ink-400') ?>"><?= $all ? '✓' : $n . '/' . count($perms) ?></span></td>
+                    <?php endforeach; ?>
+                  </tr>
+                  <?php foreach ($perms as $pk => $pl): ?>
+                    <tr class="tm-perm border-t border-ink-50 text-xs" style="display:none"><td class="ps-9 pe-4 py-1.5 text-ink-600"><?= e($pl) ?></td>
+                      <?php foreach ($matrixRoles as $r): ?><td class="text-center"><?= in_array($pk, $r[2], true) ? '<span class="text-lime-600">✓</span>' : '<span class="text-ink-300">—</span>' ?></td><?php endforeach; ?></tr>
+                  <?php endforeach; ?>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- الأدوار والصلاحيات -->
@@ -318,10 +377,12 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
             <div class="px-5 py-3 border-b last:border-0 border-slate-100 flex flex-wrap items-center gap-2 text-sm">
               <div class="flex-1 min-w-[180px]">
                 <?= $l['email'] ? t('لـ <span dir="ltr">') . e($l['email']) . '</span>' : t('لينك عام (أي حد معاه اللينك)') ?> · <?= e(role_label($l['role'])) ?>
-                <div class="text-xs text-slate-500"><?= e(t('ينتهي:')) ?> <?= e(substr($l['expires_at'], 0, 10)) ?></div>
+                <?php $dl = max(0, (int)ceil((strtotime($l['expires_at']) - time()) / 86400)); ?>
+                <div class="text-xs <?= $dl <= 1 ? 'text-amber-700' : 'text-ink-500' ?>"><?= e(t('فاضل %s يوم', $dl)) ?> · <?= e(substr($l['expires_at'], 0, 10)) ?><?php if (!$l['email']): ?> · <span class="text-amber-700"><?= e(t('أي حد معاه اللينك يدخل')) ?></span><?php endif; ?></div>
               </div>
               <input type="hidden" id="<?= $id ?>" value="<?= e(invite_url($l['token'])) ?>">
-              <button type="button" data-copy="#<?= $id ?>" class="border border-slate-300 rounded-lg px-3 py-1.5"><?= e(t('نسخ اللينك')) ?></button>
+              <button type="button" data-copy="#<?= $id ?>" class="btn-ghost !py-1.5 text-xs"><?= e(t('نسخ اللينك')) ?></button>
+              <a class="btn-ghost !py-1.5 text-xs" target="_blank" rel="noopener" href="https://wa.me/?text=<?= rawurlencode(t('انضم لفريق %s على المنصة من اللينك ده:', $w['name']) . ' ' . invite_url($l['token'])) ?>"><?= e(t('واتساب')) ?></a>
               <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="revoke"><input type="hidden" name="invite_id" value="<?= (int)$l['id'] ?>">
                 <button class="text-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50"><?= e(t('إلغاء')) ?></button></form>
             </div>
@@ -331,26 +392,52 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
       </div>
 
       <div class="space-y-6">
-        <form method="post" class="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+        <form method="post" class="card p-5 space-y-3 lg:sticky lg:top-4">
           <?= csrf_field() ?><input type="hidden" name="action" value="invite_email">
-          <h2 class="font-bold"><?= e(t('دعوة بالإيميل')) ?></h2>
-          <input name="email" type="email" required placeholder="<?= e(t('الإيميل')) ?>" class="w-full border border-slate-300 rounded-lg px-3 py-2" dir="ltr">
+          <h2 class="font-bold text-ink-900"><?= e(t('دعوة بالإيميل')) ?></h2>
+          <input name="email" type="email" required placeholder="<?= e(t('الإيميل')) ?>" class="input" dir="ltr">
           <?= $select() ?>
-          <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-2.5"><?= e(t('ابعت دعوة')) ?></button>
-          <p class="text-xs text-slate-500"><?= e(t('لو عنده حساب: الدعوة بتظهرله جوه البرنامج. لو معندوش: هيطلعلك لينك تبعتهوله.')) ?></p>
+          <p class="tm-rdesc text-[11px] text-ink-500"></p>
+          <button class="btn-primary w-full"><?= e(t('ابعت دعوة')) ?></button>
+          <p class="text-xs text-ink-500"><?= e(t('لو عنده حساب: الدعوة بتظهرله جوه البرنامج. لو معندوش: هيطلعلك لينك تبعتهوله.')) ?></p>
         </form>
 
-        <form method="post" class="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+        <form method="post" class="card p-5 space-y-3">
           <?= csrf_field() ?><input type="hidden" name="action" value="invite_link">
-          <h2 class="font-bold"><?= e(t('لينك دعوة عام')) ?></h2>
+          <h2 class="font-bold text-ink-900"><?= e(t('لينك دعوة عام')) ?></h2>
           <?= $select() ?>
-          <select name="days" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <p class="tm-rdesc text-[11px] text-ink-500"></p>
+          <select name="days" class="input">
             <option value="1"><?= e(t('صالح يوم واحد')) ?></option><option value="7" selected><?= e(t('صالح أسبوع')) ?></option><option value="30"><?= e(t('صالح شهر')) ?></option>
           </select>
-          <button class="w-full border border-indigo-600 text-indigo-700 font-bold rounded-lg py-2.5 hover:bg-indigo-50"><?= e(t('اعمل لينك')) ?></button>
-          <p class="text-xs text-slate-500"><?= e(t('أي حد معاه اللينك يقدر يدخل الشركة. ابعته للناس اللي تثق فيهم بس، والغيه لما تخلص.')) ?></p>
+          <button class="btn-ghost w-full"><?= e(t('اعمل لينك')) ?></button>
+          <p class="text-xs text-ink-500"><?= e(t('أي حد معاه اللينك يقدر يدخل الشركة. ابعته للناس اللي تثق فيهم بس، والغيه لما تخلص.')) ?></p>
         </form>
       </div>
     </div>
+    <?php $rc = []; foreach ($matrixRoles as $r) $rc[$r[0]] = t('%s صلاحية من %s', count($r[2]), count(all_permissions())); ?>
+    <script>
+    (function () {
+      var q = document.getElementById('tm-q'), rl = document.getElementById('tm-role'), RC = <?= json_encode($rc, JSON_UNESCAPED_UNICODE) ?>;
+      function f() {
+        var s = (q.value || '').trim().toLowerCase(), r = rl.value, n = 0;
+        document.querySelectorAll('.tm-row').forEach(function (x) { var ok = (!s || x.dataset.q.indexOf(s) > -1) && (!r || x.dataset.role === r); x.style.display = ok ? '' : 'none'; if (ok) n++; });
+        document.getElementById('tm-none').style.display = n ? 'none' : '';
+      }
+      q.addEventListener('input', f); rl.addEventListener('change', f);
+      document.querySelectorAll('.tm-grp').forEach(function (g) {
+        g.addEventListener('click', function () {
+          var open = g.dataset.open !== '1'; g.dataset.open = open ? '1' : '';
+          g.querySelector('.tm-chev').style.transform = open ? 'rotate(90deg)' : '';
+          for (var r = g.nextElementSibling; r && r.classList.contains('tm-perm'); r = r.nextElementSibling) r.style.display = open ? '' : 'none';
+        });
+      });
+      // وصف الدور تحت اختيار الدعوة
+      document.querySelectorAll('.tm-rdesc').forEach(function (p) {
+        var sel = p.previousElementSibling; if (!sel || sel.tagName !== 'SELECT') return;
+        var upd = function () { p.textContent = RC[sel.value] || ''; }; sel.addEventListener('change', upd); upd();
+      });
+    })();
+    </script>
     <?php
 });

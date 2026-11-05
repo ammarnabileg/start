@@ -44,6 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
                 log_activity('wa_profile.update', $acc);
                 flash('success', t('تم حفظ بروفايل الواتساب.'));
             }
+        } elseif ($action === 'register') {
+            $pin = preg_replace('/\D/', '', (string)($_POST['pin'] ?? ''));
+            if (strlen($pin) !== 6) {
+                flash('error', t('الـ PIN لازم يكون 6 أرقام.'));
+            } else {
+                wa_register_number($z, $acc, $pin);
+                log_activity('wa_profile.register', $acc);
+                flash('success', t('الرقم اتسجل للإرسال. جرّب تبعت رسالة دلوقتي.'));
+            }
         } elseif ($action === 'photo') {
             $u = trim((string)($_POST['photo_url'] ?? ''));
             if (!preg_match('~^https://~i', $u)) {
@@ -172,6 +181,26 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx,
       <?php if (!$apiError && !$sandbox): ?>
       <?php /* ---------- التعديل ---------- */ ?>
       <div class="space-y-4 min-w-0">
+        <?php $notReg = !in_array(strtoupper((string)($ph['status'] ?? '')), ['CONNECTED', ''], true); ?>
+        <details class="card overflow-hidden <?= $notReg ? 'border-red-200' : '' ?>" id="wp-reg" <?= $notReg ? 'open' : '' ?>>
+          <summary class="cursor-pointer list-none px-5 py-4 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-xl <?= $notReg ? 'bg-red-50 text-red-600' : 'bg-ink-50 text-ink-500' ?> flex items-center justify-center">🔑</span>
+            <span class="flex-1"><span class="block font-bold text-ink-900"><?= e(t('تسجيل الرقم للإرسال')) ?></span>
+              <span class="block text-xs <?= $notReg ? 'text-red-700' : 'text-ink-500' ?>"><?= e($notReg ? t('الرقم مش متسجل للإرسال (الحالة: %s). الرسايل مش هتتبعت لحد ما تسجله.', (string)$ph['status']) : t('لو ظهرلك خطأ 133010 "Account not registered" وانت بتبعت، سجّل الرقم من هنا.')) ?></span></span>
+          </summary>
+          <form method="post" class="px-5 pb-5 space-y-3" onsubmit="return confirm('<?= tjs('هنسجّل الرقم عند Meta بالـ PIN ده. نكمل؟') ?>')">
+            <?= csrf_field() ?><input type="hidden" name="action" value="register"><input type="hidden" name="wa" value="<?= e($acc) ?>">
+            <ul class="text-xs text-ink-600 space-y-1 list-disc ps-5">
+              <li><?= e(t('لو الرقم عليه "التحقق بخطوتين" في WhatsApp Manager، اكتب نفس الـ PIN بتاعه.')) ?></li>
+              <li><?= e(t('لو مفيش PIN، اختار أي 6 أرقام وهيبقوا هما الـ PIN بتاع الرقم. احفظهم في مكان أمان.')) ?></li>
+              <li><?= e(t('لو الـ PIN غلط، Meta هترفض. ممكن تغيره من WhatsApp Manager ← الأرقام ← الإعدادات ← التحقق بخطوتين.')) ?></li>
+            </ul>
+            <div class="flex gap-2">
+              <input name="pin" inputmode="numeric" pattern="\d{6}" maxlength="6" required autocomplete="off" dir="ltr" class="input !mt-0 !w-40 tracking-[0.4em] text-center font-mono" placeholder="••••••">
+              <button class="btn-primary"><?= e(t('سجّل الرقم')) ?></button>
+            </div>
+          </form>
+        </details>
         <div class="card p-5" id="wp-score"></div>
         <form method="post" class="card p-5 space-y-4" id="wp-form">
           <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="wa" value="<?= e($acc) ?>">

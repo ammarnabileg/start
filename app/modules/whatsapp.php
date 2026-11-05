@@ -378,6 +378,12 @@ function wa_profile_photo_url(Zernio $z, string $accountId, string $url): void
     $z->request('POST', '/v1/whatsapp/business-profile/photo', [], ['accountId' => $accountId, 'url' => $url]);
 }
 
+/** تسجيل الرقم على WhatsApp Cloud API (بيصلح خطأ 133010 Account not registered) */
+function wa_register_number(Zernio $z, string $accountId, string $pin): array
+{
+    return $z->request('POST', '/v1/accounts/' . rawurlencode($accountId) . '/whatsapp/register', [], ['pin' => $pin]);
+}
+
 function wa_number_info(Zernio $z, string $accountId): array
 {
     return $z->request('GET', '/v1/whatsapp/number-info', ['accountId' => $accountId]);
