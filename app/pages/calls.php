@@ -105,32 +105,59 @@ if ($z) {
     }
 }
 
-render(t('المكالمات'), 'calls', function () use ($z, $apiError, $numbers, $calls, $next, $detail, $direction, $channel, $showDial, $showSettings, $estimate, $estimateErr, $dialTo, $dialFrom, $branded) {
-    if (!$z) { no_api_box(); return; }
+$fxd = getenv('UI_FIXTURES'); $fx = $fxd && is_file($fxd . '/calls.json') ? json_decode((string)file_get_contents($fxd . '/calls.json'), true) : null;
+if ($fx) {
+    $apiError = null;
+    $numbers = $fx['numbers'];
+    if ($id) $detail = ($fx['detail']['_id'] ?? '') === $id ? $fx['detail'] : (array_values(array_filter($fx['calls'], function ($c) use ($id) { return $c['_id'] === $id; }))[0] ?? null);
+    else $calls = array_values(array_filter($fx['calls'], function ($c) use ($direction, $channel) { return (!$direction || $c['direction'] === $direction) && (!$channel || $c['channel'] === $channel); }));
+    if ($showDial && $dialTo) $estimate = $fx['estimate'];
+    $branded = $fx['branded'] ?? [];
+}
+
+render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $numbers, $calls, $next, $detail, $direction, $channel, $showDial, $showSettings, $estimate, $estimateErr, $dialTo, $dialFrom, $branded) {
+    if (!$z && !$fx) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); return; }
     $owner = can('phone.spend');
     $voice = ph_voice_numbers($numbers);
+    $missed = function (array $c): bool { return ($c['status'] ?? '') === 'failed' || in_array($c['endReason'] ?? '', ['no_answer', 'rejected', 'busy', 'canceled'], true); };
 
     if ($detail) {
         $c = $detail;
         ?>
+        <?php $in = ($c['direction'] ?? '') === 'inbound'; $other = (string)($in ? ($c['from'] ?? '') : ($c['to'] ?? '')); $miss = $missed($c); ?>
         <a class="link text-sm" href="<?= e(url('calls')) ?>"><?= e(t('← رجوع للسجل')) ?></a>
-        <div class="card p-5 mt-3">
-          <div class="flex flex-wrap justify-between gap-2">
-            <div class="font-bold" dir="ltr"><?= e(($c['from'] ?? '') . ' → ' . ($c['to'] ?? '')) ?></div>
-            <span class="badge"><?= e(($c['direction'] ?? '') === 'inbound' ? t('واردة') : t('صادرة')) ?> · <?= e(($c['channel'] ?? '') === 'whatsapp' ? t('واتساب') : t('تليفون')) ?></span>
+        <div class="card p-6 mt-3">
+          <div class="flex flex-wrap items-center gap-4">
+            <span class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl <?= $miss ? 'bg-red-50 text-red-600' : ($in ? 'bg-lime-50 text-lime-700' : 'bg-brand-50 text-brand-700') ?>"><?= $miss ? '✕' : ($in ? '↙' : '↗') ?></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-xl font-bold text-ink-900"><?= e(($c['contactName'] ?? '') ?: '') ?> <span dir="ltr" class="<?= !empty($c['contactName']) ? 'text-base font-medium text-ink-500' : '' ?>" style="unicode-bidi:isolate"><?= e($other) ?></span></div>
+              <div class="text-sm text-ink-500 mt-0.5"><?= e(implode(' · ', [$in ? t('واردة') : t('صادرة'), ($c['channel'] ?? '') === 'whatsapp' ? t('واتساب') : t('تليفون'), fmt_date($c['startedAt'] ?? null, 'd/m/Y h:i A')])) ?></div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" class="ph-copy btn-ghost !py-1.5" data-v="<?= e($other) ?>"><?= e(t('انسخ الرقم')) ?></button>
+              <?php if ($owner && $voice && ($c['channel'] ?? '') !== 'whatsapp'): ?><a class="btn-primary !py-1.5" href="<?= e(url('calls', ['dial' => 1, 'to' => $other])) ?>"><?= e(t('اتصل تاني')) ?></a><?php endif; ?>
+            </div>
           </div>
-          <p class="text-sm text-ink-500 mt-1"><?= e(t('البداية: %s · المدة: %s', fmt_date($c['startedAt'] ?? null, 'd/m/Y h:i A'), ph_duration((int)($c['durationSeconds'] ?? 0)))) ?></p>
-          <?php if (!empty($c['contactName'])): ?><p class="text-sm mt-1"><?= e(t('جهة الاتصال: %s', $c['contactName'])) ?></p><?php endif; ?>
-          <?php if (!empty($c['isVoicemail'])): ?><p class="text-sm text-amber-700 mt-1"><?= e(t('المكالمة راحت للبريد الصوتي.')) ?></p><?php endif; ?>
+          <div class="grid grid-cols-3 gap-3 mt-5">
+            <div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500"><?= e(t('المدة')) ?></div><div class="font-bold text-ink-900" dir="ltr" style="text-align:start"><?= e(ph_duration((int)($c['durationSeconds'] ?? 0))) ?></div></div>
+            <div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500"><?= e(t('النتيجة')) ?></div><div class="font-bold <?= $miss ? 'text-red-600' : 'text-ink-900' ?>"><?= e(!empty($c['isVoicemail']) ? t('بريد صوتي') : ($miss ? t('مااتردش') : t('اترد عليها'))) ?></div></div>
+            <div class="rounded-xl bg-ink-50 p-3"><div class="text-xs text-ink-500"><?= e(t('من رقم')) ?></div><div class="font-bold text-ink-900 truncate" dir="ltr" style="text-align:start"><?= e((string)($in ? ($c['to'] ?? '') : ($c['from'] ?? ''))) ?></div></div>
+          </div>
+          <?php if (!empty($c['isVoicemail'])): ?><p class="text-sm text-amber-700 mt-3"><?= e(t('المكالمة راحت للبريد الصوتي.')) ?></p><?php endif; ?>
           <?php if (!empty($c['recordingUrl']) || !empty($c['recordingEnabled'])): ?>
             <a class="btn-ghost mt-3 inline-block" href="<?= e(url('calls', ['rec' => $c['_id'] ?? ''])) ?>" target="_blank" rel="noopener"><?= e(t('اسمع التسجيل')) ?></a>
           <?php endif; ?>
           <?php if (!empty($c['transcript'])): ?>
-            <h3 class="font-semibold mt-4 mb-2"><?= e(t('نص المكالمة')) ?></h3>
-            <div class="space-y-1 text-sm">
-              <?php foreach ((array)$c['transcript'] as $seg): ?>
-                <p dir="auto"><?php $sp = $seg['speaker'] ?? $seg['role'] ?? $seg['track'] ?? ''; if ($sp !== ''): ?><span class="text-ink-500"><?= e($sp) ?>:</span> <?php endif; ?><?= e($seg['text'] ?? '') ?></p>
+            <div class="flex items-center gap-2 mt-6 mb-3"><h3 class="font-semibold text-ink-900"><?= e(t('نص المكالمة')) ?></h3>
+              <input type="search" id="tr-q" class="input !mt-0 !py-1 !w-48 text-sm ms-auto" placeholder="<?= e(t('دوّر في الكلام...')) ?>"></div>
+            <div id="tr" class="space-y-2 text-sm rounded-2xl bg-ink-50 p-4 max-h-[32rem] overflow-y-auto">
+              <?php $first = null; foreach ((array)$c['transcript'] as $seg): $sp = (string)($seg['speaker'] ?? $seg['role'] ?? $seg['track'] ?? ''); if ($first === null) $first = $sp; $mine = $sp === $first; ?>
+                <div class="tr-seg flex <?= $mine ? 'justify-start' : 'justify-end' ?>">
+                  <div class="max-w-[80%] rounded-2xl px-3.5 py-2 <?= $mine ? 'bg-white border border-ink-200 rounded-ss-sm' : 'bg-brand-600 text-white rounded-se-sm' ?>">
+                    <?php if ($sp !== ''): ?><div class="text-[10px] opacity-60 mb-0.5"><?= e($sp) ?></div><?php endif; ?><div class="tr-t" dir="auto"><?= e($seg['text'] ?? '') ?></div>
+                  </div>
+                </div>
               <?php endforeach; ?>
             </div>
           <?php elseif (!empty($c['lastTranscriptSnippet'])): ?>
@@ -160,6 +187,8 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
           </script>
           <?php endif; ?>
         </div>
+        <script>window.CLX = <?= json_encode(['copied' => t('اتنسخ')], JSON_UNESCAPED_UNICODE) ?>;</script>
+        <script src="assets/ui-calls.js?v=<?= e(APP_VERSION) ?>"></script>
         <?php
         return;
     }
@@ -236,26 +265,76 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
       </div>
     <?php endif; ?>
 
-    <div class="card">
-      <?php if (!$calls): ?><p class="p-6 text-sm text-ink-500"><?= e(t('مفيش مكالمات لسه.')) ?></p><?php endif; ?>
-      <?php foreach ($calls as $c): $in = ($c['direction'] ?? '') === 'inbound'; ?>
-        <a href="<?= e(url('calls', ['id' => $c['_id'] ?? ''])) ?>" class="flex flex-wrap items-center justify-between gap-2 p-4 border-b border-ink-100 last:border-0 hover:bg-ink-50">
-          <div class="min-w-0">
-            <div class="font-medium"><span class="<?= $in ? 'text-lime-700' : 'text-brand-700' ?>"><?= $in ? '↙' : '↗' ?></span>
-              <span dir="ltr" style="unicode-bidi:isolate"><?= e($in ? ($c['from'] ?? '') : ($c['to'] ?? '')) ?></span>
-              <?php if (!empty($c['contactName'])): ?><span class="text-ink-500 text-sm">· <?= e($c['contactName']) ?></span><?php endif; ?></div>
-            <div class="text-xs text-ink-500"><?= e(($in ? t('واردة') : t('صادرة')) . ' · ' . (($c['channel'] ?? '') === 'whatsapp' ? t('واتساب') : t('تليفون')) . ' · ' . fmt_date($c['startedAt'] ?? null, 'd/m h:i A')) ?></div>
-            <?php if (!empty($c['lastTranscriptSnippet'])): ?><p class="text-xs text-ink-500 truncate max-w-md" dir="auto"><?= e($c['lastTranscriptSnippet']) ?></p><?php endif; ?>
+    <?php if ($calls):
+      $tot = count($calls); $inN = 0; $missN = 0; $talk = 0; $ans = 0; $missIn = [];
+      foreach ($calls as $c) {
+          $in = ($c['direction'] ?? '') === 'inbound'; if ($in) $inN++;
+          if ($missed($c)) { $missN++; if ($in) { $k = (string)($c['from'] ?? ''); if (!isset($missIn[$k])) $missIn[$k] = $c; } }
+          else { $ans++; $talk += (int)($c['durationSeconds'] ?? 0); }
+      }
+      // اللي فاتتنا ومحدش رجع كلمهم بعدها
+      foreach ($calls as $c) { if (($c['direction'] ?? '') === 'outbound' && !$missed($c)) { $k = (string)($c['to'] ?? ''); if (isset($missIn[$k]) && ($c['startedAt'] ?? '') > ($missIn[$k]['startedAt'] ?? '')) unset($missIn[$k]); } }
+    ?>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('المكالمات')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= $tot ?></div><div class="text-xs text-ink-500"><?= e(t('%s واردة · %s صادرة', $inN, $tot - $inN)) ?></div></div>
+      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('نسبة الرد')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= round($ans / max(1, $tot) * 100) ?>%</div><div class="h-1.5 rounded-full bg-ink-100 mt-2 overflow-hidden"><div class="h-full bg-lime-500" style="width:<?= round($ans / max(1, $tot) * 100) ?>%"></div></div></div>
+      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('متوسط المكالمة')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1" dir="ltr" style="text-align:start"><?= e(ph_duration(intdiv($talk, max(1, $ans)))) ?></div><div class="text-xs text-ink-500"><?= e(t('%s دقيقة كلام', round($talk / 60))) ?></div></div>
+      <div class="rounded-2xl border <?= $missIn ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white' ?> p-4"><div class="text-xs text-ink-500"><?= e(t('فايتة ومحدش رجعلها')) ?></div><div class="text-2xl font-bold mt-1 <?= $missIn ? 'text-red-600' : 'text-ink-900' ?>"><?= count($missIn) ?></div><div class="text-xs text-ink-500"><?= e(t('%s مكالمة مااتردش عليها إجمالاً', $missN)) ?></div></div>
+    </div>
+    <?php if ($missIn): ?>
+      <div class="rounded-2xl border border-red-200 bg-white p-4 mb-5">
+        <div class="font-bold text-ink-900 mb-1"><?= e(t('ناس اتصلت ومحدش رد عليها')) ?></div>
+        <p class="text-xs text-ink-500 mb-3"><?= e(t('مفيش مكالمة صادرة ليهم بعد ما فاتتهم. كل دقيقة بتتأخر فيها العميل ممكن يروح لحد تاني.')) ?></p>
+        <div class="flex flex-wrap gap-2">
+          <?php foreach (array_slice($missIn, 0, 8) as $k => $c): ?>
+            <span class="inline-flex items-center gap-2 rounded-full border border-ink-200 ps-3 pe-1 py-1 text-sm">
+              <span><?= e(($c['contactName'] ?? '') ?: '') ?> <span dir="ltr" class="text-ink-600" style="unicode-bidi:isolate"><?= e($k) ?></span></span>
+              <span class="text-[11px] text-ink-400" data-ago="<?= e((string)($c['startedAt'] ?? '')) ?>"></span>
+              <?php if ($owner && $voice && ($c['channel'] ?? '') !== 'whatsapp'): ?><a class="rounded-full bg-brand-600 text-white text-xs px-2.5 py-1 hover:bg-brand-700" href="<?= e(url('calls', ['dial' => 1, 'to' => $k])) ?>"><?= e(t('اتصل')) ?></a><?php endif; ?>
+            </span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+    <div id="cl-chart" class="card p-5 mb-5"></div>
+    <?php endif; ?>
+
+    <div class="card overflow-hidden">
+      <?php if ($calls): ?>
+      <div class="flex flex-wrap items-center gap-2 p-3 border-b border-ink-100">
+        <input type="search" id="cl-q" class="input !mt-0 !py-1.5 flex-1 min-w-[12rem] text-sm" placeholder="<?= e(t('دوّر برقم أو اسم أو كلام من المكالمة...')) ?>">
+        <div id="cl-chips" class="flex flex-wrap gap-1.5 text-xs">
+          <?php foreach (['' => t('الكل'), 'missed' => t('فايتة'), 'vm' => t('بريد صوتي'), 'rec' => t('متسجلة'), 'long' => t('أطول من 5 دقايق')] as $k => $l): ?>
+            <button type="button" data-f="<?= $k ?>" class="rounded-full px-3 py-1 <?= $k === '' ? 'bg-brand-600 text-white' : 'bg-ink-50 text-ink-700 hover:bg-ink-100' ?>"><?= e($l) ?></button>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+      <?php if (!$calls): ?><div class="p-10 text-center"><div class="w-12 h-12 mx-auto rounded-full bg-ink-100 text-ink-500 flex items-center justify-center mb-3"><?= ui_icon('phone', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e(t('مفيش مكالمات لسه.')) ?></p></div><?php endif; ?>
+      <div id="cl-list">
+      <?php foreach ($calls as $c): $in = ($c['direction'] ?? '') === 'inbound'; $miss = $missed($c); $other = (string)($in ? ($c['from'] ?? '') : ($c['to'] ?? '')); $dur = (int)($c['durationSeconds'] ?? 0); ?>
+        <div class="cl-row group flex items-center gap-3 px-4 py-3 border-b border-ink-100 last:border-0 hover:bg-ink-50"
+             data-at="<?= e((string)($c['startedAt'] ?? '')) ?>" data-in="<?= $in ? 1 : 0 ?>" data-miss="<?= $miss ? 1 : 0 ?>" data-vm="<?= empty($c['isVoicemail']) ? 0 : 1 ?>" data-rec="<?= empty($c['recordingUrl']) ? 0 : 1 ?>" data-dur="<?= $dur ?>"
+             data-q="<?= e(mb_strtolower(preg_replace('/\D/', '', $other) . ' ' . ($c['contactName'] ?? '') . ' ' . ($c['lastTranscriptSnippet'] ?? ''))) ?>">
+          <span class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center <?= $miss ? 'bg-red-50 text-red-600' : ($in ? 'bg-lime-50 text-lime-700' : 'bg-brand-50 text-brand-700') ?>" title="<?= e($in ? t('واردة') : t('صادرة')) ?>"><?= $miss ? '✕' : ($in ? '↙' : '↗') ?></span>
+          <a href="<?= e(url('calls', ['id' => $c['_id'] ?? ''])) ?>" class="min-w-0 flex-1">
+            <div class="font-medium text-ink-900 truncate <?= $miss ? '!text-red-700' : '' ?>"><?php if (!empty($c['contactName'])): ?><?= e($c['contactName']) ?> <span class="text-ink-500 font-normal text-sm" dir="ltr" style="unicode-bidi:isolate"><?= e($other) ?></span><?php else: ?><span dir="ltr" style="unicode-bidi:isolate"><?= e($other) ?></span><?php endif; ?></div>
+            <div class="text-xs text-ink-500 truncate"><?= e(implode(' · ', array_filter([($c['channel'] ?? '') === 'whatsapp' ? t('واتساب') : '', fmt_date($c['startedAt'] ?? null, 'h:i A'), $c['lastTranscriptSnippet'] ?? '']))) ?></div>
+          </a>
+          <div class="hidden sm:flex items-center gap-1">
+            <?php if (!empty($c['isVoicemail'])): ?><span class="rounded-full bg-amber-50 text-amber-700 text-[11px] px-2 py-0.5"><?= e(t('بريد صوتي')) ?></span><?php endif; ?>
+            <?php if (!empty($c['recordingUrl'])): ?><a href="<?= e(url('calls', ['rec' => $c['_id'] ?? ''])) ?>" target="_blank" rel="noopener" class="rounded-full bg-ink-100 text-ink-700 text-[11px] px-2 py-0.5 hover:bg-ink-200">▶ <?= e(t('متسجلة')) ?></a><?php endif; ?>
           </div>
-          <div class="text-sm text-end">
-            <?= e(ph_duration((int)($c['durationSeconds'] ?? 0))) ?>
-            <?php if (!empty($c['isVoicemail'])): ?><span class="badge"><?= e(t('بريد صوتي')) ?></span><?php endif; ?>
-            <?php if (($c['status'] ?? '') === 'failed' || in_array($c['endReason'] ?? '', ['no_answer', 'rejected'], true)): ?><span class="badge bg-red-100 text-red-800"><?= e(t('مااتردش')) ?></span><?php endif; ?>
-            <?php if (!empty($c['recordingUrl'])): ?><span class="badge"><?= e(t('متسجلة')) ?></span><?php endif; ?>
-          </div>
-        </a>
+          <span class="w-14 text-end text-sm tabular-nums <?= $miss ? 'text-red-600' : 'text-ink-700' ?>" dir="ltr"><?= $miss ? '—' : e(ph_duration($dur)) ?></span>
+          <span class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+            <button type="button" class="ph-copy w-8 h-8 rounded-lg text-ink-400 hover:bg-ink-100" data-v="<?= e($other) ?>" title="<?= e(t('انسخ الرقم')) ?>">⧉</button>
+            <?php if ($owner && $voice && ($c['channel'] ?? '') !== 'whatsapp'): ?><a class="w-8 h-8 rounded-lg text-brand-600 hover:bg-brand-50 flex items-center justify-center" href="<?= e(url('calls', ['dial' => 1, 'to' => $other])) ?>" title="<?= e(t('اتصل تاني')) ?>">☎</a><?php endif; ?>
+          </span>
+        </div>
       <?php endforeach; ?>
-      <?php if ($next): ?><a class="block text-center p-3 text-sm link" href="<?= e(url('calls', ['direction' => $direction, 'channel' => $channel, 'before' => $next])) ?>"><?= e(t('أقدم ←')) ?></a><?php endif; ?>
+      </div>
+      <p id="cl-none" class="p-6 text-center text-sm text-ink-500" style="display:none"><?= e(t('مفيش مكالمات مطابقة.')) ?></p>
+      <?php if ($next): ?><a class="block text-center p-3 text-sm link border-t border-ink-100" href="<?= e(url('calls', ['direction' => $direction, 'channel' => $channel, 'before' => $next])) ?>"><?= e(t('أقدم ←')) ?></a><?php endif; ?>
     </div>
 
     <?php if ($branded): ?>
@@ -268,5 +347,8 @@ render(t('المكالمات'), 'calls', function () use ($z, $apiError, $number
         <?php endforeach; ?>
       </div>
     <?php endif; ?>
+    <script>window.CLX = <?= json_encode(['copied' => t('اتنسخ'), 'today' => t('النهارده'), 'yday' => t('امبارح'), 'chart' => t('المكالمات في آخر 14 يوم'), 'in' => t('واردة'), 'out' => t('صادرة'), 'miss' => t('فايتة'),
+      'ago' => [t('دلوقتي'), t('من %s دقيقة'), t('من %s ساعة'), t('من %s يوم')], 'lang' => lang()], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/ui-calls.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });
