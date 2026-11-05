@@ -42,6 +42,20 @@ function ps_duplicate(Zernio $z, string $id): string
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
     header('Content-Type: application/json; charset=utf-8');
     $op = (string)($_POST['op'] ?? '');
+    if ($op === 'tags' || $op === 'tag_add') {
+        if (!function_exists('an_tags_available') || !an_tags_available()) exit(json_encode(['error' => t('شغّل setup.php الأول عشان التاجات تشتغل.')], JSON_UNESCAPED_UNICODE));
+        if (!can('posts.create')) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
+        $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 100);
+        $map = an_tags_map(); $out = [];
+        $new = array_filter(array_map('trim', preg_split('/[,،]+/u', (string)($_POST['tags'] ?? ''))), 'strlen');
+        foreach ($ids as $id) {
+            $tags = $op === 'tags' ? $new : array_merge($map[$id] ?? [], $new);
+            an_set_tags($id, $tags);
+            $out[$id] = array_values(an_tags_map()[$id] ?? []);
+        }
+        log_activity('post.tags', count($ids) . ' ' . implode(',', $new));
+        exit(json_encode(['ok' => array_keys($out), 'tags' => $out, 'failed' => []], JSON_UNESCAPED_UNICODE));
+    }
     $need = in_array($op, ['dup'], true) ? 'posts.create' : 'posts.manage';
     if (!can($need)) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
     $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 50);
@@ -118,6 +132,7 @@ if ($z && $fixture && is_file($fixture)) {
     foreach ($fx['posts'] ?? [] as $p) if ($status === '' || ($p['status'] ?? '') === $status) $posts[] = $p;
     foreach ($fx['accounts'] ?? [] as $acc) $accounts[$acc['_id']] = ['name' => $acc['displayName'] ?? '', 'pic' => '', 'plat' => $acc['platform'] ?? ''];
     $total = count($posts);
+    if ($view === 'list' && ($per = (int)($fx['per_page'] ?? 0)) > 0) { $pages = (int)ceil($total / $per); $posts = array_slice($posts, ($pageNo - 1) * $per, $per); } // اختبار الصفحات
 } elseif ($z) {
     try {
         if ($view === 'cal') {
@@ -160,6 +175,7 @@ foreach ($apiRows as $r) {
     foreach ($keys as $k) $metrics[$k] = $row;
 }
 
+$tagsMap = (function_exists('an_tags_available') && an_tags_available()) ? an_tags_map() : [];
 $counts = [];
 if ($z && $fixture && is_file($fixture)) {
     $counts = ['scheduled' => 0, 'failed' => 0, 'draft' => 0, 'published' => 0];
@@ -175,7 +191,7 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
-render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view === 'cal' ? 'calendar' : 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics) {
+render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view === 'cal' ? 'calendar' : 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap) {
     if (!$z) { no_api_box(); return; }
     $tabs = ['' => t('الكل'), 'scheduled' => t('مجدول'), 'published' => t('تم النشر'), 'draft' => t('مسودات'), 'failed' => t('فشل')];
     $stCls = ['scheduled' => 'bg-brand-50 text-brand-700', 'published' => 'bg-lime-100 text-lime-700', 'draft' => 'bg-ink-100 text-ink-600', 'failed' => 'bg-red-100 text-red-700', 'partial' => 'bg-amber-100 text-amber-800', 'publishing' => 'bg-cyan-100 text-cyan-700', 'pending_approval' => 'bg-amber-100 text-amber-800', 'cancelled' => 'bg-ink-100 text-ink-500'];
@@ -242,6 +258,21 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <?php foreach ($plats as $pk => $pn): ?><button type="button" data-pf="<?= e($pk) ?>" class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-600 hover:border-brand-300 transition"><?= platform_icon($pk, 'w-3.5 h-3.5') ?><?= e(platform_label($pk)) ?> <span class="tabular-nums text-ink-400"><?= $pn ?></span></button><?php endforeach; ?>
       </div>
     <?php endif; ?>
+    <?php
+      $accSeen = []; foreach ($posts as $p0) foreach ((array)($p0['platforms'] ?? []) as $pl0) { $a0 = pub_acc_id($pl0['accountId'] ?? ''); if ($a0 !== '' && isset($accounts[$a0])) $accSeen[$a0] = ($accSeen[$a0] ?? 0) + 1; }
+      $tagSeen = []; foreach ($tagsMap as $tgs) foreach ($tgs as $tg) $tagSeen[$tg] = ($tagSeen[$tg] ?? 0) + 1; // كل منشورات الشركة، مش الصفحة دي بس
+      arsort($tagSeen);
+    ?>
+    <?php if ($view === 'list' && (count($accSeen) > 1 || $tagSeen)): ?>
+      <div class="flex flex-wrap items-center gap-1.5 mb-4 -mt-2" id="ps-af">
+        <?php if (count($accSeen) > 1): foreach ($accSeen as $aid => $n): $ac = $accounts[$aid]; ?>
+          <button type="button" data-acc="<?= e($aid) ?>" class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-600 hover:border-brand-300 transition"><?= platform_icon((string)$ac['plat'], 'w-3.5 h-3.5') ?><?= e($ac['name'] ?: '—') ?> <span class="tabular-nums text-ink-400"><?= $n ?></span></button>
+        <?php endforeach; endif; ?>
+        <?php foreach (array_slice($tagSeen, 0, 15, true) as $tg => $n): ?>
+          <button type="button" data-tag="<?= e($tg) ?>" class="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50/50 px-2.5 py-1 text-xs text-violet-700 hover:border-violet-400 transition">#<?= e($tg) ?> <span class="tabular-nums text-violet-400"><?= $n ?></span></button>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
     <?php if ($apiError) { error_box($apiError); return; } ?>
 
     <?php if (!$posts): ?>
@@ -269,6 +300,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <button type="button" id="ps-shift" class="btn-ghost !py-1.5 !text-xs"><?= e(t('طبّق')) ?></button>
           <span class="h-5 w-px bg-ink-200"></span>
           <button type="button" id="ps-bretry" class="btn-ghost !py-1.5 !text-xs">↻ <?= e(t('أعد محاولة الفاشل')) ?></button>
+        <?php endif; ?>
+ <?php if (can('posts.create') && $tagsMap !== null && function_exists('an_tags_available') && an_tags_available()): ?>
+          <span class="h-5 w-px bg-ink-200"></span>
+          <input id="ps-btag" class="input !mt-0 !h-8 !py-0 text-xs !w-28" placeholder="<?= e(t('تاج…')) ?>" list="ps-taglist">
+          <button type="button" id="ps-btag-go" class="btn-ghost !py-1.5 !text-xs">🏷 <?= e(t('ضيف تاج')) ?></button>
+          <datalist id="ps-taglist"><?php foreach (array_keys($tagSeen) as $tg): ?><option value="<?= e($tg) ?>"><?php endforeach; ?></datalist>
         <?php endif; ?>
         <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs">⧉ <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
@@ -310,7 +347,8 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                 'pl' => $plv, 'dup' => url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])];
           ?>
           <?php $mx = $pm($p); if ($mx) $pdata[$p['_id']]['m'] = $mx; ?>
-          <article data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
+          <?php $ptags = $tagsMap[$p['_id']] ?? []; $pdata[$p['_id']]['tags'] = $ptags; $pdata[$p['_id']]['acc'] = array_values(array_filter($accIds)); ?>
+          <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
                 <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center">▶</span></span>
@@ -332,6 +370,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                 </div>
               </div>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" data-open="<?= e($p['_id']) ?>" class="ps-open mt-2.5 block flex-1"><p class="ps-txt text-sm text-ink-800 whitespace-pre-line line-clamp-4" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 600)) : '<span class="text-ink-400 italic">' . e(t('(بدون نص)')) . '</span>' ?></p></a>
+              <div class="ps-tags mt-2 flex flex-wrap gap-1 <?= $ptags ? '' : 'hidden' ?>"><?php foreach ($ptags as $tg): ?><span class="rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[10px] px-2 py-0.5">#<?= e($tg) ?></span><?php endforeach; ?></div>
               <?php if ($mx): $nf = function ($n) { return $n >= 1000 ? round($n / 1000, $n >= 10000 ? 0 : 1) . 'K' : (string)$n; }; ?>
                 <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-500 tabular-nums">
                   <?php if ($mx['eng'] >= $topCut && $mx['eng'] > 0): ?><span class="rounded-md bg-orange-100 text-orange-800 px-1.5 py-0.5 font-medium">🔥 <?= e(t('الأعلى تفاعل')) ?></span><?php endif; ?>
@@ -369,8 +408,11 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <div id="ps-dr-acts" class="p-3 border-t border-ink-100 flex flex-wrap items-center gap-2"></div>
         </div>
       </div>
+      <?php if ($pageNo < $pages): ?>
+        <div class="text-center mt-6"><button type="button" id="ps-more" data-next="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
+      <?php endif; ?>
       <?php if ($pages > 1): ?>
-        <div class="flex items-center justify-center gap-1 mt-6">
+        <div class="ps-pager flex items-center justify-center gap-1 mt-6">
           <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo - 1]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
           <?php for ($i = max(1, $pageNo - 2); $i <= min($pages, $pageNo + 2); $i++): ?><a class="tb w-9 justify-center text-sm <?= $i === $pageNo ? '!bg-brand-600 !text-[#fff]' : '' ?>" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $i]))) ?>"><?= $i ?></a><?php endfor; ?>
           <?php if ($pageNo < $pages): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>"><?= e(t('التالي')) ?> ›</a><?php endif; ?>
@@ -406,6 +448,8 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
         'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors', 'impressions', 'likes', 'comments', 'shares', 'engagement_rate'],
         'mImp' => t('مرات الظهور'), 'mLikes' => t('إعجاب'), 'mCom' => t('تعليق'), 'mSh' => t('مشاركة'), 'mRate' => t('نسبة التفاعل'), 'perf' => t('الأداء'),
+        'tagsL' => t('التاجات'), 'tagsPh' => t('مثلاً: رمضان، عروض، فرع الرياض'), 'tagged' => t('اتحط التاج على %s منشور'), 'tagSaved' => t('اتحفظت التاجات'), 'canTag' => function_exists('an_tags_available') && an_tags_available() && can('posts.create'),
+        'loading' => t('بنحمّل…'), 'pageOf' => t('(صفحة %s من %s)'), 'keysExtra' => [['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')]],
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
@@ -413,7 +457,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       'past' => t('من %s'), 'future' => t('بعد %s'), 'min' => t('%s دقيقة'), 'hr' => t('%s ساعة'), 'day' => t('%s يوم'), 'now' => t('دلوقتي'),
       'del' => t('متأكد إنك عاوز تحذف المنشور ده؟'), 'delN' => t('حذف %s منشور؟ مش هتقدر ترجعهم.'), 'deleted' => t('تم حذف المنشور.'), 'copied' => t('اتنسخ'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
       'more' => t('+%s كمان'), 'newHere' => t('منشور جديد في اليوم ده'), 'keysTitle' => t('اختصارات الكيبورد'),
-      'keys' => [['n', t('منشور جديد')], ['/', t('البحث')], ['v', t('قائمة / تقويم')], ['← →', t('الشهر السابق / التالي (في التقويم)')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
+      'keys' => [['n', t('منشور جديد')], ['/', t('البحث')], ['v', t('قائمة / تقويم')], ['← →', t('الشهر السابق / التالي (في التقويم)')], ['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/posts.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

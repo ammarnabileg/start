@@ -17,16 +17,23 @@
   paintTimes(); setInterval(paintTimes, 60000);
 
   /* ---------- بحث + فلترة بالمنصة ---------- */
-  var q = $('#ps-q'), pf = null;
+  var q = $('#ps-q'), pf = null, ftag = null, facc = null;
   function apply() {
     var v = q ? q.value.trim().toLowerCase() : '', n = 0;
-    $$('.ps-card').forEach(function (c) { var hit = (!v || c.dataset.q.indexOf(v) > -1) && (!pf || (' ' + c.dataset.pf + ' ').indexOf(' ' + pf + ' ') > -1); c.style.display = hit ? '' : 'none'; if (hit) n++; });
+    $$('.ps-card').forEach(function (c) { var hit = (!v || c.dataset.q.indexOf(v) > -1) && (!pf || (' ' + c.dataset.pf + ' ').indexOf(' ' + pf + ' ') > -1)
+      && (!ftag || ('|' + (c.dataset.tags || '') + '|').indexOf('|' + ftag + '|') > -1) && (!facc || (' ' + (c.dataset.acc || '') + ' ').indexOf(' ' + facc + ' ') > -1);
+      c.style.display = hit ? '' : 'none'; if (hit) n++; });
     var em = $('#ps-empty'); if (em) em.classList.toggle('hidden', n > 0 || !$$('.ps-card').length);
     // عنوان اليوم بيختفي لو مفيش ولا منشور ظاهر تحته
     $$('.ps-day').forEach(function (h) { var e = h.nextElementSibling, any = false; while (e && !e.classList.contains('ps-day')) { if (e.classList.contains('ps-card') && e.style.display !== 'none') { any = true; break; } e = e.nextElementSibling; } h.style.display = any ? '' : 'none'; });
     if (window.__cal) window.__cal();
   }
   if (q) q.addEventListener('input', apply);
+  function chipPaint(sel, attr, val) { $$(sel).forEach(function (x) { var on = x.dataset[attr] === val; x.classList.toggle('ring-2', on); x.classList.toggle('ring-brand-400', on); }); }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('#ps-af [data-tag]'); if (t) { ftag = ftag === t.dataset.tag ? null : t.dataset.tag; chipPaint('#ps-af [data-tag]', 'tag', ftag); apply(); return; }
+    var a = e.target.closest('#ps-af [data-acc]'); if (a) { facc = facc === a.dataset.acc ? null : a.dataset.acc; chipPaint('#ps-af [data-acc]', 'acc', facc); apply(); }
+  });
   $$('#ps-pf [data-pf]').forEach(function (b) { b.addEventListener('click', function () { pf = pf === b.dataset.pf ? null : b.dataset.pf; $$('#ps-pf [data-pf]').forEach(function (x) { var on = x.dataset.pf === pf; x.classList.toggle('border-brand-500', on); x.classList.toggle('bg-brand-50', on); x.classList.toggle('text-brand-700', on); }); apply(); }); });
 
   /* ---------- تحديد + حذف ---------- */
@@ -162,6 +169,7 @@
       document.querySelectorAll('.ps-dens').forEach(function (b) { var on = b.dataset.dens === d; b.classList.toggle('bg-white', on); b.classList.toggle('shadow-sm', on); b.classList.toggle('text-ink-900', on); b.classList.toggle('text-ink-500', !on); b.setAttribute('aria-pressed', on); });
     }
     document.querySelectorAll('.ps-dens').forEach(function (b) { b.addEventListener('click', function () { d = b.dataset.dens; try { localStorage.setItem(K, d); } catch (e) {} apply(); }); });
+    window.__psDens = apply;
     apply();
   })();
 
@@ -182,6 +190,15 @@
       if (f.length && !n) toast(f[0]); else if (f.length) toast(Q.some.replace('%s', n).replace('%s', f.length) + ' — ' + f[0]); else toast(okMsg.replace('%s', n), true);
       if (n) { toast(Q.reload, true); setTimeout(function () { location.reload(); }, 900); }
     }
+    // التاجات بتتحدث في الصفحة من غير تحميل
+    function setTags(map) {
+      Object.keys(map).forEach(function (id) {
+        var tags = map[id] || []; if (P[id]) P[id].tags = tags;
+        var c = $('.ps-card[data-id="' + CSS.escape(id) + '"]'); if (!c) return;
+        c.dataset.tags = tags.join('|'); var box = $('.ps-tags', c);
+        if (box) { box.classList.toggle('hidden', !tags.length); box.innerHTML = tags.map(function (t) { return '<span class="rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[10px] px-2 py-0.5">#' + esc(t) + '</span>'; }).join(''); }
+      });
+    }
     function visibleIds() { return $$('.ps-card').filter(function (c) { return c.style.display !== 'none'; }).map(function (c) { return c.dataset.id; }); }
     function open(id) {
       var d = P[id]; if (!d) return false;
@@ -201,6 +218,7 @@
         (media ? '<div class="space-y-2">' + media + '</div>' : '') +
         (canRes ? '<details class="rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-semibold text-ink-800">✎ ' + esc(Q.editT) + '</summary><textarea id="ps-dr-txt" rows="6" class="input mt-2 text-sm" dir="auto">' + esc(d.txt) + '</textarea><div class="flex justify-end mt-2"><button type="button" id="ps-dr-tsave" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></details>' : '') +
         (canRes ? '<div class="rounded-xl border border-brand-200 bg-brand-50/50 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🗓 ' + esc(Q.resched) + '</div><div class="flex gap-2"><input type="datetime-local" id="ps-dr-when" class="input !mt-0 !h-9 text-sm flex-1" dir="ltr" value="' + (d.sched ? (window.__siteDT ? window.__siteDT(new Date(d.sched)) : local(new Date(d.sched))) : '') + '"><button type="button" id="ps-dr-save" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></div>' : '') +
+        (Q.canTag ? '<div class="rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🏷 ' + esc(Q.tagsL) + '</div><div class="flex gap-2"><input id="ps-dr-tags" class="input !mt-0 !h-9 text-sm flex-1" list="ps-taglist" placeholder="' + esc(Q.tagsPh) + '" value="' + esc((d.tags || []).join('، ')) + '"><button type="button" id="ps-dr-tsv" class="btn-ghost !text-xs">' + esc(Q.save) + '</button></div></div>' : '') +
         (d.m ? '<div class="rounded-xl border border-ink-200 p-3"><div class="text-xs font-semibold text-ink-500 mb-2">📈 ' + esc(Q.perf) + '</div><div class="grid grid-cols-4 gap-2 text-center">' +
           [[Q.mImp, d.m.imp], [Q.mLikes, d.m.likes], [Q.mCom, d.m.comments], [Q.mSh, d.m.shares]].map(function (x) { return '<div><div class="text-lg font-bold text-ink-900 tabular-nums">' + Number(x[1] || 0).toLocaleString() + '</div><div class="text-[10px] text-ink-500">' + esc(x[0]) + '</div></div>'; }).join('') +
           '</div>' + (d.m.rate !== null && d.m.rate !== undefined ? '<div class="text-xs text-ink-600 mt-2 text-center">' + esc(Q.mRate) + ': <b>' + d.m.rate + '%</b></div>' : '') + '</div>' : '') +
@@ -211,6 +229,7 @@
         (X.canDel && d.st !== 'publishing' ? '<button type="button" data-a="del" class="btn-ghost !text-xs text-red-600 ms-auto">🗑 ' + esc(Q.del) + '</button>' : '');
       dr.classList.remove('hidden'); dr.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
       var ids = visibleIds(), i = ids.indexOf(id); $('#ps-dr-prev').disabled = i <= 0; $('#ps-dr-next').disabled = i < 0 || i >= ids.length - 1;
+      var tg = $('#ps-dr-tsv'); if (tg) tg.onclick = function () { tg.disabled = true; quick('tags', [id], { tags: $('#ps-dr-tags').value }).then(function (r) { tg.disabled = false; setTags(r.tags || {}); toast(Q.tagSaved, true); }).catch(function (er) { tg.disabled = false; toast(er.message || X.err); }); };
       var ts = $('#ps-dr-tsave'); if (ts) ts.onclick = function () { var v = $('#ps-dr-txt').value.trim(); if (!v) return; ts.disabled = true; quick('text', [id], { content: v }).then(function (r) { ts.disabled = false; report(r, Q.done); }).catch(function (er) { ts.disabled = false; toast(er.message || X.err); }); };
       var sv = $('#ps-dr-save'); if (sv) sv.onclick = function () { var v = $('#ps-dr-when').value; if (!v) return; sv.disabled = true; quick('resched', [id], { when: v }).then(function (r) { sv.disabled = false; report(r, Q.done); }).catch(function (er) { sv.disabled = false; toast(er.message || X.err); }); };
       $('[data-close].btn-ghost', dr).focus();
@@ -240,7 +259,7 @@
       try { srt.value = localStorage.getItem('ps-sort') || ''; } catch (e) {}
       var doSort = function () {
         var v = srt.value; try { localStorage.setItem('ps-sort', v); } catch (e) {}
-        if (!v) { orig.forEach(function (el) { pg.appendChild(el); }); }
+        if (!v) { var extra = Array.prototype.slice.call(pg.children).filter(function (el) { return orig.indexOf(el) < 0; }); orig.forEach(function (el) { pg.appendChild(el); }); extra.forEach(function (el) { pg.appendChild(el); }); }
         else {
           var cards = $$('.ps-card', pg).sort(function (a, b) {
             if (v === 'eng') return (+b.dataset.eng) - (+a.dataset.eng);
@@ -264,6 +283,38 @@
       if (!ids.length) return toast(Q.noSel); if (!confirm(Q.retryQ.replace('%s', ids.length))) return;
       quick('retry', ids).then(function (d) { report(d, Q.retried); }).catch(function (er) { toast(er.message || X.err); });
     };
+    var btg = $('#ps-btag-go'); if (btg) btg.onclick = function () { var v = $('#ps-btag').value.trim(); if (!sel.size) return toast(Q.noSel); if (!v) return $('#ps-btag').focus(); btg.disabled = true; quick('tag_add', Array.from(sel), { tags: v }).then(function (r) { btg.disabled = false; setTags(r.tags || {}); toast(Q.tagged.replace('%s', (r.ok || []).length), true); $('#ps-btag').value = ''; }).catch(function (er) { btg.disabled = false; toast(er.message || X.err); }); };
+    // "اعرض أكتر": الصفحة الجاية بتتضاف تحت اللي ظاهر (الفلاتر والترتيب بيشتغلوا عليها)
+    var more = $('#ps-more'), pager = $('.ps-pager');
+    if (more) {
+      if (pager) pager.classList.add('hidden');
+      more.onclick = function () {
+        var o = more.innerHTML; more.disabled = true; more.textContent = Q.loading;
+        fetch(more.dataset.next, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+          var doc = new DOMParser().parseFromString(html, 'text/html'), g = $('#ps-grid'), src = doc.getElementById('ps-grid');
+          var m = html.match(/window\.PSX = (\{[\s\S]*?\});<\/script>/);
+          if (m) { try { Object.assign(P, JSON.parse(m[1]).posts || {}); } catch (e) {} }
+          if (src && g) { Array.prototype.slice.call(src.children).forEach(function (el) { if (el.classList.contains('ps-card') && $('.ps-card[data-id="' + CSS.escape(el.dataset.id) + '"]', g)) return; g.appendChild(document.importNode(el, true)); }); }
+          var pg2 = +more.dataset.page + 1, pages = +more.dataset.pages;
+          if (pg2 >= pages) more.parentNode.remove();
+          else { more.dataset.page = pg2; more.dataset.next = more.dataset.next.replace(/([?&]n=)\d+/, '$1' + (pg2 + 1)); more.disabled = false; more.innerHTML = o.replace(/\d+(\D+)\d+(\)?)\s*<\/span>/, (pg2 + 1) + '$1' + pages + '$2</span>'); }
+          apply(); var sr = $('#ps-sort'); if (sr && sr.value) sr.dispatchEvent(new Event('change'));
+          if (window.__psDens) window.__psDens();
+        }).catch(function () { more.disabled = false; more.innerHTML = o; toast(X.err); });
+      };
+    }
+    // j / k / Enter / x
+    var kIdx = -1;
+    document.addEventListener('keydown', function (e) {
+      if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.ctrlKey || e.metaKey || e.altKey || !dr.classList.contains('hidden')) return;
+      var cards = $$('.ps-card').filter(function (c) { return c.style.display !== 'none'; }); if (!cards.length) return;
+      if (e.key === 'j' || e.key === 'k') {
+        e.preventDefault(); kIdx = Math.max(0, Math.min(cards.length - 1, kIdx + (e.key === 'j' ? 1 : -1)));
+        cards.forEach(function (c, i) { c.classList.toggle('ring-4', i === kIdx); c.classList.toggle('ring-brand-500/40', i === kIdx); });
+        cards[kIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (e.key === 'Enter' && kIdx > -1 && cards[kIdx]) { e.preventDefault(); open(cards[kIdx].dataset.id); }
+      else if (e.key === 'x' && kIdx > -1 && cards[kIdx]) { var cb = $('.ps-sel', cards[kIdx]); if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); } }
+    });
     var bdup = $('#ps-bdup'); if (bdup) bdup.onclick = function () { if (!sel.size) return toast(Q.noSel); bdup.disabled = true; quick('dup', Array.from(sel)).then(function (d) { bdup.disabled = false; report(d, Q.duped); }).catch(function (er) { bdup.disabled = false; toast(er.message || X.err); }); };
   })();
 })();
