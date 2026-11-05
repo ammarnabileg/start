@@ -34,7 +34,7 @@ function media_row(array $r): array
     return ['id' => (int)$r['id'], 'folder' => (string)$r['folder'], 'name' => (string)$r['name'], 'mime' => (string)$r['mime'], 'kind' => media_kind((string)$r['mime']),
         'size' => (int)$r['size'], 'w' => $r['width'] !== null ? (int)$r['width'] : null, 'h' => $r['height'] !== null ? (int)$r['height'] : null,
         'url' => url('media', ['file' => $r['id']]), 'thumb' => url('media', ['file' => $r['id'], 'thumb' => 1]), 'public' => $r['public_url'] ?: null, 'tags' => (string)($r['tags'] ?? ''), 'at' => (string)$r['created_at'],
-        'star' => !empty($r['starred']), 'del' => !empty($r['deleted_at']) ? (string)$r['deleted_at'] : null];
+        'desc' => (string)($r['ai_desc'] ?? ''), 'ai' => !empty($r['ai_at']), 'star' => !empty($r['starred']), 'del' => !empty($r['deleted_at']) ? (string)$r['deleted_at'] : null];
 }
 
 function media_list(int $wid, array $f = []): array
@@ -42,7 +42,7 @@ function media_list(int $wid, array $f = []): array
     $w = ['workspace_id = ?', !empty($f['trash']) ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
     if (isset($f['folder']) && $f['folder'] !== '*') { $w[] = 'folder = ?'; $a[] = (string)$f['folder']; }
     if (!empty($f['kind'])) { $m = ['image' => 'image/%', 'video' => 'video/%', 'audio' => 'audio/%'][$f['kind']] ?? null; if ($m) { $w[] = 'mime LIKE ?'; $a[] = $m; } elseif ($f['kind'] === 'doc') { $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%' AND mime NOT LIKE 'audio/%'"; } }
-    if (!empty($f['q'])) { $w[] = '(name LIKE ? OR tags LIKE ?)'; $a[] = '%' . $f['q'] . '%'; $a[] = '%' . $f['q'] . '%'; }
+    if (!empty($f['q'])) { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; array_push($a, '%' . $f['q'] . '%', '%' . $f['q'] . '%', '%' . $f['q'] . '%'); }
     $st = db()->prepare('SELECT * FROM media_files WHERE ' . implode(' AND ', $w) . ' ORDER BY created_at DESC, id DESC LIMIT 500');
     $st->execute($a);
     return array_map('media_row', $st->fetchAll());
@@ -234,5 +234,35 @@ function media_share_get(string $tok): ?array
     $st = db()->prepare('SELECT * FROM media_shares WHERE token = ?'); $st->execute([$tok]); $r = $st->fetch();
     if (!$r || ($r['expires_at'] && strtotime($r['expires_at']) < time())) return null;
     return $r;
+}
+
+/* ---------- الذكاء الاصطناعي: اسم ووسوم ووصف من محتوى الصورة ---------- */
+/** اسم ملف شكله عشوائي (كاميرا/واتساب/سكرين شوت/رقم) يستاهل اسم أوضح */
+function media_name_is_generic(string $n): bool
+{
+    $b = mb_strtolower(preg_replace('/\.[^.]+$/', '', $n));
+    return (bool)preg_match('/^(img|image|dsc|dcim|pxl|photo|screenshot|screen shot|whatsapp|wa|snapchat|ai-|unnamed|download|untitled|file|scan|mvimg|vid|video|\d|[a-f0-9]{8,})|^\S{1,3}$|\d{6,}/u', $b);
+}
+function media_ai_tag(int $wid, int $id, bool $rename): array
+{
+    $r = media_get($wid, $id); if (!$r) throw new RuntimeException(t('الملف مش موجود'));
+    if (media_kind((string)$r['mime']) !== 'image') throw new RuntimeException(t('الذكاء الاصطناعي بيقرا الصور بس'));
+    $p = media_thumb_path($wid, $r); if (!is_file($p) || filesize($p) > 4 * 1048576) throw new RuntimeException(t('الصورة كبيرة جدًا للقراءة'));
+    $mime = strpos($p, '/thumbs/') !== false ? 'image/jpeg' : (string)$r['mime'];
+    $res = ai_chat([
+        ['role' => 'system', 'content' => 'You label images for a marketing team\'s media library. Look at the image and return ONLY JSON: {"name":"short descriptive file name in Arabic (2-5 words, no extension)","tags":["5 to 8 short tags: mix Arabic and English, e.g. منتج, product, شعار, logo, خلفية بيضاء, people, outdoor, text overlay"],"desc":"one Arabic sentence describing what is in the image and whether it suits an ad (e.g. clear product photo on white background)"}. Never invent brand names you cannot read in the image.'],
+        ['role' => 'user', 'content' => [['type' => 'text', 'text' => 'File: ' . $r['name']], ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mime . ';base64,' . base64_encode((string)file_get_contents($p))]]]],
+    ], 300, 'media_tag');
+    $txt = (string)$res['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+    $j = json_decode($txt, true); if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+    $old = array_filter(array_map('trim', explode(',', (string)$r['tags'])), 'strlen');
+    $new = array_slice(array_filter(array_map(function ($x) { return mb_substr(trim((string)$x), 0, 40); }, (array)($j['tags'] ?? [])), 'strlen'), 0, 8);
+    $tags = implode(', ', array_slice(array_values(array_unique(array_merge($old, $new))), 0, 16));
+    $name = (string)$r['name'];
+    if ($rename && !empty($j['name']) && media_name_is_generic($name)) {
+        $ext = pathinfo($name, PATHINFO_EXTENSION); $nn = trim(preg_replace('/[\x00-\x1f\/\\\\.]+/u', ' ', (string)$j['name'])); if ($nn !== '') $name = mb_substr($nn, 0, 200) . ($ext ? '.' . $ext : '');
+    }
+    db()->prepare('UPDATE media_files SET tags = ?, ai_desc = ?, ai_at = NOW(), name = ? WHERE workspace_id = ? AND id = ?')->execute([mb_substr($tags, 0, 500), mb_substr(trim((string)($j['desc'] ?? '')), 0, 500) ?: null, $name, $wid, $id]);
+    return media_row(media_get($wid, $id));
 }
 

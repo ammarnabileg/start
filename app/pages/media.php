@@ -88,6 +88,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $all = (array)json_decode((string)setting('media_folders_' . $wid, '[]'), true); if (!in_array($f, $all, true)) $all[] = $f;
         save_setting('media_folders_' . $wid, json_encode(array_values($all), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $f]);
     }
+    if ($act === 'ai_tag') {
+        if (!can('ai.use') || !function_exists('ai_connection') || !ai_connection()) $json(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي الأول من صفحة التكاملات.')]);
+        $out = []; $errs = [];
+        foreach (array_slice($ids, 0, 5) as $x) { try { $out[] = media_ai_tag($wid, $x, !empty($_POST['rename'])); } catch (Throwable $e) { $errs[] = $e->getMessage(); } }
+        if ($out) log_activity('media.ai_tag', (string)count($out));
+        $json(['ok' => (bool)$out || !$errs, 'items' => $out, 'errors' => $errs]);
+    }
     if ($act === 'share_create') {
         $f = $fclean($_POST['folder'] ?? ''); $days = max(0, min(365, (int)($_POST['days'] ?? 7)));
         $sh = media_share_create($wid, $f, $days, !empty($_POST['dl'])); log_activity('media.share', $f); $json(['ok' => true] + $sh);

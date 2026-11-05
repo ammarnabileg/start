@@ -430,4 +430,7 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '021_media_ai' => [
+        "ALTER TABLE media_files ADD COLUMN ai_desc VARCHAR(500) NULL, ADD COLUMN ai_at DATETIME NULL",
+    ],
 ];
