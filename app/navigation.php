@@ -42,6 +42,7 @@ function nav_items(): array
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => $s2, 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
+        ['key' => 'campaign', 'label' => t('حملة متكاملة'), 'section' => $s3],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => $s3,
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => $s3, 'module' => 'ads',

@@ -528,6 +528,24 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '045_campaigns' => [
+        "CREATE TABLE IF NOT EXISTS campaigns (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(190) NOT NULL,
+            service VARCHAR(190) NOT NULL DEFAULT '',
+            start_at DATE NULL,
+            end_at DATE NULL,
+            lp_slug VARCHAR(60) NOT NULL DEFAULT '',
+            coupon VARCHAR(24) NULL,
+            codes TEXT NULL,
+            post_ids TEXT NULL,
+            mode VARCHAR(10) NOT NULL DEFAULT 'draft',
+            created_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '044_ad_campaign' => [
         "ALTER TABLE crm_leads ADD COLUMN ad_campaign VARCHAR(64) NULL",
         "ALTER TABLE crm_leads ADD INDEX ws_adc (workspace_id, ad_campaign)",
