@@ -3690,4 +3690,5 @@ This is an example of the email your customers will receive.',
     '٥ · المبيعات' => '5 · Sales',
     'بحث' => 'Search',
     'إعدادات الشركة' => 'Company settings',
+    'أداء المنشورات' => 'Post performance',
 ];
