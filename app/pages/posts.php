@@ -75,6 +75,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 $dt = new DateTime((string)$p['scheduledFor']); $dt->setTimezone($tz); $dt->modify(($n >= 0 ? '+' : '') . $n . ' ' . $u);
                 if ($dt < new DateTime('now', $tz)) throw new ZernioException(t('الميعاد الجديد هيبقى فات.'));
                 ps_reschedule($z, $id, $dt); log_activity('post.shift', $id . ' ' . $n . $u);
+            } elseif ($op === 'replace') {
+                $find = (string)($_POST['find'] ?? ''); $repl = (string)($_POST['repl'] ?? '');
+                if (trim($find) === '') throw new ZernioException(t('اكتب الكلمة اللي هتدور عليها.'));
+                $p = pub_get_post($z, $id);
+                if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص. عدّله من صفحة التعديل على كل منصة.'));
+                $old = (string)($p['content'] ?? ''); $n = 0;
+                $new = str_replace($find, $repl, $old, $n);
+                $pls = ps_platforms($p);
+                foreach ($pls as &$pl) { if (!empty($pl['customContent'])) { $c = 0; $pl['customContent'] = str_replace($find, $repl, (string)$pl['customContent'], $c); $n += $c; } }
+                unset($pl);
+                if (!$n) throw new ZernioException(t('الكلمة مش موجودة في المنشور ده.'));
+                if (trim($new) === '') throw new ZernioException(t('النص مينفعش يكون فاضي.'));
+                $payload = ['content' => $new, 'platforms' => $pls, 'timezone' => site_timezone()];
+                if (!empty($p['scheduledFor'])) { $d = new DateTime((string)$p['scheduledFor']); $d->setTimezone($tz); $payload['scheduledFor'] = $d->format('Y-m-d\TH:i:s'); }
+                if ($m = ps_media($p)) $payload['mediaItems'] = $m;
+                pub_update_post($z, $id, $payload); log_activity('post.replace', $id . ' x' . $n);
             } elseif ($op === 'text') {
                 $txt = trim((string)($_POST['content'] ?? ''));
                 if ($txt === '') throw new ZernioException(t('النص مينفعش يكون فاضي.'));
@@ -308,6 +324,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <datalist id="ps-taglist"><?php foreach (array_keys($tagSeen) as $tg): ?><option value="<?= e($tg) ?>"><?php endforeach; ?></datalist>
         <?php endif; ?>
         <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs">⧉ <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
+        <?php if (can('posts.manage')): ?><button type="button" id="ps-brep" class="btn-ghost !py-1.5 !text-xs">🔁 <?= e(t('استبدال')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
         <button type="button" id="ps-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
       </div>
@@ -395,6 +412,17 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <?php endforeach; ?>
       </div>
       <div id="ps-empty" class="hidden card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش نتائج.')) ?></div>
+      <div id="ps-rep" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
+        <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+        <div class="relative card p-5 w-full max-w-md space-y-3" role="dialog" aria-modal="true" aria-labelledby="ps-rep-h">
+          <h3 id="ps-rep-h" class="font-bold text-ink-900">🔁 <?= e(t('ابحث واستبدل في المنشورات المحددة')) ?></h3>
+          <label class="block"><span class="label"><?= e(t('دوّر على')) ?></span><input id="ps-rep-f" class="input" dir="auto" placeholder="01001234567"></label>
+          <label class="block"><span class="label"><?= e(t('استبدلها بـ')) ?></span><input id="ps-rep-r" class="input" dir="auto" placeholder="01009876543"></label>
+          <div id="ps-rep-info" class="text-xs rounded-lg bg-ink-50 border border-ink-200 p-2 text-ink-600"></div>
+          <p class="text-[11px] text-ink-500"><?= e(t('بيشتغل على المجدول والمسودات بس، والنسخ الخاصة بكل منصة كمان. الحروف لازم تبقى زي ما هي بالظبط.')) ?></p>
+          <div class="flex gap-2"><button type="button" id="ps-rep-go" class="btn-primary flex-1"><?= e(t('استبدل')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button></div>
+        </div>
+      </div>
       <div id="ps-dr" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
         <div class="absolute inset-0 bg-ink-900/40" data-close></div>
         <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[480px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ps-dr-h">
@@ -429,6 +457,10 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <b class="text-base text-ink-900 min-w-[10rem] text-center" id="cal-title"></b>
           <button type="button" data-cal="next" class="tb w-9 justify-center"><svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
           <button type="button" data-cal="today" class="tb px-3 text-xs"><?= e(t('النهارده')) ?></button>
+          <div class="tb p-0.5 gap-0.5" role="group" aria-label="<?= e(t('طريقة العرض')) ?>">
+            <button type="button" data-calv="month" class="cal-v h-8 px-2.5 rounded-lg text-xs"><?= e(t('شهر')) ?></button>
+            <button type="button" data-calv="week" class="cal-v h-8 px-2.5 rounded-lg text-xs"><?= e(t('أسبوع')) ?></button>
+          </div>
           <div class="ms-auto flex flex-wrap gap-3 text-[11px] text-ink-500">
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500"></span><?= e(t('مجدول')) ?></span>
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e(t('تم النشر')) ?></span>
@@ -438,6 +470,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         </div>
         <div class="grid grid-cols-7 border-b border-ink-100 bg-ink-50 text-[11px] font-medium text-ink-500" id="cal-dow"></div>
         <div class="grid grid-cols-7" id="cal-grid"></div>
+        <div id="cal-week" class="hidden overflow-y-auto max-h-[38rem]" dir="ltr"></div>
       </div>
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيعرض لحد 100 منشور مجدول و100 من آخر المنشورات. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
@@ -450,6 +483,8 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'mImp' => t('مرات الظهور'), 'mLikes' => t('إعجاب'), 'mCom' => t('تعليق'), 'mSh' => t('مشاركة'), 'mRate' => t('نسبة التفاعل'), 'perf' => t('الأداء'),
         'tagsL' => t('التاجات'), 'tagsPh' => t('مثلاً: رمضان، عروض، فرع الرياض'), 'tagged' => t('اتحط التاج على %s منشور'), 'tagSaved' => t('اتحفظت التاجات'), 'canTag' => function_exists('an_tags_available') && an_tags_available() && can('posts.create'),
         'loading' => t('بنحمّل…'), 'pageOf' => t('(صفحة %s من %s)'), 'keysExtra' => [['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')]],
+        'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
+        'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
