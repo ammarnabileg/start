@@ -111,6 +111,42 @@ function an_post_insights(array $posts): array
     return array_slice($out, 0, 5);
 }
 
+/** #31 الهاشتاجات: متوسط التفاعل لكل هاشتاج اتستخدم في منشورين أو أكتر */
+function an_hashtag_stats(array $posts): array
+{
+    $by = []; $all = [];
+    foreach ($posts as $p) {
+        $an = (array)($p['analytics'] ?? []); $imp = (float)($an['impressions'] ?? 0);
+        $er = isset($an['engagementRate']) ? (float)$an['engagementRate'] : ($imp > 0 ? ((float)($an['likes'] ?? 0) + (float)($an['comments'] ?? 0) + (float)($an['shares'] ?? 0)) / $imp * 100 : null);
+        if ($er === null) continue; $all[] = $er;
+        preg_match_all('/#[^\s#.,،!?؟]+/u', (string)($p['content'] ?? ''), $m);
+        foreach (array_unique(array_map('mb_strtolower', $m[0])) as $tg) $by[$tg][] = $er;
+    }
+    if (!$all) return [];
+    $avg = array_sum($all) / count($all); $out = [];
+    foreach ($by as $tg => $l) if (count($l) >= 2) $out[] = ['tag' => $tg, 'n' => count($l), 'er' => array_sum($l) / count($l), 'avg' => $avg];
+    usort($out, function ($a, $b) { return $b['er'] <=> $a['er']; });
+    return $out;
+}
+/** #27 نتايج تجارب A/B: بنقارن تفاعل النسختين (من نفس بيانات التحليلات) */
+function an_ab_results(array $posts): array
+{
+    $by = []; foreach ($posts as $p) if (!empty($p['_id'])) $by[(string)$p['_id']] = $p;
+    try { $st = db()->prepare('SELECT * FROM post_ab WHERE workspace_id = ? ORDER BY id DESC LIMIT 10'); $st->execute([(int)ws('id')]); $rows = $st->fetchAll(); } catch (Throwable $e) { return []; }
+    $out = [];
+    $pick = function ($id, $txt) use ($by) {
+        $p = $by[$id] ?? null; if (!$p) return ['text' => $txt, 'er' => 0, 'imp' => 0, 'none' => true];
+        $an = (array)($p['analytics'] ?? []); $imp = (float)($an['impressions'] ?? 0);
+        return ['text' => (string)($p['content'] ?? $txt), 'imp' => $imp, 'er' => isset($an['engagementRate']) ? (float)$an['engagementRate'] : ($imp > 0 ? ((float)($an['likes'] ?? 0) + (float)($an['comments'] ?? 0) + (float)($an['shares'] ?? 0)) / $imp * 100 : 0)];
+    };
+    foreach ($rows as $r) {
+        $a = $pick((string)$r['a_id'], (string)$r['a_text']); $b = $pick((string)$r['b_id'], (string)$r['b_text']);
+        $win = (empty($a['none']) && empty($b['none'])) ? ($a['er'] >= $b['er'] ? 'a' : 'b') : '';
+        $out[] = ['a' => empty($a['none']) ? $a : null, 'b' => empty($b['none']) ? $b : null, 'at' => $a['text'], 'bt' => $b['text'], 'win' => $win];
+    }
+    return $out;
+}
+
 function an_best_time(Zernio $z, array $q): array
 {
     return $z->request('GET', '/v1/analytics/best-time', $q)['slots'] ?? [];

@@ -567,7 +567,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             ?>
           <?php
             $plv = [];
-            foreach ($pls as $pl) $plv[] = ['pf' => (string)($pl['platform'] ?? ''), 'st' => (string)($pl['status'] ?? ''), 'url' => (string)($pl['platformPostUrl'] ?? ''), 'err' => (string)($pl['errorMessage'] ?? ''),
+            foreach ($pls as $pl) $plv[] = ['pf' => (string)($pl['platform'] ?? ''), 'st' => (string)($pl['status'] ?? ''), 'url' => (string)($pl['platformPostUrl'] ?? ''), 'err' => (string)($pl['errorMessage'] ?? ''), 'hint' => !empty($pl['errorMessage']) ? ps_fail_hint((string)$pl['errorMessage']) : '',
                 'acc' => $accounts[pub_acc_id($pl['accountId'] ?? '')]['name'] ?? ''];
             $pdata[$p['_id']] = ['txt' => (string)($p['content'] ?? ''), 'st' => $st, 'stl' => $label, 'at' => (string)$when, 'sched' => (string)($p['scheduledFor'] ?? ''),
                 'media' => array_values(array_filter(array_map(function ($m) { return ['t' => (string)($m['type'] ?? ''), 'u' => (string)($m['url'] ?? '')]; }, (array)($p['mediaItems'] ?? [])), function ($m) { return $m['u'] !== ''; })),

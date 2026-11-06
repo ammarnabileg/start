@@ -566,6 +566,8 @@ function rp_alert_rules(): array
         'impressions_drop' => ['label' => t('نزول مرات الظهور'), 'unit' => t('% نزول عن الأسبوع اللي قبله'), 'default' => 30, 'hint' => t('بنقارن آخر 7 أيام بالـ 7 أيام اللي قبلهم.')],
         'follower_drop' => ['label' => t('نقص المتابعين'), 'unit' => t('متابع أو أكتر في أسبوع'), 'default' => 5, 'hint' => t('حساب خسر العدد ده من المتابعين أو أكتر في آخر 7 أيام.')],
         'reconnect' => ['label' => t('حساب محتاج إعادة ربط'), 'unit' => '', 'default' => 0, 'hint' => t('حساب الصلاحية بتاعته انتهت أو اتوقف.')],
+        'post_below' => ['label' => t('منشور أداؤه ضعيف'), 'unit' => t('% تحت المتوسط'), 'default' => 50, 'hint' => t('منشور اتنشر من 2 لـ 48 ساعة وظهوره أقل من متوسط آخر 30 يوم بالنسبة دي. فرصة تعدّله أو تدعمه بإعلان.')],
+        'post_failed' => ['label' => t('النشر فشل'), 'unit' => '', 'default' => 0, 'hint' => t('منشور ماتنشرش في آخر يومين، ومعاه السبب والحل المقترح.')],
         'unread_old' => ['label' => t('رسائل مستنية رد'), 'unit' => t('ساعة من غير قراءة'), 'default' => 24, 'hint' => t('محادثة فيها رسائل مش مقروءة بقالها أكتر من عدد الساعات ده.')],
     ];
 }
@@ -629,6 +631,28 @@ function rp_evaluate_alerts(int $wid, bool $force = false): int
                 }
             }
         }
+        // #29 منشور أداؤه ضعيف بعد ما اتنشر بساعتين
+        if (!empty($rules['post_below']['enabled'])) {
+            [$r2] = an_try(function () use ($z, $pid, $today) { return an_posts($z, ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 29 * 86400), 'toDate' => $today, 'limit' => 100, 'page' => 1, 'sortBy' => 'date', 'order' => 'desc']); });
+            $ps2 = (array)($r2['posts'] ?? []); $im2 = array_map(function ($p) { return (float)($p['analytics']['impressions'] ?? 0); }, $ps2);
+            if (count($im2) >= 5 && ($avg2 = array_sum($im2) / count($im2)) > 0) {
+                foreach ($ps2 as $p) {
+                    $age = time() - (int)strtotime((string)($p['publishedAt'] ?? ''));
+                    if ($age < 2 * 3600 || $age > 48 * 3600) continue;
+                    $v = (float)($p['analytics']['impressions'] ?? 0); $pct = ($avg2 - $v) / $avg2 * 100;
+                    if ($pct >= $rules['post_below']['threshold']) rp_add_alert($wid, 'post_below', 'post_below:' . ($p['_id'] ?? md5((string)($p['content'] ?? ''))), ['pct' => round($pct), 'imp' => $v, 'text' => mb_substr(trim((string)($p['content'] ?? '')), 0, 90), 'url' => (string)($p['platformPostUrl'] ?? ''), 'platform' => (string)($p['platform'] ?? '')]);
+                }
+            }
+        }
+        // #33 النشر فشل (مع الحل المقترح #34)
+        if (!empty($rules['post_failed']['enabled'])) {
+            [$fl] = an_try(function () use ($z, $pid) { return $z->request('GET', '/v1/posts', array_filter(['profileId' => $pid, 'status' => 'failed', 'limit' => 20])); });
+            foreach ((array)($fl['posts'] ?? []) as $p) {
+                $when = strtotime((string)($p['updatedAt'] ?? $p['scheduledFor'] ?? $p['createdAt'] ?? '')); if ($when && $when < time() - 2 * 86400) continue;
+                $err = ''; foreach ((array)($p['platforms'] ?? []) as $pl) if (!empty($pl['errorMessage'])) { $err = (string)$pl['errorMessage']; break; }
+                rp_add_alert($wid, 'post_failed', 'post_failed:' . ($p['_id'] ?? ''), ['text' => mb_substr(trim((string)($p['content'] ?? '')), 0, 80), 'err' => mb_substr($err, 0, 200), 'hint' => ps_fail_hint($err)]);
+            }
+        }
         if ($rules['impressions_drop']['enabled']) {
             $sum = function ($from, $to) use ($z, $pid) {
                 [$d, $err] = an_try(function () use ($z, $pid, $from, $to) { return an_daily_metrics($z, ['profileId' => $pid, 'fromDate' => $from, 'toDate' => $to]); });
@@ -687,6 +711,10 @@ function rp_alert_text(string $rule, array $d): string
             return (string)($d['title'] ?? '') . ((string)($d['detail'] ?? '') !== '' ? ' — ' . $d['detail'] : '');
         case 'post_above':
             return t('منشور على %s أداؤه أعلى من المتوسط بـ %s%% (%s مرة ظهور): %s', platform_label((string)($d['platform'] ?? '')), (int)($d['pct'] ?? 0), an_num($d['imp'] ?? 0), (string)($d['text'] ?? ''));
+        case 'post_below':
+            return t('منشور على %s ظهوره أقل من المتوسط بـ %s%% (%s مرة ظهور): %s', platform_label((string)($d['platform'] ?? '')), (int)($d['pct'] ?? 0), an_num($d['imp'] ?? 0), (string)($d['text'] ?? ''));
+        case 'post_failed':
+            return t('منشور ماتنشرش: %s', (string)($d['text'] ?? '')) . (($d['err'] ?? '') !== '' ? ' — ' . $d['err'] : '') . (($d['hint'] ?? '') !== '' ? ' 💡 ' . $d['hint'] : '');
         case 'impressions_drop':
             return t('مرات الظهور نزلت %s%% في آخر 7 أيام (%s بدل %s).', (int)($d['pct'] ?? 0), an_num($d['cur'] ?? 0), an_num($d['prev'] ?? 0));
         case 'follower_drop':

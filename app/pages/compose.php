@@ -335,6 +335,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 $r = $z->createPost($payload);
                 $newId = $r['post']['_id'] ?? '';
                 $made = 1; $extraFail = [];
+                // #27 A/B: نسخة B بنص تاني على نفس الحسابات بعد عدد ساعات، والنتيجة بتظهر في التحليلات
+                $abText = trim((string)($_POST['ab_text'] ?? ''));
+                if ($abText !== '' && in_array($old['mode'], ['schedule', 'now'], true)) {
+                    try {
+                        $gapH = max(1, min(168, (int)($_POST['ab_gap'] ?? 24)));
+                        $baseT = $old['mode'] === 'now' ? new DateTime('now', new DateTimeZone(site_timezone())) : new DateTime((string)$payload['scheduledFor'], new DateTimeZone(site_timezone()));
+                        $bp = $payload; unset($bp['publishNow'], $bp['recycling']); $bp['content'] = mb_substr($abText, 0, 10000);
+                        $bp['scheduledFor'] = (clone $baseT)->modify("+$gapH hours")->format('Y-m-d\TH:i:s');
+                        foreach ($bp['platforms'] as &$bpl) unset($bpl['customContent']); unset($bpl);
+                        $rb = $z->createPost($bp); $made++;
+                        db()->prepare('INSERT INTO post_ab (workspace_id, a_id, b_id, a_text, b_text, gap_hours) VALUES (?, ?, ?, ?, ?, ?)')->execute([(int)ws('id'), (string)$newId, (string)($rb['post']['_id'] ?? ''), mb_substr($old['content'], 0, 500), mb_substr($abText, 0, 500), $gapH]);
+                    } catch (ZernioException $ex) { $extraFail[] = 'A/B: ' . $ex->getMessage(); }
+                }
                 foreach ($extraAt as $f) {
                     try { $z->createPost(['scheduledFor' => $f] + $payload); $made++; }
                     catch (ZernioException $ex) { $extraFail[] = substr($f, 0, 16) . ': ' . $ex->getMessage(); }
@@ -442,9 +455,16 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <button type="button" class="chip text-xs" data-tool="tags"># <?= e(t('بنك الهاشتاجات')) ?></button>
             <button type="button" class="chip text-xs" data-tool="link">🔗 <?= e(t('منشور من لينك')) ?></button>
             <button type="button" class="chip text-xs" data-tool="brand" title="<?= e(t('لوجو وعلامة مائية وإطار بلون الشركة على الصور اللي رفعتها')) ?>">🎨 <?= e(t('هوية الصورة')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="ab" title="<?= e(t('نسختين بنصين مختلفين، والتحليلات تقولك أنهي كسب')) ?>">🧪 A/B</button>
             <button type="button" class="chip text-xs" data-tool="ver" title="<?= e(t('بيعمل نسخة مظبوطة لكل حساب مختار: طول X، الهاشتاجات، واللينكات في إنستجرام')) ?>">✂️ <?= e(t('نسخة لكل منصة')) ?></button>
           </div>
           <div id="cpt-pane" class="hidden mt-2 rounded-2xl border border-ink-200 bg-ink-50/60 p-3"></div>
+          <div id="cpt-ab" class="hidden mt-2 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🧪 <?= e(t('النسخة B')) ?></div>
+            <textarea name="ab_text" rows="4" class="input text-sm" dir="auto" placeholder="<?= e(t('نفس الفكرة بصياغة أو افتتاحية أو دعوة مختلفة')) ?>"></textarea>
+            <label class="flex items-center gap-2 text-xs text-ink-600"><?= e(t('تتنشر بعد النسخة A بـ')) ?> <input type="number" name="ab_gap" min="1" max="168" value="24" class="input !mt-0 !py-1 !w-20 text-xs"> <?= e(t('ساعة')) ?></label>
+            <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
+          </div>
           <div id="cpt-check" class="flex flex-wrap gap-1.5 mt-2 text-[11px]"></div>
           <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>

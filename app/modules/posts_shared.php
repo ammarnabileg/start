@@ -45,6 +45,24 @@ function ps_vary_text(string $base, int $i): string
     return mb_substr($out, 0, 5000);
 }
 
+/** #34 حل مقترح لأشهر أسباب فشل النشر */
+function ps_fail_hint(string $err): string
+{
+    $e = mb_strtolower($err);
+    $map = [
+        ['/token|expired|reauth|reconnect|permission|unauthori[sz]ed|access/', t('الحساب محتاج يتربط تاني: افتح "الحسابات المربوطة" ودوس إعادة ربط.')],
+        ['/aspect|ratio|dimension|resolution|too small|width|height/', t('مقاس الصورة/الفيديو مش مناسب للمنصة. جرّب مربع 1080×1080 أو طولي 1080×1350.')],
+        ['/duplicate|same content|already posted|identical/', t('المنصة رفضت نص متكرر. غيّر الصياغة (جرّب "صياغات سريعة" في التقويم).')],
+        ['/rate|limit|too many|quota|429/', t('المنصة وقّفت الطلبات مؤقتًا. أعد المحاولة بعد ساعة أو وزّع المنشورات على مواعيد أبعد.')],
+        ['/too long|character|length|exceed/', t('النص أطول من المسموح. اختصره أو استخدم "نسخة لكل منصة".')],
+        ['/video|duration|codec|format|file type|unsupported/', t('صيغة أو مدة الفيديو مش مدعومة. استخدم MP4 وأقل من 60 ثانية للريلز.')],
+        ['/media|image|upload|download|fetch/', t('الصورة مااتحملتش. ارفعها تاني من مكتبة الوسائط أو بجودة أقل من 8 ميجا.')],
+        ['/link|url/', t('اللينك مرفوض أو مش شغال. اتأكد إنه بيفتح، أو حطه في أول كومنت.')],
+    ];
+    foreach ($map as $x) if (preg_match($x[0], $e)) return $x[1];
+    return $err !== '' ? t('جرّب "إعادة المحاولة". لو اتكرر، افتح المنشور وعدّل المحتوى أو أعد ربط الحساب.') : '';
+}
+
 /** #19: كل منشور Evergreen جه ميعاده بيتعمل منه نسخة جديدة بصياغة مختلفة (بالقواعد) في أحسن ساعة، وبعدها الميعاد الجاي */
 function ps_evergreen_tick(Zernio $z, int $max = 10): int
 {

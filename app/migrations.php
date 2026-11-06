@@ -528,6 +528,19 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '039_post_ab' => [
+        "CREATE TABLE IF NOT EXISTS post_ab (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            a_id VARCHAR(64) NOT NULL,
+            b_id VARCHAR(64) NOT NULL,
+            a_text VARCHAR(500) NOT NULL,
+            b_text VARCHAR(500) NOT NULL,
+            gap_hours SMALLINT UNSIGNED NOT NULL DEFAULT 24,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '038_post_evergreen' => [
         "CREATE TABLE IF NOT EXISTS post_evergreen (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

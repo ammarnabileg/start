@@ -465,7 +465,7 @@
         var stc = p.st === 'published' ? 'bg-lime-100 text-lime-800' : p.st === 'failed' ? 'bg-red-100 text-red-700' : 'bg-ink-100 text-ink-600';
         return '<div class="rounded-xl border border-ink-200 p-3"><div class="flex items-center gap-2"><span class="shrink-0">' + (X.icons[p.pf] || '') + '</span><span class="text-sm font-medium text-ink-900">' + esc((X.plab || {})[p.pf] || p.pf) + '</span><span class="text-xs text-ink-500 truncate">' + esc(p.acc) + '</span>' +
           '<span class="ms-auto text-[10px] rounded-md px-1.5 py-0.5 ' + stc + '">' + esc((Q.st || {})[p.st] || p.st || '—') + '</span></div>' +
-          (p.err ? '<div class="text-xs text-red-700 mt-2 break-words"><b>' + esc(Q.reason) + ':</b> ' + esc(p.err) + '</div>' : '') +
+          (p.err ? '<div class="text-xs text-red-700 mt-2 break-words"><b>' + esc(Q.reason) + ':</b> ' + esc(p.err) + (p.hint ? '<div class="mt-1 text-emerald-800">💡 ' + esc(p.hint) + '</div>' : '') + '</div>' : '') +
           (p.url ? '<a class="link text-xs mt-1.5 inline-block" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(Q.open) + ' ↗</a>' : '') + '</div>';
       }).join('');
       var canRes = X.canDel && (d.st === 'scheduled' || d.st === 'draft');

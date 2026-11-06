@@ -119,7 +119,10 @@ if ($z) {
         [$D['folPrev'], $E['folPrev']] = an_try(function () use ($z, $folQ, $per) { return an_follower_stats($z, ['fromDate' => $per['pfrom'], 'toDate' => $per['pto']] + $folQ); });
         [$D['top'], $E['top']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 10, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc']); });
         // #26: ليه المنشورات الناجحة نجحت: مقارنة بالحسابات بين صفات المنشورات (صورة، طول، هاشتاجات، سؤال، وقت…)
-        [$D['ins'], $E['ins']] = an_try(function () use ($z, $base) { return an_post_insights((array)(an_posts($z, $base + ['limit' => 100, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc'])['posts'] ?? [])); });
+        [$D['p100'], $E['p100']] = an_try(function () use ($z, $base) { return (array)(an_posts($z, $base + ['limit' => 100, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc'])['posts'] ?? []); });
+        $D['ins'] = an_post_insights((array)($D['p100'] ?? [])); $E['ins'] = null;
+        $D['tags'] = an_hashtag_stats((array)($D['p100'] ?? []));
+        $D['ab'] = an_ab_results((array)($D['p100'] ?? []));
         [$D['bottom'], $E['bottom']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'asc']); });
         [$D['freq'], $E['freq']] = an_try(function () use ($z, $pid, $acc) { return an_posting_frequency($z, ['profileId' => $pid, 'accountId' => $acc ?: null]); });
     } elseif ($tab === 'posts') {
@@ -560,6 +563,20 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <div class="text-sm font-semibold text-ink-900 mb-2">💡 <?= e(t('ليه منشوراتك الناجحة نجحت')) ?></div>
                   <ul class="space-y-1.5 text-sm text-ink-800"><?php foreach ($ins as $x): ?><li class="flex gap-2"><span><?= $x['up'] ? '📈' : '📉' ?></span><span><?= e($x['text']) ?></span></li><?php endforeach; ?></ul>
                   <p class="text-[11px] text-ink-400 mt-2"><?= e(t('محسوبة من آخر %s منشور في الفترة دي. كل ما المنشورات تزيد، النتيجة بتبقى أدق.', (int)($ins[0]['n'] ?? 0))) ?></p>
+                </div>
+              <?php endif; ?>
+              <?php $tg = (array)($D['tags'] ?? []); if ($tg): $tmx = max(array_column($tg, 'er')) ?: 1; ?>
+                <div class="mt-4 rounded-xl border border-ink-200 p-3"><div class="text-sm font-semibold text-ink-900 mb-2"># <?= e(t('أنهي هاشتاج بيجيب تفاعل')) ?></div>
+                  <div class="space-y-1"><?php foreach (array_slice($tg, 0, 10) as $x): ?><div class="grid grid-cols-[minmax(0,140px)_1fr_70px] items-center gap-2 text-xs"><span class="truncate text-brand-700" dir="auto"><?= e($x['tag']) ?></span>
+                    <div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $x['er'] >= $x['avg'] ? 'bg-lime-500' : 'bg-amber-400' ?>" style="width:<?= max(4, round($x['er'] / $tmx * 100)) ?>%"></div></div>
+                    <span class="text-end text-ink-600"><?= e(number_format($x['er'], 2)) ?>% · <?= (int)$x['n'] ?></span></div><?php endforeach; ?></div>
+                  <p class="text-[11px] text-ink-400 mt-2"><?= e(t('متوسط التفاعل للمنشورات اللي فيها الهاشتاج (وعدد مرات استخدامه). الأخضر أعلى من متوسطك.')) ?></p></div>
+              <?php endif; ?>
+              <?php $ab = (array)($D['ab'] ?? []); if ($ab): ?>
+                <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-sm font-semibold text-ink-900 mb-2">🧪 <?= e(t('تجارب A/B')) ?></div>
+                  <?php foreach ($ab as $x): ?><div class="grid grid-cols-2 gap-2 text-xs mb-2">
+                    <?php foreach (['a', 'b'] as $k): $v = $x[$k]; $win = $x['win'] === $k; ?><div class="rounded-lg border p-2 <?= $win ? 'border-lime-300 bg-lime-50' : 'border-ink-200 bg-white' ?>"><b><?= strtoupper($k) ?><?= $win ? ' 🏆' : '' ?></b> <span class="text-ink-500"><?= $v ? e(t('تفاعل %s%% · %s ظهور', number_format($v['er'], 2), an_num($v['imp']))) : e(t('لسه مااتنشرش')) ?></span>
+                      <p class="text-ink-700 mt-1 line-clamp-2" dir="auto"><?= e($x[$k . 't'] ?? '') ?></p></div><?php endforeach; ?></div><?php endforeach; ?>
                 </div>
               <?php endif; ?>
             </section>
