@@ -528,6 +528,35 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '035_crm_notifs' => [
+        "CREATE TABLE IF NOT EXISTS crm_notifs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            lead_id INT UNSIGNED NULL,
+            kind VARCHAR(20) NOT NULL,
+            body VARCHAR(300) NOT NULL,
+            seen TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_user (workspace_id, user_id, seen)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE crm_leads ADD COLUMN sla_notified DATETIME NULL, ADD COLUMN sla_moved DATETIME NULL",
+    ],
+    '034_post_links' => [
+        "CREATE TABLE IF NOT EXISTS crm_links (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            code VARCHAR(16) NOT NULL,
+            url VARCHAR(600) NOT NULL,
+            label VARCHAR(160) NULL,
+            clicks INT UNSIGNED NOT NULL DEFAULT 0,
+            last_click DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY code (code),
+            INDEX ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE crm_leads ADD COLUMN link_code VARCHAR(16) NULL",
+    ],
     '033_crm_visits' => [
         "CREATE TABLE IF NOT EXISTS crm_visits (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

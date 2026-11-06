@@ -117,7 +117,9 @@ if ($z) {
         [$D['prev'], $E['prev']] = an_try(function () use ($z, $prevBase) { return an_daily_full($z, $prevBase); });
         [$D['fol'], $E['fol']] = an_try(function () use ($z, $folQ) { return an_follower_stats($z, $folQ); });
         [$D['folPrev'], $E['folPrev']] = an_try(function () use ($z, $folQ, $per) { return an_follower_stats($z, ['fromDate' => $per['pfrom'], 'toDate' => $per['pto']] + $folQ); });
-        [$D['top'], $E['top']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc']); });
+        [$D['top'], $E['top']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 10, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc']); });
+        // #26: ليه المنشورات الناجحة نجحت: مقارنة بالحسابات بين صفات المنشورات (صورة، طول، هاشتاجات، سؤال، وقت…)
+        [$D['ins'], $E['ins']] = an_try(function () use ($z, $base) { return an_post_insights((array)(an_posts($z, $base + ['limit' => 100, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc'])['posts'] ?? [])); });
         [$D['bottom'], $E['bottom']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'asc']); });
         [$D['freq'], $E['freq']] = an_try(function () use ($z, $pid, $acc) { return an_posting_frequency($z, ['profileId' => $pid, 'accountId' => $acc ?: null]); });
     } elseif ($tab === 'posts') {
@@ -549,10 +551,17 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
             };
             ?>
             <section class="card p-5">
-              <h2 class="font-bold text-ink-900 mb-3"><?= e(t('أفضل 5 منشورات')) ?></h2>
+              <h2 class="font-bold text-ink-900 mb-3"><?= e(t('أفضل 10 منشورات')) ?></h2>
               <?php if ($E['top']): ?><?= an_notice($E['top']) ?>
               <?php elseif (!$topList): ?><?= an_empty(t('مفيش منشورات في الفترة دي.')) ?>
               <?php else: ?><ol class="space-y-3"><?php foreach ($topList as $i => $p) $postItem($p, $i, true); ?></ol><?php endif; ?>
+              <?php $ins = (array)($D['ins'] ?? []); if ($ins): ?>
+                <div class="mt-4 rounded-xl border border-lime-200 bg-lime-50/50 p-3">
+                  <div class="text-sm font-semibold text-ink-900 mb-2">💡 <?= e(t('ليه منشوراتك الناجحة نجحت')) ?></div>
+                  <ul class="space-y-1.5 text-sm text-ink-800"><?php foreach ($ins as $x): ?><li class="flex gap-2"><span><?= $x['up'] ? '📈' : '📉' ?></span><span><?= e($x['text']) ?></span></li><?php endforeach; ?></ul>
+                  <p class="text-[11px] text-ink-400 mt-2"><?= e(t('محسوبة من آخر %s منشور في الفترة دي. كل ما المنشورات تزيد، النتيجة بتبقى أدق.', (int)($ins[0]['n'] ?? 0))) ?></p>
+                </div>
+              <?php endif; ?>
             </section>
             <section class="card p-5">
               <h2 class="font-bold text-ink-900 mb-3"><?= e(t('أضعف 5 منشورات')) ?></h2>

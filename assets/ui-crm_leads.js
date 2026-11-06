@@ -466,6 +466,8 @@
       ff.querySelector('[data-code=link]').value = u; ff.querySelector('[data-code=hook]').value = u + '&format=json'; ff.querySelector('[data-code=open]').href = u;
     }
     codes(window.LDF.url);
+    var sf = document.getElementById('ld-slaform');
+    sf.addEventListener('submit', function (e) { e.preventDefault(); var fd = new FormData(sf); fd.append('action', 'sla_save'); post(fd).then(function (r) { var m = document.getElementById('ld-slamsg'); m.className = 'text-xs self-center ' + (r.ok ? 'text-lime-700' : 'text-red-600'); m.textContent = r.ok ? T.saved : (r.error || T.err); }); });
     var tf = document.getElementById('ld-tform');
     tf.querySelector('[data-scode]').addEventListener('focus', function () { this.select(); });
     tf.addEventListener('submit', function (e) { e.preventDefault(); var fd = new FormData(tf); fd.append('action', 'track_save'); post(fd).then(function (r) { var m = document.getElementById('ld-tmsg'); m.className = 'text-xs self-center ' + (r.ok ? 'text-lime-700' : 'text-red-600'); m.textContent = r.ok ? T.saved : (r.error || T.err); }); });
@@ -477,6 +479,7 @@
     fdl.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(fdl); }); });
     ff.querySelectorAll('[data-code]').forEach(function (x) { if (x.tagName !== 'A') x.addEventListener('focus', function () { x.select(); }); });
     document.getElementById('ld-form-btn').addEventListener('click', function () { openModal(fdl); });
+    var slb = document.getElementById('ld-sla-btn'); if (slb) slb.addEventListener('click', function () { openModal(fdl); setTimeout(function () { var f = document.getElementById('ld-slaform'); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); f.classList.add('ring-2', 'ring-brand-300'); setTimeout(function () { f.classList.remove('ring-2', 'ring-brand-300'); }, 1200); }, 50); });
     ff.addEventListener('submit', function (e) {
       e.preventDefault(); var fd = new FormData(ff); fd.append('action', 'form_save');
       post(fd).then(function (r) { var m = document.getElementById('ld-fmsg'); if (!r.ok) { m.className = 'text-xs text-red-600'; m.textContent = r.error || T.err; return; } codes(r.url); ff.elements.regen.checked = false; m.className = 'text-xs text-lime-700'; m.textContent = T.saved; });
@@ -806,6 +809,15 @@
 
   try { var vm = localStorage.getItem('ld-vmode'); if (vm) vMode = views[vm] ? vm : 'all'; } catch (e) {}
   document.querySelectorAll('.ld-vtab').forEach(function (b) { b.classList.toggle('on', b.dataset.view === vMode); });
+
+  /* ---------- تنبيهات العملاء ---------- */
+  var nfs = document.getElementById('notifs');
+  if (nfs) {
+    var ns = document.getElementById('nf-seen');
+    if (ns) ns.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); post({ action: 'notifs_seen' }).then(function () { nfs.querySelectorAll('a').forEach(function (a) { a.classList.remove('font-medium', 'bg-rose-50/40', 'text-ink-900'); a.classList.add('text-ink-500'); }); ns.classList.add('hidden'); var b = nfs.querySelector('.bg-rose-600'); if (b) b.remove(); }); });
+    nfs.addEventListener('click', function (e) { var a = e.target.closest('[data-nf-lead]'); if (!a) return; e.preventDefault(); var id = +a.dataset.nfLead; if (byId(id)) open(id); });
+    if (location.hash === '#notifs') nfs.open = true;
+  }
 
   // قايمة الأدوات بتتقفل لما تختار حاجة أو تدوس بره
   var tools = document.getElementById('ld-tools');

@@ -54,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $l = crm_lead_upsert(['source' => 'form', 'name' => $name !== '' ? $name : ($email ?: $phone), 'phone' => $phone, 'email' => $email, 'company' => $company, 'owner_id' => null]);
         if (!$l) return null;
         if ($page !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$page, (int)$l['id']]);
+        $camp = ''; foreach ($utm as $u) if (strpos($u, 'utm_campaign=') === 0) $camp = preg_replace('/[^A-Za-z0-9]/', '', substr($u, 13));
+        if ($camp !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([substr($camp, 0, 16), (int)$l['id']]);
         db()->prepare('UPDATE crm_leads SET next_at = COALESCE(next_at, NOW()), next_note = COALESCE(next_note, ?) WHERE id = ?')->execute([t('ملا فورم الموقع، كلّمه'), (int)$l['id']]);
         crm_act_add((int)$l['id'], 'note', trim('🌐 ' . t('فورم الموقع') . ($msg !== '' ? ': “' . $msg . '”' : '') . ($page !== '' ? "\n" . $page : '') . ($utm ? "\n" . implode(' · ', $utm) : '')));
         return $l;
@@ -86,7 +88,7 @@ button{border:0;border-radius:10px;padding:11px;font:inherit;font-weight:600;col
   <button><?= e(t('ابعت')) ?></button><div class="err" id="er"></div>
 </form>
 <script>
-(function(){var f=document.getElementById('f'),pg=document.getElementById('pg');try{pg.value=document.referrer||location.href;}catch(e){}
+(function(){var f=document.getElementById('f'),pg=document.getElementById('pg');try{pg.value=/utm_campaign=/.test(location.search)?location.href:(document.referrer||location.href);}catch(e){}
 f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector('button'),er=document.getElementById('er');er.textContent='';
 if(!f.phone.value.trim()&&!f.email.value.trim()){er.textContent=<?= json_encode(t('اكتب رقمك أو إيميلك.'), JSON_UNESCAPED_UNICODE) ?>;return;}
 var fd=new FormData(f);fd.append('_ajax','1');b.disabled=true;

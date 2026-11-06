@@ -5,11 +5,11 @@
  */
 
 /** أحسن المواعيد مترتبة حسب التفاعل. dow: 0 = الأحد (زي الطابور) */
-function best_slots_local(Zernio $z, int $limit = 6): array
+function best_slots_local(Zernio $z, int $limit = 6, ?string $accountId = null): array
 {
     if (!function_exists('an_best_time')) return [];
     try {
-        $slots = an_best_time($z, ['profileId' => zernio_profile()]);
+        $slots = an_best_time($z, ['profileId' => zernio_profile()] + ($accountId ? ['accountId' => $accountId] : []));
     } catch (Throwable $t) {
         return [];
     }
@@ -28,12 +28,12 @@ function best_slots_local(Zernio $z, int $limit = 6): array
 }
 
 /** أقرب ميعاد جاي من أحسن 5 مواعيد (بعد نص ساعة على الأقل) */
-function next_best_time(Zernio $z): ?DateTime
+function next_best_time(Zernio $z, ?string $accountId = null): ?DateTime
 {
     $tz = new DateTimeZone(site_timezone());
     $now = new DateTime('+30 minutes', $tz);
     $best = null;
-    foreach (best_slots_local($z, 5) as $s) {
+    foreach (best_slots_local($z, 5, $accountId) as $s) {
         $c = clone $now;
         $c->setTime($s['hour'], 0);
         $diff = ($s['dow'] - (int)$c->format('w') + 7) % 7;

@@ -14,6 +14,8 @@ $cfg = ['v' => $base . '?p=crm_v&w=' . $wid, 'form' => setting('crm_form_on_' . 
 ?>
 (function(){var C=<?= json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 var K=null;try{var m=location.search.match(/[?&]ap=([0-9]+\.[0-9a-f]{12})/);if(m){K=m[1];localStorage.setItem('ap_k',K);}else K=localStorage.getItem('ap_k');}catch(e){}
+var UC=null;try{var um=location.search.match(/[?&]utm_campaign=([A-Za-z0-9]{3,16})/);if(um){UC=um[1];sessionStorage.setItem('ap_uc',UC);}else UC=sessionStorage.getItem('ap_uc');}catch(e){}
+if(UC&&C.form)C.form+='&utm_campaign='+UC;
 if(K){var i=new Image();i.src=C.v+'&k='+encodeURIComponent(K)+'&u='+encodeURIComponent(location.href)+'&r='+Date.now();}
 if(!C.btn||(!C.wa&&!C.form))return;
 var d=document,s=d.createElement('div');s.style.cssText='position:fixed;bottom:20px;right:20px;z-index:2147483000;font-family:system-ui,Tahoma,sans-serif';

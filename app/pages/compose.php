@@ -3,6 +3,56 @@ $err = null;
 $z = zernio_or_null($err);
 $fxd = getenv('UI_FIXTURES');
 if ($fxd && is_file($fxd . '/compose_fake_z.php')) $z = require $fxd . '/compose_fake_z.php'; // اختبارات بس: مفيش نشر حقيقي
+// #16: أحسن وقت لكل حساب مختار لوحده (من تفاعله هو، مش متوسط كل الحسابات)
+if (($_GET['ajax'] ?? '') === 'best' && $z && function_exists('next_best_time')) {
+    header('Content-Type: application/json; charset=utf-8');
+    $out = [];
+    foreach (array_slice(array_filter(array_map('strval', (array)($_GET['acc'] ?? []))), 0, 8) as $acc) {
+        $nb = next_best_time($z, $acc);
+        if ($nb) $out[] = ['acc' => $acc, 'at' => $nb->format('Y-m-d\TH:i'), 'label' => weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A')];
+    }
+    exit(json_encode(['ok' => true, 'items' => $out], JSON_UNESCAPED_UNICODE));
+}
+// #11: لينك متتبع للمنشور
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'track_link') {
+    header('Content-Type: application/json; charset=utf-8');
+    $u = trim((string)($_POST['url'] ?? ''));
+    if (!preg_match('~^https?://~i', $u)) exit(json_encode(['ok' => false, 'error' => t('اكتب رابط يبدأ بـ https://')], JSON_UNESCAPED_UNICODE));
+    $lk = crm_link_make($u, mb_substr(trim((string)($_POST['label'] ?? '')), 0, 160));
+    exit(json_encode(['ok' => true, 'short' => crm_link_short($lk['code'])], JSON_UNESCAPED_UNICODE));
+}
+// #36 + #37: رد أوتوماتيك على كلمة الدعوة (رد عام + رسالة خاصة فيها اللينك) لكل الحسابات المختارة، مرة واحدة لكل حساب
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cta_auto') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    if (!$z) $J(['ok' => false, 'error' => $err ?: t('اربط Zernio الأول.')]);
+    if (!module_enabled('automations')) $J(['ok' => false, 'error' => t('القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.')]);
+    $word = mb_substr(trim((string)($_POST['word'] ?? '')), 0, 40);
+    $dm = mb_substr(trim((string)($_POST['dm'] ?? '')), 0, 900);
+    $reply = mb_substr(trim((string)($_POST['reply'] ?? '')), 0, 300);
+    $ids = array_slice(array_map('strval', (array)($_POST['accounts'] ?? [])), 0, 30);
+    if ($word === '' || !$ids) $J(['ok' => false, 'error' => t('اختار الحسابات الأول.')]);
+    try {
+        $accs = []; foreach (ip_accounts($z, ip_automation_platforms()) as $a) $accs[$a['_id']] = $a;
+        $existing = [];
+        foreach (ip_automations($z) as $au) foreach ((array)($au['keywords'] ?? []) as $k) $existing[($au['accountId'] ?? '') . '|' . mb_strtolower((string)$k)] = 1;
+        $made = 0; $skip = []; $had = 0;
+        foreach ($ids as $id) {
+            if (!isset($accs[$id])) { $skip[] = $id; continue; }
+            if (isset($existing[$id . '|' . mb_strtolower($word)])) { $had++; continue; }
+            $a = $accs[$id]; $canDm = ip_automation_dm_platform((string)$a['platform']);
+            if (!$canDm && $reply === '') { $skip[] = $id; continue; }
+            $pid = is_string($a['profileId'] ?? null) ? $a['profileId'] : (string)($a['profileId']['_id'] ?? '');
+            $body = ['profileId' => $pid !== '' ? $pid : current_profile_id($z), 'accountId' => $id, 'trigger' => 'comment', 'name' => mb_substr(t('دعوة: %s', $word), 0, 100),
+                'keywords' => [$word], 'matchMode' => 'word', 'isActive' => true];
+            if ($canDm) $body['dmMessage'] = $dm !== '' ? $dm : $reply;
+            if ($reply !== '') $body['commentReply'] = $reply;
+            ip_create_automation($z, $body); $made++;
+        }
+        log_activity('automation.cta', $word . ' ' . $made);
+        $J(['ok' => true, 'made' => $made, 'had' => $had, 'skip' => count($skip)]);
+    } catch (ZernioException $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
 $accounts = [];
 $boards = [];
 $apiError = null;
@@ -280,10 +330,36 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             if ($waN !== '') $ctas[] = ['k' => 'wa', 'l' => '🟢 ' . t('لينك واتساب'), 'x' => t('🟢 كلّمنا واتساب: %s', 'https://wa.me/' . $waN)];
           ?>
           <div class="flex flex-wrap items-center gap-1.5 mt-2" id="cp-cta"><span class="text-[11px] text-ink-500">🧲 <?= e(t('دعوة للتواصل (عشان المنشور يجيب عملاء):')) ?></span>
-            <?php foreach ($ctas as $ct): ?><button type="button" class="chip text-xs" data-cta="<?= e($ct['x']) ?>" title="<?= e($ct['x']) ?>"><?= e($ct['l']) ?></button><?php endforeach; ?>
+            <?php foreach ($ctas as $ct): ?><button type="button" class="chip text-xs" data-k="<?= e($ct['k']) ?>" data-cta="<?= e($ct['x']) ?>" title="<?= e($ct['x']) ?>"><?= e($ct['l']) ?></button><?php endforeach; ?>
+            <button type="button" class="chip text-xs" id="cp-track">🔗 <?= e(t('لينك متتبع')) ?></button>
             <?php if (count($ctas) < 2): ?><a class="link text-[11px]" href="<?= e(url('crm_leads')) ?>"><?= e(t('فعّل الحجز والفورم من الـ Leads ← أدوات')) ?></a><?php endif; ?>
           </div>
-          <script>(function () { var b = document.getElementById('cp-cta'), ta = document.getElementById('content'); if (!b || !ta) return; b.addEventListener('click', function (e) { var x = e.target.closest('[data-cta]'); if (!x) return; var v = ta.value.replace(/\s+$/, ''); if (v.indexOf(x.dataset.cta) > -1) return; ta.value = (v ? v + '\n\n' : '') + x.dataset.cta; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); }); })();</script>
+          <?php if ($ctaW && module_enabled('automations')):
+            $link = setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : crm_form_url(); ?>
+          <div id="cp-auto" class="hidden mt-2 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2 text-sm">
+            <div class="font-medium text-ink-900">🤖 <?= e(t('رد أوتوماتيك على «%s»', $ctaW[0])) ?></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('أي حد يعلّق بالكلمة دي على أي منشور للحسابات المختارة: بيترد عليه رد عام، وبتوصله رسالة خاصة فيها اللينك (فيسبوك وإنستجرام)، وبيظهر في العملاء المقترحين.')) ?></p>
+            <input id="cp-auto-reply" class="input !py-1.5 text-sm" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
+            <textarea id="cp-auto-dm" rows="2" class="input text-sm" maxlength="900" dir="auto"><?= e(t('أهلاً! دي التفاصيل اللي طلبتها 👇') . "\n" . $link) ?></textarea>
+            <div class="flex items-center gap-2"><button type="button" id="cp-auto-go" class="btn-primary !py-1.5 !text-xs"><?= e(t('فعّل على الحسابات المختارة')) ?></button><span id="cp-auto-msg" class="text-xs"></span></div>
+          </div>
+          <?php endif; ?>
+          <script>(function () { var b = document.getElementById('cp-cta'), ta = document.getElementById('content'); if (!b || !ta) return; b.addEventListener('click', function (e) { var x = e.target.closest('[data-cta]'); if (!x) return; var v = ta.value.replace(/\s+$/, ''); if (x.dataset.k === 'word') { var au = document.getElementById('cp-auto'); if (au) au.classList.remove('hidden'); } if (v.indexOf(x.dataset.cta) > -1) return; ta.value = (v ? v + '\n\n' : '') + x.dataset.cta; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); });
+            var tr = document.getElementById('cp-track'); if (tr) tr.addEventListener('click', function () {
+              var u = prompt(<?= json_encode(t('الرابط اللي عاوز تتابعه (موقعك، صفحة منتج، فورم…):'), JSON_UNESCAPED_UNICODE) ?>, <?= json_encode((string)setting('crm_site_url_' . (int)ws('id'), '') ?: 'https://', JSON_UNESCAPED_UNICODE) ?>); if (!u) return;
+              var fd = new FormData(); fd.append('action', 'track_link'); fd.append('url', u.trim()); fd.append('label', ta.value.split('\n')[0].slice(0, 120)); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
+              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) return alert(r.error); var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + '🔗 ' + r.short; ta.dispatchEvent(new Event('input', { bubbles: true })); });
+            });
+            var go = document.getElementById('cp-auto-go'); if (go) go.addEventListener('click', function () {
+              var accs = Array.prototype.map.call(document.querySelectorAll('input[name="accounts[]"]:checked'), function (c) { return c.value; }), m = document.getElementById('cp-auto-msg');
+              if (!accs.length) { m.className = 'text-xs text-red-600'; m.textContent = <?= json_encode(t('اختار الحسابات الأول.'), JSON_UNESCAPED_UNICODE) ?>; return; }
+              var fd = new FormData(); fd.append('action', 'cta_auto'); fd.append('word', <?= json_encode($ctaW[0] ?? '', JSON_UNESCAPED_UNICODE) ?>); fd.append('reply', document.getElementById('cp-auto-reply').value); fd.append('dm', document.getElementById('cp-auto-dm').value); accs.forEach(function (a) { fd.append('accounts[]', a); }); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
+              go.disabled = true;
+              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) {
+                go.disabled = false; if (!r.ok) { m.className = 'text-xs text-red-600'; m.textContent = r.error; return; }
+                m.className = 'text-xs text-lime-700'; m.textContent = <?= json_encode(t('اتفعّل على %s حساب ✓'), JSON_UNESCAPED_UNICODE) ?>.replace('%s', r.made) + (r.had ? ' · ' + <?= json_encode(t('%s كان متفعّل قبل كده'), JSON_UNESCAPED_UNICODE) ?>.replace('%s', r.had) : '');
+              }).catch(function () { go.disabled = false; });
+            }); })();</script>
           <?php endif; ?>
           <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
@@ -538,6 +614,26 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 <?= ui_icon('zap', 'w-4 h-4 text-amber-600 inline') ?> <?= e(t('انشر في أحسن وقت: %s', weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A'))) ?>
               </button>
               <p class="text-[11px] text-ink-400 mt-1"><?= e(t('محسوب من تفاعل منشوراتك اللي فاتت.')) ?></p>
+            <?php endif; ?>
+            <?php if (module_enabled('analytics') && function_exists('next_best_time')): ?>
+            <div id="cp-best" class="hidden mt-2 rounded-xl border border-lime-200 bg-lime-50/50 p-2 space-y-1 text-xs"><div class="text-[11px] text-ink-500">⚡ <?= e(t('أحسن وقت لكل حساب لوحده:')) ?></div><div id="cp-best-l" class="flex flex-wrap gap-1.5"></div></div>
+            <script>(function () {
+              var box = document.getElementById('cp-best'), lst = document.getElementById('cp-best-l'), tmr = null, names = {};
+              document.querySelectorAll('input[name="accounts[]"]').forEach(function (c) { var l = c.closest('label'); var ls = l ? l.innerText.split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return x.length > 2; }) : []; names[c.value] = (c.dataset.plat ? c.dataset.plat.charAt(0).toUpperCase() + c.dataset.plat.slice(1) + ' · ' : '') + (ls[0] || '').slice(0, 24); });
+              function load() {
+                var acc = Array.prototype.map.call(document.querySelectorAll('input[name="accounts[]"]:checked'), function (c) { return c.value; });
+                if (acc.length < 1) { box.classList.add('hidden'); return; }
+                var q = acc.map(function (a) { return 'acc[]=' + encodeURIComponent(a); }).join('&');
+                fetch(location.pathname + '?p=compose&ajax=best&' + q).then(function (r) { return r.json(); }).then(function (r) {
+                  if (!r.ok || !r.items.length) { box.classList.add('hidden'); return; }
+                  lst.innerHTML = r.items.map(function (it) { return '<button type="button" class="chip text-xs" data-at="' + it.at + '" title="' + it.at.replace('T', ' ') + '">' + (names[it.acc] || '') + ': <b>' + it.label + '</b></button>'; }).join('');
+                  box.classList.remove('hidden');
+                }).catch(function () {});
+              }
+              lst.addEventListener('click', function (e) { var b = e.target.closest('[data-at]'); if (!b) return; var w = document.getElementById('whenInput'); if (w) { w.value = b.dataset.at; w.dispatchEvent(new Event('change', { bubbles: true })); } });
+              document.addEventListener('change', function (e) { if (e.target.name === 'accounts[]') { clearTimeout(tmr); tmr = setTimeout(load, 400); } });
+              load();
+            })();</script>
             <?php endif; ?>
           </div>
           <p class="text-xs text-ink-500"><?= e(t('الطابور: مواعيد ثابتة في الأسبوع، والمنشور بياخد أقرب ميعاد فاضي.')) ?>

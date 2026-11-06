@@ -138,6 +138,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_activity('crm.bulk_' . $op, $ok . '/' . count($ids));
         $json(['ok' => true, 'done' => $ok, 'skip' => $skip, 'error' => $err]);
     }
+    if ($action === 'notifs_seen') {
+        db()->prepare('UPDATE crm_notifs SET seen = 1 WHERE workspace_id = ? AND user_id = ?')->execute([$wid, $uid]);
+        $json(['ok' => true]);
+    }
+    if ($action === 'sla_save' && $canManage) {
+        save_setting('crm_sla_' . $wid, json_encode(['mins' => max(0, min(1440, (int)($_POST['mins'] ?? 60))), 'move_hours' => max(0, min(72, (int)($_POST['move_hours'] ?? 0)))]));
+        $json(['ok' => true]);
+    }
     if ($action === 'import') {
         // صفوف جاية من المتصفح بعد ربط الأعمدة: [{name, phone, email, company, title, country, tags, note}]
         $rows = json_decode((string)($_POST['rows'] ?? ''), true);
@@ -344,6 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 try { crm_fix_stored_phones(); } catch (Throwable $t) { /* مش مهم */ }
 try { crm_plan_tick(30); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
+try { crm_sla_tick(); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 // الموظف العادي بيشوف بتوعه واللي من غير مسؤول، والمدير بيشوف الكل
 $where = 'workspace_id = ?';
 $args = [$wid];
@@ -412,6 +421,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>">⚙️ <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
         <div class="absolute end-0 mt-1 z-40 w-56 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col">
       <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🔁 <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
+      <?php if ($canManage): ?><button type="button" id="ld-sla-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⏱ <?= e(t('سرعة الرد')) ?></button><?php endif; ?>
       <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🌐 <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
       <button type="button" id="ld-imp-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⇪ <?= e(t('استورد عملاء')) ?></button>
       <a class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
@@ -425,6 +435,16 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
 
     <?php if ($canManage && !crm_has_key()): ?>
     <div class="rounded-xl border border-dashed border-ink-200 px-3 py-2 mb-3 text-xs text-ink-500 flex items-center gap-2">🔎 <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?> <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
+    <?php endif; ?>
+
+    <?php $nfs = crm_notifs($uid, 20); $nfU = count(array_filter($nfs, function ($x) { return !(int)$x['seen']; })); if ($nfs): ?>
+    <details id="notifs" class="card mb-4 group" <?= $nfU ? 'open' : '' ?>>
+      <summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-2.5 text-sm"><span>🔔 <b><?= e(t('تنبيهات العملاء')) ?></b></span><?php if ($nfU): ?><span class="rounded-full bg-rose-600 text-white text-[10px] px-1.5"><?= $nfU ?></span><?php endif; ?>
+        <button type="button" id="nf-seen" class="link text-xs ms-auto <?= $nfU ? '' : 'hidden' ?>"><?= e(t('علّمهم مقروءين')) ?></button></summary>
+      <div class="divide-y divide-ink-100 border-t border-ink-100 max-h-64 overflow-y-auto"><?php foreach ($nfs as $nf): ?>
+        <a href="#lead-<?= (int)$nf['lead_id'] ?>" data-nf-lead="<?= (int)$nf['lead_id'] ?>" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-ink-50 <?= (int)$nf['seen'] ? 'text-ink-500' : 'text-ink-900 font-medium bg-rose-50/40' ?>"><span class="flex-1"><?= e($nf['body']) ?></span><span class="text-[11px] text-ink-400 shrink-0"><?= e(fmt_date($nf['created_at'], 'd/m h:i A')) ?></span></a>
+      <?php endforeach; ?></div>
+    </details>
     <?php endif; ?>
 
     <!-- المراحل = القمع: عدد كل مرحلة ونسبة اللي عدّوا من اللي قبلها، وبتفلتر بضغطة -->
@@ -658,6 +678,16 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         <div class="flex flex-wrap items-center gap-2"><button class="btn-primary"><?= e(t('احفظ')) ?></button><a class="btn-ghost" target="_blank" rel="noopener" data-code="open"><?= e(t('جرّب الفورم')) ?> ↗</a>
           <label class="inline-flex items-center gap-1.5 text-xs text-ink-500 ms-auto"><input type="checkbox" name="regen" class="rounded"> <?= e(t('غيّر الرابط (القديم هيبطل)')) ?></label><button type="button" class="btn-ghost" data-close><?= e(t('اقفل')) ?></button></div>
         <span id="ld-fmsg" class="text-xs"></span>
+      </form>
+      <?php $sl = crm_sla_cfg(); ?>
+      <form id="ld-slaform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3 mt-3">
+        <h3 class="font-semibold text-ink-900">⏱ <?= e(t('سرعة الرد على العملاء الجداد')) ?></h3>
+        <p class="text-xs text-ink-500"><?= e(t('أسرع رد = عملاء أكتر. لو عميل جديد عدّى الوقت ده ومحدش كلّمه، المسؤول بيوصله تنبيه في الجرس (ولو مالوش مسؤول، المديرين). ولو عدّى وقت النقل، بيتحوّل لأقل موظف عنده شغل.')) ?></p>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block"><span class="label"><?= e(t('نبّه بعد (دقيقة)')) ?></span><input type="number" min="0" max="1440" name="mins" class="input" value="<?= (int)$sl['mins'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = من غير تنبيه')) ?></span></label>
+          <label class="block"><span class="label"><?= e(t('انقله لحد تاني بعد (ساعة)')) ?></span><input type="number" min="0" max="72" name="move_hours" class="input" value="<?= (int)$sl['move_hours'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = مايتنقلش')) ?></span></label>
+        </div>
+        <div class="flex gap-2"><button class="btn-primary"><?= e(t('احفظ')) ?></button><span id="ld-slamsg" class="text-xs self-center"></span></div>
       </form>
       <?php $tc = crm_track_cfg((int)ws('id')); ?>
       <form id="ld-tform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3 mt-3">

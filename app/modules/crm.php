@@ -636,6 +636,82 @@ function crm_best_hour_global(): ?int
     return $best;
 }
 
+/* ---------- تنبيهات العملاء (الجرس) + #69 سرعة الرد + #70 إعادة التوزيع ---------- */
+function crm_notify(?int $userId, ?int $leadId, string $kind, string $body): void
+{
+    // من غير مسؤول → كل المديرين
+    $users = $userId ? [$userId] : array_map('intval', array_column(array_filter(crm_members(), function ($m) { return in_array($m['role'] ?? '', ['owner', 'admin', 'manager'], true); }), 'id'));
+    foreach (array_unique($users) as $u) db()->prepare('INSERT INTO crm_notifs (workspace_id, user_id, lead_id, kind, body) VALUES (?, ?, ?, ?, ?)')->execute([(int)ws('id'), $u ?: null, $leadId, $kind, mb_substr($body, 0, 300)]);
+}
+function crm_notifs_unseen(int $wid, int $uid): int
+{
+    try { $st = db()->prepare('SELECT COUNT(*) FROM crm_notifs WHERE workspace_id = ? AND user_id = ? AND seen = 0'); $st->execute([$wid, $uid]); return (int)$st->fetchColumn(); } catch (Throwable $e) { return 0; }
+}
+function crm_notifs(int $uid, int $limit = 30): array
+{
+    $st = db()->prepare('SELECT n.id, n.lead_id, n.kind, n.body, n.seen, n.created_at, l.name FROM crm_notifs n LEFT JOIN crm_leads l ON l.id = n.lead_id WHERE n.workspace_id = ? AND n.user_id = ? ORDER BY n.id DESC LIMIT ' . (int)$limit);
+    $st->execute([(int)ws('id'), $uid]);
+    return $st->fetchAll();
+}
+function crm_sla_cfg(): array
+{
+    $c = json_decode((string)setting('crm_sla_' . (int)ws('id'), ''), true) ?: [];
+    return $c + ['mins' => 60, 'move_hours' => 0];
+}
+/** بيشتغل مع الـ cron ومع فتح صفحة العملاء: عميل جديد عدّى الوقت ومحدش كلّمه → تنبيه، ولو عدّى وقت أطول → يتنقل لحد تاني */
+function crm_sla_tick(): int
+{
+    $wid = (int)ws('id'); $c = crm_sla_cfg(); $n = 0;
+    // بنبدأ من وقت تشغيل الميزة، عشان أول مرة ماتطلعش تنبيهات لكل العملاء القدام
+    $since = (string)setting('crm_sla_since_' . $wid, '');
+    if ($since === '') { $since = date('Y-m-d H:i:s'); save_setting('crm_sla_since_' . $wid, $since); }
+    $noContact = "NOT EXISTS (SELECT 1 FROM crm_acts a WHERE a.lead_id = l.id AND a.kind IN ('call','wa','email','meet'))";
+    if ((int)$c['mins'] > 0) {
+        $st = db()->prepare("SELECT l.id, l.name, l.owner_id, l.source FROM crm_leads l WHERE l.workspace_id = ? AND l.stage = 'new' AND l.sla_notified IS NULL AND l.created_at < ? AND l.created_at > ? AND $noContact LIMIT 50");
+        $st->execute([$wid, date('Y-m-d H:i:s', time() - 60 * (int)$c['mins']), max($since, date('Y-m-d H:i:s', time() - 7 * 86400))]);
+        foreach ($st->fetchAll() as $l) {
+            crm_notify($l['owner_id'] ? (int)$l['owner_id'] : null, (int)$l['id'], 'sla', t('⏱ %s مستني رد من أكتر من %s دقيقة', $l['name'], (int)$c['mins']));
+            db()->prepare('UPDATE crm_leads SET sla_notified = NOW() WHERE id = ?')->execute([(int)$l['id']]); $n++;
+        }
+    }
+    if ((int)$c['move_hours'] > 0) {
+        $st = db()->prepare("SELECT l.id, l.name, l.owner_id FROM crm_leads l WHERE l.workspace_id = ? AND l.stage = 'new' AND l.owner_id IS NOT NULL AND l.sla_moved IS NULL AND l.created_at < ? AND l.created_at > ? AND $noContact LIMIT 30");
+        $st->execute([$wid, date('Y-m-d H:i:s', time() - 3600 * (int)$c['move_hours']), max($since, date('Y-m-d H:i:s', time() - 7 * 86400))]);
+        $ids = array_map('intval', array_column(crm_members(), 'id'));
+        foreach ($st->fetchAll() as $l) {
+            $old = (int)$l['owner_id']; $cands = array_values(array_diff($ids, [$old])); if (!$cands) continue;
+            // اللي عنده أقل عملاء جداد مفتوحين ياخده
+            $best = null; $bestN = PHP_INT_MAX;
+            foreach ($cands as $u) { $q = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ? AND owner_id = ? AND stage = 'new'"); $q->execute([$wid, $u]); $k = (int)$q->fetchColumn(); if ($k < $bestN) { $bestN = $k; $best = $u; } }
+            db()->prepare('UPDATE crm_leads SET owner_id = ?, sla_moved = NOW() WHERE id = ?')->execute([$best, (int)$l['id']]);
+            crm_act_add((int)$l['id'], 'note', '↪️ ' . t('اتنقل لموظف تاني أوتوماتيك عشان محدش رد في %s ساعة', (int)$c['move_hours']));
+            crm_notify($best, (int)$l['id'], 'moved', t('↪️ %s اتحوّلك (محدش رد عليه في %s ساعة). كلّمه دلوقتي', $l['name'], (int)$c['move_hours']));
+            crm_notify($old, (int)$l['id'], 'moved', t('↪️ %s اتنقل من عندك لموظف تاني لأنه ماتردش عليه', $l['name']));
+            $n++;
+        }
+    }
+    return $n;
+}
+
+/* ---------- #11 #28: روابط متتبعة للمنشورات (كام ضغط، وكام بقى عميل) ---------- */
+function crm_link_make(string $url, string $label = ''): array
+{
+    $wid = (int)ws('id');
+    $st = db()->prepare('SELECT * FROM crm_links WHERE workspace_id = ? AND url = ? AND COALESCE(label, \'\') = ? LIMIT 1'); $st->execute([$wid, $url, $label]);
+    if ($r = $st->fetch()) return $r;
+    do { $code = substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(9))), 0, 7); $st = db()->prepare('SELECT 1 FROM crm_links WHERE code = ?'); $st->execute([$code]); } while ($st->fetchColumn());
+    db()->prepare('INSERT INTO crm_links (workspace_id, code, url, label) VALUES (?, ?, ?, ?)')->execute([$wid, $code, mb_substr($url, 0, 600), mb_substr($label, 0, 160) ?: null]);
+    return ['code' => $code, 'url' => $url, 'label' => $label, 'clicks' => 0];
+}
+function crm_link_short(string $code): string { return base_url() . '/index.php?p=go&c=' . rawurlencode($code); }
+function crm_links_report(): array
+{
+    $st = db()->prepare("SELECT l.code, l.url, l.label, l.clicks, l.last_click, l.created_at, (SELECT COUNT(*) FROM crm_leads x WHERE x.workspace_id = l.workspace_id AND x.link_code = l.code) leads,
+        (SELECT COUNT(*) FROM crm_leads x WHERE x.workspace_id = l.workspace_id AND x.link_code = l.code AND x.stage = 'won') won FROM crm_links l WHERE l.workspace_id = ? ORDER BY l.id DESC LIMIT 100");
+    $st->execute([(int)ws('id')]);
+    return $st->fetchAll();
+}
+
 /* ---------- تتبع زيارات العملاء لموقعك (مجاني: كود صغير على موقعك + روابط متتبعة) ---------- */
 /** توكن العميل في الروابط: id.توقيع (مايتخمنش ومايتغيرش) */
 function crm_lead_token(int $wid, int $leadId): string

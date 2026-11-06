@@ -65,6 +65,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' auto_leads=error';
         }
+        // #69 #70: سرعة الرد على العملاء الجداد
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_sla_tick() : 0; });
+            if ($n) $line .= ' sla+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' sla=error';
+        }
         // خطط المتابعة: الإيميلات المستحقة بتتبعت، والباقي بيتحول مهام
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_plan_tick(100) : 0; });

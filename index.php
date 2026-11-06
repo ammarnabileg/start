@@ -44,7 +44,7 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js'];
+$public = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go'];
 if (!in_array($page, $public, true) && !current_user()) {
     redirect(url('login'));
 }
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }

@@ -81,8 +81,9 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <span class="hidden sm:block w-px h-6 bg-ink-200 mx-1"></span>
   <?php
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
-    $bellN = count($invites) + $alertsN;
-    $bellHref = $invites ? url('workspaces') : url('alerts');
+    $crmN = ($curWs && function_exists('crm_notifs_unseen') && module_enabled('crm') && can('crm.view')) ? crm_notifs_unseen((int)$curWs['id'], (int)(current_user()['id'] ?? 0)) : 0;
+    $bellN = count($invites) + $alertsN + $crmN;
+    $bellHref = $invites ? url('workspaces') : ($crmN ? url('crm_leads') . '#notifs' : url('alerts'));
   ?>
   <a href="<?= e($bellHref) ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>

@@ -29,8 +29,9 @@ $limit = (int)(crm_prefs()['daily_limit'] ?? 0);
 // مصادر العملاء: منين بييجوا، وأنهي مصدر بيتحول لعملاء فعلًا (كل الوقت)
 $st = db()->prepare("SELECT source, COUNT(*) n, SUM(stage <> 'new') c, SUM(stage = 'won') w, COALESCE(SUM(CASE WHEN stage = 'won' THEN deal_value END), 0) v FROM crm_leads WHERE workspace_id = ? GROUP BY source ORDER BY n DESC");
 $st->execute([$wid]); $srcRows = $st->fetchAll();
+$links = crm_links_report();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -101,6 +102,16 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       <?php endforeach; ?></div>
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('النسبة = كام في المية بقوا عملاء. 🏆 = أحسن مصدر (من 3 عملاء أو أكتر).')) ?></p>
     </div>
+    <?php endif; ?>
+
+    <?php if ($links): ?>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🔗 <?= e(t('روابط المنشورات')) ?></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('كل لينك متتبع حطيته في منشور: كام واحد ضغط عليه، وكام بقى عميل محتمل من الفورم أو الحجز.')) ?></p>
+      <div class="overflow-x-auto"><table class="w-full text-sm min-w-[560px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('المنشور')) ?></th><th><?= e(t('ضغطات')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('تحويل')) ?></th></tr></thead><tbody>
+      <?php foreach ($links as $lk): ?><tr class="border-b border-ink-50"><td class="py-2 max-w-[320px]"><div class="truncate text-ink-800" dir="auto"><?= e($lk['label'] ?: $lk['url']) ?></div><div class="text-[11px] text-ink-400 truncate" dir="ltr"><?= e($lk['url']) ?></div></td>
+        <td class="text-center font-semibold"><?= (int)$lk['clicks'] ?></td><td class="text-center"><?= (int)$lk['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= (int)$lk['won'] ?></td>
+        <td class="text-center text-xs"><?= $lk['clicks'] ? round($lk['leads'] / $lk['clicks'] * 100) . '%' : '—' ?></td></tr><?php endforeach; ?>
+      </tbody></table></div></div>
     <?php endif; ?>
 
     <?php if ($closing): ?>

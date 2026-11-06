@@ -59,6 +59,58 @@ function an_follower_stats(Zernio $z, array $q): array
     return $z->request('GET', '/v1/accounts/follower-stats', $q);
 }
 
+/**
+ * #26: بنقارن متوسط التفاعل للمنشورات اللي فيها صفة معينة باللي مافيهاش (صورة، طول، هاشتاجات، سؤال، لينك، توقيت).
+ * بنطلّع بس الفروق الكبيرة (30% أو أكتر) اللي ليها 3 منشورات على الأقل في كل ناحية. حسابات بس من غير AI.
+ */
+function an_post_insights(array $posts): array
+{
+    $tz = new DateTimeZone(site_timezone());
+    $rows = [];
+    foreach ($posts as $p) {
+        $an = (array)($p['analytics'] ?? []);
+        $imp = (float)($an['impressions'] ?? 0); $int = (float)($an['likes'] ?? 0) + (float)($an['comments'] ?? 0) * 2 + (float)($an['shares'] ?? 0) * 3 + (float)($an['saves'] ?? 0) * 2;
+        $er = isset($an['engagementRate']) ? (float)$an['engagementRate'] : ($imp > 0 ? $int / $imp * 100 : null);
+        if ($er === null) continue;
+        $txt = (string)($p['content'] ?? '');
+        $h = null; if (!empty($p['publishedAt'])) { try { $h = (int)(new DateTime((string)$p['publishedAt']))->setTimezone($tz)->format('G'); } catch (Exception $e) {} }
+        $rows[] = ['er' => $er, 'f' => [
+            'media' => !empty($p['thumbnailUrl']) || !empty($p['mediaItems']) || !empty($p['mediaType']),
+            'short' => mb_strlen($txt) > 0 && mb_strlen($txt) < 120,
+            'long' => mb_strlen($txt) > 400,
+            'tags' => preg_match_all('/#\S+/u', $txt) >= 3,
+            'ask' => (bool)preg_match('/[?؟]/u', $txt),
+            'link' => (bool)preg_match('~https?://~i', $txt),
+            'emoji' => (bool)preg_match('/^[\p{So}\x{1F300}-\x{1FAFF}]/u', trim($txt)),
+            'evening' => $h !== null && $h >= 18 && $h <= 23,
+            'morning' => $h !== null && $h >= 6 && $h <= 11,
+        ]];
+    }
+    if (count($rows) < 6) return [];
+    $label = ['media' => [t('المنشورات اللي فيها صورة أو فيديو بتجيب تفاعل %s مرة أكتر من اللي من غيرها.'), t('المنشورات اللي فيها صورة بتجيب تفاعل أقل %s مرة؛ جرّب منشورات نص.')],
+        'short' => [t('المنشورات القصيرة (أقل من 120 حرف) تفاعلها %s مرة أعلى.'), t('المنشورات القصيرة تفاعلها أقل %s مرة؛ جمهورك بيحب التفاصيل.')],
+        'long' => [t('المنشورات الطويلة (أكتر من 400 حرف) تفاعلها %s مرة أعلى.'), t('المنشورات الطويلة تفاعلها أقل %s مرة؛ اختصر.')],
+        'tags' => [t('3 هاشتاجات أو أكتر بتزوّد التفاعل %s مرة.'), t('الهاشتاجات الكتير بتقلل التفاعل %s مرة؛ قللها.')],
+        'ask' => [t('المنشورات اللي فيها سؤال بتجيب تفاعل %s مرة أكتر. اسأل جمهورك.'), t('المنشورات اللي فيها سؤال تفاعلها أقل %s مرة.')],
+        'link' => [t('المنشورات اللي فيها لينك تفاعلها %s مرة أعلى.'), t('المنشورات اللي فيها لينك تفاعلها أقل %s مرة؛ حط اللينك في أول كومنت.')],
+        'emoji' => [t('البداية بإيموجي بتزوّد التفاعل %s مرة.'), t('البداية بإيموجي بتقلل التفاعل %s مرة.')],
+        'evening' => [t('النشر بالليل (6 لـ 11 م) بيجيب تفاعل %s مرة أكتر.'), t('النشر بالليل تفاعله أقل %s مرة.')],
+        'morning' => [t('النشر الصبح (6 لـ 11 ص) بيجيب تفاعل %s مرة أكتر.'), t('النشر الصبح تفاعله أقل %s مرة.')]];
+    $out = [];
+    foreach (array_keys($label) as $k) {
+        $y = []; $n = [];
+        foreach ($rows as $r) { if ($r['f'][$k]) $y[] = $r['er']; else $n[] = $r['er']; }
+        if (count($y) < 3 || count($n) < 3) continue;
+        $ay = array_sum($y) / count($y); $anv = array_sum($n) / count($n);
+        if ($ay <= 0 || $anv <= 0) continue;
+        $ratio = $ay / $anv;
+        if ($ratio >= 1.3) $out[] = ['k' => $k, 'up' => true, 'w' => $ratio, 'text' => sprintf($label[$k][0], number_format($ratio, 1)), 'n' => count($rows)];
+        elseif ($ratio <= 0.77) $out[] = ['k' => $k, 'up' => false, 'w' => 1 / $ratio, 'text' => sprintf($label[$k][1], number_format(1 / $ratio, 1)), 'n' => count($rows)];
+    }
+    usort($out, function ($a, $b) { return $b['w'] <=> $a['w']; });
+    return array_slice($out, 0, 5);
+}
+
 function an_best_time(Zernio $z, array $q): array
 {
     return $z->request('GET', '/v1/analytics/best-time', $q)['slots'] ?? [];
