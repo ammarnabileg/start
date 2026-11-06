@@ -230,5 +230,9 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') { e.preventDefault(); e.shiftKey ? MORE.ungroup() : MORE.group(); } }, true);
   document.querySelectorAll('.dz-rail [data-tab="mine"]').forEach(function (b) { b.addEventListener('click', mine); });
   drawPages(); mine();
-  window.dzPro = { pages: function () { return pages; }, go: go, saveDesign: saveDesign, openDesign: openDesign, exportAs: exportAs, align: align, id: function () { return designId; } };
+  // أول رسم ممكن يخلص قبل ما الإضافة تشتغل: بناخد صورة الصفحة الأولى بعد شوية
+  [600, 1800].forEach(function (ms) { setTimeout(function () { if (!busy && cv.getObjects().length) { pages[cur] = { j: pages[cur] && pages[cur].j, t: pageThumb() }; drawPages(); } }, ms); });
+  function loadPages(list, name) { pages = list.map(function (j) { return { j: j, t: '' }; }); cur = 0; busy = true; designId = 0; if (name) $('dz-name').value = name;
+    X.load(pages[0].j, function () { busy = false; X.resetHist(); drawPages(); }); }
+  window.dzPro = { loadPages: loadPages, mine: mine, current: function () { storeCur(); return pages.map(function (p) { return p && p.j; }); }, pages: function () { return pages; }, go: go, saveDesign: saveDesign, openDesign: openDesign, exportAs: exportAs, align: align, id: function () { return designId; } };
 })();

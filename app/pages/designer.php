@@ -43,19 +43,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // الذكاء الاصطناعي جوه المصمم: عناوين لنص محدد، أو نصوص تصميم كامل لخدمة
     if ($act === 'ai') {
         if (!can('ai.use') || !ai_connection()) $J(['error' => t('اربط مزود ذكاء اصطناعي الأول من التكاملات.')], 422);
-        $mode = ($_POST['mode'] ?? '') === 'design' ? 'design' : 'headline';
+        $mode = in_array($_POST['mode'] ?? '', ['design', 'layout', 'carousel'], true) ? $_POST['mode'] : 'headline';
         $topic = mb_substr(trim((string)($_POST['topic'] ?? '')), 0, 300); $cur = mb_substr(trim((string)($_POST['current'] ?? '')), 0, 300);
-        $sys = $mode === 'design'
-            ? "You write the text for one social media graphic. DESIGN_JSON\nUse only facts from the company knowledge base (names, prices, offers). Same language/dialect as the knowledge base. Very short, punchy.\n"
-              . 'Return ONLY JSON: {"title":"max 5 words","sub":"max 12 words","cta":"max 3 words","kind":"offer|product|quote|edu|event|story"}'
-            : "You write headlines for a social media graphic. HEADLINE_JSON\nUse only facts from the company knowledge base. Same language/dialect as the knowledge base. Max 7 words each, different angles.\n"
-              . 'Return ONLY JSON: {"items":["headline 1","headline 2","headline 3","headline 4"]}';
+        $facts = "Use only facts from the company knowledge base (names, prices, offers, contact). Same language/dialect as the knowledge base. Never invent prices or claims.\n";
+        $sys = [
+            'design' => "You write the text for one social media graphic. DESIGN_JSON\n" . $facts . "Very short, punchy.\n"
+                . 'Return ONLY JSON: {"title":"max 5 words","sub":"max 12 words","cta":"max 3 words","kind":"offer|product|quote|edu|event|story"}',
+            // تصميم كامل من جملة: التخطيط والألوان والنصوص ووصف الصورة
+            'layout' => "You are an art director designing one social media graphic from a one-line brief. LAYOUT_JSON\n" . $facts
+                . "Pick the layout that fits: hero (big photo + headline), split (photo half, text half), center (bold centered type, no photo), card (photo card on colored background), badge (offer with price badge), minimal (lots of space, elegant).\n"
+                . "Pick a mood: bold, elegant, fresh, warm, dark. image_prompt is an English photo description for an image generator (no text in the image); empty for center/minimal.\n"
+                . 'Return ONLY JSON: {"layout":"hero|split|center|card|badge|minimal","mood":"bold|elegant|fresh|warm|dark","title":"max 6 words","sub":"max 14 words","cta":"max 3 words","badge":"short price or % or empty","image_prompt":"..."}',
+            // كاروسيل كامل من موضوع
+            'carousel' => "You write an educational/sales carousel for Instagram/LinkedIn. CAROUSEL_JSON\n" . $facts
+                . "5 to 7 slides: slide 1 is a strong hook, middle slides each give one clear point (title max 6 words, body max 25 words), last slide is a call to action using the company contact.\n"
+                . 'Return ONLY JSON: {"slides":[{"title":"...","body":"..."}]}',
+            'headline' => "You write headlines for a social media graphic. HEADLINE_JSON\n" . $facts . "Max 7 words each, different angles.\n"
+                . 'Return ONLY JSON: {"items":["headline 1","headline 2","headline 3","headline 4"]}',
+        ][$mode];
         $u = ($topic !== '' ? t('الموضوع: %s', $topic) : t('اختار أنسب موضوع من خدمات الشركة.')) . ($cur !== '' ? "\n" . t('النص الحالي: %s', $cur) : '');
-        try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $u]], 600, 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+        try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $u]], $mode === 'carousel' ? 1800 : 800, 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
         $txt = (string)($r['text'] ?? ''); if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
         $d = json_decode($txt, true); if (!is_array($d)) $J(['error' => t('الذكاء الاصطناعي مارجعش نتيجة مفهومة. جرّب تاني.')], 502);
+        $cut = function ($v, $n) { return mb_substr(trim((string)$v), 0, $n); };
         if ($mode === 'headline') $d = ['items' => array_values(array_filter(array_map(function ($x) { return mb_substr(trim((string)$x), 0, 120); }, (array)($d['items'] ?? [])), 'strlen'))];
-        else $d = ['title' => mb_substr(trim((string)($d['title'] ?? '')), 0, 80), 'sub' => mb_substr(trim((string)($d['sub'] ?? '')), 0, 160), 'cta' => mb_substr(trim((string)($d['cta'] ?? '')), 0, 40), 'kind' => preg_replace('/[^a-z]/', '', (string)($d['kind'] ?? 'offer'))];
+        elseif ($mode === 'layout') $d = ['layout' => in_array($d['layout'] ?? '', ['hero', 'split', 'center', 'card', 'badge', 'minimal'], true) ? $d['layout'] : 'hero', 'mood' => in_array($d['mood'] ?? '', ['bold', 'elegant', 'fresh', 'warm', 'dark'], true) ? $d['mood'] : 'bold',
+            'title' => $cut($d['title'] ?? '', 90), 'sub' => $cut($d['sub'] ?? '', 180), 'cta' => $cut($d['cta'] ?? '', 40), 'badge' => $cut($d['badge'] ?? '', 20), 'image_prompt' => $cut($d['image_prompt'] ?? '', 600)];
+        elseif ($mode === 'carousel') { $sl = []; foreach (array_slice((array)($d['slides'] ?? []), 0, 8) as $x) if (is_array($x) && trim((string)($x['title'] ?? '')) !== '') $sl[] = ['title' => $cut($x['title'], 90), 'body' => $cut($x['body'] ?? '', 260)];
+            if (count($sl) < 2) $J(['error' => t('الذكاء الاصطناعي مارجعش نتيجة مفهومة. جرّب تاني.')], 502); $d = ['slides' => $sl]; }
+        else $d =['title' => mb_substr(trim((string)($d['title'] ?? '')), 0, 80), 'sub' => mb_substr(trim((string)($d['sub'] ?? '')), 0, 160), 'cta' => mb_substr(trim((string)($d['cta'] ?? '')), 0, 40), 'kind' => preg_replace('/[^a-z]/', '', (string)($d['kind'] ?? 'offer'))];
         log_activity('designer.ai', $mode);
         $J(['ok' => true] + $d);
     }
@@ -121,14 +137,24 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       <!-- لوحة الأدوات -->
       <aside class="dz-side">
         <nav class="dz-rail">
-          <?php foreach (['mine' => [t('تصميماتي'), 'folder'], 'ai' => [t('ذكاء'), 'spark'], 'tpl' => [t('قوالب'), 'layers'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
+          <?php foreach (['mine' => [t('تصميماتي'), 'folder'], 'ai' => [t('ذكاء'), 'spark'], 'tpl' => [t('قوالب'), 'layers'], 'el' => [t('عناصر'), 'shapes'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
             <button type="button" data-tab="<?= $k ?>" class="<?= $k === 'tpl' ? 'on' : '' ?>"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($l) ?></span></button>
           <?php endforeach; ?>
         </nav>
         <div class="dz-panel">
           <section data-pane="mine" hidden><h3><?= e(t('تصميماتك المحفوظة')) ?></h3><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
           <section data-pane="ai" hidden>
-            <h3><?= e(t('صمّم لي بالذكاء الاصطناعي')) ?></h3>
+            <h3><?= e(t('صمّم من جملة')) ?></h3>
+            <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
+            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= connector('higgsfield') ? 'checked' : 'disabled' ?>> <?= e(connector('higgsfield') ? t('ولّد الصورة كمان (Higgsfield)') : t('اربط Higgsfield عشان الصورة تتولد لوحدها')) ?></label>
+            <button type="button" class="btn-primary w-full mt-2" data-cmd="ailayout"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('صمّم')) ?></span></button>
+            <h3 class="!mt-5"><?= e(t('كاروسيل كامل من موضوع')) ?></h3>
+            <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">
+            <button type="button" class="btn-ghost w-full mt-2" data-cmd="aicarousel"><?= ui_icon('layers', 'w-4 h-4') ?><span><?= e(t('اعمل الكاروسيل')) ?></span></button>
+            <h3 class="!mt-5"><?= e(t('مقاسات لكل المنصات')) ?></h3>
+            <p class="text-[11px] text-ink-500 mb-2"><?= e(t('بيعمل نسخة من التصميم الحالي بمقاس البوست والطولي والستوري والعرضي، وبيحفظهم في تصميماتي.')) ?></p>
+            <button type="button" class="btn-ghost w-full" data-cmd="resizeall"><?= ui_icon('copy', 'w-4 h-4') ?><span><?= e(t('اعمل كل المقاسات')) ?></span></button>
+            <h3 class="!mt-5"><?= e(t('صمّم لي بالذكاء الاصطناعي')) ?></h3>
             <input id="dz-ai-topic" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('الموضوع أو الخدمة (اختياري)')) ?>">
             <button type="button" class="btn-primary w-full mt-2" data-cmd="aidesign"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اعمل تصميم')) ?></span></button>
             <h3 class="!mt-5"><?= e(t('عناوين للنص المحدد')) ?></h3>
@@ -137,10 +163,18 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
             <textarea id="dz-ai-img" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة، وهتتحط في مكان الصورة المحدد أو على اللوحة')) ?>"></textarea>
             <button type="button" class="btn-ghost w-full mt-2" data-cmd="aiimg"><?= ui_icon('image', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button><p id="dz-ai-st" class="text-[11px] text-ink-500 mt-2"></p></section>
           <section data-pane="tpl"><h3><?= e(t('قوالب من قاعدة المعرفة بألوانك')) ?></h3><div id="dz-tcat" class="flex flex-wrap gap-1 mb-3"></div><div id="dz-tpls" class="grid grid-cols-2 gap-2 items-start"></div></section>
+          <section data-pane="el" hidden>
+            <label class="mk-search !w-full mb-3"><?= ui_icon('search') ?><input type="search" id="dz-el-q" placeholder="<?= e(t('ابحث في العناصر…')) ?>"></label>
+            <h3><?= e(t('ملصقات')) ?></h3><div id="dz-stk" class="grid grid-cols-2 gap-2 mb-4"></div>
+            <h3><?= e(t('إطارات صور')) ?></h3><div id="dz-frm" class="grid grid-cols-3 gap-2 mb-4"></div>
+            <h3><?= e(t('فواصل وأسهم')) ?></h3><div id="dz-lns" class="grid grid-cols-3 gap-2 mb-4"></div>
+            <h3><?= e(t('خلفيات بنقوش')) ?></h3><div id="dz-pat" class="grid grid-cols-4 gap-1.5 mb-4"></div>
+            <h3><?= e(t('أيقونات')) ?></h3><div id="dz-ico" class="grid grid-cols-5 gap-1.5"></div></section>
           <section data-pane="text" hidden><h3><?= e(t('أضف نص')) ?></h3>
             <button type="button" class="dz-add text-2xl font-black" data-add="h1"><?= e(t('عنوان كبير')) ?></button>
             <button type="button" class="dz-add text-lg font-bold" data-add="h2"><?= e(t('عنوان فرعي')) ?></button>
             <button type="button" class="dz-add text-sm" data-add="p"><?= e(t('نص عادي')) ?></button>
+            <h3 class="!mt-5"><?= e(t('أنماط جاهزة')) ?></h3><div id="dz-tsty" class="space-y-2 mb-2"></div>
             <h3 class="!mt-5"><?= e(t('تركيبات')) ?></h3>
             <button type="button" class="dz-add" data-add="badge"><span class="inline-block rounded-full bg-red-600 text-white px-3 py-1 text-sm font-bold">-30%</span></button>
             <button type="button" class="dz-add" data-add="cta"><span class="inline-block rounded-xl bg-ink-900 text-white px-4 py-2 text-sm font-bold"><?= e(t('اطلب الآن')) ?></span></button>
@@ -211,7 +245,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       </aside>
     </div>
   </div>
-  <script>window.DZ = <?= json_encode(['kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
+  <script>window.DZ = <?= json_encode(['icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield'), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
     'title' => mb_substr((string)($_GET['title'] ?? ''), 0, 120), 'text' => mb_substr((string)($_GET['text'] ?? ''), 0, 160), 'fonts' => $fonts,
     'L' => ['h1' => t('عنوان كبير'), 'h2' => t('عنوان فرعي'), 'p' => t('اكتب النص هنا'), 'cta' => t('اطلب الآن'), 'quote' => t('«خدمة ممتازة وسرعة في التنفيذ»'), 'quoteBy' => t('— عميل سعيد'), 'company' => t('اسم الشركة'),
       'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('عندك تصميم لسه شغال عليه. نكمّله؟'), 'replace' => t('القالب هيبدل التصميم الحالي. تكمل؟'),
@@ -227,10 +261,17 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       'delivery' => t('التوصيل لحد بابك'), 'combo' => t('الوجبة الكاملة'), 'together' => t('الثلاثة مع بعض'), 'special' => t('بسعر خاص'), 'review' => t('رأيك يفرق معانا'), 'reviewSub' => t('لو عجبتك التجربة قيّمنا على جوجل وقولنا رأيك'), 'reviewCta' => t('قيّمنا الآن'),
       'opening' => t('افتتاح فرعنا'), 'endsIn' => t('العرض بيخلص خلال'), 'days' => t('يوم'), 'hours' => t('ساعة'), 'mins' => t('دقيقة'), 'coupon' => t('كود الخصم'), 'couponSub' => t('استخدمه عند الطلب'), 'thanks' => t('شكرًا لكم'), 'thanksSub' => t('على ثقتكم ودعمكم الدايم'),
       'x1' => t('غلاف ريلز'), 'x2' => t('إعلان عرضي'), 'x3' => t('رمضان'), 'x4' => t('عيد'), 'x5' => t('اليوم الوطني'), 'x6' => t('عرض الويك إند'), 'x7' => t('التوصيل'), 'x8' => t('وجبة / باقة'), 'x9' => t('طلب تقييم'), 'x10' => t('كارت التواصل'), 'x11' => t('افتتاح'), 'x12' => t('عد تنازلي'), 'x13' => t('كوبون خصم'), 'x14' => t('شكر'),
+      'copy' => t('نسخ'), 'paste' => t('لصق'), 'dup' => t('نسخة'), 'del2' => t('حذف'), 'front' => t('لقدام'), 'back' => t('لورا'), 'group' => t('اجمعهم'), 'ungroup' => t('فك التجميع'), 'lock' => t('قفل'), 'unlock' => t('فك القفل'), 'center' => t('في النص'),
+      'show' => t('إظهار'), 'hide' => t('إخفاء'), 'more' => t('المزيد'), 'font' => t('الخط'),
+      'stk' => [t('جديد'), t('خصم'), t('الأكثر مبيعًا'), t('توصيل مجاني'), t('عرض محدود'), t('حصري'), t('مجانًا'), t('اطلب الآن')],
+      'tsty' => [[t('عنوان فخم'), t('وصف قصير أنيق')], [t('عنوان قوي'), t('سطر يشرح الفكرة')], [t('عرض اليوم'), t('لحد نص الليل')], ['NEW COLLECTION', 'Limited edition']],
+      'aiBusy' => t('بنصمّم…'), 'carBusy' => t('بنكتب الكاروسيل…'), 'carDone' => t('اتعمل كاروسيل من %s صفحات ✓'), 'imgWait' => t('التصميم جاهز، وبنولّد الصورة…'), 'resizeDone' => t('اتعملت %s نسخ واتحفظت في تصميماتي ✓'),
+      'sizes' => ['1080x1080' => t('بوست'), '1080x1350' => t('طولي'), '1080x1920' => t('ستوري'), '1200x628' => t('عرضي')], 'nothing' => t('مفيش نتايج.'),
       't1' => t('عرض'), 't2' => t('منتج'), 't3' => t('عن الشركة'), 't4' => t('ليه تختارنا'), 't5' => t('أسئلة شائعة'), 't6' => t('المواعيد والتواصل'), 't7' => t('قبل وبعد'), 't8' => t('فعالية'), 't9' => t('توظيف'), 't10' => t('جديد عندنا'), 't11' => t('خبر'), 't12' => t('ستوري عرض'), 't13' => t('ستوري تصويت'), 't14' => t('غلاف كاروسيل'), 't15' => t('تهنئة'), 't16' => t('قائمة الأسعار'),
       'cAll' => t('الكل'), 'cOffer' => t('عروض'), 'cProduct' => t('منتجات'), 'cQuote' => t('الشركة'), 'cEdu' => t('معلومات'), 'cEvent' => t('فعاليات'), 'cStory' => t('ستوري'), 'cCarousel' => t('كاروسيل'), 'cSeason' => t('مناسبات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/vendor/fabric-5.3.0.min.js"></script>
   <script src="assets/designer.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>
   <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });
