@@ -175,8 +175,8 @@ render(t('الردود التلقائية على التعليقات'), 'automati
                   </div>
                   <div class="flex items-center gap-3 mt-1.5 text-[11px] text-ink-500 tabular-nums">
                     <span title="<?= e(t('مرات التشغيل')) ?>">⚡ <?= (int)($s['triggered'] ?? 0) ?></span>
-                    <span title="<?= e(t('رسائل اتبعتت')) ?>">✉ <?= (int)($s['dmsSent'] ?? 0) ?></span>
-                    <?php if ((int)($s['dmsFailed'] ?? 0)): ?><span class="text-red-600" title="<?= e(t('رسائل فشلت')) ?>">⚠ <?= (int)$s['dmsFailed'] ?></span><?php endif; ?>
+                    <span title="<?= e(t('رسائل اتبعتت')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= (int)($s['dmsSent'] ?? 0) ?></span>
+                    <?php if ((int)($s['dmsFailed'] ?? 0)): ?><span class="text-red-600" title="<?= e(t('رسائل فشلت')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17.5v.01"/></svg> <?= (int)$s['dmsFailed'] ?></span><?php endif; ?>
                     <span class="truncate"><?= e(!empty($it['platformPostId']) ? t('منشور واحد') : t('كل المنشورات')) ?></span>
                   </div>
                 </div>

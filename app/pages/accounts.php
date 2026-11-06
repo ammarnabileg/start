@@ -146,9 +146,12 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
     ?>
     <!-- ملخص -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-      <?php foreach ([[t('كل الحسابات'), count($accounts), 'text-ink-900'], [t('شغالة'), count($accounts) - $bad, 'text-lime-700'], [t('محتاجة إعادة ربط'), $bad, $bad ? 'text-red-600' : 'text-ink-900'], [t('المنصات'), count($byPlat), 'text-ink-900']] as [$l, $v, $c]): ?>
-        <div class="card px-5 py-4"><div class="text-xs text-ink-500"><?= e($l) ?></div><div class="text-2xl font-semibold mt-1 <?= $c ?>"><?= (int)$v ?></div></div>
+      <?php // الكروت هي الفلتر نفسه (بدل كروت + أزرار فلتر مكررة)
+      foreach ([['', 'layers', t('كل الحسابات'), count($accounts), 'text-ink-900'], ['ok', 'check', t('شغالة'), count($accounts) - $bad, 'text-lime-700'], ['bad', 'alert', t('محتاجة إعادة ربط'), $bad, $bad ? 'text-red-600' : 'text-ink-900']] as [$k, $ic, $l, $v, $c]): ?>
+        <button type="button" data-st-card="<?= $k ?>" class="acc-card text-start rounded-2xl border px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-md <?= $k === '' ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-500/15' : ($k === 'bad' && $bad ? 'border-red-200 bg-red-50/60' : 'border-ink-200 bg-white') ?>">
+          <div class="flex items-center gap-1.5 text-xs text-ink-500"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($l) ?></div><div class="text-2xl font-semibold mt-1 <?= $c ?>"><?= (int)$v ?></div></button>
       <?php endforeach; ?>
+        <div class="card px-5 py-4"><div class="flex items-center gap-1.5 text-xs text-ink-500"><?= ui_icon('grid', 'w-4 h-4') ?><?= e(t('المنصات')) ?></div><div class="text-2xl font-semibold mt-1 text-ink-900"><?= (int)count($byPlat) ?></div></div>
     </div>
 
     <?php if ($bad): $badList = array_values(array_filter($accounts, $isBad)); ?>
@@ -185,13 +188,15 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
         <svg class="w-4 h-4 text-ink-400 absolute top-1/2 -translate-y-1/2 start-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z"/></svg>
         <input type="search" id="accSearch" class="input !mt-0 ps-9" placeholder="<?= e(t('دور على حساب بالاسم...')) ?>">
       </div>
-      <div class="seg" id="accStatus">
+      <div class="seg hidden" id="accStatus">
         <a href="#" data-st="" class="on"><?= e(t('الكل')) ?></a>
         <a href="#" data-st="ok"><?= e(t('شغالة')) ?></a>
         <a href="#" data-st="bad"><?= e(t('محتاجة إعادة ربط')) ?><?= $bad ? ' (' . $bad . ')' : '' ?></a>
       </div>
       <button type="button" class="btn-primary" onclick="document.getElementById('addAcc').showModal()"><?= e(t('+ ربط حساب')) ?></button>
     </div>
+    <script>document.querySelectorAll('.acc-card').forEach(function (c) { c.addEventListener('click', function () { var a = document.querySelector('#accStatus a[data-st="' + c.dataset.stCard + '"]'); if (a) a.click();
+      document.querySelectorAll('.acc-card').forEach(function (o) { var on = o === c; o.classList.toggle('ring-2', on); o.classList.toggle('ring-brand-500/15', on); o.classList.toggle('border-brand-400', on); o.classList.toggle('bg-brand-50', on); }); }); });</script>
     <?php if (count($byPlat) > 1): ?>
       <div class="flex gap-2 overflow-x-auto pb-1 mb-5" id="accPlat" style="scrollbar-width:none">
         <button type="button" data-pf="" class="chip on"><?= e(t('كل المنصات')) ?></button>
@@ -236,7 +241,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
             <div class="flex items-center gap-2 mt-4 pt-4 border-t border-ink-100">
               <?php if (!$b && !in_array($pl, ['whatsapp', 'telegram', 'discord', 'slack', 'google', 'microsoft', 'googleanalytics', 'hubspot'], true)): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e(url('compose', ['dup_text' => '', 'dup_acc' => $a['_id']])) ?>"><?= e(t('انشر عليه')) ?></a><?php endif; ?>
               <?php if (!$b && in_array($pl, ['facebook', 'instagram', 'whatsapp', 'telegram', 'twitter', 'linkedin', 'tiktok', 'googlebusiness'], true)): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e(url('inbox', ['acct' => $a['_id']])) ?>"><?= e(t('رسايله')) ?></a><?php endif; ?>
-              <?php if (!empty($a['profileUrl'])): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener" title="<?= e(t('فتح الصفحة ↗')) ?>">↗</a><?php endif; ?>
+              <?php if (!empty($a['profileUrl'])): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener" title="<?= e(t('فتح الصفحة ↗')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a><?php endif; ?>
               <?php if ($b && in_array($pl, $connectable, true)): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
                   <button class="btn-primary !py-1.5 text-xs"><?= e(t('إعادة ربط')) ?></button></form>

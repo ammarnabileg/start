@@ -165,7 +165,7 @@ render(t('العملاء المحتملين'), 'leads', function () use ($stages
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (module_enabled('crm') && can('crm.view') && $leads): ?>
         <div class="rounded-xl border border-lime-200 bg-lime-50/60 px-4 py-2.5 text-sm text-ink-700 flex flex-wrap items-center gap-2">
-          <span>🔗 <?= e($crmNew ? t('اتضاف %s Lead جديد من هنا للـ Leads الموحدة.', $crmNew) : t('الـ Leads دي متربطة بالـ Leads الموحدة، والمرحلة بتتحدّث في المكانين.')) ?></span>
+          <span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e($crmNew ? t('اتضاف %s Lead جديد من هنا للـ Leads الموحدة.', $crmNew) : t('الـ Leads دي متربطة بالـ Leads الموحدة، والمرحلة بتتحدّث في المكانين.')) ?></span>
           <a class="link ms-auto" href="<?= e(url('crm_leads')) ?>"><?= e(t('افتح الـ Leads الموحدة')) ?></a>
         </div>
       <?php endif; ?>

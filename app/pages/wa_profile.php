@@ -99,7 +99,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx,
         $real = array_values(array_filter($accounts, function ($a) { return empty($a['metadata']['isSandbox']); }));
         ?>
         <div class="card p-8 text-center max-w-2xl mx-auto">
-          <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mb-4">🧪</div>
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mb-4"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg></div>
           <h2 class="text-lg font-bold text-ink-900"><?= e(t('ده الرقم التجريبي (Sandbox)')) ?></h2>
           <?php if ($sbNum !== ''): ?><div class="text-sm text-ink-500 mt-1" dir="ltr"><?= e($sbNum) ?></div><?php endif; ?>
           <p class="text-sm text-ink-600 mt-3 leading-relaxed"><?= e(t('الرقم ده مشترك بين كل المستخدمين عشان تجرّب الرسايل بس. مالوش بروفايل بيزنس ولا جودة ولا حد رسايل خاص بيك، فمفيش حاجة تتعدل أو تتعرض هنا.')) ?></p>
@@ -184,7 +184,7 @@ render(t('بروفايل واتساب'), 'wa_profile', function () use ($z, $fx,
         <?php $notReg = !in_array(strtoupper((string)($ph['status'] ?? '')), ['CONNECTED', ''], true); ?>
         <details class="card overflow-hidden <?= $notReg ? 'border-red-200' : '' ?>" id="wp-reg" <?= $notReg ? 'open' : '' ?>>
           <summary class="cursor-pointer list-none px-5 py-4 flex items-center gap-3">
-            <span class="w-9 h-9 rounded-xl <?= $notReg ? 'bg-red-50 text-red-600' : 'bg-ink-50 text-ink-500' ?> flex items-center justify-center">🔑</span>
+            <span class="w-9 h-9 rounded-xl <?= $notReg ? 'bg-red-50 text-red-600' : 'bg-ink-50 text-ink-500' ?> flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 10a4 4 0 11-1.2-2.8L21 15v3h-3v-2h-2v-2h-2l-1.2-1.2A4 4 0 0114 10zM8.5 9.5h.01"/></svg></span>
             <span class="flex-1"><span class="block font-bold text-ink-900"><?= e(t('تسجيل الرقم للإرسال')) ?></span>
               <span class="block text-xs <?= $notReg ? 'text-red-700' : 'text-ink-500' ?>"><?= e($notReg ? t('الرقم مش متسجل للإرسال (الحالة: %s). الرسايل مش هتتبعت لحد ما تسجله.', (string)$ph['status']) : t('لو ظهرلك خطأ 133010 "Account not registered" وانت بتبعت، سجّل الرقم من هنا.')) ?></span></span>
           </summary>

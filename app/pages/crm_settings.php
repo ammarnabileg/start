@@ -83,9 +83,9 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
     $curColor = function (string $k) use ($colors, $pal) { $c = $colors[$k] ?? ''; foreach ($pal as $n => $cls) if ($cls === $c) return $n; return 'teal'; };
     ?>
   <?php if (!$mgr): ?><div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><?= e(t('الإعدادات دي بيعدّلها مدير العملاء بس.')) ?></div><?php endif; ?>
-  <div class="mb-4 flex flex-wrap gap-1.5 text-xs"><?php foreach (['stages' => '🎚 ' . t('المراحل'), 'pipes' => '🛤 Pipelines', 'fields' => '🧩 ' . t('حقول مخصصة'), 'tags' => '🏷 ' . t('تاجات أوتوماتيك'), 'mail' => '✉️ ' . t('قالب الإيميل'), 'plans' => '🔁 ' . t('قواعد خطط المتابعة')] as $k => $v): ?><a href="#<?= $k ?>" class="chip"><?= e($v) ?></a><?php endforeach; ?></div>
+  <div class="mb-4 flex flex-wrap gap-1.5 text-xs"><?php foreach (['stages' => ['sliders', t('المراحل')], 'pipes' => ['route', 'Pipelines'], 'fields' => ['puzzle', t('حقول مخصصة')], 'tags' => ['tag', t('تاجات أوتوماتيك')], 'mail' => ['mail', t('قالب الإيميل')], 'plans' => ['refresh', t('قواعد خطط المتابعة')]] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?></div>
   <div class="grid xl:grid-cols-2 gap-4">
-    <section id="stages" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🎚 <?= e(t('المراحل')) ?></h2>
+    <section id="stages" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M8 10v4M16 16v4"/></svg> <?= e(t('المراحل')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('غيّر الأسماء والألوان، وضيف لحد 4 مراحل زيادة (بتتحط قبل "بقى عميل"). "جديد" و"بقى عميل" و"مش مناسب" أساسيين في التقارير فمابيتمسحوش.')) ?></p>
       <form method="post" class="space-y-1.5"><?= csrf_field() ?><input type="hidden" name="action" value="stages">
         <?php foreach ($stages as $k => $v): $isC = in_array($k, $custKeys, true); ?>
@@ -98,7 +98,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <?php if ($mgr): ?><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><?php endif; ?></form>
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('احتمال الإغلاق لكل مرحلة وتوقع الإيراد في نافذة الإعدادات في صفحة العملاء، والنتيجة في تقارير المبيعات.')) ?></p></section>
 
-    <section id="pipes" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🛤 <?= e(t('أكتر من Pipeline')) ?></h2>
+    <section id="pipes" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 100-4 2 2 0 000 4zM18 9a2 2 0 100-4 2 2 0 000 4zM6 15V9a4 4 0 014-4h6M18 9v6a4 4 0 01-4 4H8"/></svg> <?= e(t('أكتر من Pipeline')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('افصل المبيعات عن التوظيف أو الشراكات. كل Pipeline ليه قايمته ولوحته في صفحة العملاء، والعميل تقدر تنقله من تفاصيله.')) ?></p>
       <form method="post" class="space-y-1.5"><?= csrf_field() ?><input type="hidden" name="action" value="pipes">
         <?php foreach (crm_pipelines() as $k => $v): ?><div class="flex items-center gap-2 text-sm"><input name="pl[<?= e($k) ?>]" value="<?= e($v) ?>" maxlength="40" class="input !mt-0 !py-1 text-sm flex-1" <?= $dis ?>><span class="text-[11px] text-ink-400 w-16 text-center"><?= e(t('%s عميل', (int)($pcnt[$k] ?? 0))) ?></span>
@@ -106,7 +106,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <input name="new_pipe" maxlength="40" class="input !mt-0 !py-1 text-sm" placeholder="<?= e(t('+ Pipeline جديد (مثلًا: توظيف)')) ?>" <?= $dis ?>>
         <?php if ($mgr): ?><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><?php endif; ?></form></section>
 
-    <section id="fields" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🧩 <?= e(t('حقول مخصصة')) ?></h2>
+    <section id="fields" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM10 7h4a3 3 0 013 3v4M7 10v4a3 3 0 003 3h4"/></svg> <?= e(t('حقول مخصصة')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('خانات زيادة بتظهر في تفاصيل كل عميل، زي الميزانية أو المنتج المطلوب أو المدينة. التاجات الأوتوماتيك تقدر تقراها.')) ?></p>
       <form method="post" class="space-y-1.5"><?= csrf_field() ?><input type="hidden" name="action" value="fields">
         <?php foreach (crm_custom_fields() as $f): ?><div class="flex flex-wrap items-center gap-2 text-sm"><input name="flabel[<?= e($f['key']) ?>]" value="<?= e($f['label']) ?>" class="input !mt-0 !py-1 text-sm flex-1 min-w-[120px]" <?= $dis ?>><span class="text-[11px] rounded bg-ink-100 px-1.5"><?= e(['text' => t('نص'), 'number' => t('رقم'), 'select' => t('اختيارات')][$f['type']]) ?></span>
@@ -117,7 +117,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
           <input name="new_opts" class="input !mt-0 !py-1 text-xs w-full" placeholder="<?= e(t('للاختيارات: الرياض، جدة، الدمام')) ?>" <?= $dis ?>></div>
         <?php if ($mgr): ?><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><?php endif; ?></form></section>
 
-    <section id="tags" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🏷 <?= e(t('تاجات أوتوماتيك')) ?></h2>
+    <section id="tags" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('تاجات أوتوماتيك')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('لو الخانة فيها الكلمة دي، العميل ياخد التاج ده لوحده أول ما يتضاف. مثلًا: الشركة فيها "مطعم" ← مطاعم، أو الرقم يبدأ بـ 966 ← السعودية.')) ?></p>
       <?php $fl = ['any' => t('أي خانة'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'name' => t('الاسم'), 'country' => t('الدولة'), 'phone' => t('الرقم يبدأ بـ'), 'email' => t('الإيميل'), 'note' => t('الملاحظات'), 'custom' => t('الحقول المخصصة')]; $rules = crm_tag_rules(); $rules[] = ['field' => 'any', 'has' => '', 'tag' => '']; $rules[] = ['field' => 'any', 'has' => '', 'tag' => '']; ?>
       <form method="post" class="space-y-1.5"><?= csrf_field() ?><input type="hidden" name="action" value="tagrules">
@@ -126,7 +126,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <?php if ($mgr): ?><div class="flex flex-wrap items-center gap-2"><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><label class="flex items-center gap-1 text-xs"><input type="checkbox" name="apply" value="1"> <?= e(t('وطبّقها على العملاء الموجودين')) ?></label></div><?php endif; ?></form></section>
 
     <?php $mt = crm_mail_tpl(); ?>
-    <section id="mail" class="<?= $sec ?> xl:col-span-2"><h2 class="font-semibold text-ink-900 mb-1">✉️ <?= e(t('قالب الإيميل')) ?></h2>
+    <section id="mail" class="<?= $sec ?> xl:col-span-2"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= e(t('قالب الإيميل')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('شكل موحد لكل إيميلات العملاء (من التفاصيل، والخطط، والإيميل الجماعي): لوجو ولون وتوقيع. كل إيميل فيه رابط إلغاء اشتراك، واللي يلغي مابيوصلوش حاجة تاني.')) ?></p>
       <div class="grid lg:grid-cols-2 gap-4"><form method="post" class="space-y-2 text-sm" id="mt-form"><?= csrf_field() ?><input type="hidden" name="action" value="mailtpl">
         <label class="flex items-center gap-2"><input type="checkbox" name="on" value="1" <?= $mt['on'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('استخدم القالب')) ?></b></label>
@@ -137,7 +137,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <div><div class="text-xs text-ink-500 mb-1"><?= e(t('معاينة')) ?></div><div class="rounded-xl border border-ink-200 overflow-hidden"><?= crm_mail_wrap(nl2br(e(t("أهلًا أحمد،
 ده مثال لشكل الإيميل اللي هيوصل لعملائك."))), '#') ?></div></div></div></section>
 
-    <section id="plans" class="<?= $sec ?> xl:col-span-2"><h2 class="font-semibold text-ink-900 mb-1">🔁 <?= e(t('قواعد خطط المتابعة')) ?></h2>
+    <section id="plans" class="<?= $sec ?> xl:col-span-2"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('قواعد خطط المتابعة')) ?></h2>
       <form method="post" class="grid md:grid-cols-3 gap-4 text-sm"><?= csrf_field() ?><input type="hidden" name="action" value="plans">
         <div class="space-y-2"><label class="flex items-center gap-2"><input type="checkbox" name="hours" value="1" <?= $pr['hours'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('ساعات العمل بس')) ?></b></label>
           <p class="text-[11px] text-ink-500"><?= e(t('الإيميلات والمهام مابتطلعش بالليل ولا يوم الإجازة. بتستنى لأول ساعة شغل.')) ?></p>

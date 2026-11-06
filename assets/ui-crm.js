@@ -56,11 +56,11 @@
   function setLeft(n) { if (n != null) left.textContent = n; }
   function copyBtn(v) { return '<button type="button" class="crm-copy text-[11px] text-brand-700 hover:underline shrink-0" data-v="' + esc(v) + '">' + T.copy + '</button>'; }
   function leadHtml(l) {
-    var ph = l.phone ? '<div class="flex items-center gap-2"><span>📞</span><a class="text-ink-900 font-medium" dir="ltr" href="tel:' + esc(l.phone) + '">' + esc(l.phone) + '</a>' + copyBtn(l.phone) +
+    var ph = l.phone ? '<div class="flex items-center gap-2"><span>' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '</span><a class="text-ink-900 font-medium" dir="ltr" href="tel:' + esc(l.phone) + '">' + esc(l.phone) + '</a>' + copyBtn(l.phone) +
       (l.wa ? '<a class="text-[11px] text-lime-700 hover:underline" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '">WhatsApp</a>' : '') + '</div>'
-      : '<div class="flex items-center gap-2 text-ink-500"><span>📞</span>' + (l.pending ? '<span class="animate-pulse">' + T.pending + '</span>' : T.nophone) + '</div>';
-    var em = l.email ? '<div class="flex items-center gap-2 min-w-0"><span>✉️</span><a class="text-ink-900 font-medium truncate" dir="ltr" href="mailto:' + esc(l.email) + '">' + esc(l.email) + '</a>' + copyBtn(l.email) + '</div>'
-      : '<div class="flex items-center gap-2 text-ink-500"><span>✉️</span>' + T.noemail + '</div>';
+      : '<div class="flex items-center gap-2 text-ink-500"><span>' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '</span>' + (l.pending ? '<span class="animate-pulse">' + T.pending + '</span>' : T.nophone) + '</div>';
+    var em = l.email ? '<div class="flex items-center gap-2 min-w-0"><span>' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '</span><a class="text-ink-900 font-medium truncate" dir="ltr" href="mailto:' + esc(l.email) + '">' + esc(l.email) + '</a>' + copyBtn(l.email) + '</div>'
+      : '<div class="flex items-center gap-2 text-ink-500"><span>' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '</span>' + T.noemail + '</div>';
     return '<div class="mt-3 space-y-1.5 text-sm rounded-xl bg-lime-50/70 border border-lime-200 p-3">' + ph + em + '</div>';
   }
   function personHtml(p) {

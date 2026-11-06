@@ -110,7 +110,7 @@
   }
   var focusBox = document.createElement('div'); focusBox.className = 'rounded-xl border border-brand-200 bg-brand-50/60 p-3 space-y-2';
   focusBox.innerHTML = '<input id="adcFocus" class="input !bg-white text-sm" placeholder="' + esc(A.focus) + '" maxlength="300">'
-    + '<div class="flex flex-wrap gap-2"><button type="button" id="adcAiCopy" class="btn-ghost text-sm">✦ ' + esc(A.copyBtn) + '</button><button type="button" id="adcAiAud" class="btn-ghost text-sm">✦ ' + esc(A.audBtn) + '</button></div>'
+    + '<div class="flex flex-wrap gap-2"><button type="button" id="adcAiCopy" class="btn-ghost text-sm">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(A.copyBtn) + '</button><button type="button" id="adcAiAud" class="btn-ghost text-sm">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(A.audBtn) + '</button></div>'
     + '<div id="adcAiOut" class="hidden grid gap-2"></div>';
   var head = el.headline && el.headline.closest('[data-mode]'); (head || el.budget.closest('section')).insertAdjacentElement('beforebegin', focusBox);
   var out = document.getElementById('adcAiOut');

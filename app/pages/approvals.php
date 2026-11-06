@@ -50,8 +50,8 @@ render(t('الموافقات'), 'approvals', function () use ($rows, $mgr, $wid)
     <?php foreach ($rows as $r): $p = json_decode((string)$r['payload'], true) ?: []; $b = $badge[$r['status']] ?? $badge['pending']; $media = (array)($p['mediaItems'] ?? []); ?>
       <div class="card p-4">
         <div class="flex flex-wrap items-center gap-2 text-xs text-ink-500 mb-2"><span class="rounded-full px-2 py-0.5 <?= $b[0] ?>"><?= e($b[1]) ?></span>
-          <span>👤 <?= e($r['uname'] ?: '—') ?></span><span>· <?= e(fmt_date($r['created_at'], 'd/m h:i A')) ?></span>
-          <span>· 🕒 <?= e($r['want'] === 'now' ? t('ينزل على طول') : ($r['want'] === 'queue' ? t('الطابور') : fmt_date($r['want'], 'D d/m h:i A'))) ?></span>
+          <span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0"/></svg> <?= e($r['uname'] ?: '—') ?></span><span>· <?= e(fmt_date($r['created_at'], 'd/m h:i A')) ?></span>
+          <span>· <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e($r['want'] === 'now' ? t('ينزل على طول') : ($r['want'] === 'queue' ? t('الطابور') : fmt_date($r['want'], 'D d/m h:i A'))) ?></span>
           <span>· <?= e(t('%s حساب', count((array)($p['platforms'] ?? [])))) ?></span>
           <?php if ($r['note']): ?><span class="text-red-600">· <?= e($r['note']) ?></span><?php endif; ?></div>
         <?php if ($r['status'] === 'pending' && $mgr): ?>

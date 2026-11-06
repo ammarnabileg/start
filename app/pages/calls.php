@@ -323,12 +323,12 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
           </a>
           <div class="hidden sm:flex items-center gap-1">
             <?php if (!empty($c['isVoicemail'])): ?><span class="rounded-full bg-amber-50 text-amber-700 text-[11px] px-2 py-0.5"><?= e(t('بريد صوتي')) ?></span><?php endif; ?>
-            <?php if (!empty($c['recordingUrl'])): ?><a href="<?= e(url('calls', ['rec' => $c['_id'] ?? ''])) ?>" target="_blank" rel="noopener" class="rounded-full bg-ink-100 text-ink-700 text-[11px] px-2 py-0.5 hover:bg-ink-200">▶ <?= e(t('متسجلة')) ?></a><?php endif; ?>
+            <?php if (!empty($c['recordingUrl'])): ?><a href="<?= e(url('calls', ['rec' => $c['_id'] ?? ''])) ?>" target="_blank" rel="noopener" class="rounded-full bg-ink-100 text-ink-700 text-[11px] px-2 py-0.5 hover:bg-ink-200"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg> <?= e(t('متسجلة')) ?></a><?php endif; ?>
           </div>
           <span class="w-14 text-end text-sm tabular-nums <?= $miss ? 'text-red-600' : 'text-ink-700' ?>" dir="ltr"><?= $miss ? '—' : e(ph_duration($dur)) ?></span>
           <span class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
-            <button type="button" class="ph-copy w-8 h-8 rounded-lg text-ink-400 hover:bg-ink-100" data-v="<?= e($other) ?>" title="<?= e(t('انسخ الرقم')) ?>">⧉</button>
-            <?php if ($owner && $voice && ($c['channel'] ?? '') !== 'whatsapp'): ?><a class="w-8 h-8 rounded-lg text-brand-600 hover:bg-brand-50 flex items-center justify-center" href="<?= e(url('calls', ['dial' => 1, 'to' => $other])) ?>" title="<?= e(t('اتصل تاني')) ?>">☎</a><?php endif; ?>
+            <button type="button" class="ph-copy w-8 h-8 rounded-lg text-ink-400 hover:bg-ink-100" data-v="<?= e($other) ?>" title="<?= e(t('انسخ الرقم')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg></button>
+            <?php if ($owner && $voice && ($c['channel'] ?? '') !== 'whatsapp'): ?><a class="w-8 h-8 rounded-lg text-brand-600 hover:bg-brand-50 flex items-center justify-center" href="<?= e(url('calls', ['dial' => 1, 'to' => $other])) ?>" title="<?= e(t('اتصل تاني')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1A16 16 0 014 5a1 1 0 011-1z"/></svg></a><?php endif; ?>
           </span>
         </div>
       <?php endforeach; ?>

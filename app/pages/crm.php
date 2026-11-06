@@ -138,13 +138,13 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
 
     <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
       <span class="ld-stat"><span class="text-ink-500"><?= e(t('الشركات')) ?></span> <b><?= count($visible) ?></b></span>
-      <span class="ld-stat <?= $newOnes ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>">✨ <span class="text-ink-500"><?= e(t('جديد في آخر تحديث')) ?></span> <b><?= count($newOnes) ?></b></span>
+      <span class="ld-stat <?= $newOnes ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <span class="text-ink-500"><?= e(t('جديد في آخر تحديث')) ?></span> <b><?= count($newOnes) ?></b></span>
       <span class="ld-stat">🔓 <span class="text-ink-500"><?= e(t('كشفت النهارده')) ?></span> <b><span id="crm-used"><?= $today ?></span> / <?= $limit ?></b>
         <span class="w-14 h-1.5 rounded-full bg-ink-100 overflow-hidden"><span id="crm-bar" class="block h-full bg-brand-500 rounded-full" style="width:<?= $limit ? min(100, round($today / $limit * 100)) : 100 ?>%"></span></span></span>
-      <a href="<?= e(url('crm_leads')) ?>" class="ld-stat hover:!border-lime-400">🧲 <span class="text-ink-500"><?= e(t('في الـ Leads')) ?></span> <b class="text-lime-700"><?= (int)$leadCount ?></b> ↗</a>
+      <a href="<?= e(url('crm_leads')) ?>" class="ld-stat hover:!border-lime-400"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <span class="text-ink-500"><?= e(t('في الـ Leads')) ?></span> <b class="text-lime-700"><?= (int)$leadCount ?></b> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
       <div class="flex gap-2 ms-auto">
         <button type="button" class="btn-ghost" data-cfg="dom">＋ <?= e(t('أضف بالدومين')) ?></button>
-        <button type="button" class="btn-ghost" data-cfg="icp">🎯 <?= e(t('العميل المثالي')) ?></button>
+        <button type="button" class="btn-ghost" data-cfg="icp"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('العميل المثالي')) ?></button>
       </div>
     </div>
     <div id="crm-cfg" class="grid md:grid-cols-2 gap-4 mb-5 items-start <?= (!$companies || $icpEmpty) ? '' : 'hidden' ?>">
@@ -152,7 +152,7 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
           <div class="card p-4 mb-4 border-amber-200 bg-amber-50/70 text-sm">
             <div class="font-semibold text-amber-900"><?= e(t('حسابك على خطة Apollo المجانية')) ?></div>
             <p class="text-xs text-amber-800 mt-1"><?= e(t('البحث عن الشركات والأشخاص وكشف الأرقام والإيميلات مقفولين فيها. اللي شغال: إضافة الشركات بالدومين، وإضافة الأشخاص اللي تعرفهم بإيدك. البحث والكشف هيشتغلوا لوحدهم لو رقّيت الخطة.')) ?></p>
-            <a class="link text-xs mt-1 inline-block" href="https://www.apollo.io/pricing" target="_blank" rel="noopener"><?= e(t('خطط Apollo')) ?> ↗</a>
+            <a class="link text-xs mt-1 inline-block" href="https://www.apollo.io/pricing" target="_blank" rel="noopener"><?= e(t('خطط Apollo')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
           </div>
         <?php endif; ?>
         <form method="post" class="card p-5 space-y-2" data-cfgp="dom">
@@ -165,7 +165,7 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
         <form method="post" class="card p-5 space-y-4" data-cfgp="icp">
           <?= csrf_field() ?><input type="hidden" name="action" value="icp">
           <div>
-            <h3 class="font-semibold text-ink-900">🎯 <?= e(t('العميل المثالي')) ?></h3>
+            <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('العميل المثالي')) ?></h3>
             <p class="text-xs text-ink-500 mt-1"><?= e(t('"تحديث" بيجيب شركات بالمواصفات دي. لو غيرتها البحث بيبدأ من الأول.')) ?></p>
           </div>
           <?php $dis = $canManage ? '' : 'disabled'; ?>
@@ -197,7 +197,7 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
       <div>
         <div class="flex flex-wrap items-center gap-2 mb-3">
           <form method="post" id="crm-refresh"><?= csrf_field() ?><input type="hidden" name="action" value="refresh">
-            <button class="btn-primary inline-flex items-center gap-2" <?= $hasKey ? '' : 'disabled' ?>><span id="crm-spin" aria-hidden="true">↻</span><?= e(t('تحديث')) ?></button>
+            <button class="btn-primary inline-flex items-center gap-2" <?= $hasKey ? '' : 'disabled' ?>><span id="crm-spin" aria-hidden="true"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg></span><?= e(t('تحديث')) ?></button>
           </form>
           <div id="crm-chips" class="flex flex-wrap gap-1.5" role="group">
             <button type="button" data-f="" class="chip on"><?= e(t('الكل')) ?></button>
@@ -229,9 +229,9 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
                 <button type="button" class="crm-hide opacity-0 group-hover:opacity-100 focus:opacity-100 text-ink-400 hover:text-red-600 text-xs px-1.5 py-1 rounded-lg hover:bg-red-50 transition" title="<?= e($c['hidden'] ? t('رجّعها') : t('مش مهتم، اخفيها')) ?>" data-act="<?= $c['hidden'] ? 'unhide' : 'hide' ?>"><?= $c['hidden'] ? '↺' : '✕' ?></button>
               </div>
               <div class="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-ink-500">
-                <?php if ($loc): ?><span>📍 <?= e($loc) ?></span><?php endif; ?>
-                <?php if ($c['employees']): ?><span>👥 <?= e(t('%s موظف', number_format((int)$c['employees']))) ?></span><?php endif; ?>
-                <?php if ($c['domain']): ?><span dir="ltr">🌐 <?= e($c['domain']) ?></span><?php endif; ?>
+                <?php if ($loc): ?><span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12zM12 11a2 2 0 100-4 2 2 0 000 4z"/></svg> <?= e($loc) ?></span><?php endif; ?>
+                <?php if ($c['employees']): ?><span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></svg> <?= e(t('%s موظف', number_format((int)$c['employees']))) ?></span><?php endif; ?>
+                <?php if ($c['domain']): ?><span dir="ltr"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e($c['domain']) ?></span><?php endif; ?>
                 <?php if ((int)$c['revealed']): ?><span class="text-lime-700 font-medium">✓ <?= e(t('كشفت %s', (int)$c['revealed'])) ?></span><?php endif; ?>
               </div>
             </div>

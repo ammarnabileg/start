@@ -17,7 +17,7 @@
   function paint() {
     $('#pv-about').textContent = v('about') || '—';
     var cat = v('vertical') || X.cur; $('#pv-cat').textContent = cat ? (X.verticals[cat] || cat) : '';
-    var rows = [['📝', v('description')], ['📍', v('address')], ['✉️', v('email')], ['🌐', v('web1').replace(/^https?:\/\//, '')], ['🌐', v('web2').replace(/^https?:\/\//, '')]].filter(function (r) { return r[1]; });
+    var rows = [[uic('file', 'w-4 h-4 text-ink-400'), v('description')], [uic('pin', 'w-4 h-4 text-ink-400'), v('address')], [uic('mail', 'w-4 h-4 text-ink-400'), v('email')], [uic('link', 'w-4 h-4 text-ink-400'), v('web1').replace(/^https?:\/\//, '')], [uic('link', 'w-4 h-4 text-ink-400'), v('web2').replace(/^https?:\/\//, '')]].filter(function (r) { return r[1]; });
     $('#pv-info').innerHTML = rows.length ? rows.map(function (r) { return '<div class="flex gap-2"><span>' + r[0] + '</span><span class="flex-1 min-w-0 break-words text-ink-800 ' + (r[0] === '🌐' || r[0] === '✉️' ? 'text-[#027eb5]' : '') + '" dir="auto">' + esc(r[1]) + '</span></div>'; }).join('') : '<div class="text-ink-400 text-xs">—</div>';
     $$('.wp-c').forEach(function (c) { var n = (form.elements[c.dataset.for].value || '').length, m = +c.dataset.max; c.textContent = n + ' / ' + m; c.className = 'wp-c text-[11px] ' + (n > m * 0.9 ? 'text-amber-700' : 'text-ink-400'); });
     var L = [['c_photo', !!(photo || (phIn && phIn.value)), 20], ['c_about', !!v('about'), 15], ['c_desc', v('description').length >= 80, 20], ['c_addr', !!v('address'), 15], ['c_email', !!v('email'), 10], ['c_web', !!(v('web1') || v('web2')), 10], ['c_cat', !!(v('vertical') || X.cur), 10]];

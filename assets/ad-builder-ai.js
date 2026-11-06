@@ -43,7 +43,7 @@
       + '<label class="block"><span class="label">' + esc(I.brief) + '</span><textarea class="input br" rows="4" placeholder="' + esc(I.briefPh) + '"></textarea></label>'
       + '<div class="grid gap-3 sm:grid-cols-2"><label class="block"><span class="label">' + esc(I.product) + '</span>' + (prods.length ? '<select class="input pr"><option value="">' + esc(I.anyProduct) + '</option>' + prods.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('') + '</select>' : '<input class="input pr" placeholder="' + esc(I.productPh) + '">') + '</label>'
       + '<label class="block"><span class="label">' + esc(fmt(I.dailyBudget, D.currency)) + '</span><input class="input bu" type="number" min="1" step="1" dir="ltr" placeholder="50"></label></div>'
-      + '<p class="text-[11px] text-ink-500">' + esc(I.buildNote) + '</p><div class="flex justify-end"><button type="button" class="btn-primary go">✦ ' + esc(I.buildGo) + '</button></div></div><div class="out"></div>', true);
+      + '<p class="text-[11px] text-ink-500">' + esc(I.buildNote) + '</p><div class="flex justify-end"><button type="button" class="btn-primary go">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.buildGo) + '</button></div></div><div class="out"></div>', true);
     $('.go', d).onclick = function () {
       var brief = $('.br', d).value.trim(); if (brief.length < 5) { $('.br', d).focus(); return; }
       var out = $('.out', d), bd = $('.bd', d); bd.firstElementChild.classList.add('hidden'); wait(out, I.building);
@@ -177,13 +177,13 @@
   // ---- ربط الأزرار بكل رسم
   document.addEventListener('ab:render', function (e) {
     var tools = document.getElementById('ab-tools');
-    if (tools && !X.locked && !tools.dataset.on) { tools.dataset.on = '1'; tools.innerHTML = '<button type="button" id="ab-ai-build" class="btn-primary text-sm">✦ ' + esc(I.build) + '</button><button type="button" id="ab-ai-review" class="btn-ghost text-sm">✦ ' + esc(I.reviewT) + '</button>'; }
+    if (tools && !X.locked && !tools.dataset.on) { tools.dataset.on = '1'; tools.innerHTML = '<button type="button" id="ab-ai-build" class="btn-primary text-sm">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.build) + '</button><button type="button" id="ab-ai-review" class="btn-ghost text-sm">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.reviewT) + '</button>'; }
     preview();
     if (e.detail && e.detail.soft) return;
     reachBox();
     var s = X.sel(), head = $('#ab-editor section .flex.items-center'); if (!head || X.locked) return;
-    if (s.t === 'adset') head.insertAdjacentHTML('beforeend', '<button type="button" id="ab-ai-aud" class="btn-ghost text-xs">✦ ' + esc(I.audBtn) + '</button>');
-    if (s.t === 'ad') head.insertAdjacentHTML('beforeend', '<button type="button" id="ab-ai-copy" class="btn-ghost text-xs">✦ ' + esc(I.copyBtn) + '</button>');
+    if (s.t === 'adset') head.insertAdjacentHTML('beforeend', '<button type="button" id="ab-ai-aud" class="btn-ghost text-xs">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.audBtn) + '</button>');
+    if (s.t === 'ad') head.insertAdjacentHTML('beforeend', '<button type="button" id="ab-ai-copy" class="btn-ghost text-xs">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.copyBtn) + '</button>');
   });
   document.addEventListener('click', function (e) {
     var t = e.target.closest('#ab-ai-build, #ab-ai-review, #ab-ai-aud, #ab-ai-copy'); if (!t) return; var s = X.sel();

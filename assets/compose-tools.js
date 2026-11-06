@@ -13,8 +13,8 @@
   /* ---------- #1 القوالب ---------- */
   function tplPane() {
     var inds = Object.keys(X.tpl), mine = X.mine || [];
-    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">📋 ' + esc(T.tplT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div>' +
-      '<div class="flex flex-wrap gap-1.5 mb-2">' + (mine.length ? '<button type="button" class="chip text-xs on" data-ind="__mine">⭐ ' + esc(T.mine) + '</button>' : '') + inds.map(function (k, i) { return '<button type="button" class="chip text-xs' + (!mine.length && !i ? ' on' : '') + '" data-ind="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') + '</div>' +
+    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">' + uic('copy', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.tplT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div>' +
+      '<div class="flex flex-wrap gap-1.5 mb-2">' + (mine.length ? '<button type="button" class="chip text-xs on" data-ind="__mine">' + uic('star', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.mine) + '</button>' : '') + inds.map(function (k, i) { return '<button type="button" class="chip text-xs' + (!mine.length && !i ? ' on' : '') + '" data-ind="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') + '</div>' +
       '<div id="cpt-tl" class="grid sm:grid-cols-2 gap-2"></div>' +
       '<div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100"><button type="button" class="link text-xs" data-x="savetpl">＋ ' + esc(T.saveTpl) + '</button><span class="text-[11px] text-ink-400">' + esc(T.tplHint) + '</span></div>');
     drawTpl(mine.length ? '__mine' : inds[0]);
@@ -93,7 +93,7 @@
     var wi = document.getElementById('whenInput'), md = document.querySelector('input.mode:checked');
     if (wi && wi.value && (!md || md.value === 'schedule') && (X.black || []).length) { var wd = new Date(wi.value), dw = wd.getDay(), hm = wi.value.slice(11, 16); if ((X.black || []).some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; })) issues.push(T.cBlack); }
     if (!issues.length) ok.push(T.cOk);
-    chk.innerHTML = issues.map(function (x) { return '<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5">⚠ ' + esc(x) + '</span>'; }).join('') +
+    chk.innerHTML = issues.map(function (x) { return '<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5">' + uic('alert', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(x) + '</span>'; }).join('') +
       ok.map(function (x) { return '<span class="inline-flex items-center gap-1 rounded-full bg-lime-50 border border-lime-200 text-lime-800 px-2 py-0.5">✓ ' + esc(x) + '</span>'; }).join('');
   }
   var ct = null; function later() { clearTimeout(ct); ct = setTimeout(check, 250); }
@@ -134,7 +134,7 @@
   /* ---------- #8 #9 هوية الصورة: لوجو + علامة مائية + إطار (في المتصفح، قبل الرفع) ---------- */
   var BR = {}; try { BR = JSON.parse(localStorage.getItem('cpt-brand') || '{}'); } catch (e) {}
   function brandPane() {
-    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">🎨 ' + esc(T.brandT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div><p class="text-[11px] text-ink-500 mb-2">' + esc(T.brandHint) + '</p>' +
+    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">' + uic('palette', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.brandT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div><p class="text-[11px] text-ink-500 mb-2">' + esc(T.brandHint) + '</p>' +
       '<div class="grid sm:grid-cols-2 gap-2 text-xs"><label class="block">' + esc(T.logo) + '<input type="file" accept="image/png,image/jpeg,image/webp" id="cpt-logo" class="input !py-1 text-xs"></label>' +
       '<label class="block">' + esc(T.pos) + '<select id="cpt-pos" class="input !py-1 text-xs">' + [['br', T.posBR], ['bl', T.posBL], ['tr', T.posTR], ['tl', T.posTL]].map(function (o) { return '<option value="' + o[0] + '"' + (BR.pos === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>' +
       '<label class="block">' + esc(T.wm) + '<input id="cpt-wm" class="input !py-1 text-xs" dir="auto" value="' + esc(BR.wm || '') + '" placeholder="@yourbrand"></label>' +

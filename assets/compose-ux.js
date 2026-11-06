@@ -121,8 +121,8 @@
     var av = c.dataset.pic ? '<img src="' + esc(c.dataset.pic) + '" class="w-9 h-9 rounded-full object-cover" referrerpolicy="no-referrer">' : '<span class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-600 to-cyan-500"></span>';
     var head = '<div class="flex items-center gap-2.5">' + av + '<div class="min-w-0 flex-1"><b class="block text-sm text-ink-900 truncate">' + esc(c.dataset.name) + '</b><span class="text-[11px] text-ink-500">' + esc(when()) + ' · ' + (P.icons[p] || '') + '</span></div></div>';
     var body = txt.trim() ? '<p class="text-sm text-ink-800 whitespace-pre-wrap break-words mt-3" dir="auto">' + fmt(shown) + (long ? '<span class="text-ink-500 font-medium">' + esc(P.more) + '</span>' : '') + '</p>' : '<p class="text-sm text-ink-400 italic mt-3">' + esc(P.emptyText) + '</p>';
-    var foot = '<div class="flex items-center justify-around mt-3 pt-2 border-t border-ink-100 text-[11px] text-ink-500"><span>♡ ' + esc(P.like) + '</span><span>💬 ' + esc(P.comment) + '</span><span>↗ ' + esc(P.share) + '</span></div>';
-    var custom = textFor(c) !== content.value ? '<p class="mt-2 text-[11px] text-brand-700">✎ ' + esc(P.customText) + '</p>' : '';
+    var foot = '<div class="flex items-center justify-around mt-3 pt-2 border-t border-ink-100 text-[11px] text-ink-500"><span>♡ ' + esc(P.like) + '</span><span>' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(P.comment) + '</span><span>↗ ' + esc(P.share) + '</span></div>';
+    var custom = textFor(c) !== content.value ? '<p class="mt-2 text-[11px] text-brand-700">' + uic('pencil', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(P.customText) + '</p>' : '';
     card.innerHTML = '<div class="max-w-md mx-auto rounded-2xl bg-white border border-ink-200 shadow-sm p-4">' + head + body + media + foot + '</div>' + custom + (over ? '<p class="mt-2 text-[11px] text-red-600">' + esc(P.tooLong.replace('%s', Array.from(txt).length - lim)) + '</p>' : '');
   }
 
@@ -177,7 +177,7 @@
     if (m && m.value === 'schedule' && wi && new Date(wi.value) < new Date()) issues.push(P.past);
     steps(s, m, issues);
     var ex = m && m.value === 'schedule' ? extras() : 0;
-    sum.innerHTML = '<div class="flex items-center gap-1 flex-wrap"><b class="text-ink-900">' + esc(s.length ? P.onN.replace('%s', s.length) : P.pickAcc) + '</b>' + s.map(function (c) { return P.icons[c.dataset.plat] || ''; }).join('') + (m ? '<span class="text-ink-400 mx-1">·</span><span>' + esc(when() || P.modes[m.value] || '') + '</span>' : '') + (ex ? '<span class="rounded-full bg-brand-50 text-brand-700 px-1.5 text-[10px]">' + esc(P.extraN.replace('%s', ex)) + '</span>' : '') + '</div>' + issues.map(function (x) { return '<div class="text-red-600">⚠ ' + esc(x) + '</div>'; }).join('');
+    sum.innerHTML = '<div class="flex items-center gap-1 flex-wrap"><b class="text-ink-900">' + esc(s.length ? P.onN.replace('%s', s.length) : P.pickAcc) + '</b>' + s.map(function (c) { return P.icons[c.dataset.plat] || ''; }).join('') + (m ? '<span class="text-ink-400 mx-1">·</span><span>' + esc(when() || P.modes[m.value] || '') + '</span>' : '') + (ex ? '<span class="rounded-full bg-brand-50 text-brand-700 px-1.5 text-[10px]">' + esc(P.extraN.replace('%s', ex)) + '</span>' : '') + '</div>' + issues.map(function (x) { return '<div class="text-red-600">' + uic('alert', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(x) + '</div>'; }).join('');
   }
 
   /* ---------- 8) مسودة تلقائية + Ctrl+Enter + تحذير الخروج ---------- */

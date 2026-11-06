@@ -134,7 +134,7 @@ if ($task === 'classify_now') {
     }
 }
 
-// لوحة ✨ الجانبية: محادثة واحدة على مستوى المنصة، فاكرة الصفحة اللي المستخدم فيها
+// لوحة <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> الجانبية: محادثة واحدة على مستوى المنصة، فاكرة الصفحة اللي المستخدم فيها
 if (in_array($task, ['chat', 'chat_clear', 'chat_log'], true)) {
     $wid = (int)ws('id');
     $hist = &$_SESSION['copilot'][$wid];
@@ -219,7 +219,7 @@ if ($task === 'insight') {
     }
 }
 
-// أوامر جاهزة (✨): تحسين، هاشتاجات، نبرة، تلخيص، تصنيف...
+// أوامر جاهزة (<svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>): تحسين، هاشتاجات، نبرة، تلخيص، تصنيف...
 if ($task === 'preset') {
     $presets = ai_presets();
     $key = (string)($_POST['preset'] ?? '');

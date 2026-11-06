@@ -210,7 +210,7 @@ render($fix ? t('تصحيح بيانات الرقم') : t('بيانات الهو
               <p class="text-[11px] text-ink-500 mt-1"><?= e(t('اكتب العنوان بالإنجليزي زي ما هو مكتوب في المستندات.')) ?></p>
             <?php elseif ($kind === 'file'): ?>
               <label class="kyc-drop flex items-center gap-3 rounded-xl border-2 border-dashed border-ink-200 hover:border-brand-400 p-4 cursor-pointer transition">
-                <span class="w-10 h-10 shrink-0 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">⇪</span>
+                <span class="w-10 h-10 shrink-0 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"/></svg></span>
                 <span class="min-w-0 flex-1"><span class="kyc-fn block text-sm font-medium text-ink-800 truncate"><?= e(t('اختار ملف أو اسحبه هنا')) ?></span><span class="kyc-fs block text-xs text-ink-500"><?= e(t('PDF أو صورة · لحد 10 ميجا · البطاقة: الوشين في ملف واحد')) ?></span></span>
                 <input type="file" name="docs[<?= e($rid) ?>]" accept="application/pdf,image/jpeg,image/png,image/webp" class="kyc-in sr-only">
               </label>

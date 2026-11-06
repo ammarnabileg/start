@@ -293,7 +293,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-bold text-xl text-ink-900 truncate" dir="ltr" style="unicode-bidi:isolate"><?= e($num) ?></span>
-                <button type="button" class="ph-copy w-7 h-7 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-ink-700 shrink-0" data-v="<?= e($num) ?>" title="<?= e(t('انسخ')) ?>">⧉</button>
+                <button type="button" class="ph-copy w-7 h-7 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-ink-700 shrink-0" data-v="<?= e($num) ?>" title="<?= e(t('انسخ')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg></button>
               </div>
               <div class="text-xs text-ink-500 mt-0.5"><?= e(implode(' · ', array_filter([$types[$n['numberType'] ?? ''] ?? ($n['numberType'] ?? ''), isset($n['monthlyCents']) ? t('%s/شهر', ph_money_cents($n['monthlyCents'])) : '', !empty($n['createdAt']) ? t('مشترك من %s', fmt_date($n['createdAt'], 'd/m/Y')) : '']))) ?></div>
             </div>
@@ -355,7 +355,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
           <h2 class="font-bold text-ink-900 mb-1"><?= e(t('أرقام واتساب الخاصة بيك (مربوطة من بره)')) ?></h2>
           <p class="text-xs text-ink-500 mb-3"><?= e(t('مش بتتحاسب عليه هنا')) ?></p>
           <?php foreach ($data['connected'] as $c): $v = (string)($c['phoneNumber'] ?? $c['displayPhoneNumber'] ?? ''); ?>
-            <div class="flex items-center gap-2 py-2 border-t border-ink-100 text-sm"><span class="text-lime-600">●</span><span dir="ltr" style="unicode-bidi:isolate" class="font-medium"><?= e($v) ?></span><button type="button" class="ph-copy ms-auto w-7 h-7 rounded-lg text-ink-400 hover:bg-ink-100" data-v="<?= e($v) ?>">⧉</button></div>
+            <div class="flex items-center gap-2 py-2 border-t border-ink-100 text-sm"><span class="text-lime-600">●</span><span dir="ltr" style="unicode-bidi:isolate" class="font-medium"><?= e($v) ?></span><button type="button" class="ph-copy ms-auto w-7 h-7 rounded-lg text-ink-400 hover:bg-ink-100" data-v="<?= e($v) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg></button></div>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>

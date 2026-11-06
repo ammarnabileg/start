@@ -52,7 +52,7 @@ $groups = []; foreach ($files as $r) { $rel = $base !== '' ? ltrim(substr((strin
 <body class="bg-ink-50 min-h-screen">
   <header class="bg-white border-b border-ink-200">
     <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
-      <span class="w-10 h-10 rounded-xl bg-gradient-to-l from-brand-600 to-cyan-600 grid place-items-center text-white text-lg">📁</span>
+      <span class="w-10 h-10 rounded-xl bg-gradient-to-l from-brand-600 to-cyan-600 grid place-items-center text-white text-lg"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg></span>
       <div class="min-w-0 flex-1"><h1 class="font-semibold text-ink-900 truncate"><?= e($title) ?></h1><p class="text-xs text-ink-500"><?= e(t('من %s · %s ملف', $wsName, count($files))) ?><?php if ($sh['expires_at']): ?> · <?= e(t('الرابط صالح لحد %s', fmt_date($sh['expires_at'], 'd/m/Y'))) ?><?php endif; ?></p></div>
       <?php if ($sh['allow_download'] && $files): ?><a href="<?= e($u(['zip' => 1])) ?>" class="btn-primary text-sm">⤓ <?= e(t('تحميل الكل (ZIP)')) ?></a><?php endif; ?>
     </div>
@@ -61,14 +61,14 @@ $groups = []; foreach ($files as $r) { $rel = $base !== '' ? ltrim(substr((strin
     <?php if (!$files): ?><p class="text-center text-ink-500 py-20"><?= e(t('الفولدر ده فاضي.')) ?></p><?php endif; ?>
     <?php foreach ($groups as $rel => $list): ?>
       <section>
-        <?php if ($rel !== ''): ?><h2 class="text-sm font-semibold text-ink-700 mb-3">📁 <?= e($rel) ?></h2><?php endif; ?>
+        <?php if ($rel !== ''): ?><h2 class="text-sm font-semibold text-ink-700 mb-3"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg> <?= e($rel) ?></h2><?php endif; ?>
         <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           <?php foreach ($list as $r): $k = media_kind($r['mime']); ?>
             <figure class="card overflow-hidden group">
               <a href="<?= e($u(['file' => $r['id']])) ?>" target="_blank" rel="noopener" class="block aspect-square bg-ink-100 grid place-items-center overflow-hidden">
                 <?php if ($k === 'image'): ?><img src="<?= e($u(['file' => $r['id'], 'thumb' => 1])) ?>" alt="" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition">
                 <?php elseif ($k === 'video'): ?><video src="<?= e($u(['file' => $r['id']])) ?>#t=0.5" preload="metadata" muted class="w-full h-full object-cover"></video>
-                <?php else: ?><span class="text-4xl">📄</span><?php endif; ?>
+                <?php else: ?><span class="text-4xl"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg></span><?php endif; ?>
               </a>
               <figcaption class="p-2.5 flex items-center gap-2 text-xs"><span class="flex-1 truncate text-ink-800" title="<?= e($r['name']) ?>"><?= e($r['name']) ?></span><span class="text-ink-400" dir="ltr"><?= e(media_fmt_size((int)$r['size'])) ?></span>
                 <?php if ($sh['allow_download']): ?><a href="<?= e($u(['file' => $r['id'], 'dl' => 1])) ?>" class="text-brand-700 hover:underline" aria-label="<?= e(t('تحميل')) ?>">⤓</a><?php endif; ?></figcaption>

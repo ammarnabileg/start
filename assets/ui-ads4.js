@@ -23,7 +23,7 @@
   // ---- لوحة المستشار
   var anchor = $('#ads-attn'); if (!anchor) return;
   var box = document.createElement('section'); box.className = 'card p-4'; box.id = 'ads-adv';
-  box.innerHTML = '<div class="flex flex-wrap items-center gap-2"><b class="text-sm text-ink-900 me-auto">✦ ' + esc(S.adv) + '</b>'
+  box.innerHTML = '<div class="flex flex-wrap items-center gap-2"><b class="text-sm text-ink-900 me-auto">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(S.adv) + '</b>'
     + '<button type="button" data-m="summary" class="btn-ghost text-sm">' + esc(S.advSum) + '</button>'
     + (C.canSpend ? '<button type="button" data-m="realloc" class="btn-ghost text-sm">' + esc(S.advRe) + '</button>' : '') + '</div>'
     + '<p class="text-[11px] text-ink-500 mt-2">' + esc(S.advHint) + '</p><div class="out mt-3 hidden"></div>';

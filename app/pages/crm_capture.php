@@ -77,11 +77,11 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
     $sec = 'card p-5 scroll-mt-24';
     ?>
   <div class="mb-4 flex flex-wrap gap-1.5 text-xs" id="cap-nav">
-    <?php foreach (['links' => '🔗 ' . t('روابط وQR'), 'qualify' => '🎯 ' . t('فورم ذكي'), 'lp' => '📄 ' . t('صفحات هبوط'), 'wa' => '💬 ' . t('واتساب متتبع'), 'ref' => '🤝 ' . t('الإحالة'), 'card' => '🪪 ' . t('كارت بزنس'), 'sheet' => '📊 Google Sheets'] as $k => $v): ?><a href="#<?= $k ?>" class="chip"><?= e($v) ?></a><?php endforeach; ?>
+    <?php foreach (['links' => ['link', t('روابط وQR')], 'qualify' => ['target', t('فورم ذكي')], 'lp' => ['file', t('صفحات هبوط')], 'wa' => ['chat', t('واتساب متتبع')], 'ref' => ['users', t('الإحالة')], 'card' => ['id', t('كارت بزنس')], 'sheet' => ['chart', 'Google Sheets']] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?>
   </div>
   <div class="grid xl:grid-cols-2 gap-4">
     <!-- #53 #58 -->
-    <section id="links" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🔗 <?= e(t('روابطك الجاهزة + QR')) ?></h2>
+    <section id="links" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('روابطك الجاهزة + QR')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('اطبع الـ QR وحطه في المحل أو المعرض أو على الكروت. اللي يمسحه بيوصل للفورم ويتسجل Lead على طول.')) ?></p>
       <div class="space-y-2 text-sm">
         <?php foreach ([[t('فورم التواصل'), $formUrl], [t('فورم "اتصل بيا" (رقم بس، زرار واحد)'), $callUrl], [t('صفحة الحجز'), $bookUrl]] as [$n, $u]): ?>
@@ -90,7 +90,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
       </div></section>
 
     <!-- #51 -->
-    <section id="qualify" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🎯 <?= e(t('فورم ذكي بأسئلة تأهيل')) ?></h2>
+    <section id="qualify" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('فورم ذكي بأسئلة تأهيل')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('بيسأل عن الميزانية وإمتى محتاج. اللي عاوز يبدأ دلوقتي بياخد نقط أعلى ويطلع فوق في العملاء.')) ?></p>
       <form method="post" class="space-y-2"><?= csrf_field() ?><input type="hidden" name="action" value="form_cfg">
         <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="qualify" value="1" <?= !empty($cfg['qualify']) ? 'checked' : '' ?>> <b><?= e(t('شغّل أسئلة التأهيل في الفورم')) ?></b></label>
@@ -98,7 +98,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
         <button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button></form></section>
 
     <!-- #52 -->
-    <section id="lp" class="<?= $sec ?> xl:col-span-2"><div class="flex items-center gap-2 mb-1"><h2 class="font-semibold text-ink-900 flex-1">📄 <?= e(t('صفحات هبوط للحملات')) ?></h2><button type="button" class="btn-primary !py-1.5 !text-xs" data-lp-new>+ <?= e(t('صفحة جديدة')) ?></button></div>
+    <section id="lp" class="<?= $sec ?> xl:col-span-2"><div class="flex items-center gap-2 mb-1"><h2 class="font-semibold text-ink-900 flex-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg> <?= e(t('صفحات هبوط للحملات')) ?></h2><button type="button" class="btn-primary !py-1.5 !text-xs" data-lp-new>+ <?= e(t('صفحة جديدة')) ?></button></div>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('صفحة لكل حملة من غير موقع: عنوان، وصف، صورة، زرار واتساب، وفورم. حط لينكها في الإعلان أو البايو، وكل اللي يسجّل بيتعلّم باسم الحملة.')) ?></p>
       <?php if (!$lps): ?><p class="text-sm text-ink-400 py-4 text-center"><?= e(t('لسه مفيش صفحات.')) ?></p><?php endif; ?>
       <div class="divide-y divide-ink-100">
@@ -124,7 +124,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
       </form></section>
 
     <!-- #57 -->
-    <section id="wa" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">💬 <?= e(t('لينك واتساب متتبع')) ?></h2>
+    <section id="wa" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg> <?= e(t('لينك واتساب متتبع')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('لينك لكل إعلان أو منشور. الرسالة بتتفتح فيها كود صغير زي #Ab12Cd3، ولما العميل يبعتها ويتضاف Lead بنعرف جه منين. والضغطات بتتعد.')) ?></p>
       <div class="grid sm:grid-cols-2 gap-2 text-sm"><input id="wa-ph" class="input !mt-0 text-sm" dir="ltr" placeholder="<?= e(t('رقم واتساب بكود الدولة')) ?>"><input id="wa-lb" class="input !mt-0 text-sm" dir="auto" placeholder="<?= e(t('اسمه (مثلًا: إعلان العيد)')) ?>">
         <input id="wa-msg" class="input !mt-0 text-sm sm:col-span-2" dir="auto" value="<?= e(t('السلام عليكم، عاوز أعرف تفاصيل أكتر')) ?>"><button type="button" id="wa-go" class="btn-primary !py-1.5 !text-xs sm:col-span-2"><?= e(t('اعمل اللينك')) ?></button></div>
@@ -133,7 +133,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
     </section>
 
     <!-- #54 -->
-    <section id="ref" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🤝 <?= e(t('برنامج الإحالة')) ?></h2>
+    <section id="ref" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></svg> <?= e(t('برنامج الإحالة')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('ابعت لكل عميل لينك خاص بيه. أي حد يسجّل منه بيتكتب إنه جه من العميل ده، وبياخد نقط أعلى، والعميل الأصلي بيتسجل عنده إنه جاب حد.')) ?></p>
       <div class="flex gap-2"><select id="ref-l" class="input !mt-0 text-sm flex-1"><option value=""><?= e(t('اختار عميل')) ?></option><?php foreach ($refLeads as $l): ?><option value="<?= (int)$l['id'] ?>"><?= e($l['name'] . ($l['company'] ? ' · ' . $l['company'] : '')) ?></option><?php endforeach; ?></select><button type="button" id="ref-go" class="btn-primary !py-1.5 !text-xs"><?= e(t('اللينك')) ?></button></div>
       <div id="ref-out" class="mt-2"></div>
@@ -141,23 +141,23 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
     </section>
 
     <!-- #56 -->
-    <section id="card" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">🪪 <?= e(t('كارت بزنس بالكاميرا')) ?></h2>
+    <section id="card" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM8 12a2 2 0 100-4 2 2 0 000 4zM5 16a3 3 0 016 0M14 9h4M14 13h4"/></svg> <?= e(t('كارت بزنس بالكاميرا')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('صوّر الكارت من الموبايل. النص بيتقري في المتصفح (من غير ذكاء اصطناعي)، وانت تراجع البيانات قبل الحفظ.')) ?></p>
-      <label class="btn-ghost !text-xs cursor-pointer"><input type="file" id="card-f" accept="image/*" capture="environment" class="hidden">📷 <?= e(t('صوّر أو ارفع كارت')) ?></label>
+      <label class="btn-ghost !text-xs cursor-pointer"><input type="file" id="card-f" accept="image/*" capture="environment" class="hidden"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 100-8 4 4 0 000 8z"/></svg> <?= e(t('صوّر أو ارفع كارت')) ?></label>
       <span id="card-st" class="text-xs text-ink-500 ms-2"></span>
       <form id="card-form" class="hidden mt-3 grid sm:grid-cols-2 gap-2 text-sm">
         <?php foreach (['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'event' => t('اتقابلنا فين؟ (اختياري)')] as $k => $v): ?><label class="text-xs text-ink-600"><?= e($v) ?><input name="<?= $k ?>" class="input text-sm" dir="auto"></label><?php endforeach; ?>
         <div class="sm:col-span-2 flex gap-2 justify-end"><button class="btn-primary !py-1.5 !text-xs"><?= e(t('ضيفه Lead')) ?></button></div></form></section>
 
     <!-- #60 -->
-    <section id="sheet" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1">📊 <?= e(t('ربط Google Sheets')) ?></h2>
+    <section id="sheet" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/></svg> <?= e(t('ربط Google Sheets')) ?></h2>
       <p class="text-xs text-ink-500 mb-2"><?= e(t('أي صف جديد في الشيت بيبقى Lead (كل ساعة). مناسب لفورمات Google Forms ولأي حد بيجمع أرقام في شيت.')) ?></p>
       <ol class="text-[11px] text-ink-500 list-decimal ps-4 mb-3 space-y-0.5"><li><?= e(t('في الشيت: File ← Share ← Publish to web، واختار CSV.')) ?></li><li><?= e(t('الصف الأول لازم يكون أسماء الأعمدة (الاسم، الموبايل، الإيميل…).')) ?></li><li><?= e(t('انسخ اللينك وحطه هنا.')) ?></li></ol>
       <form method="post" class="space-y-2"><?= csrf_field() ?><input type="hidden" name="action" value="sheet_save">
         <input name="url" class="input text-sm" dir="ltr" value="<?= e($sheet['url']) ?>" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv">
         <?php if ($sheet['url'] === ''): ?><label class="flex items-center gap-2 text-xs"><input type="checkbox" name="skip_old" value="1"> <?= e(t('تجاهل الصفوف القديمة وابدأ من الجديد')) ?></label><?php endif; ?>
         <button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button></form>
-      <?php if ($sheet['url'] !== ''): ?><div class="flex flex-wrap items-center gap-2 mt-2"><form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="sheet_run"><button class="btn-ghost !py-1.5 !text-xs">↻ <?= e(t('اسحب دلوقتي')) ?></button></form>
+      <?php if ($sheet['url'] !== ''): ?><div class="flex flex-wrap items-center gap-2 mt-2"><form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="sheet_run"><button class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('اسحب دلوقتي')) ?></button></form>
         <span class="text-[11px] <?= $sheet['err'] ? 'text-red-600' : 'text-ink-500' ?>"><?= e($sheet['err'] ?: ($sheet['last'] ? t('آخر سحب: %s · %s صف', fmt_date($sheet['last'], 'd/m h:i A'), (int)$sheet['seen']) : '')) ?></span></div><?php endif; ?>
     </section>
   </div>

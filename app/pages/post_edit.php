@@ -220,7 +220,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
               <?php if (isset($accNames[$accId])): ?><span class="text-xs text-ink-500"><?= e($accNames[$accId]) ?></span><?php endif; ?>
               <span class="ms-auto text-xs px-2 py-0.5 rounded-full font-semibold <?= $pCls ?>"><?= e($pLabel) ?></span>
             </div>
-            <?php if (!empty($pl['platformPostUrl'])): ?><a class="link text-sm" href="<?= e($pl['platformPostUrl']) ?>" target="_blank" rel="noopener"><?= e(t('افتح المنشور على المنصة')) ?> ↗</a><?php endif; ?>
+            <?php if (!empty($pl['platformPostUrl'])): ?><a class="link text-sm" href="<?= e($pl['platformPostUrl']) ?>" target="_blank" rel="noopener"><?= e(t('افتح المنشور على المنصة')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a><?php endif; ?>
             <?php if (!empty($pl['publishedAt'])): ?><p class="text-xs text-ink-500"><?= e(t('اتنشر:')) ?> <?= e(fmt_date($pl['publishedAt'], 'd/m h:i A')) ?></p><?php endif; ?>
             <?php if (!empty($pl['errorMessage'])): ?><p class="text-xs text-red-700 bg-red-50 rounded-lg p-2"><?= e($pl['errorMessage']) ?></p><?php endif; ?>
             <?php if (!empty($pl['customContent'])): ?><p class="text-xs text-ink-600"><?= e(t('نص خاص بالمنصة دي:')) ?> <?= e(mb_substr($pl['customContent'], 0, 200)) ?></p><?php endif; ?>

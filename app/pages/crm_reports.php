@@ -46,7 +46,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <div class="inline-flex rounded-xl border border-ink-200 bg-white p-0.5"><?php foreach ($periods as $k => $v): ?><a href="<?= e(url('crm_reports', ['period' => $k])) ?>" class="px-3 py-1.5 text-sm rounded-lg <?= $k === $period ? 'bg-brand-600 text-white' : 'text-ink-600 hover:bg-ink-50' ?>"><?= e($v) ?></a><?php endforeach; ?></div>
-      <?php if ($canManage && $isMonth): ?><button type="button" class="btn-ghost ms-auto" onclick="document.getElementById('rp-goals').classList.toggle('hidden')">🎯 <?= e(t('الأهداف الشهرية')) ?></button><?php endif; ?>
+      <?php if ($canManage && $isMonth): ?><button type="button" class="btn-ghost ms-auto" onclick="document.getElementById('rp-goals').classList.toggle('hidden')"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('الأهداف الشهرية')) ?></button><?php endif; ?>
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
@@ -59,7 +59,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
 
     <?php if ($canManage && $isMonth): ?>
     <form id="rp-goals" method="post" class="hidden card p-4 mb-5 space-y-3"><?= csrf_field() ?><input type="hidden" name="action" value="goals"><input type="hidden" name="ym" value="<?= e($ym) ?>">
-      <div class="font-semibold text-ink-900">🎯 <?= e(t('أهداف %s', $ym)) ?></div>
+      <div class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('أهداف %s', $ym)) ?></div>
       <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-xs text-ink-500"><th class="text-start py-1"></th><th><?= e(t('عملاء جداد')) ?></th><th><?= e(t('قيمة المبيعات')) ?></th><th><?= e(t('مرات التواصل')) ?></th></tr></thead><tbody>
         <tr><td class="py-1 font-medium"><?= e(t('الفريق كله')) ?></td><?php foreach (['won', 'value', 'contacts'] as $k): ?><td class="px-1"><input class="input !py-1 text-sm" name="team_<?= $k ?>" inputmode="numeric" dir="ltr" value="<?= e((string)($tg[$k] ?? '')) ?>"></td><?php endforeach; ?></tr>
         <?php foreach ($rows as $r): $ug = $goals['users'][$r['id']] ?? []; ?><tr><td class="py-1"><?= e($r['name']) ?></td><?php foreach (['won', 'value', 'contacts'] as $k): ?><td class="px-1"><input class="input !py-1 text-sm" name="u[<?= (int)$r['id'] ?>][<?= $k ?>]" inputmode="numeric" dir="ltr" value="<?= e((string)($ug[$k] ?? '')) ?>"></td><?php endforeach; ?></tr><?php endforeach; ?>
@@ -92,7 +92,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     <p class="text-[11px] text-ink-400 -mt-3 mb-5"><?= e(t('"تواصل" = مكالمات وواتساب وإيميلات واجتماعات اتسجلت. "سرعة أول رد" = من وقت ما العميل اتضاف لحد أول تواصل معاه. حد الكشف اليومي لكل موظف: %s.', $limit)) ?></p>
 
     <?php if ($srcRows): $srcL = crm_sources(); $best = 0; foreach ($srcRows as $r) if ($r['n'] >= 3) $best = max($best, $r['w'] / $r['n']); ?>
-    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🧭 <?= e(t('مصادر العملاء')) ?></div>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('مصادر العملاء')) ?></div>
       <p class="text-[11px] text-ink-500 mb-3"><?= e(t('منين بييجي العملاء، وأنهي مصدر بيتحول لعملاء فعلًا. ركّز مجهودك على اللي نسبته أعلى.')) ?></p>
       <div class="space-y-2"><?php $mx = max(array_column($srcRows, 'n')); foreach ($srcRows as $r): $conv = $r['n'] ? $r['w'] / $r['n'] : 0; ?>
         <div class="grid grid-cols-[120px_1fr_70px_70px] sm:grid-cols-[140px_1fr_90px_90px_110px] items-center gap-3 text-sm">
@@ -108,7 +108,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     <?php endif; ?>
 
     <div class="grid md:grid-cols-2 gap-4 mb-5">
-      <div class="card p-4"><div class="font-semibold text-ink-900">📈 <?= e(t('الإيراد المتوقع')) ?> <b class="text-brand-700 ms-1"><?= e(number_format($fc['total'])) ?></b></div>
+      <div class="card p-4"><div class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg> <?= e(t('الإيراد المتوقع')) ?> <b class="text-brand-700 ms-1"><?= e(number_format($fc['total'])) ?></b></div>
         <p class="text-[11px] text-ink-500 mb-2"><?= e(t('قيمة كل عميل مفتوح × احتمال مرحلته. الاحتمالات بتتغير من العملاء ← أدوات ← سرعة الرد والتوزيع.')) ?></p>
         <?php foreach (['new', 'contacted', 'qualified', 'proposal'] as $k): $r = $fc['rows'][$k] ?? ['n' => 0, 'v' => 0, 'w' => 0, 'p' => crm_stage_probs()[$k]]; ?>
           <div class="flex items-center gap-2 text-sm py-1"><span class="w-24 text-ink-600"><?= e(crm_stages()[$k]) ?></span><span class="text-[11px] text-ink-400 w-24"><?= (int)$r['n'] ?> · <?= (int)$r['p'] ?>%</span><span class="flex-1 text-ink-500 text-xs"><?= e(number_format($r['v'])) ?></span><b class="text-ink-900"><?= e(number_format($r['w'])) ?></b></div>
@@ -121,7 +121,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     </div>
 
     <?php if ($links): ?>
-    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🔗 <?= e(t('روابط المنشورات')) ?></div>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('روابط المنشورات')) ?></div>
       <p class="text-[11px] text-ink-500 mb-3"><?= e(t('كل لينك متتبع حطيته في منشور: كام واحد ضغط عليه، وكام بقى عميل محتمل من الفورم أو الحجز.')) ?></p>
       <div class="overflow-x-auto"><table class="w-full text-sm min-w-[560px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('المنشور')) ?></th><th><?= e(t('ضغطات')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('تحويل')) ?></th></tr></thead><tbody>
       <?php foreach ($links as $lk): ?><tr class="border-b border-ink-50"><td class="py-2 max-w-[320px]"><div class="truncate text-ink-800" dir="auto"><?= e($lk['label'] ?: $lk['url']) ?></div><div class="text-[11px] text-ink-400 truncate" dir="ltr"><?= e($lk['url']) ?></div></td>
@@ -131,7 +131,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     <?php endif; ?>
 
     <?php if ($coupons): ?>
-    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🎟 <?= e(t('كوبونات المنشورات')) ?></div>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('كوبونات المنشورات')) ?></div>
       <p class="text-[11px] text-ink-500 mb-3"><?= e(t('العميل اللي يكتب الكود في كومنت أو رسالة واتضاف Lead، بيتسجل عليه الكوبون.')) ?></p>
       <div class="overflow-x-auto"><table class="w-full text-sm min-w-[460px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الكود')) ?></th><th class="text-start"><?= e(t('المنشور')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th></tr></thead><tbody>
       <?php foreach ($coupons as $cp): ?><tr class="border-b border-ink-50"><td class="py-2 font-mono font-semibold" dir="ltr"><?= e($cp['code']) ?></td><td class="max-w-[280px] truncate text-ink-600" dir="auto"><?= e($cp['label']) ?></td><td class="text-center"><?= (int)$cp['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= (int)$cp['won'] ?></td></tr><?php endforeach; ?>

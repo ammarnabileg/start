@@ -108,7 +108,7 @@ render(t('رقمي'), 'sms_mine', function () use ($c, $owner, $threads, $msgs, 
           <?php if (!$threads): ?><p class="p-6 text-center text-sm text-ink-500"><?= e(t('مفيش رسايل لسه.')) ?></p><?php endif; ?>
           <?php foreach ($threads as $t): $on = $t['phone'] === $phone; ?>
             <a href="<?= e(url('sms_mine', ['to' => $t['phone']])) ?>" data-q="<?= e(mb_strtolower($t['phone'] . ' ' . $t['body'])) ?>" class="sm-th flex gap-3 px-3 py-2.5 border-b border-ink-100 hover:bg-ink-50 <?= $on ? 'bg-brand-50' : '' ?>">
-              <span class="w-9 h-9 shrink-0 rounded-full bg-ink-100 text-ink-600 flex items-center justify-center text-xs">✉</span>
+              <span class="w-9 h-9 shrink-0 rounded-full bg-ink-100 text-ink-600 flex items-center justify-center text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></span>
               <span class="min-w-0 flex-1">
                 <span class="flex items-center gap-2"><span class="font-medium text-sm text-ink-900 truncate" dir="ltr" style="unicode-bidi:isolate"><?= e($t['phone']) ?></span>
                   <span class="ms-auto text-[10px] text-ink-400"><?= e(fmt_date($t['created_at'], 'd/m H:i')) ?></span></span>

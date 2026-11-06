@@ -424,30 +424,30 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             </div>
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
               <label id="bk-drop" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 cursor-pointer transition focus-within:ring-2 ring-brand-300">
-                <span class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-xl group-hover:scale-110 transition">⇪</span>
+                <span class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 grid place-items-center text-xl group-hover:scale-110 transition"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"/></svg></span>
                 <span class="font-semibold text-ink-900" id="bk-fn"><?= e(t('ارفع ملف')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('CSV من Excel أو Google Sheets، أو اسحبه هنا')) ?></span>
                 <input type="file" name="csv" id="bk-file" accept=".csv,.tsv,.txt,text/csv" class="sr-only">
               </label>
               <button type="button" id="bk-paste-btn" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 transition">
-                <span class="w-11 h-11 rounded-xl bg-lime-50 text-lime-700 grid place-items-center text-xl group-hover:scale-110 transition">📋</span>
+                <span class="w-11 h-11 rounded-xl bg-lime-50 text-lime-700 grid place-items-center text-xl group-hover:scale-110 transition"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg></span>
                 <span class="font-semibold text-ink-900"><?= e(t('الصق من Excel')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('حدد الخانات في الشيت وانسخها والصقها هنا')) ?></span>
               </button>
               <?php if (can('ai.use')): ?>
               <button type="button" id="bk-ai-btn" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white hover:border-violet-400 p-5 transition">
-                <span class="w-11 h-11 rounded-xl bg-violet-100 text-violet-700 grid place-items-center text-xl group-hover:scale-110 transition">✦</span>
+                <span class="w-11 h-11 rounded-xl bg-violet-100 text-violet-700 grid place-items-center text-xl group-hover:scale-110 transition"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span>
                 <span class="font-semibold text-ink-900"><?= e(t('اكتبها بالذكاء الاصطناعي')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('اكتب الفكرة وخد 10 أو 30 منشور مختلفين')) ?></span>
               </button>
               <?php endif; ?>
               <button type="button" id="bk-lib-start" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-white hover:border-sky-400 p-5 transition">
-                <span class="w-11 h-11 rounded-xl bg-sky-100 text-sky-700 grid place-items-center text-xl group-hover:scale-110 transition">🖼</span>
+                <span class="w-11 h-11 rounded-xl bg-sky-100 text-sky-700 grid place-items-center text-xl group-hover:scale-110 transition"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9.5h.01"/></svg></span>
                 <span class="font-semibold text-ink-900"><?= e(t('من مكتبة الوسائط')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('اختار 50 صورة وخد 50 منشور، كل صورة في منشور')) ?></span>
               </button>
               <button type="button" id="bk-new" class="group flex flex-col items-center text-center gap-2 rounded-2xl border-2 border-ink-200 hover:border-brand-400 hover:bg-brand-50/40 p-5 transition">
-                <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 grid place-items-center text-xl group-hover:scale-110 transition">✎</span>
+                <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 grid place-items-center text-xl group-hover:scale-110 transition"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></span>
                 <span class="font-semibold text-ink-900"><?= e(t('اكتب هنا')) ?></span>
                 <span class="text-xs text-ink-500"><?= e(t('جدول فاضي تكتب فيه على طول')) ?></span>
               </button>
@@ -457,7 +457,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
               <div class="flex gap-2 mt-2"><button type="button" id="bk-paste-go" class="btn-primary"><?= e(t('اعرض في الجدول')) ?></button><button type="button" id="bk-paste-x" class="btn-ghost"><?= e(t('إلغاء')) ?></button></div>
             </div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 text-sm">
-              <a class="link" download="bulk-template.csv" href="<?= e(url('bulk', ['sample' => 1])) ?>">⇣ <?= e(t('نزّل الملف الجاهز')) ?></a>
+              <a class="link" download="bulk-template.csv" href="<?= e(url('bulk', ['sample' => 1])) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg> <?= e(t('نزّل الملف الجاهز')) ?></a>
               <span class="text-xs text-ink-500"><?= e(t('أسماء الأعمدة ممكن تبقى بالعربي (النص، المنصات، الميعاد، الصورة) وهنفهمها.')) ?></span>
             </div>
           </section>
@@ -472,10 +472,10 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
               <div class="ms-auto flex flex-wrap items-center gap-1.5">
                 <button type="button" id="bk-undo" class="btn-ghost !py-1 text-xs" disabled title="Ctrl+Z">↶ <?= e(t('تراجع')) ?></button>
                 <button type="button" id="bk-add" class="btn-ghost !py-1 text-xs">+ <?= e(t('سطر')) ?></button>
-                <button type="button" id="bk-lib-add" class="btn-ghost !py-1 text-xs text-sky-700">🖼 <?= e(t('صور من المكتبة')) ?></button>
-                <?php if (can('ai.use')): ?><button type="button" id="bk-ai-add" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('زوّد بالذكاء الاصطناعي')) ?></button>
-                <button type="button" id="bk-cap-btn" class="btn-ghost !py-1 text-xs text-violet-700">✦ <?= e(t('اكتب النصوص الفاضية')) ?></button><?php endif; ?>
-                <button type="button" id="bk-dl" class="btn-ghost !py-1 text-xs">⇣ CSV</button>
+                <button type="button" id="bk-lib-add" class="btn-ghost !py-1 text-xs text-sky-700"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9.5h.01"/></svg> <?= e(t('صور من المكتبة')) ?></button>
+                <?php if (can('ai.use')): ?><button type="button" id="bk-ai-add" class="btn-ghost !py-1 text-xs text-violet-700"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('زوّد بالذكاء الاصطناعي')) ?></button>
+                <button type="button" id="bk-cap-btn" class="btn-ghost !py-1 text-xs text-violet-700"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('اكتب النصوص الفاضية')) ?></button><?php endif; ?>
+                <button type="button" id="bk-dl" class="btn-ghost !py-1 text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg> CSV</button>
                 <button type="button" id="bk-reset" class="btn-ghost !py-1 text-xs"><?= e(t('ابدأ من جديد')) ?></button>
               </div>
             </div>
@@ -525,7 +525,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
                     <div class="ms-auto inline-flex rounded-lg border border-ink-200 p-0.5 text-[11px]" role="group">
                       <button type="button" class="bk-spm px-2 py-0.5 rounded-md bg-ink-900 text-white" data-m="gap"><?= e(t('مسافة ثابتة')) ?></button>
                       <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $best ? '' : 'opacity-50' ?>" data-m="best" <?= $best ? '' : 'disabled title="' . e(t('محتاج منشورات قديمة عشان نعرف أحسن أوقاتك')) . '"' ?>>★ <?= e(t('أحسن أوقاتك')) ?></button>
-                      <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $bqueues ? '' : 'opacity-50' ?>" data-m="queue" <?= $bqueues ? '' : 'disabled title="' . e(t('اعمل طابور الأول من مواعيد الطابور')) . '"' ?>>📋 <?= e(t('من الطابور')) ?></button>
+                      <button type="button" class="bk-spm px-2 py-0.5 rounded-md text-ink-600 <?= $bqueues ? '' : 'opacity-50' ?>" data-m="queue" <?= $bqueues ? '' : 'disabled title="' . e(t('اعمل طابور الأول من مواعيد الطابور')) . '"' ?>><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('من الطابور')) ?></button>
                     </div>
                   </div>
                   <div class="flex flex-wrap items-center gap-1.5 text-xs">
@@ -579,11 +579,11 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
             <div class="grid sm:grid-cols-2 gap-2">
               <label class="cursor-pointer"><input type="radio" name="mode" value="check" checked class="peer sr-only">
                 <span class="block h-full rounded-xl border-2 border-ink-200 p-3 peer-checked:border-brand-600 peer-checked:bg-brand-50/50 peer-focus-visible:ring-2 ring-brand-300">
-                  <span class="font-semibold text-ink-900">🔍 <?= e(t('افحص بس')) ?></span>
+                  <span class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg> <?= e(t('افحص بس')) ?></span>
                   <span class="block text-xs text-ink-500 mt-0.5"><?= e(t('مش هيتعمل أي منشور. Zernio هيقولك كل سطر سليم ولا لأ.')) ?></span></span></label>
               <label class="cursor-pointer"><input type="radio" name="mode" value="create" class="peer sr-only">
                 <span class="block h-full rounded-xl border-2 border-ink-200 p-3 peer-checked:border-brand-600 peer-checked:bg-brand-50/50 peer-focus-visible:ring-2 ring-brand-300">
-                  <span class="font-semibold text-ink-900">🚀 <?= e(t('اعمل المنشورات')) ?></span>
+                  <span class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg> <?= e(t('اعمل المنشورات')) ?></span>
                   <span class="block text-xs text-ink-500 mt-0.5"><?= e(t('كل سطر سليم هيتجدول أو يتنشر. السطور اللي اتعملت بتتشال من الجدول عشان ماتتكررش.')) ?></span></span></label>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -600,7 +600,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
         <div id="bk-ai" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-ai-h">
-            <h3 id="bk-ai-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب المنشورات بالذكاء الاصطناعي')) ?></h3>
+            <h3 id="bk-ai-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('اكتب المنشورات بالذكاء الاصطناعي')) ?></h3>
             <textarea id="bk-ai-topic" class="input" rows="4" maxlength="1500" placeholder="<?= e(t('الفكرة: مثلاً "عروض رمضان على المشويات، توصيل مجاني فوق 300 جنيه، فرع مدينة نصر والتجمع"')) ?>"></textarea>
             <div>
               <span class="label"><?= e(t('العدد')) ?></span>
@@ -624,7 +624,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="absolute inset-2 sm:inset-6 lg:inset-x-16 lg:inset-y-8 card flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="bk-lib-h">
             <div class="flex flex-wrap items-center gap-2 p-3 border-b border-ink-100">
-              <h3 id="bk-lib-h" class="font-bold text-ink-900">🖼 <?= e(t('مكتبة الوسائط')) ?></h3>
+              <h3 id="bk-lib-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9.5h.01"/></svg> <?= e(t('مكتبة الوسائط')) ?></h3>
               <div class="inline-flex rounded-lg border border-ink-200 p-0.5 text-xs" role="group" id="bk-lib-kind">
                 <button type="button" data-k="image" class="px-2.5 py-1 rounded-md bg-ink-900 text-white"><?= e(t('صور')) ?></button>
                 <button type="button" data-k="video" class="px-2.5 py-1 rounded-md text-ink-600"><?= e(t('فيديو')) ?></button>
@@ -633,7 +633,7 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
               <input id="bk-lib-q" type="search" class="input !h-8 text-xs w-40" placeholder="<?= e(t('دوّر…')) ?>">
               <button type="button" id="bk-lib-all" class="btn-ghost !py-1 text-xs"><?= e(t('اختار الكل')) ?></button>
               <?php if (can('posts.create')): ?>
-              <label class="btn-ghost !py-1 text-xs cursor-pointer">⇪ <?= e(t('ارفع من جهازك')) ?><input type="file" id="bk-lib-up" multiple accept="image/*,video/*" class="sr-only"></label>
+              <label class="btn-ghost !py-1 text-xs cursor-pointer"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"/></svg> <?= e(t('ارفع من جهازك')) ?><input type="file" id="bk-lib-up" multiple accept="image/*,video/*" class="sr-only"></label>
               <?php endif; ?>
               <button type="button" class="btn-ghost !py-1 text-xs ms-auto" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
             </div>
@@ -659,12 +659,12 @@ render(t('رفع منشورات بالجملة'), 'bulk', function () use ($z, $
         <div id="bk-cap" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
           <div class="absolute inset-0 bg-ink-900/40" data-close></div>
           <div class="relative card p-5 w-full max-w-lg space-y-3" role="dialog" aria-modal="true" aria-labelledby="bk-cap-h">
-            <h3 id="bk-cap-h" class="font-bold text-ink-900">✦ <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
+            <h3 id="bk-cap-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('اكتب نص لكل سطر فاضي')) ?></h3>
             <p class="text-sm text-ink-600" id="bk-cap-info"></p>
             <textarea id="bk-cap-brief" class="input" rows="3" maxlength="800" placeholder="<?= e(t('معلومة عن الحملة (اختياري): مثلاً "خصم 20% لحد آخر الشهر، التوصيل مجاني"')) ?>"></textarea>
             <label id="bk-cap-vis-l" class="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3 cursor-pointer">
               <input type="checkbox" id="bk-cap-vis" class="mt-1" checked>
-              <span><span class="font-semibold text-ink-900 text-sm">👁 <?= e(t('خلّي الذكاء الاصطناعي يشوف الصور')) ?></span>
+              <span><span class="font-semibold text-ink-900 text-sm"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z"/></svg> <?= e(t('خلّي الذكاء الاصطناعي يشوف الصور')) ?></span>
                 <span class="block text-xs text-ink-600 mt-0.5" id="bk-cap-vis-t"></span></span>
             </label>
             <label class="block"><span class="label"><?= e(t('اللغة')) ?></span><select id="bk-cap-lang" class="input"><option value="eg"><?= e(t('مصري')) ?></option><option value="gulf"><?= e(t('خليجي')) ?></option><option value="msa"><?= e(t('فصحى')) ?></option><option value="en">English</option></select></label>

@@ -304,7 +304,7 @@
       return '<div class="flex flex-col items-center gap-0.5 shrink-0 w-7" title="' + esc(k + ': ' + n) + '"><span class="text-[9px] text-ink-500">' + n + '</span><div class="w-4 rounded-t ' + (n > 6 ? 'bg-amber-500' : 'bg-brand-500') + '" style="height:' + hgt + 'px"></div><span class="text-[9px] text-ink-400 leading-none">' + d.getDate() + '</span><span class="text-[8px] text-ink-400 leading-none">' + esc(d.toLocaleDateString(loc, { month: 'short' })) + '</span></div>';
     }).join('');
     var extra = [qn ? f(S.queue, qn) : '', nn ? f(S.now, nn) : '', dn ? f(S.draft, dn) : ''].filter(Boolean).join(' · ');
-    box.innerHTML = '<div class="rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700 mb-2">📅 ' + esc(S.days) + (extra ? '<span class="font-normal text-ink-500 ms-auto">' + esc(extra) + '</span>' : '') + '</div>' +
+    box.innerHTML = '<div class="rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700 mb-2">' + uic('calendar', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(S.days) + (extra ? '<span class="font-normal text-ink-500 ms-auto">' + esc(extra) + '</span>' : '') + '</div>' +
       (bars ? '<div class="flex items-end gap-1 overflow-x-auto pb-1" dir="ltr">' + bars + '</div>' : '') + '</div>';
   }
   function mode() { var m = $('input[name=mode]:checked', form); return m ? m.value : 'check'; }
@@ -522,7 +522,7 @@
     libGrid.innerHTML = L.items.map(function (it, i) {
       var k = L.pick.indexOf(it.id), on = k > -1;
       return '<button type="button" class="bk-li relative aspect-square rounded-xl overflow-hidden border-2 ' + (on ? 'border-sky-500 ring-2 ring-sky-200' : 'border-transparent hover:border-ink-300') + ' bg-ink-100" data-i="' + i + '" title="' + esc(it.name + (it.desc ? ' — ' + it.desc : '')) + '" aria-pressed="' + on + '">' +
-        (it.kind === 'image' ? '<img src="' + esc(it.thumb) + '" alt="" loading="lazy" class="w-full h-full object-cover">' : '<span class="absolute inset-0 grid place-items-center text-2xl">🎬</span>') +
+        (it.kind === 'image' ? '<img src="' + esc(it.thumb) + '" alt="" loading="lazy" class="w-full h-full object-cover">' : '<span class="absolute inset-0 grid place-items-center text-2xl">' + uic('film', 'w-4 h-4 inline-block align-[-3px]') + '</span>') +
         (on ? '<span class="absolute top-1 start-1 w-6 h-6 rounded-full bg-sky-600 text-white text-[11px] font-bold grid place-items-center">' + (k + 1) + '</span>' : '') +
         '<span class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent text-white text-[10px] px-1.5 py-1 truncate text-start">' + esc(it.name) + '</span></button>';
     }).join('');
@@ -719,7 +719,7 @@
     var h = '<div class="card p-5 space-y-4"><h2 class="font-bold text-ink-900">' + esc(m === 'create' ? S.resC : S.res) + ' · <span class="text-sm text-ink-500" dir="ltr">' + esc(fname) + '</span></h2>';
     if (stopMsg) h += '<div class="rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm p-3">' + esc(stopMsg) + '</div>';
     h += '<div class="grid grid-cols-3 gap-2">' + tile(S.tot, a.total, 'border-ink-200 text-ink-900') + tile(S.okL, a.valid, 'border-lime-200 bg-lime-50/60 text-lime-700') + tile(S.badL, a.invalid, a.invalid ? 'border-red-200 bg-red-50/60 text-red-600' : 'border-ink-200 text-ink-900') + '</div>';
-    Object.keys(a.warnings).forEach(function (w) { var ex = a.explain[w] || [w, '']; h += '<div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm"><div class="font-medium text-amber-900">⚠️ ' + esc(ex[0]) + '</div>' + (ex[1] ? '<div class="text-xs text-amber-800 mt-0.5">' + esc(ex[1]) + '</div>' : '') + '</div>'; });
+    Object.keys(a.warnings).forEach(function (w) { var ex = a.explain[w] || [w, '']; h += '<div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm"><div class="font-medium text-amber-900">' + uic('alert', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(ex[0]) + '</div>' + (ex[1] ? '<div class="text-xs text-amber-800 mt-0.5">' + esc(ex[1]) + '</div>' : '') + '</div>'; });
     if (createdN) h += '<div class="rounded-xl bg-lime-50 border border-lime-200 p-3 text-sm text-lime-800 flex flex-wrap items-center gap-2">✅ ' + esc(f(S.created, createdN)) + '<a class="link ms-auto" href="' + esc(X.cal) + '">' + esc(S.opencal) + '</a></div>';
     if (!g.length && !stopMsg && m === 'check' && a.total) h += '<div class="rounded-xl bg-lime-50 border border-lime-200 p-3 text-sm text-lime-800">' + esc(S.allok) + '</div>';
     if (g.length) {

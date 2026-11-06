@@ -36,8 +36,6 @@ function nav_items(): array
     $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $s3 = t('المحتوى والحملات'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
-        ['key' => 'knowledge', 'label' => t('ملف الشركة'), 'section' => $s1, 'tabs' => ['knowledge' => t('قاعدة المعرفة'), 'media' => t('مكتبة الوسائط')]],
-        ['key' => 'accounts', 'label' => t('الحسابات والتكاملات'), 'section' => $s1, 'tabs' => ['accounts' => t('الحسابات المربوطة')] + ($owner ? ['connectors' => t('التكاملات')] : [])],
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => $s2, 'module' => 'analytics',
             'tabs' => ['analytics' => t('المنشورات'), 'inbox_analytics' => t('الرسائل'), 'reports' => t('التقارير'), 'goals' => t('الأهداف'), 'alerts' => t('التنبيهات')], 'also' => ['report_print']],
         ['key' => 'crm_find', 'label' => t('استكشاف السوق'), 'section' => $s2, 'module' => 'crm', 'apollo' => true, 'tabs' => ['crm_find' => t('ابحث عن أشخاص'), 'crm' => t('الشركات المستهدفة')]],
@@ -59,6 +57,10 @@ function nav_items(): array
             'tabs' => ['phone_numbers' => t('الأرقام'), 'calls' => t('المكالمات'), 'sms' => 'SMS', 'sms_mine' => t('رقمي')]],
         ['key' => 'crm_leads', 'label' => t('العملاء'), 'section' => $s5, 'module' => 'crm',
             'tabs' => ['crm_leads' => t('كل العملاء'), 'leads' => t('عملاء الإعلانات'), 'crm_reports' => t('تقارير المبيعات'), 'crm_settings' => t('الإعدادات')]],
+        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الإدارة')],
+        ['key' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الإدارة')],
+        ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الإدارة')],
+        ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الإدارة'), 'owner' => true],
         ['key' => 'settings', 'label' => t('إعدادات الشركة'), 'section' => t('الإدارة'),
             'tabs' => ['settings' => t('عام'), 'team' => t('الفريق')], 'owner' => true],
     ];
