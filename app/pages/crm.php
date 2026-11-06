@@ -1,268 +1,133 @@
 <?php
-/** إدارة العملاء ← الشركات المستهدفة: العميل المثالي + تحديث + 5 صناع قرار لكل شركة + كشف بياناتهم */
-$hasKey = crm_has_key();
-// مزايا Apollo بتظهر بس لو مربوط؛ المدير بيفضل يقدر يفتح الصفحة عشان يربطه
-if (!$hasKey && !can('crm.manage')) redirect(url('crm_leads'));
-$prefs = crm_prefs();
-$uid = (int)(current_user()['id'] ?? 0);
-$canReveal = can('crm.reveal');
-$canManage = can('crm.manage');
+/** الشركات المستهدفة: إضافة يدوية، والشركات اللي تواصلت معنا، واقتراحات الذكاء الاصطناعي (بـ Apollo). الضغط على شركة بيفتح أشخاصها */
 $wid = (int)ws('id');
-$json = function (array $a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
-$getCo = function (int $id) use ($wid) {
-    $st = db()->prepare('SELECT * FROM crm_companies WHERE id = ? AND workspace_id = ?');
-    $st->execute([$id, $wid]);
-    return $st->fetch() ?: null;
-};
-$leadOut = function (array $l) {
-    return ['id' => (int)$l['id'], 'ext' => (string)$l['ext_id'], 'name' => $l['name'], 'title' => (string)$l['title'], 'email' => (string)$l['email'],
-        'phone' => (string)$l['phone'], 'pending' => (int)$l['phone_pending'] === 1, 'wa' => crm_wa_digits($l['phone']), 'linkedin' => (string)$l['linkedin']];
-};
+$uid = (int)(current_user()['id'] ?? 0);
+$canManage = can('crm.manage') || is_ws_owner();
+$canReveal = can('crm.reveal');
+$hasApollo = crm_has_key();
+$J = function (array $a, int $code = 200) { http_response_code($code); header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+$getCo = function (int $id) use ($wid) { $st = db()->prepare('SELECT * FROM crm_companies WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); return $st->fetch() ?: null; };
+$person = function (array $l) { return ['id' => (int)$l['id'], 'name' => (string)$l['name'], 'title' => (string)$l['title'], 'email' => (string)$l['email'], 'phone' => (string)$l['phone'],
+    'wa' => function_exists('crm_wa_digits') ? crm_wa_digits($l['phone']) : '', 'source' => (string)$l['source'], 'url' => url('crm_leads', ['lead' => (int)$l['id']])]; };
 
-// الأشخاص في الشركة (للدرج الجانبي)
-if (($_GET['ajax'] ?? '') === 'people') {
-    $co = $getCo((int)($_GET['id'] ?? 0));
-    if (!$co) $json(['ok' => false, 'error' => t('الشركة مش موجودة')]);
-    $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND company_id = ? ORDER BY id');
-    $st->execute([$wid, (int)$co['id']]);
-    $known = [];
-    foreach ($st->fetchAll() as $l) $known[$l['ext_id'] ?: ('l' . $l['id'])] = $leadOut($l);
-    try {
-        $ppl = crm_company_people($co, (string)($prefs['icp']['titles'] ?? ''));
-    } catch (CrmPlanException $ex) {
-        save_setting('crm_plan_' . $wid, 'free');
-        $json(['ok' => false, 'plan' => true, 'error' => t('خطة Apollo المجانية مش بتسمح بالبحث عن الأشخاص ولا كشف أرقامهم. لو تعرف حد في الشركة دي ضيفه بإيدك تحت، أو رقّي خطة Apollo.'), 'known' => array_values($known)]);
-    } catch (CrmException $ex) {
-        $json(['ok' => false, 'error' => $ex->getMessage(), 'known' => array_values($known)]);
+// بوب أب الشركة: الأشخاص المعروفين + أهم الأشخاص من Apollo
+if (($_GET['ajax'] ?? '') === 'company') {
+    $co = $getCo((int)($_GET['id'] ?? 0)); if (!$co) $J(['ok' => false, 'error' => t('الشركة مش موجودة.')], 404);
+    $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND company_id = ? ORDER BY (phone IS NULL OR phone = \'\') , (email IS NULL OR email = \'\'), id DESC');
+    $st->execute([$wid, (int)$co['id']]); $known = array_map($person, $st->fetchAll());
+    $out = ['ok' => true, 'known' => $known, 'apollo' => null];
+    if ($hasApollo) {
+        try {
+            $r = tg_people($co, max(1, (int)($_GET['page'] ?? 1)));
+            $ext = db()->prepare('SELECT ext_id FROM crm_leads WHERE workspace_id = ? AND company_id = ? AND ext_id IS NOT NULL'); $ext->execute([$wid, (int)$co['id']]); $have = array_flip($ext->fetchAll(PDO::FETCH_COLUMN));
+            $r['people'] = array_values(array_filter($r['people'], function ($p) use ($have) { return !isset($have[$p['id']]); }));
+            $out['apollo'] = $r;
+        } catch (Throwable $e) { $out['apollo'] = ['people' => [], 'more' => false, 'error' => $e->getMessage()]; }
     }
-    foreach ($ppl as &$p) { if (isset($known[$p['id']])) { $p['lead'] = $known[$p['id']]; unset($known[$p['id']]); } }
-    unset($p);
-    $json(['ok' => true, 'people' => $ppl, 'known' => array_values($known), 'left' => max(0, (int)$prefs['daily_limit'] - crm_reveals_today($uid))]);
+    $J($out);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = (string)($_POST['action'] ?? '');
-    if ($action === 'reveal') {
-        if (!$canReveal) $json(['ok' => false, 'error' => t('مالكش صلاحية الكشف.')]);
-        $co = $getCo((int)($_POST['company'] ?? 0));
-        $pid = mb_substr((string)($_POST['person'] ?? ''), 0, 64);
-        if (!$co || $pid === '') $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
-        // اتكشف قبل كده؟ مانصرفش كريديت تاني
-        $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND ext_id = ? LIMIT 1');
-        $st->execute([$wid, $pid]);
-        if ($l = $st->fetch()) $json(['ok' => true, 'lead' => $leadOut($l), 'again' => true]);
-        $left = (int)$prefs['daily_limit'] - crm_reveals_today($uid);
-        if ($left <= 0) $json(['ok' => false, 'error' => t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit'])]);
-        try {
-            $l = crm_reveal($co, $pid, $prefs);
-        } catch (CrmException $ex) {
-            $json(['ok' => false, 'error' => $ex->getMessage()]);
-        }
-        $json(['ok' => true, 'lead' => $leadOut($l), 'merged' => !empty($l['merged']), 'left' => $left - 1]);
+    $a = (string)($_POST['action'] ?? '');
+    if ($a === 'add') {
+        try { $r = tg_add((string)($_POST['q'] ?? '')); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+        log_activity('crm.target_add', (string)$_POST['q']);
+        $J(['ok' => true, 'id' => $r['id'], 'dup' => $r['dup']]);
     }
-    if ($action === 'manual_lead') {
-        $co = $getCo((int)($_POST['company'] ?? 0));
-        $name = trim((string)($_POST['name'] ?? ''));
-        if (!$co || $name === '' || (trim((string)($_POST['email'] ?? '')) === '' && trim((string)($_POST['phone'] ?? '')) === '')) $json(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل على الأقل.')]);
-        $l = crm_lead_upsert(['source' => 'manual', 'company_id' => (int)$co['id'], 'company' => $co['name'], 'country' => (string)$co['country'], 'name' => $name,
-            'title' => (string)($_POST['title'] ?? ''), 'email' => (string)($_POST['email'] ?? ''), 'phone' => (string)($_POST['phone'] ?? ''), 'owner_id' => $uid ?: null]);
-        log_activity('crm.add', $name . ' @ ' . $co['name']);
-        $json(['ok' => true, 'lead' => $leadOut($l), 'merged' => !empty($l['merged'])]);
+    if ($a === 'ai') {
+        if (!$canManage) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
+        try { $r = tg_ai_suggest(); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+        $J(['ok' => true, 'added' => $r['added'], 'why' => $r['icp']['why'] ?? '']);
     }
-    if ($action === 'hide' || $action === 'unhide') {
-        db()->prepare('UPDATE crm_companies SET hidden = ? WHERE id = ? AND workspace_id = ?')->execute([$action === 'hide' ? 1 : 0, (int)($_POST['id'] ?? 0), $wid]);
-        $json(['ok' => true]);
+    if ($a === 'reveal') {
+        if (!$canReveal) $J(['ok' => false, 'error' => t('مالكش صلاحية الكشف.')], 403);
+        $co = $getCo((int)($_POST['id'] ?? 0)); $pid = (string)($_POST['pid'] ?? '');
+        if (!$co || !preg_match('/^[\w.-]{1,64}$/', $pid)) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $prefs = crm_prefs();
+        if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) $J(['ok' => false, 'error' => t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit'])], 429);
+        try { $l = crm_reveal($co, $pid, $prefs); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+        $J(['ok' => true, 'person' => $person(crm_lead((int)$l['id']))]);
     }
-    if ($action === 'refresh') {
-        try {
-            [$new, $old, $wrapped] = crm_refresh($prefs);
-            if ($new + $old === 0) flash('error', t('مفيش شركات بالفلاتر دي. وسّع البحث (دولة أو مجال تاني).'));
-            elseif ($new === 0) flash('success', t('مفيش شركات جديدة المرة دي، نفس الـ %s شركة اتحدّثت.', $old));
-            else flash('success', t('%s شركة جديدة (متعلّم عليها) و%s زي ما هي.', $new, $old) . ($wrapped ? ' ' . t('خلصنا كل النتايج ورجعنا للأول.') : ''));
-        } catch (CrmException $ex) {
-            flash('error', $ex->getMessage());
-        }
-        redirect(url('crm'));
+    if ($a === 'remove') {
+        $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
+        db()->prepare('UPDATE crm_companies SET hidden = 1 WHERE id = ? AND workspace_id = ?')->execute([(int)$co['id'], $wid]);
+        $J(['ok' => true]);
     }
-    if ($action === 'add_domains') {
-        $list = preg_split('/[\s,،]+/u', (string)($_POST['domains'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-        try {
-            [$added, $dup, $bad] = crm_add_domains($list);
-            flash($added ? 'success' : 'error', t('اتضاف %s شركة', $added) . ($dup ? ' · ' . t('%s موجودين قبل كده', $dup) : '') . ($bad ? ' · ' . t('دومين مش صحيح: %s', implode(', ', array_slice($bad, 0, 5))) : ''));
-            if ($added) log_activity('crm.add_domains', (string)$added);
-        } catch (CrmException $ex) {
-            flash('error', $ex->getMessage());
-        }
-        redirect(url('crm'));
-    }
-    if ($action === 'icp' && $canManage) {
-        $icp = [
-            'locations' => array_slice(array_values(array_filter(array_map(function ($s) { return mb_substr(trim($s), 0, 80); }, explode(',', (string)($_POST['locations'] ?? ''))))), 0, 10),
-            'keywords' => mb_substr(trim((string)($_POST['keywords'] ?? '')), 0, 300),
-            'sizes' => array_values(array_intersect((array)($_POST['sizes'] ?? []), array_keys(crm_sizes()))),
-            'titles' => mb_substr(trim((string)($_POST['titles'] ?? '')), 0, 300),
-        ];
-        crm_save_prefs(['icp' => $icp, 'next_page' => 1, 'daily_limit' => max(0, min(500, (int)($_POST['daily_limit'] ?? 20))), 'auto_assign' => !empty($_POST['auto_assign']) ? 1 : 0]);
-        log_activity('crm.icp', json_encode($icp, JSON_UNESCAPED_UNICODE));
-        flash('success', t('اتحفظ العميل المثالي. دوس "تحديث" عشان تجيب شركات بيه.'));
-        redirect(url('crm'));
-    }
-    redirect(url('crm'));
+    $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
 }
 
-$st = db()->prepare('SELECT c.*, (SELECT COUNT(*) FROM crm_leads l WHERE l.workspace_id = c.workspace_id AND l.company_id = c.id) AS revealed
-    FROM crm_companies c WHERE c.workspace_id = ? ORDER BY c.hidden, c.last_batch DESC, (c.first_batch = c.last_batch) DESC, c.name LIMIT 400');
-$st->execute([$wid]);
-$companies = $st->fetchAll();
-$batch = (int)$prefs['batch'];
-$st = db()->prepare('SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ?');
-$st->execute([$wid]);
-$leadCount = (int)$st->fetchColumn();
-$today = crm_reveals_today($uid);
+tg_sync_inbound();
+$rows = tg_list();
+$src = tg_sources();
+$counts = array_fill_keys(array_keys($src), 0); foreach ($rows as $r) $counts[$r['source'] ?: 'apollo']++;
+$aiOn = $hasApollo && function_exists('ai_connection') && ai_connection();
 
-render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, $prefs, $companies, $batch, $leadCount, $today, $canReveal, $canManage) {
-    $icp = $prefs['icp'];
-    $visible = array_filter($companies, function ($c) { return !$c['hidden']; });
-    $newOnes = array_filter($visible, function ($c) use ($batch) { return (int)$c['first_batch'] === $batch && $batch > 0; });
-    $limit = (int)$prefs['daily_limit'];
-    $icpEmpty = !$icp['locations'] && $icp['keywords'] === '' && !$icp['sizes'];
-    $sizes = crm_sizes();
+render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $src, $counts, $hasApollo, $aiOn, $canManage, $canReveal) {
+    $pill = ['manual' => 'bg-ink-100 text-ink-700', 'inbound' => 'bg-lime-50 text-lime-800', 'ai' => 'bg-brand-50 text-brand-700', 'apollo' => 'bg-indigo-50 text-indigo-700'];
     ?>
-    <?php if (!$hasKey): ?>
-      <div class="card p-5 mb-5 border-brand-200 bg-brand-50/40">
-        <div class="font-semibold text-ink-900"><?= e(t('اربط Apollo.io عشان تبدأ')) ?></div>
-        <p class="text-sm text-ink-600 mt-1"><?= e(t('الشركات والأشخاص جايين من قاعدة بيانات Apollo.io. اعمل حساب هناك وحط الـ API Key في التكاملات.')) ?></p>
-        <?php if (can('integrations.manage')): ?><a class="btn-primary mt-3 inline-flex" href="<?= e(url('connectors')) ?>"><?= e(t('افتح التكاملات')) ?></a><?php endif; ?>
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <button type="button" data-src="" class="tg-chip on"><?= e(t('الكل')) ?> <span><?= count($rows) ?></span></button>
+      <?php foreach ($src as $k => $l) if ($counts[$k]): ?><button type="button" data-src="<?= e($k) ?>" class="tg-chip"><?= e($l) ?> <span><?= (int)$counts[$k] ?></span></button><?php endif; ?>
+      <span class="ms-auto"></span>
+      <input type="search" id="tg-q" class="input !mt-0 !w-56 text-sm" placeholder="<?= e(t('ابحث بالاسم أو المجال أو المدينة…')) ?>">
+      <?php if ($canManage): ?><button type="button" id="tg-ai" class="btn-ghost" <?= $aiOn ? '' : 'data-off="1"' ?>><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اقترح شركات')) ?></span></button><?php endif; ?>
+    </div>
+
+    <form id="tg-add" class="card p-3 mb-4 flex flex-wrap items-center gap-2" data-no-ajax>
+      <?= ui_icon('plus', 'w-5 h-5 text-ink-400') ?>
+      <input name="q" class="input !mt-0 flex-1 min-w-[220px] text-sm" dir="auto" autocomplete="off" placeholder="<?= e(t('دومين الشركة (مثلًا company.com) أو اسمها لو مالهاش موقع')) ?>">
+      <button class="btn-primary !py-2"><?= e(t('أضف')) ?></button>
+    </form>
+
+    <?php if (!$rows): ?>
+      <div class="card p-8 text-center text-sm text-ink-500"><?= e(t('لسه مفيش شركات. ضيف دومين شركة، أو استنى أول عميل يكلمك من شركة، أو دوس "اقترح شركات".')) ?></div>
+    <?php else: ?>
+    <div class="card overflow-hidden">
+      <div class="hidden md:grid grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_90px_minmax(0,1fr)_130px_120px] gap-3 px-4 py-2.5 text-xs text-ink-500 border-b border-ink-100 bg-ink-50/60">
+        <span><?= e(t('الشركة')) ?></span><span><?= e(t('المجال')) ?></span><span><?= e(t('الموظفين')) ?></span><span><?= e(t('المكان')) ?></span><span><?= e(t('الأشخاص')) ?></span><span><?= e(t('المصدر')) ?></span>
       </div>
+      <div id="tg-list" class="divide-y divide-ink-100">
+      <?php foreach ($rows as $r): $s = $r['source'] ?: 'apollo'; $loc = trim(implode('، ', array_filter([$r['city'], $r['country']]))); ?>
+        <button type="button" class="tg-row w-full text-start grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_90px_minmax(0,1fr)_130px_120px] gap-3 px-4 py-3 items-center hover:bg-brand-50/40 transition"
+          data-id="<?= (int)$r['id'] ?>" data-src="<?= e($s) ?>" data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['domain'] . ' ' . $r['industry'] . ' ' . $loc)) ?>">
+          <span class="flex items-center gap-3 min-w-0">
+            <?php if ($r['logo']): ?><img src="<?= e($r['logo']) ?>" alt="" class="w-9 h-9 rounded-lg object-contain bg-white border border-ink-100 shrink-0" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'w-9 h-9 rounded-lg bg-ink-100 text-ink-700 grid place-items-center font-bold shrink-0',textContent:<?= e(json_encode(mb_strtoupper(mb_substr($r['name'], 0, 1)), JSON_UNESCAPED_UNICODE)) ?>}))">
+            <?php else: ?><span class="w-9 h-9 rounded-lg bg-ink-100 text-ink-700 grid place-items-center font-bold shrink-0"><?= e(mb_strtoupper(mb_substr($r['name'], 0, 1))) ?></span><?php endif; ?>
+            <span class="min-w-0"><b class="block text-ink-900 truncate"><?= e($r['name']) ?></b><?php if ($r['domain']): ?><span class="block text-xs text-ink-500 truncate" dir="ltr"><?= e($r['domain']) ?></span><?php endif; ?></span>
+          </span>
+          <span class="text-sm text-ink-600 truncate"><?= e($r['industry'] ?: '—') ?></span>
+          <span class="text-sm text-ink-600"><?= $r['employees'] ? number_format((int)$r['employees']) : '—' ?></span>
+          <span class="text-sm text-ink-600 truncate"><?= e($loc ?: '—') ?></span>
+          <span class="text-sm flex items-center gap-1.5"><?php if ((int)$r['people_n']): ?><b class="text-ink-900"><?= (int)$r['people_n'] ?></b>
+            <?php if ((int)$r['phones']): ?><span class="text-lime-700" title="<?= e(t('أرقام')) ?>"><?= ui_icon('phone', 'w-3.5 h-3.5') ?></span><?php endif; ?><?php if ((int)$r['emails']): ?><span class="text-brand-600" title="<?= e(t('إيميلات')) ?>"><?= ui_icon('mail', 'w-3.5 h-3.5') ?></span><?php endif; ?>
+            <?php else: ?><span class="text-ink-400">—</span><?php endif; ?></span>
+          <span><span class="text-[11px] rounded-full px-2 py-0.5 <?= $pill[$s] ?>"><?= e($src[$s]) ?></span></span>
+        </button>
+      <?php endforeach; ?>
+      </div>
+    </div>
     <?php endif; ?>
 
-    <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
-      <span class="ld-stat"><span class="text-ink-500"><?= e(t('الشركات')) ?></span> <b><?= count($visible) ?></b></span>
-      <span class="ld-stat <?= $newOnes ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <span class="text-ink-500"><?= e(t('جديد في آخر تحديث')) ?></span> <b><?= count($newOnes) ?></b></span>
-      <span class="ld-stat">🔓 <span class="text-ink-500"><?= e(t('كشفت النهارده')) ?></span> <b><span id="crm-used"><?= $today ?></span> / <?= $limit ?></b>
-        <span class="w-14 h-1.5 rounded-full bg-ink-100 overflow-hidden"><span id="crm-bar" class="block h-full bg-brand-500 rounded-full" style="width:<?= $limit ? min(100, round($today / $limit * 100)) : 100 ?>%"></span></span></span>
-      <a href="<?= e(url('crm_leads')) ?>" class="ld-stat hover:!border-lime-400"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <span class="text-ink-500"><?= e(t('في الـ Leads')) ?></span> <b class="text-lime-700"><?= (int)$leadCount ?></b> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
-      <div class="flex gap-2 ms-auto">
-        <button type="button" class="btn-ghost" data-cfg="dom">＋ <?= e(t('أضف بالدومين')) ?></button>
-        <button type="button" class="btn-ghost" data-cfg="icp"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('العميل المثالي')) ?></button>
+    <dialog id="tg-dlg" class="w-[min(680px,96vw)] max-h-[88vh] rounded-2xl p-0 shadow-2xl backdrop:bg-ink-900/40 backdrop:backdrop-blur-[2px]">
+      <div class="flex items-start gap-3 p-5 border-b border-ink-100 sticky top-0 bg-white z-10">
+        <div id="tg-dlg-logo"></div><div class="flex-1 min-w-0"><b id="tg-dlg-name" class="block text-lg text-ink-900"></b><span id="tg-dlg-sub" class="text-sm text-ink-500"></span></div>
+        <button type="button" data-close class="p-2 -m-1 rounded-xl text-ink-400 hover:text-ink-900 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button>
       </div>
-    </div>
-    <div id="crm-cfg" class="grid md:grid-cols-2 gap-4 mb-5 items-start <?= (!$companies || $icpEmpty) ? '' : 'hidden' ?>">
-        <?php if (setting('crm_plan_' . (int)ws('id')) === 'free'): ?>
-          <div class="card p-4 mb-4 border-amber-200 bg-amber-50/70 text-sm">
-            <div class="font-semibold text-amber-900"><?= e(t('حسابك على خطة Apollo المجانية')) ?></div>
-            <p class="text-xs text-amber-800 mt-1"><?= e(t('البحث عن الشركات والأشخاص وكشف الأرقام والإيميلات مقفولين فيها. اللي شغال: إضافة الشركات بالدومين، وإضافة الأشخاص اللي تعرفهم بإيدك. البحث والكشف هيشتغلوا لوحدهم لو رقّيت الخطة.')) ?></p>
-            <a class="link text-xs mt-1 inline-block" href="https://www.apollo.io/pricing" target="_blank" rel="noopener"><?= e(t('خطط Apollo')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
-          </div>
-        <?php endif; ?>
-        <form method="post" class="card p-5 space-y-2" data-cfgp="dom">
-          <?= csrf_field() ?><input type="hidden" name="action" value="add_domains">
-          <h3 class="font-semibold text-ink-900">＋ <?= e(t('ضيف شركات بالدومين')) ?></h3>
-          <p class="text-xs text-ink-500"><?= e(t('اكتب مواقع الشركات اللي عاوز تستهدفها (سطر لكل واحدة، لحد 25). بتشتغل مع أي خطة.')) ?></p>
-          <textarea name="domains" rows="3" class="input font-mono text-xs" dir="ltr" placeholder="talabat.com&#10;elmenus.com" <?= $hasKey ? '' : 'disabled' ?>></textarea>
-          <button class="btn-ghost w-full !text-sm" <?= $hasKey ? '' : 'disabled' ?>><?= e(t('ضيف')) ?></button>
-        </form>
-        <form method="post" class="card p-5 space-y-4" data-cfgp="icp">
-          <?= csrf_field() ?><input type="hidden" name="action" value="icp">
-          <div>
-            <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('العميل المثالي')) ?></h3>
-            <p class="text-xs text-ink-500 mt-1"><?= e(t('"تحديث" بيجيب شركات بالمواصفات دي. لو غيرتها البحث بيبدأ من الأول.')) ?></p>
-          </div>
-          <?php $dis = $canManage ? '' : 'disabled'; ?>
-          <label class="block"><span class="label"><?= e(t('الدول أو المدن (بالإنجليزي، افصل بفاصلة)')) ?></span>
-            <input class="input" name="locations" dir="ltr" value="<?= e(implode(', ', $icp['locations'])) ?>" placeholder="Egypt, Riyadh" <?= $dis ?>></label>
-          <label class="block"><span class="label"><?= e(t('المجال (كلمات بالإنجليزي)')) ?></span>
-            <input class="input" name="keywords" dir="ltr" value="<?= e($icp['keywords']) ?>" placeholder="restaurants, real estate" <?= $dis ?>></label>
-          <div><span class="label"><?= e(t('عدد الموظفين')) ?></span>
-            <div class="flex flex-wrap gap-1.5">
-              <?php foreach ($sizes as $k => $lbl): ?>
-                <label class="cursor-pointer"><input type="checkbox" name="sizes[]" value="<?= e($k) ?>" class="peer sr-only" <?= in_array($k, $icp['sizes'], true) ? 'checked' : '' ?> <?= $dis ?>>
-                  <span class="inline-block px-2.5 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600 peer-focus-visible:ring-2 ring-brand-300" dir="ltr"><?= e($lbl) ?></span></label>
-              <?php endforeach; ?>
-            </div></div>
-          <label class="block"><span class="label"><?= e(t('المسمى الوظيفي اللي بتدور عليه (اختياري)')) ?></span>
-            <input class="input" name="titles" dir="ltr" value="<?= e($icp['titles']) ?>" placeholder="CEO, Marketing Manager" <?= $dis ?>>
-            <span class="text-xs text-ink-400"><?= e(t('لو فاضي بنجيب أعلى 5 مناصب (المالك، المدير التنفيذي، المدراء).')) ?></span></label>
-          <div class="grid grid-cols-2 gap-3 items-end">
-            <label class="block"><span class="label"><?= e(t('حد الكشف اليومي لكل موظف')) ?></span>
-              <input class="input" type="number" min="0" max="500" name="daily_limit" value="<?= (int)$prefs['daily_limit'] ?>" <?= $dis ?>></label>
-            <label class="flex items-center gap-2 text-sm text-ink-700 pb-2 cursor-pointer"><input type="checkbox" name="auto_assign" value="1" class="rounded" <?= (int)$prefs['auto_assign'] ? 'checked' : '' ?> <?= $dis ?>><?= e(t('وزّع الـ Leads الجديدة على الفريق بالدور')) ?></label>
-          </div>
-          <?php if ($canManage): ?><button class="btn-primary w-full"><?= e(t('احفظ')) ?></button>
-          <?php else: ?><p class="text-xs text-ink-500"><?= e(t('المدير بس يقدر يغيّر الإعدادات دي.')) ?></p><?php endif; ?>
-          <p class="text-[11px] text-ink-400 leading-relaxed"><?= e(t('كل تحديث بيخصم 1 كريديت من Apollo، وكل كشف شخص بيخصم كريديت. الأرقام بتوصل بعد دقايق، وتغطيتها في الشرق الأوسط ضعيفة.')) ?></p>
-        </form>
-    </div>
-    <div>
-      <div>
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <form method="post" id="crm-refresh"><?= csrf_field() ?><input type="hidden" name="action" value="refresh">
-            <button class="btn-primary inline-flex items-center gap-2" <?= $hasKey ? '' : 'disabled' ?>><span id="crm-spin" aria-hidden="true"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg></span><?= e(t('تحديث')) ?></button>
-          </form>
-          <div id="crm-chips" class="flex flex-wrap gap-1.5" role="group">
-            <button type="button" data-f="" class="chip on"><?= e(t('الكل')) ?></button>
-            <button type="button" data-f="new" class="chip"><?= e(t('الجديد')) ?> <span class="opacity-60"><?= count($newOnes) ?></span></button>
-            <button type="button" data-f="rev" class="chip"><?= e(t('كشفت منها')) ?></button>
-            <button type="button" data-f="hid" class="chip"><?= e(t('المخفية')) ?></button>
-          </div>
-          <input id="crm-q" type="search" class="input ms-auto w-full sm:w-56" placeholder="<?= e(t('دوّر على شركة…')) ?>">
-        </div>
-        <?php if (!$companies): ?>
-          <?= an_empty(t('لسه مفيش شركات'), $icpEmpty ? t('حدد العميل المثالي فوق، وبعدين دوس "تحديث".') : t('دوس "تحديث" يجيبلك شركات بالعميل المثالي بتاعك.'), '🏢') ?>
-        <?php endif; ?>
-        <div id="crm-grid" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          <?php foreach ($companies as $c): $isNew = $batch > 0 && (int)$c['first_batch'] === $batch && !$c['hidden'];
-            $loc = trim(implode('، ', array_filter([$c['city'], $c['country']]))); ?>
-            <div class="crm-co group relative rounded-2xl border p-4 cursor-pointer transition duration-150 hover:-translate-y-0.5 hover:shadow-lg <?= $isNew ? 'border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white ring-1 ring-amber-200' : 'border-ink-200 bg-white hover:border-brand-300' ?>"
-                 data-id="<?= (int)$c['id'] ?>" data-new="<?= $isNew ? 1 : 0 ?>" data-rev="<?= (int)$c['revealed'] ?>" data-hid="<?= (int)$c['hidden'] ?>"
-                 data-q="<?= e(mb_strtolower($c['name'] . ' ' . $c['industry'] . ' ' . $loc . ' ' . $c['domain'])) ?>" style="<?= $c['hidden'] ? 'display:none' : '' ?>" tabindex="0" role="button">
-              <div class="flex items-start gap-3">
-                <?php if ($c['logo']): ?><img src="<?= e($c['logo']) ?>" alt="" class="w-11 h-11 rounded-xl object-contain bg-white border border-ink-100 shrink-0" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0',textContent:<?= e(json_encode(mb_substr($c['name'], 0, 1))) ?>}))">
-                <?php else: ?><div class="w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0"><?= e(mb_strtoupper(mb_substr($c['name'], 0, 1))) ?></div><?php endif; ?>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <div class="crm-name font-semibold text-ink-900 truncate"><?= e($c['name']) ?></div>
-                    <?php if ($isNew): ?><span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-amber-500 text-white"><?= e(t('جديد')) ?></span><?php endif; ?>
-                  </div>
-                  <div class="text-xs text-ink-500 truncate mt-0.5"><?= e($c['industry'] ?: '—') ?></div>
-                </div>
-                <button type="button" class="crm-hide opacity-0 group-hover:opacity-100 focus:opacity-100 text-ink-400 hover:text-red-600 text-xs px-1.5 py-1 rounded-lg hover:bg-red-50 transition" title="<?= e($c['hidden'] ? t('رجّعها') : t('مش مهتم، اخفيها')) ?>" data-act="<?= $c['hidden'] ? 'unhide' : 'hide' ?>"><?= $c['hidden'] ? '↺' : '✕' ?></button>
-              </div>
-              <div class="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-ink-500">
-                <?php if ($loc): ?><span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12zM12 11a2 2 0 100-4 2 2 0 000 4z"/></svg> <?= e($loc) ?></span><?php endif; ?>
-                <?php if ($c['employees']): ?><span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></svg> <?= e(t('%s موظف', number_format((int)$c['employees']))) ?></span><?php endif; ?>
-                <?php if ($c['domain']): ?><span dir="ltr"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e($c['domain']) ?></span><?php endif; ?>
-                <?php if ((int)$c['revealed']): ?><span class="text-lime-700 font-medium">✓ <?= e(t('كشفت %s', (int)$c['revealed'])) ?></span><?php endif; ?>
-              </div>
-            </div>
-          <?php endforeach; ?>
-        </div>
-        <div id="crm-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش شركات تطابق البحث')) ?></div>
+      <div class="p-5 space-y-5">
+        <section><h3 class="text-sm font-semibold text-ink-900 mb-2"><?= e(t('أشخاص عندك بياناتهم')) ?></h3><div id="tg-known" class="space-y-2"></div></section>
+        <section id="tg-ap-sec"><h3 class="text-sm font-semibold text-ink-900 mb-2"><?= e(t('أهم الأشخاص في الشركة')) ?></h3><div id="tg-ap" class="space-y-2"></div>
+          <button type="button" id="tg-more" class="btn-ghost !text-xs w-full mt-2 hidden"><?= e(t('عرض 5 كمان')) ?></button></section>
+        <div class="flex justify-between items-center pt-2 border-t border-ink-100"><a id="tg-site" href="#" target="_blank" rel="noopener" class="text-xs link hidden" dir="ltr"></a>
+          <button type="button" id="tg-remove" class="text-xs text-ink-400 hover:text-red-600 ms-auto"><?= e(t('شيلها من القايمة')) ?></button></div>
       </div>
-
-    </div>
-
-    <script>(function () { var c = document.getElementById('crm-cfg'); document.querySelectorAll('[data-cfg]').forEach(function (b) { b.addEventListener('click', function () { var on = c.classList.contains('hidden') || b.classList.contains('on') === false; document.querySelectorAll('[data-cfg]').forEach(function (x) { x.classList.toggle('on', x === b && on); x.classList.toggle('!bg-brand-50', x === b && on); }); c.classList.toggle('hidden', !on); if (on) { var f = c.querySelector('[data-cfgp=' + b.dataset.cfg + ']'); f.classList.add('ring-2', 'ring-brand-300'); setTimeout(function () { f.classList.remove('ring-2', 'ring-brand-300'); }, 900); var i = f.querySelector('input:not([type=hidden]),textarea'); if (i) i.focus(); } }); }); })();</script>
-    <div id="crm-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
-      <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
-      <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[440px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="crm-d-title">
-        <div class="flex items-center gap-3 p-4 border-b border-ink-100">
-          <div class="min-w-0 flex-1"><div id="crm-d-title" class="font-semibold text-ink-900 truncate"></div><div id="crm-d-sub" class="text-xs text-ink-500 truncate"></div></div>
-          <button type="button" class="btn-ghost" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
-        </div>
-        <div class="px-4 pt-3 text-xs text-ink-500 flex items-center gap-2"><span><?= e(t('متبقي لك النهارده:')) ?></span><b id="crm-left" class="text-ink-900"></b></div>
-        <div id="crm-d-body" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
-      </div>
-    </div>
-    <script>window.CRM = <?= json_encode([
-        'canReveal' => $canReveal, 'url' => url('crm'), 'csrf' => csrf_token(), 'leadsUrl' => url('crm_leads'),
-        'tr' => [
-            'loading' => t('بنجيب صناع القرار…'), 'reveal' => t('اكشف الرقم والإيميل'), 'revealing' => t('بنكشف…'), 'none' => t('Apollo مالقاش أشخاص في الشركة دي.'),
-            'added' => t('اتضاف للـ Leads ✓'), 'merged' => t('كان موجود في الـ Leads، كمّلنا بياناته ✓'), 'pending' => t('الرقم جاي في السكة (دقايق)…'), 'nophone' => t('مفيش رقم'),
-            'noemail' => t('مفيش إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخ'), 'noperm' => t('مالكش صلاحية الكشف'), 'hasE' => t('عنده إيميل'), 'hasP' => t('عنده رقم'),
-            'other' => t('اتكشفوا قبل كده'), 'manualH' => t('ضيف شخص من الشركة دي بإيدك'), 'mName' => t('الاسم'), 'mTitle' => t('المسمى الوظيفي'), 'mPhone' => t('الرقم'), 'mEmail' => t('الإيميل'), 'mAdd' => t('ضيف للـ Leads'), 'plans' => t('خطط Apollo'), 'open' => t('افتح في الـ Leads'), 'err' => t('حصل خطأ، جرب تاني'), 'site' => t('الموقع'),
-        ],
-    ], JSON_UNESCAPED_UNICODE) ?>;</script>
-    <script src="assets/ui-crm.js?v=<?= e(APP_VERSION) ?>"></script>
+    </dialog>
+    <style>.tg-chip{font-size:.875rem;border-radius:9999px;border:1px solid rgb(226 232 240);padding:.25rem .75rem;color:rgb(71 85 105)}.tg-chip span{opacity:.6;margin-inline-start:.25rem}.tg-chip.on{background:rgb(15 23 42);border-color:rgb(15 23 42);color:#fff}
+      #tg-dlg[open]{animation:tgIn .18s ease-out}@keyframes tgIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}</style>
+    <script>window.TG = <?= json_encode(['csrf' => csrf_token(), 'url' => url('crm'), 'apollo' => $hasApollo, 'reveal' => $canReveal, 'connectUrl' => url('connectors'),
+        'L' => ['none' => t('لسه مفيش أشخاص من الشركة دي عندك.'), 'noApollo' => t('اربط Apollo من التكاملات عشان تشوف أهم الأشخاص في الشركة.'), 'noDomain' => t('الشركة دي مالهاش دومين، فمش هنقدر نلاقي أشخاصها في Apollo.'),
+        'nobody' => t('Apollo مالقاش أشخاص تانيين.'), 'reveal' => t('اكشف البيانات'), 'busy' => t('بنكشف…'), 'added' => t('اتضافت ✓'), 'dup' => t('الشركة دي موجودة بالفعل.'), 'err' => t('حصلت مشكلة.'),
+        'aiBusy' => t('بنحلل قاعدة المعرفة ونجيب شركات…'), 'aiDone' => t('اتضافت %s شركة'), 'aiOff' => t('اقتراح الشركات محتاج Apollo ومزود ذكاء اصطناعي مربوطين من التكاملات.'), 'confirmRm' => t('تشيل الشركة دي من القايمة؟'),
+        'open' => t('افتح'), 'call' => t('اتصال'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/targets.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

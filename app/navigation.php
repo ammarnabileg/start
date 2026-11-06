@@ -36,9 +36,10 @@ function nav_items(): array
     $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $s3 = t('المحتوى والحملات'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
-        ['key' => 'tenders', 'label' => t('المنافسات الحكومية'), 'section' => $s2],
+        ['key' => 'tenders', 'label' => t('المنافسات والمناقصات'), 'section' => $s2],
+        ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
+        ['key' => 'prospects', 'label' => t('العملاء المستهدفين'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
-        ['key' => 'crm_find', 'label' => t('استكشاف السوق'), 'section' => $s2, 'module' => 'crm', 'apollo' => true, 'tabs' => ['crm_find' => t('ابحث عن أشخاص'), 'crm' => t('الشركات المستهدفة')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'campaign', 'label' => t('حملة متكاملة'), 'section' => $s3],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => $s3,
@@ -105,7 +106,7 @@ function nav_item_for(string $page): ?array
 function page_module(string $page): ?string
 {
     $map = [
-        'crm' => ['crm', 'crm_find', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc'],
+        'crm' => ['crm', 'crm_find', 'prospects', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts'],

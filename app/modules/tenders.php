@@ -48,22 +48,30 @@ function tnd_url(array $t): string
     return $t['id_str'] ? 'https://tenders.etimad.sa/Tender/DetailsForVisitor?STenderId=' . rawurlencode((string)$t['id_str']) : 'https://tenders.etimad.sa/Tender/AllTendersForVisitor?TenderRefNo=' . rawurlencode((string)$t['ref']);
 }
 
-/** مجموعات كلمات جاهزة حسب المجال (نقطة بداية، والشركة بتعدّل) */
-function tnd_presets(): array
+/** كلمات من معرفة الشركة: المجال، والفئة، وأسماء الخدمات. الشركة مابتتسألش عن مجالها: كل حاجة من ملفها */
+function tnd_kb_words(): array
 {
-    return [
-        'marketing' => [t('تسويق وإعلان'), ['تسويق', 'تسويقيه', 'اعلان', 'اعلانات', 'اعلاميه', 'حملات', 'حمله اعلاميه', 'هويه بصريه', 'تواصل اجتماعي', 'منصات التواصل', 'محتوى', 'علاقات عامه']],
-        'events' => [t('فعاليات ومعارض'), ['فعاليه', 'فعاليات', 'معرض', 'مؤتمر', 'حفل', 'احتفال', 'مهرجان', 'ملتقى', 'تنظيم']],
-        'design' => [t('تصميم وإنتاج'), ['تصميم', 'تصوير', 'انتاج', 'فيديو', 'افلام', 'موشن', 'مطبوعات', 'طباعه', 'لوحات']],
-        'tech' => [t('مواقع وتطبيقات'), ['موقع الكتروني', 'بوابه', 'تطبيق', 'منصه رقميه', 'تطوير', 'برمجه', 'تحول رقمي']],
-    ];
+    $kb = function_exists('kb_get') ? kb_get((int)ws('id')) : []; $raw = [];
+    foreach ([(string)($kb['company']['industry'] ?? ''), (string)($kb['frame_ref']['category'] ?? '')] as $v) foreach (preg_split('/[,،\/\n]+|\s+و(?=\S)/u', $v) as $p) $raw[] = $p;
+    foreach ((array)($kb['services']['rows'] ?? []) as $r) $raw[] = (string)($r['name'] ?? '');
+    $out = [];
+    foreach ($raw as $w) { $w = trim(preg_replace('/\s+/u', ' ', preg_replace('/[()\[\]"«»]/u', ' ', $w))); if (mb_strlen($w) < 3 || mb_strlen($w) > 40 || substr_count($w, ' ') > 3) continue; $out[tnd_norm($w)] = $w; }
+    return array_values(array_slice($out, 0, 40));
 }
 
-/** إعدادات الشركة: كلمات، استبعاد، أقل أيام متبقية */
+/** إعدادات الشركة: كلمات من المعرفة (auto) + كلمات زودها المستخدم (add) - اللي قفلها (off)، واستبعاد، وأقل أيام متبقية */
 function tnd_cfg(): array
 {
-    $v = json_decode((string)setting('tnd_cfg_' . (int)ws('id'), ''), true);
-    return (is_array($v) ? $v : []) + ['words' => [], 'not' => [], 'min_days' => 2];
+    $v = json_decode((string)setting('tnd_cfg_' . (int)ws('id'), ''), true); $v = is_array($v) ? $v : [];
+    $c = ['add' => (array)($v['add'] ?? $v['words'] ?? []), 'off' => (array)($v['off'] ?? []), 'not' => (array)($v['not'] ?? []), 'min_days' => (int)($v['min_days'] ?? 2)];
+    $off = array_flip(array_map('tnd_norm', $c['off'])); $c['auto'] = tnd_kb_words(); $words = [];
+    foreach (array_merge($c['auto'], $c['add']) as $w) { $k = tnd_norm($w); if ($k !== '' && !isset($off[$k])) $words[$k] = $w; }
+    $c['words'] = array_values($words);
+    return $c;
+}
+function tnd_cfg_save(array $c): void
+{
+    save_setting('tnd_cfg_' . (int)ws('id'), json_encode(['add' => array_values(array_slice($c['add'], 0, 60)), 'off' => array_values(array_slice($c['off'], 0, 60)), 'not' => array_values(array_slice($c['not'], 0, 40)), 'min_days' => max(0, min(30, (int)$c['min_days']))], JSON_UNESCAPED_UNICODE));
 }
 
 function tnd_words_clean($raw, int $max = 60): array

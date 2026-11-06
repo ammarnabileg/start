@@ -6,14 +6,18 @@ $J = function ($a, int $code = 200) { http_response_code($code); header('Content
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
-    if ($a === 'cfg') {
-        if (!$mgr) { flash('error', t('مالكش صلاحية.')); redirect(url('tenders')); }
-        $words = tnd_words_clean($_POST['words'] ?? '');
-        foreach ((array)($_POST['preset'] ?? []) as $k) foreach (tnd_presets()[$k][1] ?? [] as $w) $words[] = $w;
-        $words = array_values(array_unique($words));
-        $c = ['words' => array_slice($words, 0, 80), 'not' => tnd_words_clean($_POST['not'] ?? '', 40), 'min_days' => max(0, min(30, (int)($_POST['min_days'] ?? 2)))];
-        save_setting('tnd_cfg_' . $wid, json_encode($c, JSON_UNESCAPED_UNICODE)); log_activity('tenders.cfg', count($c['words']) . ' words');
-        flash('success', t('اتحفظ ✓')); redirect(url('tenders'));
+    // كلمات البحث: بتيجي من معرفة الشركة، والمستخدم بيقفل أي كلمة أو يضيف كلماته
+    if (in_array($a, ['kw_add', 'kw_off', 'kw_on', 'kw_del', 'cfg'], true)) {
+        if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
+        $c = tnd_cfg(); $w = mb_substr(trim((string)($_POST['w'] ?? '')), 0, 40); $k = tnd_norm($w);
+        $drop = function (array $l) use ($k) { return array_values(array_filter($l, function ($x) use ($k) { return tnd_norm($x) !== $k; })); };
+        if ($a === 'kw_add' && mb_strlen($k) >= 2) { $c['off'] = $drop($c['off']); if (!in_array($k, array_map('tnd_norm', $c['words']), true)) $c['add'][] = $w; }
+        if ($a === 'kw_off' && $k !== '') $c['off'][] = $w;
+        if ($a === 'kw_on') $c['off'] = $drop($c['off']);
+        if ($a === 'kw_del') $c['add'] = $drop($c['add']);
+        if ($a === 'cfg') { $c['not'] = tnd_words_clean($_POST['not'] ?? '', 40); $c['min_days'] = (int)($_POST['min_days'] ?? 2); }
+        tnd_cfg_save($c); log_activity('tenders.' . $a, $w);
+        $J(['ok' => true]);
     }
     if ($a === 'apify_pull' && is_ws_owner() && tnd_apify_on()) {
         try { if ((string)setting('tenders_apify_run', '') === '') { tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); save_setting('tenders_apify_day', gmdate('Y-m-d')); } $J(['ok' => true]); }
@@ -55,29 +59,37 @@ $cfg = tnd_cfg();
 $h = tnd_health();
 $rows = $view === 'match' ? tnd_list(false) : ($view === 'all' ? tnd_list(true, 300) : tnd_marked($view));
 $counts = ['match' => $view === 'match' ? count($rows) : count(tnd_list(false)), 'fav' => count(tnd_marked('fav')), 'applied' => count(tnd_marked('applied'))];
-// اقتراحات من ملف الشركة (أسماء الخدمات والمجال)
-$kb = function_exists('kb_get') ? kb_get($wid) : []; $sugg = [];
-foreach ((array)($kb['services']['rows'] ?? []) as $r) { $n = trim((string)($r['name'] ?? '')); if ($n !== '' && mb_strlen($n) <= 30) $sugg[] = $n; }
-if (!empty($kb['company']['industry'])) $sugg[] = (string)$kb['company']['industry'];
-$sugg = array_slice(array_values(array_unique($sugg)), 0, 12);
-
-render(t('المنافسات الحكومية'), 'tenders', function () use ($view, $cfg, $h, $rows, $counts, $mgr, $sugg) {
+render(t('المنافسات والمناقصات'), 'tenders', function () use ($view, $cfg, $h, $rows, $counts, $mgr) {
     $ago = function ($sec) { if ($sec === null) return t('لسه ماوصلش بيانات'); if ($sec < 3600) return t('من %s دقيقة', max(1, intdiv($sec, 60))); if ($sec < 86400) return t('من %s ساعة', intdiv($sec, 3600)); return t('من %s يوم', intdiv($sec, 86400)); };
     $mark = function (string $txt, array $hits) { $out = e($txt); foreach ($hits as $w) { $out = preg_replace('/(' . preg_quote(e($w), '/') . ')/u', '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">$1</mark>', $out); } return $out; };
     ?>
 
     <?php if ($mgr): ?>
-    <form id="tnd-cfg" popover method="post" class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
-      <?= csrf_field() ?><input type="hidden" name="action" value="cfg">
-      <b class="text-ink-900"><?= e(t('كلمات مجالك')) ?></b>
-      <p class="text-xs text-ink-500"><?= e(t('المنافسة بتظهر لك لو اسمها أو نشاطها فيه كلمة من دول. اكتب كلمة أو عبارة في كل سطر. الحروف بتتوحد لوحدها (أ إ آ، ة ه، ال).')) ?></p>
-      <div class="flex flex-wrap gap-1.5"><?php foreach (tnd_presets() as $k => $p): ?><label class="text-xs rounded-full border border-ink-200 px-2.5 py-1 cursor-pointer has-[:checked]:bg-brand-50 has-[:checked]:border-brand-300"><input type="checkbox" name="preset[]" value="<?= e($k) ?>" class="hidden"> + <?= e($p[0]) ?></label><?php endforeach; ?></div>
-      <?php if ($sugg): ?><div class="text-xs text-ink-500"><?= e(t('من ملف شركتك:')) ?> <?php foreach ($sugg as $s): ?><button type="button" class="rounded-full bg-ink-100 px-2 py-0.5 me-1 mb-1 hover:bg-ink-200" data-add-word="<?= e($s) ?>">+ <?= e($s) ?></button><?php endforeach; ?></div><?php endif; ?>
-      <label class="block"><span class="label"><?= e(t('الكلمات')) ?></span><textarea name="words" rows="6" class="input" dir="auto" id="tnd-words"><?= e(implode("\n", (array)$cfg['words'])) ?></textarea></label>
-      <label class="block"><span class="label"><?= e(t('استبعد لو فيها')) ?> <span class="text-ink-400 font-normal"><?= e(t('(اختياري)')) ?></span></span><textarea name="not" rows="2" class="input" dir="auto" placeholder="<?= e(t('مثلًا: صيانة، توريد، نظافة')) ?>"><?= e(implode("\n", (array)$cfg['not'])) ?></textarea></label>
-      <label class="flex items-center justify-between gap-2"><span class="text-xs text-ink-600"><?= e(t('اخفي اللي فاضل على آخر موعد فيها أقل من (يوم)')) ?></span><input type="number" name="min_days" value="<?= (int)$cfg['min_days'] ?>" min="0" max="30" class="input !mt-0 !w-20 text-center"></label>
-      <button class="btn-primary w-full"><?= e(t('حفظ')) ?></button>
-    </form>
+    <div id="tnd-cfg" popover class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
+      <div class="flex items-center gap-2"><b class="text-ink-900 flex-1"><?= e(t('كلمات البحث')) ?></b><a href="<?= e(url('knowledge')) ?>" class="text-xs link"><?= e(t('معرفة الشركة')) ?></a></div>
+      <p class="text-xs text-ink-500"><?= e(t('الكلمات دي جاية من معرفة الشركة (المجال والفئة والخدمات). دوس على كلمة عشان توقفها، أو ضيف كلماتك.')) ?></p>
+      <div class="flex flex-wrap gap-1.5" id="kw-list">
+        <?php $offK = array_flip(array_map('tnd_norm', $cfg['off'])); foreach ($cfg['auto'] as $w): $isOff = isset($offK[tnd_norm($w)]); ?>
+          <button type="button" data-kw="<?= e($w) ?>" data-a="<?= $isOff ? 'kw_on' : 'kw_off' ?>" class="kw <?= $isOff ? 'off' : '' ?>" title="<?= e($isOff ? t('رجّعها') : t('وقّفها')) ?>"><?= ui_icon('id', 'w-3 h-3 opacity-60') ?><?= e($w) ?></button>
+        <?php endforeach; ?>
+        <?php foreach ($cfg['add'] as $w): ?><button type="button" data-kw="<?= e($w) ?>" data-a="kw_del" class="kw mine" title="<?= e(t('شيلها')) ?>"><?= e($w) ?> ×</button><?php endforeach; ?>
+      </div>
+      <form id="kw-add" class="flex gap-2 m-0" data-no-ajax><input name="w" maxlength="40" class="input !mt-0 flex-1 text-sm" dir="auto" placeholder="<?= e(t('كلمة أو عبارة')) ?>"><button class="btn-ghost !text-xs"><?= e(t('أضف')) ?></button></form>
+      <details class="text-xs"><summary class="cursor-pointer text-ink-600"><?= e(t('استبعاد وأيام')) ?></summary>
+        <form id="kw-cfg" class="space-y-2 mt-2 m-0" data-no-ajax>
+          <textarea name="not" rows="2" class="input text-sm" dir="auto" placeholder="<?= e(t('استبعد لو فيها (كلمة في كل سطر)')) ?>"><?= e(implode("\n", (array)$cfg['not'])) ?></textarea>
+          <label class="flex items-center justify-between gap-2"><span class="text-ink-600"><?= e(t('اخفي اللي فاضل على آخر موعد فيها أقل من (يوم)')) ?></span><input type="number" name="min_days" value="<?= (int)$cfg['min_days'] ?>" min="0" max="30" class="input !mt-0 !w-20 text-center"></label>
+          <button class="btn-ghost !text-xs w-full"><?= e(t('حفظ')) ?></button></form></details>
+    </div>
+    <style>.kw{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;border-radius:9999px;padding:.25rem .65rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}</style>
+    <script>
+    (function () { var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+      function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { if (window.fxToast) fxToast(j.error || C.err, 'error'); return; } location.reload(); }); }
+      var l = document.getElementById('kw-list'); if (l) l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (b) post({ action: b.dataset.a, w: b.dataset.kw }); });
+      var fa = document.getElementById('kw-add'); if (fa) fa.addEventListener('submit', function (e) { e.preventDefault(); var w = fa.w.value.trim(); if (w) post({ action: 'kw_add', w: w }); });
+      var fc = document.getElementById('kw-cfg'); if (fc) fc.addEventListener('submit', function (e) { e.preventDefault(); post({ action: 'cfg', not: fc.not.value, min_days: fc.min_days.value }); });
+    })();
+    </script>
     <?php endif; ?>
 
     <?php if (!tnd_apify_on() && !$h['active']): ?>
@@ -95,13 +107,8 @@ render(t('المنافسات الحكومية'), 'tenders', function () use ($vi
     </script>
 
     <?php if (!$cfg['words'] && $view === 'match'): ?>
-      <div class="card p-8 text-center max-w-xl mx-auto mb-5">
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-lime-50 text-lime-700 grid place-items-center mb-4"><?= ui_icon('file', 'w-7 h-7') ?></div>
-        <h2 class="text-lg font-semibold text-ink-900"><?= e(t('قولنا شغلك إيه ونجيبلك منافساته')) ?></h2>
-        <p class="text-sm text-ink-500 mt-1 mb-5"><?= e(t('اختار مجالك أو اكتب كلماتك، وكل منافسة جديدة على اعتماد بتطابقها هتظهر هنا ويوصلك تنبيه.')) ?></p>
-        <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-primary"><?= e(t('حدد مجالك')) ?></button><?php else: ?><p class="text-xs text-ink-400"><?= e(t('اطلب من مدير الشركة يحدد كلمات المجال.')) ?></p><?php endif; ?>
-        <p class="mt-4"><a href="<?= e(url('tenders', ['v' => 'all'])) ?>" class="link text-sm"><?= e(t('أو اتفرج على كل المنافسات النشطة')) ?></a></p>
-      </div>
+      <div class="card p-4 mb-4 flex flex-wrap items-center gap-3 text-sm"><?= ui_icon('id', 'w-5 h-5 text-ink-400') ?><span class="flex-1 text-ink-600"><?= e(t('معرفة الشركة مفيهاش مجال ولا خدمات لسه، فمش عارفين ندوّر على إيه. كمّل "عن الشركة" و"الخدمات".')) ?></span>
+        <a href="<?= e(url('knowledge')) ?>" class="btn-primary !py-1.5 !text-xs"><?= e(t('معرفة الشركة')) ?></a></div>
     <?php endif; ?>
 
     <div class="flex flex-wrap items-center gap-2 mb-4">
@@ -109,7 +116,7 @@ render(t('المنافسات الحكومية'), 'tenders', function () use ($vi
         <a href="<?= e(url('tenders', $k === 'match' ? [] : ['v' => $k])) ?>" class="text-sm rounded-full border px-3 py-1 <?= $view === $k ? 'bg-ink-900 text-[#fff] border-ink-900' : 'border-ink-200 text-ink-600 hover:bg-ink-50' ?>"><?= e($l) ?><?= $n !== null ? ' <span class="opacity-70">' . (int)$n . '</span>' : '' ?></a>
       <?php endforeach; ?>
       <span class="ms-auto"></span><input type="search" id="tnd-q" class="input !mt-0 !w-56 text-sm" placeholder="<?= e(t('دوّر في النتايج…')) ?>">
-      <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-ghost"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('كلمات مجالك')) ?><?= $cfg['words'] ? ' (' . count($cfg['words']) . ')' : '' ?></button><?php endif; ?>
+      <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-ghost"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('كلمات البحث')) ?><?= $cfg['words'] ? ' (' . count($cfg['words']) . ')' : '' ?></button><?php endif; ?>
       <?php if (is_ws_owner() && tnd_apify_on()): $arun = (string)setting('tenders_apify_run', '') !== ''; ?><button type="button" id="tnd-pull" class="btn-ghost" <?= $arun ? 'data-running="1"' : '' ?>><?= ui_icon('refresh', 'w-4 h-4') ?><span><?= e($arun ? t('بنسحب…') : t('اسحب الآن')) ?></span></button><?php endif; ?>
     </div>
     <?php if ($h['stale'] && $h['age'] !== null): ?><p class="text-xs text-amber-700 -mt-2 mb-4"><?= e(t('البيانات متأخرة: آخر تحديث %s.', $ago($h['age']))) ?></p><?php endif; ?>

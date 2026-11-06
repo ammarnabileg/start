@@ -52,6 +52,7 @@ $I['crm'] = 'M4 21V9l8-6 8 6v12M9 21v-6h6v6M9 11h.01M15 11h.01';
 $I['crm_leads'] = 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z';
 $I['crm_find'] = 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5';
 $I['tenders'] = 'M3 21h18M5 21V10m14 11V10M9 21v-6h6v6M2 10l10-6 10 6z';
+$I['prospects'] = 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75';
 $I['competitors'] = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z';
 $I['crm_reports'] = 'M4 20V10M10 20V4M16 20v-7M22 20H2';
 $I['campaign'] = 'M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM15 8a5 5 0 010 8M18 5a9 9 0 010 14';
@@ -189,11 +190,11 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $sibOn = function ($tk) use ($active, $navActive) { return $tk === $active || ($tk === ($navActive['key'] ?? '') && in_array($active, $navActive['also'] ?? [], true)); };
       $keys = array_keys($sibs); $cur = null; foreach ($keys as $ix => $tk) if ($sibOn($tk)) $cur = $ix;
       $hasPop = $sibs || $rel;
-      $pgDesc = ['tenders' => t('منافسات اعتماد اللي بتطابق مجالك'), 'competitors' => t('أسعار وعروض منافسينك من مواقعهم'), 'campaign' => t('صفحة هبوط وكوبون ومنشورات في خطوة'), 'crm_leads' => t('القايمة واللوحة والمتابعات'), 'leads' => t('اللي سجّلوا من إعلاناتك'), 'crm_reports' => t('الفريق والمصادر والتوقعات'), 'crm_settings' => t('المراحل والحقول والقواعد'),
+      $pgDesc = ['tenders' => t('منافسات اعتماد اللي بتطابق معرفة شركتك'), 'crm' => t('شركات تستهدفها وأشخاصها'), 'prospects' => t('كل العملاء من كل مكان في المنصة'), 'competitors' => t('أسعار وعروض منافسينك من مواقعهم'), 'campaign' => t('صفحة هبوط وكوبون ومنشورات في خطوة'), 'crm_leads' => t('القايمة واللوحة والمتابعات'), 'leads' => t('اللي سجّلوا من إعلاناتك'), 'crm_reports' => t('الفريق والمصادر والتوقعات'), 'crm_settings' => t('المراحل والحقول والقواعد'),
         'analytics' => t('أداء منشوراتك'), 'inbox_analytics' => t('سرعة الرد وحجم الرسائل'), 'reports' => t('تقارير PDF ومجدولة'), 'goals' => t('أهداف الشهر والتقدم'), 'alerts' => t('اللي محتاج انتباهك'),
         'posts' => t('كل المنشورات بالفلاتر'), 'calendar' => t('شهر وأسبوع بالسحب والإفلات'), 'approvals' => t('منشورات مستنية موافقة'), 'post_log' => t('مين نشر إيه وإمتى'),
         'inbox' => t('كل المحادثات'), 'comments' => t('تعليقات منشوراتك'), 'knowledge' => t('خدماتك وأسعارك وجمهورك'), 'media' => t('صورك وفيديوهاتك'), 'accounts' => t('حسابات السوشيال'), 'connectors' => t('SMTP وApollo والذكاء الاصطناعي'),
-        'crm_find' => t('دوّر على صناع القرار'), 'crm' => t('شركات تستهدفها'), 'ads' => t('حملاتك الشغالة'), 'ad_builder' => t('حملة خطوة بخطوة'), 'ad_create' => t('حملة في دقيقة'), 'ad_audiences' => t('جماهير محفوظة')];
+        'crm_find' => t('دوّر على صناع القرار'), 'ads' => t('حملاتك الشغالة'), 'ad_builder' => t('حملة خطوة بخطوة'), 'ad_create' => t('حملة في دقيقة'), 'ad_audiences' => t('جماهير محفوظة')];
     ?>
     <?php if (empty($hideTitle)): ?>
     <div class="flex items-center gap-2 mb-6 min-w-0">

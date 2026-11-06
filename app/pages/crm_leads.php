@@ -506,9 +506,6 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       </div>
     </div>
 
-    <?php if ($canManage && !crm_has_key()): ?>
-    <div class="rounded-xl border border-dashed border-ink-200 px-3 py-2 mb-3 text-xs text-ink-500 flex items-center gap-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg> <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?> <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
-    <?php endif; ?>
 
 
     <!-- المراحل = القمع: عدد كل مرحلة ونسبة اللي عدّوا من اللي قبلها، وبتفلتر بضغطة -->
