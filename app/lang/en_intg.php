@@ -2752,4 +2752,5 @@ Latte - %2$s',
     'أسبوع %s' => 'Week %s',
     'شهر' => 'Month',
     'أسبوع' => 'Week',
+    'Zernio رد إن التعديل تم، بس الميعاد مااتغيرش (لسه %s). جرّب تغيّره من صفحة التعديل، ولو فضل كده ابعتلي.' => 'Zernio said the update succeeded, but the time didn\'t change (still %s). Try changing it from the edit page, and tell us if it stays the same.',
 ];

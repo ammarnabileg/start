@@ -36,7 +36,8 @@ if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$dt || $dt < new DateTime('now', new DateTimeZone(site_timezone()))) {
                     throw new ZernioException(t('وقت النشر لازم يكون في المستقبل.'));
                 }
-                $payload['scheduledFor'] = $dt->format('Y-m-d\TH:i:s');
+                $u = clone $dt; $u->setTimezone(new DateTimeZone('UTC'));
+                $payload['scheduledFor'] = $u->format('Y-m-d\TH:i:s.000\Z'); // UTC صريح عشان مايتفهمش بتوقيت تاني
             }
             if ($content === '') throw new ZernioException(t('النص مينفعش يكون فاضي.'));
             if (!$platforms) throw new ZernioException(t('اختار حساب واحد على الأقل.'));

@@ -19,14 +19,34 @@ function ps_media(array $p): array
 {
     return array_map(function ($m) { return array_intersect_key($m, array_flip(['type', 'url', 'altText', 'thumbnail'])); }, (array)($p['mediaItems'] ?? []));
 }
-/** ميعاد جديد لمنشور مجدول/مسودة (بنبعت المنشور كامل زي صفحة التعديل) */
+/** ميعاد جديد لمنشور مجدول/مسودة.
+ *  Zernio ممكن يرد 200 من غير ما يغير الميعاد، فبنتأكد بقراءة المنشور تاني. الميعاد بيتبعت UTC صريح (Z) عشان مايتفهمش بتوقيت تاني. */
+function ps_utc(DateTime $dt): string { $u = clone $dt; $u->setTimezone(new DateTimeZone('UTC')); return $u->format('Y-m-d\TH:i:s.000\Z'); }
+function ps_same_time(?string $got, DateTime $want): bool
+{
+    if (!$got) return false;
+    try { return abs((new DateTime($got))->getTimestamp() - $want->getTimestamp()) < 90; } catch (Throwable $e) { return false; }
+}
 function ps_reschedule(Zernio $z, string $id, DateTime $dt): void
 {
     $p = pub_get_post($z, $id);
     if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص، مينفعش تغير ميعاده.'));
-    $payload = ['content' => (string)($p['content'] ?? ''), 'platforms' => ps_platforms($p), 'timezone' => site_timezone(), 'scheduledFor' => $dt->format('Y-m-d\TH:i:s')];
+    // 1) المنشور كامل بنفس إعداداته + الميعاد الجديد
+    $payload = ['content' => (string)($p['content'] ?? ''), 'platforms' => ps_platforms($p), 'timezone' => site_timezone(), 'scheduledFor' => ps_utc($dt)];
     if ($m = ps_media($p)) $payload['mediaItems'] = $m;
-    pub_update_post($z, $id, $payload);
+    $r = pub_update_post($z, $id, $payload);
+    $got = (string)($r['post']['scheduledFor'] ?? '');
+    if (!ps_same_time($got, $dt)) { $got = (string)(pub_get_post($z, $id)['scheduledFor'] ?? ''); }
+    if (ps_same_time($got, $dt)) return;
+    // 2) الميعاد لوحده
+    $r = pub_update_post($z, $id, ['scheduledFor' => ps_utc($dt), 'timezone' => site_timezone()]);
+    $got = (string)($r['post']['scheduledFor'] ?? '');
+    if (!ps_same_time($got, $dt)) { $got = (string)(pub_get_post($z, $id)['scheduledFor'] ?? ''); }
+    if (ps_same_time($got, $dt)) return;
+    $tz = new DateTimeZone(site_timezone());
+    $now = '—'; if ($got) { try { $g = new DateTime($got); $g->setTimezone($tz); $now = $g->format('Y-m-d H:i'); } catch (Throwable $e) {} }
+    log_activity('post.reschedule_failed', $id . ' want ' . $dt->format('c') . ' got ' . $got);
+    throw new ZernioException(t('Zernio رد إن التعديل تم، بس الميعاد مااتغيرش (لسه %s). جرّب تغيّره من صفحة التعديل، ولو فضل كده ابعتلي.', $now));
 }
 function ps_duplicate(Zernio $z, string $id): string
 {
@@ -88,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 if (!$n) throw new ZernioException(t('الكلمة مش موجودة في المنشور ده.'));
                 if (trim($new) === '') throw new ZernioException(t('النص مينفعش يكون فاضي.'));
                 $payload = ['content' => $new, 'platforms' => $pls, 'timezone' => site_timezone()];
-                if (!empty($p['scheduledFor'])) { $d = new DateTime((string)$p['scheduledFor']); $d->setTimezone($tz); $payload['scheduledFor'] = $d->format('Y-m-d\TH:i:s'); }
+                if (!empty($p['scheduledFor'])) { $payload['scheduledFor'] = ps_utc(new DateTime((string)$p['scheduledFor'])); } // نفس الميعاد بالظبط (UTC)
                 if ($m = ps_media($p)) $payload['mediaItems'] = $m;
                 pub_update_post($z, $id, $payload); log_activity('post.replace', $id . ' x' . $n);
             } elseif ($op === 'text') {
@@ -97,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 $p = pub_get_post($z, $id);
                 if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص. عدّله من صفحة التعديل على كل منصة.'));
                 $payload = ['content' => mb_substr($txt, 0, 10000), 'platforms' => ps_platforms($p), 'timezone' => site_timezone()];
-                if (!empty($p['scheduledFor'])) { $d = new DateTime((string)$p['scheduledFor']); $d->setTimezone($tz); $payload['scheduledFor'] = $d->format('Y-m-d\TH:i:s'); }
+                if (!empty($p['scheduledFor'])) { $payload['scheduledFor'] = ps_utc(new DateTime((string)$p['scheduledFor'])); } // نفس الميعاد بالظبط (UTC)
                 if ($m = ps_media($p)) $payload['mediaItems'] = $m;
                 pub_update_post($z, $id, $payload); log_activity('post.update', $id);
             } elseif ($op === 'retry') {

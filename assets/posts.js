@@ -180,7 +180,7 @@
       var prev = p.at; p.at = nd.toISOString(); draw(); toast(Q.moving, true);
       psQuick('resched', [p.id], { when: when }).then(function (d) {
         var f = Object.values(d.failed || {}); if (f.length) { p.at = prev; draw(); toast(f[0]); return; }
-        toast(Q.moved.replace('%s', nd.toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })), true);
+        toast(Q.moved.replace('%s', nd.toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: X.tz })), true);
       }).catch(function (er) { p.at = prev; draw(); toast(er.message || X.err); });
     });
     $$('[data-cal]').forEach(function (b) { b.onclick = function () {
