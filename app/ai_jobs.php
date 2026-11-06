@@ -140,10 +140,9 @@ function ai_call_transcript(Zernio $z, string $id): string
         if (!$oa || !empty($oa['settings']['disabled'])) throw new AiException(t('لا يوجد نص لهذه المكالمة. اربط OpenAI لتفريغ التسجيل صوتيًا.'));
         $url = ph_call_recording($z, $id);
         if ($url === '') throw new AiException(t('هذه المكالمة غير مسجلة.'));
-        $tmp = tempnam(sys_get_temp_dir(), 'call');
-        $ch = curl_init($url); $fp = fopen($tmp, 'wb');
-        curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 120, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
-        $ok = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400; curl_close($ch); fclose($fp);
+        // safe_fetch: عناوين عامة بس وكل تحويل بيتفحص، وحد 25 ميجا
+        $r = safe_fetch($url, ['file' => true, 'max' => 24 * 1048576, 'timeout' => 120, 'headers' => []]);
+        $ok = empty($r['err']); $tmp = $ok ? $r['file'] : tempnam(sys_get_temp_dir(), 'call');
         if (!$ok || filesize($tmp) > 24 * 1048576) { @unlink($tmp); throw new AiException(t('تعذر تحميل التسجيل، أو حجمه أكبر من 25 ميجا.')); }
         $mime = (string)mime_content_type($tmp) ?: 'audio/mpeg';
         $ch = curl_init(ai_base('openai') . '/audio/transcriptions');

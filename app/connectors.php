@@ -254,10 +254,9 @@ function hf_lib_save(int $wid, string $url): ?string
 {
     $dir = hf_lib_dir($wid);
     if (!is_dir($dir)) @mkdir($dir, 0750, true);
-    $tmp = tempnam(sys_get_temp_dir(), 'hf');
-    $ch = curl_init($url); $fp = fopen($tmp, 'wb');
-    curl_setopt_array($ch, [CURLOPT_FILE => $fp, CURLOPT_TIMEOUT => 60, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3]);
-    $ok = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) < 400; curl_close($ch); fclose($fp);
+    // safe_fetch: عناوين عامة بس وكل تحويل بيتفحص (حد 200 ميجا للفيديو)
+    $r = safe_fetch($url, ['file' => true, 'max' => 200 * 1048576, 'timeout' => 60, 'headers' => []]);
+    $ok = empty($r['err']); $tmp = $ok ? $r['file'] : tempnam(sys_get_temp_dir(), 'hf');
     $mime = $ok ? (string)mime_content_type($tmp) : '';
     $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'video/mp4' => 'mp4'][$mime] ?? null;
     if (!$ok || !$ext || filesize($tmp) > ($ext === 'mp4' ? 200 : 25) * 1048576) { @unlink($tmp); return null; }
