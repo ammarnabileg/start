@@ -2,7 +2,7 @@
   var D = window.LD; if (!D) return;
   var T = D.tr, leads = D.leads;
   var list = document.getElementById('ld-list'), board = document.getElementById('ld-board'), none = document.getElementById('ld-none');
-  var f = { stage: '', src: '', own: '', due: false, q: '', cold: false, tag: '' }, sel = {};
+  var f = { stage: '', src: '', own: '', due: false, q: '', cold: false, tag: '', sort: '' }, sel = {};
   var view = 'list';
   try { view = localStorage.getItem('ld-view') || 'list'; } catch (e) {}
   var stageColor = { new: 'bg-sky-100 text-sky-700', contacted: 'bg-violet-100 text-violet-700', qualified: 'bg-amber-100 text-amber-800', proposal: 'bg-orange-100 text-orange-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
@@ -51,7 +51,7 @@
   function row(l) {
     return '<div class="ld-row flex items-center gap-3 px-4 py-3 hover:bg-ink-50 cursor-pointer' + (sel[l.id] ? ' bg-brand-50/60' : '') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
       (l.edit ? '<input type="checkbox" class="ld-sel rounded" data-sid="' + l.id + '"' + (sel[l.id] ? ' checked' : '') + ' aria-label="' + esc(l.name) + '">' : '<span class="w-4"></span>') + avatar(l) +
-      '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><span class="font-medium text-ink-900">' + esc(l.name) + '</span>' +
+      '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><span class="font-medium text-ink-900">' + esc(l.name) + '</span>' + scoreBadge(l) +
       '<span class="text-[11px] px-1.5 py-0.5 rounded-md ' + stageColor[l.stage] + '">' + esc(D.stages[l.stage]) + '</span>' + nextBadge(l) +
       (l.run ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800" title="' + esc(T.pStep.replace('%s', l.run.split('/')[0]).replace('%s', l.run.split('/')[1].replace('!', ''))) + '">🔁 ' + esc(l.run.replace('!', '')) + (l.run.indexOf('!') > -1 ? ' ⚡' : '') + '</span>' : '') + '</div>' +
       '<div class="text-xs text-ink-500 truncate">' + esc([l.title, l.company].filter(Boolean).join(' · ') || '—') + '</div></div>' +
@@ -62,11 +62,14 @@
   }
   function card(l) {
     return '<div class="ld-card rounded-xl border border-ink-200 bg-white p-3 cursor-pointer hover:border-brand-300 hover:shadow-sm" draggable="' + (l.edit ? 'true' : 'false') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
-      '<div class="flex items-center gap-2">' + avatar(l, 'w-7 h-7') + '<div class="min-w-0"><div class="text-sm font-medium text-ink-900 truncate">' + esc(l.name) + '</div><div class="text-[11px] text-ink-500 truncate">' + esc(l.company || l.title || '—') + '</div></div></div>' +
+      '<div class="flex items-center gap-2">' + avatar(l, 'w-7 h-7') + '<div class="min-w-0"><div class="text-sm font-medium text-ink-900 truncate">' + esc(l.name) + ' ' + scoreBadge(l) + '</div><div class="text-[11px] text-ink-500 truncate">' + esc(l.company || l.title || '—') + '</div></div></div>' +
       '<div class="flex flex-wrap items-center gap-1.5 mt-2">' + nextBadge(l) + (l.value ? '<span class="text-xs font-semibold text-ink-900 ms-auto">' + esc(Number(l.value).toLocaleString()) + '</span>' : '') + '</div></div>';
   }
+  function scoreBadge(l) { if (!l.score) return ''; var c = l.score >= 60 ? 'bg-lime-500 text-white' : l.score >= 35 ? 'bg-amber-400 text-ink-900' : 'bg-ink-200 text-ink-600'; return '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ' + c + '" title="' + esc(T.score + ': ' + (l.why || []).join('، ')) + '">' + l.score + '</span>'; }
   function draw() {
     var shown = leads.filter(match);
+    if (f.sort === 'score') shown.sort(function (a, b) { return b.score - a.score; });
+    else if (f.sort === 'new') shown.sort(function (a, b) { return b.id - a.id; });
     var cnt = {}; leads.forEach(function (l) { if (match(Object.assign({}, l, { stage: f.stage || l.stage }))) cnt[l.stage] = (cnt[l.stage] || 0) + 1; });
     document.querySelectorAll('[data-cnt]').forEach(function (s) { s.textContent = cnt[s.dataset.cnt] || 0; });
     document.querySelectorAll('.ld-view').forEach(function (b) { var on = b.dataset.v === view; b.classList.toggle('bg-brand-600', on); b.classList.toggle('text-white', on); b.classList.toggle('text-ink-600', !on); b.setAttribute('aria-pressed', on); });
@@ -89,6 +92,8 @@
   var dueBox = document.getElementById('ld-due');
   dueBox.addEventListener('change', function () { f.due = this.checked; draw(); });
   document.getElementById('ld-due-tile').addEventListener('click', function () { dueBox.checked = !dueBox.checked; f.due = dueBox.checked; draw(); });
+  document.getElementById('ld-sort').addEventListener('change', function () { f.sort = this.value; try { localStorage.setItem('ld-sort', f.sort); } catch (e) {} draw(); });
+  try { f.sort = localStorage.getItem('ld-sort') || ''; document.getElementById('ld-sort').value = f.sort; } catch (e) {}
   document.getElementById('ld-q').addEventListener('input', function () { f.q = this.value.trim().toLowerCase(); draw(); });
 
   // السحب بين المراحل
@@ -191,11 +196,44 @@
     acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(x.body) + '</div>' : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
   }
-  function loadActs(l) { acts.innerHTML = ''; post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); } }); }
-  function logAct(kind, body) {
+  var intel = document.getElementById('ld-intel');
+  function drawIntel(l, it) {
+    if (!it) { intel.innerHTML = ''; return; }
+    intel.innerHTML = '<div class="flex items-center gap-2">' + scoreBadge(l) + '<span class="text-ink-700">' + esc(it.summary) + '</span></div>' +
+      (l.why && l.why.length ? '<div class="text-[11px] text-ink-500">' + esc(T.score) + ': ' + esc(l.why.join('، ')) + '</div>' : '') +
+      (it.best ? '<div class="text-ink-600">🕐 ' + esc(T.best) + ': <b>' + esc(it.best) + '</b></div>' : '') +
+      (l.edit ? '<div class="pt-1"><div class="text-ink-500 mb-1">✍️ ' + esc(T.firstMsg) + '</div><textarea id="ld-first" rows="3" class="input text-xs" dir="auto">' + esc(it.first) + '</textarea><div class="flex flex-wrap gap-1.5 mt-1.5">' +
+        (l.wa ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="wa">💬 ' + esc(T.useWa) + '</button>' : '') + (l.email ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="email">✉️ ' + esc(T.useMail) + '</button>' : '') +
+        '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="copy">⧉ ' + esc(T.copy) + '</button></div></div>' : '');
+  }
+  intel.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fm]'); if (!b || !cur) return; var t = document.getElementById('ld-first').value;
+    if (b.dataset.fm === 'wa') { window.open('https://wa.me/' + cur.wa + '?text=' + encodeURIComponent(t), '_blank', 'noopener'); logAct('wa', t); }
+    else if (b.dataset.fm === 'email') { location.href = 'mailto:' + cur.email + '?body=' + encodeURIComponent(t); logAct('email', t); }
+    else { try { navigator.clipboard.writeText(t); } catch (x) {} b.textContent = T.copied; }
+  });
+  var mailBox = document.getElementById('ld-mail'), mailF = document.getElementById('ld-mail-f');
+  function drawMails(l, ms) {
+    mailBox.classList.toggle('hidden', !l.email || !l.edit); mailF.classList.add('hidden');
+    document.getElementById('ld-mails').innerHTML = (ms || []).map(function (m) {
+      return '<div class="flex items-center gap-2 text-[11px]"><span class="truncate flex-1 text-ink-700" dir="auto">' + esc(m.subject) + '</span><span class="text-ink-400">' + esc(when(m.created_at)) + '</span>' +
+        (+m.opens ? '<span class="rounded bg-lime-100 text-lime-800 px-1">👁 ' + esc(T.mOpen.replace('%s', m.opens)) + '</span>' : '<span class="rounded bg-ink-100 text-ink-500 px-1">' + esc(T.mNotOpen) + '</span>') +
+        (+m.clicks ? '<span class="rounded bg-violet-100 text-violet-800 px-1">🔗 ' + esc(T.mClick) + '</span>' : '') + '</div>';
+    }).join('');
+  }
+  document.getElementById('ld-mail-tg').addEventListener('click', function () { mailF.classList.toggle('hidden'); var fm = document.getElementById('ld-first'); var b = document.getElementById('ld-mail-b'); if (!b.value && fm) b.value = fm.value; });
+  document.getElementById('ld-mail-go').addEventListener('click', function () {
+    if (!cur) return; var l = cur, bt = this; bt.disabled = true;
+    post({ action: 'send_email', id: l.id, subject: document.getElementById('ld-mail-s').value, body: document.getElementById('ld-mail-b').value }).then(function (r) {
+      bt.disabled = false; if (!r.ok) return alert(r.error || T.err);
+      Object.assign(l, r.lead); drawActs(r.acts); drawMails(l, r.mails); document.getElementById('ld-mail-s').value = ''; document.getElementById('ld-mail-b').value = ''; draw();
+    }).catch(function () { bt.disabled = false; alert(T.err); });
+  });
+  function loadActs(l) { acts.innerHTML = ''; drawIntel(l, null); drawMails(l, []); post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); drawIntel(l, r.intel); drawMails(l, r.mails); } }); }
+  function logAct(kind, body, outcome) {
     if (!cur) return Promise.resolve();
     var l = cur;
-    return post({ action: 'log', id: l.id, kind: kind, body: body || '' }).then(function (r) {
+    return post({ action: 'log', id: l.id, kind: kind, body: body || '', outcome: outcome || '' }).then(function (r) {
       if (!r.ok) return alert(r.error || T.err);
       Object.assign(l, r.lead); if (cur === l) { drawActs(r.acts); form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); }
       draw();
@@ -211,12 +249,19 @@
   document.getElementById('ld-quick').addEventListener('click', function (e) {
     var a = e.target.closest('a'); if (!a || !cur || !cur.edit || a.hasAttribute('data-nolog')) return;
     var h = a.getAttribute('href') || '';
-    logAct(h.indexOf('tel:') === 0 ? 'call' : h.indexOf('mailto:') === 0 ? 'email' : h.indexOf('wa.me') > -1 ? 'wa' : 'note', '');
+    if (h.indexOf('tel:') === 0) { ocBox.classList.remove('hidden'); ocBox.classList.add('flex'); return; }
+    logAct(h.indexOf('mailto:') === 0 ? 'email' : h.indexOf('wa.me') > -1 ? 'wa' : 'note', '');
   });
+  var ocBox = document.getElementById('ld-oc');
   document.getElementById('ld-log-kinds').addEventListener('click', function (e) {
     var b = e.target.closest('[data-k]'); if (!b) return;
+    if (b.dataset.k === 'call') { ocBox.classList.remove('hidden'); ocBox.classList.add('flex'); return; } // المكالمة محتاجة نتيجتها
     var inp = document.getElementById('ld-log-body');
     logAct(b.dataset.k, inp.value.trim()).then(function () { inp.value = ''; });
+  });
+  ocBox.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-oc]'); if (!b) return; var inp = document.getElementById('ld-log-body');
+    logAct('call', inp.value.trim(), b.dataset.oc).then(function () { inp.value = ''; ocBox.classList.add('hidden'); ocBox.classList.remove('flex'); if (cur) { form.elements.next_at.value = cur.next_at || ''; form.elements.next_note.value = cur.next_note || ''; } });
   });
   var coldB = document.getElementById('ld-cold');
   if (coldB) coldB.addEventListener('click', function () { f.cold = !f.cold; coldB.classList.toggle('ring-2', f.cold); coldB.classList.toggle('ring-sky-400', f.cold); draw(); });

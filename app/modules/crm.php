@@ -402,10 +402,7 @@ function crm_plan_tick(int $max = 50, ?int $leadId = null): int
             $txt = crm_plan_text((string)($s['text'] ?? ''), $l);
             if (($s['ch'] ?? '') === 'email' && !empty($l['email']) && function_exists('smtp_config') && smtp_config($wid)) {
                 try {
-                    send_mail((string)$l['email'], crm_plan_text((string)($s['subject'] ?? '') ?: $plan['name'], $l), nl2br(e($txt)), null, $wid);
-                    crm_act_add((int)$l['id'], 'email', '🔁 ' . $txt);
-                    db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
-                    if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
+                    crm_send_email($l, crm_plan_text((string)($s['subject'] ?? '') ?: $plan['name'], $l), $txt, '🔁');
                     crm_plan_advance($run, $plan); $n++;
                 } catch (Throwable $ex) {
                     db()->prepare("UPDATE crm_plan_runs SET state = 'due', last_error = ? WHERE id = ?")->execute([mb_substr($ex->getMessage(), 0, 255), (int)$run['id']]);
@@ -457,6 +454,108 @@ function crm_runs_map(): array
     $st->execute([(int)ws('id')]);
     $o = []; foreach ($st->fetchAll() as $r) $o[(int)$r['lead_id']] = ((int)$r['step'] + 1) . '/' . count(json_decode((string)$r['steps'], true) ?: []) . ($r['state'] === 'due' ? '!' : '');
     return $o;
+}
+
+/* ---------- إيميل من المنصة + تتبع الفتح والضغط (بكسل صغير + روابط بتعدّي علينا) ---------- */
+function crm_send_email(array $l, string $subject, string $text, string $via = ''): array
+{
+    $wid = (int)ws('id');
+    if (empty($l['email'])) throw new CrmException(t('العميل ده مالوش إيميل.'));
+    if (!smtp_config($wid)) throw new CrmException(t('اربط SMTP من التكاملات الأول (Gmail ينفع ببلاش).'));
+    $subject = mb_substr(trim($subject), 0, 255) ?: t('رسالة من %s', (string)(ws('name') ?? ''));
+    $tok = bin2hex(random_bytes(16));
+    $base = base_url() . '/index.php?p=crm_t&k=' . $tok;
+    // الروابط بتتحول عشان نعرف إنه ضغط، وبعدها بيروح للرابط الأصلي
+    $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
+    $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.7" dir="auto">' . $html . '</div><img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
+    send_mail((string)$l['email'], $subject, $html, null, $wid);
+    db()->prepare('INSERT INTO crm_mails (workspace_id, lead_id, user_id, token, subject) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)(current_user()['id'] ?? 0) ?: null, $tok, $subject]);
+    crm_act_add((int)$l['id'], 'email', ($via !== '' ? $via . ' ' : '') . '“' . $subject . '”' . "\n" . mb_substr($text, 0, 1500));
+    db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
+    if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
+    return ['token' => $tok];
+}
+function crm_mails(int $leadId): array
+{
+    $st = db()->prepare('SELECT subject, opens, clicks, opened_at, clicked_at, created_at FROM crm_mails WHERE workspace_id = ? AND lead_id = ? ORDER BY id DESC LIMIT 20');
+    $st->execute([(int)ws('id'), $leadId]);
+    return $st->fetchAll();
+}
+/** نتايج المكالمة؛ "مارد" و"مشغول" بيحطوا محاولة تانية لوحدهم */
+function crm_call_outcomes(): array
+{
+    return ['answered' => t('رد'), 'no_answer' => t('مارد'), 'busy' => t('مشغول/قفل'), 'wrong' => t('رقم غلط'), 'later' => t('قال كلّمني بعدين')];
+}
+
+/* ---------- ذكاء العملاء بالحسابات (من غير AI ومن غير كريديت) ---------- */
+/** تقييم 0–100 وأسبابه: بيانات تواصل + أهمية الوظيفة + المصدر + التفاعل + المرحلة − البرود */
+function crm_score(array $l, int $acts = 0, int $now = 0): array
+{
+    $now = $now ?: time(); $s = 0; $why = [];
+    if (in_array($l['stage'], ['won', 'lost'], true)) return [0, []];
+    if (!empty($l['phone'])) { $s += 15; $why[] = t('عنده رقم'); }
+    if (!empty($l['email'])) { $s += in_array((string)($l['email_status'] ?? ''), ['verified', 'likely to engage'], true) ? 14 : 9; $why[] = t('عنده إيميل'); }
+    $ti = mb_strtolower((string)$l['title']);
+    if (preg_match('/owner|founder|ceo|chief|president|partner|مالك|مؤسس|صاحب|رئيس تنفيذي|المدير العام|شريك/u', $ti)) { $s += 15; $why[] = t('صاحب قرار'); }
+    elseif (preg_match('/director|head|vp|manager|gm|مدير|رئيس/u', $ti)) { $s += 9; $why[] = t('مدير'); }
+    $src = ['form' => [16, t('طلب بنفسه من الموقع')], 'inbox' => [12, t('كلّمك على السوشيال')], 'comments' => [10, t('علّق على منشورك')], 'ads' => [12, t('سجّل في إعلان')], 'whatsapp' => [12, t('كلّمك واتساب')], 'reveal' => [4, ''], 'manual' => [6, ''], 'import' => [2, '']][$l['source']] ?? [0, ''];
+    $s += $src[0]; if ($src[1] !== '') $why[] = $src[1];
+    $s += ['new' => 0, 'contacted' => 6, 'qualified' => 14, 'proposal' => 22][$l['stage']] ?? 0;
+    if ((float)($l['deal_value'] ?? 0) > 0) { $s += 5; $why[] = t('ليه قيمة صفقة'); }
+    if ($acts >= 3) { $s += 6; $why[] = t('تواصل كتير'); }
+    $last = strtotime((string)($l['last_contact_at'] ?: $l['created_at']));
+    $age = ($now - $last) / 86400;
+    if ($age <= 3) $s += 8; elseif ($age > 14) { $s -= 12; $why[] = t('بارد من أكتر من أسبوعين'); }
+    return [max(0, min(100, $s)), $why];
+}
+/** ملخص سطر واحد + أحسن وقت + أول رسالة مقترحة (قوالب حسب المصدر والحالة) */
+function crm_intel(array $l, array $acts): array
+{
+    $srcs = crm_sources(); $now = time();
+    $days = max(0, (int)floor(($now - strtotime((string)$l['created_at'])) / 86400));
+    $contacts = array_filter($acts, function ($a) { return in_array($a['kind'], ['call', 'wa', 'email', 'meet'], true); });
+    $lastC = $contacts ? reset($contacts)['created_at'] : null;
+    $parts = [t('جه من %s', $srcs[$l['source']] ?? $l['source']) . ' ' . ($days ? t('من %s يوم', $days) : t('النهارده'))];
+    $parts[] = $contacts ? t('%s تواصل، آخرهم %s', count($contacts), fmt_date($lastC, 'd/m')) : t('محدش كلّمه لسه');
+    // الإنسان بيكتب إمتى؟ ساعات الرسايل اللي جاية منه (الفورم/السوشيال/وقت ما اتضاف)
+    $hours = [];
+    foreach ($acts as $a) if ($a['kind'] === 'note' && preg_match('/^(“|🌐)/u', (string)$a['body'])) $hours[] = (int)fmt_date($a['created_at'], 'G');
+    if (in_array($l['source'], ['form', 'inbox', 'comments', 'ads', 'whatsapp'], true)) $hours[] = (int)fmt_date($l['created_at'], 'G');
+    $best = '';
+    if ($hours) {
+        $c = array_count_values($hours); arsort($c); $h = (int)array_key_first($c);
+        $best = t('حوالي %s (الوقت اللي بيكتب فيه)', fmt_hour($h));
+    } elseif (($g = crm_best_hour_global()) !== null) $best = t('حوالي %s (أغلب عملاءك بيتفاعلوا الساعة دي)', fmt_hour($g));
+    // أول رسالة: بتتبني من آخر حاجة كتبها + المصدر + الوظيفة
+    $first = preg_split('/\s+/u', trim((string)$l['name']))[0] ?? '';
+    $said = '';
+    foreach (array_reverse($acts) as $a) if ($a['kind'] === 'note' && preg_match('/“(.+?)”/us', (string)$a['body'], $mm)) { $said = mb_substr(trim(preg_replace(['/\+?\d[\d\s\-]{6,}\d/u', '/[A-Z0-9._%+\-]+@\S+/iu', '/\s{2,}/u'], ['', '', ' '], $mm[1]), " \t\n.,:"), 0, 80); if (mb_strlen($said) < 3) $said = ''; break; }
+    $co = trim((string)$l['company']);
+    switch ($l['source']) {
+        case 'form': $msg = $said !== '' ? t('أهلاً %s، وصلنا طلبك على الموقع بخصوص "%s". إمتى يناسبك نتكلم 5 دقايق؟', $first, $said) : t('أهلاً %s، شكرًا إنك تواصلت معانا من الموقع. محتاج تفاصيل عن إيه بالظبط؟', $first); break;
+        case 'comments': $msg = t('أهلاً %s، شفت تعليقك على منشورنا%s. حابب أبعتلك التفاصيل والأسعار هنا؟', $first, $said !== '' ? ' ("' . $said . '")' : ''); break;
+        case 'inbox': case 'whatsapp': $msg = $said !== '' ? t('أهلاً %s، بخصوص رسالتك "%s"، عندي التفاصيل كلها. ينفع أكلمك دقيقتين؟', $first, $said) : t('أهلاً %s، شكرًا لرسالتك! ينفع أكلمك دقيقتين أشرحلك؟', $first); break;
+        case 'ads': $msg = t('أهلاً %s، شكرًا إنك سجلت معانا في الإعلان. إمتى يناسبك أكلمك أشرحلك العرض؟', $first); break;
+        case 'import': $msg = t('أهلاً %s، بقالنا فترة ماتكلمناش. عندنا جديد ممكن يفيدك%s. ينفع أبعتلك التفاصيل؟', $first, $co !== '' ? ' في ' . $co : ''); break;
+        default:
+            $msg = preg_match('/owner|founder|ceo|مالك|مؤسس|صاحب/iu', (string)$l['title'])
+                ? t('أهلاً %s، أنا متابع شغل %s وعندي فكرة ممكن توفر عليكم وقت وفلوس. يناسبك مكالمة 10 دقايق الأسبوع ده؟', $first, $co ?: t('شركتكم'))
+                : t('أهلاً %s، بشتغل مع شركات زي %s ونقدر نساعدكم في %s. ينفع أبعتلك تفاصيل؟', $first, $co ?: t('شركتكم'), (string)$l['title'] !== '' ? t('شغل %s', $l['title']) : t('الشغل اليومي'));
+    }
+    return ['summary' => implode(' · ', $parts), 'best' => $best, 'first' => $msg];
+}
+function fmt_hour(int $h): string { $ap = $h < 12 ? t('ص') : t('م'); $x = $h % 12 ?: 12; return $x . ' ' . $ap; }
+/** أكتر ساعة بيكتب فيها عملاء الشركة كلهم (متخزنة يوم) */
+function crm_best_hour_global(): ?int
+{
+    $k = 'crm_best_hour_' . (int)ws('id'); $c = explode('|', (string)setting($k, ''));
+    if (count($c) === 2 && (int)$c[0] > time() - 86400) return $c[1] === '' ? null : (int)$c[1];
+    $st = db()->prepare("SELECT created_at FROM crm_leads WHERE workspace_id = ? AND source IN ('form','inbox','comments','ads','whatsapp') ORDER BY id DESC LIMIT 500");
+    $st->execute([(int)ws('id')]);
+    $h = []; foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $d) $h[] = (int)fmt_date($d, 'G');
+    $best = null; if (count($h) >= 5) { $cnt = array_count_values($h); arsort($cnt); $best = (int)array_key_first($cnt); }
+    save_setting($k, time() . '|' . ($best === null ? '' : $best));
+    return $best;
 }
 
 /** رابط فورم الموقع (بيتعمل التوكن أول مرة) */

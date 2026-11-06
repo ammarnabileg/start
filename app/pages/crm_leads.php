@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'tpl' => crm_templates()]);
     }
     $l = crm_lead((int)($_POST['id'] ?? 0));
-    if ($l && $action === 'acts') $json(['ok' => true, 'acts' => crm_acts((int)$l['id']), 'run' => crm_lead_run((int)$l['id'])]);
+    if ($l && $action === 'acts') { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => crm_lead_run((int)$l['id']), 'intel' => crm_intel($l, $ac), 'mails' => $mails]); }
     if (!$l || !crm_can_edit($l)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
     if ($action === 'stage') {
         $s = (string)($_POST['stage'] ?? '');
@@ -252,12 +252,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'plan_stop') crm_plan_stop((int)$l['id']);
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id']), 'run' => crm_lead_run((int)$l['id'])]);
     }
+    if ($action === 'send_email') {
+        try { crm_send_email($l, (string)($_POST['subject'] ?? ''), trim((string)($_POST['body'] ?? ''))); }
+        catch (Throwable $ex) { $json(['ok' => false, 'error' => $ex->getMessage()]); }
+        log_activity('crm.email', (string)$l['id']);
+        $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id']), 'mails' => crm_mails((int)$l['id'])]);
+    }
     if ($action === 'log') {
         // تسجيل تواصل؛ أول تواصل مع عميل جديد بينقله لـ "اتكلمنا معاه" لوحده
         $k = (string)($_POST['kind'] ?? '');
         if (!isset(crm_act_kinds()[$k]) || $k === 'stage') $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
-        crm_act_add((int)$l['id'], $k, (string)($_POST['body'] ?? ''));
-        if ($k !== 'note' && $l['stage'] === 'new') {
+        $oc = (string)($_POST['outcome'] ?? ''); $ocs = crm_call_outcomes();
+        $body = trim((isset($ocs[$oc]) ? '[' . $ocs[$oc] . '] ' : '') . (string)($_POST['body'] ?? ''));
+        crm_act_add((int)$l['id'], $k, $body);
+        if ($k === 'call' && in_array($oc, ['no_answer', 'busy'], true)) {
+            // محاولة تانية بكرة في نفس الوقت تقريبًا
+            db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([date('Y-m-d H:i:s', strtotime('+1 day')), t('محاولة اتصال تانية (%s)', $ocs[$oc]), (int)$l['id']]);
+        }
+        if ($k === 'call' && $oc === 'wrong') db()->prepare('UPDATE crm_leads SET phone = NULL WHERE id = ?')->execute([(int)$l['id']]);
+        if ($k !== 'note' && $l['stage'] === 'new' && !in_array($oc, ['no_answer', 'busy', 'wrong'], true)) {
             db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
             crm_act_add((int)$l['id'], 'stage', $stages['new'] . (is_rtl() ? ' ← ' : ' → ') . $stages['contacted']);
             crm_push_ad_stage(crm_lead((int)$l['id']));
@@ -297,6 +310,11 @@ if (($_GET['export'] ?? '') === 'csv') {
 
 $leads = array_map($out, $rows);
 $runs = crm_runs_map();
+$actN = [];
+$st = db()->prepare("SELECT lead_id, COUNT(*) FROM crm_acts WHERE workspace_id = ? AND kind IN ('call','wa','email','meet') GROUP BY lead_id"); $st->execute([$wid]);
+foreach ($st->fetchAll(PDO::FETCH_NUM) as $r) $actN[(int)$r[0]] = (int)$r[1];
+$rowById = []; foreach ($rows as $r) $rowById[(int)$r['id']] = $r;
+foreach ($leads as &$ld1) { [$ld1['score'], $ld1['why']] = crm_score($rowById[$ld1['id']], $actN[$ld1['id']] ?? 0); } unset($ld1);
 foreach ($leads as &$ld0) $ld0['run'] = $runs[$ld0['id']] ?? ''; unset($ld0);
 $adsOn = module_enabled('ads') && can('ads.view');
 $dial = (string)(countries()[ws_country()]['dial'] ?? '+');
@@ -362,6 +380,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select>
       <?php $tagNames = crm_tag_names(); if ($tagNames): ?><select id="ld-tag" class="input w-auto"><option value=""><?= e(t('كل القوايم')) ?></option><?php foreach ($tagNames as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?></select><?php endif; ?>
       <label class="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"><?= e(t('متابعات مستحقة بس')) ?></label>
+      <select id="ld-sort" class="input w-auto"><option value=""><?= e(t('ترتيب: المتابعات الأول')) ?></option><option value="score"><?= e(t('ترتيب: الأهم الأول')) ?></option><option value="new"><?= e(t('ترتيب: الأحدث')) ?></option></select>
       <input id="ld-q" type="search" class="input w-full sm:w-52 ms-auto" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
       <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
         <button class="btn-ghost" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
@@ -421,9 +440,17 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             <div id="ld-ap-msg" class="text-[11px]"></div>
           </div>
           <?php endif; ?>
+          <div id="ld-intel" class="rounded-xl bg-ink-50 border border-ink-200 p-3 text-xs space-y-1"></div>
           <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
             <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
             <div id="ld-plan-body" class="text-xs"></div>
+          </div>
+          <div id="ld-mail" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">✉️ <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
+            <div id="ld-mail-f" class="hidden space-y-1.5"><input id="ld-mail-s" class="input text-sm" maxlength="255" placeholder="<?= e(t('العنوان')) ?>"><textarea id="ld-mail-b" rows="5" class="input text-sm" dir="auto"></textarea>
+              <button type="button" id="ld-mail-go" class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('ابعت')) ?></button>
+              <p class="text-[11px] text-ink-500"><?= e(t('بيتبعت من SMTP بتاعك. هتعرف لو فتحه أو ضغط على رابط (الفتح تقريبي: بعض برامج الإيميل بتمنع الصور).')) ?></p></div>
+            <div id="ld-mails" class="space-y-1"></div>
           </div>
           <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
@@ -461,6 +488,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
           <div class="rounded-xl border border-ink-200 p-3 space-y-2">
             <div class="text-sm font-semibold text-ink-900">🕓 <?= e(t('سجل التواصل')) ?></div>
             <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= $v[0] ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
+            <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500">📞 <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
             <div class="flex gap-2"><input id="ld-log-body" class="input text-sm" maxlength="2000" placeholder="<?= e(t('حصل إيه؟ (اختياري) واختار النوع')) ?>"></div>
             <ol id="ld-acts" class="space-y-2 max-h-72 overflow-y-auto"></ol>
           </div>
@@ -574,7 +602,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'pNone' => t('مفيش خطة شغالة على العميل ده.'), 'pStart' => t('ابدأ'), 'pPick' => t('اختار خطة…'), 'pNoPlans' => t('لسه مفيش خطط. المدير يعملها من زرار "خطط المتابعة".'),
+            'chat' => t('افتح المحادثة'), 'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),
+            'pNone' => t('مفيش خطة شغالة على العميل ده.'), 'pStart' => t('ابدأ'), 'pPick' => t('اختار خطة…'), 'pNoPlans' => t('لسه مفيش خطط. المدير يعملها من زرار "خطط المتابعة".'),
             'pStep' => t('الخطوة %s من %s'), 'pDue' => t('مستحقة دلوقتي'), 'pWait' => t('ميعادها %s'), 'pDo' => t('نفّذ'), 'pSkip' => t('عدّي'), 'pStop' => t('وقّف الخطة'),
             'pDay' => t('بعد كام يوم'), 'pSubj' => t('عنوان الإيميل'), 'pText' => t('الرسالة'), 'pName' => t('اسم الخطة'), 'pAddStep' => t('+ خطوة'), 'pDel' => t('امسح الخطة'), 'pDelQ' => t('تمسح الخطة دي؟ هتقف على كل العملاء اللي عليها.'),
             'pSample' => t('متابعة عميل جديد'),
