@@ -13,7 +13,9 @@
     fd.append('_csrf', D.csrf);
     return fetch(D.url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); });
   }
-  function isCold(l) { return !closed(l) && !l.next_at && (Date.now() - new Date((l.last || l.created || '').replace(' ', 'T')).getTime()) > 7 * 864e5; }
+  // تواريخ السيرفر متخزنة UTC ("2026-11-06 04:12:00")، فلازم نقراها UTC ونعرضها بتوقيت الشركة
+  function srvDate(s) { s = String(s || ''); return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(' ', 'T') + 'Z'); }
+  function isCold(l) { return !closed(l) && !l.next_at && (Date.now() - srvDate(l.last || l.created).getTime()) > 7 * 864e5; }
   function closed(l) { return l.stage === 'won' || l.stage === 'lost'; }
   function dueState(l) {
     if (!l.next_at || closed(l)) return '';
@@ -186,12 +188,12 @@
 
   /* ---------- رسائل جاهزة + سجل التواصل ---------- */
   var tplBox = document.getElementById('ld-tpl'), acts = document.getElementById('ld-acts');
-  function fill(b, l) { return b.replace(/\{name\}/g, (l.name || '').split(/\s+/)[0]).replace(/\{company\}/g, l.company || '').replace(/\{me\}/g, D.meName || ''); }
+  function fill(b, l) { return b.replace(/\{name\}/g, (l.name || '').split(/\s+/)[0]).replace(/\{company\}/g, l.company || '').replace(/\{me\}/g, D.meName || '').replace(/\{book\}/g, D.bookUrl || ''); }
   function drawTpl(l) {
     tplBox.classList.toggle('hidden', !l.wa || !l.edit);
     document.getElementById('ld-tpl-list').innerHTML = (D.tpl || []).map(function (t, i) { return '<button type="button" class="chip text-xs" data-t="' + i + '" title="' + esc(fill(t.b, l)) + '">' + esc(t.n) + '</button>'; }).join('');
   }
-  function when(s) { var d = new Date(String(s).replace(' ', 'T')); return d.toLocaleString(document.documentElement.lang || undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); }
+  function when(s) { var o = { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }; if (D.tz) o.timeZone = D.tz; try { return srvDate(s).toLocaleString(document.documentElement.lang || undefined, o); } catch (e) { delete o.timeZone; return srvDate(s).toLocaleString(undefined, o); } }
   function drawActs(a) {
     acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(x.body) + '</div>' : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
@@ -252,7 +254,20 @@
     var data = { action: del ? 'deal_del' : 'deal_save', id: l.id, deal: f0.dataset.dform }; f0.querySelectorAll('[data-k]').forEach(function (i) { data[i.dataset.k] = i.value; });
     post(data).then(function (r) { if (!r.ok) return alert(r.error || T.err); Object.assign(l, r.lead); if (cur === l) { drawDeals(l, r.deals); form.elements.value.value = l.value || ''; form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); } draw(); });
   });
-  function loadActs(l) { acts.innerHTML = ''; drawIntel(l, null); drawMails(l, []); drawDeals(l, []); post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); drawIntel(l, r.intel); drawMails(l, r.mails); drawDeals(l, r.deals); } }); }
+  var vl = document.getElementById('ld-visit-list');
+  function drawVisits(l, vs) {
+    document.getElementById('ld-tl').classList.toggle('hidden', !l.edit); document.getElementById('ld-tl-box').classList.add('hidden');
+    vl.innerHTML = (vs || []).length ? vs.map(function (v) { var u = v.url.replace(/^https?:\/\//, ''); return '<div class="flex items-center gap-2 text-[11px]"><span class="truncate flex-1 ' + (+v.hot ? 'text-red-700 font-semibold' : 'text-ink-700') + '" dir="ltr" title="' + esc(v.url) + '">' + (+v.hot ? '🔥 ' : '') + esc(u) + '</span><span class="text-ink-400 shrink-0">' + esc(when(v.created_at)) + '</span></div>'; }).join('')
+      : '<p class="text-[11px] text-ink-400">' + esc(T.noVisits) + '</p>';
+  }
+  document.getElementById('ld-tl').addEventListener('click', function () { document.getElementById('ld-tl-box').classList.toggle('hidden'); });
+  document.getElementById('ld-tl-go').addEventListener('click', function () {
+    if (!cur) return;
+    post({ action: 'track_link', id: cur.id, url: document.getElementById('ld-tl-u').value }).then(function (r) {
+      if (!r.ok) return alert(r.error || T.err); try { navigator.clipboard.writeText(r.link); } catch (e) {} prompt(T.linkCopied, r.link);
+    });
+  });
+  function loadActs(l) { acts.innerHTML = ''; drawIntel(l, null); drawMails(l, []); drawDeals(l, []); drawVisits(l, []); post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); drawIntel(l, r.intel); drawMails(l, r.mails); drawDeals(l, r.deals); drawVisits(l, r.visits); } }); }
   function logAct(kind, body, outcome) {
     if (!cur) return Promise.resolve();
     var l = cur;
@@ -377,6 +392,14 @@
       ff.querySelector('[data-code=link]').value = u; ff.querySelector('[data-code=hook]').value = u + '&format=json'; ff.querySelector('[data-code=open]').href = u;
     }
     codes(window.LDF.url);
+    var tf = document.getElementById('ld-tform');
+    tf.querySelector('[data-scode]').addEventListener('focus', function () { this.select(); });
+    tf.addEventListener('submit', function (e) { e.preventDefault(); var fd = new FormData(tf); fd.append('action', 'track_save'); post(fd).then(function (r) { var m = document.getElementById('ld-tmsg'); m.className = 'text-xs self-center ' + (r.ok ? 'text-lime-700' : 'text-red-600'); m.textContent = r.ok ? T.saved : (r.error || T.err); }); });
+    var bf = document.getElementById('ld-bform'); bf.querySelector('[data-bcode]').value = window.LDF.book; bf.querySelector('[data-bopen]').href = window.LDF.book;
+    bf.addEventListener('submit', function (e) {
+      e.preventDefault(); var fd = new FormData(bf); fd.append('action', 'book_save');
+      post(fd).then(function (r) { var m = document.getElementById('ld-bmsg'); if (!r.ok) { m.className = 'text-xs text-red-600'; m.textContent = r.error || T.err; return; } D.bookUrl = bf.elements.on.checked ? r.url : ''; m.className = 'text-xs text-lime-700 self-center'; m.textContent = T.saved; });
+    });
     fdl.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(fdl); }); });
     ff.querySelectorAll('[data-code]').forEach(function (x) { if (x.tagName !== 'A') x.addEventListener('focus', function () { x.select(); }); });
     document.getElementById('ld-form-btn').addEventListener('click', function () { openModal(fdl); });
@@ -561,6 +584,10 @@
     if (!confirm(T.bConfirm.replace('%s', 25))) return; stl.disabled = true;
     post({ action: 'enrich_stale' }).then(function (r) { stl.disabled = false; if (!r.ok) return alert(r.error || T.err); alert(T.bDone.replace('%s', r.done).replace('%s', r.skip) + (r.error ? '\n' + r.error : '')); if (r.done) location.reload(); });
   });
+
+  // قايمة الأدوات بتتقفل لما تختار حاجة أو تدوس بره
+  var tools = document.getElementById('ld-tools');
+  if (tools) { tools.addEventListener('click', function (e) { if (e.target.closest('button,a') && !e.target.closest('summary')) tools.open = false; }); document.addEventListener('click', function (e) { if (!tools.contains(e.target)) tools.open = false; }); }
 
   draw();
   var m = location.hash.match(/^#lead-(\d+)$/); if (m) open(+m[1]);

@@ -72,6 +72,14 @@
     post(fd).then(function (r) { if (!r.ok) return alert(r.error || T.err); D.searches = r.searches; drawSaved(); });
   });
   drawSaved();
+  document.getElementById('fd-look').addEventListener('click', function () {
+    var fd = new FormData(); fd.append('action', 'lookalike');
+    post(fd).then(function (r) {
+      if (!r.ok) return alert(T.lookNo);
+      fillForm(r.filters);
+      document.getElementById('fd-total').textContent = (r.basis === 'won' ? T.lookWon : T.lookWarm).replace('%s', r.n);
+    });
+  });
   form.addEventListener('submit', function (e) { e.preventDefault(); search(1); });
   document.getElementById('fd-prev').addEventListener('click', function () { search(page - 1); });
   document.getElementById('fd-next').addEventListener('click', function () { search(page + 1); });

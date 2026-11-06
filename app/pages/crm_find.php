@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $filters = ['titles' => (string)($_POST['titles'] ?? ''), 'seniorities' => array_map('strval', (array)($_POST['seniorities'] ?? [])), 'locations' => (string)($_POST['locations'] ?? ''),
         'sizes' => array_map('strval', (array)($_POST['sizes'] ?? [])), 'keywords' => (string)($_POST['keywords'] ?? ''), 'domains' => (string)($_POST['domains'] ?? ''),
         'rev_min' => (string)($_POST['rev_min'] ?? ''), 'rev_max' => (string)($_POST['rev_max'] ?? '')];
+    if ($action === 'lookalike') $json(crm_lookalike() + ['ok' => false]);
     if ($action === 'save_search') {
         $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120);
         if ($name === '') $json(['ok' => false, 'error' => t('اكتب اسم للبحث.')]);
@@ -98,6 +99,7 @@ render(t('ابحث عن أشخاص'), 'crm_find', function () use ($icp, $senior
         <div><span class="label"><?= e(t('إيرادات الشركة السنوية ($)')) ?></span><div class="grid grid-cols-2 gap-2"><input class="input" name="rev_min" inputmode="numeric" dir="ltr" placeholder="<?= e(t('من')) ?>"><input class="input" name="rev_max" inputmode="numeric" dir="ltr" placeholder="<?= e(t('لحد')) ?>"></div></div>
         <label class="block"><span class="label"><?= e(t('مجال أو كلمات')) ?></span><input class="input" name="keywords" value="<?= e($icp['keywords'] ?? '') ?>" placeholder="<?= e(t('مثلاً: restaurants')) ?>"></label>
         <label class="block"><span class="label"><?= e(t('دومينات شركات معينة (اختياري)')) ?></span><input class="input" name="domains" dir="ltr" placeholder="company.com, other.com"></label>
+        <button type="button" id="fd-look" class="btn-ghost w-full text-sm" title="<?= e(t('بيبص على العملاء اللي كسبتهم ويملا الفلاتر بأكتر حاجات متكررة فيهم')) ?>">✨ <?= e(t('هاتلي ناس شبه أحسن عملائي')) ?></button>
         <div class="flex gap-2"><button class="btn-primary flex-1" id="fd-go">🔎 <?= e(t('ابحث')) ?></button><button type="button" id="fd-save" class="btn-ghost" title="<?= e(t('احفظ البحث ده وهيتعاد كل يوم')) ?>">☆ <?= e(t('احفظ')) ?></button></div>
         <p class="text-[11px] text-ink-500"><?= e(t('البحث مابيصرفش كريديت. الكريديت بيتصرف لما تكشف رقم أو إيميل.')) ?></p>
       </form>
@@ -117,6 +119,7 @@ render(t('ابحث عن أشخاص'), 'crm_find', function () use ($icp, $senior
         'tr' => ['total' => t('%s شخص'), 'none' => t('مفيش نتايج. وسّع الفلاتر.'), 'reveal' => t('اكشف %s وضيفهم للـ Leads'), 'revealing' => t('بنكشف…'), 'inLeads' => t('في الـ Leads'),
             'email' => t('إيميل'), 'phone' => t('رقم'), 'done' => t('اتكشف %s واتضافوا للـ Leads. الأرقام ممكن تاخد دقايق توصل.'), 'err' => t('حصل خطأ، جرب تاني'), 'searching' => t('بندوّر…'),
             'plan' => t('خطة Apollo بتاعتك مش بتسمح بالبحث ده. اتأكد إنك رقّيت الخطة وإن المفتاح Master Key.'), 'emp' => t('موظف'), 'confirm' => t('هيتصرف لحد %s كريديت من Apollo. تكمل؟'),
+            'lookNo' => t('محتاجين عميلين على الأقل "بقوا عملاء" أو "مهتمين" عشان نعرف شبههم.'), 'lookWon' => t('الفلاتر اتملت من %s عميل كسبتهم. عدّلها لو حابب ودوس ابحث.'), 'lookWarm' => t('الفلاتر اتملت من %s عميل مهتمين (لسه مفيش عملاء كفاية كسبتهم).'),
             'saved' => t('بحوث محفوظة · بتتعاد كل يوم وتطلّعلك الجداد'), 'newN' => t('%s جديد'), 'noNew' => t('مفيش جداد'), 'askName' => t('اسم للبحث ده؟ (مثلاً: مديرين تسويق في الرياض)'),
             'del' => t('امسح البحث ده؟'), 'run' => t('حدّث'), 'newOnly' => t('الجداد بس من: %s'), 'last' => t('آخر تحديث: %s'), 'load' => t('افتح الفلاتر')]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_find.js?v=<?= e(APP_VERSION) ?>"></script>

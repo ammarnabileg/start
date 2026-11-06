@@ -44,7 +44,7 @@ if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }
 
-$public = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t'];
+$public = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js'];
 if (!in_array($page, $public, true) && !current_user()) {
     redirect(url('login'));
 }
@@ -64,12 +64,12 @@ if (current_user() && !is_admin() && empty($_SESSION['impersonator']) && setting
 }
 
 // الويبهوك جاي من موبايل/سيرفر بره ومحمي بتوكن وتوقيع، مش بـ CSRF
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !== 'crm_hook' && $page !== 'lead_form') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page !== 'smsgate_hook' && $page !== 'crm_hook' && $page !== 'lead_form' && $page !== 'crm_book') {
     check_csrf();
 }
 
 // كل الصفحات بتشتغل جوه شركة. لو مالوش شركات، يروح صفحة الشركات (ينشئ واحدة أو يوافق على دعوة)
-$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
+$noWorkspacePages = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'logout', 'workspaces', 'switch', 'account', 'system', 'admin', 'admin_workspaces', 'admin_users', 'admin_activity', 'admin_compare', 'impersonate_stop'];
 if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }

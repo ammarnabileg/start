@@ -355,7 +355,9 @@ function crm_plan_text(string $b, array $l): string
     $first = preg_split('/\s+/u', trim((string)$l['name']))[0] ?? '';
     $me = '';
     if (!empty($l['owner_id'])) { $st = db()->prepare('SELECT name FROM users WHERE id = ?'); $st->execute([(int)$l['owner_id']]); $me = (string)$st->fetchColumn(); }
-    return strtr($b, ['{name}' => $first, '{company}' => (string)$l['company'], '{me}' => $me ?: (string)(current_user()['name'] ?? '')]);
+    $site = (string)setting('crm_site_url_' . (int)ws('id'), '');
+    return strtr($b, ['{name}' => $first, '{company}' => (string)$l['company'], '{me}' => $me ?: (string)(current_user()['name'] ?? ''), '{book}' => strpos($b, '{book}') !== false ? crm_book_url() : '',
+        '{site}' => strpos($b, '{site}') !== false && $site !== '' && !empty($l['id']) ? crm_track_link($l, $site) : $site]);
 }
 /** الخطة الشغالة على عميل (لو فيه) */
 function crm_lead_run(int $leadId): ?array
@@ -632,6 +634,111 @@ function crm_best_hour_global(): ?int
     $best = null; if (count($h) >= 5) { $cnt = array_count_values($h); arsort($cnt); $best = (int)array_key_first($cnt); }
     save_setting($k, time() . '|' . ($best === null ? '' : $best));
     return $best;
+}
+
+/* ---------- تتبع زيارات العملاء لموقعك (مجاني: كود صغير على موقعك + روابط متتبعة) ---------- */
+/** توكن العميل في الروابط: id.توقيع (مايتخمنش ومايتغيرش) */
+function crm_lead_token(int $wid, int $leadId): string
+{
+    $sec = (string)setting('crm_form_token_' . $wid, '') ?: (string)setting('cron_token', 'x');
+    return $leadId . '.' . substr(hash_hmac('sha256', $wid . ':' . $leadId, $sec), 0, 12);
+}
+function crm_lead_from_token(int $wid, string $tok): int
+{
+    if (!preg_match('/^(\d{1,10})\.([0-9a-f]{12})$/', $tok, $m)) return 0;
+    return hash_equals(crm_lead_token($wid, (int)$m[1]), $tok) ? (int)$m[1] : 0;
+}
+function crm_track_cfg(int $wid): array
+{
+    $c = json_decode((string)setting('crm_track_cfg_' . $wid, ''), true) ?: [];
+    return $c + ['hot' => 'price, pricing, plans, اسعار, أسعار, الباقات, checkout, cart', 'wa' => '', 'btn' => 1, 'color' => '#4f46e5', 'label' => ''];
+}
+/** تسجيل زيارة (مرة لكل صفحة في الساعة). الصفحات "السخنة" (الأسعار…) بتعمل متابعة "كلّمه دلوقتي" */
+function crm_track_visit(int $wid, int $leadId, string $url): void
+{
+    $url = mb_substr(preg_replace('/([?&])ap=[^&#]*&?/', '$1', $url), 0, 500);
+    $st = db()->prepare('SELECT COUNT(*) FROM crm_visits WHERE workspace_id = ? AND lead_id = ? AND url = ? AND created_at > ?');
+    $st->execute([$wid, $leadId, $url, date('Y-m-d H:i:s', time() - 3600)]);
+    if ((int)$st->fetchColumn()) return;
+    $hot = 0;
+    foreach (array_filter(array_map('trim', explode(',', mb_strtolower(crm_track_cfg($wid)['hot'])))) as $w) if ($w !== '' && mb_strpos(mb_strtolower(rawurldecode($url)), $w) !== false) { $hot = 1; break; }
+    db()->prepare('INSERT INTO crm_visits (workspace_id, lead_id, url, hot) VALUES (?, ?, ?, ?)')->execute([$wid, $leadId, $url, $hot]);
+    ai_as_workspace($wid, function () use ($leadId, $url, $hot) {
+        $l = crm_lead($leadId); if (!$l) return;
+        if ($hot) {
+            crm_act_add($leadId, 'note', '🔥 ' . t('فتح صفحة مهمة على موقعك') . "\n" . $url);
+            db()->prepare('UPDATE crm_leads SET next_at = IF(next_at IS NULL OR next_at > NOW(), NOW(), next_at), next_note = ? WHERE id = ?')->execute([t('🔥 بيتفرج على صفحة الأسعار دلوقتي، كلّمه'), $leadId]);
+        }
+    });
+}
+function crm_visits(int $leadId): array
+{
+    $st = db()->prepare('SELECT url, hot, created_at FROM crm_visits WHERE workspace_id = ? AND lead_id = ? ORDER BY id DESC LIMIT 15');
+    $st->execute([(int)ws('id'), $leadId]);
+    return $st->fetchAll();
+}
+/** رابط متتبع لعميل: بيروح لموقعك ومعاه ?ap=توكن عشان كود الموقع يعرفه */
+function crm_track_link(array $l, string $url): string
+{
+    $wid = (int)ws('id'); crm_form_url();
+    return base_url() . '/index.php?' . http_build_query(['p' => 'crm_go', 'w' => $wid, 'k' => crm_lead_token($wid, (int)$l['id']), 'u' => $url]);
+}
+function crm_site_script(): string
+{
+    $wid = (int)ws('id'); crm_form_url();
+    return '<script src="' . e(base_url() . '/index.php?' . http_build_query(['p' => 'crm_js', 'w' => $wid, 't' => (string)setting('crm_form_token_' . $wid, '')])) . '" async></script>';
+}
+
+/** "هاتلي ناس شبه أحسن عملائي": أكتر مسميات ودول ومجالات وأحجام متكررة في اللي كسبتهم (حسابات بس) */
+function crm_lookalike(): array
+{
+    $wid = (int)ws('id');
+    $pick = function ($stages) use ($wid) {
+        $st = db()->prepare("SELECT l.title, l.country, c.industry, c.employees FROM crm_leads l LEFT JOIN crm_companies c ON c.id = l.company_id WHERE l.workspace_id = ? AND l.stage IN (" . implode(',', array_fill(0, count($stages), '?')) . ") LIMIT 500");
+        $st->execute(array_merge([$wid], $stages)); return $st->fetchAll();
+    };
+    $rows = $pick(['won']); $basis = 'won';
+    if (count($rows) < 3) { $rows = $pick(['won', 'proposal', 'qualified']); $basis = 'warm'; }
+    if (count($rows) < 2) return ['ok' => false];
+    $top = function (array $vals, int $n, int $min = 1) { $c = array_count_values(array_filter($vals, 'strlen')); arsort($c); return array_keys(array_filter(array_slice($c, 0, $n, true), function ($x) use ($min) { return $x >= $min; })); };
+    // المسمى: بنوحّد الكلمات الشائعة عشان "Owner & Founder" و"Owner" يتحسبوا واحد
+    $titles = array_map(function ($t) { $t = mb_strtolower(trim((string)$t)); foreach (['owner' => 'Owner', 'founder' => 'Founder', 'ceo' => 'CEO', 'marketing' => 'Marketing Manager', 'sales' => 'Sales Manager', 'operations' => 'Operations Manager', 'general manager' => 'General Manager'] as $k => $v) if (strpos($t, $k) !== false) return $v; return $t !== '' ? ucwords($t) : ''; }, array_column($rows, 'title'));
+    $sizes = []; foreach (array_column($rows, 'employees') as $e) { $e = (int)$e; if (!$e) continue; foreach (crm_sizes() as $k => $_) { [$a, $b] = array_map('intval', explode(',', $k)); if ($e >= $a && $e <= $b) { $sizes[] = $k; break; } } }
+    return ['ok' => true, 'basis' => $basis, 'n' => count($rows), 'filters' => [
+        'titles' => implode(', ', $top($titles, 3)), 'locations' => implode(', ', $top(array_column($rows, 'country'), 3)),
+        'keywords' => implode(' ', $top(array_column($rows, 'industry'), 1)), 'sizes' => $top($sizes, 2), 'seniorities' => [], 'domains' => '', 'rev_min' => '', 'rev_max' => '']];
+}
+
+/* ---------- حجز المواعيد ---------- */
+function crm_book_cfg(): array
+{
+    $c = json_decode((string)setting('crm_book_cfg_' . (int)ws('id'), ''), true) ?: [];
+    return $c + ['title' => '', 'days' => [0, 1, 2, 3, 4], 'from' => '10:00', 'to' => '17:00', 'len' => 30, 'ahead' => 14, 'notice' => 3, 'color' => '#4f46e5'];
+}
+function crm_book_url(): string { crm_form_url(); $wid = (int)ws('id'); return base_url() . '/index.php?' . http_build_query(['p' => 'crm_book', 'w' => $wid, 't' => (string)setting('crm_form_token_' . $wid, '')]); }
+/** المواعيد الفاضية: [Y-m-d => ['Y-m-d H:i', ...]] بتوقيت الشركة، من غير المحجوز ومن غير اللي قرّب أوي */
+function crm_book_slots(array $c): array
+{
+    $tz = new DateTimeZone(site_timezone()); $srv = new DateTimeZone(date_default_timezone_get());
+    $len = max(15, min(240, (int)$c['len'])); $now = new DateTime('now', $tz); $min = (clone $now)->modify('+' . max(0, (int)$c['notice']) . ' hours');
+    $st = db()->prepare('SELECT start_at FROM crm_bookings WHERE workspace_id = ? AND start_at >= ?'); $st->execute([(int)ws('id'), date('Y-m-d H:i:s')]);
+    $taken = []; foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $s) $taken[(new DateTime($s, $srv))->setTimezone($tz)->format('Y-m-d H:i')] = 1;
+    $out = [];
+    for ($i = 0; $i <= max(1, min(60, (int)$c['ahead'])); $i++) {
+        $d = (clone $now)->setTime(0, 0)->modify("+$i days");
+        if (!in_array((int)$d->format('w'), array_map('intval', (array)$c['days']), true)) continue;
+        [$fh, $fm] = array_map('intval', explode(':', (string)$c['from']) + [0, 0]); [$th, $tm] = array_map('intval', explode(':', (string)$c['to']) + [0, 0]);
+        $t = (clone $d)->setTime($fh, $fm); $end = (clone $d)->setTime($th, $tm);
+        for (; $t < $end; $t->modify("+$len minutes")) { $k = $t->format('Y-m-d H:i'); if ($t > $min && !isset($taken[$k])) $out[$d->format('Y-m-d')][] = $k; }
+    }
+    return $out;
+}
+function fmt_date_loc(DateTime $d, string $what): string
+{
+    if (!is_rtl()) return $d->format($what);
+    $days = ['Sun' => 'الأحد', 'Mon' => 'الاتنين', 'Tue' => 'التلات', 'Wed' => 'الأربع', 'Thu' => 'الخميس', 'Fri' => 'الجمعة', 'Sat' => 'السبت'];
+    $mons = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    return $what === 'D' ? $days[$d->format('D')] : $mons[(int)$d->format('n') - 1];
 }
 
 /** رابط فورم الموقع (بيتعمل التوكن أول مرة) */
