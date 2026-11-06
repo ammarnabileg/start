@@ -26,7 +26,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <button type="button" data-has="<?= e($k) ?>" class="tg-chip<?= $k === '' ? ' on' : '' ?>"><?= e($l) ?> <span><?= (int)$n ?></span></button>
       <?php endforeach; ?>
       <span class="ms-auto"></span>
-      <input type="search" id="pr-q" class="input !mt-0 !w-56 text-sm" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
+      <input type="search" id="pr-q" class="input !mt-0 !w-44 text-sm" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
       <button type="button" popovertarget="pr-filters" class="btn-ghost"><?= ui_icon('filter', 'w-4 h-4') ?><?= e(t('فلاتر')) ?><span id="pr-fn" class="hidden rounded-full bg-brand-600 text-[#fff] text-[11px] px-1.5"></span></button>
       <button type="button" id="pr-import-btn" class="btn-ghost"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('استيراد ملف')) ?></button>
       <button type="button" id="pr-find-btn" class="btn-primary"><?= ui_icon('search', 'w-4 h-4') ?><?= e(t('ابحث عن شخص')) ?></button>
@@ -102,7 +102,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?php endif; ?>
       </div>
     </dialog>
-    <style>.tg-chip{font-size:.875rem;border-radius:9999px;border:1px solid rgb(226 232 240);padding:.25rem .75rem;color:rgb(71 85 105)}.tg-chip span{opacity:.6;margin-inline-start:.25rem}.tg-chip.on{background:rgb(15 23 42);border-color:rgb(15 23 42);color:#fff}dialog[open]{animation:prIn .18s ease-out}@keyframes prIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}</style>
+    <style>.tg-chip{font-size:.8125rem;border-radius:9999px;border:1px solid rgb(226 232 240);padding:.2rem .6rem;color:rgb(71 85 105)}.tg-chip span{opacity:.6;margin-inline-start:.25rem}.tg-chip.on{background:rgb(15 23 42);border-color:rgb(15 23 42);color:#fff}dialog[open]{animation:prIn .18s ease-out}@keyframes prIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}</style>
     <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'findUrl' => url('crm_find'),
         'L' => ['shown' => t('%s من %s'), 'pick' => t('اختار الملف أو اسحبه هنا'), 'rows' => t('%s صف في الملف'), 'go' => t('استورد %s عميل'), 'busy' => t('بنستورد…'), 'done' => t('اتضاف %s جديد، واتدمج %s، واتشال %s'),
         'cols' => ['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظة')], 'skip' => t('— تجاهل —'),
