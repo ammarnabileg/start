@@ -99,3 +99,51 @@ html[dir=rtl] #ld-drawer.ld-closed .ld-sheet { transform: translateX(-105%); }
 @keyframes ld-panel-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
 .ld-flash { animation: ld-flash 1.2s ease-out; }
 @keyframes ld-flash { 0% { background: rgb(var(--brand-100, 219 234 254)); } 100% { background: transparent; } }
+
+/* ===================== طبقة التفاعل العامة ===================== */
+/* انتقال ناعم بين الصفحات (View Transitions، كروم وإيدج وسفاري الجديد) */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: vt-out .16s ease-in both; }
+::view-transition-new(root) { animation: vt-in .22s ease-out both; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+#sidebar { view-transition-name: vt-side; }
+body > header { view-transition-name: vt-head; }
+::view-transition-group(vt-side), ::view-transition-group(vt-head), ::view-transition-old(vt-side), ::view-transition-new(vt-side), ::view-transition-old(vt-head), ::view-transition-new(vt-head) { animation: none; }
+
+/* شريط التحميل فوق */
+#nav-bar { position: fixed; top: 0; inset-inline: 0; height: 3px; z-index: 100; pointer-events: none; transform-origin: 0 50%; transform: scaleX(0); opacity: 0;
+  background: linear-gradient(90deg, rgb(var(--brand-600)), rgb(var(--cyan-500)), rgb(var(--lime-400))); transition: transform .4s ease, opacity .3s ease; }
+html[dir=rtl] #nav-bar { transform-origin: 100% 50%; }
+#nav-bar.go { opacity: 1; transform: scaleX(.75); transition: transform 8s cubic-bezier(.1,.7,.2,1), opacity .1s; }
+#nav-bar.done { opacity: 0; transform: scaleX(1); transition: transform .2s ease, opacity .35s ease .15s; }
+
+/* الكروت بتظهر ورا بعض */
+.fx-in { animation: fx-in .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+@keyframes fx-in { from { opacity: 0; transform: translateY(8px) scale(.99); } }
+
+/* ضغطة الزرار */
+.btn-primary, .btn-ghost, .tb, .chip, .nav-item { transition: transform .12s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease; }
+.btn-primary:active, .btn-ghost:active, .tb:active, .chip:active { transform: scale(.96); }
+.card { transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease; }
+a.card:hover, .card[data-href]:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -12px rgb(var(--ink-900) / .18); }
+
+/* تلميح بشكل المنصة بدل تلميح المتصفح */
+#fx-tip { position: fixed; z-index: 120; max-width: 280px; padding: 6px 10px; border-radius: 10px; font-size: 12px; line-height: 1.5; pointer-events: none;
+  background: rgb(var(--ink-900)); color: rgb(var(--ink-50)); box-shadow: 0 8px 24px -8px rgb(0 0 0 / .35); opacity: 0; transform: translateY(4px); transition: opacity .12s ease, transform .12s ease; }
+#fx-tip.on { opacity: 1; transform: none; }
+
+/* جداول بتترتب */
+table.fx-sort th[data-sortable] { cursor: pointer; user-select: none; white-space: nowrap; }
+table.fx-sort th[data-sortable]:hover { color: rgb(var(--brand-700)); }
+table.fx-sort th[data-dir]::after { content: ''; display: inline-block; width: 0; height: 0; margin-inline-start: 4px; vertical-align: middle; border-inline: 4px solid transparent; }
+table.fx-sort th[data-dir=asc]::after { border-bottom: 5px solid currentColor; }
+table.fx-sort th[data-dir=desc]::after { border-top: 5px solid currentColor; }
+table.fx-sort tbody tr { transition: background-color .15s ease; }
+table.fx-sort tbody tr:hover { background: rgb(var(--brand-50) / .6); }
+tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-in, ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+  .btn-primary:active, .btn-ghost:active, .tb:active, .chip:active { transform: none; }
+}

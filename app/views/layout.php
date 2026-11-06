@@ -257,6 +257,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <iframe id="modalFrame" class="w-full h-[calc(100%-3.5rem)] bg-ink-50" title=""></iframe>
 </dialog>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
+<script src="assets/fx.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if ($cpOn): $cpKeys = ai_page_insights((string)($GLOBALS['page'] ?? $active)); ?>
 <!-- لوحة ✨ الجانبية -->
