@@ -23,7 +23,7 @@ html.dark{--ink-50:10 16 32;--ink-100:16 26 51;--ink-200:28 40 70;--ink-300:43 5
 <?php // تنقّل أسرع: الصفحة بتتجاب في الخلفية لما الماوس يقف على اللينك (Chrome/Edge). الصفحات اللي ليها أثر (تصدير، خروج…) مستبعدة ?>
 <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*\\?p=*"},{"not":{"href_matches":"/*\\?*(export|ajax|logout|pref|switch|refresh|impersonate|download|img_proxy|voice|go&|crm_t|crm_go)*"}},{"not":{"selector_matches":"[data-modal],[download],[target=_blank],.no-prefetch"}}]},"eagerness":"moderate"}]}</script>
 <script>window.T = <?= json_encode([
-    'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
+    'saved' => t('اتحفظ ✓'), 'working' => t('جاري التنفيذ...'), 'comment' => t('تعليق'), 'copied' => t('اتنسخ ✓'),
     'schedule' => t('جدولة المنشور'), 'now' => t('انشر دلوقتي'), 'draft' => t('حفظ المسودة'), 'queue' => t('ضيف للطابور'), 'sending' => t('جاري الإرسال...'), 'notSent' => t('ما اتبعتتش · اتأكد من النت وجرب تاني'), 'liveFailed' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <?php if (session_status() === PHP_SESSION_ACTIVE && current_user() && current_workspace()): ?>

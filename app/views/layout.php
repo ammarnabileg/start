@@ -258,6 +258,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 </dialog>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
 <script src="assets/fx.js?v=<?= e(APP_VERSION) ?>" defer></script>
+<script src="assets/fx-forms.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if ($cpOn): $cpKeys = ai_page_insights((string)($GLOBALS['page'] ?? $active)); ?>
 <!-- لوحة ✨ الجانبية -->

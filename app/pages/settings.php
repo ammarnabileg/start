@@ -25,7 +25,7 @@ render(t('الإعدادات العامة'), 'settings', function () use ($w, $z
     $cur = site_timezone();
     if (!in_array($cur, $zones, true)) $zones[] = $cur;
     ?>
-    <form method="post" id="st-form" class="max-w-3xl space-y-6 pb-24">
+    <form method="post" id="st-form" data-fx-reload class="max-w-3xl space-y-6 pb-24">
       <?= csrf_field() ?>
       <section class="card p-6">
         <h2 class="font-bold text-ink-900 mb-1"><?= e(t('هوية الشركة')) ?></h2>
