@@ -930,4 +930,6 @@
   draw();
   if (/[?&]go=queue/.test(location.search)) setTimeout(function () { var qb = document.getElementById('ld-queue'); if (qb && !qb.classList.contains('hidden')) qb.click(); }, 300);
   var m = location.hash.match(/^#lead-(\d+)$/); if (m) open(+m[1]);
+  if (location.hash === '#add') { var ab = document.getElementById('ld-add-btn'); if (ab) ab.click(); }
+  if (location.hash === '#due') { var vt = document.querySelector('[data-view=due]'); if (vt) vt.click(); }
 })();

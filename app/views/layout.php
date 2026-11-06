@@ -78,7 +78,11 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 text-[#fff] flex items-center justify-center font-bold"><?= e(mb_substr($siteName, 0, 1)) ?></span>
     <span class="text-lg font-semibold text-ink-900 hidden sm:inline"><?= e($siteName) ?></span>
   </a>
-  <div class="flex-1"></div>
+  <div class="flex-1 flex justify-center px-2">
+    <?php if ($curWs): ?><button type="button" id="ck-open" class="hidden md:flex items-center gap-2 w-full max-w-md h-10 rounded-xl border border-ink-200 bg-ink-50 px-3 text-sm text-ink-400 hover:border-brand-300 hover:bg-white transition">
+      <?= $icon('M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z', 'w-4 h-4') ?><span class="flex-1 text-start"><?= e(t('ابحث عن صفحة أو عميل أو إجراء…')) ?></span><kbd class="rounded border border-ink-200 bg-white px-1.5 text-[10px] font-mono" dir="ltr">Ctrl K</kbd></button>
+    <button type="button" id="ck-open-m" class="md:hidden tb w-10 justify-center" aria-label="<?= e(t('بحث')) ?>"><?= $icon('M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z') ?></button><?php endif; ?>
+  </div>
   <div class="hidden sm:flex items-center gap-2"><?= pref_switch() ?></div>
   <span class="hidden sm:block w-px h-6 bg-ink-200 mx-1"></span>
   <?php
@@ -163,6 +167,23 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         <?php endforeach; ?>
       </nav>
     <?php elseif (empty($hideTitle)): ?><div class="mb-2"></div><?php endif; ?>
+    <?php // الصفحات مترابطة: كل صفحة بتوديك للخطوة اللي قبلها واللي بعدها في الرحلة
+      $crmOn2 = $curWs && module_enabled('crm') && can('crm.view'); $R = [];
+      $R['knowledge'] = [[t('اكتب منشور من ملفك'), url('compose')], [t('الردود التلقائية بتستخدمه'), url('automations')]];
+      $R['compose'] = array_filter([[t('التقويم'), url('posts', ['view' => 'cal'])], $crmOn2 ? [t('اعمل صفحة هبوط للمنشور'), url('crm_capture') . '#lp'] : null, [t('أفضل وقت للنشر'), url('analytics')]]);
+      $R['posts'] = $R['calendar'] = array_filter([[t('التعليقات على منشوراتك'), url('comments')], [t('أداء المنشورات'), url('analytics')], $crmOn2 ? [t('روابط المنشورات والعملاء اللي جابتهم'), url('crm_reports')] : null]);
+      $R['analytics'] = array_filter([[t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
+      $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('crm_leads')] : null, [t('ردود تلقائية'), url('automations')]]);
+      if ($crmOn2) {
+        $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('crm_leads')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
+        $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
+        $R['crm_reports'] = [[t('شغل النهارده'), url('crm_leads') . '#due'], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
+        $R['crm_settings'] = [[t('العملاء'), url('crm_leads')]];
+      }
+      $rel = $R[$active] ?? [];
+      if ($rel && $curWs): ?>
+      <div class="mb-4 -mt-1 flex flex-wrap items-center gap-1.5 text-xs"><span class="text-ink-400">🔗 <?= e(t('مرتبط:')) ?></span><?php foreach ($rel as [$rl, $ru]): ?><a href="<?= e($ru) ?>" class="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-ink-600 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition"><?= e($rl) ?></a><?php endforeach; ?></div>
+    <?php endif; ?>
     <?php foreach (take_flashes() as $f):
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>
       <div data-flash="<?= e($f['type']) ?>" class="mb-4 border rounded-lg px-4 py-3 text-sm <?= $cls ?>"><?= e($f['msg']) ?></div>
@@ -239,5 +260,22 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script src="assets/copilot.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php endif; ?>
 
+<?php if ($curWs):
+  $ckPages = []; foreach ($navItems as $it) { if ($it['key'] === 'admin') continue; foreach (($it['tabs'] ?? [$it['key'] => $it['label']]) as $tk => $tl) $ckPages[] = ['l' => $tl, 'g' => $it['label'] !== $tl ? $it['label'] : '', 's' => $it['section'], 'u' => url($tk), 'i' => $I[$it['key']] ?? $I['dashboard']]; }
+  $ckAct = [];
+  if (can('posts.create')) { $ckAct[] = ['l' => t('اكتب منشور جديد'), 'u' => url('compose'), 'k' => 'n']; $ckAct[] = ['l' => t('رفع منشورات من Excel'), 'u' => url('bulk')]; }
+  if (module_enabled('crm') && can('crm.view')) { $ckAct[] = ['l' => t('ضيف عميل جديد'), 'u' => url('crm_leads') . '#add', 'k' => 'l']; $ckAct[] = ['l' => t('شغل النهارده (المتابعات المستحقة)'), 'u' => url('crm_leads') . '#due']; $ckAct[] = ['l' => t('اعمل صفحة هبوط أو QR'), 'u' => url('crm_capture') . '#lp']; }
+  $ckAct[] = ['l' => t('الرسائل اللي مستنية رد'), 'u' => url('inbox')];
+?>
+<div id="ck" class="fixed inset-0 z-[90] hidden items-start justify-center bg-ink-900/40 backdrop-blur-sm p-4 pt-[12vh]" aria-hidden="true">
+  <div class="w-full max-w-xl rounded-2xl bg-white shadow-2xl overflow-hidden" role="dialog" aria-label="<?= e(t('بحث')) ?>">
+    <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200"><?= $icon('M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z', 'w-5 h-5 text-ink-400') ?><input id="ck-in" class="flex-1 h-full bg-transparent outline-none text-[15px]" placeholder="<?= e(t('ابحث عن صفحة أو عميل أو إجراء…')) ?>" autocomplete="off" dir="auto"><kbd class="rounded border border-ink-200 px-1.5 text-[10px] text-ink-400 font-mono">Esc</kbd></div>
+    <div id="ck-list" class="max-h-[60vh] overflow-y-auto p-2"></div>
+    <div class="flex items-center gap-3 px-4 py-2 border-t border-ink-100 text-[11px] text-ink-400"><span>↑↓ <?= e(t('للتنقل')) ?></span><span>Enter <?= e(t('للفتح')) ?></span><span class="ms-auto"><?= e(t('من غير ذكاء اصطناعي')) ?></span></div>
+  </div>
+</div>
+<script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('crm_leads') . '#lead-', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
+<?php endif; ?>
 </body>
 </html>

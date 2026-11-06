@@ -239,6 +239,39 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     <?php endif; ?>
 
 
+    <?php
+    // رحلة المنصة: حالة كل مرحلة بأرقام حقيقية، والمرحلة الأضعف هي "الخطوة الجاية"
+    $wid0 = (int)ws('id'); $J = [];
+    $kbS = function_exists('kb_schema') ? kb_schema() : []; $kbD = function_exists('kb_get') ? kb_get($wid0) : []; $kbN = 0; foreach ($kbS as $k => $sd) if (!empty($kbD[$k]) && kb_filled((array)$kbD[$k], (string)($sd['type'] ?? 'fields'))) $kbN++;
+    $kbP = $kbS ? (int)round($kbN / count($kbS) * 100) : 0; $accN = is_array($d['accounts']) ? count($d['accounts']) : null;
+    $J[] = ['🏢', t('شركتك'), $kbP . '%', t('ملف الشركة مكتمل'), $kbP >= 60 && $accN !== 0, $kbP < 60 ? t('كمّل ملف الشركة') : ($accN === 0 ? t('اربط حساباتك') : t('راجع الملف')), $kbP < 60 ? url('knowledge') : url('accounts')];
+    $alN = (function_exists('alerts_unseen_count') && module_enabled('analytics') && can('analytics.view')) ? alerts_unseen_count($wid0) : 0;
+    $J[] = ['📈', t('السوق والفرص'), (string)$alN, t('تنبيه جديد'), $alN === 0, $alN ? t('شوف التنبيهات') : t('افتح التحليلات'), $alN ? url('alerts') : url('analytics')];
+    $wk = 0; foreach ((array)($d['scheduled']['posts'] ?? []) as $sp) { $tt = strtotime((string)($sp['scheduledFor'] ?? '')); if ($tt && $tt < time() + 7 * 86400) $wk++; }
+    $J[] = ['✍️', t('المحتوى'), $d['scheduled'] === null ? '—' : (string)$wk, t('منشور في 7 أيام'), $wk >= 3, $wk >= 3 ? t('شوف التقويم') : t('جدول منشورات'), $wk >= 3 ? url('posts', ['view' => 'cal']) : url('compose')];
+    $crmOn = module_enabled('crm') && can('crm.view'); $newL = $dueL = $wonL = 0;
+    if ($crmOn) { try { $q0 = db()->prepare("SELECT SUM(created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)), SUM(next_at IS NOT NULL AND next_at <= NOW() AND stage NOT IN ('won','lost')), SUM(stage = 'won' AND won_at >= ?) FROM crm_leads WHERE workspace_id = ?"); $q0->execute([date('Y-m-01'), $wid0]); [$newL, $dueL, $wonL] = array_map('intval', $q0->fetch(PDO::FETCH_NUM)); } catch (Throwable $x) {} }
+    if ($crmOn) {
+      $J[] = ['🧲', t('جمع العملاء'), (string)$newL, t('عميل جديد في 7 أيام'), $newL >= 3, $newL >= 3 ? t('شوف مصادرهم') : t('اعمل فورم أو صفحة هبوط'), $newL >= 3 ? url('crm_reports') : url('crm_capture')];
+      $J[] = ['🤝', t('المبيعات'), (string)$dueL, t('متابعة مستحقة'), $dueL === 0, $dueL ? t('ابدأ المتابعات') : t('افتح العملاء'), url('crm_leads') . ($dueL ? '#due' : '')];
+    }
+    $nextI = null; foreach ($J as $i => $x) if (!$x[4]) { $nextI = $i; break; }
+    ?>
+    <div class="card p-4 mb-6" data-w="journey">
+      <div class="flex items-center gap-2 mb-3"><b class="text-sm text-ink-900">🧭 <?= e(t('رحلة شركتك')) ?></b>
+        <?php if ($nextI !== null): ?><span class="text-xs text-ink-500"><?= e(t('الخطوة الجاية:')) ?></span><a href="<?= e($J[$nextI][6]) ?>" class="text-xs font-semibold text-brand-700 hover:underline"><?= e($J[$nextI][5]) ?> <?= is_rtl() ? '←' : '→' ?></a><?php else: ?><span class="text-xs text-lime-700">✓ <?= e(t('كل المراحل ماشية كويس')) ?></span><?php endif; ?>
+        <?php if ($crmOn && $wonL): ?><span class="ms-auto text-xs rounded-full bg-lime-50 text-lime-800 border border-lime-200 px-2 py-0.5">🏆 <?= e(t('%s عميل اتقفل الشهر ده', $wonL)) ?></span><?php endif; ?></div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 <?= [2 => "lg:grid-cols-2", 3 => "lg:grid-cols-3", 4 => "lg:grid-cols-4", 5 => "lg:grid-cols-5"][count($J)] ?? "lg:grid-cols-5" ?> gap-2">
+        <?php foreach ($J as $i => $x): $nx = $i === $nextI; ?>
+          <a href="<?= e($x[6]) ?>" class="group relative rounded-xl border p-3 transition hover:-translate-y-0.5 hover:shadow-md <?= $nx ? 'border-brand-300 bg-brand-50 ring-2 ring-brand-500/20' : ($x[4] ? 'border-lime-200 bg-lime-50/40' : 'border-ink-200 bg-white') ?>">
+            <div class="flex items-center gap-1.5 text-[11px] text-ink-500"><span class="w-5 h-5 rounded-full grid place-items-center text-[10px] font-bold <?= $x[4] ? 'bg-lime-500 text-white' : 'bg-ink-200 text-ink-600' ?>"><?= $x[4] ? '✓' : $i + 1 ?></span><?= e($x[1]) ?></div>
+            <div class="mt-1.5 flex items-baseline gap-1"><span class="text-2xl font-bold text-ink-900"><?= e($x[2]) ?></span><span class="text-[11px] text-ink-500 leading-tight"><?= e($x[3]) ?></span></div>
+            <div class="mt-1 text-[11px] font-medium <?= $nx ? 'text-brand-700' : 'text-ink-400 group-hover:text-brand-700' ?>"><?= e($x[5]) ?> <?= is_rtl() ? '←' : '→' ?></div>
+          </a>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
     <?php if ($z): ?>
     <!-- ملخص اليوم + منشور سريع -->
     <div class="grid lg:grid-cols-[1fr_24rem] gap-4 mb-6" data-w="brief">
