@@ -61,6 +61,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' prospects=error';
         }
+        // الشركات المستهدفة: تكميل بيانات الشركات الناقصة (عدد قليل كل مرة)
+        try {
+            $n = (int)ai_as_workspace($wid, function () { if (!module_enabled('crm') || !function_exists('tg_enrich_due')) return 0; tg_sync_inbound(); return tg_enrich_due(8); });
+            if ($n) $line .= ' targets_enriched+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' targets_enrich=error';
+        }
         // الالتقاط التلقائي للعملاء من الرسائل والتعليقات (مرة كل 6 ساعات، لو مفعّل)
         try {
             if (crm_auto_capture_on($wid) && strtotime(explode('|', (string)setting('crm_auto_last_' . $wid, ''))[0] ?: '2000-01-01') < time() - 6 * 3600) {

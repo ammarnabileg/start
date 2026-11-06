@@ -115,7 +115,8 @@ function tg_ai_suggest(int $page = 1): array
 /** كل الشركات المستهدفة مع عدد الأشخاص المعروفين وبياناتهم */
 function tg_list(): array
 {
-    $st = db()->prepare("SELECT c.*, COUNT(l.id) people_n, SUM(l.phone IS NOT NULL AND l.phone <> '') phones, SUM(l.email IS NOT NULL AND l.email <> '') emails
+    $st = db()->prepare("SELECT c.*, COUNT(l.id) people_n, SUM(l.phone IS NOT NULL AND l.phone <> '') phones, SUM(l.email IS NOT NULL AND l.email <> '') emails,
+        SUM(l.stage = 'won') won_n, SUM(l.stage IN ('contacted','qualified')) warm_n, COALESCE(SUM(l.deal_value), 0) deal_sum, MAX(l.last_contact_at) last_at
         FROM crm_companies c LEFT JOIN crm_leads l ON l.company_id = c.id AND l.workspace_id = c.workspace_id
         WHERE c.workspace_id = ? AND c.hidden = 0 GROUP BY c.id ORDER BY c.id DESC LIMIT 1000");
     $st->execute([(int)ws('id')]); return $st->fetchAll();
@@ -232,4 +233,59 @@ function tg_capture_all(Zernio $z, int $max = 300): int
     save_setting('tg_sync_' . $wid, date('Y-m-d H:i:s') . '|' . $new);
     if ($new) log_activity('crm.capture_all', $new . ' new');
     return $new;
+}
+
+/**
+ * تكميل بيانات شركة: Apollo بالدومين (المجال، الحجم، المكان، اللوجو، لينكدإن، التليفون)، ولو مفيش: من موقع الشركة نفسه
+ * (الاسم، اللوجو، الوصف). بيكمّل الفاضي بس، وبيسجل إنه اتجرب عشان مايتكررش. بيرجع الشركة بعد التحديث.
+ */
+function tg_enrich(array $co): array
+{
+    $wid = (int)ws('id'); $dom = trim((string)$co['domain']); $set = []; $v = [];
+    $fill = function (string $col, $val) use ($co, &$set, &$v) { if ($val === null || $val === '' || (isset($co[$col]) && $co[$col] !== null && $co[$col] !== '')) return; $set[] = "$col = ?"; $v[] = $val; };
+    if ($dom !== '' && function_exists('crm_has_key') && crm_has_key()) {
+        try { $o = (array)(crm_api('/organizations/enrich', ['domain' => $dom], null, 'GET')['organization'] ?? []); } catch (Throwable $e) { $o = []; }
+        if ($o) {
+            if (($co['name'] === $dom || $co['name'] === '' ) && !empty($o['name'])) { $set[] = 'name = ?'; $v[] = mb_substr((string)$o['name'], 0, 255); }
+            $fill('industry', $o['industry'] ?? null); $fill('employees', isset($o['estimated_num_employees']) ? (int)$o['estimated_num_employees'] : null);
+            $fill('city', $o['city'] ?? null); $fill('country', $o['country'] ?? null); $fill('logo', $o['logo_url'] ?? null); $fill('linkedin', $o['linkedin_url'] ?? null);
+            $fill('phone', mb_substr((string)($o['primary_phone']['sanitized_number'] ?? $o['phone'] ?? ''), 0, 40)); $fill('about', mb_substr(trim((string)($o['short_description'] ?? '')), 0, 500));
+            if (!empty($o['id']) && strpos((string)$co['ext_id'], 'dom:') === 0) { $set[] = 'ext_id = ?'; $v[] = mb_substr((string)$o['id'], 0, 64); }
+        }
+    }
+    if ($dom !== '' && (empty($co['logo']) || empty($co['about'])) && !in_array('logo = ?', $set, true) && function_exists('safe_fetch')) {
+        $r = safe_fetch('https://' . $dom, ['max' => 300000, 'accept' => '~html~i', 'timeout' => 8]);
+        if (!empty($r['body'])) { $h = (string)$r['body'];
+            $meta = function ($n) use ($h) { return preg_match('~<meta[^>]+(?:property|name)=["\']' . preg_quote($n, '~') . '["\'][^>]*content=["\']([^"\']+)~i', $h, $m) || preg_match('~<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' . preg_quote($n, '~') . '["\']~i', $h, $m) ? trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')) : ''; };
+            $img = $meta('og:image'); if ($img === '' && preg_match('~<link[^>]+rel=["\'](?:apple-touch-icon|icon)["\'][^>]*href=["\']([^"\']+)~i', $h, $m)) $img = $m[1];
+            if ($img !== '' && !preg_match('~^https?://~i', $img)) $img = 'https://' . $dom . '/' . ltrim($img, '/');
+            if ($img !== '' && preg_match('~^https://~i', $img)) $fill('logo', mb_substr($img, 0, 500));
+            $fill('about', mb_substr($meta('og:description') ?: $meta('description'), 0, 500));
+            $sn = $meta('og:site_name'); if ($sn !== '' && $co['name'] === $dom) { $set[] = 'name = ?'; $v[] = mb_substr($sn, 0, 255); }
+        }
+    }
+    $set[] = 'enriched_at = NOW()'; $v[] = (int)$co['id']; $v[] = $wid;
+    db()->prepare('UPDATE crm_companies SET ' . implode(', ', $set) . ' WHERE id = ? AND workspace_id = ?')->execute($v);
+    $st = db()->prepare('SELECT * FROM crm_companies WHERE id = ? AND workspace_id = ?'); $st->execute([(int)$co['id'], $wid]); return $st->fetch() ?: $co;
+}
+
+/** تكميل تلقائي للشركات اللي ليها دومين ومالهاش بيانات ومااتجربتش قبل كده. بيرجع عدد اللي اتكمّلت */
+function tg_enrich_due(int $max = 8): int
+{
+    $st = db()->prepare("SELECT * FROM crm_companies WHERE workspace_id = ? AND hidden = 0 AND domain IS NOT NULL AND domain <> '' AND enriched_at IS NULL AND (industry IS NULL OR logo IS NULL) ORDER BY id DESC LIMIT " . max(1, $max));
+    $st->execute([(int)ws('id')]); $n = 0;
+    foreach ($st->fetchAll() as $co) { try { $after = tg_enrich($co); if ($after['industry'] !== $co['industry'] || $after['logo'] !== $co['logo'] || $after['name'] !== $co['name']) $n++; } catch (Throwable $e) {} }
+    return $n;
+}
+
+/** حالات الشركة المستهدفة حسب أشخاصها: [الاسم، لون] */
+function tg_statuses(): array
+{
+    return ['won' => [t('عميل'), 'bg-lime-100 text-lime-800'], 'warm' => [t('مهتمة'), 'bg-amber-50 text-amber-800'], 'talk' => [t('اتواصلنا'), 'bg-brand-50 text-brand-700'], 'new' => [t('جديدة'), 'bg-ink-100 text-ink-600']];
+}
+function tg_status(array $r): string
+{
+    if ((int)$r['won_n']) return 'won';
+    if ((int)$r['warm_n']) return 'warm';
+    return (int)$r['people_n'] ? 'talk' : 'new';
 }

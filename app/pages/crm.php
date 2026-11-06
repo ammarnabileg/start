@@ -15,7 +15,7 @@ if (($_GET['ajax'] ?? '') === 'company') {
     $co = $getCo((int)($_GET['id'] ?? 0)); if (!$co) $J(['ok' => false, 'error' => t('الشركة مش موجودة.')], 404);
     $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND company_id = ? ORDER BY (phone IS NULL OR phone = \'\') , (email IS NULL OR email = \'\'), id DESC');
     $st->execute([$wid, (int)$co['id']]); $known = array_map($person, $st->fetchAll());
-    $out = ['ok' => true, 'known' => $known, 'apollo' => null];
+    $out = ['ok' => true, 'known' => $known, 'apollo' => null, 'co' => ['linkedin' => (string)$co['linkedin'], 'phone' => (string)$co['phone'], 'about' => (string)$co['about'], 'enriched' => (bool)$co['enriched_at']]];
     if ($hasApollo) {
         try {
             $r = tg_people($co, max(1, (int)($_GET['page'] ?? 1)));
@@ -48,6 +48,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $l = crm_reveal($co, $pid, $prefs); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
         $J(['ok' => true, 'person' => $person(crm_lead((int)$l['id']))]);
     }
+    if ($a === 'enrich') {
+        $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
+        if (trim((string)$co['domain']) === '') $J(['ok' => false, 'error' => t('الشركة دي مالهاش دومين، ضيفه الأول عشان نكمّل بياناتها.')], 400);
+        $n = tg_enrich($co); $loc = trim(implode('، ', array_filter([$n['city'], $n['country']])));
+        $J(['ok' => true, 'changed' => $n['industry'] !== $co['industry'] || $n['logo'] !== $co['logo'] || $n['name'] !== $co['name'] || $n['employees'] !== $co['employees'] || $loc !== trim(implode('، ', array_filter([$co['city'], $co['country']]))),
+            'co' => ['name' => $n['name'], 'industry' => (string)$n['industry'], 'employees' => (int)$n['employees'], 'loc' => $loc, 'country' => (string)$n['country'], 'logo' => (string)$n['logo'], 'linkedin' => (string)$n['linkedin'], 'phone' => (string)$n['phone'], 'about' => (string)$n['about']]]);
+    }
+    if ($a === 'person') {
+        $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
+        $name = trim((string)($_POST['name'] ?? '')); $ph = trim((string)($_POST['phone'] ?? '')); $em = trim((string)($_POST['email'] ?? ''));
+        if ($name === '' || ($ph === '' && $em === '')) $J(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل.')], 400);
+        $l = crm_lead_upsert(['source' => 'manual', 'company_id' => (int)$co['id'], 'company' => $co['name'], 'name' => $name, 'title' => (string)($_POST['title'] ?? ''), 'phone' => $ph, 'email' => $em, 'country' => (string)$co['country']]);
+        if (empty($l['company_id'])) db()->prepare('UPDATE crm_leads SET company_id = ? WHERE id = ? AND workspace_id = ?')->execute([(int)$co['id'], (int)$l['id'], $wid]);
+        $J(['ok' => true, 'merged' => !empty($l['merged']), 'person' => $person(crm_lead((int)$l['id']))]);
+    }
     if ($a === 'remove') {
         $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
         db()->prepare('UPDATE crm_companies SET hidden = 1 WHERE id = ? AND workspace_id = ?')->execute([(int)$co['id'], $wid]);
@@ -61,9 +76,13 @@ $rows = tg_list();
 $src = tg_sources();
 $counts = array_fill_keys(array_keys($src), 0); foreach ($rows as $r) $counts[$r['source'] ?: 'apollo']++;
 $aiOn = $hasApollo && function_exists('ai_connection') && ai_connection();
+$stl = tg_statuses(); $stw = ['won' => 4, 'warm' => 3, 'talk' => 2, 'new' => 1];
+$nWarm = 0; $nBare = 0; $inds = []; $ctys = [];
+foreach ($rows as $r) { $k = tg_status($r); if ($k === 'warm' || $k === 'won') $nWarm++; if (!$r['industry']) $nBare++; if ($r['industry']) $inds[$r['industry']] = 1; if ($r['country']) $ctys[$r['country']] = 1; }
+$inds = array_keys($inds); sort($inds); $ctys = array_keys($ctys); sort($ctys);
 
-render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $src, $counts, $hasApollo, $aiOn, $canManage, $canReveal) {
-    $cols = 'md:grid-cols-[22px_minmax(0,2.2fr)_minmax(0,1.3fr)_90px_minmax(0,1fr)_120px_130px_84px]';
+render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $src, $counts, $stl, $stw, $nWarm, $nBare, $inds, $ctys, $hasApollo, $aiOn, $canManage, $canReveal) {
+    $cols = 'md:grid-cols-[22px_minmax(0,2.1fr)_minmax(0,1.2fr)_80px_minmax(0,1fr)_100px_110px_110px_110px]';
     $pill = ['manual' => 'bg-ink-100 text-ink-700', 'inbound' => 'bg-lime-50 text-lime-800', 'ai' => 'bg-brand-50 text-brand-700', 'apollo' => 'bg-indigo-50 text-indigo-700'];
     $ics = ['manual' => ['pencil', 'bg-ink-100 text-ink-700'], 'inbound' => ['chat', 'bg-lime-50 text-lime-700'], 'ai' => ['spark', 'bg-brand-50 text-brand-700'], 'apollo' => ['grid', 'bg-indigo-50 text-indigo-700']];
     ?>
@@ -73,10 +92,20 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
       <?php foreach ($src as $k => $l): ?>
         <button type="button" class="mk-stat" data-mk-stat="<?= e($k) ?>" data-mk-test="src=<?= e($k) ?>"><span class="mk-ic <?= $ics[$k][1] ?>"><?= ui_icon($ics[$k][0], 'w-5 h-5') ?></span><span><b><?= (int)$counts[$k] ?></b><small><?= e($l) ?></small></span></button>
       <?php endforeach; ?>
+      <button type="button" class="mk-stat" data-mk-stat="warm" data-mk-test="st=warm|st=won"><span class="mk-ic bg-amber-50 text-amber-700"><?= ui_icon('fire', 'w-5 h-5') ?></span><span><b><?= (int)$nWarm ?></b><small><?= e(t('مهتمة أو عملاء')) ?></small></span></button>
+      <button type="button" class="mk-stat" data-mk-stat="bare" data-mk-test="bare=1"><span class="mk-ic bg-red-50 text-red-600"><?= ui_icon('alert', 'w-5 h-5') ?></span><span><b><?= (int)$nBare ?></b><small><?= e(t('بياناتها ناقصة')) ?></small></span></button>
     </div>
 
     <div class="mk-tools">
       <label class="mk-search"><?= ui_icon('search') ?><input type="search" data-mk-q placeholder="<?= e(t('ابحث بالاسم أو المجال أو المدينة…')) ?>"><kbd>/</kbd></label>
+      <div class="relative"><button type="button" id="tg-fbtn" class="btn-ghost"><?= ui_icon('filter', 'w-4 h-4') ?><?= e(t('فلاتر')) ?><span id="tg-fn" class="mk-pill bg-brand-600 text-white hidden"></span></button>
+        <div id="tg-fpop" class="hidden absolute z-30 mt-2 start-0 w-72 rounded-2xl border border-ink-200 bg-white shadow-xl p-4 space-y-3">
+          <label class="block text-xs text-ink-500"><?= e(t('المجال')) ?><select id="tf-ind" class="input !mt-1 text-sm"><option value=""><?= e(t('الكل')) ?></option><?php foreach ($inds as $x): ?><option value="<?= e(mb_strtolower($x)) ?>"><?= e($x) ?></option><?php endforeach; ?></select></label>
+          <label class="block text-xs text-ink-500"><?= e(t('الدولة')) ?><select id="tf-cty" class="input !mt-1 text-sm"><option value=""><?= e(t('الكل')) ?></option><?php foreach ($ctys as $x): ?><option value="<?= e(mb_strtolower($x)) ?>"><?= e($x) ?></option><?php endforeach; ?></select></label>
+          <label class="block text-xs text-ink-500"><?= e(t('الحالة')) ?><select id="tf-st" class="input !mt-1 text-sm"><option value=""><?= e(t('الكل')) ?></option><?php foreach ($stl as $k => $x): ?><option value="<?= e($k) ?>"><?= e($x[0]) ?></option><?php endforeach; ?></select></label>
+          <label class="flex items-center gap-2 text-sm text-ink-700"><input type="checkbox" id="tf-ppl"><?= e(t('فيها أشخاص بأرقام أو إيميلات')) ?></label>
+          <button type="button" id="tf-reset" class="text-xs text-ink-500 hover:text-ink-900"><?= e(t('مسح الفلاتر')) ?></button>
+        </div></div>
       <span class="text-xs text-ink-500 tabular-nums"><span data-mk-shown></span></span>
       <span class="ms-auto"></span>
       <form id="tg-add" class="flex items-center gap-1.5 m-0" data-no-ajax>
@@ -89,25 +118,26 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
     <div class="mk-table">
       <div class="mk-head <?= $cols ?>"><input type="checkbox" data-mk-all aria-label="<?= e(t('تحديد الكل')) ?>">
         <span data-mk-sort="name"><?= e(t('الشركة')) ?></span><span data-mk-sort="ind"><?= e(t('المجال')) ?></span><span data-mk-sort="emp"><?= e(t('الموظفين')) ?></span>
-        <span data-mk-sort="loc"><?= e(t('المكان')) ?></span><span data-mk-sort="ppl"><?= e(t('الأشخاص')) ?></span><span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span></span></div>
+        <span data-mk-sort="loc"><?= e(t('المكان')) ?></span><span data-mk-sort="ppl"><?= e(t('الأشخاص')) ?></span><span data-mk-sort="st"><?= e(t('الحالة')) ?></span><span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span></span></div>
       <div id="tg-list" data-mk-body>
-      <?php foreach ($rows as $r): $s = $r['source'] ?: 'apollo'; $loc = trim(implode('، ', array_filter([$r['city'], $r['country']]))); $ini = mb_strtoupper(mb_substr($r['name'], 0, 1)); ?>
-        <div class="mk-row tg-row <?= $cols ?>" data-mk-row data-id="<?= (int)$r['id'] ?>" data-src="<?= e($s) ?>" data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['domain'] . ' ' . $r['industry'] . ' ' . $loc)) ?>"
-          data-s-name="<?= e(mb_strtolower($r['name'])) ?>" data-s-ind="<?= e(mb_strtolower((string)$r['industry'])) ?>" data-s-emp="<?= (int)$r['employees'] ?>" data-s-loc="<?= e(mb_strtolower($loc)) ?>" data-s-ppl="<?= (int)$r['people_n'] ?>" data-s-src="<?= e($s) ?>"
+      <?php foreach ($rows as $r): $s = $r['source'] ?: 'apollo'; $loc = trim(implode('، ', array_filter([$r['city'], $r['country']]))); $ini = mb_strtoupper(mb_substr($r['name'], 0, 1)); $stk = tg_status($r); $bare = $r['industry'] ? 0 : 1; ?>
+        <div class="mk-row tg-row <?= $cols ?>" data-mk-row data-id="<?= (int)$r['id'] ?>" data-src="<?= e($s) ?>" data-st="<?= e($stk) ?>" data-bare="<?= $bare ?>" data-ind="<?= e(mb_strtolower((string)$r['industry'])) ?>" data-cty="<?= e(mb_strtolower((string)$r['country'])) ?>" data-reach="<?= (int)$r['phones'] + (int)$r['emails'] ? 1 : 0 ?>" data-emp="<?= (int)$r['employees'] ?>" data-loc="<?= e($loc) ?>" data-industry="<?= e((string)$r['industry']) ?>" data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['domain'] . ' ' . $r['industry'] . ' ' . $loc)) ?>"
+          data-s-name="<?= e(mb_strtolower($r['name'])) ?>" data-s-ind="<?= e(mb_strtolower((string)$r['industry'])) ?>" data-s-emp="<?= (int)$r['employees'] ?>" data-s-loc="<?= e(mb_strtolower($loc)) ?>" data-s-ppl="<?= (int)$r['people_n'] ?>" data-s-src="<?= e($s) ?>" data-s-st="<?= $stw[$stk] ?>"
           data-name="<?= e($r['name']) ?>" data-domain="<?= e((string)$r['domain']) ?>" data-logo="<?= e((string)$r['logo']) ?>" data-sub="<?= e(implode(' · ', array_filter([$r['industry'], $loc, $r['employees'] ? number_format((int)$r['employees']) . ' ' . t('موظف') : '']))) ?>">
           <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
           <span class="flex items-center gap-3 min-w-0">
             <span class="mk-av"><?php if ($r['logo']): ?><img src="<?= e($r['logo']) ?>" alt="" class="w-full h-full object-contain bg-white" loading="lazy" onerror="this.replaceWith(document.createTextNode(<?= e(json_encode($ini, JSON_UNESCAPED_UNICODE)) ?>))"><?php else: ?><?= e($ini) ?><?php endif; ?></span>
             <span class="min-w-0"><b class="block text-ink-900 truncate"><?= e($r['name']) ?></b><?php if ($r['domain']): ?><span class="block text-xs text-ink-500 truncate" dir="ltr"><?= e($r['domain']) ?></span><?php endif; ?></span>
           </span>
-          <span class="text-sm text-ink-600 truncate"><?= e($r['industry'] ?: '—') ?></span>
-          <span class="text-sm text-ink-600 tabular-nums"><?= $r['employees'] ? number_format((int)$r['employees']) : '—' ?></span>
-          <span class="text-sm text-ink-600 truncate"><?= e($loc ?: '—') ?></span>
+          <span class="text-sm text-ink-600 truncate" data-c="ind"><?= e($r['industry'] ?: '—') ?></span>
+          <span class="text-sm text-ink-600 tabular-nums" data-c="emp"><?= $r['employees'] ? number_format((int)$r['employees']) : '—' ?></span>
+          <span class="text-sm text-ink-600 truncate" data-c="loc"><?= e($loc ?: '—') ?></span>
           <span class="text-sm flex items-center gap-1.5"><?php if ((int)$r['people_n']): ?><b class="text-ink-900 tabular-nums"><?= (int)$r['people_n'] ?></b>
             <?php if ((int)$r['phones']): ?><span class="text-lime-700" title="<?= e(t('أرقام')) ?>"><?= ui_icon('phone', 'w-3.5 h-3.5') ?></span><?php endif; ?><?php if ((int)$r['emails']): ?><span class="text-brand-600" title="<?= e(t('إيميلات')) ?>"><?= ui_icon('mail', 'w-3.5 h-3.5') ?></span><?php endif; ?>
             <?php else: ?><span class="text-ink-300">—</span><?php endif; ?></span>
+          <span class="min-w-0"><span class="mk-pill <?= $stl[$stk][1] ?>"><?= e($stl[$stk][0]) ?></span><?php if ((float)$r['deal_sum'] > 0): ?><span class="block text-[11px] text-ink-500 tabular-nums mt-0.5"><?= number_format((float)$r['deal_sum']) ?></span><?php endif; ?></span>
           <span><span class="mk-pill <?= $pill[$s] ?>"><?= e($src[$s]) ?></span></span>
-          <span class="mk-acts"><?php if ($r['domain']): ?><a class="mk-act" href="https://<?= e($r['domain']) ?>" target="_blank" rel="noopener" title="<?= e(t('الموقع')) ?>"><?= ui_icon('link', 'w-4 h-4') ?></a><?php endif; ?>
+          <span class="mk-acts"><?php if ($r['domain']): ?><button type="button" class="mk-act" data-enrich title="<?= e(t('كمّل البيانات')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?></button><a class="mk-act" href="https://<?= e($r['domain']) ?>" target="_blank" rel="noopener" title="<?= e(t('الموقع')) ?>"><?= ui_icon('link', 'w-4 h-4') ?></a><?php endif; ?>
             <button type="button" class="mk-act" data-rm title="<?= e(t('شيلها من القايمة')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></span>
         </div>
       <?php endforeach; ?>
@@ -117,6 +147,8 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
 
     <div class="mk-bar" data-mk-bar>
       <span class="text-sm"><b data-mk-nsel>0</b> <?= e(t('محدد')) ?></span>
+      <button type="button" id="tg-en-sel"><?= ui_icon('refresh', 'w-4 h-4 inline') ?> <?= e(t('كمّل البيانات')) ?></button>
+      <button type="button" id="tg-csv"><?= ui_icon('download', 'w-4 h-4 inline') ?> CSV</button>
       <button type="button" id="tg-rm-sel"><?= ui_icon('trash', 'w-4 h-4 inline') ?> <?= e(t('شيلها من القايمة')) ?></button>
       <button type="button" data-mk-clear class="!px-2" title="<?= e(t('إلغاء التحديد')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
     </div>
@@ -129,7 +161,13 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
         <button type="button" data-close class="p-2 -m-1 rounded-xl text-ink-400 hover:text-ink-900 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button>
       </div>
       <div class="p-5 space-y-5">
-        <section><h3 class="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5"><?= ui_icon('user', 'w-4 h-4 text-lime-700') ?><?= e(t('أشخاص عندك بياناتهم')) ?></h3><div id="tg-known" class="space-y-2"></div></section>
+        <section><div id="tg-info" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm"></div><p id="tg-about" class="text-sm text-ink-600 mt-2 hidden" dir="auto"></p>
+          <button type="button" id="tg-enrich" class="btn-ghost !text-xs mt-2"><?= ui_icon('refresh', 'w-3.5 h-3.5') ?><span><?= e(t('كمّل البيانات')) ?></span></button></section>
+        <section><h3 class="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5"><?= ui_icon('user', 'w-4 h-4 text-lime-700') ?><?= e(t('أشخاص عندك بياناتهم')) ?></h3><div id="tg-known" class="space-y-2"></div>
+          <details id="tg-addp" class="mt-2"><summary class="text-xs text-brand-700 cursor-pointer select-none"><?= e(t('+ أضف شخص من الشركة')) ?></summary>
+            <form class="grid grid-cols-2 gap-2 mt-2" data-no-ajax><input name="name" class="input !mt-0 text-sm" placeholder="<?= e(t('الاسم')) ?>" required><input name="title" class="input !mt-0 text-sm" placeholder="<?= e(t('المسمى الوظيفي')) ?>">
+              <input name="phone" class="input !mt-0 text-sm" dir="ltr" placeholder="<?= e(t('الرقم')) ?>"><input name="email" type="email" class="input !mt-0 text-sm" dir="ltr" placeholder="<?= e(t('الإيميل')) ?>">
+              <button class="btn-primary col-span-2 !py-1.5 text-sm"><?= e(t('أضف')) ?></button></form></details></section>
         <section id="tg-ap-sec"><h3 class="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5"><?= ui_icon('users', 'w-4 h-4 text-brand-600') ?><?= e(t('أهم الأشخاص في الشركة')) ?></h3><div id="tg-ap" class="space-y-2"></div>
           <button type="button" id="tg-more" class="btn-ghost !text-xs w-full mt-2 hidden"><?= e(t('عرض 5 كمان')) ?></button></section>
         <div class="flex justify-end pt-2 border-t border-ink-100"><button type="button" id="tg-remove" class="text-xs text-ink-400 hover:text-red-600"><?= e(t('شيلها من القايمة')) ?></button></div>
@@ -139,7 +177,9 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
         'L' => ['none' => t('لسه مفيش أشخاص من الشركة دي عندك.'), 'noApollo' => t('اربط Apollo من التكاملات عشان تشوف أهم الأشخاص في الشركة.'), 'noDomain' => t('الشركة دي مالهاش دومين، فمش هنقدر نلاقي أشخاصها في Apollo.'),
         'nobody' => t('Apollo مالقاش أشخاص تانيين.'), 'reveal' => t('اكشف البيانات'), 'busy' => t('بنكشف…'), 'added' => t('اتضافت ✓'), 'dup' => t('الشركة دي موجودة بالفعل.'), 'err' => t('حصلت مشكلة.'),
         'aiBusy' => t('بنحلل قاعدة المعرفة ونجيب شركات…'), 'aiDone' => t('اتضافت %s شركة'), 'aiOff' => t('اقتراح الشركات محتاج Apollo ومزود ذكاء اصطناعي مربوطين من التكاملات.'), 'confirmRm' => t('تشيل الشركة دي من القايمة؟'),
-        'confirmRmN' => t('تشيل %s شركة من القايمة؟'), 'open' => t('افتح'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'confirmRmN' => t('تشيل %s شركة من القايمة؟'), 'open' => t('افتح'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم'), 'enBusy' => t('بنكمّل…'), 'emp' => t('موظف'), 'enDone' => t('اتكمّلت البيانات ✓'), 'enNone' => t('مالقيناش بيانات زيادة للشركة دي.'), 'enN' => t('اتكمّلت بيانات %s شركة'),
+        'iInd' => t('المجال'), 'iEmp' => t('الموظفين'), 'iLoc' => t('المكان'), 'iPhone' => t('التليفون'), 'iIn' => t('لينكدإن'), 'pAdded' => t('اتضاف الشخص ✓'), 'pMerged' => t('الشخص ده كان موجود، وكمّلنا بياناته.'),
+        'csv' => [t('الشركة'), t('الدومين'), t('المجال'), t('الموظفين'), t('المكان'), t('الأشخاص'), t('الحالة'), t('المصدر')], 'enApollo' => !$hasApollo ? t('من غير Apollo بنجيب الاسم واللوجو والوصف من موقع الشركة بس. اربط Apollo من التكاملات عشان المجال والحجم والمكان.') : '']], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/targets.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
