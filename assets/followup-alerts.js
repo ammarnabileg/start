@@ -4,7 +4,7 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  var box = document.createElement('div'); box.id = 'fu-box'; box.className = 'fixed bottom-4 end-4 z-[95] flex flex-col gap-2 w-[min(360px,calc(100vw-32px))]'; document.body.appendChild(box);
+  var box = document.createElement('div'); box.id = 'fu-box'; box.className = 'fixed top-20 end-4 z-[95] flex flex-col gap-2 w-[min(360px,calc(100vw-32px))]'; document.body.appendChild(box);
   function bell(n) { var b = document.getElementById('tb-bell'); if (!b) return; var s = b.querySelector('span.absolute');
     if (!n) { if (s) s.remove(); return; } if (!s) { s = document.createElement('span'); s.className = 'absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white'; b.appendChild(s); } s.textContent = n; }
   function card(it) {

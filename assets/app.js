@@ -198,6 +198,7 @@ document.addEventListener('click', function (e) {
     d.className = 'ai-result mt-2 rounded-2xl border border-brand-200 bg-brand-50/60 p-3 text-sm text-ink-800';
     d.innerHTML = html; ta.parentNode.after(d); return d;
   }
+  window.aiRun = function (ta, key, btn) { return run(ta, key, btn); }; window.aiItems = P.items;
   function run(ta, key, btn) {
     var p = P.items[key]; closeMenu();
     var fd = new FormData(); fd.append('task', 'preset'); fd.append('preset', key); fd.append('text', ta.value); fd.append('context', ctxOf(ta)); fd.append('stream', '1');

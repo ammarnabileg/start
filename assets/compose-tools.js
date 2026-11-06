@@ -6,40 +6,80 @@
   function setText(v) { ta.value = v; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); }
   function post(data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); fd.append('_csrf', X.csrf); return fetch(location.pathname + '?p=compose', { method: 'POST', body: fd }).then(function (r) { return r.json(); }); }
   function selPlats() { return Array.prototype.map.call(document.querySelectorAll('input[name="accounts[]"]:checked'), function (c) { return { id: c.value, pf: c.dataset.plat || '' }; }); }
-  var bar = document.getElementById('cpt-bar'), pane = document.getElementById('cpt-pane');
-  function show(html) { pane.innerHTML = html; pane.classList.remove('hidden'); }
-  function hide() { pane.classList.add('hidden'); pane.innerHTML = ''; }
+  var bar = document.getElementById('cpt-bar');
+  // كل الأدوات بتفتح في نافذة واحدة شكلها موحد
+  var dlg = document.createElement('dialog'); dlg.id = 'cpt-dlg'; dlg.className = 'mk-dlg !w-[min(880px,96vw)]'; dlg.innerHTML = '<div id="cpt-pane" class="p-5"></div>'; document.body.appendChild(dlg);
+  var old = document.getElementById('cpt-pane'); if (old && old !== dlg.firstChild) old.remove();
+  var pane = dlg.firstChild, kind = '';
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  function show(html, k) { kind = k || ''; pane.innerHTML = html; if (!dlg.open) dlg.showModal(); }
+  function hide() { if (dlg.open) dlg.close(); kind = ''; }
+  function head(icon, title, extra) { return '<div class="flex items-center gap-3 mb-4"><span class="w-10 h-10 rounded-2xl bg-brand-50 text-brand-700 grid place-items-center shrink-0">' + uic(icon, 'w-5 h-5') + '</span><b class="text-lg text-ink-900 flex-1">' + esc(title) + '</b>' + (extra || '') + '<button type="button" class="p-2 rounded-xl text-ink-400 hover:bg-ink-100 hover:text-ink-900" data-x="close" aria-label="✕">' + uic('x', 'w-5 h-5') + '</button></div>'; }
+  // نافذة صغيرة بدل prompt
+  window.cptAsk = function (o) { return new Promise(function (res) {
+    var d = document.createElement('dialog'); d.className = 'mk-dlg !w-[min(460px,94vw)]';
+    d.innerHTML = '<form method="dialog" class="p-5 space-y-3"><b class="block text-ink-900 text-base"></b><p class="text-xs text-ink-500 hidden"></p><input class="input !mt-0" dir="auto"><div class="flex justify-end gap-2 pt-1"><button value="" class="btn-ghost" data-c></button><button value="ok" class="btn-primary" data-ok></button></div></form>';
+    d.querySelector('b').textContent = o.title; var hp = d.querySelector('p'); if (o.hint) { hp.textContent = o.hint; hp.classList.remove('hidden'); }
+    var inp = d.querySelector('input'); inp.value = o.value || ''; inp.placeholder = o.placeholder || ''; if (o.ltr) inp.dir = 'ltr';
+    d.querySelector('[data-c]').textContent = T.cancel || '✕'; d.querySelector('[data-ok]').textContent = o.ok || T.save;
+    document.body.appendChild(d); d.showModal(); inp.focus(); inp.select();
+    d.addEventListener('close', function () { var v = d.returnValue === 'ok' ? inp.value : null; d.remove(); res(v); });
+  }); };
 
-  /* ---------- #1 القوالب ---------- */
-  function tplPane() {
+  /* ---------- #1 القوالب: تصفح، بحث، استخدام، تعديل (أي قالب)، حذف، وقالب جديد ---------- */
+  var tab = '', q = '';
+  function tplList(ind) { return ind === '__mine' ? (X.mine || []) : (X.tpl[ind] || []); }
+  function tplPane(ind) {
     var inds = Object.keys(X.tpl), mine = X.mine || [];
-    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900">' + uic('copy', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.tplT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div>' +
-      '<div class="flex flex-wrap gap-1.5 mb-2">' + (mine.length ? '<button type="button" class="chip text-xs on" data-ind="__mine">' + uic('star', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.mine) + '</button>' : '') + inds.map(function (k, i) { return '<button type="button" class="chip text-xs' + (!mine.length && !i ? ' on' : '') + '" data-ind="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') + '</div>' +
-      '<div id="cpt-tl" class="grid sm:grid-cols-2 gap-2"></div>' +
-      '<div class="flex items-center gap-2 mt-2 pt-2 border-t border-ink-100"><button type="button" class="link text-xs" data-x="savetpl">＋ ' + esc(T.saveTpl) + '</button><span class="text-[11px] text-ink-400">' + esc(T.tplHint) + '</span></div>');
-    drawTpl(mine.length ? '__mine' : inds[0]);
+    tab = ind || tab || (mine.length ? '__mine' : inds[0]);
+    var tabs = ['__mine'].concat(inds).map(function (k) { var n = tplList(k).length, on = k === tab;
+      return '<button type="button" data-ind="' + esc(k) + '" class="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-start transition ' + (on ? 'bg-brand-600 text-white shadow' : 'text-ink-700 hover:bg-ink-100') + '">' + (k === '__mine' ? uic('star', 'w-4 h-4') : '') + '<span class="flex-1 truncate">' + esc(k === '__mine' ? T.mine : k) + '</span><span class="text-[11px] tabular-nums ' + (on ? 'text-white/80' : 'text-ink-400') + '">' + n + '</span></button>'; }).join('');
+    show(head('copy', T.tplT, '<button type="button" class="btn-primary !py-1.5 !text-sm" data-x="newtpl">' + uic('plus', 'w-4 h-4') + esc(T.newTpl) + '</button>') +
+      '<div class="grid md:grid-cols-[200px_minmax(0,1fr)] gap-4"><nav class="space-y-1 md:max-h-[60vh] overflow-y-auto">' + tabs + '</nav><div class="min-w-0">' +
+      '<label class="mk-search !w-full mb-3">' + uic('search') + '<input type="search" id="cpt-q" placeholder="' + esc(T.tplSearch) + '" value="' + esc(q) + '"></label><div id="cpt-tl" class="grid sm:grid-cols-2 gap-3 max-h-[56vh] overflow-y-auto p-0.5"></div>' +
+      '<p class="text-[11px] text-ink-400 mt-3">' + esc(T.tplHint) + '</p></div></div>', 'tpl');
+    drawTpl(); var qi = document.getElementById('cpt-q'); qi.addEventListener('input', function () { q = qi.value; drawTpl(); });
   }
-  function drawTpl(ind) {
-    pane.querySelectorAll('[data-ind]').forEach(function (b) { b.classList.toggle('on', b.dataset.ind === ind); });
-    var list = ind === '__mine' ? (X.mine || []) : X.tpl[ind];
-    document.getElementById('cpt-tl').innerHTML = list.map(function (t, i) {
-      return '<div class="rounded-xl border border-ink-200 bg-white p-2.5 hover:border-brand-300 transition"><div class="flex items-center gap-2"><b class="text-xs text-ink-900">' + esc(t.n) + '</b>' +
-        (ind === '__mine' ? '<button type="button" class="ms-auto text-ink-400 hover:text-red-600 text-xs" data-del="' + i + '">✕</button>' : '') + '</div>' +
-        '<p class="text-[11px] text-ink-600 whitespace-pre-line line-clamp-4 mt-1" dir="auto">' + esc(t.b) + '</p><button type="button" class="btn-ghost !py-1 !text-xs w-full mt-2" data-use="' + i + '" data-from="' + esc(ind) + '">' + esc(T.use) + '</button></div>';
-    }).join('');
+  function hl(t) { return esc(t).replace(/\[([^\]]{1,40})\]/g, '<mark class="rounded bg-amber-100 text-amber-900 px-0.5">[$1]</mark>'); }
+  function drawTpl() {
+    var list = tplList(tab), v = q.trim().toLowerCase(), box = document.getElementById('cpt-tl');
+    var html = list.map(function (t, i) { if (v && (t.n + ' ' + t.b).toLowerCase().indexOf(v) < 0) return '';
+      return '<div class="group rounded-2xl border border-ink-200 bg-white p-3 flex flex-col hover:border-brand-300 hover:shadow-md transition cp-pop"><div class="flex items-center gap-2"><b class="text-sm text-ink-900 flex-1 truncate">' + esc(t.n) + '</b>' +
+        '<button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-700" data-edit="' + i + '" title="' + esc(T.edit) + '">' + uic('pencil', 'w-4 h-4') + '</button>' +
+        (tab === '__mine' ? '<button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" data-del="' + i + '" title="' + esc(T.del) + '">' + uic('trash', 'w-4 h-4') + '</button>' : '') + '</div>' +
+        '<p class="text-xs text-ink-600 whitespace-pre-line line-clamp-5 mt-1.5 flex-1" dir="auto">' + hl(t.b) + '</p><button type="button" class="btn-primary !py-1.5 !text-xs w-full mt-3 opacity-90 group-hover:opacity-100" data-use="' + i + '">' + esc(T.use) + '</button></div>'; }).join('');
+    box.innerHTML = html || '<div class="sm:col-span-2 text-center py-10 text-sm text-ink-500">' + esc(tab === '__mine' && !list.length ? T.noMine : T.nothing) + '</div>';
+  }
+  function tplEdit(i, from) { // from: '__mine' أو مجال (نسخة في قوالبي) أو 'new'
+    var t = from === 'new' ? { n: '', b: ta.value } : tplList(from)[i];
+    show(head('pencil', from === 'new' ? T.newTpl : T.editTpl) + (from !== 'new' && from !== '__mine' ? '<p class="text-xs text-brand-700 bg-brand-50 rounded-xl px-3 py-2 mb-3">' + esc(T.copyNote) + '</p>' : '') +
+      '<div class="space-y-3"><input id="cpt-en" class="input !mt-0" maxlength="40" placeholder="' + esc(T.tplName) + '" value="' + esc(t.n) + '"><textarea id="cpt-eb" rows="10" class="input !mt-0 text-sm leading-7" dir="auto" maxlength="3000">' + esc(t.b) + '</textarea>' +
+      '<p class="text-[11px] text-ink-400">' + esc(T.tplHint) + '</p><div class="flex justify-end gap-2"><button type="button" class="btn-ghost" data-x="back">' + esc(T.cancel) + '</button><button type="button" class="btn-primary" data-x="savetpl2" data-i="' + i + '" data-from="' + esc(from) + '">' + esc(T.save) + '</button></div></div>', 'tpl');
+    document.getElementById(from === 'new' ? 'cpt-en' : 'cpt-eb').focus();
   }
 
-  /* ---------- #5 بنك الهاشتاجات ---------- */
+  /* ---------- #5 بنك الوسوم: مجموعات تتعدل وتتحذف، وكل وسم يتضاف لوحده ---------- */
+  var tagEdit = -1;
+  function inPost(h) { return (' ' + ta.value + ' ').indexOf(h) > -1; }
+  function chip(h) { var on = inPost(h); return '<button type="button" data-ptag="' + esc(h) + '" class="rounded-full border px-2.5 py-1 text-xs transition ' + (on ? 'border-brand-500 bg-brand-600 text-white' : 'border-ink-200 bg-white text-brand-700 hover:border-brand-400 hover:bg-brand-50') + '" dir="auto">' + esc(h) + '</button>'; }
   function tagsPane() {
     var sets = X.tags || [];
-    show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"># ' + esc(T.tagsT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div>' +
-      ((X.ptags || []).length ? '<div class="rounded-lg border border-lime-200 bg-lime-50/50 px-2 py-1.5 mb-1.5"><div class="text-[11px] font-semibold text-lime-800 mb-1">' + esc(X.ptagsT) + '</div><div class="flex flex-wrap gap-1">' + X.ptags.map(function (h) { return '<button type="button" class="chip !text-[11px] !py-0.5" data-ptag="' + esc(h) + '" dir="auto">' + esc(h) + '</button>'; }).join('') + '</div></div>' : '') +
-      (sets.length ? '<div class="space-y-1.5">' + sets.map(function (s, i) { return '<div class="flex items-center gap-2 rounded-lg border border-ink-200 px-2 py-1.5"><b class="text-xs text-ink-800 shrink-0">' + esc(s.n) + '</b><span class="text-[11px] text-brand-700 truncate flex-1" dir="auto">' + esc(s.t) + '</span><button type="button" class="chip text-xs" data-addtags="' + i + '">＋</button><button type="button" class="text-ink-400 hover:text-red-600 text-xs" data-deltags="' + i + '">✕</button></div>'; }).join('') + '</div>'
-        : '<p class="text-xs text-ink-500">' + esc(T.noTags) + '</p>') +
-      '<div class="flex gap-1.5 mt-2 pt-2 border-t border-ink-100"><input id="cpt-tn" class="input !py-1 text-xs !mt-0 w-28" placeholder="' + esc(T.tagName) + '"><input id="cpt-tv" class="input !py-1 text-xs !mt-0 flex-1" dir="auto" placeholder="#عروض #مصر"><button type="button" class="btn-primary !py-1 !text-xs" data-x="savetags">' + esc(T.save) + '</button></div>' +
-      '<p class="text-[11px] text-ink-400 mt-1">' + esc(T.tagsHint) + '</p>');
-    var cur = (ta.value.match(/#[^\s#]+/g) || []).join(' '); if (cur) document.getElementById('cpt-tv').value = cur;
+    var cards = sets.map(function (s, i) {
+      if (i === tagEdit) return '<div class="rounded-2xl border-2 border-brand-400 bg-brand-50/40 p-3 space-y-2"><input id="cpt-etn" class="input !mt-0 !py-1.5 text-sm" maxlength="30" value="' + esc(s.n) + '"><textarea id="cpt-etv" rows="3" class="input !mt-0 text-sm" dir="auto">' + esc(s.t) + '</textarea><div class="flex justify-end gap-2"><button type="button" class="btn-ghost !py-1 !text-xs" data-x="tagcancel">' + esc(T.cancel) + '</button><button type="button" class="btn-primary !py-1 !text-xs" data-x="tagupd" data-i="' + i + '">' + esc(T.save) + '</button></div></div>';
+      var hs = s.t.match(/#[^\s#]+/g) || [];
+      return '<div class="rounded-2xl border border-ink-200 bg-white p-3 hover:border-brand-300 hover:shadow-sm transition cp-pop"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900 flex-1 truncate">' + esc(s.n) + '</b><span class="text-[11px] text-ink-400">' + hs.length + '</span>' +
+        '<button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-700" data-tedit="' + i + '" title="' + esc(T.edit) + '">' + uic('pencil', 'w-4 h-4') + '</button><button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" data-deltags="' + i + '" title="' + esc(T.del) + '">' + uic('trash', 'w-4 h-4') + '</button></div>' +
+        '<div class="flex flex-wrap gap-1.5">' + hs.map(chip).join('') + '</div><button type="button" class="btn-ghost !py-1 !text-xs w-full mt-3" data-addtags="' + i + '">' + uic('plus', 'w-3.5 h-3.5') + esc(T.addAll) + '</button></div>';
+    }).join('');
+    var cur = (ta.value.match(/#[^\s#]+/g) || []).join(' ');
+    show(head('hash', T.tagsT) +
+      ((X.ptags || []).length ? '<div class="rounded-2xl border border-lime-200 bg-lime-50/50 p-3 mb-4"><div class="text-xs font-semibold text-lime-800 mb-2">' + esc(X.ptagsT) + '</div><div class="flex flex-wrap gap-1.5">' + X.ptags.map(chip).join('') + '</div></div>' : '') +
+      (sets.length ? '<div class="grid sm:grid-cols-2 gap-3 max-h-[46vh] overflow-y-auto p-0.5">' + cards + '</div>' : '<div class="text-center py-8 text-sm text-ink-500">' + esc(T.noTags) + '</div>') +
+      '<div class="mt-4 rounded-2xl border border-dashed border-ink-300 p-3"><div class="text-xs font-semibold text-ink-700 mb-2">' + esc(T.newSet) + '</div><div class="flex flex-wrap gap-2"><input id="cpt-tn" class="input !py-1.5 text-sm !mt-0 w-40" maxlength="30" placeholder="' + esc(T.tagName) + '"><input id="cpt-tv" class="input !py-1.5 text-sm !mt-0 flex-1 min-w-[200px]" dir="auto" placeholder="#عروض #خصومات" value="' + esc(cur) + '"><button type="button" class="btn-primary !py-1.5 !text-sm" data-x="savetags">' + esc(T.save) + '</button></div>' +
+      '<p class="text-[11px] text-ink-400 mt-2">' + esc(T.tagsHint) + '</p></div>', 'tags');
   }
+  function saveTags(msg) { return post({ action: 'cpt_save', kind: 'tags', data: JSON.stringify(X.tags) }).then(function (r) { if (r.ok) { toast(msg || T.saved); tagEdit = -1; tagsPane(); } }); }
+  function saveTpl(msg, ind) { return post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }).then(function (r) { if (r.ok) { toast(msg || T.saved); q = ''; tplPane(ind); } }); }
 
   /* ---------- #3 نسخة لكل منصة (بالقواعد) ---------- */
   var LIM = { twitter: 280, x: 280, threads: 500, bluesky: 300, instagram: 2200, tiktok: 2200, linkedin: 3000, facebook: 63206, pinterest: 500, youtube: 5000, googlebusiness: 1500 };
@@ -106,14 +146,14 @@
 
   /* ---------- #6 منشور من لينك ---------- */
   function fromLink() {
-    var u = prompt(T.linkQ, 'https://'); if (!u || !/^https?:\/\//i.test(u.trim())) return;
+    window.cptAsk({ title: T.linkQ, value: 'https://', ltr: true, ok: T.go }).then(function (u) { if (!u || !/^https?:\/\//i.test(u.trim())) return;
     toast(T.linking);
     post({ action: 'from_link', url: u.trim() }).then(function (r) {
       if (!r.ok) return toast(r.error);
       if (ta.value.trim() && !confirm(T.replaceQ)) return;
       setText(r.text);
       if (r.lib && window.cpAddLib) { window.cpAddLib(r.lib); toast(T.imgAdded); }
-    });
+    }); });
   }
   /* ---------- #7 اكتب عن الصورة ---------- */
   function firstImage() {
@@ -143,6 +183,7 @@
       '<label class="flex items-center gap-2"><input type="checkbox" id="cpt-frame" class="rounded"' + (BR.frame ? ' checked' : '') + '> ' + esc(T.frame) + ' <input type="color" id="cpt-color" value="' + (BR.color || '#4f46e5') + '" class="h-7 w-10 rounded"></label></div>' +
       (BR.logo ? '<div class="mt-2 flex items-center gap-2 text-[11px] text-ink-500"><img src="' + BR.logo + '" class="h-8 rounded bg-white border border-ink-200 p-0.5"> ✓</div>' : '') +
       '<div id="cpt-prev" class="mt-2"></div><button type="button" class="btn-primary !py-1.5 !text-xs w-full mt-2" data-x="brandgo">' + esc(T.apply) + '</button>');
+    ['cpt-pos', 'cpt-wm', 'cpt-size', 'cpt-frame', 'cpt-color'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.addEventListener('input', function () { readBR(); saveBR(); brandPreview(); }); el.addEventListener('change', function () { readBR(); saveBR(); brandPreview(); }); } }); brandPreview();
     document.getElementById('cpt-logo').addEventListener('change', function () { var f = this.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { BR.logo = rd.result; saveBR(); brandPane(); }; rd.readAsDataURL(f); });
   }
   function saveBR() { try { localStorage.setItem('cpt-brand', JSON.stringify(BR)); } catch (e) {} }
@@ -165,14 +206,26 @@
       img.onerror = function () { res(file); }; img.src = url;
     });
   }
+  // كل الصور المختارة: المرفوعة + من مكتبة الوسائط + المتولدة بالذكاء الاصطناعي
+  function brandSources() {
+    var out = [], inp = document.getElementById('mediaInput');
+    [].slice.call((inp && inp.files) || []).forEach(function (f, i) { if (/^image\/(png|jpe?g|webp)$/.test(f.type) && !/-brand\./.test(f.name)) out.push({ kind: 'file', i: i, file: f }); });
+    document.querySelectorAll('#libMedia > div').forEach(function (w) { var im = w.querySelector('img'); if (im) out.push({ kind: 'lib', el: w, src: im.src, name: (w.title || 'library') + '.jpg' }); });
+    document.querySelectorAll('.hf-img[data-on="1"]').forEach(function (bt) { var im = bt.querySelector('img'); if (im) out.push({ kind: 'ai', el: bt, src: im.src, name: (bt.dataset.name || 'ai').replace(/\.\w+$/, '') + '.jpg' }); });
+    return out;
+  }
+  function toFile(s) { if (s.file) return Promise.resolve(s.file); return fetch(s.src, { credentials: 'same-origin' }).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).then(function (b) { return new File([b], s.name, { type: b.type || 'image/jpeg' }); }); }
+  var pvT = null;
+  function brandPreview() { readBR(); clearTimeout(pvT); pvT = setTimeout(function () { var s = brandSources()[0], pr = document.getElementById('cpt-prev'); if (!pr) return;
+    if (!s) { pr.innerHTML = '<p class="text-xs text-ink-400 text-center py-6 rounded-xl bg-ink-50">' + esc(T.noImg) + '</p>'; return; }
+    toFile(s).then(brandFile).then(function (f) { pr.innerHTML = '<img src="' + URL.createObjectURL(f) + '" class="w-full max-h-72 object-contain rounded-xl border border-ink-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px]">'; }).catch(function () {}); }, 200); }
   function brandApply() {
-    readBR();
-    var inp = document.getElementById('mediaInput'); if (!inp || !inp.files || !inp.files.length) return toast(T.noImg);
-    var fs = Array.prototype.slice.call(inp.files);
-    Promise.all(fs.map(function (f) { return /^image\/(png|jpe?g|webp)$/.test(f.type) && !/-brand\./.test(f.name) ? brandFile(f) : Promise.resolve(f); })).then(function (out) {
-      var dt = new DataTransfer(); out.forEach(function (f) { dt.items.add(f); }); inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles: true }));
-      var n = out.filter(function (f) { return /-brand\./.test(f.name); }).length; toast(T.applied.replace('%s', n));
-      var pr = document.getElementById('cpt-prev'); if (pr && out[0]) pr.innerHTML = '<img src="' + URL.createObjectURL(out[0]) + '" class="max-h-40 rounded-lg border border-ink-200">';
+    readBR(); var src = brandSources(); if (!src.length) return toast(T.noImg);
+    var inp = document.getElementById('mediaInput'), keep = [].slice.call(inp.files || []).filter(function (f, i) { return !src.some(function (s) { return s.kind === 'file' && s.i === i; }); });
+    Promise.all(src.map(function (s) { return toFile(s).then(brandFile).then(function (f) { return { s: s, f: f }; }).catch(function () { return null; }); })).then(function (res) {
+      res = res.filter(Boolean); var dt = new DataTransfer(); keep.concat(res.map(function (r) { return r.f; })).forEach(function (f) { dt.items.add(f); });
+      res.forEach(function (r) { if (r.s.kind === 'lib') r.s.el.remove(); if (r.s.kind === 'ai') r.s.el.click(); }); // اتحولت لملفات مرفوعة عليها اللوجو
+      inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles: true })); toast(T.applied.replace('%s', res.length)); hide();
     });
   }
 
@@ -181,46 +234,60 @@
     var k = b.dataset.tool;
     if (k === 'link') return fromLink();
     if (k === 'imgcap') return imgCaption(b);
-    if (k === 'brand') return pane.classList.contains('hidden') || !pane.querySelector('#cpt-logo') ? brandPane() : hide();
-    if (k === 'tpl') return pane.classList.contains('hidden') || !pane.querySelector('#cpt-tl') ? tplPane() : hide();
-    if (k === 'tags') return pane.classList.contains('hidden') || !pane.querySelector('#cpt-tv') ? tagsPane() : hide();
+    if (k === 'brand') return brandPane();
+    if (k === 'tpl') return tplPane();
+    if (k === 'tags') { tagEdit = -1; return tagsPane(); }
     if (k === 'ver') return makeVersions();
     if (k === 'coupon') {
-      var code = prompt(b.dataset.q, ''); if (code === null) return;
+      return window.cptAsk({ title: b.dataset.q, value: '', ok: T.go }).then(function (code) { if (code === null) return;
       post({ action: 'coupon_new', code: code, label: ta.value.slice(0, 150) }).then(function (j) {
         if (!j.ok) return alert(j.error || '');
-        ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + b.dataset.line.replace('%s', j.code); ta.dispatchEvent(new Event('input', { bubbles: true }));
-      });
-      return;
+        ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + b.dataset.line.replace('%s', j.code); ta.dispatchEvent(new Event('input', { bubbles: true })); toast(T.saved);
+      }); });
     }
     if (k === 'ab') { var abx = document.getElementById('cpt-ab'); abx.classList.toggle('hidden'); b.classList.toggle('on', !abx.classList.contains('hidden')); if (!abx.classList.contains('hidden')) { var at = abx.querySelector('textarea'); if (!at.value) at.value = ta.value; at.focus(); } return; }
   });
   pane.addEventListener('click', function (e) {
-    var x = e.target.closest('[data-x],[data-ind],[data-use],[data-del],[data-addtags],[data-deltags],[data-ptag]'); if (!x) return;
+    var x = e.target.closest('[data-x],[data-ind],[data-use],[data-del],[data-edit],[data-addtags],[data-deltags],[data-tedit],[data-ptag]'); if (!x) return;
+    if (x.dataset.x === 'back') return tplPane();
+    if (x.dataset.x === 'newtpl') return tplEdit(-1, 'new');
+    if (x.dataset.edit !== undefined) return tplEdit(+x.dataset.edit, tab);
+    if (x.dataset.x === 'savetpl2') {
+      var en = document.getElementById('cpt-en').value.trim(), eb = document.getElementById('cpt-eb').value.trim(); if (!en || !eb) return toast(T.tplNeed);
+      var it = { n: en.slice(0, 40), b: eb.slice(0, 3000) }; X.mine = X.mine || [];
+      if (x.dataset.from === '__mine') X.mine[+x.dataset.i] = it; else X.mine = X.mine.concat([it]).slice(-30);
+      return saveTpl(T.saved, '__mine');
+    }
+    if (x.dataset.tedit !== undefined) { tagEdit = +x.dataset.tedit; tagsPane(); var f = document.getElementById('cpt-etv'); if (f) f.focus(); return; }
+    if (x.dataset.x === 'tagcancel') { tagEdit = -1; return tagsPane(); }
+    if (x.dataset.x === 'tagupd') { var nn = document.getElementById('cpt-etn').value.trim(), tt = (document.getElementById('cpt-etv').value.match(/#[^\s#]+/g) || []).join(' '); if (!nn || !tt) return toast(T.tagNeed); X.tags[+x.dataset.i] = { n: nn.slice(0, 30), t: tt.slice(0, 600) }; return saveTags(); }
     if (x.dataset.x === 'close') return hide();
     if (x.dataset.x === 'brandgo') return brandApply();
-    if (x.dataset.ind) return drawTpl(x.dataset.ind);
+    if (x.dataset.ind) { q = ''; return tplPane(x.dataset.ind); }
     if (x.dataset.use !== undefined) {
-      var t = (x.dataset.from === '__mine' ? X.mine : X.tpl[x.dataset.from])[+x.dataset.use];
+      var t = tplList(tab)[+x.dataset.use];
       if (ta.value.trim() && !confirm(T.replaceQ)) return;
       setText(t.b); hide();
       var m = /\[[^\]]+\]/.exec(ta.value); if (m) { ta.setSelectionRange(m.index, m.index + m[0].length); } // أول خانة تتملي بتبقى متعلّمة
       return;
     }
-    if (x.dataset.del !== undefined) { X.mine.splice(+x.dataset.del, 1); post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }); return drawTpl(X.mine.length ? '__mine' : Object.keys(X.tpl)[0]); }
+    if (x.dataset.del !== undefined) { if (!confirm(T.delQ)) return; X.mine.splice(+x.dataset.del, 1); return saveTpl(T.deleted, '__mine'); }
     if (x.dataset.x === 'savetpl') {
       if (!ta.value.trim()) return toast(T.empty); var n = prompt(T.tplName); if (!n) return;
       X.mine = (X.mine || []).concat([{ n: n.slice(0, 40), b: ta.value.slice(0, 3000) }]).slice(-30);
       post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }).then(function (r) { if (r.ok) { toast(T.saved); tplPane(); } }); return;
     }
-    if (x.dataset.addtags !== undefined) { var s = X.tags[+x.dataset.addtags]; var v = ta.value.replace(/\s+$/, ''); setText((v ? v + '\n\n' : '') + s.t); return; }
-    if (x.dataset.ptag !== undefined) { if (ta.value.indexOf(x.dataset.ptag) < 0) { ta.value = ta.value.replace(/\s*$/, '') + (ta.value.trim() ? ' ' : '') + x.dataset.ptag; ta.dispatchEvent(new Event('input', { bubbles: true })); } x.classList.add('on'); return; }
-    if (x.dataset.deltags !== undefined) { X.tags.splice(+x.dataset.deltags, 1); post({ action: 'cpt_save', kind: 'tags', data: JSON.stringify(X.tags) }); return tagsPane(); }
+    if (x.dataset.addtags !== undefined) { var s = X.tags[+x.dataset.addtags], add = (s.t.match(/#[^\s#]+/g) || []).filter(function (h) { return !inPost(h); }).join(' '); if (add) { var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + add; ta.dispatchEvent(new Event('input', { bubbles: true })); } toast(T.added); return tagsPane(); }
+    if (x.dataset.ptag !== undefined) { var h = x.dataset.ptag;
+      if (inPost(h)) ta.value = ta.value.replace(new RegExp('\\s?' + h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'g'), '').replace(/\s+$/, '');
+      else ta.value = ta.value.replace(/\s*$/, '') + (ta.value.trim() ? ' ' : '') + h;
+      ta.dispatchEvent(new Event('input', { bubbles: true })); return tagsPane(); }
+    if (x.dataset.deltags !== undefined) { if (!confirm(T.delQ)) return; X.tags.splice(+x.dataset.deltags, 1); return saveTags(T.deleted); }
     if (x.dataset.x === 'savetags') {
       var nm = document.getElementById('cpt-tn').value.trim(), tv = (document.getElementById('cpt-tv').value.match(/#[^\s#]+/g) || []).join(' ');
       if (!nm || !tv) return toast(T.tagNeed);
       X.tags = (X.tags || []).concat([{ n: nm.slice(0, 30), t: tv.slice(0, 600) }]).slice(-30);
-      post({ action: 'cpt_save', kind: 'tags', data: JSON.stringify(X.tags) }).then(function (r) { if (r.ok) { toast(T.saved); tagsPane(); } });
+      saveTags();
     }
   });
 })();

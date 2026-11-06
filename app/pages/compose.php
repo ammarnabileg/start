@@ -82,6 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'track
     $lk = crm_link_make($u, mb_substr(trim((string)($_POST['label'] ?? '')), 0, 160));
     exit(json_encode(['ok' => true, 'short' => crm_link_short($lk['code'])], JSON_UNESCAPED_UNICODE));
 }
+// كلمة الدعوة (اللي العميل يكتبها في الكومنت): بتتغير من هنا، والكلمة الجديدة بتبقى الأولى ومعاها الكلمات القديمة عشان التعليقات القديمة تفضل تتلقط
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cta_word') {
+    header('Content-Type: application/json; charset=utf-8');
+    $w = trim(preg_replace('/[,«»"\'\s]+/u', ' ', (string)($_POST['word'] ?? '')));
+    if ($w === '' || mb_strlen($w) > 30) { echo json_encode(['ok' => false, 'error' => t('اكتب كلمة قصيرة (لحد 30 حرف).')], JSON_UNESCAPED_UNICODE); exit; }
+    $all = array_values(array_unique(array_merge([mb_strtolower($w)], crm_cta_words())));
+    save_setting('crm_cta_words_' . (int)ws('id'), implode(', ', array_slice($all, 0, 12)));
+    echo json_encode(['ok' => true, 'word' => $w], JSON_UNESCAPED_UNICODE); exit;
+}
 // #36 + #37: رد أوتوماتيك على كلمة الدعوة (رد عام + رسالة خاصة فيها اللينك) لكل الحسابات المختارة، مرة واحدة لكل حساب
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cta_auto') {
     header('Content-Type: application/json; charset=utf-8');
@@ -403,28 +412,37 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         <?php foreach ($validation['warnings'] ?? [] as $v): ?><p class="text-amber-700">! <b><?= e(platform_label((string)($v['platform'] ?? ''))) ?>:</b> <?= e($v['warning'] ?? '') ?></p><?php endforeach; ?>
       </div>
     <?php endif; ?>
-    <form method="post" enctype="multipart/form-data" class="grid lg:grid-cols-3 gap-6">
+    <form method="post" enctype="multipart/form-data" data-no-ajax class="grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] gap-6 pb-4">
       <?= csrf_field() ?>
-      <div class="lg:col-span-2 space-y-6">
-        <div class="card p-5">
-          <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
-            <textarea data-ai="from_idea,img_prompt,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label>
+      <div class="space-y-6 min-w-0">
+        <div class="card p-5 space-y-4">
+          <div class="flex items-center gap-2"><b class="text-ink-900"><?= e(t('نص المنشور')) ?></b><span id="cp-stack" class="flex items-center -space-x-2 rtl:space-x-reverse ms-2"></span><span class="ms-auto text-[11px] text-ink-400 tabular-nums"><span id="charCount">0</span> <?= e(t('حرف')) ?></span></div>
+          <div class="flex flex-wrap items-center gap-2"><div id="cp-kind" class="inline-flex rounded-xl bg-ink-100 p-1 text-sm" role="radiogroup" aria-label="<?= e(t('نوع المنشور')) ?>">
+            <?php foreach (['post' => [t('منشور'), 'file'], 'story' => [t('ستوري'), 'clock'], 'reel' => [t('ريلز'), 'film']] as $k => [$l, $ic]): ?><label class="cp-kind flex items-center gap-1.5 rounded-lg px-3 py-1.5 cursor-pointer text-ink-600 transition has-[:checked]:bg-white has-[:checked]:text-brand-700 has-[:checked]:shadow-sm"><input type="radio" name="cp_kind" value="<?= $k ?>" class="sr-only" <?= $k === 'post' ? 'checked' : '' ?>><?= ui_icon($ic, 'w-4 h-4') ?><?= e($l) ?></label><?php endforeach; ?>
+          </div><span id="cp-kind-note" class="text-[11px] text-amber-700"></span></div>
+          <div class="cp-editor"><label class="block">
+            <textarea data-ai="from_idea,img_prompt,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label></div>
+          <div class="flex flex-wrap items-center gap-1.5" id="cp-tools"><span class="cp-sec me-1"><?= e(t('أدوات')) ?></span>
           <?php if (module_enabled('crm') && can('crm.view')):
             $ctaW = crm_cta_words(); $tcfg = crm_track_cfg((int)ws('id')); $waN = preg_replace('/\D/', '', (string)$tcfg['wa']);
             $ctas = [];
-            if ($ctaW) $ctas[] = ['k' => 'word', 'l' => '💬 ' . t('اكتب «%s» في الكومنت', $ctaW[0]), 'x' => t('👇 اكتب «%s» في الكومنتات وهنبعتلك التفاصيل', $ctaW[0])];
+            if ($ctaW) $ctas[] = ['k' => 'word', 'l' => '💬 ' . t('اكتب «%s» في الكومنت', $ctaW[0]), 'x' => t('👇 اكتب «%s» في الكومنتات وهنبعتلك التفاصيل', $ctaW[0]), 'lt' => '💬 ' . t('اكتب «%s» في الكومنت'), 'xt' => t('👇 اكتب «%s» في الكومنتات وهنبعتلك التفاصيل')];
             if (setting('crm_book_on_' . (int)ws('id'), '0') === '1') $ctas[] = ['k' => 'book', 'l' => '📅 ' . t('لينك حجز ميعاد'), 'x' => t('📅 احجز مكالمة مجانية: %s', crm_book_url())];
             if (setting('crm_form_on_' . (int)ws('id'), '1') === '1') $ctas[] = ['k' => 'form', 'l' => '📝 ' . t('لينك الفورم'), 'x' => t('📝 سيب بياناتك وهنكلمك: %s', crm_form_url())];
             if ($waN !== '') $ctas[] = ['k' => 'wa', 'l' => '🟢 ' . t('لينك واتساب'), 'x' => t('🟢 كلّمنا واتساب: %s', 'https://wa.me/' . $waN)];
           ?>
-          <div class="flex flex-wrap items-center gap-1.5 mt-2" id="cp-cta"><span class="text-[11px] text-ink-500"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('دعوة للتواصل (عشان المنشور يجيب عملاء):')) ?></span>
-            <?php foreach ($ctas as $ct): ?><button type="button" class="chip text-xs" data-k="<?= e($ct['k']) ?>" data-cta="<?= e($ct['x']) ?>" title="<?= e($ct['x']) ?>"><?= e($ct['l']) ?></button><?php endforeach; ?>
-            <button type="button" class="chip text-xs" id="cp-track"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('لينك متتبع')) ?></button>
+          <div class="relative" id="cp-cta-w"><button type="button" class="cp-tool" id="cp-cta-btn" aria-expanded="false"><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('دعوة للتواصل')) ?><svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="hidden absolute z-30 top-full mt-2 start-0 w-[min(20rem,calc(100vw-56px))] rounded-2xl border border-ink-200 bg-white p-3 shadow-2xl flex flex-col items-stretch gap-1.5" id="cp-cta"><span class="text-[11px] text-ink-500 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('دعوة للتواصل (عشان المنشور يجيب عملاء):')) ?></span>
+            <?php foreach ($ctas as $ct): ?><button type="button" class="chip text-xs" data-k="<?= e($ct['k']) ?>" data-cta="<?= e($ct['x']) ?>" title="<?= e($ct['x']) ?>"<?php if (isset($ct['xt'])): ?> data-xt="<?= e($ct['xt']) ?>" data-lt="<?= e($ct['lt']) ?>"<?php endif; ?>><?= e($ct['l']) ?></button>
+              <?php if ($ct['k'] === 'word'): ?><div class="rounded-xl bg-ink-50 p-2.5 -mt-0.5 mb-1 space-y-2" data-mk-stop><label class="flex items-center gap-2 text-[11px] text-ink-600"><?= e(t('الكلمة اللي العميل يكتبها:')) ?><input id="cp-word" class="input !mt-0 !py-1 !h-8 text-sm flex-1" dir="auto" maxlength="30" value="<?= e($ctaW[0]) ?>"></label>
+                <div class="flex flex-wrap gap-1"><?php foreach ([t('مهتم'), t('التفاصيل'), t('السعر'), t('احجز'), t('أرغب')] as $sg): ?><button type="button" class="rounded-full border border-ink-200 bg-white px-2 py-0.5 text-[11px] text-ink-700 hover:border-brand-400" data-wsg="<?= e($sg) ?>"><?= e($sg) ?></button><?php endforeach; ?></div>
+                <p class="text-[10px] text-ink-400"><?= e(t('الكلمات اللي استخدمتها قبل كده بتفضل تتلقط في التعليقات.')) ?></p></div><?php endif; ?><?php endforeach; ?>
+            <button type="button" class="text-start rounded-xl px-3 py-2 text-sm text-ink-800 hover:bg-brand-50" id="cp-track"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('لينك متتبع')) ?></button>
             <?php if (count($ctas) < 2): ?><a class="link text-[11px]" href="<?= e(url('crm_leads')) ?>"><?= e(t('فعّل الحجز والفورم من الـ Leads ← أدوات')) ?></a><?php endif; ?>
-          </div>
+          </div></div>
           <?php if ($ctaW && module_enabled('automations')):
             $link = setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : crm_form_url(); ?>
-          <div id="cp-auto" class="hidden mt-2 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2 text-sm">
+          <div id="cp-auto" class="hidden basis-full w-full mt-1 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2 text-sm">
             <div class="font-medium text-ink-900">🤖 <?= e(t('رد أوتوماتيك على «%s»', $ctaW[0])) ?></div>
             <p class="text-[11px] text-ink-500"><?= e(t('أي حد يعلّق بالكلمة دي على أي منشور للحسابات المختارة: بيترد عليه رد عام، وبتوصله رسالة خاصة فيها اللينك (فيسبوك وإنستجرام)، وبيظهر في العملاء المقترحين.')) ?></p>
             <input id="cp-auto-reply" class="input !py-1.5 text-sm" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
@@ -432,16 +450,23 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <div class="flex items-center gap-2"><button type="button" id="cp-auto-go" class="btn-primary !py-1.5 !text-xs"><?= e(t('فعّل على الحسابات المختارة')) ?></button><span id="cp-auto-msg" class="text-xs"></span></div>
           </div>
           <?php endif; ?>
-          <script>(function () { var b = document.getElementById('cp-cta'), ta = document.getElementById('content'); if (!b || !ta) return; b.addEventListener('click', function (e) { var x = e.target.closest('[data-cta]'); if (!x) return; var v = ta.value.replace(/\s+$/, ''); if (x.dataset.k === 'word') { var au = document.getElementById('cp-auto'); if (au) au.classList.remove('hidden'); } if (v.indexOf(x.dataset.cta) > -1) return; ta.value = (v ? v + '\n\n' : '') + x.dataset.cta; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); });
+          <script>(function () { var cb = document.getElementById('cp-cta-btn'), cp = document.getElementById('cp-cta'); if (cb) { cb.addEventListener('click', function (e) { e.stopPropagation(); var o = cp.classList.toggle('hidden'); cb.setAttribute('aria-expanded', o ? 'false' : 'true'); }); document.addEventListener('click', function (e) { if ((!cp.contains(e.target) && !e.target.closest('#cp-cta-btn')) || e.target.closest('[data-cta]')) { cp.classList.add('hidden'); cb.setAttribute('aria-expanded', 'false'); } }); cp.querySelectorAll('.chip').forEach(function (x) { x.className = 'text-start rounded-xl px-3 py-2 text-sm text-ink-800 hover:bg-brand-50'; }); } })();
+          (function () { var wi = document.getElementById('cp-word'), wb = document.querySelector('#cp-cta [data-k="word"]'), ah = document.querySelector('#cp-auto .font-medium'); if (!wi || !wb) return;
+            function paint(w) { wb.dataset.cta = wb.dataset.xt.replace('%s', w); wb.title = wb.dataset.cta; wb.textContent = wb.dataset.lt.replace('%s', w); if (ah) ah.textContent = '🤖 ' + <?= json_encode(t('رد أوتوماتيك على «%s»'), JSON_UNESCAPED_UNICODE) ?>.replace('%s', w); }
+            function save(w) { w = w.trim(); if (!w) return; var old = wb.dataset.cta, ta = document.getElementById('content'); paint(w); if (ta.value.indexOf(old) > -1) { ta.value = ta.value.replace(old, wb.dataset.cta); ta.dispatchEvent(new Event('input', { bubbles: true })); }
+              var fd = new FormData(); fd.append('action', 'cta_word'); fd.append('word', w); fd.append('_csrf', <?= json_encode(csrf_token()) ?>); fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok && window.fxToast) fxToast(r.error, 'error'); else if (window.fxToast) fxToast(<?= json_encode(t('اتحفظت الكلمة ✓'), JSON_UNESCAPED_UNICODE) ?>); }); }
+            wi.addEventListener('change', function () { save(wi.value); }); wi.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); save(wi.value); } });
+            document.getElementById('cp-cta').addEventListener('click', function (e) { var g = e.target.closest('[data-wsg]'); if (!g) return; e.stopPropagation(); wi.value = g.dataset.wsg; save(g.dataset.wsg); }); })();
+          (function () { var b = document.getElementById('cp-cta'), ta = document.getElementById('content'); if (!b || !ta) return; b.addEventListener('click', function (e) { var x = e.target.closest('[data-cta]'); if (!x) return; var v = ta.value.replace(/\s+$/, ''); if (x.dataset.k === 'word') { var au = document.getElementById('cp-auto'); if (au) au.classList.remove('hidden'); } if (v.indexOf(x.dataset.cta) > -1) return; ta.value = (v ? v + '\n\n' : '') + x.dataset.cta; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); });
             var tr = document.getElementById('cp-track'); if (tr) tr.addEventListener('click', function () {
-              var u = prompt(<?= json_encode(t('الرابط اللي عاوز تتابعه (موقعك، صفحة منتج، فورم…):'), JSON_UNESCAPED_UNICODE) ?>, <?= json_encode((string)setting('crm_site_url_' . (int)ws('id'), '') ?: 'https://', JSON_UNESCAPED_UNICODE) ?>); if (!u) return;
+              (window.cptAsk ? window.cptAsk({ title: <?= json_encode(t('الرابط اللي عاوز تتابعه (موقعك، صفحة منتج، فورم…):'), JSON_UNESCAPED_UNICODE) ?>, value: <?= json_encode((string)setting('crm_site_url_' . (int)ws('id'), '') ?: 'https://', JSON_UNESCAPED_UNICODE) ?>, ltr: true }) : Promise.resolve(null)).then(function (u) { if (!u) return;
               var fd = new FormData(); fd.append('action', 'track_link'); fd.append('url', u.trim()); fd.append('label', ta.value.split('\n')[0].slice(0, 120)); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
-              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) return alert(r.error); var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + '<svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> ' + r.short; ta.dispatchEvent(new Event('input', { bubbles: true })); });
+              fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) { if (!r.ok) return alert(r.error); var v = ta.value.replace(/\s+$/, ''); ta.value = (v ? v + '\n\n' : '') + '🔗 ' + r.short; ta.dispatchEvent(new Event('input', { bubbles: true })); }); });
             });
             var go = document.getElementById('cp-auto-go'); if (go) go.addEventListener('click', function () {
               var accs = Array.prototype.map.call(document.querySelectorAll('input[name="accounts[]"]:checked'), function (c) { return c.value; }), m = document.getElementById('cp-auto-msg');
               if (!accs.length) { m.className = 'text-xs text-red-600'; m.textContent = <?= json_encode(t('اختار الحسابات الأول.'), JSON_UNESCAPED_UNICODE) ?>; return; }
-              var fd = new FormData(); fd.append('action', 'cta_auto'); fd.append('word', <?= json_encode($ctaW[0] ?? '', JSON_UNESCAPED_UNICODE) ?>); fd.append('reply', document.getElementById('cp-auto-reply').value); fd.append('dm', document.getElementById('cp-auto-dm').value); accs.forEach(function (a) { fd.append('accounts[]', a); }); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
+              var fd = new FormData(); fd.append('action', 'cta_auto'); fd.append('word', (document.getElementById('cp-word') || {}).value || <?= json_encode($ctaW[0] ?? '', JSON_UNESCAPED_UNICODE) ?>); fd.append('reply', document.getElementById('cp-auto-reply').value); fd.append('dm', document.getElementById('cp-auto-dm').value); accs.forEach(function (a) { fd.append('accounts[]', a); }); fd.append('_csrf', <?= json_encode(csrf_token()) ?>);
               go.disabled = true;
               fetch(location.href, { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (r) {
                 go.disabled = false; if (!r.ok) { m.className = 'text-xs text-red-600'; m.textContent = r.error; return; }
@@ -449,28 +474,29 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               }).catch(function () { go.disabled = false; });
             }); })();</script>
           <?php endif; ?>
-          <div id="cpt-bar" class="flex flex-wrap items-center gap-1.5 mt-2">
-            <button type="button" class="chip text-xs" data-tool="tpl"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('قوالب جاهزة')) ?></button>
-            <button type="button" class="chip text-xs" data-tool="tags"># <?= e(t('بنك الهاشتاجات')) ?></button>
-            <button type="button" class="chip text-xs" data-tool="link"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('منشور من لينك')) ?></button>
-            <button type="button" class="chip text-xs" data-tool="brand" title="<?= e(t('لوجو وعلامة مائية وإطار بلون الشركة على الصور اللي رفعتها')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 110-18c5 0 9 3.6 9 8 0 2.5-2 4-4.5 4H15a2 2 0 00-1.4 3.4A1.5 1.5 0 0112 21zM7.5 11h.01M10 7.5h.01M14.5 7.5h.01M17 11h.01"/></svg> <?= e(t('هوية الصورة')) ?></button>
-            <button type="button" class="chip text-xs" data-tool="coupon" data-q="<?= e(t('كود الخصم (سيبه فاضي ونعمله لك):')) ?>" data-line="<?= e(t('🎟 كود الخصم: %s')) ?>" title="<?= e(t('كود خصم مربوط بالمنشور. لما عميل يكتبه في كومنت أو رسالة بيتسجل عليه، وتشوف النتيجة في تقارير المبيعات')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('كوبون')) ?></button>
-            <button type="button" class="chip text-xs" data-tool="ab" title="<?= e(t('نسختين بنصين مختلفين، والتحليلات تقولك أنهي كسب')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg> A/B</button>
-            <button type="button" class="chip text-xs" data-tool="ver" title="<?= e(t('بيعمل نسخة مظبوطة لكل حساب مختار: طول X، الهاشتاجات، واللينكات في إنستجرام')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></svg> <?= e(t('نسخة لكل منصة')) ?></button>
+          <div id="cpt-bar" class="contents">
+            <button type="button" class="cp-tool" data-tool="tpl"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('قوالب جاهزة')) ?></button>
+            <button type="button" class="cp-tool" data-tool="tags"># <?= e(t('بنك الهاشتاجات')) ?></button>
+            <button type="button" class="cp-tool" data-tool="link"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('منشور من لينك')) ?></button>
+            <button type="button" class="cp-tool" data-tool="brand" title="<?= e(t('لوجو وعلامة مائية وإطار بلون الشركة على الصور اللي رفعتها')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 110-18c5 0 9 3.6 9 8 0 2.5-2 4-4.5 4H15a2 2 0 00-1.4 3.4A1.5 1.5 0 0112 21zM7.5 11h.01M10 7.5h.01M14.5 7.5h.01M17 11h.01"/></svg> <?= e(t('هوية الصورة')) ?></button>
+            <button type="button" class="cp-tool" data-tool="coupon" data-q="<?= e(t('كود الخصم (سيبه فاضي ونعمله لك):')) ?>" data-line="<?= e(t('🎟 كود الخصم: %s')) ?>" title="<?= e(t('كود خصم مربوط بالمنشور. لما عميل يكتبه في كومنت أو رسالة بيتسجل عليه، وتشوف النتيجة في تقارير المبيعات')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('كوبون')) ?></button>
+            <button type="button" class="cp-tool" data-tool="ab" title="<?= e(t('نسختين بنصين مختلفين، والتحليلات تقولك أنهي كسب')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg> A/B</button>
+            <button type="button" class="cp-tool" data-tool="ver" title="<?= e(t('بيعمل نسخة مظبوطة لكل حساب مختار: طول X، الهاشتاجات، واللينكات في إنستجرام')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></svg> <?= e(t('نسخة لكل منصة')) ?></button>
           </div>
-          <div id="cpt-pane" class="hidden mt-2 rounded-2xl border border-ink-200 bg-ink-50/60 p-3"></div>
-          <div id="cpt-ab" class="hidden mt-2 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+          </div>
+          <div id="cpt-pane" class="hidden rounded-2xl border border-ink-200 bg-ink-50/60 p-3"></div>
+          <div id="cpt-ab" class="hidden rounded-2xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
             <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg> <?= e(t('النسخة B')) ?></div>
             <textarea name="ab_text" rows="4" class="input text-sm" dir="auto" placeholder="<?= e(t('نفس الفكرة بصياغة أو افتتاحية أو دعوة مختلفة')) ?>"></textarea>
             <label class="flex items-center gap-2 text-xs text-ink-600"><?= e(t('تتنشر بعد النسخة A بـ')) ?> <input type="number" name="ab_gap" min="1" max="168" value="24" class="input !mt-0 !py-1 !w-20 text-xs"> <?= e(t('ساعة')) ?></label>
             <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
           </div>
-          <div id="cpt-check" class="flex flex-wrap gap-1.5 mt-2 text-[11px]"></div>
-          <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
-          <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
+          <div id="cpt-check" class="flex flex-wrap gap-1.5 text-[11px]"></div>
+          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('أقصى حجم:')) ?> <?= e(ini_get('upload_max_filesize')) ?></span></div>
+          <label class="block">
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
-          <div class="mt-2"><button type="button" id="libPick" class="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg> <?= e(t('اختار من مكتبة الوسائط')) ?></button></div>
+          <div class="mt-3 flex flex-wrap items-center gap-1.5" id="cp-mtools"><button type="button" id="libPick" class="cp-tool"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg> <?= e(t('اختار من مكتبة الوسائط')) ?></button></div></div>
           <div id="libMedia" class="flex flex-wrap gap-2 mt-2"></div>
           <script>
           (function () {
@@ -490,7 +516,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
           <div class="flex flex-wrap items-center gap-2 mt-2" id="vis-box">
             <?php foreach (['from_image', 'alt_text'] as $vk): if (!ai_feature_on($vk)) continue; ?>
-              <button type="button" data-vis="<?= $vk ?>" class="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-60"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <?= e(ai_presets()[$vk]['label']) ?></button>
+              <button type="button" data-vis="<?= $vk ?>" class="cp-tool !border-brand-200 !bg-brand-50 !text-brand-700 disabled:opacity-60"><?= ai_icon('spark', 'w-3.5 h-3.5') ?> <?= e(ai_presets()[$vk]['label']) ?></button>
             <?php endforeach; ?>
             <span class="text-[11px] text-ink-400"><?= e(t('يستخدم أول صورة مختارة. يحتاج موديلًا يدعم الصور.')) ?></span>
           </div>
@@ -594,8 +620,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           })();
           </script>
           <?php endif; ?>
-          <p class="text-xs text-ink-500 mt-1"><?= e(t('أقصى حجم للملف على السيرفر بتاعك:')) ?> <?= e(ini_get('upload_max_filesize')) ?></p>
-        </div>
+                  </div>
 
         <div class="space-y-4" id="platformPanels">
           <p class="text-sm text-ink-500" id="noPanels"><?= e(t('اختار الحسابات اللي هتنشر عليها، وتقدر تخصص النص والإعدادات لكل حساب هنا.')) ?></p>
@@ -671,31 +696,34 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         </div>
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-4 min-w-0 flex flex-col" id="cp-right">
         <div class="card p-5">
-          <div class="flex items-center justify-between mb-3"><span class="font-bold"><?= e(t('انشر على')) ?></span>
+          <div class="flex items-center justify-between mb-3"><span class="font-bold text-ink-900"><?= e(t('انشر على')) ?></span>
             <button type="button" id="selectAll" class="text-xs link"><?= e(t('اختار الكل')) ?></button></div>
-          <div class="space-y-2 max-h-80 overflow-auto">
+          <div class="space-y-2 grid grid-cols-3 gap-2 !space-y-0 max-h-96 overflow-auto p-1 -m-1">
             <?php foreach ($accounts as $a): ?>
-              <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-ink-50 cursor-pointer">
-                <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $old['accounts'], true) ? 'checked' : '' ?> class="acc w-4 h-4" data-plat="<?= e($a['platform'] ?? '') ?>" data-name="<?= e($a['displayName'] ?? $a['username'] ?? '') ?>" data-user="<?= e($a['username'] ?? '') ?>" data-pic="<?= e($a['profilePicture'] ?? '') ?>">
-                <?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? $a['username'] ?? '', 'w-8 h-8') ?>
-                <span class="text-sm leading-tight"><span class="block font-semibold"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span>
-                  <span class="block text-xs text-ink-500"><?= e(platform_label($a['platform'])) ?></span></span>
+              <label class="cp-acc">
+                <input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" <?= in_array($a['_id'], $old['accounts'], true) ? 'checked' : '' ?> class="acc sr-only" data-plat="<?= e($a['platform'] ?? '') ?>" data-name="<?= e($a['displayName'] ?? $a['username'] ?? '') ?>" data-user="<?= e($a['username'] ?? '') ?>" data-pic="<?= e($a['profilePicture'] ?? '') ?>">
+                <span class="cp-ok" aria-hidden="true">✓</span>
+                <span class="relative"><?= avatar($a['profilePicture'] ?? null, $a['displayName'] ?? $a['username'] ?? '', 'w-11 h-11') ?><span class="absolute -bottom-1 -end-1 w-5 h-5 rounded-full bg-white grid place-items-center shadow ring-1 ring-ink-100"><?= platform_icon($a['platform'] ?? '', 'w-3.5 h-3.5') ?></span></span>
+                <span class="text-xs leading-tight min-w-0 w-full"><span class="block font-semibold text-ink-900 truncate"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span>
+                  <span class="block text-[11px] text-ink-500 truncate"><?= e(platform_label($a['platform'])) ?></span></span>
               </label>
             <?php endforeach; ?>
           </div>
         </div>
 
-        <div class="card p-5 space-y-3">
-          <span class="font-bold block"><?= e(t('إمتى؟')) ?></span>
-          <?php foreach (['schedule' => t('جدولة لوقت محدد'), 'queue' => t('ضيف للطابور (أقرب ميعاد فاضي)'), 'now' => t('انشر دلوقتي'), 'draft' => t('احفظ كمسودة')] as $k => $l): ?>
-            <label class="flex items-center gap-2 text-sm"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode"> <?= e($l) ?></label>
-          <?php endforeach; ?>
+        <div class="card p-5 space-y-3" id="cp-when">
+          <span class="font-bold block text-ink-900"><?= e(t('إمتى؟')) ?></span>
+          <div class="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="<?= e(t('إمتى؟')) ?>">
+          <?php foreach (['schedule' => [t('جدولة'), 'calendar', t('جدولة لوقت محدد')], 'queue' => [t('الطابور'), 'layers', t('ضيف للطابور (أقرب ميعاد فاضي)')], 'now' => [t('نشر فوري'), 'zap', t('انشر دلوقتي')], 'draft' => [t('مسودة'), 'file', t('احفظ كمسودة')]] as $k => [$l, $ic, $tip]): ?>
+            <label class="cp-mode" title="<?= e($tip) ?>"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode sr-only"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($l) ?></span></label>
+          <?php endforeach; ?></div>
           <div id="whenBox">
             <input type="datetime-local" name="when" id="whenInput" value="<?= e($old['when'] ?: $defaultWhen) ?>" class="input" dir="ltr">
             <p class="text-xs text-ink-500 mt-1"><?= e(t('بتوقيت:')) ?> <?= e(site_timezone()) ?></p>
-            <div id="cp-extra" class="mt-3 space-y-1.5">
+            <details class="mt-3 group/x rounded-xl border border-ink-200" <?= $old['extra'] ? 'open' : '' ?>><summary class="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2 text-xs font-medium text-ink-700"><?= ui_icon('refresh', 'w-4 h-4 text-ink-400') ?><?= e(t('مواعيد تانية وتكرار')) ?><svg class="w-3.5 h-3.5 ms-auto text-ink-400 transition group-open/x:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary><div class="px-3 pb-3">
+            <div id="cp-extra" class="space-y-1.5">
               <?php foreach ($old['extra'] as $x): ?><div class="cp-x flex items-center gap-1.5"><input type="datetime-local" name="extra_when[]" value="<?= e($x) ?>" class="input !mt-0 !h-9 text-sm" dir="ltr"><button type="button" class="cp-x-del w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" aria-label="<?= e(t('حذف')) ?>">✕</button></div><?php endforeach; ?>
             </div>
             <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px]">
@@ -714,7 +742,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               <span><?= e(t('مرة')) ?></span>
               <button type="button" id="cp-rep-go" class="btn-primary !py-1 !text-xs"><?= e(t('طبّق')) ?></button>
               <span class="w-full text-[11px] text-ink-500"><?= e(t('كل مرة بتتعمل منشور منفصل في نفس الساعة، لحد 60 مرة. مش مربوط بحد Zernio لإعادة النشر.')) ?></span>
-            </div>
+            </div></div></details>
             <?php $nb = (module_enabled('analytics') && function_exists('next_best_time')) ? next_best_time($z) : null; if ($nb): ?>
               <button type="button" class="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-lime-300 bg-lime-50 text-lime-700 px-3 py-2 text-sm hover:bg-lime-100 transition"
                 onclick="document.getElementById('whenInput').value='<?= e($nb->format('Y-m-d\TH:i')) ?>'">
@@ -769,16 +797,16 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         <p class="text-xs text-ink-500"><?= e(t('قبل التنفيذ بنفحص المنشور عند خدمة النشر، ولو فيه مشكلة مش هيتنشر.')) ?></p>
       </div>
 
-      <div id="cp-bar" class="lg:col-span-3 sticky bottom-3 z-30">
-        <div class="rounded-2xl border border-ink-200 bg-white/95 backdrop-blur shadow-xl px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <ol class="flex items-center gap-1.5 text-xs" id="cp-steps" aria-label="<?= e(t('الخطوات')) ?>">
+      <div id="cp-bar" class="lg:col-span-2 sticky bottom-3 z-30">
+        <div class="rounded-2xl border border-ink-200 bg-white/90 backdrop-blur-md shadow-[0_12px_40px_-12px_rgba(15,23,42,.35)] px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ol class="hidden sm:flex items-center gap-1.5 text-xs" id="cp-steps" aria-label="<?= e(t('الخطوات')) ?>">
             <li><button type="button" data-go="acc" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">1</span><?= e(t('الحسابات')) ?></button></li>
             <li><button type="button" data-go="txt" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">2</span><?= e(t('المحتوى')) ?></button></li>
             <li><button type="button" data-go="when" class="cp-st inline-flex items-center gap-1 rounded-full border px-2.5 py-1"><span class="cp-ic">3</span><?= e(t('الميعاد')) ?></button></li>
           </ol>
-          <div id="cp-sum" class="min-w-0 flex-1 text-xs text-ink-600"></div>
+          <div id="cp-sum" class="hidden md:block min-w-0 flex-1 text-xs text-ink-600"></div>
           <span id="cp-draft" class="text-[11px] text-ink-400"></span>
-          <div class="flex items-center gap-2 ms-auto">
+          <div class="flex items-center gap-2 ms-auto max-sm:w-full max-sm:[&>*]:flex-1">
             <button type="submit" name="action" value="validate" class="btn-ghost !text-sm"><?= e(t('افحص بس')) ?></button>
             <button type="submit" name="action" value="submit" id="submitBtn" class="btn-primary !text-sm !px-5"><span id="cp-go-t"><?= e(t('تنفيذ')) ?></span> <kbd class="hidden sm:inline text-[10px] opacity-70">Ctrl ↵</kbd></button>
           </div>
@@ -792,7 +820,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'),
       'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
       'xMax' => t('X بيقبل 4 صور بس'), 'needVideo' => t('تيك توك ويوتيوب محتاجين فيديو'), 'igMedia' => t('إنستجرام محتاج صورة أو فيديو'),
-      'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),
+      'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'repost' => t('إعادة نشر'), 'send' => t('إرسال'), 'now' => t('الآن'), 'kStory' => t('ستوري'), 'kReel' => t('ريلز'), 'needMedia' => t('الستوري والريلز محتاجين صورة أو فيديو'), 'kNo' => t('%s مابيدعمش النوع ده، هيتنشر منشور عادي'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),
       'modes' => ['now' => t('هيتنشر دلوقتي'), 'draft' => t('هيتحفظ كمسودة'), 'queue' => t('أقرب ميعاد فاضي في الطابور'), 'schedule' => t('مجدول')],
       'past' => t('الميعاد ده فات'), 'inMin' => t('بعد %s دقيقة'), 'inHr' => t('بعد %s ساعة'), 'inDay' => t('بعد %s يوم'),
       'quick' => [[t('بعد ساعة'), 'h1'], [t('بعد 3 ساعات'), 'h3'], [t('النهارده 8 م'), '0:20'], [t('بكرة 10 ص'), '1:10'], [t('بكرة 8 م'), '1:20']],
@@ -801,7 +829,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'onN' => t('هيتنشر على %s حساب'), 'draftSaved' => t('المسودة محفوظة'), 'restore' => t('عندك مسودة لسه ماتنشرتش:'), 'restoreBtn' => t('استرجاع'), 'discard' => t('تجاهل')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/compose-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>window.CPT = <?= json_encode(['ptags' => function_exists('kb_profile_tags') ? kb_profile_tags() : [], 'ptagsT' => t('من ملف شركتك'), 'csrf' => csrf_token(), 'tpl' => cpt_templates(), 'mine' => json_decode((string)setting('cpt_tpl_' . (int)ws('id'), '[]'), true) ?: [], 'tags' => json_decode((string)setting('cpt_tags_' . (int)ws('id'), '[]'), true) ?: [],
-        'tr' => ['tplT' => t('قوالب جاهزة'), 'mine' => t('قوالبي'), 'saveTpl' => t('احفظ النص ده كقالب'), 'tplHint' => t('الخانات اللي بين [ ] املاها بنفسك.'), 'use' => t('استخدم'), 'tplName' => t('اسم القالب؟'), 'replaceQ' => t('هيتشال النص الحالي. تكمل؟'),
+        'tr' => ['tplT' => t('قوالب جاهزة'), 'newTpl' => t('قالب جديد'), 'editTpl' => t('تعديل القالب'), 'copyNote' => t('ده قالب جاهز، تعديلك هيتحفظ نسخة في «قوالبي» والأصلي هيفضل زي ما هو.'), 'tplSearch' => t('ابحث في القوالب…'), 'noMine' => t('لسه مفيش قوالب ليك. دوس «قالب جديد» أو عدّل أي قالب جاهز.'), 'nothing' => t('مفيش نتايج.'), 'edit' => t('تعديل'), 'del' => t('حذف'), 'delQ' => t('متأكد إنك عاوز تحذفه؟'), 'deleted' => t('اتحذف'), 'cancel' => t('إلغاء'), 'tplNeed' => t('اكتب اسم القالب ونصه.'), 'addAll' => t('ضيف المجموعة كلها'), 'newSet' => t('مجموعة جديدة'), 'added' => t('اتضافت ✓'), 'go' => t('تمام'), 'mine' => t('قوالبي'), 'saveTpl' => t('احفظ النص ده كقالب'), 'tplHint' => t('الخانات اللي بين [ ] املاها بنفسك.'), 'use' => t('استخدم'), 'tplName' => t('اسم القالب؟'), 'replaceQ' => t('هيتشال النص الحالي. تكمل؟'),
             'tagsT' => t('بنك الهاشتاجات'), 'noTags' => t('لسه مفيش مجموعات. احفظ مجموعة هاشتاجات بتستخدمها كتير.'), 'tagName' => t('اسم المجموعة'), 'tagsHint' => t('احفظ كل مجموعة مرة واحدة واستخدمها بضغطة.'), 'tagNeed' => t('اكتب اسم وهاشتاج واحد على الأقل.'), 'save' => t('احفظ'), 'saved' => t('اتحفظ ✓'),
             'pickAcc' => t('اختار الحسابات الأول.'), 'empty' => t('اكتب النص الأول.'), 'verDone' => t('اتعملت نسخة لـ %s حساب. راجعها في إعدادات كل حساب تحت.'), 'verSame' => t('النص مناسب لكل الحسابات المختارة زي ما هو.'), 'linkBio' => t('🔗 اللينك في البايو'),
             'cLong' => t('%s: النص %s حرف والحد %s'), 'cMedia' => t('إنستجرام/تيك توك محتاجين صورة أو فيديو'), 'cTagsIg' => t('إنستجرام بيقبل 30 هاشتاج بس'), 'cTags' => t('%s هاشتاج كتير على فيسبوك/لينكدإن (الأحسن 3-5)'), 'cIgLink' => t('اللينكات في إنستجرام مش بتتضغط'),

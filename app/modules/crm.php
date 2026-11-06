@@ -1235,7 +1235,7 @@ function crm_lead_by_ext(string $ext): ?array
 /** كلمات الدعوة اللي بتحطها في منشوراتك ("اكتب عاوز في الكومنت") */
 function crm_cta_words(): array
 {
-    $s = (string)setting('crm_cta_words_' . (int)ws('id'), '') ?: 'عاوز, عايز, مهتم, تفاصيل, interested';
+    $s = (string)setting('crm_cta_words_' . (int)ws('id'), '') ?: 'مهتم, التفاصيل, تفاصيل, عاوز, عايز, interested';
     return array_values(array_filter(array_map(function ($x) { return mb_strtolower(trim($x)); }, explode(',', $s)), 'strlen'));
 }
 /** التعليق/الرسالة فيها كلمة الدعوة كلمة لوحدها (مش جزء من جملة طويلة عن حاجة تانية) */

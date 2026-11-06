@@ -12,7 +12,7 @@
 
   /* ---------- 1) حدود الحروف لكل منصة ---------- */
   var cc = $('#charCount'), meter = document.createElement('div'); meter.className = 'flex flex-wrap gap-1.5 mt-2'; meter.id = 'cp-limits';
-  if (cc) cc.closest('.flex').after(meter);
+  var ed = $('.cp-editor'); if (ed) ed.after(meter); else if (cc) cc.closest('.flex').after(meter);
   function limits() {
     var seen = {}; meter.innerHTML = '';
     sel().forEach(function (c) {
@@ -29,7 +29,7 @@
   }
 
   /* ---------- 2) أدوات النص: إيموجي + هاشتاج ---------- */
-  var bar = document.createElement('div'); bar.className = 'flex flex-wrap items-center gap-1 mt-2';
+  var bar = document.createElement('div'); bar.className = 'flex flex-wrap items-center gap-1 border-t border-ink-100 px-2 py-1.5';
   bar.innerHTML = '<button type="button" data-tl="emoji" class="relative inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 007 0M9 9.5h.01M15 9.5h.01"/></svg>' + esc(P.emoji) + '</button>'
     + '<button type="button" data-tl="#" class="rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100"># ' + esc(P.hashtag) + '</button>'
     + '<button type="button" data-tl="nl" class="rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100">↵ ' + esc(P.line) + '</button>'
@@ -53,7 +53,7 @@
   /* ---------- 3) الحسابات: بطاقات + اختيار حسب المنصة + بحث ---------- */
   var accBox = accs[0] && accs[0].closest('.space-y-2');
   if (accBox) {
-    accs.forEach(function (c) { var l = c.closest('label'); l.className = 'flex items-center gap-3 p-2 rounded-xl border border-transparent cursor-pointer transition hover:bg-ink-50 has-[:checked]:border-brand-300 has-[:checked]:bg-brand-50/70'; });
+    accs.forEach(function (c) { var l = c.closest('label'); l.classList.add('cp-acc'); });
     var plats = {}; accs.forEach(function (c) { plats[c.dataset.plat] = (plats[c.dataset.plat] || 0) + 1; });
     var chips = document.createElement('div'); chips.className = 'flex flex-wrap gap-1.5 mb-3';
     Object.keys(plats).forEach(function (p) {
@@ -103,9 +103,9 @@
 
   /* ---------- 5) معاينة حية لكل حساب ---------- */
   var right = accBox && accBox.closest('.card'), pv = document.createElement('div'); pv.className = 'card p-0 overflow-hidden'; pv.id = 'cp-pv';
-  pv.innerHTML = '<div class="flex items-center gap-2 px-4 h-11 border-b border-ink-100"><b class="text-sm text-ink-900 flex-1"></b><div class="flex gap-1 overflow-x-auto" id="cp-tabs" style="scrollbar-width:none"></div></div><div id="cp-card" class="p-4 bg-ink-50/60"></div>';
+  pv.innerHTML = '<div class="flex items-center gap-2 px-4 h-11 border-b border-ink-100"><b class="text-sm text-ink-900 flex-1"></b><div class="flex gap-1 overflow-x-auto" id="cp-tabs" style="scrollbar-width:none"></div></div><div class="p-4 bg-gradient-to-b from-ink-50 to-white"><div class="mx-auto max-w-[340px] rounded-[2.2rem] border-[10px] border-ink-900 bg-ink-100 shadow-2xl overflow-hidden"><div class="h-5 flex justify-center bg-ink-900"><span class="w-20 h-3.5 rounded-b-xl bg-ink-900"></span></div><div id="cp-card" class="p-3 max-h-[60vh] overflow-y-auto" style="scrollbar-width:thin"></div></div></div>';
   pv.querySelector('b').textContent = P.preview;
-  content.closest('.card').after(pv);
+  var rc = $('#cp-right'); if (rc) { pv.className += ' lg:sticky lg:top-4'; rc.appendChild(pv); } else content.closest('.card').after(pv);
   var tab = null;
   function fmt(t) { return esc(t).replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="text-brand-600">$1</span>').replace(/(https?:\/\/[^\s<]+)/g, '<span class="text-brand-600 underline">$1</span>').replace(/(@[\w.]+)/g, '<span class="text-brand-600">$1</span>'); }
   function render() {
@@ -114,16 +114,46 @@
     if (!tab || !s.some(function (c) { return c.value === tab; })) tab = s[0].value;
     tabs.innerHTML = '';
     s.forEach(function (c) { var b = document.createElement('button'); b.type = 'button'; b.className = 'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition ' + (c.value === tab ? 'bg-brand-50 ring-2 ring-brand-500/30' : 'hover:bg-ink-100 opacity-60'); b.innerHTML = P.icons[c.dataset.plat] || ''; b.title = c.dataset.name + ' · ' + (P.plat[c.dataset.plat] || ''); b.onclick = function () { tab = c.value; render(); }; tabs.appendChild(b); });
-    var c = s.filter(function (x) { return x.value === tab; })[0], p = c.dataset.plat, txt = textFor(c), fold = FOLD[p], long = fold && Array.from(txt).length > fold;
-    var shown = long ? Array.from(txt).slice(0, fold).join('') + '… ' : txt, lim = LIM[p], over = lim && Array.from(txt).length > lim;
-    var imgs = files.filter(function (f) { return /^(image|video)\//.test(f.type); }).slice(0, 4);
-    var media = imgs.length ? '<div class="grid gap-0.5 ' + (imgs.length > 1 ? 'grid-cols-2' : '') + ' mt-3 -mx-4 overflow-hidden">' + imgs.map(function (f) { var u = URL.createObjectURL(f); return /^video/.test(f.type) ? '<video src="' + u + '" class="w-full aspect-square object-cover bg-ink-900" muted></video>' : '<img src="' + u + '" class="w-full ' + (imgs.length > 1 ? 'aspect-square' : 'max-h-72') + ' object-cover">'; }).join('') + '</div>' : '';
-    var av = c.dataset.pic ? '<img src="' + esc(c.dataset.pic) + '" class="w-9 h-9 rounded-full object-cover" referrerpolicy="no-referrer">' : '<span class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-600 to-cyan-500"></span>';
-    var head = '<div class="flex items-center gap-2.5">' + av + '<div class="min-w-0 flex-1"><b class="block text-sm text-ink-900 truncate">' + esc(c.dataset.name) + '</b><span class="text-[11px] text-ink-500">' + esc(when()) + ' · ' + (P.icons[p] || '') + '</span></div></div>';
-    var body = txt.trim() ? '<p class="text-sm text-ink-800 whitespace-pre-wrap break-words mt-3" dir="auto">' + fmt(shown) + (long ? '<span class="text-ink-500 font-medium">' + esc(P.more) + '</span>' : '') + '</p>' : '<p class="text-sm text-ink-400 italic mt-3">' + esc(P.emptyText) + '</p>';
-    var foot = '<div class="flex items-center justify-around mt-3 pt-2 border-t border-ink-100 text-[11px] text-ink-500"><span>♡ ' + esc(P.like) + '</span><span>' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(P.comment) + '</span><span>↗ ' + esc(P.share) + '</span></div>';
-    var custom = textFor(c) !== content.value ? '<p class="mt-2 text-[11px] text-brand-700">' + uic('pencil', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(P.customText) + '</p>' : '';
-    card.innerHTML = '<div class="max-w-md mx-auto rounded-2xl bg-white border border-ink-200 shadow-sm p-4">' + head + body + media + foot + '</div>' + custom + (over ? '<p class="mt-2 text-[11px] text-red-600">' + esc(P.tooLong.replace('%s', Array.from(txt).length - lim)) + '</p>' : '');
+    var c = s.filter(function (x) { return x.value === tab; })[0], p = c.dataset.plat, txt = textFor(c), kind = (($('input[name="cp_kind"]:checked') || {}).value) || 'post';
+    var lim = LIM[p], over = lim && Array.from(txt).length > lim, fold = FOLD[p], long = fold && Array.from(txt).length > fold, shown = long ? Array.from(txt).slice(0, fold).join('') + '… ' : txt;
+    var med = files.filter(function (f) { return /^(image|video)\//.test(f.type); }).map(function (f) { return { u: URL.createObjectURL(f), v: /^video/.test(f.type) }; })
+      .concat($$('#libMedia > div').map(function (w) { var m = $('img, video', w); return m ? { u: m.src, v: m.tagName === 'VIDEO' } : null; }).filter(Boolean))
+      .concat($$('.hf-img[data-on="1"]').map(function (w) { var m = $('img, video', w); return m ? { u: m.src, v: m.tagName === 'VIDEO' } : null; }).filter(Boolean)).slice(0, 4);
+    var nm = esc(c.dataset.name || ''), un = esc(c.dataset.user || c.dataset.name || '');
+    var av = function (z) { return c.dataset.pic ? '<img src="' + esc(c.dataset.pic) + '" class="' + z + ' rounded-full object-cover shrink-0" referrerpolicy="no-referrer">' : '<span class="' + z + ' rounded-full bg-gradient-to-br from-brand-600 to-cyan-500 shrink-0"></span>'; };
+    var mtag = function (m, cls) { return m.v ? '<video src="' + esc(m.u) + '" class="' + cls + ' object-cover bg-ink-900" muted playsinline></video>' : '<img src="' + esc(m.u) + '" class="' + cls + ' object-cover">'; };
+    var grid = function () { return med.length ? '<div class="grid gap-0.5 ' + (med.length > 1 ? 'grid-cols-2' : '') + '">' + med.map(function (m) { return mtag(m, 'w-full ' + (med.length > 1 ? 'aspect-square' : 'max-h-80')); }).join('') + '</div>' : ''; };
+    var body = function (cls, pre) { return txt.trim() ? '<p class="' + cls + ' whitespace-pre-wrap break-words" dir="auto">' + (pre || '') + fmt(shown) + (long ? '<span class="text-ink-500 font-medium">' + esc(P.more) + '</span>' : '') + '</p>' : '<p class="' + cls + ' text-ink-400 italic">' + esc(P.emptyText) + '</p>'; };
+    var t = esc(when());
+    var I = function (d) { return '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' + d + '"/></svg>'; };
+    var HEART = 'M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z', CMT = 'M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z', SEND = 'M22 3L11 13M22 3l-7 18-4-8-8-4z', SAVE = 'M6 3h12v18l-6-4-6 4z', SHR = 'M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v13', RT = 'M17 2l4 4-4 4M3 11V9a4 4 0 014-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 01-4 4H3';
+    var act = function (list) { return list.map(function (x) { return '<span class="flex items-center gap-1">' + I(x[0]) + esc(x[1]) + '</span>'; }).join(''); };
+    var html;
+    if (kind !== 'post' && /instagram|facebook|tiktok|youtube/.test(p)) {
+      var m0 = med[0];
+      html = '<div class="relative mx-auto aspect-[9/16] w-full max-w-[300px] rounded-2xl overflow-hidden bg-gradient-to-br from-fuchsia-600 via-brand-600 to-cyan-500 text-white shadow-lg">' + (m0 ? mtag(m0, 'absolute inset-0 w-full h-full') : '') +
+        '<div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70"></div>' +
+        (kind === 'story' ? '<div class="absolute top-2 inset-x-2 flex gap-1">' + (med.length > 1 ? med : [1]).map(function (_, i) { return '<span class="h-0.5 flex-1 rounded-full ' + (i ? 'bg-white/40' : 'bg-white') + '"></span>'; }).join('') + '</div>' : '') +
+        '<div class="absolute top-5 start-3 end-3 flex items-center gap-2">' + av('w-8 h-8 ring-2 ring-white') + '<b class="text-xs">' + un + '</b><span class="text-[10px] text-white/70">' + esc(kind === 'story' ? P.kStory : P.kReel) + '</span></div>' +
+        (kind === 'reel' ? '<div class="absolute end-2 bottom-20 flex flex-col items-center gap-4">' + [HEART, CMT, SEND].map(I).join('') + '</div>' : '') +
+        '<div class="absolute bottom-3 start-3 end-12 text-xs leading-5 line-clamp-4" dir="auto">' + (txt.trim() ? fmt(Array.from(txt).slice(0, 160).join('')) : '') + '</div>' +
+        (!m0 ? '<div class="absolute inset-0 grid place-items-center text-xs text-white/85 px-6 text-center">' + esc(P.needMedia) + '</div>' : '') + '</div>';
+    } else if (p === 'instagram') {
+      html = '<div class="bg-white rounded-xl overflow-hidden border border-ink-200"><div class="flex items-center gap-2 px-3 py-2"><span class="p-[2px] rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600">' + av('w-7 h-7 ring-2 ring-white') + '</span><b class="text-xs text-ink-900 flex-1">' + un + '</b><span class="text-ink-500">•••</span></div>' +
+        (med.length ? mtag(med[0], 'w-full aspect-square') : '<div class="w-full aspect-square bg-ink-100 grid place-items-center text-xs text-ink-400 px-6 text-center">' + esc(P.igMedia) + '</div>') +
+        '<div class="flex items-center gap-3 px-3 pt-2 text-ink-900">' + I(HEART) + I(CMT) + I(SEND) + '<span class="ms-auto">' + I(SAVE) + '</span></div>' + body('px-3 py-2 text-[13px] text-ink-900', '<b>' + un + '</b> ') + '<div class="px-3 pb-2 text-[10px] text-ink-400">' + t + '</div></div>';
+    } else if (/twitter|threads|bluesky/.test(p)) {
+      html = '<div class="bg-white rounded-xl border border-ink-200 p-3 flex gap-2.5">' + av('w-9 h-9') + '<div class="min-w-0 flex-1"><div class="flex items-center gap-1 text-[13px]"><b class="text-ink-900 truncate">' + nm + '</b><span class="text-ink-500 truncate" dir="ltr">@' + un + '</span></div>' +
+        body('text-[14px] text-ink-900 mt-0.5') + (med.length ? '<div class="mt-2 rounded-2xl overflow-hidden border border-ink-200">' + grid() + '</div>' : '') + '<div class="flex justify-between mt-2 text-ink-500 max-w-[260px]">' + [CMT, RT, HEART, SHR].map(I).join('') + '</div></div></div>';
+    } else if (p === 'linkedin') {
+      html = '<div class="bg-white rounded-xl border border-ink-200"><div class="flex gap-2 p-3">' + av('w-11 h-11') + '<div class="min-w-0"><b class="text-[13px] text-ink-900 block truncate">' + nm + '</b><span class="text-[11px] text-ink-500 block">' + t + '</span></div></div>' + body('px-3 pb-2 text-[13px] text-ink-900') + grid() +
+        '<div class="flex justify-around border-t border-ink-100 py-1.5 text-[11px] font-medium text-ink-600">' + act([[HEART, P.like], [CMT, P.comment], [RT, P.repost], [SEND, P.send]]) + '</div></div>';
+    } else {
+      html = '<div class="bg-white rounded-xl border border-ink-200"><div class="flex items-center gap-2.5 p-3">' + av('w-10 h-10') + '<div class="min-w-0 flex-1"><b class="block text-[13px] text-ink-900 truncate">' + nm + '</b><span class="text-[11px] text-ink-500">' + t + '</span></div><span class="text-ink-400">•••</span></div>' + body('px-3 pb-3 text-[14px] text-ink-900') + grid() +
+        '<div class="flex justify-around border-t border-ink-100 mx-3 py-1.5 text-[12px] font-medium text-ink-600">' + act([[HEART, P.like], [CMT, P.comment], [SHR, P.share]]) + '</div></div>';
+    }
+    var custom = textFor(c) !== content.value ? '<p class="mt-2 text-[11px] text-brand-700">' + uic('pencil', 'w-4 h-4 inline-block align-[-3px]') + esc(P.customText) + '</p>' : '';
+    card.innerHTML = '<div class="cp-pop">' + html + '</div>' + custom + (over ? '<p class="mt-2 text-[11px] text-red-600">' + esc(P.tooLong.replace('%s', Array.from(txt).length - lim)) + '</p>' : '');
   }
 
   /* ---------- 6) المواعيد: اختيار سريع + "بعد قد إيه" ---------- */
@@ -150,7 +180,7 @@
     wi.addEventListener('input', paintRel); wi.addEventListener('change', paintRel); setInterval(paintRel, 30000); paintRel();
   }
   // أنماط النشر كبطاقات
-  $$('.mode').forEach(function (r) { var l = r.closest('label'); l.className = 'flex items-center gap-2 text-sm rounded-xl border border-ink-200 px-3 py-2 cursor-pointer transition hover:bg-ink-50 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800 has-[:checked]:font-medium'; r.classList.add('accent-brand-600'); });
+  $$('.mode').forEach(function (r) { var l = r.closest('label'); l.classList.add('cp-mode'); r.classList.add('accent-brand-600'); });
 
   /* ---------- 7) ملخص قبل التنفيذ ---------- */
   var sb = $('#submitBtn'), sum = $('#cp-sum') || document.createElement('div');
@@ -223,6 +253,7 @@
   var xbox = $('#cp-extra');
   function addExtra(v) {
     if (!xbox || $$('input', xbox).length >= 60) return;
+    if (v && (v === (wi && wi.value) || $$('input', xbox).some(function (i) { return i.value === v; }))) return; // مفيش ميعاد مكرر
     var row = document.createElement('div'); row.className = 'cp-x flex items-center gap-1.5';
     row.innerHTML = '<input type="datetime-local" name="extra_when[]" class="input !mt-0 !h-9 text-sm" dir="ltr"><button type="button" class="cp-x-del w-8 h-8 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" aria-label="✕">✕</button>';
     $('input', row).value = v || ''; xbox.appendChild(row); if (!v) $('input', row).focus(); summary();
@@ -232,12 +263,13 @@
     xbox.addEventListener('input', summary);
     $$('.cp-x-add').forEach(function (b) {
       b.onclick = function () {
-        var base = wi && wi.value ? new Date(wi.value) : new Date(), last = $$('input', xbox).map(function (i) { return i.value ? new Date(i.value) : null; }).filter(Boolean).pop() || base;
+        var base = wi && wi.value ? new Date(wi.value) : new Date(), last = $$('input', xbox).map(function (i) { return i.value ? new Date(i.value) : null; }).filter(Boolean).reduce(function (a, d) { return d > a ? d : a; }, base); // آخر ميعاد (مش آخر صف)
         var k = b.dataset.add, plus = function (d, days) { var x = new Date(d); x.setDate(x.getDate() + days); return local(x); };
         if (k === 'custom') addExtra(plus(last, 1));
         else if (k === 'd1') addExtra(plus(last, 1));
         else if (k === 'd7') addExtra(plus(last, 7));
-        else if (k === 'w4') { for (var i = 1; i <= 4; i++) addExtra(plus(base, 7 * i)); }
+        else if (k === 'w4') { for (var i = 1; i <= 4; i++) addExtra(plus(last, 7 * i)); } // بيكمّل بعد آخر ميعاد، فالضغطة التانية بتجيب الشهر اللي بعده
+        b.classList.add('!border-brand-500', '!bg-brand-50'); setTimeout(function () { b.classList.remove('!border-brand-500', '!bg-brand-50'); }, 600);
       };
     });
     var rg = $('#cp-rep-go'), rgT = rg ? rg.textContent : '', rk = $('#cp-rep-k');
@@ -267,5 +299,59 @@
   form.addEventListener('input', function (e) { if (e.target === content || /\[custom\]/.test(e.target.name || '')) { limits(); render(); summary(); saveDraft(); } if (e.target === wi) { render(); summary(); } });
   form.addEventListener('change', function (e) { if (e.target.classList.contains('acc') || e.target.classList.contains('mode')) { all(); saveDraft(); } });
   setInterval(function () { render(); summary(); }, 30000);
+  // المعاينة بتتحدث مع صور المكتبة والصور المتولدة كمان
+  ['libMedia', 'hf-results'].forEach(function (id) { var el = document.getElementById(id); if (el) new MutationObserver(function () { render(); }).observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-on'] }); });
   all();
+})();
+
+/* منشور جديد: أزرار ذكاء اصطناعي ظاهرة، دايرة الحروف، الحسابات المختارة فوق النص، والخانة بتكبر مع الكتابة */
+(function () {
+  var ta = document.getElementById('content'), ed = document.querySelector('.cp-editor'); if (!ta || !ed) return;
+  var P = window.CPX || {}, bar = ed.querySelector('.border-t');
+  var LIM = { twitter: 280, threads: 500, bluesky: 300, instagram: 2200, tiktok: 2200, linkedin: 3000, pinterest: 500, youtube: 5000, facebook: 63206, googlebusiness: 1500 };
+  var ring = document.createElement('span'); ring.className = 'inline-flex items-center gap-1 text-[11px] tabular-nums text-ink-500'; ring.id = 'cp-ring';
+  ring.innerHTML = '<svg viewBox="0 0 36 36" class="w-6 h-6 -rotate-90"><circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="3" class="text-ink-100"/><circle cx="18" cy="18" r="15" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25" class="cp-r" style="transition:stroke-dashoffset .3s,stroke .3s"/></svg><span class="cp-rn"></span>';
+  if (bar) bar.appendChild(ring);
+  function paintRing() {
+    var acc = [].slice.call(document.querySelectorAll('.acc:checked')), lim = 0, pl = '';
+    acc.forEach(function (c) { var l = LIM[c.dataset.plat]; if (l && (!lim || l < lim)) { lim = l; pl = c.dataset.plat; } });
+    if (!lim) { ring.classList.add('hidden'); return; } ring.classList.remove('hidden');
+    var n = Array.from(ta.value).length, left = lim - n, pct = Math.min(1, n / lim), c = ring.querySelector('.cp-r');
+    c.setAttribute('stroke-dashoffset', String(94.25 * (1 - pct))); c.setAttribute('stroke', left < 0 ? '#dc2626' : pct > .9 ? '#d97706' : '#2563eb');
+    ring.querySelector('.cp-rn').textContent = left < 50 ? left : ''; ring.title = ((P.plat && P.plat[pl]) || pl) + ': ' + n + ' / ' + lim;
+  }
+  var stack = document.getElementById('cp-stack');
+  function q(v) { return String(v || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function paintStack() { if (!stack) return; var acc = [].slice.call(document.querySelectorAll('.acc:checked'));
+    stack.innerHTML = acc.slice(0, 6).map(function (c) { var pic = c.dataset.pic ? '<img src="' + q(c.dataset.pic) + '" referrerpolicy="no-referrer" class="w-full h-full object-cover">' : '<span class="w-full h-full grid place-items-center text-[10px] font-bold text-brand-700 bg-brand-50">' + q((c.dataset.name || '?').charAt(0)) + '</span>';
+      return '<span class="relative w-7 h-7 rounded-full ring-2 ring-white overflow-hidden bg-white cp-pop" title="' + q(c.dataset.name) + '">' + pic + '</span>'; }).join('') + (acc.length > 6 ? '<span class="w-7 h-7 rounded-full ring-2 ring-white bg-ink-100 text-[10px] grid place-items-center text-ink-600">+' + (acc.length - 6) + '</span>' : ''); }
+  function aiRow() { if (!(window.aiRun && window.aiItems) || document.getElementById('cp-aiq')) return;
+    var keys = ['improve', 'hook', 'shorten', 'hashtags', 'cta', 'translate_en'].filter(function (k) { return window.aiItems[k]; });
+    if (keys.length) { var row = document.createElement('div'); row.className = 'flex flex-wrap items-center gap-1.5 px-3 pb-2.5'; row.id = 'cp-aiq';
+      row.innerHTML = '<span class="text-[11px] font-bold bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦ AI</span>' + keys.map(function (k) { return '<button type="button" data-aiq="' + k + '" class="rounded-full border border-brand-200 bg-gradient-to-l from-brand-50 to-fuchsia-50 px-2.5 py-1 text-[11px] font-medium text-brand-800 hover:shadow-sm hover:-translate-y-px transition disabled:opacity-60">' + q(window.aiItems[k]) + '</button>'; }).join('');
+      row.addEventListener('click', function (e) { var b = e.target.closest('[data-aiq]'); if (!b) return; if (!ta.value.trim()) { ta.focus(); ta.classList.add('animate-pulse'); setTimeout(function () { ta.classList.remove('animate-pulse'); }, 700); return; } window.aiRun(ta, b.dataset.aiq, b); });
+      ed.appendChild(row); } }
+  if (document.readyState === 'complete') aiRow(); else window.addEventListener('load', aiRow);
+  function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(520, Math.max(180, ta.scrollHeight + 2)) + 'px'; }
+  ta.addEventListener('input', function () { paintRing(); grow(); });
+  document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('acc')) { paintRing(); paintStack(); } });
+  setTimeout(function () { paintRing(); paintStack(); grow(); }, 50);
+})();
+
+/* نوع المنشور: منشور / ستوري / ريلز → بيتطبق على إعدادات كل حساب مختار */
+(function () {
+  var box = document.getElementById('cp-kind'); if (!box) return; var P = window.CPX || {}, note = document.getElementById('cp-kind-note');
+  var MAP = { instagram: { post: '', story: 'story', reel: 'reel_only' }, facebook: { post: '', story: 'story', reel: 'reel' } };
+  function apply() {
+    var k = (box.querySelector('input:checked') || {}).value || 'post', bad = [];
+    document.querySelectorAll('.acc:checked').forEach(function (c) {
+      var m = MAP[c.dataset.plat], s = document.querySelector('select[name="opt[' + c.value + '][type]"]');
+      if (m && s) s.value = m[k];
+      else if (k !== 'post' && !(k === 'reel' && /tiktok|youtube/.test(c.dataset.plat))) { var n = (P.plat && P.plat[c.dataset.plat]) || c.dataset.plat; if (bad.indexOf(n) < 0) bad.push(n); }
+    });
+    note.textContent = bad.length ? (P.kNo || '').replace('%s', bad.join('، ')) : '';
+    document.getElementById('content').dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  box.addEventListener('change', apply);
+  document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('acc')) setTimeout(apply, 0); });
 })();
