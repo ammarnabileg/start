@@ -27,26 +27,72 @@ function ps_same_time(?string $got, DateTime $want): bool
     if (!$got) return false;
     try { return abs((new DateTime($got))->getTimestamp() - $want->getTimestamp()) < 90; } catch (Throwable $e) { return false; }
 }
+/** سجل تشخيص لمحاولات تغيير الميعاد (آخر 10) — عشان نعرف Zernio بيرد بإيه فعلًا */
+function ps_diag_add(array $d): void
+{
+    $k = 'ps_diag_' . (int)ws('id');
+    $all = (array)json_decode((string)setting($k, '[]'), true);
+    array_unshift($all, $d + ['at' => gmdate('Y-m-d H:i:s') . 'Z']);
+    save_setting($k, json_encode(array_slice($all, 0, 10), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+function ps_diag_post(array $p): array
+{
+    $pl = array_map(function ($x) { return ['pf' => $x['platform'] ?? '', 'st' => $x['status'] ?? '', 'sch' => $x['scheduledFor'] ?? null]; }, (array)($p['platforms'] ?? []));
+    $keys = array_values(array_intersect(array_keys($p), ['queuedFromProfile', 'queueId', 'queueSlot', 'isDraft', 'recycling', 'timezone', 'requiresApproval', 'approvalStatus']));
+    $extra = []; foreach ($keys as $k) $extra[$k] = is_scalar($p[$k]) || $p[$k] === null ? $p[$k] : '…';
+    return ['status' => $p['status'] ?? null, 'scheduledFor' => $p['scheduledFor'] ?? null, 'tz' => $p['timezone'] ?? null, 'platforms' => $pl] + $extra;
+}
 function ps_reschedule(Zernio $z, string $id, DateTime $dt): void
 {
     $p = pub_get_post($z, $id);
     if (in_array((string)($p['status'] ?? ''), ['published', 'publishing'], true)) throw new ZernioException(t('المنشور اتنشر خلاص، مينفعش تغير ميعاده.'));
-    // 1) المنشور كامل بنفس إعداداته + الميعاد الجديد
-    $payload = ['content' => (string)($p['content'] ?? ''), 'platforms' => ps_platforms($p), 'timezone' => site_timezone(), 'scheduledFor' => ps_utc($dt)];
-    if ($m = ps_media($p)) $payload['mediaItems'] = $m;
-    $r = pub_update_post($z, $id, $payload);
-    $got = (string)($r['post']['scheduledFor'] ?? '');
-    if (!ps_same_time($got, $dt)) { $got = (string)(pub_get_post($z, $id)['scheduledFor'] ?? ''); }
-    if (ps_same_time($got, $dt)) return;
-    // 2) الميعاد لوحده
-    $r = pub_update_post($z, $id, ['scheduledFor' => ps_utc($dt), 'timezone' => site_timezone()]);
-    $got = (string)($r['post']['scheduledFor'] ?? '');
-    if (!ps_same_time($got, $dt)) { $got = (string)(pub_get_post($z, $id)['scheduledFor'] ?? ''); }
-    if (ps_same_time($got, $dt)) return;
-    $tz = new DateTimeZone(site_timezone());
-    $now = '—'; if ($got) { try { $g = new DateTime($got); $g->setTimezone($tz); $now = $g->format('Y-m-d H:i'); } catch (Throwable $e) {} }
-    log_activity('post.reschedule_failed', $id . ' want ' . $dt->format('c') . ' got ' . $got);
-    throw new ZernioException(t('Zernio رد إن التعديل تم، بس الميعاد مااتغيرش (لسه %s). جرّب تغيّره من صفحة التعديل، ولو فضل كده ابعتلي.', $now));
+    $diag = ['post' => $id, 'want' => ps_utc($dt), 'before' => ps_diag_post($p), 'tries' => []];
+    $tries = [
+        'full' => function () use ($p, $dt) { $x = ['content' => (string)($p['content'] ?? ''), 'platforms' => ps_platforms($p), 'timezone' => site_timezone(), 'scheduledFor' => ps_utc($dt)]; if ($m = ps_media($p)) $x['mediaItems'] = $m; return $x; },
+        'time_only' => function () use ($dt) { return ['scheduledFor' => ps_utc($dt)]; },
+        'time_local_tz' => function () use ($dt) { $l = clone $dt; $l->setTimezone(new DateTimeZone(site_timezone())); return ['scheduledFor' => $l->format('Y-m-d\TH:i:s'), 'timezone' => site_timezone()]; },
+    ];
+    // لو المنشور متربط بطابور، Zernio ممكن يرجّعه لميعاد الطابور — بنفصله عن الطابور في المحاولة الأخيرة
+    if (!empty($p['queuedFromProfile']) || !empty($p['queueId'])) $tries['unqueue'] = function () use ($dt) { return ['scheduledFor' => ps_utc($dt), 'queuedFromProfile' => null, 'queueId' => null]; };
+    foreach ($tries as $name => $mk) {
+        $body = $mk(); $t = ['try' => $name, 'sent' => array_intersect_key($body, array_flip(['scheduledFor', 'timezone', 'queuedFromProfile', 'queueId'])) + ['fields' => array_keys($body)]];
+        try {
+            $r = pub_update_post($z, $id, $body);
+            $t['resp'] = ['message' => $r['message'] ?? null, 'warnings' => $r['warnings'] ?? null, 'scheduledFor' => $r['post']['scheduledFor'] ?? null, 'status' => $r['post']['status'] ?? null];
+        } catch (ZernioException $ex) { $t['error'] = mb_substr($ex->getMessage(), 0, 300); $diag['tries'][] = $t; continue; }
+        // التأكيد دايمًا بقراءة المنشور من جديد، مش من رد التعديل
+        $after = pub_get_post($z, $id); $t['after'] = ps_diag_post($after);
+        $diag['tries'][] = $t;
+        if (ps_same_time((string)($after['scheduledFor'] ?? ''), $dt)) { $diag['ok'] = $name; ps_diag_add($diag); return; }
+    }
+    $diag['ok'] = false; ps_diag_add($diag);
+    $got = (string)($diag['tries'] ? (end($diag['tries'])['after']['scheduledFor'] ?? '') : '');
+    $tz = new DateTimeZone(site_timezone()); $now = '—';
+    if ($got) { try { $g = new DateTime($got); $g->setTimezone($tz); $now = $g->format('Y-m-d H:i'); } catch (Throwable $e) {} }
+    $err = ''; foreach ($diag['tries'] as $t) if (!empty($t['error'])) { $err = $t['error']; break; }
+    log_activity('post.reschedule_failed', $id);
+    throw new ZernioException($err !== '' ? t('Zernio رفض تغيير الميعاد: %s', $err) : t('Zernio رد إن التعديل تم، بس الميعاد مااتغيرش (لسه %s). افتح "تشخيص تغيير المواعيد" تحت الصفحة وابعتلي اللي فيه.', $now));
+}
+/** ملاحظات الفريق الداخلية (مابتتنشرش) */
+function ps_notes_ok(): bool { static $ok = null; if ($ok === null) { try { db()->query('SELECT 1 FROM post_notes LIMIT 1'); $ok = true; } catch (Throwable $e) { $ok = false; } } return $ok; }
+function ps_notes(array $ids): array
+{
+    if (!$ids || !ps_notes_ok()) return [];
+    $st = db()->prepare('SELECT n.post_id, n.body, n.created_at, u.name FROM post_notes n LEFT JOIN users u ON u.id = n.user_id WHERE n.workspace_id = ? AND n.post_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ') ORDER BY n.id');
+    $st->execute(array_merge([(int)ws('id')], $ids));
+    $out = []; foreach ($st->fetchAll() as $r) $out[$r['post_id']][] = ['b' => $r['body'], 'at' => $r['created_at'], 'by' => (string)($r['name'] ?? '')];
+    return $out;
+}
+/** نسخة مجدولة من منشور (إعادة نشر) */
+function ps_repost(Zernio $z, string $id, DateTime $dt): string
+{
+    $p = pub_get_post($z, $id);
+    $copy = ['content' => (string)($p['content'] ?? ''), 'timezone' => site_timezone(), 'scheduledFor' => ps_utc($dt)];
+    if ($m = ps_media($p)) $copy['mediaItems'] = $m;
+    $pl = ps_platforms($p); if (!$pl) throw new ZernioException(t('المنشور ده مالوش حسابات.'));
+    $copy['platforms'] = $pl;
+    $r = $z->createPost($copy);
+    return (string)($r['post']['_id'] ?? '');
 }
 function ps_duplicate(Zernio $z, string $id): string
 {
@@ -62,6 +108,14 @@ function ps_duplicate(Zernio $z, string $id): string
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
     header('Content-Type: application/json; charset=utf-8');
     $op = (string)($_POST['op'] ?? '');
+    if ($op === 'note') {
+        if (!ps_notes_ok()) exit(json_encode(['error' => t('شغّل setup.php الأول عشان الملاحظات تشتغل.')], JSON_UNESCAPED_UNICODE));
+        $pid = (string)($_POST['ids'][0] ?? ''); $body = trim(mb_substr((string)($_POST['body'] ?? ''), 0, 1000));
+        if (!preg_match('/^[\w-]{1,64}$/', $pid) || $body === '') exit(json_encode(['error' => t('اكتب الملاحظة الأول.')], JSON_UNESCAPED_UNICODE));
+        db()->prepare('INSERT INTO post_notes (workspace_id, post_id, user_id, body) VALUES (?, ?, ?, ?)')->execute([(int)ws('id'), $pid, (int)(current_user()['id'] ?? 0) ?: null, $body]);
+        log_activity('post.note', $pid);
+        exit(json_encode(['ok' => [$pid], 'failed' => [], 'notes' => ps_notes([$pid])[$pid] ?? []], JSON_UNESCAPED_UNICODE));
+    }
     if ($op === 'tags' || $op === 'tag_add') {
         if (!function_exists('an_tags_available') || !an_tags_available()) exit(json_encode(['error' => t('شغّل setup.php الأول عشان التاجات تشتغل.')], JSON_UNESCAPED_UNICODE));
         if (!can('posts.create')) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
@@ -76,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
         log_activity('post.tags', count($ids) . ' ' . implode(',', $new));
         exit(json_encode(['ok' => array_keys($out), 'tags' => $out, 'failed' => []], JSON_UNESCAPED_UNICODE));
     }
-    $need = in_array($op, ['dup'], true) ? 'posts.create' : 'posts.manage';
+    $need = in_array($op, ['dup', 'repost', 'note'], true) ? 'posts.create' : 'posts.manage';
     if (!can($need)) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
     $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 50);
     $tz = new DateTimeZone(site_timezone());
@@ -120,6 +174,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 if (!empty($p['scheduledFor'])) { $payload['scheduledFor'] = ps_utc(new DateTime((string)$p['scheduledFor'])); } // نفس الميعاد بالظبط (UTC)
                 if ($m = ps_media($p)) $payload['mediaItems'] = $m;
                 pub_update_post($z, $id, $payload); log_activity('post.update', $id);
+            } elseif ($op === 'repost') {
+                if (!can('posts.create')) throw new ZernioException(t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.'));
+                $base = DateTime::createFromFormat('Y-m-d\TH:i', (string)($_POST['when'] ?? ''), $tz);
+                if (!$base) throw new ZernioException(t('اختار تاريخ ووقت النشر.'));
+                $gap = max(0, min(60, (int)($_POST['gap'] ?? 0)));
+                $dt = (clone $base)->modify('+' . ($gap * array_search($id, $ids, true)) . ' day');
+                if ($dt < new DateTime('now', $tz)) throw new ZernioException(t('وقت النشر لازم يكون في المستقبل.'));
+                ps_repost($z, $id, $dt); log_activity('post.repost', $id . ' ' . $dt->format('Y-m-d H:i'));
             } elseif ($op === 'retry') {
                 pub_retry_post($z, $id); log_activity('post.retry', $id);
             } elseif ($op === 'dup') {
@@ -343,6 +405,15 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <button type="button" id="ps-btag-go" class="btn-ghost !py-1.5 !text-xs">🏷 <?= e(t('ضيف تاج')) ?></button>
           <datalist id="ps-taglist"><?php foreach (array_keys($tagSeen) as $tg): ?><option value="<?= e($tg) ?>"><?php endforeach; ?></datalist>
         <?php endif; ?>
+        <?php if (can('posts.create')): ?>
+          <span class="h-5 w-px bg-ink-200"></span>
+          <span class="text-xs text-ink-500"><?= e(t('انشرهم تاني من')) ?></span>
+          <input type="datetime-local" id="ps-rp-at" class="input !mt-0 !h-8 !py-0 text-xs !w-auto" dir="ltr">
+          <span class="text-xs text-ink-500"><?= e(t('كل')) ?></span>
+          <input type="number" id="ps-rp-gap" value="2" min="0" max="60" class="input !mt-0 !h-8 !py-0 text-xs !w-14">
+          <span class="text-xs text-ink-500"><?= e(t('يوم')) ?></span>
+          <button type="button" id="ps-rp-go" class="btn-ghost !py-1.5 !text-xs">🔁 <?= e(t('جدول')) ?></button>
+        <?php endif; ?>
         <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs">⧉ <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-brep" class="btn-ghost !py-1.5 !text-xs">🔁 <?= e(t('استبدال')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
@@ -358,6 +429,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         $engs = []; foreach ($posts as $p0) { $m0 = $pm($p0); if ($m0 && $m0['eng'] > 0) $engs[] = $m0['eng']; }
         rsort($engs); $topCut = $engs ? $engs[max(0, (int)ceil(count($engs) * 0.2) - 1)] : PHP_INT_MAX;
         ?>
+        <?php $notesMap = ps_notes(array_values(array_filter(array_map(function ($x) { return (string)($x['_id'] ?? ''); }, $posts)))); ?>
         <?php $lastDay = null; $tzx = new DateTimeZone(site_timezone()); $today = (new DateTime('now', $tzx))->format('Y-m-d');
         foreach ($posts as $p):
             $st = (string)($p['status'] ?? ''); [$label] = status_label($st);
@@ -384,6 +456,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
                 'pl' => $plv, 'dup' => url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])];
           ?>
           <?php $mx = $pm($p); if ($mx) $pdata[$p['_id']]['m'] = $mx; ?>
+          <?php $pnotes = $notesMap[$p['_id']] ?? []; $pdata[$p['_id']]['notes'] = $pnotes; ?>
           <?php $ptags = $tagsMap[$p['_id']] ?? []; $pdata[$p['_id']]['tags'] = $ptags; $pdata[$p['_id']]['acc'] = array_values(array_filter($accIds)); ?>
           <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
@@ -398,6 +471,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
               <div class="flex items-center gap-2">
                 <label class="shrink-0 cursor-pointer flex"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-40 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e(t('تحديد')) ?>"></label>
                 <span class="rounded-md px-1.5 py-0.5 text-[10px] font-medium <?= $stCls[$st] ?? 'bg-ink-100 text-ink-600' ?>"><?= e($label) ?></span>
+                <span class="ps-nc text-[10px] rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.5 <?= $pnotes ? '' : 'hidden' ?>" title="<?= e(t('ملاحظات الفريق')) ?>">📝 <b><?= count($pnotes) ?></b></span>
                 <span class="ps-when text-[11px] text-ink-500 tabular-nums" data-at="<?= e((string)$when) ?>" data-st="<?= e($st) ?>" title="<?= e(fmt_date($when)) ?>"><?= e(fmt_date($when)) ?></span>
                 <div class="ms-auto flex -space-x-1 rtl:space-x-reverse">
                   <?php foreach ($pls as $pl): $u = $pl['platformPostUrl'] ?? null; $ic = platform_icon((string)($pl['platform'] ?? ''), 'w-[18px] h-[18px]', 'badge'); ?>
@@ -495,12 +569,22 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيعرض لحد 100 منشور مجدول و100 من آخر المنشورات. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
     <?php endif; ?>
+    <?php $diagRows = (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true); if ($diagRows && can('posts.manage')): ?>
+      <details class="card p-4 mt-6 text-sm" id="ps-diag">
+        <summary class="cursor-pointer font-semibold text-ink-800">🩺 <?= e(t('تشخيص تغيير المواعيد')) ?> <span class="text-xs text-ink-500 font-normal">(<?= e(t('آخر %s محاولة', count($diagRows))) ?>: <?= e(t('%s نجحت', count(array_filter($diagRows, function ($d) { return !empty($d['ok']); })))) ?>)</span></summary>
+        <p class="text-xs text-ink-500 mt-2"><?= e(t('لو تغيير الميعاد مش بيتحفظ، انسخ اللي تحت وابعته للدعم. مفيهوش مفاتيح ولا بيانات سرية.')) ?></p>
+        <textarea readonly id="ps-diag-txt" class="input font-mono text-[11px] mt-2" rows="8" dir="ltr"><?= e(json_encode($diagRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></textarea>
+        <button type="button" class="btn-ghost !text-xs mt-2" onclick="var t=document.getElementById('ps-diag-txt');t.select();navigator.clipboard&&navigator.clipboard.writeText(t.value);this.textContent='✓'"><?= e(t('انسخ')) ?></button>
+      </details>
+    <?php endif; ?>
     <script>window.PSX = <?= json_encode(['view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
       'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
       'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
         'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors', 'impressions', 'likes', 'comments', 'shares', 'engagement_rate'],
         'mImp' => t('مرات الظهور'), 'mLikes' => t('إعجاب'), 'mCom' => t('تعليق'), 'mSh' => t('مشاركة'), 'mRate' => t('نسبة التفاعل'), 'perf' => t('الأداء'),
+        'notesL' => t('ملاحظات الفريق'), 'notePh' => t('ملاحظة داخلية للفريق (مش هتتنشر)…'), 'noteAdd' => t('ضيف'), 'canNote' => ps_notes_ok() && can('posts.create'),
+        'repost' => t('انشره تاني'), 'repostAt' => t('في ميعاد'), 'reposted' => t('اتعمل %s نسخة مجدولة'), 'rpQ' => t('هيتعمل %s نسخة مجدولة من المنشورات المحددة، أول واحدة %s وكل نسخة بعد %s يوم. تكمل؟'), 'pickT' => t('اختار ميعاد'),
         'tagsL' => t('التاجات'), 'tagsPh' => t('مثلاً: رمضان، عروض، فرع الرياض'), 'tagged' => t('اتحط التاج على %s منشور'), 'tagSaved' => t('اتحفظت التاجات'), 'canTag' => function_exists('an_tags_available') && an_tags_available() && can('posts.create'),
         'loading' => t('بنحمّل…'), 'pageOf' => t('(صفحة %s من %s)'), 'keysExtra' => [['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')]],
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
