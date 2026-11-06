@@ -41,7 +41,6 @@ function nav_items(): array
         ['key' => 'prospects', 'label' => t('العملاء المستهدفين'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
-        ['key' => 'campaign', 'label' => t('حملة متكاملة'), 'section' => $s3],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => $s3,
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => $s3, 'module' => 'ads',

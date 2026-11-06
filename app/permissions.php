@@ -121,7 +121,7 @@ function valid_role(string $role, ?int $wid = null): bool
 function page_permission(string $page): ?string
 {
     $map = [
-        'compose' => 'posts.create', 'campaign' => 'posts.create', 'approvals' => 'posts.create', 'post_log' => 'posts.manage', 'bulk' => 'posts.create',
+        'compose' => 'posts.create', 'approvals' => 'posts.create', 'post_log' => 'posts.manage', 'bulk' => 'posts.create',
         'posts' => 'posts.view', 'calendar' => 'posts.view', 'post_edit' => 'posts.view', 'queue' => 'posts.manage',
         'inbox' => 'inbox.reply', 'comments' => 'comments.reply',
         'automations' => 'automations.manage', 'workflows' => 'automations.manage',
