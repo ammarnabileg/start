@@ -72,6 +72,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' evergreen=error';
         }
+        // #39 إخفاء تلقائي للشتايم والسبام
+        try {
+            $n = (int)ai_as_workspace($wid, function () { $z = zernio_or_null(); return $z && function_exists('cm_autohide_tick') ? cm_autohide_tick($z) : 0; });
+            if ($n) $line .= ' autohide+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' autohide=error';
+        }
         // #74 تذكير بالاجتماعات المحجوزة
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_meeting_reminders() : 0; });

@@ -122,6 +122,7 @@ if ($z) {
         [$D['p100'], $E['p100']] = an_try(function () use ($z, $base) { return (array)(an_posts($z, $base + ['limit' => 100, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'desc'])['posts'] ?? []); });
         $D['ins'] = an_post_insights((array)($D['p100'] ?? [])); $E['ins'] = null;
         $D['tags'] = an_hashtag_stats((array)($D['p100'] ?? []));
+        $D['camps'] = an_tags_available() ? an_campaign_stats((array)($D['p100'] ?? [])) : [];
         $D['ab'] = an_ab_results((array)($D['p100'] ?? []));
         [$D['bottom'], $E['bottom']] = an_try(function () use ($z, $base) { return an_posts($z, $base + ['limit' => 5, 'page' => 1, 'sortBy' => 'engagement', 'order' => 'asc']); });
         [$D['freq'], $E['freq']] = an_try(function () use ($z, $pid, $acc) { return an_posting_frequency($z, ['profileId' => $pid, 'accountId' => $acc ?: null]); });
@@ -571,6 +572,12 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                     <div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full <?= $x['er'] >= $x['avg'] ? 'bg-lime-500' : 'bg-amber-400' ?>" style="width:<?= max(4, round($x['er'] / $tmx * 100)) ?>%"></div></div>
                     <span class="text-end text-ink-600"><?= e(number_format($x['er'], 2)) ?>% · <?= (int)$x['n'] ?></span></div><?php endforeach; ?></div>
                   <p class="text-[11px] text-ink-400 mt-2"><?= e(t('متوسط التفاعل للمنشورات اللي فيها الهاشتاج (وعدد مرات استخدامه). الأخضر أعلى من متوسطك.')) ?></p></div>
+              <?php endif; ?>
+              <?php $cg = (array)($D['camps'] ?? []); if ($cg): ?>
+                <div class="mt-4 rounded-xl border border-ink-200 p-3 overflow-x-auto"><div class="text-sm font-semibold text-ink-900 mb-2">📣 <?= e(t('الحملات (حسب التاجات)')) ?></div>
+                  <table class="w-full text-xs min-w-[420px]"><thead><tr class="text-ink-500 border-b border-ink-100"><th class="text-start py-1"><?= e(t('الحملة')) ?></th><th><?= e(t('منشورات')) ?></th><th><?= e(t('ظهور')) ?></th><th><?= e(t('تفاعل')) ?></th><th><?= e(t('ضغطات')) ?></th><th><?= e(t('معدل التفاعل')) ?></th></tr></thead><tbody>
+                  <?php foreach ($cg as $x): ?><tr class="border-b border-ink-50"><td class="py-1.5 font-medium text-ink-800" dir="auto"><?= e($x['tag']) ?></td><td class="text-center"><?= (int)$x['n'] ?></td><td class="text-center"><?= e(an_num($x['imp'])) ?></td><td class="text-center"><?= e(an_num($x['eng'])) ?></td><td class="text-center"><?= e(an_num($x['clicks'])) ?></td><td class="text-center font-semibold"><?= e(number_format($x['er'], 2)) ?>%</td></tr><?php endforeach; ?>
+                  </tbody></table><p class="text-[11px] text-ink-400 mt-2"><?= e(t('حط نفس التاج على منشورات الحملة من صفحة المنشورات، وهتتجمع هنا في تقرير واحد.')) ?></p></div>
               <?php endif; ?>
               <?php $ab = (array)($D['ab'] ?? []); if ($ab): ?>
                 <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-sm font-semibold text-ink-900 mb-2">🧪 <?= e(t('تجارب A/B')) ?></div>

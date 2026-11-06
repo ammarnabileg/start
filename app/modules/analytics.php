@@ -111,6 +111,22 @@ function an_post_insights(array $posts): array
     return array_slice($out, 0, 5);
 }
 
+/** #48 الحملات = التاجات: تقرير واحد لكل حملة من منشورات الفترة */
+function an_campaign_stats(array $posts): array
+{
+    $tm = an_tags_map(); if (!$tm) return [];
+    $out = [];
+    foreach ($posts as $p) {
+        foreach ($tm[(string)($p['_id'] ?? '')] ?? [] as $tg) {
+            $an = (array)($p['analytics'] ?? []); $o = $out[$tg] ?? ['tag' => $tg, 'n' => 0, 'imp' => 0, 'eng' => 0, 'clicks' => 0];
+            $o['n']++; $o['imp'] += (float)($an['impressions'] ?? 0); $o['eng'] += (float)($an['likes'] ?? 0) + (float)($an['comments'] ?? 0) + (float)($an['shares'] ?? 0); $o['clicks'] += (float)($an['clicks'] ?? 0);
+            $out[$tg] = $o;
+        }
+    }
+    foreach ($out as &$o) $o['er'] = $o['imp'] > 0 ? $o['eng'] / $o['imp'] * 100 : 0; unset($o);
+    usort($out, function ($a, $b) { return $b['imp'] <=> $a['imp']; });
+    return array_values($out);
+}
 /** #31 الهاشتاجات: متوسط التفاعل لكل هاشتاج اتستخدم في منشورين أو أكتر */
 function an_hashtag_stats(array $posts): array
 {

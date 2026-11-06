@@ -30,10 +30,11 @@ $limit = (int)(crm_prefs()['daily_limit'] ?? 0);
 $st = db()->prepare("SELECT source, COUNT(*) n, SUM(stage <> 'new') c, SUM(stage = 'won') w, COALESCE(SUM(CASE WHEN stage = 'won' THEN deal_value END), 0) v FROM crm_leads WHERE workspace_id = ? GROUP BY source ORDER BY n DESC");
 $st->execute([$wid]); $srcRows = $st->fetchAll();
 $links = crm_links_report();
+$coupons = function_exists('coupon_list') ? coupon_list() : [];
 $fc = crm_forecast();
 $st = db()->prepare("SELECT lost_reason, COUNT(*) n FROM crm_leads WHERE workspace_id = ? AND stage = 'lost' AND lost_reason IS NOT NULL GROUP BY lost_reason ORDER BY n DESC"); $st->execute([$wid]); $lostRows = $st->fetchAll();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows, $coupons) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -126,6 +127,14 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       <?php foreach ($links as $lk): ?><tr class="border-b border-ink-50"><td class="py-2 max-w-[320px]"><div class="truncate text-ink-800" dir="auto"><?= e($lk['label'] ?: $lk['url']) ?></div><div class="text-[11px] text-ink-400 truncate" dir="ltr"><?= e($lk['url']) ?></div></td>
         <td class="text-center font-semibold"><?= (int)$lk['clicks'] ?></td><td class="text-center"><?= (int)$lk['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= (int)$lk['won'] ?></td>
         <td class="text-center text-xs"><?= $lk['clicks'] ? round($lk['leads'] / $lk['clicks'] * 100) . '%' : '—' ?></td></tr><?php endforeach; ?>
+      </tbody></table></div></div>
+    <?php endif; ?>
+
+    <?php if ($coupons): ?>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🎟 <?= e(t('كوبونات المنشورات')) ?></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('العميل اللي يكتب الكود في كومنت أو رسالة واتضاف Lead، بيتسجل عليه الكوبون.')) ?></p>
+      <div class="overflow-x-auto"><table class="w-full text-sm min-w-[460px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الكود')) ?></th><th class="text-start"><?= e(t('المنشور')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th></tr></thead><tbody>
+      <?php foreach ($coupons as $cp): ?><tr class="border-b border-ink-50"><td class="py-2 font-mono font-semibold" dir="ltr"><?= e($cp['code']) ?></td><td class="max-w-[280px] truncate text-ink-600" dir="auto"><?= e($cp['label']) ?></td><td class="text-center"><?= (int)$cp['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= (int)$cp['won'] ?></td></tr><?php endforeach; ?>
       </tbody></table></div></div>
     <?php endif; ?>
 

@@ -1153,6 +1153,7 @@ function crm_from_social(array $d): array
     if ($url !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$url, (int)$l['id']]);
     $txt = trim((string)($d['text'] ?? ''));
     if ($txt !== '') crm_act_add((int)$l['id'], 'note', '“' . mb_substr($txt, 0, 600) . '”' . (!empty($d['where']) ? ' — ' . $d['where'] : ''));
+    if ($txt !== '' && function_exists('coupon_detect') && ($cp = coupon_detect($txt)) !== '') coupon_attach((int)$l['id'], $cp);
     return crm_lead((int)$l['id']) + ['merged' => !empty($l['merged'])];
 }
 function crm_contacts_merge(array $auto, array $d): array

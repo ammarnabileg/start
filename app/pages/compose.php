@@ -76,6 +76,11 @@ if (($_GET['ajax'] ?? '') === 'best' && $z && function_exists('next_best_time'))
     exit(json_encode(['ok' => true, 'items' => $out], JSON_UNESCAPED_UNICODE));
 }
 // #11: لينك متتبع للمنشور
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'coupon_new') {
+    header('Content-Type: application/json; charset=utf-8');
+    $cp = coupon_make((string)($_POST['code'] ?? ''), (string)($_POST['label'] ?? ''));
+    exit(json_encode($cp ? ['ok' => true, 'code' => $cp] : ['ok' => false, 'error' => t('الكود ده مستخدم قبل كده. اختار كود تاني.')], JSON_UNESCAPED_UNICODE));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'track_link') {
     header('Content-Type: application/json; charset=utf-8');
     $u = trim((string)($_POST['url'] ?? ''));
@@ -133,9 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2
 if ($z) {
     try {
         $profileId = current_profile_id($z);
-        $accounts = array_values(array_filter($z->accounts(zernio_profile()), function ($a) {
+        $accounts = acc_filter(array_values(array_filter($z->accounts(zernio_profile()), function ($a) {
             return ($a['isActive'] ?? true) && empty($a['needsReconnection']);
-        }));
+        })));
         foreach ($accounts as $a) {
             if ($a['platform'] === 'pinterest') {
                 try {
@@ -455,6 +460,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <button type="button" class="chip text-xs" data-tool="tags"># <?= e(t('بنك الهاشتاجات')) ?></button>
             <button type="button" class="chip text-xs" data-tool="link">🔗 <?= e(t('منشور من لينك')) ?></button>
             <button type="button" class="chip text-xs" data-tool="brand" title="<?= e(t('لوجو وعلامة مائية وإطار بلون الشركة على الصور اللي رفعتها')) ?>">🎨 <?= e(t('هوية الصورة')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="coupon" data-q="<?= e(t('كود الخصم (سيبه فاضي ونعمله لك):')) ?>" data-line="<?= e(t('🎟 كود الخصم: %s')) ?>" title="<?= e(t('كود خصم مربوط بالمنشور. لما عميل يكتبه في كومنت أو رسالة بيتسجل عليه، وتشوف النتيجة في تقارير المبيعات')) ?>">🎟 <?= e(t('كوبون')) ?></button>
             <button type="button" class="chip text-xs" data-tool="ab" title="<?= e(t('نسختين بنصين مختلفين، والتحليلات تقولك أنهي كسب')) ?>">🧪 A/B</button>
             <button type="button" class="chip text-xs" data-tool="ver" title="<?= e(t('بيعمل نسخة مظبوطة لكل حساب مختار: طول X، الهاشتاجات، واللينكات في إنستجرام')) ?>">✂️ <?= e(t('نسخة لكل منصة')) ?></button>
           </div>

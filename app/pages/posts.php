@@ -166,10 +166,16 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 
 }
 
 // #19 Evergreen: منشور ناجح بيتعاد كل X يوم بصياغة مختلفة (بالقواعد، من غير AI) — #20 أوقات ممنوعة للنشر
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['evergreen', 'blackout'], true)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['evergreen', 'blackout', 'goals'], true)) {
     header('Content-Type: application/json; charset=utf-8');
     if (!can('posts.manage')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE));
     $wid = (int)ws('id');
+    if ($_POST['action'] === 'goals') {
+        if (!can('posts.manage')) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE)); }
+        $g = []; foreach ((array)json_decode((string)($_POST['goals'] ?? '{}'), true) as $k => $n) if (preg_match('/^[\w-]{1,64}$/', (string)$k) && (int)$n > 0) $g[(string)$k] = min(100, (int)$n);
+        save_setting('post_goals_' . $wid, json_encode($g)); log_activity('post.goals', (string)count($g));
+        exit(json_encode(['ok' => true, 'goals' => $g]));
+    }
     if ($_POST['action'] === 'blackout') {
         $rules = [];
         foreach ((array)json_decode((string)($_POST['rules'] ?? '[]'), true) as $r) {
@@ -679,6 +685,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
               <button type="button" data-ct="gaps" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">🧩 <?= e(t('املا الفراغات')) ?></button>
               <button type="button" data-ct="copyw" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⧉ <?= e(t('انسخ الأسبوع للجاي')) ?></button>
               <button type="button" data-ct="pause" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⏸ <?= e(t('أجّل فترة')) ?></button>
+              <?php if (can('posts.manage')): ?><button type="button" data-ct="goals" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">🎯 <?= e(t('أهداف أسبوعية')) ?></button><?php endif; ?>
               <button type="button" data-ct="black" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⛔ <?= e(t('أوقات ممنوعة')) ?></button>
             </div></details>
           <?php endif; ?>
@@ -735,6 +742,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'seasons' => function_exists('ps_seasons') ? ps_seasons(date('Y-m-d', strtotime('-40 days')), date('Y-m-d', strtotime('+400 days'))) : [], 'compose' => url('compose'),
 'noKb' => t('الأفكار هتبقى أدق لو ملّيت قاعدة المعرفة (خدماتك وأسعارك وجمهورك).'), 'mkPost' => t('اعمل منشور'), 'ideasT' => t('أفكار الأسبوع'), 'thinking' => t('بنفكّر…'),
         'blackout' => json_decode((string)setting('ps_blackout_' . (int)ws('id'), '[]'), true) ?: [], 'canManage' => can('posts.manage'), 'bulkUrl' => can('posts.create') ? url('bulk', ['drop' => 1]) : '',
+        'goals' => function_exists('post_goals') ? (object)post_goals() : (object)[], 'gT' => t('أهداف النشر الأسبوعية'), 'gHint' => t('كام منشور في الأسبوع (من السبت للجمعة) لكل حساب. بنعدّ المنشور والمجدول.'), 'gLbl' => t('🎯 الأسبوع ده'), 'gSaved' => t('اتحفظت الأهداف ✓'),
         'accs' => array_map(function ($a) { return $a['name'] . ($a['plat'] ? ' · ' . $a['plat'] : ''); }, $accounts ?? []),
         'tPause' => t('أجّل فترة'), 'tCopyW' => t('انسخ الأسبوع للجاي'), 'tGaps' => t('املا الفراغات'), 'tBlack' => t('أوقات ممنوعة'), 'tAllAcc' => t('كل الحسابات'),
         'pFrom' => t('من يوم (YYYY-MM-DD):'), 'pTo' => t('لحد يوم (YYYY-MM-DD):'), 'pDays' => t('أجّلهم كام يوم؟'), 'pDone' => t('اتأجل %s منشور، وفشل %s'), 'pNone' => t('مفيش منشورات مجدولة في الفترة دي.'),

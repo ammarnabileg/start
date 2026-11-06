@@ -34,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uid = (int)($_POST['user_id'] ?? 0);
 
     // إنشاء أو تعديل دور مخصص
+    if ($action === 'acc_perm') {
+        $uid = (int)($_POST['user_id'] ?? 0); $m = acc_perm_map();
+        $ids = array_values(array_filter(array_map('strval', (array)($_POST['accs'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); }));
+        if ($ids) $m[$uid] = $ids; else unset($m[$uid]);
+        save_setting('acc_perm_' . $wid, json_encode($m));
+        log_activity('team.acc_perm', $uid . ' ' . count($ids));
+        flash('success', t('اتحفظت الحسابات المسموحة.'));
+        redirect(url('team'));
+    }
     if ($action === 'role_save') {
         $name = trim((string)($_POST['name'] ?? ''));
         $perms = array_values(array_intersect((array)($_POST['perms'] ?? []), all_permissions()));
@@ -176,7 +185,8 @@ try {
     foreach ($st->fetchAll() as $r) $act[(int)$r['user_id']] = $r;
 } catch (Throwable $ex) { $act = []; }
 
-render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, $me, $newLink, $w, $act) {
+$zAccs = []; if (can('team.manage')) { try { $zt = zernio_or_null(); if ($zt) $zAccs = $zt->accounts(zernio_profile()); } catch (Throwable $e) {} }
+render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, $me, $newLink, $w, $act, $zAccs) {
     $select = function () {
         $h = '<select name="role" class="input">';
         foreach (role_options() as $k => $l) {
@@ -242,6 +252,13 @@ render(t('فريق %s', $w['name']), 'team', function () use ($members, $links, 
                       <option value="<?= e($rk) ?>" <?= $m['role'] === $rk ? 'selected' : '' ?>><?= e($rl) ?></option>
                     <?php endforeach; ?>
                   </select></form>
+                <?php if (!$self && $m['role'] !== 'owner' && $zAccs): $ap = acc_perm_map()[(int)$m['id']] ?? []; ?>
+                <details class="relative"><summary class="list-none cursor-pointer text-sm rounded-lg px-3 py-1.5 border border-ink-200 hover:bg-ink-50"><?= $ap ? e(t('%s حساب', count($ap))) : e(t('كل الحسابات')) ?> ▾</summary>
+                  <form method="post" class="absolute end-0 z-20 mt-1 w-72 rounded-xl border border-ink-200 bg-white p-3 shadow-xl space-y-1.5"><?= csrf_field() ?><input type="hidden" name="action" value="acc_perm"><input type="hidden" name="user_id" value="<?= (int)$m['id'] ?>">
+                    <p class="text-[11px] text-ink-500"><?= e(t('ينشر على الحسابات دي بس. سيبهم كلهم فاضيين = كل الحسابات.')) ?></p>
+                    <div class="max-h-56 overflow-y-auto space-y-1"><?php foreach ($zAccs as $za): ?><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="accs[]" value="<?= e($za['_id']) ?>" <?= in_array((string)$za['_id'], $ap, true) ? 'checked' : '' ?>><?= platform_icon((string)($za['platform'] ?? ''), 'w-4 h-4') ?><span class="truncate"><?= e($za['displayName'] ?? $za['username'] ?? '') ?></span></label><?php endforeach; ?></div>
+                    <button class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('حفظ')) ?></button></form></details>
+                <?php endif; ?>
                 <?php if (!$self): ?>
                 <form method="post" onsubmit="return confirm('<?= tjs('تشيل %s من الشركة؟', $m['name']) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="remove"><input type="hidden" name="user_id" value="<?= (int)$m['id'] ?>">
                   <button class="text-sm text-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50"><?= e(t('شيله')) ?></button></form>

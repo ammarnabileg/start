@@ -192,7 +192,7 @@
         (!nd && !busy.length ? '<span class="text-lime-700">✓ ' + esc(Hq.hOk) + '</span>' : '') +
         '<label class="ms-auto inline-flex items-center gap-1.5 text-ink-500">' + esc(Hq.hLimit) + ' <input id="cal-busyN" type="number" min="1" max="50" value="' + Hq.busyN + '" class="input !w-16 !py-0.5 text-xs"></label>';
       var bi = $('#cal-busyN'); if (bi) bi.onchange = function () { var v = Math.max(1, Math.min(50, +bi.value || 6)); try { localStorage.setItem('cal-busyN', v); } catch (e) {} Hq.busyN = v; draw(); };
-      var ob = $('#cal-dup-open'); if (ob) ob.onclick = openDups;
+      var ob = $('#cal-dup-open'); if (ob) ob.onclick = openDups; goalsBar();
       // علامات على التقويم
       $$('#cal-grid a[href*="post_edit"], #cal-week a[href*="post_edit"]').forEach(function (a) { var m = /[?&]id=([^&]+)/.exec(a.getAttribute('href')); if (m && dupSet[decodeURIComponent(m[1])]) { a.classList.add('ring-2', 'ring-orange-300', 'bg-orange-50'); a.title = '🔁 ' + a.title; } });
       $$('#cal-grid [data-day]').forEach(function (c) { var pr = c.dataset.day.split('-'), k = pr[0] + '-' + pad(+pr[1]) + '-' + pad(+pr[2]); if (per[k] > Hq.busyN && !c.querySelector('.cal-busy')) { var b = document.createElement('span'); b.className = 'cal-busy absolute top-1.5 end-9 rounded-full bg-red-500 text-white text-[9px] px-1.5'; b.textContent = per[k]; c.appendChild(b); } });
@@ -280,7 +280,29 @@
         return runSeq(plan.map(function (x) { return x.id; }), 'from_draft', function (id) { return { when: byW[id] }; }, X.q.gDone);
       }
       if (k === 'black') return blackDlg();
+      if (k === 'goals') return goalsDlg();
     });
+    /* ---------- #49 أهداف نشر أسبوعية ---------- */
+    function weekStart() { var d = new Date(siteDT(new Date()).slice(0, 10) + 'T00:00'); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); return d; }
+    function goalsBar() {
+      var g = X.q.goals || {}, ks = Object.keys(g), box = $('#cal-health'); if (!ks.length || !box) return;
+      var s = weekStart(), e = new Date(s), cnt = {}; e.setDate(e.getDate() + 7);
+      X.data.forEach(function (p) { if (['scheduled', 'published'].indexOf(p.st) < 0) return; var d = new Date(siteDT(new Date(p.at)).slice(0, 16)); if (d < s || d >= e) return; (p.ac || []).forEach(function (a) { cnt[a] = (cnt[a] || 0) + 1; }); });
+      var old = $('#cal-goals'); if (old) old.remove();
+      var w = document.createElement('div'); w.id = 'cal-goals'; w.className = 'basis-full flex flex-wrap items-center gap-2 pt-1';
+      w.innerHTML = '<span class="font-semibold text-ink-700">' + esc(X.q.gLbl) + ':</span>' + ks.map(function (a) { var n = cnt[a] || 0, ok = n >= g[a]; return '<span class="rounded-full border px-2.5 py-0.5 ' + (ok ? 'bg-lime-50 border-lime-200 text-lime-800' : 'bg-amber-50 border-amber-200 text-amber-800') + '">' + esc((X.q.accs || {})[a] || a) + ' ' + n + '/' + g[a] + (ok ? ' ✓' : '') + '</span>'; }).join('');
+      box.classList.add('flex-wrap'); box.appendChild(w);
+    }
+    function goalsDlg() {
+      var g = X.q.goals || {}, A = X.q.accs || {};
+      dmb.innerHTML = '<p class="text-xs text-ink-500">' + esc(X.q.gHint) + '</p><div class="space-y-1.5">' + Object.keys(A).map(function (a) { return '<label class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">' + esc(A[a]) + '</span><input type="number" min="0" max="100" data-ga="' + esc(a) + '" value="' + (g[a] || '') + '" class="input !mt-0 !py-1 !w-20 text-sm"></label>'; }).join('') + '</div><div class="flex"><button type="button" class="btn-primary !py-1 !text-xs ms-auto" id="gl-save">✓</button></div>';
+      $('#cal-dups-h').textContent = '🎯 ' + X.q.gT; dm.classList.remove('hidden'); dm.setAttribute('aria-hidden', 'false');
+      $('#gl-save').onclick = function () {
+        var out = {}; $$('[data-ga]', dmb).forEach(function (i) { if (+i.value > 0) out[i.dataset.ga] = +i.value; });
+        var fd = new FormData(); fd.append('action', 'goals'); fd.append('goals', JSON.stringify(out));
+        fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) { X.q.goals = j.goals; toast(X.q.gSaved, true); dm.classList.add('hidden'); draw(); } else toast(j.error || X.err); });
+      };
+    }
     function blackDlg() {
       var rules = (X.q.blackout || []).slice(); if (!rules.length) rules.push({ days: [5], from: '11:00', to: '13:30' });
       function rowH(r, i) { return '<div class="rounded-xl border border-ink-200 p-2 space-y-1.5" data-br="' + i + '"><div class="flex flex-wrap gap-1">' + X.q.dows.map(function (n, d) { return '<label class="cursor-pointer"><input type="checkbox" class="peer sr-only" value="' + d + '"' + (r.days.indexOf(d) > -1 ? ' checked' : '') + '><span class="inline-block px-2 py-0.5 rounded-lg border border-ink-200 text-[11px] peer-checked:bg-brand-600 peer-checked:text-white">' + esc(n) + '</span></label>'; }).join('') + '</div>' +

@@ -184,6 +184,14 @@
     if (k === 'tpl') return pane.classList.contains('hidden') || !pane.querySelector('#cpt-tl') ? tplPane() : hide();
     if (k === 'tags') return pane.classList.contains('hidden') || !pane.querySelector('#cpt-tv') ? tagsPane() : hide();
     if (k === 'ver') return makeVersions();
+    if (k === 'coupon') {
+      var code = prompt(b.dataset.q, ''); if (code === null) return;
+      post({ action: 'coupon_new', code: code, label: ta.value.slice(0, 150) }).then(function (j) {
+        if (!j.ok) return alert(j.error || '');
+        ta.value = ta.value.replace(/\s*$/, '') + '\n\n' + b.dataset.line.replace('%s', j.code); ta.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      return;
+    }
     if (k === 'ab') { var abx = document.getElementById('cpt-ab'); abx.classList.toggle('hidden'); b.classList.toggle('on', !abx.classList.contains('hidden')); if (!abx.classList.contains('hidden')) { var at = abx.querySelector('textarea'); if (!at.value) at.value = ta.value; at.focus(); } return; }
   });
   pane.addEventListener('click', function (e) {

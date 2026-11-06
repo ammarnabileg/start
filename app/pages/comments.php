@@ -10,6 +10,31 @@ $cursor = (string)($_GET['cursor'] ?? '');
 // أدوات الفريق (ردود محفوظة)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && strpos((string)($_POST['action'] ?? ''), 'reply_') === 0) team_post((string)$_POST['action']);
 
+// #39 #40 #41: إعدادات الإخفاء التلقائي، ردود المنشور، الأكثر تفاعلًا
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['c_spamcfg', 'c_spamrun', 'c_preps', 'c_fans'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+    $act = (string)$_POST['action'];
+    if ($act === 'c_fans') {
+        if (!$z) $J(['error' => $err ?: t('طلب غير صحيح.')], 422);
+        $by = []; $r = $z->commentedPosts(['limit' => 8, 'profileId' => zernio_profile()]);
+        foreach ((array)($r['data'] ?? []) as $p) { try { $by[(string)$p['id']] = array_map(function ($c) use ($p) { return $c + ['platform' => $p['platform'] ?? '']; }, (array)($z->comments((string)$p['id'], (string)$p['accountId'])['comments'] ?? [])); } catch (Throwable $e) {} }
+        $J(['ok' => true, 'fans' => cm_fans($by), 'posts' => count($by)]);
+    }
+    if (!can('comments.reply')) $J(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
+    if ($act === 'c_preps') { if ($postId === '') $J(['error' => t('طلب غير صحيح.')], 422); post_replies_save($postId, (array)($_POST['list'] ?? [])); $J(['ok' => true, 'list' => post_replies($postId)]); }
+    if ($act === 'c_spamcfg') {
+        save_setting('cm_spam_' . (int)ws('id'), json_encode(['on' => !empty($_POST['on']) ? 1 : 0, 'links' => !empty($_POST['links']) ? 1 : 0, 'words' => mb_substr((string)($_POST['words'] ?? ''), 0, 2000)], JSON_UNESCAPED_UNICODE));
+        log_activity('comment.autohide_cfg', !empty($_POST['on']) ? 'on' : 'off');
+        $J(['ok' => true]);
+    }
+    if (!$z) $J(['error' => $err ?: t('طلب غير صحيح.')], 422);
+    $cfg = cm_spam_cfg(); $cfg['on'] = 1;
+    $GLOBALS['__settings']['cm_spam_' . (int)ws('id')] = json_encode($cfg);
+    try { $n = cm_autohide_tick($z, 8); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+    $J(['ok' => true, 'done' => $n]);
+}
+
 // إجراءات على تعليقات محددة (JSON): تصنيف، إخفاء، رد على كل واحد
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['c_classify', 'c_hide', 'c_reply'], true)) {
     header('Content-Type: application/json; charset=utf-8');
@@ -179,6 +204,11 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
     $stats = ['intent' => 0, 'complaint' => 0, 'spam' => 0, 'done' => 0];
     $walk = function ($list) use (&$walk, &$stats, $labels) { foreach ($list as $c) { $lb = $labels['c:' . ($c['id'] ?? '')] ?? null; if ($lb) { $stats['done']++; if ($lb['intent']) $stats['intent']++; if ($lb['category'] === 'complaint') $stats['complaint']++; if ($lb['category'] === 'spam') $stats['spam']++; } $walk($c['replies'] ?? []); } };
     $walk($comments);
+    // #43 سؤال السعر + #44 قايمة المعلّقين للسحب
+    $priceN = 0; $pool = [];
+    $pw = function ($list) use (&$pw, &$priceN, &$pool) { foreach ($list as $c) { if (empty($c['from']['isOwner'])) { if (cm_is_price_q((string)($c['message'] ?? ''))) $priceN++; $k = (string)($c['from']['id'] ?? $c['from']['username'] ?? $c['from']['name'] ?? ''); if ($k !== '' && !isset($pool[$k])) $pool[$k] = ['k' => $k, 'n' => (string)($c['from']['name'] ?? $c['from']['username'] ?? ''), 'm' => []]; if ($k !== '') $pool[$k]['m'][] = mb_substr((string)($c['message'] ?? ''), 0, 300); } $pw($c['replies'] ?? []); } };
+    $pw($comments);
+    $preps = $postId ? post_replies($postId) : []; $spam = cm_spam_cfg();
     ?>
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
     <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-11rem)] min-h-[560px]" id="cmx">
@@ -230,8 +260,30 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
             <a href="<?= e(url('comments')) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
             <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-10 h-10 rounded-lg object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
             <div class="min-w-0 flex-1"><p class="text-sm font-medium text-ink-900 line-clamp-1" dir="auto"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 160) ?: t('(منشور بدون نص)')) ?></p>
-              <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?></p></div>
+              <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?><?php if ($priceN): ?> · <span class="rounded-md bg-lime-100 text-lime-800 px-1.5 font-semibold" title="<?= e(t('تعليقات بتسأل عن السعر')) ?>">💰 <?= e(t('%s سألوا عن السعر', $priceN)) ?></span><?php endif; ?></p></div>
+            <button type="button" id="cm-tools-btn" class="tb !h-9 px-2.5 text-xs" aria-expanded="false">🧰 <?= e(t('أدوات')) ?></button>
             <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="tb w-9 !h-9 justify-center" title="<?= e(t('فتح المنشور ↗')) ?>"><svg class="w-4 h-4 rtl:-scale-x-100" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h5"/></svg></a><?php endif; ?>
+          </div>
+          <div id="cm-tools" class="hidden shrink-0 border-b border-ink-200 bg-white max-h-[55%] overflow-y-auto">
+            <div class="flex gap-1 px-3 pt-2 text-xs" role="tablist">
+              <?php foreach (['rep' => '💬 ' . t('ردود المنشور'), 'fans' => '⭐ ' . t('الأكثر تفاعلًا'), 'give' => '🎁 ' . t('سحب على هدية'), 'spam' => '🛡 ' . t('إخفاء تلقائي')] as $tk => $tl): ?><button type="button" data-cmt="<?= $tk ?>" class="cmt-tab h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100"><?= e($tl) ?></button><?php endforeach; ?>
+              <?php if ($aiOn): ?><button type="button" class="h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100" data-cp-insight-chat="<?= e(t('لخّص التعليقات على المنشور ده: الناس قالت إيه، مين عايز يشتري، وإيه الشكاوي.')) ?>">✨ <?= e(t('لخّص في 3 سطور')) ?></button><?php endif; ?>
+            </div>
+            <div class="p-3 text-sm">
+              <div data-cmp="rep" class="space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('ردود جاهزة للمنشور ده بس (السعر، العنوان، طريقة الطلب). دوس على الرد يتحط في خانة الكتابة.')) ?></p>
+                <div id="cm-preps" class="flex flex-wrap gap-1.5"></div>
+                <div class="flex gap-1.5"><input id="cm-prep-in" class="input !mt-0 !py-1.5 text-sm flex-1" placeholder="<?= e(t('رد جديد للمنشور ده…')) ?>" dir="auto"><button type="button" id="cm-prep-add" class="btn-ghost !py-1.5 !text-xs">+ <?= e(t('إضافة')) ?></button></div></div>
+              <div data-cmp="fans" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('من آخر 8 منشورات عليها تعليقات: مين علّق أكتر، على كام منشور، وسأل عن السعر كام مرة.')) ?></p>
+                <button type="button" id="cm-fans-go" class="btn-ghost !py-1.5 !text-xs"><?= e(t('هات القايمة')) ?></button><div id="cm-fans" class="divide-y divide-ink-100"></div></div>
+              <div data-cmp="give" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('سحب عشوائي عادل من الناس اللي علّقوا هنا (كل شخص فرصة واحدة مهما علّق). تقدر تشترط كلمة أو منشن.')) ?></p>
+                <div class="flex flex-wrap items-center gap-2 text-xs"><input id="gv-kw" class="input !mt-0 !py-1.5 !w-44 text-xs" placeholder="<?= e(t('لازم التعليق يكون فيه… (اختياري)')) ?>" dir="auto"><label class="flex items-center gap-1"><input type="checkbox" id="gv-tag"> <?= e(t('لازم يعمل منشن لحد')) ?></label><label class="flex items-center gap-1"><?= e(t('عدد الفايزين')) ?> <input type="number" id="gv-n" min="1" max="20" value="1" class="input !mt-0 !py-1 !w-16 text-xs"></label><button type="button" id="gv-go" class="btn-primary !py-1.5 !text-xs">🎲 <?= e(t('اسحب')) ?></button></div>
+                <div id="gv-out" class="text-sm"></div></div>
+              <div data-cmp="spam" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('كل ساعة بنلف على آخر المنشورات ونخفي التعليقات اللي فيها شتايم أو لينكات سبام. التعليق بيتخفي مش بيتمسح، وتقدر ترجّعه من المنصة.')) ?></p>
+                <label class="flex items-center gap-2"><input type="checkbox" id="sp-on" <?= !empty($spam['on']) ? 'checked' : '' ?>> <b><?= e(t('شغّل الإخفاء التلقائي')) ?></b></label>
+                <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="sp-links" <?= !empty($spam['links']) ? 'checked' : '' ?>> <?= e(t('اخفي التعليقات اللي فيها لينكات (تليجرام، واتساب، bit.ly…)')) ?></label>
+                <textarea id="sp-words" rows="2" class="input text-xs" dir="auto" placeholder="<?= e(t('كلمات زيادة تتخفي، مفصولة بفاصلة')) ?>"><?= e((string)$spam['words']) ?></textarea>
+                <div class="flex gap-2"><button type="button" id="sp-save" class="btn-ghost !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><button type="button" id="sp-run" class="btn-ghost !py-1.5 !text-xs">▶ <?= e(t('طبّق دلوقتي')) ?></button></div></div>
+            </div>
           </div>
           <div class="flex items-center gap-2 px-3 h-11 border-b border-ink-100 shrink-0 text-xs">
             <label class="flex items-center gap-2 text-ink-600 cursor-pointer select-none"><input type="checkbox" id="cm-all" class="w-4 h-4 rounded"><span id="cm-count"><?= e(t('تحديد الكل')) ?></span></label>
@@ -320,6 +372,10 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
       'nextUn' => t('التعليق التالي من غير رد'), 'allAnswered' => t('كل التعليقات متردّ عليها'),
       'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المنشور التالي / السابق')], ['u', t('التعليق التالي من غير رد')], ['r', t('اكتب رد')], ['/', t('ابحث في المنشورات')], ['Ctrl F', t('بحث في التعليقات')], ['g', t('انزل لآخر تعليق')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/comments-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.CMT = <?= json_encode(['preps' => $preps, 'pool' => array_values($pool), 'post' => $postId, 'a' => $accId, 'crm' => module_enabled('crm') && can('crm.view'),
+      'none' => t('مفيش حد مطابق للشروط.'), 'win' => t('الفايز'), 'wins' => t('الفايزين'), 'of' => t('من %s مشارك'), 'saved' => t('اتحفظ ✓'), 'hidden' => t('اتخفى %s تعليق'), 'empty' => t('لسه مفيش ردود للمنشور ده.'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
+      'cm' => t('%s تعليق'), 'onp' => t('على %s منشور'), 'price' => t('💰 سأل عن السعر %s'), 'lead' => t('ضيفه Lead'), 'loading' => t('بنحمّل…'), 'noFans' => t('مفيش تعليقات كفاية.'), 'confirmRun' => t('هنلف على آخر 8 منشورات ونخفي المطابق. تكمل؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/comments-tools.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php if (module_enabled('crm') && can('crm.view')) to_lead_script(); ?>
     <?php
 }, ['full' => true]);
