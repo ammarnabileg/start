@@ -114,6 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($s !== $l['stage']) { db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, $id]); crm_act_add($id, 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]); crm_push_ad_stage(crm_lead($id)); }
                 } elseif ($op === 'owner' && $canManage) {
                     $o = (int)($_POST['owner'] ?? 0); db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([in_array($o, $memberIds, true) ? $o : null, $id]);
+                } elseif ($op === 'plan') {
+                    if (!crm_plan_start($id, (int)($_POST['plan'] ?? 0))) { $skip++; continue; }
                 } elseif ($op === 'tag') {
                     crm_add_tag($id, (string)($_POST['tag'] ?? ''));
                 } elseif ($op === 'enrich') {
@@ -152,6 +154,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_activity('crm.import', "$new new, $merged merged");
         $json(['ok' => true, 'new' => $new, 'merged' => $merged, 'skip' => $skip]);
     }
+    if ($action === 'plans_save' && $canManage) {
+        $in = json_decode((string)($_POST['plans'] ?? ''), true);
+        $keep = [];
+        foreach (array_slice((array)$in, 0, 20) as $pl) {
+            $name = mb_substr(trim((string)($pl['name'] ?? '')), 0, 120); if ($name === '') continue;
+            $steps = [];
+            foreach (array_slice((array)($pl['steps'] ?? []), 0, 12) as $s) {
+                $ch = isset(crm_plan_channels()[$s['ch'] ?? '']) ? $s['ch'] : 'task'; $tx = mb_substr(trim((string)($s['text'] ?? '')), 0, 2000); if ($tx === '') continue;
+                $steps[] = ['day' => max(0, min(365, (int)($s['day'] ?? 0))), 'ch' => $ch, 'text' => $tx, 'subject' => mb_substr(trim((string)($s['subject'] ?? '')), 0, 200)];
+            }
+            if (!$steps) continue;
+            usort($steps, function ($a, $b) { return $a['day'] <=> $b['day']; });
+            $id = (int)($pl['id'] ?? 0);
+            if ($id && crm_plan($id)) { db()->prepare('UPDATE crm_plans SET name = ?, steps = ? WHERE id = ? AND workspace_id = ?')->execute([$name, json_encode($steps, JSON_UNESCAPED_UNICODE), $id, $wid]); }
+            else { db()->prepare('INSERT INTO crm_plans (workspace_id, name, steps) VALUES (?, ?, ?)')->execute([$wid, $name, json_encode($steps, JSON_UNESCAPED_UNICODE)]); $id = (int)db()->lastInsertId(); }
+            $keep[] = $id;
+        }
+        // الخطط اللي اتشالت: بتتمسح وتقف على العملاء
+        $old = array_column(crm_plans(), 'id');
+        foreach (array_diff($old, $keep) as $gone) { db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE plan_id = ? AND workspace_id = ? AND state IN ('wait','due')")->execute([$gone, $wid]); db()->prepare('DELETE FROM crm_plans WHERE id = ? AND workspace_id = ?')->execute([$gone, $wid]); }
+        $json(['ok' => true, 'plans' => crm_plans()]);
+    }
+    if ($action === 'form_save' && $canManage) {
+        $c = ['title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 120), 'thanks' => mb_substr(trim((string)($_POST['thanks'] ?? '')), 0, 300),
+            'company' => !empty($_POST['company']) ? 1 : 0, 'message' => !empty($_POST['message']) ? 1 : 0,
+            'color' => preg_match('/^#[0-9a-f]{6}$/i', (string)($_POST['color'] ?? '')) ? $_POST['color'] : '#4f46e5'];
+        save_setting('crm_form_cfg_' . $wid, json_encode($c, JSON_UNESCAPED_UNICODE));
+        save_setting('crm_form_on_' . $wid, !empty($_POST['on']) ? '1' : '0');
+        $json(['ok' => true, 'url' => crm_form_url(!empty($_POST['regen']))]);
+    }
     if ($action === 'tpl_save' && $canManage) {
         $t = json_decode((string)($_POST['tpl'] ?? ''), true);
         $clean = [];
@@ -160,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'tpl' => crm_templates()]);
     }
     $l = crm_lead((int)($_POST['id'] ?? 0));
-    if ($l && $action === 'acts') $json(['ok' => true, 'acts' => crm_acts((int)$l['id'])]);
+    if ($l && $action === 'acts') $json(['ok' => true, 'acts' => crm_acts((int)$l['id']), 'run' => crm_lead_run((int)$l['id'])]);
     if (!$l || !crm_can_edit($l)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
     if ($action === 'stage') {
         $s = (string)($_POST['stage'] ?? '');
@@ -214,6 +246,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $json(['ok' => false, 'error' => $ex instanceof CrmPlanException ? t('خطة Apollo بتاعتك مش بتسمح بالعملية دي. الـ Sequences محتاجة خطة مدفوعة و Master Key.') . ' (' . $ex->getMessage() . ')' : $ex->getMessage()]);
         }
     }
+    if (in_array($action, ['plan_start', 'plan_do', 'plan_skip', 'plan_stop'], true)) {
+        if ($action === 'plan_start' && !crm_plan_start((int)$l['id'], (int)($_POST['plan'] ?? 0))) $json(['ok' => false, 'error' => t('اختار خطة فيها خطوات.')]);
+        if ($action === 'plan_do' || $action === 'plan_skip') { $r = crm_lead_run((int)$l['id']); if ($r) crm_plan_do($r['id'], $action === 'plan_skip'); }
+        if ($action === 'plan_stop') crm_plan_stop((int)$l['id']);
+        $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id']), 'run' => crm_lead_run((int)$l['id'])]);
+    }
     if ($action === 'log') {
         // تسجيل تواصل؛ أول تواصل مع عميل جديد بينقله لـ "اتكلمنا معاه" لوحده
         $k = (string)($_POST['kind'] ?? '');
@@ -237,6 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 try { crm_fix_stored_phones(); } catch (Throwable $t) { /* مش مهم */ }
+try { crm_plan_tick(30); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 // الموظف العادي بيشوف بتوعه واللي من غير مسؤول، والمدير بيشوف الكل
 $where = 'workspace_id = ?';
 $args = [$wid];
@@ -257,6 +296,8 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 $leads = array_map($out, $rows);
+$runs = crm_runs_map();
+foreach ($leads as &$ld0) $ld0['run'] = $runs[$ld0['id']] ?? ''; unset($ld0);
 $adsOn = module_enabled('ads') && can('ads.view');
 $dial = (string)(countries()[ws_country()]['dial'] ?? '+');
 $lastSync = setting('crm_ads_sync_' . $wid);
@@ -326,6 +367,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <button class="btn-ghost" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
       <a class="btn-ghost" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
       <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <?= e(t('عملاء مقترحين')) ?><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1"></span></button>
+      <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="btn-ghost">🔁 <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
+      <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="btn-ghost">🌐 <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
       <button type="button" id="ld-imp-btn" class="btn-ghost">⇪ <?= e(t('استورد عملاء')) ?></button>
       <button type="button" id="ld-add-btn" class="btn-primary">+ <?= e(t('Lead جديد')) ?></button>
     </div>
@@ -341,6 +384,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" id="ld-all" class="rounded"> <b id="ld-bn">0</b> <?= e(t('محدد')) ?></label>
       <select id="ld-b-stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('غيّر المرحلة…')) ?></option><?php foreach ($stages as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
       <?php if ($canManage): ?><select id="ld-b-owner" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('وزّع على…')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; ?></select><?php endif; ?>
+      <select id="ld-b-plan" class="input !w-auto !py-1 text-xs"><option value="">🔁 <?= e(t('ابدأ خطة متابعة…')) ?></option><?php foreach (crm_plans() as $pl): ?><option value="<?= (int)$pl['id'] ?>"><?= e($pl['name']) ?></option><?php endforeach; ?></select>
       <button type="button" id="ld-b-tag" class="btn-ghost !py-1 !text-xs">🏷 <?= e(t('ضيف لقايمة')) ?></button>
       <?php if (crm_has_key()): ?>
         <?php if (can('crm.reveal')): ?><button type="button" id="ld-b-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل من Apollo')) ?></button><?php endif; ?>
@@ -377,6 +421,10 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             <div id="ld-ap-msg" class="text-[11px]"></div>
           </div>
           <?php endif; ?>
+          <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
+            <div id="ld-plan-body" class="text-xs"></div>
+          </div>
           <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
               <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
@@ -471,6 +519,42 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <div class="p-4 border-t border-ink-100"><button type="button" id="ld-sug-go" class="btn-primary w-full" disabled><?= e(t('ضيف المحددين للـ Leads')) ?></button></div>
       </div>
     </div>
+    <?php if ($canManage): $fc = (json_decode((string)setting('crm_form_cfg_' . (int)ws('id'), ''), true) ?: []) + ['title' => '', 'thanks' => '', 'company' => 1, 'message' => 1, 'color' => '#4f46e5']; $furl = crm_form_url(); ?>
+    <div id="ld-fdlg" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
+      <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+      <form id="ld-fform" class="relative card p-5 w-full max-w-2xl max-h-[92vh] overflow-y-auto space-y-3" role="dialog" aria-modal="true">
+        <h3 class="font-semibold text-ink-900">🌐 <?= e(t('فورم الموقع')) ?></h3>
+        <p class="text-xs text-ink-500"><?= e(t('حط الكود ده في أي صفحة على موقعك. أي حد يملاه بيدخل الـ Leads على طول، بيتوزع على الفريق، وبتتحطله متابعة النهارده. من غير أي اشتراك.')) ?></p>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="on" class="rounded" <?= setting('crm_form_on_' . (int)ws('id'), '1') === '1' ? 'checked' : '' ?>> <?= e(t('الفورم شغال')) ?></label>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block"><span class="label"><?= e(t('عنوان الفورم')) ?></span><input class="input" name="title" maxlength="120" value="<?= e($fc['title']) ?>" placeholder="<?= e(t('اطلب عرض سعر')) ?>"></label>
+          <label class="block"><span class="label"><?= e(t('اللون')) ?></span><input class="input !h-10 !p-1" type="color" name="color" value="<?= e($fc['color']) ?>"></label>
+          <label class="block sm:col-span-2"><span class="label"><?= e(t('رسالة الشكر')) ?></span><input class="input" name="thanks" maxlength="300" value="<?= e($fc['thanks']) ?>" placeholder="<?= e(t('شكرًا! هنكلمك قريب.')) ?>"></label>
+        </div>
+        <div class="flex flex-wrap gap-4 text-sm"><label class="inline-flex items-center gap-2"><input type="checkbox" name="company" class="rounded" <?= $fc['company'] ? 'checked' : '' ?>> <?= e(t('خانة الشركة')) ?></label><label class="inline-flex items-center gap-2"><input type="checkbox" name="message" class="rounded" <?= $fc['message'] ? 'checked' : '' ?>> <?= e(t('خانة الرسالة')) ?></label></div>
+        <div><span class="label"><?= e(t('1) كود يتحط في الموقع (iframe)')) ?></span><textarea readonly rows="3" class="input text-xs font-mono" dir="ltr" data-code="iframe"></textarea></div>
+        <div><span class="label"><?= e(t('2) أو رابط تبعته مباشرة (واتساب، بايو إنستجرام…)')) ?></span><input readonly class="input text-xs font-mono" dir="ltr" data-code="link"></div>
+        <div><span class="label"><?= e(t('3) أو Webhook لأدوات الفورمز (Elementor، WPForms، Typeform، Zapier)')) ?></span><input readonly class="input text-xs font-mono" dir="ltr" data-code="hook">
+          <p class="text-[11px] text-ink-500 mt-1"><?= e(t('ابعت POST بخانات اسمها name و phone و email (أو بالعربي: الاسم، رقم، الإيميل). بنفهم الأسماء الشائعة لوحدنا.')) ?></p></div>
+        <div class="flex flex-wrap items-center gap-2"><button class="btn-primary"><?= e(t('احفظ')) ?></button><a class="btn-ghost" target="_blank" rel="noopener" data-code="open"><?= e(t('جرّب الفورم')) ?> ↗</a>
+          <label class="inline-flex items-center gap-1.5 text-xs text-ink-500 ms-auto"><input type="checkbox" name="regen" class="rounded"> <?= e(t('غيّر الرابط (القديم هيبطل)')) ?></label><button type="button" class="btn-ghost" data-close><?= e(t('اقفل')) ?></button></div>
+        <span id="ld-fmsg" class="text-xs"></span>
+      </form>
+    </div>
+    <script>window.LDF = <?= json_encode(['url' => $furl], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <?php endif; ?>
+    <?php if ($canManage): ?>
+    <div id="ld-pdlg" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
+      <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+      <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[640px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true">
+        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900 flex-1">🔁 <?= e(t('خطط المتابعة')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close>✕</button></div>
+        <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('كل خطة = خطوات بأيام. الإيميل بيتبعت لوحده من SMTP بتاعك (من التكاملات). الواتساب والمكالمة بيبقوا مهمة للمسؤول في يومها، وضغطة واحدة بتفتح واتساب والرسالة جاهزة. الخطة بتقف لوحدها لما العميل يبقى "بقى عميل" أو "مش مناسب". استخدم {name} و{company} و{me}.')) ?></p>
+        <?php if (!smtp_config((int)ws('id'))): ?><p class="mx-4 mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800"><?= e(t('مفيش SMTP متظبط، فخطوات الإيميل هتبقى مهام لحد ما تربطه (Gmail ببلاش).')) ?> <a class="link" href="<?= e(url('connectors')) ?>"><?= e(t('التكاملات')) ?> ↗</a></p><?php endif; ?>
+        <div id="ld-plans" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+        <div class="p-4 border-t border-ink-100 flex gap-2"><button type="button" id="ld-plan-add" class="btn-ghost">+ <?= e(t('خطة جديدة')) ?></button><button type="button" id="ld-plans-save" class="btn-primary ms-auto"><?= e(t('احفظ')) ?></button></div>
+      </div>
+    </div>
+    <?php endif; ?>
     <div id="ld-tpl-dlg" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="relative card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto space-y-3" role="dialog" aria-modal="true">
@@ -481,6 +565,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       </div>
     </div>
     <script>window.LD = <?= json_encode([
+        'plans' => crm_plans(), 'chs' => crm_plan_channels(),
         'tpl' => crm_templates(), 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
         'leads' => $leads, 'stages' => $stages, 'sources' => $sources, 'members' => array_column($members, 'name', 'id'), 'me' => $uid, 'url' => url('crm_leads'), 'csrf' => csrf_token(),
         'now' => date('Y-m-d\TH:i'), 'canManage' => $canManage,
@@ -489,7 +574,12 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'enrGot' => t('اتكملت: %s'), 'es' => array_map(function ($x) { return $x; }, crm_email_statuses()), 'bDone' => t('اتعمل على %s، واتساب %s'), 'askTag' => t('اسم القايمة؟'),
+            'chat' => t('افتح المحادثة'), 'pNone' => t('مفيش خطة شغالة على العميل ده.'), 'pStart' => t('ابدأ'), 'pPick' => t('اختار خطة…'), 'pNoPlans' => t('لسه مفيش خطط. المدير يعملها من زرار "خطط المتابعة".'),
+            'pStep' => t('الخطوة %s من %s'), 'pDue' => t('مستحقة دلوقتي'), 'pWait' => t('ميعادها %s'), 'pDo' => t('نفّذ'), 'pSkip' => t('عدّي'), 'pStop' => t('وقّف الخطة'),
+            'pDay' => t('بعد كام يوم'), 'pSubj' => t('عنوان الإيميل'), 'pText' => t('الرسالة'), 'pName' => t('اسم الخطة'), 'pAddStep' => t('+ خطوة'), 'pDel' => t('امسح الخطة'), 'pDelQ' => t('تمسح الخطة دي؟ هتقف على كل العملاء اللي عليها.'),
+            'pSample' => t('متابعة عميل جديد'),
+            'pS1' => t('أهلاً {name}، معاك {me}. شكرًا لاهتمامك! ممكن أعرف محتاج إيه بالظبط؟'), 'pS2' => t('كلّم {name} واعرف احتياجه'), 'pS3' => t('أهلاً {name}، بعتلك تفاصيل العرض. لو حابب نتكلم أنا موجود.'), 'pS4' => t('أهلاً {name}، لسه مهتم؟ عندنا عرض لحد آخر الأسبوع.'),
+            'enrGot' => t('اتكملت: %s'), 'es' => array_map(function ($x) { return $x; }, crm_email_statuses()), 'bDone' => t('اتعمل على %s، واتساب %s'), 'askTag' => t('اسم القايمة؟'),
             'bConfirm' => t('هيتصرف لحد %s كريديت من Apollo. تكمل؟'), 'pickSeq' => t('اختار الـ Sequence'), 'enrNone' => t('Apollo مالقاش بيانات جديدة.'), 'enrPend' => t('الرقم جاي من Apollo خلال دقايق.'), 'loading' => t('بنحمّل…'),
             'noSeq' => t('مفيش Sequences في حسابك على Apollo. اعمل واحد من apollo.io الأول.'), 'noAcc' => t('اربط إيميل في Apollo عشان الـ Sequence يبعت منه.'), 'seqDone' => t('اتضاف للـ Sequence ✓'), 'needEmail' => t('العميل ده مالوش إيميل. كمّل بياناته الأول.'),
             'fl' => ['title' => t('المسمى الوظيفي'), 'linkedin' => 'LinkedIn', 'company' => t('الشركة'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'country' => t('الدولة')], 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),

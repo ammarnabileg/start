@@ -528,6 +528,38 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '029_crm_plans' => [
+        "CREATE TABLE IF NOT EXISTS crm_plans (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            steps TEXT NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS crm_plan_runs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            lead_id INT UNSIGNED NOT NULL,
+            plan_id INT UNSIGNED NOT NULL,
+            step SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+            state VARCHAR(10) NOT NULL DEFAULT 'wait',
+            started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            due_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_error VARCHAR(255) NULL,
+            INDEX ws_due (workspace_id, state, due_at),
+            INDEX ws_lead (workspace_id, lead_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
+    '028_crm_form' => [
+        "CREATE TABLE IF NOT EXISTS crm_form_log (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            ip VARCHAR(45) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_ip (workspace_id, ip, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '027_crm_apollo_plus' => [
         "ALTER TABLE crm_leads ADD COLUMN email_status VARCHAR(20) NULL, ADD COLUMN enriched_at DATETIME NULL",
         "CREATE TABLE IF NOT EXISTS crm_searches (

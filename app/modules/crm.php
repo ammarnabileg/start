@@ -16,7 +16,7 @@ function crm_stages(): array
 
 function crm_sources(): array
 {
-    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد'), 'inbox' => t('رسائل السوشيال'), 'comments' => t('تعليقات المنشورات')];
+    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد'), 'inbox' => t('رسائل السوشيال'), 'comments' => t('تعليقات المنشورات'), 'form' => t('فورم الموقع')];
 }
 
 function crm_sizes(): array
@@ -337,6 +337,134 @@ function crm_add_tag(int $leadId, string $tag): void
     if (in_array($tag, $cur, true)) return;
     $cur[] = $tag;
     db()->prepare('UPDATE crm_leads SET tags = ? WHERE id = ?')->execute([implode(', ', array_slice($cur, 0, 8)), $leadId]);
+}
+/* ---------- خطط المتابعة: خطوات (إيميل أوتوماتيك، واتساب/مكالمة/مهمة كمهام للمسؤول) ---------- */
+function crm_plan_channels(): array
+{
+    return ['email' => ['✉️', t('إيميل (بيتبعت لوحده)')], 'wa' => ['💬', t('واتساب')], 'call' => ['📞', t('مكالمة')], 'task' => ['✅', t('مهمة')]];
+}
+function crm_plans(): array
+{
+    $st = db()->prepare('SELECT id, name, steps FROM crm_plans WHERE workspace_id = ? ORDER BY id');
+    $st->execute([(int)ws('id')]);
+    return array_map(function ($r) { return ['id' => (int)$r['id'], 'name' => $r['name'], 'steps' => json_decode((string)$r['steps'], true) ?: []]; }, $st->fetchAll());
+}
+function crm_plan(int $id): ?array { foreach (crm_plans() as $p) if ($p['id'] === $id) return $p; return null; }
+function crm_plan_text(string $b, array $l): string
+{
+    $first = preg_split('/\s+/u', trim((string)$l['name']))[0] ?? '';
+    $me = '';
+    if (!empty($l['owner_id'])) { $st = db()->prepare('SELECT name FROM users WHERE id = ?'); $st->execute([(int)$l['owner_id']]); $me = (string)$st->fetchColumn(); }
+    return strtr($b, ['{name}' => $first, '{company}' => (string)$l['company'], '{me}' => $me ?: (string)(current_user()['name'] ?? '')]);
+}
+/** الخطة الشغالة على عميل (لو فيه) */
+function crm_lead_run(int $leadId): ?array
+{
+    $st = db()->prepare("SELECT * FROM crm_plan_runs WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due') ORDER BY id DESC LIMIT 1");
+    $st->execute([(int)ws('id'), $leadId]);
+    $r = $st->fetch(); if (!$r) return null;
+    $p = crm_plan((int)$r['plan_id']); if (!$p) return null;
+    $s = $p['steps'][(int)$r['step']] ?? null;
+    return ['id' => (int)$r['id'], 'plan' => $p['name'], 'step' => (int)$r['step'], 'n' => count($p['steps']), 'state' => $r['state'], 'due' => $r['due_at'], 'err' => (string)$r['last_error'],
+        'ch' => $s['ch'] ?? '', 'text' => $s ? crm_plan_text((string)($s['text'] ?? ''), crm_lead((int)$r['lead_id'])) : '', 'subject' => (string)($s['subject'] ?? '')];
+}
+function crm_plan_start(int $leadId, int $planId): bool
+{
+    $p = crm_plan($planId); if (!$p || !$p['steps']) return false;
+    db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due')")->execute([(int)ws('id'), $leadId]);
+    $due = date('Y-m-d H:i:s', time() + 86400 * max(0, (int)($p['steps'][0]['day'] ?? 0)));
+    db()->prepare('INSERT INTO crm_plan_runs (workspace_id, lead_id, plan_id, due_at) VALUES (?, ?, ?, ?)')->execute([(int)ws('id'), $leadId, $planId, $due]);
+    crm_act_add($leadId, 'note', '🔁 ' . t('بدأت خطة المتابعة: %s', $p['name']));
+    crm_plan_tick(20, $leadId);
+    return true;
+}
+/** بعد ما خطوة تخلص: الخطوة اللي بعدها، أو الخطة تخلص */
+function crm_plan_advance(array $run, array $plan): void
+{
+    $next = (int)$run['step'] + 1;
+    if ($next >= count($plan['steps'])) { db()->prepare("UPDATE crm_plan_runs SET state = 'done', step = ? WHERE id = ?")->execute([$next, (int)$run['id']]); crm_act_add((int)$run['lead_id'], 'note', '🔁 ' . t('خلصت خطة المتابعة: %s', $plan['name'])); return; }
+    $due = date('Y-m-d H:i:s', max(time(), strtotime((string)$run['started_at']) + 86400 * max(0, (int)($plan['steps'][$next]['day'] ?? 0))));
+    db()->prepare("UPDATE crm_plan_runs SET state = 'wait', step = ?, due_at = ?, last_error = NULL WHERE id = ?")->execute([$next, $due, (int)$run['id']]);
+}
+/** المحرّك: بيشتغل من الـ cron ومع فتح صفحة الـ Leads. الإيميل بيتبعت، والباقي بيتحول متابعة للمسؤول */
+function crm_plan_tick(int $max = 50, ?int $leadId = null): int
+{
+    $wid = (int)ws('id');
+    $q = "SELECT * FROM crm_plan_runs WHERE workspace_id = ? AND state = 'wait' AND due_at <= ?" . ($leadId ? ' AND lead_id = ' . (int)$leadId : '') . " ORDER BY due_at LIMIT " . (int)$max;
+    $st = db()->prepare($q); $st->execute([$wid, date('Y-m-d H:i:s')]);
+    $n = 0; $plans = [];
+    foreach ($st->fetchAll() as $run) {
+        for ($guard = 0; $guard < 10; $guard++) { // خطوات اليوم نفسه ورا بعض
+            $plan = $plans[$run['plan_id']] = $plans[$run['plan_id']] ?? crm_plan((int)$run['plan_id']);
+            $l = crm_lead((int)$run['lead_id']);
+            if (!$plan || !$l || in_array($l['stage'], ['won', 'lost'], true)) { db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE id = ?")->execute([(int)$run['id']]); break; }
+            $s = $plan['steps'][(int)$run['step']] ?? null; if (!$s) { crm_plan_advance($run, $plan); break; }
+            $txt = crm_plan_text((string)($s['text'] ?? ''), $l);
+            if (($s['ch'] ?? '') === 'email' && !empty($l['email']) && function_exists('smtp_config') && smtp_config($wid)) {
+                try {
+                    send_mail((string)$l['email'], crm_plan_text((string)($s['subject'] ?? '') ?: $plan['name'], $l), nl2br(e($txt)), null, $wid);
+                    crm_act_add((int)$l['id'], 'email', '🔁 ' . $txt);
+                    db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
+                    if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
+                    crm_plan_advance($run, $plan); $n++;
+                } catch (Throwable $ex) {
+                    db()->prepare("UPDATE crm_plan_runs SET state = 'due', last_error = ? WHERE id = ?")->execute([mb_substr($ex->getMessage(), 0, 255), (int)$run['id']]);
+                    crm_plan_mark_due($l, $plan, (int)$run['step'], $s); break;
+                }
+                $st2 = db()->prepare("SELECT * FROM crm_plan_runs WHERE id = ? AND state = 'wait' AND due_at <= ?"); $st2->execute([(int)$run['id'], date('Y-m-d H:i:s')]);
+                $run = $st2->fetch(); if (!$run) break;
+                continue;
+            }
+            // واتساب/مكالمة/مهمة (أو إيميل من غير SMTP): مهمة مستحقة للمسؤول
+            db()->prepare("UPDATE crm_plan_runs SET state = 'due', last_error = ? WHERE id = ?")->execute([($s['ch'] ?? '') === 'email' ? t('مفيش SMTP أو مفيش إيميل للعميل، فبقت مهمة') : null, (int)$run['id']]);
+            crm_plan_mark_due($l, $plan, (int)$run['step'], $s); $n++;
+            break;
+        }
+    }
+    return $n;
+}
+function crm_plan_mark_due(array $l, array $plan, int $step, array $s): void
+{
+    $ch = crm_plan_channels()[$s['ch'] ?? 'task'] ?? ['✅', ''];
+    db()->prepare('UPDATE crm_leads SET next_at = IF(next_at IS NULL OR next_at > NOW(), NOW(), next_at), next_note = ? WHERE id = ?')
+        ->execute([mb_substr('🔁 ' . $plan['name'] . ' · ' . ($step + 1) . '/' . count($plan['steps']) . ': ' . $ch[0] . ' ' . mb_substr(crm_plan_text((string)($s['text'] ?? ''), $l), 0, 120), 0, 255), (int)$l['id']]);
+}
+/** تنفيذ خطوة يدوي (واتساب/مكالمة/مهمة) */
+function crm_plan_do(int $runId, bool $skip = false): void
+{
+    $st = db()->prepare("SELECT * FROM crm_plan_runs WHERE id = ? AND workspace_id = ? AND state IN ('due','wait')"); $st->execute([$runId, (int)ws('id')]);
+    $run = $st->fetch(); if (!$run) return;
+    $plan = crm_plan((int)$run['plan_id']); $l = crm_lead((int)$run['lead_id']); if (!$plan || !$l) return;
+    $s = $plan['steps'][(int)$run['step']] ?? [];
+    if (!$skip) {
+        $k = ['wa' => 'wa', 'call' => 'call', 'email' => 'email'][$s['ch'] ?? ''] ?? 'note';
+        crm_act_add((int)$l['id'], $k, '🔁 ' . crm_plan_text((string)($s['text'] ?? ''), $l));
+        db()->prepare('UPDATE crm_leads SET last_contact_at = NOW(), next_at = NULL, next_note = NULL WHERE id = ?')->execute([(int)$l['id']]);
+        if ($l['stage'] === 'new' && $k !== 'note') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
+    }
+    crm_plan_advance($run, $plan);
+    crm_plan_tick(5, (int)$l['id']);
+}
+function crm_plan_stop(int $leadId): void
+{
+    db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due')")->execute([(int)ws('id'), $leadId]);
+    crm_act_add($leadId, 'note', '🔁 ' . t('اتوقفت خطة المتابعة'));
+}
+/** كل الخطط الشغالة: [lead_id => "2/4"] للعرض في القايمة */
+function crm_runs_map(): array
+{
+    $st = db()->prepare("SELECT r.lead_id, r.step, r.state, p.steps FROM crm_plan_runs r JOIN crm_plans p ON p.id = r.plan_id WHERE r.workspace_id = ? AND r.state IN ('wait','due')");
+    $st->execute([(int)ws('id')]);
+    $o = []; foreach ($st->fetchAll() as $r) $o[(int)$r['lead_id']] = ((int)$r['step'] + 1) . '/' . count(json_decode((string)$r['steps'], true) ?: []) . ($r['state'] === 'due' ? '!' : '');
+    return $o;
+}
+
+/** رابط فورم الموقع (بيتعمل التوكن أول مرة) */
+function crm_form_url(bool $regen = false): string
+{
+    $wid = (int)ws('id'); $t = (string)setting('crm_form_token_' . $wid, '');
+    if ($t === '' || $regen) { $t = bin2hex(random_bytes(16)); save_setting('crm_form_token_' . $wid, $t); }
+    return base_url() . '/index.php?' . http_build_query(['p' => 'lead_form', 'w' => $wid, 't' => $t]);
 }
 /** أسماء القوايم (التاجات) الموجودة */
 function crm_tag_names(): array

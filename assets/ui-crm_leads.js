@@ -52,7 +52,8 @@
     return '<div class="ld-row flex items-center gap-3 px-4 py-3 hover:bg-ink-50 cursor-pointer' + (sel[l.id] ? ' bg-brand-50/60' : '') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
       (l.edit ? '<input type="checkbox" class="ld-sel rounded" data-sid="' + l.id + '"' + (sel[l.id] ? ' checked' : '') + ' aria-label="' + esc(l.name) + '">' : '<span class="w-4"></span>') + avatar(l) +
       '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><span class="font-medium text-ink-900">' + esc(l.name) + '</span>' +
-      '<span class="text-[11px] px-1.5 py-0.5 rounded-md ' + stageColor[l.stage] + '">' + esc(D.stages[l.stage]) + '</span>' + nextBadge(l) + '</div>' +
+      '<span class="text-[11px] px-1.5 py-0.5 rounded-md ' + stageColor[l.stage] + '">' + esc(D.stages[l.stage]) + '</span>' + nextBadge(l) +
+      (l.run ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800" title="' + esc(T.pStep.replace('%s', l.run.split('/')[0]).replace('%s', l.run.split('/')[1].replace('!', ''))) + '">🔁 ' + esc(l.run.replace('!', '')) + (l.run.indexOf('!') > -1 ? ' ⚡' : '') + '</span>' : '') + '</div>' +
       '<div class="text-xs text-ink-500 truncate">' + esc([l.title, l.company].filter(Boolean).join(' · ') || '—') + '</div></div>' +
       '<div class="hidden md:block text-xs text-ink-500 w-44 truncate" dir="ltr">' + esc(l.phone || (l.pending ? '⏳' : '')) + (l.email ? '<div class="truncate">' + esc(l.email) + esBadge(l) + '</div>' : '') + '</div>' +
       '<div class="hidden lg:block text-xs text-ink-500 w-28 truncate">' + esc(D.sources[l.source] || '') + '</div>' +
@@ -108,7 +109,7 @@
   function openModal(m) { lastFocus = document.activeElement; m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
   function closeModal(m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
   [dr, document.getElementById('ld-add')].forEach(function (m) { m.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(m); }); }); });
-  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg'), document.getElementById('ld-sug')].forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg'), document.getElementById('ld-sug'), document.getElementById('ld-fdlg'), document.getElementById('ld-pdlg')].filter(Boolean).forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
   function quick(l) {
     var b = [];
     if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">📞 ' + T.call + '</a>');
@@ -130,7 +131,7 @@
     form.querySelectorAll('input,select,textarea,button:not([data-close])').forEach(function (x) { if (x.name !== 'owner' || D.canManage) x.disabled = !l.edit; });
     document.getElementById('ld-meta').textContent = T.from.replace('%s', D.sources[l.source] || l.source).replace('%s', (l.created || '').slice(0, 10)) + (l.edit ? '' : ' · ' + T.ro);
     msg.textContent = '';
-    drawTpl(l); loadActs(l); apReset(l);
+    drawTpl(l); loadActs(l); apReset(l); drawPlan(l, undefined);
     openModal(dr);
     form.elements.name.focus();
   }
@@ -190,7 +191,7 @@
     acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(x.body) + '</div>' : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
   }
-  function loadActs(l) { acts.innerHTML = ''; post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) drawActs(r.acts); }); }
+  function loadActs(l) { acts.innerHTML = ''; post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); } }); }
   function logAct(kind, body) {
     if (!cur) return Promise.resolve();
     var l = cur;
@@ -232,6 +233,88 @@
     document.getElementById('ld-tpl-save').addEventListener('click', function () {
       var t = Array.prototype.map.call(rowsEl.querySelectorAll('[data-row]'), function (r) { return { n: r.querySelector('[data-n]').value, b: r.querySelector('[data-b]').value }; });
       post({ action: 'tpl_save', tpl: JSON.stringify(t) }).then(function (r) { if (!r.ok) return alert(r.error || T.err); D.tpl = r.tpl; if (cur) drawTpl(cur); td.classList.add('hidden'); });
+    });
+  }
+
+  /* ---------- خطط المتابعة ---------- */
+  var pb = document.getElementById('ld-plan-body');
+  function drawPlan(l, run) {
+    if (!pb) return;
+    if (run === undefined) { pb.innerHTML = '<span class="text-ink-400">…</span>'; return; }
+    if (!l.edit) { pb.innerHTML = run ? esc(run.plan) + ' · ' + esc(T.pStep.replace('%s', run.step + 1).replace('%s', run.n)) : esc(T.pNone); return; }
+    if (!run) {
+      pb.innerHTML = D.plans.length ? '<div class="flex gap-2"><select id="ld-plan-sel" class="input !py-1 text-xs flex-1"><option value="">' + esc(T.pPick) + '</option>' + D.plans.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' (' + p.steps.length + ')</option>'; }).join('') + '</select><button type="button" class="btn-primary !py-1 !text-xs" data-pa="plan_start">' + esc(T.pStart) + '</button></div>'
+        : '<span class="text-ink-500">' + esc(T.pNoPlans) + '</span>';
+      return;
+    }
+    var ch = D.chs[run.ch] || ['✅', ''], due = run.state === 'due';
+    var doBtn = '';
+    if (due) {
+      if (run.ch === 'wa' && l.wa) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '?text=' + encodeURIComponent(run.text) + '">💬 ' + esc(T.pDo) + '</a>';
+      else if (run.ch === 'call' && l.phone) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="tel:' + esc(l.phone) + '">📞 ' + esc(T.pDo) + '</a>';
+      else if (run.ch === 'email' && l.email) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="mailto:' + esc(l.email) + '?subject=' + encodeURIComponent(run.subject || '') + '&body=' + encodeURIComponent(run.text) + '">✉️ ' + esc(T.pDo) + '</a>';
+      else doBtn = '<button type="button" class="btn-primary !py-1 !text-xs" data-pa="plan_do">✓ ' + esc(T.pDo) + '</button>';
+    }
+    pb.innerHTML = '<div class="flex items-center gap-2"><b class="text-ink-800">' + esc(run.plan) + '</b><span class="text-ink-500">' + esc(T.pStep.replace('%s', run.step + 1).replace('%s', run.n)) + '</span>' +
+      '<span class="ms-auto ' + (due ? 'text-amber-700 font-semibold' : 'text-ink-500') + '">' + (due ? '⚡ ' + esc(T.pDue) : esc(T.pWait.replace('%s', when(run.due)))) + '</span></div>' +
+      '<div class="mt-1.5 rounded-lg bg-white border border-ink-200 p-2 text-ink-700 whitespace-pre-line" dir="auto">' + ch[0] + ' ' + esc(run.text) + '</div>' +
+      (run.err ? '<div class="text-[11px] text-amber-700 mt-1">' + esc(run.err) + '</div>' : '') +
+      '<div class="flex flex-wrap gap-1.5 mt-2">' + doBtn + '<button type="button" class="btn-ghost !py-1 !text-xs" data-pa="plan_skip">' + esc(T.pSkip) + '</button><button type="button" class="btn-ghost !py-1 !text-xs text-red-600 ms-auto" data-pa="plan_stop">' + esc(T.pStop) + '</button></div>';
+  }
+  if (pb) pb.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pa]'); if (!b || !cur) return; var l = cur, a = b.dataset.pa, data = { action: a, id: l.id };
+    if (a === 'plan_start') { data.plan = (document.getElementById('ld-plan-sel') || {}).value; if (!data.plan) return; }
+    if (b.tagName !== 'A') e.preventDefault();
+    post(data).then(function (r) {
+      if (!r.ok) return alert(r.error || T.err);
+      Object.assign(l, r.lead); l.run = r.run ? (r.run.step + 1) + '/' + r.run.n + (r.run.state === 'due' ? '!' : '') : '';
+      if (cur === l) { drawActs(r.acts); drawPlan(l, r.run); form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); form.elements.next_at.value = l.next_at || ''; form.elements.next_note.value = l.next_note || ''; }
+      draw();
+    });
+  });
+  var bp = document.getElementById('ld-b-plan'); if (bp) bp.addEventListener('change', function () { if (this.value) bulk({ op: 'plan', plan: this.value }); });
+  var pdl = document.getElementById('ld-pdlg');
+  if (pdl) {
+    var pl = document.getElementById('ld-plans');
+    var chOpts = function (v) { return Object.keys(D.chs).map(function (k) { return '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + D.chs[k][0] + ' ' + esc(D.chs[k][1]) + '</option>'; }).join(''); };
+    var stepRow = function (s) { return '<div class="grid grid-cols-[70px,1fr,auto] gap-2 items-start" data-step><label class="text-[10px] text-ink-500">' + esc(T.pDay) + '<input type="number" min="0" max="365" class="input !py-1 text-xs" data-k="day" value="' + (+s.day || 0) + '"></label>' +
+      '<div class="space-y-1"><select class="input !py-1 text-xs" data-k="ch">' + chOpts(s.ch) + '</select><input class="input !py-1 text-xs' + (s.ch === 'email' ? '' : ' hidden') + '" data-k="subject" placeholder="' + esc(T.pSubj) + '" value="' + esc(s.subject || '') + '"><textarea class="input text-xs" rows="2" data-k="text" dir="auto" placeholder="' + esc(T.pText) + '">' + esc(s.text || '') + '</textarea></div>' +
+      '<button type="button" class="text-ink-400 hover:text-red-600 pt-5" data-rmstep>✕</button></div>'; };
+    var planBox = function (p) { return '<div class="rounded-xl border border-ink-200 p-3 space-y-2" data-plan="' + (p.id || 0) + '"><div class="flex gap-2"><input class="input text-sm font-medium" data-k="name" placeholder="' + esc(T.pName) + '" value="' + esc(p.name || '') + '"><button type="button" class="text-xs text-red-600" data-rmplan>' + esc(T.pDel) + '</button></div>' +
+      '<div class="space-y-2" data-steps>' + (p.steps || []).map(stepRow).join('') + '</div><button type="button" class="link text-xs" data-addstep>' + esc(T.pAddStep) + '</button></div>'; };
+    var sample = function () { return { name: T.pSample, steps: [{ day: 0, ch: 'wa', text: T.pS1 }, { day: 1, ch: 'call', text: T.pS2 }, { day: 3, ch: 'email', subject: T.pSample, text: T.pS3 }, { day: 7, ch: 'wa', text: T.pS4 }] }; };
+    pdl.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(pdl); }); });
+    document.getElementById('ld-plans-btn').addEventListener('click', function () { pl.innerHTML = (D.plans.length ? D.plans : [sample()]).map(planBox).join(''); openModal(pdl); });
+    document.getElementById('ld-plan-add').addEventListener('click', function () { pl.insertAdjacentHTML('beforeend', planBox({ name: '', steps: [{ day: 0, ch: 'wa', text: '' }] })); });
+    pl.addEventListener('change', function (e) { if (e.target.dataset.k === 'ch') e.target.parentNode.querySelector('[data-k=subject]').classList.toggle('hidden', e.target.value !== 'email'); });
+    pl.addEventListener('click', function (e) {
+      if (e.target.closest('[data-addstep]')) { var st = e.target.closest('[data-plan]').querySelector('[data-steps]'); var last = st.querySelectorAll('[data-step]'); var d = last.length ? +last[last.length - 1].querySelector('[data-k=day]').value + 2 : 0; st.insertAdjacentHTML('beforeend', stepRow({ day: d, ch: 'wa', text: '' })); }
+      if (e.target.closest('[data-rmstep]')) e.target.closest('[data-step]').remove();
+      if (e.target.closest('[data-rmplan]') && confirm(T.pDelQ)) e.target.closest('[data-plan]').remove();
+    });
+    document.getElementById('ld-plans-save').addEventListener('click', function () {
+      var plans = Array.prototype.map.call(pl.querySelectorAll('[data-plan]'), function (b) {
+        return { id: +b.dataset.plan, name: b.querySelector('[data-k=name]').value, steps: Array.prototype.map.call(b.querySelectorAll('[data-step]'), function (s) { var o = {}; s.querySelectorAll('[data-k]').forEach(function (i) { o[i.dataset.k] = i.value; }); return o; }) };
+      });
+      post({ action: 'plans_save', plans: JSON.stringify(plans) }).then(function (r) { if (!r.ok) return alert(r.error || T.err); D.plans = r.plans; closeModal(pdl); location.reload(); });
+    });
+  }
+
+  /* ---------- فورم الموقع ---------- */
+  var fdl = document.getElementById('ld-fdlg');
+  if (fdl) {
+    var ff = document.getElementById('ld-fform');
+    function codes(u) {
+      ff.querySelector('[data-code=iframe]').value = '<iframe src="' + u + '" style="width:100%;max-width:460px;height:430px;border:0" loading="lazy" title="form"></iframe>';
+      ff.querySelector('[data-code=link]').value = u; ff.querySelector('[data-code=hook]').value = u + '&format=json'; ff.querySelector('[data-code=open]').href = u;
+    }
+    codes(window.LDF.url);
+    fdl.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(fdl); }); });
+    ff.querySelectorAll('[data-code]').forEach(function (x) { if (x.tagName !== 'A') x.addEventListener('focus', function () { x.select(); }); });
+    document.getElementById('ld-form-btn').addEventListener('click', function () { openModal(fdl); });
+    ff.addEventListener('submit', function (e) {
+      e.preventDefault(); var fd = new FormData(ff); fd.append('action', 'form_save');
+      post(fd).then(function (r) { var m = document.getElementById('ld-fmsg'); if (!r.ok) { m.className = 'text-xs text-red-600'; m.textContent = r.error || T.err; return; } codes(r.url); ff.elements.regen.checked = false; m.className = 'text-xs text-lime-700'; m.textContent = T.saved; });
     });
   }
 
