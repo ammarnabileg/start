@@ -1100,15 +1100,17 @@ function crm_next_owner(): ?int
 /** أعضاء الشركة اللي يقدروا يشوفوا العملاء */
 function crm_members(): array
 {
-    static $m = null;
-    if ($m !== null) return $m;
+    // الكاش لكل شركة: التشغيل الدوري بيلف على كل الشركات في نفس الطلب
+    static $cache = [];
+    $wid = (int)ws('id');
+    if (isset($cache[$wid])) return $cache[$wid];
     $st = db()->prepare("SELECT u.id, u.name, u.email, wu.role FROM workspace_users wu JOIN users u ON u.id = wu.user_id WHERE wu.workspace_id = ? AND wu.status = 'active' ORDER BY u.id");
-    $st->execute([(int)ws('id')]);
+    $st->execute([$wid]);
     $m = [];
     foreach ($st->fetchAll() as $r) {
         if ($r['role'] === 'owner' || in_array('crm.view', role_permissions($r['role']), true)) $m[] = $r;
     }
-    return $m;
+    return $cache[$wid] = $m;
 }
 
 /** إضافة Lead مع دمج المكرر (نفس الشخص أو الإيميل أو الرقم). يرجع الصف + merged */

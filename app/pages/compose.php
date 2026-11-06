@@ -8,16 +8,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'from_
     header('Content-Type: application/json; charset=utf-8');
     $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
     $u = trim((string)($_POST['url'] ?? ''));
-    $host = (string)parse_url($u, PHP_URL_HOST);
-    if (!preg_match('~^https?://~i', $u) || $host === '') $J(['ok' => false, 'error' => t('اكتب رابط يبدأ بـ https://')]);
-    $ips = @gethostbynamel($host) ?: [];
-    foreach ($ips as $ip) if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) && !getenv('UI_FIXTURES')) $J(['ok' => false, 'error' => t('الرابط ده مش متاح.')]);
-    if (!$ips && !getenv('UI_FIXTURES')) $J(['ok' => false, 'error' => t('مش قادرين نوصل للرابط ده.')]);
-    $ch = curl_init($u);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_TIMEOUT => 10, CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS, CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; LinkPreview)', CURLOPT_RANGE => '0-400000']);
-    $html = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-    if ($html === '' || $code >= 400) $J(['ok' => false, 'error' => t('مش قادرين نوصل للرابط ده.')]);
+    if (!preg_match('~^https?://~i', $u)) $J(['ok' => false, 'error' => t('اكتب رابط يبدأ بـ https://')]);
+    // safe_fetch: بيمنع العناوين الداخلية وبيفحص كل تحويل وبيثبت الـ IP (ضد DNS rebinding)
+    $r = safe_fetch($u, ['max' => 400000, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; LinkPreview)']);
+    if (!empty($r['err'])) $J(['ok' => false, 'error' => $r['err']]);
+    $html = (string)$r['body'];
     $html = mb_substr($html, 0, 400000);
     $meta = function ($names) use ($html) { foreach ($names as $n) if (preg_match('~<meta[^>]+(?:property|name)=["\']' . preg_quote($n, '~') . '["\'][^>]*content=["\']([^"\']*)~i', $html, $m) || preg_match('~<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' . preg_quote($n, '~') . '["\']~i', $html, $m)) return trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')); return ''; };
     $title = $meta(['og:title', 'twitter:title']) ?: (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m) ? trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES, 'UTF-8')) : '');
@@ -30,10 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'from_
     $lib = null;
     if ($img !== '' && function_exists('media_store_path')) {
         try {
-            $tmp = tempnam(sys_get_temp_dir(), 'og'); $fh = fopen($tmp, 'w');
-            $ch = curl_init($img); curl_setopt_array($ch, [CURLOPT_FILE => $fh, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_TIMEOUT => 12, CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS, CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; LinkPreview)',
-                CURLOPT_NOPROGRESS => false, CURLOPT_PROGRESSFUNCTION => function ($c, $dt, $dn) { return $dn > 5 * 1024 * 1024 ? 1 : 0; }]);
-            curl_exec($ch); curl_close($ch); fclose($fh);
+            $ri = safe_fetch($img, ['max' => 5 * 1024 * 1024, 'file' => true, 'ua' => 'Mozilla/5.0 (compatible; LinkPreview)', 'headers' => []]);
+            if (!empty($ri['err'])) throw new RuntimeException($ri['err']);
+            $tmp = $ri['file'];
             $mime = (string)(mime_content_type($tmp) ?: '');
             if (filesize($tmp) > 0 && preg_match('~^image/(jpeg|png|webp|gif)$~', $mime)) $lib = media_store_path((int)ws('id'), $tmp, basename((string)parse_url($img, PHP_URL_PATH)) ?: 'link.jpg', $mime, t('من لينكات'));
             @unlink($tmp);

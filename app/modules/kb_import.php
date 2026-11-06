@@ -6,25 +6,8 @@ if (!function_exists('array_is_list')) { function array_is_list(array $a): bool 
 /** جلب صفحة عامة بأمان: الدومين لازم يشاور على IP عام، والـ IP بيتثبت للاتصال، وكل تحويل بيتشيك من جديد */
 function kbi_fetch(string $url, int $max = 600000): array
 {
-    for ($hop = 0; $hop < 4; $hop++) {
-        if (!preg_match('~^https?://~i', $url)) return ['err' => t('اكتب رابط يبدأ بـ https://')];
-        $p = parse_url($url); $host = strtolower((string)($p['host'] ?? '')); if ($host === '') return ['err' => t('الرابط مش صحيح.')];
-        $port = (int)($p['port'] ?? (strtolower($p['scheme']) === 'https' ? 443 : 80));
-        $fx = getenv('UI_FIXTURES');
-        $ips = $fx && in_array($host, ['127.0.0.1', 'localhost'], true) ? ['127.0.0.1'] : (@gethostbynamel($host) ?: []);
-        if (!$ips) return ['err' => t('مش قادرين نوصل للموقع ده.')];
-        foreach ($ips as $ip) if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) && !($fx && $ip === '127.0.0.1')) return ['err' => t('الرابط ده مش متاح.')];
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 12, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_HEADER => true,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS, CURLOPT_RESOLVE => [$host . ':' . $port . ':' . $ips[0]], CURLOPT_RANGE => '0-' . $max,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; AIPushProfile/1.0)', CURLOPT_HTTPHEADER => ['Accept-Language: ar,en;q=0.8']]);
-        $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $hs = (int)curl_getinfo($ch, CURLINFO_HEADER_SIZE); $type = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE); curl_close($ch);
-        if ($code >= 300 && $code < 400 && preg_match('/^Location:\s*(\S+)/mi', substr($raw, 0, $hs), $m)) { $url = kbi_abs(trim($m[1]), $url); continue; }
-        if ($raw === '' || $code >= 400) return ['err' => t('الموقع رد بخطأ (%s).', $code ?: '—')];
-        if ($type !== '' && stripos($type, 'html') === false) return ['err' => t('الرابط ده مش صفحة ويب.')];
-        return ['url' => $url, 'html' => substr($raw, $hs, $max)];
-    }
-    return ['err' => t('تحويلات كتير.')];
+    $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; AIPushProfile/1.0)']);
+    return empty($r['err']) ? ['url' => $r['url'], 'html' => $r['body']] : ['err' => $r['err']];
 }
 function kbi_abs(string $href, string $base): string
 {

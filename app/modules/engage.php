@@ -120,8 +120,9 @@ function coupon_make(string $code, string $label): ?string
 function coupon_detect(string $text): string
 {
     if ($text === '' || !preg_match_all('/[A-Za-z0-9_-]{3,24}/', $text, $m)) return '';
-    static $codes = null;
-    if ($codes === null) { try { $st = db()->prepare('SELECT code FROM post_coupons WHERE workspace_id = ?'); $st->execute([(int)ws('id')]); $codes = array_column($st->fetchAll(), 'code'); } catch (Throwable $e) { $codes = []; } }
+    static $all = []; $wid = (int)ws('id'); // لكل شركة لوحدها
+    if (!isset($all[$wid])) { try { $st = db()->prepare('SELECT code FROM post_coupons WHERE workspace_id = ?'); $st->execute([$wid]); $all[$wid] = array_column($st->fetchAll(), 'code'); } catch (Throwable $e) { $all[$wid] = []; } }
+    $codes = $all[$wid];
     foreach ($m[0] as $w) if (in_array(strtoupper($w), $codes, true)) return strtoupper($w);
     return '';
 }
