@@ -136,62 +136,18 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
       </div>
     <?php endif; ?>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('الشركات')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= count($visible) ?></div></div>
-      <div class="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4"><div class="text-xs text-ink-500"><?= e(t('جديد في آخر تحديث')) ?></div><div class="text-2xl font-bold text-amber-700 mt-1"><?= count($newOnes) ?></div></div>
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('كشفت النهارده')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><span id="crm-used"><?= $today ?></span><span class="text-sm text-ink-400 font-medium"> / <?= $limit ?></span></div>
-        <div class="h-1.5 rounded-full bg-ink-100 mt-2 overflow-hidden"><div id="crm-bar" class="h-full bg-brand-500 rounded-full" style="width:<?= $limit ? min(100, round($today / $limit * 100)) : 100 ?>%"></div></div></div>
-      <a href="<?= e(url('crm_leads')) ?>" class="rounded-2xl border border-lime-200 bg-lime-50/60 p-4 hover:border-lime-400 transition"><div class="text-xs text-ink-500"><?= e(t('في الـ Leads')) ?></div><div class="text-2xl font-bold text-lime-700 mt-1" id="crm-leads"><?= $leadCount ?></div></a>
-    </div>
-
-    <div class="grid lg:grid-cols-3 gap-5">
-      <div class="lg:col-span-2 order-2 lg:order-1">
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <form method="post" id="crm-refresh"><?= csrf_field() ?><input type="hidden" name="action" value="refresh">
-            <button class="btn-primary inline-flex items-center gap-2" <?= $hasKey ? '' : 'disabled' ?>><span id="crm-spin" aria-hidden="true">↻</span><?= e(t('تحديث')) ?></button>
-          </form>
-          <div id="crm-chips" class="flex flex-wrap gap-1.5" role="group">
-            <button type="button" data-f="" class="chip on"><?= e(t('الكل')) ?></button>
-            <button type="button" data-f="new" class="chip"><?= e(t('الجديد')) ?> <span class="opacity-60"><?= count($newOnes) ?></span></button>
-            <button type="button" data-f="rev" class="chip"><?= e(t('كشفت منها')) ?></button>
-            <button type="button" data-f="hid" class="chip"><?= e(t('المخفية')) ?></button>
-          </div>
-          <input id="crm-q" type="search" class="input ms-auto w-full sm:w-56" placeholder="<?= e(t('دوّر على شركة…')) ?>">
-        </div>
-        <?php if (!$companies): ?>
-          <?= an_empty(t('لسه مفيش شركات'), $icpEmpty ? t('حدد العميل المثالي على الجنب، وبعدين دوس "تحديث".') : t('دوس "تحديث" يجيبلك شركات بالعميل المثالي بتاعك.'), '🏢') ?>
-        <?php endif; ?>
-        <div id="crm-grid" class="grid sm:grid-cols-2 gap-3">
-          <?php foreach ($companies as $c): $isNew = $batch > 0 && (int)$c['first_batch'] === $batch && !$c['hidden'];
-            $loc = trim(implode('، ', array_filter([$c['city'], $c['country']]))); ?>
-            <div class="crm-co group relative rounded-2xl border p-4 cursor-pointer transition hover:shadow-md <?= $isNew ? 'border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white ring-1 ring-amber-200' : 'border-ink-200 bg-white hover:border-brand-300' ?>"
-                 data-id="<?= (int)$c['id'] ?>" data-new="<?= $isNew ? 1 : 0 ?>" data-rev="<?= (int)$c['revealed'] ?>" data-hid="<?= (int)$c['hidden'] ?>"
-                 data-q="<?= e(mb_strtolower($c['name'] . ' ' . $c['industry'] . ' ' . $loc . ' ' . $c['domain'])) ?>" style="<?= $c['hidden'] ? 'display:none' : '' ?>" tabindex="0" role="button">
-              <div class="flex items-start gap-3">
-                <?php if ($c['logo']): ?><img src="<?= e($c['logo']) ?>" alt="" class="w-11 h-11 rounded-xl object-contain bg-white border border-ink-100 shrink-0" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0',textContent:<?= e(json_encode(mb_substr($c['name'], 0, 1))) ?>}))">
-                <?php else: ?><div class="w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0"><?= e(mb_strtoupper(mb_substr($c['name'], 0, 1))) ?></div><?php endif; ?>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <div class="crm-name font-semibold text-ink-900 truncate"><?= e($c['name']) ?></div>
-                    <?php if ($isNew): ?><span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-amber-500 text-white"><?= e(t('جديد')) ?></span><?php endif; ?>
-                  </div>
-                  <div class="text-xs text-ink-500 truncate mt-0.5"><?= e($c['industry'] ?: '—') ?></div>
-                </div>
-                <button type="button" class="crm-hide opacity-0 group-hover:opacity-100 focus:opacity-100 text-ink-400 hover:text-red-600 text-xs px-1.5 py-1 rounded-lg hover:bg-red-50 transition" title="<?= e($c['hidden'] ? t('رجّعها') : t('مش مهتم، اخفيها')) ?>" data-act="<?= $c['hidden'] ? 'unhide' : 'hide' ?>"><?= $c['hidden'] ? '↺' : '✕' ?></button>
-              </div>
-              <div class="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-ink-500">
-                <?php if ($loc): ?><span>📍 <?= e($loc) ?></span><?php endif; ?>
-                <?php if ($c['employees']): ?><span>👥 <?= e(t('%s موظف', number_format((int)$c['employees']))) ?></span><?php endif; ?>
-                <?php if ($c['domain']): ?><span dir="ltr">🌐 <?= e($c['domain']) ?></span><?php endif; ?>
-                <?php if ((int)$c['revealed']): ?><span class="text-lime-700 font-medium">✓ <?= e(t('كشفت %s', (int)$c['revealed'])) ?></span><?php endif; ?>
-              </div>
-            </div>
-          <?php endforeach; ?>
-        </div>
-        <div id="crm-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش شركات تطابق البحث')) ?></div>
+    <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+      <span class="ld-stat"><span class="text-ink-500"><?= e(t('الشركات')) ?></span> <b><?= count($visible) ?></b></span>
+      <span class="ld-stat <?= $newOnes ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>">✨ <span class="text-ink-500"><?= e(t('جديد في آخر تحديث')) ?></span> <b><?= count($newOnes) ?></b></span>
+      <span class="ld-stat">🔓 <span class="text-ink-500"><?= e(t('كشفت النهارده')) ?></span> <b><span id="crm-used"><?= $today ?></span> / <?= $limit ?></b>
+        <span class="w-14 h-1.5 rounded-full bg-ink-100 overflow-hidden"><span id="crm-bar" class="block h-full bg-brand-500 rounded-full" style="width:<?= $limit ? min(100, round($today / $limit * 100)) : 100 ?>%"></span></span></span>
+      <a href="<?= e(url('crm_leads')) ?>" class="ld-stat hover:!border-lime-400">🧲 <span class="text-ink-500"><?= e(t('في الـ Leads')) ?></span> <b class="text-lime-700"><?= (int)$leadCount ?></b> ↗</a>
+      <div class="flex gap-2 ms-auto">
+        <button type="button" class="btn-ghost" data-cfg="dom">＋ <?= e(t('أضف بالدومين')) ?></button>
+        <button type="button" class="btn-ghost" data-cfg="icp">🎯 <?= e(t('العميل المثالي')) ?></button>
       </div>
-
-      <aside class="order-1 lg:order-2">
+    </div>
+    <div id="crm-cfg" class="grid md:grid-cols-2 gap-4 mb-5 items-start <?= (!$companies || $icpEmpty) ? '' : 'hidden' ?>">
         <?php if (setting('crm_plan_' . (int)ws('id')) === 'free'): ?>
           <div class="card p-4 mb-4 border-amber-200 bg-amber-50/70 text-sm">
             <div class="font-semibold text-amber-900"><?= e(t('حسابك على خطة Apollo المجانية')) ?></div>
@@ -199,14 +155,14 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
             <a class="link text-xs mt-1 inline-block" href="https://www.apollo.io/pricing" target="_blank" rel="noopener"><?= e(t('خطط Apollo')) ?> ↗</a>
           </div>
         <?php endif; ?>
-        <form method="post" class="card p-5 mb-4 space-y-2">
+        <form method="post" class="card p-5 space-y-2" data-cfgp="dom">
           <?= csrf_field() ?><input type="hidden" name="action" value="add_domains">
           <h3 class="font-semibold text-ink-900">＋ <?= e(t('ضيف شركات بالدومين')) ?></h3>
           <p class="text-xs text-ink-500"><?= e(t('اكتب مواقع الشركات اللي عاوز تستهدفها (سطر لكل واحدة، لحد 25). بتشتغل مع أي خطة.')) ?></p>
           <textarea name="domains" rows="3" class="input font-mono text-xs" dir="ltr" placeholder="talabat.com&#10;elmenus.com" <?= $hasKey ? '' : 'disabled' ?>></textarea>
           <button class="btn-ghost w-full !text-sm" <?= $hasKey ? '' : 'disabled' ?>><?= e(t('ضيف')) ?></button>
         </form>
-        <form method="post" class="card p-5 space-y-4">
+        <form method="post" class="card p-5 space-y-4" data-cfgp="icp">
           <?= csrf_field() ?><input type="hidden" name="action" value="icp">
           <div>
             <h3 class="font-semibold text-ink-900">🎯 <?= e(t('العميل المثالي')) ?></h3>
@@ -236,11 +192,59 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($hasKey, 
           <?php else: ?><p class="text-xs text-ink-500"><?= e(t('المدير بس يقدر يغيّر الإعدادات دي.')) ?></p><?php endif; ?>
           <p class="text-[11px] text-ink-400 leading-relaxed"><?= e(t('كل تحديث بيخصم 1 كريديت من Apollo، وكل كشف شخص بيخصم كريديت. الأرقام بتوصل بعد دقايق، وتغطيتها في الشرق الأوسط ضعيفة.')) ?></p>
         </form>
-      </aside>
+    </div>
+    <div>
+      <div>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <form method="post" id="crm-refresh"><?= csrf_field() ?><input type="hidden" name="action" value="refresh">
+            <button class="btn-primary inline-flex items-center gap-2" <?= $hasKey ? '' : 'disabled' ?>><span id="crm-spin" aria-hidden="true">↻</span><?= e(t('تحديث')) ?></button>
+          </form>
+          <div id="crm-chips" class="flex flex-wrap gap-1.5" role="group">
+            <button type="button" data-f="" class="chip on"><?= e(t('الكل')) ?></button>
+            <button type="button" data-f="new" class="chip"><?= e(t('الجديد')) ?> <span class="opacity-60"><?= count($newOnes) ?></span></button>
+            <button type="button" data-f="rev" class="chip"><?= e(t('كشفت منها')) ?></button>
+            <button type="button" data-f="hid" class="chip"><?= e(t('المخفية')) ?></button>
+          </div>
+          <input id="crm-q" type="search" class="input ms-auto w-full sm:w-56" placeholder="<?= e(t('دوّر على شركة…')) ?>">
+        </div>
+        <?php if (!$companies): ?>
+          <?= an_empty(t('لسه مفيش شركات'), $icpEmpty ? t('حدد العميل المثالي فوق، وبعدين دوس "تحديث".') : t('دوس "تحديث" يجيبلك شركات بالعميل المثالي بتاعك.'), '🏢') ?>
+        <?php endif; ?>
+        <div id="crm-grid" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <?php foreach ($companies as $c): $isNew = $batch > 0 && (int)$c['first_batch'] === $batch && !$c['hidden'];
+            $loc = trim(implode('، ', array_filter([$c['city'], $c['country']]))); ?>
+            <div class="crm-co group relative rounded-2xl border p-4 cursor-pointer transition duration-150 hover:-translate-y-0.5 hover:shadow-lg <?= $isNew ? 'border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white ring-1 ring-amber-200' : 'border-ink-200 bg-white hover:border-brand-300' ?>"
+                 data-id="<?= (int)$c['id'] ?>" data-new="<?= $isNew ? 1 : 0 ?>" data-rev="<?= (int)$c['revealed'] ?>" data-hid="<?= (int)$c['hidden'] ?>"
+                 data-q="<?= e(mb_strtolower($c['name'] . ' ' . $c['industry'] . ' ' . $loc . ' ' . $c['domain'])) ?>" style="<?= $c['hidden'] ? 'display:none' : '' ?>" tabindex="0" role="button">
+              <div class="flex items-start gap-3">
+                <?php if ($c['logo']): ?><img src="<?= e($c['logo']) ?>" alt="" class="w-11 h-11 rounded-xl object-contain bg-white border border-ink-100 shrink-0" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0',textContent:<?= e(json_encode(mb_substr($c['name'], 0, 1))) ?>}))">
+                <?php else: ?><div class="w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-bold grid place-items-center shrink-0"><?= e(mb_strtoupper(mb_substr($c['name'], 0, 1))) ?></div><?php endif; ?>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <div class="crm-name font-semibold text-ink-900 truncate"><?= e($c['name']) ?></div>
+                    <?php if ($isNew): ?><span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-amber-500 text-white"><?= e(t('جديد')) ?></span><?php endif; ?>
+                  </div>
+                  <div class="text-xs text-ink-500 truncate mt-0.5"><?= e($c['industry'] ?: '—') ?></div>
+                </div>
+                <button type="button" class="crm-hide opacity-0 group-hover:opacity-100 focus:opacity-100 text-ink-400 hover:text-red-600 text-xs px-1.5 py-1 rounded-lg hover:bg-red-50 transition" title="<?= e($c['hidden'] ? t('رجّعها') : t('مش مهتم، اخفيها')) ?>" data-act="<?= $c['hidden'] ? 'unhide' : 'hide' ?>"><?= $c['hidden'] ? '↺' : '✕' ?></button>
+              </div>
+              <div class="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-ink-500">
+                <?php if ($loc): ?><span>📍 <?= e($loc) ?></span><?php endif; ?>
+                <?php if ($c['employees']): ?><span>👥 <?= e(t('%s موظف', number_format((int)$c['employees']))) ?></span><?php endif; ?>
+                <?php if ($c['domain']): ?><span dir="ltr">🌐 <?= e($c['domain']) ?></span><?php endif; ?>
+                <?php if ((int)$c['revealed']): ?><span class="text-lime-700 font-medium">✓ <?= e(t('كشفت %s', (int)$c['revealed'])) ?></span><?php endif; ?>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <div id="crm-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش شركات تطابق البحث')) ?></div>
+      </div>
+
     </div>
 
+    <script>(function () { var c = document.getElementById('crm-cfg'); document.querySelectorAll('[data-cfg]').forEach(function (b) { b.addEventListener('click', function () { var on = c.classList.contains('hidden') || b.classList.contains('on') === false; document.querySelectorAll('[data-cfg]').forEach(function (x) { x.classList.toggle('on', x === b && on); x.classList.toggle('!bg-brand-50', x === b && on); }); c.classList.toggle('hidden', !on); if (on) { var f = c.querySelector('[data-cfgp=' + b.dataset.cfg + ']'); f.classList.add('ring-2', 'ring-brand-300'); setTimeout(function () { f.classList.remove('ring-2', 'ring-brand-300'); }, 900); var i = f.querySelector('input:not([type=hidden]),textarea'); if (i) i.focus(); } }); }); })();</script>
     <div id="crm-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
-      <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+      <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
       <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[440px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="crm-d-title">
         <div class="flex items-center gap-3 p-4 border-b border-ink-100">
           <div class="min-w-0 flex-1"><div id="crm-d-title" class="font-semibold text-ink-900 truncate"></div><div id="crm-d-sub" class="text-xs text-ink-500 truncate"></div></div>

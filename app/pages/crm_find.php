@@ -89,11 +89,14 @@ render(t('ابحث عن أشخاص'), 'crm_find', function () use ($icp, $senior
     $left = max(0, (int)$prefs['daily_limit'] - crm_reveals_today($uid));
     ?>
     <div class="grid lg:grid-cols-[300px,1fr] gap-5">
-      <form id="fd-form" class="card p-4 space-y-3 self-start lg:sticky lg:top-20">
+      <form id="fd-form" class="card p-4 space-y-3 self-start lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <div class="text-[11px] font-semibold uppercase tracking-wide text-ink-400">👤 <?= e(t('مين؟')) ?></div>
         <label class="block"><span class="label"><?= e(t('المسمى الوظيفي')) ?></span><input class="input" name="titles" value="<?= e($icp['titles'] ?? '') ?>" placeholder="<?= e(t('مثلاً: Owner, Marketing Manager')) ?>"></label>
         <div><span class="label"><?= e(t('المستوى')) ?></span><div class="flex flex-wrap gap-1.5">
           <?php foreach ($seniorL as $k => $v): ?><label class="cursor-pointer"><input type="checkbox" name="seniorities[]" value="<?= e($k) ?>" class="peer sr-only"><span class="inline-block px-2 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600"><?= e($v) ?></span></label><?php endforeach; ?></div></div>
+        <div class="text-[11px] font-semibold uppercase tracking-wide text-ink-400 pt-2 border-t border-ink-100">📍 <?= e(t('فين؟')) ?></div>
         <label class="block"><span class="label"><?= e(t('الدولة أو المدينة')) ?></span><input class="input" name="locations" dir="auto" value="<?= e(implode(', ', (array)($icp['locations'] ?? []))) ?>" placeholder="Egypt, Riyadh"></label>
+        <div class="text-[11px] font-semibold uppercase tracking-wide text-ink-400 pt-2 border-t border-ink-100">🏢 <?= e(t('الشركة')) ?></div>
         <div><span class="label"><?= e(t('حجم الشركة')) ?></span><div class="flex flex-wrap gap-1.5">
           <?php foreach (crm_sizes() as $k => $v): ?><label class="cursor-pointer"><input type="checkbox" name="sizes[]" value="<?= e($k) ?>" class="peer sr-only" <?= in_array($k, (array)($icp['sizes'] ?? []), true) ? 'checked' : '' ?>><span class="inline-block px-2 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600" dir="ltr"><?= e($v) ?></span></label><?php endforeach; ?></div></div>
         <div><span class="label"><?= e(t('إيرادات الشركة السنوية ($)')) ?></span><div class="grid grid-cols-2 gap-2"><input class="input" name="rev_min" inputmode="numeric" dir="ltr" placeholder="<?= e(t('من')) ?>"><input class="input" name="rev_max" inputmode="numeric" dir="ltr" placeholder="<?= e(t('لحد')) ?>"></div></div>
@@ -105,18 +108,18 @@ render(t('ابحث عن أشخاص'), 'crm_find', function () use ($icp, $senior
       </form>
       <div>
         <div id="fd-saved" class="mb-4"></div>
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <span id="fd-total" class="text-sm text-ink-600"></span>
+        <div id="fd-bar" class="sticky top-16 z-20 flex flex-wrap items-center gap-2 mb-3 rounded-2xl border border-ink-200 bg-white/95 backdrop-blur px-3 py-2 shadow-sm">
+          <label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" id="fd-all" class="rounded"><span id="fd-total" class="text-ink-700 font-medium"></span></label>
           <span class="text-xs rounded-full bg-ink-100 text-ink-600 px-2.5 py-1 ms-auto"><?= e(t('فاضلك النهارده')) ?>: <b id="fd-left"><?= $left ?></b></span>
           <?php if ($canReveal): ?><input id="fd-list-name" list="fd-lists" class="input !w-40 !py-1.5 text-sm" maxlength="30" placeholder="<?= e(t('ضيفهم لقايمة (اختياري)')) ?>"><datalist id="fd-lists"><?php foreach (crm_tag_names() as $tg): ?><option value="<?= e($tg) ?>"><?php endforeach; ?></datalist>
           <button type="button" id="fd-reveal" class="btn-primary" disabled></button><?php endif; ?>
         </div>
-        <div id="fd-list" class="card divide-y divide-ink-100 overflow-hidden"><div class="p-10 text-center text-sm text-ink-500"><?= e(t('اختار الفلاتر ودوس ابحث.')) ?></div></div>
+        <div id="fd-list" class="card divide-y divide-ink-100 overflow-hidden"><div class="p-12 text-center"><div class="text-4xl mb-2">🔎</div><div class="text-sm text-ink-600"><?= e(t('اختار الفلاتر ودوس ابحث.')) ?></div><div class="text-[11px] text-ink-400 mt-1"><?= e(t('أو جرّب "هاتلي ناس شبه أحسن عملائي"')) ?></div></div></div>
         <div class="flex justify-center gap-2 mt-3"><button type="button" id="fd-prev" class="btn-ghost hidden">‹</button><span id="fd-page" class="text-sm text-ink-500 self-center"></span><button type="button" id="fd-next" class="btn-ghost hidden">›</button></div>
       </div>
     </div>
     <script>window.FD = <?= json_encode(['searches' => crm_searches(), 'url' => url('crm_find'), 'csrf' => csrf_token(), 'leads' => url('crm_leads'), 'canReveal' => $canReveal,
-        'tr' => ['total' => t('%s شخص'), 'none' => t('مفيش نتايج. وسّع الفلاتر.'), 'reveal' => t('اكشف %s وضيفهم للـ Leads'), 'revealing' => t('بنكشف…'), 'inLeads' => t('في الـ Leads'),
+        'tr' => ['hPerson' => t('الشخص'), 'hCompany' => t('الشركة'), 'hPlace' => t('المكان'), 'hData' => t('البيانات المتاحة'), 'total' => t('%s شخص'), 'none' => t('مفيش نتايج. وسّع الفلاتر.'), 'reveal' => t('اكشف %s وضيفهم للـ Leads'), 'revealing' => t('بنكشف…'), 'inLeads' => t('في الـ Leads'),
             'email' => t('إيميل'), 'phone' => t('رقم'), 'done' => t('اتكشف %s واتضافوا للـ Leads. الأرقام ممكن تاخد دقايق توصل.'), 'err' => t('حصل خطأ، جرب تاني'), 'searching' => t('بندوّر…'),
             'plan' => t('خطة Apollo بتاعتك مش بتسمح بالبحث ده. اتأكد إنك رقّيت الخطة وإن المفتاح Master Key.'), 'emp' => t('موظف'), 'confirm' => t('هيتصرف لحد %s كريديت من Apollo. تكمل؟'),
             'lookNo' => t('محتاجين عميلين على الأقل "بقوا عملاء" أو "مهتمين" عشان نعرف شبههم.'), 'lookWon' => t('الفلاتر اتملت من %s عميل كسبتهم. عدّلها لو حابب ودوس ابحث.'), 'lookWarm' => t('الفلاتر اتملت من %s عميل مهتمين (لسه مفيش عملاء كفاية كسبتهم).'),

@@ -91,9 +91,15 @@
     return '<div class="' + GRID + ' hidden md:grid px-4 py-2 bg-ink-50/70 text-[11px] font-medium text-ink-500 sticky top-0 z-10"><span></span><span>' + esc(T.hName) + '</span><span>' + esc(T.hStage) + '</span><span>' + esc(T.hNext) + '</span><span>' + esc(T.hContact) + '</span><span>' + esc(T.hOwner) + '</span><span class="text-end">' + esc(T.hValue) + '</span><span></span></div>';
   }
   function card(l) {
-    return '<div class="ld-card rounded-xl border border-ink-200 bg-white p-3 cursor-pointer hover:border-brand-300 hover:shadow-sm" draggable="' + (l.edit ? 'true' : 'false') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
-      '<div class="flex items-center gap-2">' + avatar(l, 'w-7 h-7') + '<div class="min-w-0"><div class="text-sm font-medium text-ink-900 truncate">' + esc(l.name) + ' ' + scoreBadge(l) + '</div><div class="text-[11px] text-ink-500 truncate">' + esc(l.company || l.title || '—') + '</div></div></div>' +
-      '<div class="flex flex-wrap items-center gap-1.5 mt-2">' + nextBadge(l) + (l.value ? '<span class="text-xs font-semibold text-ink-900 ms-auto">' + esc(Number(l.value).toLocaleString()) + '</span>' : '') + '</div></div>';
+    var c = '<div class="ld-card group relative rounded-xl border border-ink-200 bg-white p-3 cursor-pointer transition duration-150 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300' + (l.edit ? ' active:cursor-grabbing' : '') + '" draggable="' + (l.edit ? 'true' : 'false') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
+      '<div class="flex items-start gap-2.5"><div class="relative shrink-0">' + avatar(l, 'w-8 h-8') + (l.score ? '<span class="absolute -bottom-1 -end-1 scale-90">' + scoreBadge(l) + '</span>' : '') + '</div>' +
+      '<div class="min-w-0 flex-1"><div class="text-sm font-semibold text-ink-900 truncate">' + esc(l.name) + '</div><div class="text-[11px] text-ink-500 truncate">' + esc(l.company || l.title || D.sources[l.source] || '—') + '</div></div></div>' +
+      '<div class="flex items-center gap-2 mt-2.5 text-[11px]">' + (dueState(l) ? nextCell(l) : '<span class="text-ink-300">' + esc(T.nNone) + '</span>') +
+        (l.value ? '<b class="ms-auto text-ink-900 text-xs">' + esc(Number(l.value).toLocaleString()) + '</b>' : '') + '</div>' +
+      '<div class="absolute top-2 end-2 hidden group-hover:flex gap-1">' +
+        (l.wa ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener">💬</a>' : '') +
+        (l.phone ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="call" href="tel:' + esc(l.phone) + '">📞</a>' : '') + '</div></div>';
+    return c;
   }
   function scoreBadge(l) { if (!l.score) return ''; var c = l.score >= 60 ? 'bg-lime-500 text-white' : l.score >= 35 ? 'bg-amber-400 text-ink-900' : 'bg-ink-200 text-ink-600'; return '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ' + c + '" title="' + esc(T.score + ': ' + (l.why || []).join('، ')) + '">' + l.score + '</span>'; }
   function draw() {
@@ -116,8 +122,12 @@
       board.innerHTML = Object.keys(D.stages).filter(function (s) { return !f.stage || s === f.stage; }).map(function (s) {
       var col = shown.filter(function (l) { return l.stage === s; });
       var sum = col.reduce(function (a, l) { return a + (+l.value || 0); }, 0);
-      return '<div class="ld-col rounded-2xl bg-ink-50 border border-ink-200 p-2 min-h-[200px] flex flex-col" data-s="' + s + '"><div class="flex items-center gap-2 px-1 py-1.5"><span class="text-[11px] px-1.5 py-0.5 rounded-md ' + stageColor[s] + '">' + esc(D.stages[s]) + '</span><span class="text-xs text-ink-500">' + col.length + '</span>' + (sum ? '<span class="text-xs text-ink-500 ms-auto">' + sum.toLocaleString() + '</span>' : '') + '</div>' +
-        '<div class="space-y-2 flex-1">' + col.map(card).join('') + '</div></div>';
+      var icons = { new: '🆕', contacted: '💬', qualified: '⭐', proposal: '📄', won: '🏆', lost: '✕' };
+      return '<div class="ld-col rounded-2xl bg-ink-50/80 border border-ink-200 p-2 min-h-[260px] flex flex-col transition" data-s="' + s + '">' +
+        '<div class="flex items-center gap-2 px-1.5 py-1.5 mb-1"><span class="text-sm">' + (icons[s] || '') + '</span><span class="text-sm font-semibold text-ink-800">' + esc(D.stages[s]) + '</span><span class="text-[11px] rounded-full bg-white border border-ink-200 px-1.5 text-ink-500">' + col.length + '</span>' + (sum ? '<span class="text-[11px] text-ink-500 ms-auto">' + sum.toLocaleString() + '</span>' : '') + '</div>' +
+        '<div class="h-1 rounded-full mx-1.5 mb-2 ' + stageColor[s].split(' ')[0] + '"></div>' +
+        '<div class="space-y-2 flex-1">' + col.slice(0, 60).map(card).join('') + (col.length > 60 ? '<div class="text-center text-[11px] text-ink-400 py-1">+' + (col.length - 60) + '</div>' : '') +
+        (col.length ? '' : '<div class="ld-drop-empty grid place-items-center h-24 rounded-xl border-2 border-dashed border-ink-200 text-[11px] text-ink-400">' + esc(T.drop) + '</div>') + '</div></div>';
     }).join('');
     }
   }
@@ -137,13 +147,12 @@
   // السحب بين المراحل
   var dragId = null;
   board.addEventListener('dragstart', function (e) { var c = e.target.closest('.ld-card'); if (!c) return; dragId = +c.dataset.id; e.dataTransfer.effectAllowed = 'move'; c.classList.add('opacity-50'); });
-  board.addEventListener('dragend', function () { dragId = null; board.querySelectorAll('.ld-col').forEach(function (c) { c.classList.remove('ring-2', 'ring-brand-400'); }); });
-  board.addEventListener('dragover', function (e) { var c = e.target.closest('.ld-col'); if (!c || dragId === null) return; e.preventDefault(); board.querySelectorAll('.ld-col').forEach(function (x) { x.classList.toggle('ring-2', x === c); x.classList.toggle('ring-brand-400', x === c); }); });
+  board.addEventListener('dragend', function () { dragId = null; board.querySelectorAll('.ld-col').forEach(function (c) { c.classList.remove('ring-2', 'ring-brand-400', 'bg-brand-50'); }); board.querySelectorAll('.opacity-50').forEach(function (x) { x.classList.remove('opacity-50'); }); });
+  board.addEventListener('dragover', function (e) { var c = e.target.closest('.ld-col'); if (!c || dragId === null) return; e.preventDefault(); board.querySelectorAll('.ld-col').forEach(function (x) { x.classList.toggle('ring-2', x === c); x.classList.toggle('ring-brand-400', x === c); x.classList.toggle('bg-brand-50', x === c); }); });
   board.addEventListener('drop', function (e) {
     var c = e.target.closest('.ld-col'); if (!c || dragId === null) return; e.preventDefault();
-    var l = byId(dragId), s = c.dataset.s; if (!l || l.stage === s) return draw();
-    var old = l.stage; l.stage = s; draw();
-    post({ action: 'stage', id: l.id, stage: s }).then(function (r) { if (!r.ok) { l.stage = old; draw(); toast(r.error || T.err); } }).catch(function () { l.stage = old; draw(); });
+    var l = byId(dragId); dragId = null; if (!l || l.stage === c.dataset.s) return draw();
+    changeStage(l, c.dataset.s);
   });
   function byId(id) { for (var i = 0; i < leads.length; i++) if (leads[i].id === id) return leads[i]; return null; }
 
@@ -680,6 +689,13 @@
     }
     if (!l.edit) return;
     if (q.dataset.qa === 'call') { setTimeout(function () { open(l.id); setTab('ct'); var o = document.getElementById('ld-oc'); o.classList.remove('hidden'); o.classList.add('flex'); }, 300); return; }
+    post({ action: 'log', id: l.id, kind: q.dataset.qa, body: '' }).then(function (r) { if (r.ok) { Object.assign(l, r.lead); draw(); toast(T.logged); } });
+  }, true);
+
+  board.addEventListener('click', function (e) {
+    var q = e.target.closest('[data-qa]'); if (!q) return; e.stopPropagation();
+    var l = byId(+q.closest('[data-id]').dataset.id); if (!l || !l.edit) return;
+    if (q.dataset.qa === 'call') return;
     post({ action: 'log', id: l.id, kind: q.dataset.qa, body: '' }).then(function (r) { if (r.ok) { Object.assign(l, r.lead); draw(); toast(T.logged); } });
   }, true);
 

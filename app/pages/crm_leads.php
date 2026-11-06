@@ -478,7 +478,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       <button type="button" id="ld-b-clear" class="ms-auto text-xs text-ink-500 hover:text-ink-900">✕</button>
     </div>
     <div id="ld-list" class="card divide-y divide-ink-100 overflow-hidden"></div>
-    <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-3"></div>
+    <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(250px,1fr)] gap-3 overflow-x-auto pb-3 snap-x"></div>
     <div id="ld-more" class="hidden text-center mt-3"><button type="button" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400"></span></button></div>
     <div id="ld-none" class="hidden text-center py-14"><div class="text-4xl mb-2">🔍</div><div class="text-sm text-ink-600"><?= e(t('مفيش عملاء بالشكل ده')) ?></div><button type="button" id="ld-none-clear" class="link text-xs mt-2"><?= e(t('امسح الفلاتر')) ?></button></div>
 
