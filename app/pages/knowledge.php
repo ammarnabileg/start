@@ -232,19 +232,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . " Return ONLY valid JSON in exactly this shape (no markdown, no comments; use \\n for line breaks inside strings): " . $shape;
         $user = ($update ? "CURRENT CONTENT OF THIS SECTION (JSON):\n" . json_encode($cur, JSON_UNESCAPED_UNICODE) . "\n\n" : '') . "SOURCES\n\n## EXISTING KNOWLEDGE BASE\n" . (kb_compile($wid) ?: '-') . "\n\n## DOCUMENTS" . ($files ?: "\n-") . "\n\n## ACCOUNT DATA (posts, messages, metrics)\n" . assistant_context(true);
         try {
-            $msgs = [['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => mb_substr($user, 0, 75000)]];
-            $r = ai_chat($msgs, 6000, 'analyze');
-            $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
-            if (is_array($d) && !kb_fill_has($d)) { // رجّع النموذج فاضي: نطلب تاني بوضوح
-                $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 4000)];
-                $msgs[] = ['role' => 'user', 'content' => 'You returned the template with empty values. Fill every field with real, specific content for THIS company from the sources (and professional suggestions marked as such where the sources are silent). Reply with ONLY the JSON.'];
-                $r = ai_chat($msgs, 6000, 'analyze'); $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
-            }
-            if (!is_array($d)) { // محاولة تانية: نطلب JSON سليم بس
-                $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 6000)];
-                $msgs[] = ['role' => 'user', 'content' => 'Your reply was cut off or was not valid JSON. Reply again with ONLY a complete JSON object in the exact shape requested. Be more concise (shorter values, at most 10 items) so it fits.'];
-                $r = ai_chat($msgs, 6000, 'analyze'); $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
-            }
+            // طلب واحد للموديل بنفس محاولات الإصلاح (نموذج فاضي، أو JSON مقطوع)
+            $cost = 0.0;
+            $ask = function (string $sysX) use ($user, $type, $schema, $sec, &$cost) {
+                $msgs = [['role' => 'system', 'content' => $sysX], ['role' => 'user', 'content' => mb_substr($user, 0, 75000)]];
+                $r = ai_chat($msgs, 6000, 'analyze'); $cost += (float)($r['cost'] ?? 0);
+                $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
+                if (is_array($d) && !kb_fill_has($d)) { // رجّع النموذج فاضي: نطلب تاني بوضوح
+                    $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 4000)];
+                    $msgs[] = ['role' => 'user', 'content' => 'You returned the template with empty values. Fill every field with real, specific content for THIS company from the sources (and professional suggestions marked as such where the sources are silent). Reply with ONLY the JSON.'];
+                    $r = ai_chat($msgs, 6000, 'analyze'); $cost += (float)($r['cost'] ?? 0); $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
+                }
+                if (!is_array($d)) { // محاولة تانية: نطلب JSON سليم بس
+                    $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 6000)];
+                    $msgs[] = ['role' => 'user', 'content' => 'Your reply was cut off or was not valid JSON. Reply again with ONLY a complete JSON object in the exact shape requested. Be more concise (shorter values) so it fits.'];
+                    $r = ai_chat($msgs, 6000, 'analyze'); $cost += (float)($r['cost'] ?? 0); $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
+                }
+                return [$d, $r];
+            };
+            $key = $sec === 'pos_offers' ? 'offer' : ($sec === 'faq' ? 'q' : 'name');
+            $empty = function (array $row) use ($key) { foreach ($row as $k => $v) if ($k !== $key && $k !== 'price' && trim((string)$v) !== '') return false; return true; };
+            if ($sec === 'pos_offers') {
+                // تموضع كل خدمة: الخدمات كتير فبنطلبها على دفعات (6 في كل طلب) بالأسامي بالظبط، عشان الرد مايتقطعش والموديل مايملاش الأول بس
+                $names = [];
+                foreach ((array)(kb_get($wid)['services']['rows'] ?? []) as $sr) { $n = trim((string)($sr['name'] ?? '')); if ($n !== '') $names[mb_strtolower($n)] = $n; }
+                foreach ((array)($cur['rows'] ?? []) as $cr) { $n = trim((string)($cr['offer'] ?? '')); if ($n !== '') $names[mb_strtolower($n)] = $names[mb_strtolower($n)] ?? $n; }
+                $names = array_values($names);
+                if (count($names) > 6) {
+                    $all = []; $r = null;
+                    foreach (array_chunk(array_slice($names, 0, 60), 6) as $chunk) {
+                        [$dd, $r] = $ask($sys . ' ONLY these offerings, exactly one row each, using these exact names in "offer": ' . json_encode($chunk, JSON_UNESCAPED_UNICODE) . '.');
+                        foreach ((array)($dd['rows'] ?? []) as $row) if (is_array($row) && trim((string)($row['offer'] ?? '')) !== '') $all[mb_strtolower(trim((string)$row['offer']))] = $row;
+                    }
+                    // اللي رجع فاضي أو مارجعش خالص: طلب تاني ليهم بس
+                    $miss = array_values(array_filter($names, function ($n) use ($all, $empty) { $k = mb_strtolower($n); return !isset($all[$k]) || $empty($all[$k]); }));
+                    foreach (array_chunk(array_slice($miss, 0, 18), 6) as $chunk) {
+                        [$dd, $r2] = $ask($sys . ' ONLY these offerings, exactly one row each, using these exact names in "offer". Every field must be filled with specific content (mark expert suggestions): ' . json_encode($chunk, JSON_UNESCAPED_UNICODE) . '.');
+                        if ($r2) $r = $r2;
+                        foreach ((array)($dd['rows'] ?? []) as $row) if (is_array($row) && trim((string)($row['offer'] ?? '')) !== '' && !$empty($row)) $all[mb_strtolower(trim((string)$row['offer']))] = $row;
+                    }
+                    $d = ['rows' => array_values($all)];
+                } else [$d, $r] = $ask($sys);
+            } elseif ($sec === 'services') {
+                // الخدمات: لو القايمة طويلة الرد ممكن يتقطع، فبنطلب "كمّل" لحد 3 مرات
+                [$d, $r] = $ask($sys);
+                for ($i = 0; $i < 3 && is_array($d) && count((array)($d['rows'] ?? [])) >= 12; $i++) {
+                    $have = array_map(function ($x) { return (string)($x['name'] ?? ''); }, (array)$d['rows']);
+                    [$more, $r2] = $ask($sys . ' CONTINUE: these items are already listed, do NOT repeat them; return ONLY the remaining products/services from the sources (empty rows array if none): ' . json_encode(array_slice($have, 0, 120), JSON_UNESCAPED_UNICODE));
+                    $seenN = array_flip(array_map('mb_strtolower', $have)); $added = 0;
+                    foreach ((array)($more['rows'] ?? []) as $row) { $n = mb_strtolower(trim((string)($row['name'] ?? ''))); if ($n !== '' && !isset($seenN[$n])) { $d['rows'][] = $row; $seenN[$n] = 1; $added++; } }
+                    if (!$added) break;
+                }
+            } else [$d, $r] = $ask($sys);
             if (is_array($d) && $type === 'rows') $d = kb_norm_rows($d, array_keys($schema[$sec]['cols']));
             if (is_array($d)) { $d = kb_strip_unsourced_prices($d, $user); if (in_array($sec, ['contact', 'hours'], true)) $d = kb_strip_unsourced_facts($d, $user); }
             if (!is_array($d) && in_array($type, ['text', 'list'], true) && trim((string)$r['text']) !== '') $d = kb_strip_unsourced_prices(['text' => trim(preg_replace('/^```\w*|```$/m', '', (string)$r['text']))], $user);
@@ -253,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (is_array($d) && !kb_fill_has($d)) $json(['error' => t('الموديل رجّع الخانات فاضية. غالبًا الموديل ضعيف على المهمة دي: جرّب موديل أقوى لمهمة "التحليل والتلخيص" من صفحة الذكاء الاصطناعي، أو ارفع ملفات عن الشركة الأول.') . ' (' . ($r['model'] ?? '') . ')'], 502);
         if (!is_array($d)) $json(['error' => t('الموديل لم يرجع اقتراحًا مفهومًا. جرّب مرة أخرى أو موديلًا أقوى.') . ' (' . ($r['model'] ?? '') . (trim((string)($r['text'] ?? '')) === '' ? ' · ' . t('رد فارغ') : '') . ')'], 502);
-        $log = $r['model'] . (isset($r['cost']) && $r['cost'] !== null ? ' · $' . rtrim(rtrim(number_format((float)$r['cost'], 5), '0'), '.') : '');
+        $log = $r['model'] . ($cost > 0 ? ' · $' . rtrim(rtrim(number_format($cost, 5), '0'), '.') : '');
         $json(['ok' => true, 'data' => $d, 'meta' => $log, 'mode' => $update ? 'update' : 'fill']);
     }
 
