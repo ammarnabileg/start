@@ -342,3 +342,12 @@ document.addEventListener('click', function (e) {
     if ((e.key === '[' || e.key === ']') && btn && !document.getElementById('an-bar')) { var ar = btn.parentNode.querySelectorAll('span.rounded-xl a'); var t = ar[e.key === '[' ? 0 : 1]; if (t) { e.preventDefault(); location.href = t.href; } }
   }, true);
 })();
+
+/* مجموعات القايمة الجانبية: المفتوحة بتتفتكر، والمجموعة الحالية مفتوحة دايمًا */
+(function () {
+  var K = 'nav-open', open = {}; try { open = JSON.parse(localStorage.getItem(K) || '{}'); } catch (e) {}
+  Array.prototype.forEach.call(document.querySelectorAll('details.nav-grp'), function (d) {
+    var k = d.dataset.ng; if (open[k]) d.open = true;
+    d.addEventListener('toggle', function () { open[k] = d.open ? 1 : 0; try { localStorage.setItem(K, JSON.stringify(open)); } catch (e) {} });
+  });
+})();
