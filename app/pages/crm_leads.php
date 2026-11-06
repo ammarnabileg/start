@@ -48,6 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           unset($_SESSION['crm_sug_' . $wid]);
         $json(['ok' => true, 'new' => $n, 'merged' => $m]);
     }
+    if ($action === 'cta_save' && $canManage) {
+        save_setting('crm_cta_words_' . $wid, mb_substr(trim((string)($_POST['words'] ?? '')), 0, 300));
+        unset($_SESSION['crm_sug_' . $wid]);
+        $json(['ok' => true, 'words' => crm_cta_words()]);
+    }
     if ($action === 'auto_capture' && $canManage) {
         $on = !empty($_POST['on']);
         save_setting('crm_auto_capture_' . $wid, $on ? '1' : '0');
@@ -422,6 +427,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <label class="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"><?= e(t('متابعات مستحقة بس')) ?></label>
       <select id="ld-sort" class="input w-auto"><option value=""><?= e(t('ترتيب: المتابعات الأول')) ?></option><option value="score"><?= e(t('ترتيب: الأهم الأول')) ?></option><option value="new"><?= e(t('ترتيب: الأحدث')) ?></option></select>
       <input id="ld-q" type="search" class="input w-full sm:w-52 ms-auto" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
+      <button type="button" id="ld-queue" class="btn-primary hidden">▶ <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
       <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <?= e(t('عملاء مقترحين')) ?><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1"></span></button>
       <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none">⚙️ <?= e(t('أدوات')) ?> ▾</summary>
         <div class="absolute end-0 mt-1 z-40 w-56 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col">
@@ -467,6 +473,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <input type="hidden" name="id"><input type="hidden" name="action" value="save">
         <div class="flex items-center gap-3 p-4 border-b border-ink-100">
           <div class="min-w-0 flex-1"><div id="ld-d-title" class="font-semibold text-ink-900 truncate"></div><div id="ld-d-sub" class="text-xs text-ink-500 truncate"></div></div>
+          <button type="button" id="ld-q-next" class="hidden btn-primary !py-1.5 !text-xs"></button>
           <button type="button" class="btn-ghost" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -588,10 +595,13 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
           <button type="button" id="ld-sug-ai" class="link hidden"><?= e(t('حلّل المحادثات الجديدة بالذكاء الاصطناعي ✦')) ?></button>
           <span id="ld-sug-msg" class="ms-auto text-ink-500"></span>
         </div>
+        <?php if ($canManage): ?>
+        <label class="mx-4 mt-2 flex items-center gap-2 text-xs"><span class="text-ink-500 shrink-0"><?= e(t('كلمات الدعوة في منشوراتك:')) ?></span><input id="ld-cta" class="input !py-1 text-xs" dir="auto" value="<?= e(implode(', ', crm_cta_words())) ?>"></label>
+        <?php endif; ?>
         <?php if ($canManage): $al = explode('|', (string)setting('crm_auto_last_' . (int)ws('id'), '')); ?>
         <label class="mx-4 mt-2 flex items-start gap-2 rounded-xl border border-lime-200 bg-lime-50/50 p-2.5 text-xs cursor-pointer">
           <input type="checkbox" id="ld-auto" class="rounded mt-0.5" <?= crm_auto_capture_on((int)ws('id')) ? 'checked' : '' ?>>
-          <span><b class="text-ink-900"><?= e(t('ضيفهم أوتوماتيك')) ?></b> · <?= e(t('كل 6 ساعات: اللي عنده نية شراء أو كتب رقمه بيتضاف لوحده، بيتوزع على الفريق، وبتتحطله متابعة النهارده.')) ?>
+          <span><b class="text-ink-900"><?= e(t('ضيفهم أوتوماتيك')) ?></b> · <?= e(t('كل 6 ساعات: اللي عنده نية شراء أو كتب رقمه أو رد بكلمة الدعوة بيتضاف لوحده، بيتوزع على الفريق، وبتتحطله متابعة النهارده.')) ?>
             <?php if (!empty($al[0])): ?><span class="block text-ink-500 mt-0.5"><?= e(t('آخر مرة: %s · اتضاف %s', fmt_date($al[0], 'd/m h:i A'), (int)($al[1] ?? 0))) ?></span><?php endif; ?></span>
         </label>
         <?php endif; ?>
@@ -680,7 +690,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
     </div>
     <script>window.LD = <?= json_encode([
         'plans' => crm_plans(), 'chs' => crm_plan_channels(),
-        'tz' => site_timezone(), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
+        'tz' => site_timezone(), 'qNext' => t('التالي ← %s من %s'), 'qDone' => t('خلصت شغل النهارده 👏'), 'qLast' => t('آخر واحد ✓'), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
         'leads' => $leads, 'stages' => $stages, 'sources' => $sources, 'members' => array_column($members, 'name', 'id'), 'me' => $uid, 'url' => url('crm_leads'), 'csrf' => csrf_token(),
         'now' => fmt_date(date('Y-m-d H:i:s'), 'Y-m-d\TH:i'), 'canManage' => $canManage,
         'tr' => ['noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
@@ -699,7 +709,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'bConfirm' => t('هيتصرف لحد %s كريديت من Apollo. تكمل؟'), 'pickSeq' => t('اختار الـ Sequence'), 'enrNone' => t('Apollo مالقاش بيانات جديدة.'), 'enrPend' => t('الرقم جاي من Apollo خلال دقايق.'), 'loading' => t('بنحمّل…'),
             'noSeq' => t('مفيش Sequences في حسابك على Apollo. اعمل واحد من apollo.io الأول.'), 'noAcc' => t('اربط إيميل في Apollo عشان الـ Sequence يبعت منه.'), 'seqDone' => t('اتضاف للـ Sequence ✓'), 'needEmail' => t('العميل ده مالوش إيميل. كمّل بياناته الأول.'),
             'fl' => ['title' => t('المسمى الوظيفي'), 'linkedin' => 'LinkedIn', 'company' => t('الشركة'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'country' => t('الدولة')], 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
-            'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'),
+            'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'), 'whyCta' => t('رد على دعوة المنشور'),
             'autoOn' => t('اتفعّل: اتضاف %s دلوقتي، والباقي كل 6 ساعات.'), 'autoOff' => t('الإضافة الأوتوماتيك اتقفلت.'), 'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_leads.js?v=<?= e(APP_VERSION) ?>"></script>

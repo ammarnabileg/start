@@ -931,6 +931,19 @@ function crm_lead_by_ext(string $ext): ?array
     try { $st = db()->prepare('SELECT id, name, stage FROM crm_leads WHERE workspace_id = ? AND ext_id = ? LIMIT 1'); $st->execute([(int)ws('id'), $ext]); return $st->fetch() ?: null; } catch (Throwable $e) { return null; }
 }
 
+/** كلمات الدعوة اللي بتحطها في منشوراتك ("اكتب عاوز في الكومنت") */
+function crm_cta_words(): array
+{
+    $s = (string)setting('crm_cta_words_' . (int)ws('id'), '') ?: 'عاوز, عايز, مهتم, تفاصيل, interested';
+    return array_values(array_filter(array_map(function ($x) { return mb_strtolower(trim($x)); }, explode(',', $s)), 'strlen'));
+}
+/** التعليق/الرسالة فيها كلمة الدعوة كلمة لوحدها (مش جزء من جملة طويلة عن حاجة تانية) */
+function crm_has_cta(string $t): bool
+{
+    $t = mb_strtolower(trim($t)); if ($t === '' || mb_strlen($t) > 140) return false;
+    foreach (crm_cta_words() as $w) if (preg_match('/(^|[\s\p{P}])' . preg_quote($w, '/') . '($|[\s\p{P}])/u', $t)) return true;
+    return false;
+}
 /** كلمات بتدل على اهتمام بالشراء (من غير ذكاء اصطناعي) */
 function crm_buy_words(string $t): bool
 {
@@ -953,6 +966,7 @@ function crm_suggestions(Zernio $z, int $maxPosts = 6): array
         if ($lb && (int)$lb['intent'] === 1) $why[] = 'ai';
         if ($fc['phone'] !== '' || $fc['email'] !== '') $why[] = 'contact';
         if (crm_buy_words($txt)) $why[] = 'price';
+        if (crm_has_cta($txt)) $why[] = 'cta';
         if ($lb && in_array($lb['category'], ['spam', 'complaint'], true)) $why = [];
         return $why;
     };
@@ -993,7 +1007,7 @@ function crm_suggestions(Zernio $z, int $maxPosts = 6): array
         }
     }
     // الأقوى الأول: نية شراء + بيانات تواصل
-    usort($out, function ($a, $b) { $w = function ($x) { return (in_array('ai', $x['why'], true) ? 4 : 0) + (in_array('contact', $x['why'], true) ? 2 : 0) + (in_array('price', $x['why'], true) ? 1 : 0); }; return $w($b) <=> $w($a) ?: strcmp($b['at'], $a['at']); });
+    usort($out, function ($a, $b) { $w = function ($x) { return (in_array('ai', $x['why'], true) ? 4 : 0) + (in_array('contact', $x['why'], true) ? 2 : 0) + (in_array('cta', $x['why'], true) ? 2 : 0) + (in_array('price', $x['why'], true) ? 1 : 0); }; return $w($b) <=> $w($a) ?: strcmp($b['at'], $a['at']); });
     return array_slice($out, 0, 80);
 }
 
@@ -1006,7 +1020,7 @@ function crm_auto_capture(Zernio $z): int
 {
     $n = 0;
     foreach (crm_suggestions($z) as $it) {
-        if (!array_intersect($it['why'], ['ai', 'contact'])) continue;
+        if (!array_intersect($it['why'], ['ai', 'contact', 'cta'])) continue;
         $l = crm_from_social($it + ['owner_id' => null]);
         if (!$l || $l['merged']) continue;
         db()->prepare('UPDATE crm_leads SET next_at = NOW(), next_note = ? WHERE id = ? AND next_at IS NULL')->execute([mb_substr(t('اتضاف أوتوماتيك من %s، كلّمه', $it['where']), 0, 255), (int)$l['id']]);

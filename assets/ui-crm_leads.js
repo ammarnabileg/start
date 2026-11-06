@@ -501,9 +501,9 @@
   function sugCount() { var n = sgl.querySelectorAll('.sg-c:checked').length; sgo.disabled = !n; sgo.textContent = T.sugGo.replace('%s', n); }
   function sugDraw() {
     if (!sItems.length) { sgl.innerHTML = '<p class="text-sm text-ink-500 text-center py-10">' + esc(T.sugNone) + '</p>'; sugCount(); return; }
-    var wl = { ai: ['bg-lime-100 text-lime-800', T.whyAi], contact: ['bg-sky-100 text-sky-800', T.whyContact], price: ['bg-amber-100 text-amber-800', T.whyPrice] };
+    var wl = { ai: ['bg-lime-100 text-lime-800', T.whyAi], contact: ['bg-sky-100 text-sky-800', T.whyContact], price: ['bg-amber-100 text-amber-800', T.whyPrice], cta: ['bg-violet-100 text-violet-800', T.whyCta] };
     sgl.innerHTML = sItems.map(function (it, i) {
-      return '<label class="flex gap-3 rounded-xl border border-ink-200 p-3 hover:border-brand-300 cursor-pointer"><input type="checkbox" class="sg-c rounded mt-1" data-i="' + i + '"' + (it.why.indexOf('ai') > -1 || it.why.indexOf('contact') > -1 ? ' checked' : '') + '>' +
+      return '<label class="flex gap-3 rounded-xl border border-ink-200 p-3 hover:border-brand-300 cursor-pointer"><input type="checkbox" class="sg-c rounded mt-1" data-i="' + i + '"' + (it.why.indexOf('ai') > -1 || it.why.indexOf('contact') > -1 || it.why.indexOf('cta') > -1 ? ' checked' : '') + '>' +
         '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-1.5"><span class="font-medium text-ink-900 text-sm">' + esc(it.name || '—') + '</span><span class="text-[10px] text-ink-500">' + (it.source === 'comments' ? '💬 ' + esc(T.cmt) : '✉️ ' + esc(T.msgK)) + ' · ' + esc(it.where) + '</span>' +
         it.why.map(function (w) { return '<span class="text-[10px] px-1.5 py-0.5 rounded ' + wl[w][0] + '">' + esc(wl[w][1]) + '</span>'; }).join('') + '</div>' +
         '<p class="text-xs text-ink-700 mt-1 line-clamp-2" dir="auto">' + esc(it.summary || it.text) + '</p>' +
@@ -537,6 +537,8 @@
       setTimeout(function () { location.reload(); }, 1200);
     }).catch(function () { sgo.disabled = false; sgm.textContent = T.err; });
   });
+  var ctaIn = document.getElementById('ld-cta');
+  if (ctaIn) ctaIn.addEventListener('change', function () { post({ action: 'cta_save', words: ctaIn.value }).then(function (r) { if (r.ok) { ctaIn.value = r.words.join(', '); sugLoad(); } }); });
   var au = document.getElementById('ld-auto');
   if (au) au.addEventListener('change', function () {
     au.disabled = true;
@@ -584,6 +586,23 @@
     if (!confirm(T.bConfirm.replace('%s', 25))) return; stl.disabled = true;
     post({ action: 'enrich_stale' }).then(function (r) { stl.disabled = false; if (!r.ok) return alert(r.error || T.err); alert(T.bDone.replace('%s', r.done).replace('%s', r.skip) + (r.error ? '\n' + r.error : '')); if (r.done) location.reload(); });
   });
+
+  /* ---------- شغل النهارده: المستحقين بالترتيب (الأهم الأول)، وزرار "التالي" ---------- */
+  var qBtn = document.getElementById('ld-queue'), qNext = document.getElementById('ld-q-next'), queue = [], qi = -1;
+  function buildQueue() { return leads.filter(function (l) { return l.edit && ['over', 'today'].indexOf(dueState(l)) > -1; }).sort(function (a, b) { return (b.score - a.score) || (dueState(a) === 'over' ? -1 : 1); }).map(function (l) { return l.id; }); }
+  function qDraw() { var n = buildQueue().length; qBtn.classList.toggle('hidden', !n); document.getElementById('ld-queue-n').textContent = n; }
+  function qShow() {
+    if (qi < 0 || qi >= queue.length) { qNext.classList.add('hidden'); return; }
+    qNext.classList.remove('hidden'); qNext.textContent = qi + 1 < queue.length ? D.qNext.replace('%s', qi + 2).replace('%s', queue.length) : D.qLast;
+  }
+  qBtn.addEventListener('click', function () { queue = buildQueue(); qi = 0; if (!queue.length) return; open(queue[0]); qShow(); });
+  qNext.addEventListener('click', function () {
+    qi++;
+    if (qi >= queue.length) { qi = -1; qNext.classList.add('hidden'); closeModal(dr); alert(D.qDone); qDraw(); return; }
+    open(queue[qi]); qShow();
+  });
+  dr.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { qi = -1; qNext.classList.add('hidden'); qDraw(); }); });
+  var _draw0 = draw; draw = function () { _draw0(); qDraw(); };
 
   // قايمة الأدوات بتتقفل لما تختار حاجة أو تدوس بره
   var tools = document.getElementById('ld-tools');

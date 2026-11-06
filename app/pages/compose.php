@@ -271,6 +271,20 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         <div class="card p-5">
           <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
             <textarea data-ai="from_idea,img_prompt,improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="content" rows="7" class="input" placeholder="<?= e(t('اكتب هنا...')) ?>"><?= e($old['content']) ?></textarea></label>
+          <?php if (module_enabled('crm') && can('crm.view')):
+            $ctaW = crm_cta_words(); $tcfg = crm_track_cfg((int)ws('id')); $waN = preg_replace('/\D/', '', (string)$tcfg['wa']);
+            $ctas = [];
+            if ($ctaW) $ctas[] = ['k' => 'word', 'l' => '💬 ' . t('اكتب «%s» في الكومنت', $ctaW[0]), 'x' => t('👇 اكتب «%s» في الكومنتات وهنبعتلك التفاصيل', $ctaW[0])];
+            if (setting('crm_book_on_' . (int)ws('id'), '0') === '1') $ctas[] = ['k' => 'book', 'l' => '📅 ' . t('لينك حجز ميعاد'), 'x' => t('📅 احجز مكالمة مجانية: %s', crm_book_url())];
+            if (setting('crm_form_on_' . (int)ws('id'), '1') === '1') $ctas[] = ['k' => 'form', 'l' => '📝 ' . t('لينك الفورم'), 'x' => t('📝 سيب بياناتك وهنكلمك: %s', crm_form_url())];
+            if ($waN !== '') $ctas[] = ['k' => 'wa', 'l' => '🟢 ' . t('لينك واتساب'), 'x' => t('🟢 كلّمنا واتساب: %s', 'https://wa.me/' . $waN)];
+          ?>
+          <div class="flex flex-wrap items-center gap-1.5 mt-2" id="cp-cta"><span class="text-[11px] text-ink-500">🧲 <?= e(t('دعوة للتواصل (عشان المنشور يجيب عملاء):')) ?></span>
+            <?php foreach ($ctas as $ct): ?><button type="button" class="chip text-xs" data-cta="<?= e($ct['x']) ?>" title="<?= e($ct['x']) ?>"><?= e($ct['l']) ?></button><?php endforeach; ?>
+            <?php if (count($ctas) < 2): ?><a class="link text-[11px]" href="<?= e(url('crm_leads')) ?>"><?= e(t('فعّل الحجز والفورم من الـ Leads ← أدوات')) ?></a><?php endif; ?>
+          </div>
+          <script>(function () { var b = document.getElementById('cp-cta'), ta = document.getElementById('content'); if (!b || !ta) return; b.addEventListener('click', function (e) { var x = e.target.closest('[data-cta]'); if (!x) return; var v = ta.value.replace(/\s+$/, ''); if (v.indexOf(x.dataset.cta) > -1) return; ta.value = (v ? v + '\n\n' : '') + x.dataset.cta; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); }); })();</script>
+          <?php endif; ?>
           <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
