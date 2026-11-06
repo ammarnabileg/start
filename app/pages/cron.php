@@ -150,6 +150,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' report=error';
         }
+        // تقويم الفرص: تنبيه لما مناسبة تدخل وقت التحضير ومفيش حملة ليها
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return function_exists('opp_tick') ? opp_tick() : 0; });
+            if ($n) $line .= ' opportunities+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' opportunities=error';
+        }
         $out[] = $line;
     }
     // متابعة المنافسين: لكل الشركات (حتى اللي مش مربوطة بالنشر)، كل منافس مرة في اليوم

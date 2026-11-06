@@ -73,7 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $camps = mcp_list();
 render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, $hour, $camps, $err, $kb) {
     $tz = new DateTimeZone(site_timezone()); $tomorrow = (new DateTime('tomorrow', $tz))->format('Y-m-d');
+    // جاي من تقويم الفرص: التاريخ والمدة والاسم والعرض جاهزين
+    $g = function ($k, $max) { return mb_substr(trim((string)($_GET[$k] ?? '')), 0, $max); };
+    $pStart = preg_match('/^\d{4}-\d{2}-\d{2}$/', $g('start', 10)) && $g('start', 10) >= $tomorrow ? $g('start', 10) : $tomorrow;
+    $pDays = max(1, min(60, (int)($g('days', 3) ?: 14))); $pCount = max(1, min(20, (int)($g('count', 3) ?: 5)));
+    $pName = $g('name', 190); $pOffer = $g('offer', 120);
     ?>
+  <?php if ($pName !== '' && isset($_GET['occ'])): ?>
+    <div class="card p-3 mb-4 flex items-center gap-2 text-sm border-brand-200 bg-brand-50/50"><?= ui_icon('calendar', 'w-4 h-4 text-brand-600') ?><span class="flex-1"><?= e(t('حملة لـ %s: التواريخ والعرض متعبّيين من تقويم الفرص. راجعهم واختار الخدمة.', $pName)) ?></span><a href="<?= e(url('opportunities')) ?>" class="link text-xs"><?= e(t('تقويم الفرص')) ?></a></div>
+  <?php endif; ?>
   <?php if (!$svcs): ?>
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-ink-100 text-ink-500 grid place-items-center"><?= ui_icon('layers', 'w-6 h-6') ?></div>
       <b class="block text-ink-900"><?= e(t('محتاجين خدماتك في ملف الشركة الأول')) ?></b><p class="text-sm text-ink-500 mt-1"><?= e(t('الحملة بتتبني من خدمة وسعرها. املأ الملف من موقعك في دقيقة.')) ?></p>
@@ -83,12 +91,12 @@ render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, 
     <form id="cmp-f" class="card p-4 space-y-3 xl:sticky xl:top-20" data-no-ajax>
       <b class="text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('megaphone', 'w-4 h-4 text-brand-600') ?><?= e(t('الحملة')) ?></b>
       <label class="block text-xs text-ink-600"><?= e(t('الخدمة')) ?><select name="svc" class="input text-sm"><?php foreach ($svcs as $i => $s): ?><option value="<?= $i ?>"><?= e($s['name'] . (!empty($s['price']) ? ' · ' . $s['price'] : '')) ?></option><?php endforeach; ?></select></label>
-      <label class="block text-xs text-ink-600"><?= e(t('اسم الحملة (اختياري)')) ?><input name="name" maxlength="190" class="input text-sm" dir="auto"></label>
-      <div class="grid grid-cols-3 gap-2"><label class="block text-xs text-ink-600 col-span-1"><?= e(t('تبدأ')) ?><input type="date" name="start" value="<?= e($tomorrow) ?>" class="input text-sm"></label>
-        <label class="block text-xs text-ink-600"><?= e(t('كام يوم')) ?><input type="number" name="days" value="14" min="1" max="60" class="input text-sm"></label>
-        <label class="block text-xs text-ink-600"><?= e(t('كام منشور')) ?><input type="number" name="count" value="5" min="1" max="20" class="input text-sm"></label></div>
+      <label class="block text-xs text-ink-600"><?= e(t('اسم الحملة (اختياري)')) ?><input name="name" maxlength="190" class="input text-sm" dir="auto" value="<?= e($pName) ?>"></label>
+      <div class="grid grid-cols-3 gap-2"><label class="block text-xs text-ink-600 col-span-1"><?= e(t('تبدأ')) ?><input type="date" name="start" value="<?= e($pStart) ?>" class="input text-sm"></label>
+        <label class="block text-xs text-ink-600"><?= e(t('كام يوم')) ?><input type="number" name="days" value="<?= $pDays ?>" min="1" max="60" class="input text-sm"></label>
+        <label class="block text-xs text-ink-600"><?= e(t('كام منشور')) ?><input type="number" name="count" value="<?= $pCount ?>" min="1" max="20" class="input text-sm"></label></div>
       <div class="rounded-xl border border-ink-200 p-2.5 space-y-2"><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="use_coupon" value="1" checked> <?= e(t('كوبون خصم متتبع')) ?></label>
-        <div class="grid grid-cols-2 gap-2"><input name="coupon" maxlength="24" class="input !mt-0 text-sm font-mono" dir="ltr" placeholder="<?= e(t('الكود (اختياري)')) ?>"><input name="offer" maxlength="120" class="input !mt-0 text-sm" dir="auto" placeholder="<?= e(t('العرض (مثلًا: خصم 15%)')) ?>"></div></div>
+        <div class="grid grid-cols-2 gap-2"><input name="coupon" maxlength="24" class="input !mt-0 text-sm font-mono" dir="ltr" placeholder="<?= e(t('الكود (اختياري)')) ?>"><input name="offer" maxlength="120" class="input !mt-0 text-sm" dir="auto" value="<?= e($pOffer) ?>" placeholder="<?= e(t('العرض (مثلًا: خصم 15%)')) ?>"></div></div>
       <label class="block text-xs text-ink-600"><?= e(t('رابط صورة (https، اختياري — لازم لإنستجرام)')) ?><input name="img" class="input text-sm" dir="ltr" placeholder="https://"></label>
       <div><span class="text-xs text-ink-600"><?= e(t('الحسابات')) ?></span>
         <?php if (!$accs): ?><p class="text-xs text-amber-700 mt-1"><?= e($err ?: t('مفيش حسابات مربوطة تنفع للحملة (فيسبوك، لينكدإن، X، ثريدز، جوجل، إنستجرام).')) ?></p><?php endif; ?>
