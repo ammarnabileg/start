@@ -4,8 +4,44 @@ $wid = (int)ws('id');
 $uid = (int)(current_user()['id'] ?? 0);
 $canManage = can('crm.manage') || is_ws_owner();
 $J = function (array $a, int $code = 200) { http_response_code($code); header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+$getLead = function (int $id) use ($wid, $uid, $canManage) { $st = db()->prepare('SELECT * FROM crm_leads WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); $l = $st->fetch();
+    return $l && ($canManage || !$l['owner_id'] || (int)$l['owner_id'] === $uid) ? $l : null; };
+$kinds = crm_act_kinds();
+$actOut = function (array $a) use ($kinds) { return ['kind' => $a['kind'], 'label' => $kinds[$a['kind']][1] ?? $a['kind'], 'body' => (string)$a['body'], 'who' => (string)$a['who'], 'at' => fmt_date($a['created_at'], 'd/m/Y H:i')]; };
+$nextOut = function (array $l) { return ['next' => $l['next_at'] ? fmt_date($l['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$l['next_note'], 'due' => $l['next_at'] && strtotime($l['next_at']) <= strtotime('today 23:59:59') ? 1 : 0]; };
+// بوب أب العميل: سجل التواصل والمتابعة
+if (($_GET['ajax'] ?? '') === 'lead') {
+    $l = $getLead((int)($_GET['id'] ?? 0)); if (!$l) $J(['ok' => false], 404);
+    $J(['ok' => true, 'acts' => array_map($actOut, array_slice(crm_acts((int)$l['id']), 0, 20)), 'note' => (string)$l['note'],
+        'company' => $l['company_id'] ? url('crm', ['open' => (int)$l['company_id']]) : ''] + $nextOut($l));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
+    // تسجيل تواصل (مكالمة، واتساب، إيميل، اجتماع، ملاحظة)
+    if ($a === 'log') {
+        $l = $getLead((int)($_POST['id'] ?? 0)); $k = (string)($_POST['kind'] ?? '');
+        if (!$l || !isset($kinds[$k]) || $k === 'stage') $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $body = trim((string)($_POST['body'] ?? '')); if ($k === 'note' && $body === '') $J(['ok' => false, 'error' => t('اكتب الملاحظة.')], 400);
+        crm_act_add((int)$l['id'], $k, $body);
+        if ($k !== 'note') db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
+        $J(['ok' => true, 'last' => $k !== 'note' ? fmt_date(date('Y-m-d H:i:s'), 'd/m/Y') : '', 'acts' => array_map($actOut, array_slice(crm_acts((int)$l['id']), 0, 20))]);
+    }
+    // المتابعة الجاية: النهارده، بكرة، بعد 3 أيام، الأسبوع الجاي، تاريخ محدد، أو مفيش
+    if ($a === 'next') {
+        $w = (string)($_POST['when'] ?? ''); $tz = new DateTimeZone(site_timezone()); $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 255); $n = 0; $last = null;
+        $d = null;
+        if ($w === 'today') { $d = new DateTime('today 16:00', $tz); if ($d < new DateTime('now', $tz)) $d = (new DateTime('now', $tz))->modify('+1 hour'); }
+        elseif (isset(['1d' => 1, '3d' => 1, 'week' => 1][$w])) $d = (new DateTime('today 11:00', $tz))->modify('+' . ['1d' => 1, '3d' => 3, 'week' => 7][$w] . ' days');
+        elseif ($w === 'at') { try { $d = new DateTime((string)($_POST['at'] ?? ''), $tz); } catch (Throwable $e) { $J(['ok' => false, 'error' => t('التاريخ مش صحيح.')], 400); } }
+        elseif ($w === 'note') { $l = $getLead((int)($_POST['ids'][0] ?? $_POST['id'] ?? 0)); if (!$l) $J(['ok' => false], 404);
+            db()->prepare('UPDATE crm_leads SET next_note = ? WHERE id = ? AND next_at IS NOT NULL')->execute([$note !== '' ? $note : null, (int)$l['id']]); $J(['ok' => true, 'n' => 1] + $nextOut($getLead((int)$l['id']))); }
+        elseif ($w !== 'none') $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $at = $d ? $d->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s') : null;
+        foreach (array_slice((array)($_POST['ids'] ?? [$_POST['id'] ?? 0]), 0, 500) as $id) { $l = $getLead((int)$id); if (!$l) continue;
+            db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$at, $at ? ($note !== '' ? $note : $l['next_note']) : null, (int)$l['id']]); $n++; $last = (int)$l['id']; }
+        $one = $last ? $getLead($last) : null;
+        $J(['ok' => true, 'n' => $n] + ($one ? $nextOut($one) : []));
+    }
     // ملف Excel: السيرفر بيقرا الشيتات، والمتصفح بيكمّل ربط الأعمدة زي CSV
     if ($a === 'parse_xlsx') {
         $f = $_FILES['file'] ?? null;
@@ -24,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $where = 'workspace_id = ?'; $args = [$wid];
 if (!$canManage) { $where .= ' AND (owner_id = ? OR owner_id IS NULL)'; $args[] = $uid; }
-$st = db()->prepare("SELECT id, name, company, title, email, phone, source, stage, owner_id, tags, country, created_at, last_contact_at FROM crm_leads WHERE $where ORDER BY id DESC LIMIT 5000");
+$st = db()->prepare("SELECT id, name, company, title, email, phone, source, stage, owner_id, tags, country, created_at, last_contact_at, next_at, next_note, company_id FROM crm_leads WHERE $where ORDER BY id DESC LIMIT 5000");
 $st->execute($args); $rows = $st->fetchAll();
 $sources = crm_sources(); $stages = crm_stages();
 $members = []; foreach (crm_members() as $m) $members[(int)$m['id']] = $m['name'];
@@ -32,14 +68,20 @@ $cnt = ['src' => [], 'stage' => [], 'country' => []];
 foreach ($rows as $r) { foreach (['src' => $r['source'], 'stage' => $r['stage'], 'country' => trim((string)$r['country'])] as $k => $v) if ($v !== '') $cnt[$k][$v] = ($cnt[$k][$v] ?? 0) + 1; }
 arsort($cnt['src']); arsort($cnt['country']);
 $week = date('Y-m-d', strtotime('-7 days'));
-$stat = ['all' => count($rows), 'phone' => 0, 'email' => 0, 'none' => 0, 'new' => 0];
+$stat = ['all' => count($rows), 'phone' => 0, 'email' => 0, 'none' => 0, 'new' => 0, 'due' => 0, 'cold' => 0];
+$eod = strtotime('today 23:59:59'); $open = function ($r) { return !in_array($r['stage'], ['won', 'lost'], true); };
+$isDue = function ($r) use ($eod, $open) { return $open($r) && $r['next_at'] && strtotime($r['next_at']) <= $eod; };
+$isCold = function ($r) use ($open) { return $open($r) && !$r['next_at'] && strtotime($r['last_contact_at'] ?: $r['created_at']) < time() - 7 * 86400; };
+foreach ($rows as $r) { if ($isDue($r)) $stat['due']++; if ($isCold($r)) $stat['cold']++; }
 foreach ($rows as $r) { if ($r['phone']) $stat['phone']++; if ($r['email']) $stat['email']++; if (!$r['phone'] && !$r['email']) $stat['none']++; if (substr((string)$r['created_at'], 0, 10) >= $week) $stat['new']++; }
 $hasApollo = crm_has_key();
 $syncAt = explode('|', (string)setting('tg_sync_' . $wid, ''))[0];
 $syncDue = $syncAt === '' || strtotime($syncAt) < time() - 20 * 60;
+$nexts = ['today' => t('النهارده'), '1d' => t('بكرة'), '3d' => t('بعد 3 أيام'), 'week' => t('الأسبوع الجاي'), 'none' => t('من غير متابعة')];
 $srcIcon = ['inbox' => 'chat', 'comments' => 'chat', 'form' => 'file', 'ads' => 'megaphone', 'whatsapp' => 'chat', 'reveal' => 'eye', 'import' => 'upload', 'manual' => 'pencil', 'tender' => 'file'];
 
-render(t('العملاء المستهدفين'), 'prospects', function () use ($rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon) {
+$ago = function ($d) { if (!$d) return ''; $n = (int)floor((strtotime('today') - strtotime(substr($d, 0, 10))) / 86400); return $n <= 0 ? t('النهارده') : ($n === 1 ? t('امبارح') : t('من %s يوم', $n)); };
+render(t('العملاء المستهدفين'), 'prospects', function () use ($isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
     $cols = 'md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_110px_84px_116px]';
     $sel = function (string $id, string $label, array $opts) { $h = '<label class="block text-xs text-ink-600">' . e($label) . '<select id="' . $id . '" class="input !mt-1 text-sm"><option value="">' . e(t('الكل')) . '</option>';
         foreach ($opts as $v => $l) $h .= '<option value="' . e((string)$v) . '">' . e($l) . '</option>'; return $h . '</select></label>'; };
@@ -48,7 +90,8 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     <div class="mk-stats">
       <?php foreach ([['_all', '', t('الكل'), $stat['all'], 'users', 'bg-ink-100 text-ink-700'], ['phone', 'phone=1', t('لديهم رقم'), $stat['phone'], 'phone', 'bg-lime-50 text-lime-700'],
           ['email', 'email=1', t('لديهم بريد'), $stat['email'], 'mail', 'bg-brand-50 text-brand-700'], ['none', 'none=1', t('دون بيانات تواصل'), $stat['none'], 'user', 'bg-amber-50 text-amber-700'],
-          ['new', 'new=1', t('جدد آخر 7 أيام'), $stat['new'], 'new', 'bg-cyan-50 text-cyan-700']] as [$k, $test, $l, $n, $ic, $cl]): ?>
+          ['new', 'new=1', t('جدد آخر 7 أيام'), $stat['new'], 'new', 'bg-cyan-50 text-cyan-700'],
+          ['due', 'due=1', t('متابعة النهارده'), $stat['due'], 'calendar', 'bg-red-50 text-red-600'], ['cold', 'cold=1', t('محتاجين اهتمام'), $stat['cold'], 'alert', 'bg-orange-50 text-orange-700']] as [$k, $test, $l, $n, $ic, $cl]): ?>
         <button type="button" class="mk-stat<?= $k === '_all' ? ' mk-on' : '' ?>" data-mk-stat="<?= $k ?>" data-mk-test="<?= e($test) ?>"><span class="mk-ic <?= $cl ?>"><?= ui_icon($ic, 'w-5 h-5') ?></span><span><b><?= number_format($n) ?></b><small><?= e($l) ?></small></span></button>
       <?php endforeach; ?>
     </div>
@@ -78,14 +121,14 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     <div class="mk-table">
       <div class="mk-head <?= $cols ?>"><input type="checkbox" data-mk-all aria-label="<?= e(t('تحديد الكل')) ?>">
         <span data-mk-sort="name"><?= e(t('الاسم')) ?></span><span data-mk-sort="company"><?= e(t('الشركة')) ?></span><span><?= e(t('التواصل')) ?></span>
-        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span data-mk-sort="date"><?= e(t('اتضاف')) ?></span><span></span></div>
+        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span></span></div>
       <div data-mk-body>
       <?php foreach ($rows as $r): $has = $r['phone'] || $r['email']; $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
           $j = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'title' => (string)$r['title'], 'company' => (string)$r['company'], 'phone' => (string)$r['phone'], 'email' => (string)$r['email'], 'wa' => $wa,
             'src' => $sources[$r['source']] ?? $r['source'], 'stage' => $r['stage'], 'owner' => (int)$r['owner_id'], 'tags' => (string)$r['tags'], 'country' => (string)$r['country'],
-            'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '']; ?>
+            'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '', 'next' => $r['next_at'] ? fmt_date($r['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$r['next_note']]; ?>
         <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$r['id'] ?>" data-phone="<?= $r['phone'] ? 1 : 0 ?>" data-email="<?= $r['email'] ? 1 : 0 ?>" data-none="<?= $has ? 0 : 1 ?>" data-new="<?= substr((string)$r['created_at'], 0, 10) >= date('Y-m-d', strtotime('-7 days')) ? 1 : 0 ?>"
-          data-src="<?= e($r['source']) ?>" data-stage="<?= e($r['stage']) ?>" data-owner="<?= (int)$r['owner_id'] ?>" data-country="<?= e(trim((string)$r['country'])) ?>" data-date="<?= e(substr((string)$r['created_at'], 0, 10)) ?>"
+          data-src="<?= e($r['source']) ?>" data-stage="<?= e($r['stage']) ?>" data-owner="<?= (int)$r['owner_id'] ?>" data-country="<?= e(trim((string)$r['country'])) ?>" data-date="<?= e(substr((string)$r['created_at'], 0, 10)) ?>" data-due="<?= $isDue($r) ? 1 : 0 ?>" data-cold="<?= $isCold($r) ? 1 : 0 ?>" data-s-last="<?= e((string)($r['last_contact_at'] ?: '0')) ?>"
           data-s-name="<?= e(mb_strtolower((string)$r['name'])) ?>" data-s-company="<?= e(mb_strtolower((string)$r['company'])) ?>" data-s-src="<?= e($r['source']) ?>" data-s-stage="<?= e($r['stage']) ?>" data-s-date="<?= e((string)$r['created_at']) ?>"
           data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['company'] . ' ' . $r['title'] . ' ' . $r['phone'] . ' ' . $r['email'] . ' ' . $r['tags'])) ?>" data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">
           <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
@@ -95,11 +138,11 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
           <span class="flex flex-col gap-0.5 text-xs min-w-0" dir="ltr"><?php if ($r['phone']): ?><span class="text-lime-700 inline-flex items-center gap-1 truncate"><?= ui_icon('phone', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['phone']) ?></span><?php endif; ?><?php if ($r['email']): ?><span class="text-brand-700 inline-flex items-center gap-1 truncate"><?= ui_icon('mail', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['email']) ?></span><?php endif; ?><?php if (!$has): ?><span class="text-ink-300">—</span><?php endif; ?></span>
           <span><span class="mk-pill bg-ink-100 text-ink-700"><?= ui_icon($srcIcon[$r['source']] ?? 'dots', 'w-3 h-3') ?><?= e($sources[$r['source']] ?? $r['source']) ?></span></span>
           <span><span class="mk-pill bg-brand-50 text-brand-700" data-stage-pill><?= e($stages[$r['stage']] ?? $r['stage']) ?></span></span>
-          <span class="text-xs text-ink-500 tabular-nums"><?= e(fmt_date($r['created_at'], 'd/m/y')) ?></span>
+          <span class="text-xs min-w-0" data-c="last"><span class="block text-ink-600 truncate" data-c="ago"><?= e($r['last_contact_at'] ? $ago($r['last_contact_at']) : t('ماتواصلناش لسه')) ?></span><?php if ($r['next_at']): ?><span class="block truncate tabular-nums <?= $isDue($r) ? 'text-red-600 font-medium' : 'text-ink-400' ?>" data-c="next"><?= ui_icon('calendar', 'w-3 h-3 inline') ?> <?= e(fmt_date($r['next_at'], 'd/m')) ?></span><?php else: ?><span class="block" data-c="next"></span><?php endif; ?></span>
           <span class="mk-acts">
-            <?php if ($r['phone']): ?><a class="mk-act" href="tel:<?= e($r['phone']) ?>" title="<?= e(t('اتصال')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?></a><?php endif; ?>
-            <?php if ($wa): ?><a class="mk-act" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener" title="<?= e(t('واتساب')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?></a><?php endif; ?>
-            <?php if ($r['email']): ?><a class="mk-act" href="mailto:<?= e($r['email']) ?>" title="<?= e(t('إيميل')) ?>"><?= ui_icon('mail', 'w-4 h-4') ?></a><?php endif; ?>
+            <?php if ($r['phone']): ?><a class="mk-act" data-log="call" href="tel:<?= e($r['phone']) ?>" title="<?= e(t('اتصال')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?></a><?php endif; ?>
+            <?php if ($wa): ?><a class="mk-act" data-log="wa" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener" title="<?= e(t('واتساب')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?></a><?php endif; ?>
+            <?php if ($r['email']): ?><a class="mk-act" data-log="email" href="mailto:<?= e($r['email']) ?>" title="<?= e(t('إيميل')) ?>"><?= ui_icon('mail', 'w-4 h-4') ?></a><?php endif; ?>
           </span>
         </div>
       <?php endforeach; ?>
@@ -111,6 +154,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <span class="text-sm"><b data-mk-nsel>0</b> <?= e(t('محدد')) ?></span>
       <select id="pb-stage" aria-label="<?= e(t('المرحلة')) ?>"><option value=""><?= e(t('غيّر المرحلة…')) ?></option><?php foreach ($stages as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select>
       <?php if ($canManage): ?><select id="pb-owner" aria-label="<?= e(t('المسؤول')) ?>"><option value=""><?= e(t('عيّن مسؤول…')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select><?php endif; ?>
+      <select id="pb-next" aria-label="<?= e(t('المتابعة')) ?>"><option value=""><?= e(t('حدد متابعة…')) ?></option><?php foreach ($nexts as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select>
       <button type="button" id="pb-tag"><?= ui_icon('hash', 'w-4 h-4 inline') ?> <?= e(t('تاج')) ?></button>
       <button type="button" id="pb-csv"><?= ui_icon('download', 'w-4 h-4 inline') ?> <?= e(t('تصدير')) ?></button>
       <button type="button" data-mk-clear class="!px-2" title="<?= e(t('إلغاء التحديد')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
@@ -126,9 +170,15 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
           <label class="block text-xs text-ink-600"><?= e(t('المرحلة')) ?><select id="pd-stage" class="input !mt-1 text-sm"><?php foreach ($stages as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select></label>
           <?php if ($canManage): ?><label class="block text-xs text-ink-600"><?= e(t('المسؤول')) ?><select id="pd-owner" class="input !mt-1 text-sm"><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select></label><?php endif; ?>
         </div>
+        <section class="rounded-2xl border border-ink-200 p-3 space-y-2"><div class="flex items-center gap-2 text-sm"><?= ui_icon('calendar', 'w-4 h-4 text-ink-500') ?><b class="text-ink-900"><?= e(t('المتابعة الجاية')) ?></b><span id="pd-next" class="text-ink-600 tabular-nums"></span></div>
+          <div class="flex flex-wrap gap-1.5" id="pd-next-b"><?php foreach ($nexts as $k => $l): ?><button type="button" class="btn-ghost !py-1 !text-xs" data-when="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?><input type="datetime-local" id="pd-next-at" class="input !mt-0 !py-1 !w-48 text-xs"></div>
+          <input id="pd-next-note" class="input !mt-0 !py-1.5 text-xs" dir="auto" maxlength="255" placeholder="<?= e(t('هتكلمه في إيه؟ (اختياري)')) ?>"></section>
+        <section class="space-y-2"><div class="flex flex-wrap items-center gap-1.5"><b class="text-sm text-ink-900 me-1"><?= e(t('سجّل تواصل')) ?></b><?php foreach (['call', 'wa', 'email', 'meet'] as $k): ?><button type="button" class="btn-ghost !py-1 !text-xs" data-kind="<?= $k ?>"><?= e($kinds[$k][1]) ?></button><?php endforeach; ?></div>
+          <form id="pd-note-f" class="flex gap-1.5 m-0" data-no-ajax><input name="b" class="input !mt-0 !py-1.5 text-sm flex-1" dir="auto" placeholder="<?= e(t('اكتب ملاحظة أو نتيجة التواصل…')) ?>"><button class="btn-primary !py-1.5 !text-sm"><?= e(t('حفظ')) ?></button></form>
+          <ol id="pd-acts" class="space-y-1.5 max-h-56 overflow-y-auto"></ol></section>
         <dl id="pd-meta" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm"></dl>
         <div><span class="text-xs text-ink-600"><?= e(t('التاجات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-1"><span id="pd-tags" class="contents"></span><form id="pd-tag-f" class="inline-flex m-0" data-no-ajax><input name="t" class="input !mt-0 !py-1 !w-32 text-xs" dir="auto" placeholder="<?= e(t('+ تاج')) ?>"></form></div></div>
-        <div class="flex items-center justify-end pt-3 border-t border-ink-100"><a id="pd-open" href="#" class="btn-primary !py-1.5 !text-sm"><?= e(t('افتح ملفه الكامل')) ?></a></div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-ink-100"><a id="pd-co" href="#" class="btn-ghost !py-1.5 !text-sm hidden"><?= ui_icon('building', 'w-4 h-4') ?><?= e(t('الشركة')) ?></a><a id="pd-open" href="#" class="btn-primary !py-1.5 !text-sm"><?= e(t('افتح ملفه الكامل')) ?></a></div>
       </div>
     </dialog>
 
@@ -164,7 +214,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         'cols' => ['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظة')], 'skip' => t('— تجاهل —'),
         'noRows' => t('الملف فاضي أو مش CSV ولا Excel.'), 'reading' => t('بنقرا الملف…'), 'searching' => t('بندوّر…'), 'found' => t('%s نتيجة'), 'nothing' => t('مفيش نتايج. جرّب كلمات تانية.'), 'have' => t('عندك'), 'revealing' => t('بنكشف…'), 'revealed' => t('اتضاف %s عميل'),
         'err' => t('حصلت مشكلة.'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم'), 'synced' => t('اتضاف %s شخص جديد اتعامل معاك'), 'saved' => t('اتحفظ ✓'), 'tagAsk' => t('اكتب التاج'), 'done2' => t('اتعمل على %s'),
-        'call' => t('اتصال'), 'wa' => t('واتساب'), 'mail' => t('إيميل'), 'src' => t('المصدر'), 'added' => t('اتضاف'), 'last' => t('آخر تواصل'), 'country' => t('الدولة'), 'none' => t('مفيش بيانات تواصل لسه')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'call' => t('اتصال'), 'wa' => t('واتساب'), 'mail' => t('إيميل'), 'src' => t('المصدر'), 'added' => t('اتضاف'), 'last' => t('آخر تواصل'), 'country' => t('الدولة'), 'none' => t('مفيش بيانات تواصل لسه'), 'noNext' => t('مفيش'), 'noActs' => t('لسه مفيش تواصل متسجل.'), 'logged' => t('اتسجل ✓'), 'today' => t('النهارده'), 'pickAt' => t('اختار التاريخ الأول.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
