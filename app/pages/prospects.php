@@ -3,6 +3,14 @@
 $wid = (int)ws('id');
 $uid = (int)(current_user()['id'] ?? 0);
 $canManage = can('crm.manage') || is_ws_owner();
+// ملف Excel: السيرفر بيقرا الصفوف، والمتصفح بيكمّل ربط الأعمدة زي CSV
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'parse_xlsx') {
+    header('Content-Type: application/json; charset=utf-8');
+    $f = $_FILES['file'] ?? null;
+    if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || $f['size'] > 10 * 1048576) { echo json_encode(['ok' => false, 'error' => t('الملف كبير أو مارفعش (الحد 10 ميجا).')], JSON_UNESCAPED_UNICODE); exit; }
+    try { $rows = xlsx_rows($f['tmp_name']); } catch (Throwable $e) { echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
+    echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE); exit;
+}
 $where = 'l.workspace_id = ?'; $args = [$wid];
 if (!$canManage) { $where .= ' AND (l.owner_id = ? OR l.owner_id IS NULL)'; $args[] = $uid; }
 $st = db()->prepare("SELECT l.id, l.name, l.company, l.title, l.email, l.phone, l.source, l.stage, l.owner_id, l.tags, l.country, l.created_at, l.last_contact_at FROM crm_leads l WHERE $where ORDER BY l.id DESC LIMIT 5000");
@@ -79,8 +87,8 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     <dialog id="pr-import" class="w-[min(620px,96vw)] rounded-2xl p-0 shadow-2xl backdrop:bg-ink-900/40">
       <div class="p-5 border-b border-ink-100 flex items-center"><b class="flex-1 text-ink-900"><?= e(t('استيراد عملاء من ملف')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
       <div class="p-5 space-y-3 text-sm">
-        <p class="text-xs text-ink-500"><?= e(t('ملف CSV فيه سطر للعناوين (من Excel أو Google Sheets: احفظ باسم CSV). الأعمدة بتتعرف لوحدها: الاسم، الموبايل، الإيميل، الشركة، المسمى، الدولة، تاجات، ملاحظة. أي صف من غير رقم ولا إيميل بيتشال، والمكرر بيتدمج.')) ?></p>
-        <label class="block rounded-xl border-2 border-dashed border-ink-200 p-6 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40"><input type="file" id="pr-file" accept=".csv,text/csv" class="hidden"><?= ui_icon('upload', 'w-6 h-6 mx-auto text-ink-400') ?><span class="block mt-2 text-ink-600" id="pr-file-l"><?= e(t('اختار الملف أو اسحبه هنا')) ?></span></label>
+        <p class="text-xs text-ink-500"><?= e(t('ملف Excel (.xlsx) أو CSV فيه سطر للعناوين. الأعمدة بتتعرف لوحدها: الاسم، الموبايل، الإيميل، الشركة، المسمى، الدولة، تاجات، ملاحظة. أي صف من غير رقم ولا إيميل بيتشال، والمكرر بيتدمج.')) ?></p>
+        <label class="block rounded-xl border-2 border-dashed border-ink-200 p-6 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40"><input type="file" id="pr-file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden"><?= ui_icon('upload', 'w-6 h-6 mx-auto text-ink-400') ?><span class="block mt-2 text-ink-600" id="pr-file-l"><?= e(t('اختار الملف أو اسحبه هنا')) ?></span></label>
         <div id="pr-map" class="hidden space-y-2"></div>
         <button type="button" id="pr-import-go" class="btn-primary w-full hidden"></button>
       </div>
@@ -103,10 +111,10 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       </div>
     </dialog>
     <style>.tg-chip{font-size:.8125rem;border-radius:9999px;border:1px solid rgb(226 232 240);padding:.2rem .6rem;color:rgb(71 85 105)}.tg-chip span{opacity:.6;margin-inline-start:.25rem}.tg-chip.on{background:rgb(15 23 42);border-color:rgb(15 23 42);color:#fff}dialog[open]{animation:prIn .18s ease-out}@keyframes prIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}</style>
-    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'findUrl' => url('crm_find'),
+    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'),
         'L' => ['shown' => t('%s من %s'), 'pick' => t('اختار الملف أو اسحبه هنا'), 'rows' => t('%s صف في الملف'), 'go' => t('استورد %s عميل'), 'busy' => t('بنستورد…'), 'done' => t('اتضاف %s جديد، واتدمج %s، واتشال %s'),
         'cols' => ['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظة')], 'skip' => t('— تجاهل —'),
-        'noRows' => t('الملف فاضي أو مش CSV.'), 'searching' => t('بندوّر…'), 'found' => t('%s نتيجة'), 'nothing' => t('مفيش نتايج. جرّب كلمات تانية.'), 'have' => t('عندك'), 'revealing' => t('بنكشف…'), 'revealed' => t('اتضاف %s عميل'), 'err' => t('حصلت مشكلة.'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'noRows' => t('الملف فاضي أو مش CSV ولا Excel.'), 'reading' => t('بنقرا الملف…'), 'searching' => t('بندوّر…'), 'found' => t('%s نتيجة'), 'nothing' => t('مفيش نتايج. جرّب كلمات تانية.'), 'have' => t('عندك'), 'revealing' => t('بنكشف…'), 'revealed' => t('اتضاف %s عميل'), 'err' => t('حصلت مشكلة.'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

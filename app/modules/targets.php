@@ -137,3 +137,40 @@ function tg_people(array $co, int $page = 1): array
     $total = (int)($j['total_entries'] ?? $j['pagination']['total_entries'] ?? 0);
     return ['people' => $out, 'more' => $total ? $page * 5 < $total : count($out) === 5];
 }
+
+/**
+ * صفوف أول شيت في ملف Excel (.xlsx) بمكان كل عمود صح (الخانة الفاضية بتفضل فاضية).
+ * من غير مكتبات: الملف zip فيه XML. الأرقام الكبيرة (زي أرقام الموبايل) بترجع أرقام كاملة مش 9.6E+11.
+ */
+function xlsx_rows(string $path, int $max = 5000): array
+{
+    $z = new ZipArchive(); if ($z->open($path) !== true) throw new RuntimeException(t('الملف ده مش Excel (.xlsx).'));
+    $shared = [];
+    if (($ss = $z->getFromName('xl/sharedStrings.xml')) !== false && preg_match_all('#<si>(.*?)</si>#s', $ss, $m)) {
+        foreach ($m[1] as $si) { preg_match_all('#<t[^>]*>(.*?)</t>#s', $si, $tt); $shared[] = html_entity_decode(implode('', $tt[1]), ENT_QUOTES | ENT_XML1, 'UTF-8'); }
+    }
+    // أول شيت حسب ترتيب الكتاب
+    $sheet = 'xl/worksheets/sheet1.xml';
+    if (($wb = $z->getFromName('xl/workbook.xml')) !== false && preg_match('#<sheet [^>]*r:id="([^"]+)"#', $wb, $sm) && ($rel = $z->getFromName('xl/_rels/workbook.xml.rels')) !== false
+        && preg_match('#<Relationship [^>]*Id="' . preg_quote($sm[1], '#') . '"[^>]*Target="([^"]+)"#', $rel, $rm)) $sheet = 'xl/' . ltrim(preg_replace('#^/?xl/#', '', $rm[1]), '/');
+    $x = $z->getFromName($sheet); $z->close();
+    if ($x === false) throw new RuntimeException(t('مالقيناش شيت في الملف.'));
+    $col = function (string $ref): int { $n = 0; foreach (str_split(preg_replace('/\d+/', '', $ref)) as $ch) $n = $n * 26 + (ord(strtoupper($ch)) - 64); return max(0, $n - 1); };
+    $out = [];
+    preg_match_all('#<row[^>]*>(.*?)</row>#s', $x, $rows);
+    foreach ($rows[1] as $row) {
+        preg_match_all('#<c([^>]*?)(?:/>|>(.*?)</c>)#s', $row, $cells, PREG_SET_ORDER); $vals = []; $i = 0;
+        foreach ($cells as $c) {
+            if (preg_match('/r="([A-Z]+\d+)"/', $c[1], $rr)) $i = $col($rr[1]);
+            $in = $c[2] ?? ''; $v = '';
+            if (preg_match('#<v>(.*?)</v>#s', $in, $vm)) $v = $vm[1]; elseif (preg_match_all('#<t[^>]*>(.*?)</t>#s', $in, $tm)) $v = implode('', $tm[1]);
+            if (strpos($c[1], 't="s"') !== false) $v = $shared[(int)$v] ?? '';
+            else { $v = html_entity_decode($v, ENT_QUOTES | ENT_XML1, 'UTF-8'); if (is_numeric($v) && stripos($v, 'e') !== false) $v = number_format((float)$v, 0, '.', ''); elseif (preg_match('/^\d+\.0+$/', $v)) $v = preg_replace('/\.0+$/', '', $v); }
+            $vals[$i] = trim((string)$v); $i++;
+        }
+        if (!$vals || implode('', $vals) === '') continue;
+        $line = []; for ($k = 0, $n = max(array_keys($vals)); $k <= $n; $k++) $line[] = $vals[$k] ?? '';
+        $out[] = $line; if (count($out) >= $max) break;
+    }
+    return $out;
+}

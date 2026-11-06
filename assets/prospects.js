@@ -54,7 +54,11 @@
     m.classList.remove('hidden'); var go = $('pr-import-go'); go.textContent = L.go.replace('%s', parsed.length - 1); go.classList.remove('hidden');
     m.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { if (s.value === '') delete map[s.dataset.col]; else map[s.dataset.col] = +s.value; }); });
   }
-  function readFile(f) { if (!f) return; $('pr-file-l').textContent = f.name; var r = new FileReader(); r.onload = function () { parsed = parseCSV(String(r.result)); if (parsed.length < 2) { toast(L.noRows, 'error'); return; } showMap(); }; r.readAsText(f, 'utf-8'); }
+  function readFile(f) { if (!f) return; $('pr-file-l').textContent = f.name;
+    if (/\.xlsx$/i.test(f.name)) { $('pr-file-l').textContent = L.reading; var fd = new FormData(); fd.append('_csrf', C.csrf); fd.append('action', 'parse_xlsx'); fd.append('file', f);
+      fetch(C.selfUrl, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { $('pr-file-l').textContent = f.name;
+        if (!j.ok) return toast(j.error || L.err, 'error'); parsed = j.rows; if (!parsed || parsed.length < 2) return toast(L.noRows, 'error'); showMap(); }).catch(function () { toast(L.err, 'error'); }); return; }
+    var r = new FileReader(); r.onload = function () { parsed = parseCSV(String(r.result)); if (parsed.length < 2) { toast(L.noRows, 'error'); return; } showMap(); }; r.readAsText(f, 'utf-8'); }
   $('pr-file').addEventListener('change', function () { readFile(this.files[0]); });
   var drop = $('pr-file').closest('label'); ['dragover', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); if (ev === 'drop') readFile(e.dataTransfer.files[0]); }); });
   $('pr-import-go').addEventListener('click', function () {
