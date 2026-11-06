@@ -10,10 +10,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $f = $_FILES['file'] ?? null;
         if (!$f || ($f['size'] ?? 0) > 15 * 1048576) $J(['error' => t('الصورة كبيرة أو مارفعتش.')], 422);
         $f['name'] = preg_replace('/[^\p{L}\p{N} _-]+/u', '', mb_substr(trim((string)($_POST['name'] ?? '')), 0, 80)) ?: t('تصميم');
-        $f['name'] .= '.png';
+        $f['name'] .= (($_POST['fmt'] ?? '') === 'jpg' ? '.jpg' : '.png');
         try { $row = media_store_upload($wid, $f, t('التصميمات')); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 422); }
         log_activity('designer.save', (string)$row['id']);
         $J(['ok' => true, 'id' => $row['id'], 'url' => $row['url'], 'compose' => url('compose', ['lib' => $row['id']])]);
+    }
+    $act = (string)($_POST['action'] ?? '');
+    $uid = (int)(current_user()['id'] ?? 0);
+    // تصميماتي: حفظ التصميم نفسه (كل الصفحات) عشان يتفتح ويتعدل تاني
+    if ($act === 'dsave') {
+        $data = (string)($_POST['data'] ?? ''); $thumb = (string)($_POST['thumb'] ?? '');
+        if (strlen($data) > 12 * 1048576 || !is_array(json_decode($data, true))) $J(['error' => t('التصميم كبير أو مش سليم.')], 422);
+        if ($thumb !== '' && (strlen($thumb) > 400000 || strpos($thumb, 'data:image/jpeg;base64,') !== 0)) $thumb = '';
+        $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120) ?: t('تصميم بدون اسم');
+        $w = max(50, min(5000, (int)($_POST['w'] ?? 1080))); $h = max(50, min(5000, (int)($_POST['h'] ?? 1080))); $pg = max(1, min(30, (int)($_POST['pages'] ?? 1)));
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) { $st = db()->prepare('UPDATE designs SET name = ?, w = ?, h = ?, pages = ?, data = ?, thumb = ? WHERE id = ? AND workspace_id = ?'); $st->execute([$name, $w, $h, $pg, $data, $thumb ?: null, $id, $wid]); if (!$st->rowCount()) { $c = db()->prepare('SELECT 1 FROM designs WHERE id = ? AND workspace_id = ?'); $c->execute([$id, $wid]); if (!$c->fetchColumn()) $id = 0; } }
+        if (!$id) { db()->prepare('INSERT INTO designs (workspace_id, user_id, name, w, h, pages, data, thumb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, $uid ?: null, $name, $w, $h, $pg, $data, $thumb ?: null]); $id = (int)db()->lastInsertId(); }
+        $J(['ok' => true, 'id' => $id]);
+    }
+    if ($act === 'dlist') {
+        $st = db()->prepare('SELECT id, name, w, h, pages, thumb, updated_at FROM designs WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT 60'); $st->execute([$wid]);
+        $J(['ok' => true, 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'name' => $r['name'], 'w' => (int)$r['w'], 'h' => (int)$r['h'], 'pages' => (int)$r['pages'], 'thumb' => (string)$r['thumb'], 'at' => fmt_date($r['updated_at'], 'd/m H:i')]; }, $st->fetchAll())]);
+    }
+    if ($act === 'dget' || $act === 'ddel') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($act === 'ddel') { db()->prepare('DELETE FROM designs WHERE id = ? AND workspace_id = ?')->execute([$id, $wid]); $J(['ok' => true]); }
+        $st = db()->prepare('SELECT id, name, data FROM designs WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); $r = $st->fetch();
+        if (!$r) $J(['error' => t('التصميم مش موجود.')], 404);
+        $J(['ok' => true, 'id' => (int)$r['id'], 'name' => $r['name'], 'data' => $r['data']]);
+    }
+    // الذكاء الاصطناعي جوه المصمم: عناوين لنص محدد، أو نصوص تصميم كامل لخدمة
+    if ($act === 'ai') {
+        if (!can('ai.use') || !ai_connection()) $J(['error' => t('اربط مزود ذكاء اصطناعي الأول من التكاملات.')], 422);
+        $mode = ($_POST['mode'] ?? '') === 'design' ? 'design' : 'headline';
+        $topic = mb_substr(trim((string)($_POST['topic'] ?? '')), 0, 300); $cur = mb_substr(trim((string)($_POST['current'] ?? '')), 0, 300);
+        $sys = $mode === 'design'
+            ? "You write the text for one social media graphic. DESIGN_JSON\nUse only facts from the company knowledge base (names, prices, offers). Same language/dialect as the knowledge base. Very short, punchy.\n"
+              . 'Return ONLY JSON: {"title":"max 5 words","sub":"max 12 words","cta":"max 3 words","kind":"offer|product|quote|edu|event|story"}'
+            : "You write headlines for a social media graphic. HEADLINE_JSON\nUse only facts from the company knowledge base. Same language/dialect as the knowledge base. Max 7 words each, different angles.\n"
+              . 'Return ONLY JSON: {"items":["headline 1","headline 2","headline 3","headline 4"]}';
+        $u = ($topic !== '' ? t('الموضوع: %s', $topic) : t('اختار أنسب موضوع من خدمات الشركة.')) . ($cur !== '' ? "\n" . t('النص الحالي: %s', $cur) : '');
+        try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $u]], 600, 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+        $txt = (string)($r['text'] ?? ''); if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $d = json_decode($txt, true); if (!is_array($d)) $J(['error' => t('الذكاء الاصطناعي مارجعش نتيجة مفهومة. جرّب تاني.')], 502);
+        if ($mode === 'headline') $d = ['items' => array_values(array_filter(array_map(function ($x) { return mb_substr(trim((string)$x), 0, 120); }, (array)($d['items'] ?? [])), 'strlen'))];
+        else $d = ['title' => mb_substr(trim((string)($d['title'] ?? '')), 0, 80), 'sub' => mb_substr(trim((string)($d['sub'] ?? '')), 0, 160), 'cta' => mb_substr(trim((string)($d['cta'] ?? '')), 0, 40), 'kind' => preg_replace('/[^a-z]/', '', (string)($d['kind'] ?? 'offer'))];
+        log_activity('designer.ai', $mode);
+        $J(['ok' => true] + $d);
     }
     $J(['error' => t('طلب غير صحيح.')], 400);
 }
@@ -52,15 +96,24 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       <input id="dz-name" class="dz-name" dir="auto" maxlength="80" value="<?= e(t('تصميم بدون اسم')) ?>">
       <select id="dz-size" class="dz-sel" title="<?= e(t('المقاس')) ?>">
         <?php foreach (['1080x1080' => t('بوست مربع 1080×1080'), '1080x1350' => t('بوست طولي 1080×1350'), '1080x1920' => t('ستوري / ريلز 1080×1920'), '1200x628' => t('لينك / فيسبوك 1200×628'), '1500x500' => t('غلاف X ‏1500×500'), '1584x396' => t('غلاف لينكدإن 1584×396')] as $k => $l): ?><option value="<?= $k ?>"><?= e($l) ?></option><?php endforeach; ?>
+        <option value="custom"><?= e(t('مقاس مخصص…')) ?></option>
       </select>
+      <span id="dz-custom" class="hidden items-center gap-1 text-xs"><input id="dz-cw" type="number" min="50" max="5000" value="1080" class="dz-sel !w-20"> × <input id="dz-ch" type="number" min="50" max="5000" value="1080" class="dz-sel !w-20"><button type="button" class="btn-primary !py-1 !px-2 !text-xs" data-cmd="custom"><?= e(t('تطبيق')) ?></button></span>
       <span class="dz-div"></span>
+      <button type="button" class="dz-ib" data-cmd="new" title="<?= e(t('تصميم جديد')) ?>"><?= ui_icon('plus', 'w-4 h-4') ?></button>
       <button type="button" class="dz-ib" data-cmd="undo" title="<?= e(t('تراجع')) ?> (Ctrl+Z)"><?= ui_icon('undo', 'w-4 h-4') ?></button>
       <button type="button" class="dz-ib" data-cmd="redo" title="<?= e(t('إعادة')) ?> (Ctrl+Y)"><?= ui_icon('redo', 'w-4 h-4') ?></button>
       <span class="dz-div"></span>
       <button type="button" class="dz-ib" data-cmd="zoom-" title="<?= e(t('تصغير')) ?>">−</button><span id="dz-zoom" class="text-xs tabular-nums text-ink-600 w-10 text-center">100%</span><button type="button" class="dz-ib" data-cmd="zoom+" title="<?= e(t('تكبير')) ?>">+</button>
       <span class="ms-auto"></span>
       <span id="dz-saved" class="text-[11px] text-ink-400"></span>
-      <button type="button" class="btn-ghost !py-1.5 !text-sm" data-cmd="png"><?= ui_icon('download', 'w-4 h-4') ?><?= e(t('تحميل')) ?></button>
+      <button type="button" class="btn-ghost !py-1.5 !text-sm" data-cmd="dsave" title="Ctrl+S"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('حفظ التصميم')) ?></button>
+      <div class="relative"><button type="button" class="btn-ghost !py-1.5 !text-sm" id="dz-exp-b"><?= ui_icon('download', 'w-4 h-4') ?><?= e(t('تحميل')) ?> ▾</button>
+        <div id="dz-exp" class="hidden absolute z-40 top-full mt-1 end-0 w-56 rounded-xl border border-ink-200 bg-white shadow-xl p-1 text-sm">
+          <button type="button" class="dz-mi" data-exp="png">PNG <small><?= e(t('الصفحة الحالية، أعلى جودة')) ?></small></button>
+          <button type="button" class="dz-mi" data-exp="jpg">JPG <small><?= e(t('حجم أصغر')) ?></small></button>
+          <button type="button" class="dz-mi" data-exp="all">PNG × <?= e(t('كل الصفحات')) ?></button>
+          <button type="button" class="dz-mi" data-exp="pdf">PDF <small><?= e(t('كل الصفحات في ملف واحد')) ?></small></button></div></div>
       <button type="button" class="btn-ghost !py-1.5 !text-sm" data-cmd="save"><?= ui_icon('folder', 'w-4 h-4') ?><?= e(t('حفظ في المكتبة')) ?></button>
       <button type="button" class="btn-primary !py-1.5 !text-sm" data-cmd="post"><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('انشره')) ?></button>
     </div>
@@ -68,11 +121,21 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       <!-- لوحة الأدوات -->
       <aside class="dz-side">
         <nav class="dz-rail">
-          <?php foreach (['tpl' => [t('قوالب'), 'layers'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
+          <?php foreach (['mine' => [t('تصميماتي'), 'folder'], 'ai' => [t('ذكاء'), 'spark'], 'tpl' => [t('قوالب'), 'layers'], 'text' => [t('نص'), 'type'], 'shape' => [t('أشكال'), 'shapes'], 'img' => [t('صور'), 'image'], 'bg' => [t('خلفية'), 'palette'], 'brand' => [t('هويتك'), 'star']] as $k => [$l, $ic]): ?>
             <button type="button" data-tab="<?= $k ?>" class="<?= $k === 'tpl' ? 'on' : '' ?>"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($l) ?></span></button>
           <?php endforeach; ?>
         </nav>
         <div class="dz-panel">
+          <section data-pane="mine" hidden><h3><?= e(t('تصميماتك المحفوظة')) ?></h3><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
+          <section data-pane="ai" hidden>
+            <h3><?= e(t('صمّم لي بالذكاء الاصطناعي')) ?></h3>
+            <input id="dz-ai-topic" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('الموضوع أو الخدمة (اختياري)')) ?>">
+            <button type="button" class="btn-primary w-full mt-2" data-cmd="aidesign"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اعمل تصميم')) ?></span></button>
+            <h3 class="!mt-5"><?= e(t('عناوين للنص المحدد')) ?></h3>
+            <button type="button" class="btn-ghost w-full" data-cmd="aihead"><?= ui_icon('type', 'w-4 h-4') ?><span><?= e(t('اقترح عناوين')) ?></span></button><div id="dz-heads" class="space-y-1.5 mt-2"></div>
+            <h3 class="!mt-5"><?= e(t('ولّد صورة')) ?></h3>
+            <textarea id="dz-ai-img" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة، وهتتحط في مكان الصورة المحدد أو على اللوحة')) ?>"></textarea>
+            <button type="button" class="btn-ghost w-full mt-2" data-cmd="aiimg"><?= ui_icon('image', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button><p id="dz-ai-st" class="text-[11px] text-ink-500 mt-2"></p></section>
           <section data-pane="tpl"><h3><?= e(t('قوالب من قاعدة المعرفة بألوانك')) ?></h3><div id="dz-tcat" class="flex flex-wrap gap-1 mb-3"></div><div id="dz-tpls" class="grid grid-cols-2 gap-2 items-start"></div></section>
           <section data-pane="text" hidden><h3><?= e(t('أضف نص')) ?></h3>
             <button type="button" class="dz-add text-2xl font-black" data-add="h1"><?= e(t('عنوان كبير')) ?></button>
@@ -103,11 +166,18 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
         </div>
       </aside>
       <!-- اللوحة -->
-      <div class="dz-stage" id="dz-stage"><div id="dz-wrap" class="dz-wrap"><canvas id="dz-c"></canvas></div><div id="dz-drop" class="dz-drop hidden"><?= e(t('سيب الصورة هنا')) ?></div></div>
+      <div class="dz-center"><div class="dz-stage" id="dz-stage"><div id="dz-wrap" class="dz-wrap"><canvas id="dz-c"></canvas></div><div id="dz-drop" class="dz-drop hidden"><?= e(t('سيب الصورة هنا')) ?></div></div>
+        <div class="dz-pages"><div id="dz-pages" class="flex items-center gap-2 overflow-x-auto"></div><button type="button" class="dz-padd" data-cmd="addpage" title="<?= e(t('صفحة جديدة')) ?>">+</button><span class="text-[11px] text-ink-400 whitespace-nowrap"><?= e(t('صفحات للكاروسيل')) ?></span></div></div>
       <!-- الخصائص -->
       <aside class="dz-props" id="dz-props">
         <div id="dz-none" class="text-center text-sm text-ink-400 py-10 px-4"><?= ui_icon('pointer', 'w-6 h-6 mx-auto mb-2') ?><?= e(t('اختار عنصر على اللوحة عشان تعدّله')) ?></div>
+        <div id="dz-multi" hidden class="p-3"><b class="block text-xs text-ink-500 mb-2"><span id="dz-mn"></span> <?= e(t('عناصر محددة')) ?></b>
+          <div class="grid grid-cols-6 gap-1 mb-2"><?php foreach (['left' => '⇤', 'hcenter' => '↔', 'right' => '⇥', 'top' => '⤒', 'vcenter' => '↕', 'bottom' => '⤓'] as $k => $g): ?><button type="button" class="dz-tg" data-align="<?= $k ?>"><?= $g ?></button><?php endforeach; ?></div>
+          <div class="grid grid-cols-2 gap-1 mb-2"><button type="button" class="dz-ib2" data-align="dh"><?= e(t('توزيع أفقي')) ?></button><button type="button" class="dz-ib2" data-align="dv"><?= e(t('توزيع رأسي')) ?></button></div>
+          <button type="button" class="dz-ib2 w-full" data-cmd="group"><?= ui_icon('layers', 'w-4 h-4') ?><?= e(t('اجمعهم')) ?></button></div>
         <div id="dz-p" hidden>
+          <div class="grid grid-cols-6 gap-1 mb-3"><?php foreach (['left' => '⇤', 'hcenter' => '↔', 'right' => '⇥', 'top' => '⤒', 'vcenter' => '↕', 'bottom' => '⤓'] as $k => $g): ?><button type="button" class="dz-tg" data-align="<?= $k ?>" title="<?= e(t('محاذاة على اللوحة')) ?>"><?= $g ?></button><?php endforeach; ?></div>
+          <button type="button" class="dz-ib2 w-full mb-3 hidden" data-cmd="ungroup" id="dz-ungroup"><?= e(t('فك التجميع')) ?></button>
           <div id="dz-phbox" hidden class="mb-3 rounded-xl bg-brand-50 p-3 text-xs text-brand-800"><p class="mb-2"><?= e(t('ده مكان صورة. بدّله بصورتك وهتتقص على نفس الشكل.')) ?></p>
             <button type="button" class="btn-primary w-full !py-1.5 !text-xs" data-cmd="phlib"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('بدّل بصورة')) ?></button>
             <label class="btn-ghost w-full !py-1.5 !text-xs mt-1.5 cursor-pointer"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('من جهازك')) ?><input type="file" accept="image/*" class="hidden" onchange="document.getElementById('dz-up').files=this.files;document.getElementById('dz-up').dispatchEvent(new Event('change'))"></label></div>
@@ -117,6 +187,16 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
             <button type="button" class="dz-tg" data-tg="bold" title="<?= e(t('عريض')) ?>"><b>B</b></button><button type="button" class="dz-tg" data-tg="italic" title="<?= e(t('مائل')) ?>"><i>I</i></button><button type="button" class="dz-tg" data-tg="underline"><u>U</u></button>
             <span class="dz-div"></span><button type="button" class="dz-tg" data-al="right">⇥</button><button type="button" class="dz-tg" data-al="center">≡</button><button type="button" class="dz-tg" data-al="left">⇤</button></div>
           <div class="dz-row" data-for="text"><label><?= e(t('تباعد الأسطر')) ?></label><input type="range" id="pp-lh" min="0.8" max="2.4" step="0.05"></div>
+          <div class="dz-row" data-for="text"><label><?= e(t('تأثيرات النص')) ?></label>
+            <div class="grid grid-cols-4 gap-1 w-full"><?php foreach (['none' => t('بدون'), 'outline' => t('حدود'), 'box' => t('خلفية'), 'grad' => t('تدرج')] as $k => $l): ?><button type="button" class="dz-ib2" data-fx="<?= $k ?>"><?= e($l) ?></button><?php endforeach; ?></div></div>
+          <div class="dz-row" data-for="text" id="dz-ls"><label><?= e(t('تباعد الحروف (إنجليزي)')) ?></label><input type="range" id="pp-cs" min="-100" max="800" step="10"></div>
+          <div class="dz-row" data-for="image"><label><?= e(t('شكل الصورة')) ?></label><div class="grid grid-cols-3 gap-1 w-full"><button type="button" class="dz-ib2" data-mask="none">▭</button><button type="button" class="dz-ib2" data-mask="round">▢</button><button type="button" class="dz-ib2" data-mask="circle">◯</button></div></div>
+          <div class="dz-row" data-for="image"><label><?= e(t('قلب')) ?></label><div class="grid grid-cols-2 gap-1 w-full"><button type="button" class="dz-ib2" data-cmd="flipx">⇋ <?= e(t('أفقي')) ?></button><button type="button" class="dz-ib2" data-cmd="flipy">⇵ <?= e(t('رأسي')) ?></button></div></div>
+          <?php foreach (['br' => [t('السطوع'), -0.6, 0.6, 0.02], 'ct' => [t('التباين'), -0.6, 0.6, 0.02], 'sa' => [t('التشبع'), -1, 1, 0.05], 'bl' => [t('التغبيش'), 0, 0.5, 0.01]] as $k => [$l, $mn, $mx, $st]): ?>
+            <div class="dz-row" data-for="image"><label><?= e($l) ?></label><input type="range" data-flt="<?= $k ?>" min="<?= $mn ?>" max="<?= $mx ?>" step="<?= $st ?>" value="0"></div>
+          <?php endforeach; ?>
+          <div class="dz-row" data-for="image"><label><?= e(t('فلاتر جاهزة')) ?></label><div class="grid grid-cols-3 gap-1 w-full"><?php foreach (['none' => t('أصلي'), 'gray' => t('أبيض وأسود'), 'sepia' => t('كلاسيك'), 'warm' => t('دافي'), 'cool' => t('بارد'), 'vivid' => t('زاهي')] as $k => $l): ?><button type="button" class="dz-ib2" data-preset="<?= $k ?>"><?= e($l) ?></button><?php endforeach; ?></div></div>
+          <div class="dz-row" data-for="image"><button type="button" class="dz-ib2 w-full" data-cmd="replaceimg"><?= ui_icon('image', 'w-4 h-4') ?><?= e(t('بدّل الصورة')) ?></button></div>
           <div class="dz-row" data-for="fill"><label><?= e(t('اللون')) ?></label><input type="color" id="pp-fill" class="h-8 w-12 rounded border border-ink-200"><div id="pp-sw" class="flex flex-wrap gap-1"></div></div>
           <div class="dz-row" data-for="shape"><label><?= e(t('الحدود')) ?></label><input type="color" id="pp-stroke" class="h-8 w-12 rounded border border-ink-200"><input type="range" id="pp-sw2" min="0" max="40"></div>
           <div class="dz-row" data-for="round"><label><?= e(t('استدارة الأركان')) ?></label><input type="range" id="pp-rx" min="0" max="300"></div>
@@ -140,8 +220,17 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       'before' => t('قبل'), 'after' => t('بعد'), 'month' => t('الشهر'), 'evTitle' => t('اسم الفعالية'), 'place' => t('المكان'), 'register' => t('سجّل دلوقتي'), 'hiring' => t('بنوظّف!'), 'role' => t('اسم الوظيفة'), 'full' => t('دوام كامل'), 'city' => t('المدينة'), 'apply' => t('قدّم الآن'),
       'new' => t('جديد'), 'from' => t('من'), 'news' => t('خبر جديد'), 'qday' => t('سؤال اليوم'), 'question' => t('رأيك يهمنا'), 'which' => t('أنهي تختار؟'), 'yes' => t('أيوه'), 'no' => t('لأ'), 'hook' => t('اكتب جملة تشد هنا'), 'whySvc' => t('ليه %s؟'), 'swipeSide' => t('اسحب للآخر'),
       'greet' => t('كل سنة وانتم طيبين'), 'greetSub' => t('من كل فريقنا'), 'menu' => t('قائمة الأسعار'), 'item' => t('صنف'), 'orderWa' => t('اطلب على واتساب'),
+      'delPage' => t('حذف الصفحة'), 'dupPage' => t('نسخة من الصفحة'), 'delPageQ' => t('تحذف الصفحة دي؟'), 'dsaved' => t('اتحفظ التصميم ✓'), 'pagesN' => t('صفحات'), 'noMine' => t('لسه مفيش تصميمات محفوظة. دوس «حفظ التصميم».'),
+      'del' => t('حذف'), 'delQ' => t('متأكد إنك عاوز تحذفه؟'), 'newQ' => t('تبدأ تصميم جديد؟ اللي مش محفوظ هيتمسح.'), 'untitled' => t('تصميم بدون اسم'), 'aiDone' => t('اتعمل التصميم ✓ عدّل اللي انت عاوزه'), 'pickText' => t('اختار نص على اللوحة الأول.'),
+      'genBusy' => t('بنولّد الصورة… من 10 لـ 60 ثانية'), 'genDone' => t('اتولدت ✓'), 'watch' => t('شاهد'),
+      'ramadan' => t('رمضان كريم'), 'ramadanSub' => t('كل عام وأنتم بخير'), 'eid' => t('عيد مبارك'), 'national' => t('اليوم الوطني'), 'nationalSub' => t('دام عزك يا وطن'), 'weekend' => t('عرض الويك إند'), 'fri' => t('الخميس والجمعة بس'),
+      'delivery' => t('التوصيل لحد بابك'), 'combo' => t('الوجبة الكاملة'), 'together' => t('الثلاثة مع بعض'), 'special' => t('بسعر خاص'), 'review' => t('رأيك يفرق معانا'), 'reviewSub' => t('لو عجبتك التجربة قيّمنا على جوجل وقولنا رأيك'), 'reviewCta' => t('قيّمنا الآن'),
+      'opening' => t('افتتاح فرعنا'), 'endsIn' => t('العرض بيخلص خلال'), 'days' => t('يوم'), 'hours' => t('ساعة'), 'mins' => t('دقيقة'), 'coupon' => t('كود الخصم'), 'couponSub' => t('استخدمه عند الطلب'), 'thanks' => t('شكرًا لكم'), 'thanksSub' => t('على ثقتكم ودعمكم الدايم'),
+      'x1' => t('غلاف ريلز'), 'x2' => t('إعلان عرضي'), 'x3' => t('رمضان'), 'x4' => t('عيد'), 'x5' => t('اليوم الوطني'), 'x6' => t('عرض الويك إند'), 'x7' => t('التوصيل'), 'x8' => t('وجبة / باقة'), 'x9' => t('طلب تقييم'), 'x10' => t('كارت التواصل'), 'x11' => t('افتتاح'), 'x12' => t('عد تنازلي'), 'x13' => t('كوبون خصم'), 'x14' => t('شكر'),
       't1' => t('عرض'), 't2' => t('منتج'), 't3' => t('عن الشركة'), 't4' => t('ليه تختارنا'), 't5' => t('أسئلة شائعة'), 't6' => t('المواعيد والتواصل'), 't7' => t('قبل وبعد'), 't8' => t('فعالية'), 't9' => t('توظيف'), 't10' => t('جديد عندنا'), 't11' => t('خبر'), 't12' => t('ستوري عرض'), 't13' => t('ستوري تصويت'), 't14' => t('غلاف كاروسيل'), 't15' => t('تهنئة'), 't16' => t('قائمة الأسعار'),
       'cAll' => t('الكل'), 'cOffer' => t('عروض'), 'cProduct' => t('منتجات'), 'cQuote' => t('الشركة'), 'cEdu' => t('معلومات'), 'cEvent' => t('فعاليات'), 'cStory' => t('ستوري'), 'cCarousel' => t('كاروسيل'), 'cSeason' => t('مناسبات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/vendor/fabric-5.3.0.min.js"></script>
   <script src="assets/designer.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>
+  <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

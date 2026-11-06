@@ -19,7 +19,7 @@
   $('dz-size').addEventListener('change', function () { setSize(this.value, true); snap(); });
 
   /* ---------- التاريخ والحفظ التلقائي ---------- */
-  function json() { return JSON.stringify({ w: W, h: H, name: $('dz-name').value, c: cv.toJSON(['name', 'lockMovementX', 'lockMovementY', 'selectable', 'evented', 'dzRole', 'dzCircle', 'dzRx']) }); }
+  function json() { return JSON.stringify({ w: W, h: H, name: $('dz-name').value, c: cv.toJSON(['name', 'lockMovementX', 'lockMovementY', 'selectable', 'evented', 'dzRole', 'dzCircle', 'dzRx', 'dzF', 'dzFill']) }); }
   function snap() { if (lock) return; hist.push(json()); if (hist.length > 60) hist.shift(); fut = []; layers(); clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, hist[hist.length - 1]); $('dz-saved').textContent = '✓ ' + L.draft; } catch (e) {} }, 600); }
   function load(s, cb) { var d = JSON.parse(s); lock = true; W = d.w; H = d.h; $('dz-size').value = W + 'x' + H; if (d.name) $('dz-name').value = d.name;
     cv.loadFromJSON(d.c, function () { fit(); cv.requestRenderAll(); lock = false; layers(); if (cb) cb(); }); }
@@ -197,7 +197,7 @@
   document.querySelectorAll('.dz-rail [data-tab]').forEach(function (b) { b.addEventListener('click', function () { document.querySelectorAll('.dz-rail [data-tab]').forEach(function (x) { x.classList.toggle('on', x === b); }); document.querySelectorAll('.dz-panel [data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== b.dataset.tab; }); }); });
 
   /* ---------- الخصائص ---------- */
-  function kindOf(o) { if (!o) return []; var k = ['any', 'fill']; if (o.type === 'textbox') k.push('text'); else if (o.type !== 'image') k.push('shape'); if (o.type === 'rect') k.push('round'); if (o.type === 'image') k.splice(1, 1); return k; }
+  function kindOf(o) { if (!o) return []; var k = ['any', 'fill']; if (o.type === 'textbox') k.push('text'); else if (o.type !== 'image') k.push('shape'); if (o.type === 'rect') k.push('round'); if (o.type === 'image') { k.splice(1, 1); k.push('image'); } return k; }
   function sync() {
     var o = cv.getActiveObject(); $('dz-none').hidden = !!o; $('dz-p').hidden = !o; if (!o) { layers(); return; }
     $('dz-phbox').hidden = o.dzRole !== 'ph'; var k = o.dzRole === 'ph' ? ['any'] : kindOf(o); document.querySelectorAll('#dz-p [data-for]').forEach(function (r) { r.hidden = k.indexOf(r.dataset.for) < 0; });
@@ -240,7 +240,7 @@
         if (!j.ok) { $('dz-saved').textContent = ''; return toast(j.error || L.err, 'error'); } $('dz-saved').textContent = L.saved; toast(L.saved); if (then) then(j); }).catch(function () { s.disabled = false; toast(L.err, 'error'); }); }); }
   var CMD = {
     undo: undo, redo: redo, 'zoom+': function () { zoom = Math.min(3, zoom * 1.2); apply(); }, 'zoom-': function () { zoom = Math.max(0.05, zoom / 1.2); apply(); },
-    png: function () { var a = document.createElement('a'); a.href = exportURL(); a.download = ($('dz-name').value || 'design') + '.png'; a.click(); },
+    png: function () { fetch(exportURL()).then(function (r) { return r.blob(); }).then(function (bl) { var u = URL.createObjectURL(bl), a = document.createElement('a'); a.href = u; a.download = ($('dz-name').value || 'design') + '.png'; a.click(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }); },
     save: function () { save(); }, post: function () { save(function (j) { location.href = j.compose; }); },
     lib: function () { if (!window.mediaPick) return; var o = cv.getActiveObject(); window.mediaPick({ accept: 'image', multiple: false }).then(function (fs) { if (!fs || !fs[0]) return; if (o && o.dzRole === 'ph') fillPh(o, fs[0].url); else addImg(fs[0].url); }); },
     phlib: function () { CMD.lib(); },
@@ -272,4 +272,10 @@
   }
   (document.fonts && document.fonts.load ? Promise.all(['900 40px Cairo', '700 40px Cairo', '400 40px Cairo', '900 40px Inter', '700 40px "Playfair Display"'].map(function (f) { return document.fonts.load(f); })).catch(function () {}) : Promise.resolve()).then(function () { fit(); start(); sync(); thumbs(); });
   window.dzCanvas = cv; // للاختبارات
+  // واجهة للإضافات (designer-pro.js): الأدوات الاحترافية والصفحات وتصميماتي والذكاء الاصطناعي
+  window.DZX = { cv: cv, CMD: CMD, snap: snap, sync: sync, load: load, json: json, setSize: setSize, fillPh: fillPh, useTpl: useTpl, exportURL: exportURL, addImg: addImg, layers: layers, fit: fit, apply: apply,
+    T: T, TC: TC, pill: pill, R: R, circ: circ, ph: ph, grad: grad, TPL: TPL, thumbs: thumbs, isAr: isAr, toast: toast, P: P, S: S, A: A, K: K, SVS: SVS, CO: CO, WA: WA, HANDLE: HANDLE, FOOT: FOOT, L: L, C: C,
+    get W() { return W; }, get H() { return H; }, get zoom() { return zoom; }, setZoom: function (z) { zoom = z; apply(); },
+    setLock: function (v) { lock = v; }, resetHist: function () { hist = []; fut = []; snap(); }, setBuilderSize: function (w, h) { W = w; H = h; } };
+  document.dispatchEvent(new CustomEvent('dz:ready'));
 })();

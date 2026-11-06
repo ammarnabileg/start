@@ -230,6 +230,24 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-row input[type=range] { @apply flex-1 accent-brand-600; }
   .dz-tg { @apply w-8 h-8 grid place-items-center rounded-lg border border-ink-200 text-sm text-ink-700 hover:bg-ink-50; }
   .dz-tg.on { @apply bg-brand-600 border-brand-600 text-white; }
+  .dz-center { @apply flex flex-col flex-1 min-w-0; }
+  .dz-center .dz-stage { @apply flex-1; }
+  .dz-pages { @apply flex items-center gap-2 px-3 py-2 border-t border-ink-200 bg-white; }
+  .dz-pg { @apply relative shrink-0 w-16 h-16 rounded-lg border-2 border-ink-200 bg-ink-50 overflow-hidden cursor-pointer grid place-items-center; }
+  .dz-pg.on { @apply border-brand-500 ring-2 ring-brand-500/20; }
+  .dz-pg img { @apply w-full h-full object-contain bg-white; }
+  .dz-pg-n { @apply absolute top-0.5 start-1 text-[10px] font-bold text-ink-500 bg-white/80 rounded px-1 z-10; }
+  .dz-pg-x, .dz-pg-d { @apply absolute bottom-0.5 w-5 h-5 rounded bg-white/90 text-ink-600 text-xs leading-5 opacity-0 transition hover:text-brand-700; }
+  .dz-pg-x { @apply end-0.5 hover:!text-red-600; } .dz-pg-d { @apply start-0.5; }
+  .dz-pg:hover .dz-pg-x, .dz-pg:hover .dz-pg-d { @apply opacity-100; }
+  .dz-padd { @apply shrink-0 w-16 h-16 rounded-lg border-2 border-dashed border-ink-300 text-2xl text-ink-400 hover:border-brand-400 hover:text-brand-600; }
+  .dz-mi { @apply flex w-full items-baseline gap-2 rounded-lg px-3 py-2 text-start font-semibold text-ink-800 hover:bg-ink-50; }
+  .dz-mi small { @apply font-normal text-[11px] text-ink-400; }
+  .dz-dcard { @apply relative cursor-pointer rounded-xl border border-ink-200 p-1.5 transition hover:border-brand-400 hover:shadow; }
+  .dz-dcard b { @apply block truncate text-[11px] text-ink-800 mt-1 px-0.5; } .dz-dcard small { @apply block text-[10px] text-ink-400 px-0.5; }
+  .dz-dthumb { @apply w-full rounded-lg bg-ink-100 bg-cover bg-center max-h-40; }
+  .dz-ddel { @apply absolute top-2 end-2 w-6 h-6 rounded-full bg-white/90 text-ink-500 text-sm opacity-0 transition hover:text-red-600; }
+  .dz-dcard:hover .dz-ddel { @apply opacity-100; }
   /* حملة متكاملة */
   .cmp-tok { @apply inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-medium align-baseline; }
   .cmp-chip { @apply rounded-full border border-ink-200 bg-white px-2 py-0.5 text-ink-700 transition hover:border-brand-400 hover:bg-brand-50; }
