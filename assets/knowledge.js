@@ -219,8 +219,10 @@
   function posStmt() {
     var box = root.querySelectorAll('.kb-pos-stmt'); if (!box.length) return;
     var fv = function (sec, k) { var el = root.querySelector('.kb-form[data-section="' + sec + '"] [name="d[' + k + ']"]'); var l = el ? el.value.split('\n').filter(function (x) { return x.trim(); }) : []; return l.length ? strip(l[0]) : ''; };
-    var vals = [fv('audience', 'who'), fv('audience', 'problem'), fv('frame_ref', 'category'), first('pod'), first('rtb')], e = K.posEmpty;
-    var tgt = [['audience', 'who'], ['audience', 'problem'], ['frame_ref', 'category'], ['pod', 'text'], ['rtb', 'text']];
+    // المنافسين: كل سطر منافس، بنعرض أول 3
+    var comp = (function () { var el = root.querySelector('.kb-form[data-section="frame_ref"] [name="d[competitors]"]'); return el ? el.value.split('\n').map(function (x) { return strip(x.trim()); }).filter(Boolean).slice(0, 3).join('، ') : ''; })();
+    var vals = [fv('audience', 'who'), fv('audience', 'problem'), fv('frame_ref', 'category'), first('pod'), first('rtb'), comp], e = K.posEmpty;
+    var tgt = [['audience', 'who'], ['audience', 'problem'], ['frame_ref', 'category'], ['pod', 'text'], ['rtb', 'text'], ['frame_ref', 'competitors']];
     var html = K.posTpl.replace(/%(\d)/g, function (m, i) { var v = vals[i - 1], t = tgt[i - 1]; return '<button type="button" data-pgo="' + t[0] + '" data-pf="' + t[1] + '" class="rounded-md px-0.5 transition hover:bg-brand-100 hover:ring-2 hover:ring-brand-200 ' + (v ? 'font-semibold text-ink-900' : 'text-ink-400 border-b border-dashed border-ink-300') + '">' + esc(v || e) + '</button>'; });
     box.forEach(function (b) { if (b.__h !== html) { b.__h = html; b.innerHTML = html; } });
   }

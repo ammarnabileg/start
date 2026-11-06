@@ -556,3 +556,32 @@ function kb_norm_rows(array $d, array $cols): array
     }
     return ['rows' => $out];
 }
+
+/** تنظيف رد "املأ بالذكاء الاصطناعي": فك الغلاف الزيادة ({"audience":{...}} أو {"data":{...}})، وتطابق المفاتيح من غير حساسية لحالة الحروف، وشيل نصوص النموذج <...> */
+function kb_fill_norm(?array $d, string $type, array $def, string $sec): ?array
+{
+    if (!is_array($d)) return null;
+    for ($i = 0; $i < 2; $i++) { // غلاف بمفتاح واحد: اسم القسم أو data/result/section
+        if (count($d) === 1) { $k = (string)array_key_first($d); $v = $d[$k];
+            if (is_array($v) && !array_is_list($v) && (in_array(strtolower($k), [strtolower($sec), 'data', 'result', 'section', 'content', 'fields'], true) || ($type === 'fields' && !isset($def['fields'][$k])))) { $d = $v; continue; } }
+        break;
+    }
+    if ($type === 'rows' && !isset($d['rows'])) { foreach ($d as $v) if (is_array($v) && array_is_list($v)) { $d = ['rows' => $v]; break; } if (array_is_list($d)) $d = ['rows' => $d]; }
+    if ($type === 'fields') {
+        $out = []; $low = []; foreach ($d as $k => $v) $low[strtolower((string)$k)] = $v;
+        foreach ($def['fields'] as $k => $f) { $v = $d[$k] ?? $low[strtolower($k)] ?? $d[$f[0]] ?? ''; $out[$k] = is_array($v) ? implode("\n", array_map('strval', array_filter($v, 'is_scalar'))) : (string)$v; }
+        $d = $out;
+    }
+    if (($type === 'text' || $type === 'list') && !isset($d['text'])) { foreach ($d as $v) if (is_string($v) && trim($v) !== '') { $d = ['text' => $v]; break; } }
+    // قيم النموذج اللي رجعت زي ما هي (<...>) تبقى فاضية
+    array_walk_recursive($d, function (&$v) { if (is_string($v) && preg_match('/^\s*<[^<>]{0,140}>\s*$/u', $v)) $v = ''; });
+    return $d;
+}
+
+/** الرد فيه محتوى فعلًا؟ (مش النموذج فاضي) */
+function kb_fill_has(array $d): bool
+{
+    $has = false;
+    array_walk_recursive($d, function ($v, $k) use (&$has) { if ($has) return; if (is_string($v) && trim($v) !== '' && !in_array($k, ['lang_rule', 'dialect'], true)) $has = true; });
+    return $has;
+}

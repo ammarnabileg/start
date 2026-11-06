@@ -33,7 +33,7 @@
   function dlg(id) { var d = $(id); d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) d.close(); }); return d; }
 
   /* ---------- استيراد ملف ---------- */
-  var imp = dlg('pr-import'), parsed = null, map = {};
+  var imp = dlg('pr-import'), map = {};
   $('pr-import-btn').addEventListener('click', function () { imp.showModal(); });
   function parseCSV(t) {
     t = t.replace(/^﻿/, ''); var sep = (t.split('\n')[0].match(/;/g) || []).length > (t.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
@@ -45,36 +45,54 @@
   }
   var guess = { name: /^(name|full ?name|الاسم|اسم|الإسم)/i, phone: /(phone|mobile|tel|whats|موبايل|جوال|تليفون|هاتف|رقم)/i, email: /(mail|إيميل|ايميل|البريد)/i, company: /(company|organization|شركة|الشركة|المؤسسة)/i,
     title: /(title|position|job|المسمى|الوظيفة)/i, country: /(country|الدولة|البلد)/i, tags: /(tag|تاج|وسم)/i, note: /(note|ملاحظ)/i };
+  // sheets = [{name, rows}] — الربط باسم العمود (مش برقمه) عشان الشيتات ممكن ترتيب أعمدتها يختلف
+  var sheets = [];
+  function clean(rows) { return rows.map(function (r) { return r.map(function (v) { return v == null ? '' : (typeof v === 'number' && Number.isInteger(v) ? v.toFixed(0) : String(v)).trim(); }); }).filter(function (r) { return r.join('').trim(); }); }
+  function picked() { if (sheets.length < 2 || !document.getElementById('pr-sheets')) return sheets; // أول رسم: كل الشيتات
+    var on = [].map.call(document.querySelectorAll('#pr-sheets input:checked'), function (i) { return +i.value; }); return sheets.filter(function (_, i) { return on.indexOf(i) >= 0; }); }
+  function heads() { var h = []; picked().forEach(function (sh) { (sh.rows[0] || []).forEach(function (x) { x = String(x).trim(); if (x && h.indexOf(x) < 0) h.push(x); }); }); return h; }
+  function sample(hd) { var sh = picked()[0]; if (!sh) return ''; var i = sh.rows[0].map(function (x) { return String(x).trim(); }).indexOf(hd); return i >= 0 && sh.rows[1] ? sh.rows[1][i] || '' : ''; }
+  function count() { return picked().reduce(function (n, sh) { return n + Math.max(0, sh.rows.length - 1); }, 0); }
   function showMap() {
-    var head = parsed[0], m = $('pr-map'); map = {};
-    head.forEach(function (h, i) { for (var k in guess) if (!(k in map) && guess[k].test(h.trim())) { map[k] = i; break; } });
-    m.innerHTML = '<p class="text-xs text-ink-500">' + esc(L.rows.replace('%s', parsed.length - 1)) + '</p>' + Object.keys(L.cols).map(function (k) {
+    var m = $('pr-map'), keep = map; map = {}; var head = heads();
+    head.forEach(function (h) { for (var k in guess) if (!(k in map) && guess[k].test(h)) { map[k] = h; break; } });
+    Object.keys(keep).forEach(function (k) { if (head.indexOf(keep[k]) >= 0) map[k] = keep[k]; });
+    var sh = sheets.length > 1 ? '<div id="pr-sheets" class="rounded-xl border border-ink-200 p-2.5 space-y-1"><b class="text-xs text-ink-700">' + esc(L.sheets) + '</b>' + sheets.map(function (x, i) {
+      var on = !document.querySelector('#pr-sheets') || document.querySelector('#pr-sheets input[value="' + i + '"]:checked');
+      return '<label class="flex items-center gap-2 text-sm"><input type="checkbox" value="' + i + '"' + (on ? ' checked' : '') + '><span class="flex-1">' + esc(x.name) + '</span><span class="text-xs text-ink-400">' + esc(L.sheetRows.replace('%s', Math.max(0, x.rows.length - 1))) + '</span></label>'; }).join('') + '</div>' : '';
+    m.innerHTML = sh + '<p class="text-xs text-ink-500">' + esc(L.rows.replace('%s', count())) + '</p>' + Object.keys(L.cols).map(function (k) {
       return '<label class="flex items-center gap-2"><span class="w-24 text-xs text-ink-600">' + esc(L.cols[k]) + '</span><select data-col="' + k + '" class="input !mt-0 !py-1 text-sm flex-1"><option value="">' + esc(L.skip) + '</option>' +
-        head.map(function (h, i) { return '<option value="' + i + '"' + (map[k] === i ? ' selected' : '') + '>' + esc(h || '#' + (i + 1)) + ' — ' + esc((parsed[1] || [])[i] || '') + '</option>'; }).join('') + '</select></label>'; }).join('');
-    m.classList.remove('hidden'); var go = $('pr-import-go'); go.textContent = L.go.replace('%s', parsed.length - 1); go.classList.remove('hidden');
-    m.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { if (s.value === '') delete map[s.dataset.col]; else map[s.dataset.col] = +s.value; }); });
+        head.map(function (h) { return '<option value="' + esc(h) + '"' + (map[k] === h ? ' selected' : '') + '>' + esc(h) + ' — ' + esc(sample(h)) + '</option>'; }).join('') + '</select></label>'; }).join('');
+    m.classList.remove('hidden'); var go = $('pr-import-go'); go.textContent = L.go.replace('%s', count()); go.classList.remove('hidden'); go.disabled = !count();
+    m.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { if (s.value === '') delete map[s.dataset.col]; else map[s.dataset.col] = s.value; }); });
+    m.querySelectorAll('#pr-sheets input').forEach(function (c) { c.addEventListener('change', showMap); });
   }
+  function ready(list) { sheets = list.map(function (x) { return { name: x.name, rows: clean(x.rows) }; }).filter(function (x) { return x.rows.length > 1; }); map = {};
+    var old = document.getElementById('pr-sheets'); if (old) old.remove();
+    if (!sheets.length) { $('pr-map').classList.add('hidden'); $('pr-import-go').classList.add('hidden'); return toast(L.noRows, 'error'); } showMap(); }
   function readFile(f) { if (!f) return; $('pr-file-l').textContent = f.name;
     if (/\.xls$/i.test(f.name)) { // Excel القديم (97-2003): بيتقري في المتصفح بمكتبة SheetJS اللي بتتحمّل وقت الحاجة بس
       $('pr-file-l').textContent = L.reading;
-      var go = function () { var fr = new FileReader(); fr.onload = function () {
-        try { var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
-          parsed = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: false }).map(function (r) { return r.map(function (v) { return v == null ? '' : (typeof v === 'number' && Number.isInteger(v) ? v.toFixed(0) : String(v)).trim(); }); });
-        } catch (e) { parsed = null; }
-        $('pr-file-l').textContent = f.name; if (!parsed || parsed.length < 2) return toast(L.noRows, 'error'); showMap(); }; fr.readAsArrayBuffer(f); };
+      var go = function () { var fr = new FileReader(); fr.onload = function () { var list = [];
+        try { var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' });
+          list = wb.SheetNames.slice(0, 30).map(function (n) { return { name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '', blankrows: false }) }; });
+        } catch (e) { list = []; }
+        $('pr-file-l').textContent = f.name; ready(list); }; fr.readAsArrayBuffer(f); };
       if (window.XLSX) go(); else { var sc = document.createElement('script'); sc.src = C.xlsLib; sc.onload = go; sc.onerror = function () { $('pr-file-l').textContent = f.name; toast(L.err, 'error'); }; document.head.appendChild(sc); }
       return; }
     if (/\.xlsx$/i.test(f.name)) { $('pr-file-l').textContent = L.reading; var fd = new FormData(); fd.append('_csrf', C.csrf); fd.append('action', 'parse_xlsx'); fd.append('file', f);
       fetch(C.selfUrl, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { $('pr-file-l').textContent = f.name;
-        if (!j.ok) return toast(j.error || L.err, 'error'); parsed = j.rows; if (!parsed || parsed.length < 2) return toast(L.noRows, 'error'); showMap(); }).catch(function () { toast(L.err, 'error'); }); return; }
-    var r = new FileReader(); r.onload = function () { parsed = parseCSV(String(r.result)); if (parsed.length < 2) { toast(L.noRows, 'error'); return; } showMap(); }; r.readAsText(f, 'utf-8'); }
+        if (!j.ok) { $('pr-map').classList.add('hidden'); $('pr-import-go').classList.add('hidden'); return toast(j.error || L.err, 'error'); } ready(j.sheets || []); }).catch(function () { toast(L.err, 'error'); }); return; }
+    var r = new FileReader(); r.onload = function () { ready([{ name: f.name, rows: parseCSV(String(r.result)) }]); }; r.readAsText(f, 'utf-8'); }
   $('pr-file').addEventListener('change', function () { readFile(this.files[0]); });
   var drop = $('pr-file').closest('label'); ['dragover', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); if (ev === 'drop') readFile(e.dataTransfer.files[0]); }); });
   $('pr-import-go').addEventListener('click', function () {
     var b = this; b.disabled = true; b.textContent = L.busy;
-    var out = parsed.slice(1).map(function (r) { var o = {}; for (var k in map) o[k] = (r[map[k]] || '').trim(); return o; });
+    if (!count()) { b.disabled = false; return toast(L.noSheet, 'error'); }
+    var out = []; picked().forEach(function (sh) { var h = sh.rows[0].map(function (x) { return String(x).trim(); });
+      sh.rows.slice(1).forEach(function (r) { var o = {}; for (var k in map) { var i = h.indexOf(map[k]); if (i >= 0) o[k] = String(r[i] || '').trim(); } out.push(o); }); });
     post(C.importUrl, { action: 'import', rows: JSON.stringify(out) }).then(function (j) {
-      if (!j.ok) { b.disabled = false; b.textContent = L.go.replace('%s', parsed.length - 1); return toast(j.error || L.err, 'error'); }
+      if (!j.ok) { b.disabled = false; b.textContent = L.go.replace('%s', count()); return toast(j.error || L.err, 'error'); }
       toast(L.done.replace('%s', j.new).replace('%s', j.merged).replace('%s', j.skip)); setTimeout(function () { location.reload(); }, 1100);
     }).catch(function () { b.disabled = false; toast(L.err, 'error'); });
   });

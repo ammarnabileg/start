@@ -8,8 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'parse
     header('Content-Type: application/json; charset=utf-8');
     $f = $_FILES['file'] ?? null;
     if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || $f['size'] > 10 * 1048576) { echo json_encode(['ok' => false, 'error' => t('الملف كبير أو مارفعش (الحد 10 ميجا).')], JSON_UNESCAPED_UNICODE); exit; }
-    try { $rows = xlsx_rows($f['tmp_name']); } catch (Throwable $e) { echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
-    echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE); exit;
+    try { $sheets = xlsx_sheets($f['tmp_name']); } catch (Throwable $e) { echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
+    echo json_encode(['ok' => true, 'sheets' => $sheets], JSON_UNESCAPED_UNICODE); exit;
 }
 $where = 'l.workspace_id = ?'; $args = [$wid];
 if (!$canManage) { $where .= ' AND (l.owner_id = ? OR l.owner_id IS NULL)'; $args[] = $uid; }
@@ -112,7 +112,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     </dialog>
     <style>.tg-chip{font-size:.8125rem;border-radius:9999px;border:1px solid rgb(226 232 240);padding:.2rem .6rem;color:rgb(71 85 105)}.tg-chip span{opacity:.6;margin-inline-start:.25rem}.tg-chip.on{background:rgb(15 23 42);border-color:rgb(15 23 42);color:#fff}dialog[open]{animation:prIn .18s ease-out}@keyframes prIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}</style>
     <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'selfUrl' => url('prospects'), 'xlsLib' => 'assets/vendor/xlsx-0.20.3.full.min.js?v=' . APP_VERSION, 'findUrl' => url('crm_find'),
-        'L' => ['shown' => t('%s من %s'), 'pick' => t('اختار الملف أو اسحبه هنا'), 'rows' => t('%s صف في الملف'), 'go' => t('استورد %s عميل'), 'busy' => t('بنستورد…'), 'done' => t('اتضاف %s جديد، واتدمج %s، واتشال %s'),
+        'L' => ['shown' => t('%s من %s'), 'pick' => t('اختار الملف أو اسحبه هنا'), 'rows' => t('%s صف في الملف'), 'sheets' => t('الشيتات'), 'sheetRows' => t('%s صف'), 'noSheet' => t('اختار شيت واحد على الأقل.'), 'go' => t('استورد %s عميل'), 'busy' => t('بنستورد…'), 'done' => t('اتضاف %s جديد، واتدمج %s، واتشال %s'),
         'cols' => ['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظة')], 'skip' => t('— تجاهل —'),
         'noRows' => t('الملف فاضي أو مش CSV ولا Excel.'), 'reading' => t('بنقرا الملف…'), 'searching' => t('بندوّر…'), 'found' => t('%s نتيجة'), 'nothing' => t('مفيش نتايج. جرّب كلمات تانية.'), 'have' => t('عندك'), 'revealing' => t('بنكشف…'), 'revealed' => t('اتضاف %s عميل'), 'err' => t('حصلت مشكلة.'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
