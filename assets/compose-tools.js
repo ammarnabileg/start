@@ -90,12 +90,14 @@
     if (len > 0 && len < 15 && !hasMedia) issues.push(T.cShort);
     if (/\{[a-z_]+\}/i.test(txt)) issues.push(T.cVar);
     if (/\[[^\]]{2,30}\]/.test(txt)) issues.push(T.cFill);
+    var wi = document.getElementById('whenInput'), md = document.querySelector('input.mode:checked');
+    if (wi && wi.value && (!md || md.value === 'schedule') && (X.black || []).length) { var wd = new Date(wi.value), dw = wd.getDay(), hm = wi.value.slice(11, 16); if ((X.black || []).some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; })) issues.push(T.cBlack); }
     if (!issues.length) ok.push(T.cOk);
     chk.innerHTML = issues.map(function (x) { return '<span class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5">⚠ ' + esc(x) + '</span>'; }).join('') +
       ok.map(function (x) { return '<span class="inline-flex items-center gap-1 rounded-full bg-lime-50 border border-lime-200 text-lime-800 px-2 py-0.5">✓ ' + esc(x) + '</span>'; }).join('');
   }
   var ct = null; function later() { clearTimeout(ct); ct = setTimeout(check, 250); }
-  ta.addEventListener('input', later); document.addEventListener('change', function (e) { if (e.target.name === 'accounts[]' || e.target.type === 'file') later(); });
+  ta.addEventListener('input', later); document.addEventListener('change', function (e) { if (e.target.name === 'accounts[]' || e.target.type === 'file' || e.target.id === 'whenInput' || e.target.classList.contains('mode')) later(); }); document.addEventListener('input', function (e) { if (e.target.id === 'whenInput') later(); });
   new MutationObserver(later).observe(document.getElementById('mediaPreview') || document.body, { childList: true, subtree: true });
   check();
 

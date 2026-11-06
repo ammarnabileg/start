@@ -4,24 +4,8 @@ $z = zernio_or_null($err);
 $fxd0 = getenv('UI_FIXTURES');
 if ($fxd0 && is_file($fxd0 . '/posts_fake_z.php')) $z = require $fxd0 . '/posts_fake_z.php'; // اختبارات بس: الكتابة بتتسجل بدل ما تتبعت
 
-/** المنصات بإعداداتها من منشور موجود (عشان التعديل والنسخ مايضيعوش حاجة) */
-function ps_platforms(array $p): array
-{
-    $pls = [];
-    foreach ($p['platforms'] ?? [] as $pl) {
-        $item = ['platform' => $pl['platform'], 'accountId' => pub_acc_id($pl['accountId'] ?? '')];
-        foreach (['customContent', 'platformSpecificData'] as $k) if (!empty($pl[$k])) $item[$k] = $pl[$k];
-        $pls[] = $item;
-    }
-    return $pls;
-}
-function ps_media(array $p): array
-{
-    return array_map(function ($m) { return array_intersect_key($m, array_flip(['type', 'url', 'altText', 'thumbnail'])); }, (array)($p['mediaItems'] ?? []));
-}
 /** ميعاد جديد لمنشور مجدول/مسودة.
  *  Zernio ممكن يرد 200 من غير ما يغير الميعاد، فبنتأكد بقراءة المنشور تاني. الميعاد بيتبعت UTC صريح (Z) عشان مايتفهمش بتوقيت تاني. */
-function ps_utc(DateTime $dt): string { $u = clone $dt; $u->setTimezone(new DateTimeZone('UTC')); return $u->format('Y-m-d\TH:i:s.000\Z'); }
 function ps_same_time(?string $got, DateTime $want): bool
 {
     if (!$got) return false;
@@ -104,29 +88,6 @@ function ps_duplicate(Zernio $z, string $id): string
     return (string)($r['post']['_id'] ?? '');
 }
 
-/**
- * صياغة مختلفة لنفس المنشور بالقواعد (من غير AI): بنغير إيموجي الافتتاحية، ونلف ترتيب السطور اللي في النص
- * (السطر الأول والهاشتاجات بيفضلوا مكانهم)، ونرتب الهاشتاجات، ونضيف ختام قصير مختلف. المعلومات نفسها مابتتغيرش.
- */
-function ps_vary_text(string $base, int $i): string
-{
-    if ($i === 0) return $base;
-    $ar = (bool)preg_match('/\p{Arabic}/u', $base);
-    $lines = preg_split('/\R/u', trim($base));
-    $tags = []; while ($lines && preg_match('/^(\s*#\S+\s*)+$/u', end($lines))) $tags = array_merge(preg_split('/\s+/', trim(array_pop($lines))), $tags);
-    $first = array_shift($lines);
-    $emo = ['🔔', '📌', '✨', '🚀', '📣', '💼', '⭐', '🔥'];
-    $first = preg_replace('/^[\p{So}\p{Sk}\x{FE0F}\x{200D}\s]+/u', '', (string)$first);
-    $first = $emo[($i - 1) % count($emo)] . ' ' . $first;
-    // نلف السطور اللي في النص (لو فيه سطور فاضية بنحافظ على الفقرات)
-    $mid = array_values(array_filter($lines, function ($x) { return trim($x) !== ''; }));
-    if (count($mid) > 2) { $r = $i % count($mid); $mid = array_merge(array_slice($mid, $r), array_slice($mid, 0, $r)); }
-    if ($tags) { $r = $i % count($tags); $tags = array_merge(array_slice($tags, $r), array_slice($tags, 0, $r)); }
-    $ends = $ar ? ['قدّم الآن ولا تفوّت الفرصة 👇', 'شارك المنشور مع من يحتاجه 🙌', 'كل التفاصيل في الأعلى ✅', 'راسلنا لأي استفسار 💬'] : ['Apply now 👇', 'Share this with someone who needs it 🙌', 'Full details above ✅', 'Message us with any questions 💬'];
-    $out = $first . "\n\n" . implode("\n", $mid) . "\n\n" . $ends[($i - 1) % count($ends)];
-    if ($tags) $out .= "\n\n" . implode(' ', $tags);
-    return mb_substr($out, 0, 5000);
-}
 
 /** عنصر التقويم */
 function ps_cal_item(array $p): ?array
@@ -135,6 +96,8 @@ function ps_cal_item(array $p): ?array
     return ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'mv' => in_array((string)($p['status'] ?? ''), ['scheduled', 'draft'], true) && !empty($p['scheduledFor']),
         'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))),
         'ac' => array_values(array_unique(array_filter(array_map(function ($pl) { return (string)pub_acc_id($pl['accountId'] ?? ''); }, $p['platforms'] ?? [])))),
+        'tg' => (function ($id) { static $m = null; if ($m === null) $m = (function_exists('an_tags_available') && an_tags_available()) ? an_tags_map() : []; return $m[$id] ?? []; })((string)($p['_id'] ?? '')),
+        'eg' => (function ($id) { static $e = null; if ($e === null) { $e = []; try { $s = db()->prepare('SELECT post_id, every_days FROM post_evergreen WHERE workspace_id = ?'); $s->execute([(int)ws('id')]); foreach ($s->fetchAll() as $r) $e[$r['post_id']] = (int)$r['every_days']; } catch (Throwable $x) {} } return $e[$id] ?? 0; })((string)($p['_id'] ?? '')),
         'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : ''];
 }
 /** كل المنشورات المجدولة في فترة (مش أول 100 بس): صفحات مترتبة بالميعاد لحد ما نعدّي آخر الفترة */
@@ -202,6 +165,30 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 
     exit;
 }
 
+// #19 Evergreen: منشور ناجح بيتعاد كل X يوم بصياغة مختلفة (بالقواعد، من غير AI) — #20 أوقات ممنوعة للنشر
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['evergreen', 'blackout'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!can('posts.manage')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE));
+    $wid = (int)ws('id');
+    if ($_POST['action'] === 'blackout') {
+        $rules = [];
+        foreach ((array)json_decode((string)($_POST['rules'] ?? '[]'), true) as $r) {
+            $d = array_values(array_intersect(array_map('intval', (array)($r['days'] ?? [])), range(0, 6)));
+            $f = preg_match('/^\d{2}:\d{2}$/', (string)($r['from'] ?? '')) ? $r['from'] : ''; $t2 = preg_match('/^\d{2}:\d{2}$/', (string)($r['to'] ?? '')) ? $r['to'] : '';
+            if ($d && $f !== '' && $t2 !== '') $rules[] = ['days' => $d, 'from' => $f, 'to' => $t2];
+        }
+        save_setting('ps_blackout_' . $wid, json_encode(array_slice($rules, 0, 10)));
+        exit(json_encode(['ok' => true, 'rules' => $rules], JSON_UNESCAPED_UNICODE));
+    }
+    $id = preg_replace('/[^\w-]/', '', (string)($_POST['id'] ?? '')); $every = max(0, min(365, (int)($_POST['every'] ?? 0)));
+    if ($id === '') exit(json_encode(['ok' => false], JSON_UNESCAPED_UNICODE));
+    if (!$every) db()->prepare('DELETE FROM post_evergreen WHERE workspace_id = ? AND post_id = ?')->execute([$wid, $id]);
+    else db()->prepare('INSERT INTO post_evergreen (workspace_id, post_id, every_days, next_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE every_days = VALUES(every_days), next_at = VALUES(next_at), last_error = NULL')
+        ->execute([$wid, $id, $every, date('Y-m-d H:i:s', time() + $every * 86400)]);
+    log_activity('post.evergreen', $id . ' ' . $every);
+    exit(json_encode(['ok' => true, 'every' => $every], JSON_UNESCAPED_UNICODE));
+}
+
 // #15 أفكار الأسبوع (AI، بيصرف كريديت بس لما تدوس): 7 أفكار من بيانات الشركة في قاعدة المعرفة + المواسم الجاية
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'week_ideas') {
     header('Content-Type: application/json; charset=utf-8');
@@ -247,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
         log_activity('post.tags', count($ids) . ' ' . implode(',', $new));
         exit(json_encode(['ok' => array_keys($out), 'tags' => $out, 'failed' => []], JSON_UNESCAPED_UNICODE));
     }
-    $need = in_array($op, ['dup', 'repost', 'note'], true) ? 'posts.create' : 'posts.manage';
+    $need = in_array($op, ['dup', 'repost', 'note', 'copyshift'], true) ? 'posts.create' : 'posts.manage';
     if (!can($need)) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
     $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 50);
     $tz = new DateTimeZone(site_timezone());
@@ -303,6 +290,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 pub_retry_post($z, $id); log_activity('post.retry', $id);
             } elseif ($op === 'dup') {
                 ps_duplicate($z, $id); log_activity('post.duplicate', $id);
+            } elseif ($op === 'copyshift') { // #22 نسخ الأسبوع: نسخة من المنشور بعد N يوم في نفس الساعة
+                if (!can('posts.create')) throw new ZernioException(t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.'));
+                $p = pub_get_post($z, $id); if (empty($p['scheduledFor'])) throw new ZernioException(t('المنشور ده مش مجدول.'));
+                $dt = new DateTime((string)$p['scheduledFor']); $dt->setTimezone($tz); $dt->modify('+' . max(1, min(60, (int)($_POST['n'] ?? 7))) . ' day');
+                ps_repost($z, $id, $dt); log_activity('post.copy_week', $id);
+            } elseif ($op === 'from_draft') { // #17 املا الفراغات: المسودة تتجدول في ميعاد فاضي (نسخة مجدولة والمسودة تتمسح)
+                $dt = DateTime::createFromFormat('Y-m-d\TH:i', (string)($_POST['when'] ?? ''), $tz);
+                if (!$dt || $dt < new DateTime('now', $tz)) throw new ZernioException(t('وقت النشر لازم يكون في المستقبل.'));
+                $nid = ps_repost($z, $id, $dt); if ($nid !== '') { try { $z->deletePost($id); } catch (ZernioException $e) {} }
+                log_activity('post.fill_gap', $id . ' ' . $dt->format('Y-m-d H:i'));
             } else {
                 throw new ZernioException('bad op');
             }
@@ -394,6 +391,7 @@ foreach ($apiRows as $r) {
 }
 
 $tagsMap = (function_exists('an_tags_available') && an_tags_available()) ? an_tags_map() : [];
+$egMap = []; try { $egq = db()->prepare('SELECT post_id, every_days FROM post_evergreen WHERE workspace_id = ?'); $egq->execute([(int)ws('id')]); foreach ($egq->fetchAll() as $r) $egMap[$r['post_id']] = (int)$r['every_days']; } catch (Throwable $e) {}
 $counts = [];
 if ($z && $fixture && is_file($fixture)) {
     $counts = ['scheduled' => 0, 'failed' => 0, 'draft' => 0, 'published' => 0];
@@ -577,7 +575,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           ?>
           <?php $mx = $pm($p); if ($mx) $pdata[$p['_id']]['m'] = $mx; ?>
           <?php $pnotes = $notesMap[$p['_id']] ?? []; $pdata[$p['_id']]['notes'] = $pnotes; ?>
-          <?php $ptags = $tagsMap[$p['_id']] ?? []; $pdata[$p['_id']]['tags'] = $ptags; $pdata[$p['_id']]['acc'] = array_values(array_filter($accIds)); ?>
+          <?php $ptags = $tagsMap[$p['_id']] ?? []; $pdata[$p['_id']]['tags'] = $ptags; $pdata[$p['_id']]['eg'] = $egMap[$p['_id']] ?? 0; $pdata[$p['_id']]['acc'] = array_values(array_filter($accIds)); ?>
           <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
@@ -674,6 +672,16 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             <button type="button" data-calv="month" class="cal-v h-8 px-2.5 rounded-lg text-xs"><?= e(t('شهر')) ?></button>
             <button type="button" data-calv="week" class="cal-v h-8 px-2.5 rounded-lg text-xs"><?= e(t('أسبوع')) ?></button>
           </div>
+          <select id="cal-acc" class="input !mt-0 !h-8 !py-0 !w-auto text-xs"><option value=""><?= e(t('كل الحسابات')) ?></option><?php foreach (($accounts ?? []) as $aid => $a): ?><option value="<?= e($aid) ?>"><?= e($a['name']) ?><?= $a['plat'] ? ' · ' . e($a['plat']) : '' ?></option><?php endforeach; ?></select>
+          <?php if (can('posts.manage')): ?>
+          <details class="relative" id="cal-tools"><summary class="tb px-3 text-xs list-none cursor-pointer">⚙️ <?= e(t('أدوات')) ?></summary>
+            <div class="absolute start-0 mt-1 z-40 w-52 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col text-sm">
+              <button type="button" data-ct="gaps" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">🧩 <?= e(t('املا الفراغات')) ?></button>
+              <button type="button" data-ct="copyw" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⧉ <?= e(t('انسخ الأسبوع للجاي')) ?></button>
+              <button type="button" data-ct="pause" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⏸ <?= e(t('أجّل فترة')) ?></button>
+              <button type="button" data-ct="black" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⛔ <?= e(t('أوقات ممنوعة')) ?></button>
+            </div></details>
+          <?php endif; ?>
           <div class="ms-auto flex flex-wrap gap-3 text-[11px] text-ink-500">
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500"></span><?= e(t('مجدول')) ?></span>
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-lime-500"></span><?= e(t('تم النشر')) ?></span>
@@ -714,11 +722,11 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     <script>window.PSX = <?= json_encode(['calRange' => $calRange, 'calUrl' => url('posts', ['ajax' => 'cal']), 'view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
       'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
-      'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
+      'q' => ['canEg' => can('posts.manage'), 'open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
         'csvH' => ['id', 'status', 'time', 'platforms', 'text', 'links', 'errors', 'impressions', 'likes', 'comments', 'shares', 'engagement_rate'],
         'mImp' => t('مرات الظهور'), 'mLikes' => t('إعجاب'), 'mCom' => t('تعليق'), 'mSh' => t('مشاركة'), 'mRate' => t('نسبة التفاعل'), 'perf' => t('الأداء'),
         'notesL' => t('ملاحظات الفريق'), 'notePh' => t('ملاحظة داخلية للفريق (مش هتتنشر)…'), 'noteAdd' => t('ضيف'), 'canNote' => ps_notes_ok() && can('posts.create'),
-        'repost' => t('انشره تاني'), 'repostAt' => t('في ميعاد'), 'reposted' => t('اتعمل %s نسخة مجدولة'), 'rpQ' => t('هيتعمل %s نسخة مجدولة من المنشورات المحددة، أول واحدة %s وكل نسخة بعد %s يوم. تكمل؟'), 'pickT' => t('اختار ميعاد'),
+        'repost' => t('انشره تاني'), 'egT' => t('♻️ Evergreen: بيتعاد لوحده بصياغة جديدة'), 'egEvery' => t('كل كام يوم'), 'egOn2' => t('شغّل'), 'egOff' => t('وقّف'), 'egSaved' => t('اتحفظ ✓'), 'repostAt' => t('في ميعاد'), 'reposted' => t('اتعمل %s نسخة مجدولة'), 'rpQ' => t('هيتعمل %s نسخة مجدولة من المنشورات المحددة، أول واحدة %s وكل نسخة بعد %s يوم. تكمل؟'), 'pickT' => t('اختار ميعاد'),
         'tagsL' => t('التاجات'), 'tagsPh' => t('مثلاً: رمضان، عروض، فرع الرياض'), 'tagged' => t('اتحط التاج على %s منشور'), 'tagSaved' => t('اتحفظت التاجات'), 'canTag' => function_exists('an_tags_available') && an_tags_available() && can('posts.create'),
         'loading' => t('بنحمّل…'), 'pageOf' => t('(صفحة %s من %s)'), 'keysExtra' => [['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')]],
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
@@ -726,6 +734,14 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'calLoading' => t('بنجيب منشورات الفترة دي…'),
         'seasons' => function_exists('ps_seasons') ? ps_seasons(date('Y-m-d', strtotime('-40 days')), date('Y-m-d', strtotime('+400 days'))) : [], 'compose' => url('compose'),
 'noKb' => t('الأفكار هتبقى أدق لو ملّيت قاعدة المعرفة (خدماتك وأسعارك وجمهورك).'), 'mkPost' => t('اعمل منشور'), 'ideasT' => t('أفكار الأسبوع'), 'thinking' => t('بنفكّر…'),
+        'blackout' => json_decode((string)setting('ps_blackout_' . (int)ws('id'), '[]'), true) ?: [], 'canManage' => can('posts.manage'), 'bulkUrl' => can('posts.create') ? url('bulk', ['drop' => 1]) : '',
+        'accs' => array_map(function ($a) { return $a['name'] . ($a['plat'] ? ' · ' . $a['plat'] : ''); }, $accounts ?? []),
+        'tPause' => t('أجّل فترة'), 'tCopyW' => t('انسخ الأسبوع للجاي'), 'tGaps' => t('املا الفراغات'), 'tBlack' => t('أوقات ممنوعة'), 'tAllAcc' => t('كل الحسابات'),
+        'pFrom' => t('من يوم (YYYY-MM-DD):'), 'pTo' => t('لحد يوم (YYYY-MM-DD):'), 'pDays' => t('أجّلهم كام يوم؟'), 'pDone' => t('اتأجل %s منشور، وفشل %s'), 'pNone' => t('مفيش منشورات مجدولة في الفترة دي.'),
+        'cwQ' => t('هيتعمل نسخة من %s منشور في الأسبوع ده للأسبوع الجاي في نفس المواعيد. تكمل؟'), 'cwDone' => t('اتنسخ %s منشور للأسبوع الجاي ✓'), 'cwNone' => t('مفيش منشورات مجدولة في الأسبوع ده.'),
+        'gNone' => t('مفيش مسودات تتجدول، أو مفيش أيام فاضية في الأسبوعين الجايين.'), 'gQ' => t('هتتجدول %s مسودة في الأيام الفاضية:'), 'gDone' => t('اتجدول %s مسودة ✓'), 'gHour' => (int)(function_exists('best_slots_local') && $z ? ((best_slots_local($z, 1)[0]['hour'] ?? 11)) : 11),
+        'bT' => t('أوقات ممنوعة للنشر'), 'bHint' => t('مثلاً صلاة الجمعة أو بعد نص الليل. صفحة الإنشاء بتنبهك لو اخترت وقت منهم، و"املا الفراغات" بيتجنبها.'), 'bAdd' => t('+ قاعدة'), 'bSaved' => t('اتحفظت ✓'), 'bWarn' => t('الوقت ده من الأوقات الممنوعة للنشر'),
+        'dows' => [t('الأحد'), t('الاتنين'), t('التلات'), t('الأربع'), t('الخميس'), t('الجمعة'), t('السبت')], 'dropT' => t('سيب ملف Excel/CSV هنا عشان يترفع جماعي'), 'egOn' => t('بيتعاد كل %s يوم'),
         'sPrep' => t('حضّر منشور'), 'sSoon' => t('مواسم جاية'), 'sApprox' => t('التاريخ تقريبي'), 'ideas' => t('أفكار الأسبوع ✦'),
         'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور على نفس الحساب)'), 'hLimit' => t('حد الزحمة لكل حساب في اليوم'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
         'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'fast' => t('صياغات سريعة'), 'fastT' => t('بالقواعد من غير ذكاء اصطناعي ولا كريديت: بنغير الافتتاحية وترتيب السطور والختام'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,

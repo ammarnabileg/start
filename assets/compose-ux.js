@@ -240,12 +240,21 @@
         else if (k === 'w4') { for (var i = 1; i <= 4; i++) addExtra(plus(base, 7 * i)); }
       };
     });
-    var rg = $('#cp-rep-go'), rgT = rg ? rg.textContent : '';
+    var rg = $('#cp-rep-go'), rgT = rg ? rg.textContent : '', rk = $('#cp-rep-k');
+    if (rk) rk.addEventListener('change', function () { var d = rk.value === 'd'; $('#cp-rep-n').classList.toggle('hidden', !d); $('#cp-rep-u').classList.toggle('hidden', !d); });
     if (rg) rg.onclick = function () {
       var n = Math.max(1, Math.min(365, +$('#cp-rep-n').value || 1)), c = Math.max(1, Math.min(60, +$('#cp-rep-c').value || 1));
       var base = wi && wi.value ? new Date(wi.value) : new Date();
       xbox.innerHTML = ''; // التكرار بيبدل المواعيد الإضافية
-      for (var i = 1; i < c; i++) { var x = new Date(base); x.setDate(x.getDate() + n * i); addExtra(local(x)); }
+      var kind = ($('#cp-rep-k') || {}).value || 'd';
+      for (var i = 1; i < c; i++) {
+        var x = new Date(base);
+        if (kind === 'w') x.setDate(x.getDate() + 7 * i);
+        else if (kind === 'm') { var dd = base.getDate(); x.setDate(1); x.setMonth(base.getMonth() + i); x.setDate(Math.min(dd, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); }
+        else if (kind === 'mf') { x.setDate(1); x.setMonth(base.getMonth() + i); }
+        else x.setDate(x.getDate() + n * i);
+        addExtra(local(x));
+      }
       summary(); rg.textContent = '✓'; setTimeout(function () { rg.textContent = rgT; }, 1200);
     };
   }

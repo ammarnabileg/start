@@ -65,6 +65,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' auto_leads=error';
         }
+        // #19 Evergreen: المنشورات الناجحة بتتعاد بصياغة جديدة
+        try {
+            $n = (int)ai_as_workspace($wid, function () { $z = zernio_or_null(); return $z && function_exists('ps_evergreen_tick') ? ps_evergreen_tick($z) : 0; });
+            if ($n) $line .= ' evergreen+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' evergreen=error';
+        }
         // #74 تذكير بالاجتماعات المحجوزة
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_meeting_reminders() : 0; });

@@ -114,7 +114,8 @@
       var w = calV === 'week' && weekBox; grid.classList.toggle('hidden', w); dow.classList.toggle('hidden', w); if (weekBox) weekBox.classList.toggle('hidden', !w);
       return w ? drawWeek() : drawMonth();
     }
-    function filtered() { var v = q ? q.value.trim().toLowerCase() : ''; return X.data.filter(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return false; if (pf && p.pf.indexOf(pf) < 0) return false; return !isNaN(new Date(p.at)); }); }
+    var cAcc = '';
+    function filtered() { var v = q ? q.value.trim().toLowerCase() : ''; return X.data.filter(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return false; if (pf && p.pf.indexOf(pf) < 0) return false; if (cAcc && (p.ac || []).indexOf(cAcc) < 0) return false; return !isNaN(new Date(p.at)); }); }
     function drawWeek() {
       var days = []; for (var i = 0; i < 7; i++) { var d = new Date(wk); d.setDate(wk.getDate() + i); days.push(d); }
       var end = days[6];
@@ -137,7 +138,7 @@
     function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function drawMonth() {
       var v = q ? q.value.trim().toLowerCase() : '', by = {};
-      X.data.forEach(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return; if (pf && p.pf.indexOf(pf) < 0) return; var d = new Date(p.at); if (isNaN(d)) return; var sp = siteParts(d), kk = sp.y + '-' + sp.m + '-' + sp.d; (by[kk] = by[kk] || []).push(p); });
+      X.data.forEach(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return; if (pf && p.pf.indexOf(pf) < 0) return; if (cAcc && (p.ac || []).indexOf(cAcc) < 0) return; var d = new Date(p.at); if (isNaN(d)) return; var sp = siteParts(d), kk = sp.y + '-' + sp.m + '-' + sp.d; (by[kk] = by[kk] || []).push(p); });
       $('#cal-title').textContent = cur.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
       // أيام فاضية في الأسبوعين الجايين (مفيش ولا منشور مجدول)
       var gapSet = {}, gapN = 0, t0 = new Date(); t0.setHours(0, 0, 0, 0);
@@ -224,7 +225,88 @@
         $('#cal-dups-h').textContent = '💡 ' + X.q.ideasT; dm.classList.remove('hidden'); dm.setAttribute('aria-hidden', 'false');
       }).catch(function () { ib.disabled = false; ib.textContent = o; toast(X.err); });
     }
-    var _d0 = draw; draw = function () { _d0(); health(); seasons(); }; window.__cal = draw;
+    /* ---------- #23 ألوان حسب التاج + ♻️ Evergreen على العناصر ---------- */
+    var TAGC = ['bg-violet-500', 'bg-amber-500', 'bg-cyan-500', 'bg-rose-500', 'bg-emerald-500', 'bg-fuchsia-500', 'bg-orange-500', 'bg-teal-500'];
+    function tagColor(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return TAGC[h % TAGC.length]; }
+    function decorate() {
+      var byId = {}; X.data.forEach(function (p) { byId[p.id] = p; });
+      $$('#cal-grid a[href*="post_edit"], #cal-week a[href*="post_edit"]').forEach(function (a) {
+        var m = /[?&]id=([^&]+)/.exec(a.getAttribute('href')), p = m && byId[decodeURIComponent(m[1])]; if (!p || a.querySelector('.cal-tg')) return;
+        if (p.tg && p.tg.length) { var s = document.createElement('span'); s.className = 'cal-tg inline-block w-1.5 h-3 rounded-sm me-1 align-middle ' + tagColor(p.tg[0]); s.title = '#' + p.tg.join(' #'); a.insertBefore(s, a.firstChild); }
+        if (p.eg) { var e2 = document.createElement('span'); e2.className = 'cal-tg'; e2.textContent = '♻️'; e2.title = X.q.egOn.replace('%s', p.eg); a.appendChild(e2); }
+      });
+    }
+    /* ---------- #24 تقويم لحساب واحد ---------- */
+    var ca = $('#cal-acc'); if (ca) ca.addEventListener('change', function () { cAcc = ca.value; draw(); });
+    /* ---------- أدوات التقويم: #17 #21 #22 #20 ---------- */
+    var ctl = $('#cal-tools');
+    function sched() { return X.data.filter(function (p) { return p.st === 'scheduled' && new Date(p.at) > new Date(); }); }
+    function runSeq(ids, op, extraFn, doneMsg) {
+      var ok = 0, bad = 0, i = 0;
+      (function next() {
+        if (i >= ids.length) { toast(doneMsg.replace('%s', ok).replace('%s', bad), true); setTimeout(function () { location.reload(); }, 1100); return; }
+        var id = ids[i++]; psQuick(op, [id], extraFn ? extraFn(id) : {}).then(function (d) { (d.ok || []).length ? ok++ : bad++; next(); }).catch(function () { bad++; next(); });
+      })();
+    }
+    function inBlack(d) { var r = X.q.blackout || [], dw = +siteDT(d).slice(0, 10).split('-').length && new Date(siteDT(d).slice(0, 10) + 'T12:00').getDay(), hm = siteDT(d).slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
+    window.__psInBlack = inBlack;
+    if (ctl) ctl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ct]'); if (!b) return; ctl.open = false; var k = b.dataset.ct;
+      if (k === 'pause') {
+        var f = prompt(X.q.pFrom, siteDT(new Date()).slice(0, 10)); if (!f) return; var t = prompt(X.q.pTo, f); if (!t) return; var n = parseInt(prompt(X.q.pDays, '1'), 10); if (!n) return;
+        var ids = sched().filter(function (p) { var d = siteDT(new Date(p.at)).slice(0, 10); return d >= f && d <= t; }).map(function (p) { return p.id; });
+        if (!ids.length) return toast(X.q.pNone);
+        return runSeq(ids, 'shift', function () { return { n: n, unit: 'd' }; }, X.q.pDone);
+      }
+      if (k === 'copyw') {
+        var ws0 = calV === 'week' ? new Date(wk) : (function () { var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d; })(), we = new Date(ws0); we.setDate(we.getDate() + 7);
+        var ids2 = sched().filter(function (p) { var d = new Date(p.at); return d >= ws0 && d < we; }).map(function (p) { return p.id; });
+        if (!ids2.length) return toast(X.q.cwNone); if (!confirm(X.q.cwQ.replace('%s', ids2.length))) return;
+        return runSeq(ids2, 'copyshift', function () { return { n: 7 }; }, X.q.cwDone);
+      }
+      if (k === 'gaps') {
+        var drafts = X.data.filter(function (p) { return p.st === 'draft'; }), busy = {};
+        sched().forEach(function (p) { busy[siteDT(new Date(p.at)).slice(0, 10)] = 1; });
+        var plan = [], day = new Date();
+        for (var i = 1; i <= 14 && plan.length < drafts.length; i++) {
+          var d = new Date(day.getTime() + i * 864e5), key2 = siteDT(d).slice(0, 10); if (busy[key2]) continue;
+          var when = key2 + 'T' + pad(X.q.gHour) + ':00', probe = new Date(when);
+          if (inBlack(probe)) { when = key2 + 'T' + pad((X.q.gHour + 3) % 24) + ':00'; if (inBlack(new Date(when))) continue; }
+          plan.push({ id: drafts[plan.length].id, when: when, txt: drafts[plan.length].txt });
+        }
+        if (!plan.length) return toast(X.q.gNone);
+        if (!confirm(X.q.gQ.replace('%s', plan.length) + '\n\n' + plan.map(function (x) { return x.when.replace('T', ' ') + ' — ' + x.txt.slice(0, 40); }).join('\n'))) return;
+        var byW = {}; plan.forEach(function (x) { byW[x.id] = x.when; });
+        return runSeq(plan.map(function (x) { return x.id; }), 'from_draft', function (id) { return { when: byW[id] }; }, X.q.gDone);
+      }
+      if (k === 'black') return blackDlg();
+    });
+    function blackDlg() {
+      var rules = (X.q.blackout || []).slice(); if (!rules.length) rules.push({ days: [5], from: '11:00', to: '13:30' });
+      function rowH(r, i) { return '<div class="rounded-xl border border-ink-200 p-2 space-y-1.5" data-br="' + i + '"><div class="flex flex-wrap gap-1">' + X.q.dows.map(function (n, d) { return '<label class="cursor-pointer"><input type="checkbox" class="peer sr-only" value="' + d + '"' + (r.days.indexOf(d) > -1 ? ' checked' : '') + '><span class="inline-block px-2 py-0.5 rounded-lg border border-ink-200 text-[11px] peer-checked:bg-brand-600 peer-checked:text-white">' + esc(n) + '</span></label>'; }).join('') + '</div>' +
+        '<div class="flex items-center gap-2 text-xs"><input type="time" class="input !mt-0 !py-1 text-xs" data-k="from" value="' + r.from + '"> → <input type="time" class="input !mt-0 !py-1 text-xs" data-k="to" value="' + r.to + '"><button type="button" class="ms-auto text-ink-400 hover:text-red-600" data-brx>✕</button></div></div>'; }
+      dmb.innerHTML = '<p class="text-xs text-ink-500">' + esc(X.q.bHint) + '</p><div id="br-list" class="space-y-2">' + rules.map(rowH).join('') + '</div><div class="flex gap-2"><button type="button" class="btn-ghost !py-1 !text-xs" id="br-add">' + esc(X.q.bAdd) + '</button><button type="button" class="btn-primary !py-1 !text-xs ms-auto" id="br-save">' + esc(X.q.applyV ? X.saved || '✓' : '✓') + '</button></div>';
+      $('#cal-dups-h').textContent = '⛔ ' + X.q.bT; dm.classList.remove('hidden'); dm.setAttribute('aria-hidden', 'false');
+      $('#br-add').onclick = function () { $('#br-list').insertAdjacentHTML('beforeend', rowH({ days: [], from: '00:00', to: '07:00' }, Date.now())); };
+      $('#br-list').addEventListener('click', function (e) { if (e.target.closest('[data-brx]')) e.target.closest('[data-br]').remove(); });
+      $('#br-save').onclick = function () {
+        var out = $$('#br-list [data-br]').map(function (r) { return { days: $$('input[type=checkbox]:checked', r).map(function (c) { return +c.value; }), from: $('[data-k=from]', r).value, to: $('[data-k=to]', r).value }; });
+        var fd = new FormData(); fd.append('action', 'blackout'); fd.append('rules', JSON.stringify(out));
+        fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) { X.q.blackout = j.rules; toast(X.q.bSaved, true); dm.classList.add('hidden'); } });
+      };
+    }
+    /* ---------- #25 اسحب ملف Excel/CSV على التقويم → الرفع الجماعي ---------- */
+    var pc = $('#ps-cal');
+    if (pc && X.q.bulkUrl) {
+      pc.addEventListener('dragover', function (e) { if (e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], 'Files') > -1) { e.preventDefault(); pc.classList.add('ring-4', 'ring-brand-300'); } });
+      pc.addEventListener('dragleave', function (e) { if (!pc.contains(e.relatedTarget)) pc.classList.remove('ring-4', 'ring-brand-300'); });
+      pc.addEventListener('drop', function (e) {
+        var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; pc.classList.remove('ring-4', 'ring-brand-300');
+        if (!f || !/\.(csv|xlsx|xls|tsv|txt)$/i.test(f.name)) return; e.preventDefault();
+        var rd = new FileReader(); rd.onload = function () { try { sessionStorage.setItem('bk-drop', JSON.stringify({ name: f.name, type: f.type, data: rd.result })); } catch (x) { return toast(X.err); } location.href = X.q.bulkUrl; }; rd.readAsDataURL(f);
+      });
+    }
+    var _d0 = draw; draw = function () { _d0(); health(); seasons(); decorate(); }; window.__cal = draw;
     var dm = $('#cal-dups'), dmb = $('#cal-dups-body');
     function closeDups() { dm.classList.add('hidden'); dm.setAttribute('aria-hidden', 'true'); }
     if (dm) { $$('[data-close]', dm).forEach(function (x) { x.onclick = closeDups; }); document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dm.classList.contains('hidden')) closeDups(); }); }
@@ -393,6 +475,7 @@
         (canRes ? '<details class="rounded-xl border border-ink-200 p-3"><summary class="cursor-pointer text-xs font-semibold text-ink-800">✎ ' + esc(Q.editT) + '</summary><textarea id="ps-dr-txt" rows="6" class="input mt-2 text-sm" dir="auto">' + esc(d.txt) + '</textarea><div class="flex justify-end mt-2"><button type="button" id="ps-dr-tsave" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></details>' : '') +
         (canRes ? '<div class="rounded-xl border border-brand-200 bg-brand-50/50 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🗓 ' + esc(Q.resched) + '</div><div class="flex gap-2"><input type="datetime-local" id="ps-dr-when" class="input !mt-0 !h-9 text-sm flex-1" dir="ltr" value="' + (d.sched ? (window.__siteDT ? window.__siteDT(new Date(d.sched)) : local(new Date(d.sched))) : '') + '"><button type="button" id="ps-dr-save" class="btn-primary !text-xs">' + esc(Q.save) + '</button></div></div>' : '') +
         (X.canDup ? '<div class="rounded-xl border border-lime-200 bg-lime-50/40 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🔁 ' + esc(Q.repost) + '</div><div class="flex gap-2"><input type="datetime-local" id="ps-dr-rp" class="input !mt-0 !h-9 text-sm flex-1" dir="ltr"><button type="button" id="ps-dr-rpgo" class="btn-ghost !text-xs">' + esc(Q.repost) + '</button></div></div>' : '') +
+        (Q.canEg && d.st === 'published' ? '<div class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">' + esc(Q.egT) + '</div><div class="flex items-center gap-2 text-xs"><span>' + esc(Q.egEvery) + '</span><input type="number" min="3" max="365" id="ps-dr-eg" class="input !mt-0 !h-9 !w-20 text-sm" value="' + (d.eg || 30) + '"><button type="button" id="ps-dr-egon" class="btn-ghost !text-xs">' + esc(d.eg ? Q.egSaved.replace(' ✓', '') + ' ✓' : Q.egOn2) + '</button>' + (d.eg ? '<button type="button" id="ps-dr-egoff" class="btn-ghost !text-xs text-red-600">' + esc(Q.egOff) + '</button>' : '') + '</div></div>' : '') +
         (Q.canNote ? '<div class="rounded-xl border border-amber-200 bg-amber-50/40 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">📝 ' + esc(Q.notesL) + '</div><div id="ps-dr-notes" class="space-y-1.5 mb-2">' + notesHtml(d.notes) + '</div><div class="flex gap-2"><input id="ps-dr-note" class="input !mt-0 !h-9 text-sm flex-1" dir="auto" maxlength="1000" placeholder="' + esc(Q.notePh) + '"><button type="button" id="ps-dr-ngo" class="btn-ghost !text-xs">' + esc(Q.noteAdd) + '</button></div></div>' : '') +
         (Q.canTag ? '<div class="rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-xs font-semibold text-ink-800 mb-2">🏷 ' + esc(Q.tagsL) + '</div><div class="flex gap-2"><input id="ps-dr-tags" class="input !mt-0 !h-9 text-sm flex-1" list="ps-taglist" placeholder="' + esc(Q.tagsPh) + '" value="' + esc((d.tags || []).join('، ')) + '"><button type="button" id="ps-dr-tsv" class="btn-ghost !text-xs">' + esc(Q.save) + '</button></div></div>' : '') +
         (d.m ? '<div class="rounded-xl border border-ink-200 p-3"><div class="text-xs font-semibold text-ink-500 mb-2">📈 ' + esc(Q.perf) + '</div><div class="grid grid-cols-4 gap-2 text-center">' +
@@ -407,6 +490,9 @@
       var ids = visibleIds(), i = ids.indexOf(id); $('#ps-dr-prev').disabled = i <= 0; $('#ps-dr-next').disabled = i < 0 || i >= ids.length - 1;
       var rpIn = $('#ps-dr-rp'); if (rpIn) { var dd = new Date(); dd.setDate(dd.getDate() + 7); dd.setMinutes(0, 0, 0); rpIn.value = window.__siteDT ? window.__siteDT(dd) : ''; }
       var rpGo = $('#ps-dr-rpgo'); if (rpGo) rpGo.onclick = function () { var v = rpIn.value; if (!v) return toast(Q.pickT); rpGo.disabled = true; quick('repost', [id], { when: v, gap: 0 }).then(function (r) { rpGo.disabled = false; report(r, Q.reposted); }).catch(function (er) { rpGo.disabled = false; toast(er.message || X.err); }); };
+      function egSet(n) { var fd = new FormData(); fd.append('action', 'evergreen'); fd.append('id', id); fd.append('every', n); return fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }); }
+      var egOn = $('#ps-dr-egon'); if (egOn) egOn.onclick = function () { var n = Math.max(3, +$('#ps-dr-eg').value || 30); egSet(n).then(function (r) { if (r.ok) { d.eg = n; toast(Q.egSaved, true); } else toast(r.error || X.err); }); };
+      var egOff = $('#ps-dr-egoff'); if (egOff) egOff.onclick = function () { egSet(0).then(function (r) { if (r.ok) { d.eg = 0; toast(Q.egSaved, true); egOff.remove(); } }); };
       var nGo = $('#ps-dr-ngo'); if (nGo) nGo.onclick = function () {
         var inp = $('#ps-dr-note'), v = inp.value.trim(); if (!v) return inp.focus(); nGo.disabled = true;
         quick('note', [id], { body: v }).then(function (r) {

@@ -47,6 +47,9 @@
     return [h].concat(rs).map(function (r) { return r.map(qv).join(','); }).join('\r\n') + '\r\n';
   }
 
+  // #25: ملف اتسحب على التقويم → يتحط هنا لوحده
+  setTimeout(function () { try { var dp = sessionStorage.getItem('bk-drop'); if (!dp) return; sessionStorage.removeItem('bk-drop'); var o = JSON.parse(dp), bin = atob(o.data.split(',')[1]), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    var inp = document.getElementById('bk-file'); if (!inp) return; var dt = new DataTransfer(); dt.items.add(new File([u], o.name, { type: o.type || 'text/csv' })); inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {} }, 300);
   /* ---------- فهم الأعمدة ---------- */
   var KNOWN = ['post_content', 'platforms', 'accounts', 'schedule_time', 'tz', 'media_urls', 'title', 'use_queue', 'publish_now', 'is_draft'];
   var ALIAS = {

@@ -686,9 +686,10 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               <button type="button" class="cp-x-add rounded-full border border-ink-200 px-2.5 py-1 text-ink-700 hover:border-brand-300" data-add="w4"><?= e(t('كل أسبوع لمدة شهر')) ?></button>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-1.5 rounded-xl bg-ink-50 border border-ink-200 p-2 text-xs" id="cp-rep">
-              <span class="font-medium text-ink-700">🔁 <?= e(t('كرّره كل')) ?></span>
+              <span class="font-medium text-ink-700">🔁 <?= e(t('كرّره')) ?></span>
+              <select id="cp-rep-k" class="input !mt-0 !h-8 !py-0 text-xs !w-auto"><option value="d"><?= e(t('كل كام يوم')) ?></option><option value="w"><?= e(t('كل أسبوع في نفس اليوم')) ?></option><option value="m"><?= e(t('كل شهر في نفس التاريخ')) ?></option><option value="mf"><?= e(t('أول يوم في كل شهر')) ?></option></select>
               <input type="number" id="cp-rep-n" min="1" max="365" value="3" class="input !mt-0 !h-8 !py-0 text-xs !w-16">
-              <span><?= e(t('يوم،')) ?></span>
+              <span id="cp-rep-u"><?= e(t('يوم،')) ?></span>
               <input type="number" id="cp-rep-c" min="1" max="60" value="10" class="input !mt-0 !h-8 !py-0 text-xs !w-16">
               <span><?= e(t('مرة')) ?></span>
               <button type="button" id="cp-rep-go" class="btn-primary !py-1 !text-xs"><?= e(t('طبّق')) ?></button>
@@ -784,10 +785,10 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             'tagsT' => t('بنك الهاشتاجات'), 'noTags' => t('لسه مفيش مجموعات. احفظ مجموعة هاشتاجات بتستخدمها كتير.'), 'tagName' => t('اسم المجموعة'), 'tagsHint' => t('احفظ كل مجموعة مرة واحدة واستخدمها بضغطة.'), 'tagNeed' => t('اكتب اسم وهاشتاج واحد على الأقل.'), 'save' => t('احفظ'), 'saved' => t('اتحفظ ✓'),
             'pickAcc' => t('اختار الحسابات الأول.'), 'empty' => t('اكتب النص الأول.'), 'verDone' => t('اتعملت نسخة لـ %s حساب. راجعها في إعدادات كل حساب تحت.'), 'verSame' => t('النص مناسب لكل الحسابات المختارة زي ما هو.'), 'linkBio' => t('🔗 اللينك في البايو'),
             'cLong' => t('%s: النص %s حرف والحد %s'), 'cMedia' => t('إنستجرام/تيك توك محتاجين صورة أو فيديو'), 'cTagsIg' => t('إنستجرام بيقبل 30 هاشتاج بس'), 'cTags' => t('%s هاشتاج كتير على فيسبوك/لينكدإن (الأحسن 3-5)'), 'cIgLink' => t('اللينكات في إنستجرام مش بتتضغط'),
-            'cBadLink' => t('اللينك شكله غلط: %s'), 'cCaps' => t('حروف كابيتال كتير ورا بعض'), 'cRepeat' => t('فيه حرف متكرر كتير'), 'cShort' => t('النص قصير أوي'), 'cVar' => t('فيه متغير زي {city} لسه ماتبدلش'), 'cFill' => t('فيه خانة [ ] لسه ماتملتش'), 'cOk' => t('جاهز للنشر'),
+            'cBadLink' => t('اللينك شكله غلط: %s'), 'cCaps' => t('حروف كابيتال كتير ورا بعض'), 'cRepeat' => t('فيه حرف متكرر كتير'), 'cShort' => t('النص قصير أوي'), 'cVar' => t('فيه متغير زي {city} لسه ماتبدلش'), 'cFill' => t('فيه خانة [ ] لسه ماتملتش'), 'cOk' => t('جاهز للنشر'), 'cBlack' => t('الميعاد ده من الأوقات الممنوعة للنشر'),
             'linkQ' => t('الرابط اللي عاوز تعمل منه منشور (مقال، منتج، صفحة):'), 'linking' => t('بنقرا الصفحة…'), 'imgAdded' => t('اتضافت صورة الصفحة للمنشور ✓'), 'noImg' => t('ارفع صورة أو اختار من المكتبة الأول.'), 'capping' => t('بنشوف الصورة ونكتب…'),
             'brandT' => t('هوية الصورة'), 'brandHint' => t('بيتطبق على الصور اللي رفعتها من جهازك قبل النشر. الإعدادات بتتحفظ للمرة الجاية.'), 'logo' => t('اللوجو'), 'pos' => t('المكان'), 'wm' => t('علامة مائية (نص)'), 'frame' => t('إطار بلون الشركة'), 'apply' => t('طبّق على الصور'), 'applied' => t('اتطبقت على %s صورة ✓'),
-            'posBR' => t('تحت يمين'), 'posBL' => t('تحت شمال'), 'posTR' => t('فوق يمين'), 'posTL' => t('فوق شمال'), 'size' => t('الحجم')], 'canAi' => can('ai.use') && (bool)ai_connection()], JSON_UNESCAPED_UNICODE) ?>;</script>
+            'posBR' => t('تحت يمين'), 'posBL' => t('تحت شمال'), 'posTR' => t('فوق يمين'), 'posTL' => t('فوق شمال'), 'size' => t('الحجم')], 'canAi' => can('ai.use') && (bool)ai_connection(), 'black' => json_decode((string)setting('ps_blackout_' . (int)ws('id'), '[]'), true) ?: []], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/compose-tools.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>
       (function () {
