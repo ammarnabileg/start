@@ -3935,4 +3935,5 @@ Payment: bank transfer.',
     'زيارات الصفحة' => 'Page visits',
     'مسودات' => 'Drafts',
     'التفاصيل' => 'Details',
+    'النتائج' => 'Results',
 ];
