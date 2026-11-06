@@ -575,7 +575,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
 
     <div id="ld-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="ld-fade absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
-      <form id="ld-form" class="ld-sheet absolute top-0 bottom-0 end-0 w-full sm:w-[520px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-d-title">
+      <form id="ld-form" class="ld-sheet absolute top-0 bottom-0 end-0 w-full sm:w-[600px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-d-title">
         <input type="hidden" name="id"><input type="hidden" name="action" value="save">
         <div class="px-4 pt-4 border-b border-ink-100 bg-gradient-to-b from-brand-50/70 to-white">
           <div class="flex items-start gap-3">
@@ -585,13 +585,12 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <button type="button" class="btn-ghost" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
           </div>
           <div id="ld-quick" class="flex flex-wrap gap-1.5 mt-3"></div>
-          <nav class="flex gap-1 mt-3 -mb-px overflow-x-auto" role="tablist" id="ld-tabs">
-            <?php foreach (['ov' => ['spark', t('نظرة عامة')], 'ct' => ['chat', t('تواصل')], 'dl' => ['wallet', t('صفقات ومتابعة')], 'dt' => ['layers', t('البيانات')]] as $tk => $tv): ?>
-              <button type="button" role="tab" data-tabbtn="<?= $tk ?>" class="ld-tabbtn shrink-0 px-3 py-2 text-sm border-b-2 border-transparent text-ink-500 hover:text-ink-900 transition inline-flex items-center gap-1.5"><?= ui_icon($tv[0], 'w-4 h-4') ?> <?= e($tv[1]) ?><span class="ld-tabn ms-1 text-[10px] text-ink-400"></span></button>
-            <?php endforeach; ?>
-          </nav>
+          <div class="h-3"></div>
         </div>
-        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="ov" role="tabpanel">
+        <div id="ld-scroll" class="flex-1 min-h-0 overflow-y-auto divide-y divide-ink-100">
+        <details class="ld-panel ld-sec group/sec" data-tab="ov" open>
+          <summary class="ld-sec-h"><span class="w-7 h-7 rounded-lg bg-ink-100 text-ink-600 grid place-items-center group-open/sec:bg-brand-600 group-open/sec:text-[#fff] transition"><?= ui_icon('spark', 'w-4 h-4') ?></span><span class="flex-1"><?= e(t('نظرة عامة')) ?></span><span class="ld-tabn text-[11px] text-ink-400"></span><?= ui_icon('chevron', 'w-4 h-4 text-ink-400 rotate-90 group-open/sec:-rotate-90 transition') ?></summary>
+          <div class="px-4 pb-4 space-y-4">
           <div id="ld-intel" class="rounded-xl bg-ink-50 border border-ink-200 p-3 text-xs space-y-1"></div>
           <div><span class="label"><?= e(t('المرحلة')) ?></span><div id="ld-stage-pick" class="flex flex-wrap gap-1.5">
             <?php foreach ($stages as $k => $lbl): ?><label class="cursor-pointer"><input type="radio" name="stage" value="<?= e($k) ?>" class="peer sr-only"><span class="inline-block px-2.5 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600 peer-focus-visible:ring-2 ring-brand-300"><?= e($lbl) ?></span></label><?php endforeach; ?>
@@ -608,8 +607,10 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <input class="input" type="datetime-local" name="next_at">
             <input class="input" name="next_note" maxlength="255" placeholder="<?= e(t('هتعمل إيه؟ (مثلاً: ابعتله عرض السعر)')) ?>">
           </div>
-        </div>
-        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="ct" role="tabpanel">
+        </div></details>
+        <details class="ld-panel ld-sec group/sec" data-tab="ct" open>
+          <summary class="ld-sec-h"><span class="w-7 h-7 rounded-lg bg-ink-100 text-ink-600 grid place-items-center group-open/sec:bg-brand-600 group-open/sec:text-[#fff] transition"><?= ui_icon('chat', 'w-4 h-4') ?></span><span class="flex-1"><?= e(t('تواصل')) ?></span><span class="ld-tabn text-[11px] text-ink-400"></span><?= ui_icon('chevron', 'w-4 h-4 text-ink-400 rotate-90 group-open/sec:-rotate-90 transition') ?></summary>
+          <div class="px-4 pb-4 space-y-4">
           <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg> <?= e(t('ابعت رسالة جاهزة')) ?></span>
               <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
@@ -625,7 +626,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           </div>
           <div class="rounded-xl border border-ink-200 p-3 space-y-2">
             <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('سجل التواصل')) ?></div>
-            <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= $v[0] ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
+            <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= ui_icon(['call' => 'phone', 'wa' => 'chat', 'email' => 'mail', 'meet' => 'users', 'note' => 'file'][$k] ?? 'file', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
             <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1A16 16 0 014 5a1 1 0 011-1z"/></svg> <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
             <div class="flex gap-2"><input id="ld-log-body" class="input text-sm" maxlength="2000" placeholder="<?= e(t('حصل إيه؟ (اختياري) واختار النوع')) ?>">
               <button type="button" id="ld-dict" class="btn-ghost !px-2.5 hidden" title="<?= e(t('إملاء بالصوت (في المتصفح، ببلاش)')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
@@ -633,8 +634,10 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <div id="ld-rec-st" class="hidden text-xs text-red-600 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span><span id="ld-rec-t">0:00</span> <button type="button" id="ld-rec-stop" class="btn-ghost !py-0.5 !text-xs"><?= e(t('وقّف واحفظ')) ?></button></div>
             <ol id="ld-acts" class="space-y-2 max-h-72 overflow-y-auto"></ol>
           </div>
-        </div>
-        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="dl" role="tabpanel">
+        </div></details>
+        <details class="ld-panel ld-sec group/sec" data-tab="dl" open>
+          <summary class="ld-sec-h"><span class="w-7 h-7 rounded-lg bg-ink-100 text-ink-600 grid place-items-center group-open/sec:bg-brand-600 group-open/sec:text-[#fff] transition"><?= ui_icon('wallet', 'w-4 h-4') ?></span><span class="flex-1"><?= e(t('صفقات ومتابعة')) ?></span><span class="ld-tabn text-[11px] text-ink-400"></span><?= ui_icon('chevron', 'w-4 h-4 text-ink-400 rotate-90 group-open/sec:-rotate-90 transition') ?></summary>
+          <div class="px-4 pb-4 space-y-4">
           <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4"/></svg> <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
             <div id="ld-deal-list" class="space-y-1.5"></div>
@@ -643,8 +646,10 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('خطة المتابعة')) ?></div>
             <div id="ld-plan-body" class="text-xs"></div>
           </div>
-        </div>
-        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="dt" role="tabpanel">
+        </div></details>
+        <details class="ld-panel ld-sec group/sec" data-tab="dt" open>
+          <summary class="ld-sec-h"><span class="w-7 h-7 rounded-lg bg-ink-100 text-ink-600 grid place-items-center group-open/sec:bg-brand-600 group-open/sec:text-[#fff] transition"><?= ui_icon('layers', 'w-4 h-4') ?></span><span class="flex-1"><?= e(t('البيانات')) ?></span><span class="ld-tabn text-[11px] text-ink-400"></span><?= ui_icon('chevron', 'w-4 h-4 text-ink-400 rotate-90 group-open/sec:-rotate-90 transition') ?></summary>
+          <div class="px-4 pb-4 space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <label class="block col-span-2"><span class="label"><?= e(t('الاسم')) ?></span><input class="input" name="name" required maxlength="255"></label>
             <label class="block"><span class="label"><?= e(t('الشركة')) ?></span><input class="input" name="company" maxlength="255"></label>
@@ -679,6 +684,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <div id="ld-visit-list" class="space-y-1"></div>
           </div>
           <div id="ld-meta" class="text-xs text-ink-400"></div>
+        </div></details>
         </div>
         <div class="shrink-0 p-3 border-t border-ink-100 bg-white/95 backdrop-blur flex items-center gap-2">
           <button class="btn-primary flex-1" id="ld-save"><?= e(t('احفظ')) ?></button>

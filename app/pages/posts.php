@@ -421,34 +421,21 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     $data = [];
     $pdata = [];
     ?>
-    <?php if ($counts): $tiles = [
-        'scheduled' => [t('مجدول'), 'border-brand-200 bg-brand-50/50', 'text-brand-700', '🗓'],
-        'failed' => [t('فشل'), ($counts['failed'] ?? 0) ? 'border-red-200 bg-red-50/70' : 'border-ink-200 bg-white', ($counts['failed'] ?? 0) ? 'text-red-600' : 'text-ink-900', '⚠️'],
-        'draft' => [t('مسودات'), 'border-ink-200 bg-white', 'text-ink-900', '✎'],
-        'published' => [t('تم النشر'), 'border-lime-200 bg-lime-50/60', 'text-lime-700', '✓'],
-    ]; ?>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <?php foreach ($tiles as $k => [$lbl, $box, $num, $ic]): if (!isset($counts[$k])) continue; ?>
-          <a href="<?= e(url('posts', array_filter(['status' => $status === $k ? '' : $k, 'view' => $view === 'cal' ? 'cal' : '']))) ?>" class="rounded-2xl border p-4 transition hover:shadow-md <?= $box ?> <?= $status === $k ? 'ring-2 ring-brand-500/40' : '' ?>">
-            <div class="flex items-center gap-1.5 text-xs text-ink-500"><span aria-hidden="true"><?= $ic ?></span><?= e($lbl) ?></div>
-            <div class="text-2xl font-bold mt-1 tabular-nums <?= $num ?>"><?= (int)$counts[$k] ?></div>
-          </a>
-        <?php endforeach; ?>
-      </div>
-      <?php if (($counts['failed'] ?? 0) > 0 && $status !== 'failed'): ?>
-        <a href="<?= e(url('posts', ['status' => 'failed'])) ?>" class="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 hover:bg-red-100 transition">
-          <span class="text-lg" aria-hidden="true">⚠️</span><span class="flex-1"><?= e(t('عندك %s منشور فشل نشره. افتحهم عشان تعرف السبب وتعيد نشرهم.', (int)$counts['failed'])) ?></span><span class="font-medium"><?= e(t('اعرضهم')) ?> ←</span>
+    <?php // شريط الحالات: العدد + الفلتر في نفس المكان (بدل الكروت والتابات والتنبيه المكرر)
+      $stMeta = ['' => [t('الكل'), 'layers', 'text-ink-900'], 'scheduled' => [t('مجدول'), 'calendar', 'text-brand-700'], 'published' => [t('تم النشر'), 'check', 'text-lime-700'], 'draft' => [t('مسودات'), 'file', 'text-ink-700'], 'failed' => [t('فشل'), 'alert', 'text-red-600']];
+      $allN = $counts ? array_sum(array_map('intval', $counts)) : null; ?>
+    <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="<?= e(t('الحالة')) ?>">
+      <?php foreach ($stMeta as $k => [$lbl, $ic, $col]): $n = $k === '' ? $allN : ($counts[$k] ?? null); $on = $status === $k; $bad = $k === 'failed' && (int)$n > 0; ?>
+        <a href="<?= e(url('posts', array_filter(['status' => $k, 'view' => $view === 'cal' ? 'cal' : '']))) ?>" role="tab" aria-selected="<?= $on ? 'true' : 'false' ?>"
+           class="group flex-1 min-w-[120px] rounded-2xl border px-3.5 py-2.5 transition hover:-translate-y-0.5 hover:shadow-md <?= $on ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-500/15' : ($bad ? 'border-red-200 bg-red-50/70' : 'border-ink-200 bg-white') ?>">
+          <span class="flex items-center gap-1.5 text-xs <?= $on ? 'text-brand-700 font-semibold' : 'text-ink-500' ?>"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($lbl) ?></span>
+          <span class="flex items-baseline gap-2 mt-0.5"><b class="text-xl tabular-nums <?= $bad ? 'text-red-600' : $col ?>"><?= $n === null ? '—' : (int)$n ?></b><?php if ($bad && !$on): ?><span class="text-[11px] font-semibold text-red-700"><?= e(t('اعرضها وأصلحها')) ?></span><?php endif; ?></span>
         </a>
-      <?php endif; ?>
-    <?php endif; ?>
+      <?php endforeach; ?>
+    </div>
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <div class="tb p-0.5 gap-0.5 overflow-x-auto" style="scrollbar-width:none">
-        <?php foreach ($tabs as $k => $l): ?>
-          <a href="<?= e(url('posts', array_filter(['status' => $k, 'view' => $view === 'cal' ? 'cal' : '']))) ?>" class="h-9 px-3 rounded-lg text-xs flex items-center whitespace-nowrap <?= $status === $k ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e($l) ?><?php if ($status === $k && $total !== null): ?> <span class="ms-1 tabular-nums text-ink-400"><?= $total ?></span><?php endif; ?></a>
-        <?php endforeach; ?>
-      </div>
-      <div class="relative flex-1 min-w-[12rem] max-w-sm">
-        <svg class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+      <div class="relative flex-1 min-w-[12rem]">
+        <span class="absolute inset-y-0 start-3 grid place-items-center text-ink-400 pointer-events-none"><?= ui_icon('search', 'w-4 h-4') ?></span>
         <input type="search" id="ps-q" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('ابحث في المنشورات...')) ?> (/)" dir="auto">
       </div>
       <div class="tb p-0.5 gap-0.5" id="ps-view">
@@ -457,8 +444,8 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       </div>
  <?php if ($view === 'list'): ?>
       <div class="tb p-0.5 gap-0.5" role="group" aria-label="<?= e(t('طريقة العرض')) ?>">
-        <button type="button" data-dens="cards" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('كروت')) ?>">▦</button>
-        <button type="button" data-dens="rows" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('مضغوط')) ?>">☰</button>
+        <button type="button" data-dens="cards" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('كروت')) ?>"><?= ui_icon('grid', 'w-4 h-4') ?></button>
+        <button type="button" data-dens="rows" class="ps-dens h-9 px-2.5 rounded-lg text-xs" title="<?= e(t('مضغوط')) ?>"><?= ui_icon('list', 'w-4 h-4') ?></button>
       </div>
  <select id="ps-sort" class="tb !h-10 px-2 text-xs" aria-label="<?= e(t('ترتيب')) ?>">
         <option value=""><?= e(t('الترتيب العادي')) ?></option>
@@ -466,14 +453,16 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <option value="old"><?= e(t('الأقدم')) ?></option>
         <?php if ($metrics): ?><option value="eng"><?= e(t('الأعلى تفاعل')) ?></option><?php endif; ?>
       </select>
-      <button type="button" id="ps-csv" class="tb px-3 text-xs" title="<?= e(t('نزّل المنشورات اللي ظاهرة CSV')) ?>">⇣ CSV</button>
-      <?php endif; ?>
-      <button type="button" id="ps-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
-      <div class="ms-auto flex gap-2">
-        <a href="<?= e(url('bulk')) ?>" data-modal="<?= e(url('bulk')) ?>" data-modal-reload class="btn-ghost !text-xs"><?= e(t('رفع منشورات من ملف CSV')) ?></a>
-        <a href="<?= e(url('queue')) ?>" data-modal="<?= e(url('queue')) ?>" class="btn-ghost !text-xs"><?= e(t('مواعيد الطابور')) ?></a>
-        <a href="<?= e(url('compose')) ?>" class="btn-primary"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('منشور جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
+ <?php endif; ?>
+      <button type="button" popovertarget="ps-more" class="tb h-10 px-3 gap-1.5 text-xs" title="<?= e(t('أدوات أكتر')) ?>"><?= ui_icon('dots', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('أدوات')) ?></span></button>
+      <div id="ps-more" popover class="m-0 w-64 rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl text-sm">
+        <a href="<?= e(url('bulk')) ?>" data-modal="<?= e(url('bulk')) ?>" data-modal-reload class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('upload', 'w-4 h-4 text-ink-500') ?><span><?= e(t('رفع منشورات من ملف CSV')) ?></span></a>
+        <a href="<?= e(url('queue')) ?>" data-modal="<?= e(url('queue')) ?>" class="flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50"><?= ui_icon('clock', 'w-4 h-4 text-ink-500') ?><span><?= e(t('مواعيد الطابور')) ?></span></a>
+        <?php if ($view === 'list'): ?><button type="button" id="ps-csv" class="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50 text-start"><?= ui_icon('download', 'w-4 h-4 text-ink-500') ?><span><?= e(t('نزّل المنشورات اللي ظاهرة CSV')) ?></span></button><?php endif; ?>
+        <div class="my-1 border-t border-ink-100"></div>
+        <button type="button" id="ps-help" class="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-ink-50 text-start"><span class="w-4 text-center font-semibold text-ink-500">?</span><span><?= e(t('اختصارات الكيبورد')) ?></span></button>
       </div>
+      <a href="<?= e(url('compose')) ?>" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('منشور جديد')) ?></a>
     </div>
     <?php if (count($plats) > 1): ?>
       <div class="flex flex-wrap items-center gap-1.5 mb-4" id="ps-pf">
@@ -521,12 +510,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <select id="ps-sh-u" class="input !mt-0 !h-8 !py-0 text-xs !w-auto"><option value="d"><?= e(t('يوم')) ?></option><option value="h"><?= e(t('ساعة')) ?></option></select>
           <button type="button" id="ps-shift" class="btn-ghost !py-1.5 !text-xs"><?= e(t('طبّق')) ?></button>
           <span class="h-5 w-px bg-ink-200"></span>
-          <button type="button" id="ps-bretry" class="btn-ghost !py-1.5 !text-xs">↻ <?= e(t('أعد محاولة الفاشل')) ?></button>
+          <button type="button" id="ps-bretry" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('أعد محاولة الفاشل')) ?></button>
         <?php endif; ?>
  <?php if (can('posts.create') && $tagsMap !== null && function_exists('an_tags_available') && an_tags_available()): ?>
           <span class="h-5 w-px bg-ink-200"></span>
           <input id="ps-btag" class="input !mt-0 !h-8 !py-0 text-xs !w-28" placeholder="<?= e(t('تاج…')) ?>" list="ps-taglist">
-          <button type="button" id="ps-btag-go" class="btn-ghost !py-1.5 !text-xs">🏷 <?= e(t('ضيف تاج')) ?></button>
+          <button type="button" id="ps-btag-go" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('ضيف تاج')) ?></button>
           <datalist id="ps-taglist"><?php foreach (array_keys($tagSeen) as $tg): ?><option value="<?= e($tg) ?>"><?php endforeach; ?></datalist>
         <?php endif; ?>
         <?php if (can('posts.create')): ?>
@@ -536,10 +525,10 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <span class="text-xs text-ink-500"><?= e(t('كل')) ?></span>
           <input type="number" id="ps-rp-gap" value="2" min="0" max="60" class="input !mt-0 !h-8 !py-0 text-xs !w-14">
           <span class="text-xs text-ink-500"><?= e(t('يوم')) ?></span>
-          <button type="button" id="ps-rp-go" class="btn-ghost !py-1.5 !text-xs">🔁 <?= e(t('جدول')) ?></button>
+          <button type="button" id="ps-rp-go" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('جدول')) ?></button>
         <?php endif; ?>
-        <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs">⧉ <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
-        <?php if (can('posts.manage')): ?><button type="button" id="ps-brep" class="btn-ghost !py-1.5 !text-xs">🔁 <?= e(t('استبدال')) ?></button><?php endif; ?>
+        <?php if (can('posts.create')): ?><button type="button" id="ps-bdup" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('نسخ كمسودات')) ?></button><?php endif; ?>
+        <?php if (can('posts.manage')): ?><button type="button" id="ps-brep" class="btn-ghost !py-1.5 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('استبدال')) ?></button><?php endif; ?>
         <?php if (can('posts.manage')): ?><button type="button" id="ps-bulkdel" class="btn-ghost !py-1.5 !text-xs text-red-600"><?= e(t('حذف المحدد')) ?></button><?php endif; ?>
         <button type="button" id="ps-clear" class="ms-auto link text-xs !text-ink-500"><?= e(t('إلغاء التحديد')) ?></button>
       </div>
@@ -585,7 +574,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
-                <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center">▶</span></span>
+                <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></span></span>
                 <?php elseif ($mt === 'document'): ?><span class="w-full h-full flex items-center justify-center text-sm text-ink-500"><?= e(t('ملف')) ?></span>
                 <?php else: ?><img src="<?= e($m['url']) ?>" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" alt="" referrerpolicy="no-referrer"><?php endif; ?>
                 <?php if (count($p['mediaItems']) > 1): ?><span class="absolute bottom-2 end-2 rounded-md bg-ink-900/70 text-[#fff] text-[10px] px-1.5 py-0.5">+<?= count($p['mediaItems']) - 1 ?></span><?php endif; ?>
@@ -595,7 +584,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
               <div class="flex items-center gap-2">
                 <label class="shrink-0 cursor-pointer flex"><input type="checkbox" class="ps-sel w-4 h-4 rounded opacity-40 group-hover:opacity-100 checked:opacity-100 focus:opacity-100 transition" aria-label="<?= e(t('تحديد')) ?>"></label>
                 <span class="rounded-md px-1.5 py-0.5 text-[10px] font-medium <?= $stCls[$st] ?? 'bg-ink-100 text-ink-600' ?>"><?= e($label) ?></span>
-                <span class="ps-nc text-[10px] rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.5 <?= $pnotes ? '' : 'hidden' ?>" title="<?= e(t('ملاحظات الفريق')) ?>">📝 <b><?= count($pnotes) ?></b></span>
+                <span class="ps-nc text-[10px] rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.5 <?= $pnotes ? '' : 'hidden' ?>" title="<?= e(t('ملاحظات الفريق')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg> <b><?= count($pnotes) ?></b></span>
                 <span class="ps-when text-[11px] text-ink-500 tabular-nums" data-at="<?= e((string)$when) ?>" data-st="<?= e($st) ?>" title="<?= e(fmt_date($when)) ?>"><?= e(fmt_date($when)) ?></span>
                 <div class="ms-auto flex -space-x-1 rtl:space-x-reverse">
                   <?php foreach ($pls as $pl): $u = $pl['platformPostUrl'] ?? null; $ic = platform_icon((string)($pl['platform'] ?? ''), 'w-[18px] h-[18px]', 'badge'); ?>
@@ -608,22 +597,22 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
               <div class="ps-tags mt-2 flex flex-wrap gap-1 <?= $ptags ? '' : 'hidden' ?>"><?php foreach ($ptags as $tg): ?><span class="rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[10px] px-2 py-0.5">#<?= e($tg) ?></span><?php endforeach; ?></div>
               <?php if ($mx): $nf = function ($n) { return $n >= 1000 ? round($n / 1000, $n >= 10000 ? 0 : 1) . 'K' : (string)$n; }; ?>
                 <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-500 tabular-nums">
-                  <?php if ($mx['eng'] >= $topCut && $mx['eng'] > 0): ?><span class="rounded-md bg-orange-100 text-orange-800 px-1.5 py-0.5 font-medium">🔥 <?= e(t('الأعلى تفاعل')) ?></span><?php endif; ?>
-                  <?php if ($mx['imp']): ?><span title="<?= e(t('مرات الظهور')) ?>">👁 <?= e($nf($mx['imp'])) ?></span><?php endif; ?>
-                  <span title="<?= e(t('إعجاب')) ?>">♥ <?= e($nf($mx['likes'])) ?></span>
-                  <span title="<?= e(t('تعليق')) ?>">💬 <?= e($nf($mx['comments'])) ?></span>
-                  <?php if ($mx['shares']): ?><span title="<?= e(t('مشاركة')) ?>">↗ <?= e($nf($mx['shares'])) ?></span><?php endif; ?>
+                  <?php if ($mx['eng'] >= $topCut && $mx['eng'] > 0): ?><span class="rounded-md bg-orange-100 text-orange-800 px-1.5 py-0.5 font-medium"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a7 7 0 007-7c0-4-3-6-4-9-1 2-2 3-3 3 0-2-1-4-3-5 0 4-4 6-4 11a7 7 0 007 7zM12 21a3 3 0 003-3c0-2-1.5-3-3-5-1.5 2-3 3-3 5a3 3 0 003 3z"/></svg> <?= e(t('الأعلى تفاعل')) ?></span><?php endif; ?>
+                  <?php if ($mx['imp']): ?><span title="<?= e(t('مرات الظهور')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z"/></svg> <?= e($nf($mx['imp'])) ?></span><?php endif; ?>
+                  <span title="<?= e(t('إعجاب')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-8-5-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 9c0 6-8 11-8 11z"/></svg> <?= e($nf($mx['likes'])) ?></span>
+                  <span title="<?= e(t('تعليق')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg> <?= e($nf($mx['comments'])) ?></span>
+                  <?php if ($mx['shares']): ?><span title="<?= e(t('مشاركة')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg> <?= e($nf($mx['shares'])) ?></span><?php endif; ?>
                   <?php if ($mx['rate'] !== null): ?><span class="ms-auto font-medium <?= $mx['rate'] >= 3 ? 'text-lime-700' : 'text-ink-600' ?>" title="<?= e(t('نسبة التفاعل')) ?>"><?= e($mx['rate']) ?>%</span><?php endif; ?>
                 </div>
               <?php endif; ?>
               <?php if ($errs): ?><details class="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2"><summary class="cursor-pointer text-[11px] font-medium text-red-700"><?= e(t('سبب الفشل')) ?></summary><?php foreach ($errs as $er): ?><p class="text-[11px] text-red-700 mt-1 break-words"><?= e(mb_substr($er, 0, 300)) ?></p><?php endforeach; ?></details><?php endif; ?>
               <div class="flex items-center gap-1 mt-3 pt-3 border-t border-ink-100 text-xs">
-                <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 font-medium">✎ <?= e(t('تعديل')) ?></a>
-                <?php if (in_array($st, ['failed', 'partial'], true) && can('posts.manage')): ?><button type="button" class="ps-retry rounded-lg px-2 py-1 text-red-700 bg-red-50 hover:bg-red-100 font-medium">↻ <?= e(t('أعد المحاولة')) ?></button><?php endif; ?>
-                <?php foreach ($pls as $pl) { $bu = ($pl['status'] ?? '') === 'published' ? ads_boost_url((string)($pl['platform'] ?? ''), (string)(is_array($pl['accountId'] ?? null) ? ($pl['accountId']['_id'] ?? '') : ($pl['accountId'] ?? '')), (string)($pl['platformPostId'] ?? '')) : null; if ($bu) { ?><a href="<?= e($bu) ?>" class="rounded-lg px-2 py-1 text-amber-800 hover:bg-amber-50 font-medium" title="<?= e(t('روّجه كإعلان على %s', platform_label((string)$pl['platform']))) ?>">⚡ <?= e(t('روّج')) ?></a><?php break; } } ?>
-                <a href="<?= e(url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])) ?>" class="w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('منشور جديد بنفس النص والحسابات')) ?>" aria-label="<?= e(t('تكرار')) ?>">⧉</a>
-                <button type="button" class="ps-copy w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('نسخ النص')) ?>" aria-label="<?= e(t('نسخ النص')) ?>">📋</button>
-                <?php if ($st !== 'publishing' && can('posts.manage')): ?><button type="button" class="ps-del ms-auto w-8 h-8 grid place-items-center rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('حذف')) ?>" aria-label="<?= e(t('حذف')) ?>">🗑</button><?php endif; ?>
+                <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 font-medium"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg> <?= e(t('تعديل')) ?></a>
+                <?php if (in_array($st, ['failed', 'partial'], true) && can('posts.manage')): ?><button type="button" class="ps-retry rounded-lg px-2 py-1 text-red-700 bg-red-50 hover:bg-red-100 font-medium"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('أعد المحاولة')) ?></button><?php endif; ?>
+                <?php foreach ($pls as $pl) { $bu = ($pl['status'] ?? '') === 'published' ? ads_boost_url((string)($pl['platform'] ?? ''), (string)(is_array($pl['accountId'] ?? null) ? ($pl['accountId']['_id'] ?? '') : ($pl['accountId'] ?? '')), (string)($pl['platformPostId'] ?? '')) : null; if ($bu) { ?><a href="<?= e($bu) ?>" class="rounded-lg px-2 py-1 text-amber-800 hover:bg-amber-50 font-medium inline-flex items-center gap-1" title="<?= e(t('روّجه كإعلان على %s', platform_label((string)$pl['platform']))) ?>"><?= ui_icon('zap', 'w-3.5 h-3.5') ?><?= e(t('روّج')) ?></a><?php break; } } ?>
+                <a href="<?= e(url('compose', ['dup_text' => mb_substr((string)($p['content'] ?? ''), 0, 4000), 'dup_acc' => implode(',', array_filter($accIds))])) ?>" class="w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('منشور جديد بنفس النص والحسابات')) ?>" aria-label="<?= e(t('تكرار')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5M3 17l9 5 9-5"/></svg></a>
+                <button type="button" class="ps-copy w-8 h-8 grid place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="<?= e(t('نسخ النص')) ?>" aria-label="<?= e(t('نسخ النص')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg></button>
+                <?php if ($st !== 'publishing' && can('posts.manage')): ?><button type="button" class="ps-del ms-auto w-8 h-8 grid place-items-center rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" title="<?= e(t('حذف')) ?>" aria-label="<?= e(t('حذف')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button><?php endif; ?>
               </div>
             </div>
           </article>
@@ -633,7 +622,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       <div id="ps-rep" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
         <div class="absolute inset-0 bg-ink-900/40" data-close></div>
         <div class="relative card p-5 w-full max-w-md space-y-3" role="dialog" aria-modal="true" aria-labelledby="ps-rep-h">
-          <h3 id="ps-rep-h" class="font-bold text-ink-900">🔁 <?= e(t('ابحث واستبدل في المنشورات المحددة')) ?></h3>
+          <h3 id="ps-rep-h" class="font-bold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('ابحث واستبدل في المنشورات المحددة')) ?></h3>
           <label class="block"><span class="label"><?= e(t('دوّر على')) ?></span><input id="ps-rep-f" class="input" dir="auto" placeholder="01001234567"></label>
           <label class="block"><span class="label"><?= e(t('استبدلها بـ')) ?></span><input id="ps-rep-r" class="input" dir="auto" placeholder="01009876543"></label>
           <div id="ps-rep-info" class="text-xs rounded-lg bg-ink-50 border border-ink-200 p-2 text-ink-600"></div>
@@ -680,13 +669,13 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
           </div>
           <select id="cal-acc" class="input !mt-0 !h-8 !py-0 !w-auto text-xs"><option value=""><?= e(t('كل الحسابات')) ?></option><?php foreach (($accounts ?? []) as $aid => $a): ?><option value="<?= e($aid) ?>"><?= e($a['name']) ?><?= $a['plat'] ? ' · ' . e($a['plat']) : '' ?></option><?php endforeach; ?></select>
           <?php if (can('posts.manage')): ?>
-          <details class="relative" id="cal-tools"><summary class="tb px-3 text-xs list-none cursor-pointer">⚙️ <?= e(t('أدوات')) ?></summary>
+          <details class="relative" id="cal-tools"><summary class="tb px-3 text-xs list-none cursor-pointer"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg> <?= e(t('أدوات')) ?></summary>
             <div class="absolute start-0 mt-1 z-40 w-52 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col text-sm">
-              <button type="button" data-ct="gaps" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">🧩 <?= e(t('املا الفراغات')) ?></button>
-              <button type="button" data-ct="copyw" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⧉ <?= e(t('انسخ الأسبوع للجاي')) ?></button>
-              <button type="button" data-ct="pause" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⏸ <?= e(t('أجّل فترة')) ?></button>
-              <?php if (can('posts.manage')): ?><button type="button" data-ct="goals" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">🎯 <?= e(t('أهداف أسبوعية')) ?></button><?php endif; ?>
-              <button type="button" data-ct="black" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50">⛔ <?= e(t('أوقات ممنوعة')) ?></button>
+              <button type="button" data-ct="gaps" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM10 7h4a3 3 0 013 3v4M7 10v4a3 3 0 003 3h4"/></svg> <?= e(t('املا الفراغات')) ?></button>
+              <button type="button" data-ct="copyw" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('انسخ الأسبوع للجاي')) ?></button>
+              <button type="button" data-ct="pause" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg> <?= e(t('أجّل فترة')) ?></button>
+              <?php if (can('posts.manage')): ?><button type="button" data-ct="goals" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('أهداف أسبوعية')) ?></button><?php endif; ?>
+              <button type="button" data-ct="black" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8"/></svg> <?= e(t('أوقات ممنوعة')) ?></button>
             </div></details>
           <?php endif; ?>
           <div class="ms-auto flex flex-wrap gap-3 text-[11px] text-ink-500">
@@ -705,7 +694,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       <div id="cal-dups" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
         <div class="absolute inset-0 bg-ink-900/40" data-close></div>
         <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[520px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="cal-dups-h">
-          <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="cal-dups-h" class="font-semibold text-ink-900 flex-1">🔁 <?= e(t('منشورات بنفس النص')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
+          <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="cal-dups-h" class="font-semibold text-ink-900 flex-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('منشورات بنفس النص')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
           <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('المنصات (زي لينكدإن وX) ممكن ترفض أو تقلل وصول المنشور المكرر. خلّي كل نسخة بصياغة مختلفة.')) ?></p>
           <div id="cal-dups-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
         </div>
@@ -714,12 +703,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
     <?php endif; ?>
     <?php endif; ?>
     <?php $diagRows = (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true); if ($diagRows && can('posts.manage')): ?>
-      <details class="card p-4 mt-6 text-sm" id="ps-diag">
+      <?php if (is_admin()): ?><details class="card p-4 mt-6 text-sm" id="ps-diag">
         <summary class="cursor-pointer font-semibold text-ink-800">🩺 <?= e(t('تشخيص تغيير المواعيد')) ?> <span class="text-xs text-ink-500 font-normal">(<?= e(t('آخر %s محاولة', count($diagRows))) ?>: <?= e(t('%s نجحت', count(array_filter($diagRows, function ($d) { return !empty($d['ok']); })))) ?>)</span></summary>
         <p class="text-xs text-ink-500 mt-2"><?= e(t('لو تغيير الميعاد مش بيتحفظ، انسخ اللي تحت وابعته للدعم. مفيهوش مفاتيح ولا بيانات سرية.')) ?></p>
         <textarea readonly id="ps-diag-txt" class="input font-mono text-[11px] mt-2" rows="8" dir="ltr"><?= e(json_encode($diagRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></textarea>
         <button type="button" class="btn-ghost !text-xs mt-2" onclick="var t=document.getElementById('ps-diag-txt');t.select();navigator.clipboard&&navigator.clipboard.writeText(t.value);this.textContent='✓'"><?= e(t('انسخ')) ?></button>
-      </details>
+      </details><?php endif; ?>
     <?php endif; ?>
     <?php
       $tzc2 = new DateTimeZone(site_timezone());

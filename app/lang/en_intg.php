@@ -3729,4 +3729,8 @@ This is an example of the email your customers will receive.',
     'الأرقام الأساسية والأداء اليومي' => 'Key numbers and daily performance',
     'المتابعين ونموهم' => 'Followers and growth',
     'كل منصة لوحدها' => 'Each platform on its own',
+    'المحتوى والحملات' => 'Content & campaigns',
+    'النشر وجمع العملاء' => 'Publishing & lead capture',
+    'أدوات أكتر' => 'More tools',
+    'اعرضها وأصلحها' => 'Review and fix',
 ];

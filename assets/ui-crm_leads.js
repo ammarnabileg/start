@@ -215,7 +215,7 @@
     document.getElementById('ld-d-av').innerHTML = avatar(l, 'w-12 h-12 text-base');
     document.getElementById('ld-d-score').innerHTML = scoreBadge(l);
     document.getElementById('ld-d-stage').innerHTML = '<span class="text-[11px] px-2 py-0.5 rounded-md ' + stageColor[l.stage] + '">' + esc(D.stages[l.stage]) + '</span> ' + nextBadge(l);
-    setTab(curTab);
+    curTab = 'ov';
     document.getElementById('ld-quick').innerHTML = quick(l);
     ['id', 'name', 'company', 'title', 'phone', 'email', 'value', 'tags', 'note', 'next_at', 'next_note'].forEach(function (k) { form.elements[k].value = l[k] == null ? '' : l[k]; });
     if (form.elements.pipeline) form.elements.pipeline.value = l.pl || 'sales';
@@ -227,17 +227,18 @@
     msg.textContent = '';
     drawTpl(l); loadActs(l); apReset(l); drawPlan(l, undefined);
     openModal(dr);
-    var fb = dr.querySelector('[data-tabbtn="' + curTab + '"]'); if (fb) fb.focus({ preventScroll: true });
+    var sc = document.getElementById('ld-scroll'); if (sc) sc.scrollTop = 0;
   }
   /* تابات الدرج: نظرة عامة / تواصل / صفقات / بيانات */
   var curTab = 'ov'; try { curTab = localStorage.getItem('ld-tab') || 'ov'; } catch (e) {}
-  function setTab(k) {
-    curTab = k; try { localStorage.setItem('ld-tab', k); } catch (e) {}
-    dr.querySelectorAll('[data-tabbtn]').forEach(function (b) { var on = b.dataset.tabbtn === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
-    dr.querySelectorAll('.ld-panel').forEach(function (p) { p.classList.toggle('hidden', p.dataset.tab !== k); });
+  /* الدرج بقى أقسام تحت بعض (من غير تابات): كل قسم بيتفتح/يتقفل، والحالة بتتفتكر */
+  var secOpen = {}; try { secOpen = JSON.parse(localStorage.getItem('ld-secs') || '{}'); } catch (e) {}
+  dr.querySelectorAll('.ld-sec').forEach(function (d) { if (secOpen[d.dataset.tab] === 0) d.open = false; d.addEventListener('toggle', function () { secOpen[d.dataset.tab] = d.open ? 1 : 0; try { localStorage.setItem('ld-secs', JSON.stringify(secOpen)); } catch (e) {} }); });
+  function setTab(k) { // بيفتح القسم وبينزل له (اللي كان "تاب" قبل كده)
+    curTab = k; var d = dr.querySelector('.ld-sec[data-tab="' + k + '"]'); if (!d) return; if (!d.open) d.open = true;
+    if (k !== 'ov') setTimeout(function () { d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 30);
   }
-  dr.querySelectorAll('[data-tabbtn]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tabbtn); }); });
-  function tabN(k, n) { var b = dr.querySelector('[data-tabbtn="' + k + '"] .ld-tabn'); if (b) b.textContent = n ? n : ''; }
+  function tabN(k, n) { var b = dr.querySelector('.ld-sec[data-tab="' + k + '"] .ld-tabn'); if (b) b.textContent = n ? n : ''; }
   [list, board].forEach(function (el) {
     el.addEventListener('click', function (e) { if (e.target.closest('.ld-sel')) return; var r = e.target.closest('[data-id]'); if (r) open(+r.dataset.id); });
     el.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.id) { e.preventDefault(); open(+e.target.dataset.id); } });
@@ -301,7 +302,7 @@
   function when(s) { var o = { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }; if (D.tz) o.timeZone = D.tz; try { return srvDate(s).toLocaleString(document.documentElement.lang || undefined, o); } catch (e) { delete o.timeZone; return srvDate(s).toLocaleString(undefined, o); } }
   function drawActs(a) {
     tabN('ct', (a || []).filter(function (x) { return x.kind !== 'stage'; }).length);
-    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? voiceBody(x.body) : '') + '</div></li>'; }).join('')
+    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; k = [uic({ call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'file', stage: 'route' }[x.kind] || 'file', 'w-3.5 h-3.5'), k[1]]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 text-ink-600 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? voiceBody(x.body) : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
   }
   var intel = document.getElementById('ld-intel');

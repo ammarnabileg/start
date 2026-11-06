@@ -75,6 +75,8 @@ details > summary { list-style: none; } details > summary::-webkit-details-marke
   .ld-seg[data-stage=won] .ld-seg-n { @apply text-lime-700; }
   .ld-seg[data-stage=lost] .ld-seg-n { @apply text-ink-400; }
   .ld-tabbtn.on { @apply border-brand-600 text-brand-700 font-medium; }
+  .ld-sec-h { @apply sticky top-0 z-10 flex items-center gap-2.5 px-4 py-3 bg-white/95 backdrop-blur text-sm font-semibold text-ink-900 cursor-pointer list-none select-none hover:bg-ink-50; }
+  .ld-sec-h::-webkit-details-marker { display: none; }
   .ld-row { @apply relative transition-colors duration-150; }
   .ld-row .ld-acts { @apply opacity-0 translate-y-0.5 transition duration-150; }
   .ld-row:hover .ld-acts, .ld-row:focus-within .ld-acts { @apply opacity-100 translate-y-0; }
