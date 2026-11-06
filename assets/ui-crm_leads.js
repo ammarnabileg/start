@@ -360,6 +360,15 @@
       setTimeout(function () { location.reload(); }, 1200);
     }).catch(function () { sgo.disabled = false; sgm.textContent = T.err; });
   });
+  var au = document.getElementById('ld-auto');
+  if (au) au.addEventListener('change', function () {
+    au.disabled = true;
+    post({ action: 'auto_capture', on: au.checked ? 1 : '' }).then(function (r) {
+      au.disabled = false; if (!r.ok) { au.checked = !au.checked; return; }
+      sgm.className = 'ms-auto text-lime-700'; sgm.textContent = r.on ? T.autoOn.replace('%s', r.n) : T.autoOff;
+      if (r.on && r.n) setTimeout(function () { location.reload(); }, 1500);
+    }).catch(function () { au.disabled = false; au.checked = !au.checked; });
+  });
   setTimeout(function () { sugLoad(true); }, 400);
 
   draw();

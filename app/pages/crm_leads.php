@@ -48,6 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           unset($_SESSION['crm_sug_' . $wid]);
         $json(['ok' => true, 'new' => $n, 'merged' => $m]);
     }
+    if ($action === 'auto_capture' && $canManage) {
+        $on = !empty($_POST['on']);
+        save_setting('crm_auto_capture_' . $wid, $on ? '1' : '0');
+        $n = 0;
+        if ($on) { $z = $sugZ(); if ($z) { try { $n = crm_auto_capture($z); } catch (Throwable $e) {} } unset($_SESSION['crm_sug_' . $wid]); }
+        $json(['ok' => true, 'on' => $on, 'n' => $n]);
+    }
     if ($action === 'ai_scan') {
         if (!can('ai.use') || !ai_connection()) $json(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')]);
         session_write_close();
@@ -399,6 +406,13 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
           <button type="button" id="ld-sug-ai" class="link hidden"><?= e(t('حلّل المحادثات الجديدة بالذكاء الاصطناعي ✦')) ?></button>
           <span id="ld-sug-msg" class="ms-auto text-ink-500"></span>
         </div>
+        <?php if ($canManage): $al = explode('|', (string)setting('crm_auto_last_' . (int)ws('id'), '')); ?>
+        <label class="mx-4 mt-2 flex items-start gap-2 rounded-xl border border-lime-200 bg-lime-50/50 p-2.5 text-xs cursor-pointer">
+          <input type="checkbox" id="ld-auto" class="rounded mt-0.5" <?= crm_auto_capture_on((int)ws('id')) ? 'checked' : '' ?>>
+          <span><b class="text-ink-900"><?= e(t('ضيفهم أوتوماتيك')) ?></b> · <?= e(t('كل 6 ساعات: اللي عنده نية شراء أو كتب رقمه بيتضاف لوحده، بيتوزع على الفريق، وبتتحطله متابعة النهارده.')) ?>
+            <?php if (!empty($al[0])): ?><span class="block text-ink-500 mt-0.5"><?= e(t('آخر مرة: %s · اتضاف %s', fmt_date($al[0], 'd/m h:i A'), (int)($al[1] ?? 0))) ?></span><?php endif; ?></span>
+        </label>
+        <?php endif; ?>
         <div id="ld-sug-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
         <div class="p-4 border-t border-ink-100"><button type="button" id="ld-sug-go" class="btn-primary w-full" disabled><?= e(t('ضيف المحددين للـ Leads')) ?></button></div>
       </div>
@@ -425,7 +439,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'noSeq' => t('مفيش Sequences في حسابك على Apollo. اعمل واحد من apollo.io الأول.'), 'noAcc' => t('اربط إيميل في Apollo عشان الـ Sequence يبعت منه.'), 'seqDone' => t('اتضاف للـ Sequence ✓'), 'needEmail' => t('العميل ده مالوش إيميل. كمّل بياناته الأول.'),
             'fl' => ['title' => t('المسمى الوظيفي'), 'linkedin' => 'LinkedIn', 'company' => t('الشركة'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'country' => t('الدولة')], 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
             'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'),
-            'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
+            'autoOn' => t('اتفعّل: اتضاف %s دلوقتي، والباقي كل 6 ساعات.'), 'autoOff' => t('الإضافة الأوتوماتيك اتقفلت.'), 'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_leads.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

@@ -52,6 +52,19 @@ try {
         } catch (Throwable $t) {
             $line .= ' ad_leads=error';
         }
+        // الالتقاط التلقائي للعملاء من الرسائل والتعليقات (مرة كل 6 ساعات، لو مفعّل)
+        try {
+            if (crm_auto_capture_on($wid) && strtotime(explode('|', (string)setting('crm_auto_last_' . $wid, ''))[0] ?: '2000-01-01') < time() - 6 * 3600) {
+                $n = (int)ai_as_workspace($wid, function () {
+                    if (!module_enabled('crm')) return 0;
+                    $z = zernio_or_null();
+                    return $z ? crm_auto_capture($z) : 0;
+                });
+                $line .= ' auto_leads+' . $n;
+            }
+        } catch (Throwable $t) {
+            $line .= ' auto_leads=error';
+        }
         // حملات الرسائل: دفعة لكل شركة
         try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return camp_tick($wid, 60); });

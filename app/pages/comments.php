@@ -195,7 +195,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
         </div>
         <div data-live="list" class="flex-1 min-h-0 overflow-y-auto">
           <?php if (!$posts): ?><div class="p-10 text-center"><div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center"><?= ui_icon('chat', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p></div><?php endif; ?>
-          <?php foreach ($posts as $p): $on = $p['id'] === $postId; $cc = (int)($p['commentCount'] ?? 0); ?>
+          <?php $lpp = module_enabled('crm') && can('crm.view') ? crm_leads_per_post() : []; foreach ($posts as $p): $on = $p['id'] === $postId; $cc = (int)($p['commentCount'] ?? 0); $ln = (int)($lpp[(string)$p['id']] ?? 0); ?>
             <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" class="relative flex gap-3 p-3 border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>">
               <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
               <span class="relative shrink-0">
@@ -207,6 +207,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
                 <p class="text-sm line-clamp-2 <?= $on ? 'text-ink-900 font-medium' : 'text-ink-800' ?>" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 140)) : '<span class="text-ink-400">' . e(t('(منشور بدون نص)')) . '</span>' ?></p>
                 <div class="flex items-center gap-2 mt-1.5 text-[11px] text-ink-500">
                   <span class="inline-flex items-center gap-1 rounded-md bg-ink-100 px-1.5 py-0.5 text-ink-700 font-medium"><?= ui_icon('chat', 'w-3 h-3') ?><?= $cc ?></span>
+                  <?php if ($ln): ?><span class="rounded-md bg-lime-100 text-lime-800 px-1.5 py-0.5 font-semibold" title="<?= e(t('عملاء محتملين جم من المنشور ده')) ?>">🧲 <?= $ln ?></span><?php endif; ?>
                   <span><?= e(fmt_date($p['createdTime'] ?? null, 'd/m/Y')) ?></span>
                 </div>
               </div>

@@ -518,6 +518,36 @@ function crm_suggestions(Zernio $z, int $maxPosts = 6): array
     return array_slice($out, 0, 80);
 }
 
+/**
+ * الالتقاط التلقائي (من الـ cron أو يدوي): المقترحين اللي عندهم إشارة قوية بس (نية شراء أو كتبوا رقم/إيميل)
+ * بيتضافوا للـ Leads، بيتوزعوا على الفريق، وبتتحطلهم متابعة النهارده. سؤال السعر لوحده مش كفاية.
+ */
+function crm_auto_capture_on(int $wid): bool { return setting('crm_auto_capture_' . $wid, '0') === '1'; }
+function crm_auto_capture(Zernio $z): int
+{
+    $n = 0;
+    foreach (crm_suggestions($z) as $it) {
+        if (!array_intersect($it['why'], ['ai', 'contact'])) continue;
+        $l = crm_from_social($it + ['owner_id' => null]);
+        if (!$l || $l['merged']) continue;
+        db()->prepare('UPDATE crm_leads SET next_at = NOW(), next_note = ? WHERE id = ? AND next_at IS NULL')->execute([mb_substr(t('اتضاف أوتوماتيك من %s، كلّمه', $it['where']), 0, 255), (int)$l['id']]);
+        $n++;
+        if ($n >= 30) break;
+    }
+    if ($n) log_activity('crm.auto_capture', $n . ' new');
+    save_setting('crm_auto_last_' . (int)ws('id'), date('Y-m-d H:i:s') . '|' . $n);
+    return $n;
+}
+/** كام Lead جه من كل منشور (من التعليقات) */
+function crm_leads_per_post(): array
+{
+    $st = db()->prepare("SELECT src_url FROM crm_leads WHERE workspace_id = ? AND source = 'comments' AND src_url IS NOT NULL");
+    $st->execute([(int)ws('id')]);
+    $out = [];
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $u) { parse_str((string)parse_url($u, PHP_URL_QUERY), $q); if (!empty($q['post'])) $out[(string)$q['post']] = ($out[(string)$q['post']] ?? 0) + 1; }
+    return $out;
+}
+
 /** سكربت زرار "ضيفه Lead" المشترك بين الرسائل والتعليقات */
 function to_lead_script(): void
 {
