@@ -7,6 +7,12 @@ $J = function ($a, int $code = 200) { http_response_code($code); header('Content
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
     // كلمات البحث: بتيجي من معرفة الشركة، والمستخدم بيقفل أي كلمة أو يضيف كلماته
+    if ($a === 'kw_ai') { // كلمات بلغة اعتماد من الذكاء الاصطناعي
+        if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
+        try { $r = tnd_ai_words(true); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 502); }
+        if (!$r || (!$r['activities'] && !$r['keywords'])) $J(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي من التكاملات، وكمّل معرفة الشركة.')], 422);
+        $J(['ok' => true, 'n' => count($r['activities']) + count($r['keywords']), 'why' => $r['why']]);
+    }
     if (in_array($a, ['kw_add', 'kw_off', 'kw_on', 'kw_del', 'cfg'], true)) {
         if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
         $c = tnd_cfg(); $w = mb_substr(trim((string)($_POST['w'] ?? '')), 0, 40); $k = tnd_norm($w);
@@ -69,27 +75,38 @@ render(t('المنافسات والمناقصات'), 'tenders', function () use 
     ?>
 
     <?php if ($mgr): ?>
-    <div id="tnd-cfg" popover class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
-      <div class="flex items-center gap-2"><b class="text-ink-900 flex-1"><?= e(t('كلمات البحث')) ?></b><a href="<?= e(url('knowledge')) ?>" class="text-xs link"><?= e(t('معرفة الشركة')) ?></a></div>
-      <p class="text-xs text-ink-500"><?= e(t('الكلمات دي جاية من معرفة الشركة (المجال والفئة والخدمات). دوس على كلمة عشان توقفها، أو ضيف كلماتك.')) ?></p>
-      <div class="flex flex-wrap gap-1.5" id="kw-list">
-        <?php $offK = array_flip(array_map('tnd_norm', $cfg['off'])); foreach ($cfg['auto'] as $w): $isOff = isset($offK[tnd_norm($w)]); ?>
-          <button type="button" data-kw="<?= e($w) ?>" data-a="<?= $isOff ? 'kw_on' : 'kw_off' ?>" class="kw <?= $isOff ? 'off' : '' ?>" title="<?= e($isOff ? t('رجّعها') : t('وقّفها')) ?>"><?= ui_icon('id', 'w-3 h-3 opacity-60') ?><?= e($w) ?></button>
-        <?php endforeach; ?>
-        <?php foreach ($cfg['add'] as $w): ?><button type="button" data-kw="<?= e($w) ?>" data-a="kw_del" class="kw mine" title="<?= e(t('شيلها')) ?>"><?= e($w) ?> ×</button><?php endforeach; ?>
-      </div>
-      <form id="kw-add" class="flex gap-2 m-0" data-no-ajax><input name="w" maxlength="40" class="input !mt-0 flex-1 text-sm" dir="auto" placeholder="<?= e(t('كلمة أو عبارة')) ?>"><button class="btn-ghost !text-xs"><?= e(t('أضف')) ?></button></form>
+    <?php $ai = json_decode((string)setting('tnd_ai_' . (int)ws('id'), ''), true); $ai = is_array($ai) ? $ai : ['activities' => [], 'keywords' => [], 'why' => ''];
+      $offK = array_flip(array_map('tnd_norm', $cfg['off'])); $actK = array_flip(array_map('tnd_norm', (array)$ai['activities']));
+      $cnt = tnd_word_counts(array_values(array_unique(array_merge($cfg['auto'], $cfg['add']))));
+      $grp = ['act' => [], 'kw' => [], 'mine' => []];
+      foreach ($cfg['auto'] as $w) $grp[isset($actK[tnd_norm($w)]) ? 'act' : 'kw'][] = $w; $grp['mine'] = $cfg['add'];
+      foreach ($grp as &$g) usort($g, function ($a, $b) use ($cnt, $offK) { return [isset($offK[tnd_norm($a)]), -($cnt[$a] ?? 0)] <=> [isset($offK[tnd_norm($b)]), -($cnt[$b] ?? 0)]; }); unset($g);
+      $chip = function ($w, $kind) use ($cnt, $offK) { $off = $kind !== 'mine' && isset($offK[tnd_norm($w)]); $n = (int)($cnt[$w] ?? 0);
+        return '<button type="button" data-kw="' . e($w) . '" data-a="' . ($kind === 'mine' ? 'kw_del' : ($off ? 'kw_on' : 'kw_off')) . '" class="kw ' . ($kind === 'mine' ? 'mine' : '') . ($off ? ' off' : '') . (!$off && !$n ? ' zero' : '') . '" title="'
+          . e($kind === 'mine' ? t('شيلها') : ($off ? t('رجّعها') : t('وقّفها'))) . ($n ? '' : ' · ' . t('مفيش منافسات نشطة بتطابقها دلوقتي')) . '">' . e($w) . '<span class="kw-n">' . $n . '</span>' . ($kind === 'mine' ? ' ×' : '') . '</button>'; }; ?>
+    <div id="tnd-cfg" popover class="m-0 w-[min(680px,94vw)] max-h-[78vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
+      <div class="flex items-center gap-2 sticky -top-4 -mx-4 -mt-4 px-4 pt-4 pb-2 bg-white z-10 border-b border-ink-100"><b class="text-ink-900 flex-1"><?= e(t('كلمات البحث')) ?></b>
+        <?php if (function_exists('ai_connection') && ai_connection()): ?><button type="button" id="kw-ai" class="btn-ghost !py-1 !text-xs"><?= ui_icon('spark', 'w-3.5 h-3.5') ?><span><?= e($ai['keywords'] || $ai['activities'] ? t('حدّث بلغة اعتماد') : t('اقترح كلمات بلغة اعتماد')) ?></span></button><?php endif; ?>
+        <a href="<?= e(url('knowledge')) ?>" class="text-xs link"><?= e(t('معرفة الشركة')) ?></a></div>
+      <p class="text-xs text-ink-500"><?= e(t('الرقم جنب كل كلمة = عدد المنافسات النشطة اللي بتطابقها دلوقتي. دوس على كلمة توقفها أو ترجّعها.')) ?><?php if ($ai['why']): ?> <span class="text-ink-700"><?= e($ai['why']) ?></span><?php endif; ?></p>
+      <?php foreach (['act' => t('نشاطات اعتماد'), 'kw' => ($ai['keywords'] ? t('كلمات عناوين المنافسات') : t('كلمات من معرفة الشركة')), 'mine' => t('كلماتك')] as $k => $l): if (!$grp[$k] && $k !== 'mine') continue; ?>
+        <div><span class="text-[11px] font-semibold text-ink-500"><?= e($l) ?></span><div class="flex flex-wrap gap-1.5 mt-1.5" data-kw-list><?php foreach ($grp[$k] as $w) echo $chip($w, $k); ?></div></div>
+      <?php endforeach; ?>
+      <form id="kw-add" class="flex gap-2 m-0" data-no-ajax><input name="w" maxlength="40" class="input !mt-0 flex-1 text-sm" dir="auto" placeholder="<?= e(t('ضيف كلمة بالشكل اللي بيتكتب في عناوين المنافسات (مثلًا: صيانة شبكات)')) ?>"><button class="btn-ghost !text-xs"><?= e(t('أضف')) ?></button></form>
       <details class="text-xs"><summary class="cursor-pointer text-ink-600"><?= e(t('استبعاد وأيام')) ?></summary>
         <form id="kw-cfg" class="space-y-2 mt-2 m-0" data-no-ajax>
           <textarea name="not" rows="2" class="input text-sm" dir="auto" placeholder="<?= e(t('استبعد لو فيها (كلمة في كل سطر)')) ?>"><?= e(implode("\n", (array)$cfg['not'])) ?></textarea>
           <label class="flex items-center justify-between gap-2"><span class="text-ink-600"><?= e(t('اخفي اللي فاضل على آخر موعد فيها أقل من (يوم)')) ?></span><input type="number" name="min_days" value="<?= (int)$cfg['min_days'] ?>" min="0" max="30" class="input !mt-0 !w-20 text-center"></label>
           <button class="btn-ghost !text-xs w-full"><?= e(t('حفظ')) ?></button></form></details>
     </div>
-    <style>.kw{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;border-radius:9999px;padding:.25rem .65rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}</style>
+    <style>.kw{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;border-radius:9999px;padding:.25rem .65rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}.kw .kw-n{margin-inline-start:.35rem;border-radius:9999px;background:rgba(255,255,255,.8);padding:0 .35rem;font-size:10px;font-weight:700}.kw.zero{opacity:.55;border-style:dashed}</style>
     <script>
-    (function () { var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+    (function () { var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.'), 'aiBusy' => t('بنختار الكلمات…'),
+        'needAi' => $mgr && function_exists('ai_connection') && ai_connection() && tnd_activities(1) && ((!$ai['keywords'] && !$ai['activities']) || ($ai['sig'] ?? '') !== md5(tg_kb_brief()))], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
       function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { if (window.fxToast) fxToast(j.error || C.err, 'error'); return; } location.reload(); }); }
-      var l = document.getElementById('kw-list'); if (l) l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (b) post({ action: b.dataset.a, w: b.dataset.kw }); });
+      document.querySelectorAll('[data-kw-list]').forEach(function (l) { l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (b) post({ action: b.dataset.a, w: b.dataset.kw }); }); });
+      var ai = document.getElementById('kw-ai'); if (ai) ai.addEventListener('click', function () { ai.disabled = true; ai.querySelector('span').textContent = C.aiBusy; post({ action: 'kw_ai' }); });
+      if (C.needAi) { var f = new FormData(); f.append('_csrf', C.csrf); f.append('action', 'kw_ai'); fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) location.reload(); }); }
       var fa = document.getElementById('kw-add'); if (fa) fa.addEventListener('submit', function (e) { e.preventDefault(); var w = fa.w.value.trim(); if (w) post({ action: 'kw_add', w: w }); });
       var fc = document.getElementById('kw-cfg'); if (fc) fc.addEventListener('submit', function (e) { e.preventDefault(); post({ action: 'cfg', not: fc.not.value, min_days: fc.min_days.value }); });
     })();

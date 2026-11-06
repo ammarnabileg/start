@@ -48,15 +48,69 @@ function tnd_url(array $t): string
     return $t['id_str'] ? 'https://tenders.etimad.sa/Tender/DetailsForVisitor?STenderId=' . rawurlencode((string)$t['id_str']) : 'https://tenders.etimad.sa/Tender/AllTendersForVisitor?TenderRefNo=' . rawurlencode((string)$t['ref']);
 }
 
-/** كلمات من معرفة الشركة: المجال، والفئة، وأسماء الخدمات. الشركة مابتتسألش عن مجالها: كل حاجة من ملفها */
+/** نشاطات اعتماد الموجودة فعلًا في المنافسات النشطة، الأكتر الأول */
+function tnd_activities(int $limit = 200): array
+{
+    try { $st = db()->query("SELECT TRIM(activity) a, COUNT(*) n FROM tenders WHERE deadline >= NOW() AND activity IS NOT NULL AND TRIM(activity) <> '' GROUP BY TRIM(activity) ORDER BY n DESC LIMIT " . max(1, $limit));
+        return array_column($st->fetchAll(), 'n', 'a'); } catch (Throwable $e) { return []; }
+}
+
+/**
+ * كلمات البحث بلغة اعتماد: الذكاء الاصطناعي بيقرا معرفة الشركة وقايمة نشاطات اعتماد الحقيقية، وبيختار النشاطات اللي تخص الشركة
+ * (أسماء موجودة فعلًا بس) وكلمات عربي قصيرة زي ما الجهات بتكتب عناوين المنافسات. بتتحفظ لحد ما المعرفة تتغير.
+ * بيرجع ['activities' => [...], 'keywords' => [...], 'why' => ''] أو null لو مفيش ذكاء اصطناعي.
+ */
+function tnd_ai_words(bool $force = false): ?array
+{
+    if (!function_exists('ai_connection') || !ai_connection() || !function_exists('tg_kb_brief')) return null;
+    $wid = (int)ws('id'); $brief = tg_kb_brief(); if (mb_strlen($brief) < 40) return null;
+    $acts = tnd_activities(200); $sig = md5($brief . '|' . implode('|', array_keys(array_slice($acts, 0, 200))));
+    $c = json_decode((string)setting('tnd_ai_' . $wid, ''), true);
+    if (!$force && is_array($c) && ($c['sig'] ?? '') === md5($brief) && !empty($c['keywords'])) return $c; // المعرفة ماتغيرتش
+    $r = ai_chat([['role' => 'system', 'content' => 'TENDER_KEYWORDS_JSON. You are a Saudi government procurement (Etimad) expert. From the company profile, choose how to find tenders this company can WIN.'
+        . ' 1) "activities": pick ONLY from the given Etimad activity list (copy the exact Arabic text) the activities whose tenders fit this company. 2) "keywords": 10-25 short ARABIC terms (1-3 words, no company names, no English, no marketing phrases)'
+        . ' exactly as Saudi government entities write them in tender titles, e.g. "أمن سيبراني", "جدار حماية", "كاميرات مراقبة", "صيانة شبكات", "مركز بيانات". Prefer common procurement wording (توريد/تركيب/تشغيل/صيانة/تطوير + object) and generic nouns that appear in titles.'
+        . ' Return ONLY JSON: {"activities":["..."],"keywords":["..."],"why":"one short Arabic sentence"}'],
+        ['role' => 'user', 'content' => "COMPANY PROFILE\n" . $brief . "\n\nETIMAD ACTIVITIES (with active tender counts)\n" . ($acts ? implode("\n", array_map(function ($a, $n) { return "- $a ($n)"; }, array_keys($acts), $acts)) : '-')]], 900, 'analyze');
+    $j = kb_parse_json((string)($r['text'] ?? '')); if (!is_array($j)) return is_array($c) ? $c : null;
+    $valid = array_flip(array_map('tnd_norm', array_keys($acts)));
+    $actsOut = []; foreach ((array)($j['activities'] ?? []) as $a) { $a = trim((string)$a); if ($a !== '' && isset($valid[tnd_norm($a)])) $actsOut[tnd_norm($a)] = $a; }
+    $kw = []; foreach ((array)($j['keywords'] ?? []) as $w) { $w = trim((string)$w); if ($w === '' || preg_match('/[A-Za-z]/', $w) || mb_strlen($w) > 30 || substr_count($w, ' ') > 2) continue; $kw[tnd_norm($w)] = $w; }
+    $out = ['activities' => array_values(array_slice($actsOut, 0, 15)), 'keywords' => array_values(array_slice($kw, 0, 25)), 'why' => mb_substr((string)($j['why'] ?? ''), 0, 200), 'sig' => md5($brief)];
+    if ($out['activities'] || $out['keywords']) { save_setting('tnd_ai_' . $wid, json_encode($out, JSON_UNESCAPED_UNICODE)); log_activity('ai.tender_words', count($out['keywords']) . ' words'); }
+    return $out;
+}
+
+/** تنضيف كلمات المعرفة لما مفيش ذكاء اصطناعي: من غير "شركة تقنية:" و"ضمن حلول"، ومن غير الإنجليزي، وعبارات قصيرة بس */
+function tnd_clean_phrase(string $w): string
+{
+    $w = trim(preg_replace('/\s+/u', ' ', preg_replace('/[()\[\]"«»]/u', ' ', $w)));
+    if (strpos($w, ':') !== false || mb_strpos($w, '：') !== false) $w = trim((string)preg_replace('/^[^:：]*[:：]/u', '', $w));
+    do { $w0 = $w; $w = trim((string)preg_replace('/^(ضمن|حلول|خدمات|خدمة|منتجات|منتج|شركة|مؤسسة|تقديم|نقدم)\s+/u', '', $w)); } while ($w !== $w0);
+    $w = trim((string)preg_replace('/[A-Za-z][A-Za-z0-9&\-\.\s]*/u', '', $w)); // الإنجليزي (NGFW وأمثاله) مش بيتكتب في عناوين اعتماد
+    return (mb_strlen($w) >= 3 && mb_strlen($w) <= 30 && substr_count($w, ' ') <= 2) ? $w : '';
+}
+
+/** كلمات البحث التلقائية: من الذكاء الاصطناعي (نشاطات + كلمات بلغة اعتماد)، أو من معرفة الشركة بعد التنضيف */
 function tnd_kb_words(): array
 {
+    $ai = json_decode((string)setting('tnd_ai_' . (int)ws('id'), ''), true);
+    if (is_array($ai) && ($ai['activities'] || $ai['keywords'])) return array_values(array_unique(array_merge((array)$ai['activities'], (array)$ai['keywords'])));
     $kb = function_exists('kb_get') ? kb_get((int)ws('id')) : []; $raw = [];
     foreach ([(string)($kb['company']['industry'] ?? ''), (string)($kb['frame_ref']['category'] ?? '')] as $v) foreach (preg_split('/[,،\/\n]+|\s+و(?=\S)/u', $v) as $p) $raw[] = $p;
     foreach ((array)($kb['services']['rows'] ?? []) as $r) $raw[] = (string)($r['name'] ?? '');
     $out = [];
-    foreach ($raw as $w) { $w = trim(preg_replace('/\s+/u', ' ', preg_replace('/[()\[\]"«»]/u', ' ', $w))); if (mb_strlen($w) < 3 || mb_strlen($w) > 40 || substr_count($w, ' ') > 3) continue; $out[tnd_norm($w)] = $w; }
+    foreach ($raw as $w) { $w = tnd_clean_phrase($w); if ($w !== '') $out[tnd_norm($w)] = $w; }
     return array_values(array_slice($out, 0, 40));
+}
+
+/** عدد المنافسات النشطة اللي كل كلمة بتطابقها (عشان المستخدم يشوف الكلمة بتجيب نتيجة ولا لأ) */
+function tnd_word_counts(array $words): array
+{
+    $out = array_fill_keys($words, 0);
+    try { $rows = db()->query('SELECT name, activity FROM tenders WHERE deadline >= NOW() LIMIT 5000')->fetchAll(); } catch (Throwable $e) { return $out; }
+    foreach ($rows as $t) foreach ($words as $w) if (tnd_hits($t, [$w], [])) $out[$w]++;
+    return $out;
 }
 
 /** إعدادات الشركة: كلمات من المعرفة (auto) + كلمات زودها المستخدم (add) - اللي قفلها (off)، واستبعاد، وأقل أيام متبقية */
