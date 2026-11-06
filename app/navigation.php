@@ -71,7 +71,7 @@ function nav_items(): array
         if ($i['key'] === 'admin') { $out[] = $i; continue; }
         // التابات اللي مالوش صلاحية عليها بتختفي، ولو مفضلش حاجة العنصر كله بيختفي
         if (isset($i['tabs'])) {
-            $i['tabs'] = array_filter($i['tabs'], function ($tk) { $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
+            $i['tabs'] = array_filter($i['tabs'], function ($tk) { if ($tk === 'crm' && function_exists('crm_has_key') && !crm_has_key()) return false; $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
             if (!$i['tabs']) continue;
         } else {
             $p = page_permission($i['key']);

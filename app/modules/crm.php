@@ -16,7 +16,7 @@ function crm_stages(): array
 
 function crm_sources(): array
 {
-    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي')];
+    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد')];
 }
 
 function crm_sizes(): array
@@ -331,6 +331,35 @@ function crm_lead_upsert(array $d): array
         $f['title'], $f['email'], $f['phone'], (int)($d['phone_pending'] ?? 0), $f['linkedin'], $f['country'], $owner, $uid ?: null,
     ]);
     return crm_lead((int)db()->lastInsertId()) + ['merged' => false];
+}
+
+/** أنواع التواصل في سجل العميل */
+function crm_act_kinds(): array
+{
+    return ['call' => ['📞', t('مكالمة')], 'wa' => ['💬', t('واتساب')], 'email' => ['✉️', t('إيميل')], 'meet' => ['🤝', t('اجتماع')], 'note' => ['📝', t('ملاحظة')], 'stage' => ['➜', t('تغيير مرحلة')]];
+}
+function crm_act_add(int $leadId, string $kind, string $body = ''): void
+{
+    if (!isset(crm_act_kinds()[$kind])) return;
+    db()->prepare('INSERT INTO crm_acts (workspace_id, lead_id, user_id, kind, body) VALUES (?, ?, ?, ?, ?)')
+        ->execute([(int)ws('id'), $leadId, (int)(current_user()['id'] ?? 0) ?: null, $kind, mb_substr(trim($body), 0, 2000) ?: null]);
+}
+function crm_acts(int $leadId): array
+{
+    $st = db()->prepare('SELECT a.kind, a.body, a.created_at, u.name AS who FROM crm_acts a LEFT JOIN users u ON u.id = a.user_id WHERE a.workspace_id = ? AND a.lead_id = ? ORDER BY a.id DESC LIMIT 100');
+    $st->execute([(int)ws('id'), $leadId]);
+    return $st->fetchAll();
+}
+/** قوالب رسائل التواصل؛ {name} {company} {me} بتتبدل */
+function crm_templates(): array
+{
+    $t = json_decode((string)setting('crm_tpl_' . (int)ws('id')), true);
+    if (is_array($t) && $t) return $t;
+    return [
+        ['n' => t('أول تواصل'), 'b' => t('أهلاً {name}، معاك {me}. شفت شغل {company} وحابب أعرض عليك حاجة ممكن تفيدكم. ينفع نتكلم دقيقتين؟')],
+        ['n' => t('متابعة'), 'b' => t('أهلاً {name}، بتابع مع حضرتك بخصوص كلامنا اللي فات. لسه الموضوع في بالك؟')],
+        ['n' => t('عرض سعر'), 'b' => t('أهلاً {name}، بعتلك عرض السعر. لو عندك أي سؤال أنا موجود.')],
+    ];
 }
 
 function crm_lead(int $id): array

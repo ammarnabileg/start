@@ -2,7 +2,7 @@
   var D = window.LD; if (!D) return;
   var T = D.tr, leads = D.leads;
   var list = document.getElementById('ld-list'), board = document.getElementById('ld-board'), none = document.getElementById('ld-none');
-  var f = { stage: '', src: '', own: '', due: false, q: '' };
+  var f = { stage: '', src: '', own: '', due: false, q: '', cold: false };
   var view = 'list';
   try { view = localStorage.getItem('ld-view') || 'list'; } catch (e) {}
   var stageColor = { new: 'bg-sky-100 text-sky-700', contacted: 'bg-violet-100 text-violet-700', qualified: 'bg-amber-100 text-amber-800', proposal: 'bg-orange-100 text-orange-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
@@ -13,6 +13,7 @@
     fd.append('_csrf', D.csrf);
     return fetch(D.url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); });
   }
+  function isCold(l) { return !closed(l) && !l.next_at && (Date.now() - new Date((l.last || l.created || '').replace(' ', 'T')).getTime()) > 7 * 864e5; }
   function closed(l) { return l.stage === 'won' || l.stage === 'lost'; }
   function dueState(l) {
     if (!l.next_at || closed(l)) return '';
@@ -31,6 +32,7 @@
     if (f.src && l.source !== f.src) return false;
     if (f.own !== '' && String(l.owner) !== f.own) return false;
     if (f.due && ['over', 'today'].indexOf(dueState(l)) < 0) return false;
+    if (f.cold && !isCold(l)) return false;
     if (f.q) { var h = (l.name + ' ' + l.company + ' ' + l.email + ' ' + l.phone + ' ' + l.tags + ' ' + l.title).toLowerCase(); if (h.indexOf(f.q) < 0) return false; }
     return true;
   }
@@ -103,7 +105,7 @@
   function openModal(m) { lastFocus = document.activeElement; m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
   function closeModal(m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
   [dr, document.getElementById('ld-add')].forEach(function (m) { m.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(m); }); }); });
-  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add')].forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg')].forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
   function quick(l) {
     var b = [];
     if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">📞 ' + T.call + '</a>');
@@ -124,6 +126,7 @@
     form.querySelectorAll('input,select,textarea,button:not([data-close])').forEach(function (x) { if (x.name !== 'owner' || D.canManage) x.disabled = !l.edit; });
     document.getElementById('ld-meta').textContent = T.from.replace('%s', D.sources[l.source] || l.source).replace('%s', (l.created || '').slice(0, 10)) + (l.edit ? '' : ' · ' + T.ro);
     msg.textContent = '';
+    drawTpl(l); loadActs(l);
     openModal(dr);
     form.elements.name.focus();
   }
@@ -169,6 +172,109 @@
       closeModal(add); draw(); open(r.lead.id);
       if (r.merged) { msg.className = 'text-xs text-amber-700'; msg.textContent = T.merged; }
     });
+  });
+
+  /* ---------- رسائل جاهزة + سجل التواصل ---------- */
+  var tplBox = document.getElementById('ld-tpl'), acts = document.getElementById('ld-acts');
+  function fill(b, l) { return b.replace(/\{name\}/g, (l.name || '').split(/\s+/)[0]).replace(/\{company\}/g, l.company || '').replace(/\{me\}/g, D.meName || ''); }
+  function drawTpl(l) {
+    tplBox.classList.toggle('hidden', !l.wa || !l.edit);
+    document.getElementById('ld-tpl-list').innerHTML = (D.tpl || []).map(function (t, i) { return '<button type="button" class="chip text-xs" data-t="' + i + '" title="' + esc(fill(t.b, l)) + '">' + esc(t.n) + '</button>'; }).join('');
+  }
+  function when(s) { var d = new Date(String(s).replace(' ', 'T')); return d.toLocaleString(document.documentElement.lang || undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); }
+  function drawActs(a) {
+    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(x.body) + '</div>' : '') + '</div></li>'; }).join('')
+      : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
+  }
+  function loadActs(l) { acts.innerHTML = ''; post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) drawActs(r.acts); }); }
+  function logAct(kind, body) {
+    if (!cur) return Promise.resolve();
+    var l = cur;
+    return post({ action: 'log', id: l.id, kind: kind, body: body || '' }).then(function (r) {
+      if (!r.ok) return alert(r.error || T.err);
+      Object.assign(l, r.lead); if (cur === l) { drawActs(r.acts); form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); }
+      draw();
+    });
+  }
+  document.getElementById('ld-tpl-list').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-t]'); if (!b || !cur) return;
+    var txt = fill(D.tpl[+b.dataset.t].b, cur);
+    window.open('https://wa.me/' + cur.wa + '?text=' + encodeURIComponent(txt), '_blank', 'noopener');
+    logAct('wa', txt);
+  });
+  // أي ضغطة اتصال/واتساب/إيميل من الدرج بتتسجّل
+  document.getElementById('ld-quick').addEventListener('click', function (e) {
+    var a = e.target.closest('a'); if (!a || !cur || !cur.edit) return;
+    var h = a.getAttribute('href') || '';
+    logAct(h.indexOf('tel:') === 0 ? 'call' : h.indexOf('mailto:') === 0 ? 'email' : h.indexOf('wa.me') > -1 ? 'wa' : 'note', '');
+  });
+  document.getElementById('ld-log-kinds').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-k]'); if (!b) return;
+    var inp = document.getElementById('ld-log-body');
+    logAct(b.dataset.k, inp.value.trim()).then(function () { inp.value = ''; });
+  });
+  var coldB = document.getElementById('ld-cold');
+  if (coldB) coldB.addEventListener('click', function () { f.cold = !f.cold; coldB.classList.toggle('ring-2', f.cold); coldB.classList.toggle('ring-sky-400', f.cold); draw(); });
+
+  /* ---------- القوالب ---------- */
+  var td = document.getElementById('ld-tpl-dlg'), rowsEl = document.getElementById('ld-tpl-rows');
+  function tplRow(t) { return '<div class="rounded-xl border border-ink-200 p-2 space-y-1.5" data-row><div class="flex gap-2"><input class="input text-sm" data-n maxlength="40" placeholder="' + esc(T.tplN) + '" value="' + esc(t.n) + '"><button type="button" class="btn-ghost text-red-600 !px-2" data-rm aria-label="' + esc(T.rm) + '">✕</button></div><textarea class="input text-sm" rows="3" data-b maxlength="1000" dir="auto" placeholder="' + esc(T.tplB) + '">' + esc(t.b) + '</textarea></div>'; }
+  var te = document.getElementById('ld-tpl-edit');
+  if (te) {
+    [td].forEach(function (m) { m.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); }); }); });
+    te.addEventListener('click', function () { rowsEl.innerHTML = (D.tpl || []).map(tplRow).join(''); td.classList.remove('hidden'); td.setAttribute('aria-hidden', 'false'); });
+    document.getElementById('ld-tpl-add').addEventListener('click', function () { rowsEl.insertAdjacentHTML('beforeend', tplRow({ n: '', b: '' })); });
+    rowsEl.addEventListener('click', function (e) { var r = e.target.closest('[data-rm]'); if (r) r.closest('[data-row]').remove(); });
+    document.getElementById('ld-tpl-save').addEventListener('click', function () {
+      var t = Array.prototype.map.call(rowsEl.querySelectorAll('[data-row]'), function (r) { return { n: r.querySelector('[data-n]').value, b: r.querySelector('[data-b]').value }; });
+      post({ action: 'tpl_save', tpl: JSON.stringify(t) }).then(function (r) { if (!r.ok) return alert(r.error || T.err); D.tpl = r.tpl; if (cur) drawTpl(cur); td.classList.add('hidden'); });
+    });
+  }
+
+  /* ---------- الاستيراد ---------- */
+  var im = document.getElementById('ld-imp'), itx = document.getElementById('ld-imp-txt'), imap = document.getElementById('ld-imp-map'), igo = document.getElementById('ld-imp-go'), imsg = document.getElementById('ld-imp-msg'), parsed = null;
+  im.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(im); }); });
+  document.getElementById('ld-imp-btn').addEventListener('click', function () { imsg.textContent = ''; openModal(im); itx.focus(); });
+  function parse(text) {
+    text = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').trim(); if (!text) return null;
+    var first = text.split('\n')[0], sep = first.indexOf('\t') > -1 ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',');
+    var rows = [], row = [], cell = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; continue; }
+      if (c === '"' && cell === '') q = true; else if (c === sep) { row.push(cell); cell = ''; } else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; } else cell += c;
+    }
+    row.push(cell); rows.push(row);
+    rows = rows.filter(function (r) { return r.some(function (x) { return x.trim(); }); });
+    return rows.length > 1 ? { head: rows[0].map(function (h) { return h.trim(); }), body: rows.slice(1) } : null;
+  }
+  var guess = { name: /^(name|full ?name|الاسم|اسم|الإسم|العميل|contact)/i, phone: /(phone|mobile|tel|whats|رقم|موبايل|تليفون|هاتف|جوال|واتس)/i, email: /(mail|إيميل|ايميل|البريد)/i,
+    company: /(company|organi[sz]ation|الشركة|شركة|المؤسسة)/i, title: /(title|job|position|role|المسمى|الوظيفة|المنصب)/i, country: /(country|الدولة|البلد)/i, tags: /(tag|تاج|تصنيف)/i, note: /(note|ملاحظ|comment)/i };
+  function drawMap() {
+    parsed = parse(itx.value); imap.classList.toggle('hidden', !parsed); igo.disabled = !parsed;
+    if (!parsed) { imsg.textContent = ''; return; }
+    var used = {};
+    imap.innerHTML = '<div class="grid sm:grid-cols-2 gap-2">' + parsed.head.map(function (h, i) {
+      var g = ''; Object.keys(guess).some(function (k) { if (!used[k] && guess[k].test(h)) { g = k; used[k] = 1; return true; } });
+      return '<label class="flex items-center gap-2 text-xs"><span class="w-28 truncate text-ink-600" dir="auto" title="' + esc(h) + '">' + esc(h || '#' + (i + 1)) + '</span><select class="input !py-1 text-xs" data-col="' + i + '"><option value="">' + esc(T.skipCol) + '</option>' +
+        Object.keys(T.f).map(function (k) { return '<option value="' + k + '"' + (k === g ? ' selected' : '') + '>' + esc(T.f[k]) + '</option>'; }).join('') + '</select></label>';
+    }).join('') + '</div>';
+    imsg.className = 'text-xs text-ink-500'; imsg.textContent = T.impRows.replace('%s', parsed.body.length);
+  }
+  itx.addEventListener('input', drawMap);
+  document.getElementById('ld-imp-file').addEventListener('change', function () { var fl = this.files[0]; if (!fl) return; var rd = new FileReader(); rd.onload = function () { itx.value = rd.result; drawMap(); }; rd.readAsText(fl); });
+  igo.addEventListener('click', function () {
+    if (!parsed) return;
+    var map = {}; imap.querySelectorAll('[data-col]').forEach(function (s) { if (s.value) map[s.value] = +s.dataset.col; });
+    if (map.phone == null && map.email == null) { imsg.className = 'text-xs text-red-600'; imsg.textContent = T.impNeed; return; }
+    var rows = parsed.body.map(function (r) { var o = {}; Object.keys(map).forEach(function (k) { o[k] = (r[map[k]] || '').trim(); }); return o; });
+    igo.disabled = true;
+    post({ action: 'import', rows: JSON.stringify(rows) }).then(function (r) {
+      igo.disabled = false;
+      if (!r.ok) { imsg.className = 'text-xs text-red-600'; imsg.textContent = r.error || T.err; return; }
+      imsg.className = 'text-xs text-lime-700'; imsg.textContent = T.impDone.replace('%s', r.new).replace('%s', r.merged).replace('%s', r.skip);
+      setTimeout(function () { location.reload(); }, 1600);
+    }).catch(function () { igo.disabled = false; imsg.textContent = T.err; });
   });
 
   draw();

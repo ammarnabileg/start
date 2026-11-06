@@ -110,6 +110,7 @@ function ps_cal_item(array $p): ?array
     $w = $p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? null; if (!$w) return null;
     return ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'mv' => in_array((string)($p['status'] ?? ''), ['scheduled', 'draft'], true) && !empty($p['scheduledFor']),
         'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))),
+        'ac' => array_values(array_unique(array_filter(array_map(function ($pl) { return (string)pub_acc_id($pl['accountId'] ?? ''); }, $p['platforms'] ?? [])))),
         'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : ''];
 }
 /** كل المنشورات المجدولة في فترة (مش أول 100 بس): صفحات مترتبة بالميعاد لحد ما نعدّي آخر الفترة */
@@ -668,7 +669,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
         'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
         'calLoading' => t('بنجيب منشورات الفترة دي…'),
-        'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور)'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
+        'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور على نفس الحساب)'), 'hLimit' => t('حد الزحمة لكل حساب في اليوم'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
         'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,
         'varyNote' => t('راجع كل صياغة وعدّلها لو عاوز. مفيش حاجة هتتغير غير لما تدوس "طبّق".'), 'vurl' => url('posts'),
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),

@@ -1,6 +1,8 @@
 <?php
 /** إدارة العملاء ← الشركات المستهدفة: العميل المثالي + تحديث + 5 صناع قرار لكل شركة + كشف بياناتهم */
 $hasKey = crm_has_key();
+// مزايا Apollo بتظهر بس لو مربوط؛ المدير بيفضل يقدر يفتح الصفحة عشان يربطه
+if (!$hasKey && !can('crm.manage')) redirect(url('crm_leads'));
 $prefs = crm_prefs();
 $uid = (int)(current_user()['id'] ?? 0);
 $canReveal = can('crm.reveal');

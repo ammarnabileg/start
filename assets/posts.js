@@ -179,14 +179,18 @@
       var g = {}; sch.forEach(function (p) { var k = normT(p.txt); if (k.length < 12) return; (g[k] = g[k] || []).push(p); });
       dupGroups = Object.keys(g).map(function (k) { return g[k]; }).filter(function (l) { return l.length > 1; }).sort(function (a, b) { return b.length - a.length; });
       dupSet = {}; dupGroups.forEach(function (l) { l.forEach(function (p) { dupSet[p.id] = 1; }); });
-      var per = {}; sch.forEach(function (p) { var k = siteDT(new Date(p.at)).slice(0, 10); per[k] = (per[k] || 0) + 1; });
+      // الزحمة بتتحسب لكل حساب لوحده: اليوم زحمة لو أي حساب عليه أكتر من الحد
+      try { var bn = +localStorage.getItem('cal-busyN'); if (bn > 0) Hq.busyN = bn; } catch (e) {}
+      var pa = {}, per = {}; sch.forEach(function (p) { var k = siteDT(new Date(p.at)).slice(0, 10); (p.ac && p.ac.length ? p.ac : ['_']).forEach(function (a) { var kk = k + '|' + a; pa[kk] = (pa[kk] || 0) + 1; if (pa[kk] > (per[k] || 0)) per[k] = pa[kk]; }); });
       var busy = Object.keys(per).filter(function (k) { return per[k] > Hq.busyN; });
       var nd = Object.keys(dupSet).length;
       box.classList.remove('hidden');
       box.innerHTML = '<span class="font-semibold text-ink-700">🩺 ' + esc(Hq.hTitle) + ':</span>' +
         (nd ? '<button type="button" id="cal-dup-open" class="rounded-full bg-orange-100 text-orange-800 border border-orange-200 px-2.5 py-0.5 hover:bg-orange-200">🔁 ' + esc(Hq.hDup.replace('%s', nd).replace('%s', dupGroups.length)) + ' · ' + esc(Hq.hShow) + '</button>' : '') +
         (busy.length ? '<span class="rounded-full bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5">🔥 ' + esc(Hq.hBusy.replace('%s', busy.length).replace('%s', Hq.busyN)) + '</span>' : '') +
-        (!nd && !busy.length ? '<span class="text-lime-700">✓ ' + esc(Hq.hOk) + '</span>' : '');
+        (!nd && !busy.length ? '<span class="text-lime-700">✓ ' + esc(Hq.hOk) + '</span>' : '') +
+        '<label class="ms-auto inline-flex items-center gap-1.5 text-ink-500">' + esc(Hq.hLimit) + ' <input id="cal-busyN" type="number" min="1" max="50" value="' + Hq.busyN + '" class="input !w-16 !py-0.5 text-xs"></label>';
+      var bi = $('#cal-busyN'); if (bi) bi.onchange = function () { var v = Math.max(1, Math.min(50, +bi.value || 6)); try { localStorage.setItem('cal-busyN', v); } catch (e) {} Hq.busyN = v; draw(); };
       var ob = $('#cal-dup-open'); if (ob) ob.onclick = openDups;
       // علامات على التقويم
       $$('#cal-grid a[href*="post_edit"], #cal-week a[href*="post_edit"]').forEach(function (a) { var m = /[?&]id=([^&]+)/.exec(a.getAttribute('href')); if (m && dupSet[decodeURIComponent(m[1])]) { a.classList.add('ring-2', 'ring-orange-300', 'bg-orange-50'); a.title = '🔁 ' + a.title; } });
