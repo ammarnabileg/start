@@ -69,6 +69,7 @@ function run_migrations(PDO $pdo): array
 
     $done = $pdo->query("SELECT name FROM migrations")->fetchAll(PDO::FETCH_COLUMN);
     $all = require __DIR__ . '/migrations.php';
+    ksort($all, SORT_STRING); // دايمًا بالترتيب (001، 002، …) حتى لو اتكتبوا في الملف بترتيب تاني
     $ran = [];
     foreach ($all as $name => $statements) {
         if (in_array($name, $done, true)) {
@@ -78,7 +79,13 @@ function run_migrations(PDO $pdo): array
             if ($sql instanceof Closure) {
                 $sql($pdo); // تحديث محتاج كود PHP (زي تشفير البيانات)
             } else {
-                $pdo->exec($sql);
+                try {
+                    $pdo->exec($sql);
+                } catch (PDOException $e) {
+                    // لو تحديث وقف في النص قبل كده: العمود/الفهرس/الجدول موجود خلاص، فنكمّل بدل ما نقف
+                    $code = (int)($e->errorInfo[1] ?? 0);
+                    if (!in_array($code, [1060, 1061, 1050, 1091], true)) throw $e;
+                }
             }
         }
         $st = $pdo->prepare("INSERT INTO migrations (name) VALUES (?)");
