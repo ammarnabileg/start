@@ -196,7 +196,35 @@
       $$('#cal-grid a[href*="post_edit"], #cal-week a[href*="post_edit"]').forEach(function (a) { var m = /[?&]id=([^&]+)/.exec(a.getAttribute('href')); if (m && dupSet[decodeURIComponent(m[1])]) { a.classList.add('ring-2', 'ring-orange-300', 'bg-orange-50'); a.title = '🔁 ' + a.title; } });
       $$('#cal-grid [data-day]').forEach(function (c) { var pr = c.dataset.day.split('-'), k = pr[0] + '-' + pad(+pr[1]) + '-' + pad(+pr[2]); if (per[k] > Hq.busyN && !c.querySelector('.cal-busy')) { var b = document.createElement('span'); b.className = 'cal-busy absolute top-1.5 end-9 rounded-full bg-red-500 text-white text-[9px] px-1.5'; b.textContent = per[k]; c.appendChild(b); } });
     }
-    var _d0 = draw; draw = function () { _d0(); health(); }; window.__cal = draw;
+    /* ---------- #14 المواسم: علامة على اليوم + "مواسم جاية" فوق التقويم ---------- */
+    function seasons() {
+      var list = (X.q && X.q.seasons) || [], box = $('#cal-seasons'); if (!box) return;
+      var today = siteDT(new Date()).slice(0, 10), soon = list.filter(function (s) { return s.d >= today; }).slice(0, 4);
+      var dupUrl = function (s) { return X.q.compose + (X.q.compose.indexOf('?') > -1 ? '&' : '?') + 'dup_text=' + encodeURIComponent(s.idea); };
+      box.classList.remove('hidden');
+      box.innerHTML = '<span class="font-semibold text-ink-700">🎉 ' + esc(X.q.sSoon) + ':</span>' + soon.map(function (s) {
+        var days = Math.round((new Date(s.d) - new Date(today)) / 864e5);
+        return '<a href="' + esc(dupUrl(s)) + '" class="rounded-full border px-2.5 py-0.5 hover:bg-brand-50 hover:border-brand-300 ' + (days <= 14 ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-ink-200 text-ink-600') + '" title="' + esc(X.q.sPrep + (s.approx ? ' · ' + X.q.sApprox : '')) + '">' + esc(s.n) + ' · ' + esc(s.d.slice(5).split('-').reverse().join('/')) + (days >= 0 ? ' (' + days + ')' : '') + ' ✎</a>';
+      }).join('') + (X.q.canAi ? '<button type="button" id="cal-ideas" class="ms-auto btn-ghost !py-1 !text-xs">💡 ' + esc(X.q.ideas) + '</button>' : '');
+      var ib = $('#cal-ideas'); if (ib) ib.onclick = weekIdeas;
+      $$('#cal-grid [data-day]').forEach(function (c) {
+        var pr = c.dataset.day.split('-'), k = pr[0] + '-' + pad(+pr[1]) + '-' + pad(+pr[2]);
+        list.forEach(function (s) { if (s.d === k && !c.querySelector('.cal-season')) { var a = document.createElement('a'); a.className = 'cal-season block mt-0.5 truncate rounded bg-violet-50 border border-violet-200 text-violet-800 text-[10px] px-1 hover:bg-violet-100'; a.href = dupUrl(s); a.title = s.idea + (s.approx ? ' · ' + X.q.sApprox : ''); a.textContent = '🎉 ' + s.n; a.addEventListener('click', function (e) { e.stopPropagation(); }); c.appendChild(a); } });
+      });
+    }
+    function weekIdeas() {
+      var ib = $('#cal-ideas'); ib.disabled = true; var o = ib.textContent; ib.textContent = X.q.thinking;
+      var fd = new FormData(); fd.append('action', 'week_ideas');
+      fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) {
+        ib.disabled = false; ib.textContent = o; if (!j.ok) return toast(j.error || X.err);
+        dmb.innerHTML = (j.kb ? '' : '<p class="text-xs text-amber-700 bg-amber-50 rounded-lg p-2">' + esc(X.q.noKb) + '</p>') + j.ideas.map(function (it, i) {
+          return '<div class="rounded-xl border border-ink-200 p-3"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold grid place-items-center">' + (i + 1) + '</span><b class="text-sm text-ink-900">' + esc(it.t) + '</b>' +
+            '<a class="btn-ghost !py-1 !text-xs ms-auto" href="' + esc(X.q.compose + (X.q.compose.indexOf('?') > -1 ? '&' : '?') + 'dup_text=' + encodeURIComponent(it.b)) + '">' + esc(X.q.mkPost) + ' ✎</a></div><p class="text-sm text-ink-700 whitespace-pre-line mt-2" dir="auto">' + esc(it.b) + '</p></div>';
+        }).join('');
+        $('#cal-dups-h').textContent = '💡 ' + X.q.ideasT; dm.classList.remove('hidden'); dm.setAttribute('aria-hidden', 'false');
+      }).catch(function () { ib.disabled = false; ib.textContent = o; toast(X.err); });
+    }
+    var _d0 = draw; draw = function () { _d0(); health(); seasons(); }; window.__cal = draw;
     var dm = $('#cal-dups'), dmb = $('#cal-dups-body');
     function closeDups() { dm.classList.add('hidden'); dm.setAttribute('aria-hidden', 'true'); }
     if (dm) { $$('[data-close]', dm).forEach(function (x) { x.onclick = closeDups; }); document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dm.classList.contains('hidden')) closeDups(); }); }

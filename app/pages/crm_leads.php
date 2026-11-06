@@ -451,7 +451,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
 
     <?php $nfs = crm_notifs($uid, 20); $nfU = count(array_filter($nfs, function ($x) { return !(int)$x['seen']; })); if ($nfs): ?>
     <details id="notifs" class="card mb-4 group" <?= $nfU ? 'open' : '' ?>>
-      <summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-2.5 text-sm"><span>🔔 <b><?= e(t('تنبيهات العملاء')) ?></b></span><?php if ($nfU): ?><span class="rounded-full bg-rose-600 text-white text-[10px] px-1.5"><?= $nfU ?></span><?php endif; ?>
+      <summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-2.5 text-sm"><span>🔔 <b><?= e(t('التنبيهات')) ?></b></span><?php if ($nfU): ?><span class="rounded-full bg-rose-600 text-white text-[10px] px-1.5"><?= $nfU ?></span><?php endif; ?>
         <button type="button" id="nf-seen" class="link text-xs ms-auto <?= $nfU ? '' : 'hidden' ?>"><?= e(t('علّمهم مقروءين')) ?></button></summary>
       <div class="divide-y divide-ink-100 border-t border-ink-100 max-h-64 overflow-y-auto"><?php foreach ($nfs as $nf): ?>
         <a href="#lead-<?= (int)$nf['lead_id'] ?>" data-nf-lead="<?= (int)$nf['lead_id'] ?>" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-ink-50 <?= (int)$nf['seen'] ? 'text-ink-500' : 'text-ink-900 font-medium bg-rose-50/40' ?>"><span class="flex-1"><?= e($nf['body']) ?></span><span class="text-[11px] text-ink-400 shrink-0"><?= e(fmt_date($nf['created_at'], 'd/m h:i A')) ?></span></a>

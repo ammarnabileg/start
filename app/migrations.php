@@ -528,6 +528,23 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '037_post_approvals' => [
+        "CREATE TABLE IF NOT EXISTS post_approvals (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            draft_id VARCHAR(64) NULL,
+            payload MEDIUMTEXT NOT NULL,
+            extra TEXT NULL,
+            want VARCHAR(40) NOT NULL,
+            status VARCHAR(12) NOT NULL DEFAULT 'pending',
+            note VARCHAR(300) NULL,
+            decided_by INT UNSIGNED NULL,
+            decided_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_status (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '036_crm_more' => [
         "ALTER TABLE crm_leads ADD COLUMN lost_reason VARCHAR(60) NULL",
         "ALTER TABLE crm_bookings ADD COLUMN reminded_24 TINYINT(1) NOT NULL DEFAULT 0, ADD COLUMN reminded_1 TINYINT(1) NOT NULL DEFAULT 0",

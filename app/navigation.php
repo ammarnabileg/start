@@ -42,7 +42,7 @@ function nav_items(): array
         ['key' => 'leads', 'label' => t('عملاء الإعلانات'), 'section' => t('العملاء'), 'module' => 'ads'],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => t('المحتوى')],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => t('المحتوى'),
-            'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم')], 'also' => ['post_edit', 'queue', 'bulk']],
+            'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات')], 'also' => ['post_edit', 'queue', 'bulk']],
         ['key' => 'inbox', 'label' => t('الرسائل'), 'section' => t('التواصل')],
         ['key' => 'comments', 'label' => t('التعليقات'), 'section' => t('التواصل')],
         ['key' => 'automations', 'label' => t('الردود التلقائية'), 'section' => t('التواصل'), 'module' => 'automations',

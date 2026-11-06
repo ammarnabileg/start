@@ -667,7 +667,11 @@
     var k = 0;
     function next() {
       if (k >= chunks.length) return finish();
-      var off = chunks[k], part = rows.slice(off, off + SZ).map(function (r) { return idx.map(function (i) { return r[i]; }); });
+      // #2: متغيرات في النص زي {city} أو {price} بتتبدل بقيمة العمود اللي بنفس الاسم في نفس الصف
+      var off = chunks[k], part = rows.slice(off, off + SZ).map(function (r) {
+        var vars = {}; head.forEach(function (h, i) { vars[String(h).toLowerCase().trim()] = r[i] == null ? '' : String(r[i]); });
+        return idx.map(function (i) { var h = head[i]; if (h !== 'post_content' && !/^custom_content_/.test(h)) return r[i]; return String(r[i] || '').replace(/\{([^{}\n]{1,40})\}/g, function (m0, k0) { var kk = k0.toLowerCase().trim(); return Object.prototype.hasOwnProperty.call(vars, kk) ? vars[kk] : m0; }); });
+      });
       $('#bk-prog-t').textContent = f(S.batch, k + 1, chunks.length); $('#bk-prog-p').textContent = Math.round(k / chunks.length * 100) + '%';
       bar.style.width = Math.round(k / chunks.length * 100) + '%';
       var fd = new FormData(); fd.append('_csrf', X.csrf); fd.append('mode', m); fd.append('fname', fname);

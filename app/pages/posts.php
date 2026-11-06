@@ -202,6 +202,25 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 
     exit;
 }
 
+// #15 أفكار الأسبوع (AI، بيصرف كريديت بس لما تدوس): 7 أفكار من بيانات الشركة في قاعدة المعرفة + المواسم الجاية
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'week_ideas') {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use') || !ai_connection()) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE));
+    try {
+        $kb = function_exists('kb_compile') ? mb_substr(kb_compile((int)ws('id'), 'خدمات منتجات عروض جمهور'), 0, 3500) : '';
+        $se = function_exists('ps_seasons') ? implode('، ', array_map(function ($x) { return $x['n'] . ' ' . $x['d']; }, ps_seasons(date('Y-m-d'), date('Y-m-d', strtotime('+14 days'))))) : '';
+        $sys = 'WEEK_IDEAS_JSON. أنت مخطط محتوى سوشيال ميديا. اكتب 7 أفكار منشورات لأسبوع واحد (فكرة لكل يوم) لنفس الشركة، متنوعة: تعليمي، عرض، رأي عميل، سؤال للتفاعل، خلف الكواليس، نصيحة، دعوة للتواصل. استخدم معلومات الشركة بس ومتخترعش أسعار. '
+            . 'لكل فكرة: عنوان قصير ومسودة منشور 2-4 سطور بنفس لغة ولهجة الشركة. أعد JSON فقط: {"ideas":[{"t":"...","b":"..."}]}' . ai_country_note();
+        $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => "معلومات الشركة:\n" . ($kb ?: '(مفيش)') . ($se ? "\nمناسبات قريبة: " . $se : '')]], 1800, 'compose');
+        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $ideas = array_values(array_filter(array_map(function ($x) { return is_array($x) ? ['t' => mb_substr(trim((string)($x['t'] ?? '')), 0, 120), 'b' => mb_substr(trim((string)($x['b'] ?? '')), 0, 1500)] : null; }, (array)(json_decode($txt, true)['ideas'] ?? [])), function ($x) { return $x && $x['b'] !== ''; }));
+        if (!$ideas) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        log_activity('ai.week_ideas', count($ideas) . '');
+        echo json_encode(['ok' => true, 'ideas' => array_slice($ideas, 0, 7), 'kb' => $kb !== ''], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); }
+    exit;
+}
+
 // إجراءات سريعة من الصفحة (JSON): ميعاد جديد، إعادة محاولة، نسخة، تأجيل جماعي
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
     header('Content-Type: application/json; charset=utf-8');
@@ -662,6 +681,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-ink-400"></span><?= e(t('مسودة')) ?></span>
           </div>
         </div>
+        <div id="cal-seasons" class="hidden flex flex-wrap items-center gap-2 px-4 py-2 border-b border-ink-100 text-xs"></div>
         <div id="cal-health" class="hidden flex flex-wrap items-center gap-2 px-4 py-2 border-b border-ink-100 text-xs"></div>
         <div class="grid grid-cols-7 border-b border-ink-100 bg-ink-50 text-[11px] font-medium text-ink-500" id="cal-dow"></div>
         <div class="grid grid-cols-7" id="cal-grid"></div>
@@ -704,6 +724,9 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
         'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
         'calLoading' => t('بنجيب منشورات الفترة دي…'),
+        'seasons' => function_exists('ps_seasons') ? ps_seasons(date('Y-m-d', strtotime('-40 days')), date('Y-m-d', strtotime('+400 days'))) : [], 'compose' => url('compose'),
+'noKb' => t('الأفكار هتبقى أدق لو ملّيت قاعدة المعرفة (خدماتك وأسعارك وجمهورك).'), 'mkPost' => t('اعمل منشور'), 'ideasT' => t('أفكار الأسبوع'), 'thinking' => t('بنفكّر…'),
+        'sPrep' => t('حضّر منشور'), 'sSoon' => t('مواسم جاية'), 'sApprox' => t('التاريخ تقريبي'), 'ideas' => t('أفكار الأسبوع ✦'),
         'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور على نفس الحساب)'), 'hLimit' => t('حد الزحمة لكل حساب في اليوم'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
         'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'fast' => t('صياغات سريعة'), 'fastT' => t('بالقواعد من غير ذكاء اصطناعي ولا كريديت: بنغير الافتتاحية وترتيب السطور والختام'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,
         'varyNote' => t('راجع كل صياغة وعدّلها لو عاوز. مفيش حاجة هتتغير غير لما تدوس "طبّق".'), 'vurl' => url('posts'),

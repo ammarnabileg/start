@@ -3,6 +3,68 @@ $err = null;
 $z = zernio_or_null($err);
 $fxd = getenv('UI_FIXTURES');
 if ($fxd && is_file($fxd . '/compose_fake_z.php')) $z = require $fxd . '/compose_fake_z.php'; // اختبارات بس: مفيش نشر حقيقي
+// #6: لينك → منشور. بنقرا عنوان ووصف وصورة الصفحة (og) من غير AI. محمي من الروابط الداخلية (SSRF)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'from_link') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    $u = trim((string)($_POST['url'] ?? ''));
+    $host = (string)parse_url($u, PHP_URL_HOST);
+    if (!preg_match('~^https?://~i', $u) || $host === '') $J(['ok' => false, 'error' => t('اكتب رابط يبدأ بـ https://')]);
+    $ips = @gethostbynamel($host) ?: [];
+    foreach ($ips as $ip) if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) && !getenv('UI_FIXTURES')) $J(['ok' => false, 'error' => t('الرابط ده مش متاح.')]);
+    if (!$ips && !getenv('UI_FIXTURES')) $J(['ok' => false, 'error' => t('مش قادرين نوصل للرابط ده.')]);
+    $ch = curl_init($u);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_TIMEOUT => 10, CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS, CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; LinkPreview)', CURLOPT_RANGE => '0-400000']);
+    $html = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    if ($html === '' || $code >= 400) $J(['ok' => false, 'error' => t('مش قادرين نوصل للرابط ده.')]);
+    $html = mb_substr($html, 0, 400000);
+    $meta = function ($names) use ($html) { foreach ($names as $n) if (preg_match('~<meta[^>]+(?:property|name)=["\']' . preg_quote($n, '~') . '["\'][^>]*content=["\']([^"\']*)~i', $html, $m) || preg_match('~<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' . preg_quote($n, '~') . '["\']~i', $html, $m)) return trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')); return ''; };
+    $title = $meta(['og:title', 'twitter:title']) ?: (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m) ? trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES, 'UTF-8')) : '');
+    $desc = $meta(['og:description', 'description', 'twitter:description']);
+    $img = $meta(['og:image', 'twitter:image']);
+    if ($img !== '' && !preg_match('~^https?://~i', $img)) $img = '';
+    if ($title === '' && $desc === '') $J(['ok' => false, 'error' => t('الصفحة دي مافيهاش عنوان أو وصف نقدر نستخدمه.')]);
+    $text = trim('📌 ' . mb_substr($title, 0, 200) . "\n\n" . mb_substr($desc, 0, 600) . "\n\n👇 " . $u);
+    // صورة الصفحة بتنزل مكتبة الوسائط وبتتحط في المنشور (لحد 5 ميجا، صور بس)
+    $lib = null;
+    if ($img !== '' && function_exists('media_store_path')) {
+        try {
+            $tmp = tempnam(sys_get_temp_dir(), 'og'); $fh = fopen($tmp, 'w');
+            $ch = curl_init($img); curl_setopt_array($ch, [CURLOPT_FILE => $fh, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_TIMEOUT => 12, CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS, CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; LinkPreview)',
+                CURLOPT_NOPROGRESS => false, CURLOPT_PROGRESSFUNCTION => function ($c, $dt, $dn) { return $dn > 5 * 1024 * 1024 ? 1 : 0; }]);
+            curl_exec($ch); curl_close($ch); fclose($fh);
+            $mime = (string)(mime_content_type($tmp) ?: '');
+            if (filesize($tmp) > 0 && preg_match('~^image/(jpeg|png|webp|gif)$~', $mime)) $lib = media_store_path((int)ws('id'), $tmp, basename((string)parse_url($img, PHP_URL_PATH)) ?: 'link.jpg', $mime, t('من لينكات'));
+            @unlink($tmp);
+        } catch (Throwable $e) { $lib = null; }
+    }
+    $J(['ok' => true, 'text' => $text, 'image' => $img, 'lib' => $lib]);
+}
+// #7: اكتب عن الصورة (AI بالرؤية، بيصرف كريديت بس لما تدوس)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'img_caption') {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    if (!can('ai.use') || !ai_connection()) $J(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')]);
+    $src = (string)($_POST['image'] ?? '');
+    if (!preg_match('~^(https?://|data:image/(png|jpe?g|webp);base64,)~i', $src) || strlen($src) > 3000000) $J(['ok' => false, 'error' => t('الصورة مش مناسبة.')]);
+    $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 300);
+    try {
+        $r = ai_chat([['role' => 'system', 'content' => 'IMG_CAPTION. أنت كاتب محتوى سوشيال ميديا. اكتب منشور واحد جذاب عن الصورة دي بنفس لغة ولهجة المستخدم، 2-4 سطور، وفي آخره دعوة لاتخاذ إجراء و3 هاشتاجات. متخترعش أسعار أو معلومات مش ظاهرة.' . ai_country_note()],
+            ['role' => 'user', 'content' => [['type' => 'text', 'text' => $note !== '' ? $note : 'اكتب منشور عن الصورة'], ['type' => 'image_url', 'image_url' => ['url' => $src]]]]], 500, 'compose');
+        log_activity('ai.compose_vision', '1 image');
+        $J(['ok' => true, 'text' => trim((string)$r['text'])]);
+    } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
+// #1 #5: قوالب وهاشتاجات الشركة المحفوظة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cpt_save') {
+    header('Content-Type: application/json; charset=utf-8');
+    $kind = ($_POST['kind'] ?? '') === 'tags' ? 'tags' : 'tpl';
+    $d = json_decode((string)($_POST['data'] ?? '[]'), true); $clean = [];
+    foreach (array_slice((array)$d, -30) as $x) { if (!is_array($x)) continue; $n = mb_substr(trim((string)($x['n'] ?? '')), 0, 40); $v = mb_substr(trim((string)($x[$kind === 'tags' ? 't' : 'b'] ?? '')), 0, $kind === 'tags' ? 600 : 3000); if ($n !== '' && $v !== '') $clean[] = ['n' => $n, $kind === 'tags' ? 't' : 'b' => $v]; }
+    save_setting('cpt_' . $kind . '_' . (int)ws('id'), json_encode($clean, JSON_UNESCAPED_UNICODE));
+    exit(json_encode(['ok' => true], JSON_UNESCAPED_UNICODE));
+}
 // #16: أحسن وقت لكل حساب مختار لوحده (من تفاعله هو، مش متوسط كل الحسابات)
 if (($_GET['ajax'] ?? '') === 'best' && $z && function_exists('next_best_time')) {
     header('Content-Type: application/json; charset=utf-8');
@@ -253,6 +315,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 if ($f !== $main && !in_array($f, $extraAt, true)) $extraAt[] = $f;
             }
         }
+        // #13: لو الموافقة مفعّلة والموظف مش مدير، المنشور بيتحفظ مسودة ومستني موافقة المدير
+        if (!$errors && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage') && $old['mode'] !== 'draft') {
+            try {
+                $want = $old['mode'] === 'now' ? 'now' : ($old['mode'] === 'queue' ? 'queue' : (string)($payload['scheduledFor'] ?? ''));
+                $draft = $payload; unset($draft['publishNow'], $draft['scheduledFor'], $draft['queuedFromProfile'], $draft['recycling']); $draft['isDraft'] = true;
+                $r = $z->createPost($draft);
+                db()->prepare('INSERT INTO post_approvals (workspace_id, user_id, draft_id, payload, extra, want) VALUES (?, ?, ?, ?, ?, ?)')->execute([(int)ws('id'), (int)(current_user()['id'] ?? 0) ?: null,
+                    (string)($r['post']['_id'] ?? ''), json_encode($payload, JSON_UNESCAPED_UNICODE), json_encode($extraAt), $want]);
+                if (function_exists('crm_notify')) foreach (ws_approvers() as $u) crm_notify($u, null, 'approval', t('📝 منشور جديد مستني موافقتك من %s', (string)(current_user()['name'] ?? '')));
+                log_activity('post.approval_request', mb_substr($old['content'], 0, 60));
+                flash('success', t('اتبعت للمدير يوافق عليه. هيتنشر في الميعاد اللي اخترته بعد الموافقة.'));
+                redirect(url('approvals'));
+            } catch (ZernioException $ex) { $errors[] = $ex->getMessage(); }
+        }
         if (!$errors) {
             if ($extraAt) @set_time_limit(60 + 5 * count($extraAt)); // كل تكرار = منشور منفصل
             try {
@@ -361,6 +437,15 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               }).catch(function () { go.disabled = false; });
             }); })();</script>
           <?php endif; ?>
+          <div id="cpt-bar" class="flex flex-wrap items-center gap-1.5 mt-2">
+            <button type="button" class="chip text-xs" data-tool="tpl">📋 <?= e(t('قوالب جاهزة')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="tags"># <?= e(t('بنك الهاشتاجات')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="link">🔗 <?= e(t('منشور من لينك')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="brand" title="<?= e(t('لوجو وعلامة مائية وإطار بلون الشركة على الصور اللي رفعتها')) ?>">🎨 <?= e(t('هوية الصورة')) ?></button>
+            <button type="button" class="chip text-xs" data-tool="ver" title="<?= e(t('بيعمل نسخة مظبوطة لكل حساب مختار: طول X، الهاشتاجات، واللينكات في إنستجرام')) ?>">✂️ <?= e(t('نسخة لكل منصة')) ?></button>
+          </div>
+          <div id="cpt-pane" class="hidden mt-2 rounded-2xl border border-ink-200 bg-ink-50/60 p-3"></div>
+          <div id="cpt-check" class="flex flex-wrap gap-1.5 mt-2 text-[11px]"></div>
           <div class="flex flex-wrap items-center justify-between gap-2 mt-1"><div class="text-xs text-ink-500"><span id="charCount">0</span> <?= e(t('حرف · تويتر (X) بيقبل 280 حرف بس')) ?></div></div>
           <label class="block mt-4"><span class="label"><?= e(t('صور أو فيديو (اختياري)')) ?></span>
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
@@ -379,6 +464,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               w.querySelector('button').onclick = function () { w.remove(); }; box.appendChild(w);
             }
             btn.onclick = function () { window.mediaPick({ accept: 'image,video', multiple: true, public: false }).then(function (fs) { (fs || []).forEach(add); }); };
+            window.cpAddLib = add;
           })();
           </script>
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
@@ -693,6 +779,16 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'confirmNow' => t('المنشور هيتنشر فوراً على كل الحسابات المختارة. تكمل؟'), 'lastAcc' => t('اخترنا الحسابات اللي استخدمتها آخر مرة.'), 'clearAcc' => t('شيلهم'), 'extraN' => t('+%s ميعاد'),
       'onN' => t('هيتنشر على %s حساب'), 'draftSaved' => t('المسودة محفوظة'), 'restore' => t('عندك مسودة لسه ماتنشرتش:'), 'restoreBtn' => t('استرجاع'), 'discard' => t('تجاهل')], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/compose-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.CPT = <?= json_encode(['csrf' => csrf_token(), 'tpl' => cpt_templates(), 'mine' => json_decode((string)setting('cpt_tpl_' . (int)ws('id'), '[]'), true) ?: [], 'tags' => json_decode((string)setting('cpt_tags_' . (int)ws('id'), '[]'), true) ?: [],
+        'tr' => ['tplT' => t('قوالب جاهزة'), 'mine' => t('قوالبي'), 'saveTpl' => t('احفظ النص ده كقالب'), 'tplHint' => t('الخانات اللي بين [ ] املاها بنفسك.'), 'use' => t('استخدم'), 'tplName' => t('اسم القالب؟'), 'replaceQ' => t('هيتشال النص الحالي. تكمل؟'),
+            'tagsT' => t('بنك الهاشتاجات'), 'noTags' => t('لسه مفيش مجموعات. احفظ مجموعة هاشتاجات بتستخدمها كتير.'), 'tagName' => t('اسم المجموعة'), 'tagsHint' => t('احفظ كل مجموعة مرة واحدة واستخدمها بضغطة.'), 'tagNeed' => t('اكتب اسم وهاشتاج واحد على الأقل.'), 'save' => t('احفظ'), 'saved' => t('اتحفظ ✓'),
+            'pickAcc' => t('اختار الحسابات الأول.'), 'empty' => t('اكتب النص الأول.'), 'verDone' => t('اتعملت نسخة لـ %s حساب. راجعها في إعدادات كل حساب تحت.'), 'verSame' => t('النص مناسب لكل الحسابات المختارة زي ما هو.'), 'linkBio' => t('🔗 اللينك في البايو'),
+            'cLong' => t('%s: النص %s حرف والحد %s'), 'cMedia' => t('إنستجرام/تيك توك محتاجين صورة أو فيديو'), 'cTagsIg' => t('إنستجرام بيقبل 30 هاشتاج بس'), 'cTags' => t('%s هاشتاج كتير على فيسبوك/لينكدإن (الأحسن 3-5)'), 'cIgLink' => t('اللينكات في إنستجرام مش بتتضغط'),
+            'cBadLink' => t('اللينك شكله غلط: %s'), 'cCaps' => t('حروف كابيتال كتير ورا بعض'), 'cRepeat' => t('فيه حرف متكرر كتير'), 'cShort' => t('النص قصير أوي'), 'cVar' => t('فيه متغير زي {city} لسه ماتبدلش'), 'cFill' => t('فيه خانة [ ] لسه ماتملتش'), 'cOk' => t('جاهز للنشر'),
+            'linkQ' => t('الرابط اللي عاوز تعمل منه منشور (مقال، منتج، صفحة):'), 'linking' => t('بنقرا الصفحة…'), 'imgAdded' => t('اتضافت صورة الصفحة للمنشور ✓'), 'noImg' => t('ارفع صورة أو اختار من المكتبة الأول.'), 'capping' => t('بنشوف الصورة ونكتب…'),
+            'brandT' => t('هوية الصورة'), 'brandHint' => t('بيتطبق على الصور اللي رفعتها من جهازك قبل النشر. الإعدادات بتتحفظ للمرة الجاية.'), 'logo' => t('اللوجو'), 'pos' => t('المكان'), 'wm' => t('علامة مائية (نص)'), 'frame' => t('إطار بلون الشركة'), 'apply' => t('طبّق على الصور'), 'applied' => t('اتطبقت على %s صورة ✓'),
+            'posBR' => t('تحت يمين'), 'posBL' => t('تحت شمال'), 'posTR' => t('فوق يمين'), 'posTL' => t('فوق شمال'), 'size' => t('الحجم')], 'canAi' => can('ai.use') && (bool)ai_connection()], JSON_UNESCAPED_UNICODE) ?>;</script>
+    <script src="assets/compose-tools.js?v=<?= e(APP_VERSION) ?>"></script>
     <script>
       (function () {
         function sync() {

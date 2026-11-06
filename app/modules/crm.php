@@ -636,6 +636,84 @@ function crm_best_hour_global(): ?int
     return $best;
 }
 
+/**
+ * #14 تقويم المواسم: مناسبات ثابتة + الإسلامية (2026-2027 تقريبي ±يوم حسب رؤية الهلال) + حسب دولة الشركة.
+ * كل مناسبة ليها فكرة منشور تبدأ منها.
+ */
+function ps_seasons(string $from, string $to): array
+{
+    $c = strtoupper(ws_country() ?: 'EG');
+    $L = function ($ar, $en) { return is_rtl() ? $ar : $en; };
+    $fixed = [
+        ['01-01', $L('رأس السنة الميلادية', 'New Year'), $L('🎉 سنة جديدة سعيدة! إيه أول هدف عندك السنة دي؟', '🎉 Happy New Year! What is your first goal this year?'), ''],
+        ['02-14', $L('عيد الحب', "Valentine's Day"), $L('💝 عرض خاص بمناسبة عيد الحب: [العرض]', "💝 Valentine's special: [Offer]"), ''],
+        ['02-22', $L('يوم التأسيس', 'Founding Day'), $L('🇸🇦 يوم التأسيس.. نفتخر بتاريخنا. [رسالة الشركة]', '🇸🇦 Founding Day. Proud of our history. [Message]'), 'SA'],
+        ['03-21', $L('عيد الأم', "Mother's Day"), $L('🌷 كل سنة وكل أم بخير. هدية لست الحبايب: [العرض]', "🌷 Happy Mother's Day! A gift for her: [Offer]"), 'EG'],
+        ['05-01', $L('عيد العمال', 'Labour Day'), $L('👷 تحية لكل اللي بيشتغلوا بإيدهم وقلبهم. شكرًا لفريقنا!', '👷 Thank you to everyone who builds with their hands. Thanks, team!'), ''],
+        ['09-23', $L('اليوم الوطني السعودي', 'Saudi National Day'), $L('🇸🇦 اليوم الوطني.. همة حتى القمة. عرض خاص: [العرض]', '🇸🇦 National Day. Special offer: [Offer]'), 'SA'],
+        ['10-06', $L('ذكرى 6 أكتوبر', 'October 6'), $L('🇪🇬 كل سنة ومصر منورة. [رسالة الشركة]', '🇪🇬 Happy October 6. [Message]'), 'EG'],
+        ['11-11', $L('11.11', 'Singles Day 11.11'), $L('🛍 عروض 11.11: خصم [النسبة]% ليوم واحد بس!', '🛍 11.11 deals: [Percent]% off, one day only!'), ''],
+        ['12-25', $L('الكريسماس', 'Christmas'), $L('🎄 عيد ميلاد مجيد لكل اللي بيحتفلوا', '🎄 Merry Christmas to all who celebrate'), ''],
+    ];
+    $islamic = [ // تقريبي
+        '2026-02-18' => [$L('بداية رمضان', 'Ramadan begins'), $L('🌙 رمضان كريم! [عرض رمضان أو مواعيد العمل في رمضان]', '🌙 Ramadan Kareem! [Ramadan offer or hours]')],
+        '2026-03-20' => [$L('عيد الفطر', 'Eid al-Fitr'), $L('🎉 عيد فطر سعيد! [عرض العيد]', '🎉 Eid Mubarak! [Eid offer]')],
+        '2026-05-27' => [$L('عيد الأضحى', 'Eid al-Adha'), $L('🐑 عيد أضحى مبارك! [عرض أو إجازة العيد]', '🐑 Eid al-Adha Mubarak! [Offer or holiday hours]')],
+        '2026-06-16' => [$L('رأس السنة الهجرية', 'Islamic New Year'), $L('🌙 كل عام وأنتم بخير بمناسبة العام الهجري الجديد', '🌙 Happy Islamic New Year')],
+        '2026-08-25' => [$L('المولد النبوي', 'Mawlid'), $L('🌙 كل عام وأنتم بخير بمناسبة المولد النبوي الشريف', '🌙 Blessed Mawlid')],
+        '2027-02-08' => [$L('بداية رمضان', 'Ramadan begins'), $L('🌙 رمضان كريم! [عرض رمضان أو مواعيد العمل في رمضان]', '🌙 Ramadan Kareem! [Ramadan offer or hours]')],
+        '2027-03-10' => [$L('عيد الفطر', 'Eid al-Fitr'), $L('🎉 عيد فطر سعيد! [عرض العيد]', '🎉 Eid Mubarak! [Eid offer]')],
+        '2027-05-16' => [$L('عيد الأضحى', 'Eid al-Adha'), $L('🐑 عيد أضحى مبارك! [عرض أو إجازة العيد]', '🐑 Eid al-Adha Mubarak! [Offer or holiday hours]')],
+        '2027-06-06' => [$L('رأس السنة الهجرية', 'Islamic New Year'), $L('🌙 كل عام وأنتم بخير بمناسبة العام الهجري الجديد', '🌙 Happy Islamic New Year')],
+        '2027-08-15' => [$L('المولد النبوي', 'Mawlid'), $L('🌙 كل عام وأنتم بخير بمناسبة المولد النبوي الشريف', '🌙 Blessed Mawlid')],
+    ];
+    $out = [];
+    $y0 = (int)substr($from, 0, 4); $y1 = (int)substr($to, 0, 4);
+    for ($y = $y0; $y <= $y1; $y++) {
+        foreach ($fixed as $f) { if ($f[3] !== '' && $f[3] !== $c) continue; $d = $y . '-' . $f[0]; $out[] = ['d' => $d, 'n' => $f[1], 'idea' => $f[2]]; }
+        $bf = new DateTime("last friday of november $y"); $out[] = ['d' => $bf->format('Y-m-d'), 'n' => $c === 'SA' || $c === 'AE' ? $L('الجمعة البيضاء', 'White Friday') : $L('بلاك فرايداي', 'Black Friday'), 'idea' => $L('🖤 أكبر خصومات السنة: [النسبة]% على [المنتجات] لحد [التاريخ]', '🖤 Biggest sale of the year: [Percent]% off [Products]')];
+    }
+    foreach ($islamic as $d => $v) $out[] = ['d' => $d, 'n' => $v[0], 'idea' => $v[1], 'approx' => true];
+    $out = array_values(array_filter($out, function ($s) use ($from, $to) { return $s['d'] >= $from && $s['d'] <= $to; }));
+    usort($out, function ($a, $b) { return strcmp($a['d'], $b['d']); });
+    return $out;
+}
+/** #13 اللي يقدروا يوافقوا على المنشورات (عندهم posts.manage) */
+function ws_approvers(): array
+{
+    $out = [];
+    foreach (crm_members() as $m) { $r = (string)($m['role'] ?? ''); if ($r === 'owner' || (function_exists('role_permissions') && in_array('posts.manage', role_permissions($r), true))) $out[] = (int)$m['id']; }
+    return $out;
+}
+/** #1 قوالب منشورات جاهزة حسب المجال؛ [ ] = خانة تتملي */
+function cpt_templates(): array
+{
+    if (!is_rtl()) return [
+        'Jobs' => [['n' => 'Hiring', 'b' => "📣 We're hiring: [Job title]\n📍 [City]\n💰 [Salary range]\n✅ Requirements: [Requirements]\n\nApply now: [Link]\n#hiring #jobs"],
+            ['n' => 'Urgent role', 'b' => "🚨 Urgent opening at [Company]\nRole: [Job title] · [City]\nSend your CV to [Email]\n#jobs"]],
+        'Restaurants' => [['n' => 'Offer', 'b' => "🔥 This week only: [Offer]\n🍽 Valid at all branches until [Date]\nOrder now: [Link or number]"], ['n' => 'New dish', 'b' => "✨ New on our menu: [Dish]\n[One-line description]\nTry it today and tell us what you think 👇"]],
+        'Real estate' => [['n' => 'Unit', 'b' => "🏠 [Unit type] for [sale/rent] in [Area]\n📐 [Size] m² · [Bedrooms] bedrooms\n💰 [Price]\n📞 [Number]"], ['n' => 'Project launch', 'b' => "🏙 Launching [Project] in [Area]\nDown payment from [Amount] and installments over [Years] years\nBook a viewing: [Link]"]],
+        'Services' => [['n' => 'Offer', 'b' => "🎯 [Service] starting from [Price]\n✅ [Benefit 1]\n✅ [Benefit 2]\nBook a free consultation: [Link]"], ['n' => 'Testimonial', 'b' => "💬 \"[Client quote]\"\n— [Client name], [Company]\nWant the same results? [Link]"]],
+        'E-commerce' => [['n' => 'Sale', 'b' => "🛍 [Discount]% off [Products]\n⏰ Until [Date]\nShop now: [Link]\n#sale"], ['n' => 'New arrival', 'b' => "🆕 Just arrived: [Product]\n[Short description]\nPrice: [Price] · Free delivery over [Amount]"]],
+        'Engagement' => [['n' => 'Question', 'b' => "🤔 Quick question: [Question]?\nTell us in the comments 👇"], ['n' => 'Tip', 'b' => "💡 Tip of the day: [Tip]\nSave this post so you don't forget it 📌"]],
+    ];
+    return [
+        'وظائف' => [['n' => 'إعلان وظيفة', 'b' => "📣 مطلوب: [المسمى الوظيفي]\n📍 [المدينة]\n💰 الراتب: [من - إلى]\n✅ المتطلبات: [المتطلبات]\n\nللتقديم: [الرابط أو الإيميل]\n#وظائف #توظيف"],
+            ['n' => 'وظيفة عاجلة', 'b' => "🚨 فرصة عاجلة في [اسم الشركة]\nالوظيفة: [المسمى] · [المدينة]\nابعت السي في على [الإيميل]\n#وظائف"],
+            ['n' => 'أكتر من وظيفة', 'b' => "💼 [اسم الشركة] تعلن عن وظائف:\n1️⃣ [وظيفة 1]\n2️⃣ [وظيفة 2]\n3️⃣ [وظيفة 3]\n📍 [المدينة]\nاكتب «عاوز» في الكومنت ونبعتلك التفاصيل 👇"]],
+        'مطاعم' => [['n' => 'عرض', 'b' => "🔥 الأسبوع ده بس: [العرض]\n🍽 في كل الفروع لحد [التاريخ]\nاطلب دلوقتي: [الرابط أو الرقم]"],
+            ['n' => 'صنف جديد', 'b' => "✨ جديد في المنيو: [اسم الصنف]\n[وصف في سطر]\nجرّبه النهارده وقولنا رأيك 👇"]],
+        'عقارات' => [['n' => 'وحدة', 'b' => "🏠 [نوع الوحدة] لل[بيع/إيجار] في [المنطقة]\n📐 [المساحة] م² · [عدد الغرف] غرف\n💰 [السعر]\n📞 [الرقم]"],
+            ['n' => 'إطلاق مشروع', 'b' => "🏙 إطلاق [اسم المشروع] في [المنطقة]\nمقدم يبدأ من [المبلغ] وتقسيط على [عدد السنين] سنين\nاحجز معاينة: [الرابط]"]],
+        'خدمات' => [['n' => 'عرض خدمة', 'b' => "🎯 [الخدمة] تبدأ من [السعر]\n✅ [ميزة 1]\n✅ [ميزة 2]\nاحجز استشارة مجانية: [الرابط]"],
+            ['n' => 'رأي عميل', 'b' => "💬 \"[كلام العميل]\"\n— [اسم العميل]، [شركته]\nعاوز نفس النتيجة؟ [الرابط]"]],
+        'متاجر' => [['n' => 'تخفيضات', 'b' => "🛍 خصم [النسبة]% على [المنتجات]\n⏰ لحد [التاريخ]\nاطلب دلوقتي: [الرابط]\n#عروض"],
+            ['n' => 'منتج جديد', 'b' => "🆕 وصل حديثًا: [اسم المنتج]\n[وصف قصير]\nالسعر: [السعر] · توصيل مجاني فوق [المبلغ]"]],
+        'تفاعل' => [['n' => 'سؤال', 'b' => "🤔 سؤال سريع: [السؤال]؟\nقولنا في الكومنتات 👇"],
+            ['n' => 'نصيحة', 'b' => "💡 نصيحة اليوم: [النصيحة]\nاحفظ المنشور عشان ماتنساش 📌"]],
+    ];
+}
+
 /* ---------- #67 #95 أسباب الخسارة ---------- */
 function crm_lost_reasons(): array
 {
