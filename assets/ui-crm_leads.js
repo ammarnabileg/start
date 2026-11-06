@@ -127,7 +127,7 @@
     form.querySelectorAll('input,select,textarea,button:not([data-close])').forEach(function (x) { if (x.name !== 'owner' || D.canManage) x.disabled = !l.edit; });
     document.getElementById('ld-meta').textContent = T.from.replace('%s', D.sources[l.source] || l.source).replace('%s', (l.created || '').slice(0, 10)) + (l.edit ? '' : ' · ' + T.ro);
     msg.textContent = '';
-    drawTpl(l); loadActs(l);
+    drawTpl(l); loadActs(l); apReset(l);
     openModal(dr);
     form.elements.name.focus();
   }
@@ -277,6 +277,46 @@
       setTimeout(function () { location.reload(); }, 1600);
     }).catch(function () { igo.disabled = false; imsg.textContent = T.err; });
   });
+
+  /* ---------- Apollo: كمّل البيانات + Sequence ---------- */
+  var apBox = document.getElementById('ld-apollo'), apMsg = document.getElementById('ld-ap-msg'), seqData = null;
+  function apSay(t, ok) { if (apMsg) { apMsg.className = 'text-[11px] ' + (ok ? 'text-lime-700' : 'text-red-600'); apMsg.textContent = t; } }
+  function apReset(l) { if (!apBox) return; apBox.classList.toggle('hidden', !l.edit); apSay(''); document.getElementById('ld-seq-box').classList.add('hidden'); }
+  function refill(l) { ['name', 'company', 'title', 'phone', 'email'].forEach(function (k) { form.elements[k].value = l[k] == null ? '' : l[k]; }); document.getElementById('ld-quick').innerHTML = quick(l); draw(); }
+  var enr = document.getElementById('ld-enrich');
+  if (enr) enr.addEventListener('click', function () {
+    if (!cur) return; var l = cur; enr.disabled = true; apSay(T.loading, true);
+    post({ action: 'enrich', id: l.id }).then(function (r) {
+      enr.disabled = false; if (!r.ok) return apSay(r.error || T.err);
+      Object.assign(l, r.lead); if (cur === l) refill(l);
+      var got = r.got.map(function (k) { return T.fl[k] || k; }).join('، ');
+      apSay((got ? T.enrGot.replace('%s', got) : T.enrNone) + (r.pending ? ' ' + T.enrPend : ''), !!got || r.pending);
+    }).catch(function () { enr.disabled = false; apSay(T.err); });
+  });
+  var so = document.getElementById('ld-seq-open');
+  if (so) {
+    so.addEventListener('click', function () {
+      if (!cur) return; if (!cur.email) return apSay(T.needEmail);
+      var bx = document.getElementById('ld-seq-box');
+      function show() {
+        if (!seqData.seqs.length) return apSay(T.noSeq); if (!seqData.accounts.length) return apSay(T.noAcc);
+        document.getElementById('ld-seq').innerHTML = seqData.seqs.map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.name) + (s.active ? '' : ' (off)') + '</option>'; }).join('');
+        document.getElementById('ld-seq-acc').innerHTML = seqData.accounts.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.email) + '</option>'; }).join('');
+        bx.classList.remove('hidden'); apSay('');
+      }
+      if (seqData) return show();
+      apSay(T.loading, true);
+      post({ action: 'seqs', id: cur.id }).then(function (r) { if (!r.ok) return apSay(r.error || T.err); seqData = r; show(); }).catch(function () { apSay(T.err); });
+    });
+    document.getElementById('ld-seq-go').addEventListener('click', function () {
+      if (!cur) return; var l = cur, s = document.getElementById('ld-seq'), b = this; b.disabled = true;
+      post({ action: 'seq_add', id: l.id, seq: s.value, seq_name: s.options[s.selectedIndex].text, acc: document.getElementById('ld-seq-acc').value }).then(function (r) {
+        b.disabled = false; if (!r.ok) return apSay(r.error || T.err);
+        Object.assign(l, r.lead); if (cur === l) { drawActs(r.acts); form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); }
+        draw(); apSay(T.seqDone, true); document.getElementById('ld-seq-box').classList.add('hidden');
+      }).catch(function () { b.disabled = false; apSay(T.err); });
+    });
+  }
 
   /* ---------- عملاء مقترحين ---------- */
   var sg = document.getElementById('ld-sug'), sgl = document.getElementById('ld-sug-list'), sgo = document.getElementById('ld-sug-go'), sgm = document.getElementById('ld-sug-msg'), sgN = document.getElementById('ld-sug-n'), sItems = null;

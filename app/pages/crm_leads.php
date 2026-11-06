@@ -149,6 +149,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         crm_push_ad_stage($nl);
         $json(['ok' => true, 'lead' => $out($nl)]);
     }
+    if (in_array($action, ['enrich', 'seqs', 'seq_add'], true)) {
+        if (!crm_has_key()) $json(['ok' => false, 'error' => t('اربط حساب Apollo.io من التكاملات الأول.')]);
+        try {
+            if ($action === 'enrich') {
+                if (!can('crm.reveal')) $json(['ok' => false, 'error' => t('مالكش صلاحية الكشف.')]);
+                $prefs = crm_prefs();
+                if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) $json(['ok' => false, 'error' => t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit'])]);
+                $r = crm_enrich_lead($l, $prefs);
+                $json(['ok' => true, 'got' => $r['got'], 'pending' => $r['pending'], 'lead' => $out(crm_lead((int)$l['id']))]);
+            }
+            if ($action === 'seqs') $json(['ok' => true] + crm_sequences());
+            $seq = (string)($_POST['seq'] ?? ''); $acc = (string)($_POST['acc'] ?? '');
+            if (!preg_match('/^[\w-]{1,64}$/', $seq) || !preg_match('/^[\w-]{1,64}$/', $acc)) $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
+            crm_add_to_sequence($l, $seq, $acc, mb_substr((string)($_POST['seq_name'] ?? ''), 0, 120));
+            $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id'])]);
+        } catch (CrmException $ex) {
+            $json(['ok' => false, 'error' => $ex instanceof CrmPlanException ? t('خطة Apollo بتاعتك مش بتسمح بالعملية دي. الـ Sequences محتاجة خطة مدفوعة و Master Key.') . ' (' . $ex->getMessage() . ')' : $ex->getMessage()]);
+        }
+    }
     if ($action === 'log') {
         // تسجيل تواصل؛ أول تواصل مع عميل جديد بينقله لـ "اتكلمنا معاه" لوحده
         $k = (string)($_POST['kind'] ?? '');
@@ -285,6 +304,18 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
           <div id="ld-quick" class="flex flex-wrap gap-2"></div>
+          <?php if (crm_has_key()): ?>
+          <div id="ld-apollo" class="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🚀 Apollo</div>
+            <div class="flex flex-wrap gap-1.5">
+              <?php if (can('crm.reveal')): ?><button type="button" id="ld-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل بياناته من Apollo')) ?></button><?php endif; ?>
+              <button type="button" id="ld-seq-open" class="btn-ghost !py-1 !text-xs">📧 <?= e(t('ضيفه لـ Sequence')) ?></button>
+            </div>
+            <div id="ld-seq-box" class="hidden space-y-1.5"><select id="ld-seq" class="input text-xs"></select><select id="ld-seq-acc" class="input text-xs"></select>
+              <button type="button" id="ld-seq-go" class="btn-primary !py-1 !text-xs w-full"><?= e(t('ابدأ الـ Sequence')) ?></button></div>
+            <div id="ld-ap-msg" class="text-[11px]"></div>
+          </div>
+          <?php endif; ?>
           <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
               <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
@@ -390,7 +421,9 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
+            'chat' => t('افتح المحادثة'), 'enrGot' => t('اتكملت: %s'), 'enrNone' => t('Apollo مالقاش بيانات جديدة.'), 'enrPend' => t('الرقم جاي من Apollo خلال دقايق.'), 'loading' => t('بنحمّل…'),
+            'noSeq' => t('مفيش Sequences في حسابك على Apollo. اعمل واحد من apollo.io الأول.'), 'noAcc' => t('اربط إيميل في Apollo عشان الـ Sequence يبعت منه.'), 'seqDone' => t('اتضاف للـ Sequence ✓'), 'needEmail' => t('العميل ده مالوش إيميل. كمّل بياناته الأول.'),
+            'fl' => ['title' => t('المسمى الوظيفي'), 'linkedin' => 'LinkedIn', 'company' => t('الشركة'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'country' => t('الدولة')], 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
             'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'),
             'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>

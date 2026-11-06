@@ -35,7 +35,7 @@ function nav_items(): array
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'crm', 'label' => t('إدارة العملاء'), 'section' => t('العملاء'), 'module' => 'crm',
-            'tabs' => ['crm' => t('الشركات المستهدفة'), 'crm_leads' => 'Leads', 'leads' => t('Leads الإعلانات'), 'contacts' => t('جهات الاتصال'), 'calls' => t('المكالمات')]],
+            'tabs' => ['crm' => t('الشركات المستهدفة'), 'crm_find' => t('ابحث عن أشخاص'), 'crm_leads' => 'Leads', 'leads' => t('Leads الإعلانات'), 'contacts' => t('جهات الاتصال'), 'calls' => t('المكالمات')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => t('المحتوى')],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => t('المحتوى'),
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم')], 'also' => ['post_edit', 'queue', 'bulk']],
@@ -71,7 +71,7 @@ function nav_items(): array
         if ($i['key'] === 'admin') { $out[] = $i; continue; }
         // التابات اللي مالوش صلاحية عليها بتختفي، ولو مفضلش حاجة العنصر كله بيختفي
         if (isset($i['tabs'])) {
-            $i['tabs'] = array_filter($i['tabs'], function ($tk) { if ($tk === 'crm' && function_exists('crm_has_key') && !crm_has_key()) return false; $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
+            $i['tabs'] = array_filter($i['tabs'], function ($tk) { if (($tk === 'crm' || $tk === 'crm_find') && function_exists('crm_has_key') && !crm_has_key()) return false; $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
             if (!$i['tabs']) continue;
         } else {
             $p = page_permission($i['key']);
@@ -97,7 +97,7 @@ function nav_item_for(string $page): ?array
 function page_module(string $page): ?string
 {
     $map = [
-        'crm' => ['crm', 'crm_leads'],
+        'crm' => ['crm', 'crm_find', 'crm_leads'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],

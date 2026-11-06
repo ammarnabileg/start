@@ -242,6 +242,87 @@ function crm_reveal(array $co, string $pid, array $prefs): array
     return $lead;
 }
 
+/** بحث أشخاص مباشر (Prospecting) بفلاتر. مابيصرفش كريديت: الأسماء والبيانات مخفية لحد الكشف */
+function crm_people_search(array $f, int $page = 1): array
+{
+    $list = function ($s) { return array_values(array_filter(array_map('trim', is_array($s) ? $s : explode(',', (string)$s)))); };
+    $b = ['page' => max(1, min(100, $page)), 'per_page' => 25];
+    if ($t = $list($f['titles'] ?? '')) { $b['person_titles'] = $t; $b['include_similar_titles'] = true; }
+    if ($s = array_values(array_intersect($list($f['seniorities'] ?? []), crm_seniorities()))) $b['person_seniorities'] = $s;
+    if ($l = $list($f['locations'] ?? '')) $b['person_locations'] = $l;
+    if ($z = array_values(array_intersect($list($f['sizes'] ?? []), array_keys(crm_sizes())))) $b['organization_num_employees_ranges'] = $z;
+    if (($k = trim((string)($f['keywords'] ?? ''))) !== '') $b['q_keywords'] = mb_substr($k, 0, 200);
+    if ($d = $list($f['domains'] ?? '')) $b['q_organization_domains_list'] = array_slice($d, 0, 50);
+    if (count($b) <= 2) throw new CrmException(t('اختار فلتر واحد على الأقل (مسمى وظيفي أو دولة أو مجال).'));
+    $j = crm_api('/mixed_people/api_search', $b);
+    $out = [];
+    foreach ((array)($j['people'] ?? []) as $p) {
+        if (empty($p['id'])) continue;
+        $o = (array)($p['organization'] ?? []);
+        $out[] = ['id' => (string)$p['id'], 'name' => trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? $p['last_name_obfuscated'] ?? '')),
+            'title' => (string)($p['title'] ?? ''), 'company' => (string)($o['name'] ?? ''), 'industry' => (string)($o['industry'] ?? ''),
+            'size' => (int)($o['estimated_num_employees'] ?? 0), 'city' => trim(implode('، ', array_filter([(string)($p['city'] ?? $o['city'] ?? ''), (string)($p['country'] ?? $o['country'] ?? '')]))),
+            'country' => (string)($p['country'] ?? $o['country'] ?? ''),
+            'has_email' => !empty($p['has_email']), 'has_phone' => !empty($p['has_direct_phone']) && $p['has_direct_phone'] !== 'No'];
+    }
+    $total = (int)($j['total_entries'] ?? $j['pagination']['total_entries'] ?? 0);
+    return ['people' => $out, 'total' => $total, 'page' => $b['page']];
+}
+
+/** كمّل بيانات Lead موجود من Apollo (بالإيميل أو الاسم + الشركة). بيملا الفاضي بس */
+function crm_enrich_lead(array $l, array $prefs): array
+{
+    $parts = preg_split('/\s+/u', trim((string)$l['name']), 2);
+    $b = ['reveal_personal_emails' => false];
+    if (!empty($l['email'])) $b['email'] = $l['email'];
+    if (!empty($l['ext_id']) && !preg_match('/^(ib|cm|ad|dom):/', (string)$l['ext_id'])) $b['id'] = $l['ext_id'];
+    if (empty($b['email']) && empty($b['id'])) {
+        if (empty($l['company'])) throw new CrmException(t('محتاجين إيميل العميل أو اسم شركته عشان Apollo يلاقيه.'));
+        $b['first_name'] = $parts[0] ?? ''; $b['last_name'] = $parts[1] ?? ''; $b['organization_name'] = $l['company'];
+    }
+    if (empty($l['phone'])) { $b['reveal_phone_number'] = true; $b['webhook_url'] = crm_hook_url($prefs); }
+    $p = (array)(crm_api('/people/match', $b)['person'] ?? []);
+    if (!$p) throw new CrmException(t('Apollo مالقاش بيانات للشخص ده.'));
+    $email = (string)($p['email'] ?? ''); if (stripos($email, 'not_unlocked') !== false) $email = '';
+    $fill = ['title' => (string)($p['title'] ?? ''), 'linkedin' => (string)($p['linkedin_url'] ?? ''), 'company' => (string)($p['organization']['name'] ?? ''),
+        'email' => mb_strtolower($email), 'country' => (string)($p['country'] ?? '')];
+    $phone = crm_pick_phone($p);
+    if ($phone !== '') $fill['phone'] = crm_norm_phone($phone, $fill['country'] ?: (string)$l['country']);
+    $set = []; $vals = []; $got = [];
+    foreach ($fill as $k => $v) if ($v !== '' && (string)($l[$k] ?? '') === '') { $set[] = "$k = ?"; $vals[] = mb_substr($v, 0, 255); $got[] = $k; }
+    if (empty($l['ext_id']) && !empty($p['id'])) { $set[] = 'ext_id = ?'; $vals[] = mb_substr((string)$p['id'], 0, 64); }
+    $pending = empty($l['phone']) && $phone === '' && !empty($b['reveal_phone_number']);
+    if ($pending) $set[] = 'phone_pending = 1';
+    if ($set) { $vals[] = (int)$l['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals); }
+    $uid = (int)(current_user()['id'] ?? 0);
+    db()->prepare('INSERT INTO crm_reveals (workspace_id, user_id, person_ext_id) VALUES (?, ?, ?)')->execute([(int)ws('id'), $uid ?: null, mb_substr((string)($p['id'] ?? 'enrich'), 0, 64)]);
+    log_activity('crm.enrich', (string)$l['id']);
+    return ['got' => $got, 'pending' => $pending];
+}
+
+/** Sequences بتاعة Apollo (رسايل إيميل متتابعة). محتاجة Master Key */
+function crm_sequences(): array
+{
+    $j = crm_api('/emailer_campaigns/search', ['per_page' => 50]);
+    $out = [];
+    foreach ((array)($j['emailer_campaigns'] ?? []) as $c) if (!empty($c['id'])) $out[] = ['id' => (string)$c['id'], 'name' => (string)($c['name'] ?? $c['id']), 'active' => !empty($c['active'])];
+    $acc = [];
+    foreach ((array)(crm_api('/email_accounts', [], null, 'GET')['email_accounts'] ?? []) as $a) if (!empty($a['id'])) $acc[] = ['id' => (string)$a['id'], 'email' => (string)($a['email'] ?? '')];
+    return ['seqs' => $out, 'accounts' => $acc];
+}
+function crm_add_to_sequence(array $l, string $seq, string $acc, string $seqName = ''): void
+{
+    if (empty($l['email'])) throw new CrmException(t('العميل ده مالوش إيميل، والـ Sequence بيبعت إيميلات.'));
+    $parts = preg_split('/\s+/u', trim((string)$l['name']), 2);
+    $c = (array)(crm_api('/contacts', ['first_name' => $parts[0] ?? '', 'last_name' => $parts[1] ?? '', 'email' => $l['email'], 'organization_name' => (string)$l['company'],
+        'title' => (string)$l['title'], 'run_dedupe' => true])['contact'] ?? []);
+    if (empty($c['id'])) throw new CrmException(t('Apollo ماقبلش يضيف العميل كجهة اتصال.'));
+    crm_api('/emailer_campaigns/' . rawurlencode($seq) . '/add_contact_ids', ['emailer_campaign_id' => $seq, 'contact_ids' => [(string)$c['id']], 'send_email_from_email_account_id' => $acc]);
+    crm_act_add((int)$l['id'], 'email', t('اتضاف لـ Sequence: %s', $seqName ?: $seq));
+    if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
+    log_activity('crm.sequence', $l['id'] . ' ' . $seq);
+}
+
 function crm_pick_phone(array $p): string
 {
     foreach ((array)($p['phone_numbers'] ?? []) as $n) {
