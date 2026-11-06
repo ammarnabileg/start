@@ -83,7 +83,33 @@
     var calV = 'month'; try { calV = localStorage.getItem('cal-v') || 'month'; } catch (e) {}
     var wk = new Date(); wk.setHours(0, 0, 0, 0); wk.setDate(wk.getDate() - ((wk.getDay() - start + 7) % 7));
     var weekBox = $('#cal-week');
+    // الفترة المتحمّلة من السيرفر؛ لو اللي قدامك برّاها بنجيبها ونضيفها
+    var loaded = X.calRange ? [X.calRange[0], X.calRange[1]] : null, loading = false;
+    function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+    function need() {
+      var a, b;
+      if (calV === 'week') { a = new Date(wk); b = new Date(wk); b.setDate(b.getDate() + 6); }
+      else { a = new Date(cur); a.setDate(1 - ((a.getDay() - start + 7) % 7)); b = new Date(a); b.setDate(b.getDate() + 41); }
+      return [ymd(a), ymd(b)];
+    }
+    function ensure() {
+      if (!loaded || loading) return;
+      var n = need(); if (n[0] >= loaded[0] && n[1] <= loaded[1]) return;
+      var from = n[0] < loaded[0] ? n[0] : loaded[1], to = n[1] > loaded[1] ? n[1] : loaded[0];
+      if (from > to) { var x = from; from = to; to = x; }
+      if (loaded[0] === '2000-01-01') { from = n[0]; to = n[1]; }
+      loading = true; var gb = $('#cal-gaps'); if (gb) gb.textContent = (X.q || {}).calLoading || '…';
+      fetch(X.calUrl + '&from=' + from + '&to=' + to, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        loading = false; if (!j.ok) return;
+        var byId = {}; X.data.forEach(function (p, i) { byId[p.id] = i; });
+        // المجدول في الفترة دي بيتبدّل باللي جاي من Zernio (الأحدث)
+        X.data = X.data.filter(function (p) { if (p.st !== 'scheduled') return true; var k = siteDT(new Date(p.at)).slice(0, 10); return k < j.from || k > j.to; }).concat(j.items);
+        if (loaded[0] === '2000-01-01') loaded = [j.from, j.to]; else { if (j.from < loaded[0]) loaded[0] = j.from; if (j.to > loaded[1]) loaded[1] = j.to; }
+        draw();
+      }).catch(function () { loading = false; });
+    }
     function draw() {
+      ensure();
       $$('.cal-v').forEach(function (b) { var on = b.dataset.calv === calV; b.classList.toggle('bg-white', on); b.classList.toggle('shadow-sm', on); b.classList.toggle('font-medium', on); b.setAttribute('aria-pressed', on); });
       var w = calV === 'week' && weekBox; grid.classList.toggle('hidden', w); dow.classList.toggle('hidden', w); if (weekBox) weekBox.classList.toggle('hidden', !w);
       return w ? drawWeek() : drawMonth();

@@ -2770,4 +2770,6 @@ Latte - %2$s',
     'اتعمل %s نسخة مجدولة' => '%s scheduled copies created',
     'هيتعمل %s نسخة مجدولة من المنشورات المحددة، أول واحدة %s وكل نسخة بعد %s يوم. تكمل؟' => '%s scheduled copies will be created from the selected posts, the first at %s and each next one %s days later. Continue?',
     'اختار ميعاد' => 'Pick a time',
+    'التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.' => 'The calendar loads every scheduled post in the period you\'re viewing, and loads more as you move. Click an empty future day to create a post on it.',
+    'بنجيب منشورات الفترة دي…' => 'Loading posts for this period…',
 ];

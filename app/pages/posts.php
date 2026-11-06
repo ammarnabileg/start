@@ -104,6 +104,44 @@ function ps_duplicate(Zernio $z, string $id): string
     return (string)($r['post']['_id'] ?? '');
 }
 
+/** عنصر التقويم */
+function ps_cal_item(array $p): ?array
+{
+    $w = $p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? null; if (!$w) return null;
+    return ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'mv' => in_array((string)($p['status'] ?? ''), ['scheduled', 'draft'], true) && !empty($p['scheduledFor']),
+        'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))),
+        'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : ''];
+}
+/** كل المنشورات المجدولة في فترة (مش أول 100 بس): صفحات مترتبة بالميعاد لحد ما نعدّي آخر الفترة */
+function ps_cal_scheduled(Zernio $z, int $from, int $to, ?array $fixture = null): array
+{
+    $in = function ($p) use ($from, $to) { $t = strtotime((string)($p['scheduledFor'] ?? '')); return $t && $t >= $from && $t <= $to; };
+    if ($fixture !== null) return array_values(array_filter($fixture, function ($p) use ($in) { return ($p['status'] ?? '') === 'scheduled' && $in($p); }));
+    $out = [];
+    for ($pg = 1; $pg <= 30; $pg++) {
+        $r = $z->posts(['status' => 'scheduled', 'limit' => 100, 'page' => $pg, 'sortBy' => 'scheduled-asc', 'profileId' => zernio_profile()]);
+        $list = (array)($r['posts'] ?? []);
+        foreach ($list as $p) if ($in($p)) $out[] = $p;
+        $last = $list ? strtotime((string)(end($list)['scheduledFor'] ?? '')) : 0;
+        if (count($list) < 100 || ($last && $last > $to) || $pg >= (int)($r['pagination']['pages'] ?? $pg)) break;
+    }
+    return $out;
+}
+if ($z && ($_GET['ajax'] ?? '') === 'cal') {
+    header('Content-Type: application/json; charset=utf-8');
+    $tz = new DateTimeZone(site_timezone());
+    $f = DateTime::createFromFormat('!Y-m-d', (string)($_GET['from'] ?? ''), $tz); $t = DateTime::createFromFormat('!Y-m-d', (string)($_GET['to'] ?? ''), $tz);
+    if (!$f || !$t || $t < $f) exit(json_encode(['ok' => false]));
+    if ($t->getTimestamp() - $f->getTimestamp() > 120 * 86400) $t = (clone $f)->modify('+120 day');
+    $t->setTime(23, 59, 59);
+    $fxp = getenv('POSTS_FIXTURE') ?: (getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/posts.json' : '');
+    $fx = ($fxp && is_file($fxp)) ? (array)(json_decode((string)file_get_contents($fxp), true)['posts'] ?? []) : null;
+    try {
+        $items = array_values(array_filter(array_map('ps_cal_item', ps_cal_scheduled($z, $f->getTimestamp(), $t->getTimestamp(), $fx))));
+        exit(json_encode(['ok' => true, 'items' => $items, 'from' => $f->format('Y-m-d'), 'to' => $t->format('Y-m-d')], JSON_UNESCAPED_UNICODE));
+    } catch (ZernioException $ex) { exit(json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE)); }
+}
+
 // إجراءات سريعة من الصفحة (JSON): ميعاد جديد، إعادة محاولة، نسخة، تأجيل جماعي
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
     header('Content-Type: application/json; charset=utf-8');
@@ -235,7 +273,10 @@ if ($z && $fixture && is_file($fixture)) {
     try {
         if ($view === 'cal') {
             // التقويم: المجدول (الجاي) + آخر المنشور، لحد 100 من كل نوع
-            $a = $z->posts(['status' => 'scheduled', 'limit' => 100, 'sortBy' => 'scheduled-asc', 'profileId' => zernio_profile()])['posts'] ?? [];
+            $tzc = new DateTimeZone(site_timezone());
+            $calFrom = (new DateTime('first day of this month', $tzc))->setTime(0, 0)->modify('-7 day');
+            $calTo = (new DateTime('last day of next month', $tzc))->setTime(23, 59, 59)->modify('+7 day');
+            $a = ps_cal_scheduled($z, $calFrom->getTimestamp(), $calTo->getTimestamp());
             $b = $status === 'scheduled' ? [] : ($z->posts(['status' => $status ?: null, 'limit' => 100, 'sortBy' => 'created-desc', 'profileId' => zernio_profile()])['posts'] ?? []);
             $seen = [];
             foreach (array_merge($a, $b) as $p) { $id = (string)($p['_id'] ?? ''); if ($id === '' || isset($seen[$id])) continue; $seen[$id] = 1; if ($status === '' || ($p['status'] ?? '') === $status) $posts[] = $p; }
@@ -542,8 +583,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
       <?php endif; ?>
 
     <?php else: // التقويم
-        foreach ($posts as $p) { $w = $p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? null; if (!$w) continue;
-            $data[] = ['id' => $p['_id'], 'at' => (string)$w, 'st' => (string)($p['status'] ?? ''), 'mv' => in_array((string)($p['status'] ?? ''), ['scheduled', 'draft'], true) && !empty($p['scheduledFor']), 'txt' => mb_substr((string)($p['content'] ?? ''), 0, 120), 'pf' => array_values(array_unique(array_map(function ($pl) { return (string)($pl['platform'] ?? ''); }, $p['platforms'] ?? []))), 'img' => (($p['mediaItems'][0]['type'] ?? '') === 'image') ? ($p['mediaItems'][0]['url'] ?? '') : '']; }
+        foreach ($posts as $p) { $it = ps_cal_item($p); if ($it) $data[] = $it; }
         ?>
       <div class="card p-0 overflow-hidden" id="ps-cal">
         <div class="flex items-center gap-2 px-4 h-14 border-b border-ink-200">
@@ -566,7 +606,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <div class="grid grid-cols-7" id="cal-grid"></div>
         <div id="cal-week" class="hidden overflow-y-auto max-h-[38rem]" dir="ltr"></div>
       </div>
-      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيعرض لحد 100 منشور مجدول و100 من آخر المنشورات. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
+      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
     <?php endif; ?>
     <?php $diagRows = (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true); if ($diagRows && can('posts.manage')): ?>
@@ -577,7 +617,12 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <button type="button" class="btn-ghost !text-xs mt-2" onclick="var t=document.getElementById('ps-diag-txt');t.select();navigator.clipboard&&navigator.clipboard.writeText(t.value);this.textContent='✓'"><?= e(t('انسخ')) ?></button>
       </details>
     <?php endif; ?>
-    <script>window.PSX = <?= json_encode(['view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
+    <?php
+      $tzc2 = new DateTimeZone(site_timezone());
+      $calRange = $view === 'cal' ? [(new DateTime('first day of this month', $tzc2))->modify('-7 day')->format('Y-m-d'), (new DateTime('last day of next month', $tzc2))->modify('+7 day')->format('Y-m-d')] : null;
+      if ($view === 'cal' && getenv('UI_FIXTURES')) $calRange = ['2000-01-01', '2000-01-01']; // اختبار: نجبر التحميل بالفترات
+    ?>
+    <script>window.PSX = <?= json_encode(['calRange' => $calRange, 'calUrl' => url('posts', ['ajax' => 'cal']), 'view' => $view, 'weekStart' => in_array('sun', (array)cx('weekend'), true) ? 1 : 6, 'data' => $data, 'tz' => site_timezone(), 'icons' => array_combine(array_keys($plats) ?: [], array_map(function ($p) { return platform_icon($p, 'w-3 h-3'); }, array_keys($plats))) ?: new stdClass(),
       'compose' => url('compose'), 'edit' => url('post_edit', ['id' => '__ID__']), 'canDel' => can('posts.manage'), 'canDup' => can('posts.create'), 'url' => url('posts'), 'csrf' => csrf_token(),
       'posts' => $pdata ?: new stdClass(), 'plab' => array_combine(array_keys($plats) ?: [], array_map('platform_label', array_keys($plats))) ?: new stdClass(),
       'q' => ['open' => t('افتح على المنصة'), 'edit' => t('تعديل كامل'), 'retry' => t('أعد المحاولة'), 'dup' => t('نسخة كمسودة'), 'del' => t('حذف'), 'resched' => t('غيّر الميعاد'), 'save' => t('احفظ'), 'editT' => t('عدّل النص'), 'moved' => t('اتنقل لـ %s'), 'moving' => t('بننقله…'), 'pastDay' => t('مينفعش تنقله ليوم فات'),
@@ -589,6 +634,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'loading' => t('بنحمّل…'), 'pageOf' => t('(صفحة %s من %s)'), 'keysExtra' => [['j / k', t('المنشور اللي بعده / قبله')], ['Enter', t('افتح المنشور')], ['x', t('حدّد المنشور')]],
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
         'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
+        'calLoading' => t('بنجيب منشورات الفترة دي…'),
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),
