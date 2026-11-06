@@ -45,7 +45,7 @@ render(t('المنافسين'), 'competitors', function () use ($comps, $events,
     $pill = function ($k) use ($kinds) { $x = $kinds[$k] ?? [$k, 'bg-ink-50 text-ink-600 border-ink-200']; return '<span class="shrink-0 text-[11px] rounded-full border px-2 py-0.5 ' . $x[1] . '">' . e($x[0]) . '</span>'; };
     ?>
     <div class="flex flex-wrap items-center gap-3 mb-5">
-      <p class="text-sm text-ink-500 flex-1 min-w-[260px]"><?= e(t('بنقرا موقع كل منافس مرة في اليوم ونقارنه باللي فات: الأسعار والخدمات والعروض والمواعيد. من غير ذكاء اصطناعي. صفحات السوشيال مش بتتقري لأن فيسبوك وإنستجرام مش بيسمحوا بده.')) ?></p>
+      <span class="ms-auto"></span>
       <button type="button" popovertarget="comp-add" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('إضافة منافس')) ?></button>
     </div>
     <form id="comp-add" popover method="post" data-fx-reload class="m-0 w-[min(420px,92vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
@@ -81,10 +81,9 @@ render(t('المنافسين'), 'competitors', function () use ($comps, $events,
             <?php elseif ($c['last_ok']): ?><span class="text-[11px] rounded-full bg-lime-50 text-lime-800 px-2 py-0.5" title="<?= e(t('آخر قراءة')) ?>"><?= e(fmt_date($c['last_check'], 'd/m h:i A')) ?></span>
             <?php else: ?><span class="text-[11px] rounded-full bg-red-50 text-red-700 px-2 py-0.5"><?= e(t('الموقع مش بيفتح')) ?></span><?php endif; ?>
           </div>
-          <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="grid grid-cols-2 gap-2 text-center">
             <div class="rounded-xl bg-ink-50 py-2"><b class="block text-lg text-ink-900"><?= count((array)($snap['services'] ?? [])) ?></b><span class="text-[11px] text-ink-500"><?= e(t('خدمة بسعر')) ?></span></div>
             <div class="rounded-xl bg-ink-50 py-2"><b class="block text-lg text-ink-900"><?= count((array)($snap['offers'] ?? [])) ?></b><span class="text-[11px] text-ink-500"><?= e(t('عرض')) ?></span></div>
-            <div class="rounded-xl bg-ink-50 py-2"><b class="block text-lg text-ink-900"><?= (int)($snap['pages'] ?? 0) ?></b><span class="text-[11px] text-ink-500"><?= e(t('صفحة اتقرت')) ?></span></div>
           </div>
           <div class="space-y-1.5 text-sm flex-1">
             <?php if (!$ev): ?><p class="text-xs text-ink-400"><?= e(t('مفيش تغييرات لسه. أول تغيير هيظهر هنا.')) ?></p><?php endif; ?>

@@ -1,9 +1,0 @@
-{
-  "name": "aipush-etimad-collector",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Collects active public tenders from Etimad visitor pages and sends them to the platform",
-  "main": "collector.js",
-  "scripts": { "start": "node collector.js" },
-  "dependencies": { "playwright": "1.49.1" }
-}

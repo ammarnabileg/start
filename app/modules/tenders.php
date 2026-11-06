@@ -1,7 +1,7 @@
 <?php
 /**
  * المنافسات الحكومية (اعتماد): بيانات عامة على مستوى المنصة، وكل شركة بتشوف اللي بيطابق كلماتها بس.
- * البيانات بتيجي من السحّاب (collector/etimad) أو أي مصدر تاني عن طريق ?p=tenders_ingest.
+ * البيانات بتيجي من تكامل "منافسات اعتماد (Apify)" في التكاملات، مرة في اليوم من التشغيل الدوري.
  * المطابقة من غير ذكاء اصطناعي: كلمات وعبارات في اسم المنافسة ونشاطها، مع توحيد الحروف العربية.
  */
 
@@ -162,11 +162,22 @@ function tnd_apify_actors(): array
     return ['publicmoney~etimad-tender-scraper' => ['Etimad Tender Scraper', t('الأرخص: 0.002 دولار للمنافسة، الجديد كل يوم بيكفيه رصيد Apify المجاني. من غير الفرع وسعر الكراسة.')],
         'dottti~etimad-tender-radar' => ['Etimad Tender Radar', t('بيانات كاملة (الفرع والكراسة والمواعيد): 0.005 دولار للمنافسة.')]];
 }
-function tnd_apify_actor(): string { $a = (string)setting('tenders_apify_actor', ''); return isset(tnd_apify_actors()[$a]) ? $a : 'publicmoney~etimad-tender-scraper'; }
-
-function tnd_apify_req(string $method, string $path, ?array $body = null): array
+/** اتصال Apify من التكاملات: أول شركة ربطته (مدير المنصة الأول). البيانات نفسها عامة لكل الشركات */
+function tnd_apify_conn(): ?array
 {
-    $tok = (string)setting('tenders_apify_token', ''); if ($tok === '') throw new RuntimeException(t('مفتاح Apify مش متحط.'));
+    static $c = false; if ($c !== false) return $c;
+    try {
+        $st = db()->query("SELECT c.workspace_id FROM connectors c JOIN workspaces w ON w.id = c.workspace_id WHERE c.provider = 'apify' AND COALESCE(w.status, 'active') = 'active' ORDER BY (w.created_by IN (SELECT id FROM users WHERE role = 'admin')) DESC, c.id LIMIT 1");
+        $wid = (int)$st->fetchColumn(); $c = $wid ? (connections('apify', $wid)[0] ?? null) : null;
+    } catch (Throwable $e) { $c = null; }
+    return $c;
+}
+function tnd_apify_actor(): string { $a = (string)(tnd_apify_conn()['credentials']['actor'] ?? ''); return isset(tnd_apify_actors()[$a]) ? $a : 'publicmoney~etimad-tender-scraper'; }
+function tnd_apify_on(): bool { return (string)(tnd_apify_conn()['credentials']['api_key'] ?? '') !== ''; }
+
+function tnd_apify_req(string $method, string $path, ?array $body = null, ?string $tok = null): array
+{
+    $tok = $tok ?? (string)(tnd_apify_conn()['credentials']['api_key'] ?? ''); if ($tok === '') throw new RuntimeException(t('اربط Apify من التكاملات الأول.'));
     $ch = curl_init(tnd_apify_base() . $path);
     $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];
     if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
@@ -230,7 +241,7 @@ function tnd_apify_collect(): ?array
 /** التشغيل الدوري (على مستوى المنصة): يلم التشغيلة اللي خلصت، ويبدأ تشغيلة اليوم مرة واحدة */
 function tnd_apify_tick(): string
 {
-    if ((string)setting('tenders_apify_token', '') === '') return '';
+    if (!tnd_apify_on()) return '';
     try {
         $c = tnd_apify_collect(); if ($c !== null) return 'collected+' . ($c['new'] ?? 0);
         if ((string)setting('tenders_apify_run', '') !== '') return 'running';

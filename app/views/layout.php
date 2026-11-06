@@ -189,7 +189,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $sibOn = function ($tk) use ($active, $navActive) { return $tk === $active || ($tk === ($navActive['key'] ?? '') && in_array($active, $navActive['also'] ?? [], true)); };
       $keys = array_keys($sibs); $cur = null; foreach ($keys as $ix => $tk) if ($sibOn($tk)) $cur = $ix;
       $hasPop = $sibs || $rel;
-      $pgDesc = ['crm_leads' => t('القايمة واللوحة والمتابعات'), 'leads' => t('اللي سجّلوا من إعلاناتك'), 'crm_reports' => t('الفريق والمصادر والتوقعات'), 'crm_settings' => t('المراحل والحقول والقواعد'),
+      $pgDesc = ['tenders' => t('منافسات اعتماد اللي بتطابق مجالك'), 'competitors' => t('أسعار وعروض منافسينك من مواقعهم'), 'campaign' => t('صفحة هبوط وكوبون ومنشورات في خطوة'), 'crm_leads' => t('القايمة واللوحة والمتابعات'), 'leads' => t('اللي سجّلوا من إعلاناتك'), 'crm_reports' => t('الفريق والمصادر والتوقعات'), 'crm_settings' => t('المراحل والحقول والقواعد'),
         'analytics' => t('أداء منشوراتك'), 'inbox_analytics' => t('سرعة الرد وحجم الرسائل'), 'reports' => t('تقارير PDF ومجدولة'), 'goals' => t('أهداف الشهر والتقدم'), 'alerts' => t('اللي محتاج انتباهك'),
         'posts' => t('كل المنشورات بالفلاتر'), 'calendar' => t('شهر وأسبوع بالسحب والإفلات'), 'approvals' => t('منشورات مستنية موافقة'), 'post_log' => t('مين نشر إيه وإمتى'),
         'inbox' => t('كل المحادثات'), 'comments' => t('تعليقات منشوراتك'), 'knowledge' => t('خدماتك وأسعارك وجمهورك'), 'media' => t('صورك وفيديوهاتك'), 'accounts' => t('حسابات السوشيال'), 'connectors' => t('SMTP وApollo والذكاء الاصطناعي'),

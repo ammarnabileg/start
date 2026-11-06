@@ -62,6 +62,20 @@ function connector_registry(): array
                 }
             },
         ],
+        'apify' => [
+            'name' => t('منافسات اعتماد (Apify)'), 'category' => 'sales', 'single' => true, 'owner_only' => true,
+            'logo' => 'E', 'color' => '#0E7C3A',
+            'description' => t('بيجيب المنافسات الحكومية النشطة من اعتماد كل يوم لصفحة المنافسات الحكومية.'),
+            'docs' => 'https://console.apify.com/settings/integrations',
+            'help' => t('من apify.com: Settings ← API & Integrations ← انسخ المفتاح. الحساب المجاني فيه 5 دولار رصيد كل شهر، وبيكفي الجديد كل يوم بالخدمة الأرخص.'),
+            'fields' => [
+                ['key' => 'api_key', 'label' => 'API Token', 'secret' => true],
+                ['key' => 'actor', 'label' => t('الخدمة'), 'type' => 'select', 'default' => 'publicmoney~etimad-tender-scraper', 'options' => [
+                    'publicmoney~etimad-tender-scraper' => t('الأرخص (0.002 دولار للمنافسة، من غير الفرع والكراسة)'),
+                    'dottti~etimad-tender-radar' => t('بيانات كاملة (0.005 دولار للمنافسة)')]],
+            ],
+            'test' => function (array $c): string { tnd_apify_req('GET', '/v2/users/me', null, (string)$c['api_key']); return t('المفتاح شغال. المنافسات هتتسحب في التشغيل اليومي، أو من زرار "اسحب الآن" في صفحة المنافسات.'); },
+        ],
         'smtp' => [
             'name' => t('الإيميل (SMTP)'), 'category' => 'email',
             'owner_only' => true, 'single' => true,
