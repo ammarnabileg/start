@@ -1102,7 +1102,7 @@ function crm_members(): array
 {
     static $m = null;
     if ($m !== null) return $m;
-    $st = db()->prepare("SELECT u.id, u.name, wu.role FROM workspace_users wu JOIN users u ON u.id = wu.user_id WHERE wu.workspace_id = ? AND wu.status = 'active' ORDER BY u.id");
+    $st = db()->prepare("SELECT u.id, u.name, u.email, wu.role FROM workspace_users wu JOIN users u ON u.id = wu.user_id WHERE wu.workspace_id = ? AND wu.status = 'active' ORDER BY u.id");
     $st->execute([(int)ws('id')]);
     $m = [];
     foreach ($st->fetchAll() as $r) {

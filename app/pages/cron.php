@@ -72,6 +72,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' evergreen=error';
         }
+        // #84 تذكير الصبح بالإيميل لكل موظف
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_daily_digest') ? crm_daily_digest() : 0; });
+            if ($n) $line .= ' digest+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' digest=error';
+        }
         // #60 Google Sheets: الصفوف الجديدة بتبقى Leads
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('cap_sheet_tick') ? cap_sheet_tick() : 0; });

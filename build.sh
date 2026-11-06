@@ -8,6 +8,6 @@ mkdir -p dist
 if [ -n "${TAILWIND_BIN:-}" ] || [ -x ./tailwindcss ]; then ./build-css.sh; else echo "تحذير: TAILWIND_BIN مش متحدد — assets/app.css مش هيتبني من جديد" >&2; fi
 OUT="dist/panel-v${VER}.zip"
 rm -f "$OUT"
-zip -qr "$OUT" index.php setup.php .htaccess app assets uploads/.htaccess README.md \
+zip -qr "$OUT" index.php setup.php .htaccess app assets uploads/.htaccess README.md sw.js manifest.webmanifest offline.html \
   -x "config.php" "*.DS_Store"
 echo "$OUT"

@@ -354,3 +354,8 @@ document.addEventListener('click', function (e) {
     d.addEventListener('toggle', function () { open[k] = d.open ? 1 : 0; try { localStorage.setItem(K, JSON.stringify(open)); } catch (e) {} });
   });
 })();
+
+/* #90 تطبيق الموبايل: تسجيل الـ service worker (على HTTPS أو localhost بس) */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.)/.test(location.hostname))) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}

@@ -73,6 +73,7 @@
       (l.wa ? '<a class="ld-act" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener" title="WhatsApp">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
       (l.phone ? '<a class="ld-act" data-qa="call" href="tel:' + esc(l.phone) + '" title="' + esc(T.call) + '">' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
       (l.email ? '<a class="ld-act" data-qa="email" href="mailto:' + esc(l.email) + '" title="' + esc(T.email) + '">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
+      '<button type="button" class="ld-act' + (l.pin ? ' !text-amber-500 !opacity-100' : '') + '" data-qa="pin" title="' + esc(l.pin ? D.tk.unpin : D.tk.pin) + '">' + uic('star', 'w-4 h-4 inline-block align-[-3px]') + '</button>' +
       (l.edit && !closed(l) ? '<button type="button" class="ld-act" data-qa="later" title="' + esc(T.later) + '">' + uic('clock', 'w-4 h-4 inline-block align-[-3px]') + '</button>' : '') + '</div>';
     var run = l.run ? ' <span class="text-[10px] text-sky-700" title="' + esc(T.pStep.replace('%s', l.run.split('/')[0]).replace('%s', l.run.split('/')[1].replace('!', ''))) + '">' + uic('refresh', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(l.run.replace('!', '')) + '</span>' : '';
     return '<div class="ld-row ' + GRID + ' px-4 py-2.5 hover:bg-ink-50/80 cursor-pointer' + (sel[l.id] ? ' bg-brand-50/60' : '') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
@@ -725,6 +726,64 @@
       sr.start();
     });
   }
+  /* ---------- #83 مهامي ---------- */
+  var tasks = D.tasks || [];
+  function tasksDraw() {
+    var box = document.getElementById('sd-tasks'); if (!box) return; var now = new Date();
+    document.getElementById('sd-tasks-n').textContent = tasks.length ? '(' + tasks.length + ')' : '';
+    box.innerHTML = tasks.length ? tasks.map(function (t) { var late = t.due && new Date(t.due) < now;
+      return '<div class="group flex items-start gap-2 rounded-lg px-1.5 py-1 hover:bg-ink-50"><input type="checkbox" class="mt-0.5 rounded" data-tdone="' + t.id + '"><span class="flex-1 min-w-0"><span class="block text-xs text-ink-900 break-words" dir="auto">' + esc(t.title) + '</span>' +
+        '<span class="block text-[10px] ' + (late ? 'text-red-600 font-semibold' : 'text-ink-400') + '">' + (t.due ? esc((late ? D.tk.late + ' · ' : '') + when(t.due.replace('T', ' '))) : '') + (t.lead ? ' · <button type="button" class="link" data-sd-open="' + t.lead + '">' + esc(t.lead_name) + '</button>' : '') + '</span></span>' +
+        '<button type="button" class="opacity-0 group-hover:opacity-100 text-ink-400 hover:text-red-600" data-tdel="' + t.id + '">' + uic('trash', 'w-3.5 h-3.5') + '</button></div>'; }).join('') : '<p class="text-[11px] text-ink-400 px-1.5">' + esc(D.tk.none) + '</p>';
+  }
+  tasksDraw();
+  var tf = document.getElementById('sd-task-f');
+  if (tf) tf.addEventListener('submit', function (e) { e.preventDefault(); var fd = new FormData(tf); fd.append('action', 'task_add'); if (cur && dr.getAttribute('aria-hidden') === 'false') fd.append('lead', cur.id);
+    post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err); tasks = r.tasks; tf.reset(); tasksDraw(); }); });
+  document.addEventListener('click', function (e) {
+    var d = e.target.closest('[data-tdone]'), x = e.target.closest('[data-tdel]');
+    if (d) { var row = d.closest('div'); row.style.opacity = '.4'; post({ action: 'task_done', task: d.dataset.tdone }).then(function (r) { if (r.ok) { tasks = r.tasks; setTimeout(tasksDraw, 250); } }); }
+    if (x) post({ action: 'task_del', task: x.dataset.tdel }).then(function (r) { if (r.ok) { tasks = r.tasks; tasksDraw(); } });
+  });
+  /* ---------- #89 ملاحظة التسليم لما المسؤول يتغير ---------- */
+  var ownSel = form.elements.owner, hand = document.getElementById('ld-handoff');
+  if (ownSel && hand) ownSel.addEventListener('change', function () { hand.classList.toggle('hidden', !cur || +ownSel.value === +(cur.owner || 0) || !+ownSel.value); });
+  /* ---------- #88 منشن @ في الملاحظات: اقتراح أسماء الفريق ---------- */
+  (function () {
+    var inp = document.getElementById('ld-log-body'); if (!inp || !(D.mem || []).length) return;
+    var pop = document.createElement('div'); pop.className = 'hidden absolute z-50 mt-1 w-48 rounded-xl border border-ink-200 bg-white shadow-xl p-1 text-sm'; inp.parentNode.style.position = 'relative'; inp.parentNode.appendChild(pop);
+    inp.addEventListener('input', function () { var m = /(^|\s)@([\p{L}\d_]*)$/u.exec(inp.value.slice(0, inp.selectionStart)); if (!m) { pop.classList.add('hidden'); return; }
+      var q = m[2].toLowerCase(), list = D.mem.filter(function (x) { return x.id !== D.me && x.n.toLowerCase().indexOf(q) > -1; }).slice(0, 6); if (!list.length) { pop.classList.add('hidden'); return; }
+      pop.innerHTML = list.map(function (x) { return '<button type="button" class="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-ink-50" data-mn="' + esc(x.n.split(/\s+/)[0]) + '">@' + esc(x.n) + '</button>'; }).join(''); pop.classList.remove('hidden'); });
+    pop.addEventListener('mousedown', function (e) { var b = e.target.closest('[data-mn]'); if (!b) return; e.preventDefault(); var pos = inp.selectionStart, before = inp.value.slice(0, pos).replace(/@[\p{L}\d_]*$/u, '@' + b.dataset.mn + ' '); inp.value = before + inp.value.slice(pos); inp.focus(); pop.classList.add('hidden'); });
+    inp.addEventListener('blur', function () { setTimeout(function () { pop.classList.add('hidden'); }, 150); });
+  })();
+  /* ---------- #85 اتصال متتالي (Power dialer) ---------- */
+  var dial = document.getElementById('ld-dialer');
+  function dialList() { var today = D.today; return leads.filter(function (l) { return !closed(l) && l.phone && l.edit && (!l.next_at || l.next_at.slice(0, 10) <= today); }).sort(function (a, b) { return (b.score || 0) - (a.score || 0); }); }
+  if (dial) { if (dialList().length) dial.classList.remove('hidden');
+    dial.addEventListener('click', function () {
+      var q = dialList(); if (!q.length) return toast(D.tk.dialNone); var i = 0;
+      var w = document.createElement('div'); w.className = 'fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-ink-900/50 p-0 sm:p-4'; document.body.appendChild(w);
+      function show() {
+        if (i >= q.length) { w.innerHTML = '<div class="w-full sm:w-[440px] rounded-t-3xl sm:rounded-3xl bg-white p-8 text-center"><div class="text-lime-600 grid place-items-center mb-2">' + uic('check', 'w-12 h-12') + '</div><b>' + esc(D.tk.dialDone) + '</b><div class="mt-4"><button type="button" class="btn-primary" data-dx>' + esc(D.tk.stop) + '</button></div></div>'; return; }
+        var l = q[i];
+        w.innerHTML = '<div class="w-full sm:w-[460px] rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl overflow-hidden"><div class="flex items-center gap-2 px-5 pt-4 text-xs text-ink-500"><span>' + esc(D.tk.of.replace('%s', i + 1).replace('%s', q.length)) + '</span><div class="flex-1 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-brand-600" style="width:' + Math.round(i / q.length * 100) + '%"></div></div><button type="button" class="text-ink-400 hover:text-ink-900" data-dx>' + uic('x', 'w-5 h-5') + '</button></div>' +
+          '<div class="p-5 text-center"><div class="mx-auto mb-2 w-fit">' + avatar(l, 'w-16 h-16') + '</div><b class="block text-lg text-ink-900">' + esc(l.name) + '</b><div class="text-sm text-ink-500">' + esc([l.title, l.company].filter(Boolean).join(' · ')) + '</div>' +
+          (l.next_note ? '<div class="mt-2 text-xs rounded-lg bg-amber-50 text-amber-800 px-3 py-1.5 inline-block" dir="auto">' + esc(l.next_note) + '</div>' : '') +
+          '<a href="tel:' + esc(l.phone) + '" class="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-lime-600 text-[#fff] py-3 text-lg font-bold" dir="ltr" data-dcall>' + uic('phone', 'w-5 h-5') + esc(l.phone) + '</a>' +
+          '<input class="input mt-3 text-sm" id="dl-note" placeholder="' + esc(D.tk.noteP) + '" dir="auto">' +
+          '<div class="grid grid-cols-2 gap-2 mt-3">' + Object.keys(D.ocs).map(function (k) { return '<button type="button" class="btn-ghost !justify-center" data-doc="' + k + '">' + esc(D.ocs[k]) + '</button>'; }).join('') + '<button type="button" class="btn-ghost !justify-center text-ink-500" data-dskip>' + esc(D.tk.skip) + '</button></div></div></div>';
+      }
+      show();
+      w.addEventListener('click', function (e) {
+        if (e.target === w || e.target.closest('[data-dx]')) { w.remove(); draw(); return; }
+        if (e.target.closest('[data-dskip]')) { i++; show(); return; }
+        var b = e.target.closest('[data-doc]'); if (!b) return; var l = q[i]; b.disabled = true;
+        post({ action: 'log', id: l.id, kind: 'call', outcome: b.dataset.doc, body: (document.getElementById('dl-note') || {}).value || '' }).then(function (r) { if (r.ok) Object.assign(l, r.lead); i++; show(); }).catch(function () { b.disabled = false; toast(T.err); });
+      });
+    });
+  }
   /* ---------- #63 دمج عميلين بشاشة مقارنة ---------- */
   var mbtn = document.getElementById('ld-b-merge');
   if (mbtn) mbtn.addEventListener('click', function () {
@@ -806,6 +865,7 @@
   list.addEventListener('click', function (e) {
     var q = e.target.closest('[data-qa]'); if (!q) return;
     e.stopPropagation(); var l = byId(+q.closest('[data-id]').dataset.id); if (!l) return;
+    if (q.dataset.qa === 'pin') { e.preventDefault(); post({ action: 'pin', id: l.id }).then(function (r) { if (r.ok) { Object.assign(l, r.lead); leads.sort(function (a, b) { return (b.pin || 0) - (a.pin || 0); }); draw(); } }); return; }
     if (q.dataset.qa === 'later') {
       e.preventDefault();
       post({ action: 'next_quick', id: l.id, days: 1 }).then(function (r) { if (!r.ok) return toast(r.error || T.err); Object.assign(l, r.lead); draw(); toast(T.laterDone); });
@@ -870,7 +930,8 @@
     hot: function (l) { return !closed(l) && l.score >= 60; },
     cold: function (l) { return isCold(l); },
     fresh: function (l) { return srvDate(l.created).toLocaleDateString('en-CA', D.tz ? { timeZone: D.tz } : {}) === todayKey; },
-    unowned: function (l) { return !l.owner && !closed(l); }
+    unowned: function (l) { return !l.owner && !closed(l); },
+    pin: function (l) { return !!l.pin; }
   };
   var _match0 = match; match = function (l) { return views[vMode](l) && _match0(l); };
   function setView(k) {

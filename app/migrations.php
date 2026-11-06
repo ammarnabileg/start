@@ -528,6 +528,21 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '043_crm_tasks' => [
+        "CREATE TABLE IF NOT EXISTS crm_tasks (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            lead_id INT UNSIGNED NULL,
+            title VARCHAR(255) NOT NULL,
+            due_at DATETIME NULL,
+            done_at DATETIME NULL,
+            created_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_user (workspace_id, user_id, done_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE crm_leads ADD COLUMN pinned TINYINT(1) NOT NULL DEFAULT 0",
+    ],
     '042_crm_custom' => [
         "ALTER TABLE crm_leads ADD COLUMN pipeline VARCHAR(20) NOT NULL DEFAULT 'sales'",
         "ALTER TABLE crm_leads ADD COLUMN custom TEXT NULL",

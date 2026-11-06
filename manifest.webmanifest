@@ -1,0 +1,20 @@
+{
+  "name": "AIPush",
+  "short_name": "AIPush",
+  "start_url": "index.php?p=crm_leads&src=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#2557e0",
+  "dir": "auto",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "شغل النهارده", "url": "index.php?p=crm_leads#due" },
+    { "name": "الرسائل", "url": "index.php?p=inbox" },
+    { "name": "منشور جديد", "url": "index.php?p=compose" }
+  ]
+}

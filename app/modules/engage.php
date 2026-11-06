@@ -364,3 +364,51 @@ function crm_on_call_outcome(array $l, string $oc): string
     crm_plan_start((int)$l['id'], (int)$p['id']);
     return $p['name'];
 }
+
+
+/* ---------- #83 مهام مستقلة (أو مربوطة بعميل) ---------- */
+function crm_tasks_open(int $uid, int $limit = 30): array
+{
+    $st = db()->prepare("SELECT t.*, l.name lead_name FROM crm_tasks t LEFT JOIN crm_leads l ON l.id = t.lead_id WHERE t.workspace_id = ? AND (t.user_id = ? OR t.user_id IS NULL) AND t.done_at IS NULL ORDER BY (t.due_at IS NULL), t.due_at, t.id DESC LIMIT " . (int)$limit);
+    $st->execute([(int)ws('id'), $uid]);
+    return array_map(function ($r) { return ['id' => (int)$r['id'], 'title' => $r['title'], 'due' => $r['due_at'] ? fmt_date($r['due_at'], 'Y-m-d\TH:i') : '', 'lead' => (int)$r['lead_id'], 'lead_name' => (string)($r['lead_name'] ?? '')]; }, $st->fetchAll());
+}
+
+/* ---------- #84 تذكير يومي بالإيميل لكل موظف بمتابعاته ومهامه ---------- */
+function crm_daily_digest(): int
+{
+    $wid = (int)ws('id'); if (!function_exists('smtp_config') || !smtp_config($wid)) return 0;
+    $tz = new DateTimeZone(site_timezone()); $now = new DateTime('now', $tz);
+    if ((int)$now->format('G') < 8) return 0; // بيتبعت الصبح بس
+    $day = $now->format('Y-m-d'); if (setting('crm_digest_day_' . $wid, '') === $day) return 0;
+    save_setting('crm_digest_day_' . $wid, $day);
+    $end = (clone $now)->setTime(23, 59, 59)->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
+    $n = 0;
+    foreach (crm_members() as $m) {
+        $uid = (int)$m['id']; if (empty($m['email'])) continue;
+        $st = db()->prepare("SELECT id, name, next_note, next_at FROM crm_leads WHERE workspace_id = ? AND owner_id = ? AND next_at IS NOT NULL AND next_at <= ? AND stage NOT IN ('won','lost') ORDER BY next_at LIMIT 30");
+        $st->execute([$wid, $uid, $end]); $leads = $st->fetchAll();
+        $st = db()->prepare("SELECT title, due_at FROM crm_tasks WHERE workspace_id = ? AND user_id = ? AND done_at IS NULL AND (due_at IS NULL OR due_at <= ?) ORDER BY due_at LIMIT 30");
+        $st->execute([$wid, $uid, $end]); $tasks = $st->fetchAll();
+        if (!$leads && !$tasks) continue;
+        $li = ''; foreach ($leads as $l) $li .= '<li><a href="' . e(url('crm_leads') . '#lead-' . (int)$l['id']) . '">' . e($l['name']) . '</a>' . ($l['next_note'] ? ' — ' . e($l['next_note']) : '') . ' <small style="color:#64748b">' . e(fmt_date($l['next_at'], 'h:i A')) . '</small></li>';
+        $ti = ''; foreach ($tasks as $t) $ti .= '<li>' . e($t['title']) . ($t['due_at'] ? ' <small style="color:#64748b">' . e(fmt_date($t['due_at'], 'd/m h:i A')) . '</small>' : '') . '</li>';
+        $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.8" dir="' . (is_rtl() ? 'rtl' : 'ltr') . '"><p>' . e(t('صباح الخير %s، ده شغلك النهارده:', preg_split('/\s+/u', (string)$m['name'])[0] ?? '')) . '</p>'
+            . ($li ? '<b>' . e(t('متابعات العملاء (%s)', count($leads))) . '</b><ul>' . $li . '</ul>' : '') . ($ti ? '<b>' . e(t('مهام (%s)', count($tasks))) . '</b><ul>' . $ti . '</ul>' : '')
+            . '<p><a href="' . e(url('crm_leads') . '#due') . '" style="display:inline-block;background:#2557e0;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">' . e(t('افتح شغل النهارده')) . '</a></p></div>';
+        try { send_mail((string)$m['email'], t('شغلك النهارده: %s متابعة و%s مهمة', count($leads), count($tasks)), $html, null, $wid); $n++; } catch (Throwable $e) {}
+    }
+    return $n;
+}
+
+/* ---------- #88 منشن @ في ملاحظات العميل ---------- */
+function crm_mentions(string $body, int $leadId): int
+{
+    if (strpos($body, '@') === false) return 0; $n = 0; $me = (int)(current_user()['id'] ?? 0);
+    $lead = crm_lead($leadId);
+    foreach (crm_members() as $m) {
+        $first = preg_split('/\s+/u', trim((string)$m['name']))[0] ?? ''; if ($first === '' || (int)$m['id'] === $me) continue;
+        if (preg_match('/@' . preg_quote($first, '/') . '(?![\p{L}\d_])/u', $body)) { crm_notify((int)$m['id'], $leadId, 'mention', t('%s عمل لك منشن على %s: %s', (string)(current_user()['name'] ?? ''), (string)($lead['name'] ?? ''), mb_substr($body, 0, 160))); $n++; }
+    }
+    return $n;
+}

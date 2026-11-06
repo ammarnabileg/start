@@ -11,10 +11,10 @@
   function icon(d) { return '<svg class="w-4 h-4 shrink-0 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="' + esc(d) + '"/></svg>'; }
   function render(leads) {
     var q = norm(inp.value.trim()), html = '', groups = [];
-    if (!q) { var r = recent(); if (r.length) groups.push([C.tr.recent, r.map(function (x) { return { l: x.l, g: x.g, u: x.u, ic: '↺' }; })]); }
-    var acts = C.acts.map(function (a) { return { l: a.l, u: a.u, ic: '⚡', s: score(a.l, q) }; }).filter(function (a) { return a.s > 0; }).sort(function (a, b) { return b.s - a.s; });
+    if (!q) { var r = recent(); if (r.length) groups.push([C.tr.recent, r.map(function (x) { return { l: x.l, g: x.g, u: x.u, ic: uic('clock', 'w-4 h-4 text-ink-400') }; })]); }
+    var acts = C.acts.map(function (a) { return { l: a.l, u: a.u, ic: uic('zap', 'w-4 h-4 text-amber-500'), s: score(a.l, q) }; }).filter(function (a) { return a.s > 0; }).sort(function (a, b) { return b.s - a.s; });
     var pages = C.pages.map(function (p) { return { l: p.l, g: p.g || p.s, u: p.u, ic: icon(p.i), s: Math.max(score(p.l, q), score(p.g || '', q) * 0.8, score(p.s || '', q) * 0.6) }; }).filter(function (p) { return p.s > 0; }).sort(function (a, b) { return b.s - a.s; });
-    if (leads && leads.length) groups.push([C.tr.leads, leads.map(function (l) { return { l: l.name, g: l.sub, u: C.lead + l.id, ic: '🧲' }; })]);
+    if (leads && leads.length) groups.push([C.tr.leads, leads.map(function (l) { return { l: l.name, g: l.sub, u: C.lead + l.id, ic: uic('magnet', 'w-4 h-4 text-lime-600') }; })]);
     if (acts.length) groups.push([C.tr.acts, acts.slice(0, q ? 5 : 6)]);
     if (pages.length) groups.push([C.tr.pages, pages.slice(0, q ? 8 : 40)]);
     items = [];

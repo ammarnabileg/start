@@ -14,7 +14,7 @@ $out = function (array $l) {
         'country' => (string)$l['country'], 'stage' => $l['stage'], 'source' => $l['source'], 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
         'note' => (string)$l['note'], 'tags' => (string)$l['tags'], 'owner' => (int)$l['owner_id'], 'next_at' => $l['next_at'] ? fmt_date($l['next_at'], 'Y-m-d\TH:i') : '', // بتوقيت الشركة (اللي الموظف شايفه)
         'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'es' => (string)($l['email_status'] ?? ''), 'edit' => crm_can_edit($l),
-        'pl' => (string)($l['pipeline'] ?? 'sales'), 'cf' => json_decode((string)($l['custom'] ?? ''), true) ?: (object)[], 'unsub' => (int)($l['unsub'] ?? 0)];
+        'pl' => (string)($l['pipeline'] ?? 'sales'), 'pin' => (int)($l['pinned'] ?? 0), 'cf' => json_decode((string)($l['custom'] ?? ''), true) ?: (object)[], 'unsub' => (int)($l['unsub'] ?? 0)];
 };
 
 $sugZ = function () {
@@ -230,6 +230,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_setting('crm_tpl_' . $wid, json_encode(array_slice($clean, 0, 10), JSON_UNESCAPED_UNICODE));
         $json(['ok' => true, 'tpl' => crm_templates()]);
     }
+    // #83 المهام
+    if (in_array($action, ['task_add', 'task_done', 'task_del'], true)) {
+        if ($action === 'task_add') {
+            $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255); if ($title === '') $json(['ok' => false, 'error' => t('اكتب المهمة.')]);
+            $due = trim((string)($_POST['due'] ?? '')); try { $due = $due !== '' ? (new DateTime($due, new DateTimeZone(site_timezone())))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s') : null; } catch (Exception $e) { $due = null; }
+            $to = (int)($_POST['user'] ?? 0); if (!$canManage || !in_array($to, $memberIds, true)) $to = $uid;
+            $lid = (int)($_POST['lead'] ?? 0); $ll = $lid ? crm_lead($lid) : null;
+            db()->prepare('INSERT INTO crm_tasks (workspace_id, user_id, lead_id, title, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')->execute([$wid, $to, $ll ? (int)$ll['id'] : null, $title, $due, $uid]);
+            if ($to !== $uid) crm_notify($to, $ll ? (int)$ll['id'] : null, 'task', t('%s ضاف لك مهمة: %s', (string)(current_user()['name'] ?? ''), $title));
+        } else {
+            $tid = (int)($_POST['task'] ?? 0);
+            if ($action === 'task_done') db()->prepare('UPDATE crm_tasks SET done_at = IF(done_at IS NULL, NOW(), NULL) WHERE id = ? AND workspace_id = ? AND (user_id = ? OR user_id IS NULL OR ? = 1)')->execute([$tid, $wid, $uid, $canManage ? 1 : 0]);
+            else db()->prepare('DELETE FROM crm_tasks WHERE id = ? AND workspace_id = ? AND (user_id = ? OR created_by = ? OR ? = 1)')->execute([$tid, $wid, $uid, $uid, $canManage ? 1 : 0]);
+        }
+        $json(['ok' => true, 'tasks' => crm_tasks_open($uid)]);
+    }
     if ($action === 'merge_pair' || $action === 'merge') {
         $a = crm_lead((int)($_POST['a'] ?? 0)); $b = crm_lead((int)($_POST['b'] ?? 0));
         if (!$a || !$b || !crm_can_edit($a) || !crm_can_edit($b)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
@@ -271,6 +287,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255) ?: null, $email ?: null, $phone ?: null, $phone ?: null, $s, $val,
                 mb_substr(trim((string)($_POST['note'] ?? '')), 0, 2000) ?: null, $tags ?: null, $owner, $next,
                 mb_substr(trim((string)($_POST['next_note'] ?? '')), 0, 255) ?: null, (int)$l['id']]);
+        if ($owner !== ((int)$l['owner_id'] ?: null) && $owner) {
+            $hn = mb_substr(trim((string)($_POST['handoff'] ?? '')), 0, 500); $toName = (string)(array_column($members, 'name', 'id')[$owner] ?? '');
+            crm_act_add((int)$l['id'], 'note', '🤝 ' . t('اتسلّم لـ %s', $toName) . ($hn !== '' ? ': ' . $hn : ''));
+            if ($owner !== $uid) crm_notify($owner, (int)$l['id'], 'handoff', t('%s سلّمك العميل %s', (string)(current_user()['name'] ?? ''), (string)$l['name']) . ($hn !== '' ? ' — ' . $hn : ''));
+        }
         if ($s !== $l['stage']) crm_act_add((int)$l['id'], 'stage', ($stages[$l['stage']] ?? $l['stage']) . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]);
         if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
         $pl = (string)($_POST['pipeline'] ?? ''); $cf = crm_custom_clean((array)($_POST['cf'] ?? []));
@@ -359,6 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         crm_act_add((int)$l['id'], 'note', '🎙 voice:' . $name . ' ' . gmdate($sec >= 3600 ? 'H:i:s' : 'i:s', $sec) . (trim((string)($_POST['body'] ?? '')) !== '' ? "\n" . mb_substr(trim((string)$_POST['body']), 0, 1500) : ''));
         $json(['ok' => true, 'acts' => crm_acts((int)$l['id'])]);
     }
+    if ($action === 'pin') { db()->prepare('UPDATE crm_leads SET pinned = 1 - pinned WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]); $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id']))]); }
     if ($action === 'log') {
         // تسجيل تواصل؛ أول تواصل مع عميل جديد بينقله لـ "اتكلمنا معاه" لوحده
         $k = (string)($_POST['kind'] ?? '');
@@ -366,6 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $oc = (string)($_POST['outcome'] ?? ''); $ocs = crm_call_outcomes();
         $body = trim((isset($ocs[$oc]) ? '[' . $ocs[$oc] . '] ' : '') . (string)($_POST['body'] ?? ''));
         crm_act_add((int)$l['id'], $k, $body);
+        if ($k === 'note' && function_exists('crm_mentions')) crm_mentions($body, (int)$l['id']);
         if ($k === 'call' && in_array($oc, ['no_answer', 'busy'], true)) {
             // محاولة تانية بكرة في نفس الوقت تقريبًا
             db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([date('Y-m-d H:i:s', strtotime('+1 day')), t('محاولة اتصال تانية (%s)', $ocs[$oc]), (int)$l['id']]);
@@ -406,7 +429,7 @@ $args = [$wid];
 if (!$canManage) { $where .= ' AND (owner_id = ? OR owner_id IS NULL)'; $args[] = $uid; }
 $pipes = crm_pipelines(); $curPl = isset($pipes[$_GET['pl'] ?? '']) ? (string)$_GET['pl'] : 'sales';
 if (count($pipes) > 1) { $where .= ' AND pipeline = ?'; $args[] = $curPl; }
-$st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY (next_at IS NULL), next_at, id DESC LIMIT 2000");
+$st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY pinned DESC, (next_at IS NULL), next_at, id DESC LIMIT 2000");
 $st->execute($args);
 $rows = $st->fetchAll();
 
@@ -465,6 +488,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         <span class="ld-stat"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8 21h8M9 17h6"/></svg> <b class="text-lime-700"><?= $won ?></b> <span class="text-ink-400">· <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></span>
       </div>
       <div class="flex items-center gap-2 ms-auto">
+        <button type="button" id="ld-dialer" class="btn-ghost hidden" title="<?= e(t('اتصال ورا اتصال للمستحقين، وتسجيل النتيجة بضغطة')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('اتصال متتالي')) ?></span></button>
         <button type="button" id="ld-queue" class="btn-primary hidden shadow-lg shadow-brand-500/20"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg> <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
         <button type="button" id="ld-sug-btn" class="btn-ghost relative"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <span class="hidden sm:inline"><?= e(t('عملاء مقترحين')) ?></span><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1 animate-pulse"></span></button>
       <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg> <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
@@ -519,7 +543,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       </div>
     </div>
     <div id="ld-views" class="flex items-center gap-1 mb-1 overflow-x-auto text-sm" role="tablist">
-      <?php foreach (['all' => ['', t('الكل')], 'mine' => ['user', t('بتوعي')], 'due' => ['clock', t('مستحقين')], 'hot' => ['fire', t('سخنين')], 'cold' => ['snow', t('باردين')], 'fresh' => ['new', t('جداد النهارده')], 'unowned' => ['user_plus', t('من غير مسؤول')]] as $vk => $vv): if ($vk === 'unowned' && !$canManage) continue; ?>
+      <?php foreach (['all' => ['', t('الكل')], 'pin' => ['star', t('المفضلة')], 'mine' => ['user', t('بتوعي')], 'due' => ['clock', t('مستحقين')], 'hot' => ['fire', t('سخنين')], 'cold' => ['snow', t('باردين')], 'fresh' => ['new', t('جداد النهارده')], 'unowned' => ['user_plus', t('من غير مسؤول')]] as $vk => $vv): if ($vk === 'unowned' && !$canManage) continue; ?>
         <button type="button" data-view="<?= $vk ?>" class="ld-vtab shrink-0 px-3 py-1.5 rounded-full text-ink-600 hover:bg-white hover:shadow-sm transition inline-flex items-center gap-1.5"><?= $vv[0] ? ui_icon($vv[0], 'w-4 h-4') : '' ?> <?= e($vv[1]) ?> <span class="ld-vn text-[11px] text-ink-400"></span></button>
       <?php endforeach; ?>
     </div>
@@ -558,6 +582,12 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     <aside id="ld-side" class="grid md:grid-cols-3 min-[1700px]:grid-cols-1 gap-3 mb-3 min-[1700px]:mb-0 min-[1700px]:sticky min-[1700px]:top-20 [&>*]:min-w-0 [&_.card>div]:max-h-56 [&_.card>div]:overflow-y-auto min-[1700px]:[&_.card>div]:max-h-none">
       <div class="card p-3"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('مستحقين النهارده')) ?></b><span id="sd-due-n" class="text-xs text-ink-400"></span><button type="button" data-sd-view="due" class="ms-auto link text-xs"><?= e(t('الكل')) ?></button></div><div id="sd-due" class="space-y-1"></div></div>
       <div class="card p-3"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a7 7 0 007-7c0-4-3-6-4-9-1 2-2 3-3 3 0-2-1-4-3-5 0 4-4 6-4 11a7 7 0 007 7zM12 21a3 3 0 003-3c0-2-1.5-3-3-5-1.5 2-3 3-3 5a3 3 0 003 3z"/></svg> <?= e(t('الأسخن دلوقتي')) ?></b><button type="button" data-sd-view="hot" class="ms-auto link text-xs"><?= e(t('الكل')) ?></button></div><div id="sd-hot" class="space-y-1"></div></div>
+      <div class="card p-3" id="sd-tasks-card"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('مهامي')) ?></b><span id="sd-tasks-n" class="text-xs text-ink-400"></span></div>
+        <div id="sd-tasks" class="space-y-1 mb-2"></div>
+        <form id="sd-task-f" class="flex flex-wrap gap-1.5" data-no-ajax><input name="title" required maxlength="255" class="input !mt-0 !py-1.5 text-xs flex-1 min-w-[120px]" placeholder="<?= e(t('مهمة جديدة… (مثلًا: جهّز عرض السعر)')) ?>" dir="auto">
+          <input type="datetime-local" name="due" class="input !mt-0 !py-1.5 !w-auto text-xs" title="<?= e(t('الميعاد (اختياري)')) ?>">
+          <?php if ($canManage): ?><select name="user" class="input !mt-0 !py-1.5 !w-auto text-xs"><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>" <?= (int)$m['id'] === $uid ? 'selected' : '' ?>><?= e($m['name']) ?></option><?php endforeach; ?></select><?php endif; ?>
+          <button class="btn-primary !py-1.5 !px-2.5 !text-xs"><?= ui_icon('plus', 'w-4 h-4') ?></button></form></div>
       <div class="card p-3"><b class="text-sm text-ink-900 block mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/></svg> <?= e(t('جم منين الأسبوع ده')) ?></b><div id="sd-src" class="space-y-1.5"></div></div>
       <?php $nfs = crm_notifs($uid, 20); $nfU = count(array_filter($nfs, function ($x) { return !(int)$x['seen']; })); if ($nfs): ?>
     <details id="notifs" class="card group md:col-span-3 min-[1700px]:col-span-1">
@@ -659,6 +689,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <label class="block"><span class="label"><?= e(t('قيمة الصفقة')) ?></span><input class="input" name="value" inputmode="decimal" dir="ltr"></label>
             <label class="block"><span class="label"><?= e(t('المسؤول')) ?></span><select class="input" name="owner" <?= $canManage ? '' : 'disabled' ?>><option value="0"><?= e(t('من غير مسؤول')) ?></option>
               <?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; ?></select></label>
+            <label class="block col-span-2 hidden" id="ld-handoff"><span class="label"><?= e(t('ملاحظة التسليم (هتوصل للمسؤول الجديد)')) ?></span><textarea class="input" name="handoff" rows="2" maxlength="500" dir="auto" placeholder="<?= e(t('اتكلمنا على إيه، ومستني إيه، وأحسن وقت يتكلم فيه')) ?>"></textarea></label>
             <?php if (count(crm_pipelines()) > 1): ?><label class="block col-span-2"><span class="label">Pipeline</span><select class="input" name="pipeline"><?php foreach (crm_pipelines() as $pk => $pv): ?><option value="<?= e($pk) ?>"><?= e($pv) ?></option><?php endforeach; ?></select></label><?php endif; ?>
             <?php foreach (crm_custom_fields() as $cf): ?><label class="block"><span class="label"><?= e($cf['label']) ?></span>
               <?php if ($cf['type'] === 'select'): ?><select class="input" name="cf[<?= e($cf['key']) ?>]" data-cf="<?= e($cf['key']) ?>"><option value="">—</option><?php foreach ($cf['opts'] as $o): ?><option><?= e($o) ?></option><?php endforeach; ?></select>
@@ -844,6 +875,8 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     </div>
     <script>window.LD = <?= json_encode([
         'plans' => crm_plans(), 'chs' => crm_plan_channels(),
+        'tasks' => function_exists('crm_tasks_open') ? crm_tasks_open($uid) : [], 'ocs' => crm_call_outcomes(), 'mem' => array_values(array_map(function ($m) { return ['id' => (int)$m['id'], 'n' => (string)$m['name']]; }, $members)),
+        'tk' => ['none' => t('مفيش مهام. ضيف أول مهمة.'), 'late' => t('متأخرة'), 'pin' => t('ثبّت فوق'), 'unpin' => t('شيل التثبيت'), 'dial' => t('اتصال متتالي'), 'dialNone' => t('مفيش عملاء مستحقين عندهم أرقام.'), 'call' => t('اتصل'), 'skip' => t('تخطي'), 'of' => t('%s من %s'), 'noteP' => t('ملاحظة سريعة (اختياري)'), 'dialDone' => t('خلصت قايمة الاتصال 👏'), 'stop' => t('إنهاء')],
         'today' => (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d'), 'tz' => site_timezone(), 'qNext' => t('التالي ← %s من %s'), 'qDone' => t('خلصت شغل النهارده 👏'), 'qLast' => t('آخر واحد ✓'), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
         'stageColors' => crm_stage_colors(), 'pipes' => $pipes, 'pl' => $curPl, 'fields' => crm_custom_fields(),
         'mg' => ['t' => t('دمج عميلين'), 'keep' => t('يفضل'), 'go' => t('ادمج'), 'acts' => t('%s نشاط'), 'hint' => t('اختار القيمة اللي تفضل في كل خانة. كل النشاطات والصفقات والخطط بتتنقل للعميل اللي هيفضل، والتاني بيتمسح.'), 'done' => t('اتدمجوا ✓'), 'need2' => t('حدد عميلين بالظبط.'),
