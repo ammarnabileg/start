@@ -49,7 +49,7 @@ ai_as_workspace($wid, function () use ($wid) {
 main{max-width:560px;margin:0 auto;padding:20px 16px}h1{font-size:20px;margin:0 0 4px}.sub{color:#6b7280;font-size:14px;margin:0 0 16px}
 .days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}.day{flex:0 0 auto;border:1px solid #e5e7eb;background:#fff;border-radius:12px;padding:8px 12px;text-align:center;cursor:pointer;font-size:13px}
 .day.on{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset}.day b{display:block;font-size:16px}
-.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:14px 0}.slots label{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:9px;text-align:center;cursor:pointer;font-size:14px}
+.slots[hidden]{display:none}.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:14px 0}.slots label{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:9px;text-align:center;cursor:pointer;font-size:14px}
 .slots input{display:none}.slots input:checked+span{color:#fff}.slots label:has(input:checked){background:var(--c);border-color:var(--c);color:#fff}
 input[type=text],input[type=tel],input[type=email],textarea{width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:#fff;margin-bottom:8px}
 button{width:100%;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:600;color:#fff;background:var(--c);cursor:pointer}.err{color:#b91c1c;font-size:14px;margin:8px 0}
