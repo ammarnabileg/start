@@ -528,6 +528,33 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '046_competitors' => [
+        "CREATE TABLE IF NOT EXISTS competitors (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            url VARCHAR(500) NOT NULL,
+            links TEXT NULL,
+            note VARCHAR(500) NULL,
+            snap MEDIUMTEXT NULL,
+            last_check DATETIME NULL,
+            last_ok TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id, last_check)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_events (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            competitor_id INT UNSIGNED NOT NULL,
+            kind VARCHAR(20) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            detail VARCHAR(500) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id, id),
+            INDEX comp (competitor_id, id),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '045_campaigns' => [
         "CREATE TABLE IF NOT EXISTS campaigns (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

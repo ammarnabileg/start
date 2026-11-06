@@ -36,6 +36,7 @@ function nav_items(): array
     $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $s3 = t('المحتوى والحملات'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
+        ['key' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_find', 'label' => t('استكشاف السوق'), 'section' => $s2, 'module' => 'crm', 'apollo' => true, 'tabs' => ['crm_find' => t('ابحث عن أشخاص'), 'crm' => t('الشركات المستهدفة')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'campaign', 'label' => t('حملة متكاملة'), 'section' => $s3],

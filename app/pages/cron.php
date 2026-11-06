@@ -152,6 +152,13 @@ try {
         }
         $out[] = $line;
     }
+    // متابعة المنافسين: لكل الشركات (حتى اللي مش مربوطة بالنشر)، كل منافس مرة في اليوم
+    try {
+        foreach (db()->query("SELECT DISTINCT c.workspace_id FROM competitors c JOIN workspaces w ON w.id = c.workspace_id WHERE COALESCE(w.status, 'active') = 'active'")->fetchAll(PDO::FETCH_COLUMN) as $cw) {
+            try { $n = (int)ai_as_workspace((int)$cw, function () { return function_exists('comp_tick') ? comp_tick(10) : 0; }); if ($n) $out[] = 'ws ' . (int)$cw . ': competitors+' . $n; }
+            catch (Throwable $t) { $out[] = 'ws ' . (int)$cw . ': competitors=error'; }
+        }
+    } catch (Throwable $t) {}
     save_setting('cron_last_run', gmdate('Y-m-d H:i:s'));
 } finally {
     save_setting('cron_running', '0');

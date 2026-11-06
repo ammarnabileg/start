@@ -33,7 +33,7 @@ function kb_import_site(string $url): array
     }
     $S = []; $src = [];
     $put = function (string $sec, string $f, $v, string $u) use (&$S, &$src) { if (is_string($v)) $v = trim($v); if ($v === '' || $v === null || $v === []) return; if (isset($S[$sec][$f]) && $S[$sec][$f] !== '') return; $S[$sec][$f] = $v; $src[$sec . '.' . $f] = $u; };
-    $svc = []; $faq = []; $social = []; $hoursTxt = [];
+    $svc = []; $faq = []; $offers = []; $social = []; $hoursTxt = [];
     $dayKeys = ['sat' => ['sa', 'saturday', 'السبت'], 'sun' => ['su', 'sunday', 'الأحد', 'الاحد'], 'mon' => ['mo', 'monday', 'الاثنين', 'الإثنين'], 'tue' => ['tu', 'tuesday', 'الثلاثاء'], 'wed' => ['we', 'wednesday', 'الأربعاء', 'الاربعاء'], 'thu' => ['th', 'thursday', 'الخميس'], 'fri' => ['fr', 'friday', 'الجمعة']];
     $dayOf = function (string $d) use ($dayKeys) { $d = mb_strtolower(preg_replace('~^https?://schema.org/~', '', trim($d))); foreach ($dayKeys as $k => $al) foreach ($al as $a) if ($d === $a || mb_strpos($d, $a) === 0 && mb_strlen($a) > 2) return $k; return null; };
     foreach ($pages as $pu => $html) {
@@ -88,9 +88,13 @@ function kb_import_site(string $url): array
         if (preg_match('/[\w.+-]+@[\w-]+\.[\w.]{2,}/u', $plain, $em2)) $put('contact', 'mail', $em2[0], $pu);
         foreach ($lines as $i => $ln) {
             // سعر: "اسم ... 250 ريال" أو "Name - SAR 250"
-            if (mb_strlen($ln) <= 120 && preg_match('/^(.{2,70}?)[\s:\-–|•]+((?:SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|درهم|دينار)?\s?[\d٠-٩][\d٠-٩,.٬]*\s?(?:SAR|EGP|AED|USD|KWD|QAR|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)?)\s*$/u', $ln, $pm2) && preg_match('/(SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار)/u', $pm2[2])) {
+            // سطر فيه خصم أو عرض مش خدمة بسعر (زي "خصم 10% على الطلبات فوق 200 ريال")
+            $isOffer = (bool)preg_match('/(خصم|تخفيض|عرض خاص|مجان|هدية|كوبون|\d+\s?%|٪|\boff\b|discount|\bfree\b|promo)/iu', $ln);
+            if (!$isOffer && mb_strlen($ln) <= 120 && preg_match('/^(.{2,70}?)[\s:\-–|•]+((?:SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|درهم|دينار)?\s?[\d٠-٩][\d٠-٩,.٬]*\s?(?:SAR|EGP|AED|USD|KWD|QAR|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار|\$)?)\s*$/u', $ln, $pm2) && preg_match('/(SAR|EGP|AED|USD|KWD|QAR|\$|ر\.?\s?س|ريال|جنيه|ج\.?م|درهم|دينار)/u', $pm2[2])) {
                 $nm = trim($pm2[1], " \t-:|•"); if (mb_strlen($nm) >= 2 && !preg_match('/^(total|المجموع|الإجمالي|vat|ضريبة)/iu', $nm)) $svc[mb_strtolower($nm)] = $svc[mb_strtolower($nm)] ?? ['name' => $nm, 'price' => trim($pm2[2]), 'details' => ''];
             }
+            // عروض وخصومات (لمتابعة المنافسين)
+            if (mb_strlen($ln) >= 8 && mb_strlen($ln) <= 160 && preg_match('/(خصم|تخفيض|عرض خاص|عروض|مجان|هدية|كوبون|\d+\s?%|٪|\boff\b|\bsale\b|discount|\bfree\b|promo|offer)/iu', $ln)) $offers[mb_strtolower($ln)] = $ln;
             // مواعيد: "السبت - الخميس: 9 ص - 10 م"
             if (preg_match('/(السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس|الجمعة|saturday|sunday|monday|tuesday|wednesday|thursday|friday|daily|يوميًا|يوميا|طوال الأسبوع)/iu', $ln) && preg_match('/\d{1,2}(?::\d{2})?\s*(?:ص|م|am|pm|AM|PM)?\s*(?:-|–|إلى|الى|to|حتى)\s*\d{1,2}(?::\d{2})?\s*(?:ص|م|am|pm|AM|PM|مساءً|صباحًا)?/u', $ln, $hm) && mb_strlen($ln) < 120) $hoursTxt[] = $ln;
             // أسئلة شائعة: سطر بينتهي بعلامة استفهام والسطر اللي بعده إجابة
@@ -103,7 +107,7 @@ function kb_import_site(string $url): array
     if ($hoursTxt && empty($S['hours'])) $put('hours', 'notes', implode("\n", array_slice(array_unique($hoursTxt), 0, 6)), $home['url']);
     if ($svc) $S['services'] = ['rows' => array_values(array_slice($svc, 0, 40))];
     if ($faq) $S['faq'] = ['rows' => array_values(array_slice($faq, 0, 20))];
-    return ['sections' => $S, 'src' => $src, 'pages' => array_keys($pages), 'err' => ''];
+    return ['sections' => $S, 'src' => $src, 'pages' => array_keys($pages), 'offers' => array_values(array_slice($offers, 0, 30)), 'err' => ''];
 }
 
 /* ---------- ملف الشركة بيغذي باقي المنصة ---------- */

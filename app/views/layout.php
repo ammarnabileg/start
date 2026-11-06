@@ -51,6 +51,7 @@ $I['phone'] = $I['phone_numbers'];
 $I['crm'] = 'M4 21V9l8-6 8 6v12M9 21v-6h6v6M9 11h.01M15 11h.01';
 $I['crm_leads'] = 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z';
 $I['crm_find'] = 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5';
+$I['competitors'] = 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z';
 $I['crm_reports'] = 'M4 20V10M10 20V4M16 20v-7M22 20H2';
 $I['campaign'] = 'M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM15 8a5 5 0 010 8M18 5a9 9 0 010 14';
 $I['crm_capture'] = 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2';
