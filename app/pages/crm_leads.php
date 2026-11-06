@@ -454,106 +454,124 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     }
     $cold = count(array_filter($leads, function ($l) use ($now) { return !in_array($l['stage'], ['won', 'lost'], true) && !$l['next_at'] && strtotime($l['last'] ?: $l['created']) < $now - 7 * 86400; }));
     $tagNames = crm_tag_names();
-    $stageIcon = ['new' => '🆕', 'contacted' => '💬', 'qualified' => '⭐', 'proposal' => '📄', 'won' => '🏆', 'lost' => '✕'];
+    $stageIcon = ['new' => 'new', 'contacted' => 'chat', 'qualified' => 'star', 'proposal' => 'file', 'won' => 'trophy', 'lost' => 'x'];
     ?>
     <!-- الشريط العلوي: أرقام صغيرة + الأزرار المهمة بس -->
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <div class="flex flex-wrap items-center gap-2 text-sm">
-        <span class="ld-stat"><span class="text-ink-500"><?= e(t('العملاء')) ?></span> <b><?= count($leads) ?></b></span>
-        <button type="button" id="ld-due-tile" class="ld-stat <?= $due ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>" title="<?= e(t('اعرض المستحقين بس')) ?>">⏰ <span class="text-ink-500"><?= e(t('مستحقين النهارده')) ?></span> <b><?= $due ?></b></button>
-        <span class="ld-stat">💰 <span class="text-ink-500"><?= e(t('مفتوح')) ?></span> <b><?= e(number_format($pipe)) ?></b></span>
-        <?php $fc = crm_forecast(); if ($fc['total'] > 0): ?><span class="ld-stat" title="<?= e(t('مجموع (قيمة كل عميل مفتوح × احتمال مرحلته)')) ?>">📈 <span class="text-ink-500"><?= e(t('المتوقع')) ?></span> <b class="text-brand-700"><?= e(number_format($fc['total'])) ?></b></span><?php endif; ?>
-        <span class="ld-stat">🏆 <b class="text-lime-700"><?= $won ?></b> <span class="text-ink-400">· <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></span>
+        <button type="button" id="ld-due-tile" class="ld-stat <?= $due ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>" title="<?= e(t('اعرض المستحقين بس')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <span class="text-ink-500"><?= e(t('مستحقين النهارده')) ?></span> <b><?= $due ?></b></button>
+        <span class="ld-stat"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4"/></svg> <span class="text-ink-500"><?= e(t('مفتوح')) ?></span> <b><?= e(number_format($pipe)) ?></b></span>
+        <?php $fc = crm_forecast(); if ($fc['total'] > 0): ?><span class="ld-stat" title="<?= e(t('مجموع (قيمة كل عميل مفتوح × احتمال مرحلته)')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg> <span class="text-ink-500"><?= e(t('المتوقع')) ?></span> <b class="text-brand-700"><?= e(number_format($fc['total'])) ?></b></span><?php endif; ?>
+        <span class="ld-stat"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8 21h8M9 17h6"/></svg> <b class="text-lime-700"><?= $won ?></b> <span class="text-ink-400">· <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></span>
       </div>
       <div class="flex items-center gap-2 ms-auto">
-        <button type="button" id="ld-queue" class="btn-primary hidden shadow-lg shadow-brand-500/20">▶ <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
-        <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <span class="hidden sm:inline"><?= e(t('عملاء مقترحين')) ?></span><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1 animate-pulse"></span></button>
-      <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>">⚙️ <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
+        <button type="button" id="ld-queue" class="btn-primary hidden shadow-lg shadow-brand-500/20"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg> <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
+        <button type="button" id="ld-sug-btn" class="btn-ghost relative"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <span class="hidden sm:inline"><?= e(t('عملاء مقترحين')) ?></span><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1 animate-pulse"></span></button>
+      <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg> <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
         <div class="absolute end-0 mt-1 z-40 w-56 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col">
-      <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🔁 <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
-      <?php if ($canManage): ?><button type="button" id="ld-sla-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⏱ <?= e(t('سرعة الرد والتوزيع')) ?></button><?php endif; ?>
-      <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🌐 <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
-      <button type="button" id="ld-imp-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⇪ <?= e(t('استورد عملاء')) ?></button>
+      <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
+      <?php if ($canManage): ?><button type="button" id="ld-sla-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a8 8 0 100-16 8 8 0 000 16zM12 9v4l2 2M10 2h4M12 2v3"/></svg> <?= e(t('سرعة الرد والتوزيع')) ?></button><?php endif; ?>
+      <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
+      <button type="button" id="ld-imp-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"/></svg> <?= e(t('استورد عملاء')) ?></button>
       <a class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
       <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
-        <button class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
-      <?php if (crm_has_key() && can('crm.reveal')): ?><button type="button" id="ld-stale" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e(t('لحد 25 عميل في المرة، بيصرف كريديت')) ?>">✦ <?= e(t('كمّل بيانات الناقصين وحدّث القديمة (أكتر من 3 شهور) من Apollo')) ?></button><?php endif; ?>
+        <button class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg> <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
+      <?php if (crm_has_key() && can('crm.reveal')): ?><button type="button" id="ld-stale" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e(t('لحد 25 عميل في المرة، بيصرف كريديت')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('كمّل بيانات الناقصين وحدّث القديمة (أكتر من 3 شهور) من Apollo')) ?></button><?php endif; ?>
         </div></details>
         <button type="button" id="ld-add-btn" class="btn-primary">+ <span class="hidden sm:inline"><?= e(t('عميل جديد')) ?></span></button>
       </div>
     </div>
 
     <?php if ($canManage && !crm_has_key()): ?>
-    <div class="rounded-xl border border-dashed border-ink-200 px-3 py-2 mb-3 text-xs text-ink-500 flex items-center gap-2">🔎 <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?> <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
+    <div class="rounded-xl border border-dashed border-ink-200 px-3 py-2 mb-3 text-xs text-ink-500 flex items-center gap-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg> <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?> <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
     <?php endif; ?>
 
-    <?php $nfs = crm_notifs($uid, 20); $nfU = count(array_filter($nfs, function ($x) { return !(int)$x['seen']; })); if ($nfs): ?>
-    <details id="notifs" class="card mb-4 group" <?= $nfU ? 'open' : '' ?>>
-      <summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-2.5 text-sm"><span>🔔 <b><?= e(t('التنبيهات')) ?></b></span><?php if ($nfU): ?><span class="rounded-full bg-rose-600 text-white text-[10px] px-1.5"><?= $nfU ?></span><?php endif; ?>
-        <button type="button" id="nf-seen" class="link text-xs ms-auto <?= $nfU ? '' : 'hidden' ?>"><?= e(t('علّمهم مقروءين')) ?></button></summary>
-      <div class="divide-y divide-ink-100 border-t border-ink-100 max-h-64 overflow-y-auto"><?php foreach ($nfs as $nf): ?>
-        <a href="#lead-<?= (int)$nf['lead_id'] ?>" data-nf-lead="<?= (int)$nf['lead_id'] ?>" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-ink-50 <?= (int)$nf['seen'] ? 'text-ink-500' : 'text-ink-900 font-medium bg-rose-50/40' ?>"><span class="flex-1"><?= e($nf['body']) ?></span><span class="text-[11px] text-ink-400 shrink-0"><?= e(fmt_date($nf['created_at'], 'd/m h:i A')) ?></span></a>
-      <?php endforeach; ?></div>
-    </details>
-    <?php endif; ?>
 
     <!-- المراحل = القمع: عدد كل مرحلة ونسبة اللي عدّوا من اللي قبلها، وبتفلتر بضغطة -->
-    <div id="ld-stages" class="ld-funnel flex sm:grid sm:grid-cols-7 gap-1.5 mb-4 overflow-x-auto snap-x pb-1 -mx-1 px-1" role="tablist">
+    <div id="ld-stages" class="ld-funnel flex gap-1.5 mb-4 overflow-x-auto snap-x pb-1 -mx-1 px-1 [&>*]:min-w-[120px] [&>*]:flex-1" role="tablist">
       <button type="button" class="ld-seg on" data-s=""><span class="ld-seg-l"><?= e(t('الكل')) ?></span><b class="ld-seg-n"><?= count($leads) ?></b></button>
       <?php foreach ($stages as $k => $lbl): $ix = array_search($k, $order, true); $prev = $ix ? $reach[$order[$ix - 1]] : 0; ?>
-        <button type="button" class="ld-seg" data-s="<?= e($k) ?>" data-stage="<?= e($k) ?>"><span class="ld-seg-l"><?= $stageIcon[$k] ?? '' ?> <?= e($lbl) ?></span><span class="flex items-baseline gap-1.5"><b class="ld-seg-n" data-cnt="<?= e($k) ?>">0</b><?php if ($ix && $prev): ?><span class="ld-seg-p" title="<?= e(t('النسبة جنب كل مرحلة = كام في المية عدّى من المرحلة اللي قبلها.')) ?>">↗ <?= round($reach[$k] / $prev * 100) ?>%</span><?php endif; ?></span></button>
+        <button type="button" class="ld-seg" data-s="<?= e($k) ?>" data-stage="<?= e($k) ?>"><span class="ld-seg-l inline-flex items-center gap-1"><?= ui_icon($stageIcon[$k] ?? 'layers', 'w-3.5 h-3.5') ?> <?= e($lbl) ?></span><span class="flex items-baseline gap-1.5"><b class="ld-seg-n" data-cnt="<?= e($k) ?>">0</b><?php if ($ix && $prev): ?><span class="ld-seg-p" title="<?= e(t('النسبة جنب كل مرحلة = كام في المية عدّى من المرحلة اللي قبلها.')) ?>">↗ <?= round($reach[$k] / $prev * 100) ?>%</span><?php endif; ?></span></button>
       <?php endforeach; ?>
     </div>
 
+    <div class="grid min-[1700px]:grid-cols-[minmax(0,1fr)_21rem] gap-4 items-start">
+    <div class="min-w-0">
     <!-- البحث + فلتر واحد + الترتيب + طريقة العرض -->
     <div class="flex flex-wrap items-center gap-2 mb-2">
-      <div class="relative flex-1 min-w-[200px]"><span class="absolute inset-y-0 start-3 grid place-items-center text-ink-400 pointer-events-none">⌕</span>
+      <div class="relative flex-1 min-w-[200px]"><span class="absolute inset-y-0 start-3 grid place-items-center text-ink-400 pointer-events-none"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg></span>
         <input id="ld-q" type="search" class="input !ps-8" placeholder="<?= e(t('دوّر بالاسم، الشركة، الرقم، الإيميل…')) ?>  ( / )"></div>
-      <details class="relative" id="ld-filt"><summary class="btn-ghost list-none cursor-pointer select-none">⚲ <?= e(t('فلترة')) ?> <span id="ld-filt-n" class="hidden ms-1 rounded-full bg-brand-600 text-white text-[10px] px-1.5"></span></summary>
+      <details class="relative" id="ld-filt"><summary class="btn-ghost list-none cursor-pointer select-none"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg> <?= e(t('فلترة')) ?> <span id="ld-filt-n" class="hidden ms-1 rounded-full bg-brand-600 text-white text-[10px] px-1.5"></span></summary>
         <div class="absolute end-0 mt-1 z-40 w-72 rounded-2xl border border-ink-200 bg-white shadow-xl p-3 space-y-2.5">
           <label class="block"><span class="text-[11px] text-ink-500"><?= e(t('المصدر')) ?></span><select id="ld-src" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل المصادر')) ?></option><?php foreach ($sources as $k => $lbl): if (empty($bySrc[$k])) continue; ?><option value="<?= e($k) ?>"><?= e($lbl) ?> (<?= (int)$bySrc[$k] ?>)</option><?php endforeach; ?></select></label>
           <label class="block"><span class="text-[11px] text-ink-500"><?= e(t('المسؤول')) ?></span><select id="ld-own" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل المسؤولين')) ?></option><option value="<?= $uid ?>"><?= e(t('بتوعي')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option>
             <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select></label>
           <?php if ($tagNames): ?><label class="block"><span class="text-[11px] text-ink-500"><?= e(t('القايمة')) ?></span><select id="ld-tag" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل القوايم')) ?></option><?php foreach ($tagNames as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?></select></label><?php endif; ?>
-          <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"> ⏰ <?= e(t('متابعات مستحقة بس')) ?></label>
-          <?php if ($cold): ?><button type="button" id="ld-cold" class="w-full text-start rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-800 hover:bg-sky-100">🧊 <?= e(t('%s عميل محدش كلمه من أسبوع ومالوش متابعة. اعرضهم', $cold)) ?></button><?php endif; ?>
+          <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('متابعات مستحقة بس')) ?></label>
+          <?php if ($cold): ?><button type="button" id="ld-cold" class="w-full text-start rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-800 hover:bg-sky-100"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5M9 4l3 2 3-2M9 20l3-2 3 2"/></svg> <?= e(t('%s عميل محدش كلمه من أسبوع ومالوش متابعة. اعرضهم', $cold)) ?></button><?php endif; ?>
           <button type="button" id="ld-filt-clear" class="text-xs text-ink-500 hover:text-red-600"><?= e(t('امسح الفلاتر')) ?></button>
         </div></details>
+      <?php if (count($pipes) > 1): ?><select class="input !w-auto font-semibold text-brand-700" onchange="location.href=this.value" title="Pipeline"><?php foreach ($pipes as $pk => $pv): ?><option value="<?= e(url('crm_leads', ['pl' => $pk])) ?>" <?= $pk === $curPl ? 'selected' : '' ?>><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 100-4 2 2 0 000 4zM18 9a2 2 0 100-4 2 2 0 000 4zM6 15V9a4 4 0 014-4h6M18 9v6a4 4 0 01-4 4H8"/></svg> <?= e($pv) ?></option><?php endforeach; ?></select><?php endif; ?>
       <select id="ld-sort" class="input !w-auto"><option value=""><?= e(t('ترتيب: المتابعات الأول')) ?></option><option value="score"><?= e(t('ترتيب: الأهم الأول')) ?></option><option value="new"><?= e(t('ترتيب: الأحدث')) ?></option></select>
       <div class="inline-flex rounded-xl border border-ink-200 bg-white p-0.5" role="group">
-        <button type="button" data-v="list" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('قائمة')) ?>">☰</button>
-        <button type="button" data-v="board" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('لوحة')) ?>">▦</button>
+        <button type="button" data-v="list" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('قائمة')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+        <button type="button" data-v="board" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('لوحة')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v7h-4z"/></svg></button>
       </div>
     </div>
-    <?php if (count($pipes) > 1): ?><div class="flex items-center gap-1 mb-2 text-sm overflow-x-auto"><span class="text-xs text-ink-500 me-1">🛤</span><?php foreach ($pipes as $pk => $pv): ?><a href="<?= e(url('crm_leads', ['pl' => $pk])) ?>" class="shrink-0 px-3 py-1.5 rounded-lg border <?= $pk === $curPl ? 'border-brand-300 bg-brand-50 text-brand-700 font-semibold' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= e($pv) ?></a><?php endforeach; ?></div><?php endif; ?>
-    <div id="ld-views" class="flex items-center gap-1 mb-2 overflow-x-auto text-sm" role="tablist">
-      <?php foreach (['all' => ['', t('الكل')], 'mine' => ['👤', t('بتوعي')], 'due' => ['⏰', t('مستحقين')], 'hot' => ['🔥', t('سخنين')], 'cold' => ['🧊', t('باردين')], 'fresh' => ['🆕', t('جداد النهارده')], 'unowned' => ['🙋', t('من غير مسؤول')]] as $vk => $vv): if ($vk === 'unowned' && !$canManage) continue; ?>
-        <button type="button" data-view="<?= $vk ?>" class="ld-vtab shrink-0 px-3 py-1.5 rounded-full text-ink-600 hover:bg-white hover:shadow-sm transition"><?= $vv[0] ?> <?= e($vv[1]) ?> <span class="ld-vn text-[11px] text-ink-400"></span></button>
+    <div id="ld-views" class="flex items-center gap-1 mb-1 overflow-x-auto text-sm" role="tablist">
+      <?php foreach (['all' => ['', t('الكل')], 'mine' => ['user', t('بتوعي')], 'due' => ['clock', t('مستحقين')], 'hot' => ['fire', t('سخنين')], 'cold' => ['snow', t('باردين')], 'fresh' => ['new', t('جداد النهارده')], 'unowned' => ['user_plus', t('من غير مسؤول')]] as $vk => $vv): if ($vk === 'unowned' && !$canManage) continue; ?>
+        <button type="button" data-view="<?= $vk ?>" class="ld-vtab shrink-0 px-3 py-1.5 rounded-full text-ink-600 hover:bg-white hover:shadow-sm transition inline-flex items-center gap-1.5"><?= $vv[0] ? ui_icon($vv[0], 'w-4 h-4') : '' ?> <?= e($vv[1]) ?> <span class="ld-vn text-[11px] text-ink-400"></span></button>
       <?php endforeach; ?>
     </div>
     <div id="ld-chips" class="flex flex-wrap gap-1.5 mb-3 min-h-[4px]"></div>
 
     <?php if (!$leads): ?>
-      <div id="ld-empty"><?= an_empty(t('لسه مفيش Leads'), t('اكشف أشخاص من الشركات المستهدفة، أو ضيف Lead بإيدك.'), '🧲') ?></div>
+      <div id="ld-empty"><?= an_empty(t('لسه مفيش Leads'), t('اكشف أشخاص من الشركات المستهدفة، أو ضيف Lead بإيدك.'), 'magnet') ?></div>
     <?php endif; ?>
     <div id="ld-bulk" class="hidden sticky top-16 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-3 py-2 shadow-sm">
       <label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" id="ld-all" class="rounded"> <b id="ld-bn">0</b> <?= e(t('محدد')) ?></label>
-      <button type="button" id="ld-b-merge" class="btn-ghost !py-1 !text-xs hidden">🔗 <?= e(t('دمج')) ?></button>
-      <button type="button" id="ld-b-mail" class="btn-ghost !py-1 !text-xs">✉️ <?= e(t('إيميل جماعي')) ?></button>
+      <button type="button" id="ld-b-merge" class="btn-ghost !py-1 !text-xs hidden"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('دمج')) ?></button>
+      <button type="button" id="ld-b-mail" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= e(t('إيميل جماعي')) ?></button>
       <select id="ld-b-stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('غيّر المرحلة…')) ?></option><?php foreach ($stages as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
       <?php if ($canManage): ?><select id="ld-b-owner" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('وزّع على…')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; ?></select><?php endif; ?>
-      <select id="ld-b-plan" class="input !w-auto !py-1 text-xs"><option value="">🔁 <?= e(t('ابدأ خطة متابعة…')) ?></option><?php foreach (crm_plans() as $pl): ?><option value="<?= (int)$pl['id'] ?>"><?= e($pl['name']) ?></option><?php endforeach; ?></select>
-      <button type="button" id="ld-b-tag" class="btn-ghost !py-1 !text-xs">🏷 <?= e(t('ضيف لقايمة')) ?></button>
+      <select id="ld-b-plan" class="input !w-auto !py-1 text-xs"><option value=""><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('ابدأ خطة متابعة…')) ?></option><?php foreach (crm_plans() as $pl): ?><option value="<?= (int)$pl['id'] ?>"><?= e($pl['name']) ?></option><?php endforeach; ?></select>
+      <button type="button" id="ld-b-tag" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('ضيف لقايمة')) ?></button>
       <?php if (crm_has_key()): ?>
-        <?php if (can('crm.reveal')): ?><button type="button" id="ld-b-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل من Apollo')) ?></button><?php endif; ?>
-        <button type="button" id="ld-b-seq" class="btn-ghost !py-1 !text-xs">📧 Sequence</button>
+        <?php if (can('crm.reveal')): ?><button type="button" id="ld-b-enrich" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('كمّل من Apollo')) ?></button><?php endif; ?>
+        <button type="button" id="ld-b-seq" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> Sequence</button>
       <?php endif; ?>
       <button type="button" id="ld-b-clear" class="ms-auto text-xs text-ink-500 hover:text-ink-900">✕</button>
     </div>
     <div id="ld-list" class="card divide-y divide-ink-100 overflow-hidden"></div>
     <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(250px,1fr)] gap-3 overflow-x-auto pb-3 snap-x"></div>
     <div id="ld-more" class="hidden text-center mt-3"><button type="button" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400"></span></button></div>
-    <div id="ld-none" class="hidden text-center py-14"><div class="text-4xl mb-2">🔍</div><div class="text-sm text-ink-600"><?= e(t('مفيش عملاء بالشكل ده')) ?></div><button type="button" id="ld-none-clear" class="link text-xs mt-2"><?= e(t('امسح الفلاتر')) ?></button></div>
+    </div>
+    <!-- عمود النهارده: المستحقين والسخنين والتنبيهات، كله بيفتح العميل بضغطة -->
+    <details id="ld-side-d" class="order-first min-[1700px]:order-none min-w-0 group/sd" open>
+      <summary class="min-[1700px]:hidden list-none cursor-pointer select-none card px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-3">
+        <b class="text-ink-900"><?= e(t('شغل النهارده')) ?></b>
+        <span class="inline-flex items-center gap-1 text-amber-700"><?= ui_icon('clock', 'w-4 h-4') ?><b id="sd-s-due">0</b> <?= e(t('مستحقين')) ?></span>
+        <span class="inline-flex items-center gap-1 text-rose-700"><?= ui_icon('fire', 'w-4 h-4') ?><b id="sd-s-hot">0</b> <?= e(t('سخنين')) ?></span>
+        <span class="inline-flex items-center gap-1 text-brand-700"><?= ui_icon('inbox', 'w-4 h-4') ?><b id="sd-s-new">0</b> <?= e(t('جداد الأسبوع ده')) ?></span>
+        <span class="ms-auto text-xs text-ink-400 inline-flex items-center gap-1"><span class="group-open/sd:hidden"><?= e(t('اعرض')) ?></span><span class="hidden group-open/sd:inline"><?= e(t('اقفل')) ?></span><?= ui_icon('chevron', 'w-4 h-4 rotate-90 group-open/sd:-rotate-90 transition') ?></span>
+      </summary>
+    <aside id="ld-side" class="grid md:grid-cols-3 min-[1700px]:grid-cols-1 gap-3 mb-3 min-[1700px]:mb-0 min-[1700px]:sticky min-[1700px]:top-20 [&>*]:min-w-0 [&_.card>div]:max-h-56 [&_.card>div]:overflow-y-auto min-[1700px]:[&_.card>div]:max-h-none">
+      <div class="card p-3"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('مستحقين النهارده')) ?></b><span id="sd-due-n" class="text-xs text-ink-400"></span><button type="button" data-sd-view="due" class="ms-auto link text-xs"><?= e(t('الكل')) ?></button></div><div id="sd-due" class="space-y-1"></div></div>
+      <div class="card p-3"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a7 7 0 007-7c0-4-3-6-4-9-1 2-2 3-3 3 0-2-1-4-3-5 0 4-4 6-4 11a7 7 0 007 7zM12 21a3 3 0 003-3c0-2-1.5-3-3-5-1.5 2-3 3-3 5a3 3 0 003 3z"/></svg> <?= e(t('الأسخن دلوقتي')) ?></b><button type="button" data-sd-view="hot" class="ms-auto link text-xs"><?= e(t('الكل')) ?></button></div><div id="sd-hot" class="space-y-1"></div></div>
+      <div class="card p-3"><b class="text-sm text-ink-900 block mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/></svg> <?= e(t('جم منين الأسبوع ده')) ?></b><div id="sd-src" class="space-y-1.5"></div></div>
+      <?php $nfs = crm_notifs($uid, 20); $nfU = count(array_filter($nfs, function ($x) { return !(int)$x['seen']; })); if ($nfs): ?>
+    <details id="notifs" class="card group md:col-span-3 min-[1700px]:col-span-1">
+      <summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-2.5 text-sm"><span><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1112 0v5l2 2H4zM10 21h4"/></svg> <b><?= e(t('التنبيهات')) ?></b></span><?php if ($nfU): ?><span class="rounded-full bg-rose-600 text-white text-[10px] px-1.5"><?= $nfU ?></span><?php endif; ?>
+        <button type="button" id="nf-seen" class="link text-xs ms-auto <?= $nfU ? '' : 'hidden' ?>"><?= e(t('علّمهم مقروءين')) ?></button></summary>
+      <div class="divide-y divide-ink-100 border-t border-ink-100 max-h-72 overflow-y-auto"><?php foreach ($nfs as $nf): ?>
+        <a href="#lead-<?= (int)$nf['lead_id'] ?>" data-nf-lead="<?= (int)$nf['lead_id'] ?>" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-ink-50 <?= (int)$nf['seen'] ? 'text-ink-500' : 'text-ink-900 font-medium bg-rose-50/40' ?>"><span class="flex-1"><?= e($nf['body']) ?></span><span class="text-[11px] text-ink-400 shrink-0"><?= e(fmt_date($nf['created_at'], 'd/m h:i A')) ?></span></a>
+      <?php endforeach; ?></div>
+    </details>
+    <?php endif; ?>
+    </aside>
+    </details>
+    </div>
+    <div id="ld-none" class="hidden text-center py-14"><div class="text-4xl mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg></div><div class="text-sm text-ink-600"><?= e(t('مفيش عملاء بالشكل ده')) ?></div><button type="button" id="ld-none-clear" class="link text-xs mt-2"><?= e(t('امسح الفلاتر')) ?></button></div>
 
     <div id="ld-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="ld-fade absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
@@ -568,8 +586,8 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           </div>
           <div id="ld-quick" class="flex flex-wrap gap-1.5 mt-3"></div>
           <nav class="flex gap-1 mt-3 -mb-px overflow-x-auto" role="tablist" id="ld-tabs">
-            <?php foreach (['ov' => ['✨', t('نظرة عامة')], 'ct' => ['💬', t('تواصل')], 'dl' => ['💼', t('صفقات ومتابعة')], 'dt' => ['🗂', t('البيانات')]] as $tk => $tv): ?>
-              <button type="button" role="tab" data-tabbtn="<?= $tk ?>" class="ld-tabbtn shrink-0 px-3 py-2 text-sm border-b-2 border-transparent text-ink-500 hover:text-ink-900 transition"><?= $tv[0] ?> <?= e($tv[1]) ?><span class="ld-tabn ms-1 text-[10px] text-ink-400"></span></button>
+            <?php foreach (['ov' => ['spark', t('نظرة عامة')], 'ct' => ['chat', t('تواصل')], 'dl' => ['wallet', t('صفقات ومتابعة')], 'dt' => ['layers', t('البيانات')]] as $tk => $tv): ?>
+              <button type="button" role="tab" data-tabbtn="<?= $tk ?>" class="ld-tabbtn shrink-0 px-3 py-2 text-sm border-b-2 border-transparent text-ink-500 hover:text-ink-900 transition inline-flex items-center gap-1.5"><?= ui_icon($tv[0], 'w-4 h-4') ?> <?= e($tv[1]) ?><span class="ld-tabn ms-1 text-[10px] text-ink-400"></span></button>
             <?php endforeach; ?>
           </nav>
         </div>
@@ -579,7 +597,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             <?php foreach ($stages as $k => $lbl): ?><label class="cursor-pointer"><input type="radio" name="stage" value="<?= e($k) ?>" class="peer sr-only"><span class="inline-block px-2.5 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600 peer-focus-visible:ring-2 ring-brand-300"><?= e($lbl) ?></span></label><?php endforeach; ?>
           </div></div>
           <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">⏰ <?= e(t('المتابعة الجاية')) ?></div>
+            <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('المتابعة الجاية')) ?></div>
             <div class="flex flex-wrap gap-1.5" id="ld-next-quick">
               <button type="button" class="chip text-xs" data-d="0" data-h="16"><?= e(t('النهارده')) ?></button>
               <button type="button" class="chip text-xs" data-d="1" data-h="11"><?= e(t('بكرة')) ?></button>
@@ -593,36 +611,36 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         </div>
         <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="ct" role="tabpanel">
           <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg> <?= e(t('ابعت رسالة جاهزة')) ?></span>
               <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
             <div id="ld-tpl-list" class="flex flex-wrap gap-1.5"></div>
             <p class="text-[11px] text-ink-500"><?= e(t('بيفتح واتساب بالرسالة مكتوبة، وبيتسجل في سجل التواصل لوحده.')) ?></p>
           </div>
           <div id="ld-mail" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">✉️ <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
             <div id="ld-mail-f" class="hidden space-y-1.5"><input id="ld-mail-s" class="input text-sm" maxlength="255" placeholder="<?= e(t('العنوان')) ?>"><textarea id="ld-mail-b" rows="5" class="input text-sm" dir="auto"></textarea>
               <button type="button" id="ld-mail-go" class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('ابعت')) ?></button>
               <p class="text-[11px] text-ink-500"><?= e(t('بيتبعت من SMTP بتاعك. هتعرف لو فتحه أو ضغط على رابط (الفتح تقريبي: بعض برامج الإيميل بتمنع الصور).')) ?></p></div>
             <div id="ld-mails" class="space-y-1"></div>
           </div>
           <div class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🕓 <?= e(t('سجل التواصل')) ?></div>
+            <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg> <?= e(t('سجل التواصل')) ?></div>
             <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= $v[0] ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
-            <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500">📞 <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
+            <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1A16 16 0 014 5a1 1 0 011-1z"/></svg> <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
             <div class="flex gap-2"><input id="ld-log-body" class="input text-sm" maxlength="2000" placeholder="<?= e(t('حصل إيه؟ (اختياري) واختار النوع')) ?>">
-              <button type="button" id="ld-dict" class="btn-ghost !px-2.5 hidden" title="<?= e(t('إملاء بالصوت (في المتصفح، ببلاش)')) ?>">🗣</button>
-              <button type="button" id="ld-rec" class="btn-ghost !px-2.5" title="<?= e(t('سجّل ملاحظة صوتية')) ?>">🎙</button></div>
+              <button type="button" id="ld-dict" class="btn-ghost !px-2.5 hidden" title="<?= e(t('إملاء بالصوت (في المتصفح، ببلاش)')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+              <button type="button" id="ld-rec" class="btn-ghost !px-2.5" title="<?= e(t('سجّل ملاحظة صوتية')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3"/></svg></button></div>
             <div id="ld-rec-st" class="hidden text-xs text-red-600 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span><span id="ld-rec-t">0:00</span> <button type="button" id="ld-rec-stop" class="btn-ghost !py-0.5 !text-xs"><?= e(t('وقّف واحفظ')) ?></button></div>
             <ol id="ld-acts" class="space-y-2 max-h-72 overflow-y-auto"></ol>
           </div>
         </div>
         <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="dl" role="tabpanel">
           <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💼 <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4"/></svg> <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
             <div id="ld-deal-list" class="space-y-1.5"></div>
           </div>
           <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
+            <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('خطة المتابعة')) ?></div>
             <div id="ld-plan-body" class="text-xs"></div>
           </div>
         </div>
@@ -645,10 +663,10 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           </div>
           <?php if (crm_has_key()): ?>
           <div id="ld-apollo" class="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🚀 Apollo</div>
+            <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg> Apollo</div>
             <div class="flex flex-wrap gap-1.5">
-              <?php if (can('crm.reveal')): ?><button type="button" id="ld-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل بياناته من Apollo')) ?></button><?php endif; ?>
-              <button type="button" id="ld-seq-open" class="btn-ghost !py-1 !text-xs">📧 <?= e(t('ضيفه لـ Sequence')) ?></button>
+              <?php if (can('crm.reveal')): ?><button type="button" id="ld-enrich" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('كمّل بياناته من Apollo')) ?></button><?php endif; ?>
+              <button type="button" id="ld-seq-open" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= e(t('ضيفه لـ Sequence')) ?></button>
             </div>
             <div id="ld-seq-box" class="hidden space-y-1.5"><select id="ld-seq" class="input text-xs"></select><select id="ld-seq-acc" class="input text-xs"></select>
               <button type="button" id="ld-seq-go" class="btn-primary !py-1 !text-xs w-full"><?= e(t('ابدأ الـ Sequence')) ?></button></div>
@@ -656,7 +674,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           </div>
           <?php endif; ?>
           <div id="ld-visits" class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">🌐 <?= e(t('زياراته لموقعك')) ?></span><button type="button" id="ld-tl" class="link text-xs ms-auto"><?= e(t('اعمل رابط متتبع')) ?></button></div>
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('زياراته لموقعك')) ?></span><button type="button" id="ld-tl" class="link text-xs ms-auto"><?= e(t('اعمل رابط متتبع')) ?></button></div>
             <div id="ld-tl-box" class="hidden flex gap-1.5"><input id="ld-tl-u" class="input !py-1 text-xs" dir="ltr" placeholder="https://" value="<?= e((string)setting('crm_site_url_' . (int)ws('id'), '')) ?>"><button type="button" id="ld-tl-go" class="btn-primary !py-1 !text-xs">⧉</button></div>
             <div id="ld-visit-list" class="space-y-1"></div>
           </div>
@@ -686,7 +704,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     <div id="ld-imp" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="relative card p-5 w-full max-w-2xl max-h-[92vh] overflow-y-auto space-y-3" role="dialog" aria-modal="true" aria-labelledby="ld-imp-t">
-        <h3 id="ld-imp-t" class="font-semibold text-ink-900">⇪ <?= e(t('استورد عملاء')) ?></h3>
+        <h3 id="ld-imp-t" class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"/></svg> <?= e(t('استورد عملاء')) ?></h3>
         <p class="text-xs text-ink-500"><?= e(t('من Excel: علّم الجدول بالعناوين وانسخه والزقه هنا، أو ارفع ملف CSV. المكرر بيتدمج، وكود الدولة بيتضاف لوحده.')) ?></p>
         <input type="file" id="ld-imp-file" accept=".csv,.tsv,.txt" class="block text-sm">
         <textarea id="ld-imp-txt" rows="6" class="input text-xs font-mono" dir="auto" placeholder="<?= e(t('الاسم	الرقم	الإيميل	الشركة')) ?>"></textarea>
@@ -697,7 +715,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     <div id="ld-sug" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[560px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-sug-h">
-        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="ld-sug-h" class="font-semibold text-ink-900 flex-1">✨ <?= e(t('عملاء مقترحين')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
+        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="ld-sug-h" class="font-semibold text-ink-900 flex-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('عملاء مقترحين')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
         <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('ناس كلّموك أو علّقوا على منشوراتك وباين عليهم مهتمين: الذكاء الاصطناعي لقى عندهم نية شراء، أو كتبوا رقمهم، أو سألوا عن السعر. اللي في الـ Leads مش بيظهروا هنا.')) ?></p>
         <div class="px-4 pt-2 flex flex-wrap items-center gap-2 text-xs">
           <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="ld-sug-all" class="rounded"> <?= e(t('تحديد الكل')) ?></label>
@@ -722,7 +740,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     <div id="ld-fdlg" class="fixed inset-0 z-[60] hidden overflow-y-auto p-4" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <form id="ld-fform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3" role="dialog" aria-modal="true">
-        <h3 class="font-semibold text-ink-900">🌐 <?= e(t('فورم الموقع')) ?></h3>
+        <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> <?= e(t('فورم الموقع')) ?></h3>
         <p class="text-xs text-ink-500"><?= e(t('حط الكود ده في أي صفحة على موقعك. أي حد يملاه بيدخل الـ Leads على طول، بيتوزع على الفريق، وبتتحطله متابعة النهارده. من غير أي اشتراك.')) ?></p>
         <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="on" class="rounded" <?= setting('crm_form_on_' . (int)ws('id'), '1') === '1' ? 'checked' : '' ?>> <?= e(t('الفورم شغال')) ?></label>
         <div class="grid sm:grid-cols-2 gap-3">
@@ -741,13 +759,13 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       </form>
       <?php $sl = crm_sla_cfg(); ?>
       <form id="ld-slaform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3 mt-3">
-        <h3 class="font-semibold text-ink-900">⏱ <?= e(t('سرعة الرد على العملاء الجداد')) ?></h3>
+        <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a8 8 0 100-16 8 8 0 000 16zM12 9v4l2 2M10 2h4M12 2v3"/></svg> <?= e(t('سرعة الرد على العملاء الجداد')) ?></h3>
         <p class="text-xs text-ink-500"><?= e(t('أسرع رد = عملاء أكتر. لو عميل جديد عدّى الوقت ده ومحدش كلّمه، المسؤول بيوصله تنبيه في الجرس (ولو مالوش مسؤول، المديرين). ولو عدّى وقت النقل، بيتحوّل لأقل موظف عنده شغل.')) ?></p>
         <div class="grid sm:grid-cols-2 gap-3">
           <label class="block"><span class="label"><?= e(t('نبّه بعد (دقيقة)')) ?></span><input type="number" min="0" max="1440" name="mins" class="input" value="<?= (int)$sl['mins'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = من غير تنبيه')) ?></span></label>
           <label class="block"><span class="label"><?= e(t('انقله لحد تاني بعد (ساعة)')) ?></span><input type="number" min="0" max="72" name="move_hours" class="input" value="<?= (int)$sl['move_hours'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = مايتنقلش')) ?></span></label>
         </div>
-        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm">🧭 <?= e(t('قواعد التوزيع')) ?></div>
+        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('قواعد التوزيع')) ?></div>
           <p class="text-[11px] text-ink-500 mb-2"><?= e(t('العميل الجديد بيروح لأول قاعدة تنطبق عليه. لو مفيش، بيتوزع بالتناوب.')) ?></p>
           <div id="ld-rules" class="space-y-1.5"><?php $rr = crm_route_rules(); $rr[] = ['field' => 'source', 'value' => '', 'owner' => 0]; foreach ($rr as $ri => $r): ?>
             <div class="grid grid-cols-[110px_1fr_1fr] gap-1.5" data-rule><select class="input !py-1 text-xs" name="rule[<?= $ri ?>][field]"><?php foreach (['source' => t('المصدر'), 'country' => t('الدولة'), 'phone' => t('الرقم بيبدأ بـ'), 'keyword' => t('كلمة في الشركة/الوظيفة')] as $fk => $fl): ?><option value="<?= $fk ?>" <?= ($r['field'] ?? '') === $fk ? 'selected' : '' ?>><?= e($fl) ?></option><?php endforeach; ?></select>
@@ -756,13 +774,13 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           <?php endforeach; ?></div>
           <p class="text-[10px] text-ink-400 mt-1"><?= e(t('قيم المصدر: %s', implode('، ', array_map(function ($k, $v) { return $k . '=' . $v; }, array_keys($sources), $sources)))) ?></p>
         </div>
-        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm">📈 <?= e(t('احتمال الإغلاق لكل مرحلة (لتوقع الإيراد)')) ?></div>
+        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg> <?= e(t('احتمال الإغلاق لكل مرحلة (لتوقع الإيراد)')) ?></div>
           <div class="grid grid-cols-4 gap-2 mt-1"><?php $pb = crm_stage_probs(); foreach (['new', 'contacted', 'qualified', 'proposal'] as $k): ?><label class="block text-[11px] text-ink-500"><?= e($stages[$k]) ?><input type="number" min="0" max="100" class="input !py-1 text-sm" name="prob[<?= $k ?>]" value="<?= (int)$pb[$k] ?>"></label><?php endforeach; ?></div></div>
         <div class="flex gap-2"><button class="btn-primary"><?= e(t('احفظ')) ?></button><span id="ld-slamsg" class="text-xs self-center"></span></div>
       </form>
       <?php $tc = crm_track_cfg((int)ws('id')); ?>
       <form id="ld-tform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3 mt-3">
-        <h3 class="font-semibold text-ink-900">📍 <?= e(t('كود الموقع: تتبع الزيارات + زرار عائم')) ?></h3>
+        <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12zM12 11a2 2 0 100-4 2 2 0 000 4z"/></svg> <?= e(t('كود الموقع: تتبع الزيارات + زرار عائم')) ?></h3>
         <p class="text-xs text-ink-500"><?= e(t('حط السطر ده مرة واحدة في كل صفحات موقعك (قبل </body>). لما تبعت لعميل رابط متتبع (من صفحة العميل أو {site} في القوالب)، كل صفحة يفتحها بعد كده بتتسجل عنده، ولو فتح صفحة أسعار بيوصلك تنبيه "كلّمه دلوقتي". الزوار العاديين مابيتسجلوش.')) ?></p>
         <textarea readonly rows="2" class="input text-xs font-mono" dir="ltr" data-scode><?= e(crm_site_script()) ?></textarea>
         <div class="grid sm:grid-cols-2 gap-3">
@@ -779,7 +797,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       </form>
       <?php $bc = crm_book_cfg(); ?>
       <form id="ld-bform" class="relative card p-5 w-full max-w-2xl mx-auto space-y-3 mt-3" role="dialog" aria-modal="true">
-        <h3 class="font-semibold text-ink-900">📅 <?= e(t('صفحة حجز المواعيد')) ?></h3>
+        <h3 class="font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 10h16M8 3v4M16 3v4"/></svg> <?= e(t('صفحة حجز المواعيد')) ?></h3>
         <p class="text-xs text-ink-500"><?= e(t('زي Calendly ببلاش: العميل بيختار ميعاد فاضي، وبيدخل الـ Leads ومعاه اجتماع متسجل ومتابعة في ميعاده. مفيش حجزين في نفس الميعاد. حط {book} في أي قالب رسالة عشان يتبعت اللينك.')) ?></p>
         <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="on" class="rounded" <?= setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? 'checked' : '' ?>> <?= e(t('الحجز شغال')) ?></label>
         <div class="flex flex-wrap gap-1.5"><?php foreach ([0 => t('الأحد'), 1 => t('الاتنين'), 2 => t('التلات'), 3 => t('الأربع'), 4 => t('الخميس'), 5 => t('الجمعة'), 6 => t('السبت')] as $k => $v): ?><label class="cursor-pointer"><input type="checkbox" name="days[]" value="<?= $k ?>" class="peer sr-only" <?= in_array($k, (array)$bc['days'], true) ? 'checked' : '' ?>><span class="inline-block px-2.5 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white"><?= e($v) ?></span></label><?php endforeach; ?></div>
@@ -801,7 +819,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     <div id="ld-pdlg" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[640px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true">
-        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900 flex-1">🔁 <?= e(t('خطط المتابعة')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close>✕</button></div>
+        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 class="font-semibold text-ink-900 flex-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('خطط المتابعة')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close>✕</button></div>
         <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('كل خطة = خطوات بأيام. الإيميل بيتبعت لوحده من SMTP بتاعك (من التكاملات). الواتساب والمكالمة بيبقوا مهمة للمسؤول في يومها، وضغطة واحدة بتفتح واتساب والرسالة جاهزة. الخطة بتقف لوحدها لما العميل يبقى "بقى عميل" أو "مش مناسب". استخدم {name} و{company} و{me}.')) ?></p>
         <?php if (!smtp_config((int)ws('id'))): ?><p class="mx-4 mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800"><?= e(t('مفيش SMTP متظبط، فخطوات الإيميل هتبقى مهام لحد ما تربطه (Gmail ببلاش).')) ?> <a class="link" href="<?= e(url('connectors')) ?>"><?= e(t('التكاملات')) ?> ↗</a></p><?php endif; ?>
         <div id="ld-plans" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
@@ -820,7 +838,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     </div>
     <script>window.LD = <?= json_encode([
         'plans' => crm_plans(), 'chs' => crm_plan_channels(),
-        'tz' => site_timezone(), 'qNext' => t('التالي ← %s من %s'), 'qDone' => t('خلصت شغل النهارده 👏'), 'qLast' => t('آخر واحد ✓'), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
+        'today' => (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d'), 'tz' => site_timezone(), 'qNext' => t('التالي ← %s من %s'), 'qDone' => t('خلصت شغل النهارده 👏'), 'qLast' => t('آخر واحد ✓'), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),
         'stageColors' => crm_stage_colors(), 'pipes' => $pipes, 'pl' => $curPl, 'fields' => crm_custom_fields(),
         'mg' => ['t' => t('دمج عميلين'), 'keep' => t('يفضل'), 'go' => t('ادمج'), 'acts' => t('%s نشاط'), 'hint' => t('اختار القيمة اللي تفضل في كل خانة. كل النشاطات والصفقات والخطط بتتنقل للعميل اللي هيفضل، والتاني بيتمسح.'), 'done' => t('اتدمجوا ✓'), 'need2' => t('حدد عميلين بالظبط.'),
           'f' => ['name' => t('الاسم'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'stage' => t('المرحلة'), 'value' => t('قيمة الصفقة'), 'owner' => t('المسؤول'), 'note' => t('ملاحظات')]],
@@ -828,7 +846,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         'bm' => ['t' => t('إيميل جماعي'), 'sub' => t('العنوان'), 'body' => t('الرسالة'), 'hint' => t('{name} اسمه الأول، {company} شركته، {book} لينك الحجز. اللي مالوش إيميل أو لغى الاشتراك بيتخطى، وكل إيميل فيه رابط إلغاء اشتراك.'), 'go' => t('ابعت'), 'prog' => t('اتبعت %s من %s'), 'done' => t('خلص: اتبعت %s، واتخطى %s، وفشل %s'), 'none' => t('ولا واحد من المحددين عنده إيميل.')],
         'leads' => $leads, 'stages' => $stages, 'sources' => $sources, 'members' => array_column($members, 'name', 'id'), 'me' => $uid, 'url' => url('crm_leads'), 'csrf' => csrf_token(),
         'now' => fmt_date(date('Y-m-d H:i:s'), 'Y-m-d\TH:i'), 'canManage' => $canManage,
-        'tr' => ['noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
+        'tr' => ['sdNone' => t('مفيش متابعات مستحقة. شغلك خلص.'), 'noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
             'merged' => t('كان موجود، دمجناه في نفس العميل'), 'del' => t('متأكد إنك عاوز تمسح العميل ده؟'), 'pending' => t('الرقم جاي'), 'call' => t('اتصل'),
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'lostQ' => t('ليه مش مناسب؟'), 'lostR' => crm_lost_reasons(), 'undo' => t('تراجع'), 'stageTo' => t('اتنقل لـ %s'), 'deleted' => t('اتمسح %s'), 'nToday' => t('النهارده 4 م'), 'nTom' => t('بكرة 11 ص'), 'n3' => t('بعد 3 أيام'), 'nWeek' => t('بعد أسبوع'), 'nNone' => t('مفيش متابعة'), 'nSet' => t('اتظبطت المتابعة ✓'), 'more' => t('اعرض أكتر (%s فاضلين)'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),

@@ -70,6 +70,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <?php page_head($title . ' · ' . $siteName); ?>
 </head>
 <body class="min-h-screen">
+<script>window.UIC = <?= json_encode(ui_icon_paths()) ?>; window.uic = function (n, c) { return '<svg class="' + (c || 'w-4 h-4') + ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (window.UIC[n] || window.UIC.chart) + '"/></svg>'; };</script>
 
 <!-- الشريط العلوي -->
 <header class="fixed top-0 inset-x-0 h-16 z-[56] bg-white/90 backdrop-blur border-b border-ink-200 flex items-center gap-3 px-4">
@@ -154,19 +155,6 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <?php $cpOn = function_exists('ai_connection') && current_workspace() && can('ai.use') && ai_connection() && (ai_feature_on('assistant') || ai_page_insights((string)($GLOBALS['page'] ?? $active))); ?>
 <main class="pt-16 lg:ps-64 min-h-screen transition-[padding] duration-300 <?= $cpOn ? 'lg:pe-14' : '' ?>" id="main">
   <div class="<?= !empty($fullWidth) ? 'max-w-[1800px] px-4 sm:px-6 py-6' : 'max-w-6xl px-4 sm:px-8 py-8 lg:py-10' ?> mx-auto">
-    <?php if (!empty($navActive['tabs']) && count($navActive['tabs']) > 1 && $navActive['label'] !== $title): ?>
-      <div class="text-sm text-ink-500 mb-1"><?= e($navActive['label']) ?></div>
-    <?php endif; ?>
-    <?php if (empty($hideTitle)): ?>
-      <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 mb-5"><?= e($title) ?></h1>
-    <?php endif; ?>
-    <?php if (!empty($navActive['tabs']) && count($navActive['tabs']) > 1): ?>
-      <nav class="flex gap-1 border-b border-ink-200 mb-7 overflow-x-auto" style="scrollbar-width:none">
-        <?php foreach ($navActive['tabs'] as $tk => $tl): $on = $tk === $active || ($tk === $navActive['key'] && in_array($active, $navActive['also'] ?? [], true)); ?>
-          <a href="<?= e(url($tk)) ?>" class="whitespace-nowrap px-4 py-2.5 text-sm border-b-2 -mb-px <?= $on ? 'border-brand-600 text-brand-700 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900' ?>"><?= e($tl) ?></a>
-        <?php endforeach; ?>
-      </nav>
-    <?php elseif (empty($hideTitle)): ?><div class="mb-2"></div><?php endif; ?>
     <?php // الصفحات مترابطة: كل صفحة بتوديك للخطوة اللي قبلها واللي بعدها في الرحلة
       $crmOn2 = $curWs && module_enabled('crm') && can('crm.view'); $R = [];
       $R['knowledge'] = [[t('اكتب منشور من ملفك'), url('compose')], [t('الردود التلقائية بتستخدمه'), url('automations')]];
@@ -181,8 +169,51 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         $R['crm_settings'] = [[t('العملاء'), url('crm_leads')]];
       }
       $rel = $R[$active] ?? [];
-      if ($rel && $curWs): ?>
-      <div class="mb-4 -mt-1 flex flex-wrap items-center gap-1.5 text-xs"><span class="text-ink-400">🔗 <?= e(t('مرتبط:')) ?></span><?php foreach ($rel as [$rl, $ru]): ?><a href="<?= e($ru) ?>" class="rounded-full border border-ink-200 bg-white px-2.5 py-1 text-ink-600 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 transition"><?= e($rl) ?></a><?php endforeach; ?></div>
+    ?>
+    <?php // هيدر الصفحة: العنوان نفسه زرار بيفتح popover فيه الصفحات الشقيقة والمرتبطة (بدل صف التابات)
+      $sibs = (!empty($navActive['tabs']) && count($navActive['tabs']) > 1) ? $navActive['tabs'] : [];
+      $sibOn = function ($tk) use ($active, $navActive) { return $tk === $active || ($tk === ($navActive['key'] ?? '') && in_array($active, $navActive['also'] ?? [], true)); };
+      $keys = array_keys($sibs); $cur = null; foreach ($keys as $ix => $tk) if ($sibOn($tk)) $cur = $ix;
+      $hasPop = $sibs || $rel;
+      $pgDesc = ['crm_leads' => t('القايمة واللوحة والمتابعات'), 'leads' => t('اللي سجّلوا من إعلاناتك'), 'crm_reports' => t('الفريق والمصادر والتوقعات'), 'crm_settings' => t('المراحل والحقول والقواعد'),
+        'analytics' => t('أداء منشوراتك'), 'inbox_analytics' => t('سرعة الرد وحجم الرسائل'), 'reports' => t('تقارير PDF ومجدولة'), 'goals' => t('أهداف الشهر والتقدم'), 'alerts' => t('اللي محتاج انتباهك'),
+        'posts' => t('كل المنشورات بالفلاتر'), 'calendar' => t('شهر وأسبوع بالسحب والإفلات'), 'approvals' => t('منشورات مستنية موافقة'), 'post_log' => t('مين نشر إيه وإمتى'),
+        'inbox' => t('كل المحادثات'), 'comments' => t('تعليقات منشوراتك'), 'knowledge' => t('خدماتك وأسعارك وجمهورك'), 'media' => t('صورك وفيديوهاتك'), 'accounts' => t('حسابات السوشيال'), 'connectors' => t('SMTP وApollo والذكاء الاصطناعي'),
+        'crm_find' => t('دوّر على صناع القرار'), 'crm' => t('شركات تستهدفها'), 'ads' => t('حملاتك الشغالة'), 'ad_builder' => t('حملة خطوة بخطوة'), 'ad_create' => t('حملة في دقيقة'), 'ad_audiences' => t('جماهير محفوظة')];
+    ?>
+    <?php if (empty($hideTitle)): ?>
+    <div class="flex items-center gap-2 mb-6 min-w-0">
+      <?php if ($hasPop): ?>
+        <button type="button" id="pg-sw-btn" popovertarget="pg-sw" class="group flex items-center gap-2 min-w-0 rounded-xl -ms-2 px-2 py-1 hover:bg-ink-100 transition text-start" aria-haspopup="menu">
+          <span class="min-w-0"><?php if ($sibs && ($navActive['label'] ?? '') !== $title): ?><span class="block text-xs text-ink-500"><?= e($navActive['label']) ?><?= $cur !== null ? ' · ' . ($cur + 1) . '/' . count($sibs) : '' ?></span><?php endif; ?>
+            <span class="flex items-center gap-2"><h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 truncate"><?= e($title) ?></h1><?= $icon('M6 9l6 6 6-6', 'w-5 h-5 text-ink-400 group-hover:text-ink-700 transition') ?></span></span>
+        </button>
+        <?php if ($sibs && count($sibs) > 1 && $cur !== null): ?>
+          <span class="ms-1 hidden sm:inline-flex items-center rounded-xl border border-ink-200 bg-white">
+            <a href="<?= e(url($keys[($cur - 1 + count($keys)) % count($keys)])) ?>" class="p-2 text-ink-500 hover:text-ink-900" title="<?= e($sibs[$keys[($cur - 1 + count($keys)) % count($keys)]]) ?> ([)"><?= $icon(is_rtl() ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6', 'w-4 h-4') ?></a>
+            <span class="w-px h-5 bg-ink-200"></span>
+            <a href="<?= e(url($keys[($cur + 1) % count($keys)])) ?>" class="p-2 text-ink-500 hover:text-ink-900" title="<?= e($sibs[$keys[($cur + 1) % count($keys)]]) ?> (])"><?= $icon(is_rtl() ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6', 'w-4 h-4') ?></a>
+          </span>
+        <?php endif; ?>
+        <div id="pg-sw" popover class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-0 shadow-2xl text-ink-900 backdrop:bg-transparent">
+          <div class="grid <?= $sibs && $rel ? 'sm:grid-cols-[1.3fr_1fr]' : '' ?>">
+            <?php if ($sibs): ?><div class="p-2"><div class="px-2 pt-1 pb-2 text-[11px] font-semibold text-ink-400"><?= e($navActive['label']) ?></div>
+              <?php $n = 0; foreach ($sibs as $tk => $tl): $n++; $on = $sibOn($tk); ?>
+                <a href="<?= e(url($tk)) ?>" data-sw-k="<?= $n ?>" class="flex items-center gap-3 rounded-xl px-2.5 py-2 <?= $on ? 'bg-brand-50' : 'hover:bg-ink-50' ?>">
+                  <span class="w-8 h-8 rounded-lg grid place-items-center <?= $on ? 'bg-brand-600 text-[#fff]' : 'bg-ink-100 text-ink-600' ?>"><?= $icon($I[$tk] ?? $I[$navActive['key']] ?? $I['dashboard'], 'w-4 h-4') ?></span>
+                  <span class="flex-1 min-w-0"><span class="block text-sm <?= $on ? 'font-semibold text-brand-800' : 'font-medium' ?>"><?= e($tl) ?></span><?php if (!empty($pgDesc[$tk])): ?><span class="block text-[11px] text-ink-500 truncate"><?= e($pgDesc[$tk]) ?></span><?php endif; ?></span>
+                  <kbd class="text-[10px] font-mono text-ink-400 border border-ink-200 rounded px-1"><?= $n ?></kbd>
+                </a>
+              <?php endforeach; ?></div><?php endif; ?>
+            <?php if ($rel): ?><div class="p-2 <?= $sibs ? 'border-t sm:border-t-0 sm:border-s border-ink-100 bg-ink-50/60' : '' ?>"><div class="px-2 pt-1 pb-2 text-[11px] font-semibold text-ink-400"><?= e(t('الخطوة اللي بعدها')) ?></div>
+              <?php foreach ($rel as [$rl, $ru]): ?><a href="<?= e($ru) ?>" class="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-white hover:text-brand-700"><?= $icon('M5 12h14M13 6l6 6-6 6', 'w-4 h-4 text-ink-400 rtl:-scale-x-100') ?><span class="min-w-0 truncate"><?= e($rl) ?></span></a><?php endforeach; ?></div><?php endif; ?>
+          </div>
+          <div class="flex items-center gap-3 border-t border-ink-100 px-4 py-2 text-[11px] text-ink-400"><?php if ($sibs): ?><span>1–<?= min(9, count($sibs)) ?> <?= e(t('للتنقل')) ?></span><span>[ ] <?= e(t('اللي قبلها واللي بعدها')) ?></span><?php endif; ?><span class="ms-auto">Ctrl K <?= e(t('للبحث في كل حاجة')) ?></span></div>
+        </div>
+      <?php else: ?>
+        <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900"><?= e($title) ?></h1>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
     <?php foreach (take_flashes() as $f):
       $cls = $f['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; ?>

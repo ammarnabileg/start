@@ -261,16 +261,22 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     <script src="assets/vendor/echarts.min.js?v=5.5.1"></script>
     <script src="assets/charts.js?v=<?= e(APP_VERSION) ?>"></script>
     <div class="space-y-5">
-      <!-- التبويبات -->
-      <nav class="flex gap-1 overflow-x-auto border-b border-ink-200" aria-label="<?= e(t('أقسام التحليلات')) ?>">
-        <?php foreach ($tabs as $k => $label): ?>
-          <a href="<?= e($q(['tab' => $k])) ?>" class="px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px <?= $k === $tab ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-500 hover:text-ink-800' ?>" <?= $k === $tab ? 'aria-current="page"' : '' ?>><?= e($label) ?></a>
-        <?php endforeach; ?>
-      </nav>
 
       <!-- الفلاتر: شريط واحد مدمج بيفضل ظاهر وانت بتنزل -->
       <div id="an-bar" class="sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
         <div class="card px-3 py-2 flex flex-wrap items-center gap-2">
+          <?php $secMeta = ['overview' => ['chart', t('الأرقام الأساسية والأداء اليومي')], 'posts' => ['file', t('أفضل المنشورات والهاشتاجات وتجارب A/B')], 'audience' => ['users', t('المتابعين ونموهم')], 'timing' => ['clock', t('أفضل وقت ونوع محتوى')], 'platforms' => ['layers', t('كل منصة لوحدها')]]; ?>
+          <button type="button" popovertarget="an-sec" id="an-sec-btn" class="tb h-9 px-3 gap-2 text-sm font-semibold !text-ink-900"><?= ui_icon($secMeta[$tab][0] ?? 'chart', 'w-4 h-4 text-brand-600') ?><?= e($tabs[$tab]) ?><svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="an-sec" popover class="m-0 w-[min(380px,92vw)] rounded-2xl border border-ink-200 bg-white p-2 shadow-2xl">
+            <?php $si = 0; foreach ($tabs as $k => $label): $si++; $on = $k === $tab; ?>
+              <a href="<?= e($q(['tab' => $k])) ?>" data-sec-k="<?= $si ?>" class="flex items-center gap-3 rounded-xl px-2.5 py-2 <?= $on ? 'bg-brand-50' : 'hover:bg-ink-50' ?>">
+                <span class="w-9 h-9 rounded-lg grid place-items-center <?= $on ? 'bg-brand-600 text-[#fff]' : 'bg-ink-100 text-ink-600' ?>"><?= ui_icon($secMeta[$k][0] ?? 'chart', 'w-4 h-4') ?></span>
+                <span class="flex-1 min-w-0"><span class="block text-sm <?= $on ? 'font-semibold text-brand-800' : 'font-medium text-ink-900' ?>"><?= e($label) ?></span><span class="block text-[11px] text-ink-500 truncate"><?= e($secMeta[$k][1] ?? '') ?></span></span>
+                <kbd class="text-[10px] font-mono text-ink-400 border border-ink-200 rounded px-1">⇧<?= $si ?></kbd>
+              </a>
+            <?php endforeach; ?>
+          </div>
+          <span class="w-px h-6 bg-ink-200"></span>
           <div class="tb p-0.5 gap-0.5" role="group" aria-label="<?= e(t('الفترة')) ?>">
             <?php foreach (an_ranges() as $i => $r): $on = !$per['custom'] && $per['days'] === $r; ?>
               <a href="<?= e($q(['d' => $r, 'from' => null, 'to' => null])) ?>" data-key="<?= $i + 1 ?>" class="h-8 px-3 rounded-lg text-xs flex items-center whitespace-nowrap <?= $on ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e(t('آخر %s يوم', $r)) ?></a>
@@ -547,7 +553,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                       <span class="font-semibold text-ink-700"><?= e(t('تفاعل %s%%', number_format((float)($an['engagementRate'] ?? 0), 2))) ?></span> ·
                       <span><?= e(t('%s ظهور', an_num($an['impressions'] ?? 0))) ?></span>
                       <?php if (!empty($p['platformPostUrl'])): ?> · <a class="link" href="<?= e($p['platformPostUrl']) ?>" target="_blank" rel="noopener"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
-                      <?php $pl0 = (array)(($p['platforms'] ?? [])[0] ?? []); if ($good && ($bu = ads_boost_url($pl, (string)($pl0['accountId'] ?? ''), (string)($pl0['platformPostId'] ?? '')))): ?> · <a class="link !text-amber-700" href="<?= e($bu) ?>">⚡ <?= e(t('روّجه كإعلان')) ?></a><?php endif; ?>
+                      <?php $pl0 = (array)(($p['platforms'] ?? [])[0] ?? []); if ($good && ($bu = ads_boost_url($pl, (string)($pl0['accountId'] ?? ''), (string)($pl0['platformPostId'] ?? '')))): ?> · <a class="link !text-amber-700 inline-flex items-center gap-1" href="<?= e($bu) ?>"><?= ui_icon('zap', 'w-3.5 h-3.5') ?><?= e(t('روّجه كإعلان')) ?></a><?php endif; ?>
                     </p>
                   </div>
                 </li>
@@ -561,8 +567,8 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <?php else: ?><ol class="space-y-3"><?php foreach ($topList as $i => $p) $postItem($p, $i, true); ?></ol><?php endif; ?>
               <?php $ins = (array)($D['ins'] ?? []); if ($ins): ?>
                 <div class="mt-4 rounded-xl border border-lime-200 bg-lime-50/50 p-3">
-                  <div class="text-sm font-semibold text-ink-900 mb-2">💡 <?= e(t('ليه منشوراتك الناجحة نجحت')) ?></div>
-                  <ul class="space-y-1.5 text-sm text-ink-800"><?php foreach ($ins as $x): ?><li class="flex gap-2"><span><?= $x['up'] ? '📈' : '📉' ?></span><span><?= e($x['text']) ?></span></li><?php endforeach; ?></ul>
+                  <div class="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5"><?= ui_icon('bulb', 'w-4 h-4 text-amber-500') ?><?= e(t('ليه منشوراتك الناجحة نجحت')) ?></div>
+                  <ul class="space-y-1.5 text-sm text-ink-800"><?php foreach ($ins as $x): ?><li class="flex gap-2"><span class="<?= $x['up'] ? 'text-lime-600' : 'text-rose-500' ?>"><?= ui_icon($x['up'] ? 'trend_up' : 'trend_down', 'w-4 h-4') ?></span><span><?= e($x['text']) ?></span></li><?php endforeach; ?></ul>
                   <p class="text-[11px] text-ink-400 mt-2"><?= e(t('محسوبة من آخر %s منشور في الفترة دي. كل ما المنشورات تزيد، النتيجة بتبقى أدق.', (int)($ins[0]['n'] ?? 0))) ?></p>
                 </div>
               <?php endif; ?>
@@ -574,15 +580,15 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
                   <p class="text-[11px] text-ink-400 mt-2"><?= e(t('متوسط التفاعل للمنشورات اللي فيها الهاشتاج (وعدد مرات استخدامه). الأخضر أعلى من متوسطك.')) ?></p></div>
               <?php endif; ?>
               <?php $cg = (array)($D['camps'] ?? []); if ($cg): ?>
-                <div class="mt-4 rounded-xl border border-ink-200 p-3 overflow-x-auto"><div class="text-sm font-semibold text-ink-900 mb-2">📣 <?= e(t('الحملات (حسب التاجات)')) ?></div>
+                <div class="mt-4 rounded-xl border border-ink-200 p-3 overflow-x-auto"><div class="text-sm font-semibold text-ink-900 mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM15 8a5 5 0 010 8M18 5a9 9 0 010 14"/></svg> <?= e(t('الحملات (حسب التاجات)')) ?></div>
                   <table class="w-full text-xs min-w-[420px]"><thead><tr class="text-ink-500 border-b border-ink-100"><th class="text-start py-1"><?= e(t('الحملة')) ?></th><th><?= e(t('منشورات')) ?></th><th><?= e(t('ظهور')) ?></th><th><?= e(t('تفاعل')) ?></th><th><?= e(t('ضغطات')) ?></th><th><?= e(t('معدل التفاعل')) ?></th></tr></thead><tbody>
                   <?php foreach ($cg as $x): ?><tr class="border-b border-ink-50"><td class="py-1.5 font-medium text-ink-800" dir="auto"><?= e($x['tag']) ?></td><td class="text-center"><?= (int)$x['n'] ?></td><td class="text-center"><?= e(an_num($x['imp'])) ?></td><td class="text-center"><?= e(an_num($x['eng'])) ?></td><td class="text-center"><?= e(an_num($x['clicks'])) ?></td><td class="text-center font-semibold"><?= e(number_format($x['er'], 2)) ?>%</td></tr><?php endforeach; ?>
                   </tbody></table><p class="text-[11px] text-ink-400 mt-2"><?= e(t('حط نفس التاج على منشورات الحملة من صفحة المنشورات، وهتتجمع هنا في تقرير واحد.')) ?></p></div>
               <?php endif; ?>
               <?php $ab = (array)($D['ab'] ?? []); if ($ab): ?>
-                <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-sm font-semibold text-ink-900 mb-2">🧪 <?= e(t('تجارب A/B')) ?></div>
+                <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50/40 p-3"><div class="text-sm font-semibold text-ink-900 mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10"/></svg> <?= e(t('تجارب A/B')) ?></div>
                   <?php foreach ($ab as $x): ?><div class="grid grid-cols-2 gap-2 text-xs mb-2">
-                    <?php foreach (['a', 'b'] as $k): $v = $x[$k]; $win = $x['win'] === $k; ?><div class="rounded-lg border p-2 <?= $win ? 'border-lime-300 bg-lime-50' : 'border-ink-200 bg-white' ?>"><b><?= strtoupper($k) ?><?= $win ? ' 🏆' : '' ?></b> <span class="text-ink-500"><?= $v ? e(t('تفاعل %s%% · %s ظهور', number_format($v['er'], 2), an_num($v['imp']))) : e(t('لسه مااتنشرش')) ?></span>
+                    <?php foreach (['a', 'b'] as $k): $v = $x[$k]; $win = $x['win'] === $k; ?><div class="rounded-lg border p-2 <?= $win ? 'border-lime-300 bg-lime-50' : 'border-ink-200 bg-white' ?>"><b><?= strtoupper($k) ?><?= $win ? ' ' . ui_icon('trophy', 'w-4 h-4 inline-block align-[-3px] text-lime-600') : '' ?></b> <span class="text-ink-500"><?= $v ? e(t('تفاعل %s%% · %s ظهور', number_format($v['er'], 2), an_num($v['imp']))) : e(t('لسه مااتنشرش')) ?></span>
                       <p class="text-ink-700 mt-1 line-clamp-2" dir="auto"><?= e($x[$k . 't'] ?? '') ?></p></div><?php endforeach; ?></div><?php endforeach; ?>
                 </div>
               <?php endif; ?>

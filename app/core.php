@@ -425,7 +425,49 @@ function ui_icon(string $name, string $cls = 'w-5 h-5'): string
         '🔔' => 'bell', '🚀' => 'trend_up', '📉' => 'trend_down', '🔌' => 'plug', '⚡' => 'zap', '🏷️' => 'tag', '🏷' => 'tag', '👍' => 'thumb', '🔎' => 'search', '🔍' => 'search',
         '🏢' => 'building', '📅' => 'calendar', '💡' => 'bulb', '🧩' => 'puzzle', '💰' => 'money', '🎬' => 'film', '🎯' => 'target', '☎' => 'phone', '⚠️' => 'alert', '⚠' => 'alert',
         '✅' => 'check', '❌' => 'x', '👌' => 'check'];
+    $p = ui_icon_paths();
+    $name = $alias[$name] ?? $name;
+    return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' . ($p[$name] ?? $p['chart']) . '"/></svg>';
+}
+/** نفس أيقونات القايمة الجانبية (خطوط 1.6). بتتبعت للـ JS كمان عن طريق window.UIC */
+function ui_icon_paths(): array
+{
     static $p = [
+        'fire' => 'M12 21a7 7 0 007-7c0-4-3-6-4-9-1 2-2 3-3 3 0-2-1-4-3-5 0 4-4 6-4 11a7 7 0 007 7zM12 21a3 3 0 003-3c0-2-1.5-3-3-5-1.5 2-3 3-3 5a3 3 0 003 3z',
+        'snow' => 'M12 2v20M4.9 6.5l14.2 11M19.1 6.5L4.9 17.5M9 4l3 2 3-2M9 20l3-2 3 2',
+        'trophy' => 'M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8 21h8M9 17h6',
+        'play' => 'M7 4l13 8-13 8z',
+        'gear' => 'M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z',
+        'plus' => 'M12 5v14M5 12h14',
+        'user' => 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
+        'user_plus' => 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 21a8 8 0 0113-6.3M19 14v6M16 17h6',
+        'inbox' => 'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5',
+        'mail' => 'M3 6h18v12H3zM3 7l9 7 9-7',
+        'star' => 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z',
+        'file' => 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',
+        'list' => 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+        'grid' => 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+        'kanban' => 'M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v7h-4z',
+        'filter' => 'M3 5h18l-7 8v6l-4 2v-8z',
+        'sort' => 'M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4',
+        'refresh' => 'M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4',
+        'link' => 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
+        'mic' => 'M12 3a3 3 0 00-3 3v6a3 3 0 006 0V6a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v3',
+        'download' => 'M12 4v12M7 11l5 5 5-5M4 20h16',
+        'upload' => 'M12 20V8M7 13l5-5 5 5M4 4h16',
+        'magnet' => 'M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4',
+        'pin' => 'M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12zM12 11a2 2 0 100-4 2 2 0 000 4z',
+        'route' => 'M6 19a2 2 0 100-4 2 2 0 000 4zM18 9a2 2 0 100-4 2 2 0 000 4zM6 15V9a4 4 0 014-4h6M18 9v6a4 4 0 01-4 4H8',
+        'eye' => 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
+        'click' => 'M9 9l11 4-5 2-2 5zM4 4l2.5 2.5M9 2v3M2 9h3',
+        'heart' => 'M12 20s-8-5-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 9c0 6-8 11-8 11z',
+        'hash' => 'M5 9h15M4 15h15M10 3L8 21M16 3l-2 18',
+        'flask' => 'M9 3h6M10 3v6L4 19a1 1 0 001 2h14a1 1 0 001-2l-6-10V3M7 15h10',
+        'layers' => 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5M3 17l9 5 9-5',
+        'chevron' => 'M9 6l6 6-6 6',
+        'dots' => 'M12 6h.01M12 12h.01M12 18h.01',
+        'wallet' => 'M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4',
+        'new' => 'M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5zM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8zM19 13l.7 1.8 1.8.7-1.8.7L19 18l-.7-1.8-1.8-.7 1.8-.7z',
         'chart' => 'M4 20V10M10 20V4M16 20v-8M21 20H3',
         'users' => 'M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6',
         'timer' => 'M12 21a8 8 0 100-16 8 8 0 000 16zM12 9v4l2 2M10 2h4M12 2v3',
@@ -453,6 +495,5 @@ function ui_icon(string $name, string $cls = 'w-5 h-5'): string
         'x' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM9 9l6 6M15 9l-6 6',
         'spark' => 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
     ];
-    $name = $alias[$name] ?? $name;
-    return '<svg class="' . $cls . ' shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="' . ($p[$name] ?? $p['chart']) . '"/></svg>';
+    return $p;
 }

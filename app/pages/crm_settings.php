@@ -9,7 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? ''); $pal = crm_stage_palette();
     if ($a === 'stages') {
         $c = crm_stage_cfg(); $c['labels'] = []; $c['colors'] = [];
-        foreach ((array)($_POST['label'] ?? []) as $k => $v) $c['labels'][(string)$k] = mb_substr(trim((string)$v), 0, 40);
+        // الاسم بيتحفظ بس لو اتغير فعلًا، عشان الاسم الأصلي يفضل يتترجم مع لغة الواجهة
+        $defs = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'qualified' => t('مهتم'), 'proposal' => t('عرض سعر'), 'won' => t('بقى عميل'), 'lost' => t('مش مناسب')];
+        foreach ((array)($_POST['label'] ?? []) as $k => $v) { $v = mb_substr(trim((string)$v), 0, 40); if ($v !== '' && ($defs[$k] ?? null) !== $v) $c['labels'][(string)$k] = $v; }
         foreach ((array)($_POST['color'] ?? []) as $k => $v) if (isset($pal[$v])) $c['colors'][(string)$k] = $v;
         $cust = [];
         foreach ((array)$c['custom'] as $x) {

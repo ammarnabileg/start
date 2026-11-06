@@ -310,3 +310,35 @@ document.addEventListener('click', function (e) {
     setTimeout(function () { location.href = a.href; }, 260);
   }
 });
+
+/* مبدّل الصفحات (popover بدل التابات): بيتحط تحت العنوان، وأرقام 1-9 للتنقل، و[ ] للي قبلها واللي بعدها */
+(function () {
+  var pop = document.getElementById('pg-sw'), btn = document.getElementById('pg-sw-btn');
+  function place() { if (!pop || !btn) return; var r = btn.getBoundingClientRect(), w = pop.offsetWidth, rtl = document.documentElement.dir === 'rtl';
+    var x = rtl ? Math.max(8, r.right - w) : Math.min(window.innerWidth - w - 8, r.left); pop.style.position = 'fixed'; pop.style.right = 'auto'; pop.style.bottom = 'auto'; pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = Math.max(8, x) + 'px'; }
+  // أي popover بيفتحه زرار popovertarget: بيتحط تحت الزرار بالظبط (حسب اتجاه اللغة)
+  Array.prototype.forEach.call(document.querySelectorAll('[popover]'), function (pp) {
+    if (pp === pop || !pp.showPopover) return;
+    var inv = document.querySelector('[popovertarget="' + pp.id + '"]'); if (!inv) return;
+    pp.addEventListener('toggle', function (e) { if (e.newState !== 'open') return; var r = inv.getBoundingClientRect(), w = pp.offsetWidth, rtl = document.documentElement.dir === 'rtl';
+      var x = rtl ? r.right - w : r.left; x = Math.max(8, Math.min(window.innerWidth - w - 8, x)); pp.style.position = 'fixed'; pp.style.right = 'auto'; pp.style.bottom = 'auto'; pp.style.left = x + 'px'; pp.style.top = (r.bottom + 6) + 'px'; });
+  });
+  // Shift + رقم: أقسام الصفحة (زي أقسام التحليلات)
+  document.addEventListener('keydown', function (e) {
+    if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) return;
+    var m = /^Digit([1-9])$/.exec(e.code || ''); if (!m) return; var a = document.querySelector('[data-sec-k="' + m[1] + '"]'); if (a) { e.preventDefault(); location.href = a.href; }
+  });
+  if (pop && btn) {
+    if (!pop.showPopover) { // متصفح قديم: نشغّله بإيدنا
+      pop.style.display = 'none'; btn.addEventListener('click', function (e) { e.stopPropagation(); var o = pop.style.display !== 'none'; pop.style.display = o ? 'none' : 'block'; if (!o) place(); });
+      document.addEventListener('click', function (e) { if (!pop.contains(e.target)) pop.style.display = 'none'; });
+    } else pop.addEventListener('toggle', function (e) { if (e.newState === 'open') place(); });
+    window.addEventListener('resize', function () { place(); });
+  }
+  var open = function () { return pop && (pop.matches && pop.matches(':popover-open') || pop.style.display === 'block'); };
+  document.addEventListener('keydown', function (e) {
+    var tg = (document.activeElement || {}).tagName || ''; if (/INPUT|TEXTAREA|SELECT/.test(tg) || (document.activeElement && document.activeElement.isContentEditable) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (open() && /^[1-9]$/.test(e.key)) { var a = pop.querySelector('[data-sw-k="' + e.key + '"]'); if (a) { e.preventDefault(); e.stopImmediatePropagation(); location.href = a.href; } return; }
+    if ((e.key === '[' || e.key === ']') && btn && !document.getElementById('an-bar')) { var ar = btn.parentNode.querySelectorAll('span.rounded-xl a'); var t = ar[e.key === '[' ? 0 : 1]; if (t) { e.preventDefault(); location.href = t.href; } }
+  }, true);
+})();

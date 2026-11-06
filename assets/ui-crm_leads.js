@@ -53,7 +53,7 @@
   function nextBadge(l) {
     var s = dueState(l); if (!s) return '';
     var cls = s === 'over' ? 'bg-red-50 text-red-700 border-red-200' : s === 'today' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-ink-50 text-ink-600 border-ink-200';
-    return '<span class="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ' + cls + '" title="' + esc(l.next_note) + '">⏰ ' + (s === 'over' ? T.overdue + ' · ' : '') + esc(fmtNext(l)) + '</span>';
+    return '<span class="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ' + cls + '" title="' + esc(l.next_note) + '">' + uic('clock', 'w-4 h-4 inline-block align-[-3px]') + '' + (s === 'over' ? T.overdue + ' · ' : '') + esc(fmtNext(l)) + '</span>';
   }
   function esBadge(l) { var s = T.es && T.es[l.es]; return s ? ' <span class="text-[9px] px-1 rounded ' + s[1] + '" title="' + esc(s[0]) + '">' + (s[1].indexOf('lime') > -1 ? '✓' : s[1].indexOf('amber') > -1 ? '?' : '✕') + '</span>' : ''; }
   function ownerName(l) { return l.owner ? (D.members[l.owner] || '—') : T.noowner; }
@@ -62,7 +62,7 @@
     return '<div class="' + (sz || 'w-9 h-9') + ' rounded-full bg-gradient-to-br from-brand-500 to-cyan-500 text-white text-xs font-bold grid place-items-center shrink-0">' + esc(i) + '</div>';
   }
   // صف بأعمدة ثابتة زي الجدول: الاسم | المرحلة | المتابعة | التواصل | المسؤول | القيمة | أزرار
-  var GRID = 'grid grid-cols-[20px_minmax(0,1fr)_auto] md:grid-cols-[20px_minmax(220px,2.6fr)_110px_140px_minmax(140px,1.3fr)_100px_80px_136px] items-center gap-x-3';
+  var GRID = 'grid grid-cols-[20px_minmax(0,1fr)_auto] md:grid-cols-[20px_minmax(200px,2.6fr)_104px_128px_minmax(130px,1.3fr)_96px_76px_128px] items-center gap-x-3';
   function nextCell(l) {
     var s = dueState(l); if (!s) return '<span class="text-ink-300">—</span>';
     var c = s === 'over' ? 'text-red-600 font-medium' : s === 'today' ? 'text-amber-700 font-medium' : 'text-ink-600';
@@ -70,11 +70,11 @@
   }
   function row(l) {
     var acts = '<div class="ld-acts hidden md:flex items-center justify-end gap-1">' +
-      (l.wa ? '<a class="ld-act" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener" title="WhatsApp">💬</a>' : '') +
-      (l.phone ? '<a class="ld-act" data-qa="call" href="tel:' + esc(l.phone) + '" title="' + esc(T.call) + '">📞</a>' : '') +
-      (l.email ? '<a class="ld-act" data-qa="email" href="mailto:' + esc(l.email) + '" title="' + esc(T.email) + '">✉️</a>' : '') +
-      (l.edit && !closed(l) ? '<button type="button" class="ld-act" data-qa="later" title="' + esc(T.later) + '">⏰</button>' : '') + '</div>';
-    var run = l.run ? ' <span class="text-[10px] text-sky-700" title="' + esc(T.pStep.replace('%s', l.run.split('/')[0]).replace('%s', l.run.split('/')[1].replace('!', ''))) + '">🔁' + esc(l.run.replace('!', '')) + '</span>' : '';
+      (l.wa ? '<a class="ld-act" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener" title="WhatsApp">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
+      (l.phone ? '<a class="ld-act" data-qa="call" href="tel:' + esc(l.phone) + '" title="' + esc(T.call) + '">' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
+      (l.email ? '<a class="ld-act" data-qa="email" href="mailto:' + esc(l.email) + '" title="' + esc(T.email) + '">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
+      (l.edit && !closed(l) ? '<button type="button" class="ld-act" data-qa="later" title="' + esc(T.later) + '">' + uic('clock', 'w-4 h-4 inline-block align-[-3px]') + '</button>' : '') + '</div>';
+    var run = l.run ? ' <span class="text-[10px] text-sky-700" title="' + esc(T.pStep.replace('%s', l.run.split('/')[0]).replace('%s', l.run.split('/')[1].replace('!', ''))) + '">' + uic('refresh', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(l.run.replace('!', '')) + '</span>' : '';
     return '<div class="ld-row ' + GRID + ' px-4 py-2.5 hover:bg-ink-50/80 cursor-pointer' + (sel[l.id] ? ' bg-brand-50/60' : '') + '" data-id="' + l.id + '" tabindex="0" role="button">' +
       (l.edit ? '<input type="checkbox" class="ld-sel rounded" data-sid="' + l.id + '"' + (sel[l.id] ? ' checked' : '') + ' aria-label="' + esc(l.name) + '">' : '<span></span>') +
       '<div class="flex items-center gap-3 min-w-0"><div class="relative shrink-0">' + avatar(l) + (l.score ? '<span class="absolute -bottom-1 -end-1">' + scoreBadge(l) + '</span>' : '') + '</div>' +
@@ -82,7 +82,7 @@
       '<div class="md:hidden"><span class="text-[11px] px-2 py-0.5 rounded-full ' + stageColor[l.stage] + '">' + esc(D.stages[l.stage]) + '</span></div>' +
       '<div class="hidden md:block"><span class="text-[11px] px-2 py-0.5 rounded-full ' + stageColor[l.stage] + (l.edit ? ' ld-edit" data-pop="stage"' : '"') + '>' + esc(D.stages[l.stage]) + (l.edit ? ' ▾' : '') + '</span></div>' +
       '<div class="hidden md:block text-xs"><span class="' + (l.edit ? 'ld-edit px-1 -mx-1 py-0.5" data-pop="next"' : '"') + '>' + nextCell(l) + '</span></div>' +
-      '<div class="hidden md:block text-xs text-ink-600 min-w-0"><div class="truncate" dir="ltr">' + esc(l.phone || (l.pending ? '⏳' : '')) + '</div>' + (l.email ? '<div class="truncate text-ink-400" dir="ltr">' + esc(l.email) + esBadge(l) + '</div>' : '') + '</div>' +
+      '<div class="hidden md:block text-xs text-ink-600 min-w-0"><div class="truncate" dir="ltr">' + (l.phone ? esc(l.phone) : (l.pending ? uic('timer', 'w-4 h-4 inline-block align-[-3px] text-ink-400') : '')) + '</div>' + (l.email ? '<div class="truncate text-ink-400" dir="ltr">' + esc(l.email) + esBadge(l) + '</div>' : '') + '</div>' +
       '<div class="hidden md:block text-xs text-ink-500 truncate">' + esc(ownerName(l)) + '</div>' +
       '<div class="hidden md:block text-sm font-semibold text-ink-900 text-end">' + (l.value ? esc(Number(l.value).toLocaleString()) : '') + '</div>' +
       acts + '</div>';
@@ -97,12 +97,39 @@
       '<div class="flex items-center gap-2 mt-2.5 text-[11px]">' + (dueState(l) ? nextCell(l) : '<span class="text-ink-300">' + esc(T.nNone) + '</span>') +
         (l.value ? '<b class="ms-auto text-ink-900 text-xs">' + esc(Number(l.value).toLocaleString()) + '</b>' : '') + '</div>' +
       '<div class="absolute top-2 end-2 hidden group-hover:flex gap-1">' +
-        (l.wa ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener">💬</a>' : '') +
-        (l.phone ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="call" href="tel:' + esc(l.phone) + '">📞</a>' : '') + '</div></div>';
+        (l.wa ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="wa" href="https://wa.me/' + esc(l.wa) + '" target="_blank" rel="noopener">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') +
+        (l.phone ? '<a class="ld-act !w-7 !h-7 !text-xs" data-qa="call" href="tel:' + esc(l.phone) + '">' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '</a>' : '') + '</div></div>';
     return c;
   }
   function scoreBadge(l) { if (!l.score) return ''; var c = l.score >= 60 ? 'bg-lime-500 text-white' : l.score >= 35 ? 'bg-amber-400 text-ink-900' : 'bg-ink-200 text-ink-600'; return '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ' + c + '" title="' + esc(T.score + ': ' + (l.why || []).join('، ')) + '">' + l.score + '</span>'; }
+  /* ---------- عمود النهارده: مستحقين + أسخن عملاء + المصادر — كله من نفس البيانات ومن غير طلبات زيادة ---------- */
+  function sideRow(l, right) {
+    return '<button type="button" data-sd-open="' + l.id + '" class="w-full flex items-center gap-2 rounded-lg px-1.5 py-1 text-start hover:bg-ink-50 transition"><span class="shrink-0">' + avatar(l, 'w-7 h-7') + '</span><span class="min-w-0 flex-1"><span class="block text-xs font-medium text-ink-900 truncate">' + esc(l.name) + '</span><span class="block text-[10px] text-ink-500 truncate">' + esc(l.next_note || l.company || D.sources[l.source] || '') + '</span></span>' + right + '</button>';
+  }
+  (function () { var d = document.getElementById('ld-side-d'); if (!d) return; var k = 'ld-side-open'; var wide = function () { return window.innerWidth >= 1700; };
+    try { var v = localStorage.getItem(k); d.open = wide() || v === '1'; } catch (e) { d.open = wide(); }
+    d.addEventListener('toggle', function () { if (!wide()) try { localStorage.setItem(k, d.open ? '1' : '0'); } catch (e) {} });
+    window.addEventListener('resize', function () { if (wide()) d.open = true; }); })();
+  function sideDraw() {
+    var box = document.getElementById('ld-side'); if (!box) return;
+    var today = D.today || new Date().toISOString().slice(0, 10);
+    var due = leads.filter(function (l) { return !closed(l) && l.next_at && l.next_at.slice(0, 10) <= today; }).sort(function (a, b) { return a.next_at < b.next_at ? -1 : 1; });
+    document.getElementById('sd-due-n').textContent = due.length ? '(' + due.length + ')' : '';
+    document.getElementById('sd-due').innerHTML = due.length ? due.slice(0, 6).map(function (l) { return sideRow(l, nextBadge(l)); }).join('') : '<p class="text-xs text-lime-700 px-1.5 inline-flex items-center gap-1">' + uic('check', 'w-4 h-4') + ' ' + esc(T.sdNone || '') + '</p>';
+    var hot = leads.filter(function (l) { return !closed(l) && l.score; }).sort(function (a, b) { return b.score - a.score; }).slice(0, 5);
+    document.getElementById('sd-hot').innerHTML = hot.map(function (l) { return sideRow(l, scoreBadge(l)); }).join('') || '<p class="text-xs text-ink-400 px-1.5">—</p>';
+    var wk = Date.now() - 7 * 864e5, by = {}, tot = 0; leads.forEach(function (l) { if (srvDate(l.created).getTime() >= wk) { by[l.source] = (by[l.source] || 0) + 1; tot++; } });
+    var ks = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }), mx = ks.length ? by[ks[0]] : 1;
+    var st = function (id, v) { var x = document.getElementById(id); if (x) x.textContent = v; }; st('sd-s-due', due.length); st('sd-s-hot', leads.filter(function (l) { return !closed(l) && l.score >= 60; }).length); st('sd-s-new', tot);
+    document.getElementById('sd-src').innerHTML = ks.length ? ks.map(function (k) { return '<button type="button" data-sd-src="' + esc(k) + '" class="w-full grid grid-cols-[1fr_auto] gap-x-2 items-center text-start text-xs hover:text-brand-700"><span class="truncate">' + esc(D.sources[k] || k) + '</span><b>' + by[k] + '</b><span class="col-span-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><span class="block h-full rounded-full bg-brand-500" style="width:' + Math.max(6, by[k] / mx * 100) + '%"></span></span></button>'; }).join('') : '<p class="text-xs text-ink-400">—</p>';
+  }
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-sd-open]'); if (o) { open(+o.dataset.sdOpen); return; }
+    var v = e.target.closest('[data-sd-view]'); if (v) { var t = document.querySelector('[data-view="' + v.dataset.sdView + '"]'); if (t) { t.click(); t.scrollIntoView({ block: 'nearest' }); } return; }
+    var sc = e.target.closest('[data-sd-src]'); if (sc) { var se = document.getElementById('ld-src'); if (se) { se.value = sc.dataset.sdSrc; se.dispatchEvent(new Event('change', { bubbles: true })); } }
+  });
   function draw() {
+    sideDraw();
     var shown = leads.filter(match);
     if (f.sort === 'score') shown.sort(function (a, b) { return b.score - a.score; });
     else if (f.sort === 'new') shown.sort(function (a, b) { return b.id - a.id; });
@@ -122,7 +149,7 @@
       board.innerHTML = Object.keys(D.stages).filter(function (s) { return !f.stage || s === f.stage; }).map(function (s) {
       var col = shown.filter(function (l) { return l.stage === s; });
       var sum = col.reduce(function (a, l) { return a + (+l.value || 0); }, 0);
-      var icons = { new: '🆕', contacted: '💬', qualified: '⭐', proposal: '📄', won: '🏆', lost: '✕' }; Object.keys(D.stages).forEach(function (k) { if (!icons[k]) icons[k] = '◆'; });
+      var icons = {}; var ICN = { new: 'new', contacted: 'chat', qualified: 'star', proposal: 'file', won: 'trophy', lost: 'x' }; Object.keys(D.stages).forEach(function (k) { icons[k] = uic(ICN[k] || 'layers', 'w-4 h-4'); });
       return '<div class="ld-col rounded-2xl bg-ink-50/80 border border-ink-200 p-2 min-h-[260px] flex flex-col transition" data-s="' + s + '">' +
         '<div class="flex items-center gap-2 px-1.5 py-1.5 mb-1"><span class="text-sm">' + (icons[s] || '') + '</span><span class="text-sm font-semibold text-ink-800">' + esc(D.stages[s]) + '</span><span class="text-[11px] rounded-full bg-white border border-ink-200 px-1.5 text-ink-500">' + col.length + '</span>' + (sum ? '<span class="text-[11px] text-ink-500 ms-auto">' + sum.toLocaleString() + '</span>' : '') + '</div>' +
         '<div class="h-1 rounded-full mx-1.5 mb-2 ' + stageColor[s].split(' ')[0] + '"></div>' +
@@ -173,12 +200,12 @@
   document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg'), document.getElementById('ld-sug'), document.getElementById('ld-fdlg'), document.getElementById('ld-pdlg')].filter(Boolean).forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
   function quick(l) {
     var b = [];
-    if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">📞 ' + T.call + '</a>');
-    if (l.wa) b.push('<a class="btn-ghost text-sm" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '">💬 WhatsApp</a>');
-    if (l.email) b.push('<a class="btn-ghost text-sm" href="mailto:' + esc(l.email) + '">✉️ ' + T.email + '</a>');
-    if (l.src_url) b.push('<a class="btn-ghost text-sm" data-nolog href="' + esc(l.src_url) + '">🗨️ ' + esc(T.chat) + '</a>');
+    if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '' + T.call + '</a>');
+    if (l.wa) b.push('<a class="btn-ghost text-sm" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + 'WhatsApp</a>');
+    if (l.email) b.push('<a class="btn-ghost text-sm" href="mailto:' + esc(l.email) + '">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '' + T.email + '</a>');
+    if (l.src_url) b.push('<a class="btn-ghost text-sm" data-nolog href="' + esc(l.src_url) + '">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.chat) + '</a>');
     if (l.linkedin) b.push('<a class="btn-ghost text-sm" target="_blank" rel="noopener" href="' + esc(l.linkedin) + '">in</a>');
-    if (l.pending && !l.phone) b.push('<span class="text-xs text-ink-500 self-center animate-pulse">⏳ ' + T.pending + '</span>');
+    if (l.pending && !l.phone) b.push('<span class="text-xs text-ink-500 self-center animate-pulse">' + uic('timer', 'w-4 h-4 inline-block align-[-3px]') + '' + T.pending + '</span>');
     return b.join('');
   }
   function open(id) {
@@ -282,9 +309,9 @@
     if (!it) { intel.innerHTML = ''; return; }
     intel.innerHTML = '<div class="flex items-center gap-2">' + scoreBadge(l) + '<span class="text-ink-700">' + esc(it.summary) + '</span></div>' +
       (l.why && l.why.length ? '<div class="text-[11px] text-ink-500">' + esc(T.score) + ': ' + esc(l.why.join('، ')) + '</div>' : '') +
-      (it.best ? '<div class="text-ink-600">🕐 ' + esc(T.best) + ': <b>' + esc(it.best) + '</b></div>' : '') +
-      (l.edit ? '<div class="pt-1"><div class="text-ink-500 mb-1">✍️ ' + esc(T.firstMsg) + '</div><textarea id="ld-first" rows="3" class="input text-xs" dir="auto">' + esc(it.first) + '</textarea><div class="flex flex-wrap gap-1.5 mt-1.5">' +
-        (l.wa ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="wa">💬 ' + esc(T.useWa) + '</button>' : '') + (l.email ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="email">✉️ ' + esc(T.useMail) + '</button>' : '') +
+      (it.best ? '<div class="text-ink-600">' + uic('clock', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.best) + ': <b>' + esc(it.best) + '</b></div>' : '') +
+      (l.edit ? '<div class="pt-1"><div class="text-ink-500 mb-1">' + uic('file', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.firstMsg) + '</div><textarea id="ld-first" rows="3" class="input text-xs" dir="auto">' + esc(it.first) + '</textarea><div class="flex flex-wrap gap-1.5 mt-1.5">' +
+        (l.wa ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="wa">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.useWa) + '</button>' : '') + (l.email ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="email">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.useMail) + '</button>' : '') +
         '<button type="button" class="btn-ghost !py-1 !text-xs" data-fm="copy">⧉ ' + esc(T.copy) + '</button></div></div>' : '');
   }
   intel.addEventListener('click', function (e) {
@@ -298,8 +325,8 @@
     mailBox.classList.toggle('hidden', !l.email || !l.edit); mailF.classList.add('hidden');
     document.getElementById('ld-mails').innerHTML = (ms || []).map(function (m) {
       return '<div class="flex items-center gap-2 text-[11px]"><span class="truncate flex-1 text-ink-700" dir="auto">' + esc(m.subject) + '</span><span class="text-ink-400">' + esc(when(m.created_at)) + '</span>' +
-        (+m.opens ? '<span class="rounded bg-lime-100 text-lime-800 px-1">👁 ' + esc(T.mOpen.replace('%s', m.opens)) + '</span>' : '<span class="rounded bg-ink-100 text-ink-500 px-1">' + esc(T.mNotOpen) + '</span>') +
-        (+m.clicks ? '<span class="rounded bg-violet-100 text-violet-800 px-1">🔗 ' + esc(T.mClick) + '</span>' : '') + '</div>';
+        (+m.opens ? '<span class="rounded bg-lime-100 text-lime-800 px-1">' + uic('eye', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.mOpen.replace('%s', m.opens)) + '</span>' : '<span class="rounded bg-ink-100 text-ink-500 px-1">' + esc(T.mNotOpen) + '</span>') +
+        (+m.clicks ? '<span class="rounded bg-violet-100 text-violet-800 px-1">' + uic('link', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.mClick) + '</span>' : '') + '</div>';
     }).join('');
   }
   document.getElementById('ld-mail-tg').addEventListener('click', function () { mailF.classList.toggle('hidden'); var fm = document.getElementById('ld-first'); var b = document.getElementById('ld-mail-b'); if (!b.value && fm) b.value = fm.value; });
@@ -337,7 +364,7 @@
   var vl = document.getElementById('ld-visit-list');
   function drawVisits(l, vs) {
     document.getElementById('ld-tl').classList.toggle('hidden', !l.edit); document.getElementById('ld-tl-box').classList.add('hidden');
-    vl.innerHTML = (vs || []).length ? vs.map(function (v) { var u = v.url.replace(/^https?:\/\//, ''); return '<div class="flex items-center gap-2 text-[11px]"><span class="truncate flex-1 ' + (+v.hot ? 'text-red-700 font-semibold' : 'text-ink-700') + '" dir="ltr" title="' + esc(v.url) + '">' + (+v.hot ? '🔥 ' : '') + esc(u) + '</span><span class="text-ink-400 shrink-0">' + esc(when(v.created_at)) + '</span></div>'; }).join('')
+    vl.innerHTML = (vs || []).length ? vs.map(function (v) { var u = v.url.replace(/^https?:\/\//, ''); return '<div class="flex items-center gap-2 text-[11px]"><span class="truncate flex-1 ' + (+v.hot ? 'text-red-700 font-semibold' : 'text-ink-700') + '" dir="ltr" title="' + esc(v.url) + '">' + (+v.hot ? '' + uic('fire', 'w-4 h-4 inline-block align-[-3px]') + '' : '') + esc(u) + '</span><span class="text-ink-400 shrink-0">' + esc(when(v.created_at)) + '</span></div>'; }).join('')
       : '<p class="text-[11px] text-ink-400">' + esc(T.noVisits) + '</p>';
   }
   document.getElementById('ld-tl').addEventListener('click', function () { document.getElementById('ld-tl-box').classList.toggle('hidden'); });
@@ -413,13 +440,13 @@
     var ch = D.chs[run.ch] || ['✅', ''], due = run.state === 'due';
     var doBtn = '';
     if (due) {
-      if (run.ch === 'wa' && l.wa) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '?text=' + encodeURIComponent(run.text) + '">💬 ' + esc(T.pDo) + '</a>';
-      else if (run.ch === 'call' && l.phone) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="tel:' + esc(l.phone) + '">📞 ' + esc(T.pDo) + '</a>';
-      else if (run.ch === 'email' && l.email) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="mailto:' + esc(l.email) + '?subject=' + encodeURIComponent(run.subject || '') + '&body=' + encodeURIComponent(run.text) + '">✉️ ' + esc(T.pDo) + '</a>';
+      if (run.ch === 'wa' && l.wa) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '?text=' + encodeURIComponent(run.text) + '">' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.pDo) + '</a>';
+      else if (run.ch === 'call' && l.phone) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="tel:' + esc(l.phone) + '">' + uic('phone', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.pDo) + '</a>';
+      else if (run.ch === 'email' && l.email) doBtn = '<a class="btn-primary !py-1 !text-xs" data-pa="plan_do" href="mailto:' + esc(l.email) + '?subject=' + encodeURIComponent(run.subject || '') + '&body=' + encodeURIComponent(run.text) + '">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.pDo) + '</a>';
       else doBtn = '<button type="button" class="btn-primary !py-1 !text-xs" data-pa="plan_do">✓ ' + esc(T.pDo) + '</button>';
     }
     pb.innerHTML = '<div class="flex items-center gap-2"><b class="text-ink-800">' + esc(run.plan) + '</b><span class="text-ink-500">' + esc(T.pStep.replace('%s', run.step + 1).replace('%s', run.n)) + '</span>' +
-      '<span class="ms-auto ' + (due ? 'text-amber-700 font-semibold' : 'text-ink-500') + '">' + (due ? '⚡ ' + esc(T.pDue) : esc(T.pWait.replace('%s', when(run.due)))) + '</span></div>' +
+      '<span class="ms-auto ' + (due ? 'text-amber-700 font-semibold' : 'text-ink-500') + '">' + (due ? '' + uic('zap', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.pDue) : esc(T.pWait.replace('%s', when(run.due)))) + '</span></div>' +
       '<div class="mt-1.5 rounded-lg bg-white border border-ink-200 p-2 text-ink-700 whitespace-pre-line" dir="auto">' + ch[0] + ' ' + esc(run.text) + '</div>' +
       (run.err ? '<div class="text-[11px] text-amber-700 mt-1">' + esc(run.err) + '</div>' : '') +
       '<div class="flex flex-wrap gap-1.5 mt-2">' + doBtn + '<button type="button" class="btn-ghost !py-1 !text-xs" data-pa="plan_skip">' + esc(T.pSkip) + '</button><button type="button" class="btn-ghost !py-1 !text-xs text-red-600 ms-auto" data-pa="plan_stop">' + esc(T.pStop) + '</button></div>';
@@ -587,7 +614,7 @@
     var wl = { ai: ['bg-lime-100 text-lime-800', T.whyAi], contact: ['bg-sky-100 text-sky-800', T.whyContact], price: ['bg-amber-100 text-amber-800', T.whyPrice], cta: ['bg-violet-100 text-violet-800', T.whyCta] };
     sgl.innerHTML = sItems.map(function (it, i) {
       return '<label class="flex gap-3 rounded-xl border border-ink-200 p-3 hover:border-brand-300 cursor-pointer"><input type="checkbox" class="sg-c rounded mt-1" data-i="' + i + '"' + (it.why.indexOf('ai') > -1 || it.why.indexOf('contact') > -1 || it.why.indexOf('cta') > -1 ? ' checked' : '') + '>' +
-        '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-1.5"><span class="font-medium text-ink-900 text-sm">' + esc(it.name || '—') + '</span><span class="text-[10px] text-ink-500">' + (it.source === 'comments' ? '💬 ' + esc(T.cmt) : '✉️ ' + esc(T.msgK)) + ' · ' + esc(it.where) + '</span>' +
+        '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-1.5"><span class="font-medium text-ink-900 text-sm">' + esc(it.name || '—') + '</span><span class="text-[10px] text-ink-500">' + (it.source === 'comments' ? '' + uic('chat', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.cmt) : '' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(T.msgK)) + ' · ' + esc(it.where) + '</span>' +
         it.why.map(function (w) { return '<span class="text-[10px] px-1.5 py-0.5 rounded ' + wl[w][0] + '">' + esc(wl[w][1]) + '</span>'; }).join('') + '</div>' +
         '<p class="text-xs text-ink-700 mt-1 line-clamp-2" dir="auto">' + esc(it.summary || it.text) + '</p>' +
         ((it.phone || it.email) ? '<div class="text-[11px] text-ink-500 mt-1" dir="ltr">' + esc([it.phone, it.email].filter(Boolean).join(' · ')) + '</div>' : '') +
@@ -644,7 +671,7 @@
     var B = D.bm, list = leads.filter(function (l) { return sel[l.id]; }), ok = list.filter(function (l) { return l.email && !l.unsub; });
     if (!ok.length) return toast(B.none);
     var w = document.createElement('div'); w.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-ink-900/40 p-4';
-    w.innerHTML = '<form class="w-[min(560px,96vw)] rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">✉️ ' + esc(B.t) + ' (' + ok.length + '/' + list.length + ')</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
+    w.innerHTML = '<form class="w-[min(560px,96vw)] rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">' + uic('mail', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(B.t) + ' (' + ok.length + '/' + list.length + ')</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
       '<div class="p-5 space-y-2"><input name="subject" required maxlength="200" class="input text-sm" placeholder="' + esc(B.sub) + '" dir="auto"><textarea name="body" required rows="7" class="input text-sm" placeholder="' + esc(B.body) + '" dir="auto"></textarea><p class="text-[11px] text-ink-500">' + esc(B.hint) + '</p>' +
       '<div class="hidden" data-pg><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-brand-600 transition-all" style="width:0"></div></div><p class="text-xs text-ink-500 mt-1"></p></div></div>' +
       '<div class="flex justify-end gap-2 px-5 py-3 border-t border-ink-200"><button class="btn-primary">' + esc(B.go) + '</button></div></form>';
@@ -707,7 +734,7 @@
       var col = { stage: 'stage', value: 'deal_value', owner: 'owner_id' };
       function show(l, k) { var v = l[k]; if (k === 'stage') v = D.stages[v] || v; if (k === 'owner') v = (D.members || {})[v] || '—'; return v === '' || v == null || v === 0 ? '—' : v; }
       var w = document.createElement('div'); w.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-ink-900/40 p-4';
-      w.innerHTML = '<form class="w-[min(720px,96vw)] max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">🔗 ' + esc(M.t) + '</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
+      w.innerHTML = '<form class="w-[min(720px,96vw)] max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">' + uic('link', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(M.t) + '</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
         '<div class="p-5 space-y-3"><p class="text-xs text-ink-500">' + esc(M.hint) + '</p><div class="grid grid-cols-[110px_1fr_1fr] gap-2 text-sm items-center">' +
         '<span></span>' + [A, B].map(function (l, i) { return '<label class="flex items-center gap-2 rounded-xl border border-ink-200 p-2 font-semibold"><input type="radio" name="keep" value="' + l.id + '"' + (i === 0 ? ' checked' : '') + '> ' + esc(M.keep) + ' <span class="text-[11px] font-normal text-ink-500">' + esc(M.acts.replace('%s', r.acts[i])) + '</span></label>'; }).join('') +
         keys.map(function (k) { var same = String(show(A, k)) === String(show(B, k)); return '<span class="text-xs text-ink-500">' + esc(M.f[k]) + '</span>' + [A, B].map(function (l, i) { return '<label class="flex items-start gap-2 rounded-lg px-2 py-1 ' + (same ? 'opacity-60' : 'hover:bg-ink-50') + '"><input type="radio" name="pick_' + k + '" value="' + (i ? 'b' : 'a') + '"' + ((i === 0 && show(A, k) !== '—') || (i === 1 && show(A, k) === '—' && show(B, k) !== '—') ? ' checked' : '') + (same ? ' disabled' : '') + '><span class="break-words min-w-0" dir="auto">' + esc(show(l, k)) + '</span></label>'; }).join(''); }).join('') +
@@ -885,7 +912,7 @@
     var l = byId(+t.closest('[data-id]').dataset.id); if (!l) return;
     pop = document.createElement('div'); pop.className = 'ld-pop';
     if (t.dataset.pop === 'stage') pop.innerHTML = Object.keys(D.stages).map(function (k) { return '<button type="button" data-ps="' + k + '"><span class="w-2 h-2 rounded-full ' + stageColor[k].split(' ')[0] + '"></span>' + esc(D.stages[k]) + (k === l.stage ? ' ✓' : '') + '</button>'; }).join('');
-    else pop.innerHTML = [['today', T.nToday], ['tomorrow', T.nTom], ['3d', T.n3], ['week', T.nWeek], ['none', T.nNone]].map(function (x) { return '<button type="button" data-pn="' + x[0] + '">' + (x[0] === 'none' ? '✕ ' : '⏰ ') + esc(x[1]) + '</button>'; }).join('');
+    else pop.innerHTML = [['today', T.nToday], ['tomorrow', T.nTom], ['3d', T.n3], ['week', T.nWeek], ['none', T.nNone]].map(function (x) { return '<button type="button" data-pn="' + x[0] + '">' + (x[0] === 'none' ? '✕ ' : '' + uic('clock', 'w-4 h-4 inline-block align-[-3px]') + '') + esc(x[1]) + '</button>'; }).join('');
     var r = t.getBoundingClientRect(); pop.style.position = 'fixed'; pop.style.left = Math.max(8, Math.min(innerWidth - 190, r.left)) + 'px'; pop.style.top = '-999px';
     document.body.appendChild(pop);
     var ph = pop.offsetHeight; pop.style.top = (r.bottom + 4 + ph > innerHeight - 8 ? Math.max(8, r.top - ph - 4) : r.bottom + 4) + 'px'; // لو مفيش مكان تحت، يفتح لفوق
