@@ -397,52 +397,44 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     }
     ?>
     <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
-    <!-- الفلاتر -->
+    <?php // شريط واحد: نوع الصندوق (popover) + البحث + فلترة (popover) + الحملات
+      $fDesc = ['inbox' => t('كل المحادثات الجارية'), 'requests' => t('ناس بيراسلوك لأول مرة'), 'comments' => t('رسالة خاصة لصاحب تعليق')];
+      $fIcon = ['inbox' => 'inbox', 'requests' => 'user_plus', 'comments' => 'chat'];
+      $fN = ($folder === 'inbox' && $status === 'archived' ? 1 : 0) + ($platform !== '' ? 1 : 0) + ($acctFilter !== '' ? 1 : 0);
+      $byPlat = [];
+      foreach ($convs as $cv) { $pp = (string)($cv['platform'] ?? ''); if ($pp === '') continue; $byPlat[$pp]['n'] = ($byPlat[$pp]['n'] ?? 0) + 1; $byPlat[$pp]['u'] = ($byPlat[$pp]['u'] ?? 0) + (int)($cv['unreadCount'] ?? 0); }
+    ?>
     <div class="flex flex-wrap items-center gap-2 mb-3">
-      <div class="tb p-1 gap-1 text-sm">
-        <?php foreach ($folders as $k => $lbl): ?>
-          <a href="<?= e(url('inbox', $k === 'inbox' ? [] : ['folder' => $k])) ?>" class="h-8 px-3 rounded-lg flex items-center whitespace-nowrap transition <?= $folder === $k ? 'bg-brand-600 text-[#fff] font-medium shadow-sm' : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900' ?>"><?= e($lbl) ?></a>
+      <button type="button" popovertarget="ibx-box" class="tb h-10 px-3 gap-2 text-sm font-semibold !text-ink-900"><?= ui_icon($fIcon[$folder] ?? 'inbox', 'w-4 h-4 text-brand-600') ?><?= e($folders[$folder]) ?><svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div id="ibx-box" popover class="m-0 w-[min(340px,92vw)] rounded-2xl border border-ink-200 bg-white p-2 shadow-2xl">
+        <?php foreach ($folders as $k => $lbl): $on = $folder === $k; ?>
+          <a href="<?= e(url('inbox', $k === 'inbox' ? [] : ['folder' => $k])) ?>" class="flex items-center gap-3 rounded-xl px-2.5 py-2 <?= $on ? 'bg-brand-50' : 'hover:bg-ink-50' ?>">
+            <span class="w-9 h-9 rounded-lg grid place-items-center <?= $on ? 'bg-brand-600 text-[#fff]' : 'bg-ink-100 text-ink-600' ?>"><?= ui_icon($fIcon[$k], 'w-4 h-4') ?></span>
+            <span class="min-w-0"><span class="block text-sm <?= $on ? 'font-semibold text-brand-800' : 'font-medium text-ink-900' ?>"><?= e($lbl) ?></span><span class="block text-[11px] text-ink-500"><?= e($fDesc[$k]) ?></span></span>
+          </a>
         <?php endforeach; ?>
       </div>
-      <form method="get" class="flex flex-wrap items-center gap-2 flex-1">
+      <?php if ($folder === 'inbox'): ?>
+        <form method="get" class="relative flex-1 min-w-[12rem]"><input type="hidden" name="p" value="inbox">
+          <?php foreach (['status' => $status !== 'active' ? $status : '', 'platform' => $platform, 'acct' => $acctFilter] as $hk => $hv): if ($hv !== ''): ?><input type="hidden" name="<?= $hk ?>" value="<?= e($hv) ?>"><?php endif; endforeach; ?>
+          <span class="absolute inset-y-0 start-3 grid place-items-center text-ink-400 pointer-events-none"><?= ui_icon('search', 'w-4 h-4') ?></span>
+          <input type="search" name="q" value="<?= e($q) ?>" minlength="2" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('دور في الرسائل والأسماء والأرقام...')) ?>  ( / )" id="ibx-q">
+        </form>
+        <?php if ($q !== ''): ?><a href="<?= e(url('inbox', array_diff_key($base, ['q' => 1]))) ?>" class="link text-sm"><?= e(t('مسح البحث')) ?></a><?php endif; ?>
+      <?php else: ?><div class="flex-1"></div><?php endif; ?>
+      <button type="button" popovertarget="ibx-filt" class="tb h-10 px-3 gap-1.5 text-sm <?= $fN ? '!border-brand-400 !bg-brand-50 !text-brand-700' : '' ?>"><?= ui_icon('filter', 'w-4 h-4') ?><?= e(t('فلترة')) ?><?php if ($fN): ?><span class="rounded-full bg-brand-600 text-[#fff] text-[10px] px-1.5"><?= $fN ?></span><?php endif; ?></button>
+      <form id="ibx-filt" popover method="get" class="m-0 w-[min(340px,92vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3">
         <input type="hidden" name="p" value="inbox">
         <?php if ($folder !== 'inbox'): ?><input type="hidden" name="folder" value="<?= e($folder) ?>"><?php endif; ?>
-        <?php if ($folder === 'inbox'): ?>
-          <select name="status" class="input !mt-0 !w-auto !h-10 !py-0 text-sm" onchange="this.form.submit()">
-            <option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= e(t('النشطة')) ?></option>
-            <option value="archived" <?= $status === 'archived' ? 'selected' : '' ?>><?= e(t('المؤرشفة')) ?></option>
-          </select>
-        <?php endif; ?>
-        <?php if ($folder !== 'comments'): ?>
-          <select name="platform" class="input !mt-0 !w-auto !h-10 !py-0 text-sm" onchange="this.form.submit()">
-            <option value=""><?= e(t('كل المنصات')) ?></option>
-            <?php foreach ($msgPlatforms as $pl): ?><option value="<?= e($pl) ?>" <?= $platform === $pl ? 'selected' : '' ?>><?= e(platform_label($pl)) ?></option><?php endforeach; ?>
-          </select>
-        <?php endif; ?>
-        <select name="acct" class="input !mt-0 !w-auto !h-10 !py-0 text-sm max-w-[14rem]" onchange="this.form.submit()">
-          <option value=""><?= e(t('كل الحسابات')) ?></option>
-          <?php foreach ($accounts as $a): ?><option value="<?= e($a['_id']) ?>" <?= $acctFilter === $a['_id'] ? 'selected' : '' ?>><?= e(ip_account_label($a)) ?></option><?php endforeach; ?>
-        </select>
-        <?php if ($folder === 'inbox'): ?>
-          <div class="relative flex-1 min-w-[12rem]"><svg class="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4"/></svg>
-          <input type="search" name="q" value="<?= e($q) ?>" minlength="2" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('دور في الرسائل والأسماء والأرقام...')) ?>  ( / )" id="ibx-q"></div>
-          <?php if ($q !== ''): ?><a href="<?= e(url('inbox', array_diff_key($base, ['q' => 1]))) ?>" class="link text-sm"><?= e(t('مسح البحث')) ?></a><?php endif; ?>
-        <?php endif; ?>
-      </form>
-      <?php if ($folder === 'inbox'): ?><button type="button" id="camp-dock-btn" class="tb gap-2 px-3 text-sm"><?= ui_icon('megaphone', 'w-4 h-4') ?><span><?= e(t('الحملات')) ?></span><span id="camp-live" class="hidden w-2 h-2 rounded-full bg-lime-500 animate-pulse"></span></button><?php endif; ?>
-    </div>
-
-    <?php if ($folder !== 'comments'):
-        // شريط القنوات: كل منصة بعدد المحادثات وغير المقروء
-        $byPlat = [];
-        foreach ($convs as $cv) {
-            $pp = (string)($cv['platform'] ?? '');
-            if ($pp === '') continue;
-            $byPlat[$pp]['n'] = ($byPlat[$pp]['n'] ?? 0) + 1;
-            $byPlat[$pp]['u'] = ($byPlat[$pp]['u'] ?? 0) + (int)($cv['unreadCount'] ?? 0);
-        }
-        if (count($byPlat) > 1 || $platform !== ''): ?>
-      <div class="flex gap-2 overflow-x-auto pb-1 mb-3" style="scrollbar-width:none">
+        <?php if ($q !== ''): ?><input type="hidden" name="q" value="<?= e($q) ?>"><?php endif; ?>
+        <?php if ($folder === 'inbox'): ?><label class="block"><span class="text-[11px] text-ink-500"><?= e(t('الحالة')) ?></span>
+          <select name="status" class="input !py-1.5 text-sm" onchange="this.form.submit()"><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= e(t('النشطة')) ?></option><option value="archived" <?= $status === 'archived' ? 'selected' : '' ?>><?= e(t('المؤرشفة')) ?></option></select></label><?php endif; ?>
+        <?php if ($folder !== 'comments'): ?><label class="block"><span class="text-[11px] text-ink-500"><?= e(t('المنصة')) ?></span>
+          <select name="platform" class="input !py-1.5 text-sm" onchange="this.form.submit()"><option value=""><?= e(t('كل المنصات')) ?></option><?php foreach ($msgPlatforms as $pl): ?><option value="<?= e($pl) ?>" <?= $platform === $pl ? 'selected' : '' ?>><?= e(platform_label($pl)) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+        <label class="block"><span class="text-[11px] text-ink-500"><?= e(t('الحساب')) ?></span>
+          <select name="acct" class="input !py-1.5 text-sm" onchange="this.form.submit()"><option value=""><?= e(t('كل الحسابات')) ?></option><?php foreach ($accounts as $a): ?><option value="<?= e($a['_id']) ?>" <?= $acctFilter === $a['_id'] ? 'selected' : '' ?>><?= e(ip_account_label($a)) ?></option><?php endforeach; ?></select></label>
+        <?php if ($folder !== 'comments' && (count($byPlat) > 1 || $platform !== '')): ?><div><span class="text-[11px] text-ink-500 block mb-1"><?= e(t('القنوات')) ?></span>
+      <div class="flex flex-wrap gap-1.5">
         <a href="<?= e(url('inbox', array_diff_key($base, ['platform' => 1]))) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $platform === '' ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>"><?= e(t('كل القنوات')) ?></a>
         <?php foreach ($byPlat as $pp => $info): ?>
           <a href="<?= e(url('inbox', ['platform' => $pp] + $base)) ?>" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap <?= $platform === $pp ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium' : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50' ?>">
@@ -451,7 +443,11 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
           </a>
         <?php endforeach; ?>
       </div>
-    <?php endif; endif; ?>
+        </div><?php endif; ?>
+        <?php if ($fN): ?><a href="<?= e(url('inbox', $folder === 'inbox' ? [] : ['folder' => $folder])) ?>" class="link text-xs !text-ink-500"><?= e(t('امسح الفلاتر')) ?></a><?php endif; ?>
+      </form>
+      <?php if ($folder === 'inbox'): ?><button type="button" id="camp-dock-btn" class="tb h-10 gap-2 px-3 text-sm"><?= ui_icon('megaphone', 'w-4 h-4') ?><span><?= e(t('الحملات')) ?></span><span id="camp-live" class="hidden w-2 h-2 rounded-full bg-lime-500 animate-pulse"></span></button><?php endif; ?>
+    </div>
 
     <?php if ($folder === 'requests'): ?>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('طلبات الرسائل: ناس بعتولك لأول مرة على صفحة فيسبوك. أول رد منك بيقبل الطلب وينقل المحادثة للوارد.')) ?></p>
@@ -509,13 +505,13 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-13rem)] min-h-[560px]" id="ibx">
       <!-- قائمة المحادثات -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $convId ? 'hidden lg:flex' : 'flex' ?>">
-        <div class="flex items-center gap-2 px-3 h-12 border-b border-ink-200 shrink-0">
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 border-b border-ink-200 shrink-0">
           <label class="flex items-center gap-2 text-xs text-ink-600 cursor-pointer select-none" title="<?= e(t('تحديد الكل')) ?>">
             <input type="checkbox" id="ibx-all" class="w-4 h-4 rounded">
             <span id="ibx-count" class="tabular-nums"><?= e(t('%s محادثة', count($convs))) ?></span>
           </label>
           <?php if ($unreadTotal): ?><span class="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[11px] font-medium"><?= e(t('%s غير مقروءة', $unreadTotal)) ?></span><?php endif; ?>
-          <div class="ms-auto flex items-center gap-1">
+          <div class="basis-full flex items-center gap-1 overflow-x-auto -mx-1 px-1 [&>*]:shrink-0" style="scrollbar-width:none">
             <?php if ($aiLab !== [] || ($aiOn && ai_feature_on('classify_btn'))): ?>
               <button type="button" data-ibx-filter="urgent" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100 inline-flex items-center gap-1" title="<?= e(t('العاجل أولًا')) ?>"><?= ui_icon('alert', 'w-3.5 h-3.5') ?><span class="hidden sm:inline"><?= e(t('العاجل')) ?></span></button>
               <button type="button" data-ibx-filter="intent" class="ibx-f h-8 px-2.5 rounded-lg text-xs text-ink-600 hover:bg-ink-100 inline-flex items-center gap-1" title="<?= e(t('نية شراء')) ?>"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z"/></svg><span class="hidden sm:inline"><?= e(t('شراء')) ?></span></button>
@@ -739,10 +735,10 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               data-source="inbox" data-ext="<?= e($lext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr($lastIn, 0, 600)) ?>" data-where="<?= e(platform_label($plat)) ?>"
               data-url="<?= e(url('inbox', ['c' => $convId, 'a' => $accId])) ?>">
               <?php if ($ll): ?>
-                <div class="text-xs text-ink-700">🧲 <?= e(t('العميل ده في الـ Leads')) ?> · <b><?= e(crm_stages()[$ll['stage']] ?? $ll['stage']) ?></b></div>
-                <a class="link text-xs" href="<?= e(url('crm_leads') . '#lead-' . (int)$ll['id']) ?>"><?= e(t('افتح الـ Lead')) ?> ↗</a>
+                <div class="text-xs text-ink-700"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('العميل ده في الـ Leads')) ?> · <b><?= e(crm_stages()[$ll['stage']] ?? $ll['stage']) ?></b></div>
+                <a class="link text-xs" href="<?= e(url('crm_leads') . '#lead-' . (int)$ll['id']) ?>"><?= e(t('افتح الـ Lead')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
               <?php else: ?>
-                <div class="text-xs font-semibold text-ink-900 mb-2">🧲 <?= e(t('حوّله لعميل محتمل')) ?><?php if ($lb && $lb['intent']): ?> <span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px]"><?= e(t('عنده نية شراء')) ?></span><?php endif; ?></div>
+                <div class="text-xs font-semibold text-ink-900 mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('حوّله لعميل محتمل')) ?><?php if ($lb && $lb['intent']): ?> <span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px]"><?= e(t('عنده نية شراء')) ?></span><?php endif; ?></div>
                 <input class="input !mt-0 !h-8 !py-0 text-xs mb-1.5" data-f="phone" dir="ltr" value="<?= e($fc['phone']) ?>" placeholder="<?= e(t('الرقم')) ?>">
                 <input class="input !mt-0 !h-8 !py-0 text-xs mb-1.5" data-f="email" dir="ltr" value="<?= e($fc['email']) ?>" placeholder="<?= e(t('الإيميل')) ?>">
                 <?php if ($fc['phone'] || $fc['email']): ?><p class="text-[10px] text-lime-700 mb-1.5">✓ <?= e(t('لقينا البيانات دي في رسايله')) ?></p><?php endif; ?>

@@ -3733,4 +3733,8 @@ This is an example of the email your customers will receive.',
     'النشر وجمع العملاء' => 'Publishing & lead capture',
     'أدوات أكتر' => 'More tools',
     'اعرضها وأصلحها' => 'Review and fix',
+    'القنوات' => 'Channels',
+    'رسالة خاصة لصاحب تعليق' => 'Private message to a commenter',
+    'كل المحادثات الجارية' => 'All ongoing conversations',
+    'ناس بيراسلوك لأول مرة' => 'People messaging you for the first time',
 ];

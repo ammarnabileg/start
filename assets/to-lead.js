@@ -11,7 +11,7 @@
     fetch(X.url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); }).then(function (r) {
       if (!r.ok) { b.disabled = false; return alert(r.error || X.err); }
       var a = document.createElement('a'); a.href = r.url; a.className = 'text-lime-700 text-xs font-semibold hover:underline';
-      a.textContent = '🧲 ' + (r.merged ? X.merged : X.added) + ' · ' + X.open + ' ↗';
+      a.innerHTML = (window.uic ? uic('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') + ' ' : '') + String((r.merged ? X.merged : X.added) + ' · ' + X.open).replace(/[<>&]/g, '');
       box.innerHTML = ''; box.appendChild(a);
     }).catch(function () { b.disabled = false; alert(X.err); });
   });

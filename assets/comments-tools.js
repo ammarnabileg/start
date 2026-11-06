@@ -1,6 +1,9 @@
 /* أدوات التعليقات: ردود المنشور (#40)، الأكثر تفاعلًا (#41)، سحب على هدية (#44)، إخفاء تلقائي (#39) */
 (function () {
-  var C = window.CMT; if (!C) return;
+  function init() {
+  var C = window.CMT; if (!C || !document.getElementById('cmp-rep')) return;
+  // بيانات المنشور الحالي جوه الجزء اللي بيتبدل (عشان تتحدث لما تتنقل بين المنشورات من غير تحميل)
+  try { var J = JSON.parse((document.getElementById('cmt-json') || {}).textContent || '{}'); C = Object.assign({}, C, J); window.CMT = C; } catch (e) {}
   var $ = function (s, r) { return (r || document).querySelector(s); }, $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function csrf() { var m = document.querySelector('meta[name=csrf-token]'); if (m) return m.content; var i = document.querySelector('input[name=_csrf]'); return i ? i.value : ''; }
@@ -10,12 +13,8 @@
     return fetch(location.pathname + q, { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); });
   }
   function note(m) { if (window.toast) return window.toast(m); var d = document.createElement('div'); d.className = 'fixed bottom-4 inset-x-0 mx-auto w-fit z-50 rounded-xl bg-ink-900 text-white px-4 py-2 text-sm'; d.textContent = m; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 2600); }
-  var btn = $('#cm-tools-btn'), box = $('#cm-tools'); if (!btn || !box) return;
-  function tab(k) { $$('.cmt-tab', box).forEach(function (b) { var on = b.dataset.cmt === k; b.classList.toggle('bg-brand-50', on); b.classList.toggle('text-brand-700', on); }); $$('[data-cmp]', box).forEach(function (p) { p.classList.toggle('hidden', p.dataset.cmp !== k); }); try { localStorage.setItem('cmt-tab', k); } catch (e) {} }
-  btn.onclick = function () { var o = box.classList.toggle('hidden'); btn.setAttribute('aria-expanded', !o); };
-  box.addEventListener('click', function (e) { var b = e.target.closest('.cmt-tab'); if (b) tab(b.dataset.cmt); });
-  var t0 = 'rep'; try { t0 = localStorage.getItem('cmt-tab') || 'rep'; } catch (e) {} tab(t0);
-
+  // كل أداة بقت popover لوحدها (مفيش تابات)
+  var box = document;
   /* #40 */
   var list = (C.preps || []).slice();
   function drawP() {
@@ -44,7 +43,7 @@
         var ext = 'cm:' + (f.pf || '') + ':' + f.key;
         return '<div class="flex items-center gap-2 py-1.5"><b class="w-5 text-ink-400 text-xs">' + (i + 1) + '</b><span class="flex-1 min-w-0"><b class="text-ink-900">' + esc(f.name) + '</b> <span class="text-[11px] text-ink-500">' + esc(C.cm.replace('%s', f.n)) + ' · ' + esc(C.onp.replace('%s', f.posts)) + (f.price ? ' · <span class="text-lime-700 font-semibold">' + esc(C.price.replace('%s', f.price)) + '</span>' : '') + '</span>' +
           (f.last ? '<span class="block text-[11px] text-ink-400 truncate" dir="auto">“' + esc(f.last) + '”</span>' : '') + '</span>' +
-          (C.crm ? '<span data-tolead data-source="comments" data-ext="' + esc(ext) + '" data-name="' + esc(f.name) + '" data-text="' + esc(f.last) + '" data-where="⭐"><button type="button" data-go class="text-xs font-semibold text-lime-700 hover:underline">🧲 ' + esc(C.lead) + '</button></span>' : '') + '</div>';
+          (C.crm ? '<span data-tolead data-source="comments" data-ext="' + esc(ext) + '" data-name="' + esc(f.name) + '" data-text="' + esc(f.last) + '" data-where="⭐"><button type="button" data-go class="text-xs font-semibold text-lime-700 hover:underline inline-flex items-center gap-1">' + uic('magnet', 'w-3.5 h-3.5') + ' ' + esc(C.lead) + '</button></span>' : '') + '</div>';
       }).join('');
     }).catch(function () { fg.disabled = false; fg.textContent = '↻'; note(C.err); });
   };
@@ -57,7 +56,7 @@
     var out = $('#gv-out'); if (!pool.length) { out.innerHTML = '<p class="text-xs text-ink-400">' + esc(C.none) + '</p>'; return; }
     var a = pool.slice(), win = [];
     for (var i = 0; i < n && a.length; i++) { var r = new Uint32Array(1); crypto.getRandomValues(r); win.push(a.splice(r[0] % a.length, 1)[0]); }
-    out.innerHTML = '<div class="rounded-xl border border-lime-200 bg-lime-50 p-3"><div class="text-xs text-lime-800 mb-1">🏆 ' + esc(win.length > 1 ? C.wins : C.win) + ' · ' + esc(C.of.replace('%s', pool.length)) + ' · ' + new Date().toLocaleString() + '</div>' +
+    out.innerHTML = '<div class="rounded-xl border border-lime-200 bg-lime-50 p-3"><div class="text-xs text-lime-800 mb-1 flex items-center gap-1">' + uic('trophy', 'w-4 h-4') + ' ' + esc(win.length > 1 ? C.wins : C.win) + ' · ' + esc(C.of.replace('%s', pool.length)) + ' · ' + new Date().toLocaleString() + '</div>' +
       win.map(function (w) { return '<div class="font-semibold text-ink-900">' + esc(w.n) + ' <span class="text-[11px] font-normal text-ink-500" dir="auto">“' + esc(w.m[0]) + '”</span></div>'; }).join('') + '</div>';
   };
 
@@ -69,4 +68,7 @@
     if (!confirm(C.confirmRun)) return; sr.disabled = true;
     post(cfg()).then(function () { return post({ action: 'c_spamrun' }); }).then(function (j) { sr.disabled = false; note(j.ok ? C.hidden.replace('%s', j.done) : (j.error || C.err)); if (j.ok && j.done) setTimeout(function () { location.reload(); }, 900); }).catch(function () { sr.disabled = false; note(C.err); });
   };
+  }
+  init();
+  document.addEventListener('live:swapped', init);
 })();

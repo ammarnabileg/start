@@ -89,6 +89,9 @@
       return;
     }
     root.innerHTML = next.innerHTML;
+    // سكربتات البيانات (window.X = ...) بس بتتشغل تاني؛ الملفات الخارجية لأ (عشان الأحداث ماتتكررش)
+    Array.prototype.forEach.call(root.querySelectorAll('script:not([src]):not([type]), script[type="text/javascript"]:not([src])'), function (o) { var n = document.createElement('script'); n.textContent = o.textContent; o.parentNode.replaceChild(n, o); });
+    try { document.dispatchEvent(new CustomEvent('live:swapped')); } catch (e) {}
     var l2 = root.querySelector('[data-live="list"]');
     if (l2 && mode !== 'nav-reset') l2.scrollTop = listTop;
     var t2 = document.getElementById('thread');

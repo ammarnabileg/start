@@ -316,13 +316,16 @@ document.addEventListener('click', function (e) {
   var pop = document.getElementById('pg-sw'), btn = document.getElementById('pg-sw-btn');
   function place() { if (!pop || !btn) return; var r = btn.getBoundingClientRect(), w = pop.offsetWidth, rtl = document.documentElement.dir === 'rtl';
     var x = rtl ? Math.max(8, r.right - w) : Math.min(window.innerWidth - w - 8, r.left); pop.style.position = 'fixed'; pop.style.right = 'auto'; pop.style.bottom = 'auto'; pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = Math.max(8, x) + 'px'; }
-  // أي popover بيفتحه زرار popovertarget: بيتحط تحت الزرار بالظبط (حسب اتجاه اللغة)
-  Array.prototype.forEach.call(document.querySelectorAll('[popover]'), function (pp) {
-    if (pp === pop || !pp.showPopover) return;
+  // أي popover بيفتحه زرار popovertarget: بيتحط تحت الزرار (حسب اتجاه اللغة).
+  // مستمع واحد على الصفحة كلها، عشان يشتغل كمان مع المحتوى اللي بيتبدل في الخلفية (live)
+  document.addEventListener('toggle', function (e) {
+    var pp = e.target; if (!pp || !pp.hasAttribute || !pp.hasAttribute('popover') || pp.id === 'pg-sw' || e.newState !== 'open') return;
     var inv = document.querySelector('[popovertarget="' + pp.id + '"]'); if (!inv) return;
-    pp.addEventListener('toggle', function (e) { if (e.newState !== 'open') return; var r = inv.getBoundingClientRect(), w = pp.offsetWidth, rtl = document.documentElement.dir === 'rtl';
-      var x = rtl ? r.right - w : r.left; x = Math.max(8, Math.min(window.innerWidth - w - 8, x)); pp.style.position = 'fixed'; pp.style.right = 'auto'; pp.style.bottom = 'auto'; pp.style.left = x + 'px'; pp.style.top = (r.bottom + 6) + 'px'; });
-  });
+    var r = inv.getBoundingClientRect(), w = pp.offsetWidth, h = pp.offsetHeight, rtl = document.documentElement.dir === 'rtl';
+    var x = rtl ? r.right - w : r.left; x = Math.max(8, Math.min(window.innerWidth - w - 8, x));
+    var y = r.bottom + 6; if (y + h > window.innerHeight - 8 && r.top - h - 6 > 8) y = r.top - h - 6; // مفيش مكان تحت: يفتح لفوق
+    pp.style.position = 'fixed'; pp.style.right = 'auto'; pp.style.bottom = 'auto'; pp.style.left = x + 'px'; pp.style.top = y + 'px';
+  }, true);
   // Shift + رقم: أقسام الصفحة (زي أقسام التحليلات)
   document.addEventListener('keydown', function (e) {
     if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) return;

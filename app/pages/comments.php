@@ -179,8 +179,8 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
           <?php endif; ?>
           <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="hover:text-ink-900"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
           <?php if (!$mine && module_enabled('crm') && can('crm.view')): $cext = 'cm:' . (string)($c['platform'] ?? $GLOBALS['__cm_pf'] ?? '') . ':' . (string)($from['id'] ?? $from['username'] ?? $nm); $cl = crm_lead_by_ext($cext); ?>
-            <?php if ($cl): ?><a class="text-lime-700 hover:underline" href="<?= e(url('crm_leads') . '#lead-' . (int)$cl['id']) ?>">🧲 <?= e(t('في الـ Leads')) ?></a>
-            <?php else: ?><span data-tolead data-source="comments" data-ext="<?= e($cext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr((string)($c['message'] ?? ''), 0, 600)) ?>" data-where="<?= e(t('تعليق')) ?>" data-url="<?= e($_SERVER['REQUEST_URI'] ?? '') ?>"><button type="button" data-go class="font-semibold <?= !empty($lb['intent']) ? 'text-lime-700' : 'hover:text-ink-900' ?>">🧲 <?= e(t('ضيفه Lead')) ?></button></span><?php endif; ?>
+            <?php if ($cl): ?><a class="text-lime-700 hover:underline" href="<?= e(url('crm_leads') . '#lead-' . (int)$cl['id']) ?>"><?= ui_icon('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('في الـ Leads')) ?></a>
+            <?php else: ?><span data-tolead data-source="comments" data-ext="<?= e($cext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr((string)($c['message'] ?? ''), 0, 600)) ?>" data-where="<?= e(t('تعليق')) ?>" data-url="<?= e($_SERVER['REQUEST_URI'] ?? '') ?>"><button type="button" data-go class="font-semibold <?= !empty($lb['intent']) ? 'text-lime-700' : 'hover:text-ink-900' ?>"><?= ui_icon('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('ضيفه Lead')) ?></button></span><?php endif; ?>
           <?php endif; ?>
         </div>
         <?php foreach ($c['replies'] ?? [] as $r) comment_block($r, $labels, true); ?>
@@ -237,7 +237,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
                 <p class="text-sm line-clamp-2 <?= $on ? 'text-ink-900 font-medium' : 'text-ink-800' ?>" dir="auto"><?= ($p['content'] ?? '') !== '' ? e(mb_substr((string)$p['content'], 0, 140)) : '<span class="text-ink-400">' . e(t('(منشور بدون نص)')) . '</span>' ?></p>
                 <div class="flex items-center gap-2 mt-1.5 text-[11px] text-ink-500">
                   <span class="inline-flex items-center gap-1 rounded-md bg-ink-100 px-1.5 py-0.5 text-ink-700 font-medium"><?= ui_icon('chat', 'w-3 h-3') ?><?= $cc ?></span>
-                  <?php if ($ln): ?><span class="rounded-md bg-lime-100 text-lime-800 px-1.5 py-0.5 font-semibold" title="<?= e(t('عملاء محتملين جم من المنشور ده')) ?>">🧲 <?= $ln ?></span><?php endif; ?>
+                  <?php if ($ln): ?><span class="rounded-md bg-lime-100 text-lime-800 px-1.5 py-0.5 font-semibold" title="<?= e(t('عملاء محتملين جم من المنشور ده')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= $ln ?></span><?php endif; ?>
                   <span><?= e(fmt_date($p['createdTime'] ?? null, 'd/m/Y')) ?></span>
                 </div>
               </div>
@@ -260,31 +260,37 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
             <a href="<?= e(url('comments')) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
             <?php if (!empty($current['picture'])): ?><img src="<?= e($current['picture']) ?>" class="w-10 h-10 rounded-lg object-cover bg-ink-100" referrerpolicy="no-referrer" alt=""><?php endif; ?>
             <div class="min-w-0 flex-1"><p class="text-sm font-medium text-ink-900 line-clamp-1" dir="auto"><?= e(mb_substr((string)($current['content'] ?? ''), 0, 160) ?: t('(منشور بدون نص)')) ?></p>
-              <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?><?php if ($priceN): ?> · <span class="rounded-md bg-lime-100 text-lime-800 px-1.5 font-semibold" title="<?= e(t('تعليقات بتسأل عن السعر')) ?>">💰 <?= e(t('%s سألوا عن السعر', $priceN)) ?></span><?php endif; ?></p></div>
-            <button type="button" id="cm-tools-btn" class="tb !h-9 px-2.5 text-xs" aria-expanded="false">🧰 <?= e(t('أدوات')) ?></button>
+              <p class="text-[11px] text-ink-500"><?= e(platform_label((string)($current['platform'] ?? ''))) ?> · <?= e(t('%s تعليق', $totalC)) ?><?php if ($priceN): ?> · <span class="rounded-md bg-lime-100 text-lime-800 px-1.5 font-semibold" title="<?= e(t('تعليقات بتسأل عن السعر')) ?>"><?= ui_icon('money', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('%s سألوا عن السعر', $priceN)) ?></span><?php endif; ?></p></div>
+            <div class="flex items-center gap-1">
+              <?php foreach (['rep' => ['chat', t('ردود المنشور')], 'fans' => ['star', t('الأكثر تفاعلًا')], 'give' => ['trophy', t('سحب على هدية')], 'spam' => ['ban', t('إخفاء تلقائي')]] as $tk => [$ti, $tl]): ?>
+                <button type="button" popovertarget="cmp-<?= $tk ?>" class="tb w-9 !h-9 justify-center <?= $tk === 'spam' && !empty($spam['on']) ? '!text-lime-700 !border-lime-300' : '' ?>" title="<?= e($tl) ?>" aria-label="<?= e($tl) ?>"><?= ui_icon($ti, 'w-4 h-4') ?></button>
+              <?php endforeach; ?>
+              <?php if ($aiOn): ?><button type="button" class="tb w-9 !h-9 justify-center text-brand-600" title="<?= e(t('لخّص في 3 سطور')) ?>" data-cp-insight-chat="<?= e(t('لخّص التعليقات على المنشور ده: الناس قالت إيه، مين عايز يشتري، وإيه الشكاوي.')) ?>"><?= ui_icon('spark', 'w-4 h-4') ?></button><?php endif; ?>
+            </div>
             <?php if (!empty($current['permalink'])): ?><a href="<?= e($current['permalink']) ?>" target="_blank" rel="noopener" class="tb w-9 !h-9 justify-center" title="<?= e(t('فتح المنشور ↗')) ?>"><svg class="w-4 h-4 rtl:-scale-x-100" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h5"/></svg></a><?php endif; ?>
           </div>
-          <div id="cm-tools" class="hidden shrink-0 border-b border-ink-200 bg-white max-h-[55%] overflow-y-auto">
-            <div class="flex gap-1 px-3 pt-2 text-xs" role="tablist">
-              <?php foreach (['rep' => '💬 ' . t('ردود المنشور'), 'fans' => '⭐ ' . t('الأكثر تفاعلًا'), 'give' => '🎁 ' . t('سحب على هدية'), 'spam' => '🛡 ' . t('إخفاء تلقائي')] as $tk => $tl): ?><button type="button" data-cmt="<?= $tk ?>" class="cmt-tab h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100"><?= e($tl) ?></button><?php endforeach; ?>
-              <?php if ($aiOn): ?><button type="button" class="h-8 px-2.5 rounded-lg text-ink-600 hover:bg-ink-100" data-cp-insight-chat="<?= e(t('لخّص التعليقات على المنشور ده: الناس قالت إيه، مين عايز يشتري، وإيه الشكاوي.')) ?>">✨ <?= e(t('لخّص في 3 سطور')) ?></button><?php endif; ?>
-            </div>
-            <div class="p-3 text-sm">
-              <div data-cmp="rep" class="space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('ردود جاهزة للمنشور ده بس (السعر، العنوان، طريقة الطلب). دوس على الرد يتحط في خانة الكتابة.')) ?></p>
+          <script type="application/json" id="cmt-json"><?= json_encode(['preps' => $preps, 'pool' => array_values($pool), 'post' => $postId, 'a' => $accId], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
+          <div id="cmp-rep" popover class="m-0 w-[min(440px,94vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl text-sm space-y-2">
+            <div class="flex items-center gap-2 font-semibold text-ink-900"><span class="w-7 h-7 rounded-lg bg-brand-600 text-[#fff] grid place-items-center"><?= ui_icon('chat', 'w-4 h-4') ?></span><?= e(t('ردود المنشور')) ?></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('ردود جاهزة للمنشور ده بس (السعر، العنوان، طريقة الطلب). دوس على الرد يتحط في خانة الكتابة.')) ?></p>
                 <div id="cm-preps" class="flex flex-wrap gap-1.5"></div>
                 <div class="flex gap-1.5"><input id="cm-prep-in" class="input !mt-0 !py-1.5 text-sm flex-1" placeholder="<?= e(t('رد جديد للمنشور ده…')) ?>" dir="auto"><button type="button" id="cm-prep-add" class="btn-ghost !py-1.5 !text-xs">+ <?= e(t('إضافة')) ?></button></div></div>
-              <div data-cmp="fans" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('من آخر 8 منشورات عليها تعليقات: مين علّق أكتر، على كام منشور، وسأل عن السعر كام مرة.')) ?></p>
+          <div id="cmp-fans" popover class="m-0 w-[min(440px,94vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl text-sm space-y-2">
+            <div class="flex items-center gap-2 font-semibold text-ink-900"><span class="w-7 h-7 rounded-lg bg-brand-600 text-[#fff] grid place-items-center"><?= ui_icon('star', 'w-4 h-4') ?></span><?= e(t('الأكثر تفاعلًا')) ?></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('من آخر 8 منشورات عليها تعليقات: مين علّق أكتر، على كام منشور، وسأل عن السعر كام مرة.')) ?></p>
                 <button type="button" id="cm-fans-go" class="btn-ghost !py-1.5 !text-xs"><?= e(t('هات القايمة')) ?></button><div id="cm-fans" class="divide-y divide-ink-100"></div></div>
-              <div data-cmp="give" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('سحب عشوائي عادل من الناس اللي علّقوا هنا (كل شخص فرصة واحدة مهما علّق). تقدر تشترط كلمة أو منشن.')) ?></p>
-                <div class="flex flex-wrap items-center gap-2 text-xs"><input id="gv-kw" class="input !mt-0 !py-1.5 !w-44 text-xs" placeholder="<?= e(t('لازم التعليق يكون فيه… (اختياري)')) ?>" dir="auto"><label class="flex items-center gap-1"><input type="checkbox" id="gv-tag"> <?= e(t('لازم يعمل منشن لحد')) ?></label><label class="flex items-center gap-1"><?= e(t('عدد الفايزين')) ?> <input type="number" id="gv-n" min="1" max="20" value="1" class="input !mt-0 !py-1 !w-16 text-xs"></label><button type="button" id="gv-go" class="btn-primary !py-1.5 !text-xs">🎲 <?= e(t('اسحب')) ?></button></div>
+          <div id="cmp-give" popover class="m-0 w-[min(440px,94vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl text-sm space-y-2">
+            <div class="flex items-center gap-2 font-semibold text-ink-900"><span class="w-7 h-7 rounded-lg bg-brand-600 text-[#fff] grid place-items-center"><?= ui_icon('trophy', 'w-4 h-4') ?></span><?= e(t('سحب على هدية')) ?></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('سحب عشوائي عادل من الناس اللي علّقوا هنا (كل شخص فرصة واحدة مهما علّق). تقدر تشترط كلمة أو منشن.')) ?></p>
+                <div class="flex flex-wrap items-center gap-2 text-xs"><input id="gv-kw" class="input !mt-0 !py-1.5 !w-44 text-xs" placeholder="<?= e(t('لازم التعليق يكون فيه… (اختياري)')) ?>" dir="auto"><label class="flex items-center gap-1"><input type="checkbox" id="gv-tag"> <?= e(t('لازم يعمل منشن لحد')) ?></label><label class="flex items-center gap-1"><?= e(t('عدد الفايزين')) ?> <input type="number" id="gv-n" min="1" max="20" value="1" class="input !mt-0 !py-1 !w-16 text-xs"></label><button type="button" id="gv-go" class="btn-primary !py-1.5 !text-xs"><?= ui_icon('trophy', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('اسحب')) ?></button></div>
                 <div id="gv-out" class="text-sm"></div></div>
-              <div data-cmp="spam" class="hidden space-y-2"><p class="text-[11px] text-ink-500"><?= e(t('كل ساعة بنلف على آخر المنشورات ونخفي التعليقات اللي فيها شتايم أو لينكات سبام. التعليق بيتخفي مش بيتمسح، وتقدر ترجّعه من المنصة.')) ?></p>
+          <div id="cmp-spam" popover class="m-0 w-[min(440px,94vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl text-sm space-y-2">
+            <div class="flex items-center gap-2 font-semibold text-ink-900"><span class="w-7 h-7 rounded-lg bg-brand-600 text-[#fff] grid place-items-center"><?= ui_icon('ban', 'w-4 h-4') ?></span><?= e(t('إخفاء تلقائي')) ?></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('كل ساعة بنلف على آخر المنشورات ونخفي التعليقات اللي فيها شتايم أو لينكات سبام. التعليق بيتخفي مش بيتمسح، وتقدر ترجّعه من المنصة.')) ?></p>
                 <label class="flex items-center gap-2"><input type="checkbox" id="sp-on" <?= !empty($spam['on']) ? 'checked' : '' ?>> <b><?= e(t('شغّل الإخفاء التلقائي')) ?></b></label>
                 <label class="flex items-center gap-2 text-xs"><input type="checkbox" id="sp-links" <?= !empty($spam['links']) ? 'checked' : '' ?>> <?= e(t('اخفي التعليقات اللي فيها لينكات (تليجرام، واتساب، bit.ly…)')) ?></label>
                 <textarea id="sp-words" rows="2" class="input text-xs" dir="auto" placeholder="<?= e(t('كلمات زيادة تتخفي، مفصولة بفاصلة')) ?>"><?= e((string)$spam['words']) ?></textarea>
-                <div class="flex gap-2"><button type="button" id="sp-save" class="btn-ghost !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><button type="button" id="sp-run" class="btn-ghost !py-1.5 !text-xs">▶ <?= e(t('طبّق دلوقتي')) ?></button></div></div>
-            </div>
-          </div>
+                <div class="flex gap-2"><button type="button" id="sp-save" class="btn-ghost !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><button type="button" id="sp-run" class="btn-ghost !py-1.5 !text-xs"><?= ui_icon('play', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('طبّق دلوقتي')) ?></button></div></div>
           <div class="flex items-center gap-2 px-3 h-11 border-b border-ink-100 shrink-0 text-xs">
             <label class="flex items-center gap-2 text-ink-600 cursor-pointer select-none"><input type="checkbox" id="cm-all" class="w-4 h-4 rounded"><span id="cm-count"><?= e(t('تحديد الكل')) ?></span></label>
             <div class="ms-auto flex items-center gap-1">
