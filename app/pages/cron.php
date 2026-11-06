@@ -152,6 +152,8 @@ try {
         }
         $out[] = $line;
     }
+    // المنافسات الحكومية: سحب اعتماد من Apify (مرة في اليوم على مستوى المنصة)
+    try { $ap = function_exists('tnd_apify_tick') ? tnd_apify_tick() : ''; if ($ap !== '') $out[] = 'tenders_apify: ' . $ap; } catch (Throwable $t) {}
     // المنافسات الحكومية: تنبيه بالجديد المطابق لكل شركة حددت كلماتها (حتى اللي مش مربوطة بالنشر)
     try {
         foreach (db()->query("SELECT CAST(SUBSTRING(name, 9) AS UNSIGNED) FROM settings WHERE name LIKE 'tnd\\_cfg\\_%'")->fetchAll(PDO::FETCH_COLUMN) as $tw) {

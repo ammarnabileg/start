@@ -15,6 +15,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_setting('tnd_cfg_' . $wid, json_encode($c, JSON_UNESCAPED_UNICODE)); log_activity('tenders.cfg', count($c['words']) . ' words');
         flash('success', t('اتحفظ ✓')); redirect(url('tenders'));
     }
+    if ($a === 'apify_key' && is_admin()) {
+        $k = trim((string)($_POST['key'] ?? ''));
+        if ($k !== '' && !preg_match('/^apify_api_[A-Za-z0-9]{20,}$/', $k)) { flash('error', t('ده مش شكل مفتاح Apify (بيبدأ بـ apify_api_).')); redirect(url('tenders')); }
+        $old = (string)setting('tenders_apify_token', ''); if ($k !== '') save_setting('tenders_apify_token', $k);
+        if (isset(tnd_apify_actors()[$_POST['actor'] ?? ''])) save_setting('tenders_apify_actor', (string)$_POST['actor']);
+        try { tnd_apify_req('GET', '/v2/users/me'); flash('success', t('المفتاح شغال ✓ دوس "اسحب دلوقتي".')); }
+        catch (Throwable $e) { if ($k !== '') save_setting('tenders_apify_token', $old); flash('error', $e->getMessage() . ' ' . t('المفتاح ماتحفظش.')); }
+        redirect(url('tenders'));
+    }
+    if ($a === 'apify_pull' && is_admin()) {
+        try { if ((string)setting('tenders_apify_run', '') === '') { tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); save_setting('tenders_apify_day', gmdate('Y-m-d')); } $J(['ok' => true]); }
+        catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+    }
+    if ($a === 'apify_poll' && is_admin()) {
+        try { $c = tnd_apify_collect(); $J(['ok' => true, 'done' => $c !== null, 'res' => $c]); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+    }
     if ($a === 'token' && is_admin()) {
         save_setting('tenders_ingest_token', bin2hex(random_bytes(24))); flash('success', t('اتعمل توكن جديد. حدّثه في السحّاب.')); redirect(url('tenders') . '#tnd-admin');
     }
@@ -68,7 +84,7 @@ render(t('المنافسات الحكومية'), 'tenders', function () use ($vi
           <div class="text-xs <?= $h['stale'] ? 'text-amber-700' : 'text-ink-500' ?>"><?= e(t('%s منافسة نشطة', number_format($h['active']))) ?> · <?= e(t('آخر تحديث %s', $ago($h['age']))) ?><?= $h['stale'] && $h['age'] !== null ? ' · ' . e(t('البيانات متأخرة')) : '' ?></div></div>
       </div>
       <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-ghost"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('كلمات مجالك')) ?><?= $cfg['words'] ? ' (' . count($cfg['words']) . ')' : '' ?></button><?php endif; ?>
-      <?php if (is_admin()): ?><button type="button" popovertarget="tnd-admin" class="btn-ghost"><?= ui_icon('key', 'w-4 h-4') ?><?= e(t('السحّاب')) ?></button><?php endif; ?>
+      <?php if (is_admin()): ?><button type="button" popovertarget="tnd-admin" class="btn-ghost"><?= ui_icon('key', 'w-4 h-4') ?><?= e(t('مصدر البيانات')) ?></button><?php endif; ?>
     </div>
 
     <?php if ($mgr): ?>
@@ -87,14 +103,35 @@ render(t('المنافسات الحكومية'), 'tenders', function () use ($vi
 
     <?php if (is_admin()): $tok = (string)setting('tenders_ingest_token', ''); $st = $h['stats']; ?>
     <div id="tnd-admin" popover class="m-0 w-[min(560px,94vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
-      <b class="text-ink-900"><?= e(t('السحّاب (لمدير المنصة بس)')) ?></b>
+      <b class="text-ink-900"><?= e(t('مصدر البيانات (لمدير المنصة بس)')) ?></b>
+      <?php $ak = (string)setting('tenders_apify_token', ''); $arun = json_decode((string)setting('tenders_apify_run', ''), true); ?>
+      <div class="rounded-xl border border-ink-200 p-3 space-y-2">
+        <b class="text-sm text-ink-900"><?= e(t('Apify (الأسهل، من غير سيرفر)')) ?></b>
+        <p class="text-xs text-ink-500"><?= e(t('خدمة على Apify بتسحب اعتماد عندهم، والمنصة بتاخد منها الجديد مرة في اليوم.')) ?></p>
+        <form method="post" class="m-0 space-y-2"><?= csrf_field() ?><input type="hidden" name="action" value="apify_key">
+          <?php foreach (tnd_apify_actors() as $ac => [$an, $ad]): ?><label class="flex items-start gap-2 text-xs cursor-pointer"><input type="radio" name="actor" value="<?= e($ac) ?>" <?= tnd_apify_actor() === $ac ? 'checked' : '' ?> class="mt-0.5"><span><b class="text-ink-800"><?= e($an) ?></b> <span class="text-ink-500"><?= e($ad) ?></span></span></label><?php endforeach; ?>
+          <div class="flex gap-2"><input name="key" class="input !mt-0 font-mono text-xs flex-1" dir="ltr" autocomplete="off" placeholder="<?= e($ak !== '' ? '•••• ' . substr($ak, -4) : 'apify_api_…') ?>"><button class="btn-ghost !text-xs"><?= e($ak !== '' ? t('حفظ / اختبر') : t('حفظ')) ?></button></div>
+          <p class="text-[11px] text-ink-400"><?= e(t('المفتاح من apify.com ← Settings ← API & Integrations. الحساب المجاني فيه 5 دولار رصيد كل شهر.')) ?></p></form>
+        <?php if ($ak !== ''): ?><button type="button" id="tnd-pull" class="btn-primary !text-xs w-full" <?= $arun ? 'data-running="1"' : '' ?>><?= ui_icon('download', 'w-4 h-4') ?><span><?= e($arun ? t('بنسحب… (ممكن ياخد لحد 15 دقيقة)') : t('اسحب دلوقتي')) ?></span></button><?php endif; ?>
+      </div>
+      <details class="text-xs"><summary class="cursor-pointer text-ink-600"><?= e(t('أو سحّاب على سيرفرك')) ?></summary><div class="space-y-3 mt-2">
       <p class="text-xs text-ink-500"><?= e(t('اعتماد محمي ضد البوتات، فالبيانات بيجيبها سحّاب منفصل بيشتغل بمتصفح حقيقي على سيرفر (مجلد collector/etimad)، وبيبعتها هنا. شغّله كل ساعتين.')) ?></p>
       <label class="block"><span class="label"><?= e(t('رابط الاستقبال')) ?></span><input readonly class="input font-mono text-xs" dir="ltr" value="<?= e(base_url() . '/index.php?p=tenders_ingest') ?>" onclick="this.select()"></label>
       <label class="block"><span class="label"><?= e(t('التوكن')) ?></span><input readonly class="input font-mono text-xs" dir="ltr" value="<?= e($tok !== '' ? $tok : t('لسه مفيش')) ?>" onclick="this.select()"></label>
       <?php if ($st): ?><p class="text-xs text-ink-500" dir="auto"><?= e(t('آخر دفعة: %s جديدة، %s اتحدثت', (int)($st['new'] ?? 0), (int)($st['updated'] ?? 0))) ?> · <?= e(fmt_date($st['at'] ?? null, 'd/m h:i A')) ?></p><?php endif; ?>
       <?php if (!empty($st['note'])): ?><p class="text-xs rounded-lg bg-amber-50 text-amber-800 px-2 py-1" dir="auto"><?= e(t('آخر رسالة من السحّاب: %s', $st['note'])) ?></p><?php endif; ?>
       <form method="post" class="m-0" onsubmit="return confirm(<?= e(json_encode(t('التوكن القديم هيبطل. متأكد؟'), JSON_UNESCAPED_UNICODE)) ?>)"><?= csrf_field() ?><input type="hidden" name="action" value="token"><button class="btn-ghost !text-xs"><?= ui_icon('refresh', 'w-4 h-4') ?><?= e($tok !== '' ? t('توكن جديد') : t('اعمل توكن')) ?></button></form>
+      </div></details>
     </div>
+    <script>
+    (function () { var b = document.getElementById('tnd-pull'); if (!b) return; var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'busy' => t('بنسحب… (ممكن ياخد لحد 15 دقيقة)'), 'done' => t('وصلت %s منافسة جديدة ✓'), 'err' => t('حصلت مشكلة.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+      function post(a) { var d = new FormData(); d.append('_csrf', C.csrf); d.append('action', a); return fetch(C.url, { method: 'POST', body: d, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
+      function poll() { post('apify_poll').then(function (j) { if (!j.ok) { b.disabled = false; if (window.fxToast) fxToast(j.error || C.err, 'error'); return; } if (j.done) { if (window.fxToast) fxToast(C.done.replace('%s', (j.res && j.res.new) || 0), 'success'); setTimeout(function () { location.reload(); }, 900); } else setTimeout(poll, 15000); }).catch(function () { setTimeout(poll, 20000); }); }
+      function busy() { b.disabled = true; b.querySelector('span').textContent = C.busy; }
+      if (b.dataset.running) { busy(); poll(); }
+      b.addEventListener('click', function () { busy(); post('apify_pull').then(function (j) { if (!j.ok) { b.disabled = false; if (window.fxToast) fxToast(j.error || C.err, 'error'); return; } setTimeout(poll, 10000); }); });
+    })();
+    </script>
     <?php endif; ?>
 
     <?php if (!$cfg['words'] && $view === 'match'): ?>

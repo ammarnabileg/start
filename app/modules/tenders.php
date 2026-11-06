@@ -152,3 +152,92 @@ function tnd_tick(): int
     crm_notify(null, null, 'tender', '🏛️ ' . (count($hit) === 1 ? t('منافسة جديدة تناسبك: %s', mb_substr($hit[0]['name'], 0, 120)) : t('%s منافسة جديدة تناسبك على اعتماد، أولها: %s', count($hit), mb_substr($hit[0]['name'], 0, 100))));
     return count($hit);
 }
+
+/* ---------- مصدر جاهز: Apify (Etimad Tender Radar) — من غير سيرفر ولا متصفح عندنا ---------- */
+
+function tnd_apify_base(): string { return rtrim((string)(getenv('APIFY_BASE') ?: 'https://api.apify.com'), '/'); }
+/** الخدمات المدعومة: الأرخص (بيكفيها الرصيد المجاني 5 دولار/شهر للجديد بس) والأغنى بالبيانات */
+function tnd_apify_actors(): array
+{
+    return ['publicmoney~etimad-tender-scraper' => ['Etimad Tender Scraper', t('الأرخص: 0.002 دولار للمنافسة، الجديد كل يوم بيكفيه رصيد Apify المجاني. من غير الفرع وسعر الكراسة.')],
+        'dottti~etimad-tender-radar' => ['Etimad Tender Radar', t('بيانات كاملة (الفرع والكراسة والمواعيد): 0.005 دولار للمنافسة.')]];
+}
+function tnd_apify_actor(): string { $a = (string)setting('tenders_apify_actor', ''); return isset(tnd_apify_actors()[$a]) ? $a : 'publicmoney~etimad-tender-scraper'; }
+
+function tnd_apify_req(string $method, string $path, ?array $body = null): array
+{
+    $tok = (string)setting('tenders_apify_token', ''); if ($tok === '') throw new RuntimeException(t('مفتاح Apify مش متحط.'));
+    $ch = curl_init(tnd_apify_base() . $path);
+    $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];
+    if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
+    $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+    if ($raw === false) throw new RuntimeException(t('تعذر الاتصال بـ %s: %s', 'Apify', $err));
+    $d = json_decode((string)$raw, true);
+    if ($code === 401 || $code === 403) throw new RuntimeException(t('مفتاح Apify غلط أو مالوش صلاحية.'));
+    if ($code >= 400) throw new RuntimeException('Apify: ' . (is_array($d) ? (string)($d['error']['message'] ?? $code) : $code));
+    return is_array($d) ? $d : [];
+}
+
+/** يبدأ تشغيلة. full = كل المنافسات المفتوحة (أول مرة)، وإلا الجديد من آخر يومين */
+function tnd_apify_start(bool $full): string
+{
+    if (tnd_apify_actor() === 'dottti~etimad-tender-radar') {
+        $in = ['keywords' => [], 'matchMode' => 'any', 'onlyOpen' => true, 'maxItems' => $full ? 3000 : 400];
+        if (!$full) $in['publishDateId'] = '2'; // منذ يومين: بيغطي يوم كامل لو تشغيلة فاتت
+    } else $in = ['maxItems' => $full ? 600 : 150]; // الأحدث الأول. أول مرة 600 (≈1.2 دولار)، وبعدها 150 في اليوم (≈0.3 دولار) والجديد حوالي 80: الشهر كله جوه رصيد Apify المجاني
+    $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode(tnd_apify_actor()) . '/runs', $in);
+    $id = (string)($r['data']['id'] ?? ''); if ($id === '') throw new RuntimeException(t('Apify مارجعش رقم التشغيلة.'));
+    save_setting('tenders_apify_run', json_encode(['id' => $id, 'full' => $full, 'at' => gmdate('c')]));
+    return $id;
+}
+
+/** شكل Apify → شكل اعتماد اللي tnd_ingest بيفهمه */
+function tnd_apify_map(array $x): array
+{
+    // الخدمتين أسماء حقولهم مختلفة شوية
+    $u = (string)($x['url'] ?? $x['tenderUrl'] ?? ''); $sid = '';
+    if ($u !== '' && preg_match('/[?&]STenderId=([^&]+)/', $u, $m)) $sid = rawurldecode($m[1]);
+    $id = (int)($x['tenderId'] ?? 0); if ($id <= 0) $id = (int)preg_replace('/\D/', '', (string)($x['referenceNumber'] ?? '')); // من غير tenderId: الرقم المرجعي (أرقام بس) كمعرّف
+    if (!isset($x['tenderActivityName']) && isset($x['tenderActivity'])) $x['tenderActivityName'] = $x['tenderActivity'];
+    if (!isset($x['tenderTypeName']) && isset($x['tenderType'])) $x['tenderTypeName'] = $x['tenderType'];
+    return ['tenderId' => $id, 'referenceNumber' => $x['referenceNumber'] ?? '', 'tenderName' => $x['tenderName'] ?? '', 'agencyName' => $x['agencyName'] ?? '', 'branchName' => $x['branchName'] ?? '',
+        'tenderTypeName' => $x['tenderTypeName'] ?? '', 'tenderActivityName' => $x['tenderActivityName'] ?? '', 'tenderIdString' => $sid, 'condetionalBookletPrice' => $x['conditionalBookletPriceSar'] ?? ($x['condetionalBookletPrice'] ?? null),
+        'submitionDate' => $x['submitionDate'] ?? '', 'lastEnqueriesDate' => $x['lastEnqueriesDate'] ?? '', 'lastOfferPresentationDate' => $x['lastOfferPresentationDate'] ?? ''];
+}
+
+/** لو فيه تشغيلة خلصت: نجيب نتايجها ونحفظها. بيرجع null (لسه شغالة/مفيش) أو نتيجة الحفظ */
+function tnd_apify_collect(): ?array
+{
+    $run = json_decode((string)setting('tenders_apify_run', ''), true); if (empty($run['id'])) return null;
+    $r = tnd_apify_req('GET', '/v2/actor-runs/' . rawurlencode($run['id'])); $st = (string)($r['data']['status'] ?? '');
+    if (in_array($st, ['READY', 'RUNNING'], true)) return null;
+    save_setting('tenders_apify_run', '');
+    if ($st !== 'SUCCEEDED') { save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify', 'new' => 0, 'updated' => 0, 'skipped' => 0, 'note' => 'error: Apify run ' . $st])); return ['new' => 0, 'updated' => 0, 'skipped' => 0, 'error' => $st]; }
+    $ds = (string)($r['data']['defaultDatasetId'] ?? ''); $tot = ['new' => 0, 'updated' => 0, 'skipped' => 0];
+    for ($off = 0; $off < 5000; $off += 500) {
+        $items = tnd_apify_req('GET', '/v2/datasets/' . rawurlencode($ds) . '/items?clean=1&format=json&limit=500&offset=' . $off);
+        if (!$items || !isset($items[0])) break;
+        $res = tnd_ingest('etimad', array_map('tnd_apify_map', $items)); foreach ($tot as $k => $v) $tot[$k] += $res[$k];
+        if (count($items) < 500) break;
+    }
+    if ($tot['new'] + $tot['updated'] > 0) save_setting('tenders_last_ingest', gmdate('Y-m-d H:i:s'));
+    save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify' . (!empty($run['full']) ? ' (full)' : '')] + $tot + ['note' => '']));
+    if (!empty($run['full'])) save_setting('tenders_apify_full_done', gmdate('Y-m-d'));
+    return $tot;
+}
+
+/** التشغيل الدوري (على مستوى المنصة): يلم التشغيلة اللي خلصت، ويبدأ تشغيلة اليوم مرة واحدة */
+function tnd_apify_tick(): string
+{
+    if ((string)setting('tenders_apify_token', '') === '') return '';
+    try {
+        $c = tnd_apify_collect(); if ($c !== null) return 'collected+' . ($c['new'] ?? 0);
+        if ((string)setting('tenders_apify_run', '') !== '') return 'running';
+        $today = gmdate('Y-m-d');
+        if ((string)setting('tenders_apify_day', '') === $today) return '';
+        $full = (string)setting('tenders_apify_full_done', '') === '' || (gmdate('j') === '1' && tnd_apify_actor() === 'dottti~etimad-tender-radar'); // أول مرة، وأول كل شهر لفة كاملة (للخدمة الغنية بس) عشان المواعيد اللي اتمدت
+        tnd_apify_start($full); save_setting('tenders_apify_day', $today);
+        return 'started' . ($full ? ' full' : '');
+    } catch (Throwable $e) { save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify', 'new' => 0, 'updated' => 0, 'skipped' => 0, 'note' => 'error: ' . mb_substr($e->getMessage(), 0, 160)])); return 'error'; }
+}
