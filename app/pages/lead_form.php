@@ -20,7 +20,11 @@ $fail = function (int $code, string $msg) use ($isJson) {
 };
 if ($real === '' || $tok === '' || !hash_equals($real, $tok) || setting('crm_form_on_' . $wid, '1') !== '1') $fail(403, 'Form is not available.');
 $cfg = json_decode((string)setting('crm_form_cfg_' . $wid, ''), true) ?: [];
-$cfg += ['title' => '', 'thanks' => '', 'company' => 1, 'message' => 1, 'color' => '#4f46e5'];
+$cfg += ['title' => '', 'thanks' => '', 'company' => 1, 'message' => 1, 'color' => '#4f46e5', 'qualify' => 0, 'budgets' => ''];
+$mode = ($_GET['m'] ?? '') === 'call' ? 'call' : 'form'; // #58 "اتصل بيا"
+$ref = (string)($_GET['ref'] ?? ''); // #54 إحالة
+$refLead = 0; if ($ref !== '') $refLead = crm_lead_from_token($wid, $ref);
+$budgets = $cfg['qualify'] ? ai_as_workspace($wid, function () use ($cfg) { return cap_budgets($cfg); }) : [];
 $color = preg_match('/^#[0-9a-f]{6}$/i', (string)$cfg['color']) ? $cfg['color'] : '#4f46e5';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,13 +54,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     parse_str((string)parse_url($page, PHP_URL_QUERY), $q);
     foreach (['utm_source', 'utm_medium', 'utm_campaign'] as $u) if (!empty($q[$u]) || !empty($in[$u])) $utm[] = $u . '=' . mb_substr((string)($in[$u] ?? $q[$u]), 0, 60);
     if (strpos($page, 'p=lead_form') !== false) $page = ''; // الفورم اتفتح لوحده: مانسجلش رابطه (فيه التوكن)
-    $lead = ai_as_workspace($wid, function () use ($name, $phone, $email, $company, $msg, $page, $utm) {
+    $qb = in_array((string)($in['q_budget'] ?? ''), $budgets, true) ? (string)$in['q_budget'] : '';
+    $qw = in_array((string)($in['q_when'] ?? ''), ['now', 'month', 'later'], true) ? (string)$in['q_when'] : '';
+    $isCall = ($in['_mode'] ?? '') === 'call';
+    if ($isCall && $phone === '') $fail(422, t('اكتب رقمك.'));
+    $lead = ai_as_workspace($wid, function () use ($name, $phone, $email, $company, $msg, $page, $utm, $qb, $qw, $isCall, $refLead) {
         $l = crm_lead_upsert(['source' => 'form', 'name' => $name !== '' ? $name : ($email ?: $phone), 'phone' => $phone, 'email' => $email, 'company' => $company, 'owner_id' => null]);
         if (!$l) return null;
         if ($page !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$page, (int)$l['id']]);
         $camp = ''; foreach ($utm as $u) if (strpos($u, 'utm_campaign=') === 0) $camp = preg_replace('/[^A-Za-z0-9]/', '', substr($u, 13));
         if ($camp !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([substr($camp, 0, 16), (int)$l['id']]);
-        db()->prepare('UPDATE crm_leads SET next_at = COALESCE(next_at, NOW()), next_note = COALESCE(next_note, ?) WHERE id = ?')->execute([t('ملا فورم الموقع، كلّمه'), (int)$l['id']]);
+        db()->prepare('UPDATE crm_leads SET next_at = COALESCE(next_at, NOW()), next_note = COALESCE(next_note, ?) WHERE id = ?')->execute([$isCall ? t('📞 طلب مكالمة، اتصل بيه دلوقتي') : t('ملا فورم الموقع، كلّمه'), (int)$l['id']]);
+        if ($qb !== '' || $qw !== '') db()->prepare('UPDATE crm_leads SET q_budget = ?, q_when = ? WHERE id = ?')->execute([$qb ?: null, $qw ?: null, (int)$l['id']]);
+        if ($refLead && $refLead !== (int)$l['id']) {
+            db()->prepare('UPDATE crm_leads SET referred_by = COALESCE(referred_by, ?) WHERE id = ?')->execute([$refLead, (int)$l['id']]);
+            $rn = crm_lead($refLead); crm_act_add((int)$l['id'], 'note', '🤝 ' . t('جه بإحالة من %s', (string)($rn['name'] ?? '')));
+            crm_act_add($refLead, 'note', '🤝 ' . t('جاب عميل جديد: %s', $name !== '' ? $name : $phone));
+        }
+        if ($qw !== '' || $qb !== '') { $wl = cap_whens(); crm_act_add((int)$l['id'], 'note', '🎯 ' . trim(($qw !== '' ? $wl[$qw] : '') . ($qb !== '' ? ' · ' . $qb : ''), ' ·')); }
         crm_act_add((int)$l['id'], 'note', trim('🌐 ' . t('فورم الموقع') . ($msg !== '' ? ': “' . $msg . '”' : '') . ($page !== '' ? "\n" . $page : '') . ($utm ? "\n" . implode(' · ', $utm) : '')));
         return $l;
     });
@@ -71,7 +86,7 @@ $lang = is_rtl() ? 'ar' : 'en';
 <style>
 :root{--c:<?= e($color) ?>}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:transparent;color:#111827}
 form,.done{max-width:440px;margin:0 auto;padding:16px;display:grid;gap:10px}h2{margin:0 0 4px;font-size:18px}
-input,textarea{width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:#fff}input:focus,textarea:focus{outline:2px solid var(--c);border-color:transparent}
+input,textarea,select{width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:#fff}input:focus,textarea:focus{outline:2px solid var(--c);border-color:transparent}
 button{border:0;border-radius:10px;padding:11px;font:inherit;font-weight:600;color:#fff;background:var(--c);cursor:pointer}button:disabled{opacity:.6}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}.err{color:#b91c1c;font-size:13px;min-height:1em}.done{text-align:center;font-size:16px;padding:32px 16px}
 </style></head><body>
@@ -80,17 +95,23 @@ button{border:0;border-radius:10px;padding:11px;font:inherit;font-weight:600;col
   <?php if (trim((string)$cfg['title']) !== ''): ?><h2><?= e($cfg['title']) ?></h2><?php endif; ?>
   <input name="name" required maxlength="255" placeholder="<?= e(t('الاسم')) ?>" autocomplete="name">
   <input name="phone" type="tel" maxlength="40" dir="ltr" placeholder="<?= e(t('رقم الموبايل / واتساب')) ?>" autocomplete="tel">
+  <?php if ($mode === 'call'): ?><input type="hidden" name="_mode" value="call"><?php else: ?>
   <input name="email" type="email" maxlength="255" dir="ltr" placeholder="<?= e(t('الإيميل')) ?>" autocomplete="email">
+  <?php if ($budgets): ?>
+  <select name="q_budget" required><option value=""><?= e(t('الميزانية التقريبية')) ?></option><?php foreach ($budgets as $b): ?><option><?= e($b) ?></option><?php endforeach; ?></select>
+  <select name="q_when" required><option value=""><?= e(t('محتاجها إمتى؟')) ?></option><?php foreach (ai_as_workspace($wid, function () { return cap_whens(); }) as $k => $v): ?><option value="<?= e($k) ?>"><?= e($v) ?></option><?php endforeach; ?></select>
+  <?php endif; ?>
   <?php if (!empty($cfg['company'])): ?><input name="company" maxlength="255" placeholder="<?= e(t('الشركة (اختياري)')) ?>" autocomplete="organization"><?php endif; ?>
   <?php if (!empty($cfg['message'])): ?><textarea name="message" rows="3" maxlength="1500" placeholder="<?= e(t('محتاج إيه؟ (اختياري)')) ?>"></textarea><?php endif; ?>
+  <?php endif; ?>
   <div class="hp" aria-hidden="true"><input name="website_url" tabindex="-1" autocomplete="off"></div>
   <input type="hidden" name="_page" id="pg">
-  <button><?= e(t('ابعت')) ?></button><div class="err" id="er"></div>
+  <button><?= $mode === 'call' ? '📞 ' . e(t('اتصلوا بيا')) : e(t('ابعت')) ?></button><div class="err" id="er"></div>
 </form>
 <script>
 (function(){var f=document.getElementById('f'),pg=document.getElementById('pg');try{pg.value=/utm_campaign=/.test(location.search)?location.href:(document.referrer||location.href);}catch(e){}
 f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector('button'),er=document.getElementById('er');er.textContent='';
-if(!f.phone.value.trim()&&!f.email.value.trim()){er.textContent=<?= json_encode(t('اكتب رقمك أو إيميلك.'), JSON_UNESCAPED_UNICODE) ?>;return;}
+if(!f.phone.value.trim()&&(!f.email||!f.email.value.trim())){er.textContent=<?= json_encode(t('اكتب رقمك أو إيميلك.'), JSON_UNESCAPED_UNICODE) ?>;return;}
 var fd=new FormData(f);fd.append('_ajax','1');b.disabled=true;
 fetch(location.href,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(r){if(!r.ok){b.disabled=false;er.textContent=r.error||'Error';return;}
 f.outerHTML='<div class="done">✓ '+String(r.message).replace(/[<>&]/g,'')+'</div>';try{parent.postMessage({aipushLead:true},'*');}catch(e){}}).catch(function(){b.disabled=false;er.textContent='Error';});});})();

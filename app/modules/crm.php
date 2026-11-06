@@ -579,6 +579,10 @@ function crm_score(array $l, int $acts = 0, int $now = 0): array
     $src = ['form' => [16, t('طلب بنفسه من الموقع')], 'inbox' => [12, t('كلّمك على السوشيال')], 'comments' => [10, t('علّق على منشورك')], 'ads' => [12, t('سجّل في إعلان')], 'whatsapp' => [12, t('كلّمك واتساب')], 'reveal' => [4, ''], 'manual' => [6, ''], 'import' => [2, '']][$l['source']] ?? [0, ''];
     $s += $src[0]; if ($src[1] !== '') $why[] = $src[1];
     $s += ['new' => 0, 'contacted' => 6, 'qualified' => 14, 'proposal' => 22][$l['stage']] ?? 0;
+    // #51 أسئلة التأهيل في الفورم
+    $qw = (string)($l['q_when'] ?? ''); if ($qw === 'now') { $s += 14; $why[] = t('عاوز يبدأ دلوقتي'); } elseif ($qw === 'month') { $s += 7; $why[] = t('هيبدأ خلال شهر'); }
+    if (($l['q_budget'] ?? '') !== '' && $l['q_budget'] !== null) { $s += 4; $why[] = t('حدد ميزانية: %s', (string)$l['q_budget']); }
+    if (!empty($l['referred_by'])) { $s += 10; $why[] = t('جاي بإحالة من عميل'); }
     if ((float)($l['deal_value'] ?? 0) > 0) { $s += 5; $why[] = t('ليه قيمة صفقة'); }
     if ($acts >= 3) { $s += 6; $why[] = t('تواصل كتير'); }
     $last = strtotime((string)($l['last_contact_at'] ?: $l['created_at']));
@@ -1154,6 +1158,7 @@ function crm_from_social(array $d): array
     $txt = trim((string)($d['text'] ?? ''));
     if ($txt !== '') crm_act_add((int)$l['id'], 'note', '“' . mb_substr($txt, 0, 600) . '”' . (!empty($d['where']) ? ' — ' . $d['where'] : ''));
     if ($txt !== '' && function_exists('coupon_detect') && ($cp = coupon_detect($txt)) !== '') coupon_attach((int)$l['id'], $cp);
+    if ($txt !== '' && function_exists('cap_link_code_in') && ($lc = cap_link_code_in($txt)) !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([$lc, (int)$l['id']]);
     return crm_lead((int)$l['id']) + ['merged' => !empty($l['merged'])];
 }
 function crm_contacts_merge(array $auto, array $d): array

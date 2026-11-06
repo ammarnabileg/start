@@ -72,6 +72,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' evergreen=error';
         }
+        // #60 Google Sheets: الصفوف الجديدة بتبقى Leads
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('cap_sheet_tick') ? cap_sheet_tick() : 0; });
+            if ($n) $line .= ' sheet+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' sheet=error';
+        }
         // #39 إخفاء تلقائي للشتايم والسبام
         try {
             $n = (int)ai_as_workspace($wid, function () { $z = zernio_or_null(); return $z && function_exists('cm_autohide_tick') ? cm_autohide_tick($z) : 0; });

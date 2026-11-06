@@ -528,6 +528,11 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '041_capture' => [
+        "ALTER TABLE crm_leads ADD COLUMN q_budget VARCHAR(60) NULL",
+        "ALTER TABLE crm_leads ADD COLUMN q_when VARCHAR(10) NULL",
+        "ALTER TABLE crm_leads ADD COLUMN referred_by INT UNSIGNED NULL",
+    ],
     '040_engage' => [
         "CREATE TABLE IF NOT EXISTS post_coupons (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

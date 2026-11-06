@@ -137,3 +137,89 @@ function post_goals(): array
     $g = json_decode((string)setting('post_goals_' . (int)ws('id'), ''), true) ?: [];
     return array_filter(array_map('intval', $g), function ($n) { return $n > 0; });
 }
+
+/* ---------- #51 فورم ذكي: أسئلة تأهيل ---------- */
+function cap_budgets(array $cfg): array
+{
+    $l = array_values(array_filter(array_map('trim', preg_split('/[,،\n]/u', (string)($cfg['budgets'] ?? ''))), 'strlen'));
+    return $l ?: [t('أقل من 5,000'), t('5,000 – 20,000'), t('أكتر من 20,000')];
+}
+function cap_whens(): array
+{
+    return ['now' => t('دلوقتي / الأسبوع ده'), 'month' => t('خلال شهر'), 'later' => t('بعدين، بستكشف')];
+}
+
+/* ---------- #54 الإحالة ---------- */
+function cap_ref_link(int $leadId): string
+{
+    $wid = (int)ws('id'); return crm_form_url() . '&ref=' . rawurlencode(crm_lead_token($wid, $leadId));
+}
+
+/* ---------- #52 صفحات الهبوط ---------- */
+function lp_list(?int $wid = null): array
+{
+    return json_decode((string)setting('crm_lp_' . ($wid ?? (int)ws('id')), '[]'), true) ?: [];
+}
+function lp_url(string $slug): string
+{
+    $wid = (int)ws('id'); crm_form_url();
+    return base_url() . '/index.php?' . http_build_query(['p' => 'lp', 'w' => $wid, 's' => $slug]);
+}
+
+/* ---------- #57 لينك واتساب متتبع ---------- */
+function cap_wa_link(string $phone, string $msg, string $label): array
+{
+    $ph = preg_replace('/\D/', '', $phone); if (strlen($ph) < 8) return [];
+    $lk = crm_link_make('https://wa.me/' . $ph . '?wa=' . md5($msg . $label), $label);
+    $url = 'https://wa.me/' . $ph . '?text=' . rawurlencode(trim($msg) . ' #' . $lk['code']);
+    db()->prepare('UPDATE crm_links SET url = ? WHERE workspace_id = ? AND code = ?')->execute([$url, (int)ws('id'), $lk['code']]);
+    return ['code' => $lk['code'], 'short' => crm_link_short($lk['code']), 'url' => $url];
+}
+/** لو الرسالة فيها #كود من الروابط المتتبعة، بيرجعه */
+function cap_link_code_in(string $text): string
+{
+    if (!preg_match_all('/#([A-Za-z0-9]{7})\b/', $text, $m)) return '';
+    $st = db()->prepare('SELECT code FROM crm_links WHERE workspace_id = ? AND code = ? LIMIT 1');
+    foreach ($m[1] as $c) { $st->execute([(int)ws('id'), $c]); if ($st->fetchColumn()) return $c; }
+    return '';
+}
+
+/* ---------- #60 Google Sheets (CSV منشور) ---------- */
+function cap_sheet_cfg(): array
+{
+    return (json_decode((string)setting('crm_sheet_' . (int)ws('id'), ''), true) ?: []) + ['url' => '', 'seen' => 0, 'last' => '', 'err' => ''];
+}
+/** بيسحب الصفوف الجديدة بس (بعد آخر صف اتشاف). بيرجع عدد الـ Leads الجديدة */
+function cap_sheet_tick(): int
+{
+    $c = cap_sheet_cfg(); if ($c['url'] === '') return 0;
+    if (!preg_match('~^https://docs\.google\.com/spreadsheets/~', $c['url'])) return 0;
+    $u = $c['url'];
+    if (preg_match('~/spreadsheets/d/(?:e/)?([\w-]+)~', $u) && strpos($u, 'output=csv') === false && strpos($u, 'format=csv') === false) {
+        if (preg_match('~/d/e/([\w-]+)~', $u, $m)) $u = 'https://docs.google.com/spreadsheets/d/e/' . $m[1] . '/pub?output=csv';
+        elseif (preg_match('~/d/([\w-]+)~', $u, $m)) $u = 'https://docs.google.com/spreadsheets/d/' . $m[1] . '/export?format=csv' . (preg_match('/gid=(\d+)/', $c['url'], $g) ? '&gid=' . $g[1] : '');
+    }
+    $ctx = stream_context_create(['http' => ['timeout' => 15, 'follow_location' => 1, 'max_redirects' => 4, 'header' => "User-Agent: AIPush-CRM\r\n"]]);
+    $csv = @file_get_contents($u, false, $ctx);
+    $save = function ($c) { save_setting('crm_sheet_' . (int)ws('id'), json_encode($c, JSON_UNESCAPED_UNICODE)); };
+    if ($csv === false || stripos(substr($csv, 0, 200), '<html') !== false) { $c['err'] = t('مش قادرين نقرا الشيت. اتأكد إنه منشور (File ← Share ← Publish to web ← CSV).'); $save($c); return 0; }
+    $n = cap_sheet_import($csv, $c); $save($c);
+    return $n;
+}
+/** بيحوّل CSV لـ Leads من بعد الصف رقم $c['seen'] ويحدّث العداد */
+function cap_sheet_import(string $csv, array &$c): int
+{
+    $rows = array_map('str_getcsv', preg_split('/\r\n|\n|\r/', trim($csv)));
+    $head = array_map(function ($h) { return mb_strtolower(preg_replace('/[\s_\-]+/u', '', (string)$h)); }, array_shift($rows) ?: []);
+    $col = function (array $keys) use ($head) { foreach ($head as $i => $h) foreach ($keys as $k) if ($h !== '' && mb_strpos($h, $k) !== false) return $i; return null; };
+    $ix = ['name' => $col(['name', 'الاسم', 'اسم']), 'phone' => $col(['phone', 'mobile', 'whatsapp', 'رقم', 'موبايل', 'جوال', 'هاتف']), 'email' => $col(['email', 'mail', 'ايميل', 'إيميل', 'البريد']), 'company' => $col(['company', 'شركة', 'الشركة']), 'msg' => $col(['message', 'notes', 'رسالة', 'ملاحظات', 'تفاصيل'])];
+    $n = 0; $total = count($rows);
+    foreach (array_slice($rows, (int)$c['seen']) as $r) {
+        $g = function ($k) use ($r, $ix) { return $ix[$k] === null ? '' : trim((string)($r[$ix[$k]] ?? '')); };
+        if ($g('phone') === '' && $g('email') === '') continue;
+        $l = crm_lead_upsert(['source' => 'import', 'name' => $g('name') ?: ($g('email') ?: $g('phone')), 'phone' => $g('phone'), 'email' => $g('email'), 'company' => $g('company'), 'owner_id' => null]);
+        if ($l && empty($l['merged'])) { $n++; crm_act_add((int)$l['id'], 'note', '📄 Google Sheets' . ($g('msg') !== '' ? ': “' . mb_substr($g('msg'), 0, 500) . '”' : '')); }
+    }
+    $c['seen'] = $total; $c['last'] = date('Y-m-d H:i:s'); $c['err'] = '';
+    return $n;
+}
