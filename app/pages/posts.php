@@ -142,6 +142,30 @@ if ($z && ($_GET['ajax'] ?? '') === 'cal') {
     } catch (ZernioException $ex) { exit(json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE)); }
 }
 
+if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'vary') {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE));
+    $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 12);
+    if (count($ids) < 2) exit(json_encode(['ok' => false, 'error' => t('محتاج منشورين على الأقل.')], JSON_UNESCAPED_UNICODE));
+    try {
+        $base = (string)(pub_get_post($z, $ids[0])['content'] ?? '');
+        if (trim($base) === '') throw new RuntimeException(t('النص مينفعش يكون فاضي.'));
+        $n = count($ids);
+        $sys = 'POST_VARIANTS_JSON. أنت كاتب محتوى سوشيال ميديا. هيتنشر نفس المحتوى ' . $n . ' مرات في أيام مختلفة، والمنصات بتعاقب النص المتكرر. اكتب ' . $n . ' صياغات مختلفة بنفس المعنى والمعلومات بالظبط (نفس الأسعار والأرقام والروابط والهاشتاجات المهمة)، '
+            . 'كل واحدة بافتتاحية وترتيب مختلف، وبنفس اللغة واللهجة والطول تقريبًا. متضيفش معلومات جديدة. أعد JSON فقط بالشكل {"variants":["...","..."]}.';
+        $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => $base]], min(3800, 300 + $n * 220), 'compose');
+        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+        $v = array_values(array_filter(array_map(function ($x) { return trim((string)$x); }, (array)(json_decode($txt, true)['variants'] ?? [])), 'strlen'));
+        if (count($v) < $n) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        log_activity('ai.post_variants', $n . ' posts');
+        $out = []; foreach ($ids as $i => $id) $out[] = ['id' => $id, 'text' => mb_substr($v[$i], 0, 5000)];
+        echo json_encode(['ok' => true, 'items' => $out, 'base' => $base], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $ex) {
+        echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 // إجراءات سريعة من الصفحة (JSON): ميعاد جديد، إعادة محاولة، نسخة، تأجيل جماعي
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 'quick') {
     header('Content-Type: application/json; charset=utf-8');
@@ -602,9 +626,18 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
             <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-ink-400"></span><?= e(t('مسودة')) ?></span>
           </div>
         </div>
+        <div id="cal-health" class="hidden flex flex-wrap items-center gap-2 px-4 py-2 border-b border-ink-100 text-xs"></div>
         <div class="grid grid-cols-7 border-b border-ink-100 bg-ink-50 text-[11px] font-medium text-ink-500" id="cal-dow"></div>
         <div class="grid grid-cols-7" id="cal-grid"></div>
         <div id="cal-week" class="hidden overflow-y-auto max-h-[38rem]" dir="ltr"></div>
+      </div>
+      <div id="cal-dups" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
+        <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+        <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[520px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="cal-dups-h">
+          <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="cal-dups-h" class="font-semibold text-ink-900 flex-1">🔁 <?= e(t('منشورات بنفس النص')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
+          <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('المنصات (زي لينكدإن وX) ممكن ترفض أو تقلل وصول المنشور المكرر. خلّي كل نسخة بصياغة مختلفة.')) ?></p>
+          <div id="cal-dups-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+        </div>
       </div>
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
@@ -635,6 +668,9 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'repInfo' => t('%s من %s منشور محدد فيهم الكلمة (المنشور اللي اتنشر مش هيتغير).'), 'repNone' => t('ولا منشور من المحددين فيه الكلمة دي.'), 'repQ' => t('استبدال في %s منشور؟'), 'replaced' => t('اتعدّل %s منشور'),
         'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
         'calLoading' => t('بنجيب منشورات الفترة دي…'),
+        'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور)'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
+        'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,
+        'varyNote' => t('راجع كل صياغة وعدّلها لو عاوز. مفيش حاجة هتتغير غير لما تدوس "طبّق".'), 'vurl' => url('posts'),
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),
         'noSel' => t('حدد منشورات الأول'), 'shiftQ' => t('تأجيل %s منشور بـ %s؟ (المنشورات اللي مش مجدولة هتتجاهل)'), 'retryQ' => t('إعادة محاولة نشر %s منشور؟'), 'whenL' => t('الميعاد'), 'pfL' => t('المنصات'), 'reason' => t('السبب'), 'media' => t('الوسائط'), 'reload' => t('بنحدّث الصفحة…'),

@@ -170,6 +170,64 @@
       }
     }
     window.__cal = draw;
+    /* ---------- صحة الجدول: نصوص متكررة + أيام زحمة ---------- */
+    var Hq = X.q || {}, dupGroups = [], dupSet = {};
+    function normT(t) { return String(t || '').toLowerCase().replace(/\s+/g, ' ').replace(/[#@]\S+/g, '').trim(); }
+    function health() {
+      var box = $('#cal-health'); if (!box) return;
+      var sch = X.data.filter(function (p) { return p.st === 'scheduled' && new Date(p.at) > new Date(); });
+      var g = {}; sch.forEach(function (p) { var k = normT(p.txt); if (k.length < 12) return; (g[k] = g[k] || []).push(p); });
+      dupGroups = Object.keys(g).map(function (k) { return g[k]; }).filter(function (l) { return l.length > 1; }).sort(function (a, b) { return b.length - a.length; });
+      dupSet = {}; dupGroups.forEach(function (l) { l.forEach(function (p) { dupSet[p.id] = 1; }); });
+      var per = {}; sch.forEach(function (p) { var k = siteDT(new Date(p.at)).slice(0, 10); per[k] = (per[k] || 0) + 1; });
+      var busy = Object.keys(per).filter(function (k) { return per[k] > Hq.busyN; });
+      var nd = Object.keys(dupSet).length;
+      box.classList.remove('hidden');
+      box.innerHTML = '<span class="font-semibold text-ink-700">🩺 ' + esc(Hq.hTitle) + ':</span>' +
+        (nd ? '<button type="button" id="cal-dup-open" class="rounded-full bg-orange-100 text-orange-800 border border-orange-200 px-2.5 py-0.5 hover:bg-orange-200">🔁 ' + esc(Hq.hDup.replace('%s', nd).replace('%s', dupGroups.length)) + ' · ' + esc(Hq.hShow) + '</button>' : '') +
+        (busy.length ? '<span class="rounded-full bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5">🔥 ' + esc(Hq.hBusy.replace('%s', busy.length).replace('%s', Hq.busyN)) + '</span>' : '') +
+        (!nd && !busy.length ? '<span class="text-lime-700">✓ ' + esc(Hq.hOk) + '</span>' : '');
+      var ob = $('#cal-dup-open'); if (ob) ob.onclick = openDups;
+      // علامات على التقويم
+      $$('#cal-grid a[href*="post_edit"], #cal-week a[href*="post_edit"]').forEach(function (a) { var m = /[?&]id=([^&]+)/.exec(a.getAttribute('href')); if (m && dupSet[decodeURIComponent(m[1])]) { a.classList.add('ring-2', 'ring-orange-300', 'bg-orange-50'); a.title = '🔁 ' + a.title; } });
+      $$('#cal-grid [data-day]').forEach(function (c) { var pr = c.dataset.day.split('-'), k = pr[0] + '-' + pad(+pr[1]) + '-' + pad(+pr[2]); if (per[k] > Hq.busyN && !c.querySelector('.cal-busy')) { var b = document.createElement('span'); b.className = 'cal-busy absolute top-1.5 end-9 rounded-full bg-red-500 text-white text-[9px] px-1.5'; b.textContent = per[k]; c.appendChild(b); } });
+    }
+    var _d0 = draw; draw = function () { _d0(); health(); }; window.__cal = draw;
+    var dm = $('#cal-dups'), dmb = $('#cal-dups-body');
+    function closeDups() { dm.classList.add('hidden'); dm.setAttribute('aria-hidden', 'true'); }
+    if (dm) { $$('[data-close]', dm).forEach(function (x) { x.onclick = closeDups; }); document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dm.classList.contains('hidden')) closeDups(); }); }
+    function when(p) { return new Date(p.at).toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: X.tz }); }
+    function openDups() {
+      if (!dm) return;
+      dmb.innerHTML = dupGroups.map(function (l, gi) {
+        return '<div class="rounded-xl border border-orange-200 p-3" data-g="' + gi + '"><div class="flex items-center gap-2"><span class="rounded-full bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5">' + esc(Hq.gN.replace('%s', l.length)) + '</span>' +
+          (Hq.canAi ? '<button type="button" class="cal-vary btn-ghost !py-1 !text-xs ms-auto">' + esc(Hq.vary) + '</button>' : '') + '</div>' +
+          '<p class="text-sm text-ink-800 mt-2 line-clamp-3" dir="auto">' + esc(l[0].txt) + '</p>' +
+          '<div class="cal-vlist mt-2 space-y-1">' + l.map(function (p) { return '<div class="text-[11px] text-ink-500 flex items-center gap-2" data-id="' + esc(p.id) + '"><span>🗓 ' + esc(when(p)) + '</span><a class="link ms-auto" href="' + esc(X.edit.replace('__ID__', encodeURIComponent(p.id))) + '">✎</a></div>'; }).join('') + '</div></div>';
+      }).join('');
+      dm.classList.remove('hidden'); dm.setAttribute('aria-hidden', 'false');
+    }
+    if (dmb) dmb.addEventListener('click', function (e) {
+      var vb = e.target.closest('.cal-vary'), ab = e.target.closest('.cal-apply');
+      if (vb) {
+        var box = vb.closest('[data-g]'), l = dupGroups[+box.dataset.g]; vb.disabled = true; var o = vb.textContent; vb.textContent = Hq.varying;
+        var fd = new FormData(); fd.append('action', 'vary'); l.slice(0, 12).forEach(function (p) { fd.append('ids[]', p.id); });
+        fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) {
+          vb.disabled = false; vb.textContent = o; if (!j.ok) return toast(j.error || X.err);
+          var byId = {}; l.forEach(function (p) { byId[p.id] = p; });
+          $('.cal-vlist', box).innerHTML = '<p class="text-[11px] text-ink-500">' + esc(Hq.varyNote) + '</p>' + j.items.map(function (it) { return '<label class="block"><span class="text-[11px] text-ink-500">🗓 ' + esc(when(byId[it.id] || { at: '' })) + '</span><textarea data-id="' + esc(it.id) + '" rows="4" class="input text-sm mt-0.5" dir="auto">' + esc(it.text) + '</textarea></label>'; }).join('') +
+            '<button type="button" class="cal-apply btn-primary !text-xs w-full mt-2">' + esc(Hq.applyV) + '</button>';
+        }).catch(function () { vb.disabled = false; vb.textContent = o; toast(X.err); });
+        return;
+      }
+      if (ab) {
+        var tas = $$('textarea[data-id]', ab.closest('[data-g]')), i = 0, ok = 0; ab.disabled = true;
+        (function next() {
+          if (i >= tas.length) { toast(Hq.varied.replace('%s', ok), true); setTimeout(function () { location.reload(); }, 900); return; }
+          var t = tas[i++]; psQuick('text', [t.dataset.id], { content: t.value }).then(function (d) { if ((d.ok || []).length) ok++; else { var f = Object.values(d.failed || {}); if (f.length) toast(f[0]); } next(); }).catch(function () { next(); });
+        })();
+      }
+    });
     // سحب منشور مجدول ليوم تاني = نفس الساعة في اليوم الجديد
     var dragId = null, Q = X.q || {};
     [weekBox].forEach(function (box) {
