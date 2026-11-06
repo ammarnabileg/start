@@ -11,6 +11,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action !== 'kb_test' && !$canEdit) $json(['error' => t('مالكش صلاحية تعدّل قاعدة المعرفة. اطلبها من صاحب الشركة.')], 403);
     $str = function ($v, $max = 4000) { return mb_substr(trim((string)$v), 0, $max); };
 
+    // ملء الملف من الموقع: اقتراحات + تطبيق اللي المستخدم يختاره (من غير ذكاء اصطناعي)
+    if ($action === 'kb_site') {
+        $r = kb_import_site(trim((string)($_POST['url'] ?? '')));
+        if ($r['err'] !== '') $json(['error' => $r['err']], 422);
+        $cur = kb_get($wid); $out = [];
+        foreach ($r['sections'] as $sec => $data) {
+            if (!isset($schema[$sec])) continue; $sd = $schema[$sec];
+            if (($sd['type'] ?? '') === 'rows') {
+                $have = array_map(function ($x) { return mb_strtolower(trim((string)(reset($x) ?: ''))); }, (array)($cur[$sec]['rows'] ?? []));
+                $rows = array_values(array_filter($data['rows'], function ($x) use ($have) { return !in_array(mb_strtolower(trim((string)(reset($x) ?: ''))), $have, true); }));
+                if ($rows) $out[] = ['sec' => $sec, 'label' => $sd['label'], 'type' => 'rows', 'cols' => $sd['cols'], 'rows' => $rows, 'have' => count($have)];
+            } else {
+                $fs = [];
+                foreach ($data as $f => $v) { if (!isset($sd['fields'][$f])) continue; $old = trim((string)($cur[$sec][$f] ?? '')); if ($old === trim((string)$v)) continue;
+                    $fs[] = ['f' => $f, 'label' => $sd['fields'][$f][0], 'old' => $old, 'new' => (string)$v, 'src' => $r['src'][$sec . '.' . $f] ?? '']; }
+                if ($fs) $out[] = ['sec' => $sec, 'label' => $sd['label'], 'type' => 'fields', 'fields' => $fs];
+            }
+        }
+        $json(['ok' => true, 'groups' => $out, 'pages' => $r['pages']]);
+    }
+    if ($action === 'kb_site_apply') {
+        $pick = json_decode((string)($_POST['pick'] ?? '{}'), true) ?: []; $cur = kb_get($wid); $n = 0;
+        foreach ($pick as $sec => $data) {
+            if (!isset($schema[$sec]) || !is_array($data)) continue; $sd = $schema[$sec]; $old = (array)($cur[$sec] ?? []);
+            if (($sd['type'] ?? '') === 'rows') {
+                $rows = (array)($old['rows'] ?? []);
+                foreach ((array)($data['rows'] ?? []) as $rw) { $clean = []; foreach ($sd['cols'] as $ck => $_) $clean[$ck] = $str($rw[$ck] ?? '', 1500); if (implode('', $clean) !== '') { $rows[] = $clean; $n++; } }
+                $old['rows'] = array_slice($rows, 0, 200);
+            } else foreach ($data as $f => $v) if (isset($sd['fields'][$f])) { $old[$f] = $str($v); $n++; }
+            kb_save($wid, $sec, $old);
+        }
+        log_activity('kb.site_import', (string)$n);
+        $json(['ok' => true, 'done' => $n]);
+    }
     if ($action === 'kb_save') {
         $sec = (string)($_POST['section'] ?? '');
         if (!isset($schema[$sec])) $json(['error' => t('طلب غير صحيح.')], 400);
@@ -259,12 +293,26 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
         <p class="text-sm text-ink-500 mt-0.5"><?= e(t('يُستخدم في كل الردود والمنشورات والتحليلات. كلما كان أكمل، كانت الردود أدق وأقل خطأ. الحفظ تلقائي.')) ?></p>
       </div>
       <?php if ($canEdit): ?>
+        <button type="button" id="kbs-open" class="btn-primary"><?= ui_icon('link', 'w-4 h-4') ?> <span><?= e(t('املأ من موقعك')) ?></span></button>
         <button type="button" id="kb-ai-pick" class="btn-ghost"><?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?> <span><?= e(t('املأ بالذكاء الاصطناعي')) ?></span></button>
       <?php endif; ?>
       <button type="button" data-kb-go="test" class="btn-primary"><?= $ico($icons['test']) ?> <?= e(t('جرّب الرد')) ?></button>
       <?php if (!$canEdit): ?><p class="w-full text-xs text-amber-700"><?= e(t('عرض فقط. التعديل لصاحب الشركة أو من لديه صلاحية الإعدادات.')) ?></p><?php endif; ?>
     </div>
 
+    <?php if ($canEdit): ?>
+    <dialog id="kbs" class="w-[min(760px,96vw)] max-h-[90vh] p-0 rounded-2xl border border-ink-200 bg-white shadow-2xl backdrop:bg-ink-900/40">
+      <div class="flex items-center gap-2 px-5 h-14 border-b border-ink-200"><b class="flex-1 inline-flex items-center gap-2"><?= ui_icon('link', 'w-4 h-4 text-brand-600') ?><?= e(t('املأ ملف الشركة من موقعك')) ?></b><button type="button" data-kbs-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div class="p-5 space-y-3 overflow-y-auto max-h-[calc(90vh-7.5rem)]">
+        <p class="text-xs text-ink-500"><?= e(t('بنقرا موقعك (الرئيسية وصفحات من نحن والتواصل والخدمات والأسعار والأسئلة) ونطلّع منها البيانات. من غير ذكاء اصطناعي ومن غير ما نصرف أي رصيد. انت بتراجع وتختار قبل ما حاجة تتحفظ.')) ?></p>
+        <form id="kbs-f" class="flex gap-2" data-no-ajax><input name="url" type="url" required class="input !mt-0 flex-1" dir="ltr" placeholder="https://example.com" value="<?= e((string)($kb['contact']['website'] ?? '')) ?>"><button class="btn-primary"><?= e(t('اقرا الموقع')) ?></button></form>
+        <div id="kbs-out"></div>
+      </div>
+      <div id="kbs-foot" class="hidden flex items-center gap-2 px-5 py-3 border-t border-ink-200"><span id="kbs-n" class="text-xs text-ink-500"></span><button type="button" data-kbs-x class="ms-auto btn-ghost"><?= e(t('إلغاء')) ?></button><button type="button" id="kbs-apply" class="btn-primary"><?= e(t('احفظ المختار')) ?></button></div>
+    </dialog>
+    <script>window.KBS = <?= json_encode(['reading' => t('بنقرا الموقع… (لحد 6 صفحات)'), 'none' => t('مالقيناش بيانات جديدة. يا إما الملف متعبّي، يا إما الموقع مافيهوش بيانات واضحة.'), 'from' => t('من'), 'pages' => t('اتقرت %s صفحة'), 'sel' => t('%s مختار'), 'done' => t('اتحفظ %s خانة ✓'), 'cur' => t('الحالي'), 'new' => t('الجديد'), 'add' => t('هيتضاف'), 'rows' => t('%s جديد (عندك %s)'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/kb-site.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php endif; ?>
     <?php $cc = countries()[ws_country()]; ?>
     <a href="<?= e(url('settings')) ?>#cty" class="group mb-4 flex items-center gap-3 rounded-2xl border <?= ws_country_set() ? 'border-ink-200 bg-white' : 'border-amber-200 bg-amber-50' ?> px-4 py-2.5 text-sm hover:border-brand-300 transition">
       <span class="text-xl leading-none"><?= $cc['flag'] ?></span>

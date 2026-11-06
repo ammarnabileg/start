@@ -111,6 +111,11 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
         <?php endforeach; ?>
       </div>
       <form method="post" id="lp-form" class="hidden mt-3 grid md:grid-cols-2 gap-2 rounded-2xl border border-ink-200 bg-ink-50/50 p-3 text-sm"><?= csrf_field() ?><input type="hidden" name="action" value="lp_save"><input type="hidden" name="old">
+        <?php $kbS = function_exists('kb_get') ? (array)(kb_get((int)ws('id'))['services']['rows'] ?? []) : []; if ($kbS): $kbAll = kb_get((int)ws('id')); ?>
+        <label class="text-xs text-ink-600 md:col-span-2 rounded-xl border border-lime-200 bg-lime-50/60 p-2"><span class="inline-flex items-center gap-1 font-semibold text-lime-800"><?= ui_icon('spark', 'w-3.5 h-3.5') ?><?= e(t('املأ الصفحة من خدمة في ملف الشركة')) ?></span>
+          <select id="lp-from" class="input !mt-1 text-sm"><option value=""><?= e(t('اختار خدمة…')) ?></option><?php foreach ($kbS as $i => $sv): if (trim((string)($sv['name'] ?? '')) === '') continue; ?><option value="<?= $i ?>"><?= e($sv['name'] . (!empty($sv['price']) ? ' · ' . $sv['price'] : '')) ?></option><?php endforeach; ?></select></label>
+        <script>window.LPKB = <?= json_encode(['svc' => array_values($kbS), 'tagline' => (string)($kbAll['company']['tagline'] ?? ''), 'about' => (string)($kbAll['company']['about'] ?? ''), 'delivery' => (string)($kbAll['company']['delivery'] ?? ''), 'area' => (string)($kbAll['company']['service_area'] ?? ''), 'wa' => preg_replace('/\D/', '', (string)($kbAll['contact']['whatsapp'] ?? $kbAll['contact']['phone'] ?? '')), 'price' => t('السعر: %s'), 'cta' => t('اطلب دلوقتي'), 'area2' => t('بنوصّل: %s')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        <?php endif; ?>
         <label class="text-xs text-ink-600"><?= e(t('العنوان')) ?><input name="title" required maxlength="140" class="input text-sm" dir="auto"></label>
         <label class="text-xs text-ink-600"><?= e(t('اسم الرابط (حروف إنجليزي)')) ?><input name="slug" maxlength="40" class="input text-sm" dir="ltr" placeholder="ramadan-offer"></label>
         <label class="text-xs text-ink-600 md:col-span-2"><?= e(t('سطر تحت العنوان')) ?><input name="sub" maxlength="240" class="input text-sm" dir="auto"></label>

@@ -44,3 +44,17 @@
     post(d).then(function (j) { if (!j.ok) return note(j.error || C.err); st.innerHTML = esc(j.merged ? C.merged : C.saved) + ' <a class="link" href="' + C.leads + '#lead-' + j.id + '">' + esc(C.open) + '</a>'; form.reset(); form.classList.add('hidden'); cf.value = ''; }).catch(function () { note(C.err); });
   };
 })();
+
+/* صفحة الهبوط من خدمة في ملف الشركة */
+(function () {
+  var K = window.LPKB, sel = document.getElementById('lp-from'); if (!K || !sel) return;
+  sel.addEventListener('change', function () {
+    var s = K.svc[+sel.value]; if (!s) return; var f = document.getElementById('lp-form');
+    var set = function (n, v) { if (f.elements[n] && v) f.elements[n].value = v; };
+    set('title', s.name);
+    set('sub', [s.price ? K.price.replace('%s', s.price) : '', K.tagline].filter(Boolean).join(' · ').slice(0, 240));
+    set('body', [s.details, K.about, K.delivery, K.area ? K.area2.replace('%s', K.area) : ''].filter(Boolean).join('\n\n').slice(0, 3000));
+    set('wa', K.wa); set('cta', K.cta);
+    if (f.elements.slug && !f.elements.slug.value) f.elements.slug.value = ('svc-' + (+sel.value + 1) + '-' + Date.now().toString(36).slice(-3));
+  });
+})();

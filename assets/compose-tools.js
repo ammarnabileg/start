@@ -33,6 +33,7 @@
   function tagsPane() {
     var sets = X.tags || [];
     show('<div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"># ' + esc(T.tagsT) + '</b><button type="button" class="link text-xs ms-auto" data-x="close">✕</button></div>' +
+      ((X.ptags || []).length ? '<div class="rounded-lg border border-lime-200 bg-lime-50/50 px-2 py-1.5 mb-1.5"><div class="text-[11px] font-semibold text-lime-800 mb-1">' + esc(X.ptagsT) + '</div><div class="flex flex-wrap gap-1">' + X.ptags.map(function (h) { return '<button type="button" class="chip !text-[11px] !py-0.5" data-ptag="' + esc(h) + '" dir="auto">' + esc(h) + '</button>'; }).join('') + '</div></div>' : '') +
       (sets.length ? '<div class="space-y-1.5">' + sets.map(function (s, i) { return '<div class="flex items-center gap-2 rounded-lg border border-ink-200 px-2 py-1.5"><b class="text-xs text-ink-800 shrink-0">' + esc(s.n) + '</b><span class="text-[11px] text-brand-700 truncate flex-1" dir="auto">' + esc(s.t) + '</span><button type="button" class="chip text-xs" data-addtags="' + i + '">＋</button><button type="button" class="text-ink-400 hover:text-red-600 text-xs" data-deltags="' + i + '">✕</button></div>'; }).join('') + '</div>'
         : '<p class="text-xs text-ink-500">' + esc(T.noTags) + '</p>') +
       '<div class="flex gap-1.5 mt-2 pt-2 border-t border-ink-100"><input id="cpt-tn" class="input !py-1 text-xs !mt-0 w-28" placeholder="' + esc(T.tagName) + '"><input id="cpt-tv" class="input !py-1 text-xs !mt-0 flex-1" dir="auto" placeholder="#عروض #مصر"><button type="button" class="btn-primary !py-1 !text-xs" data-x="savetags">' + esc(T.save) + '</button></div>' +
@@ -195,7 +196,7 @@
     if (k === 'ab') { var abx = document.getElementById('cpt-ab'); abx.classList.toggle('hidden'); b.classList.toggle('on', !abx.classList.contains('hidden')); if (!abx.classList.contains('hidden')) { var at = abx.querySelector('textarea'); if (!at.value) at.value = ta.value; at.focus(); } return; }
   });
   pane.addEventListener('click', function (e) {
-    var x = e.target.closest('[data-x],[data-ind],[data-use],[data-del],[data-addtags],[data-deltags]'); if (!x) return;
+    var x = e.target.closest('[data-x],[data-ind],[data-use],[data-del],[data-addtags],[data-deltags],[data-ptag]'); if (!x) return;
     if (x.dataset.x === 'close') return hide();
     if (x.dataset.x === 'brandgo') return brandApply();
     if (x.dataset.ind) return drawTpl(x.dataset.ind);
@@ -213,6 +214,7 @@
       post({ action: 'cpt_save', kind: 'tpl', data: JSON.stringify(X.mine) }).then(function (r) { if (r.ok) { toast(T.saved); tplPane(); } }); return;
     }
     if (x.dataset.addtags !== undefined) { var s = X.tags[+x.dataset.addtags]; var v = ta.value.replace(/\s+$/, ''); setText((v ? v + '\n\n' : '') + s.t); return; }
+    if (x.dataset.ptag !== undefined) { if (ta.value.indexOf(x.dataset.ptag) < 0) { ta.value = ta.value.replace(/\s*$/, '') + (ta.value.trim() ? ' ' : '') + x.dataset.ptag; ta.dispatchEvent(new Event('input', { bubbles: true })); } x.classList.add('on'); return; }
     if (x.dataset.deltags !== undefined) { X.tags.splice(+x.dataset.deltags, 1); post({ action: 'cpt_save', kind: 'tags', data: JSON.stringify(X.tags) }); return tagsPane(); }
     if (x.dataset.x === 'savetags') {
       var nm = document.getElementById('cpt-tn').value.trim(), tv = (document.getElementById('cpt-tv').value.match(/#[^\s#]+/g) || []).join(' ');

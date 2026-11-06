@@ -259,6 +259,10 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
 <script src="assets/fx.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <script src="assets/fx-forms.js?v=<?= e(APP_VERSION) ?>" defer></script>
+<?php if ($curWs && in_array($active, ['inbox', 'comments', 'crm_leads', 'automations', 'wa_templates', 'broadcasts'], true) && function_exists('kb_profile_snips') && ($kbp = kb_profile_snips())): ?>
+<script>window.KBP = <?= json_encode(['items' => $kbp, 'btn' => t('من ملف الشركة'), 'edit' => t('عدّل ملف الشركة'), 'url' => url('knowledge')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script src="assets/kb-snips.js?v=<?= e(APP_VERSION) ?>" defer></script>
+<?php endif; ?>
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if ($cpOn): $cpKeys = ai_page_insights((string)($GLOBALS['page'] ?? $active)); ?>
 <!-- لوحة ✨ الجانبية -->
