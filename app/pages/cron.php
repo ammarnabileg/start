@@ -65,6 +65,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' auto_leads=error';
         }
+        // البحوث المحفوظة في Apollo: الأشخاص الجداد كل يوم (مابيصرفش كريديت)
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_searches_daily() : 0; });
+            if ($n) $line .= ' apollo_new+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' apollo_saved=error';
+        }
         // حملات الرسائل: دفعة لكل شركة
         try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return camp_tick($wid, 60); });

@@ -528,6 +528,23 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '027_crm_apollo_plus' => [
+        "ALTER TABLE crm_leads ADD COLUMN email_status VARCHAR(20) NULL, ADD COLUMN enriched_at DATETIME NULL",
+        "CREATE TABLE IF NOT EXISTS crm_searches (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NULL,
+            name VARCHAR(120) NOT NULL,
+            filters TEXT NOT NULL,
+            seen MEDIUMTEXT NULL,
+            new_ids TEXT NULL,
+            new_count INT UNSIGNED NOT NULL DEFAULT 0,
+            total INT UNSIGNED NOT NULL DEFAULT 0,
+            run_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws (workspace_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '026_crm_social' => [
         "ALTER TABLE crm_leads ADD COLUMN src_url VARCHAR(500) NULL",
     ],

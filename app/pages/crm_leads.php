@@ -13,7 +13,7 @@ $out = function (array $l) {
         'phone' => (string)$l['phone'], 'pending' => (int)$l['phone_pending'] === 1, 'wa' => crm_wa_digits($l['phone']), 'linkedin' => (string)$l['linkedin'],
         'country' => (string)$l['country'], 'stage' => $l['stage'], 'source' => $l['source'], 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
         'note' => (string)$l['note'], 'tags' => (string)$l['tags'], 'owner' => (int)$l['owner_id'], 'next_at' => $l['next_at'] ? date('Y-m-d\TH:i', strtotime($l['next_at'])) : '',
-        'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'edit' => crm_can_edit($l)];
+        'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'es' => (string)($l['email_status'] ?? ''), 'edit' => crm_can_edit($l)];
 };
 
 $sugZ = function () {
@@ -91,6 +91,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$l) $json(['ok' => false, 'error' => t('حصل خطأ، جرب تاني')]);
         log_activity('crm.from_social', (string)$l['id']);
         $json(['ok' => true, 'merged' => $l['merged'], 'id' => (int)$l['id'], 'phone' => (string)$l['phone'], 'email' => (string)$l['email'], 'url' => url('crm_leads') . '#lead-' . (int)$l['id']]);
+    }
+    if ($action === 'bulk' || $action === 'enrich_stale') {
+        // عمليات على عملاء كتير مرة واحدة
+        $op = (string)($_POST['op'] ?? ($action === 'enrich_stale' ? 'enrich' : ''));
+        if ($action === 'enrich_stale') {
+            $st = db()->prepare("SELECT id FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') AND (email IS NOT NULL OR company IS NOT NULL OR (ext_id IS NOT NULL AND ext_id NOT LIKE 'ib:%' AND ext_id NOT LIKE 'cm:%' AND ext_id NOT LIKE 'dom:%'))
+                AND (enriched_at IS NULL AND (title IS NULL OR email IS NULL OR phone IS NULL) OR enriched_at < ?) " . ($canManage ? '' : 'AND owner_id = ' . $uid) . " ORDER BY enriched_at IS NOT NULL, enriched_at, id DESC LIMIT 25");
+            $st->execute([$wid, date('Y-m-d H:i:s', time() - 90 * 86400)]);
+            $ids = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+        } else $ids = array_slice(array_map('intval', (array)($_POST['ids'] ?? [])), 0, 200);
+        $ok = 0; $err = null; $skip = 0;
+        if (in_array($op, ['enrich', 'seq'], true) && !crm_has_key()) $json(['ok' => false, 'error' => t('اربط حساب Apollo.io من التكاملات الأول.')]);
+        if ($op === 'enrich' && !can('crm.reveal')) $json(['ok' => false, 'error' => t('مالكش صلاحية الكشف.')]);
+        $prefs = crm_prefs();
+        foreach ($ids as $i => $id) {
+            $l = crm_lead($id);
+            if (!$l || !crm_can_edit($l)) { $skip++; continue; }
+            try {
+                if ($op === 'stage' && isset($stages[$_POST['stage'] ?? ''])) {
+                    $s = $_POST['stage'];
+                    if ($s !== $l['stage']) { db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, $id]); crm_act_add($id, 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]); crm_push_ad_stage(crm_lead($id)); }
+                } elseif ($op === 'owner' && $canManage) {
+                    $o = (int)($_POST['owner'] ?? 0); db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([in_array($o, $memberIds, true) ? $o : null, $id]);
+                } elseif ($op === 'tag') {
+                    crm_add_tag($id, (string)($_POST['tag'] ?? ''));
+                } elseif ($op === 'enrich') {
+                    if ($i >= 25) break;
+                    if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) { $err = t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit']); break; }
+                    crm_enrich_lead($l, $prefs);
+                } elseif ($op === 'seq') {
+                    if (empty($l['email'])) { $skip++; continue; }
+                    crm_add_to_sequence($l, (string)($_POST['seq'] ?? ''), (string)($_POST['acc'] ?? ''), mb_substr((string)($_POST['seq_name'] ?? ''), 0, 120));
+                } else { $skip++; continue; }
+                $ok++;
+            } catch (CrmPlanException $ex) { $err = t('خطة Apollo بتاعتك مش بتسمح بالعملية دي.') . ' (' . $ex->getMessage() . ')'; break; }
+            catch (CrmException $ex) { $skip++; $err = $ex->getMessage(); }
+        }
+        log_activity('crm.bulk_' . $op, $ok . '/' . count($ids));
+        $json(['ok' => true, 'done' => $ok, 'skip' => $skip, 'error' => $err]);
     }
     if ($action === 'import') {
         // صفوف جاية من المتصفح بعد ربط الأعمدة: [{name, phone, email, company, title, country, tags, note}]
@@ -280,6 +319,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <select id="ld-src" class="input w-auto"><option value=""><?= e(t('كل المصادر')) ?></option><?php foreach ($sources as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
       <select id="ld-own" class="input w-auto"><option value=""><?= e(t('كل المسؤولين')) ?></option><option value="<?= $uid ?>"><?= e(t('بتوعي')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option>
         <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select>
+      <?php $tagNames = crm_tag_names(); if ($tagNames): ?><select id="ld-tag" class="input w-auto"><option value=""><?= e(t('كل القوايم')) ?></option><?php foreach ($tagNames as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?></select><?php endif; ?>
       <label class="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"><?= e(t('متابعات مستحقة بس')) ?></label>
       <input id="ld-q" type="search" class="input w-full sm:w-52 ms-auto" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
       <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
@@ -296,6 +336,20 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
 
     <?php if (!$leads): ?>
       <div id="ld-empty"><?= an_empty(t('لسه مفيش Leads'), t('اكشف أشخاص من الشركات المستهدفة، أو ضيف Lead بإيدك.'), '🧲') ?></div>
+    <?php endif; ?>
+    <div id="ld-bulk" class="hidden sticky top-16 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-3 py-2 shadow-sm">
+      <label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" id="ld-all" class="rounded"> <b id="ld-bn">0</b> <?= e(t('محدد')) ?></label>
+      <select id="ld-b-stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('غيّر المرحلة…')) ?></option><?php foreach ($stages as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
+      <?php if ($canManage): ?><select id="ld-b-owner" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('وزّع على…')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; ?></select><?php endif; ?>
+      <button type="button" id="ld-b-tag" class="btn-ghost !py-1 !text-xs">🏷 <?= e(t('ضيف لقايمة')) ?></button>
+      <?php if (crm_has_key()): ?>
+        <?php if (can('crm.reveal')): ?><button type="button" id="ld-b-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل من Apollo')) ?></button><?php endif; ?>
+        <button type="button" id="ld-b-seq" class="btn-ghost !py-1 !text-xs">📧 Sequence</button>
+      <?php endif; ?>
+      <button type="button" id="ld-b-clear" class="ms-auto text-xs text-ink-500 hover:text-ink-900">✕</button>
+    </div>
+    <?php if (crm_has_key() && can('crm.reveal')): ?>
+      <div class="flex justify-end mb-2"><button type="button" id="ld-stale" class="link text-xs" title="<?= e(t('لحد 25 عميل في المرة، بيصرف كريديت')) ?>">✦ <?= e(t('كمّل بيانات الناقصين وحدّث القديمة (أكتر من 3 شهور) من Apollo')) ?></button></div>
     <?php endif; ?>
     <div id="ld-list" class="card divide-y divide-ink-100 overflow-hidden"></div>
     <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-3"></div>
@@ -435,7 +489,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'enrGot' => t('اتكملت: %s'), 'enrNone' => t('Apollo مالقاش بيانات جديدة.'), 'enrPend' => t('الرقم جاي من Apollo خلال دقايق.'), 'loading' => t('بنحمّل…'),
+            'chat' => t('افتح المحادثة'), 'enrGot' => t('اتكملت: %s'), 'es' => array_map(function ($x) { return $x; }, crm_email_statuses()), 'bDone' => t('اتعمل على %s، واتساب %s'), 'askTag' => t('اسم القايمة؟'),
+            'bConfirm' => t('هيتصرف لحد %s كريديت من Apollo. تكمل؟'), 'pickSeq' => t('اختار الـ Sequence'), 'enrNone' => t('Apollo مالقاش بيانات جديدة.'), 'enrPend' => t('الرقم جاي من Apollo خلال دقايق.'), 'loading' => t('بنحمّل…'),
             'noSeq' => t('مفيش Sequences في حسابك على Apollo. اعمل واحد من apollo.io الأول.'), 'noAcc' => t('اربط إيميل في Apollo عشان الـ Sequence يبعت منه.'), 'seqDone' => t('اتضاف للـ Sequence ✓'), 'needEmail' => t('العميل ده مالوش إيميل. كمّل بياناته الأول.'),
             'fl' => ['title' => t('المسمى الوظيفي'), 'linkedin' => 'LinkedIn', 'company' => t('الشركة'), 'email' => t('الإيميل'), 'phone' => t('الرقم'), 'country' => t('الدولة')], 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
             'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'),

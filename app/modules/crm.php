@@ -238,6 +238,7 @@ function crm_reveal(array $co, string $pid, array $prefs): array
         'phone_pending' => $phone === '' ? 1 : 0, 'linkedin' => (string)($p['linkedin_url'] ?? ''),
         'country' => (string)($p['country'] ?? $co['country'] ?? ''), 'owner_id' => $uid ?: null,
     ]);
+    if (!empty($lead['id'])) db()->prepare('UPDATE crm_leads SET email_status = ?, enriched_at = NOW() WHERE id = ?')->execute([mb_substr((string)($p['email_status'] ?? ''), 0, 20) ?: null, (int)$lead['id']]);
     log_activity('crm.reveal', $pid . ' ' . $co['name']);
     return $lead;
 }
@@ -253,6 +254,8 @@ function crm_people_search(array $f, int $page = 1): array
     if ($z = array_values(array_intersect($list($f['sizes'] ?? []), array_keys(crm_sizes())))) $b['organization_num_employees_ranges'] = $z;
     if (($k = trim((string)($f['keywords'] ?? ''))) !== '') $b['q_keywords'] = mb_substr($k, 0, 200);
     if ($d = $list($f['domains'] ?? '')) $b['q_organization_domains_list'] = array_slice($d, 0, 50);
+    $rmin = (int)preg_replace('/\D/', '', (string)($f['rev_min'] ?? '')); $rmax = (int)preg_replace('/\D/', '', (string)($f['rev_max'] ?? ''));
+    if ($rmin || $rmax) $b['revenue_range'] = array_filter(['min' => $rmin ?: null, 'max' => $rmax ?: null]);
     if (count($b) <= 2) throw new CrmException(t('اختار فلتر واحد على الأقل (مسمى وظيفي أو دولة أو مجال).'));
     $j = crm_api('/mixed_people/api_search', $b);
     $out = [];
@@ -293,7 +296,9 @@ function crm_enrich_lead(array $l, array $prefs): array
     if (empty($l['ext_id']) && !empty($p['id'])) { $set[] = 'ext_id = ?'; $vals[] = mb_substr((string)$p['id'], 0, 64); }
     $pending = empty($l['phone']) && $phone === '' && !empty($b['reveal_phone_number']);
     if ($pending) $set[] = 'phone_pending = 1';
-    if ($set) { $vals[] = (int)$l['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals); }
+    $set[] = 'enriched_at = NOW()';
+    if (!empty($p['email_status'])) { $set[] = 'email_status = ?'; $vals[] = mb_substr((string)$p['email_status'], 0, 20); }
+    $vals[] = (int)$l['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
     $uid = (int)(current_user()['id'] ?? 0);
     db()->prepare('INSERT INTO crm_reveals (workspace_id, user_id, person_ext_id) VALUES (?, ?, ?)')->execute([(int)ws('id'), $uid ?: null, mb_substr((string)($p['id'] ?? 'enrich'), 0, 64)]);
     log_activity('crm.enrich', (string)$l['id']);
@@ -321,6 +326,70 @@ function crm_add_to_sequence(array $l, string $seq, string $acc, string $seqName
     crm_act_add((int)$l['id'], 'email', t('اتضاف لـ Sequence: %s', $seqName ?: $seq));
     if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
     log_activity('crm.sequence', $l['id'] . ' ' . $seq);
+}
+
+/** القوايم = تاج على الـ Lead (بيتضاف من غير ما يمسح التاجات القديمة) */
+function crm_add_tag(int $leadId, string $tag): void
+{
+    $tag = mb_substr(trim(str_replace(',', ' ', $tag)), 0, 30); if ($tag === '') return;
+    $st = db()->prepare('SELECT tags FROM crm_leads WHERE id = ? AND workspace_id = ?'); $st->execute([$leadId, (int)ws('id')]);
+    $cur = array_filter(array_map('trim', explode(',', (string)$st->fetchColumn())));
+    if (in_array($tag, $cur, true)) return;
+    $cur[] = $tag;
+    db()->prepare('UPDATE crm_leads SET tags = ? WHERE id = ?')->execute([implode(', ', array_slice($cur, 0, 8)), $leadId]);
+}
+/** أسماء القوايم (التاجات) الموجودة */
+function crm_tag_names(): array
+{
+    $st = db()->prepare("SELECT tags FROM crm_leads WHERE workspace_id = ? AND tags IS NOT NULL AND tags <> '' LIMIT 3000"); $st->execute([(int)ws('id')]);
+    $all = [];
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $t) foreach (explode(',', $t) as $x) { $x = trim($x); if ($x !== '') $all[$x] = ($all[$x] ?? 0) + 1; }
+    arsort($all);
+    return array_slice(array_keys($all), 0, 50);
+}
+/** حالة الإيميل من Apollo بكلام مفهوم */
+function crm_email_statuses(): array
+{
+    return ['verified' => [t('إيميل متأكد منه'), 'bg-lime-100 text-lime-800'], 'likely to engage' => [t('إيميل متأكد منه'), 'bg-lime-100 text-lime-800'],
+        'guessed' => [t('إيميل متخمّن'), 'bg-amber-100 text-amber-800'], 'extrapolated' => [t('إيميل متخمّن'), 'bg-amber-100 text-amber-800'],
+        'unavailable' => [t('الإيميل مش متاح'), 'bg-red-100 text-red-700'], 'bounced' => [t('الإيميل بيرجع'), 'bg-red-100 text-red-700'], 'invalid' => [t('الإيميل غلط'), 'bg-red-100 text-red-700']];
+}
+
+/** البحث المحفوظ: بيتعاد ويطلّع الأشخاص الجداد اللي ماشفناهمش قبل كده (مابيصرفش كريديت) */
+function crm_searches(): array
+{
+    $st = db()->prepare('SELECT id, name, filters, new_count, total, run_at FROM crm_searches WHERE workspace_id = ? ORDER BY id DESC LIMIT 30');
+    $st->execute([(int)ws('id')]);
+    return array_map(function ($r) { $r['filters'] = json_decode((string)$r['filters'], true) ?: []; $r['id'] = (int)$r['id']; $r['new_count'] = (int)$r['new_count']; return $r; }, $st->fetchAll());
+}
+function crm_search_run(int $id, bool $firstRun = false): array
+{
+    $st = db()->prepare('SELECT * FROM crm_searches WHERE id = ? AND workspace_id = ?'); $st->execute([$id, (int)ws('id')]);
+    $s = $st->fetch(); if (!$s) throw new CrmException(t('البحث ده مش موجود.'));
+    $seen = array_flip((array)json_decode((string)$s['seen'], true));
+    $ids = []; $total = 0;
+    for ($pg = 1; $pg <= 2; $pg++) {
+        $r = crm_people_search(json_decode((string)$s['filters'], true) ?: [], $pg);
+        $total = $r['total'] ?: $total;
+        foreach ($r['people'] as $p) $ids[] = $p['id'];
+        if (count($r['people']) < 25) break;
+    }
+    $new = $firstRun ? [] : array_values(array_filter($ids, function ($x) use ($seen) { return !isset($seen[$x]); }));
+    $allSeen = array_slice(array_values(array_unique(array_merge(array_keys($seen), $ids))), -3000);
+    $keepNew = array_slice(array_values(array_unique(array_merge($new, (array)json_decode((string)$s['new_ids'], true)))), 0, 200);
+    db()->prepare('UPDATE crm_searches SET seen = ?, new_ids = ?, new_count = ?, total = ?, run_at = NOW() WHERE id = ?')
+        ->execute([json_encode($allSeen), json_encode($keepNew), count($keepNew), $total, $id]);
+    return ['new' => count($new), 'total' => $total];
+}
+/** للـ cron: كل البحوث المحفوظة اللي عدّى عليها يوم */
+function crm_searches_daily(): int
+{
+    if (!crm_has_key()) return 0;
+    $st = db()->prepare('SELECT id FROM crm_searches WHERE workspace_id = ? AND (run_at IS NULL OR run_at < ?) ORDER BY run_at LIMIT 10');
+    $st->execute([(int)ws('id'), date('Y-m-d H:i:s', time() - 20 * 3600)]);
+    $n = 0;
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $id) { try { $n += crm_search_run((int)$id)['new']; } catch (CrmPlanException $e) { break; } catch (Throwable $e) {} }
+    return $n;
 }
 
 function crm_pick_phone(array $p): string
