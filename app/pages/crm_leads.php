@@ -302,6 +302,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_activity('crm.email', (string)$l['id']);
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id']), 'mails' => crm_mails((int)$l['id'])]);
     }
+    if ($action === 'next_quick') {
+        // "⏰ بعدين": المتابعة بكرة الساعة 11 بتوقيت الشركة
+        $d = new DateTime('tomorrow 11:00', new DateTimeZone(site_timezone())); $d->modify('+' . max(0, min(30, (int)($_POST['days'] ?? 1) - 1)) . ' days');
+        db()->prepare('UPDATE crm_leads SET next_at = ? WHERE id = ?')->execute([$d->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s'), (int)$l['id']]);
+        $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id']))]);
+    }
     if ($action === 'log') {
         // تسجيل تواصل؛ أول تواصل مع عميل جديد بينقله لـ "اتكلمنا معاه" لوحده
         $k = (string)($_POST['kind'] ?? '');
@@ -363,7 +369,7 @@ foreach ($leads as &$ld0) $ld0['run'] = $runs[$ld0['id']] ?? ''; unset($ld0);
 $adsOn = module_enabled('ads') && can('ads.view');
 $dial = (string)(countries()[ws_country()]['dial'] ?? '+');
 $lastSync = setting('crm_ads_sync_' . $wid);
-render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid, $adsOn, $lastSync, $dial) {
+render(t('العملاء المحتملين'), 'crm_leads', function () use ($leads, $stages, $sources, $members, $canManage, $uid, $adsOn, $lastSync, $dial) {
     $now = time();
     $todayEnd = strtotime('tomorrow') - 1;
     $todayStr = (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d') . 'T23:59'; // next_at جاي بتوقيت الشركة
@@ -384,52 +390,21 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         $srcRows[] = [$lbl, count($ls), $c, $w];
     }
     $cold = count(array_filter($leads, function ($l) use ($now) { return !in_array($l['stage'], ['won', 'lost'], true) && !$l['next_at'] && strtotime($l['last'] ?: $l['created']) < $now - 7 * 86400; }));
+    $tagNames = crm_tag_names();
+    $stageIcon = ['new' => '🆕', 'contacted' => '💬', 'qualified' => '⭐', 'proposal' => '📄', 'won' => '🏆', 'lost' => '✕'];
     ?>
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      <div class="rounded-2xl border border-ink-200 bg-white p-4"><div class="text-xs text-ink-500"><?= e(t('كل الـ Leads')) ?></div><div class="text-2xl font-bold text-ink-900 mt-1"><?= count($leads) ?></div>
-        <div class="flex flex-wrap gap-1 mt-2"><?php foreach ($sources as $k => $lbl): if (empty($bySrc[$k])) continue; ?><span class="text-[10px] px-1.5 py-0.5 rounded bg-ink-100 text-ink-600"><?= e($lbl) ?> <?= (int)$bySrc[$k] ?></span><?php endforeach; ?></div></div>
-      <button type="button" id="ld-due-tile" class="text-start rounded-2xl border p-4 transition <?= $due ? 'border-amber-300 bg-amber-50 hover:border-amber-400' : 'border-ink-200 bg-white' ?>"><div class="text-xs text-ink-500"><?= e(t('متابعات النهارده والمتأخرة')) ?></div><div class="text-2xl font-bold mt-1 <?= $due ? 'text-amber-700' : 'text-ink-900' ?>"><?= $due ?></div></button>
-      <div class="rounded-2xl border border-brand-200 bg-brand-50/50 p-4"><div class="text-xs text-ink-500"><?= e(t('قيمة الصفقات المفتوحة')) ?></div><div class="text-2xl font-bold text-brand-700 mt-1"><?= e(number_format($pipe)) ?></div></div>
-      <div class="rounded-2xl border border-lime-200 bg-lime-50/60 p-4"><div class="text-xs text-ink-500"><?= e(t('بقوا عملاء')) ?></div><div class="text-2xl font-bold text-lime-700 mt-1"><?= $won ?><span class="text-sm text-ink-400 font-medium"> · <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></div></div>
-    </div>
-
-    <?php if ($canManage && !crm_has_key()): ?>
-    <div class="rounded-xl border border-dashed border-brand-300 bg-brand-50/40 px-4 py-2.5 mb-4 text-xs text-ink-700 flex flex-wrap items-center gap-2">🔎 <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?>
-      <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
-    <?php endif; ?>
-    <?php if (count($leads) >= 3): ?>
-    <details class="card p-4 mb-4 group" id="ld-funnel" <?= count($leads) >= 10 ? 'open' : '' ?>>
-      <summary class="cursor-pointer font-semibold text-ink-900 text-sm">📊 <?= e(t('قمع المبيعات ومصادر العملاء')) ?></summary>
-      <div class="grid lg:grid-cols-2 gap-5 mt-3">
-        <div class="space-y-1.5"><?php $top = max(1, $reach['new']); foreach ($order as $i => $k): $pc = round($reach[$k] / $top * 100); $prev = $i ? $reach[$order[$i - 1]] : 0; ?>
-          <div class="flex items-center gap-2 text-xs"><span class="w-24 text-ink-600 shrink-0"><?= e($stages[$k]) ?></span>
-            <div class="flex-1 h-6 rounded-md bg-ink-50 overflow-hidden"><div class="h-full bg-brand-500/80 rounded-md flex items-center px-2 text-white font-semibold" style="width:<?= max(6, $pc) ?>%"><?= (int)$reach[$k] ?></div></div>
-            <span class="w-14 text-end text-ink-500"><?= $i && $prev ? round($reach[$k] / $prev * 100) . '%' : '' ?></span></div>
-        <?php endforeach; ?>
-          <p class="text-[11px] text-ink-400 pt-1"><?= e(t('النسبة جنب كل مرحلة = كام في المية عدّى من المرحلة اللي قبلها.')) ?></p></div>
-        <div><table class="w-full text-xs"><thead><tr class="text-ink-500 text-start"><th class="text-start font-medium py-1"><?= e(t('المصدر')) ?></th><th class="font-medium"><?= e(t('عدد')) ?></th><th class="font-medium"><?= e(t('اتواصلنا')) ?></th><th class="font-medium"><?= e(t('بقوا عملاء')) ?></th><th class="font-medium"><?= e(t('التحويل')) ?></th></tr></thead><tbody>
-          <?php foreach ($srcRows as $r): ?><tr class="border-t border-ink-100"><td class="py-1.5 text-ink-800"><?= e($r[0]) ?></td><td class="text-center"><?= $r[1] ?></td><td class="text-center"><?= $r[2] ?></td><td class="text-center font-semibold text-lime-700"><?= $r[3] ?></td><td class="text-center"><?= round($r[3] / $r[1] * 100) ?>%</td></tr><?php endforeach; ?>
-        </tbody></table>
-        <?php if ($cold): ?><button type="button" id="ld-cold" class="mt-3 w-full text-start rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 hover:bg-sky-100">🧊 <?= e(t('%s عميل محدش كلمه من أسبوع ومالوش متابعة. اعرضهم', $cold)) ?></button><?php endif; ?></div>
+    <!-- الشريط العلوي: أرقام صغيرة + الأزرار المهمة بس -->
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="ld-stat"><span class="text-ink-500"><?= e(t('العملاء')) ?></span> <b><?= count($leads) ?></b></span>
+        <button type="button" id="ld-due-tile" class="ld-stat <?= $due ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>" title="<?= e(t('اعرض المستحقين بس')) ?>">⏰ <span class="text-ink-500"><?= e(t('مستحقين النهارده')) ?></span> <b><?= $due ?></b></button>
+        <span class="ld-stat">💰 <span class="text-ink-500"><?= e(t('مفتوح')) ?></span> <b><?= e(number_format($pipe)) ?></b></span>
+        <span class="ld-stat">🏆 <b class="text-lime-700"><?= $won ?></b> <span class="text-ink-400">· <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></span>
       </div>
-    </details>
-    <?php endif; ?>
-
-    <div class="flex flex-wrap items-center gap-2 mb-3">
-      <div class="inline-flex rounded-xl border border-ink-200 bg-white p-0.5" role="group">
-        <button type="button" data-v="list" class="ld-view px-3 py-1.5 text-sm rounded-lg"><?= e(t('قائمة')) ?></button>
-        <button type="button" data-v="board" class="ld-view px-3 py-1.5 text-sm rounded-lg"><?= e(t('لوحة')) ?></button>
-      </div>
-      <select id="ld-src" class="input w-auto"><option value=""><?= e(t('كل المصادر')) ?></option><?php foreach ($sources as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
-      <select id="ld-own" class="input w-auto"><option value=""><?= e(t('كل المسؤولين')) ?></option><option value="<?= $uid ?>"><?= e(t('بتوعي')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option>
-        <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select>
-      <?php $tagNames = crm_tag_names(); if ($tagNames): ?><select id="ld-tag" class="input w-auto"><option value=""><?= e(t('كل القوايم')) ?></option><?php foreach ($tagNames as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?></select><?php endif; ?>
-      <label class="inline-flex items-center gap-1.5 text-sm text-ink-700 cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"><?= e(t('متابعات مستحقة بس')) ?></label>
-      <select id="ld-sort" class="input w-auto"><option value=""><?= e(t('ترتيب: المتابعات الأول')) ?></option><option value="score"><?= e(t('ترتيب: الأهم الأول')) ?></option><option value="new"><?= e(t('ترتيب: الأحدث')) ?></option></select>
-      <input id="ld-q" type="search" class="input w-full sm:w-52 ms-auto" placeholder="<?= e(t('اسم، شركة، رقم، إيميل…')) ?>">
-      <button type="button" id="ld-queue" class="btn-primary hidden">▶ <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
-      <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <?= e(t('عملاء مقترحين')) ?><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1"></span></button>
-      <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none">⚙️ <?= e(t('أدوات')) ?> ▾</summary>
+      <div class="flex items-center gap-2 ms-auto">
+        <button type="button" id="ld-queue" class="btn-primary hidden shadow-lg shadow-brand-500/20">▶ <?= e(t('شغل النهارده')) ?> <span id="ld-queue-n" class="ms-1 rounded-full bg-white/25 px-1.5 text-xs"></span></button>
+        <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <span class="hidden sm:inline"><?= e(t('عملاء مقترحين')) ?></span><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1 animate-pulse"></span></button>
+      <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>">⚙️ <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
         <div class="absolute end-0 mt-1 z-40 w-56 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col">
       <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🔁 <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
       <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🌐 <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
@@ -437,13 +412,45 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <a class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
       <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
         <button class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
+      <?php if (crm_has_key() && can('crm.reveal')): ?><button type="button" id="ld-stale" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" title="<?= e(t('لحد 25 عميل في المرة، بيصرف كريديت')) ?>">✦ <?= e(t('كمّل بيانات الناقصين وحدّث القديمة (أكتر من 3 شهور) من Apollo')) ?></button><?php endif; ?>
         </div></details>
-      <button type="button" id="ld-add-btn" class="btn-primary">+ <?= e(t('Lead جديد')) ?></button>
+        <button type="button" id="ld-add-btn" class="btn-primary">+ <span class="hidden sm:inline"><?= e(t('عميل جديد')) ?></span></button>
+      </div>
     </div>
-    <div id="ld-stages" class="flex flex-wrap gap-1.5 mb-4">
-      <button type="button" class="chip on" data-s=""><?= e(t('الكل')) ?></button>
-      <?php foreach ($stages as $k => $lbl): ?><button type="button" class="chip" data-s="<?= e($k) ?>"><?= e($lbl) ?> <span class="text-ink-400" data-cnt="<?= e($k) ?>">0</span></button><?php endforeach; ?>
+
+    <?php if ($canManage && !crm_has_key()): ?>
+    <div class="rounded-xl border border-dashed border-ink-200 px-3 py-2 mb-3 text-xs text-ink-500 flex items-center gap-2">🔎 <?= e(t('اربط Apollo عشان تظهر "الشركات المستهدفة" وتكشف أرقام صناع القرار.')) ?> <a class="link ms-auto" href="<?= e(url('crm')) ?>"><?= e(t('اربطه')) ?> ↗</a></div>
+    <?php endif; ?>
+
+    <!-- المراحل = القمع: عدد كل مرحلة ونسبة اللي عدّوا من اللي قبلها، وبتفلتر بضغطة -->
+    <div id="ld-stages" class="ld-funnel flex sm:grid sm:grid-cols-7 gap-1.5 mb-4 overflow-x-auto snap-x pb-1 -mx-1 px-1" role="tablist">
+      <button type="button" class="ld-seg on" data-s=""><span class="ld-seg-l"><?= e(t('الكل')) ?></span><b class="ld-seg-n"><?= count($leads) ?></b></button>
+      <?php foreach ($stages as $k => $lbl): $ix = array_search($k, $order, true); $prev = $ix ? $reach[$order[$ix - 1]] : 0; ?>
+        <button type="button" class="ld-seg" data-s="<?= e($k) ?>" data-stage="<?= e($k) ?>"><span class="ld-seg-l"><?= $stageIcon[$k] ?? '' ?> <?= e($lbl) ?></span><span class="flex items-baseline gap-1.5"><b class="ld-seg-n" data-cnt="<?= e($k) ?>">0</b><?php if ($ix && $prev): ?><span class="ld-seg-p" title="<?= e(t('النسبة جنب كل مرحلة = كام في المية عدّى من المرحلة اللي قبلها.')) ?>">↗ <?= round($reach[$k] / $prev * 100) ?>%</span><?php endif; ?></span></button>
+      <?php endforeach; ?>
     </div>
+
+    <!-- البحث + فلتر واحد + الترتيب + طريقة العرض -->
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <div class="relative flex-1 min-w-[200px]"><span class="absolute inset-y-0 start-3 grid place-items-center text-ink-400 pointer-events-none">⌕</span>
+        <input id="ld-q" type="search" class="input !ps-8" placeholder="<?= e(t('دوّر بالاسم، الشركة، الرقم، الإيميل…')) ?>  ( / )"></div>
+      <details class="relative" id="ld-filt"><summary class="btn-ghost list-none cursor-pointer select-none">⚲ <?= e(t('فلترة')) ?> <span id="ld-filt-n" class="hidden ms-1 rounded-full bg-brand-600 text-white text-[10px] px-1.5"></span></summary>
+        <div class="absolute end-0 mt-1 z-40 w-72 rounded-2xl border border-ink-200 bg-white shadow-xl p-3 space-y-2.5">
+          <label class="block"><span class="text-[11px] text-ink-500"><?= e(t('المصدر')) ?></span><select id="ld-src" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل المصادر')) ?></option><?php foreach ($sources as $k => $lbl): if (empty($bySrc[$k])) continue; ?><option value="<?= e($k) ?>"><?= e($lbl) ?> (<?= (int)$bySrc[$k] ?>)</option><?php endforeach; ?></select></label>
+          <label class="block"><span class="text-[11px] text-ink-500"><?= e(t('المسؤول')) ?></span><select id="ld-own" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل المسؤولين')) ?></option><option value="<?= $uid ?>"><?= e(t('بتوعي')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option>
+            <?php if ($canManage): foreach ($members as $m): if ((int)$m['id'] === $uid) continue; ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; endif; ?></select></label>
+          <?php if ($tagNames): ?><label class="block"><span class="text-[11px] text-ink-500"><?= e(t('القايمة')) ?></span><select id="ld-tag" class="input !py-1.5 text-sm"><option value=""><?= e(t('كل القوايم')) ?></option><?php foreach ($tagNames as $tg): ?><option value="<?= e($tg) ?>"><?= e($tg) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+          <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="ld-due" class="rounded"> ⏰ <?= e(t('متابعات مستحقة بس')) ?></label>
+          <?php if ($cold): ?><button type="button" id="ld-cold" class="w-full text-start rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-800 hover:bg-sky-100">🧊 <?= e(t('%s عميل محدش كلمه من أسبوع ومالوش متابعة. اعرضهم', $cold)) ?></button><?php endif; ?>
+          <button type="button" id="ld-filt-clear" class="text-xs text-ink-500 hover:text-red-600"><?= e(t('امسح الفلاتر')) ?></button>
+        </div></details>
+      <select id="ld-sort" class="input !w-auto"><option value=""><?= e(t('ترتيب: المتابعات الأول')) ?></option><option value="score"><?= e(t('ترتيب: الأهم الأول')) ?></option><option value="new"><?= e(t('ترتيب: الأحدث')) ?></option></select>
+      <div class="inline-flex rounded-xl border border-ink-200 bg-white p-0.5" role="group">
+        <button type="button" data-v="list" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('قائمة')) ?>">☰</button>
+        <button type="button" data-v="board" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('لوحة')) ?>">▦</button>
+      </div>
+    </div>
+    <div id="ld-chips" class="flex flex-wrap gap-1.5 mb-3 min-h-[4px]"></div>
 
     <?php if (!$leads): ?>
       <div id="ld-empty"><?= an_empty(t('لسه مفيش Leads'), t('اكشف أشخاص من الشركات المستهدفة، أو ضيف Lead بإيدك.'), '🧲') ?></div>
@@ -460,63 +467,30 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <?php endif; ?>
       <button type="button" id="ld-b-clear" class="ms-auto text-xs text-ink-500 hover:text-ink-900">✕</button>
     </div>
-    <?php if (crm_has_key() && can('crm.reveal')): ?>
-      <div class="flex justify-end mb-2"><button type="button" id="ld-stale" class="link text-xs" title="<?= e(t('لحد 25 عميل في المرة، بيصرف كريديت')) ?>">✦ <?= e(t('كمّل بيانات الناقصين وحدّث القديمة (أكتر من 3 شهور) من Apollo')) ?></button></div>
-    <?php endif; ?>
     <div id="ld-list" class="card divide-y divide-ink-100 overflow-hidden"></div>
     <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-3"></div>
     <div id="ld-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش Leads تطابق الفلاتر')) ?></div>
 
     <div id="ld-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
-      <div class="absolute inset-0 bg-ink-900/40" data-close></div>
-      <form id="ld-form" class="absolute top-0 bottom-0 end-0 w-full sm:w-[460px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-d-title">
+      <div class="ld-fade absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
+      <form id="ld-form" class="ld-sheet absolute top-0 bottom-0 end-0 w-full sm:w-[520px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-d-title">
         <input type="hidden" name="id"><input type="hidden" name="action" value="save">
-        <div class="flex items-center gap-3 p-4 border-b border-ink-100">
-          <div class="min-w-0 flex-1"><div id="ld-d-title" class="font-semibold text-ink-900 truncate"></div><div id="ld-d-sub" class="text-xs text-ink-500 truncate"></div></div>
-          <button type="button" id="ld-q-next" class="hidden btn-primary !py-1.5 !text-xs"></button>
-          <button type="button" class="btn-ghost" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
+        <div class="px-4 pt-4 border-b border-ink-100 bg-gradient-to-b from-brand-50/70 to-white">
+          <div class="flex items-start gap-3">
+            <div id="ld-d-av" class="shrink-0"></div>
+            <div class="min-w-0 flex-1"><div class="flex items-center gap-2 min-w-0"><div id="ld-d-title" class="font-bold text-lg text-ink-900 truncate"></div><span id="ld-d-score"></span></div><div id="ld-d-sub" class="text-xs text-ink-500 truncate"></div><div id="ld-d-stage" class="mt-1"></div></div>
+            <button type="button" id="ld-q-next" class="hidden btn-primary !py-1.5 !text-xs"></button>
+            <button type="button" class="btn-ghost" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button>
+          </div>
+          <div id="ld-quick" class="flex flex-wrap gap-1.5 mt-3"></div>
+          <nav class="flex gap-1 mt-3 -mb-px overflow-x-auto" role="tablist" id="ld-tabs">
+            <?php foreach (['ov' => ['✨', t('نظرة عامة')], 'ct' => ['💬', t('تواصل')], 'dl' => ['💼', t('صفقات ومتابعة')], 'dt' => ['🗂', t('البيانات')]] as $tk => $tv): ?>
+              <button type="button" role="tab" data-tabbtn="<?= $tk ?>" class="ld-tabbtn shrink-0 px-3 py-2 text-sm border-b-2 border-transparent text-ink-500 hover:text-ink-900 transition"><?= $tv[0] ?> <?= e($tv[1]) ?><span class="ld-tabn ms-1 text-[10px] text-ink-400"></span></button>
+            <?php endforeach; ?>
+          </nav>
         </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
-          <div id="ld-quick" class="flex flex-wrap gap-2"></div>
-          <?php if (crm_has_key()): ?>
-          <div id="ld-apollo" class="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🚀 Apollo</div>
-            <div class="flex flex-wrap gap-1.5">
-              <?php if (can('crm.reveal')): ?><button type="button" id="ld-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل بياناته من Apollo')) ?></button><?php endif; ?>
-              <button type="button" id="ld-seq-open" class="btn-ghost !py-1 !text-xs">📧 <?= e(t('ضيفه لـ Sequence')) ?></button>
-            </div>
-            <div id="ld-seq-box" class="hidden space-y-1.5"><select id="ld-seq" class="input text-xs"></select><select id="ld-seq-acc" class="input text-xs"></select>
-              <button type="button" id="ld-seq-go" class="btn-primary !py-1 !text-xs w-full"><?= e(t('ابدأ الـ Sequence')) ?></button></div>
-            <div id="ld-ap-msg" class="text-[11px]"></div>
-          </div>
-          <?php endif; ?>
+        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="ov" role="tabpanel">
           <div id="ld-intel" class="rounded-xl bg-ink-50 border border-ink-200 p-3 text-xs space-y-1"></div>
-          <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
-            <div id="ld-plan-body" class="text-xs"></div>
-          </div>
-          <div id="ld-visits" class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">🌐 <?= e(t('زياراته لموقعك')) ?></span><button type="button" id="ld-tl" class="link text-xs ms-auto"><?= e(t('اعمل رابط متتبع')) ?></button></div>
-            <div id="ld-tl-box" class="hidden flex gap-1.5"><input id="ld-tl-u" class="input !py-1 text-xs" dir="ltr" placeholder="https://" value="<?= e((string)setting('crm_site_url_' . (int)ws('id'), '')) ?>"><button type="button" id="ld-tl-go" class="btn-primary !py-1 !text-xs">⧉</button></div>
-            <div id="ld-visit-list" class="space-y-1"></div>
-          </div>
-          <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💼 <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
-            <div id="ld-deal-list" class="space-y-1.5"></div>
-          </div>
-          <div id="ld-mail" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">✉️ <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
-            <div id="ld-mail-f" class="hidden space-y-1.5"><input id="ld-mail-s" class="input text-sm" maxlength="255" placeholder="<?= e(t('العنوان')) ?>"><textarea id="ld-mail-b" rows="5" class="input text-sm" dir="auto"></textarea>
-              <button type="button" id="ld-mail-go" class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('ابعت')) ?></button>
-              <p class="text-[11px] text-ink-500"><?= e(t('بيتبعت من SMTP بتاعك. هتعرف لو فتحه أو ضغط على رابط (الفتح تقريبي: بعض برامج الإيميل بتمنع الصور).')) ?></p></div>
-            <div id="ld-mails" class="space-y-1"></div>
-          </div>
-          <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
-            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
-              <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
-            <div id="ld-tpl-list" class="flex flex-wrap gap-1.5"></div>
-            <p class="text-[11px] text-ink-500"><?= e(t('بيفتح واتساب بالرسالة مكتوبة، وبيتسجل في سجل التواصل لوحده.')) ?></p>
-          </div>
           <div><span class="label"><?= e(t('المرحلة')) ?></span><div id="ld-stage-pick" class="flex flex-wrap gap-1.5">
             <?php foreach ($stages as $k => $lbl): ?><label class="cursor-pointer"><input type="radio" name="stage" value="<?= e($k) ?>" class="peer sr-only"><span class="inline-block px-2.5 py-1 rounded-lg border border-ink-200 text-xs text-ink-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:border-brand-600 peer-focus-visible:ring-2 ring-brand-300"><?= e($lbl) ?></span></label><?php endforeach; ?>
           </div></div>
@@ -532,6 +506,40 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             <input class="input" type="datetime-local" name="next_at">
             <input class="input" name="next_note" maxlength="255" placeholder="<?= e(t('هتعمل إيه؟ (مثلاً: ابعتله عرض السعر)')) ?>">
           </div>
+        </div>
+        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="ct" role="tabpanel">
+          <div id="ld-tpl" class="hidden rounded-xl border border-lime-200 bg-lime-50/40 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💬 <?= e(t('ابعت رسالة جاهزة')) ?></span>
+              <?php if ($canManage): ?><button type="button" id="ld-tpl-edit" class="link text-xs ms-auto"><?= e(t('عدّل القوالب')) ?></button><?php endif; ?></div>
+            <div id="ld-tpl-list" class="flex flex-wrap gap-1.5"></div>
+            <p class="text-[11px] text-ink-500"><?= e(t('بيفتح واتساب بالرسالة مكتوبة، وبيتسجل في سجل التواصل لوحده.')) ?></p>
+          </div>
+          <div id="ld-mail" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">✉️ <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
+            <div id="ld-mail-f" class="hidden space-y-1.5"><input id="ld-mail-s" class="input text-sm" maxlength="255" placeholder="<?= e(t('العنوان')) ?>"><textarea id="ld-mail-b" rows="5" class="input text-sm" dir="auto"></textarea>
+              <button type="button" id="ld-mail-go" class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('ابعت')) ?></button>
+              <p class="text-[11px] text-ink-500"><?= e(t('بيتبعت من SMTP بتاعك. هتعرف لو فتحه أو ضغط على رابط (الفتح تقريبي: بعض برامج الإيميل بتمنع الصور).')) ?></p></div>
+            <div id="ld-mails" class="space-y-1"></div>
+          </div>
+          <div class="rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🕓 <?= e(t('سجل التواصل')) ?></div>
+            <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= $v[0] ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
+            <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500">📞 <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
+            <div class="flex gap-2"><input id="ld-log-body" class="input text-sm" maxlength="2000" placeholder="<?= e(t('حصل إيه؟ (اختياري) واختار النوع')) ?>"></div>
+            <ol id="ld-acts" class="space-y-2 max-h-72 overflow-y-auto"></ol>
+          </div>
+        </div>
+        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="dl" role="tabpanel">
+          <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💼 <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
+            <div id="ld-deal-list" class="space-y-1.5"></div>
+          </div>
+          <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
+            <div id="ld-plan-body" class="text-xs"></div>
+          </div>
+        </div>
+        <div class="ld-panel flex-1 min-h-0 overflow-y-auto p-4 space-y-4 hidden" data-tab="dt" role="tabpanel">
           <div class="grid grid-cols-2 gap-3">
             <label class="block col-span-2"><span class="label"><?= e(t('الاسم')) ?></span><input class="input" name="name" required maxlength="255"></label>
             <label class="block"><span class="label"><?= e(t('الشركة')) ?></span><input class="input" name="company" maxlength="255"></label>
@@ -544,16 +552,26 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             <label class="block col-span-2"><span class="label"><?= e(t('تاجات (افصل بفاصلة)')) ?></span><input class="input" name="tags" maxlength="255" placeholder="<?= e(t('VIP، مطاعم')) ?>"></label>
             <label class="block col-span-2"><span class="label"><?= e(t('ملاحظات')) ?></span><textarea class="input" name="note" rows="4" maxlength="2000"></textarea></label>
           </div>
-          <div class="rounded-xl border border-ink-200 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900">🕓 <?= e(t('سجل التواصل')) ?></div>
-            <div class="flex flex-wrap gap-1.5" id="ld-log-kinds"><?php foreach (crm_act_kinds() as $k => $v): if ($k === 'stage') continue; ?><button type="button" class="chip text-xs" data-k="<?= e($k) ?>"><?= $v[0] ?> <?= e($v[1]) ?></button><?php endforeach; ?></div>
-            <div id="ld-oc" class="hidden flex flex-wrap gap-1.5 items-center"><span class="text-[11px] text-ink-500">📞 <?= e(t('نتيجة المكالمة؟')) ?></span><?php foreach (crm_call_outcomes() as $k => $v): ?><button type="button" class="chip text-xs" data-oc="<?= e($k) ?>"><?= e($v) ?></button><?php endforeach; ?></div>
-            <div class="flex gap-2"><input id="ld-log-body" class="input text-sm" maxlength="2000" placeholder="<?= e(t('حصل إيه؟ (اختياري) واختار النوع')) ?>"></div>
-            <ol id="ld-acts" class="space-y-2 max-h-72 overflow-y-auto"></ol>
+          <?php if (crm_has_key()): ?>
+          <div id="ld-apollo" class="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+            <div class="text-sm font-semibold text-ink-900">🚀 Apollo</div>
+            <div class="flex flex-wrap gap-1.5">
+              <?php if (can('crm.reveal')): ?><button type="button" id="ld-enrich" class="btn-ghost !py-1 !text-xs">✦ <?= e(t('كمّل بياناته من Apollo')) ?></button><?php endif; ?>
+              <button type="button" id="ld-seq-open" class="btn-ghost !py-1 !text-xs">📧 <?= e(t('ضيفه لـ Sequence')) ?></button>
+            </div>
+            <div id="ld-seq-box" class="hidden space-y-1.5"><select id="ld-seq" class="input text-xs"></select><select id="ld-seq-acc" class="input text-xs"></select>
+              <button type="button" id="ld-seq-go" class="btn-primary !py-1 !text-xs w-full"><?= e(t('ابدأ الـ Sequence')) ?></button></div>
+            <div id="ld-ap-msg" class="text-[11px]"></div>
+          </div>
+          <?php endif; ?>
+          <div id="ld-visits" class="rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">🌐 <?= e(t('زياراته لموقعك')) ?></span><button type="button" id="ld-tl" class="link text-xs ms-auto"><?= e(t('اعمل رابط متتبع')) ?></button></div>
+            <div id="ld-tl-box" class="hidden flex gap-1.5"><input id="ld-tl-u" class="input !py-1 text-xs" dir="ltr" placeholder="https://" value="<?= e((string)setting('crm_site_url_' . (int)ws('id'), '')) ?>"><button type="button" id="ld-tl-go" class="btn-primary !py-1 !text-xs">⧉</button></div>
+            <div id="ld-visit-list" class="space-y-1"></div>
           </div>
           <div id="ld-meta" class="text-xs text-ink-400"></div>
         </div>
-        <div class="p-4 border-t border-ink-100 flex items-center gap-2">
+        <div class="shrink-0 p-3 border-t border-ink-100 bg-white/95 backdrop-blur flex items-center gap-2">
           <button class="btn-primary flex-1" id="ld-save"><?= e(t('احفظ')) ?></button>
           <?php if ($canManage): ?><button type="button" id="ld-del" class="btn-ghost text-red-600"><?= e(t('امسح')) ?></button><?php endif; ?>
           <span id="ld-msg" class="text-xs"></span>
@@ -696,7 +714,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         'tr' => ['noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
             'merged' => t('كان موجود، دمجناه في نفس العميل'), 'del' => t('متأكد إنك عاوز تمسح العميل ده؟'), 'pending' => t('الرقم جاي'), 'call' => t('اتصل'),
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
-            'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
+            'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
             'chat' => t('افتح المحادثة'), 'hot' => t('صفحة مهمة'), 'noVisits' => t('مفيش زيارات. ابعتله رابط متتبع (أو حط {site} في القالب) والكود على موقعك.'), 'linkCopied' => t('الرابط اتنسخ. ابعتهوله.'), 'dStatus' => crm_deal_statuses(), 'dTitle' => t('اسم الصفقة (مثلاً: باقة سنوية)'), 'dValue' => t('القيمة'), 'dClose' => t('متوقع تتقفل'), 'dNone' => t('مفيش صفقات. ضيف صفقة لكل حاجة العميل ممكن يشتريها.'), 'dDel' => t('تمسح الصفقة؟'),
             'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),

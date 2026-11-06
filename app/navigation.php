@@ -34,8 +34,12 @@ function nav_items(): array
     $owner = is_ws_owner();
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
-        ['key' => 'crm', 'label' => t('إدارة العملاء'), 'section' => t('العملاء'), 'module' => 'crm',
-            'tabs' => ['crm' => t('الشركات المستهدفة'), 'crm_find' => t('ابحث عن أشخاص'), 'crm_leads' => 'Leads', 'crm_reports' => t('تقارير المبيعات'), 'leads' => t('Leads الإعلانات'), 'contacts' => t('جهات الاتصال'), 'calls' => t('المكالمات')]],
+        // العملاء: كل صفحة عنصر لوحدها في القائمة (مفيش تابات متكدسة)
+        ['key' => 'crm_leads', 'label' => t('العملاء المحتملين'), 'section' => t('العملاء'), 'module' => 'crm'],
+        ['key' => 'crm_find', 'label' => t('ابحث عن أشخاص'), 'section' => t('العملاء'), 'module' => 'crm', 'apollo' => true],
+        ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => t('العملاء'), 'module' => 'crm', 'apollo' => true],
+        ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => t('العملاء'), 'module' => 'crm'],
+        ['key' => 'leads', 'label' => t('عملاء الإعلانات'), 'section' => t('العملاء'), 'module' => 'ads'],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => t('المحتوى')],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => t('المحتوى'),
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم')], 'also' => ['post_edit', 'queue', 'bulk']],
@@ -45,7 +49,7 @@ function nav_items(): array
             'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows']],
         ['key' => 'assistant', 'label' => t('الذكاء الاصطناعي'), 'section' => t('الأدوات')],
         ['key' => 'whatsapp', 'label' => t('واتساب'), 'section' => t('الأدوات'), 'module' => 'whatsapp',
-            'tabs' => ['broadcasts' => t('رسائل جماعية'), 'wa_templates' => t('القوالب'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('البروفايل')]],
+            'tabs' => ['broadcasts' => t('رسائل جماعية'), 'contacts' => t('جهات الاتصال'), 'wa_templates' => t('القوالب'), 'sequences' => t('رسائل متتابعة'), 'wa_profile' => t('البروفايل')]],
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => t('الأدوات'), 'module' => 'analytics',
             'tabs' => ['analytics' => t('المنشورات'), 'inbox_analytics' => t('الرسائل'), 'reports' => t('التقارير'), 'goals' => t('الأهداف'), 'alerts' => t('التنبيهات')], 'also' => ['report_print']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => t('الأدوات'), 'module' => 'ads',
@@ -53,7 +57,7 @@ function nav_items(): array
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => t('الأدوات'), 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'phone', 'label' => t('التليفون'), 'section' => t('الأدوات'), 'module' => 'phone',
-            'tabs' => ['phone_numbers' => t('الأرقام'), 'sms' => 'SMS', 'sms_mine' => t('رقمي')]],
+            'tabs' => ['phone_numbers' => t('الأرقام'), 'calls' => t('المكالمات'), 'sms' => 'SMS', 'sms_mine' => t('رقمي')]],
         ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الشركة')],
         ['key' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الشركة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الشركة')],
@@ -68,10 +72,11 @@ function nav_items(): array
     $out = [];
     foreach ($items as $i) {
         if (!module_enabled($i['module'] ?? null)) continue;
+        if (!empty($i['apollo']) && (!function_exists('crm_has_key') || !crm_has_key())) continue; // مزايا Apollo بتظهر بس لو مربوط
         if ($i['key'] === 'admin') { $out[] = $i; continue; }
         // التابات اللي مالوش صلاحية عليها بتختفي، ولو مفضلش حاجة العنصر كله بيختفي
         if (isset($i['tabs'])) {
-            $i['tabs'] = array_filter($i['tabs'], function ($tk) { if (($tk === 'crm' || $tk === 'crm_find') && function_exists('crm_has_key') && !crm_has_key()) return false; $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
+            $i['tabs'] = array_filter($i['tabs'], function ($tk) { $p = page_permission($tk); return $p === null || can($p); }, ARRAY_FILTER_USE_KEY);
             if (!$i['tabs']) continue;
         } else {
             $p = page_permission($i['key']);

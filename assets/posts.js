@@ -205,7 +205,8 @@
       if (!dm) return;
       dmb.innerHTML = dupGroups.map(function (l, gi) {
         return '<div class="rounded-xl border border-orange-200 p-3" data-g="' + gi + '"><div class="flex items-center gap-2"><span class="rounded-full bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5">' + esc(Hq.gN.replace('%s', l.length)) + '</span>' +
-          (Hq.canAi ? '<button type="button" class="cal-vary btn-ghost !py-1 !text-xs ms-auto">' + esc(Hq.vary) + '</button>' : '') + '</div>' +
+          '<button type="button" class="cal-vary btn-ghost !py-1 !text-xs ms-auto" data-mode="fast" title="' + esc(Hq.fastT) + '">⚡ ' + esc(Hq.fast) + '</button>' +
+          (Hq.canAi ? '<button type="button" class="cal-vary btn-ghost !py-1 !text-xs">' + esc(Hq.vary) + '</button>' : '') + '</div>' +
           '<p class="text-sm text-ink-800 mt-2 line-clamp-3" dir="auto">' + esc(l[0].txt) + '</p>' +
           '<div class="cal-vlist mt-2 space-y-1">' + l.map(function (p) { return '<div class="text-[11px] text-ink-500 flex items-center gap-2" data-id="' + esc(p.id) + '"><span>🗓 ' + esc(when(p)) + '</span><a class="link ms-auto" href="' + esc(X.edit.replace('__ID__', encodeURIComponent(p.id))) + '">✎</a></div>'; }).join('') + '</div></div>';
       }).join('');
@@ -215,7 +216,7 @@
       var vb = e.target.closest('.cal-vary'), ab = e.target.closest('.cal-apply');
       if (vb) {
         var box = vb.closest('[data-g]'), l = dupGroups[+box.dataset.g]; vb.disabled = true; var o = vb.textContent; vb.textContent = Hq.varying;
-        var fd = new FormData(); fd.append('action', 'vary'); l.slice(0, 12).forEach(function (p) { fd.append('ids[]', p.id); });
+        var fd = new FormData(); fd.append('action', 'vary'); fd.append('mode', vb.dataset.mode || ''); l.slice(0, 12).forEach(function (p) { fd.append('ids[]', p.id); });
         fetch(location.pathname + '?p=posts', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (j) {
           vb.disabled = false; vb.textContent = o; if (!j.ok) return toast(j.error || X.err);
           var byId = {}; l.forEach(function (p) { byId[p.id] = p; });

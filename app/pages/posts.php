@@ -104,6 +104,30 @@ function ps_duplicate(Zernio $z, string $id): string
     return (string)($r['post']['_id'] ?? '');
 }
 
+/**
+ * صياغة مختلفة لنفس المنشور بالقواعد (من غير AI): بنغير إيموجي الافتتاحية، ونلف ترتيب السطور اللي في النص
+ * (السطر الأول والهاشتاجات بيفضلوا مكانهم)، ونرتب الهاشتاجات، ونضيف ختام قصير مختلف. المعلومات نفسها مابتتغيرش.
+ */
+function ps_vary_text(string $base, int $i): string
+{
+    if ($i === 0) return $base;
+    $ar = (bool)preg_match('/\p{Arabic}/u', $base);
+    $lines = preg_split('/\R/u', trim($base));
+    $tags = []; while ($lines && preg_match('/^(\s*#\S+\s*)+$/u', end($lines))) $tags = array_merge(preg_split('/\s+/', trim(array_pop($lines))), $tags);
+    $first = array_shift($lines);
+    $emo = ['🔔', '📌', '✨', '🚀', '📣', '💼', '⭐', '🔥'];
+    $first = preg_replace('/^[\p{So}\p{Sk}\x{FE0F}\x{200D}\s]+/u', '', (string)$first);
+    $first = $emo[($i - 1) % count($emo)] . ' ' . $first;
+    // نلف السطور اللي في النص (لو فيه سطور فاضية بنحافظ على الفقرات)
+    $mid = array_values(array_filter($lines, function ($x) { return trim($x) !== ''; }));
+    if (count($mid) > 2) { $r = $i % count($mid); $mid = array_merge(array_slice($mid, $r), array_slice($mid, 0, $r)); }
+    if ($tags) { $r = $i % count($tags); $tags = array_merge(array_slice($tags, $r), array_slice($tags, 0, $r)); }
+    $ends = $ar ? ['قدّم الآن ولا تفوّت الفرصة 👇', 'شارك المنشور مع من يحتاجه 🙌', 'كل التفاصيل في الأعلى ✅', 'راسلنا لأي استفسار 💬'] : ['Apply now 👇', 'Share this with someone who needs it 🙌', 'Full details above ✅', 'Message us with any questions 💬'];
+    $out = $first . "\n\n" . implode("\n", $mid) . "\n\n" . $ends[($i - 1) % count($ends)];
+    if ($tags) $out .= "\n\n" . implode(' ', $tags);
+    return mb_substr($out, 0, 5000);
+}
+
 /** عنصر التقويم */
 function ps_cal_item(array $p): ?array
 {
@@ -145,19 +169,30 @@ if ($z && ($_GET['ajax'] ?? '') === 'cal') {
 
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'vary') {
     header('Content-Type: application/json; charset=utf-8');
-    if (!can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE));
+    if (($_POST['mode'] ?? '') !== 'fast' && !can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')], JSON_UNESCAPED_UNICODE));
     $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 12);
     if (count($ids) < 2) exit(json_encode(['ok' => false, 'error' => t('محتاج منشورين على الأقل.')], JSON_UNESCAPED_UNICODE));
     try {
         $base = (string)(pub_get_post($z, $ids[0])['content'] ?? '');
         if (trim($base) === '') throw new RuntimeException(t('النص مينفعش يكون فاضي.'));
         $n = count($ids);
+        if (($_POST['mode'] ?? '') === 'fast') {
+            // صياغات بالقواعد (من غير AI ولا كريديت): نفس المعلومات بترتيب وافتتاحية وختام مختلفين
+            $out = []; foreach ($ids as $i => $id) $out[] = ['id' => $id, 'text' => ps_vary_text($base, $i)];
+            echo json_encode(['ok' => true, 'items' => $out, 'base' => $base, 'fast' => true], JSON_UNESCAPED_UNICODE); exit;
+        }
         $sys = 'POST_VARIANTS_JSON. أنت كاتب محتوى سوشيال ميديا. هيتنشر نفس المحتوى ' . $n . ' مرات في أيام مختلفة، والمنصات بتعاقب النص المتكرر. اكتب ' . $n . ' صياغات مختلفة بنفس المعنى والمعلومات بالظبط (نفس الأسعار والأرقام والروابط والهاشتاجات المهمة)، '
             . 'كل واحدة بافتتاحية وترتيب مختلف، وبنفس اللغة واللهجة والطول تقريبًا. متضيفش معلومات جديدة. أعد JSON فقط بالشكل {"variants":["...","..."]}.';
         $r = ai_chat([['role' => 'system', 'content' => $sys . ai_country_note()], ['role' => 'user', 'content' => $base]], min(3800, 300 + $n * 220), 'compose');
-        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
-        $v = array_values(array_filter(array_map(function ($x) { return trim((string)$x); }, (array)(json_decode($txt, true)['variants'] ?? [])), 'strlen'));
-        if (count($v) < $n) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
+        // بنقبل أي شكل: {"variants":[..]} أو [..] أو مفتاح تاني، ولو الرد اتقطع بناخد اللي كامل منه
+        $txt = trim((string)$r['text']); $txt = preg_replace('/^```(?:json)?|```$/m', '', $txt);
+        $j = json_decode($txt, true);
+        if (!is_array($j) && preg_match('/[\[{].*[\]}]/s', $txt, $m)) $j = json_decode($m[0], true);
+        $list = is_array($j) ? ($j['variants'] ?? $j['items'] ?? $j['texts'] ?? (array_keys($j) === range(0, count($j) - 1) ? $j : (array)reset($j))) : [];
+        if (!$list && preg_match_all('/"((?:[^"\\\\]|\\\\.){20,})"/u', $txt, $mm)) $list = array_map(function ($x) { return json_decode('"' . $x . '"') ?? $x; }, $mm[1]);
+        $v = array_values(array_filter(array_map(function ($x) { return trim(is_array($x) ? (string)($x['text'] ?? reset($x)) : (string)$x); }, (array)$list), 'strlen'));
+        // اللي ناقص بيتكمّل بالقواعد بدل ما نرفض الكل
+        for ($k = count($v); $k < $n; $k++) $v[$k] = ps_vary_text($base, $k);
         log_activity('ai.post_variants', $n . ' posts');
         $out = []; foreach ($ids as $i => $id) $out[] = ['id' => $id, 'text' => mb_substr($v[$i], 0, 5000)];
         echo json_encode(['ok' => true, 'items' => $out, 'base' => $base], JSON_UNESCAPED_UNICODE);
@@ -670,7 +705,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         'weekOf' => t('أسبوع %s'), 'calV' => ['month' => t('شهر'), 'week' => t('أسبوع')],
         'calLoading' => t('بنجيب منشورات الفترة دي…'),
         'hDup' => t('%s منشور نصّه متكرر (%s مجموعة)'), 'hBusy' => t('%s يوم زحمة (أكتر من %s منشور على نفس الحساب)'), 'hLimit' => t('حد الزحمة لكل حساب في اليوم'), 'hOk' => t('الجدول سليم: مفيش نصوص متكررة ولا أيام زحمة'), 'hShow' => t('اعرضهم'), 'hTitle' => t('صحة الجدول'),
-        'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,
+        'gN' => t('%s نسخة'), 'vary' => t('اكتبهم بصياغات مختلفة ✦'), 'fast' => t('صياغات سريعة'), 'fastT' => t('بالقواعد من غير ذكاء اصطناعي ولا كريديت: بنغير الافتتاحية وترتيب السطور والختام'), 'varying' => t('بنكتب…'), 'applyV' => t('طبّق الصياغات'), 'varied' => t('اتغيّرت صياغة %s منشور'), 'canAi' => can('ai.use'), 'busyN' => 6,
         'varyNote' => t('راجع كل صياغة وعدّلها لو عاوز. مفيش حاجة هتتغير غير لما تدوس "طبّق".'), 'vurl' => url('posts'),
         'gaps' => t('%s يوم فاضي في الأسبوعين الجايين'), 'noGaps' => t('كل الأيام الجاية فيها منشورات ✓'), 'gapDay' => t('فاضي'),
         'done' => t('تم ✓'), 'some' => t('%s تم · %s فشل'), 'retried' => t('اتعملت إعادة محاولة. الحالة هتتحدّث بعد شوية.'), 'duped' => t('اتعمل %s نسخة كمسودة.'), 'shifted' => t('اتأجّل %s منشور.'),

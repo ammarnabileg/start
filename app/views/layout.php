@@ -48,7 +48,10 @@ $I = [
 $I['whatsapp'] = 'M12 21a9 9 0 10-8-4.9L3 21l4.9-1A9 9 0 0012 21zM8.5 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 01-2.5-2.5l1-1-1-2z';
 $I['gmb'] = $I['gmb_location'];
 $I['phone'] = $I['phone_numbers'];
-$I['crm'] = 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z';
+$I['crm'] = 'M4 21V9l8-6 8 6v12M9 21v-6h6v6M9 11h.01M15 11h.01';
+$I['crm_leads'] = 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z';
+$I['crm_find'] = 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5';
+$I['crm_reports'] = 'M4 20V10M10 20V4M16 20v-7M22 20H2';
 $I['connectors'] = 'M14 7h3a5 5 0 010 10h-3m-4 0H7A5 5 0 017 7h3m-2 5h8';
 $navItems = $curWs ? nav_items() : array_values(array_filter(nav_items(), function ($i) { return $i['key'] === 'admin'; }));
 $I['knowledge'] = 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 19V5M19 17H6a2 2 0 00-2 2M9 7h6M9 11h4';

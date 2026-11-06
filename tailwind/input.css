@@ -63,3 +63,33 @@ details > summary { list-style: none; } details > summary::-webkit-details-marke
 /* الأزرار القديمة بخلفية اللون الأساسي: نصها أبيض في الوضعين */
 .bg-indigo-600.text-white, .bg-brand-600.text-white, .bg-rose-600.text-white, .bg-green-600.text-white, .bg-red-600.text-white { color: #fff; }
 
+
+/* ---------- صفحة العملاء (CRM): شريط الأرقام، القمع، الدرج، الصفوف ---------- */
+@layer components {
+  .ld-stat { @apply inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 transition hover:border-ink-300; }
+  .ld-seg { @apply relative shrink-0 min-w-[104px] sm:min-w-0 snap-start flex flex-col items-start gap-0.5 rounded-xl border border-ink-200 bg-white px-3 py-2 text-start transition duration-150 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300; }
+  .ld-seg.on { @apply border-brand-500 bg-brand-50 ring-2 ring-brand-500/20; }
+  .ld-seg-l { @apply text-[11px] text-ink-500 truncate max-w-full; }
+  .ld-seg-n { @apply text-lg leading-none font-bold text-ink-900; }
+  .ld-seg-p { @apply text-[10px] text-ink-400; }
+  .ld-seg[data-stage=won] .ld-seg-n { @apply text-lime-700; }
+  .ld-seg[data-stage=lost] .ld-seg-n { @apply text-ink-400; }
+  .ld-tabbtn.on { @apply border-brand-600 text-brand-700 font-medium; }
+  .ld-row { @apply relative transition-colors duration-150; }
+  .ld-row .ld-acts { @apply opacity-0 translate-y-0.5 transition duration-150; }
+  .ld-row:hover .ld-acts, .ld-row:focus-within .ld-acts { @apply opacity-100 translate-y-0; }
+  .ld-act { @apply grid place-items-center w-8 h-8 rounded-lg border border-ink-200 bg-white text-sm hover:border-brand-400 hover:bg-brand-50 hover:scale-105 transition; }
+  .ld-chip { @apply inline-flex items-center gap-1 rounded-full bg-brand-50 border border-brand-200 text-brand-800 text-xs px-2.5 py-1; }
+  .ld-toast { @apply fixed bottom-5 start-1/2 z-[80] rounded-xl bg-ink-900 text-[#fff] text-sm px-4 py-2.5 shadow-2xl flex items-center gap-3; transform: translateX(-50%); animation: ld-toast-in .2s ease-out; }
+}
+html[dir=rtl] .ld-toast { transform: translateX(50%); }
+@keyframes ld-toast-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+.ld-sheet { transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+#ld-drawer.ld-closed .ld-sheet { transform: translateX(105%); }
+html[dir=rtl] #ld-drawer.ld-closed .ld-sheet { transform: translateX(-105%); }
+#ld-drawer .ld-fade { transition: opacity .25s; }
+#ld-drawer.ld-closed .ld-fade { opacity: 0; }
+.ld-panel { animation: ld-panel-in .18s ease-out; }
+@keyframes ld-panel-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+.ld-flash { animation: ld-flash 1.2s ease-out; }
+@keyframes ld-flash { 0% { background: rgb(var(--brand-100, 219 234 254)); } 100% { background: transparent; } }

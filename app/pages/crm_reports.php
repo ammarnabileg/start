@@ -26,8 +26,11 @@ $st = db()->prepare("SELECT COUNT(*), COALESCE(SUM(value), 0) FROM crm_deals WHE
 $st = db()->prepare("SELECT d.title, d.value, d.close_at, l.name, l.id FROM crm_deals d JOIN crm_leads l ON l.id = d.lead_id WHERE d.workspace_id = ? AND d.status = 'open' AND d.close_at IS NOT NULL AND d.close_at <= ? ORDER BY d.close_at LIMIT 8");
 $st->execute([$wid, date('Y-m-d', strtotime('+14 days'))]); $closing = $st->fetchAll();
 $limit = (int)(crm_prefs()['daily_limit'] ?? 0);
+// مصادر العملاء: منين بييجوا، وأنهي مصدر بيتحول لعملاء فعلًا (كل الوقت)
+$st = db()->prepare("SELECT source, COUNT(*) n, SUM(stage <> 'new') c, SUM(stage = 'won') w, COALESCE(SUM(CASE WHEN stage = 'won' THEN deal_value END), 0) v FROM crm_leads WHERE workspace_id = ? GROUP BY source ORDER BY n DESC");
+$st->execute([$wid]); $srcRows = $st->fetchAll();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -83,6 +86,22 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       </table>
     </div>
     <p class="text-[11px] text-ink-400 -mt-3 mb-5"><?= e(t('"تواصل" = مكالمات وواتساب وإيميلات واجتماعات اتسجلت. "سرعة أول رد" = من وقت ما العميل اتضاف لحد أول تواصل معاه. حد الكشف اليومي لكل موظف: %s.', $limit)) ?></p>
+
+    <?php if ($srcRows): $srcL = crm_sources(); $best = 0; foreach ($srcRows as $r) if ($r['n'] >= 3) $best = max($best, $r['w'] / $r['n']); ?>
+    <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🧭 <?= e(t('مصادر العملاء')) ?></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('منين بييجي العملاء، وأنهي مصدر بيتحول لعملاء فعلًا. ركّز مجهودك على اللي نسبته أعلى.')) ?></p>
+      <div class="space-y-2"><?php $mx = max(array_column($srcRows, 'n')); foreach ($srcRows as $r): $conv = $r['n'] ? $r['w'] / $r['n'] : 0; ?>
+        <div class="grid grid-cols-[120px_1fr_70px_70px] sm:grid-cols-[140px_1fr_90px_90px_110px] items-center gap-3 text-sm">
+          <span class="truncate text-ink-800"><?= e($srcL[$r['source']] ?? $r['source']) ?></span>
+          <div class="h-2.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full bg-brand-500/80" style="width:<?= max(3, round($r['n'] / $mx * 100)) ?>%"></div></div>
+          <span class="text-ink-600 text-xs"><?= e(t('%s عميل', (int)$r['n'])) ?></span>
+          <span class="text-xs font-semibold <?= $r['n'] >= 3 && $conv === $best && $best > 0 ? 'text-lime-700' : 'text-ink-700' ?>"><?= round($conv * 100) ?>% <?= $r['n'] >= 3 && $conv === $best && $best > 0 ? '🏆' : '' ?></span>
+          <span class="hidden sm:block text-xs text-ink-500 text-end"><?= (float)$r['v'] ? e(number_format((float)$r['v'])) : '' ?></span>
+        </div>
+      <?php endforeach; ?></div>
+      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('النسبة = كام في المية بقوا عملاء. 🏆 = أحسن مصدر (من 3 عملاء أو أكتر).')) ?></p>
+    </div>
+    <?php endif; ?>
 
     <?php if ($closing): ?>
     <div class="card p-4"><div class="font-semibold text-ink-900 mb-2">⏳ <?= e(t('صفقات متوقع تتقفل خلال أسبوعين')) ?></div>
