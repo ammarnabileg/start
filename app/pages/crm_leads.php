@@ -16,8 +16,44 @@ $out = function (array $l) {
         'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'edit' => crm_can_edit($l)];
 };
 
+$sugZ = function () {
+    $fxd = getenv('UI_FIXTURES');
+    if ($fxd && is_file($fxd . '/inbox_fake_z.php')) return require $fxd . '/inbox_fake_z.php'; // اختبارات بس
+    $e = null; return zernio_or_null($e);
+};
+if (($_GET['ajax'] ?? '') === 'suggest') {
+    $z = $sugZ();
+    if (!$z) $json(['ok' => false, 'error' => t('اربط Zernio الأول.')]);
+    // كاش 10 دقايق في الجلسة عشان العداد مايعملش طلبات لـ Zernio مع كل فتحة صفحة
+    $ck = 'crm_sug_' . $wid; $c = $_SESSION[$ck] ?? null;
+    if (empty($_GET['fresh']) && $c && $c[0] > time() - 600) $items = $c[1];
+    else { $items = crm_suggestions($z); $_SESSION[$ck] = [time(), $items]; }
+    session_write_close();
+    $json(['ok' => true, 'items' => $items, 'ai' => (bool)ai_connection() && can('ai.use')]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'social_bulk') {
+        $items = json_decode((string)($_POST['items'] ?? ''), true);
+        $n = 0; $m = 0;
+        foreach (array_slice((array)$items, 0, 100) as $it) {
+            if (!is_array($it) || trim((string)($it['ext'] ?? '')) === '') continue;
+            $l = crm_from_social(['source' => $it['source'] ?? '', 'ext' => $it['ext'], 'name' => $it['name'] ?? '', 'phone' => $it['phone'] ?? '', 'email' => $it['email'] ?? '',
+                'text' => $it['text'] ?? '', 'url' => $it['url'] ?? '', 'where' => $it['where'] ?? '', 'owner_id' => $canManage ? null : $uid]);
+            if (!$l) continue;
+            if ($l['merged']) $m++; else $n++;
+        }
+        log_activity('crm.suggest_add', "$n new");
+          unset($_SESSION['crm_sug_' . $wid]);
+        $json(['ok' => true, 'new' => $n, 'merged' => $m]);
+    }
+    if ($action === 'ai_scan') {
+        if (!can('ai.use') || !ai_connection()) $json(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')]);
+        session_write_close();
+        try { $n = ai_classify_conversations($wid, 40); } catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
+        $json(['ok' => true, 'n' => $n]);
+    }
     if ($action === 'sync_ads') {
         $zerr = null;
         $z = zernio_or_null($zerr);
@@ -223,6 +259,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
       <?php if ($adsOn): ?><form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads">
         <button class="btn-ghost" title="<?= e($lastSync ? t('آخر سحب: %s', fmt_date($lastSync)) : t('لسه ما اتسحبش')) ?>" onclick="this.disabled=true;this.form.submit()">⇣ <?= e(t('اسحب من الإعلانات')) ?></button></form><?php endif; ?>
       <a class="btn-ghost" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
+      <button type="button" id="ld-sug-btn" class="btn-ghost relative">✨ <?= e(t('عملاء مقترحين')) ?><span id="ld-sug-n" class="hidden absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] rounded-full bg-lime-500 text-white text-[10px] font-bold grid place-items-center px-1"></span></button>
       <button type="button" id="ld-imp-btn" class="btn-ghost">⇪ <?= e(t('استورد عملاء')) ?></button>
       <button type="button" id="ld-add-btn" class="btn-primary">+ <?= e(t('Lead جديد')) ?></button>
     </div>
@@ -321,6 +358,20 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
         <div class="flex items-center gap-2"><button type="button" id="ld-imp-go" class="btn-primary" disabled><?= e(t('استورد')) ?></button><button type="button" class="btn-ghost" data-close><?= e(t('إلغاء')) ?></button><span id="ld-imp-msg" class="text-xs"></span></div>
       </div>
     </div>
+    <div id="ld-sug" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
+      <div class="absolute inset-0 bg-ink-900/40" data-close></div>
+      <div class="absolute top-0 bottom-0 end-0 w-full sm:w-[560px] bg-white shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ld-sug-h">
+        <div class="flex items-center gap-2 p-4 border-b border-ink-100"><h3 id="ld-sug-h" class="font-semibold text-ink-900 flex-1">✨ <?= e(t('عملاء مقترحين')) ?></h3><button type="button" class="btn-ghost !px-2 !py-1" data-close aria-label="<?= e(t('اقفل')) ?>">✕</button></div>
+        <p class="px-4 pt-3 text-xs text-ink-500"><?= e(t('ناس كلّموك أو علّقوا على منشوراتك وباين عليهم مهتمين: الذكاء الاصطناعي لقى عندهم نية شراء، أو كتبوا رقمهم، أو سألوا عن السعر. اللي في الـ Leads مش بيظهروا هنا.')) ?></p>
+        <div class="px-4 pt-2 flex flex-wrap items-center gap-2 text-xs">
+          <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="ld-sug-all" class="rounded"> <?= e(t('تحديد الكل')) ?></label>
+          <button type="button" id="ld-sug-ai" class="link hidden"><?= e(t('حلّل المحادثات الجديدة بالذكاء الاصطناعي ✦')) ?></button>
+          <span id="ld-sug-msg" class="ms-auto text-ink-500"></span>
+        </div>
+        <div id="ld-sug-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+        <div class="p-4 border-t border-ink-100"><button type="button" id="ld-sug-go" class="btn-primary w-full" disabled><?= e(t('ضيف المحددين للـ Leads')) ?></button></div>
+      </div>
+    </div>
     <div id="ld-tpl-dlg" class="fixed inset-0 z-[60] hidden grid place-items-center p-4" aria-hidden="true">
       <div class="absolute inset-0 bg-ink-900/40" data-close></div>
       <div class="relative card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto space-y-3" role="dialog" aria-modal="true">
@@ -339,7 +390,9 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
+            'chat' => t('افتح المحادثة'), 'sugLoading' => t('بندوّر في الرسائل والتعليقات…'), 'sugNone' => t('مفيش مقترحين دلوقتي. لما حد يسأل عن السعر أو يكتب رقمه هيظهر هنا.'),
+            'sugGo' => t('ضيف %s للـ Leads'), 'sugDone' => t('اتضاف %s عميل جديد'), 'whyAi' => t('نية شراء'), 'whyContact' => t('فيه رقم أو إيميل'), 'whyPrice' => t('سؤال عن السعر'),
+            'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_leads.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

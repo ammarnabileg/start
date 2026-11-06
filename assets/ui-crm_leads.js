@@ -105,7 +105,7 @@
   function openModal(m) { lastFocus = document.activeElement; m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
   function closeModal(m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
   [dr, document.getElementById('ld-add')].forEach(function (m) { m.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(m); }); }); });
-  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg')].forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; [dr, document.getElementById('ld-add'), document.getElementById('ld-imp'), document.getElementById('ld-tpl-dlg'), document.getElementById('ld-sug')].forEach(function (m) { if (!m.classList.contains('hidden')) closeModal(m); }); });
   function quick(l) {
     var b = [];
     if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">📞 ' + T.call + '</a>');
@@ -277,6 +277,50 @@
       setTimeout(function () { location.reload(); }, 1600);
     }).catch(function () { igo.disabled = false; imsg.textContent = T.err; });
   });
+
+  /* ---------- عملاء مقترحين ---------- */
+  var sg = document.getElementById('ld-sug'), sgl = document.getElementById('ld-sug-list'), sgo = document.getElementById('ld-sug-go'), sgm = document.getElementById('ld-sug-msg'), sgN = document.getElementById('ld-sug-n'), sItems = null;
+  sg.querySelectorAll('[data-close]').forEach(function (x) { x.addEventListener('click', function () { closeModal(sg); }); });
+  function sugCount() { var n = sgl.querySelectorAll('.sg-c:checked').length; sgo.disabled = !n; sgo.textContent = T.sugGo.replace('%s', n); }
+  function sugDraw() {
+    if (!sItems.length) { sgl.innerHTML = '<p class="text-sm text-ink-500 text-center py-10">' + esc(T.sugNone) + '</p>'; sugCount(); return; }
+    var wl = { ai: ['bg-lime-100 text-lime-800', T.whyAi], contact: ['bg-sky-100 text-sky-800', T.whyContact], price: ['bg-amber-100 text-amber-800', T.whyPrice] };
+    sgl.innerHTML = sItems.map(function (it, i) {
+      return '<label class="flex gap-3 rounded-xl border border-ink-200 p-3 hover:border-brand-300 cursor-pointer"><input type="checkbox" class="sg-c rounded mt-1" data-i="' + i + '"' + (it.why.indexOf('ai') > -1 || it.why.indexOf('contact') > -1 ? ' checked' : '') + '>' +
+        '<div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-1.5"><span class="font-medium text-ink-900 text-sm">' + esc(it.name || '—') + '</span><span class="text-[10px] text-ink-500">' + (it.source === 'comments' ? '💬 ' + esc(T.cmt) : '✉️ ' + esc(T.msgK)) + ' · ' + esc(it.where) + '</span>' +
+        it.why.map(function (w) { return '<span class="text-[10px] px-1.5 py-0.5 rounded ' + wl[w][0] + '">' + esc(wl[w][1]) + '</span>'; }).join('') + '</div>' +
+        '<p class="text-xs text-ink-700 mt-1 line-clamp-2" dir="auto">' + esc(it.summary || it.text) + '</p>' +
+        ((it.phone || it.email) ? '<div class="text-[11px] text-ink-500 mt-1" dir="ltr">' + esc([it.phone, it.email].filter(Boolean).join(' · ')) + '</div>' : '') +
+        '</div><a href="' + esc(it.url) + '" class="link text-xs self-start" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗</a></label>';
+    }).join('');
+    sugCount();
+  }
+  function sugLoad(silent) {
+    if (!silent) sgl.innerHTML = '<p class="text-sm text-ink-500 text-center py-10 animate-pulse">' + esc(T.sugLoading) + '</p>';
+    return fetch(D.url + (D.url.indexOf('?') > -1 ? '&' : '?') + 'ajax=suggest' + (silent ? '' : '&fresh=1'), { headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); }).then(function (r) {
+      if (!r.ok) { if (!silent) sgl.innerHTML = '<p class="text-sm text-red-600 text-center py-10">' + esc(r.error || T.err) + '</p>'; return; }
+      sItems = r.items; document.getElementById('ld-sug-ai').classList.toggle('hidden', !r.ai);
+      sgN.textContent = sItems.length; sgN.classList.toggle('hidden', !sItems.length); sgN.classList.toggle('grid', !!sItems.length);
+      if (!silent) sugDraw();
+    }).catch(function () { if (!silent) sgl.innerHTML = '<p class="text-sm text-red-600 text-center py-10">' + esc(T.err) + '</p>'; });
+  }
+  document.getElementById('ld-sug-btn').addEventListener('click', function () { openModal(sg); sgm.textContent = ''; if (sItems) sugDraw(); else sugLoad(); });
+  sgl.addEventListener('change', sugCount);
+  document.getElementById('ld-sug-all').addEventListener('change', function () { var on = this.checked; sgl.querySelectorAll('.sg-c').forEach(function (c) { c.checked = on; }); sugCount(); });
+  document.getElementById('ld-sug-ai').addEventListener('click', function () {
+    var b = this; b.disabled = true; sgm.textContent = T.scanning;
+    post({ action: 'ai_scan' }).then(function (r) { b.disabled = false; if (!r.ok) { sgm.textContent = r.error || T.err; return; } sgm.textContent = T.scanned.replace('%s', r.n); sugLoad(); }).catch(function () { b.disabled = false; sgm.textContent = T.err; });
+  });
+  sgo.addEventListener('click', function () {
+    var pick = Array.prototype.map.call(sgl.querySelectorAll('.sg-c:checked'), function (c) { return sItems[+c.dataset.i]; });
+    if (!pick.length) return; sgo.disabled = true;
+    post({ action: 'social_bulk', items: JSON.stringify(pick) }).then(function (r) {
+      if (!r.ok) { sgo.disabled = false; sgm.textContent = r.error || T.err; return; }
+      sgm.className = 'ms-auto text-lime-700'; sgm.textContent = T.sugDone.replace('%s', r.new);
+      setTimeout(function () { location.reload(); }, 1200);
+    }).catch(function () { sgo.disabled = false; sgm.textContent = T.err; });
+  });
+  setTimeout(function () { sugLoad(true); }, 400);
 
   draw();
   var m = location.hash.match(/^#lead-(\d+)$/); if (m) open(+m[1]);

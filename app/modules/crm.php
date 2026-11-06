@@ -371,6 +371,72 @@ function crm_lead_by_ext(string $ext): ?array
     try { $st = db()->prepare('SELECT id, name, stage FROM crm_leads WHERE workspace_id = ? AND ext_id = ? LIMIT 1'); $st->execute([(int)ws('id'), $ext]); return $st->fetch() ?: null; } catch (Throwable $e) { return null; }
 }
 
+/** كلمات بتدل على اهتمام بالشراء (من غير ذكاء اصطناعي) */
+function crm_buy_words(string $t): bool
+{
+    return (bool)preg_match('/(بكام|بكم|السعر|سعر|الاسعار|الأسعار|اسعار|أسعار|تكلفة|عرض سعر|عاوز اشتري|عايز اشتري|اطلب|أطلب|حجز|احجز|متاح|التوصيل|price|cost|how much|order|buy|book)/iu', $t);
+}
+/**
+ * عملاء مقترحين من المحادثات والتعليقات: نية شراء من الذكاء الاصطناعي، أو كتب رقمه/إيميله، أو سأل عن السعر.
+ * اللي موجودين في الـ Leads بيتشالوا. GETs بس.
+ */
+function crm_suggestions(Zernio $z, int $maxPosts = 6): array
+{
+    $wid = (int)ws('id');
+    $labels = function_exists('ai_labels') ? ai_labels($wid) : [];
+    $st = db()->prepare("SELECT ext_id FROM crm_leads WHERE workspace_id = ? AND ext_id IS NOT NULL AND (ext_id LIKE 'ib:%' OR ext_id LIKE 'cm:%')");
+    $st->execute([$wid]);
+    $have = array_flip($st->fetchAll(PDO::FETCH_COLUMN));
+    $out = [];
+    $score = function (?array $lb, string $txt, array $fc): array {
+        $why = [];
+        if ($lb && (int)$lb['intent'] === 1) $why[] = 'ai';
+        if ($fc['phone'] !== '' || $fc['email'] !== '') $why[] = 'contact';
+        if (crm_buy_words($txt)) $why[] = 'price';
+        if ($lb && in_array($lb['category'], ['spam', 'complaint'], true)) $why = [];
+        return $why;
+    };
+    try {
+        $conv = $z->conversations(['limit' => 100, 'profileId' => zernio_profile()])['data'] ?? [];
+    } catch (Throwable $e) { $conv = []; }
+    foreach ($conv as $c) {
+        $id = (string)($c['id'] ?? ''); if ($id === '') continue;
+        $pf = (string)($c['platform'] ?? '');
+        $ext = 'ib:' . $pf . ':' . (string)($c['participantId'] ?? $id);
+        if (isset($have[$ext])) continue;
+        $m = $c['lastMessage'] ?? ''; $m = trim(is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m);
+        $lb = $labels[$id] ?? null; $fc = crm_extract_contacts($m);
+        $why = $score($lb, $m, $fc); if (!$why) continue;
+        $out[] = ['source' => 'inbox', 'ext' => $ext, 'name' => (string)($c['participantName'] ?? $c['participantUsername'] ?? ''), 'text' => mb_substr($m, 0, 300), 'pf' => $pf,
+            'where' => platform_label($pf), 'url' => url('inbox', ['c' => $id, 'a' => (string)($c['accountId'] ?? '')]), 'phone' => $fc['phone'], 'email' => $fc['email'], 'why' => $why,
+            'summary' => (string)($lb['summary'] ?? ''), 'at' => (string)($c['updatedTime'] ?? $c['lastMessageAt'] ?? '')];
+    }
+    try {
+        $posts = array_slice($z->commentedPosts(['limit' => 20, 'profileId' => zernio_profile()])['data'] ?? [], 0, $maxPosts);
+    } catch (Throwable $e) { $posts = []; }
+    $seen = [];
+    foreach ($posts as $p) {
+        try { $cs = $z->comments((string)$p['id'], (string)($p['accountId'] ?? ''))['comments'] ?? []; } catch (Throwable $e) { continue; }
+        $flat = []; $walk = function ($l) use (&$walk, &$flat) { foreach ($l as $c) { $flat[] = $c; $walk($c['replies'] ?? []); } }; $walk($cs);
+        foreach ($flat as $c) {
+            $from = $c['from'] ?? []; if (!empty($from['isOwner'])) continue;
+            $pf = (string)($c['platform'] ?? $p['platform'] ?? '');
+            $nm = (string)($from['name'] ?? $from['username'] ?? '');
+            $ext = 'cm:' . $pf . ':' . (string)($from['id'] ?? $from['username'] ?? $nm);
+            if (isset($have[$ext]) || isset($seen[$ext])) continue;
+            $txt = trim((string)($c['message'] ?? '')); $lb = $labels['c:' . ($c['id'] ?? '')] ?? null; $fc = crm_extract_contacts($txt);
+            $why = $score($lb, $txt, $fc); if (!$why) continue;
+            $seen[$ext] = 1;
+            $out[] = ['source' => 'comments', 'ext' => $ext, 'name' => $nm, 'text' => mb_substr($txt, 0, 300), 'pf' => $pf, 'where' => t('تعليق'),
+                'url' => url('comments', ['post' => (string)$p['id'], 'a' => (string)($p['accountId'] ?? '')]), 'phone' => $fc['phone'], 'email' => $fc['email'], 'why' => $why,
+                'summary' => (string)($lb['summary'] ?? ''), 'at' => (string)($c['createdTime'] ?? '')];
+        }
+    }
+    // الأقوى الأول: نية شراء + بيانات تواصل
+    usort($out, function ($a, $b) { $w = function ($x) { return (in_array('ai', $x['why'], true) ? 4 : 0) + (in_array('contact', $x['why'], true) ? 2 : 0) + (in_array('price', $x['why'], true) ? 1 : 0); }; return $w($b) <=> $w($a) ?: strcmp($b['at'], $a['at']); });
+    return array_slice($out, 0, 80);
+}
+
 /** سكربت زرار "ضيفه Lead" المشترك بين الرسائل والتعليقات */
 function to_lead_script(): void
 {
