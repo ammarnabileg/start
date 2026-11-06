@@ -156,3 +156,47 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .card { box-shadow: none !important; break-inside: avoid; border-color: #e2e8f0 !important; }
   a { color: inherit !important; text-decoration: none !important; }
 }
+
+/* صفحات السوق: كروت الأرقام، الجدول بشكل Apollo، شريط العمليات بالجملة، البوب أب */
+@layer components {
+  .mk-stats { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4; }
+  .mk-stat { @apply relative flex items-center gap-3 rounded-2xl border border-ink-200 bg-white px-4 py-3 text-start transition duration-150 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 cursor-pointer; }
+  .mk-stat .mk-ic { @apply w-10 h-10 rounded-xl grid place-items-center shrink-0; }
+  .mk-stat b { @apply block text-xl leading-tight text-ink-900 tabular-nums; }
+  .mk-stat small { @apply block text-xs text-ink-500; }
+  .mk-stat.mk-on { @apply border-brand-500 ring-4 ring-brand-500/10 bg-brand-50/50; }
+  .mk-stat:focus:not(:focus-visible):not(.mk-on) { @apply outline-none ring-0 border-ink-200; }
+  .mk-tools { @apply sticky top-16 z-20 flex flex-wrap items-center gap-2 mb-3 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur; }
+  .mk-search { @apply relative flex-1 min-w-[200px] max-w-md; }
+  .mk-search input { @apply w-full rounded-xl border border-ink-200 bg-white ps-9 pe-10 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15; }
+  .mk-search svg { @apply absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400; }
+  .mk-search kbd { @apply absolute end-2.5 top-1/2 -translate-y-1/2 rounded-md border border-ink-200 px-1.5 text-[10px] text-ink-400 font-mono; }
+  .mk-table { @apply card overflow-hidden; }
+  .mk-head { @apply hidden md:grid gap-3 px-4 py-2.5 text-xs font-medium text-ink-500 border-b border-ink-100 bg-ink-50/70 items-center; }
+  .mk-head [data-mk-sort] { @apply inline-flex items-center gap-1 cursor-pointer select-none hover:text-ink-900; }
+  .mk-head [data-mk-sort]::after { content: '↕'; @apply opacity-30 text-[10px]; }
+  .mk-head [data-mk-sort][data-dir=asc]::after { content: '↑'; @apply opacity-100 text-brand-600; }
+  .mk-head [data-mk-sort][data-dir=desc]::after { content: '↓'; @apply opacity-100 text-brand-600; }
+  .mk-row { @apply relative grid gap-3 px-4 py-3 items-center border-b border-ink-100 last:border-0 cursor-pointer transition-colors duration-100 hover:bg-brand-50/40; }
+  .mk-row.mk-sel { @apply bg-brand-50/70; }
+  .mk-row.mk-focus { @apply bg-brand-50/60 shadow-[inset_3px_0_0_rgb(var(--brand-600))]; }
+  html[dir=rtl] .mk-row.mk-focus { @apply shadow-[inset_-3px_0_0_rgb(var(--brand-600))]; }
+  .mk-acts { @apply flex items-center gap-1 justify-end md:opacity-0 transition-opacity; }
+  .mk-row:hover .mk-acts, .mk-row.mk-focus .mk-acts, .mk-row:focus-within .mk-acts { @apply opacity-100; }
+  .mk-act { @apply w-8 h-8 rounded-lg grid place-items-center text-ink-500 hover:bg-white hover:text-brand-700 hover:shadow-sm border border-transparent hover:border-ink-200 transition; }
+  .mk-act.on { @apply text-amber-600 bg-amber-50 border-amber-200; }
+  .mk-av { @apply w-9 h-9 rounded-xl grid place-items-center font-bold text-sm shrink-0 bg-ink-100 text-ink-700 overflow-hidden; }
+  .mk-pill { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap; }
+  .mk-bar { @apply fixed bottom-5 start-1/2 z-40 flex items-center gap-2 rounded-2xl bg-ink-900 text-[#fff] ps-4 pe-2 py-2 shadow-2xl transition duration-200 opacity-0 pointer-events-none translate-y-4; transform: translateX(-50%) translateY(16px); }
+  html[dir=rtl] .mk-bar { transform: translateX(50%) translateY(16px); }
+  .mk-bar.mk-bar-on { @apply opacity-100 pointer-events-auto; transform: translateX(-50%); }
+  html[dir=rtl] .mk-bar.mk-bar-on { transform: translateX(50%); }
+  .mk-bar button, .mk-bar select { @apply rounded-xl px-3 py-1.5 text-sm hover:bg-white/10 transition; }
+  .mk-bar select { @apply bg-transparent border border-white/20 text-[#fff]; }
+  .mk-bar select option { @apply text-ink-900; }
+  .mk-dlg { @apply w-[min(720px,96vw)] max-h-[90vh] rounded-3xl p-0 shadow-2xl border-0 backdrop:bg-ink-900/45 backdrop:backdrop-blur-sm; }
+  .mk-dlg[open] { animation: mkIn .2s cubic-bezier(.2,.9,.3,1.2); }
+  .mk-dlg-head { @apply sticky top-0 z-10 flex items-start gap-3 p-5 border-b border-ink-100 bg-white/95 backdrop-blur; }
+  .mk-sk { @apply rounded-xl bg-ink-100 animate-pulse; }
+}
+@keyframes mkIn { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }

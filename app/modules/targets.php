@@ -183,3 +183,53 @@ function xlsx_sheets(string $path, int $max = 5000): array
     if (!$out) throw new RuntimeException(t('مالقيناش شيت في الملف.'));
     return $out;
 }
+
+/**
+ * العملاء المستهدفين = كل حد اتعامل معانا: بعت رسالة، علّق، اتسجل في فورم أو حجز، جه من حملة أو إعلان، أو ضفناه بنفسنا (يدوي، استيراد، Apollo، جهات اتصال واتساب).
+ * الفورم والحجز والاستيراد وApollo بيتسجلوا وقتها. هنا بنجمع الباقي من Zernio: المحادثات، والتعليقات، وجهات اتصال واتساب، وعملاء الإعلانات.
+ * مابنعملش متابعة (next_at) للي بيتجمعوا هنا عشان المهام ماتتغرقش. بيرجع عدد الجداد.
+ */
+function tg_capture_all(Zernio $z, int $max = 300): int
+{
+    $wid = (int)ws('id'); $new = 0;
+    $labels = function_exists('ai_labels') ? ai_labels($wid) : [];
+    $st = db()->prepare("SELECT ext_id FROM crm_leads WHERE workspace_id = ? AND ext_id IS NOT NULL"); $st->execute([$wid]); $have = array_flip($st->fetchAll(PDO::FETCH_COLUMN));
+    $spam = function ($lb) { return $lb && in_array($lb['category'] ?? '', ['spam'], true); };
+    $add = function (array $d) use (&$new, &$have) { if (isset($have[$d['ext']])) return; $l = crm_from_social($d + ['owner_id' => null]); $have[$d['ext']] = 1; if ($l && empty($l['merged'])) $new++; };
+    // الرسائل: كل المحادثات
+    try { $conv = $z->conversations(['limit' => 100, 'profileId' => zernio_profile()])['data'] ?? []; } catch (Throwable $e) { $conv = []; }
+    foreach ($conv as $c) {
+        if ($new >= $max) break; $id = (string)($c['id'] ?? ''); if ($id === '' || $spam($labels[$id] ?? null)) continue;
+        $pf = (string)($c['platform'] ?? ''); $m = $c['lastMessage'] ?? ''; $m = trim(is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m);
+        $add(['source' => 'inbox', 'ext' => 'ib:' . $pf . ':' . (string)($c['participantId'] ?? $id), 'name' => (string)($c['participantName'] ?? $c['participantUsername'] ?? ''), 'text' => mb_substr($m, 0, 300),
+            'where' => platform_label($pf), 'url' => url('inbox', ['c' => $id, 'a' => (string)($c['accountId'] ?? '')])]);
+    }
+    // التعليقات: كل اللي علّقوا على آخر 10 منشورات
+    try { $posts = array_slice($z->commentedPosts(['limit' => 20, 'profileId' => zernio_profile()])['data'] ?? [], 0, 10); } catch (Throwable $e) { $posts = []; }
+    foreach ($posts as $p) {
+        if ($new >= $max) break;
+        try { $cs = $z->comments((string)$p['id'], (string)($p['accountId'] ?? ''))['comments'] ?? []; } catch (Throwable $e) { continue; }
+        $flat = []; $walk = function ($l) use (&$walk, &$flat) { foreach ($l as $c) { $flat[] = $c; $walk($c['replies'] ?? []); } }; $walk($cs);
+        foreach ($flat as $c) {
+            $from = $c['from'] ?? []; if (!empty($from['isOwner']) || $spam($labels['c:' . ($c['id'] ?? '')] ?? null)) continue;
+            $pf = (string)($c['platform'] ?? $p['platform'] ?? ''); $nm = (string)($from['name'] ?? $from['username'] ?? ''); if ($nm === '' && empty($from['id'])) continue;
+            $add(['source' => 'comments', 'ext' => 'cm:' . $pf . ':' . (string)($from['id'] ?? $from['username'] ?? $nm), 'name' => $nm, 'text' => mb_substr(trim((string)($c['message'] ?? '')), 0, 300),
+                'where' => platform_label($pf), 'url' => url('comments', ['post' => (string)$p['id'], 'a' => (string)($p['accountId'] ?? '')])]);
+        }
+    }
+    // جهات اتصال واتساب (ضفناهم بنفسنا)
+    if (function_exists('wa_contacts')) {
+        try { $wc = wa_contacts($z, ['limit' => 200])['contacts'] ?? []; } catch (Throwable $e) { $wc = []; }
+        foreach ($wc as $c) {
+            if ($new >= $max) break; $ph = (string)($c['phone'] ?? $c['phoneNumber'] ?? $c['waId'] ?? ''); if ($ph === '') continue;
+            $ext = 'wa:' . preg_replace('/\D/', '', $ph); if (isset($have[$ext])) continue;
+            $l = crm_lead_upsert(['source' => 'whatsapp', 'ext_id' => $ext, 'name' => (string)($c['name'] ?? $c['profileName'] ?? ''), 'phone' => $ph, 'owner_id' => null]);
+            $have[$ext] = 1; if ($l && empty($l['merged'])) $new++;
+        }
+    }
+    // عملاء الإعلانات (فورم الإعلانات)
+    if (function_exists('crm_sync_ads')) { try { $r = crm_sync_ads($z, 2); $new += (int)($r['new'] ?? $r[0] ?? 0); } catch (Throwable $e) {} }
+    save_setting('tg_sync_' . $wid, date('Y-m-d H:i:s') . '|' . $new);
+    if ($new) log_activity('crm.capture_all', $new . ' new');
+    return $new;
+}

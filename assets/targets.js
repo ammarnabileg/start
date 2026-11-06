@@ -7,12 +7,13 @@
   function toast(m, k) { if (window.fxToast) fxToast(m, k || 'success'); }
   function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
 
-  // فلترة: المصدر + البحث
-  var src = '', q = document.getElementById('tg-q');
-  function apply() { if (!list) return; var v = (q && q.value || '').trim().toLowerCase();
-    list.querySelectorAll('.tg-row').forEach(function (r) { r.style.display = (!src || r.dataset.src === src) && (!v || r.dataset.q.indexOf(v) >= 0) ? '' : 'none'; }); }
-  document.querySelectorAll('.tg-chip').forEach(function (b) { b.addEventListener('click', function () { document.querySelectorAll('.tg-chip').forEach(function (x) { x.classList.toggle('on', x === b); }); src = b.dataset.src; apply(); }); });
-  if (q) q.addEventListener('input', apply);
+  var root = document.getElementById('tg'); if (!root) return;
+  var mk = MKList(root, { onOpen: function (r) { open(r.dataset.id); } });
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (!b) return; var r = b.closest('[data-mk-row]'); if (!confirm(L.confirmRm)) return;
+    post({ action: 'remove', id: r.dataset.id }).then(function (j) { if (j.ok) mk.remove(r); }); });
+  var rmSel = document.getElementById('tg-rm-sel');
+  if (rmSel) rmSel.addEventListener('click', function () { var s = mk.selected(); if (!s.length || !confirm(L.confirmRmN.replace('%s', s.length))) return;
+    Promise.all(s.map(function (r) { return post({ action: 'remove', id: r.dataset.id }).then(function (j) { if (j.ok) mk.remove(r); }); })); });
 
   // إضافة
   var add = document.getElementById('tg-add');
@@ -55,15 +56,13 @@
     return fetch(C.url + '&ajax=company&id=' + id + '&page=' + pg, { credentials: 'same-origin' }).then(function (r) { return r.json(); });
   }
   function open(id) {
-    var row = list && list.querySelector('.tg-row[data-id="' + id + '"]'); cur = id; page = 1;
-    var logo = row ? row.querySelector('img, span > span.rounded-lg, span.w-9') : null;
-    document.getElementById('tg-dlg-logo').innerHTML = logo ? logo.outerHTML : '';
-    document.getElementById('tg-dlg-name').textContent = row ? row.querySelector('b').textContent : '';
-    var sub = row ? [row.children[1].textContent.trim(), row.children[3].textContent.trim()].filter(function (x) { return x && x !== '—'; }).join(' · ') : '';
-    document.getElementById('tg-dlg-sub').textContent = sub;
-    var dom = row && row.querySelector('[dir=ltr]'), site = document.getElementById('tg-site');
-    if (dom) { site.href = 'https://' + dom.textContent.trim(); site.textContent = dom.textContent.trim(); site.classList.remove('hidden'); } else site.classList.add('hidden');
-    known.innerHTML = '<div class="h-14 rounded-xl bg-ink-100 animate-pulse"></div>'; ap.innerHTML = '<div class="h-14 rounded-xl bg-ink-100 animate-pulse"></div><div class="h-14 rounded-xl bg-ink-100 animate-pulse"></div>'; more.classList.add('hidden');
+    var row = list && list.querySelector('[data-mk-row][data-id="' + id + '"]'); cur = id; page = 1;
+    var lg = document.getElementById('tg-dlg-logo'), d = row ? row.dataset : {};
+    lg.innerHTML = d.logo ? '<img src="' + esc(d.logo) + '" alt="" class="w-full h-full object-contain bg-white">' : esc((d.name || '?').charAt(0));
+    document.getElementById('tg-dlg-name').textContent = d.name || ''; document.getElementById('tg-dlg-sub').textContent = d.sub || '';
+    var site = document.getElementById('tg-site');
+    if (d.domain) { site.href = 'https://' + d.domain; site.textContent = d.domain; site.classList.remove('hidden'); } else site.classList.add('hidden');
+    known.innerHTML = '<div class="h-14 mk-sk"></div>'; ap.innerHTML = '<div class="h-16 mk-sk"></div><div class="h-16 mk-sk"></div><div class="h-16 mk-sk"></div>'; more.classList.add('hidden');
     if (!dlg.open) dlg.showModal();
     loadPeople(id, 1).then(function (j) {
       if (!j.ok) { known.innerHTML = '<p class="text-sm text-red-600">' + esc(j.error || L.err) + '</p>'; ap.innerHTML = ''; return; }
@@ -90,9 +89,8 @@
     }).catch(function () { b.disabled = false; b.textContent = L.reveal; toast(L.err, 'error'); });
   });
   document.getElementById('tg-remove').addEventListener('click', function () {
-    if (!confirm(L.confirmRm)) return; post({ action: 'remove', id: cur }).then(function (j) { if (j.ok) { var r = list.querySelector('.tg-row[data-id="' + cur + '"]'); if (r) r.remove(); dlg.close(); } });
+    if (!confirm(L.confirmRm)) return; post({ action: 'remove', id: cur }).then(function (j) { if (j.ok) { var r = list.querySelector('[data-mk-row][data-id="' + cur + '"]'); if (r) mk.remove(r); dlg.close(); } });
   });
   dlg.addEventListener('click', function (e) { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
-  if (list) list.addEventListener('click', function (e) { var r = e.target.closest('.tg-row'); if (r) open(r.dataset.id); });
   var m = /[?&]open=(\d+)/.exec(location.search); if (m) open(m[1]);
 })();

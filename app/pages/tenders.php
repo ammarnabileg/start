@@ -54,12 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
 }
 
-$view = in_array($_GET['v'] ?? '', ['fav', 'applied', 'all', 'hidden'], true) ? $_GET['v'] : 'match';
 $cfg = tnd_cfg();
 $h = tnd_health();
-$rows = $view === 'match' ? tnd_list(false) : ($view === 'all' ? tnd_list(true, 300) : tnd_marked($view));
-$counts = ['match' => $view === 'match' ? count($rows) : count(tnd_list(false)), 'fav' => count(tnd_marked('fav')), 'applied' => count(tnd_marked('applied'))];
-render(t('المنافسات والمناقصات'), 'tenders', function () use ($view, $cfg, $h, $rows, $counts, $mgr) {
+$rows = tnd_list(true, 3000);
+$seen = array_flip(array_column($rows, 'id'));
+foreach (['fav', 'applied'] as $m) foreach (tnd_marked($m) as $t) if (!isset($seen[$t['id']])) { $t['hits'] = []; $rows[] = $t; $seen[$t['id']] = 1; }
+$counts = ['match' => 0, 'soon' => 0, 'fav' => 0, 'applied' => 0, 'all' => 0];
+foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = $t['deadline'] && strtotime($t['deadline']) > time();
+    if ($t['hits'] && !$hid && $act) $counts['match']++; if ($t['hits'] && !$hid && $act && strtotime($t['deadline']) < time() + 3 * 86400) $counts['soon']++;
+    if ($t['mark'] === 'fav') $counts['fav']++; if ($t['mark'] === 'applied') $counts['applied']++; if (!$hid && $act) $counts['all']++; }
+render(t('المنافسات والمناقصات'), 'tenders', function () use ($cfg, $h, $rows, $counts, $mgr) {
     $ago = function ($sec) { if ($sec === null) return t('لسه ماوصلش بيانات'); if ($sec < 3600) return t('من %s دقيقة', max(1, intdiv($sec, 60))); if ($sec < 86400) return t('من %s ساعة', intdiv($sec, 3600)); return t('من %s يوم', intdiv($sec, 86400)); };
     $mark = function (string $txt, array $hits) { $out = e($txt); foreach ($hits as $w) { $out = preg_replace('/(' . preg_quote(e($w), '/') . ')/u', '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">$1</mark>', $out); } return $out; };
     ?>
@@ -106,81 +110,94 @@ render(t('المنافسات والمناقصات'), 'tenders', function () use 
     }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0); })();
     </script>
 
-    <?php if (!$cfg['words'] && $view === 'match'): ?>
+    <?php if (!$cfg['words']): ?>
       <div class="card p-4 mb-4 flex flex-wrap items-center gap-3 text-sm"><?= ui_icon('id', 'w-5 h-5 text-ink-400') ?><span class="flex-1 text-ink-600"><?= e(t('معرفة الشركة مفيهاش مجال ولا خدمات لسه، فمش عارفين ندوّر على إيه. كمّل "عن الشركة" و"الخدمات".')) ?></span>
         <a href="<?= e(url('knowledge')) ?>" class="btn-primary !py-1.5 !text-xs"><?= e(t('معرفة الشركة')) ?></a></div>
     <?php endif; ?>
 
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <?php foreach (['match' => [t('تناسبك'), $counts['match']], 'fav' => [t('المحفوظة'), $counts['fav']], 'applied' => [t('قدّمت عليها'), $counts['applied']], 'all' => [t('كل النشطة'), null], 'hidden' => [t('المخفية'), null]] as $k => [$l, $n]): ?>
-        <a href="<?= e(url('tenders', $k === 'match' ? [] : ['v' => $k])) ?>" class="text-sm rounded-full border px-3 py-1 <?= $view === $k ? 'bg-ink-900 text-[#fff] border-ink-900' : 'border-ink-200 text-ink-600 hover:bg-ink-50' ?>"><?= e($l) ?><?= $n !== null ? ' <span class="opacity-70">' . (int)$n . '</span>' : '' ?></a>
+    <?php $cols = 'md:grid-cols-[22px_minmax(0,2.6fr)_minmax(0,1.3fr)_128px_92px_minmax(0,0.9fr)_150px]'; $L = ['fav' => t('محفوظة'), 'applied' => t('قدّمت'), 'hidden' => t('مخفية')]; ?>
+    <div id="tnd" data-mk>
+    <div class="mk-stats">
+      <?php foreach ([['match', 'match=1', t('تناسبك'), $counts['match'], 'spark', 'bg-brand-50 text-brand-700'], ['soon', 'soon=1', t('تنتهي خلال 3 أيام'), $counts['soon'], 'timer', 'bg-red-50 text-red-700'],
+          ['fav', 'mark=fav', t('المحفوظة'), $counts['fav'], 'star', 'bg-amber-50 text-amber-700'], ['applied', 'mark=applied', t('قدّمت عليها'), $counts['applied'], 'check', 'bg-lime-50 text-lime-700'],
+          ['all', 'act=1', t('كل النشطة'), $counts['all'], 'file', 'bg-ink-100 text-ink-700']] as $i => [$k, $test, $l, $n, $ic, $cl]): ?>
+        <button type="button" class="mk-stat<?= $i === 0 ? ' mk-on' : '' ?>" data-mk-stat="<?= $k ?>" data-mk-test="<?= e($test) ?>"><span class="mk-ic <?= $cl ?>"><?= ui_icon($ic, 'w-5 h-5') ?></span><span><b data-cnt="<?= $k ?>"><?= number_format($n) ?></b><small><?= e($l) ?></small></span></button>
       <?php endforeach; ?>
-      <span class="ms-auto"></span><input type="search" id="tnd-q" class="input !mt-0 !w-56 text-sm" placeholder="<?= e(t('دوّر في النتايج…')) ?>">
-      <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-ghost"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('كلمات البحث')) ?><?= $cfg['words'] ? ' (' . count($cfg['words']) . ')' : '' ?></button><?php endif; ?>
+    </div>
+    <div class="mk-tools">
+      <label class="mk-search"><?= ui_icon('search') ?><input type="search" data-mk-q placeholder="<?= e(t('اسم المنافسة، الجهة، النشاط، الرقم المرجعي…')) ?>"><kbd>/</kbd></label>
+      <span class="text-xs text-ink-500 tabular-nums"><span data-mk-shown></span></span>
+      <?php if ($h['stale'] && $h['age'] !== null): ?><span class="text-xs text-amber-700"><?= e(t('البيانات متأخرة: آخر تحديث %s.', $ago($h['age']))) ?></span><?php endif; ?>
+      <span class="ms-auto"></span>
+      <?php if ($mgr): ?><button type="button" popovertarget="tnd-cfg" class="btn-ghost"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('كلمات البحث')) ?><?= $cfg['words'] ? ' <span class="rounded-full bg-brand-600 text-[#fff] text-[11px] px-1.5">' . count($cfg['words']) . '</span>' : '' ?></button><?php endif; ?>
       <?php if (is_ws_owner() && tnd_apify_on()): $arun = (string)setting('tenders_apify_run', '') !== ''; ?><button type="button" id="tnd-pull" class="btn-ghost" <?= $arun ? 'data-running="1"' : '' ?>><?= ui_icon('refresh', 'w-4 h-4') ?><span><?= e($arun ? t('بنسحب…') : t('اسحب الآن')) ?></span></button><?php endif; ?>
     </div>
-    <?php if ($h['stale'] && $h['age'] !== null): ?><p class="text-xs text-amber-700 -mt-2 mb-4"><?= e(t('البيانات متأخرة: آخر تحديث %s.', $ago($h['age']))) ?></p><?php endif; ?>
 
-    <?php if (!$rows && ($cfg['words'] || $view !== 'match')): ?>
-      <div class="card p-6 text-center text-sm text-ink-500"><?= e($view === 'match' ? t('مفيش منافسات نشطة بتطابق كلماتك دلوقتي. جرّب كلمات أكتر، أو استنى الجديد.') : t('مفيش حاجة هنا.')) ?></div>
-    <?php endif; ?>
-
-    <div class="space-y-3" id="tnd-list">
-    <?php foreach ($rows as $t): $left = $t['deadline'] ? (strtotime($t['deadline']) - time()) : null; $d = $left !== null ? (int)floor($left / 86400) : null; $isNew = strtotime($t['first_seen']) > time() - 86400; ?>
-      <div class="card p-4 flex flex-col md:flex-row gap-4" data-tnd="<?= (int)$t['id'] ?>" data-q="<?= e(mb_strtolower($t['name'] . ' ' . $t['agency'] . ' ' . $t['branch'] . ' ' . $t['activity'] . ' ' . $t['ref'])) ?>">
-        <div class="flex-1 min-w-0 space-y-1.5">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <?php if ($isNew): ?><span class="text-[11px] rounded-full bg-brand-600 text-[#fff] px-2 py-0.5"><?= e(t('جديدة')) ?></span><?php endif; ?>
-            <?php if ($t['type']): ?><span class="text-[11px] rounded-full bg-ink-100 text-ink-600 px-2 py-0.5"><?= e($t['type']) ?></span><?php endif; ?>
-          </div>
-          <a href="<?= e(tnd_url($t)) ?>" target="_blank" rel="noopener" class="block font-semibold text-ink-900 hover:text-brand-700 leading-snug" dir="auto"><?= $mark($t['name'], $t['hits']) ?></a>
-          <div class="text-sm text-ink-600"><?= e($t['agency'] ?: '—') ?><?php if ($t['branch'] && $t['branch'] !== $t['agency']): ?> <span class="text-ink-400">·</span> <?= e($t['branch']) ?><?php endif; ?></div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
-            <?php if ($t['activity']): ?><span><?= e(t('النشاط: %s', trim($t['activity']))) ?></span><?php endif; ?>
-            <?php if ($t['ref']): ?><span><?= e(t('الرقم المرجعي: %s', $t['ref'])) ?></span><?php endif; ?>
-            <?php if ($t['booklet'] !== null): ?><span><?= e(t('الكراسة: %s', (float)$t['booklet'] > 0 ? number_format((float)$t['booklet']) . ' ' . t('ريال') : t('مجانًا'))) ?></span><?php endif; ?>
-            <?php if ($t['inquiry_at']): ?><span><?= e(t('آخر استفسار: %s', fmt_date($t['inquiry_at'], 'd/m'))) ?></span><?php endif; ?>
-          </div>
+    <div class="mk-table">
+      <div class="mk-head <?= $cols ?>"><input type="checkbox" data-mk-all aria-label="<?= e(t('تحديد الكل')) ?>">
+        <span data-mk-sort="name"><?= e(t('المنافسة')) ?></span><span data-mk-sort="act"><?= e(t('النشاط')) ?></span><span data-mk-sort="dl" data-dir="asc"><?= e(t('آخر موعد')) ?></span>
+        <span data-mk-sort="bk"><?= e(t('الكراسة')) ?></span><span data-mk-sort="type"><?= e(t('النوع')) ?></span><span></span></div>
+      <div data-mk-body>
+      <?php foreach ($rows as $t): $left = $t['deadline'] ? (strtotime($t['deadline']) - time()) : null; $d = $left !== null ? (int)floor($left / 86400) : null; $act = $left !== null && $left > 0;
+          $isNew = strtotime($t['first_seen']) > time() - 86400; $dlTxt = $t['deadline'] ? fmt_date($t['deadline'], fmt_date($t['deadline'], 'H:i') === '00:00' ? 'd/m' : 'd/m h:i A') : '';
+          $bk = $t['booklet'] === null ? '' : ((float)$t['booklet'] > 0 ? number_format((float)$t['booklet']) . ' ' . t('ريال') : t('مجانًا'));
+          $j = ['id' => (int)$t['id'], 'name' => $t['name'], 'agency' => (string)$t['agency'], 'branch' => (string)$t['branch'], 'activity' => trim((string)$t['activity']), 'type' => (string)$t['type'], 'ref' => (string)$t['ref'],
+            'booklet' => $bk, 'deadline' => $dlTxt, 'inquiry' => $t['inquiry_at'] ? fmt_date($t['inquiry_at'], 'd/m/Y') : '', 'published' => $t['published_at'] ? fmt_date($t['published_at'], 'd/m/Y') : '',
+            'url' => tnd_url($t), 'hits' => array_values($t['hits']), 'lead' => !empty($t['lead_id']) ? url('crm_leads', ['lead' => (int)$t['lead_id']]) : '', 'days' => $d]; ?>
+        <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$t['id'] ?>" data-match="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act ? 1 : 0 ?>" data-soon="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act && $left < 3 * 86400 ? 1 : 0 ?>"
+          data-act="<?= $act && $t['mark'] !== 'hidden' ? 1 : 0 ?>" data-mark="<?= e((string)$t['mark']) ?>" data-q="<?= e(mb_strtolower($t['name'] . ' ' . $t['agency'] . ' ' . $t['branch'] . ' ' . $t['activity'] . ' ' . $t['ref'])) ?>"
+          data-s-name="<?= e(mb_strtolower($t['name'])) ?>" data-s-act="<?= e(mb_strtolower((string)$t['activity'])) ?>" data-s-dl="<?= e((string)$t['deadline']) ?>" data-s-bk="<?= (float)$t['booklet'] ?>" data-s-type="<?= e((string)$t['type']) ?>"
+          data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">
+          <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
+          <span class="min-w-0"><span class="flex items-center gap-1.5"><?php if ($isNew): ?><span class="mk-pill bg-brand-600 text-[#fff]"><?= e(t('جديدة')) ?></span><?php endif; ?><span class="mk-pill bg-amber-50 text-amber-800 <?= in_array($t['mark'], ['fav', 'applied'], true) ? '' : 'hidden' ?>" data-mark-pill><?= e($L[$t['mark']] ?? '') ?></span>
+              <b class="text-ink-900 truncate" dir="auto"><?= $mark($t['name'], $t['hits']) ?></b></span>
+            <span class="block text-xs text-ink-500 truncate"><?= e($t['agency'] ?: '—') ?><?= $t['branch'] && $t['branch'] !== $t['agency'] ? ' · ' . e($t['branch']) : '' ?></span></span>
+          <span class="text-sm text-ink-600 truncate"><?= e(trim((string)$t['activity']) ?: '—') ?></span>
+          <span class="min-w-0"><span class="mk-pill <?= $d === null ? 'bg-ink-100 text-ink-500' : (!$act ? 'bg-ink-100 text-ink-500' : ($d < 3 ? 'bg-red-50 text-red-700' : ($d < 7 ? 'bg-amber-50 text-amber-800' : 'bg-lime-50 text-lime-800'))) ?>"><?= $d === null ? '—' : (!$act ? e(t('انتهت')) : ($d === 0 ? e(t('النهارده')) : e(t('%s يوم', $d)))) ?></span>
+            <span class="block text-[11px] text-ink-400 mt-0.5 tabular-nums"><?= e($dlTxt) ?></span></span>
+          <span class="text-xs text-ink-600"><?= e($bk ?: '—') ?></span>
+          <span class="text-xs text-ink-600 truncate"><?= e($t['type'] ?: '—') ?></span>
+          <span class="mk-acts">
+            <button type="button" class="mk-act<?= $t['mark'] === 'fav' ? ' on' : '' ?>" data-a="fav" title="<?= e(t('احفظ')) ?>"><?= ui_icon('star', 'w-4 h-4') ?></button>
+            <button type="button" class="mk-act<?= $t['mark'] === 'applied' ? ' on' : '' ?>" data-a="applied" title="<?= e(t('قدّمت عليها')) ?>"><?= ui_icon('check', 'w-4 h-4') ?></button>
+            <?php if (module_enabled('crm') && can('crm.view')): ?><button type="button" class="mk-act" data-a="deal" title="<?= e(t('حوّلها لصفقة في العملاء')) ?>"><?= ui_icon('user_plus', 'w-4 h-4') ?></button><?php endif; ?>
+            <button type="button" class="mk-act" data-a="hidden" title="<?= e(t('مش مناسبة')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
+            <a class="mk-act" href="<?= e(tnd_url($t)) ?>" target="_blank" rel="noopener" title="<?= e(t('افتحها في اعتماد')) ?>"><?= ui_icon('link', 'w-4 h-4') ?></a>
+          </span>
         </div>
-        <div class="md:w-56 shrink-0 flex md:flex-col gap-2 md:items-stretch items-center justify-between">
-          <div class="rounded-xl px-3 py-2 text-center <?= $d === null ? 'bg-ink-50 text-ink-500' : ($d < 3 ? 'bg-red-50 text-red-700' : ($d < 7 ? 'bg-amber-50 text-amber-800' : 'bg-ink-50 text-ink-700')) ?>">
-            <b class="block text-lg leading-tight"><?= $d === null ? '—' : ($left < 0 ? e(t('انتهت')) : ($d === 0 ? e(t('النهارده')) : e(t('%s يوم', $d)))) ?></b>
-            <span class="text-[11px]"><?= e(t('آخر موعد للعروض')) ?> <?= e($t['deadline'] ? fmt_date($t['deadline'], fmt_date($t['deadline'], 'H:i') === '00:00' ? 'd/m' : 'd/m h:i A') : '') ?></span>
-          </div>
-          <div class="flex flex-wrap gap-1.5 md:justify-end" data-acts data-mark="<?= e((string)$t['mark']) ?>">
-            <button type="button" data-a="fav" class="tnd-b" title="<?= e(t('احفظ')) ?>"><?= ui_icon('star', 'w-4 h-4') ?></button>
-            <button type="button" data-a="applied" class="tnd-b" title="<?= e(t('قدّمت عليها')) ?>"><?= ui_icon('check', 'w-4 h-4') ?></button>
-            <?php if (module_enabled('crm') && can('crm.view')): ?><button type="button" data-a="deal" class="tnd-b" title="<?= e(t('حوّلها لصفقة في العملاء')) ?>"><?= ui_icon('user_plus', 'w-4 h-4') ?></button><?php endif; ?>
-            <button type="button" data-a="hidden" class="tnd-b" title="<?= e(t('مش مناسبة')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
-            <a href="<?= e(tnd_url($t)) ?>" target="_blank" rel="noopener" class="btn-primary !py-1 !text-xs" title="<?= e(t('افتحها في اعتماد')) ?>"><?= e(t('اعتماد')) ?> ↗</a>
-          </div>
-          <?php if (!empty($t['lead_id'])): ?><a href="<?= e(url('crm_leads', ['lead' => (int)$t['lead_id']])) ?>" class="text-xs link md:text-end"><?= e(t('الصفقة في العملاء')) ?></a><?php endif; ?>
+      <?php endforeach; ?>
+      </div>
+      <p data-mk-empty class="hidden p-8 text-center text-sm text-ink-500"><?= e($cfg['words'] ? t('مفيش منافسات هنا. جرّب كرت تاني فوق أو كلمات بحث أكتر.') : t('مفيش حاجة هنا.')) ?></p>
+    </div>
+
+    <div class="mk-bar" data-mk-bar>
+      <span class="text-sm"><b data-mk-nsel>0</b> <?= e(t('محدد')) ?></span>
+      <button type="button" data-bulk="fav"><?= ui_icon('star', 'w-4 h-4 inline') ?> <?= e(t('احفظ')) ?></button>
+      <button type="button" data-bulk="applied"><?= ui_icon('check', 'w-4 h-4 inline') ?> <?= e(t('قدّمت عليها')) ?></button>
+      <button type="button" data-bulk="hidden"><?= ui_icon('x', 'w-4 h-4 inline') ?> <?= e(t('مش مناسبة')) ?></button>
+      <button type="button" data-mk-clear class="!px-2" title="<?= e(t('إلغاء التحديد')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
+    </div>
+    </div>
+
+    <dialog id="tnd-dlg" class="mk-dlg">
+      <div class="mk-dlg-head"><span class="mk-av !w-12 !h-12 !bg-lime-50 !text-lime-700"><?= ui_icon('file', 'w-6 h-6') ?></span><div class="flex-1 min-w-0"><b id="td-name" class="block text-lg text-ink-900 leading-snug" dir="auto"></b><span id="td-sub" class="text-sm text-ink-500"></span></div>
+        <button type="button" data-close class="p-2 -m-1 rounded-xl text-ink-400 hover:text-ink-900 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div class="p-5 space-y-4">
+        <div id="td-hits" class="flex flex-wrap gap-1.5"></div>
+        <dl id="td-meta" class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm"></dl>
+        <div class="flex flex-wrap items-center gap-2 pt-3 border-t border-ink-100" id="td-acts">
+          <button type="button" class="btn-ghost !py-1.5 !text-sm" data-a="fav"><?= ui_icon('star', 'w-4 h-4') ?><?= e(t('احفظ')) ?></button>
+          <button type="button" class="btn-ghost !py-1.5 !text-sm" data-a="applied"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('قدّمت عليها')) ?></button>
+          <?php if (module_enabled('crm') && can('crm.view')): ?><button type="button" class="btn-ghost !py-1.5 !text-sm" data-a="deal"><?= ui_icon('user_plus', 'w-4 h-4') ?><?= e(t('حوّلها لصفقة في العملاء')) ?></button><?php endif; ?>
+          <a id="td-lead" href="#" class="link text-sm hidden"><?= e(t('الصفقة في العملاء')) ?></a>
+          <span class="ms-auto"></span><a id="td-url" href="#" target="_blank" rel="noopener" class="btn-primary !py-1.5 !text-sm"><?= e(t('افتحها في اعتماد')) ?> ↗</a>
         </div>
       </div>
-    <?php endforeach; ?>
-    </div>
-    <style>.tnd-b{display:inline-grid;place-items:center;width:2rem;height:2rem;border-radius:.6rem;border:1px solid rgb(var(--ink-200,226 232 240));color:rgb(100 116 139)}.tnd-b:hover{background:rgb(241 245 249)}.tnd-b.on{background:rgb(254 243 199);border-color:rgb(252 211 77);color:rgb(146 64 14)}</style>
-    <script>
-    (function () {
-      var T = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.'), 'deal' => t('اتعملت صفقة في العملاء ✓'), 'saved' => t('اتحفظ ✓')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
-      var list = document.getElementById('tnd-list'); if (!list) return;
-      function paint(box) { var m = box.dataset.mark; box.querySelectorAll('[data-a]').forEach(function (b) { b.classList.toggle('on', b.dataset.a === m || (b.dataset.a === 'deal' && false)); }); }
-      list.querySelectorAll('[data-acts]').forEach(paint);
-      list.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-a]'); if (!b) return; var box = b.closest('[data-acts]'), card = b.closest('[data-tnd]');
-        var a = b.dataset.a; if (a !== 'deal' && box.dataset.mark === a) a = 'clear';
-        var d = new FormData(); d.append('_csrf', T.csrf); d.append('action', a); d.append('id', card.dataset.tnd); b.disabled = true;
-        fetch(T.url, { method: 'POST', body: d, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
-          b.disabled = false; if (!j.ok) { if (window.fxToast) fxToast(j.error || T.err, 'error'); return; }
-          box.dataset.mark = j.status; paint(box);
-          if (j.status === 'hidden') { card.style.transition = 'opacity .2s'; card.style.opacity = '0'; setTimeout(function () { card.remove(); }, 200); }
-          if (j.lead && window.fxToast) fxToast(T.deal, 'success'); else if (window.fxToast && j.status) fxToast(T.saved, 'success');
-          if (j.url && !card.querySelector('a[href*="crm_leads"]')) { var l = document.createElement('a'); l.href = j.url; l.className = 'text-xs link md:text-end'; l.textContent = <?= json_encode(t('الصفقة في العملاء'), JSON_UNESCAPED_UNICODE) ?>; box.parentNode.appendChild(l); }
-        }).catch(function () { b.disabled = false; if (window.fxToast) fxToast(T.err, 'error'); });
-      });
-      var q = document.getElementById('tnd-q'); if (q) q.addEventListener('input', function () { var v = q.value.trim().toLowerCase(); list.querySelectorAll('[data-tnd]').forEach(function (c) { c.style.display = !v || c.dataset.q.indexOf(v) >= 0 ? '' : 'none'; }); });
-      document.querySelectorAll('[data-add-word]').forEach(function (b) { b.addEventListener('click', function () { var ta = document.getElementById('tnd-words'); ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + b.dataset.addWord; b.remove(); }); });
-    })();
-    </script>
+    </dialog>
+    <script>window.TND = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'marks' => $L,
+        'L' => ['err' => t('حصلت مشكلة.'), 'deal' => t('اتعملت صفقة في العملاء ✓'), 'saved' => t('اتحفظ ✓'), 'done' => t('اتعمل على %s'), 'ref' => t('الرقم المرجعي'), 'act' => t('النشاط'), 'type' => t('النوع'),
+        'bk' => t('الكراسة'), 'dl' => t('آخر موعد للعروض'), 'inq' => t('آخر استفسار'), 'pub' => t('تاريخ النشر'), 'matched' => t('طابقت كلماتك:')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/tenders.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

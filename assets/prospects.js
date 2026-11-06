@@ -7,30 +7,60 @@
   function post(url, d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { [].concat(d[k]).forEach(function (v) { f.append(k, v); }); }); return fetch(url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function $(id) { return document.getElementById(id); }
 
-  /* ---------- الفلاتر ---------- */
-  var rows = [].slice.call(document.querySelectorAll('.pr-row')), has = '';
-  var F = ['pf-src', 'pf-stage', 'pf-owner', 'pf-country', 'pf-from', 'pf-to', 'pf-tag'].map($).filter(Boolean);
-  function apply() {
-    var q = ($('pr-q').value || '').trim().toLowerCase(), v = {}; F.forEach(function (el) { v[el.id] = el.value.trim(); }); var n = 0, act = 0;
-    F.forEach(function (el) { if (el.value.trim()) act++; });
-    rows.forEach(function (r) { var d = r.dataset, ok =
-      (!has || (has === 'phone' && d.phone === '1') || (has === 'email' && d.email === '1') || (has === 'none' && d.phone === '0' && d.email === '0')) &&
-      (!q || d.q.indexOf(q) >= 0) && (!v['pf-src'] || d.src === v['pf-src']) && (!v['pf-stage'] || d.stage === v['pf-stage']) &&
-      (v['pf-owner'] === undefined || !v['pf-owner'] || d.owner === v['pf-owner']) && (!v['pf-country'] || d.country === v['pf-country']) &&
-      (!v['pf-from'] || d.date >= v['pf-from']) && (!v['pf-to'] || d.date <= v['pf-to']) && (!v['pf-tag'] || d.q.indexOf(v['pf-tag'].toLowerCase()) >= 0);
-      r.style.display = ok ? '' : 'none'; if (ok) n++; });
-    var fn = $('pr-fn'); if (fn) { fn.textContent = act; fn.classList.toggle('hidden', !act); }
-    var pc = $('pf-count'); if (pc) pc.textContent = L.shown.replace('%s', n).replace('%s', rows.length);
-    var em = $('pr-empty'); if (em) em.classList.toggle('hidden', n > 0);
-  }
-  if ($('pr-q')) $('pr-q').addEventListener('input', apply);
-  F.forEach(function (el) { el.addEventListener('input', apply); el.addEventListener('change', apply); });
-  if ($('pf-reset')) $('pf-reset').addEventListener('click', function () { F.forEach(function (el) { el.value = ''; }); apply(); });
-  document.querySelectorAll('[data-has]').forEach(function (b) { b.addEventListener('click', function () { document.querySelectorAll('[data-has]').forEach(function (x) { x.classList.toggle('on', x === b); }); has = b.dataset.has; apply(); }); });
-  var body = $('pr-body'); if (body) body.addEventListener('click', function (e) { if (e.target.closest('a')) return; var r = e.target.closest('.pr-row'); if (r) location.href = r.dataset.href; });
-  apply();
-
   function dlg(id) { var d = $(id); d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) d.close(); }); return d; }
+  /* ---------- القايمة: كروت الأرقام، بحث، فلاتر، ترتيب، تحديد، كيبورد ---------- */
+  var root = $('pr'); if (!root) return;
+  var F = ['pf-src', 'pf-stage', 'pf-owner', 'pf-country', 'pf-from', 'pf-to'].map($).filter(Boolean);
+  var list = MKList(root, {
+    extra: function (r) { var d = r.dataset, v = {}; F.forEach(function (el) { v[el.id] = el.value.trim(); });
+      return (!v['pf-src'] || d.src === v['pf-src']) && (!v['pf-stage'] || d.stage === v['pf-stage']) && (!v['pf-owner'] || d.owner === v['pf-owner']) &&
+        (!v['pf-country'] || d.country === v['pf-country']) && (!v['pf-from'] || d.date >= v['pf-from']) && (!v['pf-to'] || d.date <= v['pf-to']); },
+    onOpen: function (r) { open(r); }
+  });
+  function fcount() { var n = F.filter(function (el) { return el.value.trim(); }).length, b = $('pr-fn'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
+  F.forEach(function (el) { el.addEventListener('input', function () { fcount(); list.apply(); }); el.addEventListener('change', function () { fcount(); list.apply(); }); });
+  if ($('pf-reset')) $('pf-reset').addEventListener('click', function () { F.forEach(function (el) { el.value = ''; }); fcount(); list.apply(); });
+
+  // جمع كل اللي اتعاملوا معانا (رسائل، تعليقات، واتساب، إعلانات) في الخلفية
+  if (C.syncDue) { var sy = $('pr-sync'); sy.classList.remove('hidden');
+    post(C.selfUrl, { action: 'sync' }).then(function (j) { sy.classList.add('hidden'); if (j.ok && j.new > 0) { toast(L.synced.replace('%s', j.new)); setTimeout(function () { location.reload(); }, 1200); } }).catch(function () { sy.classList.add('hidden'); }); }
+
+  /* ---------- بوب أب العميل ---------- */
+  var dl = dlg('pr-dlg'), cur = null;
+  function jd(r) { try { return JSON.parse(r.dataset.j); } catch (e) { return {}; } }
+  function open(r) {
+    cur = r; var d = jd(r);
+    $('pd-av').textContent = (d.name || '?').charAt(0); $('pd-name').textContent = d.name || '—'; $('pd-sub').textContent = [d.title, d.company].filter(Boolean).join(' · ');
+    $('pd-contact').innerHTML = (d.phone ? '<a class="btn-ghost !py-1.5" href="tel:' + esc(d.phone) + '" dir="ltr">' + ic('phone') + esc(d.phone) + '</a>' : '') +
+      (d.wa ? '<a class="btn-ghost !py-1.5 !text-lime-700" href="https://wa.me/' + esc(d.wa) + '" target="_blank" rel="noopener">' + ic('chat') + esc(L.wa) + '</a>' : '') +
+      (d.email ? '<a class="btn-ghost !py-1.5" href="mailto:' + esc(d.email) + '" dir="ltr">' + ic('mail') + esc(d.email) + '</a>' : '') || '<span class="text-sm text-ink-400">' + esc(L.none) + '</span>';
+    $('pd-stage').value = d.stage; if ($('pd-owner')) $('pd-owner').value = String(d.owner || 0);
+    $('pd-meta').innerHTML = [[L.src, d.src], [L.added, d.added], [L.last, d.last || '—'], [L.country, d.country || '—']].map(function (x) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-[11px] text-ink-500">' + esc(x[0]) + '</dt><dd class="font-medium text-ink-900 truncate">' + esc(x[1]) + '</dd></div>'; }).join('');
+    tags(d.tags); $('pd-open').href = C.leadUrl + '&lead=' + d.id; dl.showModal();
+  }
+  function tags(t) { $('pd-tags').innerHTML = String(t || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '<span class="mk-pill bg-ink-100 text-ink-700">#' + esc(x) + '</span>'; }).join(''); }
+  function upd(r, k, v) { var d = jd(r); d[k] = v; r.dataset.j = JSON.stringify(d); if (k === 'stage' || k === 'owner') r.dataset[k] = String(v); }
+  function bulk(ids, op, extra) { var d = { action: 'bulk', op: op, 'ids[]': ids }; Object.keys(extra).forEach(function (k) { d[k] = extra[k]; }); return post(C.importUrl, d); }
+  $('pd-stage').addEventListener('change', function () { var v = this.value, r = cur; bulk([jd(r).id], 'stage', { stage: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error');
+    upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; r.dataset.sStage = v; toast(L.saved); }); });
+  if ($('pd-owner')) $('pd-owner').addEventListener('change', function () { var v = this.value, r = cur; bulk([jd(r).id], 'owner', { owner: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'owner', +v); toast(L.saved); }); });
+  $('pd-tag-f').addEventListener('submit', function (e) { e.preventDefault(); var t = this.t.value.trim(), r = cur, f = this; if (!t) return;
+    bulk([jd(r).id], 'tag', { tag: t }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var d = jd(r), nt = (d.tags ? d.tags + ', ' : '') + t; upd(r, 'tags', nt); r.dataset.q += ' ' + t.toLowerCase(); tags(nt); f.t.value = ''; }); });
+
+  /* ---------- عمليات بالجملة ---------- */
+  function ids() { return list.selected().map(function (r) { return jd(r).id; }); }
+  function done(j, n) { if (!j.ok) return toast(j.error || L.err, 'error'); toast(L.done2.replace('%s', n)); }
+  $('pb-stage').addEventListener('change', function () { var v = this.value, s = list.selected(), el = this; if (!v || !s.length) return;
+    bulk(ids(), 'stage', { stage: v }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; }); el.value = ''; }); });
+  if ($('pb-owner')) $('pb-owner').addEventListener('change', function () { var v = this.value, s = list.selected(), el = this; if (!v || !s.length) return;
+    bulk(ids(), 'owner', { owner: v }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { upd(r, 'owner', +v); }); el.value = ''; }); });
+  $('pb-tag').addEventListener('click', function () { var s = list.selected(), t = (prompt(L.tagAsk) || '').trim(); if (!t || !s.length) return;
+    bulk(ids(), 'tag', { tag: t }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { var d = jd(r); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); }); }); });
+  $('pb-csv').addEventListener('click', function () { var s = list.selected(); if (!s.length) return;
+    var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var lines = [[L.cols.name, L.cols.phone, L.cols.email, L.cols.company, L.cols.title, L.cols.country, L.src, L.added].map(q).join(',')].concat(s.map(function (r) { var d = jd(r);
+      return [d.name, d.phone, d.email, d.company, d.title, d.country, d.src, d.added].map(q).join(','); }));
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = 'leads-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click(); });
 
   /* ---------- استيراد ملف ---------- */
   var imp = dlg('pr-import'), map = {};

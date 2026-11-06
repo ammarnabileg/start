@@ -52,6 +52,15 @@ try {
         } catch (Throwable $t) {
             $line .= ' ad_leads=error';
         }
+        // العملاء المستهدفين: كل اللي اتعاملوا معانا (رسائل، تعليقات، واتساب، إعلانات)، كل ساعتين
+        try {
+            if (strtotime(explode('|', (string)setting('tg_sync_' . $wid, ''))[0] ?: '2000-01-01') < time() - 2 * 3600) {
+                $n = (int)ai_as_workspace($wid, function () { if (!module_enabled('crm') || !function_exists('tg_capture_all')) return 0; $z = zernio_or_null(); return $z ? tg_capture_all($z) : 0; });
+                if ($n) $line .= ' prospects+' . $n;
+            }
+        } catch (Throwable $t) {
+            $line .= ' prospects=error';
+        }
         // الالتقاط التلقائي للعملاء من الرسائل والتعليقات (مرة كل 6 ساعات، لو مفعّل)
         try {
             if (crm_auto_capture_on($wid) && strtotime(explode('|', (string)setting('crm_auto_last_' . $wid, ''))[0] ?: '2000-01-01') < time() - 6 * 3600) {
