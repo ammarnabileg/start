@@ -111,6 +111,7 @@
     if (l.phone) b.push('<a class="btn-ghost text-sm" href="tel:' + esc(l.phone) + '">📞 ' + T.call + '</a>');
     if (l.wa) b.push('<a class="btn-ghost text-sm" target="_blank" rel="noopener" href="https://wa.me/' + esc(l.wa) + '">💬 WhatsApp</a>');
     if (l.email) b.push('<a class="btn-ghost text-sm" href="mailto:' + esc(l.email) + '">✉️ ' + T.email + '</a>');
+    if (l.src_url) b.push('<a class="btn-ghost text-sm" data-nolog href="' + esc(l.src_url) + '">🗨️ ' + esc(T.chat) + '</a>');
     if (l.linkedin) b.push('<a class="btn-ghost text-sm" target="_blank" rel="noopener" href="' + esc(l.linkedin) + '">in</a>');
     if (l.pending && !l.phone) b.push('<span class="text-xs text-ink-500 self-center animate-pulse">⏳ ' + T.pending + '</span>');
     return b.join('');
@@ -204,7 +205,7 @@
   });
   // أي ضغطة اتصال/واتساب/إيميل من الدرج بتتسجّل
   document.getElementById('ld-quick').addEventListener('click', function (e) {
-    var a = e.target.closest('a'); if (!a || !cur || !cur.edit) return;
+    var a = e.target.closest('a'); if (!a || !cur || !cur.edit || a.hasAttribute('data-nolog')) return;
     var h = a.getAttribute('href') || '';
     logAct(h.indexOf('tel:') === 0 ? 'call' : h.indexOf('mailto:') === 0 ? 'email' : h.indexOf('wa.me') > -1 ? 'wa' : 'note', '');
   });

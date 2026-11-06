@@ -1,6 +1,8 @@
 <?php
 $err = null;
 $z = zernio_or_null($err);
+$fxd = getenv('UI_FIXTURES');
+if ($fxd && is_file($fxd . '/inbox_fake_z.php')) $z = require $fxd . '/inbox_fake_z.php'; // اختبارات بس
 
 $folder = (string)($_GET['folder'] ?? 'inbox');
 if (!in_array($folder, ['inbox', 'requests', 'comments'], true)) $folder = 'inbox';
@@ -727,6 +729,27 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
             <div class="inline-flex items-center gap-1.5 mt-2 rounded-full bg-ink-100 px-2.5 py-1 text-[11px] text-ink-600"><?= platform_icon($plat, 'w-3.5 h-3.5') ?><?= e(platform_label($plat)) ?><?php if (!empty($current['accountUsername'])): ?> · <?= e(trim($current['accountUsername'])) ?><?php endif; ?></div>
           </div>
           <div class="p-4 space-y-4 text-sm">
+            <?php if (module_enabled('crm') && can('crm.view')):
+              $lext = 'ib:' . $plat . ':' . (string)($current['participantId'] ?? $convId);
+              $ll = crm_lead_by_ext($lext);
+              $inTxt = implode("\n", array_map(function ($m) { return (string)($m['message'] ?? ''); }, array_filter($messages, function ($m) { return ($m['direction'] ?? '') !== 'outgoing'; })));
+              $fc = crm_extract_contacts($inTxt);
+              $lastIn = trim((string)(end($messages)['message'] ?? '')); ?>
+            <div class="rounded-xl border <?= $ll ? 'border-lime-200 bg-lime-50/50' : 'border-brand-200 bg-brand-50/40' ?> p-3" data-tolead
+              data-source="inbox" data-ext="<?= e($lext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr($lastIn, 0, 600)) ?>" data-where="<?= e(platform_label($plat)) ?>"
+              data-url="<?= e(url('inbox', ['c' => $convId, 'a' => $accId])) ?>">
+              <?php if ($ll): ?>
+                <div class="text-xs text-ink-700">🧲 <?= e(t('العميل ده في الـ Leads')) ?> · <b><?= e(crm_stages()[$ll['stage']] ?? $ll['stage']) ?></b></div>
+                <a class="link text-xs" href="<?= e(url('crm_leads') . '#lead-' . (int)$ll['id']) ?>"><?= e(t('افتح الـ Lead')) ?> ↗</a>
+              <?php else: ?>
+                <div class="text-xs font-semibold text-ink-900 mb-2">🧲 <?= e(t('حوّله لعميل محتمل')) ?><?php if ($lb && $lb['intent']): ?> <span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px]"><?= e(t('عنده نية شراء')) ?></span><?php endif; ?></div>
+                <input class="input !mt-0 !h-8 !py-0 text-xs mb-1.5" data-f="phone" dir="ltr" value="<?= e($fc['phone']) ?>" placeholder="<?= e(t('الرقم')) ?>">
+                <input class="input !mt-0 !h-8 !py-0 text-xs mb-1.5" data-f="email" dir="ltr" value="<?= e($fc['email']) ?>" placeholder="<?= e(t('الإيميل')) ?>">
+                <?php if ($fc['phone'] || $fc['email']): ?><p class="text-[10px] text-lime-700 mb-1.5">✓ <?= e(t('لقينا البيانات دي في رسايله')) ?></p><?php endif; ?>
+                <button type="button" class="btn-primary !py-1.5 !text-xs w-full" data-go><?= e(t('ضيفه للـ Leads')) ?></button>
+              <?php endif; ?>
+            </div>
+            <?php endif; ?>
             <div>
               <div class="flex items-center justify-between mb-2"><span class="text-xs font-medium text-ink-500"><?= e(t('تحليل الذكاء الاصطناعي')) ?></span>
                 <?php if ($aiOn && ai_feature_on('classify_btn')): ?><button type="button" class="ibx-one link text-xs" data-key="<?= e($convId . '|' . $accId) ?>"><?= e($lb ? t('أعد التحليل') : t('حلّل')) ?></button><?php endif; ?></div>
@@ -816,6 +839,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
     <script src="assets/replies.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/inbox.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php if (module_enabled('crm') && can('crm.view')) to_lead_script(); ?>
     <script>window.IBXU = <?= json_encode(['ws' => (int)ws('id'), 'conv' => $convId, 'archived' => $status === 'archived', 'canAct' => can('inbox.reply') || can('inbox.manage'),
       'chars' => t('حرف'), 'draft' => t('مسودة'), 'draftSaved' => t('المسودة محفوظة'), 'emoji' => t('إيموجي'), 'instant' => t('%s نتيجة في القائمة الحالية · Enter للبحث في كل الرسائل'),
       'copy' => t('نسخ'), 'copied' => t('اتنسخ'), 'quote' => t('اقتباس في الرد'), 'latest' => t('آخر رسالة'), 'newMsgs' => t('%s رسالة جديدة'), 'findPh' => t('ابحث في المحادثة...'), 'findIn' => t('بحث في المحادثة'), 'noHits' => '0',

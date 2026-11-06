@@ -16,7 +16,7 @@ function crm_stages(): array
 
 function crm_sources(): array
 {
-    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد')];
+    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد'), 'inbox' => t('رسائل السوشيال'), 'comments' => t('تعليقات المنشورات')];
 }
 
 function crm_sizes(): array
@@ -331,6 +331,51 @@ function crm_lead_upsert(array $d): array
         $f['title'], $f['email'], $f['phone'], (int)($d['phone_pending'] ?? 0), $f['linkedin'], $f['country'], $owner, $uid ?: null,
     ]);
     return crm_lead((int)db()->lastInsertId()) + ['merged' => false];
+}
+
+/** يطلّع أرقام وإيميلات من نص (رسالة أو تعليق)، والأرقام العربي بتتحول */
+function crm_extract_contacts(string $txt): array
+{
+    $txt = strtr($txt, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9']);
+    $email = preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $txt, $m) ? mb_strtolower($m[0]) : '';
+    $phone = '';
+    if (preg_match_all('/(?<![\w\/])\+?\d[\d\s\-().]{6,18}\d(?!\w)/', $txt, $mm)) {
+        foreach ($mm[0] as $c) { $d = preg_replace('/\D/', '', $c); if (strlen($d) >= 8 && strlen($d) <= 15) { $phone = (strpos(trim($c), '+') === 0 ? '+' : '') . $d; break; } }
+    }
+    return ['phone' => $phone, 'email' => $email];
+}
+/** عميل من رسالة أو تعليق: بيتعرف بنفس الشخص على نفس المنصة، فمش بيتكرر */
+function crm_from_social(array $d): array
+{
+    $src = ($d['source'] ?? '') === 'comments' ? 'comments' : 'inbox';
+    $ext = mb_substr((string)($d['ext'] ?? ''), 0, 190);
+    $found = crm_contacts_merge(crm_extract_contacts((string)($d['text'] ?? '')), $d);
+    $l = crm_lead_upsert(['source' => $src, 'ext_id' => $ext, 'name' => $d['name'] ?? '', 'phone' => $found['phone'], 'email' => $found['email'],
+        'owner_id' => $d['owner_id'] ?? null]);
+    if (!$l) return [];
+    $url = mb_substr(trim((string)($d['url'] ?? '')), 0, 500);
+    if ($url !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$url, (int)$l['id']]);
+    $txt = trim((string)($d['text'] ?? ''));
+    if ($txt !== '') crm_act_add((int)$l['id'], 'note', '“' . mb_substr($txt, 0, 600) . '”' . (!empty($d['where']) ? ' — ' . $d['where'] : ''));
+    return crm_lead((int)$l['id']) + ['merged' => !empty($l['merged'])];
+}
+function crm_contacts_merge(array $auto, array $d): array
+{
+    $p = trim((string)($d['phone'] ?? '')); $e = trim((string)($d['email'] ?? ''));
+    return ['phone' => $p !== '' ? $p : $auto['phone'], 'email' => $e !== '' ? $e : $auto['email']];
+}
+/** الـ Lead المربوط بمحادثة/شخص (لو موجود) */
+function crm_lead_by_ext(string $ext): ?array
+{
+    if ($ext === '' || !module_enabled('crm')) return null;
+    try { $st = db()->prepare('SELECT id, name, stage FROM crm_leads WHERE workspace_id = ? AND ext_id = ? LIMIT 1'); $st->execute([(int)ws('id'), $ext]); return $st->fetch() ?: null; } catch (Throwable $e) { return null; }
+}
+
+/** سكربت زرار "ضيفه Lead" المشترك بين الرسائل والتعليقات */
+function to_lead_script(): void
+{
+    echo '<script>window.TOLEAD = ' . json_encode(['url' => url('crm_leads'), 'csrf' => csrf_token(), 'added' => t('اتضاف للـ Leads ✓'), 'merged' => t('كان موجود، ربطناه بنفس العميل'), 'open' => t('افتح'), 'err' => t('حصل خطأ، جرب تاني')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) . ';</script>'
+        . '<script src="assets/to-lead.js?v=' . e(APP_VERSION) . '"></script>';
 }
 
 /** أنواع التواصل في سجل العميل */

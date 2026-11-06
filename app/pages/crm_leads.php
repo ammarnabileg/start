@@ -13,7 +13,7 @@ $out = function (array $l) {
         'phone' => (string)$l['phone'], 'pending' => (int)$l['phone_pending'] === 1, 'wa' => crm_wa_digits($l['phone']), 'linkedin' => (string)$l['linkedin'],
         'country' => (string)$l['country'], 'stage' => $l['stage'], 'source' => $l['source'], 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
         'note' => (string)$l['note'], 'tags' => (string)$l['tags'], 'owner' => (int)$l['owner_id'], 'next_at' => $l['next_at'] ? date('Y-m-d\TH:i', strtotime($l['next_at'])) : '',
-        'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'edit' => crm_can_edit($l)];
+        'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'edit' => crm_can_edit($l)];
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -38,6 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'email' => $_POST['email'] ?? '', 'phone' => $_POST['phone'] ?? '', 'owner_id' => $canManage ? null : $uid]);
         log_activity('crm.add', $name);
         $json(['ok' => true, 'merged' => !empty($l['merged']), 'lead' => $out($l)]);
+    }
+    if ($action === 'social') {
+        // من صفحة الرسائل أو التعليقات
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '' && trim((string)($_POST['ext'] ?? '')) === '') $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
+        $l = crm_from_social(['source' => $_POST['source'] ?? '', 'ext' => $_POST['ext'] ?? '', 'name' => $name, 'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? '',
+            'text' => $_POST['text'] ?? '', 'url' => $_POST['url'] ?? '', 'where' => $_POST['where'] ?? '', 'owner_id' => $canManage ? null : $uid]);
+        if (!$l) $json(['ok' => false, 'error' => t('حصل خطأ، جرب تاني')]);
+        log_activity('crm.from_social', (string)$l['id']);
+        $json(['ok' => true, 'merged' => $l['merged'], 'id' => (int)$l['id'], 'phone' => (string)$l['phone'], 'email' => (string)$l['email'], 'url' => url('crm_leads') . '#lead-' . (int)$l['id']]);
     }
     if ($action === 'import') {
         // صفوف جاية من المتصفح بعد ربط الأعمدة: [{name, phone, email, company, title, country, tags, note}]
@@ -329,7 +339,7 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
+            'chat' => t('افتح المحادثة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_leads.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

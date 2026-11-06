@@ -528,6 +528,9 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '026_crm_social' => [
+        "ALTER TABLE crm_leads ADD COLUMN src_url VARCHAR(500) NULL",
+    ],
     '025_crm_acts' => [
         "CREATE TABLE IF NOT EXISTS crm_acts (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

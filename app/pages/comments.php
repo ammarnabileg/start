@@ -1,6 +1,8 @@
 <?php
 $err = null;
 $z = zernio_or_null($err);
+$fxd = getenv('UI_FIXTURES');
+if ($fxd && is_file($fxd . '/inbox_fake_z.php')) $z = require $fxd . '/inbox_fake_z.php'; // اختبارات بس
 $postId = (string)($_GET['post'] ?? '');
 $accId = (string)($_GET['a'] ?? '');
 $cursor = (string)($_GET['cursor'] ?? '');
@@ -151,6 +153,10 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
             <form method="post" class="inline" onsubmit="return confirm('<?= tjs('حذف التعليق نهائياً؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-red-600"><?= e(t('حذف')) ?></button></form>
           <?php endif; ?>
           <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="hover:text-ink-900"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
+          <?php if (!$mine && module_enabled('crm') && can('crm.view')): $cext = 'cm:' . (string)($c['platform'] ?? $GLOBALS['__cm_pf'] ?? '') . ':' . (string)($from['id'] ?? $from['username'] ?? $nm); $cl = crm_lead_by_ext($cext); ?>
+            <?php if ($cl): ?><a class="text-lime-700 hover:underline" href="<?= e(url('crm_leads') . '#lead-' . (int)$cl['id']) ?>">🧲 <?= e(t('في الـ Leads')) ?></a>
+            <?php else: ?><span data-tolead data-source="comments" data-ext="<?= e($cext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr((string)($c['message'] ?? ''), 0, 600)) ?>" data-where="<?= e(t('تعليق')) ?>" data-url="<?= e($_SERVER['REQUEST_URI'] ?? '') ?>"><button type="button" data-go class="font-semibold <?= !empty($lb['intent']) ? 'text-lime-700' : 'hover:text-ink-900' ?>">🧲 <?= e(t('ضيفه Lead')) ?></button></span><?php endif; ?>
+          <?php endif; ?>
         </div>
         <?php foreach ($c['replies'] ?? [] as $r) comment_block($r, $labels, true); ?>
       </div>
@@ -313,5 +319,6 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
       'nextUn' => t('التعليق التالي من غير رد'), 'allAnswered' => t('كل التعليقات متردّ عليها'),
       'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المنشور التالي / السابق')], ['u', t('التعليق التالي من غير رد')], ['r', t('اكتب رد')], ['/', t('ابحث في المنشورات')], ['Ctrl F', t('بحث في التعليقات')], ['g', t('انزل لآخر تعليق')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/comments-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php if (module_enabled('crm') && can('crm.view')) to_lead_script(); ?>
     <?php
 }, ['full' => true]);
