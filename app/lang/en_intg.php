@@ -4267,4 +4267,5 @@ Payment: bank transfer.',
     'الملف فاضي أو مش CSV ولا Excel.' => 'The file is empty or not CSV or Excel.',
     'بنقرا الملف…' => 'Reading the file…',
     'ملف Excel (.xlsx) أو CSV فيه سطر للعناوين. الأعمدة بتتعرف لوحدها: الاسم، الموبايل، الإيميل، الشركة، المسمى، الدولة، تاجات، ملاحظة. أي صف من غير رقم ولا إيميل بيتشال، والمكرر بيتدمج.' => 'An Excel (.xlsx) or CSV file with a header row. Columns are detected automatically: name, mobile, email, company, title, country, tags, note. Rows without a phone or email are skipped and duplicates are merged.',
+    'ملف Excel (.xlsx أو .xls) أو CSV فيه سطر للعناوين. الأعمدة بتتعرف لوحدها: الاسم، الموبايل، الإيميل، الشركة، المسمى، الدولة، تاجات، ملاحظة. أي صف من غير رقم ولا إيميل بيتشال، والمكرر بيتدمج.' => 'An Excel (.xlsx or .xls) or CSV file with a header row. Columns are detected automatically: name, mobile, email, company, title, country, tags, note. Rows without a phone or email are skipped and duplicates are merged.',
 ];

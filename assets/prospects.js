@@ -55,6 +55,15 @@
     m.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', function () { if (s.value === '') delete map[s.dataset.col]; else map[s.dataset.col] = +s.value; }); });
   }
   function readFile(f) { if (!f) return; $('pr-file-l').textContent = f.name;
+    if (/\.xls$/i.test(f.name)) { // Excel القديم (97-2003): بيتقري في المتصفح بمكتبة SheetJS اللي بتتحمّل وقت الحاجة بس
+      $('pr-file-l').textContent = L.reading;
+      var go = function () { var fr = new FileReader(); fr.onload = function () {
+        try { var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
+          parsed = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: false }).map(function (r) { return r.map(function (v) { return v == null ? '' : (typeof v === 'number' && Number.isInteger(v) ? v.toFixed(0) : String(v)).trim(); }); });
+        } catch (e) { parsed = null; }
+        $('pr-file-l').textContent = f.name; if (!parsed || parsed.length < 2) return toast(L.noRows, 'error'); showMap(); }; fr.readAsArrayBuffer(f); };
+      if (window.XLSX) go(); else { var sc = document.createElement('script'); sc.src = C.xlsLib; sc.onload = go; sc.onerror = function () { $('pr-file-l').textContent = f.name; toast(L.err, 'error'); }; document.head.appendChild(sc); }
+      return; }
     if (/\.xlsx$/i.test(f.name)) { $('pr-file-l').textContent = L.reading; var fd = new FormData(); fd.append('_csrf', C.csrf); fd.append('action', 'parse_xlsx'); fd.append('file', f);
       fetch(C.selfUrl, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { $('pr-file-l').textContent = f.name;
         if (!j.ok) return toast(j.error || L.err, 'error'); parsed = j.rows; if (!parsed || parsed.length < 2) return toast(L.noRows, 'error'); showMap(); }).catch(function () { toast(L.err, 'error'); }); return; }
