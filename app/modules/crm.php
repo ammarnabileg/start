@@ -1432,12 +1432,15 @@ function crm_import_ad_leads(array $leads): array
         foreach ($st->fetchAll() as $r) $meta['ad:' . $r['lead_id']] = $r;
     } catch (Throwable $t) { /* قبل التحديث */ }
     $new = $merged = $old = 0;
+    $setC = db()->prepare('UPDATE crm_leads SET ad_campaign = COALESCE(ad_campaign, ?) WHERE workspace_id = ? AND ext_id = ?');
     foreach ($ids as $ext => $l) {
+        if (!empty($l['campaignId'])) $setC->execute([mb_substr((string)$l['campaignId'], 0, 64), $wid, $ext]); // #92 الحملة اللي جاب منها (حتى للقديم)
         if (isset($have[$ext])) { $old++; continue; }
         $d = crm_ad_lead_map($l);
         if ($d['email'] === '' && crm_norm_phone($d['phone'], $d['country']) === '') { $old++; continue; } // مفيش حاجة نتواصل بيها
         $r = crm_lead_upsert($d);
         if (!$r) continue;
+        if (!empty($l['campaignId'])) db()->prepare('UPDATE crm_leads SET ad_campaign = COALESCE(ad_campaign, ?) WHERE id = ?')->execute([mb_substr((string)$l['campaignId'], 0, 64), (int)$r['id']]);
         if (!empty($r['merged'])) { $merged++; continue; }
         $new++;
         $m = $meta[$ext] ?? null;

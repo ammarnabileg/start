@@ -72,6 +72,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' evergreen=error';
         }
+        // #100 تقرير شهري للمدير (أول يوم في الشهر)
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_monthly_report') ? crm_monthly_report() : 0; });
+            if ($n) $line .= ' monthly+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' monthly=error';
+        }
         // #84 تذكير الصبح بالإيميل لكل موظف
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') && function_exists('crm_daily_digest') ? crm_daily_digest() : 0; });

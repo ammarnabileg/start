@@ -350,12 +350,14 @@
     tabN('dl', (ds || []).length);
     dAdd.classList.toggle('hidden', !l.edit); l._deals = ds || [];
     var dc = { open: 'bg-sky-100 text-sky-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
-    dl.innerHTML = l._deals.length ? l._deals.map(function (d) { return '<div class="flex items-center gap-2 text-xs ' + (l.edit ? 'cursor-pointer hover:bg-ink-50' : '') + ' rounded-lg px-1.5 py-1" data-deal="' + d.id + '"><span class="flex-1 truncate text-ink-800">' + esc(d.title) + '</span><b class="text-ink-900">' + Number(d.value).toLocaleString() + '</b><span class="px-1.5 rounded ' + dc[d.status] + '">' + esc(T.dStatus[d.status]) + '</span></div>'; }).join('')
+    dl.innerHTML = l._deals.length ? l._deals.map(function (d) { return '<div class="flex items-center gap-2 text-xs ' + (l.edit ? 'cursor-pointer hover:bg-ink-50' : '') + ' rounded-lg px-1.5 py-1" data-deal="' + d.id + '"><span class="flex-1 truncate text-ink-800">' + esc(d.title) + '</span><b class="text-ink-900">' + Number(d.value).toLocaleString() + '</b><span class="px-1.5 rounded ' + dc[d.status] + '">' + esc(T.dStatus[d.status]) + '</span>' +
+        '<a class="ld-act !w-7 !h-7" target="_blank" rel="noopener" href="' + esc(D.docUrl + '&deal=' + d.id + '&t=quote') + '" title="' + esc(D.docT.quote) + '">' + uic('file', 'w-3.5 h-3.5') + '</a>' +
+        '<a class="ld-act !w-7 !h-7" target="_blank" rel="noopener" href="' + esc(D.docUrl + '&deal=' + d.id + '&t=invoice') + '" title="' + esc(D.docT.invoice) + '">' + uic('wallet', 'w-3.5 h-3.5') + '</a></div>'; }).join('')
       : '<p class="text-[11px] text-ink-400">' + esc(T.dNone) + '</p>';
   }
   dAdd.addEventListener('click', function () { if (!dl.querySelector('[data-dform="0"]')) dl.insertAdjacentHTML('afterbegin', dealForm()); });
   dl.addEventListener('click', function (e) {
-    if (!cur) return; var l = cur;
+    if (!cur || e.target.closest('a[href]')) return; var l = cur;
     var row = e.target.closest('[data-deal]'); if (row && l.edit) { var d = (l._deals || []).filter(function (x) { return x.id === +row.dataset.deal; })[0]; row.outerHTML = dealForm(d); return; }
     var f0 = e.target.closest('[data-dform]'); if (!f0) return;
     var del = e.target.closest('[data-ddel]'), sv = e.target.closest('[data-dsave]'); if (!del && !sv) return;

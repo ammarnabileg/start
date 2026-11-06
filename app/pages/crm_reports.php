@@ -16,6 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'goals
     redirect(url('crm_reports', ['period' => $period]));
 }
 
+// #97 نسب العمولات
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'comm' && $canManage) {
+    $pc = function ($v) { return max(0, min(100, (float)str_replace(',', '.', (string)$v))); };
+    $u = []; foreach ((array)($_POST['rate'] ?? []) as $id => $v) if (trim((string)$v) !== '') $u[(int)$id] = $pc($v);
+    save_setting('crm_comm_' . $wid, json_encode(['def' => $pc($_POST['def'] ?? 0), 'users' => $u]));
+    flash('success', t('اتحفظت نسب العمولات.'));
+    redirect(url('crm_reports', ['period' => $period]) . '#comm');
+}
 [$from, $to] = crm_period($period);
 $rows = crm_team_report($from, $to);
 if (!$canManage) $rows = array_values(array_filter($rows, function ($r) use ($uid) { return $r['id'] === $uid; })); // الموظف بيشوف نفسه بس
@@ -32,9 +40,24 @@ $st->execute([$wid]); $srcRows = $st->fetchAll();
 $links = crm_links_report();
 $coupons = function_exists('coupon_list') ? coupon_list() : [];
 $fc = crm_forecast();
+$camp = function_exists('crm_report_campaigns') && $canManage ? crm_report_campaigns($from, $to) : ['rows' => [], 'err' => ''];
+$cycle = function_exists('crm_cycle') ? crm_cycle($from, $to) : ['n' => 0];
+$comm = function_exists('crm_comm_cfg') ? crm_comm_cfg() : ['def' => 0, 'users' => []];
+// #99 تصدير Excel (CSV بيفتح في Excel مباشرة)
+if (($_GET['export'] ?? '') === 'csv' && $canManage) {
+    header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="sales-report-' . $period . '-' . date('Y-m-d') . '.csv"');
+    $o = fopen('php://output', 'w'); fwrite($o, "\xEF\xBB\xBF");
+    fputcsv($o, [t('الفريق')]); fputcsv($o, [t('الموظف'), t('عملاء جداد'), t('تواصل'), t('مكالمات'), t('بقوا عملاء'), t('القيمة'), t('العمولة')]);
+    foreach ($rows as $r) fputcsv($o, [$r['name'], $r['leads'], $r['contacts'], $r['calls'], $r['won'], $r['value'], round($r['value'] * crm_comm_rate((int)$r['id']) / 100, 2)]);
+    fputcsv($o, []); fputcsv($o, [t('المصادر')]); fputcsv($o, [t('المصدر'), t('عملاء'), t('اتكلمنا معاهم'), t('بقوا عملاء'), t('القيمة')]);
+    foreach ($srcRows as $r) fputcsv($o, [crm_sources()[$r['source']] ?? $r['source'], $r['n'], $r['c'], $r['w'], $r['v']]);
+    if ($camp['rows']) { fputcsv($o, []); fputcsv($o, [t('الحملات الإعلانية')]); fputcsv($o, [t('الحملة'), t('الصرف'), t('عملاء'), t('بقوا عملاء'), t('المبيعات'), t('تكلفة العميل'), t('العائد %')]);
+        foreach ($camp['rows'] as $c) fputcsv($o, [$c['name'], round($c['spend'], 2), $c['leads'], $c['won'], $c['value'], $c['cpl'] !== null ? round($c['cpl'], 2) : '', $c['roi'] !== null ? round($c['roi']) : '']); }
+    fclose($o); exit;
+}
 $st = db()->prepare("SELECT lost_reason, COUNT(*) n FROM crm_leads WHERE workspace_id = ? AND stage = 'lost' AND lost_reason IS NOT NULL GROUP BY lost_reason ORDER BY n DESC"); $st->execute([$wid]); $lostRows = $st->fetchAll();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows, $coupons) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows, $coupons, $camp, $cycle, $comm) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -46,7 +69,10 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
     ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <div class="inline-flex rounded-xl border border-ink-200 bg-white p-0.5"><?php foreach ($periods as $k => $v): ?><a href="<?= e(url('crm_reports', ['period' => $k])) ?>" class="px-3 py-1.5 text-sm rounded-lg <?= $k === $period ? 'bg-brand-600 text-white' : 'text-ink-600 hover:bg-ink-50' ?>"><?= e($v) ?></a><?php endforeach; ?></div>
-      <?php if ($canManage && $isMonth): ?><button type="button" class="btn-ghost ms-auto" onclick="document.getElementById('rp-goals').classList.toggle('hidden')"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('الأهداف الشهرية')) ?></button><?php endif; ?>
+      <span class="ms-auto"></span>
+      <?php if ($canManage): ?><a href="<?= e(url('crm_reports', ['period' => $period, 'export' => 'csv'])) ?>" class="btn-ghost no-print" download><?= ui_icon('download', 'w-4 h-4') ?>Excel</a><?php endif; ?>
+      <button type="button" class="btn-ghost no-print" onclick="window.print()"><?= ui_icon('file', 'w-4 h-4') ?>PDF</button>
+      <?php if ($canManage && $isMonth): ?><button type="button" class="btn-ghost no-print" onclick="document.getElementById('rp-goals').classList.toggle('hidden')"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z"/></svg> <?= e(t('الأهداف الشهرية')) ?></button><?php endif; ?>
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
@@ -67,6 +93,27 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       <button class="btn-primary"><?= e(t('احفظ')) ?></button>
     </form>
     <?php endif; ?>
+
+    <?php // #96 لوحة المتصدرين + #94 سرعة الدورة
+      $lb = $rows; usort($lb, function ($a, $b) { return $b['value'] <=> $a['value'] ?: $b['won'] <=> $a['won'] ?: $b['contacts'] <=> $a['contacts']; });
+      $medal = ['text-amber-500 bg-amber-50 border-amber-200', 'text-ink-400 bg-ink-50 border-ink-200', 'text-orange-600 bg-orange-50 border-orange-200']; ?>
+    <div class="grid lg:grid-cols-[1.4fr_1fr] gap-4 mb-5">
+      <section class="card p-4" id="lb"><div class="flex items-center gap-2 mb-3"><b class="text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('trophy', 'w-4 h-4 text-amber-500') ?><?= e(t('لوحة المتصدرين')) ?></b><span class="text-xs text-ink-500"><?= e($periods[$period]) ?></span></div>
+        <?php if (!$lb): ?><p class="text-sm text-ink-400"><?= e(t('لسه مفيش نشاط في الفترة دي.')) ?></p><?php endif; ?>
+        <div class="space-y-2"><?php $mx = max(1, (float)($lb[0]['value'] ?? 0), 1); foreach (array_slice($lb, 0, 8) as $i => $r): ?>
+          <div class="flex items-center gap-3 rounded-xl border px-3 py-2 <?= $i < 3 ? $medal[$i] : 'border-ink-100' ?>">
+            <span class="w-7 h-7 rounded-full grid place-items-center text-sm font-bold <?= $i < 3 ? 'bg-white' : 'bg-ink-100 text-ink-500' ?>"><?= $i < 3 ? ui_icon('trophy', 'w-4 h-4') : $i + 1 ?></span>
+            <span class="flex-1 min-w-0"><span class="flex items-center gap-2"><b class="text-sm text-ink-900 truncate"><?= e($r['name']) ?></b><span class="text-[11px] text-ink-500"><?= e(t('%s بقوا عملاء · %s تواصل', (int)$r['won'], (int)$r['contacts'])) ?></span></span>
+              <span class="block h-1.5 mt-1 rounded-full bg-white/70 overflow-hidden"><span class="block h-full rounded-full bg-brand-500" style="width:<?= max(3, round((float)$r['value'] / $mx * 100)) ?>%"></span></span></span>
+            <b class="text-sm tabular-nums text-ink-900"><?= e(number_format((float)$r['value'])) ?></b>
+          </div><?php endforeach; ?></div></section>
+      <section class="card p-4" id="cycle"><b class="text-ink-900 inline-flex items-center gap-1.5 mb-1"><?= ui_icon('timer', 'w-4 h-4 text-brand-600') ?><?= e(t('سرعة الدورة')) ?></b>
+        <p class="text-[11px] text-ink-500 mb-3"><?= e(t('كام يوم من أول ما العميل اتسجل لحد ما بقى عميل (للي اتقفلوا في الفترة دي).')) ?></p>
+        <?php if (!$cycle['n']): ?><p class="text-sm text-ink-400"><?= e(t('مفيش صفقات اتقفلت في الفترة دي.')) ?></p><?php else: ?>
+          <div class="grid grid-cols-3 gap-2 mb-3 text-center"><?php foreach ([[t('المتوسط'), round($cycle['avg'], 1)], [t('الوسيط'), $cycle['med']], [t('أسرع / أبطأ'), $cycle['min'] . ' / ' . $cycle['max']]] as [$k, $v]): ?><div class="rounded-xl bg-ink-50 p-2"><div class="text-[11px] text-ink-500"><?= e($k) ?></div><div class="text-xl font-bold text-ink-900"><?= e((string)$v) ?></div><div class="text-[10px] text-ink-400"><?= e(t('يوم')) ?></div></div><?php endforeach; ?></div>
+          <div class="space-y-1 text-xs"><?php foreach ($cycle['src'] as $c): ?><div class="flex items-center gap-2"><span class="flex-1 truncate"><?= e(crm_sources()[$c['src']] ?? $c['src']) ?></span><span class="text-ink-500"><?= e(t('%s صفقة', $c['n'])) ?></span><b><?= e(t('%s يوم', round($c['avg'], 1))) ?></b></div><?php endforeach; ?></div>
+        <?php endif; ?></section>
+    </div>
 
     <div class="card overflow-x-auto mb-5">
       <table class="w-full text-sm min-w-[860px]">
@@ -136,6 +183,35 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       <div class="overflow-x-auto"><table class="w-full text-sm min-w-[460px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الكود')) ?></th><th class="text-start"><?= e(t('المنشور')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th></tr></thead><tbody>
       <?php foreach ($coupons as $cp): ?><tr class="border-b border-ink-50"><td class="py-2 font-mono font-semibold" dir="ltr"><?= e($cp['code']) ?></td><td class="max-w-[280px] truncate text-ink-600" dir="auto"><?= e($cp['label']) ?></td><td class="text-center"><?= (int)$cp['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= (int)$cp['won'] ?></td></tr><?php endforeach; ?>
       </tbody></table></div></div>
+    <?php endif; ?>
+
+    <?php if ($canManage && ($camp['rows'] || $camp['err'])): ?>
+    <section class="card p-4 mb-5" id="camps"><div class="font-semibold text-ink-900 mb-1 inline-flex items-center gap-1.5"><?= ui_icon('megaphone', 'w-4 h-4 text-brand-600') ?><?= e(t('الإعلانات ← العملاء والعائد')) ?></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('الصرف من الإعلانات، والعملاء اللي سجّلوا من كل حملة وكام واحد فيهم اشترى. تكلفة العميل = الصرف ÷ العملاء. العائد = (المبيعات − الصرف) ÷ الصرف.')) ?></p>
+      <?php if ($camp['err']): ?><p class="text-xs text-red-600"><?= e($camp['err']) ?></p><?php endif; ?>
+      <div class="overflow-x-auto"><table class="w-full text-sm min-w-[720px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الحملة')) ?></th><th><?= e(t('الصرف')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('تكلفة العميل')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('تكلفة البيعة')) ?></th><th><?= e(t('المبيعات')) ?></th><th><?= e(t('العائد')) ?></th></tr></thead><tbody>
+      <?php foreach ($camp['rows'] as $c): ?><tr class="border-b border-ink-50"><td class="py-2 max-w-[260px]"><span class="inline-flex items-center gap-1.5 min-w-0"><?= platform_icon($c['pf'], 'w-4 h-4') ?><span class="truncate" dir="auto"><?= e($c['name']) ?></span></span></td>
+        <td class="text-center tabular-nums"><?= e(number_format($c['spend'], 2)) ?> <span class="text-[10px] text-ink-400"><?= e($c['cur']) ?></span></td><td class="text-center"><?= $c['leads'] ?></td>
+        <td class="text-center tabular-nums"><?= $c['cpl'] !== null ? e(number_format($c['cpl'], 2)) : '—' ?></td><td class="text-center text-lime-700 font-semibold"><?= $c['won'] ?></td>
+        <td class="text-center tabular-nums"><?= $c['cpw'] !== null ? e(number_format($c['cpw'], 2)) : '—' ?></td><td class="text-center tabular-nums"><?= e(number_format($c['value'])) ?></td>
+        <td class="text-center font-bold <?= $c['roi'] === null ? 'text-ink-400' : ($c['roi'] >= 0 ? 'text-lime-700' : 'text-red-600') ?>"><?= $c['roi'] === null ? '—' : (($c['roi'] > 0 ? '+' : '') . round($c['roi']) . '%') ?></td></tr><?php endforeach; ?>
+      </tbody></table></div>
+      <p class="text-[11px] text-ink-400 mt-2"><?= e(t('العملاء بيتربطوا بالحملة لما يتسحبوا من فورمز الإعلانات (زرار "اسحب من الإعلانات" في أدوات العملاء). المبيعات من قيمة الصفقة للي بقوا عملاء.')) ?></p></section>
+    <?php endif; ?>
+
+    <?php if ($rows): ?>
+    <section class="card p-4 mb-5" id="comm"><div class="flex items-center gap-2 mb-1"><b class="text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('wallet', 'w-4 h-4 text-lime-600') ?><?= e(t('العمولات')) ?></b><span class="text-xs text-ink-500"><?= e($periods[$period]) ?></span></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('نسبة من قيمة المبيعات اللي اتقفلت. حط نسبة عامة، وتقدر تغيّرها لأي موظف.')) ?></p>
+      <form method="post" class="space-y-2"><?= csrf_field() ?><input type="hidden" name="action" value="comm">
+        <div class="overflow-x-auto"><table class="w-full text-sm" data-no-sort><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الموظف')) ?></th><th><?= e(t('المبيعات')) ?></th><th><?= e(t('النسبة %')) ?></th><th><?= e(t('العمولة')) ?></th></tr></thead><tbody>
+        <?php $ctot = 0; foreach ($rows as $r): $rate = isset($comm['users'][$r['id']]) ? (float)$comm['users'][$r['id']] : (float)$comm['def']; $cv = (float)$r['value'] * $rate / 100; $ctot += $cv; ?>
+          <tr class="border-b border-ink-50"><td class="py-1.5"><?= e($r['name']) ?></td><td class="text-center tabular-nums"><?= e(number_format((float)$r['value'])) ?></td>
+            <td class="text-center"><?php if ($canManage): ?><input name="rate[<?= (int)$r['id'] ?>]" value="<?= isset($comm['users'][$r['id']]) ? e((string)$comm['users'][$r['id']]) : '' ?>" placeholder="<?= e((string)$comm['def']) ?>" class="input !mt-0 !py-1 !w-20 text-center text-sm" inputmode="decimal" dir="ltr"><?php else: ?><?= e((string)$rate) ?>%<?php endif; ?></td>
+            <td class="text-center font-semibold tabular-nums text-lime-700"><?= e(number_format($cv, 2)) ?></td></tr>
+        <?php endforeach; ?>
+          <tr><td class="py-2 font-semibold"><?= e(t('الإجمالي')) ?></td><td></td><td></td><td class="text-center font-bold tabular-nums"><?= e(number_format($ctot, 2)) ?></td></tr></tbody></table></div>
+        <?php if ($canManage): ?><div class="flex flex-wrap items-center gap-2 text-sm no-print"><label class="flex items-center gap-2"><?= e(t('النسبة العامة')) ?> <input name="def" value="<?= e((string)$comm['def']) ?>" class="input !mt-0 !py-1 !w-20 text-center" inputmode="decimal" dir="ltr">%</label><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button></div><?php endif; ?>
+      </form></section>
     <?php endif; ?>
 
     <?php if ($closing): ?>

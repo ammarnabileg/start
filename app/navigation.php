@@ -101,7 +101,7 @@ function nav_item_for(string $page): ?array
 function page_module(string $page): ?string
 {
     $map = [
-        'crm' => ['crm', 'crm_find', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings'],
+        'crm' => ['crm', 'crm_find', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],

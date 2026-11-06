@@ -412,3 +412,69 @@ function crm_mentions(string $body, int $leadId): int
     }
     return $n;
 }
+
+/* ---------- #92 #93 الإعلانات ← العملاء: تكلفة العميل والعائد لكل حملة ---------- */
+function crm_report_campaigns(string $from, string $to): array
+{
+    $wid = (int)ws('id'); $camps = []; $err = '';
+    $fxd = getenv('UI_FIXTURES');
+    try {
+        if ($fxd && is_file($fxd . '/ads.json')) $camps = (array)(json_decode((string)file_get_contents($fxd . '/ads.json'), true)['campaigns'] ?? []);
+        elseif (module_enabled('ads') && ($z = zernio_or_null())) $camps = (array)(ads_campaigns($z, ['fromDate' => substr($from, 0, 10), 'toDate' => substr($to, 0, 10), 'limit' => 100])['campaigns'] ?? []);
+    } catch (Throwable $e) { $err = $e->getMessage(); }
+    $st = db()->prepare("SELECT ad_campaign c, COUNT(*) n, SUM(stage = 'won') w, COALESCE(SUM(CASE WHEN stage = 'won' THEN deal_value END), 0) v FROM crm_leads WHERE workspace_id = ? AND ad_campaign IS NOT NULL AND created_at BETWEEN ? AND ? GROUP BY ad_campaign");
+    $st->execute([$wid, $from, $to]); $by = []; foreach ($st->fetchAll() as $r) $by[(string)$r['c']] = $r;
+    $out = [];
+    foreach ($camps as $c) {
+        $id = (string)($c['platformCampaignId'] ?? $c['id'] ?? ''); $sp = (float)($c['metrics']['spend'] ?? $c['spend'] ?? 0); $l = $by[$id] ?? ['n' => 0, 'w' => 0, 'v' => 0];
+        if ($sp <= 0 && !(int)$l['n']) continue;
+        $out[] = ['id' => $id, 'name' => (string)($c['campaignName'] ?? $c['name'] ?? $id), 'pf' => (string)($c['platform'] ?? ''), 'cur' => (string)($c['currency'] ?? ''), 'spend' => $sp, 'leads' => (int)$l['n'], 'won' => (int)$l['w'], 'value' => (float)$l['v'],
+            'cpl' => (int)$l['n'] ? $sp / (int)$l['n'] : null, 'cpw' => (int)$l['w'] ? $sp / (int)$l['w'] : null, 'roi' => $sp > 0 ? ((float)$l['v'] - $sp) / $sp * 100 : null];
+    }
+    usort($out, function ($a, $b) { return $b['spend'] <=> $a['spend']; });
+    return ['rows' => $out, 'err' => $err];
+}
+
+/* ---------- #94 سرعة الدورة: كام يوم من جديد لحد بقى عميل ---------- */
+function crm_cycle(string $from, string $to): array
+{
+    $st = db()->prepare("SELECT source, DATEDIFF(won_at, created_at) d FROM crm_leads WHERE workspace_id = ? AND stage = 'won' AND won_at BETWEEN ? AND ? AND won_at >= created_at");
+    $st->execute([(int)ws('id'), $from, $to]); $all = []; $by = [];
+    foreach ($st->fetchAll() as $r) { $all[] = (int)$r['d']; $by[$r['source']][] = (int)$r['d']; }
+    $med = function (array $a) { if (!$a) return null; sort($a); $n = count($a); return $n % 2 ? $a[intdiv($n, 2)] : ($a[$n / 2 - 1] + $a[$n / 2]) / 2; };
+    $src = []; foreach ($by as $k => $a) $src[] = ['src' => $k, 'n' => count($a), 'avg' => array_sum($a) / count($a), 'med' => $med($a)];
+    usort($src, function ($a, $b) { return $a['avg'] <=> $b['avg']; });
+    return ['n' => count($all), 'avg' => $all ? array_sum($all) / count($all) : null, 'med' => $med($all), 'min' => $all ? min($all) : null, 'max' => $all ? max($all) : null, 'src' => $src];
+}
+
+/* ---------- #97 العمولات ---------- */
+function crm_comm_cfg(): array
+{
+    return (json_decode((string)setting('crm_comm_' . (int)ws('id'), ''), true) ?: []) + ['def' => 0, 'users' => []];
+}
+function crm_comm_rate(int $uid): float { $c = crm_comm_cfg(); return (float)($c['users'][$uid] ?? $c['def']); }
+
+/* ---------- #100 تقرير شهري تلقائي للمدير بالإيميل (أول يوم في الشهر عن الشهر اللي فات) ---------- */
+function crm_monthly_report(bool $force = false): int
+{
+    $wid = (int)ws('id'); if (!function_exists('smtp_config') || !smtp_config($wid)) return 0;
+    $tz = new DateTimeZone(site_timezone()); $now = new DateTime('now', $tz); $key = $now->format('Y-m');
+    if (!$force && ((int)$now->format('j') !== 1 || (int)$now->format('G') < 8 || setting('crm_monthly_' . $wid, '') === $key)) return 0;
+    save_setting('crm_monthly_' . $wid, $key);
+    [$from, $to] = crm_period('last_month'); $rows = crm_team_report($from, $to);
+    $tot = ['leads' => 0, 'won' => 0, 'value' => 0, 'contacts' => 0]; foreach ($rows as $r) foreach ($tot as $k => $_) $tot[$k] += $r[$k];
+    $cy = crm_cycle($from, $to); $cp = crm_report_campaigns($from, $to)['rows'];
+    usort($rows, function ($a, $b) { return $b['value'] <=> $a['value'] ?: $b['won'] <=> $a['won']; });
+    $mName = (new DateTime('first day of last month', $tz))->format('m/Y');
+    $tr = ''; foreach (array_slice($rows, 0, 10) as $i => $r) $tr .= '<tr><td>' . ($i + 1) . '</td><td>' . e($r['name']) . '</td><td>' . (int)$r['leads'] . '</td><td>' . (int)$r['contacts'] . '</td><td>' . (int)$r['won'] . '</td><td>' . e(number_format($r['value'])) . '</td></tr>';
+    $ctr = ''; foreach (array_slice($cp, 0, 8) as $c) $ctr .= '<tr><td>' . e($c['name']) . '</td><td>' . e(number_format($c['spend'], 2)) . '</td><td>' . $c['leads'] . '</td><td>' . ($c['cpl'] !== null ? e(number_format($c['cpl'], 2)) : '—') . '</td><td>' . ($c['roi'] !== null ? round($c['roi']) . '%' : '—') . '</td></tr>';
+    $th = 'style="text-align:start;padding:6px;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:600"';
+    $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.7;color:#0f172a" dir="' . (is_rtl() ? 'rtl' : 'ltr') . '"><h2 style="margin:0 0 8px">' . e(t('تقرير المبيعات لشهر %s', $mName)) . '</h2>'
+        . '<p>' . e(t('عملاء جداد: %s · بقوا عملاء: %s · قيمة المبيعات: %s · مرات التواصل: %s', $tot['leads'], $tot['won'], number_format($tot['value']), $tot['contacts'])) . ($cy['avg'] !== null ? '<br>' . e(t('متوسط الدورة: %s يوم من أول تواصل لحد البيع', round($cy['avg'], 1))) : '') . '</p>'
+        . ($tr ? '<h3>' . e(t('الفريق')) . '</h3><table style="border-collapse:collapse;width:100%"><tr><th ' . $th . '>#</th><th ' . $th . '>' . e(t('الموظف')) . '</th><th ' . $th . '>' . e(t('عملاء')) . '</th><th ' . $th . '>' . e(t('تواصل')) . '</th><th ' . $th . '>' . e(t('بقوا عملاء')) . '</th><th ' . $th . '>' . e(t('القيمة')) . '</th></tr>' . $tr . '</table>' : '')
+        . ($ctr ? '<h3>' . e(t('الحملات الإعلانية')) . '</h3><table style="border-collapse:collapse;width:100%"><tr><th ' . $th . '>' . e(t('الحملة')) . '</th><th ' . $th . '>' . e(t('الصرف')) . '</th><th ' . $th . '>' . e(t('عملاء')) . '</th><th ' . $th . '>' . e(t('تكلفة العميل')) . '</th><th ' . $th . '>' . e(t('العائد')) . '</th></tr>' . $ctr . '</table>' : '')
+        . '<p><a href="' . e(url('crm_reports', ['period' => 'last_month'])) . '">' . e(t('افتح التقرير الكامل')) . '</a></p></div>';
+    $n = 0;
+    foreach (crm_members() as $m) if ((($m['role'] ?? '') === 'owner' || (function_exists('role_permissions') && in_array('crm.manage', role_permissions((string)($m['role'] ?? '')), true))) && !empty($m['email'])) { try { send_mail((string)$m['email'], t('تقرير المبيعات لشهر %s', $mName), $html, null, $wid); $n++; } catch (Throwable $e) {} }
+    return $n;
+}

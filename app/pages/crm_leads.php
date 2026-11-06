@@ -875,6 +875,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     </div>
     <script>window.LD = <?= json_encode([
         'plans' => crm_plans(), 'chs' => crm_plan_channels(),
+        'docUrl' => url('crm_doc'), 'docT' => ['quote' => t('عرض سعر PDF'), 'invoice' => t('فاتورة PDF')],
         'tasks' => function_exists('crm_tasks_open') ? crm_tasks_open($uid) : [], 'ocs' => crm_call_outcomes(), 'mem' => array_values(array_map(function ($m) { return ['id' => (int)$m['id'], 'n' => (string)$m['name']]; }, $members)),
         'tk' => ['none' => t('مفيش مهام. ضيف أول مهمة.'), 'late' => t('متأخرة'), 'pin' => t('ثبّت فوق'), 'unpin' => t('شيل التثبيت'), 'dial' => t('اتصال متتالي'), 'dialNone' => t('مفيش عملاء مستحقين عندهم أرقام.'), 'call' => t('اتصل'), 'skip' => t('تخطي'), 'of' => t('%s من %s'), 'noteP' => t('ملاحظة سريعة (اختياري)'), 'dialDone' => t('خلصت قايمة الاتصال 👏'), 'stop' => t('إنهاء')],
         'today' => (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d'), 'tz' => site_timezone(), 'qNext' => t('التالي ← %s من %s'), 'qDone' => t('خلصت شغل النهارده 👏'), 'qLast' => t('آخر واحد ✓'), 'tpl' => crm_templates(), 'bookUrl' => setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : '', 'meName' => (string)(current_user()['name'] ?? ''), 'kinds' => crm_act_kinds(),

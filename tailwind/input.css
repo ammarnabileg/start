@@ -147,3 +147,12 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .fx-in, ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
   .btn-primary:active, .btn-ghost:active, .tb:active, .chip:active { transform: none; }
 }
+
+/* #99 طباعة / حفظ PDF: التقرير لوحده من غير القايمة والأزرار */
+@media print {
+  #sidebar, body > header, #cp-rail, #nav-bar, #fx-tip, #ck, .no-print, #pg-sw-btn + span, [popover] { display: none !important; }
+  #main { padding: 0 !important; }
+  body { background: #fff !important; }
+  .card { box-shadow: none !important; break-inside: avoid; border-color: #e2e8f0 !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+}
