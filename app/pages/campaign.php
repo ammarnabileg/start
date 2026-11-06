@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
     if (!can('posts.create')) $J(['error' => t('مالكش صلاحية.')], 403);
+    if (($_POST['action'] ?? '') === 'del') { db()->prepare('DELETE FROM campaigns WHERE id = ? AND workspace_id = ?')->execute([(int)($_POST['id'] ?? 0), $wid]); $J(['ok' => true]); }
     $si = (int)($_POST['svc'] ?? -1); $svc = $svcs[$si] ?? null; if (!$svc) $J(['error' => t('اختار خدمة من ملف الشركة.')], 422);
     $days = max(1, min(60, (int)($_POST['days'] ?? 14))); $count = max(1, min(20, (int)($_POST['count'] ?? 5)));
     $start = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['start'] ?? '')) ? (string)$_POST['start'] : (new DateTime('tomorrow', new DateTimeZone(site_timezone())))->format('Y-m-d');
@@ -36,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$ids) $J(['error' => t('اختار حساب واحد على الأقل.')], 422);
     $texts = array_slice(array_map(function ($x) { return mb_substr(trim((string)$x), 0, 5000); }, (array)($_POST['text'] ?? [])), 0, 20);
     $whens = array_slice(array_map('strval', (array)($_POST['when'] ?? [])), 0, 20);
+    $types = array_slice(array_map('strval', (array)($_POST['type'] ?? [])), 0, 20);
     if (!$texts) $J(['error' => t('مفيش منشورات.')], 422);
     $img = preg_match('~^https://~i', trim((string)($_POST['img'] ?? ''))) ? trim((string)$_POST['img']) : '';
     $mode = ($_POST['mode'] ?? 'draft') === 'schedule' ? 'schedule' : 'draft';
@@ -58,7 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $made = []; $fail = [];
     foreach ($texts as $i => $tx) {
         $content = str_replace(['{link}', '{wa}', 'XXXX'], [$link, $waLink ?: $link, $cp], $tx);
-        $payload = ['content' => $content, 'platforms' => $plat, 'timezone' => site_timezone()];
+        $story = ($types[$i] ?? '') === 'story';
+        // الستوري: إنستجرام وفيسبوك بس، ومحتاج صورة
+        $pl = $story ? array_values(array_map(function ($x) { $x['platformSpecificData'] = ['contentType' => 'story']; return $x; }, array_filter($plat, function ($x) { return in_array($x['platform'], ['instagram', 'facebook'], true); }))) : $plat;
+        if ($story && (!$pl || $img === '')) { $fail[] = ($i + 1) . ': ' . t('الستوري محتاج صورة وحساب إنستجرام أو فيسبوك'); continue; }
+        $payload = ['content' => $content, 'platforms' => $pl, 'timezone' => site_timezone()];
         if ($img !== '') $payload['mediaItems'] = [['type' => 'image', 'url' => $img]];
         $w = preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $whens[$i] ?? '') ? $whens[$i] . ':00' : null;
         if ($mode === 'schedule' && $w) $payload['scheduledFor'] = $w; else { $payload['isDraft'] = true; if ($w) $payload['scheduledFor'] = $w; }
@@ -94,10 +100,10 @@ render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, 
         <label class="block text-xs text-ink-600"><?= e(t('كام منشور')) ?><input type="number" name="count" value="<?= $pCount ?>" min="1" max="20" class="input text-sm"></label></div>
       <div class="rounded-xl border border-ink-200 p-2.5 space-y-2"><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="use_coupon" value="1" checked> <?= e(t('كوبون خصم متتبع')) ?></label>
         <div class="grid grid-cols-2 gap-2"><input name="coupon" maxlength="24" class="input !mt-0 text-sm font-mono" dir="ltr" placeholder="<?= e(t('الكود (اختياري)')) ?>"><input name="offer" maxlength="120" class="input !mt-0 text-sm" dir="auto" value="<?= e($pOffer) ?>" placeholder="<?= e(t('العرض (مثلًا: خصم 15%)')) ?>"></div></div>
-      <label class="block text-xs text-ink-600"><?= e(t('رابط صورة (https، اختياري — لازم لإنستجرام)')) ?><input name="img" class="input text-sm" dir="ltr" placeholder="https://"></label>
+      <label class="block text-xs text-ink-600"><?= e(t('صورة الحملة (من المكتبة أو رابط، لازمة لإنستجرام والستوري)')) ?><input name="img" id="cmp-img" class="input text-sm" dir="ltr" placeholder="https://" data-media="image"></label><div id="cmp-img-pv"></div>
       <div><span class="text-xs text-ink-600"><?= e(t('الحسابات')) ?></span>
         <?php if (!$accs): ?><p class="text-xs text-amber-700 mt-1"><?= e($err ?: t('مفيش حسابات مربوطة تنفع للحملة (فيسبوك، لينكدإن، X، ثريدز، جوجل، إنستجرام).')) ?></p><?php endif; ?>
-        <div class="mt-1 grid gap-1 max-h-44 overflow-y-auto"><?php foreach ($accs as $a): ?><label class="flex items-center gap-2 rounded-lg border border-ink-200 px-2 py-1.5 text-sm cursor-pointer has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" checked><?= platform_icon((string)$a['platform'], 'w-4 h-4') ?><span class="truncate"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span></label><?php endforeach; ?></div></div>
+        <div class="mt-1 grid gap-1 max-h-44 overflow-y-auto"><?php foreach ($accs as $a): ?><label class="flex items-center gap-2 rounded-lg border border-ink-200 px-2 py-1.5 text-sm cursor-pointer has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="checkbox" name="accounts[]" value="<?= e($a['_id']) ?>" checked data-plat="<?= e((string)$a['platform']) ?>" data-name="<?= e($a['displayName'] ?? $a['username'] ?? '') ?>"><?= platform_icon((string)$a['platform'], 'w-4 h-4') ?><span class="truncate"><?= e($a['displayName'] ?? $a['username'] ?? '') ?></span></label><?php endforeach; ?></div></div>
       <div class="grid grid-cols-2 gap-1 rounded-xl bg-ink-100 p-1 text-sm"><label class="text-center rounded-lg py-1.5 cursor-pointer has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:font-semibold"><input type="radio" name="mode" value="draft" checked class="sr-only"><?= e(t('مسودات أراجعها')) ?></label><label class="text-center rounded-lg py-1.5 cursor-pointer has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:font-semibold"><input type="radio" name="mode" value="schedule" class="sr-only"><?= e(t('جدولة مباشرة')) ?></label></div>
       <p class="text-[11px] text-ink-500"><?= e(t('المواعيد موزعة على الفترة الساعة %s (أحسن وقت للنشر عندك).', fmt_hour($hour))) ?></p>
     </form>
@@ -106,7 +112,9 @@ render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, 
         <div class="grid sm:grid-cols-4 gap-2 text-xs">
           <?php foreach ([['file', t('صفحة هبوط للخدمة')], ['tag', t('كوبون متتبع')], ['chat', t('لينك واتساب متتبع')], ['chart', t('تقرير واحد للحملة')]] as [$ic, $tx]): ?><div class="rounded-xl bg-ink-50 p-2.5 flex items-center gap-2"><span class="text-brand-600"><?= ui_icon($ic, 'w-4 h-4') ?></span><?= e($tx) ?></div><?php endforeach; ?>
         </div></div>
-      <div id="cmp-posts" class="space-y-2"></div>
+      <div class="card p-4"><div class="flex items-center gap-2 mb-3"><b class="text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('calendar', 'w-4 h-4 text-brand-600') ?><?= e(t('خط سير الحملة')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('دوس على أي رقم يوديك للمنشور')) ?></span></div><div id="cmp-tl"></div></div>
+      <div id="cmp-posts" class="space-y-3 transition-opacity"></div>
+      <button type="button" id="cmp-add" class="w-full rounded-2xl border-2 border-dashed border-ink-300 py-3 text-sm font-medium text-ink-600 hover:border-brand-400 hover:text-brand-700 hover:bg-brand-50/40 transition"><?= ui_icon('plus', 'w-4 h-4 inline') ?> <?= e(t('أضف منشور')) ?></button>
       <div class="card p-3 flex flex-wrap items-center gap-2 sticky bottom-3 shadow-lg"><span id="cmp-sum" class="text-sm text-ink-600"></span><button type="button" id="cmp-go" class="btn-primary ms-auto" disabled><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('أنشئ الحملة')) ?></button></div>
       <div id="cmp-done"></div>
     </div>
@@ -114,14 +122,24 @@ render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, 
   <?php endif; ?>
 
   <?php if ($camps): ?>
-  <section class="card p-4 mt-5" id="cmp-list"><b class="text-ink-900 inline-flex items-center gap-1.5 mb-3"><?= ui_icon('chart', 'w-4 h-4 text-brand-600') ?><?= e(t('حملاتك')) ?></b>
-    <div class="overflow-x-auto"><table class="w-full text-sm min-w-[720px]"><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="text-start py-1.5"><?= e(t('الحملة')) ?></th><th><?= e(t('الفترة')) ?></th><th><?= e(t('منشورات')) ?></th><th><?= e(t('ضغطات')) ?></th><th><?= e(t('زيارات الصفحة')) ?></th><th><?= e(t('عملاء')) ?></th><th><?= e(t('بقوا عملاء')) ?></th><th><?= e(t('المبيعات')) ?></th></tr></thead><tbody>
-    <?php foreach ($camps as $c): $s = mcp_stats($c); ?><tr class="border-b border-ink-50"><td class="py-2"><b class="text-ink-900" dir="auto"><?= e($c['name']) ?></b><div class="text-[11px] text-ink-400"><a class="link" target="_blank" href="<?= e(lp_url($c['lp_slug'])) ?>"><?= e(t('صفحة الهبوط')) ?></a><?= $c['coupon'] ? ' · <span class="font-mono">' . e($c['coupon']) . '</span>' : '' ?> · <?= e($c['mode'] === 'schedule' ? t('مجدولة') : t('مسودات')) ?></div></td>
-      <td class="text-center text-xs whitespace-nowrap"><?= e(fmt_date($c['start_at'], 'd/m')) ?> – <?= e(fmt_date($c['end_at'], 'd/m')) ?></td><td class="text-center"><?= $s['posts'] ?></td><td class="text-center"><?= $s['clicks'] ?></td><td class="text-center"><?= $s['views'] ?></td>
-      <td class="text-center font-semibold"><?= $s['leads'] ?></td><td class="text-center text-lime-700 font-semibold"><?= $s['won'] ?></td><td class="text-center tabular-nums"><?= e(number_format($s['value'])) ?></td></tr><?php endforeach; ?>
-    </tbody></table></div></section>
+  <section class="mt-6" id="cmp-list"><div class="flex items-center gap-2 mb-3"><b class="text-lg text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('chart', 'w-5 h-5 text-brand-600') ?><?= e(t('حملاتك')) ?></b><span class="text-xs text-ink-400"><?= count($camps) ?></span></div>
+    <div class="grid md:grid-cols-2 2xl:grid-cols-3 gap-3">
+    <?php foreach ($camps as $c): $s = mcp_stats($c); $live = date('Y-m-d') >= substr((string)$c['start_at'], 0, 10) && date('Y-m-d') <= substr((string)$c['end_at'], 0, 10); $max = max(1, $s['clicks'], $s['views'], $s['leads']); ?>
+      <div class="card p-4 hover:shadow-md transition" data-camp>
+        <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><b class="block text-ink-900 truncate" dir="auto"><?= e($c['name']) ?></b>
+          <span class="text-[11px] text-ink-500"><?= e(fmt_date($c['start_at'], 'd/m')) ?> – <?= e(fmt_date($c['end_at'], 'd/m')) ?> · <?= (int)$s['posts'] ?> <?= e(t('منشور')) ?></span></div>
+          <span class="mk-pill <?= $live ? 'bg-lime-100 text-lime-800' : ($c['mode'] === 'draft' ? 'bg-ink-100 text-ink-600' : 'bg-brand-50 text-brand-700') ?>"><?= e($live ? t('شغالة') : ($c['mode'] === 'draft' ? t('مسودات') : t('مجدولة'))) ?></span>
+          <button type="button" class="p-1 rounded-lg text-ink-300 hover:text-red-600 hover:bg-red-50" data-cdel="<?= (int)$c['id'] ?>" title="<?= e(t('حذف')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></div>
+        <div class="mt-3 space-y-1.5 text-xs">
+          <?php foreach ([[t('النقرات'), $s['clicks'], 'bg-brand-500'], [t('زيارات الصفحة'), $s['views'], 'bg-cyan-500'], [t('العملاء'), $s['leads'], 'bg-amber-500']] as [$l, $v, $cl]): ?>
+            <div class="flex items-center gap-2"><span class="w-24 text-ink-500 shrink-0"><?= e($l) ?></span><span class="flex-1 h-2 rounded-full bg-ink-100 overflow-hidden"><span class="block h-full rounded-full <?= $cl ?>" style="width:<?= round(100 * $v / $max) ?>%"></span></span><b class="w-8 text-end tabular-nums text-ink-900"><?= (int)$v ?></b></div>
+          <?php endforeach; ?></div>
+        <div class="flex items-center gap-3 mt-3 pt-3 border-t border-ink-100 text-xs"><span class="text-lime-700 font-semibold"><?= (int)$s['won'] ?> <?= e(t('أصبحوا عملاء')) ?></span><span class="tabular-nums text-ink-700"><?= e(number_format($s['value'])) ?></span>
+          <span class="ms-auto flex items-center gap-2"><?php if ($c['coupon']): ?><span class="font-mono text-ink-500"><?= e($c['coupon']) ?></span><?php endif; ?><a class="link" target="_blank" href="<?= e(lp_url($c['lp_slug'])) ?>"><?= e(t('صفحة الهبوط')) ?></a></span></div>
+      </div>
+    <?php endforeach; ?></div></section>
   <?php endif; ?>
   <script>window.CMP = <?= json_encode(['url' => url('campaign'), 'csrf' => csrf_token(), 'angles' => ['offer' => t('العرض'), 'detail' => t('التفاصيل'), 'faq' => t('سؤال شائع'), 'about' => t('عن الشركة'), 'last' => t('آخر فرصة')],
-    'sum' => t('%s منشور على %s حساب'), 'busy' => t('بننشئ الحملة…'), 'done' => t('اتعملت الحملة: %s منشور'), 'fail' => t('%s منشور ماتعملش'), 'skip' => t('اتشال من غير صورة: %s'), 'lp' => t('صفحة الهبوط'), 'link' => t('اللينك المتتبع'), 'wa' => t('لينك واتساب'), 'coupon' => t('الكوبون'), 'cal' => t('افتح التقويم'), 'calUrl' => url('posts', ['view' => 'cal']), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'del' => t('شيل')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    'sum' => t('%s منشور على %s حساب'), 'stories' => t('منها %s ستوري'), 'tLink' => t('لينك الحملة'), 'tWa' => t('لينك واتساب'), 'tCoupon' => t('الكوبون'), 'insert' => t('ضيف:'), 'kPost' => t('منشور'), 'kStory' => t('ستوري'), 'custom' => t('منشور إضافي'), 'dup' => t('نسخة'), 'needImg' => t('الستوري محتاج صورة'), 'brand' => (string)($kb['company']['name'] ?? ''), 'report' => t('شوف التقرير'), 'copied' => t('اتنسخ ✓'), 'delQ' => t('تحذف الحملة من القايمة؟ المنشورات نفسها مش هتتمسح.'), 'busy' => t('بننشئ الحملة…'), 'done' => t('اتعملت الحملة: %s منشور'), 'fail' => t('%s منشور ماتعملش'), 'skip' => t('اتشال من غير صورة: %s'), 'lp' => t('صفحة الهبوط'), 'link' => t('اللينك المتتبع'), 'wa' => t('لينك واتساب'), 'coupon' => t('الكوبون'), 'cal' => t('افتح التقويم'), 'calUrl' => url('posts', ['view' => 'cal']), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'), 'del' => t('شيل')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/campaign.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

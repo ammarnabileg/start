@@ -196,6 +196,10 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .mk-bar select option { @apply text-ink-900; }
   .mk-dlg { @apply w-[min(720px,96vw)] max-h-[90vh] rounded-3xl p-0 shadow-2xl border-0 backdrop:bg-ink-900/45 backdrop:backdrop-blur-sm; }
   .mk-dlg[open] { animation: mkIn .2s cubic-bezier(.2,.9,.3,1.2); }
+  /* حملة متكاملة */
+  .cmp-tok { @apply inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-medium align-baseline; }
+  .cmp-chip { @apply rounded-full border border-ink-200 bg-white px-2 py-0.5 text-ink-700 transition hover:border-brand-400 hover:bg-brand-50; }
+  .cmp-ib { @apply w-8 h-8 grid place-items-center rounded-lg text-ink-400 transition hover:bg-white hover:text-ink-900; }
   /* منشور جديد */
   .cp-pop { animation: cpPop .22s ease-out; }
   .cp-editor { @apply rounded-2xl border border-ink-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10; }
