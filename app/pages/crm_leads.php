@@ -304,8 +304,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'next_quick') {
         // "⏰ بعدين": المتابعة بكرة الساعة 11 بتوقيت الشركة
-        $d = new DateTime('tomorrow 11:00', new DateTimeZone(site_timezone())); $d->modify('+' . max(0, min(30, (int)($_POST['days'] ?? 1) - 1)) . ' days');
-        db()->prepare('UPDATE crm_leads SET next_at = ? WHERE id = ?')->execute([$d->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s'), (int)$l['id']]);
+        $w = (string)($_POST['when'] ?? ''); $tz = new DateTimeZone(site_timezone());
+        if ($w === 'none') db()->prepare('UPDATE crm_leads SET next_at = NULL WHERE id = ?')->execute([(int)$l['id']]);
+        else {
+            if ($w === 'today') { $d = new DateTime('today 16:00', $tz); if ($d < new DateTime('now', $tz)) $d = (new DateTime('now', $tz))->modify('+1 hour'); }
+            else { $days = $w === '3d' ? 3 : ($w === 'week' ? 7 : max(1, min(30, (int)($_POST['days'] ?? 1)))); $d = (new DateTime('today 11:00', $tz))->modify("+$days days"); }
+            db()->prepare('UPDATE crm_leads SET next_at = ? WHERE id = ?')->execute([$d->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s'), (int)$l['id']]);
+        }
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id']))]);
     }
     if ($action === 'log') {
@@ -450,6 +455,11 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         <button type="button" data-v="board" class="ld-view px-2.5 py-1.5 text-sm rounded-lg" title="<?= e(t('لوحة')) ?>">▦</button>
       </div>
     </div>
+    <div id="ld-views" class="flex items-center gap-1 mb-2 overflow-x-auto text-sm" role="tablist">
+      <?php foreach (['all' => ['', t('الكل')], 'mine' => ['👤', t('بتوعي')], 'due' => ['⏰', t('مستحقين')], 'hot' => ['🔥', t('سخنين')], 'cold' => ['🧊', t('باردين')], 'fresh' => ['🆕', t('جداد النهارده')], 'unowned' => ['🙋', t('من غير مسؤول')]] as $vk => $vv): if ($vk === 'unowned' && !$canManage) continue; ?>
+        <button type="button" data-view="<?= $vk ?>" class="ld-vtab shrink-0 px-3 py-1.5 rounded-full text-ink-600 hover:bg-white hover:shadow-sm transition"><?= $vv[0] ?> <?= e($vv[1]) ?> <span class="ld-vn text-[11px] text-ink-400"></span></button>
+      <?php endforeach; ?>
+    </div>
     <div id="ld-chips" class="flex flex-wrap gap-1.5 mb-3 min-h-[4px]"></div>
 
     <?php if (!$leads): ?>
@@ -469,7 +479,8 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
     </div>
     <div id="ld-list" class="card divide-y divide-ink-100 overflow-hidden"></div>
     <div id="ld-board" class="hidden grid grid-flow-col auto-cols-[minmax(240px,1fr)] gap-3 overflow-x-auto pb-3"></div>
-    <div id="ld-none" class="hidden text-center text-sm text-ink-500 py-10"><?= e(t('مفيش Leads تطابق الفلاتر')) ?></div>
+    <div id="ld-more" class="hidden text-center mt-3"><button type="button" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400"></span></button></div>
+    <div id="ld-none" class="hidden text-center py-14"><div class="text-4xl mb-2">🔍</div><div class="text-sm text-ink-600"><?= e(t('مفيش عملاء بالشكل ده')) ?></div><button type="button" id="ld-none-clear" class="link text-xs mt-2"><?= e(t('امسح الفلاتر')) ?></button></div>
 
     <div id="ld-drawer" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
       <div class="ld-fade absolute inset-0 bg-ink-900/40 backdrop-blur-[1px]" data-close></div>
@@ -714,7 +725,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         'tr' => ['noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
             'merged' => t('كان موجود، دمجناه في نفس العميل'), 'del' => t('متأكد إنك عاوز تمسح العميل ده؟'), 'pending' => t('الرقم جاي'), 'call' => t('اتصل'),
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
-            'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
+            'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'undo' => t('تراجع'), 'stageTo' => t('اتنقل لـ %s'), 'deleted' => t('اتمسح %s'), 'nToday' => t('النهارده 4 م'), 'nTom' => t('بكرة 11 ص'), 'n3' => t('بعد 3 أيام'), 'nWeek' => t('بعد أسبوع'), 'nNone' => t('مفيش متابعة'), 'nSet' => t('اتظبطت المتابعة ✓'), 'more' => t('اعرض أكتر (%s فاضلين)'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
             'chat' => t('افتح المحادثة'), 'hot' => t('صفحة مهمة'), 'noVisits' => t('مفيش زيارات. ابعتله رابط متتبع (أو حط {site} في القالب) والكود على موقعك.'), 'linkCopied' => t('الرابط اتنسخ. ابعتهوله.'), 'dStatus' => crm_deal_statuses(), 'dTitle' => t('اسم الصفقة (مثلاً: باقة سنوية)'), 'dValue' => t('القيمة'), 'dClose' => t('متوقع تتقفل'), 'dNone' => t('مفيش صفقات. ضيف صفقة لكل حاجة العميل ممكن يشتريها.'), 'dDel' => t('تمسح الصفقة؟'),
             'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),

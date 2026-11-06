@@ -79,6 +79,10 @@ details > summary { list-style: none; } details > summary::-webkit-details-marke
   .ld-row .ld-acts { @apply opacity-0 translate-y-0.5 transition duration-150; }
   .ld-row:hover .ld-acts, .ld-row:focus-within .ld-acts { @apply opacity-100 translate-y-0; }
   .ld-act { @apply grid place-items-center w-8 h-8 rounded-lg border border-ink-200 bg-white text-sm hover:border-brand-400 hover:bg-brand-50 hover:scale-105 transition; }
+  .ld-vtab.on { @apply bg-white text-ink-900 font-medium shadow-sm ring-1 ring-ink-200; }
+  .ld-pop { @apply absolute z-50 mt-1 w-44 rounded-xl border border-ink-200 bg-white shadow-xl p-1 text-sm; animation: ld-panel-in .12s ease-out; }
+  .ld-pop button { @apply w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-ink-50 flex items-center gap-2; }
+  .ld-edit { @apply cursor-pointer rounded-md hover:ring-2 hover:ring-brand-300 transition; }
   .ld-chip { @apply inline-flex items-center gap-1 rounded-full bg-brand-50 border border-brand-200 text-brand-800 text-xs px-2.5 py-1; }
   .ld-toast { @apply fixed bottom-5 start-1/2 z-[80] rounded-xl bg-ink-900 text-[#fff] text-sm px-4 py-2.5 shadow-2xl flex items-center gap-3; transform: translateX(-50%); animation: ld-toast-in .2s ease-out; }
 }
