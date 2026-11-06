@@ -456,6 +456,82 @@ function crm_runs_map(): array
     return $o;
 }
 
+/* ---------- الصفقات + تاريخ الفوز + تقارير الفريق ---------- */
+/** تاريخ "بقى عميل" بيتظبط لوحده بعد أي تعديل (أي مكان غيّر المرحلة) */
+function crm_sync_won(): void
+{
+    $wid = (int)ws('id'); if (!$wid) return;
+    try {
+        db()->prepare("UPDATE crm_leads SET won_at = NOW() WHERE workspace_id = ? AND stage = 'won' AND won_at IS NULL")->execute([$wid]);
+        db()->prepare("UPDATE crm_leads SET won_at = NULL WHERE workspace_id = ? AND stage <> 'won' AND won_at IS NOT NULL")->execute([$wid]);
+    } catch (Throwable $e) {}
+}
+function crm_deal_statuses(): array { return ['open' => t('مفتوحة'), 'won' => t('اتقفلت بنجاح'), 'lost' => t('خسرناها')]; }
+function crm_deals(int $leadId): array
+{
+    $st = db()->prepare('SELECT id, title, value, status, close_at, closed_at FROM crm_deals WHERE workspace_id = ? AND lead_id = ? ORDER BY status = \'open\' DESC, id DESC');
+    $st->execute([(int)ws('id'), $leadId]);
+    return array_map(function ($d) { $d['id'] = (int)$d['id']; $d['value'] = (float)$d['value']; return $d; }, $st->fetchAll());
+}
+/** قيمة الصفقات المفتوحة على العميل بتتحسب في deal_value عشان القمع والتقييم يفضلوا شغالين */
+function crm_deals_rollup(int $leadId): void
+{
+    $st = db()->prepare("SELECT COUNT(*), COALESCE(SUM(CASE WHEN status <> 'lost' THEN value END), 0) FROM crm_deals WHERE workspace_id = ? AND lead_id = ?");
+    $st->execute([(int)ws('id'), $leadId]); [$n, $sum] = $st->fetch(PDO::FETCH_NUM);
+    if ((int)$n) db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ?')->execute([(float)$sum, $leadId]);
+}
+/** فترة التقرير */
+function crm_period(string $p): array
+{
+    $tz = new DateTimeZone(site_timezone()); $n = new DateTime('now', $tz);
+    switch ($p) {
+        case 'last_month': $a = (new DateTime('first day of last month', $tz))->setTime(0, 0); $b = (new DateTime('first day of this month', $tz))->setTime(0, 0); break;
+        case '7d': $a = (clone $n)->modify('-7 days'); $b = (clone $n)->modify('+1 minute'); break;
+        case '30d': $a = (clone $n)->modify('-30 days'); $b = (clone $n)->modify('+1 minute'); break;
+        default: $a = (new DateTime('first day of this month', $tz))->setTime(0, 0); $b = (new DateTime('first day of next month', $tz))->setTime(0, 0);
+    }
+    $a->setTimezone(new DateTimeZone(date_default_timezone_get())); $b->setTimezone(new DateTimeZone(date_default_timezone_get()));
+    return [$a->format('Y-m-d H:i:s'), $b->format('Y-m-d H:i:s')];
+}
+/** أداء كل موظف في فترة: عملاء جداله، تواصل، مكالمات ردت، عملاء كسبهم، قيمة، أول رد، كريديت Apollo */
+function crm_team_report(string $from, string $to): array
+{
+    $wid = (int)ws('id'); crm_sync_won();
+    $rows = [];
+    $blank = ['leads' => 0, 'contacts' => 0, 'calls' => 0, 'answered' => 0, 'won' => 0, 'value' => 0.0, 'resp' => [], 'reveals' => 0, 'open' => 0, 'overdue' => 0];
+    $rows[0] = ['id' => 0, 'name' => t('من غير مسؤول')] + $blank;
+    foreach (crm_members() as $m) $rows[(int)$m['id']] = ['id' => (int)$m['id'], 'name' => $m['name'], 'leads' => 0, 'contacts' => 0, 'calls' => 0, 'answered' => 0, 'won' => 0, 'value' => 0.0, 'resp' => [], 'reveals' => 0, 'open' => 0, 'overdue' => 0];
+    $q = function ($sql, $args) { $st = db()->prepare($sql); $st->execute($args); return $st->fetchAll(PDO::FETCH_NUM); };
+    foreach ($q('SELECT COALESCE(owner_id, 0) o, COUNT(*) FROM crm_leads WHERE workspace_id = ? AND created_at >= ? AND created_at < ? GROUP BY o', [$wid, $from, $to]) as [$u, $n]) if (isset($rows[$u])) $rows[$u]['leads'] = (int)$n;
+    foreach ($q("SELECT user_id, kind, COUNT(*), SUM(body LIKE ?) FROM crm_acts WHERE workspace_id = ? AND created_at >= ? AND created_at < ? AND kind IN ('call','wa','email','meet') AND user_id IS NOT NULL GROUP BY user_id, kind", ['[' . crm_call_outcomes()['answered'] . ']%', $wid, $from, $to]) as [$u, $k, $n, $ans]) {
+        if (!isset($rows[$u])) continue; $rows[$u]['contacts'] += (int)$n; if ($k === 'call') { $rows[$u]['calls'] += (int)$n; $rows[$u]['answered'] += (int)$ans; }
+    }
+    foreach ($q("SELECT COALESCE(owner_id, 0) o, COUNT(*), COALESCE(SUM(deal_value), 0) FROM crm_leads WHERE workspace_id = ? AND stage = 'won' AND won_at >= ? AND won_at < ? GROUP BY o", [$wid, $from, $to]) as [$u, $n, $v]) if (isset($rows[$u])) { $rows[$u]['won'] = (int)$n; $rows[$u]['value'] = (float)$v; }
+    // صفقات اتقفلت بنجاح على عملاء ما اتحسبوش فوق (عميل قديم اشترى تاني)
+    foreach ($q("SELECT COALESCE(d.owner_id, 0) o, COALESCE(SUM(d.value), 0) FROM crm_deals d JOIN crm_leads l ON l.id = d.lead_id WHERE d.workspace_id = ? AND d.status = 'won' AND d.closed_at >= ? AND d.closed_at < ? AND NOT (l.stage = 'won' AND l.won_at >= ? AND l.won_at < ?) GROUP BY o", [$wid, $from, $to, $from, $to]) as [$u, $v]) if (isset($rows[$u])) $rows[$u]['value'] += (float)$v;
+    // سرعة أول رد: من وقت ما العميل اتضاف لحد أول تواصل
+    foreach ($q("SELECT COALESCE(l.owner_id, 0), TIMESTAMPDIFF(MINUTE, l.created_at, MIN(a.created_at)) FROM crm_leads l JOIN crm_acts a ON a.lead_id = l.id AND a.kind IN ('call','wa','email','meet') WHERE l.workspace_id = ? AND l.created_at >= ? AND l.created_at < ? GROUP BY l.id, l.owner_id", [$wid, $from, $to]) as [$u, $mins]) if (isset($rows[$u]) && $mins !== null) $rows[$u]['resp'][] = max(0, (int)$mins);
+    foreach ($q('SELECT user_id, COUNT(*) FROM crm_reveals WHERE workspace_id = ? AND created_at >= ? AND created_at < ? GROUP BY user_id', [$wid, $from, $to]) as [$u, $n]) if (isset($rows[$u])) $rows[$u]['reveals'] = (int)$n;
+    foreach ($q("SELECT COALESCE(owner_id, 0) o, COUNT(*), SUM(next_at IS NOT NULL AND next_at < NOW()) FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') GROUP BY o", [$wid]) as [$u, $n, $od]) if (isset($rows[$u])) { $rows[$u]['open'] = (int)$n; $rows[$u]['overdue'] = (int)$od; }
+    $any = false; foreach ($rows[0] as $k => $v) if (is_numeric($v) && $k !== 'id' && $v) $any = true;
+    if (!$any) unset($rows[0]);
+    foreach ($rows as &$r) { sort($r['resp']); $c = count($r['resp']); $r['resp'] = $c ? $r['resp'][intdiv($c, 2)] : null; } unset($r); // الوسيط مش المتوسط عشان حالة واحدة متبوظش الرقم
+    return array_values($rows);
+}
+/** الأهداف الشهرية: {team:{won,value,contacts}, users:{id:{...}}} */
+function crm_goals(string $ym): array
+{
+    $g = json_decode((string)setting('crm_goals_' . (int)ws('id') . '_' . $ym, ''), true);
+    return is_array($g) ? $g + ['team' => [], 'users' => []] : ['team' => [], 'users' => []];
+}
+function fmt_minutes(?int $m): string
+{
+    if ($m === null) return '—';
+    if ($m < 60) return t('%s دقيقة', $m);
+    if ($m < 1440) return t('%s ساعة', round($m / 60, 1));
+    return t('%s يوم', round($m / 1440, 1));
+}
+
 /* ---------- إيميل من المنصة + تتبع الفتح والضغط (بكسل صغير + روابط بتعدّي علينا) ---------- */
 function crm_send_email(array $l, string $subject, string $text, string $via = ''): array
 {

@@ -528,6 +528,24 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '031_crm_deals' => [
+        "ALTER TABLE crm_leads ADD COLUMN won_at DATETIME NULL",
+        "UPDATE crm_leads SET won_at = created_at WHERE stage = 'won'",
+        "CREATE TABLE IF NOT EXISTS crm_deals (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            lead_id INT UNSIGNED NOT NULL,
+            owner_id INT UNSIGNED NULL,
+            title VARCHAR(190) NOT NULL,
+            value DECIMAL(14,2) NOT NULL DEFAULT 0,
+            status VARCHAR(10) NOT NULL DEFAULT 'open',
+            close_at DATE NULL,
+            closed_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX ws_lead (workspace_id, lead_id),
+            INDEX ws_status (workspace_id, status, closed_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '030_crm_mails' => [
         "CREATE TABLE IF NOT EXISTS crm_mails (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

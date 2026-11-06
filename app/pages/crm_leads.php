@@ -7,7 +7,7 @@ $stages = crm_stages();
 $sources = crm_sources();
 $members = crm_members();
 $memberIds = array_map('intval', array_column($members, 'id'));
-$json = function (array $a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+$json = function (array $a) { crm_sync_won(); header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 $out = function (array $l) {
     return ['id' => (int)$l['id'], 'name' => $l['name'], 'title' => (string)$l['title'], 'company' => (string)$l['company'], 'email' => (string)$l['email'],
         'phone' => (string)$l['phone'], 'pending' => (int)$l['phone_pending'] === 1, 'wa' => crm_wa_digits($l['phone']), 'linkedin' => (string)$l['linkedin'],
@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'tpl' => crm_templates()]);
     }
     $l = crm_lead((int)($_POST['id'] ?? 0));
-    if ($l && $action === 'acts') { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => crm_lead_run((int)$l['id']), 'intel' => crm_intel($l, $ac), 'mails' => $mails]); }
+    if ($l && $action === 'acts') { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => crm_lead_run((int)$l['id']), 'intel' => crm_intel($l, $ac), 'mails' => $mails, 'deals' => crm_deals((int)$l['id'])]); }
     if (!$l || !crm_can_edit($l)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
     if ($action === 'stage') {
         $s = (string)($_POST['stage'] ?? '');
@@ -251,6 +251,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'plan_do' || $action === 'plan_skip') { $r = crm_lead_run((int)$l['id']); if ($r) crm_plan_do($r['id'], $action === 'plan_skip'); }
         if ($action === 'plan_stop') crm_plan_stop((int)$l['id']);
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$l['id'])), 'acts' => crm_acts((int)$l['id']), 'run' => crm_lead_run((int)$l['id'])]);
+    }
+    if ($action === 'deal_save' || $action === 'deal_del') {
+        $did = (int)($_POST['deal'] ?? 0);
+        if ($action === 'deal_del') db()->prepare('DELETE FROM crm_deals WHERE id = ? AND workspace_id = ? AND lead_id = ?')->execute([$did, $wid, (int)$l['id']]);
+        else {
+            $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 190); if ($title === '') $json(['ok' => false, 'error' => t('اكتب اسم الصفقة.')]);
+            $val = max(0, (float)str_replace(',', '.', (string)($_POST['value'] ?? '0')));
+            $stt = isset(crm_deal_statuses()[$_POST['status'] ?? '']) ? $_POST['status'] : 'open';
+            $close = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['close_at'] ?? '')) ? $_POST['close_at'] : null;
+            if ($did) db()->prepare("UPDATE crm_deals SET title = ?, value = ?, close_at = ?, closed_at = IF(? = 'open', NULL, IF(status = ?, closed_at, NOW())), status = ? WHERE id = ? AND workspace_id = ? AND lead_id = ?")->execute([$title, $val, $close, $stt, $stt, $stt, $did, $wid, (int)$l['id']]);
+            else db()->prepare('INSERT INTO crm_deals (workspace_id, lead_id, owner_id, title, value, status, close_at, closed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)$l['owner_id'] ?: ($uid ?: null), $title, $val, $stt, $close, $stt === 'open' ? null : date('Y-m-d H:i:s')]);
+            crm_act_add((int)$l['id'], 'note', '💼 ' . $title . ' · ' . number_format($val) . ' · ' . crm_deal_statuses()[$stt]);
+            // أول صفقة تتقفل بنجاح بتنقل العميل لـ "بقى عميل"
+            if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
+        }
+        crm_deals_rollup((int)$l['id']);
+        $json(['ok' => true, 'deals' => crm_deals((int)$l['id']), 'lead' => $out(crm_lead((int)$l['id']))]);
     }
     if ($action === 'send_email') {
         try { crm_send_email($l, (string)($_POST['subject'] ?? ''), trim((string)($_POST['body'] ?? ''))); }
@@ -445,6 +462,10 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             <div class="text-sm font-semibold text-ink-900">🔁 <?= e(t('خطة المتابعة')) ?></div>
             <div id="ld-plan-body" class="text-xs"></div>
           </div>
+          <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
+            <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">💼 <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
+            <div id="ld-deal-list" class="space-y-1.5"></div>
+          </div>
           <div id="ld-mail" class="hidden rounded-xl border border-ink-200 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900">✉️ <?= e(t('ابعت إيميل من هنا')) ?></span><button type="button" id="ld-mail-tg" class="link text-xs ms-auto"><?= e(t('اكتب')) ?></button></div>
             <div id="ld-mail-f" class="hidden space-y-1.5"><input id="ld-mail-s" class="input text-sm" maxlength="255" placeholder="<?= e(t('العنوان')) ?>"><textarea id="ld-mail-b" rows="5" class="input text-sm" dir="auto"></textarea>
@@ -602,7 +623,8 @@ render('Leads', 'crm_leads', function () use ($leads, $stages, $sources, $member
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
             'noacts' => t('لسه مفيش تواصل مسجّل'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
-            'chat' => t('افتح المحادثة'), 'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),
+            'chat' => t('افتح المحادثة'), 'dStatus' => crm_deal_statuses(), 'dTitle' => t('اسم الصفقة (مثلاً: باقة سنوية)'), 'dValue' => t('القيمة'), 'dClose' => t('متوقع تتقفل'), 'dNone' => t('مفيش صفقات. ضيف صفقة لكل حاجة العميل ممكن يشتريها.'), 'dDel' => t('تمسح الصفقة؟'),
+            'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),
             'pNone' => t('مفيش خطة شغالة على العميل ده.'), 'pStart' => t('ابدأ'), 'pPick' => t('اختار خطة…'), 'pNoPlans' => t('لسه مفيش خطط. المدير يعملها من زرار "خطط المتابعة".'),
             'pStep' => t('الخطوة %s من %s'), 'pDue' => t('مستحقة دلوقتي'), 'pWait' => t('ميعادها %s'), 'pDo' => t('نفّذ'), 'pSkip' => t('عدّي'), 'pStop' => t('وقّف الخطة'),
             'pDay' => t('بعد كام يوم'), 'pSubj' => t('عنوان الإيميل'), 'pText' => t('الرسالة'), 'pName' => t('اسم الخطة'), 'pAddStep' => t('+ خطوة'), 'pDel' => t('امسح الخطة'), 'pDelQ' => t('تمسح الخطة دي؟ هتقف على كل العملاء اللي عليها.'),

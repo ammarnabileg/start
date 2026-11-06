@@ -229,7 +229,30 @@
       Object.assign(l, r.lead); drawActs(r.acts); drawMails(l, r.mails); document.getElementById('ld-mail-s').value = ''; document.getElementById('ld-mail-b').value = ''; draw();
     }).catch(function () { bt.disabled = false; alert(T.err); });
   });
-  function loadActs(l) { acts.innerHTML = ''; drawIntel(l, null); drawMails(l, []); post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); drawIntel(l, r.intel); drawMails(l, r.mails); } }); }
+  var dl = document.getElementById('ld-deal-list'), dAdd = document.getElementById('ld-deal-add');
+  function dealForm(d) {
+    d = d || { id: 0, title: '', value: '', status: 'open', close_at: '' };
+    return '<div class="rounded-lg border border-brand-200 bg-brand-50/40 p-2 space-y-1.5" data-dform="' + d.id + '"><input class="input !py-1 text-xs" data-k="title" maxlength="190" placeholder="' + esc(T.dTitle) + '" value="' + esc(d.title) + '">' +
+      '<div class="grid grid-cols-3 gap-1.5"><input class="input !py-1 text-xs" data-k="value" inputmode="decimal" dir="ltr" placeholder="' + esc(T.dValue) + '" value="' + esc(d.value || '') + '"><select class="input !py-1 text-xs" data-k="status">' + Object.keys(T.dStatus).map(function (k) { return '<option value="' + k + '"' + (k === d.status ? ' selected' : '') + '>' + esc(T.dStatus[k]) + '</option>'; }).join('') + '</select>' +
+      '<input type="date" class="input !py-1 text-xs" data-k="close_at" title="' + esc(T.dClose) + '" value="' + esc(d.close_at || '') + '"></div><div class="flex gap-1.5"><button type="button" class="btn-primary !py-1 !text-xs flex-1" data-dsave>' + esc(T.saved.replace(' ✓', '') || 'OK') + '</button>' + (d.id ? '<button type="button" class="btn-ghost !py-1 !text-xs text-red-600" data-ddel>✕</button>' : '') + '</div></div>';
+  }
+  function drawDeals(l, ds) {
+    dAdd.classList.toggle('hidden', !l.edit); l._deals = ds || [];
+    var dc = { open: 'bg-sky-100 text-sky-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
+    dl.innerHTML = l._deals.length ? l._deals.map(function (d) { return '<div class="flex items-center gap-2 text-xs ' + (l.edit ? 'cursor-pointer hover:bg-ink-50' : '') + ' rounded-lg px-1.5 py-1" data-deal="' + d.id + '"><span class="flex-1 truncate text-ink-800">' + esc(d.title) + '</span><b class="text-ink-900">' + Number(d.value).toLocaleString() + '</b><span class="px-1.5 rounded ' + dc[d.status] + '">' + esc(T.dStatus[d.status]) + '</span></div>'; }).join('')
+      : '<p class="text-[11px] text-ink-400">' + esc(T.dNone) + '</p>';
+  }
+  dAdd.addEventListener('click', function () { if (!dl.querySelector('[data-dform="0"]')) dl.insertAdjacentHTML('afterbegin', dealForm()); });
+  dl.addEventListener('click', function (e) {
+    if (!cur) return; var l = cur;
+    var row = e.target.closest('[data-deal]'); if (row && l.edit) { var d = (l._deals || []).filter(function (x) { return x.id === +row.dataset.deal; })[0]; row.outerHTML = dealForm(d); return; }
+    var f0 = e.target.closest('[data-dform]'); if (!f0) return;
+    var del = e.target.closest('[data-ddel]'), sv = e.target.closest('[data-dsave]'); if (!del && !sv) return;
+    if (del && !confirm(T.dDel)) return;
+    var data = { action: del ? 'deal_del' : 'deal_save', id: l.id, deal: f0.dataset.dform }; f0.querySelectorAll('[data-k]').forEach(function (i) { data[i.dataset.k] = i.value; });
+    post(data).then(function (r) { if (!r.ok) return alert(r.error || T.err); Object.assign(l, r.lead); if (cur === l) { drawDeals(l, r.deals); form.elements.value.value = l.value || ''; form.querySelectorAll('[name=stage]').forEach(function (x) { x.checked = x.value === l.stage; }); } draw(); });
+  });
+  function loadActs(l) { acts.innerHTML = ''; drawIntel(l, null); drawMails(l, []); drawDeals(l, []); post({ action: 'acts', id: l.id }).then(function (r) { if (r.ok && cur === l) { drawActs(r.acts); drawPlan(l, r.run); drawIntel(l, r.intel); drawMails(l, r.mails); drawDeals(l, r.deals); } }); }
   function logAct(kind, body, outcome) {
     if (!cur) return Promise.resolve();
     var l = cur;
