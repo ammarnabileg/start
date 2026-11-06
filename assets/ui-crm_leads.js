@@ -223,7 +223,10 @@
   });
   form.addEventListener('submit', function (e) {
     e.preventDefault(); if (!cur) return;
-    var fd = new FormData(form); var sv = document.getElementById('ld-save'); sv.disabled = true;
+    var fd = new FormData(form); var sv = document.getElementById('ld-save');
+    if (fd.get('stage') === 'lost' && cur.stage !== 'lost' && !form.dataset.lr) { askLost().then(function (r) { if (!r) return; form.dataset.lr = r; form.requestSubmit(); }); return; }
+    if (form.dataset.lr) { fd.append('lost_reason', form.dataset.lr); delete form.dataset.lr; }
+    sv.disabled = true;
     post(fd).then(function (r) {
       sv.disabled = false;
       if (!r.ok) { msg.className = 'text-xs text-red-600'; msg.textContent = r.error || T.err; return; }
@@ -645,7 +648,7 @@
       location.reload();
     }).catch(function () { bb.classList.remove('opacity-60', 'pointer-events-none'); toast(T.err); });
   }
-  document.getElementById('ld-b-stage').addEventListener('change', function () { if (this.value) bulk({ op: 'stage', stage: this.value }); });
+  document.getElementById('ld-b-stage').addEventListener('change', function () { var v = this.value, el = this; if (!v) return; if (v === 'lost') { askLost().then(function (r) { if (r) bulk({ op: 'stage', stage: v, lost_reason: r }); else el.value = ''; }); return; } bulk({ op: 'stage', stage: v }); });
   var bo = document.getElementById('ld-b-owner'); if (bo) bo.addEventListener('change', function () { if (this.value !== '') bulk({ op: 'owner', owner: this.value }); });
   document.getElementById('ld-b-tag').addEventListener('click', function () { var t = prompt(T.askTag); if (t && t.trim()) bulk({ op: 'tag', tag: t.trim() }); });
   var be = document.getElementById('ld-b-enrich'); if (be) be.addEventListener('click', function () { var n = Math.min(25, selIds().length); if (confirm(T.bConfirm.replace('%s', n))) bulk({ op: 'enrich' }); });
@@ -767,10 +770,20 @@
   /* ---------- تعديل من الصف: المرحلة والمتابعة (بوب أب صغير) ---------- */
   var pop = null;
   function closePop() { if (pop) { pop.remove(); pop = null; } }
-  function changeStage(l, s) {
+  function askLost() {
+    return new Promise(function (res) {
+      var w = document.createElement('div'); w.className = 'fixed inset-0 z-[90] grid place-items-center bg-ink-900/40 p-4';
+      w.innerHTML = '<div class="card p-4 w-full max-w-sm space-y-2"><div class="font-semibold text-ink-900">✕ ' + esc(T.lostQ) + '</div><div class="grid grid-cols-2 gap-1.5">' + Object.keys(T.lostR).map(function (k) { return '<button type="button" class="chip text-xs justify-center" data-lr="' + k + '">' + esc(T.lostR[k]) + '</button>'; }).join('') + '</div><button type="button" class="text-xs text-ink-500 w-full" data-lr="">' + esc(T.undo) + '</button></div>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function (e) { var b = e.target.closest('[data-lr]'); if (!b && e.target !== w) return; w.remove(); res(b ? b.dataset.lr : ''); });
+    });
+  }
+  window.ldAskLost = askLost;
+  function changeStage(l, s, reason) {
     var old = l.stage; if (old === s) return;
+    if (s === 'lost' && reason === undefined) { askLost().then(function (r) { if (r) changeStage(l, s, r); else draw(); }); return; }
     l.stage = s; draw();
-    post({ action: 'stage', id: l.id, stage: s }).then(function (r) {
+    post({ action: 'stage', id: l.id, stage: s, lost_reason: reason || '' }).then(function (r) {
       if (!r.ok) { l.stage = old; draw(); return toast(r.error || T.err); }
       Object.assign(l, r.lead); draw();
       toast(T.stageTo.replace('%s', D.stages[s]), 0, { label: T.undo, undo: function () { post({ action: 'stage', id: l.id, stage: old }).then(function (r2) { if (r2.ok) { Object.assign(l, r2.lead); draw(); } }); } });
@@ -783,8 +796,9 @@
     pop = document.createElement('div'); pop.className = 'ld-pop';
     if (t.dataset.pop === 'stage') pop.innerHTML = Object.keys(D.stages).map(function (k) { return '<button type="button" data-ps="' + k + '"><span class="w-2 h-2 rounded-full ' + stageColor[k].split(' ')[0] + '"></span>' + esc(D.stages[k]) + (k === l.stage ? ' ✓' : '') + '</button>'; }).join('');
     else pop.innerHTML = [['today', T.nToday], ['tomorrow', T.nTom], ['3d', T.n3], ['week', T.nWeek], ['none', T.nNone]].map(function (x) { return '<button type="button" data-pn="' + x[0] + '">' + (x[0] === 'none' ? '✕ ' : '⏰ ') + esc(x[1]) + '</button>'; }).join('');
-    var r = t.getBoundingClientRect(); pop.style.position = 'fixed'; pop.style.top = (r.bottom + 4) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - 190, r.left)) + 'px';
+    var r = t.getBoundingClientRect(); pop.style.position = 'fixed'; pop.style.left = Math.max(8, Math.min(innerWidth - 190, r.left)) + 'px'; pop.style.top = '-999px';
     document.body.appendChild(pop);
+    var ph = pop.offsetHeight; pop.style.top = (r.bottom + 4 + ph > innerHeight - 8 ? Math.max(8, r.top - ph - 4) : r.bottom + 4) + 'px'; // لو مفيش مكان تحت، يفتح لفوق
     pop.addEventListener('click', function (ev) {
       var b = ev.target.closest('button'); if (!b) return; closePop();
       if (b.dataset.ps) return changeStage(l, b.dataset.ps);
@@ -824,5 +838,6 @@
   if (tools) { tools.addEventListener('click', function (e) { if (e.target.closest('button,a') && !e.target.closest('summary')) tools.open = false; }); document.addEventListener('click', function (e) { if (!tools.contains(e.target)) tools.open = false; }); }
 
   draw();
+  if (/[?&]go=queue/.test(location.search)) setTimeout(function () { var qb = document.getElementById('ld-queue'); if (qb && !qb.classList.contains('hidden')) qb.click(); }, 300);
   var m = location.hash.match(/^#lead-(\d+)$/); if (m) open(+m[1]);
 })();

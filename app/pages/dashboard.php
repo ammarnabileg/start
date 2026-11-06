@@ -321,6 +321,23 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       <?php endforeach; ?>
     </div>
 
+    <?php if (module_enabled('crm') && can('crm.view') && function_exists('crm_my_day')): $md = crm_my_day((int)(current_user()['id'] ?? 0), can('crm.manage')); if ($md['due'] || $md['new'] || $md['meet']): ?>
+    <div class="card p-5 mb-4" data-w="myday">
+      <div class="flex flex-wrap items-center gap-3 mb-3"><b class="text-ink-900">☀️ <?= e(t('شغلك النهارده في العملاء')) ?></b>
+        <span class="ld-stat <?= $md['over'] ? '!border-red-200 !bg-red-50 text-red-700' : '' ?>">⏰ <?= e(t('مستحقين')) ?> <b><?= (int)$md['due'] ?></b><?php if ($md['over']): ?> <span class="text-[11px]">(<?= e(t('%s متأخرين', (int)$md['over'])) ?>)</span><?php endif; ?></span>
+        <span class="ld-stat">🆕 <?= e(t('جداد النهارده')) ?> <b><?= (int)$md['new'] ?></b></span>
+        <span class="ld-stat">📅 <?= e(t('اجتماعات')) ?> <b><?= count($md['meet']) ?></b></span>
+        <a class="btn-primary ms-auto" href="<?= e(url('crm_leads', ['go' => 'queue'])) ?>">▶ <?= e(t('ابدأ شغل النهارده')) ?></a></div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><div class="text-[11px] text-ink-500 mb-1"><?= e(t('ابدأ بدول (الأهم الأول)')) ?></div><div class="divide-y divide-ink-100">
+          <?php foreach ($md['top'] as $x): ?><a href="<?= e(url('crm_leads') . '#lead-' . $x['id']) ?>" class="flex items-center gap-2 py-1.5 text-sm hover:bg-ink-50 rounded px-1"><span class="w-6 text-center text-[11px] font-bold rounded-full <?= $x['score'] >= 60 ? 'bg-lime-500 text-white' : 'bg-ink-100 text-ink-600' ?>"><?= (int)$x['score'] ?></span><span class="font-medium text-ink-900 truncate"><?= e($x['name']) ?></span><span class="text-[11px] truncate flex-1 <?= $x['over'] ? 'text-red-600' : 'text-ink-500' ?>"><?= e($x['note']) ?></span></a><?php endforeach; ?>
+          <?php if (!$md['top']): ?><p class="text-xs text-ink-400 py-2"><?= e(t('مفيش متابعات مستحقة 👏')) ?></p><?php endif; ?></div></div>
+        <div><div class="text-[11px] text-ink-500 mb-1"><?= e(t('اجتماعات النهارده')) ?></div>
+          <?php foreach ($md['meet'] as $mt): ?><a href="<?= e(url('crm_leads') . '#lead-' . (int)$mt['id']) ?>" class="flex items-center gap-2 py-1.5 text-sm hover:bg-ink-50 rounded px-1">📅 <b><?= e(fmt_date($mt['start_at'], 'h:i A')) ?></b> <span class="truncate"><?= e($mt['name']) ?></span></a><?php endforeach; ?>
+          <?php if (!$md['meet']): ?><p class="text-xs text-ink-400 py-2"><?= e(t('مفيش اجتماعات النهارده.')) ?></p><?php endif; ?></div>
+      </div>
+    </div>
+    <?php endif; endif; ?>
     <div class="grid lg:grid-cols-3 gap-4" id="dash-grid">
       <!-- مستني رد -->
       <?php if ($d['convs'] !== null): ?>

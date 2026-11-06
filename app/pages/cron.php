@@ -65,6 +65,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' auto_leads=error';
         }
+        // #74 تذكير بالاجتماعات المحجوزة
+        try {
+            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_meeting_reminders() : 0; });
+            if ($n) $line .= ' meet_remind+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' meet=error';
+        }
         // #69 #70: سرعة الرد على العملاء الجداد
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_sla_tick() : 0; });

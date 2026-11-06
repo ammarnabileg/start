@@ -30,8 +30,10 @@ $limit = (int)(crm_prefs()['daily_limit'] ?? 0);
 $st = db()->prepare("SELECT source, COUNT(*) n, SUM(stage <> 'new') c, SUM(stage = 'won') w, COALESCE(SUM(CASE WHEN stage = 'won' THEN deal_value END), 0) v FROM crm_leads WHERE workspace_id = ? GROUP BY source ORDER BY n DESC");
 $st->execute([$wid]); $srcRows = $st->fetchAll();
 $links = crm_links_report();
+$fc = crm_forecast();
+$st = db()->prepare("SELECT lost_reason, COUNT(*) n FROM crm_leads WHERE workspace_id = ? AND stage = 'lost' AND lost_reason IS NOT NULL GROUP BY lost_reason ORDER BY n DESC"); $st->execute([$wid]); $lostRows = $st->fetchAll();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -103,6 +105,19 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('النسبة = كام في المية بقوا عملاء. 🏆 = أحسن مصدر (من 3 عملاء أو أكتر).')) ?></p>
     </div>
     <?php endif; ?>
+
+    <div class="grid md:grid-cols-2 gap-4 mb-5">
+      <div class="card p-4"><div class="font-semibold text-ink-900">📈 <?= e(t('الإيراد المتوقع')) ?> <b class="text-brand-700 ms-1"><?= e(number_format($fc['total'])) ?></b></div>
+        <p class="text-[11px] text-ink-500 mb-2"><?= e(t('قيمة كل عميل مفتوح × احتمال مرحلته. الاحتمالات بتتغير من العملاء ← أدوات ← سرعة الرد والتوزيع.')) ?></p>
+        <?php foreach (['new', 'contacted', 'qualified', 'proposal'] as $k): $r = $fc['rows'][$k] ?? ['n' => 0, 'v' => 0, 'w' => 0, 'p' => crm_stage_probs()[$k]]; ?>
+          <div class="flex items-center gap-2 text-sm py-1"><span class="w-24 text-ink-600"><?= e(crm_stages()[$k]) ?></span><span class="text-[11px] text-ink-400 w-24"><?= (int)$r['n'] ?> · <?= (int)$r['p'] ?>%</span><span class="flex-1 text-ink-500 text-xs"><?= e(number_format($r['v'])) ?></span><b class="text-ink-900"><?= e(number_format($r['w'])) ?></b></div>
+        <?php endforeach; ?></div>
+      <div class="card p-4"><div class="font-semibold text-ink-900 mb-2">✕ <?= e(t('ليه بنخسر العملاء')) ?></div>
+        <?php if (!$lostRows): ?><p class="text-xs text-ink-400"><?= e(t('لسه مفيش أسباب متسجلة. كل ما عميل يتعلّم "مش مناسب" هيتسأل السبب.')) ?></p><?php endif; ?>
+        <?php $lm = $lostRows ? max(array_column($lostRows, 'n')) : 1; $lr = crm_lost_reasons(); foreach ($lostRows as $r): ?>
+          <div class="grid grid-cols-[130px_1fr_40px] items-center gap-2 text-sm py-1"><span class="truncate text-ink-700"><?= e($lr[$r['lost_reason']] ?? $r['lost_reason']) ?></span><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-red-400 rounded-full" style="width:<?= round($r['n'] / $lm * 100) ?>%"></div></div><b class="text-end"><?= (int)$r['n'] ?></b></div>
+        <?php endforeach; ?></div>
+    </div>
 
     <?php if ($links): ?>
     <div class="card p-4 mb-5"><div class="font-semibold text-ink-900 mb-1">🔗 <?= e(t('روابط المنشورات')) ?></div>

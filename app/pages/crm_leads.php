@@ -116,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 if ($op === 'stage' && isset($stages[$_POST['stage'] ?? ''])) {
                     $s = $_POST['stage'];
+                    if ($s === 'lost') crm_set_lost_reason($id, (string)($_POST['lost_reason'] ?? ''));
                     if ($s !== $l['stage']) { db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, $id]); crm_act_add($id, 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]); crm_push_ad_stage(crm_lead($id)); }
                 } elseif ($op === 'owner' && $canManage) {
                     $o = (int)($_POST['owner'] ?? 0); db()->prepare('UPDATE crm_leads SET owner_id = ? WHERE id = ?')->execute([in_array($o, $memberIds, true) ? $o : null, $id]);
@@ -144,6 +145,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'sla_save' && $canManage) {
         save_setting('crm_sla_' . $wid, json_encode(['mins' => max(0, min(1440, (int)($_POST['mins'] ?? 60))), 'move_hours' => max(0, min(72, (int)($_POST['move_hours'] ?? 0)))]));
+        $rules = [];
+        foreach ((array)($_POST['rule'] ?? []) as $r) { if (!is_array($r)) continue; $v = mb_substr(trim((string)($r['value'] ?? '')), 0, 60); $o = (int)($r['owner'] ?? 0); $f = (string)($r['field'] ?? '');
+            if ($v !== '' && $o && in_array($f, ['source', 'country', 'phone', 'keyword'], true) && in_array($o, $memberIds, true)) $rules[] = ['field' => $f, 'value' => $v, 'owner' => $o]; }
+        $rules = array_values(array_unique(array_map('json_encode', $rules))); $rules = array_map(function ($x) { return json_decode($x, true); }, $rules);
+        save_setting('crm_routes_' . $wid, json_encode(array_slice($rules, 0, 20), JSON_UNESCAPED_UNICODE));
+        $pr = []; foreach (['new', 'contacted', 'qualified', 'proposal'] as $k) $pr[$k] = max(0, min(100, (int)($_POST['prob'][$k] ?? crm_stage_probs()[$k])));
+        save_setting('crm_probs_' . $wid, json_encode($pr));
         $json(['ok' => true]);
     }
     if ($action === 'import') {
@@ -228,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($stages[$s])) $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
         db()->prepare('UPDATE crm_leads SET stage = ? WHERE id = ?')->execute([$s, (int)$l['id']]);
         if ($s !== $l['stage']) crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]);
+        if ($s === 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
         log_activity('crm.stage', $l['id'] . ' ' . $s);
         $nl = crm_lead((int)$l['id']);
         crm_push_ad_stage($nl);
@@ -252,6 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mb_substr(trim((string)($_POST['note'] ?? '')), 0, 2000) ?: null, $tags ?: null, $owner, $next,
                 mb_substr(trim((string)($_POST['next_note'] ?? '')), 0, 255) ?: null, (int)$l['id']]);
         if ($s !== $l['stage']) crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages[$s]);
+        if ($s === 'lost' && $l['stage'] !== 'lost') crm_set_lost_reason((int)$l['id'], (string)($_POST['lost_reason'] ?? ''));
         log_activity('crm.save', (string)$l['id']);
         $nl = crm_lead((int)$l['id']);
         crm_push_ad_stage($nl);
@@ -353,6 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try { crm_fix_stored_phones(); } catch (Throwable $t) { /* مش مهم */ }
 try { crm_plan_tick(30); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 try { crm_sla_tick(); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
+try { crm_meeting_reminders(); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 // الموظف العادي بيشوف بتوعه واللي من غير مسؤول، والمدير بيشوف الكل
 $where = 'workspace_id = ?';
 $args = [$wid];
@@ -413,6 +424,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         <span class="ld-stat"><span class="text-ink-500"><?= e(t('العملاء')) ?></span> <b><?= count($leads) ?></b></span>
         <button type="button" id="ld-due-tile" class="ld-stat <?= $due ? '!border-amber-300 !bg-amber-50 text-amber-800' : '' ?>" title="<?= e(t('اعرض المستحقين بس')) ?>">⏰ <span class="text-ink-500"><?= e(t('مستحقين النهارده')) ?></span> <b><?= $due ?></b></button>
         <span class="ld-stat">💰 <span class="text-ink-500"><?= e(t('مفتوح')) ?></span> <b><?= e(number_format($pipe)) ?></b></span>
+        <?php $fc = crm_forecast(); if ($fc['total'] > 0): ?><span class="ld-stat" title="<?= e(t('مجموع (قيمة كل عميل مفتوح × احتمال مرحلته)')) ?>">📈 <span class="text-ink-500"><?= e(t('المتوقع')) ?></span> <b class="text-brand-700"><?= e(number_format($fc['total'])) ?></b></span><?php endif; ?>
         <span class="ld-stat">🏆 <b class="text-lime-700"><?= $won ?></b> <span class="text-ink-400">· <?= count($leads) ? round($won / count($leads) * 100) : 0 ?>%</span></span>
       </div>
       <div class="flex items-center gap-2 ms-auto">
@@ -421,7 +433,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       <details class="relative" id="ld-tools"><summary class="btn-ghost list-none cursor-pointer select-none !px-2.5" title="<?= e(t('أدوات')) ?>" aria-label="<?= e(t('أدوات')) ?>">⚙️ <span class="hidden xl:inline"><?= e(t('أدوات')) ?></span></summary>
         <div class="absolute end-0 mt-1 z-40 w-56 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col">
       <?php if ($canManage): ?><button type="button" id="ld-plans-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🔁 <?= e(t('خطط المتابعة')) ?></button><?php endif; ?>
-      <?php if ($canManage): ?><button type="button" id="ld-sla-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⏱ <?= e(t('سرعة الرد')) ?></button><?php endif; ?>
+      <?php if ($canManage): ?><button type="button" id="ld-sla-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⏱ <?= e(t('سرعة الرد والتوزيع')) ?></button><?php endif; ?>
       <?php if ($canManage): ?><button type="button" id="ld-form-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">🌐 <?= e(t('فورم الموقع')) ?></button><?php endif; ?>
       <button type="button" id="ld-imp-btn" class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg">⇪ <?= e(t('استورد عملاء')) ?></button>
       <a class="w-full text-start px-3 py-2 text-sm hover:bg-ink-50 rounded-lg" href="<?= e(url('crm_leads', ['export' => 'csv'])) ?>">CSV</a>
@@ -687,6 +699,17 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           <label class="block"><span class="label"><?= e(t('نبّه بعد (دقيقة)')) ?></span><input type="number" min="0" max="1440" name="mins" class="input" value="<?= (int)$sl['mins'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = من غير تنبيه')) ?></span></label>
           <label class="block"><span class="label"><?= e(t('انقله لحد تاني بعد (ساعة)')) ?></span><input type="number" min="0" max="72" name="move_hours" class="input" value="<?= (int)$sl['move_hours'] ?>"><span class="text-[11px] text-ink-400"><?= e(t('0 = مايتنقلش')) ?></span></label>
         </div>
+        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm">🧭 <?= e(t('قواعد التوزيع')) ?></div>
+          <p class="text-[11px] text-ink-500 mb-2"><?= e(t('العميل الجديد بيروح لأول قاعدة تنطبق عليه. لو مفيش، بيتوزع بالتناوب.')) ?></p>
+          <div id="ld-rules" class="space-y-1.5"><?php $rr = crm_route_rules(); $rr[] = ['field' => 'source', 'value' => '', 'owner' => 0]; foreach ($rr as $ri => $r): ?>
+            <div class="grid grid-cols-[110px_1fr_1fr] gap-1.5" data-rule><select class="input !py-1 text-xs" name="rule[<?= $ri ?>][field]"><?php foreach (['source' => t('المصدر'), 'country' => t('الدولة'), 'phone' => t('الرقم بيبدأ بـ'), 'keyword' => t('كلمة في الشركة/الوظيفة')] as $fk => $fl): ?><option value="<?= $fk ?>" <?= ($r['field'] ?? '') === $fk ? 'selected' : '' ?>><?= e($fl) ?></option><?php endforeach; ?></select>
+              <input class="input !py-1 text-xs" name="rule[<?= $ri ?>][value]" value="<?= e((string)($r['value'] ?? '')) ?>" placeholder="<?= e(t('مثلاً: ads أو SA أو 966 أو مطعم')) ?>">
+              <select class="input !py-1 text-xs" name="rule[<?= $ri ?>][owner]"><option value="0">—</option><?php foreach ($members as $mm): ?><option value="<?= (int)$mm['id'] ?>" <?= (int)($r['owner'] ?? 0) === (int)$mm['id'] ? 'selected' : '' ?>><?= e($mm['name']) ?></option><?php endforeach; ?></select></div>
+          <?php endforeach; ?></div>
+          <p class="text-[10px] text-ink-400 mt-1"><?= e(t('قيم المصدر: %s', implode('، ', array_map(function ($k, $v) { return $k . '=' . $v; }, array_keys($sources), $sources)))) ?></p>
+        </div>
+        <div class="pt-2 border-t border-ink-100"><div class="font-medium text-ink-900 text-sm">📈 <?= e(t('احتمال الإغلاق لكل مرحلة (لتوقع الإيراد)')) ?></div>
+          <div class="grid grid-cols-4 gap-2 mt-1"><?php $pb = crm_stage_probs(); foreach (['new', 'contacted', 'qualified', 'proposal'] as $k): ?><label class="block text-[11px] text-ink-500"><?= e($stages[$k]) ?><input type="number" min="0" max="100" class="input !py-1 text-sm" name="prob[<?= $k ?>]" value="<?= (int)$pb[$k] ?>"></label><?php endforeach; ?></div></div>
         <div class="flex gap-2"><button class="btn-primary"><?= e(t('احفظ')) ?></button><span id="ld-slamsg" class="text-xs self-center"></span></div>
       </form>
       <?php $tc = crm_track_cfg((int)ws('id')); ?>
@@ -755,7 +778,7 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
         'tr' => ['noowner' => t('من غير مسؤول'), 'overdue' => t('متأخرة'), 'today' => t('النهارده'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصل خطأ، جرب تاني'),
             'merged' => t('كان موجود، دمجناه في نفس العميل'), 'del' => t('متأكد إنك عاوز تمسح العميل ده؟'), 'pending' => t('الرقم جاي'), 'call' => t('اتصل'),
             'email' => t('إيميل'), 'from' => t('المصدر: %s · اتضاف %s'), 'drop' => t('اسحب هنا'), 'ro' => t('العميل ده مع موظف تاني، مش هتقدر تعدّله.'),
-            'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'undo' => t('تراجع'), 'stageTo' => t('اتنقل لـ %s'), 'deleted' => t('اتمسح %s'), 'nToday' => t('النهارده 4 م'), 'nTom' => t('بكرة 11 ص'), 'n3' => t('بعد 3 أيام'), 'nWeek' => t('بعد أسبوع'), 'nNone' => t('مفيش متابعة'), 'nSet' => t('اتظبطت المتابعة ✓'), 'more' => t('اعرض أكتر (%s فاضلين)'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
+            'noacts' => t('لسه مفيش تواصل مسجّل'), 'later' => t('أجّلها لبكرة'), 'lostQ' => t('ليه مش مناسب؟'), 'lostR' => crm_lost_reasons(), 'undo' => t('تراجع'), 'stageTo' => t('اتنقل لـ %s'), 'deleted' => t('اتمسح %s'), 'nToday' => t('النهارده 4 م'), 'nTom' => t('بكرة 11 ص'), 'n3' => t('بعد 3 أيام'), 'nWeek' => t('بعد أسبوع'), 'nNone' => t('مفيش متابعة'), 'nSet' => t('اتظبطت المتابعة ✓'), 'more' => t('اعرض أكتر (%s فاضلين)'), 'hName' => t('العميل'), 'hStage' => t('المرحلة'), 'hNext' => t('المتابعة'), 'hContact' => t('التواصل'), 'hOwner' => t('المسؤول'), 'hValue' => t('القيمة'), 'laterDone' => t('المتابعة اتأجلت لبكرة 11 الصبح'), 'mine' => t('بتوعي'), 'dueOnly' => t('متابعات مستحقة بس'), 'logged' => t('اتسجّل ✓'), 'impRows' => t('%s صف جاهز'), 'impDone' => t('اتضاف %s جديد، واتدمج %s مكرر، واتساب %s من غير رقم ولا إيميل'),
             'impNeed' => t('لازم عمود رقم أو إيميل'), 'skipCol' => t('— تجاهل —'), 'cold' => t('محدش كلمه من أسبوع'), 'tplN' => t('اسم القالب'), 'tplB' => t('نص الرسالة'), 'rm' => t('شيل'),
             'chat' => t('افتح المحادثة'), 'hot' => t('صفحة مهمة'), 'noVisits' => t('مفيش زيارات. ابعتله رابط متتبع (أو حط {site} في القالب) والكود على موقعك.'), 'linkCopied' => t('الرابط اتنسخ. ابعتهوله.'), 'dStatus' => crm_deal_statuses(), 'dTitle' => t('اسم الصفقة (مثلاً: باقة سنوية)'), 'dValue' => t('القيمة'), 'dClose' => t('متوقع تتقفل'), 'dNone' => t('مفيش صفقات. ضيف صفقة لكل حاجة العميل ممكن يشتريها.'), 'dDel' => t('تمسح الصفقة؟'),
             'mOpen' => t('اتفتح %s مرة'), 'mNotOpen' => t('لسه ما اتفتحش'), 'mClick' => t('ضغط على رابط'), 'sent' => t('اتبعت ✓'), 'score' => t('الأهمية'), 'best' => t('أحسن وقت تكلّمه'), 'firstMsg' => t('أول رسالة مقترحة'), 'useWa' => t('ابعتها واتساب'), 'useMail' => t('ابعتها إيميل'), 'copy' => t('انسخ'), 'copied' => t('اتنسخت ✓'),

@@ -636,6 +636,88 @@ function crm_best_hour_global(): ?int
     return $best;
 }
 
+/* ---------- #67 #95 أسباب الخسارة ---------- */
+function crm_lost_reasons(): array
+{
+    return ['price' => t('السعر غالي عليه'), 'not_interested' => t('مش مهتم'), 'competitor' => t('اختار منافس'), 'budget' => t('مالوش ميزانية دلوقتي'),
+        'no_reply' => t('مش بيرد'), 'timing' => t('مش الوقت المناسب'), 'wrong' => t('مش العميل المناسب'), 'other' => t('سبب تاني')];
+}
+function crm_set_lost_reason(int $leadId, string $r): void
+{
+    if (!isset(crm_lost_reasons()[$r])) return;
+    db()->prepare('UPDATE crm_leads SET lost_reason = ? WHERE id = ? AND workspace_id = ?')->execute([$r, $leadId, (int)ws('id')]);
+    crm_act_add($leadId, 'note', '✕ ' . t('سبب الخسارة: %s', crm_lost_reasons()[$r]));
+}
+
+/* ---------- #91 توقع الإيراد: قيمة كل عميل مفتوح × احتمال مرحلته ---------- */
+function crm_stage_probs(): array
+{
+    $c = json_decode((string)setting('crm_probs_' . (int)ws('id'), ''), true) ?: [];
+    return $c + ['new' => 5, 'contacted' => 15, 'qualified' => 35, 'proposal' => 60, 'won' => 100, 'lost' => 0];
+}
+function crm_forecast(): array
+{
+    $p = crm_stage_probs();
+    $st = db()->prepare("SELECT stage, COUNT(*) n, COALESCE(SUM(deal_value), 0) v FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') GROUP BY stage");
+    $st->execute([(int)ws('id')]);
+    $tot = 0; $rows = [];
+    foreach ($st->fetchAll() as $r) { $w = (float)$r['v'] * ($p[$r['stage']] ?? 0) / 100; $tot += $w; $rows[$r['stage']] = ['n' => (int)$r['n'], 'v' => (float)$r['v'], 'w' => $w, 'p' => (int)($p[$r['stage']] ?? 0)]; }
+    return ['total' => $tot, 'rows' => $rows];
+}
+
+/* ---------- #61 قواعد التوزيع: لو المصدر/الدولة/القيمة كذا → الموظف ده (قبل التوزيع بالتناوب) ---------- */
+function crm_route_rules(): array { $r = json_decode((string)setting('crm_routes_' . (int)ws('id'), ''), true); return is_array($r) ? $r : []; }
+function crm_route_owner(array $d): ?int
+{
+    $members = array_map('intval', array_column(crm_members(), 'id'));
+    foreach (crm_route_rules() as $r) {
+        $u = (int)($r['owner'] ?? 0); if (!in_array($u, $members, true)) continue;
+        $f = (string)($r['field'] ?? ''); $v = mb_strtolower(trim((string)($r['value'] ?? '')));
+        if ($v === '') continue;
+        if ($f === 'source' && ($d['source'] ?? '') === $v) return $u;
+        if ($f === 'country' && $v !== '' && (mb_stripos((string)($d['country'] ?? ''), $v) !== false || ($v === mb_strtolower(ws_country()) && strpos(crm_norm_phone((string)($d['phone'] ?? '')), (string)(countries()[strtoupper($v)]['dial'] ?? '#')) === 0))) return $u;
+        if ($f === 'phone' && strpos(preg_replace('/\D/', '', (string)($d['phone'] ?? '')), preg_replace('/\D/', '', $v)) === 0) return $u;
+        if ($f === 'keyword' && mb_stripos(($d['company'] ?? '') . ' ' . ($d['title'] ?? '') . ' ' . ($d['name'] ?? ''), $v) !== false) return $u;
+    }
+    return null;
+}
+
+/* ---------- #74 تذكير بالاجتماع قبلها بيوم وبساعة (إيميل للعميل لو فيه SMTP + تنبيه للمسؤول) ---------- */
+function crm_meeting_reminders(): int
+{
+    $wid = (int)ws('id'); $n = 0;
+    foreach ([['reminded_24', 24 * 3600, 23 * 3600], ['reminded_1', 3600, 0]] as [$col, $ahead, $min]) {
+        $st = db()->prepare("SELECT b.id, b.start_at, l.id lid, l.name, l.email, l.owner_id FROM crm_bookings b JOIN crm_leads l ON l.id = b.lead_id WHERE b.workspace_id = ? AND b.$col = 0 AND b.start_at > ? AND b.start_at <= ? LIMIT 50");
+        $st->execute([$wid, date('Y-m-d H:i:s', time() + $min), date('Y-m-d H:i:s', time() + $ahead)]);
+        foreach ($st->fetchAll() as $b) {
+            $when = fmt_date($b['start_at'], 'd/m h:i A');
+            crm_notify($b['owner_id'] ? (int)$b['owner_id'] : null, (int)$b['lid'], 'meet', t('📅 اجتماع مع %s %s', $b['name'], $when));
+            if (!empty($b['email']) && function_exists('smtp_config') && smtp_config($wid)) {
+                try { send_mail((string)$b['email'], t('تذكير بميعادك: %s', $when), nl2br(e(t('أهلاً %s، بنفكّرك بميعادنا %s. لو محتاج تغيّره ردّ على الإيميل ده.', preg_split('/\s+/u', trim((string)$b['name']))[0] ?? '', $when))), null, $wid); } catch (Throwable $e) {}
+            }
+            db()->prepare("UPDATE crm_bookings SET $col = 1 WHERE id = ?")->execute([(int)$b['id']]); $n++;
+        }
+    }
+    return $n;
+}
+
+/* ---------- #81 شغلك النهارده (للصفحة الرئيسية) ---------- */
+function crm_my_day(int $uid, bool $manager): array
+{
+    $wid = (int)ws('id'); $tz = new DateTimeZone(site_timezone());
+    $end = (new DateTime('tomorrow', $tz))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
+    $start = (new DateTime('today', $tz))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
+    $own = $manager ? '' : ' AND (owner_id = ' . $uid . ' OR owner_id IS NULL)';
+    $q = function ($sql, $a) { $s = db()->prepare($sql); $s->execute($a); return $s; };
+    $due = $q("SELECT * FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') AND next_at IS NOT NULL AND next_at < ?$own ORDER BY next_at LIMIT 200", [$wid, $end])->fetchAll();
+    $over = count(array_filter($due, function ($l) { return strtotime($l['next_at']) < time(); }));
+    $new = (int)$q("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ? AND created_at >= ?$own", [$wid, $start])->fetchColumn();
+    $meet = $q("SELECT b.start_at, l.name, l.id FROM crm_bookings b JOIN crm_leads l ON l.id = b.lead_id WHERE b.workspace_id = ? AND b.start_at >= ? AND b.start_at < ?" . ($manager ? '' : ' AND (l.owner_id = ' . $uid . ' OR l.owner_id IS NULL)') . " ORDER BY b.start_at", [$wid, $start, $end])->fetchAll();
+    $top = array_map(function ($l) { return ['id' => (int)$l['id'], 'name' => $l['name'], 'note' => (string)$l['next_note'], 'score' => crm_score($l)[0], 'over' => strtotime($l['next_at']) < time(), 'at' => $l['next_at']]; }, $due);
+    usort($top, function ($a, $b) { return ($b['over'] <=> $a['over']) ?: ($b['score'] <=> $a['score']); });
+    return ['due' => count($due), 'over' => $over, 'new' => $new, 'meet' => $meet, 'top' => array_slice($top, 0, 5)];
+}
+
 /* ---------- تنبيهات العملاء (الجرس) + #69 سرعة الرد + #70 إعادة التوزيع ---------- */
 function crm_notify(?int $userId, ?int $leadId, string $kind, string $body): void
 {
@@ -959,7 +1041,7 @@ function crm_lead_upsert(array $d): array
         return crm_lead((int)$found['id']) + ['merged' => true];
     }
     $src = isset(crm_sources()[$d['source'] ?? '']) ? $d['source'] : 'manual';
-    $owner = array_key_exists('owner_id', $d) && $d['owner_id'] ? (int)$d['owner_id'] : crm_next_owner();
+    $owner = array_key_exists('owner_id', $d) && $d['owner_id'] ? (int)$d['owner_id'] : (crm_route_owner($d + ['source' => $src]) ?? crm_next_owner());
     $uid = (int)(current_user()['id'] ?? 0);
     db()->prepare('INSERT INTO crm_leads (workspace_id, source, ext_id, company_id, company, name, title, email, phone, phone_pending, linkedin, country, owner_id, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')->execute([
