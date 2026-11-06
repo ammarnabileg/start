@@ -428,7 +428,9 @@ function crm_report_campaigns(string $from, string $to): array
     foreach ($camps as $c) {
         $id = (string)($c['platformCampaignId'] ?? $c['id'] ?? ''); $sp = (float)($c['metrics']['spend'] ?? $c['spend'] ?? 0); $l = $by[$id] ?? ['n' => 0, 'w' => 0, 'v' => 0];
         if ($sp <= 0 && !(int)$l['n']) continue;
+        $cb = (array)($c['campaignBudget'] ?? []);
         $out[] = ['id' => $id, 'name' => (string)($c['campaignName'] ?? $c['name'] ?? $id), 'pf' => (string)($c['platform'] ?? ''), 'cur' => (string)($c['currency'] ?? ''), 'spend' => $sp, 'leads' => (int)$l['n'], 'won' => (int)$l['w'], 'value' => (float)$l['v'],
+            'status' => (string)($c['status'] ?? ''), 'budget' => (float)($cb['amount'] ?? 0), 'btype' => (string)($cb['type'] ?? ''),
             'cpl' => (int)$l['n'] ? $sp / (int)$l['n'] : null, 'cpw' => (int)$l['w'] ? $sp / (int)$l['w'] : null, 'roi' => $sp > 0 ? ((float)$l['v'] - $sp) / $sp * 100 : null];
     }
     usort($out, function ($a, $b) { return $b['spend'] <=> $a['spend']; });
@@ -477,4 +479,57 @@ function crm_monthly_report(bool $force = false): int
     $n = 0;
     foreach (crm_members() as $m) if ((($m['role'] ?? '') === 'owner' || (function_exists('role_permissions') && in_array('crm.manage', role_permissions((string)($m['role'] ?? '')), true))) && !empty($m['email'])) { try { send_mail((string)$m['email'], t('تقرير المبيعات لشهر %s', $mName), $html, null, $wid); $n++; } catch (Throwable $e) {} }
     return $n;
+}
+
+
+/* ---------- نقل الميزانية من الحملات الخسرانة للكسبانة (قواعد ثابتة، والتنفيذ بموافقتك) ---------- */
+function crm_bshift_cfg(): array
+{
+    return (json_decode((string)setting('crm_bshift_' . (int)ws('id'), ''), true) ?: []) + ['step' => 20, 'min_spend' => 50, 'win_roi' => 30, 'lose_roi' => -50, 'cap' => 0];
+}
+/** بيرجع [changes, notes]. change: id, pf, name, cur, from, to, why */
+function crm_bshift_plan(array $rows, ?array $cfg = null): array
+{
+    $c = $cfg ?? crm_bshift_cfg(); $step = max(5, min(50, (float)$c['step'])) / 100; $min = max(0, (float)$c['min_spend']);
+    $changes = []; $notes = [];
+    $by = []; foreach ($rows as $r) $by[$r['cur'] ?: '-'][] = $r;
+    foreach ($by as $cur => $list) {
+        $ok = array_values(array_filter($list, function ($r) { return $r['btype'] === 'daily' && $r['budget'] > 0 && in_array(strtolower($r['status']), ['active', 'enabled', ''], true); }));
+        $losers = []; $winners = [];
+        foreach ($ok as $r) {
+            if ($r['spend'] < $min) { $notes[] = ['name' => $r['name'], 'why' => t('لسه صارفة %s بس، محتاجة بيانات أكتر قبل ما نحكم عليها', number_format($r['spend'], 2))]; continue; }
+            if ($r['leads'] === 0 || ($r['won'] === 0 && $r['roi'] !== null && $r['roi'] <= (float)$c['lose_roi'])) $losers[] = $r;
+            elseif ($r['won'] >= 1 && $r['roi'] !== null && $r['roi'] >= (float)$c['win_roi']) $winners[] = $r;
+        }
+        foreach (array_filter($list, function ($r) { return $r['btype'] !== 'daily' || $r['budget'] <= 0; }) as $r) if ($r['spend'] >= $min) $notes[] = ['name' => $r['name'], 'why' => t('الميزانية مش على مستوى الحملة (أو مش يومية)، فمش بنعدّلها من هنا')];
+        if (!$losers || !$winners) { if ($losers && !$winners) foreach ($losers as $r) $notes[] = ['name' => $r['name'], 'why' => t('حملة خسرانة، بس مفيش حملة كسبانة بنفس العملة ننقل لها. فكّر توقفها من صفحة الإعلانات.')]; continue; }
+        $freed = 0;
+        foreach ($losers as $r) { $to = max(1, round($r['budget'] * (1 - $step), 2)); $freed += $r['budget'] - $to;
+            $changes[] = ['id' => $r['id'], 'pf' => $r['pf'], 'name' => $r['name'], 'cur' => $cur, 'from' => $r['budget'], 'to' => $to, 'why' => $r['leads'] === 0 ? t('صرفت %s ومجابتش ولا عميل', number_format($r['spend'], 2)) : t('العائد %s%% ومحدش اشترى', round($r['roi']))]; }
+        $wsum = array_sum(array_map(function ($r) { return max(1, $r['roi']); }, $winners));
+        foreach ($winners as $r) { $add = min($r['budget'] * $step, $freed * max(1, $r['roi']) / $wsum); if ($add < 0.5) continue;
+            $changes[] = ['id' => $r['id'], 'pf' => $r['pf'], 'name' => $r['name'], 'cur' => $cur, 'from' => $r['budget'], 'to' => round($r['budget'] + $add, 2), 'why' => t('العائد +%s%% و%s بيعة، تكلفة العميل %s', round($r['roi']), $r['won'], $r['cpl'] !== null ? number_format($r['cpl'], 2) : '—')]; }
+        // سقف إجمالي الميزانية اليومية (لو محدد): الزيادة بتتقص لحد ما الإجمالي مايعديش السقف
+        if ((float)$c['cap'] > 0) {
+            $total = array_sum(array_map(function ($r) { return $r['budget']; }, $ok)); foreach ($changes as $ch) if ($ch['cur'] === $cur) $total += $ch['to'] - $ch['from'];
+            if ($total > (float)$c['cap']) { $over = $total - (float)$c['cap']; foreach ($changes as &$ch) if ($ch['cur'] === $cur && $ch['to'] > $ch['from'] && $over > 0) { $cut = min($over, $ch['to'] - $ch['from']); $ch['to'] = round($ch['to'] - $cut, 2); $over -= $cut; } unset($ch); }
+        }
+    }
+    return [array_values(array_filter($changes, function ($ch) { return abs($ch['to'] - $ch['from']) >= 0.5; })), $notes];
+}
+function crm_bshift_log(): array { return json_decode((string)setting('crm_bshift_log_' . (int)ws('id'), '[]'), true) ?: []; }
+/** تنفيذ التغييرات (أو التراجع). في وضع الاختبار (UI_FIXTURES) مابيكلمش Zernio */
+function crm_bshift_apply(array $changes, string $kind = 'apply'): array
+{
+    $ok = []; $fail = []; $fxd = getenv('UI_FIXTURES'); $z = $fxd ? null : zernio_or_null();
+    foreach ($changes as $ch) {
+        try {
+            if ($fxd) file_put_contents($fxd . '/../budget_calls.log', date('c') . ' PUT ' . $ch['id'] . ' ' . $ch['pf'] . ' ' . $ch['to'] . "\n", FILE_APPEND);
+            elseif ($z) ads_update_campaign_budget($z, (string)$ch['id'], (string)$ch['pf'], (float)$ch['to'], 'daily');
+            else throw new Exception(t('اربط Zernio الأول.'));
+            $ok[] = $ch; log_activity('ads.budget_shift', $ch['id'] . ' ' . $ch['from'] . '->' . $ch['to']);
+        } catch (Throwable $e) { $fail[] = $ch['name'] . ': ' . $e->getMessage(); }
+    }
+    if ($ok) { $log = crm_bshift_log(); array_unshift($log, ['at' => date('Y-m-d H:i:s'), 'by' => (string)(current_user()['name'] ?? ''), 'kind' => $kind, 'items' => $ok]); save_setting('crm_bshift_log_' . (int)ws('id'), json_encode(array_slice($log, 0, 20), JSON_UNESCAPED_UNICODE)); }
+    return [$ok, $fail];
 }

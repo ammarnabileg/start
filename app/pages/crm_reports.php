@@ -25,6 +25,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'comm'
     redirect(url('crm_reports', ['period' => $period]) . '#comm');
 }
 [$from, $to] = crm_period($period);
+// نقل الميزانية للحملات الكسبانة: إعدادات + تنفيذ + تراجع (السيرفر بيحسب الخطة من جديد، مابيثقش في أرقام جاية من المتصفح)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['bshift_cfg', 'bshift', 'bshift_undo'], true)) {
+    $back = url('crm_reports', ['period' => $period]) . '#bshift';
+    if (!$canManage || !can('ads.spend')) { flash('error', t('تعديل الميزانية لصاحب الشركة أو اللي عنده صلاحية الصرف بس.')); redirect($back); }
+    $a = (string)$_POST['action'];
+    if ($a === 'bshift_cfg') {
+        $n = function ($k, $lo, $hi, $d) { $v = (float)str_replace(',', '.', (string)($_POST[$k] ?? $d)); return max($lo, min($hi, $v)); };
+        save_setting('crm_bshift_' . $wid, json_encode(['step' => $n('step', 5, 50, 20), 'min_spend' => $n('min_spend', 0, 100000, 50), 'win_roi' => $n('win_roi', 0, 10000, 30), 'lose_roi' => $n('lose_roi', -100, 0, -50), 'cap' => $n('cap', 0, 10000000, 0)]));
+        flash('success', t('اتحفظت قواعد نقل الميزانية.')); redirect($back);
+    }
+    if (empty($_POST['confirm_spend'])) { flash('error', t('لازم تعلّم على خانة التأكيد الأول.')); redirect($back); }
+    if ($a === 'bshift_undo') {
+        $last = crm_bshift_log()[0] ?? null;
+        if (!$last || $last['kind'] !== 'apply') { flash('error', t('مفيش تغيير نقدر نرجعه.')); redirect($back); }
+        $rev = array_map(function ($ch) { return ['from' => $ch['to'], 'to' => $ch['from']] + $ch; }, $last['items']);
+        [$ok, $fail] = crm_bshift_apply($rev, 'undo');
+        if ($ok) flash('success', t('رجعنا ميزانية %s حملة زي ما كانت.', count($ok))); if ($fail) flash('error', t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]));
+        redirect($back);
+    }
+    $sel = array_map('strval', (array)($_POST['pick'] ?? []));
+    [$plan] = crm_bshift_plan(crm_report_campaigns($from, $to)['rows']);
+    $plan = array_values(array_filter($plan, function ($ch) use ($sel) { return in_array($ch['id'], $sel, true); }));
+    if (!$plan) { flash('error', t('اختار حملة واحدة على الأقل.')); redirect($back); }
+    [$ok, $fail] = crm_bshift_apply($plan);
+    if ($ok) flash('success', t('اتعدلت ميزانية %s حملة. تقدر ترجع التغيير من سجل التغييرات.', count($ok))); if ($fail) flash('error', t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]));
+    redirect($back);
+}
 $rows = crm_team_report($from, $to);
 if (!$canManage) $rows = array_values(array_filter($rows, function ($r) use ($uid) { return $r['id'] === $uid; })); // الموظف بيشوف نفسه بس
 $goals = crm_goals($ym);
@@ -41,6 +68,7 @@ $links = crm_links_report();
 $coupons = function_exists('coupon_list') ? coupon_list() : [];
 $fc = crm_forecast();
 $camp = function_exists('crm_report_campaigns') && $canManage ? crm_report_campaigns($from, $to) : ['rows' => [], 'err' => ''];
+[$bPlan, $bNotes] = $camp['rows'] && function_exists('crm_bshift_plan') ? crm_bshift_plan($camp['rows']) : [[], []];
 $cycle = function_exists('crm_cycle') ? crm_cycle($from, $to) : ['n' => 0];
 $comm = function_exists('crm_comm_cfg') ? crm_comm_cfg() : ['def' => 0, 'users' => []];
 // #99 تصدير Excel (CSV بيفتح في Excel مباشرة)
@@ -57,7 +85,7 @@ if (($_GET['export'] ?? '') === 'csv' && $canManage) {
 }
 $st = db()->prepare("SELECT lost_reason, COUNT(*) n FROM crm_leads WHERE workspace_id = ? AND stage = 'lost' AND lost_reason IS NOT NULL GROUP BY lost_reason ORDER BY n DESC"); $st->execute([$wid]); $lostRows = $st->fetchAll();
 
-render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows, $coupons, $camp, $cycle, $comm) {
+render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows, $tot, $goals, $period, $canManage, $ym, $openDeals, $openVal, $closing, $limit, $srcRows, $links, $fc, $lostRows, $coupons, $camp, $cycle, $comm, $bPlan, $bNotes) {
     $periods = ['month' => t('الشهر ده'), 'last_month' => t('الشهر اللي فات'), '7d' => t('آخر 7 أيام'), '30d' => t('آخر 30 يوم')];
     $isMonth = in_array($period, ['month', 'last_month'], true);
     $bar = function ($val, $goal) {
@@ -197,6 +225,41 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
         <td class="text-center font-bold <?= $c['roi'] === null ? 'text-ink-400' : ($c['roi'] >= 0 ? 'text-lime-700' : 'text-red-600') ?>"><?= $c['roi'] === null ? '—' : (($c['roi'] > 0 ? '+' : '') . round($c['roi']) . '%') ?></td></tr><?php endforeach; ?>
       </tbody></table></div>
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('العملاء بيتربطوا بالحملة لما يتسحبوا من فورمز الإعلانات (زرار "اسحب من الإعلانات" في أدوات العملاء). المبيعات من قيمة الصفقة للي بقوا عملاء.')) ?></p></section>
+    <?php endif; ?>
+
+    <?php if ($canManage && $camp['rows']): $bc = crm_bshift_cfg(); $blog = crm_bshift_log(); $canSpend = can('ads.spend'); ?>
+    <section class="card p-4 mb-5" id="bshift">
+      <div class="flex flex-wrap items-center gap-2 mb-1"><b class="text-ink-900 inline-flex items-center gap-1.5"><?= ui_icon('route', 'w-4 h-4 text-lime-600') ?><?= e(t('انقل الميزانية للحملات الكسبانة')) ?></b>
+        <button type="button" popovertarget="bsh-cfg" class="ms-auto btn-ghost !py-1 !text-xs no-print"><?= ui_icon('sliders', 'w-4 h-4') ?><?= e(t('القواعد')) ?></button></div>
+      <p class="text-[11px] text-ink-500 mb-3"><?= e(t('حسابات ثابتة من غير ذكاء اصطناعي: الحملة اللي صرفت ومجابتش عملاء أو عائدها سالب بتقل ميزانيتها %s%%، والفلوس دي بتروح للحملات اللي بتبيع بعائد عالي (على قد عائدها، ومن غير ما تزيد أكتر من %s%% في المرة). إجمالي الميزانية اليومية مابيزيدش. مفيش حاجة بتتنفذ غير لما توافق.', (int)$bc['step'], (int)$bc['step'])) ?></p>
+      <form id="bsh-cfg" popover method="post" class="m-0 w-[min(360px,92vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-2 text-sm"><?= csrf_field() ?><input type="hidden" name="action" value="bshift_cfg">
+        <?php foreach ([['step', t('نسبة النقل في المرة %'), 5, 50], ['min_spend', t('أقل صرف قبل ما نحكم على الحملة'), 0, 100000], ['win_roi', t('تعتبر كسبانة لو العائد أكتر من %'), 0, 10000], ['lose_roi', t('تعتبر خسرانة لو العائد أقل من %'), -100, 0], ['cap', t('سقف إجمالي الميزانية اليومية (0 = من غير سقف)'), 0, 10000000]] as [$k, $lbl, $lo, $hi]): ?>
+          <label class="flex items-center justify-between gap-2"><span class="text-xs text-ink-600"><?= e($lbl) ?></span><input name="<?= $k ?>" value="<?= e((string)$bc[$k]) ?>" min="<?= $lo ?>" max="<?= $hi ?>" type="number" step="any" class="input !mt-0 !py-1 !w-24 text-center text-sm" dir="ltr"></label>
+        <?php endforeach; ?><button class="btn-primary !py-1.5 !text-xs w-full"><?= e(t('حفظ')) ?></button></form>
+      <?php if (!$bPlan): ?>
+        <div class="rounded-xl border border-dashed border-ink-200 p-4 text-sm text-ink-500 text-center"><?= e(t('مفيش اقتراحات دلوقتي: يا إما كل الحملات ماشية كويس، يا إما لسه البيانات مش كفاية.')) ?></div>
+      <?php else: ?>
+      <form method="post" class="space-y-3" id="bsh-form"><?= csrf_field() ?><input type="hidden" name="action" value="bshift">
+        <div class="overflow-x-auto"><table class="w-full text-sm min-w-[640px]" data-no-sort><thead><tr class="text-xs text-ink-500 border-b border-ink-100"><th class="w-8"></th><th class="text-start py-1.5"><?= e(t('الحملة')) ?></th><th><?= e(t('الميزانية اليومية')) ?></th><th><?= e(t('السبب')) ?></th></tr></thead><tbody>
+        <?php $dn = 0; $up = 0; foreach ($bPlan as $ch): $isUp = $ch['to'] > $ch['from']; if ($isUp) $up += $ch['to'] - $ch['from']; else $dn += $ch['from'] - $ch['to']; ?>
+          <tr class="border-b border-ink-50"><td><input type="checkbox" name="pick[]" value="<?= e($ch['id']) ?>" checked class="rounded" <?= $canSpend ? '' : 'disabled' ?>></td>
+            <td class="py-2 max-w-[240px]"><span class="inline-flex items-center gap-1.5 min-w-0"><?= platform_icon($ch['pf'], 'w-4 h-4') ?><span class="truncate" dir="auto"><?= e($ch['name']) ?></span></span></td>
+            <td class="text-center whitespace-nowrap tabular-nums"><span class="text-ink-400 line-through"><?= e(number_format($ch['from'], 2)) ?></span> <span class="mx-1 text-ink-300"><?= is_rtl() ? '←' : '→' ?></span> <b class="<?= $isUp ? 'text-lime-700' : 'text-red-600' ?>"><?= e(number_format($ch['to'], 2)) ?></b> <span class="text-[10px] text-ink-400"><?= e($ch['cur']) ?></span>
+              <span class="ms-1 rounded-full px-1.5 text-[10px] font-semibold <?= $isUp ? 'bg-lime-100 text-lime-800' : 'bg-red-100 text-red-700' ?>"><?= $isUp ? '+' : '−' ?><?= e(number_format(abs($ch['to'] - $ch['from']), 2)) ?></span></td>
+            <td class="text-xs text-ink-600" dir="auto"><?= e($ch['why']) ?></td></tr>
+        <?php endforeach; ?></tbody></table></div>
+        <p class="text-xs text-ink-500"><?= e(t('هنقلل %s وهنزوّد %s في اليوم. الفرق (%s) بيتوفر.', number_format($dn, 2), number_format($up, 2), number_format(max(0, $dn - $up), 2))) ?></p>
+        <?php if ($canSpend): ?><div class="flex flex-wrap items-center gap-3 no-print"><?= ads_spend_confirm(t('موافق على تغيير الميزانية اليومية للحملات المحددة. ده بيأثر على الصرف الفعلي.')) ?><button class="btn-primary"><?= ui_icon('route', 'w-4 h-4') ?><?= e(t('نفّذ النقل')) ?></button></div>
+        <?php else: ?><p class="text-xs text-amber-700"><?= e(t('التنفيذ محتاج صلاحية الصرف على الإعلانات (صاحب الشركة).')) ?></p><?php endif; ?>
+      </form>
+      <?php endif; ?>
+      <?php if ($bNotes): ?><details class="mt-3 text-xs"><summary class="cursor-pointer text-ink-500"><?= e(t('حملات مش داخلة في الاقتراح (%s)', count($bNotes))) ?></summary><ul class="mt-2 space-y-1"><?php foreach ($bNotes as $nt): ?><li><b><?= e($nt['name']) ?>:</b> <span class="text-ink-500"><?= e($nt['why']) ?></span></li><?php endforeach; ?></ul></details><?php endif; ?>
+      <?php if ($blog): ?><details class="mt-3 text-xs"><summary class="cursor-pointer text-ink-500"><?= e(t('سجل التغييرات')) ?></summary><div class="mt-2 space-y-2">
+        <?php foreach (array_slice($blog, 0, 6) as $i => $lg): ?><div class="rounded-lg bg-ink-50 p-2"><div class="flex items-center gap-2"><b><?= e($lg['kind'] === 'undo' ? t('تراجع') : t('نقل')) ?></b><span class="text-ink-500"><?= e(fmt_date($lg['at'], 'd/m h:i A')) ?> · <?= e($lg['by']) ?></span>
+          <?php if ($i === 0 && $lg['kind'] === 'apply' && $canSpend): ?><form method="post" class="ms-auto no-print" onsubmit="return confirm(this.dataset.q)" data-q="<?= e(t('ترجع ميزانية الحملات دي زي ما كانت؟')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="bshift_undo"><input type="hidden" name="confirm_spend" value="1"><button class="link"><?= e(t('تراجع')) ?></button></form><?php endif; ?></div>
+          <?php foreach ($lg['items'] as $it): ?><div class="text-ink-600"><?= e($it['name']) ?>: <?= e(number_format($it['from'], 2)) ?> <?= is_rtl() ? '←' : '→' ?> <?= e(number_format($it['to'], 2)) ?></div><?php endforeach; ?></div><?php endforeach; ?>
+      </div></details><?php endif; ?>
+    </section>
     <?php endif; ?>
 
     <?php if ($rows): ?>
