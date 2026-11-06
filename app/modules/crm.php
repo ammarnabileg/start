@@ -11,7 +11,13 @@ class CrmPlanException extends CrmException {}
 
 function crm_stages(): array
 {
-    return ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'qualified' => t('مهتم'), 'proposal' => t('عرض سعر'), 'won' => t('بقى عميل'), 'lost' => t('مش مناسب')];
+    // #66 الأسماء بتتغير، والمراحل الزيادة بتتحط قبل "بقى عميل"
+    $base = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'qualified' => t('مهتم'), 'proposal' => t('عرض سعر')];
+    $c = function_exists('crm_stage_cfg') && function_exists('ws') && ws('id') ? crm_stage_cfg() : ['labels' => [], 'custom' => []];
+    foreach ((array)$c['custom'] as $x) if (!empty($x['key'])) $base[$x['key']] = (string)$x['label'];
+    $base += ['won' => t('بقى عميل'), 'lost' => t('مش مناسب')];
+    foreach ((array)$c['labels'] as $k => $v) if (isset($base[$k]) && trim((string)$v) !== '') $base[$k] = mb_substr((string)$v, 0, 40);
+    return $base;
 }
 
 function crm_sources(): array
@@ -396,6 +402,8 @@ function crm_plan_tick(int $max = 50, ?int $leadId = null): int
     $st = db()->prepare($q); $st->execute([$wid, date('Y-m-d H:i:s')]);
     $n = 0; $plans = [];
     foreach ($st->fetchAll() as $run) {
+        // #79 برّه ساعات الشغل: الخطوة تستنى لأول ساعة شغل
+        if (function_exists('crm_plan_next_open') && ($open = crm_plan_next_open())) { db()->prepare('UPDATE crm_plan_runs SET due_at = ? WHERE id = ?')->execute([$open, (int)$run['id']]); continue; }
         for ($guard = 0; $guard < 10; $guard++) { // خطوات اليوم نفسه ورا بعض
             $plan = $plans[$run['plan_id']] = $plans[$run['plan_id']] ?? crm_plan((int)$run['plan_id']);
             $l = crm_lead((int)$run['lead_id']);
@@ -540,18 +548,36 @@ function crm_send_email(array $l, string $subject, string $text, string $via = '
     $wid = (int)ws('id');
     if (empty($l['email'])) throw new CrmException(t('العميل ده مالوش إيميل.'));
     if (!smtp_config($wid)) throw new CrmException(t('اربط SMTP من التكاملات الأول (Gmail ينفع ببلاش).'));
+    if (!empty($l['unsub'])) throw new CrmException(t('العميل ده لغى الاشتراك في الإيميلات.'));
     $subject = mb_substr(trim($subject), 0, 255) ?: t('رسالة من %s', (string)(ws('name') ?? ''));
     $tok = bin2hex(random_bytes(16));
     $base = base_url() . '/index.php?p=crm_t&k=' . $tok;
     // الروابط بتتحول عشان نعرف إنه ضغط، وبعدها بيروح للرابط الأصلي
     $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
-    $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.7" dir="auto">' . $html . '</div><img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
+    $html = crm_mail_wrap($html, $base . '&x=1') . '<img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
     send_mail((string)$l['email'], $subject, $html, null, $wid);
     db()->prepare('INSERT INTO crm_mails (workspace_id, lead_id, user_id, token, subject) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)(current_user()['id'] ?? 0) ?: null, $tok, $subject]);
     crm_act_add((int)$l['id'], 'email', ($via !== '' ? $via . ' ' : '') . '“' . $subject . '”' . "\n" . mb_substr($text, 0, 1500));
     db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
     if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
     return ['token' => $tok];
+}
+/** #72 قالب HTML للإيميل (لوجو ولون وتوقيع) + #73 رابط إلغاء الاشتراك في كل إيميل */
+function crm_mail_tpl(): array
+{
+    return (json_decode((string)setting('crm_mail_tpl_' . (int)ws('id'), ''), true) ?: []) + ['on' => 0, 'color' => '#4f46e5', 'logo' => '', 'sig' => '', 'footer' => ''];
+}
+function crm_mail_wrap(string $body, string $unsubUrl): string
+{
+    $c = crm_mail_tpl(); $dir = is_rtl() ? 'rtl' : 'ltr';
+    $un = '<a href="' . e($unsubUrl) . '" style="color:#94a3b8">' . e(t('مش عاوز إيميلات تاني')) . '</a>';
+    if (empty($c['on'])) return '<div style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.7" dir="auto">' . $body . '</div><p style="font-family:Tahoma,Arial,sans-serif;font-size:11px;color:#94a3b8;margin-top:24px">' . $un . '</p>';
+    $col = preg_match('/^#[0-9a-f]{6}$/i', (string)$c['color']) ? $c['color'] : '#4f46e5';
+    $logo = preg_match('~^https://~i', (string)$c['logo']) ? '<img src="' . e($c['logo']) . '" alt="" style="max-height:44px;max-width:180px;display:block">' : '<b style="font-size:18px;color:#fff">' . e((string)(ws('name') ?? '')) . '</b>';
+    return '<div style="background:#f1f5f9;padding:24px 12px" dir="' . $dir . '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;font-family:Tahoma,Arial,sans-serif">'
+        . '<tr><td style="background:' . $col . ';padding:18px 24px">' . $logo . '</td></tr>'
+        . '<tr><td style="padding:24px;font-size:15px;line-height:1.8;color:#0f172a" dir="auto">' . $body . (trim((string)$c['sig']) !== '' ? '<div style="margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;color:#475569;font-size:14px">' . nl2br(e((string)$c['sig'])) . '</div>' : '') . '</td></tr>'
+        . '<tr><td style="padding:14px 24px;background:#f8fafc;font-size:11px;color:#94a3b8">' . (trim((string)$c['footer']) !== '' ? nl2br(e((string)$c['footer'])) . '<br>' : '') . $un . '</td></tr></table></div>';
 }
 function crm_mails(int $leadId): array
 {
@@ -1130,7 +1156,9 @@ function crm_lead_upsert(array $d): array
         $wid, $src, $ext ?: null, $f['company_id'], $f['company'], mb_substr(trim((string)($d['name'] ?? '')), 0, 255) ?: '—',
         $f['title'], $f['email'], $f['phone'], (int)($d['phone_pending'] ?? 0), $f['linkedin'], $f['country'], $owner, $uid ?: null,
     ]);
-    return crm_lead((int)db()->lastInsertId()) + ['merged' => false];
+    $nid = (int)db()->lastInsertId();
+    if (function_exists('crm_auto_tag')) { $nl = crm_lead($nid); if ($nl) crm_auto_tag($nl); }
+    return crm_lead($nid) + ['merged' => false];
 }
 
 /** يطلّع أرقام وإيميلات من نص (رسالة أو تعليق)، والأرقام العربي بتتحول */
@@ -1158,6 +1186,7 @@ function crm_from_social(array $d): array
     $txt = trim((string)($d['text'] ?? ''));
     if ($txt !== '') crm_act_add((int)$l['id'], 'note', '“' . mb_substr($txt, 0, 600) . '”' . (!empty($d['where']) ? ' — ' . $d['where'] : ''));
     if ($txt !== '' && function_exists('coupon_detect') && ($cp = coupon_detect($txt)) !== '') coupon_attach((int)$l['id'], $cp);
+    if (!empty($l['merged']) && function_exists('crm_plan_on_reply')) crm_plan_on_reply((int)$l['id'], $src === 'comments' ? t('تعليق') : t('رسالة'));
     if ($txt !== '' && function_exists('cap_link_code_in') && ($lc = cap_link_code_in($txt)) !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([$lc, (int)$l['id']]);
     return crm_lead((int)$l['id']) + ['merged' => !empty($l['merged'])];
 }

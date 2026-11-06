@@ -223,3 +223,144 @@ function cap_sheet_import(string $csv, array &$c): int
     $c['seen'] = $total; $c['last'] = date('Y-m-d H:i:s'); $c['err'] = '';
     return $n;
 }
+
+/* ---------- #66 مراحل قابلة للتعديل ---------- */
+function crm_stage_palette(): array
+{
+    // الأسماء الكاملة مكتوبة هنا عشان Tailwind يلقطها
+    return ['sky' => 'bg-sky-100 text-sky-700', 'violet' => 'bg-violet-100 text-violet-700', 'amber' => 'bg-amber-100 text-amber-800', 'orange' => 'bg-orange-100 text-orange-800', 'lime' => 'bg-lime-100 text-lime-800', 'ink' => 'bg-ink-100 text-ink-500',
+        'rose' => 'bg-rose-100 text-rose-700', 'teal' => 'bg-teal-100 text-teal-700', 'fuchsia' => 'bg-fuchsia-100 text-fuchsia-700', 'cyan' => 'bg-cyan-100 text-cyan-700', 'emerald' => 'bg-emerald-100 text-emerald-700', 'indigo' => 'bg-indigo-100 text-indigo-700'];
+}
+function crm_stage_cfg(): array
+{
+    return (json_decode((string)setting('crm_stages_' . (int)ws('id'), ''), true) ?: []) + ['labels' => [], 'colors' => [], 'custom' => []];
+}
+/** [key => class] لكل المراحل بالترتيب */
+function crm_stage_colors(): array
+{
+    $c = crm_stage_cfg(); $pal = crm_stage_palette();
+    $def = ['new' => 'sky', 'contacted' => 'violet', 'qualified' => 'amber', 'proposal' => 'orange', 'won' => 'lime', 'lost' => 'ink'];
+    foreach ((array)$c['custom'] as $x) $def[$x['key']] = $x['color'] ?? 'teal';
+    $out = []; foreach (crm_stages() as $k => $_) $out[$k] = $pal[$c['colors'][$k] ?? $def[$k] ?? 'teal'] ?? $pal['teal'];
+    return $out;
+}
+
+/* ---------- #65 أكتر من Pipeline ---------- */
+function crm_pipelines(): array
+{
+    $l = json_decode((string)setting('crm_pipes_' . (int)ws('id'), ''), true) ?: [];
+    $o = ['sales' => t('المبيعات')]; foreach ($l as $x) if (!empty($x['key']) && $x['key'] !== 'sales') $o[$x['key']] = $x['label']; elseif (($x['key'] ?? '') === 'sales' && !empty($x['label'])) $o['sales'] = $x['label'];
+    return $o;
+}
+
+/* ---------- #64 حقول مخصصة ---------- */
+function crm_custom_fields(): array
+{
+    return json_decode((string)setting('crm_fields_' . (int)ws('id'), ''), true) ?: [];
+}
+function crm_custom_clean(array $in): array
+{
+    $o = [];
+    foreach (crm_custom_fields() as $f) {
+        $v = trim((string)($in[$f['key']] ?? '')); if ($v === '') continue;
+        if ($f['type'] === 'number') $v = (string)(float)str_replace(',', '.', $v);
+        if ($f['type'] === 'select' && !in_array($v, (array)$f['opts'], true)) continue;
+        $o[$f['key']] = mb_substr($v, 0, 200);
+    }
+    return $o;
+}
+
+/* ---------- #62 تاجات أوتوماتيك بقواعد ---------- */
+function crm_tag_rules(): array
+{
+    return json_decode((string)setting('crm_tagrules_' . (int)ws('id'), ''), true) ?: [];
+}
+/** بيرجع التاجات الجديدة اللي اتضافت */
+function crm_auto_tag(array $l): array
+{
+    $rules = crm_tag_rules(); if (!$rules) return [];
+    $cf = json_decode((string)($l['custom'] ?? ''), true) ?: [];
+    $fields = ['name' => (string)$l['name'], 'company' => (string)$l['company'], 'title' => (string)$l['title'], 'country' => (string)$l['country'], 'note' => (string)$l['note'], 'email' => (string)$l['email'], 'phone' => (string)$l['phone'], 'custom' => implode(' ', $cf)];
+    $have = array_filter(array_map('trim', explode(',', (string)$l['tags']))); $add = [];
+    foreach ($rules as $r) {
+        $w = mb_strtolower(trim((string)($r['has'] ?? ''))); $tg = mb_substr(trim((string)($r['tag'] ?? '')), 0, 30); if ($w === '' || $tg === '') continue;
+        $hay = ($r['field'] ?? 'any') === 'any' ? implode(' ', $fields) : ($fields[$r['field']] ?? '');
+        if ($r['field'] === 'phone' && preg_match('/^\+?\d+$/', $w)) { $ok = strpos(preg_replace('/\D/', '', $hay), ltrim($w, '+')) === 0; } else $ok = mb_strpos(mb_strtolower($hay), $w) !== false;
+        if ($ok && !in_array($tg, $have, true) && !in_array($tg, $add, true)) $add[] = $tg;
+    }
+    if ($add) db()->prepare('UPDATE crm_leads SET tags = ? WHERE id = ?')->execute([mb_substr(implode(', ', array_slice(array_merge($have, $add), 0, 12)), 0, 255), (int)$l['id']]);
+    return $add;
+}
+
+/* ---------- #63 دمج يدوي ---------- */
+/** $keep يفضل، $drop يتمسح بعد ما كل حاجته تتنقل. $pick: [field => 'keep'|'drop'] */
+function crm_merge_leads(int $keep, int $drop, array $pick): bool
+{
+    $wid = (int)ws('id'); $a = crm_lead($keep); $b = crm_lead($drop); if (!$a || !$b || $keep === $drop) return false;
+    $set = []; $vals = [];
+    foreach (['name', 'company', 'title', 'email', 'phone', 'linkedin', 'country', 'stage', 'deal_value', 'owner_id', 'note', 'pipeline'] as $f) {
+        if (!array_key_exists($f, $a)) continue;
+        $use = ($pick[$f] ?? '') === 'drop' ? $b[$f] : ($a[$f] === null || $a[$f] === '' ? $b[$f] : $a[$f]);
+        if ($use !== $a[$f]) { $set[] = "$f = ?"; $vals[] = $use; }
+    }
+    $tags = implode(', ', array_slice(array_unique(array_filter(array_map('trim', array_merge(explode(',', (string)$a['tags']), explode(',', (string)$b['tags']))))), 0, 12)); $set[] = 'tags = ?'; $vals[] = $tags ?: null;
+    $cf = (json_decode((string)($b['custom'] ?? ''), true) ?: []) + []; $cf = array_merge($cf, json_decode((string)($a['custom'] ?? ''), true) ?: []);
+    if (array_key_exists('custom', $a)) { $set[] = 'custom = ?'; $vals[] = $cf ? json_encode($cf, JSON_UNESCAPED_UNICODE) : null; }
+    foreach (['ext_id', 'src_url', 'link_code', 'coupon', 'referred_by', 'q_budget', 'q_when'] as $f) if (array_key_exists($f, $a) && ($a[$f] === null || $a[$f] === '') && $b[$f] !== null && $b[$f] !== '') { $set[] = "$f = ?"; $vals[] = $b[$f]; }
+    $pdo = db(); $pdo->beginTransaction();
+    try {
+        if (array_key_exists('ext_id', $b) && $b['ext_id']) $pdo->prepare('UPDATE crm_leads SET ext_id = NULL WHERE id = ?')->execute([$drop]); // unique لو موجود
+        $vals[] = $keep; $pdo->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
+        foreach (['crm_acts', 'crm_deals', 'crm_plan_runs', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
+        $pdo->prepare('UPDATE crm_leads SET referred_by = ? WHERE referred_by = ? AND workspace_id = ?')->execute([$keep, $drop, $wid]);
+        $pdo->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([$drop, $wid]);
+        $pdo->commit();
+    } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
+    crm_act_add($keep, 'note', '🔗 ' . t('اتدمج معاه: %s', (string)$b['name']));
+    if (function_exists('crm_deals_rollup')) crm_deals_rollup($keep);
+    return true;
+}
+
+/* ---------- #78 #79 #80 قواعد خطط المتابعة ---------- */
+function crm_plan_rules(): array
+{
+    $r = (json_decode((string)setting('crm_plan_rules_' . (int)ws('id'), ''), true) ?: []) + ['hours' => 0, 'days' => [0, 1, 2, 3, 4], 'from' => '09:00', 'to' => '18:00', 'stop_reply' => 0, 'na_n' => 0, 'na_plan' => 0];
+    $r['days'] = array_map('intval', (array)$r['days']);
+    return $r;
+}
+/** لو دلوقتي برّه ساعات الشغل: أول ميعاد شغل جاي (بتوقيت السيرفر). جوّه الساعات: null */
+function crm_plan_next_open(?int $ts = null): ?string
+{
+    $r = crm_plan_rules(); if (empty($r['hours']) || !$r['days']) return null;
+    $tz = new DateTimeZone(site_timezone()); $d = new DateTime('@' . ($ts ?? time())); $d->setTimezone($tz);
+    $in = function (DateTime $x) use ($r) { $hm = $x->format('H:i'); return in_array((int)$x->format('w'), $r['days'], true) && $hm >= $r['from'] && $hm < $r['to']; };
+    if ($in($d)) return null;
+    for ($i = 0; $i < 8; $i++) {
+        $c = (clone $d)->modify("+$i day"); [$h, $m] = array_map('intval', explode(':', $r['from'])); $c->setTime($h, $m);
+        if ($c > $d && in_array((int)$c->format('w'), $r['days'], true)) return $c->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
+    }
+    return null;
+}
+/** #80 العميل رد: وقّف خطته وخلّي الموظف يرد */
+function crm_plan_on_reply(int $leadId, string $where): bool
+{
+    $r = crm_plan_rules(); if (empty($r['stop_reply'])) return false;
+    $st = db()->prepare("SELECT id FROM crm_plan_runs WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due') AND started_at < DATE_SUB(NOW(), INTERVAL 2 MINUTE) LIMIT 1"); $st->execute([(int)ws('id'), $leadId]);
+    if (!$st->fetchColumn()) return false;
+    crm_plan_stop($leadId);
+    db()->prepare('UPDATE crm_leads SET next_at = NOW(), next_note = ? WHERE id = ?')->execute([mb_substr('💬 ' . t('العميل رد (%s)، الخطة وقفت. رد عليه.', $where), 0, 255), $leadId]);
+    return true;
+}
+/** #78 بعد نتيجة مكالمة */
+function crm_on_call_outcome(array $l, string $oc): string
+{
+    if ($oc === 'answered') { db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]); return ''; }
+    if ($oc !== 'no_answer') return '';
+    $n = (int)($l['no_answer'] ?? 0) + 1; db()->prepare('UPDATE crm_leads SET no_answer = ? WHERE id = ?')->execute([$n, (int)$l['id']]);
+    $r = crm_plan_rules(); if ($r['na_n'] < 1 || $n < $r['na_n'] || !$r['na_plan'] || !($p = crm_plan((int)$r['na_plan']))) return '';
+    db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due')")->execute([(int)ws('id'), (int)$l['id']]);
+    db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]);
+    crm_act_add((int)$l['id'], 'note', '🔁 ' . t('مردّش %s مرات، اتنقل لخطة: %s', $n, $p['name']));
+    crm_plan_start((int)$l['id'], (int)$p['id']);
+    return $p['name'];
+}

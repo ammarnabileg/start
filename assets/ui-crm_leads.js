@@ -5,7 +5,7 @@
   var f = { stage: '', src: '', own: '', due: false, q: '', cold: false, tag: '', sort: '' }, sel = {};
   var view = 'list', limit = 50, vMode = 'all';
   try { view = localStorage.getItem('ld-view') || 'list'; } catch (e) {}
-  var stageColor = { new: 'bg-sky-100 text-sky-700', contacted: 'bg-violet-100 text-violet-700', qualified: 'bg-amber-100 text-amber-800', proposal: 'bg-orange-100 text-orange-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
+  var stageColor = D.stageColors || { new: 'bg-sky-100 text-sky-700', contacted: 'bg-violet-100 text-violet-700', qualified: 'bg-amber-100 text-amber-800', proposal: 'bg-orange-100 text-orange-800', won: 'bg-lime-100 text-lime-800', lost: 'bg-ink-100 text-ink-500' };
   function toast(m, ms, act) {
     var old = document.querySelector('.ld-toast'); if (old) { if (old._done) old._done(); old.remove(); }
     var t = document.createElement('div'); t.className = 'ld-toast'; t.setAttribute('role', 'status');
@@ -122,7 +122,7 @@
       board.innerHTML = Object.keys(D.stages).filter(function (s) { return !f.stage || s === f.stage; }).map(function (s) {
       var col = shown.filter(function (l) { return l.stage === s; });
       var sum = col.reduce(function (a, l) { return a + (+l.value || 0); }, 0);
-      var icons = { new: '🆕', contacted: '💬', qualified: '⭐', proposal: '📄', won: '🏆', lost: '✕' };
+      var icons = { new: '🆕', contacted: '💬', qualified: '⭐', proposal: '📄', won: '🏆', lost: '✕' }; Object.keys(D.stages).forEach(function (k) { if (!icons[k]) icons[k] = '◆'; });
       return '<div class="ld-col rounded-2xl bg-ink-50/80 border border-ink-200 p-2 min-h-[260px] flex flex-col transition" data-s="' + s + '">' +
         '<div class="flex items-center gap-2 px-1.5 py-1.5 mb-1"><span class="text-sm">' + (icons[s] || '') + '</span><span class="text-sm font-semibold text-ink-800">' + esc(D.stages[s]) + '</span><span class="text-[11px] rounded-full bg-white border border-ink-200 px-1.5 text-ink-500">' + col.length + '</span>' + (sum ? '<span class="text-[11px] text-ink-500 ms-auto">' + sum.toLocaleString() + '</span>' : '') + '</div>' +
         '<div class="h-1 rounded-full mx-1.5 mb-2 ' + stageColor[s].split(' ')[0] + '"></div>' +
@@ -191,6 +191,8 @@
     setTab(curTab);
     document.getElementById('ld-quick').innerHTML = quick(l);
     ['id', 'name', 'company', 'title', 'phone', 'email', 'value', 'tags', 'note', 'next_at', 'next_note'].forEach(function (k) { form.elements[k].value = l[k] == null ? '' : l[k]; });
+    if (form.elements.pipeline) form.elements.pipeline.value = l.pl || 'sales';
+    Array.prototype.forEach.call(form.querySelectorAll('[data-cf]'), function (i) { i.value = (l.cf && l.cf[i.dataset.cf]) || ''; });
     form.elements.owner.value = String(l.owner || 0);
     form.querySelectorAll('[name=stage]').forEach(function (r) { r.checked = r.value === l.stage; });
     form.querySelectorAll('input,select,textarea,button:not([data-close]):not([data-tabbtn]):not(#ld-q-next)').forEach(function (x) { if (x.name !== 'owner' || D.canManage) x.disabled = !l.edit; });
@@ -251,7 +253,8 @@
   document.getElementById('ld-add-btn').addEventListener('click', function () { af.reset(); document.getElementById('ld-add-msg').textContent = ''; openModal(add); af.elements.name.focus(); });
   af.addEventListener('submit', function (e) {
     e.preventDefault();
-    post(new FormData(af)).then(function (r) {
+    var afd = new FormData(af); afd.append('pl', D.pl || 'sales');
+    post(afd).then(function (r) {
       if (!r.ok) { document.getElementById('ld-add-msg').textContent = r.error || T.err; return; }
       var ex = byId(r.lead.id);
       if (ex) Object.assign(ex, r.lead); else leads.unshift(r.lead);
@@ -271,7 +274,7 @@
   function when(s) { var o = { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }; if (D.tz) o.timeZone = D.tz; try { return srvDate(s).toLocaleString(document.documentElement.lang || undefined, o); } catch (e) { delete o.timeZone; return srvDate(s).toLocaleString(undefined, o); } }
   function drawActs(a) {
     tabN('ct', (a || []).filter(function (x) { return x.kind !== 'stage'; }).length);
-    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(x.body) + '</div>' : '') + '</div></li>'; }).join('')
+    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? voiceBody(x.body) : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
   }
   var intel = document.getElementById('ld-intel');
@@ -634,7 +637,94 @@
   var bb = document.getElementById('ld-bulk'), tagSel = document.getElementById('ld-tag');
   if (tagSel) tagSel.addEventListener('change', function () { f.tag = this.value; draw(); });
   function selIds() { return Object.keys(sel).filter(function (k) { return sel[k]; }).map(Number); }
-  function bbDraw() { var n = selIds().length; bb.classList.toggle('hidden', !n); bb.classList.toggle('flex', !!n); document.getElementById('ld-bn').textContent = n; }
+  function bbDraw() { var n = selIds().length; bb.classList.toggle('hidden', !n); bb.classList.toggle('flex', !!n); document.getElementById('ld-bn').textContent = n; var mb = document.getElementById('ld-b-merge'); if (mb) mb.classList.toggle('hidden', n !== 2); }
+  /* ---------- #73 إيميل جماعي ---------- */
+  var bmb = document.getElementById('ld-b-mail');
+  if (bmb) bmb.addEventListener('click', function () {
+    var B = D.bm, list = leads.filter(function (l) { return sel[l.id]; }), ok = list.filter(function (l) { return l.email && !l.unsub; });
+    if (!ok.length) return toast(B.none);
+    var w = document.createElement('div'); w.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-ink-900/40 p-4';
+    w.innerHTML = '<form class="w-[min(560px,96vw)] rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">✉️ ' + esc(B.t) + ' (' + ok.length + '/' + list.length + ')</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
+      '<div class="p-5 space-y-2"><input name="subject" required maxlength="200" class="input text-sm" placeholder="' + esc(B.sub) + '" dir="auto"><textarea name="body" required rows="7" class="input text-sm" placeholder="' + esc(B.body) + '" dir="auto"></textarea><p class="text-[11px] text-ink-500">' + esc(B.hint) + '</p>' +
+      '<div class="hidden" data-pg><div class="h-2 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-brand-600 transition-all" style="width:0"></div></div><p class="text-xs text-ink-500 mt-1"></p></div></div>' +
+      '<div class="flex justify-end gap-2 px-5 py-3 border-t border-ink-200"><button class="btn-primary">' + esc(B.go) + '</button></div></form>';
+    document.body.appendChild(w);
+    var stop = false; w.addEventListener('click', function (e) { if (e.target === w || e.target.closest('[data-x]')) { stop = true; w.remove(); } });
+    w.querySelector('form').addEventListener('submit', function (e) {
+      e.preventDefault(); var f = e.target, i = 0, sent = 0, fail = 0, pg = f.querySelector('[data-pg]'); f.querySelector('.btn-primary').disabled = true; pg.classList.remove('hidden');
+      (function next() {
+        if (stop) return;
+        if (i >= ok.length) { pg.querySelector('p').textContent = B.done.replace('%s', sent).replace('%s', list.length - ok.length).replace('%s', fail); draw(); return; }
+        var l = ok[i++];
+        post({ action: 'send_email', id: l.id, subject: f.subject.value, body: f.body.value }).then(function (r) { if (r.ok) { sent++; Object.assign(l, r.lead); } else fail++; }).catch(function () { fail++; }).then(function () {
+          pg.querySelector('div > div').style.width = Math.round(i / ok.length * 100) + '%'; pg.querySelector('p').textContent = B.prog.replace('%s', i).replace('%s', ok.length);
+          setTimeout(next, 1200); // بالراحة عشان الإيميل مايتعلمش سبام
+        });
+      })();
+    });
+  });
+  /* ---------- #76 ملاحظة صوتية + #77 إملاء بالصوت ---------- */
+  function voiceBody(b) {
+    var m = /^🎙 voice:(\S+)\s*(\S*)\n?([\s\S]*)$/.exec(b);
+    if (!m) return '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(b) + '</div>';
+    return '<audio controls preload="none" class="h-8 mt-1 max-w-full" src="' + esc(D.vc.url + encodeURIComponent(m[1])) + '"></audio><span class="text-[10px] text-ink-400 ms-1">' + esc(m[2]) + '</span>' + (m[3] ? '<div class="text-ink-800 whitespace-pre-line break-words" dir="auto">' + esc(m[3]) + '</div>' : '');
+  }
+  var recB = document.getElementById('ld-rec'), recSt = document.getElementById('ld-rec-st'), rec = null, chunks = [], t0 = 0, tm = null;
+  if (recB) recB.addEventListener('click', function () {
+    if (!navigator.mediaDevices || !window.MediaRecorder) return toast(D.vc.noMic);
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      chunks = []; rec = new MediaRecorder(s); rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        s.getTracks().forEach(function (x) { x.stop(); }); clearInterval(tm); recSt.classList.add('hidden'); recB.disabled = false;
+        var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }), fd = new FormData(), id = form.elements.id.value;
+        fd.append('action', 'voice'); fd.append('id', id); fd.append('sec', Math.round((Date.now() - t0) / 1000)); fd.append('body', document.getElementById('ld-log-body').value); fd.append('audio', blob, 'note.' + (/mp4/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : 'webm'));
+        post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err); document.getElementById('ld-log-body').value = ''; toast(D.vc.saved); if (window.__ldActs) window.__ldActs(r.acts); else open(+id); });
+      };
+      rec.start(); t0 = Date.now(); recB.disabled = true; recSt.classList.remove('hidden');
+      tm = setInterval(function () { var s2 = Math.round((Date.now() - t0) / 1000); document.getElementById('ld-rec-t').textContent = Math.floor(s2 / 60) + ':' + ('0' + s2 % 60).slice(-2); if (s2 >= 300) rec.stop(); }, 500);
+    }).catch(function () { toast(D.vc.noMic); });
+  });
+  var rs = document.getElementById('ld-rec-stop'); if (rs) rs.addEventListener('click', function () { if (rec && rec.state === 'recording') rec.stop(); });
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, dict = document.getElementById('ld-dict');
+  if (SR && dict) {
+    dict.classList.remove('hidden'); var sr = null;
+    dict.addEventListener('click', function () {
+      if (sr) { sr.stop(); return; }
+      var inp = document.getElementById('ld-log-body'), base = inp.value ? inp.value + ' ' : '';
+      sr = new SR(); sr.lang = D.vc.lang; sr.interimResults = true; sr.continuous = true; dict.classList.add('bg-red-50', 'text-red-600');
+      sr.onresult = function (e) { var txt = ''; for (var i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript; inp.value = base + txt; };
+      sr.onend = function () { sr = null; dict.classList.remove('bg-red-50', 'text-red-600'); };
+      sr.start();
+    });
+  }
+  /* ---------- #63 دمج عميلين بشاشة مقارنة ---------- */
+  var mbtn = document.getElementById('ld-b-merge');
+  if (mbtn) mbtn.addEventListener('click', function () {
+    var ids = selIds(); if (ids.length !== 2) return toast(D.mg.need2);
+    post({ action: 'merge_pair', a: ids[0], b: ids[1] }).then(function (r) {
+      if (!r.ok) return toast(r.error || T.err);
+      var A = r.a, B = r.b, M = D.mg, keys = ['name', 'company', 'title', 'email', 'phone', 'stage', 'value', 'owner', 'note'];
+      var col = { stage: 'stage', value: 'deal_value', owner: 'owner_id' };
+      function show(l, k) { var v = l[k]; if (k === 'stage') v = D.stages[v] || v; if (k === 'owner') v = (D.members || {})[v] || '—'; return v === '' || v == null || v === 0 ? '—' : v; }
+      var w = document.createElement('div'); w.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-ink-900/40 p-4';
+      w.innerHTML = '<form class="w-[min(720px,96vw)] max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"><div class="flex items-center px-5 h-14 border-b border-ink-200"><b class="flex-1">🔗 ' + esc(M.t) + '</b><button type="button" data-x class="p-2 rounded-lg text-ink-400 hover:bg-ink-100">✕</button></div>' +
+        '<div class="p-5 space-y-3"><p class="text-xs text-ink-500">' + esc(M.hint) + '</p><div class="grid grid-cols-[110px_1fr_1fr] gap-2 text-sm items-center">' +
+        '<span></span>' + [A, B].map(function (l, i) { return '<label class="flex items-center gap-2 rounded-xl border border-ink-200 p-2 font-semibold"><input type="radio" name="keep" value="' + l.id + '"' + (i === 0 ? ' checked' : '') + '> ' + esc(M.keep) + ' <span class="text-[11px] font-normal text-ink-500">' + esc(M.acts.replace('%s', r.acts[i])) + '</span></label>'; }).join('') +
+        keys.map(function (k) { var same = String(show(A, k)) === String(show(B, k)); return '<span class="text-xs text-ink-500">' + esc(M.f[k]) + '</span>' + [A, B].map(function (l, i) { return '<label class="flex items-start gap-2 rounded-lg px-2 py-1 ' + (same ? 'opacity-60' : 'hover:bg-ink-50') + '"><input type="radio" name="pick_' + k + '" value="' + (i ? 'b' : 'a') + '"' + ((i === 0 && show(A, k) !== '—') || (i === 1 && show(A, k) === '—' && show(B, k) !== '—') ? ' checked' : '') + (same ? ' disabled' : '') + '><span class="break-words min-w-0" dir="auto">' + esc(show(l, k)) + '</span></label>'; }).join(''); }).join('') +
+        '</div></div><div class="flex justify-end gap-2 px-5 py-3 border-t border-ink-200"><button type="button" data-x class="btn-ghost">' + esc(T.cancel || '✕') + '</button><button class="btn-primary">' + esc(M.go) + '</button></div></form>';
+      document.body.appendChild(w);
+      w.addEventListener('click', function (e) { if (e.target === w || e.target.closest('[data-x]')) w.remove(); });
+      w.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault(); var f = e.target, keep = +f.keep.value, fd = new FormData(); fd.append('action', 'merge'); fd.append('a', A.id); fd.append('b', B.id); fd.append('keep', keep);
+        keys.forEach(function (k) { var c = f.querySelector('[name=pick_' + k + ']:checked'); if (!c) return; var fromB = c.value === 'b', isDrop = (keep === A.id) ? fromB : !fromB; fd.append('pick[' + (col[k] || k) + ']', isDrop ? 'drop' : 'keep'); });
+        post(fd).then(function (j) {
+          if (!j.ok) return toast(j.error || T.err);
+          leads = leads.filter(function (x) { return x.id !== j.gone; }); D.leads = leads; leads.forEach(function (x, i) { if (x.id === j.lead.id) leads[i] = Object.assign(x, j.lead); });
+          sel = {}; bbDraw(); w.remove(); draw(); toast(M.done);
+        });
+      });
+    });
+  });
   list.addEventListener('change', function (e) { var c = e.target.closest('.ld-sel'); if (!c) return; sel[+c.dataset.sid] = c.checked; c.closest('.ld-row').classList.toggle('bg-brand-50/60', c.checked); bbDraw(); });
   document.getElementById('ld-all').addEventListener('change', function () { var on = this.checked; leads.filter(match).forEach(function (l) { if (l.edit) sel[l.id] = on; }); draw(); bbDraw(); });
   document.getElementById('ld-b-clear').addEventListener('click', function () { sel = {}; document.getElementById('ld-all').checked = false; draw(); bbDraw(); });

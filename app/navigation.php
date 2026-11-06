@@ -40,6 +40,7 @@ function nav_items(): array
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => t('العملاء'), 'module' => 'crm', 'apollo' => true],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => t('العملاء'), 'module' => 'crm'],
         ['key' => 'crm_capture', 'label' => t('جمع العملاء'), 'section' => t('العملاء'), 'module' => 'crm'],
+        ['key' => 'crm_settings', 'label' => t('إعدادات العملاء'), 'section' => t('العملاء'), 'module' => 'crm'],
         ['key' => 'leads', 'label' => t('عملاء الإعلانات'), 'section' => t('العملاء'), 'module' => 'ads'],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => t('المحتوى')],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => t('المحتوى'),
@@ -103,7 +104,7 @@ function nav_item_for(string $page): ?array
 function page_module(string $page): ?string
 {
     $map = [
-        'crm' => ['crm', 'crm_find', 'crm_leads', 'crm_reports', 'crm_capture'],
+        'crm' => ['crm', 'crm_find', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts', 'assistant'],
