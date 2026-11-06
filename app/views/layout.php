@@ -96,7 +96,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     $bellN = count($invites) + $alertsN + $crmN;
     $bellHref = $invites ? url('workspaces') : ($crmN ? url('crm_leads') . '#notifs' : url('alerts'));
   ?>
-  <a href="<?= e($bellHref) ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
+  <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
     <?php if ($bellN): ?><span class="absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white"><?= (int)$bellN ?></span><?php endif; ?>
   </a>
@@ -328,6 +328,10 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
 </div>
 <script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('crm_leads') . '#lead-', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
+<?php if (module_enabled('crm') && can('crm.view')): ?>
+<script>window.FU = <?= json_encode(['url' => url('prospects') . '&ajax=due', 'ws' => (int)$curWs['id'], 'L' => ['title' => t('ميعاد متابعة'), 'open' => t('افتح'), 'later' => t('تمام'), 'perm' => t('فعّل إشعارات المتصفح عشان يوصلك التنبيه حتى لو الصفحة مش قدامك'), 'permOn' => t('فعّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script src="assets/followup-alerts.js?v=<?= e(APP_VERSION) ?>" defer></script>
+<?php endif; ?>
 <?php endif; ?>
 </body>
 </html>

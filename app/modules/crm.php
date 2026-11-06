@@ -843,6 +843,34 @@ function crm_notifs(int $uid, int $limit = 30): array
     $st->execute([(int)ws('id'), $uid]);
     return $st->fetchAll();
 }
+/**
+ * تنبيه بميعاد المتابعة: لما ميعاد متابعة عميل مفتوح ييجي، المسؤول عنه (أو المديرين لو مالهوش) بيوصله تنبيه في الجرس
+ * ومرة واحدة بس لكل ميعاد. ومع الـ cron بيتبعتله إيميل فيه مواعيده اللي جت. المواعيد اللي عدّى عليها أكتر من يومين مابتنبهش.
+ * بيرجع التنبيهات الجديدة [user_id => [[lead_id, name, note, at]...]]
+ */
+function crm_followup_tick(bool $mail = false): array
+{
+    $wid = (int)ws('id'); $out = [];
+    $st = db()->prepare("SELECT id, name, company, owner_id, next_at, next_note FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') AND next_at IS NOT NULL
+        AND next_at <= NOW() AND next_at > NOW() - INTERVAL 2 DAY AND (next_notified IS NULL OR next_notified <> next_at) ORDER BY next_at LIMIT 200");
+    $st->execute([$wid]);
+    foreach ($st->fetchAll() as $l) {
+        $who = trim($l['name'] . ($l['company'] ? ' (' . $l['company'] . ')' : ''));
+        $body = $l['next_note'] ? t('ميعاد متابعة %s: %s', $who, $l['next_note']) : t('ميعاد متابعة %s جه', $who);
+        crm_notify($l['owner_id'] ? (int)$l['owner_id'] : null, (int)$l['id'], 'followup', $body);
+        db()->prepare('UPDATE crm_leads SET next_notified = next_at WHERE id = ?')->execute([(int)$l['id']]);
+        $out[(int)$l['owner_id']][] = ['id' => (int)$l['id'], 'body' => $body, 'at' => $l['next_at']];
+    }
+    if ($mail && $out) {
+        $emails = []; foreach (crm_members() as $m) $emails[(int)$m['id']] = ['email' => (string)($m['email'] ?? ''), 'role' => $m['role'] ?? ''];
+        foreach ($out as $u => $items) {
+            $to = $u ? [$emails[$u]['email'] ?? ''] : array_column(array_filter($emails, function ($m) { return in_array($m['role'], ['owner', 'admin', 'manager'], true); }), 'email');
+            $html = '<p>' . e(t('جه ميعاد المتابعة مع العملاء دول:')) . '</p><ul>' . implode('', array_map(function ($i) { return '<li>' . e($i['body']) . '</li>'; }, $items)) . '</ul><p><a href="' . e(base_url() . '/' . url('prospects')) . '">' . e(t('افتح العملاء المستهدفين')) . '</a></p>';
+            foreach (array_filter(array_unique($to)) as $em) { try { send_mail($em, t('عندك %s متابعة جه ميعادها', count($items)), $html, null, $wid); } catch (Throwable $e) {} }
+        }
+    }
+    return $out;
+}
 function crm_sla_cfg(): array
 {
     $c = json_decode((string)setting('crm_sla_' . (int)ws('id'), ''), true) ?: [];

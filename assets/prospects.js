@@ -70,6 +70,8 @@
   $('pd-tag-f').addEventListener('submit', function (e) { e.preventDefault(); var t = this.t.value.trim(), r = cur, f = this; if (!t) return;
     bulk([jd(r).id], 'tag', { tag: t }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var d = jd(r), nt = (d.tags ? d.tags + ', ' : '') + t; upd(r, 'tags', nt); r.dataset.q += ' ' + t.toLowerCase(); tags(nt); f.t.value = ''; }); });
 
+  // فتح عميل من رابط التنبيه (?lead=ID)
+  var lm = /[?&]lead=(\d+)/.exec(location.search); if (lm) { var lr = root.querySelector('[data-mk-row][data-id="' + lm[1] + '"]'); if (lr) open(lr); }
   /* ---------- عمليات بالجملة ---------- */
   function ids() { return list.selected().map(function (r) { return jd(r).id; }); }
   function done(j, n) { if (!j.ok) return toast(j.error || L.err, 'error'); toast(L.done2.replace('%s', n)); }

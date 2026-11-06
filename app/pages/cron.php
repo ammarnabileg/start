@@ -61,6 +61,13 @@ try {
         } catch (Throwable $t) {
             $line .= ' prospects=error';
         }
+        // تنبيه بمواعيد المتابعة اللي جت (الجرس + إيميل للمسؤول)
+        try {
+            $n = (int)ai_as_workspace($wid, function () { if (!module_enabled('crm') || !function_exists('crm_followup_tick')) return 0; return array_sum(array_map('count', crm_followup_tick(true))); });
+            if ($n) $line .= ' followups+' . $n;
+        } catch (Throwable $t) {
+            $line .= ' followups=error';
+        }
         // الشركات المستهدفة: تكميل بيانات الشركات الناقصة (عدد قليل كل مرة)
         try {
             $n = (int)ai_as_workspace($wid, function () { if (!module_enabled('crm') || !function_exists('tg_enrich_due')) return 0; tg_sync_inbound(); return tg_enrich_due(8); });

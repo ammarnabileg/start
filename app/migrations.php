@@ -528,6 +528,9 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '050_followup_notify' => [
+        "ALTER TABLE crm_leads ADD COLUMN next_notified DATETIME NULL",
+    ],
     '049_target_enrich' => [
         "ALTER TABLE crm_companies ADD COLUMN enriched_at DATETIME NULL",
         "ALTER TABLE crm_companies ADD COLUMN about VARCHAR(500) NULL",
