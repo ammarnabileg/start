@@ -511,6 +511,9 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             }
             btn.onclick = function () { window.mediaPick({ accept: 'image,video', multiple: true, public: false }).then(function (fs) { (fs || []).forEach(add); }); };
             window.cpAddLib = add;
+            // جاي من المصمم أو المكتبة (?lib=ID): الصورة بتتضاف للمنشور على طول
+            <?php $pre = []; foreach (array_slice(array_filter(array_map('intval', explode(',', (string)($_GET['lib'] ?? '')))), 0, 10) as $lid) { $mr = media_get((int)ws('id'), $lid); if ($mr && empty($mr['deleted_at'])) { $mr = media_row($mr); $pre[] = ['id' => $mr['id'], 'url' => $mr['url'], 'thumb' => $mr['thumb'], 'kind' => $mr['kind'], 'name' => $mr['name']]; } } ?>
+            <?= json_encode($pre, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>.forEach(add);
           })();
           </script>
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>

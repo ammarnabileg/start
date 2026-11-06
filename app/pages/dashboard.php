@@ -76,6 +76,14 @@ if (($_GET['ajax'] ?? '') === 'ads') {
 $d = ['accounts' => null, 'scheduled' => null, 'convs' => null, 'comments' => null, 'daily' => null];
 $e = [];
 if ($z) {
+    // الطلبات كلها في نفس الوقت بدل واحد ورا التاني (ده كان سبب بطء الرئيسية)
+    if (method_exists($z, 'prefetch')) { try { $z->prefetch(array_values(array_filter([
+        (can('accounts.view') || can('posts.create')) ? ['/v1/accounts', ['profileId' => $pid]] : null,
+        can('posts.view') ? ['/v1/posts', ['status' => 'scheduled', 'limit' => 50, 'sortBy' => 'scheduled-asc', 'profileId' => $pid]] : null,
+        can('inbox.reply') ? ['/v1/inbox/conversations', ['limit' => 30, 'profileId' => $pid]] : null,
+        can('comments.reply') ? ['/v1/inbox/comments', ['limit' => 5, 'profileId' => $pid]] : null,
+        (can('analytics.view') && module_enabled('analytics')) ? ['/v1/analytics/daily-metrics', ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 13 * 86400), 'toDate' => gmdate('Y-m-d')]] : null,
+    ]))); } catch (Throwable $t) {} }
     if (can('accounts.view') || can('posts.create')) [$d['accounts'], $e['accounts']] = $try(function () use ($z, $pid) { return $z->allAccounts($pid); });
     if (can('posts.view')) [$d['scheduled'], $e['scheduled']] = $try(function () use ($z, $pid) {
         return $z->posts(['status' => 'scheduled', 'limit' => 50, 'sortBy' => 'scheduled-asc', 'profileId' => $pid]);

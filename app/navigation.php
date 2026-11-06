@@ -33,13 +33,15 @@ function nav_items(): array
 {
     $owner = is_ws_owner();
     // القايمة مقسمة على رحلة المنصة: السوق ← المحتوى ← النشر وجمع العملاء ← المبيعات ← النتائج، والإدارة في الآخر
-    $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $s3 = t('المحتوى والحملات'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
+    $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'tenders', 'label' => t('المنافسات والمناقصات'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'prospects', 'label' => t('العملاء المستهدفين'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
+        ['key' => 'studio', 'label' => t('استوديو المحتوى'), 'section' => $sC,
+            'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')]],
         ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'label' => t('المنشورات'), 'section' => $s3,
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],

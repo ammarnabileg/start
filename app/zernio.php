@@ -36,6 +36,9 @@ class Zernio
         return false;
     }
 
+    /** عنوان الخدمة (في الاختبارات بس ممكن يتوجه لسيرفر محلي) */
+    private static function base(): string { $b = getenv('UI_FIXTURES') ? (string)getenv('ZERNIO_BASE') : ''; return $b !== '' ? $b : self::BASE; }
+
     /** تقدر تقفل الكاش لطلب معين (مثلاً زرار "تحديث") */
     public static $noCache = false;
 
@@ -120,6 +123,41 @@ class Zernio
         return $data;
     }
 
+    /**
+     * جلب كذا طلب قراءة في نفس الوقت (بدل واحد ورا التاني) وحفظهم في الكاش.
+     * بعدها الطلبات العادية بتلاقيهم جاهزين، فوقت الصفحة = أبطأ طلب بس مش مجموعهم.
+     * $reqs = [[path, query], ...]
+     */
+    public function prefetch(array $reqs): void
+    {
+        if (self::$noCache || !function_exists('curl_multi_init') || !($dir = self::cacheDir())) return;
+        $mh = curl_multi_init(); $jobs = [];
+        foreach ($reqs as $r) {
+            [$path, $query] = $r + [1 => []]; $ttl = self::ttl($path); if ($ttl <= 0) continue;
+            $q = array_filter($query, function ($v) { return $v !== null && $v !== ''; }); ksort($q);
+            $h = sha1($this->key . '|' . $this->cacheGen() . '|' . $path . '?' . http_build_query($q));
+            $f = $dir . '/' . substr($h, 0, 2) . '/' . $h . '.json';
+            if (is_file($f) && filemtime($f) > time() - $ttl) continue; // جاهز في الكاش
+            $ch = curl_init(self::base() . $path . ($q ? '?' . http_build_query($q) : ''));
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->key, 'Accept: application/json']]);
+            curl_multi_add_handle($mh, $ch); $jobs[] = [$ch, $f];
+        }
+        if ($jobs) {
+            do { $st = curl_multi_exec($mh, $run); if ($run) curl_multi_select($mh, 1.0); } while ($run && $st === CURLM_OK);
+            foreach ($jobs as [$ch, $f]) {
+                $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $raw = curl_multi_getcontent($ch);
+                // الأخطاء مابتتحفظش: الطلب العادي بعدين هيجربها ويتعامل مع الخطأ زي الأول
+                if ($code >= 200 && $code < 300 && is_array($d = json_decode((string)$raw, true))) {
+                    @mkdir(dirname($f), 0750, true); $tmp = $f . '.' . getmypid() . '.tmp';
+                    if (@file_put_contents($tmp, json_encode($d, JSON_UNESCAPED_UNICODE)) !== false) @rename($tmp, $f);
+                }
+                curl_multi_remove_handle($mh, $ch); curl_close($ch);
+            }
+        }
+        curl_multi_close($mh);
+    }
+
     /** تنظيف ملفات الكاش القديمة (أقدم من ساعة) */
     private static function cacheGc(): void
     {
@@ -132,7 +170,7 @@ class Zernio
 
     private function send(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
     {
-        $url = self::BASE . $path;
+        $url = self::base() . $path;
         $query = array_filter($query, function ($v) { return $v !== null && $v !== ''; });
         if ($query) {
             $url .= '?' . http_build_query($query);
@@ -418,6 +456,18 @@ class ZernioMulti extends Zernio
     private function firstId(): int { return (int)array_key_first($this->clients); }
 
     /** profileId: لو الصفحة سابتاه فاضي، كل اتصال بياخد البروفايل المختار بتاعه */
+    /** الجلب المتوازي: كل طلب بيروح للاتصال اللي هيتطلب منه فعلًا (نفس توجيه request) */
+    public function prefetch(array $reqs): void
+    {
+        $by = [];
+        foreach ($reqs as $r) {
+            [$path, $query] = $r + [1 => []];
+            if (count($this->clients) === 1) { $id = $this->firstId(); $by[$id][] = [$path, $this->q($id, $query)]; continue; }
+            if (!empty($query['profileId'])) foreach ($this->profiles as $id => $p) if ($p === $query['profileId']) { $by[$id][] = [$path, $query]; break; }
+        }
+        foreach ($by as $id => $list) $this->clients[$id]->prefetch($list);
+    }
+
     private function q(int $id, array $query): array
     {
         if (array_key_exists('profileId', $query) && ($query['profileId'] === null || $query['profileId'] === '')) {

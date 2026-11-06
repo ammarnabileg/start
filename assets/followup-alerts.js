@@ -12,6 +12,7 @@
     el.innerHTML = '<span class="w-9 h-9 rounded-xl bg-red-50 text-red-600 grid place-items-center shrink-0">' + (window.uic ? uic('calendar', 'w-5 h-5') : '⏰') + '</span><div class="flex-1 min-w-0"><b class="block text-sm text-ink-900">' + esc(L.title) + '</b><p class="text-sm text-ink-600 mt-0.5 break-words" dir="auto">' + esc(it.body) + '</p>' +
       '<div class="flex gap-2 mt-2"><a href="' + esc(it.url) + '" class="btn-primary !py-1 !text-xs">' + esc(L.open) + '</a><button type="button" class="btn-ghost !py-1 !text-xs" data-x>' + esc(L.later) + '</button></div></div>';
     el.querySelector('[data-x]').addEventListener('click', function () { el.remove(); }); box.appendChild(el);
+    setTimeout(function () { if (el.isConnected) { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 400); } }, 25000); // بتختفي لوحدها، والتنبيه بيفضل في الجرس
     while (box.querySelectorAll('.fu-card').length > 3) box.querySelector('.fu-card').remove();
   }
   function native(it) { try { if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return; var n = new Notification(L.title, { body: it.body, tag: 'fu-' + it.id }); n.onclick = function () { window.focus(); location.href = it.url; }; } catch (e) {} }
