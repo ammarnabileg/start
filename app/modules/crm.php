@@ -22,7 +22,7 @@ function crm_stages(): array
 
 function crm_sources(): array
 {
-    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد'), 'inbox' => t('رسائل السوشيال'), 'comments' => t('تعليقات المنشورات'), 'form' => t('فورم الموقع')];
+    return ['reveal' => t('كشف من الشركات'), 'ads' => t('إعلانات'), 'whatsapp' => t('واتساب'), 'manual' => t('يدوي'), 'import' => t('مستورد'), 'inbox' => t('رسائل السوشيال'), 'comments' => t('تعليقات المنشورات'), 'form' => t('فورم الموقع'), 'tender' => t('منافسات حكومية')];
 }
 
 function crm_sizes(): array

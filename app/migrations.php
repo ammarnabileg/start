@@ -528,6 +528,39 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '047_tenders' => [
+        "CREATE TABLE IF NOT EXISTS tenders (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            src VARCHAR(20) NOT NULL DEFAULT 'etimad',
+            ext_id BIGINT UNSIGNED NOT NULL,
+            ref VARCHAR(40) NULL,
+            id_str VARCHAR(80) NULL,
+            name VARCHAR(500) NOT NULL,
+            agency VARCHAR(255) NULL,
+            branch VARCHAR(255) NULL,
+            type VARCHAR(80) NULL,
+            activity VARCHAR(255) NULL,
+            booklet DECIMAL(12,2) NULL,
+            published_at DATETIME NULL,
+            inquiry_at DATETIME NULL,
+            deadline DATETIME NULL,
+            first_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY src_ext (src, ext_id),
+            INDEX dl (deadline),
+            INDEX fs (first_seen)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS tender_marks (
+            workspace_id INT UNSIGNED NOT NULL,
+            tender_id INT UNSIGNED NOT NULL,
+            status VARCHAR(12) NOT NULL,
+            note VARCHAR(500) NULL,
+            lead_id INT UNSIGNED NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (workspace_id, tender_id),
+            INDEX ws_st (workspace_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '046_competitors' => [
         "CREATE TABLE IF NOT EXISTS competitors (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

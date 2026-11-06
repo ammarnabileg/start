@@ -150,15 +150,15 @@ try {
         } catch (Throwable $t) {
             $line .= ' report=error';
         }
-        // تقويم الفرص: تنبيه لما مناسبة تدخل وقت التحضير ومفيش حملة ليها
-        try {
-            $n = (int)ai_as_workspace($wid, function () { return function_exists('opp_tick') ? opp_tick() : 0; });
-            if ($n) $line .= ' opportunities+' . $n;
-        } catch (Throwable $t) {
-            $line .= ' opportunities=error';
-        }
         $out[] = $line;
     }
+    // المنافسات الحكومية: تنبيه بالجديد المطابق لكل شركة حددت كلماتها (حتى اللي مش مربوطة بالنشر)
+    try {
+        foreach (db()->query("SELECT CAST(SUBSTRING(name, 9) AS UNSIGNED) FROM settings WHERE name LIKE 'tnd\\_cfg\\_%'")->fetchAll(PDO::FETCH_COLUMN) as $tw) {
+            try { $n = (int)ai_as_workspace((int)$tw, function () { return function_exists('tnd_tick') ? tnd_tick() : 0; }); if ($n) $out[] = 'ws ' . (int)$tw . ': tenders+' . $n; }
+            catch (Throwable $t) { $out[] = 'ws ' . (int)$tw . ': tenders=error'; }
+        }
+    } catch (Throwable $t) {}
     // متابعة المنافسين: لكل الشركات (حتى اللي مش مربوطة بالنشر)، كل منافس مرة في اليوم
     try {
         foreach (db()->query("SELECT DISTINCT c.workspace_id FROM competitors c JOIN workspaces w ON w.id = c.workspace_id WHERE COALESCE(w.status, 'active') = 'active'")->fetchAll(PDO::FETCH_COLUMN) as $cw) {

@@ -73,15 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $camps = mcp_list();
 render(t('حملة متكاملة'), 'campaign', function () use ($svcs, $accs, $hour, $camps, $err, $kb) {
     $tz = new DateTimeZone(site_timezone()); $tomorrow = (new DateTime('tomorrow', $tz))->format('Y-m-d');
-    // جاي من تقويم الفرص: التاريخ والمدة والاسم والعرض جاهزين
+    // ممكن تتملي من رابط (start, days, count, name, offer)
     $g = function ($k, $max) { return mb_substr(trim((string)($_GET[$k] ?? '')), 0, $max); };
     $pStart = preg_match('/^\d{4}-\d{2}-\d{2}$/', $g('start', 10)) && $g('start', 10) >= $tomorrow ? $g('start', 10) : $tomorrow;
     $pDays = max(1, min(60, (int)($g('days', 3) ?: 14))); $pCount = max(1, min(20, (int)($g('count', 3) ?: 5)));
     $pName = $g('name', 190); $pOffer = $g('offer', 120);
     ?>
-  <?php if ($pName !== '' && isset($_GET['occ'])): ?>
-    <div class="card p-3 mb-4 flex items-center gap-2 text-sm border-brand-200 bg-brand-50/50"><?= ui_icon('calendar', 'w-4 h-4 text-brand-600') ?><span class="flex-1"><?= e(t('حملة لـ %s: التواريخ والعرض متعبّيين من تقويم الفرص. راجعهم واختار الخدمة.', $pName)) ?></span><a href="<?= e(url('opportunities')) ?>" class="link text-xs"><?= e(t('تقويم الفرص')) ?></a></div>
-  <?php endif; ?>
   <?php if (!$svcs): ?>
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-ink-100 text-ink-500 grid place-items-center"><?= ui_icon('layers', 'w-6 h-6') ?></div>
       <b class="block text-ink-900"><?= e(t('محتاجين خدماتك في ملف الشركة الأول')) ?></b><p class="text-sm text-ink-500 mt-1"><?= e(t('الحملة بتتبني من خدمة وسعرها. املأ الملف من موقعك في دقيقة.')) ?></p>
