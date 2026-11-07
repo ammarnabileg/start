@@ -264,7 +264,9 @@ if (($_GET['step'] ?? '') === 'review' && $form) {
 $targets = [];
 $posts = [];
 $apiError = null;
-if ($z) {
+$fxT = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_targets.json' : '';
+if ($fxT && is_file($fxT)) { $fx = json_decode((string)file_get_contents($fxT), true) ?: []; $targets = $fx['targets'] ?? []; $posts = $fx['posts'] ?? []; } // اختبارات بس
+elseif ($z) {
     try {
         $connections = ads_connections($z);
         $targets = ads_usable_accounts($z, $connections, true);
@@ -495,6 +497,10 @@ render(t('حملة جديدة'), 'ad_create', function () use ($z, $apiError, $t
             'noPost' => t('ما اخترتش منشور للترويج'), 'endBefore' => t('تاريخ النهاية قبل البداية'), 'warn' => t('تنبيه'), 'block' => t('لازم يتصلح')],
           'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير مراجعة؟'), 'ref' => $_SESSION['ads_budget_ref'] ?? new stdClass(), 'overWarn' => t('تحذير: ده %s ضعف الميزانية اليومية المعتادة في حملاتك (%s). اتأكد من المبلغ.')], JSON_UNESCAPED_UNICODE) ?>;</script>
         <script src="assets/ui-ad_create.js?v=<?= e(APP_VERSION) ?>"></script>
+        <script>window.ADCU = <?= json_encode(['d1' => t('من أنهي حساب هتدفع، وعاوز الناس تعمل إيه.'), 'd2' => t('روّج منشور نجح، أو اعمل إعلان جديد بصورة ورابط.'), 'd3' => t('هتصرف كام وإمتى.'), 'd4' => t('مين اللي هيشوف الإعلان.'), 'd5' => t('تبدأ تصرف فورًا ولا تراجعها الأول.'),
+          'boostD' => t('أسرع طريقة: المنشور بتفاعله اللي عليه بيوصل لناس أكتر.'), 'newD' => t('صورة وعنوان وزرار بيودّي على موقعك أو واتساب.'), 'pausedD' => t('مفيش أي صرف لحد ما تشغّلها بنفسك. مُستحسن.'), 'activeD' => t('هتبدأ تصرف أول ما تتراجع من المنصة.'),
+          'noPosts' => t('مفيش منشورات منشورة على الحساب ده. اكتب رقم المنشور تحت أو اعمل إعلان جديد.'), 'age' => t('السن'), 'cur' => t('العملة')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        <script src="assets/ad-create-ui.js?v=<?= e(APP_VERSION) ?>"></script>
         <script>
         (function () {
           var form = document.getElementById('adcForm');

@@ -290,6 +290,19 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .ai-tag { @apply rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800; } .ai-tag.w { @apply bg-orange-100 text-orange-800; } .ai-per { @apply mt-1 text-xs text-ink-700; }
   .ai-sk { @apply h-20 rounded-xl mk-sk mb-2; } .ai-ad { @apply rounded-xl bg-ink-50 p-3; animation: pdIn .3s ease-out both; } .ai-fmt { @apply rounded-md bg-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-700; } .ai-art { @apply mt-1.5 rounded-lg bg-pink-50 px-2 py-1 text-[11px] text-pink-900 dark:bg-[#3a0d24] dark:text-[#f9a8d4]; }
   .ai-foot:empty { display: none; }
+  /* حملة سريعة */
+  .abx-rg input[type=range] { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; height: 100% !important; margin: 0 !important; }
+  .abx-rg::before, .abx-rg i { z-index: 0; } .abx-rg input { z-index: 1; }
+  #adcForm .abx-age { grid-column: 1 / -1; display: block; width: 100%; }
+  .adq-n { @apply ms-auto w-7 h-7 rounded-full grid place-items-center bg-ink-100 text-xs font-black text-ink-500; }
+  .adq-cards { @apply grid gap-2 sm:grid-cols-2 lg:grid-cols-3; } .adq-cards.two { @apply sm:grid-cols-2 lg:grid-cols-2; } .adq-cards.acc { @apply sm:grid-cols-2; }
+  .adq-card { @apply relative flex flex-col items-start gap-1 rounded-2xl border-2 border-ink-200 bg-white p-3 text-start transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md; } .adq-card b { @apply text-sm text-ink-900; } .adq-card small { @apply text-xs text-ink-500; }
+  .adq-card.on { @apply border-brand-500 bg-brand-50/60 ring-4 ring-brand-100; } .adq-card.on::after { content: '✓'; @apply absolute top-2 end-2 w-6 h-6 rounded-full grid place-items-center bg-brand-600 text-xs font-black text-white; }
+  .adq-card.big { @apply p-4; } .adq-card.danger.on { @apply border-red-500 bg-red-50/60 ring-red-100; } .adq-card.danger.on::after { @apply bg-red-600; }
+  .adq-ci { @apply w-9 h-9 rounded-xl grid place-items-center mb-1; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+  .adq-posts { @apply mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3; } .adq-post { @apply relative flex flex-col gap-1.5 rounded-2xl border-2 border-ink-200 bg-white p-3 text-start transition hover:border-brand-300 hover:shadow-md; } .adq-post p { @apply text-sm text-ink-800 line-clamp-3; } .adq-post small { @apply text-[11px] text-ink-400; }
+  .adq-post.on { @apply border-brand-500 bg-brand-50/60 ring-4 ring-brand-100; } .adq-post.on::after { content: '✓'; @apply absolute top-2 end-2 w-6 h-6 rounded-full grid place-items-center bg-brand-600 text-xs font-black text-white; }
+  .adq-pf { @apply w-7 h-7 rounded-lg grid place-items-center text-xs font-black text-[#fff]; } .adq-pf.fb { @apply bg-[#0866ff]; } .adq-pf.ig { background: linear-gradient(45deg, #f59e0b, #db2777, #7c3aed); }
   /* منشئ الحملات: شكل الفورمات */
   .abx-card { @apply relative overflow-hidden rounded-2xl border-ink-200 shadow-sm transition hover:shadow-md; animation: pdIn .3s ease-out both; } .abx-card::before { content: ''; @apply absolute inset-x-0 top-0 h-1; background: linear-gradient(90deg, var(--c), transparent); }
   .abx-head { @apply flex-wrap !gap-x-3 !gap-y-0; } .abx-head h3 { @apply text-base; } .abx-ic { @apply w-10 h-10 shrink-0 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
