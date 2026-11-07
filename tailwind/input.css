@@ -1250,3 +1250,25 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-ctyp{display:flex;gap:.25rem;margin:.4rem 0}.pr-ctyp button{flex:1;padding:.3rem;border-radius:8px;font-size:.75rem;background:#f1f5f9;color:#475569}.pr-ctyp button.on{background:#2563eb;color:#fff}
 .pr-cform{display:flex;gap:.3rem}.pr-cform input{flex:1;min-width:0}
 #pr .mk-head,#pr [data-mk-row]{min-width:1150px}
+
+/* البوب أب: كل الأرقام والإيميلات */
+#pd-contact{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.4rem}
+.pd-cl{display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border-radius:12px;background:#fff;border:1px solid #e2e8f0;min-width:0}
+.pd-cl b{font-size:.84rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.pd-cli{width:1.8rem;height:1.8rem;border-radius:9px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;flex-shrink:0}
+.pd-main{font-style:normal;font-size:.65rem;padding:.05rem .4rem;border-radius:99px;background:#eff6ff;color:#1d4ed8;flex-shrink:0}
+.pd-cla{display:flex;gap:.15rem;margin-inline-start:auto;flex-shrink:0}
+.pd-cla a,.pd-cla button{width:1.75rem;height:1.75rem;border-radius:8px;display:grid;place-items:center;color:#475569}
+.pd-cla a:hover,.pd-cla button:hover{background:#f1f5f9;color:#1d4ed8}
+.pd-cla .del{opacity:0}.pd-cl:hover .del{opacity:1}.pd-cla .del:hover{background:#fee2e2;color:#dc2626}
+.pd-cnone{font-size:.8rem;color:#94a3b8}
+.pd-addc{display:flex;gap:.4rem;margin-top:.5rem}
+.pd-addc select,.pd-addc input{height:2.1rem;border:1px solid #e2e8f0;border-radius:10px;padding:0 .5rem;font-size:.82rem;background:#fff;outline:none}
+.pd-addc input{flex:1;min-width:0}.pd-addc input:focus,.pd-addc select:focus{border-color:#93c5fd}
+.dark .pd-cl,.dark .pd-addc select,.dark .pd-addc input{background:#0f172a;border-color:rgb(255 255 255/.1);color:#e2e8f0}.dark .pd-cl b{color:#e2e8f0}
+#pd-contact{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.pd-cl b{flex:1 1 auto;color:#0f172a!important;text-align:start}
+.pd-cl{flex-direction:row!important}
+#pr-dlg #pd-contact{display:flex!important;flex-direction:column;flex-wrap:nowrap;gap:.35rem}
+#pr-dlg #pd-contact .pd-cl{width:100%;max-width:none;flex:0 0 auto}
+#pr-dlg #pd-contact .pd-cl{padding:.3rem .5rem}#pr-dlg .pd-cli{width:1.6rem;height:1.6rem}

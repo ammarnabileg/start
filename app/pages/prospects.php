@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         else $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
         $main = $all[0] ?? null; $rest = array_slice($all, 1);
         db()->prepare("UPDATE crm_leads SET $k = ?, {$k}s = ?" . ($k === 'phone' && $main ? ', phone_pending = 0' : '') . ' WHERE id = ?')->execute([$main, $rest ? json_encode($rest) : null, (int)$l['id']]);
-        $J(['ok' => true, 'list' => $all]);
+        $J(['ok' => true, 'list' => $all, 'main' => (string)$main, 'wa' => $k === 'phone' && $main ? crm_wa_digits($main) : '']);
     }
     // المتابعة الجاية: النهارده، بكرة، بعد 3 أيام، الأسبوع الجاي، تاريخ محدد، أو مفيش
     if ($a === 'view_save' || $a === 'view_del') {

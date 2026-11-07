@@ -19,9 +19,14 @@
     $$('#pd-stages [data-stg]').forEach(function (b, i) { i = b.dataset.i != null ? +b.dataset.i : i; b.classList.toggle('on', b.dataset.stg === v); b.classList.toggle('done', v !== 'lost' && i < at && b.dataset.stg !== 'lost'); b.classList.toggle('lost', b.dataset.stg === 'lost'); });
     $('pd-stage-pill').textContent = C.stages[v] || v; }
   function contactPaint(d) {
-    var it = [['phone', 'call', d.phone, 'tel:' + d.phone, L.call], ['chat', 'wa', d.wa, 'https://wa.me/' + d.wa, L.wa], ['mail', 'email', d.email, 'mailto:' + d.email, L.mail]];
-    $('pd-contact').innerHTML = it.map(function (x) { return '<a class="pd-act' + (x[2] ? '' : ' off') + '" href="' + (x[2] ? esc(x[3]) : '#') + '"' + (x[1] === 'wa' ? ' target="_blank" rel="noopener"' : '') + ' data-log="' + x[1] + '">' + ic(x[0], 'w-5 h-5') + '<span>' + esc(x[4]) + '</span><small dir="ltr">' + esc(x[1] === 'wa' ? (d.wa ? '+' + d.wa : '—') : (x[2] || '—')) + '</small>' + (x[2] ? '<button type="button" class="pd-cp" data-copy="' + esc(x[1] === 'wa' ? '+' + d.wa : x[2]) + '" title="' + esc(L.copy) + '">' + ic('copy', 'w-3 h-3') + '</button>' : '') + '</a>'; }).join('');
-    var af = $('pd-addc'); af.classList.toggle('hidden', !!(d.phone && d.email)); af.phone.classList.toggle('hidden', !!d.phone); af.email.classList.toggle('hidden', !!d.email); }
+    var ph = d.phones && d.phones.length ? d.phones : (d.phone ? [d.phone] : []), em = d.emails && d.emails.length ? d.emails : (d.email ? [d.email] : []);
+    function wa(p) { var x = String(p).replace(/\D/g, ''); return x.length >= 8 ? x : ''; }
+    function line(k, v, i) { var w = k === 'phone' ? wa(v) : '';
+      return '<div class="pd-cl"><span class="pd-cli">' + ic(k === 'phone' ? 'phone' : 'mail', 'w-4 h-4') + '</span><b dir="ltr">' + esc(v) + '</b>' + (i === 0 && (ph.length > 1 && k === 'phone' || em.length > 1 && k === 'email') ? '<i class="pd-main">' + esc(L.cMain || '') + '</i>' : '') +
+        '<span class="pd-cla">' + (k === 'phone' ? '<a href="tel:' + esc(v) + '" data-log="call" title="' + esc(L.call) + '">' + ic('phone', 'w-4 h-4') + '</a>' + (w ? '<a href="https://wa.me/' + w + '" target="_blank" rel="noopener" data-log="wa" title="' + esc(L.wa) + '">' + ic('chat', 'w-4 h-4') + '</a>' : '') : '<a href="mailto:' + esc(v) + '" data-log="email" title="' + esc(L.mail) + '">' + ic('mail', 'w-4 h-4') + '</a>') +
+        '<button type="button" data-copy="' + esc(v) + '" title="' + esc(L.copy) + '">' + ic('copy', 'w-3.5 h-3.5') + '</button><button type="button" class="del" data-cdel data-k="' + k + '" data-v="' + esc(v) + '" title="' + esc(L.cDel || 'x') + '">' + ic('x', 'w-3.5 h-3.5') + '</button></span></div>'; }
+    $('pd-contact').innerHTML = (ph.map(function (v, i) { return line('phone', v, i); }).join('') + em.map(function (v, i) { return line('email', v, i); }).join('')) || '<p class="pd-cnone">' + esc(L.cNone || '—') + '</p>';
+    var af = $('pd-addc'); af.classList.remove('hidden'); if (!ph.length) af.k.value = 'phone'; else if (!em.length) af.k.value = 'email'; }
   function pd(t) { var m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t || ''); return m ? new Date(+m[3], m[2] - 1, +m[1]) : null; }
   function heat(d) { return d.stage === 'won' ? 100 : d.stage === 'lost' ? 0 : +(d.score || 0); }
   function heatPaint(d) { var v = heat(d), el = $('pd-heat'), c = v >= 70 ? '#ef4444' : v >= 40 ? '#f59e0b' : '#38bdf8';
@@ -60,9 +65,13 @@
     var s = e.target.closest('[data-stg]'); if (s && cur && s.dataset.stg !== $('pd-stage').value) { $('pd-stage').value = s.dataset.stg; stagesPaint(s.dataset.stg); $('pd-stage').dispatchEvent(new Event('change')); } });
   dl.addEventListener('keydown', function (e) { if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; var rtl = document.documentElement.dir === 'rtl';
     if (e.key === 'ArrowLeft') { e.preventDefault(); nav(rtl ? 1 : -1); } if (e.key === 'ArrowRight') { e.preventDefault(); nav(rtl ? -1 : 1); } });
-  $('pd-addc').addEventListener('submit', function (e) { e.preventDefault(); var f = this, r = cur, b = f.querySelector('button'); if (!f.phone.value.trim() && !f.email.value.trim()) return; b.disabled = true;
-    post(C.selfUrl, { action: 'contact', id: jd(r).id, phone: f.phone.value, email: f.email.value }).then(function (j) { b.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error');
-      upd(r, 'phone', j.phone); upd(r, 'email', j.email); upd(r, 'wa', j.wa); r.dataset.phone = j.phone ? 1 : 0; r.dataset.email = j.email ? 1 : 0; r.dataset.none = j.phone || j.email ? 0 : 1; contactPaint(jd(r)); toast(L.saved); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
+  function cApply(r, k, j) { var d = jd(r); d[k + 's'] = j.list; upd(r, k + 's', j.list); upd(r, k, j.main); if (k === 'phone') upd(r, 'wa', j.wa); d = jd(r);
+    r.dataset.phone = d.phone ? 1 : 0; r.dataset.email = d.email ? 1 : 0; r.dataset.none = d.phone || d.email ? 0 : 1; contactPaint(d); cDirty = true; }
+  var cDirty = false; dl.addEventListener('close', function () { if (cDirty && window.PRList) { cDirty = false; window.PRList.reload(); } });
+  $('pd-addc').addEventListener('submit', function (e) { e.preventDefault(); var f = this, r = cur, b = f.querySelector('button'), k = f.k.value, v = f.v.value.trim(); if (!v) return f.v.focus(); b.disabled = true;
+    post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: 'add', v: v }).then(function (j) { b.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error'); f.v.value = ''; cApply(r, k, j); toast(L.saved); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
+  $('pd-contact').addEventListener('click', function (e) { var b = e.target.closest('[data-cdel]'); if (!b) return; e.preventDefault(); var r = cur, k = b.dataset.k; if (!confirm((L.cDelQ || '%s').replace('%s', b.dataset.v))) return;
+    post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: 'del', v: b.dataset.v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); cApply(r, k, j); toast(L.saved); }).catch(function () { toast(L.err, 'error'); }); });
   // المتابعة وسجل التواصل
   var AIC = { call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'pencil', stage: 'refresh' };
   var KC = { call: '#16a34a', wa: '#22c55e', email: '#2563eb', meet: '#d97706', note: '#64748b', stage: '#7c3aed' };
