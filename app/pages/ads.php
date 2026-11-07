@@ -411,6 +411,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
                 ?>
                 <?php $pm = $prev[$cid] ?? null; $bAmt = (float)($budget['amount'] ?? 0); ?>
                 <tr class="ads-row align-top hover:bg-ink-50 transition cursor-pointer" data-id="<?= e($cid) ?>" data-pf="<?= e($cpf) ?>" data-st="<?= e($st) ?>" data-cur="<?= e((string)$cur) ?>" data-name="<?= e($c['campaignName'] ?? $cid) ?>" data-acc="<?= e((string)($c['platformAdAccountId'] ?? '')) ?>" data-accn="<?= e((string)($c['platformAdAccountName'] ?? '')) ?>"
+                  data-m="<?= e(json_encode([(float)($m['spend'] ?? 0), (int)($m['impressions'] ?? 0), (int)($m['clicks'] ?? 0), (float)($m['ctr'] ?? 0), (float)($m['cpc'] ?? 0), (float)ads_results($m)])) ?>" data-detail="<?= e($detail) ?>"
                   data-b="<?= e(json_encode($budget && $bAmt > 0 ? [$bAmt, ($budget['type'] ?? 'daily') === 'lifetime' ? 'lifetime' : 'daily', !empty($c['campaignBudget'])] : null)) ?>" data-p="<?= e(json_encode($pm ? [(float)($pm['spend'] ?? 0), (int)($pm['impressions'] ?? 0), (int)($pm['clicks'] ?? 0), (float)($pm['ctr'] ?? 0), (float)($pm['cpc'] ?? 0), ads_results($pm)] : null)) ?>" data-href="<?= e($detail) ?>" data-q="<?= e(mb_strtolower(($c['campaignName'] ?? '') . ' ' . ($c['platformAdAccountName'] ?? ''))) ?>" data-v="<?= e(json_encode([(float)($m['spend'] ?? 0), (int)($m['impressions'] ?? 0), (int)($m['clicks'] ?? 0), (float)($m['ctr'] ?? 0), (float)($m['cpc'] ?? 0), ads_results($m)])) ?>">
                   <td class="p-3"><input type="checkbox" class="ads-sel" value="<?= e($cid . '|' . $cpf) ?>" aria-label="<?= e(t('اختار %s', $c['campaignName'] ?? $cid)) ?>"></td>
                   <td class="p-3 min-w-[14rem]">
@@ -525,5 +526,14 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
     <script>window.ADX5 = <?= json_encode(['pause' => t('إيقاف الحملة'), 'resume' => t('تشغيل الحملة'), 'ownerOnly' => t('التشغيل لصاحب الشركة بس'), 'budget' => t('الميزانية'), 'daily' => t('يومية'), 'lifetime' => t('إجمالية'), 'save' => t('حفظ'),
       'confirm' => t('أوافق إن ده هيصرف فلوس من حساب الإعلانات'), 'needConf' => t('علّم على خانة الموافقة الأول'), 'busy' => t('بنبعت للمنصة…'), 'done' => t('اتعمل ✓'), 'err' => t('حصلت مشكلة. جرب تاني.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/ui-ads5.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.ADX6 = <?= json_encode(['csrf' => csrf_token(), 'api' => url('ad_campaign'), 'range' => $range, 'spend' => can('ads.spend'), 'T' => ['active' => t('شغالة'), 'paused' => t('متوقفة'), 'pending_review' => t('قيد المراجعة'), 'rejected' => t('مرفوضة'),
+      'pauseQ' => t('توقف «%s»؟'), 'pauseHint' => t('الإعلانات هتقف عن الظهور فورًا، وتقدر ترجعها في أي وقت.'), 'pause' => t('إيقاف'), 'resume' => t('تشغيل'), 'resumeQ' => t('تشغيل «%s»'), 'spendOk' => t('موافق إن ده هيبدأ يصرف فلوس فعلًا. الميزانية: %s'),
+      'ownerOnly' => t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'), 'cancel' => t('إلغاء'), 'save' => t('حفظ الميزانية'), 'budgetT' => t('تعديل الميزانية'), 'budgetOk' => t('راجعت المبلغ الجديد وموافق إنه ممكن يزوّد الصرف.'),
+      'daily' => t('يومي'), 'lifetime' => t('إجمالي'), 'perDay' => t('/يوم'), 'delta' => t('%s عن الحالية'), 'perMonth' => t('≈ %s في الشهر'), 'now' => t('الحالية: %s'), 'bySets' => t('الميزانية على مستوى المجموعات. عدّلها من التفاصيل.'),
+      'saved' => t('اتحفظ ✓'), 'err' => t('حصلت مشكلة.'), 'loading' => t('جاري التنفيذ…'), 'details' => t('التفاصيل'), 'dup' => t('كرر'), 'more' => t('خيارات'),
+      'share' => t('توزيع الإنفاق'), 'shareHint' => t('اضغط على أي حملة عشان توصلها في الجدول.'), 'otherCur' => t('+ %s حملة بعملات تانية'), 'others' => t('الباقي'),
+      'compare' => t('قارن'), 'compareT' => t('مقارنة الحملات'), 'pick2' => t('اختار من 2 لـ 4 حملات للمقارنة.'), 'winner' => t('الأفضل'),
+      'spend' => t('الإنفاق'), 'imp' => t('مرات الظهور'), 'clicks' => t('النقرات'), 'ctr' => t('نسبة النقر'), 'cpc' => t('تكلفة النقرة'), 'res' => t('النتائج'), 'cpr' => t('تكلفة النتيجة'), 'mixed' => t('العملات مختلفة، فالمقارنة بالأرقام مش بالفلوس.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/ui-ads6.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

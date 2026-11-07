@@ -326,6 +326,17 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .ab-tt-side { @apply absolute end-2 bottom-20 flex flex-col gap-3 text-lg text-[#fff]; } .ab-tt-side i { @apply not-italic; }
   .ab-var { @apply mt-3 flex items-center justify-center gap-3 text-xs text-ink-600; } .ab-var button { @apply w-7 h-7 rounded-full bg-ink-100 text-ink-700 transition hover:bg-brand-600 hover:text-white; }
   .ab-warn { @apply mt-3 space-y-1 text-[11px] text-amber-800; } .ab-warn li { @apply rounded-lg bg-amber-50 px-2 py-1 dark:bg-[#2a1d05] dark:text-[#fcd34d]; } .ab-good { @apply mt-3 text-[11px] font-semibold text-lime-700; }
+  /* صفحة الحملات */
+  .adx-bud { @apply transition; } .adx-bud.edit { @apply cursor-pointer; } .adx-bud.edit .ads-budget { @apply rounded-lg border border-dashed border-ink-300 px-2 py-1 transition; } .adx-bud.edit:hover .ads-budget { @apply border-brand-500 bg-brand-50 text-brand-700; }
+  .adx-menu { @apply relative; } .adx-menu summary { @apply w-8 h-8 grid place-items-center rounded-lg text-lg leading-none text-ink-500 cursor-pointer list-none hover:bg-ink-100; } .adx-menu summary::-webkit-details-marker { display: none; }
+  .adx-menu > div { @apply absolute end-0 z-20 mt-1 w-40 rounded-xl border border-ink-200 bg-white p-1 shadow-xl; animation: pdIn .15s ease-out; } .adx-menu a { @apply flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-ink-50; }
+  .adx-flash { animation: adxFlash 1.4s ease-out; } @keyframes adxFlash { 0%, 40% { background: rgb(37 99 235 / .12); } 100% { background: transparent; } }
+  .adx-share { @apply rounded-2xl border border-ink-200 bg-white p-4; } .adx-bar { @apply flex h-4 overflow-hidden rounded-full bg-ink-100; } .adx-bar > * { @apply h-full w-0 transition-all duration-700 hover:brightness-110; background: var(--c); } .adx-share.go .adx-bar > * { width: var(--w); }
+  .adx-leg { @apply mt-3 grid gap-1 sm:grid-cols-2 lg:grid-cols-3 text-xs; } .adx-leg > * { @apply flex items-center gap-2 rounded-lg px-2 py-1 text-start text-ink-700 transition; } .adx-leg button:hover { @apply bg-ink-50; } .adx-leg i { @apply w-2.5 h-2.5 shrink-0 rounded-full; } .adx-leg b { @apply ms-auto text-ink-900 tabular-nums; }
+  .adx-cmp { @apply fixed bottom-6 start-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0f172a] px-5 py-3 text-sm font-bold text-[#fff] shadow-2xl transition hover:scale-105 disabled:opacity-60; animation: pdIn .2s ease-out; } [dir=rtl] .adx-cmp { @apply translate-x-1/2; }
+  .adx-cl { @apply inline-flex items-center gap-1.5 rounded-full bg-ink-100 px-2.5 py-1 text-xs font-semibold text-ink-700; } .adx-cl i { @apply w-2.5 h-2.5 rounded-full; }
+  .adx-crow { @apply grid grid-cols-[minmax(0,1fr)_7rem_4.5rem] items-center gap-2 py-0.5; } .adx-cbar { @apply h-2.5 overflow-hidden rounded-full bg-ink-100; } .adx-cbar i { @apply block h-full w-0 rounded-full transition-all duration-700; } .adx-cbar i.go { width: var(--w); }
+  .adx-crow b { @apply text-end text-xs text-ink-900 tabular-nums; } .adx-crow em { @apply not-italic text-[10px] font-black text-lime-700; }
   /* تفاصيل الحملة */
   .acp-back { @apply inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:gap-2 transition-all; }
   .acp-hero { @apply relative overflow-hidden rounded-3xl p-6 text-[#fff] shadow-lg; background: linear-gradient(120deg, #0f172a 0%, #1e3a8a 55%, #0e7490 100%); }
