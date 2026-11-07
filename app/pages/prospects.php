@@ -132,6 +132,7 @@ $eod = strtotime('today 23:59:59'); $open = function ($r) { return !in_array($r[
 $isDue = function ($r) use ($eod, $open) { return $open($r) && $r['next_at'] && strtotime($r['next_at']) <= $eod; };
 $isCold = function ($r) use ($open) { return $open($r) && !$r['next_at'] && strtotime($r['last_contact_at'] ?: $r['created_at']) < time() - 7 * 86400; };
 foreach ($rows as $r) { if ($isDue($r)) $stat['due']++; if ($isCold($r)) $stat['cold']++; }
+$stat['ads'] = 0; foreach ($rows as $r) if ($r['source'] === 'ads') $stat['ads']++;
 foreach ($rows as $r) { if ($r['phone']) $stat['phone']++; if ($r['email']) $stat['email']++; if (!$r['phone'] && !$r['email']) $stat['none']++; if (substr((string)$r['created_at'], 0, 10) >= $week) $stat['new']++; }
 $hasApollo = crm_has_key();
 $syncAt = explode('|', (string)setting('tg_sync_' . $wid, ''))[0];
@@ -150,7 +151,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <?php foreach ([['_all', '', t('الكل'), $stat['all'], 'users', 'bg-ink-100 text-ink-700'], ['phone', 'phone=1', t('لديهم رقم'), $stat['phone'], 'phone', 'bg-lime-50 text-lime-700'],
           ['email', 'email=1', t('لديهم بريد'), $stat['email'], 'mail', 'bg-brand-50 text-brand-700'], ['none', 'none=1', t('دون بيانات تواصل'), $stat['none'], 'user', 'bg-amber-50 text-amber-700'],
           ['new', 'new=1', t('جدد آخر 7 أيام'), $stat['new'], 'new', 'bg-cyan-50 text-cyan-700'],
-          ['due', 'due=1', t('متابعة النهارده'), $stat['due'], 'calendar', 'bg-red-50 text-red-600'], ['cold', 'cold=1', t('محتاجين اهتمام'), $stat['cold'], 'alert', 'bg-orange-50 text-orange-700']] as [$k, $test, $l, $n, $ic, $cl]): ?>
+          ['due', 'due=1', t('متابعة النهارده'), $stat['due'], 'calendar', 'bg-red-50 text-red-600'], ['cold', 'cold=1', t('محتاجين اهتمام'), $stat['cold'], 'alert', 'bg-orange-50 text-orange-700'], ['ads', 'src=ads', t('من الإعلانات'), $stat['ads'], 'megaphone', 'bg-amber-50 text-amber-700']] as [$k, $test, $l, $n, $ic, $cl]): ?>
         <button type="button" class="mk-stat<?= $k === '_all' ? ' mk-on' : '' ?>" data-mk-stat="<?= $k ?>" data-mk-test="<?= e($test) ?>"><span class="mk-ic <?= $cl ?>"><?= ui_icon($ic, 'w-5 h-5') ?></span><span><b><?= number_format($n) ?></b><small><?= e($l) ?></small></span></button>
       <?php endforeach; ?>
     </div>
@@ -165,6 +166,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <div class="pr-view" role="group"><button type="button" data-view="list" class="on" title="<?= e(t('قايمة')) ?>"><?= ui_icon('list', 'w-4 h-4') ?><span><?= e(t('قايمة')) ?></span></button><button type="button" data-view="board" title="<?= e(t('لوحة المراحل')) ?>"><?= ui_icon('grid', 'w-4 h-4') ?><span><?= e(t('لوحة')) ?></span></button></div>
       <button type="button" id="pr-queue" class="btn-ghost"><?= ui_icon('phone', 'w-4 h-4') ?><?= e(t('طابور الاتصال')) ?><b class="pr-qn"></b></button>
       <button type="button" id="pr-add-btn" class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('عميل جديد')) ?></button>
+      <form method="post" action="<?= e(url('crm_leads')) ?>" class="m-0" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads"><button class="btn-ghost" title="<?= e(t('هات عملاء فورمات الإعلانات الجداد')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?><?= e(t('مزامنة الإعلانات')) ?></button></form>
       <button type="button" id="pr-import-btn" class="btn-ghost"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('استيراد ملف')) ?></button>
       <button type="button" id="pr-find-btn" class="btn-primary"><?= ui_icon('search', 'w-4 h-4') ?><?= e(t('ابحث عن شخص')) ?></button>
     </div>

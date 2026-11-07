@@ -75,12 +75,32 @@ $st = db()->prepare("SELECT l.label, l.code, l.clicks, (SELECT COUNT(*) FROM crm
 $st = db()->prepare("SELECT source, SUM(created_at >= NOW() - INTERVAL 30 DAY) a, SUM(created_at < NOW() - INTERVAL 30 DAY) b FROM crm_leads WHERE workspace_id = ? AND created_at >= NOW() - INTERVAL 60 DAY GROUP BY source"); $st->execute([$wid]);
 $srcStat = []; $srcL = crm_sources(); foreach ($st->fetchAll() as $r) $srcStat[] = ['k' => (string)$r['source'], 'l' => (string)($srcL[$r['source']] ?? $r['source']), 'a' => (int)$r['a'], 'b' => (int)$r['b']];
 $st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ? AND referred_by IS NOT NULL AND created_at >= NOW() - INTERVAL 30 DAY"); $st->execute([$wid]); $refN = (int)$st->fetchColumn();
-render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks, $srcStat, $refN) {
+render(t('المصادر والإعدادات'), 'crm_capture', function () use ($cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks, $srcStat, $refN) {
     $qrBtn = function (string $u, string $name) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-qr="' . e($u) . '" data-qrn="' . e($name) . '">▦ QR</button>'; };
     $copy = function (string $u) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-copy="' . e($u) . '">' . e(t('نسخ')) . '</button>'; };
     $sec = 'card p-5 scroll-mt-24';
     ?>
+  <?php $setU = function (string $h) { return url('crm_settings', ['embed' => 1]) . '#' . $h; };
+    $tiles = [
+      ['g' => 'cap', 'id' => 'links', 'i' => 'link', 'c' => '#2563eb', 'n' => t('روابط وQR'), 'd' => t('فورم التواصل، "اتصل بيا"، وصفحة الحجز'), 'm' => '3'],
+      ['g' => 'cap', 'id' => 'qualify', 'i' => 'target', 'c' => '#7c3aed', 'n' => t('فورم ذكي'), 'd' => t('أسئلة تأهيل الميزانية والتوقيت'), 'm' => !empty($cfg['qualify']) ? t('مفعّل') : t('مقفول')],
+      ['g' => 'cap', 'id' => 'lp', 'i' => 'file', 'c' => '#0891b2', 'n' => t('صفحات هبوط'), 'd' => t('صفحة لكل حملة من غير موقع'), 'm' => t('%s صفحة', count($lps))],
+      ['g' => 'cap', 'id' => 'wa', 'i' => 'chat', 'c' => '#16a34a', 'n' => t('واتساب متتبع'), 'd' => t('رابط بيعرف العميل جه منين'), 'm' => t('%s رابط', count($waLinks))],
+      ['g' => 'cap', 'id' => 'ref', 'i' => 'heart', 'c' => '#db2777', 'n' => t('الإحالة'), 'd' => t('رابط لكل عميل يجيب عملاء'), 'm' => t('%s عميل', $refN)],
+      ['g' => 'cap', 'id' => 'card', 'i' => 'image', 'c' => '#ea580c', 'n' => t('كارت بزنس'), 'd' => t('صوّر الكارت يتسجل عميل'), 'm' => ''],
+      ['g' => 'cap', 'id' => 'sheet', 'i' => 'grid', 'c' => '#65a30d', 'n' => 'Google Sheets', 'd' => t('كل صف جديد = عميل'), 'm' => !empty($sheet['url']) ? t('متوصل') : t('مش متوصل')],
+      ['g' => 'ads', 'u' => url('leads', ['embed' => 1]), 'id' => 'adforms', 'i' => 'megaphone', 'c' => '#f59e0b', 'n' => t('فورمات الإعلانات'), 'd' => t('فورمات Lead Ads وتنزيلها CSV'), 'm' => ''],
+      ['g' => 'set', 'u' => $setU('stages'), 'id' => 's-stages', 'i' => 'layers', 'c' => '#2563eb', 'n' => t('المراحل'), 'd' => t('أسماء وألوان مراحل العميل'), 'm' => t('%s مرحلة', count(crm_stages()))],
+      ['g' => 'set', 'u' => $setU('pipes'), 'id' => 's-pipes', 'i' => 'route', 'c' => '#7c3aed', 'n' => 'Pipelines', 'd' => t('أكتر من مسار مبيعات'), 'm' => (string)count(crm_pipelines())],
+      ['g' => 'set', 'u' => $setU('fields'), 'id' => 's-fields', 'i' => 'puzzle', 'c' => '#0891b2', 'n' => t('حقول مخصصة'), 'd' => t('بيانات زيادة لكل عميل'), 'm' => t('%s حقل', count(crm_custom_fields()))],
+      ['g' => 'set', 'u' => $setU('tags'), 'id' => 's-tags', 'i' => 'tag', 'c' => '#db2777', 'n' => t('تاجات أوتوماتيك'), 'd' => t('تاج بيتحط لوحده بقواعد'), 'm' => t('%s قاعدة', count(crm_tag_rules()))],
+      ['g' => 'set', 'u' => $setU('mail'), 'id' => 's-mail', 'i' => 'mail', 'c' => '#ea580c', 'n' => t('الإيميل'), 'd' => t('الإرسال والتتبع والتذكير اليومي'), 'm' => ''],
+      ['g' => 'set', 'u' => $setU('plans'), 'id' => 's-plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('خطوات متابعة أوتوماتيك'), 'm' => t('%s خطة', count(crm_plans()))],
+    ]; ?>
   <div id="cap-ov"></div>
+  <div id="hub" class="hub"></div>
+  <aside id="hub-dr" class="hub-dr" aria-hidden="true"><div class="hub-bg" data-hx></div><div class="hub-pn"><header><span class="hub-ic"></span><b></b><button type="button" class="hub-x" data-hx aria-label="✕">✕</button></header><div class="hub-body"></div></div></aside>
+  <script>window.HUB = <?= json_encode(['tiles' => $tiles, 'G' => ['cap' => t('أدوات جمع العملاء'), 'ads' => t('الإعلانات'), 'set' => t('الإعدادات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script>window.CAPU = <?= json_encode(['src' => $srcStat, 'ref' => $refN, 'lpViews' => array_sum(array_map(function ($x) { return (int)($x['views'] ?? 0); }, $lps)), 'lpN' => count($lps), 'waClicks' => array_sum(array_column($waLinks, 'clicks')), 'waLeads' => array_sum(array_column($waLinks, 'leads')), 'prospects' => url('prospects'),
     'T' => ['title' => t('مصادر العملاء آخر 30 يوم'), 'new' => t('عميل جديد'), 'vs' => t('%s عن الـ 30 يوم اللي قبلها'), 'lp' => t('زيارة لصفحات الهبوط'), 'wa' => t('ضغطة واتساب'), 'waConv' => t('%s اتحولوا لعملاء (%s)'), 'ref' => t('عميل بالإحالة'),
       'none' => t('لسه مفيش عملاء في آخر 60 يوم. ابدأ بفورم أو رابط واتساب متتبع.'), 'best' => t('أقوى مصدر: %s'), 'all' => t('عرض الكل (%s)'), 'less' => t('عرض أقل'), 'find' => t('ابحث…'), 'open' => t('افتح العملاء'), 'fresh' => t('جديد')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
@@ -181,4 +201,5 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
   <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/crm-capture.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/cap-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/hub.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

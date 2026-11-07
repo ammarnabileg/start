@@ -290,6 +290,17 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .ai-tag { @apply rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800; } .ai-tag.w { @apply bg-orange-100 text-orange-800; } .ai-per { @apply mt-1 text-xs text-ink-700; }
   .ai-sk { @apply h-20 rounded-xl mk-sk mb-2; } .ai-ad { @apply rounded-xl bg-ink-50 p-3; animation: pdIn .3s ease-out both; } .ai-fmt { @apply rounded-md bg-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-700; } .ai-art { @apply mt-1.5 rounded-lg bg-pink-50 px-2 py-1 text-[11px] text-pink-900 dark:bg-[#3a0d24] dark:text-[#f9a8d4]; }
   .ai-foot:empty { display: none; }
+  /* المصادر والإعدادات */
+  .hub-g { @apply mb-5; } .hub-gt { @apply mb-2 block text-sm text-ink-500; } .hub-grid { @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4; }
+  .hub-t { @apply relative flex flex-col items-start gap-1 rounded-2xl border border-ink-200 bg-white p-4 text-start transition hover:-translate-y-0.5 hover:shadow-lg; animation: pdIn .3s ease-out both; } .hub-t:hover { border-color: var(--c); }
+  .hub-ic { @apply w-10 h-10 shrink-0 rounded-xl grid place-items-center mb-1; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+  .hub-t b { @apply text-sm text-ink-900; } .hub-t small { @apply text-xs text-ink-500; } .hub-t em { @apply mt-1 rounded-full px-2 py-0.5 text-[11px] font-bold not-italic; color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+  .hub-go { @apply absolute top-4 end-4 text-ink-300 transition not-italic; } .hub-t:hover .hub-go { @apply text-ink-600 -translate-x-1; }
+  .hub-dr { @apply pointer-events-none fixed inset-0 z-[70]; } .hub-dr.open { @apply pointer-events-auto; } .hub-bg { @apply absolute inset-0 bg-[#0f172a]/40 opacity-0 transition; } .hub-dr.open .hub-bg { @apply opacity-100; }
+  .hub-pn { @apply absolute inset-y-0 end-0 flex w-[min(720px,100vw)] flex-col bg-ink-50 shadow-2xl transition-transform duration-300; transform: translateX(105%); } [dir=rtl] .hub-pn { transform: translateX(-105%); } .hub-dr.open .hub-pn { transform: none; }
+  .hub-pn header { @apply flex items-center gap-3 border-b border-ink-200 bg-white px-5 py-3; } .hub-pn header .hub-ic { @apply mb-0 w-9 h-9; } .hub-pn header b { @apply flex-1 text-ink-900; } .hub-x { @apply w-9 h-9 rounded-xl text-ink-400 hover:bg-ink-100; }
+  .hub-body { @apply relative flex-1 overflow-y-auto p-4; } .hub-body > section { @apply !shadow-none; } .hub-body iframe { @apply h-full w-full rounded-2xl border-0 bg-white; } .hub-load { @apply absolute inset-0 grid place-items-center; }
+  .hub-lock body { overflow: hidden; }
   /* جمع العملاء */
   .cap-ov { @apply mb-4 rounded-2xl border border-ink-200 bg-white p-4; }
   .cap-k { @apply relative rounded-2xl bg-ink-50 p-3; } .cap-k span { @apply absolute top-3 end-3 w-8 h-8 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); } .cap-k b { @apply block text-2xl font-black text-ink-900 tabular-nums; } .cap-k small { @apply block text-xs text-ink-500; } .cap-k em { @apply mt-1 block not-italic text-[11px] text-ink-500; } .cap-k em i { @apply not-italic font-bold; } .cap-k em i.up { @apply text-lime-700; } .cap-k em i.down { @apply text-red-600; }

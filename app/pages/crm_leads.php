@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'sync_ads') {
         $zerr = null;
         $z = zernio_or_null($zerr);
-        if (!$z && !getenv('UI_FIXTURES')) { flash('error', $zerr ?: t('اربط Zernio الأول.')); redirect(url('crm_leads')); }
+        if (!$z && !getenv('UI_FIXTURES')) { flash('error', $zerr ?: t('اربط Zernio الأول.')); redirect(url('prospects')); }
         try {
             [$n, $m] = crm_sync_ads($z ?? new Zernio('fixture'), 10);
             log_activity('crm.sync_ads', $n . ' new');
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (ZernioException $ex) {
             flash('error', $ex->getMessage());
         }
-        redirect(url('crm_leads'));
+        redirect(url('prospects'));
     }
     if ($action === 'add') {
         $name = trim((string)($_POST['name'] ?? ''));
