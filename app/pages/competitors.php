@@ -1,7 +1,29 @@
 <?php
 /** متابعة المنافسين: مواقعهم بتتقري كل يوم وأي تغيير في الأسعار أو الخدمات أو العروض بيتسجل */
 $wid = (int)ws('id');
-$back = function (string $h = '') { redirect(url('competitors') . ($h !== '' ? '#' . $h : '')); };
+$AJ = !empty($_POST['ajax']);
+$back = function (string $h = '') use (&$AJ, &$payload) { if ($AJ) { $m = $_SESSION['flash'] ?? null; unset($_SESSION['flash']); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => true, 'flash' => $m, 'focus' => $h, 'd' => $payload()], JSON_UNESCAPED_UNICODE)); } redirect(url('competitors') . ($h !== '' ? '#' . $h : '')); };
+$kinds = ['price_up' => t('رفع سعر'), 'price_down' => t('نزّل سعر'), 'price' => t('غيّر سعر'), 'offer_new' => t('عرض جديد'), 'offer_gone' => t('عرض خلص'), 'svc_new' => t('خدمة جديدة'),
+    'svc_gone' => t('خدمة اتشالت'), 'hours' => t('المواعيد'), 'down' => t('الموقع وقع'), 'up' => t('الموقع رجع'), 'first' => t('أول قراءة')];
+$host = function ($u) { return preg_replace('/^www\./', '', (string)parse_url($u, PHP_URL_HOST)); };
+/** كل بيانات الصفحة في JSON واحد (الكروت، التغييرات، المقارنة، الأرقام) */
+$payload = function () use ($host) {
+    $comps = comp_list(); $events = comp_events(null, 300); $prices = $comps ? comp_price_table($comps) : []; $since = strtotime('-30 days');
+    $ago = function ($d) { if (!$d) return ''; $s = time() - strtotime($d); return $s < 3600 ? t('من %s دقيقة', max(1, (int)($s / 60))) : ($s < 86400 ? t('من %s ساعة', (int)($s / 3600)) : t('من %s يوم', (int)($s / 86400))); };
+    $C = []; foreach ($comps as $c) { $sn = json_decode((string)$c['snap'], true) ?: [];
+        $C[] = ['id' => (int)$c['id'], 'name' => (string)$c['name'], 'url' => (string)$c['url'], 'host' => $host($c['url']), 'note' => (string)$c['note'], 'links' => array_values(array_filter(explode("\n", (string)$c['links']))),
+            'checked' => $c['last_check'] ? fmt_date($c['last_check'], 'd/m h:i A') : '', 'ago' => $ago($c['last_check']), 'ok' => (int)$c['last_ok'],
+            'services' => array_values(array_map(function ($x) { return ['name' => (string)$x['name'], 'price' => (string)$x['price']]; }, (array)($sn['services'] ?? []))), 'offers' => array_values((array)($sn['offers'] ?? []))]; }
+    $E = array_map(function ($e) use ($since) { return ['cid' => (int)$e['competitor_id'], 'cname' => (string)$e['cname'], 'kind' => (string)$e['kind'], 'title' => comp_ev_title($e['kind'], (string)$e['title']), 'detail' => comp_ev_detail($e['kind'], $e['detail']),
+        'day' => substr((string)$e['created_at'], 0, 10), 'date' => fmt_date($e['created_at'], 'd/m'), 'recent' => strtotime($e['created_at']) >= $since ? 1 : 0]; }, $events);
+    $P = []; $cheaper = 0;
+    foreach ($prices as $r) { $mn = comp_price_num((string)$r['mine']); $th = [];
+        foreach ($r['them'] as $cid => $h) { $n = comp_price_num((string)$h['price']); $th[(string)$cid] = ['price' => (string)$h['price'], 'n' => $n, 'd' => ($mn && $n !== null) ? (int)round(($n - $mn) / $mn * 100) : null]; if ($mn && $n !== null && $n < $mn) $cheaper++; }
+        $P[] = ['name' => (string)$r['name'], 'mine' => (string)$r['mine'], 'mn' => $mn, 'them' => (object)$th]; }
+    $rec = array_filter($E, function ($e) { return $e['recent'] && $e['kind'] !== 'first'; });
+    return ['comps' => $C, 'events' => array_values(array_filter($E, function ($e) { return $e['kind'] !== 'first'; })), 'prices' => $P,
+        'k' => ['n' => count($C), 'changes' => count($rec), 'up' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_up'; })), 'down' => count(array_filter($rec, function ($e) { return $e['kind'] === 'price_down'; })), 'cheaper' => $cheaper]];
+};
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'add') {
@@ -32,138 +54,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $back();
 }
 
-$comps = comp_list();
-$events = comp_events(null, 60);
-$prices = $comps ? comp_price_table($comps) : [];
-$kinds = ['price_up' => [t('رفع سعر'), 'bg-red-50 text-red-700 border-red-200'], 'price_down' => [t('نزّل سعر'), 'bg-lime-50 text-lime-800 border-lime-200'], 'price' => [t('غيّر سعر'), 'bg-amber-50 text-amber-800 border-amber-200'],
-    'offer_new' => [t('عرض جديد'), 'bg-brand-50 text-brand-700 border-brand-200'], 'offer_gone' => [t('عرض خلص'), 'bg-ink-50 text-ink-600 border-ink-200'], 'svc_new' => [t('خدمة جديدة'), 'bg-cyan-50 text-cyan-800 border-cyan-200'],
-    'svc_gone' => [t('خدمة اتشالت'), 'bg-ink-50 text-ink-600 border-ink-200'], 'hours' => [t('المواعيد'), 'bg-ink-50 text-ink-600 border-ink-200'], 'down' => [t('الموقع وقع'), 'bg-red-50 text-red-700 border-red-200'],
-    'up' => [t('الموقع رجع'), 'bg-lime-50 text-lime-800 border-lime-200'], 'first' => [t('أول قراءة'), 'bg-ink-50 text-ink-600 border-ink-200']];
-$host = function ($u) { return preg_replace('/^www\./', '', (string)parse_url($u, PHP_URL_HOST)); };
-
-render(t('المنافسين'), 'competitors', function () use ($comps, $events, $prices, $kinds, $host) {
-    $pill = function ($k) use ($kinds) { $x = $kinds[$k] ?? [$k, 'bg-ink-50 text-ink-600 border-ink-200']; return '<span class="shrink-0 text-[11px] rounded-full border px-2 py-0.5 ' . $x[1] . '">' . e($x[0]) . '</span>'; };
-    ?>
-    <div class="flex flex-wrap items-center gap-3 mb-5">
-      <span class="ms-auto"></span>
-      <button type="button" popovertarget="comp-add" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('إضافة منافس')) ?></button>
-    </div>
-    <form id="comp-add" popover method="post" data-fx-reload class="m-0 w-[min(420px,92vw)] rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
-      <?= csrf_field() ?><input type="hidden" name="action" value="add">
-      <b class="text-ink-900"><?= e(t('إضافة منافس')) ?></b>
-      <label class="block"><span class="label"><?= e(t('اسم المنافس')) ?></span><input name="name" required maxlength="120" class="input"></label>
-      <label class="block"><span class="label"><?= e(t('رابط موقعه')) ?></span><input name="url" required class="input" dir="ltr" placeholder="https://"></label>
-      <label class="block"><span class="label"><?= e(t('روابط السوشيال')) ?> <span class="text-ink-400 font-normal"><?= e(t('(اختياري، للوصول السريع بس)')) ?></span></span><textarea name="links" rows="2" class="input" dir="ltr"></textarea></label>
-      <label class="block"><span class="label"><?= e(t('ملاحظة')) ?> <span class="text-ink-400 font-normal"><?= e(t('(اختياري)')) ?></span></span><input name="note" maxlength="500" class="input"></label>
-      <button class="btn-primary w-full"><?= e(t('أضف واقرا الموقع')) ?></button>
-      <p class="text-[11px] text-ink-400"><?= e(t('القراءة الأولى بتاخد لحد دقيقة.')) ?></p>
-    </form>
-
-    <?php if (!$comps): ?>
-      <div class="card p-10 text-center max-w-xl mx-auto">
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-brand-50 text-brand-600 grid place-items-center mb-4"><?= ui_icon('eye', 'w-7 h-7') ?></div>
-        <h2 class="text-lg font-semibold text-ink-900"><?= e(t('اعرف كل تغيير عند منافسينك')) ?></h2>
-        <p class="text-sm text-ink-500 mt-1 mb-5"><?= e(t('ضيف موقع منافس، وكل يوم هتعرف لو غيّر أسعاره أو نزّل عرض أو ضاف خدمة، وتشوف أسعارك قدام أسعاره.')) ?></p>
-        <button type="button" popovertarget="comp-add" class="btn-primary"><?= e(t('إضافة أول منافس')) ?></button>
-      </div>
-    <?php return; endif; ?>
-
-    <section id="comp-cards" class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-      <?php foreach ($comps as $c): $snap = json_decode((string)$c['snap'], true) ?: []; $ev = array_slice(array_values(array_filter($events, function ($e) use ($c) { return (int)$e['competitor_id'] === (int)$c['id'] && $e['kind'] !== 'first'; })), 0, 3); ?>
-        <div class="card p-4 flex flex-col gap-3" id="c<?= (int)$c['id'] ?>">
-          <div class="flex items-start gap-3">
-            <span class="w-10 h-10 rounded-xl bg-ink-100 text-ink-700 grid place-items-center font-bold"><?= e(mb_strtoupper(mb_substr($c['name'], 0, 1))) ?></span>
-            <div class="flex-1 min-w-0">
-              <b class="text-ink-900 block truncate"><?= e($c['name']) ?></b>
-              <a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="text-xs link" dir="ltr"><?= e($host($c['url'])) ?></a>
-            </div>
-            <?php if (!$c['last_check']): ?><span class="text-[11px] rounded-full bg-ink-100 text-ink-600 px-2 py-0.5"><?= e(t('لسه')) ?></span>
-            <?php elseif ($c['last_ok']): ?><span class="text-[11px] rounded-full bg-lime-50 text-lime-800 px-2 py-0.5" title="<?= e(t('آخر قراءة')) ?>"><?= e(fmt_date($c['last_check'], 'd/m h:i A')) ?></span>
-            <?php else: ?><span class="text-[11px] rounded-full bg-red-50 text-red-700 px-2 py-0.5"><?= e(t('الموقع مش بيفتح')) ?></span><?php endif; ?>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-center">
-            <div class="rounded-xl bg-ink-50 py-2"><b class="block text-lg text-ink-900"><?= count((array)($snap['services'] ?? [])) ?></b><span class="text-[11px] text-ink-500"><?= e(t('خدمة بسعر')) ?></span></div>
-            <div class="rounded-xl bg-ink-50 py-2"><b class="block text-lg text-ink-900"><?= count((array)($snap['offers'] ?? [])) ?></b><span class="text-[11px] text-ink-500"><?= e(t('عرض')) ?></span></div>
-          </div>
-          <div class="space-y-1.5 text-sm flex-1">
-            <?php if (!$ev): ?><p class="text-xs text-ink-400"><?= e(t('مفيش تغييرات لسه. أول تغيير هيظهر هنا.')) ?></p><?php endif; ?>
-            <?php foreach ($ev as $e): ?>
-              <div class="flex items-start gap-2"><?= $pill($e['kind']) ?><span class="min-w-0"><span class="text-ink-800"><?= e(comp_ev_title($e['kind'], $e['title'])) ?></span><?php if ($e['detail']): ?> <span class="text-xs text-ink-500" dir="auto"><?= e(comp_ev_detail($e['kind'], $e['detail'])) ?></span><?php endif; ?></span></div>
-            <?php endforeach; ?>
-          </div>
-          <?php if (!empty($snap["services"]) || !empty($snap["offers"])): ?>
-          <details class="text-sm rounded-xl border border-ink-200">
-            <summary class="cursor-pointer px-3 py-2 text-ink-600 select-none"><?= e(t('اللي على موقعه دلوقتي')) ?></summary>
-            <div class="px-3 pb-3 space-y-2">
-              <?php if (!empty($snap['services'])): ?><table class="w-full text-xs" data-no-search data-no-sort><?php foreach (array_slice((array)$snap['services'], 0, 25) as $s): ?><tr class="border-t border-ink-100"><td class="py-1"><?= e($s['name']) ?></td><td class="py-1 text-end font-medium whitespace-nowrap" dir="auto"><?= e($s['price']) ?></td></tr><?php endforeach; ?></table><?php endif; ?>
-              <?php foreach (array_slice((array)($snap['offers'] ?? []), 0, 6) as $o): ?><p class="text-xs rounded-lg bg-brand-50 text-brand-800 px-2 py-1" dir="auto"><?= e($o) ?></p><?php endforeach; ?>
-            </div>
-          </details>
-          <?php endif; ?>
-          <div class="flex flex-wrap items-center gap-2 border-t border-ink-100 pt-3">
-            <form method="post" data-fx-reload class="m-0"><?= csrf_field() ?><input type="hidden" name="action" value="check"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><button class="btn-ghost !py-1 !text-xs"><?= ui_icon('refresh', 'w-4 h-4') ?><?= e(t('اقرا دلوقتي')) ?></button></form>
-            <?php foreach (array_filter(explode("\n", (string)$c['links'])) as $l): ?><a href="<?= e($l) ?>" target="_blank" rel="noopener" class="btn-ghost !py-1 !text-xs" title="<?= e($l) ?>"><?= ui_icon('link', 'w-4 h-4') ?><?= e($host($l)) ?></a><?php endforeach; ?>
-            <form method="post" data-fx-reload class="m-0 ms-auto" onsubmit="return confirm(<?= e(json_encode(t('تشيل المنافس ده وكل تاريخه؟'), JSON_UNESCAPED_UNICODE)) ?>)"><?= csrf_field() ?><input type="hidden" name="action" value="del"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><button class="p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="<?= e(t('شيل')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></form>
-          </div>
-          <?php if ($c['note']): ?><p class="text-xs text-ink-500 -mt-1"><?= e($c['note']) ?></p><?php endif; ?>
-        </div>
-      <?php endforeach; ?>
-    </section>
-
-    <div class="grid xl:grid-cols-5 gap-5">
-      <section id="comp-feed" class="card p-4 xl:col-span-2">
-        <div class="flex items-center gap-2 mb-3"><b class="text-ink-900"><?= e(t('آخر التغييرات')) ?></b></div>
-        <?php $feed = array_values(array_filter($events, function ($e) { return $e['kind'] !== 'first'; })); $used = array_unique(array_column($feed, 'kind')); ?>
-        <?php if ($used): ?>
-        <div class="flex flex-wrap gap-1.5 mb-3" data-cf>
-          <button type="button" data-k="" class="text-[11px] rounded-full border px-2 py-0.5 bg-ink-900 text-[#fff] border-ink-900"><?= e(t('الكل')) ?></button>
-          <?php foreach ($used as $k): ?><button type="button" data-k="<?= e($k) ?>" class="text-[11px] rounded-full border px-2 py-0.5 border-ink-200 text-ink-600"><?= e($kinds[$k][0] ?? $k) ?></button><?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-        <div class="space-y-2.5 max-h-[520px] overflow-y-auto" data-cf-list>
-          <?php if (!$feed): ?><p class="text-sm text-ink-400"><?= e(t('لسه مفيش تغييرات. المواقع بتتقري كل يوم، وأول ما حاجة تتغير هتظهر هنا ويوصلك تنبيه.')) ?></p><?php endif; ?>
-          <?php foreach ($feed as $e): ?>
-            <div class="flex items-start gap-2 text-sm" data-kind="<?= e($e['kind']) ?>">
-              <?= $pill($e['kind']) ?>
-              <div class="min-w-0 flex-1"><b class="text-ink-900"><?= e($e['cname']) ?></b> <span class="text-ink-700"><?= e(comp_ev_title($e['kind'], $e['title'])) ?></span>
-                <?php if ($e['detail']): ?><div class="text-xs text-ink-500" dir="auto"><?= e(comp_ev_detail($e['kind'], $e['detail'])) ?></div><?php endif; ?></div>
-              <span class="text-[11px] text-ink-400 whitespace-nowrap"><?= e(fmt_date($e['created_at'], 'd/m')) ?></span>
-            </div>
-          <?php endforeach; ?>
-        </div>
-      </section>
-
-      <section id="comp-prices" class="card p-4 xl:col-span-3">
-        <div class="flex items-center gap-2 mb-1"><b class="text-ink-900"><?= e(t('أسعارك قدام أسعارهم')) ?></b></div>
-        <p class="text-xs text-ink-500 mb-3"><?= e(t('خدماتك من ملف الشركة، وقدامها الخدمة اللي بنفس الاسم أو اسم قريب عند كل منافس.')) ?></p>
-        <?php if (!$prices): ?>
-          <div class="rounded-xl border border-dashed border-ink-200 p-4 text-sm text-ink-500 text-center"><?= e(t('ضيف خدماتك وأسعارها في ملف الشركة عشان تظهر المقارنة.')) ?> <a href="<?= e(url('knowledge')) ?>" class="link"><?= e(t('ملف الشركة')) ?></a></div>
-        <?php else: ?>
-        <div class="overflow-x-auto"><table class="w-full text-sm" data-no-search>
-          <thead><tr class="text-xs text-ink-500 text-start"><th class="py-2 text-start"><?= e(t('الخدمة')) ?></th><th class="py-2 text-start"><?= e(t('سعرك')) ?></th><?php foreach ($comps as $c): ?><th class="py-2 text-start"><?= e($c['name']) ?></th><?php endforeach; ?></tr></thead>
-          <tbody>
-          <?php foreach ($prices as $r): $mine = comp_price_num($r['mine']); ?>
-            <tr class="border-t border-ink-100"><td class="py-2 font-medium text-ink-900"><?= e($r['name']) ?></td><td class="py-2 whitespace-nowrap" dir="auto"><?= e($r['mine'] ?: '—') ?></td>
-              <?php foreach ($comps as $c): $h = $r['them'][(int)$c['id']] ?? null; ?>
-                <td class="py-2 whitespace-nowrap">
-                  <?php if (!$h): ?><span class="text-ink-300">—</span>
-                  <?php else: $th = comp_price_num($h['price']); $d = ($mine && $th !== null) ? round(($th - $mine) / $mine * 100) : null; ?>
-                    <span dir="auto"><?= e($h['price']) ?></span>
-                    <?php if ($d !== null && $d !== 0.0): ?><span class="text-[11px] rounded-full px-1.5 <?= $d < 0 ? 'bg-red-50 text-red-700' : 'bg-lime-50 text-lime-800' ?>" title="<?= e($d < 0 ? t('أرخص منك') : t('أغلى منك')) ?>"><?= ($d > 0 ? '+' : '') . e((string)$d) ?>%</span><?php endif; ?>
-                  <?php endif; ?>
-                </td>
-              <?php endforeach; ?></tr>
-          <?php endforeach; ?>
-          </tbody></table></div>
-        <p class="text-[11px] text-ink-400 mt-2"><?= e(t('الأحمر: المنافس أرخص منك. الأخضر: أغلى منك.')) ?></p>
-        <?php endif; ?>
-      </section>
-    </div>
-    <script>
-    (function () { var bar = document.querySelector('[data-cf]'); if (!bar) return; var list = document.querySelector('[data-cf-list]');
-      bar.addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (!b) return;
-        bar.querySelectorAll('[data-k]').forEach(function (x) { var on = x === b; x.classList.toggle('bg-ink-900', on); x.classList.toggle('text-[#fff]', on); x.classList.toggle('border-ink-900', on); x.classList.toggle('text-ink-600', !on); x.classList.toggle('border-ink-200', !on); });
-        list.querySelectorAll('[data-kind]').forEach(function (r) { r.style.display = !b.dataset.k || r.dataset.kind === b.dataset.k ? '' : 'none'; }); }); })();
-    </script>
-    <?php
-});
+render(t('المنافسين'), 'competitors', function () use ($payload, $kinds) { ?>
+  <div id="cx"></div>
+  <script>window.CX = <?= json_encode(['d' => $payload(), 'kinds' => $kinds, 'csrf' => csrf_token(), 'self' => url('competitors'), 'kb' => url('knowledge'),
+    'T' => ['add' => t('إضافة منافس'), 'name' => t('اسم المنافس'), 'url' => t('رابط موقعه'), 'links' => t('روابط السوشيال'), 'linksH' => t('(اختياري، للوصول السريع بس)'), 'note' => t('ملاحظة'), 'opt' => t('(اختياري)'),
+      'addGo' => t('أضف واقرا الموقع'), 'reading' => t('بنقرا الموقع… بتاخد لحد دقيقة'), 'emptyT' => t('اعرف كل تغيير عند منافسينك'), 'emptyD' => t('ضيف موقع منافس، وكل يوم هتعرف لو غيّر أسعاره أو نزّل عرض أو ضاف خدمة، وتشوف أسعارك قدام أسعاره.'), 'first' => t('إضافة أول منافس'),
+      'kN' => t('منافس بنتابعه'), 'kCh' => t('تغيير آخر 30 يوم'), 'kUp' => t('رفع سعر'), 'kDown' => t('نزّل سعر'), 'kCheap' => t('خدمة هما أرخص فيها'),
+      'svc' => t('خدمة بسعر'), 'offers' => t('عرض'), 'check' => t('اقرا دلوقتي'), 'checking' => t('بيقرا…'), 'del' => t('شيل'), 'delQ' => t('متأكد؟ اضغط تاني'), 'down' => t('الموقع مش بيفتح'), 'never' => t('لسه'),
+      'noCh' => t('مفيش تغييرات لسه. أول تغيير هيظهر هنا.'), 'feed' => t('سجل التغييرات'), 'all' => t('الكل'), 'allC' => t('كل المنافسين'), 'feedNone' => t('لسه مفيش تغييرات. المواقع بتتقري كل يوم، وأول ما حاجة تتغير هتظهر هنا ويوصلك تنبيه.'),
+      'cmp' => t('أسعارك قدام أسعارهم'), 'cmpD' => t('خدماتك من ملف الشركة، وقدامها الخدمة اللي بنفس الاسم أو اسم قريب عند كل منافس.'), 'cmpNone' => t('ضيف خدماتك وأسعارها في ملف الشركة عشان تظهر المقارنة.'), 'kbL' => t('ملف الشركة'),
+      'svcCol' => t('الخدمة'), 'mine' => t('سعرك'), 'onlyCheap' => t('اللي هما أرخص فيها بس'), 'cheap' => t('أرخص منك'), 'exp' => t('أغلى منك'), 'pos' => t('مكانك'), 'lone' => t('%s خدمة مالهاش مقابل عند المنافسين'),
+      'tCh' => t('التغييرات'), 'tSvc' => t('الخدمات والأسعار'), 'tOff' => t('العروض'), 'find' => t('دوّر على خدمة…'), 'noSvc' => t('مالقيناش أسعار على موقعه.'), 'noOff' => t('مفيش عروض على موقعه دلوقتي.'),
+      'vs' => t('قدامك'), 'today' => t('النهارده'), 'yday' => t('امبارح'), 'open' => t('افتح الموقع'), 'cheaperIn' => t('أرخص منك في %s'), 'pricierIn' => t('أغلى منك في %s'), 'err' => t('حصلت مشكلة. جرّب تاني.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+  <script src="assets/comp-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+<?php });
