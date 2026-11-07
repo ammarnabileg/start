@@ -5244,4 +5244,6 @@ If you know someone who needs our services, send them this link. They get {get},
     '✨ %s جديد من آخر زيارة' => '✨ %s new since your last visit',
     'عيّن مسؤول' => 'Assign owner',
     'المكالمة كانت إزاي؟' => 'How did the call go?',
+    'ابعت رسالة' => 'Send a message',
+    'رسالة فاضية' => 'Blank message',
 ];

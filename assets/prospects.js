@@ -72,7 +72,19 @@
       var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0';
       if (l.stage && l.stage !== d.stage) { upd(r, 'stage', l.stage); r.dataset.stage = l.stage; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[l.stage] || l.stage; }
       if (l.next_at) { var x = l.next_at.split('T'), dd = x[0].split('-'); rowNext(r, { next: dd[2] + '/' + dd[1] + '/' + dd[0] + ' ' + (x[1] || ''), next_note: l.next_note || '', due: 0 }); }
-      r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+      ctxLine(r, '📞', '[' + (C.oc[b.dataset.qoc] || '') + ']'); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+
+  /* ---------- واتساب من الصف: قوالب جاهزة بالاسم + تسجيل في سجل العميل ---------- */
+  function ctxLine(r, icon, text) { var nm = r.querySelector('.min-w-0 > b'); if (!nm) return; var box = r.querySelector('.pr-ctx'); if (!box) { box = document.createElement('span'); box.className = 'pr-ctx'; nm.parentNode.appendChild(box); }
+    var em = box.querySelector('em'); if (!em) { em = document.createElement('em'); box.appendChild(em); } em.textContent = icon + ' ' + text + ' · ' + L.today; em.title = text; }
+  var LX = (window.LP && window.LP.L) || {};
+  function fillT(t, d) { return String(t).replace(/\{name\}/g, (d.name || '').split(/\s+/)[0]).replace(/\{company\}/g, d.company || '').replace(/\{me\}/g, LX.me || '').replace(/\{book\}/g, LX.book || ''); }
+  root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href*="wa.me"]'); if (!a) return; var tp = LX.waTpl || []; if (!tp.length) return; e.preventDefault(); e.stopPropagation(); var r = a.closest('[data-mk-row]'), d = jd(r); qRow = r;
+    qOpen(a, '<b>' + esc(QT.waQ) + '</b>' + tp.map(function (t, i) { return '<button type="button" data-qwa="' + i + '" class="pr-qwa"><span>' + esc(t.n) + '</span><small dir="auto">' + esc(fillT(t.b, d).slice(0, 70)) + '…</small></button>'; }).join('') + '<button type="button" data-qwa="-1">' + esc(QT.waEmpty) + '</button>' + (LX.editTpl ? '<a class="pr-qm-l" href="' + esc(LX.editTpl) + '">' + esc(QT.waEdit) + '</a>' : '')); }, true);
+  qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qwa]'), r = qRow; if (!b || !r) return; var d = jd(r), i = +b.dataset.qwa, t = i >= 0 ? (LX.waTpl || [])[i] : null, txt = t ? fillT(t.b, d) : ''; qClose();
+    window.open('https://wa.me/' + d.wa + (txt ? '?text=' + encodeURIComponent(txt) : ''), '_blank', 'noopener');
+    post(C.importUrl, { action: 'log', id: d.id, kind: 'wa', body: t ? t.n : '' }).then(function (j) { if (!j.ok) return; var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0'; ctxLine(r, '💬', t ? t.n : (C.P.T.waDone || 'WhatsApp'));
+      var l = j.lead || {}; if (l.stage && l.stage !== d.stage) { upd(r, 'stage', l.stage); r.dataset.stage = l.stage; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[l.stage] || l.stage; } }); });
 
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';

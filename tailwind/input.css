@@ -1089,3 +1089,4 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-ctx i{font-style:normal;font-size:.66rem;padding:0 .35rem;border-radius:6px;background:#f5f3ff;color:#6d28d9}
 .pr-ctx em{font-style:normal;font-size:.7rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .dark .pr-ctx i{background:#2e1065;color:#ddd6fe}
+.pr-qm .pr-qwa{display:flex;flex-direction:column;gap:.1rem;max-width:280px}.pr-qwa span{font-weight:600}.pr-qwa small{font-size:.7rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pr-qm-l{display:block;font-size:.7rem;color:#2563eb;padding:.35rem .55rem;border-top:1px solid #f1f5f9;margin-top:.2rem}
