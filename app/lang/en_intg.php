@@ -5284,4 +5284,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'إضافة' => 'Add',
     'البريد الإلكتروني غير صحيح.' => 'Invalid email.',
     'الرقم غير صحيح.' => 'Invalid number.',
+    'أرقام إضافية' => 'Extra phones',
+    'إيميلات إضافية' => 'Extra emails',
 ];

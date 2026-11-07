@@ -247,8 +247,8 @@ if (($_GET['ajax'] ?? '') === 'ids') { [$w, $a, $ord] = $buildWhere($_GET); $st 
 if (($_GET['ajax'] ?? '') === 'export') {
     [$w, $a, $ord] = $buildWhere($_GET); $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord"); $st->execute($a);
     header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="leads-' . date('Y-m-d') . '.csv"'); $o = fopen('php://output', 'w'); fwrite($o, "\xEF\xBB\xBF");
-    fputcsv($o, [t('الاسم'), t('الرقم'), t('الإيميل'), t('الشركة'), t('المسمى'), t('الدولة'), t('المصدر'), t('المرحلة'), t('التاجات'), t('القيمة'), t('اتضاف'), t('آخر تواصل'), t('المتابعة الجاية')]);
-    while ($r = $st->fetch()) fputcsv($o, [$r['name'], $r['phone'], $r['email'], $r['company'], $r['title'], crm_country_label((string)$r['country']), $sources[$r['source']] ?? $r['source'], $stages[$r['stage']] ?? $r['stage'], $r['tags'], $r['deal_value'], $r['created_at'], $r['last_contact_at'], $r['next_at']]);
+    fputcsv($o, [t('الاسم'), t('الرقم'), t('الإيميل'), t('أرقام إضافية'), t('إيميلات إضافية'), t('الشركة'), t('المسمى'), t('الدولة'), t('المصدر'), t('المرحلة'), t('التاجات'), t('القيمة'), t('اتضاف'), t('آخر تواصل'), t('المتابعة الجاية')]);
+    while ($r = $st->fetch()) fputcsv($o, [$r['name'], $r['phone'], $r['email'], implode(' | ', json_decode((string)($r['phones'] ?? ''), true) ?: []), implode(' | ', json_decode((string)($r['emails'] ?? ''), true) ?: []), $r['company'], $r['title'], crm_country_label((string)$r['country']), $sources[$r['source']] ?? $r['source'], $stages[$r['stage']] ?? $r['stage'], $r['tags'], $r['deal_value'], $r['created_at'], $r['last_contact_at'], $r['next_at']]);
     fclose($o); log_activity('crm.export', (string)$st->rowCount()); exit;
 }
 // طابور الاتصال: كل اللي ليهم رقم ومش مقفولين (مش بس اللي اتحمّلوا في الصفحة)
@@ -259,10 +259,14 @@ if (($_GET['ajax'] ?? '') === 'queue') {
 // المكررين على كل العملاء: نفس آخر 9 أرقام في الرقم أو نفس الإيميل
 if (($_GET['ajax'] ?? '') === 'dups') {
     $pairs = []; $ids = [];
-    foreach (["RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), 9)", 'LOWER(email)'] as $key) {
-        $st = db()->prepare("SELECT $key k, GROUP_CONCAT(id ORDER BY id) ids FROM crm_leads WHERE $where AND $key IS NOT NULL AND CHAR_LENGTH($key) >= 6 GROUP BY k HAVING COUNT(*) > 1 LIMIT 100"); $st->execute($args);
-        foreach ($st->fetchAll() as $g) { $x = array_map('intval', explode(',', (string)$g['ids'])); for ($i = 1; $i < count($x) && count($pairs) < 100; $i++) { $pk = $x[0] . '-' . $x[$i]; if (!isset($pairs[$pk])) { $pairs[$pk] = [$x[0], $x[$i]]; $ids[$x[0]] = 1; $ids[$x[$i]] = 1; } } }
-    }
+    $st = db()->prepare("SELECT id, phone, phones, email, emails FROM crm_leads WHERE $where AND (phone <> '' OR email <> '' OR phones IS NOT NULL OR emails IS NOT NULL) ORDER BY id"); $st->execute($args);
+    $by = [];
+    while ($r = $st->fetch()) { $id = (int)$r['id'];
+        foreach (array_merge([(string)$r['phone']], json_decode((string)($r['phones'] ?? ''), true) ?: []) as $p) { $d = substr(preg_replace('/\D/', '', (string)$p), -9); if (strlen($d) >= 6) $by['p' . $d][$id] = 1; }
+        foreach (array_merge([(string)$r['email']], json_decode((string)($r['emails'] ?? ''), true) ?: []) as $e) { $e = mb_strtolower(trim((string)$e)); if (strlen($e) >= 6) $by['e' . $e][$id] = 1; } }
+    foreach ($by as $g) { if (count($g) < 2) continue; $x = array_keys($g);
+        for ($i = 1; $i < count($x) && count($pairs) < 100; $i++) { $pk = $x[0] . '-' . $x[$i]; if (!isset($pairs[$pk])) { $pairs[$pk] = [$x[0], $x[$i]]; $ids[$x[0]] = 1; $ids[$x[$i]] = 1; } }
+        if (count($pairs) >= 100) break; }
     $leads = []; if ($ids) { $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND id IN (' . implode(',', array_keys($ids)) . ')'); $st->execute([$wid]); foreach ($st->fetchAll() as $r) $leads[(int)$r['id']] = crm_lead_card($r); }
     $J(['ok' => true, 'pairs' => array_values($pairs), 'leads' => $leads]);
 }

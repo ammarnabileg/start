@@ -304,6 +304,12 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
         $use = ($pick[$f] ?? '') === 'drop' ? $b[$f] : ($a[$f] === null || $a[$f] === '' ? $b[$f] : $a[$f]);
         if ($use !== $a[$f]) { $set[] = "$f = ?"; $vals[] = $use; }
     }
+    // الأرقام والإيميلات: مفيش حاجة بتضيع في الدمج، اللي مش أساسي بيروح للإضافي
+    foreach (['phone', 'email'] as $k) { if (!array_key_exists($k . 's', $a)) continue;
+        $main = ($pick[$k] ?? '') === 'drop' ? $b[$k] : ((string)$a[$k] !== '' ? $a[$k] : $b[$k]);
+        $all = array_merge([(string)$a[$k]], json_decode((string)($a[$k . 's'] ?? ''), true) ?: [], [(string)$b[$k]], json_decode((string)($b[$k . 's'] ?? ''), true) ?: []);
+        $rest = array_values(array_slice(array_unique(array_filter($all, function ($x) use ($main) { return $x !== '' && $x !== (string)$main; })), 0, 10));
+        $set[] = $k . 's = ?'; $vals[] = $rest ? json_encode($rest) : null; }
     $tags = implode(', ', array_slice(array_unique(array_filter(array_map('trim', array_merge(explode(',', (string)$a['tags']), explode(',', (string)$b['tags']))))), 0, 12)); $set[] = 'tags = ?'; $vals[] = $tags ?: null;
     $cf = (json_decode((string)($b['custom'] ?? ''), true) ?: []) + []; $cf = array_merge($cf, json_decode((string)($a['custom'] ?? ''), true) ?: []);
     if (array_key_exists('custom', $a)) { $set[] = 'custom = ?'; $vals[] = $cf ? json_encode($cf, JSON_UNESCAPED_UNICODE) : null; }
