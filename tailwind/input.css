@@ -1239,3 +1239,14 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 
 .pr-num{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.78rem}
 #pr .mk-head,#pr [data-mk-row]{min-width:1240px}
+
+/* أكتر من رقم وإيميل */
+.pr-num.x{color:#64748b}
+.pr-cdel{width:1.1rem;height:1.1rem;display:none;place-items:center;border-radius:6px;color:#94a3b8;flex-shrink:0}
+.pr-cl:hover .pr-cdel{display:grid}.pr-cdel:hover{background:#fee2e2;color:#dc2626}
+.pr-cbtns{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.1rem}
+.pr-cadd{display:none;align-items:center;gap:.2rem;font-size:.7rem;font-weight:600;padding:.15rem .45rem;border-radius:8px;color:#2563eb;border:1px dashed #bfdbfe;background:#eff6ff}
+#pr [data-mk-row]:hover .pr-cadd,.pr-cct:not(:has(.pr-cl)) .pr-cadd{display:inline-flex}
+.pr-ctyp{display:flex;gap:.25rem;margin:.4rem 0}.pr-ctyp button{flex:1;padding:.3rem;border-radius:8px;font-size:.75rem;background:#f1f5f9;color:#475569}.pr-ctyp button.on{background:#2563eb;color:#fff}
+.pr-cform{display:flex;gap:.3rem}.pr-cform input{flex:1;min-width:0}
+#pr .mk-head,#pr [data-mk-row]{min-width:1150px}
