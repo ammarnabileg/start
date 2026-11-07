@@ -1067,3 +1067,14 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-views button:hover i{opacity:.7;width:auto}
 .pr-2sort{display:inline-flex;gap:.6rem}.pr-2sort>span{cursor:pointer}
 .dark .pr-views button{background:#0f172a;border-color:rgb(255 255 255/.1);color:#e2e8f0}
+
+/* إجراءات سريعة في صف العميل */
+.pr-stbtn{display:inline-flex;align-items:center;gap:.2rem;cursor:pointer;transition:box-shadow .15s}
+.pr-stbtn:hover{box-shadow:0 0 0 2px #bfdbfe}
+.pr-qm{position:fixed;z-index:70;min-width:170px;padding:.35rem;border-radius:14px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 18px 40px -16px rgb(15 23 42/.4);animation:fx-in .15s}
+.pr-qm>b{display:block;font-size:.68rem;color:#94a3b8;padding:.3rem .55rem .2rem}
+.pr-qm button{display:block;width:100%;text-align:start;font-size:.84rem;padding:.4rem .55rem;border-radius:9px;color:#334155}
+.pr-qm button:hover{background:#f1f5f9}.pr-qm button.on{background:#eff6ff;color:#1d4ed8;font-weight:700}.pr-qm button.lost{color:#dc2626}
+.pr-flash{animation:prFlash .9s}@keyframes prFlash{0%,40%{background:#ecfdf5}}
+.dark .pr-qm{background:#0f172a;border-color:rgb(255 255 255/.1)}.dark .pr-qm button{color:#e2e8f0}.dark .pr-qm button:hover{background:#1e293b}
+.pr-views.hidden{display:none}

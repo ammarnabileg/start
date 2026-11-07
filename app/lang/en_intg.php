@@ -5238,4 +5238,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'امسح الفلتر ده؟' => 'Delete this filter?',
     'اختار فلتر أو اكتب بحث الأول' => 'Pick a filter or search first',
     'فلاتر محفوظة' => 'Saved filters',
+    'حدد متابعة' => 'Set follow-up',
+    'اتحدّث ✓' => 'Updated ✓',
 ];

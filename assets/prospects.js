@@ -37,6 +37,22 @@
     post(C.selfUrl, { action: 'sync' }).then(function (j) { sy.classList.add('hidden'); if (j.ok && j.new > 0) { toast(L.synced.replace('%s', j.new)); setTimeout(function () { location.reload(); }, 1200); } }).catch(function () { sy.classList.add('hidden'); }); }
 
   /* ---------- نافذة العميل (assets/lead-popup.js مشتركة مع باقي الصفحات) ---------- */
+  /* ---------- إجراءات سريعة في الصف: المرحلة والمتابعة من غير ما تفتح العميل ---------- */
+  var QT = C.P.T, qm = document.createElement('div'); qm.className = 'pr-qm hidden'; document.body.appendChild(qm); var qRow = null;
+  function qClose() { qm.classList.add('hidden'); qRow = null; }
+  function qOpen(btn, html) { qm.innerHTML = html; qm.classList.remove('hidden'); var r = btn.getBoundingClientRect(), w = qm.offsetWidth, h = qm.offsetHeight;
+    qm.style.top = Math.min(innerHeight - h - 8, r.bottom + 4) + 'px'; qm.style.left = Math.max(8, Math.min(innerWidth - w - 8, document.dir === 'rtl' ? r.right - w : r.left)) + 'px'; }
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qstage],[data-qnext]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); if (qRow === r && !qm.classList.contains('hidden')) return qClose(); qRow = r; var d = jd(r);
+    if (b.hasAttribute('data-qstage')) qOpen(b, '<b>' + esc(QT.qStage) + '</b>' + Object.keys(C.stages).map(function (k) { return '<button type="button" data-qs="' + k + '" class="' + (k === d.stage ? 'on' : '') + (k === 'lost' ? ' lost' : '') + '">' + esc(C.stages[k]) + '</button>'; }).join(''));
+    else qOpen(b, '<b>' + esc(QT.qNext) + '</b>' + Object.keys(C.nexts || {}).map(function (k) { return '<button type="button" data-qn="' + k + '">' + esc(C.nexts[k]) + '</button>'; }).join('')); }, true);
+  qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qs],[data-qn]'), r = qRow; if (!b || !r) return; var d = jd(r); qClose();
+    if (b.dataset.qs) { var st = b.dataset.qs; if (st === d.stage) return;
+      if (st === 'lost') { open(r); setTimeout(function () { var x = document.querySelector('#pd-stages [data-stg="lost"]'); if (x) x.click(); }, 300); return; }
+      bulk([d.id], 'stage', { stage: st }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'stage', st); r.dataset.stage = st; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[st] || st; r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); if (st === 'won' && LPm.confetti) LPm.confetti(); }); return; }
+    setNext([d.id], b.dataset.qn).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); rowNext(r, j); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.pr-qm,[data-qstage],[data-qnext]')) qClose(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') qClose(); }); window.addEventListener('scroll', qClose, true);
+
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
   var tb = root.querySelector('.mk-table'); if (tb) tb.before(vbar);
