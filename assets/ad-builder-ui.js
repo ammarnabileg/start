@@ -53,6 +53,14 @@
       var up = function () { var u = el.value.trim(); t.innerHTML = /^https?:\/\//.test(u) ? '<img src="' + esc(u) + '" alt="" onerror="this.parentNode.classList.add(\'bad\');this.remove()">' : ic('image', 'w-5 h-5'); t.classList.remove('bad'); }; el.addEventListener('change', up); el.addEventListener('input', function () { clearTimeout(el._t); el._t = setTimeout(up, 500); }); up(); });
     if (X.locked) ed.querySelectorAll('.abx-step button, .abx-quick button, .abx-seg button, .abx-age input').forEach(function (b) { b.disabled = true; });
   }
-  document.addEventListener('ab:render', function (e) { if (!(e.detail && e.detail.soft)) enhance(); });
+  // التوجيه الفني للإعلان (من الذكاء الاصطناعي)
+  function artCard() { var ed = document.getElementById('ab-editor'), s = X.sel(), P2 = A.ai2 || {}; if (!ed || s.t !== 'ad' || ed.querySelector('.abx-art')) return; var ad = X.D.adSets[s.s] && X.D.adSets[s.s].ads[s.a]; if (!ad || !ad.art) return; var a = ad.art;
+    var sec = document.createElement('section'); sec.className = 'card p-5 abx-art';
+    sec.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="abx-ic" style="--c:#db2777">' + ic('image') + '</span><b class="text-ink-900 me-auto">' + esc(P2.artT) + '</b>' + (ad.angle ? '<span class="text-xs font-semibold text-brand-700">' + esc(ad.angle) + '</span>' : '') + '</div>' +
+      '<dl class="grid gap-2 sm:grid-cols-2 text-sm">' + [['concept', P2.concept], ['composition', P2.composition], ['palette', P2.palette], ['overlay', P2.overlay]].filter(function (k) { return a[k[0]]; }).map(function (k) { return '<div class="rounded-xl bg-ink-50 p-3"><dt class="text-[11px] text-ink-500">' + esc(k[1]) + '</dt><dd class="text-ink-900 mt-0.5" dir="auto">' + esc(a[k[0]]) + '</dd></div>'; }).join('') + '</dl>' +
+      (a.prompt ? '<div class="mt-3 rounded-xl border border-dashed border-ink-300 p-3"><span class="text-[11px] text-ink-500">' + esc(P2.prompt) + '</span><p class="text-xs text-ink-800 mt-1 font-mono" dir="ltr">' + esc(a.prompt) + '</p><div class="flex gap-2 mt-2"><button type="button" class="btn-ghost !py-1 !text-xs" data-cp>' + ic('copy', 'w-3.5 h-3.5') + esc(P2.copy) + '</button><a class="btn-ghost !py-1 !text-xs" target="_blank" href="' + esc(P2.designUrl) + '">' + ic('image', 'w-3.5 h-3.5') + esc(P2.design) + '</a></div></div>' : '');
+    var first = ed.querySelector(':scope > section.card'); if (first) first.after(sec); else ed.prepend(sec);
+    sec.addEventListener('click', function (e) { var b = e.target.closest('[data-cp]'); if (!b) return; if (navigator.clipboard) navigator.clipboard.writeText(a.prompt); b.lastChild.textContent = P2.copied; setTimeout(function () { b.lastChild.textContent = P2.copy; }, 1500); }); }
+  document.addEventListener('ab:render', function (e) { if (!(e.detail && e.detail.soft)) { enhance(); artCard(); } });
   enhance();
 })();

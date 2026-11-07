@@ -282,6 +282,14 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .pd-wat { @apply block w-full text-start rounded-xl px-2 py-1.5 text-xs transition hover:bg-ink-50; } .pd-wat b { @apply block text-ink-900; } .pd-wat span { @apply block text-ink-500 truncate; } .pd-wat.on { @apply bg-brand-50 ring-1 ring-brand-300; }
   .pd-kbd { @apply inline-grid place-items-center min-w-[1.5rem] rounded-md border border-ink-200 bg-ink-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-700; }
   .pd-undo { @apply absolute z-20 bottom-16 start-4 flex items-center gap-3 rounded-xl bg-[#0f172a] px-3 py-2 text-xs text-[#fff] shadow-xl; } .pd-undo button { @apply font-bold text-[#7dd3fc] hover:underline; }
+  /* منشئ الحملات: الذكاء الاصطناعي */
+  .ai-pg { @apply sticky top-0 z-10 rounded-2xl border border-brand-200 bg-white p-3 shadow-sm; } .ai-spin { @apply w-4 h-4 rounded-full border-2 border-brand-500 border-t-transparent animate-spin; } .ai-pg.done .ai-spin { @apply animate-none border-lime-500 bg-lime-500; }
+  .ai-bar { @apply mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100; } .ai-bar i { @apply block h-full rounded-full transition-all duration-700; background: linear-gradient(90deg, #2563eb, #a855f7); }
+  .ai-hero { @apply rounded-2xl p-4 text-[#fff]; background: linear-gradient(120deg, #1e3a8a, #6d28d9); } .ai-hero b { @apply block text-lg; } .ai-hero span { @apply text-xs opacity-90; } .ai-hero p { @apply mt-1 text-xs opacity-90; } .ai-kpi { @apply !mt-2 inline-block rounded-lg bg-[#fff]/15 px-2 py-1; }
+  .ai-set { @apply rounded-2xl border border-ink-200 p-3; animation: pdIn .3s ease-out both; } .ai-n { @apply w-6 h-6 rounded-lg grid place-items-center bg-brand-600 text-[11px] font-black text-white; }
+  .ai-tag { @apply rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800; } .ai-tag.w { @apply bg-orange-100 text-orange-800; } .ai-per { @apply mt-1 text-xs text-ink-700; }
+  .ai-sk { @apply h-20 rounded-xl mk-sk mb-2; } .ai-ad { @apply rounded-xl bg-ink-50 p-3; animation: pdIn .3s ease-out both; } .ai-fmt { @apply rounded-md bg-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-700; } .ai-art { @apply mt-1.5 rounded-lg bg-pink-50 px-2 py-1 text-[11px] text-pink-900 dark:bg-[#3a0d24] dark:text-[#f9a8d4]; }
+  .ai-foot:empty { display: none; }
   /* منشئ الحملات: شكل الفورمات */
   .abx-card { @apply relative overflow-hidden rounded-2xl border-ink-200 shadow-sm transition hover:shadow-md; animation: pdIn .3s ease-out both; } .abx-card::before { content: ''; @apply absolute inset-x-0 top-0 h-1; background: linear-gradient(90deg, var(--c), transparent); }
   .abx-head { @apply flex-wrap !gap-x-3 !gap-y-0; } .abx-head h3 { @apply text-base; } .abx-ic { @apply w-10 h-10 shrink-0 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }

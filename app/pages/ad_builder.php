@@ -6,11 +6,11 @@ $wid = (int)ws('id');
 $id = (int)($_GET['id'] ?? 0);
 
 // ---- الذكاء الاصطناعي: بناء الحملة، جمهور مجموعة، نسخ إعلان، مراجعة الهيكل
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_build', 'ai_audience', 'ai_copy', 'ai_review'], true)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_build', 'ai_plan', 'ai_ads', 'ai_audience', 'ai_copy', 'ai_review'], true)) {
     header('Content-Type: application/json; charset=utf-8');
     $b = ab_get($wid, (int)($_POST['id'] ?? 0));
     if (!$b) { echo json_encode(['ok' => false, 'error' => t('المشروع مش موجود')]); exit; }
-    $act = $_POST['action']; $d = $b['data']; $p = (string)$d['platform']; $C = ab_caps($p);
+    $act = $_POST['action'] === 'ai_build' ? 'ai_plan' : $_POST['action']; $d = $b['data']; $p = (string)$d['platform']; $C = ab_caps($p);
     $in = json_decode((string)($_POST['input'] ?? '{}'), true) ?: [];
     $clip = function ($v, $n = 400) { return mb_substr(is_scalar($v) ? trim((string)$v) : json_encode($v, JSON_UNESCAPED_UNICODE), 0, $n); };
     $capTxt = 'المنصة: ' . ab_platform_label($p) . '. الأهداف المسموحة: ' . implode(', ', $C['goals']) . '. أزرار الإجراء المسموحة: ' . implode(', ', array_slice($C['ctas'], 0, 30))
@@ -19,9 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         . '. العملة: ' . $d['currency'] . '. دولة الشركة: ' . ws_country() . '.';
     $rules = ' قواعد صارمة: استخدم معلومات الشركة المتاحة لك فقط ولا تخترع أسعارًا أو خصومات أو أرقامًا أو شهادات. تجنب العبارات التي ترفضها المنصات (الأفضل، الأرخص، مضمون 100%، مخاطبة صفات شخصية حساسة مثل "هل أنت...؟"). اكتب الإعلانات بلغة ولهجة جمهور الشركة. أعد JSON فقط بدون أي شرح خارجه.';
     $tasks = [
-        'ai_build' => ['أنت ميديا باير خبير يدير ميزانيات كبيرة. صمّم هيكل حملة كامل جاهز للاختبار المنظم: مجموعات إعلانية بجماهير مختلفة فعلًا (مثل: جمهور واسع، اهتمامات محددة، جمهور مختلف بالسن أو المنطقة) وليست متداخلة، وفي كل مجموعة إعلانات بزوايا إقناع مختلفة (الألم والحل، الفائدة المباشرة، الدليل الاجتماعي الحقيقي، العرض/الندرة الحقيقية فقط إن وُجدت). وزّع الميزانية بنسب منطقية، واختر CBO عندما يكون الهدف التوسع وABO عندما يكون الهدف الاختبار، واشرح السبب. '
-            . 'الشكل: {"campaign":{"name":"","goal":"","budgetLevel":"adset|campaign","dailyBudget":رقم,"why":"سطر"},"adSets":[{"name":"","why":"لماذا هذا الجمهور","budgetShare":نسبة من 100,"targeting":{"countries":["ISO2"],"ageMin":18,"ageMax":65,"gender":"all|male|female","interestQueries":["كلمات بحث إنجليزية عن اهتمامات كما تسميها المنصة"]},"ads":[{"name":"","angle":"","headline":"","body":"","headlines":["بدائل"],"bodies":["بدائل"],"cta":""}]}],"tips":["نصيحة تنفيذية بالأرقام"]}. '
-            . 'من 2 إلى 4 مجموعات، ومن 2 إلى 3 إعلانات في كل مجموعة (أو إعلان واحد إن كانت المنصة لا تسمح بأكثر).', 2600],
+        'ai_plan' => ['أنت ميديا باير بخبرة 35 سنة أدرت ميزانيات بالملايين لشركات كبيرة ومتوسطة في الخليج ومصر والعالم، وفي نفس الوقت بيّاع شاطر بيفهم نفسية المشتري وبيكتب Direct Response، وآرت دايركتور بيبني مفاهيم بصرية بتوقف الإسكرول. بتفكر بالأرقام: مرحلة التعلم، تكلفة النتيجة المتوقعة، تداخل الجماهير، وإجهاد الإعلان. المطلوب الآن: استراتيجية الحملة وهيكلها فقط (بدون كتابة الإعلانات نفسها). '
+            . 'اعمل من 3 إلى 5 مجموعات إعلانية بجماهير مختلفة فعلًا وغير متداخلة: نوّع الأماكن (دول أو أسواق مختلفة لو منطقي للشركة)، والفئات (سن/نوع/اهتمامات/مسميات)، ومرحلة الوعي (بارد/دافئ). لكل مجموعة حدد شخصية المشتري وألمه ورغبته، ومن 3 إلى 7 مفاهيم إبداعية مختلفة الزاوية والشكل (صورة/فيديو/كاروسيل). وزّع الميزانية بنسب منطقية بحيث كل مجموعة تقدر تطلع من مرحلة التعلم، واذكر لو الميزانية مش كفاية. '
+            . 'الشكل: {"campaign":{"name":"","goal":"","budgetLevel":"adset|campaign","dailyBudget":رقم,"why":"سطرين","kpis":"تكلفة النتيجة ونسبة النقر المتوقعة بالأرقام"},"adSets":[{"name":"","why":"","persona":"مين ده وبيوجعه إيه وعاوز إيه","stage":"cold|warm","budgetShare":نسبة,"targeting":{"countries":["ISO2"],"ageMin":18,"ageMax":65,"gender":"all|male|female","interestQueries":["كلمات بحث إنجليزية عن اهتمامات أو مسميات وظيفية"]},"concepts":[{"angle":"","format":"image|video|carousel","hook":"فكرة أول ثانية/أول سطر"}]}],"tips":["نصيحة تنفيذية بالأرقام"]}', 3800],
+        'ai_ads' => ['أنت ميديا باير بخبرة 35 سنة أدرت ميزانيات بالملايين لشركات كبيرة ومتوسطة في الخليج ومصر والعالم، وفي نفس الوقت بيّاع شاطر بيفهم نفسية المشتري وبيكتب Direct Response، وآرت دايركتور بيبني مفاهيم بصرية بتوقف الإسكرول. بتفكر بالأرقام: مرحلة التعلم، تكلفة النتيجة المتوقعة، تداخل الجماهير، وإجهاد الإعلان. المطلوب: اكتب الإعلانات الكاملة لمجموعة واحدة بناءً على مفاهيمها، إعلان لكل مفهوم. كبيّاع: هوك قوي في أول سطر، فائدة واضحة، اعتراض متوقع ورده، دعوة لإجراء محددة. كآرت دايركتور: لكل إعلان توجيه فني دقيق يقدر مصمم ينفذه أو أداة توليد صور تطلّعه. '
+            . 'الشكل: {"ads":[{"name":"","angle":"","format":"image|video|carousel","headline":"","body":"","headlines":["بديلان"],"bodies":["بديل"],"cta":"","art":{"concept":"الفكرة البصرية","composition":"التكوين واللقطة","palette":"الألوان","overlay":"النص المكتوب على التصميم (قصير)","prompt":"English image-generation prompt, detailed, no text in image"},"cards":[{"headline":"","description":""}]}]}. cards فقط لو الشكل كاروسيل (3-5 كروت).', 4000],
         'ai_audience' => ['أنت خبير استهداف. اقترح جمهورًا لهذه المجموعة الإعلانية يكون مختلفًا عن جماهير المجموعات الأخرى المذكورة حتى لا تتنافس. الشكل: {"name":"اسم قصير للجمهور","why":"سطرين","targeting":{"countries":["ISO2"],"ageMin":18,"ageMax":65,"gender":"all|male|female","interestQueries":["إنجليزي"]}}', 700],
         'ai_copy' => ['أنت كاتب إعلانات ممولة وخبير علم نفس البيع. اكتب 3 نسخ مختلفة الزاوية لهذا الإعلان تناسب جمهور مجموعته. الشكل: {"variants":[{"angle":"","headline":"","body":"","headlines":["بديلان"],"bodies":["بديل"],"cta":""}]}', 1400],
         'ai_review' => ['أنت ميديا باير كبير تراجع حملة قبل إطلاقها لعميل. انتقدها بصراحة: تداخل الجماهير، ميزانية غير كافية لعدد المجموعات (القاعدة: كل مجموعة تحتاج ميزانية تكفي 50 نتيجة في الأسبوع تقريبًا لتخرج من مرحلة التعلم)، جماهير ضيقة أو واسعة جدًا، تشابه الإعلانات داخل المجموعة، ضعف الهوك في أول سطر، زر إجراء لا يناسب الهدف، الهدف لا يناسب الغاية. '
@@ -35,12 +37,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             'interests' => array_map(function ($x) { return $x['name']; }, $st['targeting']['interests'] ?? []), 'cities' => array_map(function ($x) { return $x['name']; }, $st['targeting']['cities'] ?? []),
             'ads' => array_map(function ($a) { return ['headline' => mb_substr($a['headline'], 0, 120), 'body' => mb_substr($a['body'], 0, 300), 'cta' => $a['cta'], 'format' => $a['format'], 'hasMedia' => (bool)($a['imageUrl'] || $a['videoUrl'] || $a['cards'])]; }, $st['ads'])];
     }
-    $user = "طلب المستخدم: " . $clip($in['brief'] ?? '', 1200) . "\nالمنتج/الخدمة: " . $clip($in['product'] ?? '', 300) . "\nالميزانية اليومية المتاحة: " . $clip($in['budget'] ?? '', 30) . ' ' . $d['currency']
+    $user = "طلب المستخدم: " . $clip($in['brief'] ?? '', 1200) . (!empty($in['nSets']) ? "\nعدد المجموعات المطلوب: " . max(3, min(5, (int)$in['nSets'])) : '') . (!empty($in['nAds']) ? "\nعدد الإعلانات في كل مجموعة: " . max(3, min(7, (int)$in['nAds'])) : '') . (!empty($in['markets']) ? "\nالأسواق/الأماكن المطلوبة: " . $clip($in['markets'], 200) : '') . "\nالمنتج/الخدمة: " . $clip($in['product'] ?? '', 300) . "\nالميزانية اليومية المتاحة: " . $clip($in['budget'] ?? '', 30) . ' ' . $d['currency']
+        . ($act === 'ai_ads' ? "\nالاستراتيجية: " . $clip($in['strategy'] ?? '', 1500) . "\nالمجموعة المطلوب كتابة إعلاناتها: " . $clip($in['setPlan'] ?? '', 2500) : '')
         . "\nالمجموعة المقصودة: " . $clip($in['set'] ?? '', 10) . "\nالإعلان المقصود: " . $clip($in['ad'] ?? '', 10) . "\nالحملة الحالية: " . json_encode($sum, JSON_UNESCAPED_UNICODE);
     try {
-        $r = ai_chat([['role' => 'system', 'content' => $sys . ' ' . $capTxt . $rules . ai_country_note()], ['role' => 'user', 'content' => $user]], $max, 'ads_builder');
-        $txt = (string)$r['text']; if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
-        $j = json_decode($txt, true);
+        $msgs = [['role' => 'system', 'content' => $sys . ' ' . $capTxt . $rules . ai_country_note()], ['role' => 'user', 'content' => $user]];
+        $r = ai_chat($msgs, $max, 'ads_builder'); $j = ab_json((string)$r['text']);
+        $want = $act === 'ai_plan' ? max(3, min(5, (int)($in['nSets'] ?? 3))) : ($act === 'ai_ads' ? max(1, min(7, (int)($in['nAds'] ?? 3))) : 0);
+        $got = $act === 'ai_plan' ? count((array)($j['adSets'] ?? [])) : ($act === 'ai_ads' ? count((array)($j['ads'] ?? [])) : $want);
+        $partial = $j; if (is_array($j) && $got < $want) $j = null; // الرد اتقطع واتصلّح ناقص: نطلب نسخة كاملة أقصر
+        if (!is_array($j)) { // محاولة تانية: نطلب JSON مختصر وصالح بس
+            $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 1500)];
+            $msgs[] = ['role' => 'user', 'content' => 'الرد اتقطع أو مش JSON صالح. أعد نفس المحتوى كـ JSON صالح فقط، أقصر في النصوص، بدون أي كلام خارجه.'];
+            $r = ai_chat($msgs, $max, 'ads_builder'); $j2 = ab_json((string)$r['text']); if (is_array($j2)) $j = $j2;
+        }
+        if (!is_array($j) && is_array($partial)) $j = $partial; // أحسن من لا شيء
         if (!is_array($j)) throw new RuntimeException(t('الرد مكانش بالشكل المتوقع، جرّب تاني.'));
         log_activity('ads.builder_ai', $act);
         echo json_encode(['ok' => true, 'r' => $j], JSON_UNESCAPED_UNICODE);
@@ -234,6 +245,11 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
         'geoUrl' => url('ad_create', ['ajax' => 1]), 'myCountry' => ws_country(), 'lang' => lang(),
         'canSpend' => can('ads.spend'), 'kbProducts' => array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)(kb_get((int)ws('id'))['services']['rows'] ?? [])))),
         's' => ab_strings(),
+        'ai2' => ['intro' => t('اكتب المطلوب وهيشتغل كميديا باير وبيّاع وآرت دايركتور: استراتيجية، من 3 لـ 5 مجموعات بجماهير وأماكن مختلفة، وفي كل مجموعة من 3 لـ 7 إعلانات بزوايا وتصميمات مختلفة. هتراجع كل حاجة قبل ما تطبّق.'),
+          'briefPh' => t('مثلًا: عاوزين عملاء شركات للأمن السيبراني في السعودية والإمارات، الخدمة: فحص اختراق وحماية'), 'markets' => t('الأسواق (اختياري)'), 'marketsPh' => t('السعودية، الإمارات، مصر'), 'nSets' => t('عدد المجموعات'), 'nAds' => t('الإعلانات في كل مجموعة'),
+          'note' => t('الصور والفيديوهات مش بتتعمل هنا: كل إعلان بييجي معاه توجيه فني ووصف صورة جاهز تستخدمه في المصمم أو توليد الصور.'), 'planning' => t('بيحلل السوق ويبني الاستراتيجية والمجموعات…'), 'writing' => t('بيكتب إعلانات المجموعة %s من %s…'),
+          'ready' => t('جاهز للمراجعة'), 'empty' => t('الرد رجع فاضي. جرّب تاني.'), 'warm' => t('دافي'), 'cold' => t('بارد'), 'summary' => t('%s مجموعة و%s إعلان'),
+          'artT' => t('التوجيه الفني'), 'concept' => t('الفكرة'), 'composition' => t('التكوين'), 'palette' => t('الألوان'), 'overlay' => t('النص على التصميم'), 'prompt' => t('وصف الصورة لأداة التوليد'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'design' => t('صمّمه في المصمم'), 'designUrl' => url('designer')],
         'ux' => ['dCampaign' => t('الاسم بيظهر ليك بس، مش للعملاء.'), 'dGoal' => t('المنصة بتحسّن العرض على حسب الهدف ده.'), 'dBudget' => t('هتدفع كام وإزاي المنصة تصرفها.'), 'dSchedule' => t('إمتى تبدأ وتخلص، والفئات اللي ليها قواعد خاصة.'),
           'dAdset' => t('كل مجموعة = جمهور وميزانية. اعمل أكتر من واحدة عشان تقارن.'), 'dLoc' => t('الدول والمدن اللي الإعلان هيظهر فيها.'), 'dPeople' => t('السن والنوع والاهتمامات.'), 'dPlace' => t('الإعلان هيظهر فين جوه المنصة.'),
           'dAd' => t('اسم الإعلان وشكله.'), 'dMedia' => t('الصورة أو الفيديو أول حاجة الناس بتشوفها.'), 'dCopy' => t('أول سطر هو اللي بيوقف الناس. خليه قصير وواضح.'), 'dCta' => t('الزرار ورايح على فين.'), 'age' => t('السن'), 'month' => t('≈ %s في الشهر')],

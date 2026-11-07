@@ -36,56 +36,82 @@
     return ad;
   }
 
-  // ---- (1) ابني الحملة كلها
+  // ---- (1) ابني الحملة كلها — على مرحلتين: الاستراتيجية والمجموعات، وبعدين إعلانات كل مجموعة بتوجيه فني
+  var P2 = A.ai2 || {};
+  function toAd2(a) { var ad = toAd(a); if (a.format && C.formats.indexOf(a.format) >= 0) ad.format = a.format;
+    if (ad.format === 'carousel') ad.cards = (a.cards || []).slice(0, 5).map(function (c) { return { imageUrl: '', linkUrl: '', headline: String(c.headline || '').slice(0, 80), description: String(c.description || '').slice(0, 120) }; });
+    if (ad.format === 'carousel' && ad.cards.length < 2) ad.cards = [0, 1, 2].map(function () { return { imageUrl: '', linkUrl: '', headline: '', description: '' }; });
+    if (a.art && typeof a.art === 'object') ad.art = { concept: String(a.art.concept || ''), composition: String(a.art.composition || ''), palette: String(a.art.palette || ''), overlay: String(a.art.overlay || ''), prompt: String(a.art.prompt || '') };
+    ad.angle = String(a.angle || ''); return ad; }
   function buildDialog() {
-    var prods = A.kbProducts || [];
-    var d = dialog(I.build, '<div class="space-y-3 text-sm"><p class="text-ink-600">' + esc(I.buildIntro) + '</p>'
-      + '<label class="block"><span class="label">' + esc(I.brief) + '</span><textarea class="input br" rows="4" placeholder="' + esc(I.briefPh) + '"></textarea></label>'
-      + '<div class="grid gap-3 sm:grid-cols-2"><label class="block"><span class="label">' + esc(I.product) + '</span>' + (prods.length ? '<select class="input pr"><option value="">' + esc(I.anyProduct) + '</option>' + prods.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('') + '</select>' : '<input class="input pr" placeholder="' + esc(I.productPh) + '">') + '</label>'
-      + '<label class="block"><span class="label">' + esc(fmt(I.dailyBudget, D.currency)) + '</span><input class="input bu" type="number" min="1" step="1" dir="ltr" placeholder="50"></label></div>'
-      + '<p class="text-[11px] text-ink-500">' + esc(I.buildNote) + '</p><div class="flex justify-end"><button type="button" class="btn-primary go">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(I.buildGo) + '</button></div></div><div class="out"></div>', true);
+    var prods = A.kbProducts || [], maxAds = C.maxAdsPerSet === 1 ? 1 : Math.min(7, C.maxAdsPerSet || 7);
+    var d = dialog(I.build, '<div class="ai-in space-y-4 text-sm"><p class="text-ink-600">' + esc(P2.intro) + '</p>'
+      + '<label class="block"><span class="label">' + esc(I.brief) + '</span><textarea class="input br" rows="3" placeholder="' + esc(P2.briefPh) + '"></textarea></label>'
+      + '<div class="grid gap-3 sm:grid-cols-3"><label class="block"><span class="label">' + esc(I.product) + '</span>' + (prods.length ? '<select class="input pr"><option value="">' + esc(I.anyProduct) + '</option>' + prods.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('') + '</select>' : '<input class="input pr" placeholder="' + esc(I.productPh) + '">') + '</label>'
+      + '<label class="block"><span class="label">' + esc(fmt(I.dailyBudget, D.currency)) + '</span><input class="input bu" type="number" min="1" step="1" dir="ltr" placeholder="100"></label>'
+      + '<label class="block"><span class="label">' + esc(P2.markets) + '</span><input class="input mk" placeholder="' + esc(P2.marketsPh) + '"></label></div>'
+      + '<div class="grid gap-3 sm:grid-cols-2"><div><span class="label">' + esc(P2.nSets) + '</span><div class="abx-seg ns">' + ['3', '4', '5'].map(function (n) { return '<button type="button" data-v="' + n + '" class="' + (n === '4' ? 'on' : '') + '">' + n + '</button>'; }).join('') + '</div></div>'
+      + '<div><span class="label">' + esc(P2.nAds) + ' <b class="na-v">' + Math.min(4, maxAds) + '</b></span><input type="range" class="na w-full accent-brand-600" min="' + Math.min(3, maxAds) + '" max="' + maxAds + '" value="' + Math.min(4, maxAds) + '"' + (maxAds === 1 ? ' disabled' : '') + '></div></div>'
+      + '<p class="text-[11px] text-ink-500">' + esc(P2.note) + '</p><div class="flex justify-end"><button type="button" class="btn-primary go">' + uic('spark', 'w-4 h-4 inline-block align-[-3px]') + esc(I.buildGo) + '</button></div></div><div class="out"></div>', true);
+    $('.ns', d).onclick = function (e) { var b2 = e.target.closest('[data-v]'); if (!b2) return; $$('.ns button', d).forEach(function (x) { x.classList.toggle('on', x === b2); }); };
+    $('.na', d).oninput = function () { $('.na-v', d).textContent = this.value; };
     $('.go', d).onclick = function () {
       var brief = $('.br', d).value.trim(); if (brief.length < 5) { $('.br', d).focus(); return; }
-      var out = $('.out', d), bd = $('.bd', d); bd.firstElementChild.classList.add('hidden'); wait(out, I.building);
-      ai('ai_build', { brief: brief, product: $('.pr', d).value, budget: $('.bu', d).value }).then(function (j) {
-        if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-700">' + esc(j.error) + '</p>'; bd.firstElementChild.classList.remove('hidden'); return; }
-        showBuild(d, j.r, +$('.bu', d).value || 0);
-      });
+      var inp = { brief: brief, product: $('.pr', d).value, budget: $('.bu', d).value, markets: $('.mk', d).value, nSets: +$('.ns .on', d).dataset.v, nAds: +$('.na', d).value };
+      $('.ai-in', d).classList.add('hidden'); runBuild(d, inp);
     };
   }
-  function showBuild(d, r, budget) {
-    var out = $('.out', d), c = r.campaign || {}, sets = (r.adSets || []).slice(0, 4), share = sets.reduce(function (n, s) { return n + (+s.budgetShare || 0); }, 0) || 100;
-    var goal = C.goals.indexOf(c.goal) >= 0 ? c.goal : D.campaign.goal, daily = +c.dailyBudget || budget, cbo = C.cbo && c.budgetLevel === 'campaign';
-    out.innerHTML = '<div class="space-y-3"><div class="rounded-xl bg-brand-50 p-3 text-sm"><b class="text-brand-900">' + esc(c.name || D.campaign.name) + '</b> · ' + esc((S.goals[goal] || [goal])[0]) + ' · ' + esc(cbo ? S.cbo : S.abo) + (daily ? ' · ' + esc(X.money(daily, D.currency)) + '/' + esc(I.day) : '') + (c.why ? '<p class="text-xs text-brand-800 mt-1">' + esc(c.why) + '</p>' : '') + '</div>'
-      + sets.map(function (s, i) {
-        var t = s.targeting || {}, amt = daily ? Math.round(daily * (+s.budgetShare || 100 / sets.length) / share * 100) / 100 : 0;
-        return '<div class="rounded-xl border border-ink-200 p-3"><div class="flex flex-wrap items-center gap-2"><b class="text-sm text-ink-900">◫ ' + esc(s.name || fmt(S.setN, i + 1)) + '</b>' + (!cbo && amt ? '<span class="text-xs text-ink-500" dir="ltr">' + esc(X.money(amt, D.currency)) + '</span>' : '') + '</div>'
-          + '<p class="text-xs text-ink-600 mt-1">' + esc(s.why || '') + '</p><p class="text-[11px] text-ink-500 mt-1">' + esc([(t.countries || []).map(function (c2) { return X.flag(c2) + ' ' + X.cname(c2); }).join('، '), (t.ageMin || 18) + '-' + (t.ageMax || 65), (t.interestQueries || []).join(', ')].filter(Boolean).join(' · ')) + '</p>'
-          + '<ul class="mt-2 space-y-1.5">' + (s.ads || []).slice(0, C.maxAdsPerSet === 1 ? 1 : 3).map(function (a) { return '<li class="rounded-lg bg-ink-50 px-3 py-2 text-xs"><span class="text-brand-700 font-semibold">' + esc(a.angle || '') + '</span> <b class="text-ink-900">' + esc(a.headline || '') + '</b><p class="text-ink-700 mt-0.5 whitespace-pre-line">' + esc(a.body || '') + '</p></li>'; }).join('') + '</ul></div>';
-      }).join('')
-      + ((r.tips || []).length ? '<div class="rounded-xl bg-amber-50 p-3 text-xs text-amber-900"><b>' + esc(I.tips) + '</b><ul class="list-disc ps-5 mt-1 space-y-0.5">' + r.tips.slice(0, 6).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '')
-      + '<p class="text-[11px] text-ink-500">' + esc(I.applyNote) + '</p><div class="flex justify-end gap-2"><button type="button" class="btn-ghost again">' + esc(I.again) + '</button><button type="button" class="btn-primary apply">' + esc(I.apply) + '</button></div></div>';
-    $('.again', d).onclick = function () { out.innerHTML = ''; $('.bd', d).firstElementChild.classList.remove('hidden'); };
+  function stage(d, step, total, txt) { var out = $('.out', d), pg = $('.ai-pg', d);
+    if (!pg) { out.insertAdjacentHTML('afterbegin', '<div class="ai-pg"><div class="flex items-center gap-2 text-sm"><span class="ai-spin"></span><b class="ai-pt"></b><span class="ms-auto text-xs text-ink-500 tabular-nums ai-pn"></span></div><div class="ai-bar"><i></i></div></div>'); pg = $('.ai-pg', d); }
+    $('.ai-pt', pg).textContent = txt; $('.ai-pn', pg).textContent = step + ' / ' + total; $('.ai-bar i', pg).style.width = Math.round(step / total * 100) + '%'; pg.classList.toggle('done', step >= total); }
+  function runBuild(d, inp) {
+    var out = $('.out', d); out.innerHTML = ''; stage(d, 0, 1, P2.planning);
+    ai('ai_plan', inp).then(function (j) {
+      if (!j.ok) { out.innerHTML = '<p class="text-sm text-red-700">' + esc(j.error) + '</p><button type="button" class="btn-ghost mt-2 back">' + esc(I.again) + '</button>'; $('.back', d).onclick = function () { out.innerHTML = ''; $('.ai-in', d).classList.remove('hidden'); }; return; }
+      var plan = j.r || {}, sets = (plan.adSets || []).slice(0, 5); if (!sets.length) { out.innerHTML = '<p class="text-sm text-red-700">' + esc(P2.empty) + '</p>'; return; }
+      var total = sets.length + 1; stage(d, 1, total, fmt(P2.writing, 1, sets.length));
+      out.insertAdjacentHTML('beforeend', planHtml(plan, sets, inp));
+      var strategy = JSON.stringify({ campaign: plan.campaign, sets: sets.map(function (s) { return { name: s.name, persona: s.persona, stage: s.stage }; }) });
+      (function next(i) {
+        if (i >= sets.length) { stage(d, total, total, P2.ready); finish(d, plan, sets, inp); return; }
+        stage(d, i + 1, total, fmt(P2.writing, i + 1, sets.length)); var box = $('[data-set="' + i + '"] .ai-ads', d); box.innerHTML = '<div class="ai-sk"></div><div class="ai-sk"></div>';
+        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds }).then(function (k) {
+          if (!k.ok || !(k.r && (k.r.ads || []).length)) { box.innerHTML = '<p class="text-xs text-red-700">' + esc((k && k.error) || P2.empty) + ' <button type="button" class="underline" data-retry="' + i + '">' + esc(I.again) + '</button></p>'; sets[i]._ads = []; }
+          else { sets[i]._ads = k.r.ads.slice(0, inp.nAds || 7); box.innerHTML = adsHtml(sets[i]._ads); }
+          next(i + 1); });
+      })(0);
+      out.onclick = function (e) { var r = e.target.closest('[data-retry]'); if (!r) return; var i = +r.dataset.retry, box = r.closest('.ai-ads'); box.innerHTML = '<div class="ai-sk"></div>';
+        ai('ai_ads', { brief: inp.brief, product: inp.product, strategy: strategy, setPlan: JSON.stringify(sets[i]), nAds: inp.nAds }).then(function (k) { if (k.ok && k.r && (k.r.ads || []).length) { sets[i]._ads = k.r.ads.slice(0, inp.nAds || 7); box.innerHTML = adsHtml(sets[i]._ads); } else box.innerHTML = '<p class="text-xs text-red-700">' + esc((k && k.error) || P2.empty) + '</p>'; }); };
+    });
+  }
+  function planHtml(plan, sets, inp) { var c = plan.campaign || {}, goal = C.goals.indexOf(c.goal) >= 0 ? c.goal : D.campaign.goal, daily = +c.dailyBudget || +inp.budget || 0, share = sets.reduce(function (n, s) { return n + (+s.budgetShare || 0); }, 0) || 100;
+    return '<div class="ai-plan space-y-3 mt-3"><div class="ai-hero"><b>' + esc(c.name || D.campaign.name) + '</b><span>' + esc((S.goals[goal] || [goal])[0]) + ' · ' + esc(c.budgetLevel === 'campaign' && C.cbo ? S.cbo : S.abo) + (daily ? ' · ' + esc(X.money(daily, D.currency)) + '/' + esc(I.day) : '') + '</span>' + (c.why ? '<p>' + esc(c.why) + '</p>' : '') + (c.kpis ? '<p class="ai-kpi">🎯 ' + esc(c.kpis) + '</p>' : '') + '</div>'
+      + sets.map(function (s, i) { var t = s.targeting || {}, amt = daily ? Math.round(daily * (+s.budgetShare || 100 / sets.length) / share) : 0;
+        return '<div class="ai-set" data-set="' + i + '"><div class="flex flex-wrap items-center gap-2"><span class="ai-n">' + (i + 1) + '</span><b class="text-ink-900">' + esc(s.name || fmt(S.setN, i + 1)) + '</b>' + (s.stage ? '<span class="ai-tag ' + (s.stage === 'warm' ? 'w' : '') + '">' + esc(s.stage === 'warm' ? P2.warm : P2.cold) + '</span>' : '') + (amt ? '<span class="ms-auto text-xs font-bold text-ink-700" dir="ltr">' + esc(X.money(amt, D.currency)) + '/' + esc(I.day) + '</span>' : '') + '</div>'
+          + (s.persona ? '<p class="ai-per">👤 ' + esc(s.persona) + '</p>' : '') + '<p class="text-[11px] text-ink-500 mt-1">' + esc([(t.countries || []).map(function (c2) { return X.flag(c2) + ' ' + X.cname(c2); }).join('، '), (t.ageMin || 18) + '–' + (t.ageMax || 65), t.gender && t.gender !== 'all' ? S['g' + t.gender.charAt(0).toUpperCase() + t.gender.slice(1)] : '', (t.interestQueries || []).join(', ')].filter(Boolean).join(' · ')) + '</p>'
+          + '<div class="ai-ads mt-2"></div></div>'; }).join('')
+      + ((plan.tips || []).length ? '<div class="rounded-xl bg-amber-50 p-3 text-xs text-amber-900 dark:bg-[#2a1d05] dark:text-[#fcd34d]"><b>' + esc(I.tips) + '</b><ul class="list-disc ps-5 mt-1 space-y-0.5">' + plan.tips.slice(0, 6).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '') + '<div class="ai-foot"></div></div>'; }
+  function adsHtml(ads) { return '<div class="grid gap-2 md:grid-cols-2">' + ads.map(function (a) { var art = a.art || {};
+    return '<div class="ai-ad"><div class="flex items-center gap-2"><span class="ai-fmt">' + esc((S.formats || {})[a.format] || a.format || '') + '</span><span class="text-[11px] font-semibold text-brand-700 truncate">' + esc(a.angle || '') + '</span></div><b class="block text-sm text-ink-900 mt-1" dir="auto">' + esc(a.headline || '') + '</b><p class="text-xs text-ink-700 mt-0.5 whitespace-pre-line line-clamp-4" dir="auto">' + esc(a.body || '') + '</p>'
+      + (art.concept ? '<p class="ai-art">🎨 ' + esc(art.concept) + (art.overlay ? ' · <b>"' + esc(art.overlay) + '"</b>' : '') + '</p>' : '') + '</div>'; }).join('') + '</div>'; }
+  function finish(d, plan, sets, inp) { var foot = $('.ai-foot', d), c = plan.campaign || {}, goal = C.goals.indexOf(c.goal) >= 0 ? c.goal : D.campaign.goal, daily = +c.dailyBudget || +inp.budget || 0, cbo = C.cbo && c.budgetLevel === 'campaign', share = sets.reduce(function (n, s) { return n + (+s.budgetShare || 0); }, 0) || 100;
+    var nAds = sets.reduce(function (n, s) { return n + (s._ads || []).length; }, 0);
+    foot.innerHTML = '<p class="text-[11px] text-ink-500">' + esc(fmt(P2.summary, sets.length, nAds)) + ' · ' + esc(I.applyNote) + '</p><div class="flex justify-end gap-2 mt-2"><button type="button" class="btn-ghost again">' + esc(I.again) + '</button><button type="button" class="btn-primary apply">' + esc(I.apply) + '</button></div>';
+    $('.again', d).onclick = function () { $('.out', d).innerHTML = ''; $('.ai-in', d).classList.remove('hidden'); };
     $('.apply', d).onclick = function () {
       if (D.adSets.some(function (s) { return s.ads.some(function (a) { return a.body; }); }) && !confirm(I.replaceQ)) return;
       var btn = this; btn.disabled = true; btn.textContent = I.resolving;
       Promise.all(sets.map(function (s) { return resolveInterests((s.targeting || {}).interestQueries); })).then(function (ints) {
         if (c.name) D.campaign.name = String(c.name).slice(0, 200); D.campaign.goal = goal;
         D.campaign.budgetLevel = cbo ? 'campaign' : 'adset'; if (cbo && daily) D.campaign.budget = { amount: daily, type: 'daily' };
-        var base = D.adSets[0] ? D.adSets[0].targeting : null;
-        D.adSets.splice(0, D.adSets.length);
-        sets.forEach(function (s, i) {
-          var amt = daily ? Math.round(daily * (+s.budgetShare || 100 / sets.length) / share * 100) / 100 : '';
+        var base = D.adSets[0] ? D.adSets[0].targeting : null; D.adSets.splice(0, D.adSets.length);
+        sets.forEach(function (s, i) { var amt = daily ? Math.round(daily * (+s.budgetShare || 100 / sets.length) / share * 100) / 100 : '';
           var st = { id: X.uid('s'), name: String(s.name || '').slice(0, 200), budget: { amount: cbo ? '' : amt, type: 'daily' }, targeting: toTargeting(s.targeting || {}, base), ads: [] };
           st.targeting.interests = ints[i] || [];
-          (s.ads || []).slice(0, C.maxAdsPerSet === 1 ? 1 : 5).forEach(function (a) { st.ads.push(toAd(a)); });
-          if (!st.ads.length) st.ads.push(X.newAd());
-          D.adSets.push(st);
-        });
-        d.close(); X.save(true); X.go('campaign'); (window.aiToast || function () {})(I.applied, 'ok');
-      });
-    };
-  }
+          (s._ads || []).slice(0, C.maxAdsPerSet === 1 ? 1 : 7).forEach(function (a) { st.ads.push(toAd2(a)); }); if (!st.ads.length) st.ads.push(X.newAd());
+          D.adSets.push(st); });
+        d.close(); X.save(true); X.go('campaign'); if (window.fxToast) fxToast(I.applied, 'success'); else if (window.aiToast) aiToast(I.applied, 'ok'); });
+    }; }
 
   // ---- (2) جمهور لمجموعة
   function audienceFor(si) {

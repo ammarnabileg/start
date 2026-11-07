@@ -321,3 +321,24 @@ function ab_run_step(Zernio $z, array $d, array $step, array $ids): array
     $warn = ab_find_id($r, ['warning', 'activation_failed']);
     return [true, (string)$warn, $ids, $r];
 }
+
+/** استخراج JSON من رد الذكاء الاصطناعي: بيشيل ```، وبيقفل الأقواس لو الرد اتقطع */
+function ab_json(string $txt): ?array
+{
+    $txt = trim(preg_replace('/^```(?:json)?|```$/m', '', $txt));
+    $i = strpos($txt, '{'); if ($i === false) return null; $txt = substr($txt, $i);
+    $j = json_decode($txt, true); if (is_array($j)) return $j;
+    $k = strrpos($txt, '}'); if ($k !== false) { $j = json_decode(substr($txt, 0, $k + 1), true); if (is_array($j)) return $j; }
+    // رد مقطوع: نقفل النص والأقواس المفتوحة
+    $stack = []; $inStr = false; $esc = false; $lastSafe = 0;
+    for ($p = 0, $n = strlen($txt); $p < $n; $p++) { $c = $txt[$p];
+        if ($inStr) { if ($esc) $esc = false; elseif ($c === '\\') $esc = true; elseif ($c === '"') $inStr = false; continue; }
+        if ($c === '"') $inStr = true; elseif ($c === '{' || $c === '[') $stack[] = $c; elseif ($c === '}' || $c === ']') { array_pop($stack); $lastSafe = $p + 1; } elseif ($c === ',') $lastSafe = $p; }
+    $cut = rtrim(substr($txt, 0, $lastSafe), " ,\n\r\t");
+    $stack = []; $inStr = false; $esc = false;
+    for ($p = 0, $n = strlen($cut); $p < $n; $p++) { $c = $cut[$p];
+        if ($inStr) { if ($esc) $esc = false; elseif ($c === '\\') $esc = true; elseif ($c === '"') $inStr = false; continue; }
+        if ($c === '"') $inStr = true; elseif ($c === '{' || $c === '[') $stack[] = $c; elseif ($c === '}' || $c === ']') array_pop($stack); }
+    while ($stack) $cut .= array_pop($stack) === '{' ? '}' : ']';
+    $j = json_decode($cut, true); return is_array($j) ? $j : null;
+}
