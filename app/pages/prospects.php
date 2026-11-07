@@ -33,6 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($k !== 'note') db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
         $J(['ok' => true, 'last' => $k !== 'note' ? fmt_date(date('Y-m-d H:i:s'), 'd/m/Y') : '', 'acts' => array_map($actOut, array_slice(crm_acts((int)$l['id']), 0, 20))]);
     }
+    // إضافة رقم أو إيميل لعميل ناقص بيانات التواصل
+    if ($a === 'contact') {
+        $l = $getLead((int)($_POST['id'] ?? 0)); if (!$l) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $em = mb_strtolower(trim((string)($_POST['email'] ?? ''))); if ($em !== '' && !filter_var($em, FILTER_VALIDATE_EMAIL)) $J(['ok' => false, 'error' => t('الإيميل مش صحيح.')], 422);
+        $ph = trim((string)($_POST['phone'] ?? '')) !== '' ? crm_norm_phone((string)$_POST['phone'], (string)$l['country']) : '';
+        if ($ph === '' && $em === '') $J(['ok' => false, 'error' => t('اكتب رقم أو إيميل.')], 422);
+        $set = []; $v = []; if ($ph !== '') { $set[] = 'phone = ?'; $v[] = $ph; $set[] = 'phone_pending = 0'; } if ($em !== '') { $set[] = 'email = ?'; $v[] = $em; }
+        $v[] = (int)$l['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($v);
+        $J(['ok' => true, 'phone' => $ph ?: (string)$l['phone'], 'email' => $em ?: (string)$l['email'], 'wa' => function_exists('crm_wa_digits') ? crm_wa_digits($ph ?: (string)$l['phone']) : '']);
+    }
     // المتابعة الجاية: النهارده، بكرة، بعد 3 أيام، الأسبوع الجاي، تاريخ محدد، أو مفيش
     if ($a === 'next') {
         $w = (string)($_POST['when'] ?? ''); $tz = new DateTimeZone(site_timezone()); $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 255); $n = 0; $last = null;
@@ -168,25 +178,41 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     </div>
     </div>
 
-    <dialog id="pr-dlg" class="mk-dlg">
-      <div class="mk-dlg-head"><span id="pd-av" class="mk-av !w-12 !h-12 !text-lg !bg-lime-50 !text-lime-800"></span><div class="flex-1 min-w-0"><b id="pd-name" class="block text-lg text-ink-900 truncate"></b><span id="pd-sub" class="text-sm text-ink-500"></span></div>
-        <button type="button" data-close class="p-2 -m-1 rounded-xl text-ink-400 hover:text-ink-900 hover:bg-ink-100" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
-      <div class="p-5 space-y-4">
-        <div id="pd-contact" class="flex flex-wrap gap-2"></div>
-        <div class="grid sm:grid-cols-2 gap-3 text-sm">
-          <label class="block text-xs text-ink-600"><?= e(t('المرحلة')) ?><select id="pd-stage" class="input !mt-1 text-sm"><?php foreach ($stages as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select></label>
-          <?php if ($canManage): ?><label class="block text-xs text-ink-600"><?= e(t('المسؤول')) ?><select id="pd-owner" class="input !mt-1 text-sm"><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+    <dialog id="pr-dlg" class="mk-dlg pd-dlg !w-[min(880px,96vw)] !p-0">
+      <div class="pd-hero">
+        <div class="flex items-start gap-4">
+          <span id="pd-av" class="pd-av"></span>
+          <div class="flex-1 min-w-0 pt-1"><b id="pd-name" class="block text-xl text-[#fff] truncate"></b><span id="pd-sub" class="block text-sm text-[#fff]/80 truncate"></span>
+            <div class="flex flex-wrap items-center gap-1.5 mt-2"><span id="pd-stage-pill" class="pd-chip"></span><span id="pd-src-pill" class="pd-chip !bg-[#fff]/15"></span><span id="pd-due-pill" class="pd-chip hidden"></span></div></div>
+          <div class="flex items-center gap-1 shrink-0"><span id="pd-pos" class="text-[11px] text-[#fff]/70 tabular-nums me-1" dir="ltr"></span>
+            <button type="button" class="pd-hb" data-nav="-1" title="<?= e(t('السابق')) ?> (→)"><?= ui_icon('chevron-right', 'w-5 h-5') ?></button><button type="button" class="pd-hb" data-nav="1" title="<?= e(t('التالي')) ?> (←)"><?= ui_icon('chevron-left', 'w-5 h-5') ?></button>
+            <button type="button" data-close class="pd-hb" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
         </div>
-        <section class="rounded-2xl border border-ink-200 p-3 space-y-2"><div class="flex items-center gap-2 text-sm"><?= ui_icon('calendar', 'w-4 h-4 text-ink-500') ?><b class="text-ink-900"><?= e(t('المتابعة الجاية')) ?></b><span id="pd-next" class="text-ink-600 tabular-nums"></span></div>
-          <div class="flex flex-wrap gap-1.5" id="pd-next-b"><?php foreach ($nexts as $k => $l): ?><button type="button" class="btn-ghost !py-1 !text-xs" data-when="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?><input type="datetime-local" id="pd-next-at" class="input !mt-0 !py-1 !w-48 text-xs"></div>
-          <input id="pd-next-note" class="input !mt-0 !py-1.5 text-xs" dir="auto" maxlength="255" placeholder="<?= e(t('هتكلمه في إيه؟ (اختياري)')) ?>"></section>
-        <section class="space-y-2"><div class="flex flex-wrap items-center gap-1.5"><b class="text-sm text-ink-900 me-1"><?= e(t('سجّل تواصل')) ?></b><?php foreach (['call', 'wa', 'email', 'meet'] as $k): ?><button type="button" class="btn-ghost !py-1 !text-xs" data-kind="<?= $k ?>"><?= e($kinds[$k][1]) ?></button><?php endforeach; ?></div>
-          <form id="pd-note-f" class="flex gap-1.5 m-0" data-no-ajax><input name="b" class="input !mt-0 !py-1.5 text-sm flex-1" dir="auto" placeholder="<?= e(t('اكتب ملاحظة أو نتيجة التواصل…')) ?>"><button class="btn-primary !py-1.5 !text-sm"><?= e(t('حفظ')) ?></button></form>
-          <ol id="pd-acts" class="space-y-1.5 max-h-56 overflow-y-auto"></ol></section>
-        <dl id="pd-meta" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm"></dl>
-        <div><span class="text-xs text-ink-600"><?= e(t('التاجات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-1"><span id="pd-tags" class="contents"></span><form id="pd-tag-f" class="inline-flex m-0" data-no-ajax><input name="t" class="input !mt-0 !py-1 !w-32 text-xs" dir="auto" placeholder="<?= e(t('+ تاج')) ?>"></form></div></div>
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-ink-100"><a id="pd-co" href="#" class="btn-ghost !py-1.5 !text-sm hidden"><?= ui_icon('building', 'w-4 h-4') ?><?= e(t('الشركة')) ?></a><a id="pd-open" href="#" class="btn-primary !py-1.5 !text-sm"><?= e(t('افتح ملفه الكامل')) ?></a></div>
+        <div id="pd-contact" class="grid grid-cols-3 gap-2 mt-4"></div>
+        <form id="pd-addc" class="hidden mt-3 flex flex-wrap gap-2" data-no-ajax><input name="phone" class="input !mt-0 !py-1.5 text-sm flex-1 min-w-[140px]" dir="ltr" placeholder="<?= e(t('الرقم')) ?>"><input name="email" type="email" class="input !mt-0 !py-1.5 text-sm flex-1 min-w-[160px]" dir="ltr" placeholder="<?= e(t('الإيميل')) ?>"><button class="btn-primary !py-1.5 !text-sm"><?= e(t('حفظ')) ?></button></form>
       </div>
+      <div class="pd-stages" id="pd-stages"><?php foreach ($stages as $k => $l): ?><button type="button" data-stg="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?></div>
+      <select id="pd-stage" class="hidden" aria-hidden="true"><?php foreach ($stages as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select>
+      <div class="grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-0">
+        <div class="p-5 space-y-4 md:border-e border-ink-100">
+          <section class="pd-card"><div class="flex items-center gap-2 text-sm mb-2"><?= ui_icon('calendar', 'w-4 h-4 text-brand-600') ?><b class="text-ink-900"><?= e(t('المتابعة الجاية')) ?></b><span id="pd-next" class="ms-auto text-ink-600 tabular-nums text-xs"></span></div>
+            <div class="grid grid-cols-3 gap-1.5" id="pd-next-b"><?php foreach ($nexts as $k => $l): ?><button type="button" class="pd-q" data-when="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?><input type="datetime-local" id="pd-next-at" class="input !mt-0 !py-1 !h-9 text-xs col-span-3"></div>
+            <input id="pd-next-note" class="input !mt-2 !py-1.5 text-xs" dir="auto" maxlength="255" placeholder="<?= e(t('هتكلمه في إيه؟ (اختياري)')) ?>"></section>
+          <?php if ($canManage): ?><section class="pd-card"><label class="flex items-center gap-2 text-sm"><?= ui_icon('user', 'w-4 h-4 text-brand-600') ?><b class="text-ink-900"><?= e(t('المسؤول')) ?></b>
+            <select id="pd-owner" class="input !mt-0 !py-1 !h-9 text-sm ms-auto !w-auto max-w-[60%]"><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select></label></section><?php endif; ?>
+          <dl id="pd-meta" class="grid grid-cols-2 gap-2 text-sm"></dl>
+          <div class="pd-card"><span class="text-xs font-semibold text-ink-500"><?= e(t('التاجات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-2"><span id="pd-tags" class="contents"></span><form id="pd-tag-f" class="inline-flex m-0" data-no-ajax><input name="t" class="input !mt-0 !py-1 !w-28 text-xs" dir="auto" placeholder="<?= e(t('+ تاج')) ?>"></form></div></div>
+        </div>
+        <div class="p-5 flex flex-col min-h-0">
+          <div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900"><?= e(t('سجّل تواصل')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('بضغطة')) ?></span></div>
+          <div class="grid grid-cols-4 gap-1.5 mb-2"><?php foreach (['call' => 'phone', 'wa' => 'chat', 'email' => 'mail', 'meet' => 'users'] as $k => $ic): ?><button type="button" class="pd-kind pd-k-<?= $k ?>" data-kind="<?= $k ?>"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($kinds[$k][1]) ?></span></button><?php endforeach; ?></div>
+          <form id="pd-note-f" class="relative m-0" data-no-ajax><textarea name="b" rows="2" class="input !mt-0 text-sm !pe-16 resize-none" dir="auto" placeholder="<?= e(t('اكتب ملاحظة أو نتيجة التواصل…')) ?>"></textarea><button class="btn-primary !py-1 !px-3 !text-xs absolute bottom-2 end-2"><?= e(t('حفظ')) ?></button></form>
+          <div class="flex items-center gap-2 mt-4 mb-2"><b class="text-sm text-ink-900"><?= e(t('سجل التواصل')) ?></b><span id="pd-acts-n" class="text-[11px] text-ink-400"></span></div>
+          <ol id="pd-acts" class="pd-tl flex-1 overflow-y-auto max-h-[46vh]"></ol>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 px-5 py-3 border-t border-ink-100 bg-ink-50/60"><span class="text-[11px] text-ink-400 hidden sm:inline">← → <?= e(t('للتنقل بين العملاء')) ?> · Esc</span><span class="ms-auto"></span>
+        <a id="pd-co" href="#" class="btn-ghost !py-1.5 !text-sm hidden"><?= ui_icon('building', 'w-4 h-4') ?><?= e(t('الشركة')) ?></a><a id="pd-open" href="#" class="btn-primary !py-1.5 !text-sm"><?= e(t('افتح ملفه الكامل')) ?></a></div>
     </dialog>
 
     <dialog id="pr-import" class="mk-dlg !w-[min(620px,96vw)]">
@@ -221,7 +247,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         'cols' => ['name' => t('الاسم'), 'phone' => t('الموبايل'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظة')], 'skip' => t('— تجاهل —'),
         'noRows' => t('الملف فاضي أو مش CSV ولا Excel.'), 'reading' => t('بنقرا الملف…'), 'searching' => t('بندوّر…'), 'found' => t('%s نتيجة'), 'nothing' => t('مفيش نتايج. جرّب كلمات تانية.'), 'have' => t('عندك'), 'revealing' => t('بنكشف…'), 'revealed' => t('اتضاف %s عميل'),
         'err' => t('حصلت مشكلة.'), 'hasEmail' => t('فيه إيميل'), 'hasPhone' => t('فيه رقم'), 'synced' => t('اتضاف %s شخص جديد اتعامل معاك'), 'saved' => t('اتحفظ ✓'), 'tagAsk' => t('اكتب التاج'), 'done2' => t('اتعمل على %s'),
-        'call' => t('اتصال'), 'wa' => t('واتساب'), 'mail' => t('إيميل'), 'src' => t('المصدر'), 'added' => t('اتضاف'), 'last' => t('آخر تواصل'), 'country' => t('الدولة'), 'none' => t('مفيش بيانات تواصل لسه'), 'noNext' => t('مفيش'), 'noActs' => t('لسه مفيش تواصل متسجل.'), 'logged' => t('اتسجل ✓'), 'today' => t('النهارده'), 'pickAt' => t('اختار التاريخ الأول.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+        'call' => t('اتصال'), 'wa' => t('واتساب'), 'mail' => t('إيميل'), 'src' => t('المصدر'), 'added' => t('اتضاف'), 'last' => t('آخر تواصل'), 'country' => t('الدولة'), 'none' => t('مفيش بيانات تواصل لسه'), 'noTitle' => t('عميل محتمل'), 'loadErr' => t('ماقدرناش نحمّل سجل التواصل.'), 'retry' => t('حاول تاني'), 'now' => t('دلوقتي'), 'minAgo' => t('من %s دقيقة'), 'hrAgo' => t('من %s ساعة'), 'dayAgo' => t('من %s يوم'), 'noNext' => t('مفيش'), 'noActs' => t('لسه مفيش تواصل متسجل.'), 'logged' => t('اتسجل ✓'), 'today' => t('النهارده'), 'pickAt' => t('اختار التاريخ الأول.')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php

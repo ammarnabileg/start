@@ -6,6 +6,7 @@
   function toast(m, k) { if (window.fxToast) fxToast(m, k || 'success'); }
   function post(url, d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { [].concat(d[k]).forEach(function (v) { f.append(k, v); }); }); return fetch(url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function $(id) { return document.getElementById(id); }
+  function $$(q) { return [].slice.call(document.querySelectorAll(q)); }
 
   function dlg(id) { var d = $(id); d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) d.close(); }); return d; }
   /* ---------- القايمة: كروت الأرقام، بحث، فلاتر، ترتيب، تحديد، كيبورد ---------- */
@@ -28,22 +29,52 @@
   /* ---------- بوب أب العميل ---------- */
   var dl = dlg('pr-dlg'), cur = null;
   function jd(r) { try { return JSON.parse(r.dataset.j); } catch (e) { return {}; } }
+  var GR = [['#2563eb', '#06b6d4'], ['#7c3aed', '#ec4899'], ['#059669', '#84cc16'], ['#ea580c', '#f59e0b'], ['#0f766e', '#22d3ee'], ['#be123c', '#f97316']];
+  function grad(n) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; var g = GR[h % GR.length]; return 'linear-gradient(135deg,' + g[0] + ',' + g[1] + ')'; }
+  function stagesPaint(v) { var keys = Object.keys(C.stages), at = keys.indexOf(v);
+    $$('#pd-stages [data-stg]').forEach(function (b, i) { b.classList.toggle('on', b.dataset.stg === v); b.classList.toggle('done', v !== 'lost' && i < at && b.dataset.stg !== 'lost'); b.classList.toggle('lost', b.dataset.stg === 'lost'); });
+    $('pd-stage-pill').textContent = C.stages[v] || v; }
+  function contactPaint(d) {
+    var it = [['phone', 'call', d.phone, 'tel:' + d.phone, L.call], ['chat', 'wa', d.wa, 'https://wa.me/' + d.wa, L.wa], ['mail', 'email', d.email, 'mailto:' + d.email, L.mail]];
+    $('pd-contact').innerHTML = it.map(function (x) { return '<a class="pd-act' + (x[2] ? '' : ' off') + '" href="' + (x[2] ? esc(x[3]) : '#') + '"' + (x[1] === 'wa' ? ' target="_blank" rel="noopener"' : '') + ' data-log="' + x[1] + '">' + ic(x[0], 'w-5 h-5') + '<span>' + esc(x[4]) + '</span><small dir="ltr">' + esc(x[1] === 'wa' ? (d.wa ? '+' + d.wa : '—') : (x[2] || '—')) + '</small></a>'; }).join('');
+    $('pd-addc').classList.toggle('hidden', !!(d.phone && d.email)); }
+  function vis() { return list.rows().filter(function (x) { return x.style.display !== 'none'; }); }
+  function posPaint() { var v = vis(), i = v.indexOf(cur); $('pd-pos').textContent = i > -1 ? (i + 1) + ' / ' + v.length : ''; }
+  function loadActs(r, d) {
+    $('pd-acts').innerHTML = '<li class="h-12 mk-sk"></li><li class="h-12 mk-sk"></li><li class="h-12 mk-sk"></li>'; $('pd-acts-n').textContent = '';
+    fetch(C.selfUrl + '&ajax=lead&id=' + d.id, { credentials: 'same-origin' }).then(function (x) { if (!x.ok) throw new Error('HTTP ' + x.status); return x.text(); })
+      .then(function (t) { var j; try { j = JSON.parse(t.slice(t.indexOf('{'))); } catch (e) { throw new Error('bad json'); } // لو السيرفر طبع تحذير قبل الرد
+        if (cur !== r) return; if (!j.ok) throw new Error('not ok');
+        acts(j.acts); nextShow(j.next, j.due); if (j.company) { $('pd-co').href = j.company; $('pd-co').classList.remove('hidden'); } })
+      .catch(function (e) { if (cur !== r) return; if (window.console) console.warn('lead acts', e);
+        $('pd-acts').innerHTML = '<li class="!ps-0 text-sm text-ink-500">' + esc(L.loadErr) + ' <button type="button" class="link" data-retry>' + esc(L.retry) + '</button></li>'; }); }
   function open(r) {
     cur = r; var d = jd(r);
-    $('pd-av').textContent = (d.name || '?').charAt(0); $('pd-name').textContent = d.name || '—'; $('pd-sub').textContent = [d.title, d.company].filter(Boolean).join(' · ');
-    $('pd-contact').innerHTML = (d.phone ? '<a class="btn-ghost !py-1.5" href="tel:' + esc(d.phone) + '" dir="ltr">' + ic('phone') + esc(d.phone) + '</a>' : '') +
-      (d.wa ? '<a class="btn-ghost !py-1.5 !text-lime-700" href="https://wa.me/' + esc(d.wa) + '" target="_blank" rel="noopener">' + ic('chat') + esc(L.wa) + '</a>' : '') +
-      (d.email ? '<a class="btn-ghost !py-1.5" href="mailto:' + esc(d.email) + '" dir="ltr">' + ic('mail') + esc(d.email) + '</a>' : '') || '<span class="text-sm text-ink-400">' + esc(L.none) + '</span>';
-    $('pd-stage').value = d.stage; if ($('pd-owner')) $('pd-owner').value = String(d.owner || 0);
-    $('pd-meta').innerHTML = [[L.src, d.src], [L.added, d.added], [L.last, d.last || '—'], [L.country, d.country || '—']].map(function (x) { return '<div class="rounded-xl bg-ink-50 px-3 py-2"><dt class="text-[11px] text-ink-500">' + esc(x[0]) + '</dt><dd class="font-medium text-ink-900 truncate">' + esc(x[1]) + '</dd></div>'; }).join('');
+    var av = $('pd-av'); av.textContent = (d.name || '?').trim().charAt(0).toUpperCase(); av.style.background = grad(d.name || '?');
+    $('pd-name').textContent = d.name || '—'; $('pd-sub').textContent = [d.title, d.company].filter(Boolean).join(' · ') || L.noTitle;
+    $('pd-src-pill').textContent = d.src || ''; contactPaint(d); $('pd-addc').reset();
+    $('pd-stage').value = d.stage; stagesPaint(d.stage); if ($('pd-owner')) $('pd-owner').value = String(d.owner || 0);
+    $('pd-meta').innerHTML = [[L.added, d.added, 'clock'], [L.last, d.last || '—', 'chat'], [L.country, d.country || '—', 'globe'], [L.src, d.src, 'layers']].map(function (x) { return '<div class="rounded-xl bg-ink-50 px-3 py-2.5 min-w-0"><dt class="text-[11px] text-ink-500 flex items-center gap-1">' + ic(x[2], 'w-3.5 h-3.5') + esc(x[0]) + '</dt><dd class="font-semibold text-ink-900 truncate mt-0.5">' + esc(x[1]) + '</dd></div>'; }).join('');
     tags(d.tags); $('pd-open').href = C.leadUrl + '&lead=' + d.id; $('pd-co').classList.add('hidden');
-    nextShow(d.next, false); $('pd-next-note').value = d.next_note || ''; $('pd-next-at').value = ''; $('pd-acts').innerHTML = '<li class="h-10 mk-sk"></li><li class="h-10 mk-sk"></li>'; dl.showModal();
-    fetch(C.selfUrl + '&ajax=lead&id=' + d.id, { credentials: 'same-origin' }).then(function (x) { return x.json(); }).then(function (j) { if (!j.ok || cur !== r) return;
-      acts(j.acts); nextShow(j.next, j.due); if (j.company) { $('pd-co').href = j.company; $('pd-co').classList.remove('hidden'); } }); }
+    nextShow(d.next, d.due); $('pd-next-note').value = d.next_note || ''; $('pd-next-at').value = '';
+    posPaint(); loadActs(r, d); if (!dl.open) dl.showModal();
+    $$('[data-mk-row]').forEach(function (x) { x.classList.toggle('mk-focus', x === r); }); r.scrollIntoView({ block: 'nearest' });
+  }
+  function nav(step) { var v = vis(), i = v.indexOf(cur), n = v[i + step]; if (n) open(n); }
+  dl.addEventListener('click', function (e) { var b = e.target.closest('[data-nav]'); if (b) return nav(+b.dataset.nav); if (e.target.closest('[data-retry]') && cur) loadActs(cur, jd(cur));
+    var s = e.target.closest('[data-stg]'); if (s && cur && s.dataset.stg !== $('pd-stage').value) { $('pd-stage').value = s.dataset.stg; stagesPaint(s.dataset.stg); $('pd-stage').dispatchEvent(new Event('change')); } });
+  dl.addEventListener('keydown', function (e) { if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; var rtl = document.documentElement.dir === 'rtl';
+    if (e.key === 'ArrowLeft') { e.preventDefault(); nav(rtl ? 1 : -1); } if (e.key === 'ArrowRight') { e.preventDefault(); nav(rtl ? -1 : 1); } });
+  $('pd-addc').addEventListener('submit', function (e) { e.preventDefault(); var f = this, r = cur, b = f.querySelector('button'); if (!f.phone.value.trim() && !f.email.value.trim()) return; b.disabled = true;
+    post(C.selfUrl, { action: 'contact', id: jd(r).id, phone: f.phone.value, email: f.email.value }).then(function (j) { b.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error');
+      upd(r, 'phone', j.phone); upd(r, 'email', j.email); upd(r, 'wa', j.wa); r.dataset.phone = j.phone ? 1 : 0; r.dataset.email = j.email ? 1 : 0; r.dataset.none = j.phone || j.email ? 0 : 1; contactPaint(jd(r)); toast(L.saved); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
   // المتابعة وسجل التواصل
   var AIC = { call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'pencil', stage: 'refresh' };
-  function acts(a) { $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="flex gap-2 rounded-xl bg-ink-50 px-3 py-2 text-sm"><span class="text-ink-500 mt-0.5">' + ic(AIC[x.kind] || 'dots', 'w-4 h-4') + '</span><div class="min-w-0 flex-1"><div class="flex gap-2 text-[11px] text-ink-500"><b class="text-ink-700">' + esc(x.label) + '</b><span class="tabular-nums">' + esc(x.at) + '</span>' + (x.who ? '<span>· ' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? '<p class="text-ink-800 break-words" dir="auto">' + esc(x.body) + '</p>' : '') + '</div></li>'; }).join('') : '<li class="text-sm text-ink-400">' + esc(L.noActs) + '</li>'; }
-  function nextShow(n, due) { var el = $('pd-next'); el.textContent = n || L.noNext; el.className = 'tabular-nums ' + (due ? 'text-red-600 font-medium' : 'text-ink-600'); }
+  var KC = { call: '#16a34a', wa: '#22c55e', email: '#2563eb', meet: '#d97706', note: '#64748b', stage: '#7c3aed' };
+  function ago(t) { var m = /(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/.exec(t || ''); if (!m) return t; var d = new Date(+m[3], m[2] - 1, +m[1], +m[4], +m[5]), s = (Date.now() - d) / 1000;
+    return s < 90 ? L.now : s < 3600 ? L.minAgo.replace('%s', Math.round(s / 60)) : s < 86400 ? L.hrAgo.replace('%s', Math.round(s / 3600)) : s < 86400 * 30 ? L.dayAgo.replace('%s', Math.round(s / 86400)) : t; }
+  function acts(a) { $('pd-acts-n').textContent = a.length ? a.length : ''; $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="cp-pop"><span class="pd-dot text-white" style="background:' + (KC[x.kind] || '#64748b') + '">' + ic(AIC[x.kind] || 'dots', 'w-2.5 h-2.5') + '</span><div class="rounded-xl border border-ink-100 bg-white px-3 py-2"><div class="flex items-center gap-2 text-[11px] text-ink-500"><b class="text-ink-800 text-xs">' + esc(x.label) + '</b><span title="' + esc(x.at) + '">' + esc(ago(x.at)) + '</span>' + (x.who ? '<span class="ms-auto">' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(x.body) + '</p>' : '') + '</div></li>'; }).join('') : '<li class="!ps-0 text-center py-8 text-sm text-ink-400">' + ic('chat', 'w-6 h-6 mx-auto mb-2 opacity-50') + esc(L.noActs) + '</li>'; }
+  function nextShow(n, due) { var el = $('pd-next'); el.textContent = n || L.noNext; el.className = 'ms-auto tabular-nums text-xs ' + (due ? 'text-red-600 font-semibold' : 'text-ink-600'); var p = $('pd-due-pill'); if (p) { p.classList.toggle('hidden', !n); p.textContent = (due ? '⏰ ' : '📅 ') + (n || ''); p.style.background = due ? 'rgba(220,38,38,.85)' : ''; } }
   function rowNext(r, j) { upd(r, 'next', j.next || ''); upd(r, 'next_note', j.next_note || ''); var c = r.querySelector('[data-c=next]'); r.dataset.due = j.due && r.dataset.stage !== 'won' && r.dataset.stage !== 'lost' ? '1' : '0';
     r.dataset.cold = '0'; c.className = 'block truncate tabular-nums ' + (r.dataset.due === '1' ? 'text-red-600 font-medium' : 'text-ink-400'); c.innerHTML = j.next ? ic('calendar', 'w-3 h-3 inline') + ' ' + esc(j.next.slice(0, 5)) : ''; }
   function setNext(idsArr, when, extra) { var d = { action: 'next', when: when, 'ids[]': idsArr }; Object.keys(extra || {}).forEach(function (k) { d[k] = extra[k]; }); return post(C.selfUrl, d); }
