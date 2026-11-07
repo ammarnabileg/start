@@ -188,9 +188,11 @@ $nexts = ['today' => t('النهارده'), '1d' => t('بكرة'), '3d' => t('ب
 $srcIcon = ['inbox' => 'chat', 'comments' => 'chat', 'form' => 'file', 'ads' => 'megaphone', 'whatsapp' => 'chat', 'reveal' => 'eye', 'import' => 'upload', 'manual' => 'pencil', 'tender' => 'file'];
 
 $ago = function ($d) { if (!$d) return ''; $n = (int)floor((strtotime('today') - strtotime(substr($d, 0, 10))) / 86400); return $n <= 0 ? t('النهارده') : ($n === 1 ? t('امبارح') : t('من %s يوم', $n)); };
-$rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, $stages, $srcIcon, $wid, $lastVisit, $members, $canManage) {
+$rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, $stages, $srcIcon, $wid, $lastVisit, $members, $canManage, $kinds) {
     if (!$rows) return '';
     $actN = []; $ids = array_map(function ($r) { return (int)$r['id']; }, $rows); $q = db()->prepare('SELECT lead_id, COUNT(*) FROM crm_acts WHERE workspace_id = ? AND lead_id IN (' . implode(',', $ids) . ') GROUP BY lead_id'); $q->execute([$wid]); foreach ($q->fetchAll(PDO::FETCH_NUM) as $x) $actN[(int)$x[0]] = (int)$x[1];
+    $lastAct = []; $q = db()->prepare("SELECT a.lead_id, a.kind, a.body, a.created_at FROM crm_acts a JOIN (SELECT lead_id, MAX(id) mid FROM crm_acts WHERE workspace_id = ? AND kind <> 'stage' AND lead_id IN (" . implode(',', $ids) . ") GROUP BY lead_id) m ON m.mid = a.id"); $q->execute([$wid]);
+    foreach ($q->fetchAll() as $x) $lastAct[(int)$x['lead_id']] = ['kind' => (string)$x['kind'], 'body' => trim(preg_replace('/\s+/u', ' ', (string)$x['body'])), 'created_at' => (string)$x['created_at']];
     ob_start(); ?>
       <?php foreach ($rows as $r): $has = $r['phone'] || $r['email']; $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
           $j = crm_lead_card($r, $actN[(int)$r['id']] ?? 0); ?>
@@ -200,7 +202,8 @@ $rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, 
           data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['company'] . ' ' . $r['title'] . ' ' . $r['phone'] . ' ' . $r['email'] . ' ' . $r['tags'])) ?>" data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">
           <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
           <span class="flex items-center gap-2.5 min-w-0"><?php if ((string)$r['created_at'] > $lastVisit): ?><i class="pr-newdot" title="<?= e(t('جديد من آخر زيارة')) ?>"></i><?php endif; ?><span class="mk-av <?= $has ? '!bg-lime-50 !text-lime-800' : '' ?>"><?= e(mb_strtoupper(mb_substr((string)$r['name'], 0, 1))) ?></span>
-            <span class="min-w-0"><b class="block truncate <?= $has ? 'text-ink-900' : 'font-medium text-ink-500' ?>"><?= e($r['name']) ?></b><?php if ($r['title']): ?><span class="block text-xs text-ink-500 truncate"><?= e($r['title']) ?></span><?php endif; ?></span></span>
+            <span class="min-w-0"><b class="block truncate <?= $has ? 'text-ink-900' : 'font-medium text-ink-500' ?>"><?= e($r['name']) ?></b><?php if ($r['title']): ?><span class="block text-xs text-ink-500 truncate"><?= e($r['title']) ?></span><?php endif; ?>
+              <?php $la = $lastAct[(int)$r['id']] ?? null; $tg = array_slice(array_filter(array_map('trim', explode(',', (string)$r['tags']))), 0, 2); if ($la || $tg): ?><span class="pr-ctx"><?php foreach ($tg as $x): ?><i>#<?= e($x) ?></i><?php endforeach; ?><?php if ($la): ?><em title="<?= e($la['body']) ?>"><?= e(($kinds[$la['kind']][0] ?? '•') . ' ' . ($la['body'] !== '' ? mb_strimwidth($la['body'], 0, 46, '…') : ($kinds[$la['kind']][1] ?? $la['kind'])) . ' · ' . $ago($la['created_at'])) ?></em><?php endif; ?></span><?php endif; ?></span></span>
           <span class="text-sm text-ink-600 truncate"><?= e($r['company'] ?: '—') ?></span>
           <span class="flex flex-col gap-0.5 text-xs min-w-0" dir="ltr"><?php if ($r['phone']): ?><span class="text-lime-700 inline-flex items-center gap-1 truncate"><?= ui_icon('phone', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['phone']) ?></span><?php endif; ?><?php if ($r['email']): ?><span class="text-brand-700 inline-flex items-center gap-1 truncate"><?= ui_icon('mail', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['email']) ?></span><?php endif; ?><?php if (!$has): ?><span class="text-ink-300">—</span><?php endif; ?></span>
           <span><span class="mk-pill bg-ink-100 text-ink-700"><?= ui_icon($srcIcon[$r['source']] ?? 'dots', 'w-3 h-3') ?><?= e($sources[$r['source']] ?? $r['source']) ?></span></span>
