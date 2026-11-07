@@ -152,4 +152,9 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <?php if ($mgr): ?><div class="md:col-span-3"><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button></div><?php endif; ?>
       </form></section>
   </div>
+  <script>window.CSET = <?= json_encode(['mgr' => $mgr, 'pal' => $pal, 'ws' => (string)(ws('name') ?? ''), 'brand' => ['#4f46e5', '#2563eb', '#0891b2', '#059669', '#16a34a', '#ea580c', '#db2777', '#0f172a'],
+    'T' => ['del' => t('احذف'), 'leads' => t('عدد العملاء'), 'main' => t('الأساسي'), 'text' => t('نص'), 'num' => t('رقم'), 'sel' => t('اختيارات'), 'textEx' => t('اكتب هنا…'), 'optAdd' => t('اختيار + Enter'), 'fPrev' => t('هيظهر في ملف العميل كده:'),
+      'if' => t('لو'), 'has' => t('فيها'), 'tag' => t('تاج'), 'addRule' => t('ضيف قاعدة'), 'tryT' => t('جرّب القواعد'), 'tryCo' => t('اسم شركة أو مسمى… مثلًا: مطعم الشام'), 'tryPh' => t('رقم… مثلًا: 9665…'), 'noTag' => t('مفيش تاج هيتحط'),
+      'mailBody' => t("أهلًا أحمد،\nده مثال لشكل الإيميل اللي هيوصل لعملائك."), 'unsub' => t('مش عاوز إيميلات تاني'), 'cta' => t('احجز ميعاد')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+  <script src="assets/crm-set-ux.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

@@ -118,6 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $where = 'workspace_id = ?'; $args = [$wid];
 if (!$canManage) { $where .= ' AND (owner_id = ? OR owner_id IS NULL)'; $args[] = $uid; }
+// الـ Pipelines: كل واحد قايمته لوحده (تابات فوق الصفحة)
+$pipes = crm_pipelines(); $pl = isset($pipes[$_GET['pl'] ?? '']) ? (string)$_GET['pl'] : 'sales'; $plCnt = [];
+if (count($pipes) > 1) { $st = db()->prepare("SELECT COALESCE(NULLIF(pipeline, ''), 'sales') k, COUNT(*) n FROM crm_leads WHERE $where GROUP BY k"); $st->execute($args); $plCnt = array_column($st->fetchAll(), 'n', 'k');
+    $where .= " AND COALESCE(NULLIF(pipeline, ''), 'sales') = ?"; $args[] = $pl; }
 $st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY id DESC LIMIT 5000");
 $st->execute($args); $rows = $st->fetchAll();
 $sources = crm_sources(); $stages = crm_stages();
@@ -141,12 +145,14 @@ $nexts = ['today' => t('النهارده'), '1d' => t('بكرة'), '3d' => t('ب
 $srcIcon = ['inbox' => 'chat', 'comments' => 'chat', 'form' => 'file', 'ads' => 'megaphone', 'whatsapp' => 'chat', 'reveal' => 'eye', 'import' => 'upload', 'manual' => 'pencil', 'tender' => 'file'];
 
 $ago = function ($d) { if (!$d) return ''; $n = (int)floor((strtotime('today') - strtotime(substr($d, 0, 10))) / 86400); return $n <= 0 ? t('النهارده') : ($n === 1 ? t('امبارح') : t('من %s يوم', $n)); };
-render(t('العملاء المستهدفين'), 'prospects', function () use ($isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
+render(t('العملاء المستهدفين'), 'prospects', function () use ($pipes, $pl, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
     $cols = 'md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_110px_84px_116px]';
     $sel = function (string $id, string $label, array $opts) { $h = '<label class="block text-xs text-ink-600">' . e($label) . '<select id="' . $id . '" class="input !mt-1 text-sm"><option value="">' . e(t('الكل')) . '</option>';
         foreach ($opts as $v => $l) $h .= '<option value="' . e((string)$v) . '">' . e($l) . '</option>'; return $h . '</select></label>'; };
     ?>
     <div id="pr" data-mk>
+    <?php if (count($pipes) > 1): ?><nav class="pr-pipes" aria-label="Pipelines"><?php foreach ($pipes as $k => $v): ?><a href="<?= e(url('prospects') . ($k === 'sales' ? '' : '&pl=' . urlencode($k))) ?>" class="<?= $k === $pl ? 'on' : '' ?>"><?= ui_icon($k === 'sales' ? 'wallet' : 'route', 'w-4 h-4') ?><span><?= e($v) ?></span><b><?= number_format((int)($plCnt[$k] ?? 0)) ?></b></a><?php endforeach; ?>
+      <?php if ($canManage): ?><a href="<?= e(url('crm_capture')) ?>#s-pipes" class="pr-pipe-add" title="<?= e(t('إدارة الـ Pipelines')) ?>"><?= ui_icon('sliders', 'w-4 h-4') ?></a><?php endif; ?></nav><?php endif; ?>
     <div class="mk-stats">
       <?php foreach ([['_all', '', t('الكل'), $stat['all'], 'users', 'bg-ink-100 text-ink-700'], ['phone', 'phone=1', t('لديهم رقم'), $stat['phone'], 'phone', 'bg-lime-50 text-lime-700'],
           ['email', 'email=1', t('لديهم بريد'), $stat['email'], 'mail', 'bg-brand-50 text-brand-700'], ['none', 'none=1', t('دون بيانات تواصل'), $stat['none'], 'user', 'bg-amber-50 text-amber-700'],
@@ -167,9 +173,9 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <button type="button" id="pr-queue" class="btn-ghost"><?= ui_icon('phone', 'w-4 h-4') ?><?= e(t('طابور الاتصال')) ?><b class="pr-qn"></b></button>
       <button type="button" popovertarget="pr-add-menu" class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('عميل جديد')) ?><?= ui_icon('chevron-down', 'w-3.5 h-3.5 opacity-60') ?></button>
       <div id="pr-add-menu" popover class="pr-menu"><button type="button" id="pr-add-btn"><span style="--c:#4f46e5"><?= ui_icon('plus', 'w-5 h-5') ?></span><b><?= e(t('إضافة يدوي')) ?><small><?= e(t('اكتب الاسم والرقم')) ?></small></b></button>
-        <button type="button" id="pr-card-btn"><span style="--c:#ea580c"><?= ui_icon('image', 'w-5 h-5') ?></span><b><?= e(t('من بطاقة عمل')) ?><small><?= e(t('صوّرها وإحنا نقراها')) ?></small></b></button></div>
+        <button type="button" id="pr-card-btn"><span style="--c:#ea580c"><?= ui_icon('image', 'w-5 h-5') ?></span><b><?= e(t('من بطاقة عمل')) ?><small><?= e(t('صوّرها وإحنا نقراها')) ?></small></b></button>
+        <button type="button" id="pr-import-btn"><span style="--c:#059669"><?= ui_icon('upload', 'w-5 h-5') ?></span><b><?= e(t('استيراد ملف')) ?><small><?= e(t('Excel أو CSV، كذا عميل مرة واحدة')) ?></small></b></button></div>
       <form method="post" action="<?= e(url('crm_leads')) ?>" class="m-0" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads"><button class="btn-ghost" title="<?= e(t('هات عملاء فورمات الإعلانات الجداد')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?><?= e(t('مزامنة الإعلانات')) ?></button></form>
-      <button type="button" id="pr-import-btn" class="btn-ghost"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('استيراد ملف')) ?></button>
       <button type="button" id="pr-find-btn" class="btn-primary"><?= ui_icon('search', 'w-4 h-4') ?><?= e(t('ابحث عن شخص')) ?></button>
     </div>
 
@@ -286,7 +292,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?php endif; ?>
       </div>
     </dialog>
-    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'),
+    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'pl' => $pl, 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'),
         'keep' => t('دي اللي هتفضل'), 'merged' => t('اتدمج ✓'), 'mgDone' => t('خلصنا الدمج'), 'dupFound' => t('موجود قبل كده: %s — هيتدمج معاه.'), 'seqLoad' => t('بنجيب الـ Sequences…'), 'noSeq' => t('مفيش Sequences في Apollo.'), 'enriched' => t('اتكشف %s'), 'added' => t('اتضاف ✓'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'stage' => t('المرحلة'), 'country' => t('الدولة')]]], 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'), 'leadUrl' => url('crm_leads'), 'syncDue' => $syncDue,
         'xlsLib' => 'assets/vendor/xlsx-0.20.3.full.min.js?v=' . APP_VERSION, 'stages' => $stages, 'members' => $members,
         'L' => lead_popup_L()], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

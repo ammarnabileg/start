@@ -34,7 +34,7 @@
   if (mn && mb) mn.addEventListener('toggle', function (e) { if (e.newState !== 'open') return; var r = mb.getBoundingClientRect(), w = mn.offsetWidth;
     mn.style.top = (r.bottom + 6) + 'px'; mn.style.left = Math.max(8, Math.min(innerWidth - w - 8, (document.dir === 'rtl' ? r.right - w : r.left))) + 'px'; });
   var cb = document.getElementById('pr-card-btn'); if (cb) cb.addEventListener('click', open);
-  var ab = document.getElementById('pr-add-btn'); if (ab) ab.addEventListener('click', function () { var m = document.getElementById('pr-add-menu'); if (m && m.hidePopover) try { m.hidePopover(); } catch (e) {} });
+  ['pr-add-btn', 'pr-import-btn'].forEach(function (id) { var ab = document.getElementById(id); if (ab) ab.addEventListener('click', function () { var m = document.getElementById('pr-add-menu'); if (m && m.hidePopover) try { m.hidePopover(); } catch (e) {} }); });
   d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) return d.close();
     if (e.target.closest('[data-re]')) return drop();
     var l = e.target.closest('[data-ln]'); if (l) { B.querySelectorAll('[data-ln]').forEach(function (x) { x.classList.toggle('on', x === l && !l.classList.contains('on')); }); pick = l.classList.contains('on') ? l : null; B.classList.toggle('pc-picking', !!pick); return; }

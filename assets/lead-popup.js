@@ -21,7 +21,7 @@
   function contactPaint(d) {
     var it = [['phone', 'call', d.phone, 'tel:' + d.phone, L.call], ['chat', 'wa', d.wa, 'https://wa.me/' + d.wa, L.wa], ['mail', 'email', d.email, 'mailto:' + d.email, L.mail]];
     $('pd-contact').innerHTML = it.map(function (x) { return '<a class="pd-act' + (x[2] ? '' : ' off') + '" href="' + (x[2] ? esc(x[3]) : '#') + '"' + (x[1] === 'wa' ? ' target="_blank" rel="noopener"' : '') + ' data-log="' + x[1] + '">' + ic(x[0], 'w-5 h-5') + '<span>' + esc(x[4]) + '</span><small dir="ltr">' + esc(x[1] === 'wa' ? (d.wa ? '+' + d.wa : '—') : (x[2] || '—')) + '</small>' + (x[2] ? '<button type="button" class="pd-cp" data-copy="' + esc(x[1] === 'wa' ? '+' + d.wa : x[2]) + '" title="' + esc(L.copy) + '">' + ic('copy', 'w-3 h-3') + '</button>' : '') + '</a>'; }).join('');
-    $('pd-addc').classList.toggle('hidden', !!(d.phone && d.email)); }
+    var af = $('pd-addc'); af.classList.toggle('hidden', !!(d.phone && d.email)); af.phone.classList.toggle('hidden', !!d.phone); af.email.classList.toggle('hidden', !!d.email); }
   function pd(t) { var m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t || ''); return m ? new Date(+m[3], m[2] - 1, +m[1]) : null; }
   function heat(d) { return d.stage === 'won' ? 100 : d.stage === 'lost' ? 0 : +(d.score || 0); }
   function heatPaint(d) { var v = heat(d), el = $('pd-heat'), c = v >= 70 ? '#ef4444' : v >= 40 ? '#f59e0b' : '#38bdf8';
@@ -42,7 +42,7 @@
     $('pd-name').textContent = d.name || '—'; $('pd-sub').textContent = [d.title, d.company].filter(Boolean).join(' · ') || L.noTitle;
     $('pd-src-pill').textContent = d.src || ''; contactPaint(d); $('pd-addc').reset();
     $('pd-stage').value = d.stage; stagesPaint(d.stage); if ($('pd-owner')) $('pd-owner').value = String(d.owner || 0);
-    $('pd-meta').innerHTML = [[L.added, d.added, 'clock'], [L.last, d.last || '—', 'chat'], [L.country, d.country || '—', 'globe'], [L.src, d.src, 'layers']].map(function (x) { return '<div class="rounded-xl bg-ink-50 px-3 py-2.5 min-w-0"><dt class="text-[11px] text-ink-500 flex items-center gap-1">' + ic(x[2], 'w-3.5 h-3.5') + esc(x[0]) + '</dt><dd class="font-semibold text-ink-900 truncate mt-0.5">' + esc(x[1]) + '</dd></div>'; }).join('');
+    $('pd-meta').innerHTML = [[L.added, d.added, 'clock'], [L.last, d.last || '—', 'chat'], [L.country, d.country || '—', 'globe'], [L.src, d.src, 'layers']].map(function (x) { return '<div><dt>' + ic(x[2], 'w-3.5 h-3.5') + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd></div>'; }).join('');
     tags(d.tags); $('pd-open').href = C.leadUrl + '#lead-' + d.id; $('pd-co').classList.add('hidden');
     nextShow(d.next, d.due); $('pd-next-note').value = d.next_note || ''; $('pd-next-at').value = '';
     heatPaint(d); idEdit(false); popsClose(); tf = '';

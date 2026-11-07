@@ -67,8 +67,8 @@
     if (ph.length >= 8 || em.indexOf('@') > 0) list.rows().some(function (r) { var d = jd(r); if ((ph.length >= 8 && norm(d.phone) === ph) || (em && (d.email || '').toLowerCase() === em)) { hit = d; return true; } });
     var p = $('pr-add-dup'); p.classList.toggle('hidden', !hit); if (hit) p.textContent = T.dupFound.replace('%s', hit.name); });
   af.addEventListener('submit', function (e) { e.preventDefault(); var b = af.querySelector('button'); b.disabled = true;
-    api({ action: 'add', name: af.name.value, phone: af.phone.value, email: af.email.value, company: af.company.value, title: af.title.value }).then(function (j) { b.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error');
-      toast(T.added); location.href = C.selfUrl + '&lead=' + j.lead.id; }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
+    api({ action: 'add', pl: window.PR && PR.pl || 'sales', name: af.name.value, phone: af.phone.value, email: af.email.value, company: af.company.value, title: af.title.value }).then(function (j) { b.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error');
+      toast(T.added); location.href = C.selfUrl + (window.PR && PR.pl && PR.pl !== 'sales' ? '&pl=' + encodeURIComponent(PR.pl) : '') + '&lead=' + j.lead.id; }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
 
   /* ---------- دمج المكررين ---------- */
   var pairs = [], pi = 0, mergedAny = false, mg = dlg('pr-merge'), keep = 'a', take = {};

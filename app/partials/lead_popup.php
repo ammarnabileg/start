@@ -37,7 +37,7 @@ function lead_popup(): string
     $st = db()->prepare("SELECT DISTINCT tags FROM crm_leads WHERE workspace_id = ? AND tags IS NOT NULL AND tags <> '' LIMIT 2000"); $st->execute([(int)ws('id')]);
     $rows = array_map(function ($t) { return ['tags' => $t]; }, $st->fetchAll(PDO::FETCH_COLUMN));
     ob_start(); ?>
-    <dialog id="pr-dlg" class="mk-dlg pd-dlg !w-[min(880px,96vw)] !p-0">
+    <dialog id="pr-dlg" class="mk-dlg pd-dlg !w-[min(980px,96vw)] !p-0">
       <div id="pd-queue" class="pd-qbar hidden"></div>
       <div class="pd-hero">
         <div class="flex items-start gap-4">
@@ -48,19 +48,19 @@ function lead_popup(): string
             <button type="button" class="pd-hb" data-nav="-1" title="<?= e(t('السابق')) ?> (→)"><?= ui_icon('chevron-right', 'w-5 h-5') ?></button><button type="button" class="pd-hb" data-nav="1" title="<?= e(t('التالي')) ?> (←)"><?= ui_icon('chevron-left', 'w-5 h-5') ?></button>
             <button type="button" data-close class="pd-hb" aria-label="<?= e(t('إغلاق')) ?>"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
         </div>
-        <div id="pd-contact" class="grid grid-cols-3 gap-2 mt-4"></div>
+        <div id="pd-contact" class="pd-cts"></div>
         <form id="pd-addc" class="hidden mt-3 flex flex-wrap gap-2" data-no-ajax><input name="phone" class="input !mt-0 !py-1.5 text-sm flex-1 min-w-[140px]" dir="ltr" placeholder="<?= e(t('الرقم')) ?>"><input name="email" type="email" class="input !mt-0 !py-1.5 text-sm flex-1 min-w-[160px]" dir="ltr" placeholder="<?= e(t('الإيميل')) ?>"><button class="btn-primary !py-1.5 !text-sm"><?= e(t('حفظ')) ?></button></form>
       </div>
       <div class="pd-stages" id="pd-stages"><?php foreach ($stages as $k => $l): ?><button type="button" data-stg="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?></div>
       <select id="pd-stage" class="hidden" aria-hidden="true"><?php foreach ($stages as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select>
-      <div class="grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-0">
-        <div class="p-5 space-y-4 md:border-e border-ink-100">
+      <div class="pd-body">
+        <div class="pd-side">
           <section class="pd-card"><div class="flex items-center gap-2 text-sm mb-2"><?= ui_icon('calendar', 'w-4 h-4 text-brand-600') ?><b class="text-ink-900"><?= e(t('المتابعة الجاية')) ?></b><span id="pd-next" class="ms-auto text-ink-600 tabular-nums text-xs"></span></div>
-            <div class="grid grid-cols-3 gap-1.5" id="pd-next-b"><?php foreach ($nexts as $k => $l): ?><button type="button" class="pd-q" data-when="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?><input type="datetime-local" id="pd-next-at" class="input !mt-0 !py-1 !h-9 text-xs col-span-3"></div>
+            <div class="pd-nb" id="pd-next-b"><?php foreach ($nexts as $k => $l): ?><button type="button" class="pd-q" data-when="<?= e($k) ?>"><?= e($l) ?></button><?php endforeach; ?><input type="datetime-local" id="pd-next-at" class="input !mt-0 !py-1 !h-8 text-xs pd-nat"></div>
             <input id="pd-next-note" class="input !mt-2 !py-1.5 text-xs" dir="auto" maxlength="255" placeholder="<?= e(t('هتكلمه في إيه؟ (اختياري)')) ?>"></section>
           <?php if ($canManage): ?><section class="pd-card"><label class="flex items-center gap-2 text-sm"><?= ui_icon('user', 'w-4 h-4 text-brand-600') ?><b class="text-ink-900"><?= e(t('المسؤول')) ?></b>
             <select id="pd-owner" class="input !mt-0 !py-1 !h-9 text-sm ms-auto !w-auto max-w-[60%]"><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select></label></section><?php endif; ?>
-          <dl id="pd-meta" class="grid grid-cols-2 gap-2 text-sm"></dl>
+          <dl id="pd-meta" class="pd-meta"></dl>
           <div class="pd-card"><span class="text-xs font-semibold text-ink-500"><?= e(t('التاجات')) ?></span><div class="flex flex-wrap items-center gap-1.5 mt-2"><span id="pd-tags" class="contents"></span><form id="pd-tag-f" class="inline-flex m-0" data-no-ajax><input name="t" list="pd-tagl" autocomplete="off" class="input !mt-0 !py-1 !w-28 text-xs" dir="auto" placeholder="<?= e(t('+ تاج')) ?>"><datalist id="pd-tagl"><?php $allT = []; foreach ($rows as $r) foreach (explode(',', (string)$r['tags']) as $x) { $x = trim($x); if ($x !== '') $allT[$x] = 1; } foreach (array_slice(array_keys($allT), 0, 200) as $x): ?><option value="<?= e($x) ?>"><?php endforeach; ?></datalist></form></div></div>
         </div>
         <div class="flex flex-col min-h-0">
