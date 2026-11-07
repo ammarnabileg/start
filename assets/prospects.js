@@ -53,6 +53,16 @@
   document.addEventListener('click', function (e) { if (!e.target.closest('.pr-qm,[data-qstage],[data-qnext]')) qClose(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') qClose(); }); window.addEventListener('scroll', qClose, true);
 
+  /* ---------- جديد من آخر زيارة + المسؤول من الصف ---------- */
+  if (C.sinceN > 0) { var sc = document.createElement('button'); sc.type = 'button'; sc.className = 'pr-since'; sc.textContent = QT.since.replace('%s', C.sinceN.toLocaleString('en-US'));
+    var tb2 = root.querySelector('.mk-table'); if (tb2) tb2.before(sc); sc.addEventListener('click', function () { var on = !sc.classList.contains('on'); root.querySelector('[data-mk-stat="' + (on ? 'since' : '_all') + '"]').click(); sc.classList.toggle('on', on); });
+    root.addEventListener('click', function (e) { var st = e.target.closest('[data-mk-stat]'); if (st && st.dataset.mkStat !== 'since') sc.classList.remove('on'); }); }
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qown]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); qRow = r; var d = jd(r);
+    qOpen(b, '<b>' + esc(QT.qOwn) + '</b>' + Object.keys(C.members).map(function (k) { return '<button type="button" data-qo="' + k + '" class="' + (+k === +d.owner ? 'on' : '') + '">' + esc(C.members[k]) + '</button>'; }).join('') + '<button type="button" data-qo="0">' + esc(QT.noOwn) + '</button>'); }, true);
+  qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qo]'), r = qRow; if (!b || !r) return; var d = jd(r), v = +b.dataset.qo; qClose();
+    bulk([d.id], 'owner', { owner: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'owner', v); var ob = r.querySelector('[data-qown]'), nm = C.members[v] || '';
+      if (ob) { ob.classList.toggle('none', !nm); ob.title = nm || QT.noOwn; ob.textContent = nm ? nm.charAt(0).toUpperCase() : '+'; } r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
   var tb = root.querySelector('.mk-table'); if (tb) tb.before(vbar);

@@ -1078,3 +1078,9 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-flash{animation:prFlash .9s}@keyframes prFlash{0%,40%{background:#ecfdf5}}
 .dark .pr-qm{background:#0f172a;border-color:rgb(255 255 255/.1)}.dark .pr-qm button{color:#e2e8f0}.dark .pr-qm button:hover{background:#1e293b}
 .pr-views.hidden{display:none}
+
+.pr-newdot{width:8px;height:8px;border-radius:50%;background:#2563eb;box-shadow:0 0 0 3px rgb(37 99 235/.18);flex-shrink:0}
+.pr-since{display:inline-flex;align-items:center;font-size:.8rem;font-weight:600;padding:.35rem .8rem;margin:0 0 .7rem .4rem;border-radius:99px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;transition:all .15s}
+.pr-since:hover,.pr-since.on{background:#1d4ed8;color:#fff}
+.pr-own{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;color:#fff;background:linear-gradient(135deg,#6366f1,#06b6d4);flex-shrink:0;transition:transform .15s}
+.pr-own:hover{transform:scale(1.1)}.pr-own.none{background:#f1f5f9;color:#94a3b8;border:1px dashed #cbd5e1}

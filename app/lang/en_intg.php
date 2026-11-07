@@ -5240,4 +5240,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'فلاتر محفوظة' => 'Saved filters',
     'حدد متابعة' => 'Set follow-up',
     'اتحدّث ✓' => 'Updated ✓',
+    'جديد من آخر زيارة' => 'New since your last visit',
+    '✨ %s جديد من آخر زيارة' => '✨ %s new since your last visit',
+    'عيّن مسؤول' => 'Assign owner',
 ];
