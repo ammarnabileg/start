@@ -109,9 +109,9 @@ function nav_item_for(string $page): ?array
 }
 
 /** الصفحة دي تبع قسم مقفول؟ */
-function page_module(string $page): ?string
+function module_pages(): array
 {
-    $map = [
+    return [
         'crm' => ['crm', 'crm_find', 'prospects', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc', 'crm_plans'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
@@ -127,7 +127,11 @@ function page_module(string $page): ?string
         'knowledge' => ['knowledge'],
         'media' => ['media'],
     ];
-    foreach ($map as $m => $pages) {
+}
+
+function page_module(string $page): ?string
+{
+    foreach (module_pages() as $m => $pages) {
         if (in_array($page, $pages, true)) return $m;
     }
     return null;
@@ -137,4 +141,12 @@ function page_module(string $page): ?string
 function nav_href(array $i): string
 {
     return url(isset($i['tabs']) ? array_key_first($i['tabs']) : $i['key']);
+}
+
+/** صفحات الأقسام المقفولة للشركة الحالية (عشان نخفي الروابط اللي بتوديلها) */
+function disabled_pages(): array
+{
+    $out = []; $mp = module_pages();
+    foreach (disabled_modules() as $m) $out = array_merge($out, $mp[$m] ?? []);
+    return array_values(array_unique($out));
 }

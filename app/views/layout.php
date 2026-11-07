@@ -184,7 +184,8 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
         $R['crm_reports'] = [[t('شغل النهارده'), url('crm_leads') . '#due'], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('العملاء'), url('crm_leads')]];
       }
-      $rel = $R[$active] ?? [];
+      $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); };
+      $rel = array_values(array_filter($R[$active] ?? [], function ($x) use ($okU) { return $okU($x[1]); }));
     ?>
     <?php // هيدر الصفحة: العنوان نفسه زرار بيفتح popover فيه الصفحات الشقيقة والمرتبطة (بدل صف التابات)
       $sibs = (!empty($navActive['tabs']) && count($navActive['tabs']) > 1) ? $navActive['tabs'] : [];
@@ -327,12 +328,23 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <div class="flex items-center gap-3 px-4 py-2 border-t border-ink-100 text-[11px] text-ink-400"><span>↑↓ <?= e(t('للتنقل')) ?></span><span>Enter <?= e(t('للفتح')) ?></span><span class="ms-auto"><?= e(t('من غير ذكاء اصطناعي')) ?></span></div>
   </div>
 </div>
+<?php $okU2 = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); }; $ckAct = array_values(array_filter($ckAct, function ($x) use ($okU2) { return $okU2($x['u']); })); ?>
 <script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('prospects') . '&lead=', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if (module_enabled('crm') && can('crm.view')): ?>
 <script>window.FU = <?= json_encode(['url' => url('prospects') . '&ajax=due', 'ws' => (int)$curWs['id'], 'L' => ['title' => t('ميعاد متابعة'), 'open' => t('افتح'), 'later' => t('تمام'), 'perm' => t('فعّل إشعارات المتصفح عشان يوصلك التنبيه حتى لو الصفحة مش قدامك'), 'permOn' => t('فعّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/followup-alerts.js?v=<?= e(APP_VERSION) ?>" defer></script>
 <?php endif; ?>
+<?php endif; ?>
+<?php $offP = function_exists('disabled_pages') && current_workspace() ? disabled_pages() : []; if ($offP): ?>
+<script>
+// إخفاء أي رابط بيودي لقسم مقفول (بما فيها اللي بيتضاف بعدين بالجافاسكربت)
+(function () { var OFF = <?= json_encode($offP) ?>;
+  function bad(h) { var m = /[?&]p=([a-z_]+)/.exec(h || ''); return m && OFF.indexOf(m[1]) > -1 && !(m[1] === 'media' && /[?&](file|ajax)=/.test(h)); }
+  function scan(root) { (root.querySelectorAll ? root : document).querySelectorAll('a[href*="p="],[data-href*="p="]').forEach(function (a) { if (bad(a.getAttribute('href') || a.getAttribute('data-href'))) { a.style.display = 'none'; a.setAttribute('data-off', ''); } }); }
+  scan(document); new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && n.matches('a[href*="p="]') && bad(n.getAttribute('href'))) n.style.display = 'none'; scan(n); } }); }); }).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 <?php endif; ?>
 </body>
 </html>
