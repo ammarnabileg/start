@@ -572,7 +572,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
       <!-- المحادثة -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $convId ? 'flex' : 'hidden lg:flex' ?>">
         <?php if (!$convId): ?>
-          <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <div id="ibx-empty" class="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><?= ui_icon('chat', 'w-8 h-8') ?></div>
             <p class="font-medium text-ink-900"><?= e(t('اختار محادثة من القائمة')) ?></p>
             <p class="text-xs text-ink-500 mt-1"><?= e(t('أو حدد كذا محادثة من المربعات علشان تصنّفها أو تبعت لهم حملة.')) ?></p>
@@ -842,6 +842,11 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
       'markRead' => t('تعليم كمقروءة'), 'archive' => t('أرشفة'), 'unarchive' => t('رجّعها للنشطة'), 'doneRead' => t('اتعلمت مقروءة'), 'doneArchive' => t('اتأرشفت'), 'doneUnarchive' => t('رجعت للنشطة'),
       'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المحادثة التالية / السابقة')], ['r', t('اكتب رد')], ['e', t('أرشفة المحادثة')], ['x', t('تحديد المحادثة')], ['/', t('البحث')], ['Ctrl F', t('بحث جوه المحادثة')], ['g', t('انزل لآخر رسالة')], ['Enter', t('إرسال')], ['Shift Enter', t('سطر جديد')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/inbox-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.MSGU = <?= json_encode(['hello' => t('عندك %s محادثة مفتوحة'), 'sub' => t('ابدأ بالعاجل ونية الشراء، وبعدين غير المقروء.'), 'urgent' => t('عاجل'), 'intent' => t('نية شراء'), 'unread' => t('غير مقروء'), 'mine' => t('مسندة ليك'),
+      'start' => t('ابدأ بالأهم'), 'clear' => t('مفيش حاجة مستنياك. شغل نضيف 👏'), 'nav' => t('للتنقل بين المحادثات'),
+      'cHello' => t('%s تعليق على %s منشور'), 'cSub' => t('افتح المنشور اللي عليه تعليقات أكتر، ورد على اللي من غير رد بزرار "التالي".'), 'comments' => t('تعليق'), 'leads' => t('عميل محتمل منهم'), 'hot' => t('أكتر منشورات عليها تعليقات'), 'nC' => t('%s تعليق'),
+      'next' => t('التالي من غير رد')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/msg-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php if (module_enabled('crm') && can('crm.view')): require_once __DIR__ . '/../partials/lead_popup.php'; ?><?= lead_popup() ?><script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php
 }, ['full' => true]);

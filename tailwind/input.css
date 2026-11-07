@@ -290,6 +290,16 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .ai-tag { @apply rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800; } .ai-tag.w { @apply bg-orange-100 text-orange-800; } .ai-per { @apply mt-1 text-xs text-ink-700; }
   .ai-sk { @apply h-20 rounded-xl mk-sk mb-2; } .ai-ad { @apply rounded-xl bg-ink-50 p-3; animation: pdIn .3s ease-out both; } .ai-fmt { @apply rounded-md bg-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-700; } .ai-art { @apply mt-1.5 rounded-lg bg-pink-50 px-2 py-1 text-[11px] text-pink-900 dark:bg-[#3a0d24] dark:text-[#f9a8d4]; }
   .ai-foot:empty { display: none; }
+  /* الرسائل والتعليقات */
+  .msg-ov { @apply w-full max-w-md; } .msg-hi { @apply w-16 h-16 mx-auto mb-4 rounded-3xl grid place-items-center text-brand-600; background: linear-gradient(135deg, rgb(37 99 235 / .12), rgb(6 182 212 / .12)); }
+  .msg-grid { @apply mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2; } .msg-k { @apply flex flex-col items-center gap-0.5 rounded-2xl border border-ink-200 bg-white p-3 transition; } button.msg-k:not(:disabled):hover { @apply -translate-y-0.5 shadow-md; border-color: var(--c); }
+  .msg-k span { @apply w-8 h-8 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); } .msg-k b { @apply text-xl font-black text-ink-900 tabular-nums; } .msg-k small { @apply text-[11px] text-ink-500; } .msg-k.zero { @apply opacity-50; }
+  .msg-kbd { @apply px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50; }
+  .msg-top { @apply mt-5 space-y-1.5 text-start; } .msg-top small { @apply block text-[11px] font-semibold text-ink-500 mb-1; } .msg-top a { @apply flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 transition hover:border-brand-400 hover:shadow-sm; } .msg-top b { @apply ms-auto shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] text-brand-700; }
+  .msg-acts { @apply !gap-1 !opacity-100; } .msg-acts > button, .msg-acts > a, .msg-acts form button { @apply inline-flex items-center gap-1 rounded-full border border-ink-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-ink-600 no-underline transition hover:border-brand-400 hover:text-brand-700; }
+  .msg-acts > button[data-reply-to] { @apply border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-600 hover:text-white; }
+  .msg-next { @apply fixed bottom-6 start-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0f172a] px-5 py-3 text-sm font-bold text-[#fff] shadow-2xl transition hover:scale-105; } [dir=rtl] .msg-next { @apply translate-x-1/2; } .msg-next b { @apply rounded-full bg-[#ef4444] px-2 text-xs; }
+  .msg-flash { animation: adxFlash 1.4s ease-out; border-radius: 1rem; }
   /* الجماهير */
   .aud2 { @apply transition hover:bg-ink-50; } .aud-ic { @apply w-10 h-10 shrink-0 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
   .aud-fit { @apply mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold; } .aud-fit.bad { @apply bg-red-100 text-red-700; } .aud-fit.niche { @apply bg-amber-100 text-amber-800; } .aud-fit.good { @apply bg-lime-100 text-lime-800; } .aud-fit.broad { @apply bg-sky-100 text-sky-800; }

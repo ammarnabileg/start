@@ -169,7 +169,7 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
             <?php endif; ?>
           </div>
         <?php endif; ?>
-        <div class="flex flex-wrap items-center gap-3 text-[11px] text-ink-500 mt-1 ps-1 opacity-70 group-hover:opacity-100 transition">
+        <div class="cm-acts flex flex-wrap items-center gap-3 text-[11px] text-ink-500 mt-1 ps-1 opacity-70 group-hover:opacity-100 transition">
           <?php if (!$isReply && ($c['canReply'] ?? true)): ?><button type="button" class="font-semibold text-brand-700 hover:underline" data-reply-to="<?= e($c['id']) ?>" data-reply-name="<?= e($from['name'] ?? '') ?>"><?= e(t('رد')) ?></button><?php endif; ?>
           <?php if (!empty($c['canHide']) && empty($c['isHidden'])): ?>
             <form method="post" class="inline"><?= csrf_field() ?><input type="hidden" name="action" value="hide"><input type="hidden" name="comment_id" value="<?= e($c['id']) ?>"><button class="hover:text-ink-900"><?= e(t('إخفاء')) ?></button></form>
@@ -226,7 +226,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
         <div data-live="list" class="flex-1 min-h-0 overflow-y-auto">
           <?php if (!$posts): ?><div class="p-10 text-center"><div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center"><?= ui_icon('chat', 'w-6 h-6') ?></div><p class="text-sm text-ink-500"><?= e(t('مفيش منشورات عليها تعليقات.')) ?></p></div><?php endif; ?>
           <?php $lpp = module_enabled('crm') && can('crm.view') ? crm_leads_per_post() : []; foreach ($posts as $p): $on = $p['id'] === $postId; $cc = (int)($p['commentCount'] ?? 0); $ln = (int)($lpp[(string)$p['id']] ?? 0); ?>
-            <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" class="relative flex gap-3 p-3 border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>">
+            <a href="<?= e(url('comments', array_filter(['post' => $p['id'], 'a' => $p['accountId'], 'pf' => $pf]))) ?>" data-cc="<?= (int)$cc ?>" data-ln="<?= (int)$ln ?>" class="cm-post relative flex gap-3 p-3 border-b border-ink-100 transition <?= $on ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>">
               <?php if ($on): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
               <span class="relative shrink-0">
                 <?php if (!empty($p['picture'])): ?><img src="<?= e($p['picture']) ?>" class="w-14 h-14 rounded-xl object-cover bg-ink-100" loading="lazy" referrerpolicy="no-referrer" alt="">
@@ -250,7 +250,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
       <!-- التعليقات -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $postId ? 'flex' : 'hidden lg:flex' ?>">
         <?php if (!$postId): ?>
-          <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <div id="cm-empty" class="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><?= ui_icon('chat', 'w-8 h-8') ?></div>
             <p class="font-medium text-ink-900"><?= e(t('اختار منشور عشان تشوف تعليقاته')) ?></p>
             <p class="text-xs text-ink-500 mt-1"><?= e(t('تقدر تحدد كذا تعليق وتخفيهم أو ترد عليهم مرة واحدة.')) ?></p>
@@ -382,6 +382,11 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
       'none' => t('مفيش حد مطابق للشروط.'), 'win' => t('الفايز'), 'wins' => t('الفايزين'), 'of' => t('من %s مشارك'), 'saved' => t('اتحفظ ✓'), 'hidden' => t('اتخفى %s تعليق'), 'empty' => t('لسه مفيش ردود للمنشور ده.'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
       'cm' => t('%s تعليق'), 'onp' => t('على %s منشور'), 'price' => t('💰 سأل عن السعر %s'), 'lead' => t('ضيفه Lead'), 'loading' => t('بنحمّل…'), 'noFans' => t('مفيش تعليقات كفاية.'), 'confirmRun' => t('هنلف على آخر 8 منشورات ونخفي المطابق. تكمل؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/comments-tools.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.MSGU = <?= json_encode(['hello' => t('عندك %s محادثة مفتوحة'), 'sub' => t('ابدأ بالعاجل ونية الشراء، وبعدين غير المقروء.'), 'urgent' => t('عاجل'), 'intent' => t('نية شراء'), 'unread' => t('غير مقروء'), 'mine' => t('مسندة ليك'),
+      'start' => t('ابدأ بالأهم'), 'clear' => t('مفيش حاجة مستنياك. شغل نضيف 👏'), 'nav' => t('للتنقل بين المحادثات'),
+      'cHello' => t('%s تعليق على %s منشور'), 'cSub' => t('افتح المنشور اللي عليه تعليقات أكتر، ورد على اللي من غير رد بزرار "التالي".'), 'comments' => t('تعليق'), 'leads' => t('عميل محتمل منهم'), 'hot' => t('أكتر منشورات عليها تعليقات'), 'nC' => t('%s تعليق'),
+      'next' => t('التالي من غير رد')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/msg-ux.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php if (module_enabled('crm') && can('crm.view')): require_once __DIR__ . '/../partials/lead_popup.php'; ?><?= lead_popup() ?><script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php if (module_enabled('crm') && can('crm.view')) to_lead_script(); ?>
     <?php
