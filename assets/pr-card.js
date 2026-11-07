@@ -58,7 +58,7 @@
   d.addEventListener('submit', function (e) { var f = e.target.closest('.pc-f'); if (!f) return; e.preventDefault(); var go = (e.submitter && e.submitter.dataset.go) || 'open';
     if (!f.phone.value.trim() && !f.email.value.trim()) { f.phone.focus(); return toast(T.need, 'error'); }
     keepEv = f.keep.checked; ev = f.event.value; try { keepEv ? localStorage.setItem('pc-ev', ev) : localStorage.removeItem('pc-ev'); } catch (x) {}
-    var o = { action: 'card_save', event: ev }; F.forEach(function (k) { o[k] = f[k].value; }); var bs = f.querySelectorAll('button'); bs.forEach(function (b) { b.disabled = true; });
+    var o = { action: 'card_save', event: ev, pl: (window.PR && PR.pl) || '' }; F.forEach(function (k) { o[k] = f[k].value; }); var bs = f.querySelectorAll('button'); bs.forEach(function (b) { b.disabled = true; });
     post(o).then(function (j) { bs.forEach(function (b) { b.disabled = false; }); if (!j.ok) return toast(j.error || T.err, 'error'); toast(j.merged ? T.merged : T.saved); n++;
       document.getElementById('pc-n').textContent = T.count.replace('%s', n);
       if (go === 'next') { drop(); var inp = B.querySelector('input[type=file]'); if (inp) inp.click(); } else location.href = C.self + '&lead=' + j.id; })

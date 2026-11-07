@@ -27,13 +27,16 @@
   function paint() { if (view !== 'board') return; var rows = vis(), by = {}; Object.keys(P.stages).forEach(function (k) { by[k] = []; }); rows.forEach(function (r) { var s = jd(r).stage; (by[s] = by[s] || []).push(r); });
     var sx = board.scrollLeft;
     board.innerHTML = Object.keys(P.stages).map(function (k) { var sum = by[k].reduce(function (a, r) { return a + (+jd(r).value || 0); }, 0);
-      return '<section class="pr-col" data-col="' + k + '" style="--c:' + (SCOL[k] || '#64748b') + '"><header><i></i><b>' + esc(P.stages[k]) + '</b><span>' + by[k].length + '</span>' + (sum ? '<em>' + esc(num(sum)) + '</em>' : '') + '</header><div class="pr-colb">' +
+      var bs = (C.byStage || {})[k] || null, tn = bs ? bs.n : by[k].length, tv = bs ? bs.v : sum; return '<section class="pr-col" data-col="' + k + '" style="--c:' + (SCOL[k] || '#64748b') + '"><header><i></i><b>' + esc(P.stages[k]) + '</b><span>' + num(tn) + '</span>' + (tv ? '<em>' + esc(num(tv)) + '</em>' : '') + '</header><div class="pr-colb">' +
         (by[k].length ? by[k].slice(0, 150).map(card).join('') : '<p class="pr-drop">' + esc(T.drop) + '</p>') + '</div></section>'; }).join('');
+    if (list.total && list.total() > list.rows().length) board.insertAdjacentHTML('beforeend', '<div class="pr-bmore"><button type="button" class="btn-ghost !text-xs" data-bmore>' + esc(T.more.replace('%s', num(list.total() - list.rows().length))) + '</button></div>');
     board.scrollLeft = sx; }
+  window.PRBoard = function () { if (view === 'board') paint(); };
+  board.addEventListener('click', function (e) { var b = e.target.closest('[data-bmore]'); if (!b) return; b.disabled = true; b.classList.add('pd-busy'); list.more(); });
   function setView(v) { view = v; try { localStorage.setItem('pr-view', v); } catch (e) {} root.querySelectorAll('.pr-view [data-view]').forEach(function (b) { b.classList.toggle('on', b.dataset.view === v); });
     table.classList.toggle('hidden', v === 'board'); board.classList.toggle('hidden', v !== 'board'); paint(); }
   root.querySelector('.pr-view').addEventListener('click', function (e) { var b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); });
-  var pt; function later() { clearTimeout(pt); pt = setTimeout(function () { paint(); qCount(); dups(); }, 60); }
+  var pt; function later() { clearTimeout(pt); pt = setTimeout(function () { paint(); qCount(); }, 60); }
   root.addEventListener('input', later); root.addEventListener('change', later); root.addEventListener('click', function (e) { if (e.target.closest('[data-mk-stat], #pf-reset')) later(); });
   document.addEventListener('change', function (e) { if (e.target.closest('#pr-filters')) later(); });
   function rowOf(id) { return root.querySelector('[data-mk-row][data-id="' + id + '"]'); }
@@ -55,8 +58,10 @@
 
   /* ---------- طابور الاتصال ---------- */
   function qRows() { return vis().filter(function (r) { var d = jd(r); return d.phone && d.stage !== 'won' && d.stage !== 'lost'; }).sort(function (a, b) { var x = jd(a), y = jd(b); return (y.due || 0) - (x.due || 0) || (y.score || 0) - (x.score || 0); }); }
-  function qCount() { var n = qRows().length, b = root.querySelector('.pr-qn'); b.textContent = n || ''; $('pr-queue').disabled = !n; }
-  $('pr-queue').addEventListener('click', function () { var q = qRows(); if (!q.length) return toast(T.qNone, 'error'); LP.queue(q); });
+  function qCount() { var n = C.qN != null ? C.qN : qRows().length, b = root.querySelector('.pr-qn'); b.textContent = n ? num(n) : ''; $('pr-queue').disabled = !n; }
+  function srv(k) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', k); return fetch(u.toString(), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (t) { return JSON.parse(t.slice(t.indexOf('{'))); }); }
+  function rowFor(d) { var ex = rowOf(d.id); if (ex) return ex; var e = document.createElement('div'); e.dataset.j = JSON.stringify(d); e.dataset.id = d.id; e.dataset.stage = d.stage; return e; }
+  $('pr-queue').addEventListener('click', function () { var b = this; b.disabled = true; srv('queue').then(function (j) { b.disabled = false; var q = (j.leads || []).map(rowFor); if (!q.length) return toast(T.qNone, 'error'); LP.queue(q); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); });
   qCount(); if (P.queue) setTimeout(function () { $('pr-queue').click(); }, 400);
 
   /* ---------- عميل جديد ---------- */
@@ -72,7 +77,10 @@
 
   /* ---------- دمج المكررين ---------- */
   var pairs = [], pi = 0, mergedAny = false, mg = dlg('pr-merge'), keep = 'a', take = {};
-  function dups() { var seen = {}, out = []; list.rows().forEach(function (r) { var d = jd(r); [d.phone ? 'p' + norm(d.phone) : '', d.email ? 'e' + d.email.toLowerCase() : ''].forEach(function (k) { if (!k || k.length < 6) return;
+  var dupT = 0; function dups() { clearTimeout(dupT); dupT = setTimeout(function () { srv('dups').then(function (j) { if (!j.ok) return; var L2 = j.leads || {};
+      pairs = (j.pairs || []).filter(function (p) { return L2[p[0]] && L2[p[1]]; }).map(function (p) { return [rowFor(L2[p[0]]), rowFor(L2[p[1]])]; });
+      var b = $('pr-dups'); b.classList.toggle('hidden', !pairs.length); b.querySelector('span').textContent = T.dups.replace('%s', pairs.length); }).catch(function () {}); }, 300); }
+  function dupsLocal() { var seen = {}, out = []; list.rows().forEach(function (r) { var d = jd(r); [d.phone ? 'p' + norm(d.phone) : '', d.email ? 'e' + d.email.toLowerCase() : ''].forEach(function (k) { if (!k || k.length < 6) return;
       if (seen[k] && seen[k] !== r && !out.some(function (p) { return (p[0] === seen[k] && p[1] === r) || (p[1] === seen[k] && p[0] === r); })) out.push([seen[k], r]); else if (!seen[k]) seen[k] = r; }); });
     pairs = out; var b = $('pr-dups'); b.classList.toggle('hidden', !out.length); b.querySelector('span').textContent = T.dups.replace('%s', out.length); }
   var FL = ['name', 'phone', 'email', 'company', 'title', 'stage', 'country'];

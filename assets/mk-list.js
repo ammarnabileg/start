@@ -21,7 +21,7 @@ window.MKList = function (root, o) {
     return R(remoteState(), append ? page + 1 : 0).then(function (j) { if (my !== seq) return; busy = false; root.classList.remove('mk-loading'); if (!j || !j.ok) return;
       var t = document.createElement('div'); t.innerHTML = j.html; var nr = [].slice.call(t.querySelectorAll('[data-mk-row]'));
       if (!append) { body.innerHTML = ''; rows = []; page = 0; } else page++;
-      nr.forEach(function (r) { body.appendChild(r); }); rows = rows.concat(nr); total = j.total; paintShown(); if (o.onRows) o.onRows(nr, append); })
+      nr.forEach(function (r) { body.appendChild(r); }); rows = rows.concat(nr); total = j.total; paintShown(); if (o.onRows) o.onRows(nr, append, j); })
       .catch(function () { if (my === seq) { busy = false; root.classList.remove('mk-loading'); } }); }
   if (R && body) { sent = document.createElement('div'); sent.className = 'mk-more'; body.after(sent);
     new IntersectionObserver(function (es) { if (es[0].isIntersecting && !busy && rows.length < total) load(true); }, { rootMargin: '600px' }).observe(sent); }
@@ -74,5 +74,5 @@ window.MKList = function (root, o) {
     else if (e.key === 'Escape') { rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); if (c) c.checked = false; }); syncSel(); }
   });
   if (R) paintShown(); else apply();
-  return { total: function () { return total; }, reload: function () { load(false); }, apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
+  return { total: function () { return total; }, reload: function () { load(false); }, more: function () { return rows.length < total && !busy ? load(true) : Promise.resolve(); }, apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
 };

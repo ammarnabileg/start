@@ -144,7 +144,11 @@ $PAGE = 100;
 $fetchRows = function (array $g) use ($where, $args, $SQ, $PAGE) {
     $w = $where; $a = $args;
     if (isset($SQ[$g['stat'] ?? ''])) $w .= ' AND ' . $SQ[$g['stat']];
-    $q = trim((string)($g['q'] ?? '')); if ($q !== '') { $w .= " AND CONCAT_WS(' ', name, company, title, phone, email, tags) LIKE ?"; $a[] = '%' . $q . '%'; }
+    // البحث بيتجاهل فروق الكتابة: أ/إ/آ=ا، ة=ه، ى=ي، ؤ=و، ئ=ي، والتشكيل؛ والأرقام بتتدوّر في الرقم من غير مسافات
+    $q = trim((string)($g['q'] ?? '')); if ($q !== '') { $nq = crm_ar_norm($q); $col = "CONCAT_WS(' ', name, company, title, email, tags)";
+        foreach (['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي', 'ؤ' => 'و', 'ئ' => 'ي'] as $f => $r) $col = "REPLACE($col, '$f', '$r')";
+        $dg = preg_replace('/\D/', '', $q); $w .= " AND (LOWER($col) LIKE ?" . (strlen($dg) >= 3 ? " OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?" : '') . ')';
+        $a[] = '%' . mb_strtolower($nq) . '%'; if (strlen($dg) >= 3) $a[] = '%' . ltrim($dg, '0') . '%'; }
     foreach (['src' => 'source', 'stage' => 'stage', 'country' => 'country'] as $k => $col) { $v = trim((string)($g[$k] ?? '')); if ($v !== '') { $w .= " AND $col = ?"; $a[] = $v; } }
     if (($g['owner'] ?? '') !== '') { $w .= ' AND COALESCE(owner_id, 0) = ?'; $a[] = (int)$g['owner']; }
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($g['from'] ?? ''))) { $w .= ' AND created_at >= ?'; $a[] = $g['from'] . ' 00:00:00'; }
@@ -152,6 +156,8 @@ $fetchRows = function (array $g) use ($where, $args, $SQ, $PAGE) {
     $sorts = ['name' => 'name', 'company' => 'company', 'src' => 'source', 'stage' => 'stage', 'last' => 'COALESCE(last_contact_at, created_at)'];
     $ord = isset($sorts[$g['sort'] ?? '']) ? $sorts[$g['sort']] . ((int)($g['dir'] ?? 1) < 0 ? ' DESC' : ' ASC') . ', id DESC' : 'id DESC';
     $st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE $w"); $st->execute($a); $total = (int)$st->fetchColumn();
+    $st = db()->prepare("SELECT stage, COUNT(*) n, COALESCE(SUM(deal_value), 0) v FROM crm_leads WHERE $w GROUP BY stage"); $st->execute($a); $GLOBALS['pr_by_stage'] = [];
+    foreach ($st->fetchAll() as $x) $GLOBALS['pr_by_stage'][(string)$x['stage']] = ['n' => (int)$x['n'], 'v' => (float)$x['v']];
     $off = max(0, (int)($g['page'] ?? 0)) * $PAGE;
     $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord LIMIT $PAGE OFFSET $off"); $st->execute($a);
     return [$st->fetchAll(), $total];
@@ -191,10 +197,26 @@ $rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, 
       <?php endforeach; ?>
 <?php return ob_get_clean(); };
 // صفحات القايمة (بحث/فلاتر/ترتيب/تمرير)
-if (($_GET['ajax'] ?? '') === 'rows') { [$rs, $tot] = $fetchRows($_GET); $J(['ok' => true, 'html' => $rowsHtml($rs), 'total' => $tot, 'n' => count($rs)]); }
-[$rows, $total] = $fetchRows([]);
+if (($_GET['ajax'] ?? '') === 'rows') { [$rs, $tot] = $fetchRows($_GET); $J(['ok' => true, 'html' => $rowsHtml($rs), 'total' => $tot, 'n' => count($rs), 'stages' => $GLOBALS['pr_by_stage'] ?? []]); }
+// طابور الاتصال: كل اللي ليهم رقم ومش مقفولين (مش بس اللي اتحمّلوا في الصفحة)
+if (($_GET['ajax'] ?? '') === 'queue') {
+    $st = db()->prepare("SELECT * FROM crm_leads WHERE $where AND phone IS NOT NULL AND phone <> '' AND stage NOT IN ('won','lost') ORDER BY (next_at IS NOT NULL AND next_at <= ?) DESC, next_at IS NULL, next_at, id DESC LIMIT 300");
+    $st->execute(array_merge($args, [$eodS])); $J(['ok' => true, 'leads' => array_map(function ($r) { return crm_lead_card($r); }, $st->fetchAll())]);
+}
+// المكررين على كل العملاء: نفس آخر 9 أرقام في الرقم أو نفس الإيميل
+if (($_GET['ajax'] ?? '') === 'dups') {
+    $pairs = []; $ids = [];
+    foreach (["RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), 9)", 'LOWER(email)'] as $key) {
+        $st = db()->prepare("SELECT $key k, GROUP_CONCAT(id ORDER BY id) ids FROM crm_leads WHERE $where AND $key IS NOT NULL AND CHAR_LENGTH($key) >= 6 GROUP BY k HAVING COUNT(*) > 1 LIMIT 100"); $st->execute($args);
+        foreach ($st->fetchAll() as $g) { $x = array_map('intval', explode(',', (string)$g['ids'])); for ($i = 1; $i < count($x) && count($pairs) < 100; $i++) { $pk = $x[0] . '-' . $x[$i]; if (!isset($pairs[$pk])) { $pairs[$pk] = [$x[0], $x[$i]]; $ids[$x[0]] = 1; $ids[$x[$i]] = 1; } } }
+    }
+    $leads = []; if ($ids) { $st = db()->prepare('SELECT * FROM crm_leads WHERE workspace_id = ? AND id IN (' . implode(',', array_keys($ids)) . ')'); $st->execute([$wid]); foreach ($st->fetchAll() as $r) $leads[(int)$r['id']] = crm_lead_card($r); }
+    $J(['ok' => true, 'pairs' => array_values($pairs), 'leads' => $leads]);
+}
+[$rows, $total] = $fetchRows([]); $byStage = $GLOBALS['pr_by_stage'] ?? [];
+$st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE $where AND phone IS NOT NULL AND phone <> '' AND stage NOT IN ('won','lost')"); $st->execute($args); $qN = (int)$st->fetchColumn();
 
-render(t('العملاء المستهدفين'), 'prospects', function () use ($rowsHtml, $total, $PAGE, $cols, $pipes, $pl, $plSel, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
+render(t('العملاء المستهدفين'), 'prospects', function () use ($byStage, $qN, $rowsHtml, $total, $PAGE, $cols, $pipes, $pl, $plSel, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
     $sel = function (string $id, string $label, array $opts) { $h = '<label class="block text-xs text-ink-600">' . e($label) . '<select id="' . $id . '" class="input !mt-1 text-sm"><option value="">' . e(t('الكل')) . '</option>';
         foreach ($opts as $v => $l) $h .= '<option value="' . e((string)$v) . '">' . e($l) . '</option>'; return $h . '</select></label>'; };
     ?>
@@ -325,7 +347,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?php endif; ?>
       </div>
     </dialog>
-    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'pl' => $pl, 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'),
+    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'pl' => $pl, 'byStage' => (object)$byStage, 'qN' => $qN, 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'), 'more' => t('حمّل %s كمان'),
         'keep' => t('دي اللي هتفضل'), 'merged' => t('اتدمج ✓'), 'mgDone' => t('خلصنا الدمج'), 'dupFound' => t('موجود قبل كده: %s — هيتدمج معاه.'), 'seqLoad' => t('بنجيب الـ Sequences…'), 'noSeq' => t('مفيش Sequences في Apollo.'), 'enriched' => t('اتكشف %s'), 'added' => t('اتضاف ✓'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'stage' => t('المرحلة'), 'country' => t('الدولة')]]], 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'), 'leadUrl' => url('crm_leads'), 'syncDue' => $syncDue,
         'xlsLib' => 'assets/vendor/xlsx-0.20.3.full.min.js?v=' . APP_VERSION, 'stages' => $stages, 'members' => $members,
         'L' => lead_popup_L()], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

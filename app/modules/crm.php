@@ -1677,3 +1677,10 @@ function crm_sync_next_from_tasks(int $leadId, ?string $doneDue = null): void
     if ($t && ($cur === null || $t['due_at'] < $cur)) db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$t['due_at'], mb_substr((string)$t['title'], 0, 255), $leadId]);
     elseif ($cur === null && $l['next_at']) db()->prepare('UPDATE crm_leads SET next_at = NULL, next_note = NULL WHERE id = ?')->execute([$leadId]);
 }
+
+/** توحيد الكتابة العربية للبحث: أ/إ/آ=ا، ة=ه، ى=ي، ؤ=و، ئ=ي، وشيل التشكيل والتطويل */
+function crm_ar_norm(string $s): string
+{
+    $s = preg_replace('/[\x{064B}-\x{065F}\x{0640}]/u', '', $s);
+    return strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي', 'ؤ' => 'و', 'ئ' => 'ي']);
+}

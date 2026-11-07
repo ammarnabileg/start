@@ -5191,4 +5191,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'حفظ التحديث' => 'Save update',
     'غيّر الحالة أو اكتب ملاحظة أو الخطوة الجاية' => 'Change the stage, or add a note or next step',
     'الخطوة الجاية (اختياري)… مثلًا: ابعتله عرض السعر' => 'Next step (optional)… e.g. send the quote',
+    'حمّل %s كمان' => 'Load %s more',
 ];

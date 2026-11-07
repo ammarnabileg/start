@@ -872,3 +872,5 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pd-unext{display:flex;align-items:center;gap:.4rem;padding:.45rem .55rem;border-radius:10px;background:#f8fafc;color:#94a3b8;margin-top:.3rem}
 .pd-unext input{flex:1;border:0;background:transparent;font-size:.85rem;outline:none;color:#0f172a}
 .dark .pd-unext{background:#1e293b}.dark .pd-unote,.dark .pd-unext input{color:#f1f5f9}
+
+.pr-bmore{display:flex;align-items:flex-start;padding:.5rem;min-width:160px}

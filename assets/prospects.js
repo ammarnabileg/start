@@ -17,6 +17,7 @@
       return (!v['pf-src'] || d.src === v['pf-src']) && (!v['pf-stage'] || d.stage === v['pf-stage']) && (!v['pf-owner'] || d.owner === v['pf-owner']) &&
         (!v['pf-country'] || (d.cc || d.country) === v['pf-country']) && (!v['pf-from'] || d.date >= v['pf-from']) && (!v['pf-to'] || d.date <= v['pf-to']); },
     onOpen: function (r) { open(r); },
+    onRows: function (nr, append, j) { if (j && j.stages && !append) C.byStage = j.stages; if (window.PRBoard) PRBoard(); },
     // كتير عملاء؟ الصفحات والبحث والفلاتر من السيرفر
     remote: function (st, page) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', 'rows'); u.searchParams.set('page', page);
       Object.keys(st).forEach(function (k) { u.searchParams.set(k, st[k] == null ? '' : st[k]); });
