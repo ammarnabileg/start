@@ -98,12 +98,22 @@
       var body = '<div style="font-size:15px;line-height:1.8">' + esc(T.mailBody).replace(/\n/g, '<br>') + '</div>', un = '<a style="color:#94a3b8">' + esc(T.unsub) + '</a>';
       pvBox.innerHTML = !on ? '<div style="padding:20px;font-family:Tahoma,Arial,sans-serif">' + body + '<p style="font-size:11px;color:#94a3b8;margin-top:24px">' + un + '</p></div>' :
         '<div style="background:#f1f5f9;padding:20px 12px"><div style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;font-family:Tahoma,Arial,sans-serif;box-shadow:0 8px 24px -12px rgb(0 0 0/.2)">' +
-        '<div style="background:' + col + ';padding:18px 24px;transition:background .3s">' + (/^https:\/\//i.test(lg) ? '<img src="' + esc(lg) + '" alt="" style="max-height:44px;max-width:180px">' : '<b style="font-size:18px;color:#fff">' + esc(C.ws) + '</b>') + '</div>' +
+        '<div style="background:' + col + ';padding:18px 24px;transition:background .3s">' + (/^https?:\/\//i.test(lg) ? '<img src="' + esc(lg) + '" alt="" style="max-height:44px;max-width:180px">' : '<b style="font-size:18px;color:#fff">' + esc(C.ws) + '</b>') + '</div>' +
         '<div style="padding:24px;color:#0f172a">' + body + (sig ? '<div style="margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;color:#475569;font-size:14px">' + esc(sig).replace(/\n/g, '<br>') + '</div>' : '') +
         '<p style="margin-top:18px"><a style="display:inline-block;background:' + col + ';color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;text-decoration:none">' + esc(T.cta) + '</a></p></div>' +
         '<div style="padding:14px 24px;background:#f8fafc;font-size:11px;color:#94a3b8">' + (ft2 ? esc(ft2) + '<br>' : '') + un + '</div></div></div>'; }
     var cl = fm.color; if (cl) { var row = document.createElement('div'); row.className = 'cs-cols'; row.innerHTML = C.brand.map(function (c) { return '<button type="button" style="background:' + c + '" data-mc="' + c + '"' + (RO ? ' disabled' : '') + '></button>'; }).join(''); cl.closest('div').after(row);
       row.addEventListener('click', function (e) { var b = e.target.closest('[data-mc]'); if (!b) return; cl.value = b.dataset.mc; mail(); }); }
+    // اللوجو: من مكتبة الوسائط (رفع أو اختيار) بدل ما يلصق رابط
+    var lg = fm.logo; if (lg) { lg.classList.add('hidden'); var lb2 = lg.closest('label'), box2 = document.createElement('div'); box2.className = 'cs-logo';
+      function drawLogo() { var u = lg.value.trim(); box2.innerHTML = (u ? '<img src="' + esc(u) + '" alt="">' : '<span class="cs-logo-ph">' + ic('image', 'w-6 h-6') + '</span>') +
+        '<div class="flex flex-col gap-1"><button type="button" class="btn-ghost !py-1 !text-xs" data-lpick' + (RO ? ' disabled' : '') + '>' + ic('upload') + ' ' + esc(u ? T.logoCh : T.logoUp) + '</button>' + (u && !RO ? '<button type="button" class="text-[11px] text-red-600" data-lrm>' + esc(T.logoRm) + '</button>' : '') + '</div>'; }
+      lb2.appendChild(box2); drawLogo();
+      box2.addEventListener('click', function (e) {
+        if (e.target.closest('[data-lrm]')) { lg.value = ''; drawLogo(); lg.dispatchEvent(new Event('input', { bubbles: true })); return; }
+        if (!e.target.closest('[data-lpick]') || !window.mediaLoad) return;
+        mediaLoad(function () { mediaPick({ accept: 'image', public: true }).then(function (r) { if (!r || !r[0]) return; var u = r[0].url || ''; if (u && !/^https?:/i.test(u)) u = new URL(u, location.href).href;
+          lg.value = u; drawLogo(); lg.dispatchEvent(new Event('input', { bubbles: true })); }); }); }); }
     var tg = fm.on; if (tg) { var lb = tg.closest('label'); lb.classList.add('hx-sw'); tg.after(document.createElement('i')); }
     fm.addEventListener('input', mail); fm.addEventListener('change', mail); mail(); }
 
@@ -111,4 +121,8 @@
   $$('form[method=post]').forEach(function (f) { var b = f.querySelector('.btn-primary'); if (!b) return; b.classList.add('cs-save'); b.disabled = true; var on = function () { b.disabled = false; b.classList.add('dirty'); };
     f.addEventListener('input', on); f.addEventListener('change', on); f.addEventListener('click', function (e) { if (e.target.closest('[data-c],[data-ty],[data-mc],[data-xr],[data-rm],.cs-addrule')) on(); }); });
   var nav = $('.mb-4.flex.flex-wrap.gap-1\\.5'); if (nav && window.self !== window.top) nav.classList.add('hidden');
+  // جوه لوحة المصادر: نعرض الأقسام المطلوبة بس (#stages,pipes) بنفس شكل اللوحة
+  if (window.self !== window.top) { document.documentElement.classList.add('cs-embed'); var want = decodeURIComponent(location.hash.replace('#', '')).split(',').filter(Boolean);
+    if (want.length) $$('section[id]').forEach(function (s) { var on = want.indexOf(s.id) >= 0; s.classList.toggle('hidden', !on); if (on) s.classList.remove('xl:col-span-2'); });
+    var g = $('.grid.xl\\:grid-cols-2'); if (g) g.className = 'grid gap-3'; }
 })();

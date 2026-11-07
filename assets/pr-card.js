@@ -33,6 +33,12 @@
   var mn = document.getElementById('pr-add-menu'), mb = document.querySelector('[popovertarget="pr-add-menu"]');
   if (mn && mb) mn.addEventListener('toggle', function (e) { if (e.newState !== 'open') return; var r = mb.getBoundingClientRect(), w = mn.offsetWidth;
     mn.style.top = (r.bottom + 6) + 'px'; mn.style.left = Math.max(8, Math.min(innerWidth - w - 8, (document.dir === 'rtl' ? r.right - w : r.left))) + 'px'; });
+  // اختيار الـ Pipelines (بعض/كل)
+  var pm = document.getElementById('pr-plm'), pb = document.querySelector('[popovertarget="pr-plm"]');
+  if (pm) { var ks = [].slice.call(pm.querySelectorAll('[data-plk]')), all = pm.querySelector('[data-plall]'), hid = pm.querySelector('[name=pl]');
+    function sync() { var on = ks.filter(function (k) { return k.checked; }); all.checked = on.length === ks.length; all.indeterminate = on.length > 0 && on.length < ks.length; hid.value = all.checked ? '' : on.map(function (k) { return k.value; }).join(','); pm.querySelector('.btn-primary').disabled = !on.length; }
+    all.addEventListener('change', function () { ks.forEach(function (k) { k.checked = all.checked; }); sync(); }); ks.forEach(function (k) { k.addEventListener('change', sync); }); sync();
+    pm.addEventListener('toggle', function (e) { if (e.newState !== 'open') return; var r = pb.getBoundingClientRect(); pm.style.top = (r.bottom + 6) + 'px'; pm.style.left = Math.max(8, Math.min(innerWidth - pm.offsetWidth - 8, document.dir === 'rtl' ? r.right - pm.offsetWidth : r.left)) + 'px'; }); }
   var cb = document.getElementById('pr-card-btn'); if (cb) cb.addEventListener('click', open);
   ['pr-add-btn', 'pr-import-btn'].forEach(function (id) { var ab = document.getElementById(id); if (ab) ab.addEventListener('click', function () { var m = document.getElementById('pr-add-menu'); if (m && m.hidePopover) try { m.hidePopover(); } catch (e) {} }); });
   d.addEventListener('click', function (e) { if (e.target === d || e.target.closest('[data-close]')) return d.close();

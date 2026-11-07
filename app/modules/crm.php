@@ -573,7 +573,7 @@ function crm_mail_wrap(string $body, string $unsubUrl): string
     $un = '<a href="' . e($unsubUrl) . '" style="color:#94a3b8">' . e(t('مش عاوز إيميلات تاني')) . '</a>';
     if (empty($c['on'])) return '<div style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.7" dir="auto">' . $body . '</div><p style="font-family:Tahoma,Arial,sans-serif;font-size:11px;color:#94a3b8;margin-top:24px">' . $un . '</p>';
     $col = preg_match('/^#[0-9a-f]{6}$/i', (string)$c['color']) ? $c['color'] : '#4f46e5';
-    $logo = preg_match('~^https://~i', (string)$c['logo']) ? '<img src="' . e($c['logo']) . '" alt="" style="max-height:44px;max-width:180px;display:block">' : '<b style="font-size:18px;color:#fff">' . e((string)(ws('name') ?? '')) . '</b>';
+    $logo = preg_match('~^https?://~i', (string)$c['logo']) ? '<img src="' . e($c['logo']) . '" alt="" style="max-height:44px;max-width:180px;display:block">' : '<b style="font-size:18px;color:#fff">' . e((string)(ws('name') ?? '')) . '</b>';
     return '<div style="background:#f1f5f9;padding:24px 12px" dir="' . $dir . '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;font-family:Tahoma,Arial,sans-serif">'
         . '<tr><td style="background:' . $col . ';padding:18px 24px">' . $logo . '</td></tr>'
         . '<tr><td style="padding:24px;font-size:15px;line-height:1.8;color:#0f172a" dir="auto">' . $body . (trim((string)$c['sig']) !== '' ? '<div style="margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;color:#475569;font-size:14px">' . nl2br(e((string)$c['sig'])) . '</div>' : '') . '</td></tr>'
@@ -783,7 +783,9 @@ function crm_route_owner(array $d): ?int
         $f = (string)($r['field'] ?? ''); $v = mb_strtolower(trim((string)($r['value'] ?? '')));
         if ($v === '') continue;
         if ($f === 'source' && ($d['source'] ?? '') === $v) return $u;
-        if ($f === 'country' && $v !== '' && (mb_stripos((string)($d['country'] ?? ''), $v) !== false || ($v === mb_strtolower(ws_country()) && strpos(crm_norm_phone((string)($d['phone'] ?? '')), (string)(countries()[strtoupper($v)]['dial'] ?? '#')) === 0))) return $u;
+        if ($f === 'country') { $want = crm_country_iso($v); $have = crm_country_iso((string)($d['country'] ?? ''), (string)($d['phone'] ?? ''));
+            if ($have === '' && $want === strtoupper(ws_country()) && trim((string)($d['phone'] ?? '')) !== '' && strpos(trim((string)$d['phone']), '+') !== 0) $have = $want; // رقم محلي = دولة الشركة
+            if ($want !== '' && $want === $have) return $u; }
         if ($f === 'phone' && strpos(preg_replace('/\D/', '', (string)($d['phone'] ?? '')), preg_replace('/\D/', '', $v)) === 0) return $u;
         if ($f === 'keyword' && mb_stripos(($d['company'] ?? '') . ' ' . ($d['title'] ?? '') . ' ' . ($d['name'] ?? ''), $v) !== false) return $u;
     }
@@ -1166,7 +1168,7 @@ function crm_lead_upsert(array $d): array
         'title' => mb_substr(trim((string)($d['title'] ?? '')), 0, 255) ?: null,
         'email' => $email ?: null, 'phone' => $phone ?: null,
         'linkedin' => mb_substr(trim((string)($d['linkedin'] ?? '')), 0, 500) ?: null,
-        'country' => mb_substr(trim((string)($d['country'] ?? '')), 0, 120) ?: null,
+        'country' => (crm_country_iso((string)($d['country'] ?? ''), (string)($d['phone'] ?? '')) ?: mb_substr(trim((string)($d['country'] ?? '')), 0, 120)) ?: null,
     ];
     if ($found) {
         // الدمج: بنكمّل الخانات الفاضية بس، ومابنغيرش المرحلة ولا المسؤول
@@ -1546,6 +1548,32 @@ function crm_country_code(?string $name): string
     return $map[$n] ?? '';
 }
 
+/** الدولة الموحدة (كود ISO زي EG): من الاسم بأي لغة أو الكود، ولو مفيش فمن كود الاتصال في الرقم */
+function crm_country_iso(?string $raw, ?string $phone = ''): string
+{
+    $c = crm_country_code($raw); if ($c !== '') return $c;
+    $r = trim((string)$raw); if ($r !== '') { $n = mb_strtolower(preg_replace('/^(ال|the\s+)/u', '', $r)); foreach (countries() as $k => $x) foreach (['ar', 'en'] as $f) if ($n !== '' && mb_strtolower(preg_replace('/^(ال|the\s+)/u', '', (string)$x[$f])) === $n) return $k; }
+    $d = preg_replace('/\D/', '', (string)$phone); if (strlen($d) < 8 || !(strpos((string)$phone, '+') !== false || strpos($d, '00') === 0 || strlen($d) >= 11)) return '';
+    $d = ltrim(preg_replace('/^00/', '', $d), '+'); $best = ''; $bl = 0;
+    foreach (countries() as $k => $x) { $dl = ltrim((string)($x['dial'] ?? ''), '+'); if ($dl !== '' && strlen($dl) > $bl && strpos($d, $dl) === 0) { $best = $k; $bl = strlen($dl); } }
+    return $best;
+}
+/** اسم الدولة بلغة الواجهة + العلم، ولو مش معروفة بترجع زي ما هي */
+function crm_country_label(?string $raw): string
+{
+    $c = crm_country_iso($raw); if ($c === '') return trim((string)$raw);
+    $x = countries()[$c] ?? null; return $x ? trim(($x[2] ?? '') . ' ' . ($x[lang() === 'ar' ? 'ar' : 'en'] ?? $c)) : $c;
+}
+/** مرة واحدة لكل شركة: الدول القديمة المكتوبة بأي شكل تتحول للكود الموحد */
+function crm_country_normalize(int $wid): void
+{
+    if (setting('crm_cc_norm_' . $wid, '') === '1') return;
+    $st = db()->prepare("SELECT id, country, phone FROM crm_leads WHERE workspace_id = ? AND ((country IS NOT NULL AND country <> '') OR phone IS NOT NULL)"); $st->execute([$wid]);
+    $up = db()->prepare('UPDATE crm_leads SET country = ? WHERE id = ?');
+    foreach ($st->fetchAll() as $r) { $c = crm_country_iso((string)$r['country'], trim((string)$r['country']) === '' ? (string)$r['phone'] : ''); if ($c !== '' && $c !== $r['country']) $up->execute([$c, (int)$r['id']]); }
+    save_setting('crm_cc_norm_' . $wid, '1');
+}
+
 /** يحوّل الرقم للصيغة الدولية (+كود). $iso = الدولة لو الرقم محلي */
 function crm_intl_phone(string $raw, string $iso): string
 {
@@ -1633,8 +1661,19 @@ function crm_lead_card(array $r, int $acts = 0): array
     static $src = null; if ($src === null) $src = crm_sources();
     $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
     $j = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'title' => (string)$r['title'], 'company' => (string)$r['company'], 'phone' => (string)$r['phone'], 'email' => (string)$r['email'], 'wa' => $wa,
-            'src' => ($src[$r['source']] ?? $r['source']), 'stage' => $r['stage'], 'owner' => (int)$r['owner_id'], 'tags' => (string)$r['tags'], 'country' => (string)$r['country'],
+            'src' => ($src[$r['source']] ?? $r['source']), 'stage' => $r['stage'], 'owner' => (int)$r['owner_id'], 'tags' => (string)$r['tags'], 'country' => crm_country_label((string)$r['country']), 'cc' => crm_country_iso((string)$r['country']),
             'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '', 'next' => $r['next_at'] ? fmt_date($r['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$r['next_note'], 'value' => (float)($r['deal_value'] ?? 0), 'due' => !empty($r['next_at']) && strtotime($r['next_at']) <= strtotime('today 23:59:59') ? 1 : 0];
     [$j['score'], $j['why']] = crm_score($r, $acts);
     return $j;
+}
+
+/** المهام والمتابعة حاجة واحدة: مهمة بميعاد بتقدّم المتابعة لو أقرب، وقفل/حذف المهمة اللي كانت هي المتابعة بيحسبها من الباقي */
+function crm_sync_next_from_tasks(int $leadId, ?string $doneDue = null): void
+{
+    $l = crm_lead($leadId); if (!$l) return;
+    $st = db()->prepare('SELECT title, due_at FROM crm_tasks WHERE lead_id = ? AND done_at IS NULL AND due_at IS NOT NULL ORDER BY due_at LIMIT 1'); $st->execute([$leadId]); $t = $st->fetch();
+    $cur = $l['next_at'] ? (string)$l['next_at'] : null;
+    if ($doneDue !== null && $cur === $doneDue) $cur = null; // المهمة اللي اتقفلت كانت هي المتابعة
+    if ($t && ($cur === null || $t['due_at'] < $cur)) db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$t['due_at'], mb_substr((string)$t['title'], 0, 255), $leadId]);
+    elseif ($cur === null && $l['next_at']) db()->prepare('UPDATE crm_leads SET next_at = NULL, next_note = NULL WHERE id = ?')->execute([$leadId]);
 }

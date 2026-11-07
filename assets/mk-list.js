@@ -13,7 +13,20 @@ window.MKList = function (root, o) {
   var bar = root.querySelector('[data-mk-bar]'), nSel = root.querySelector('[data-mk-nsel]'), shown = root.querySelector('[data-mk-shown]'), empty = root.querySelector('[data-mk-empty]');
   function test(r, t) { return t.split('|').some(function (c) { var p = c.split('='); return (r.getAttribute('data-' + p[0]) || '') === (p[1] || ''); }); }
   function visible() { return rows.filter(function (r) { return r.style.display !== 'none'; }); }
+  // وضع السيرفر: القايمة بتتحمّل صفحات (بحث/فلاتر/ترتيب على السيرفر) + تمرير لا نهائي
+  var R = o.remote, total = +(root.dataset.mkTotal || rows.length), page = 0, busy = false, seq = 0, tmr = null, sent = null;
+  function remoteState() { return { q: (q && q.value || '').trim(), stat: stat, sort: sortKey, dir: sortDir }; }
+  function paintShown() { if (shown) shown.textContent = rows.length >= total ? total.toLocaleString('en-US') : rows.length.toLocaleString('en-US') + ' / ' + total.toLocaleString('en-US'); if (empty) empty.classList.toggle('hidden', total > 0); }
+  function load(append) { var my = ++seq; busy = true; root.classList.add('mk-loading');
+    return R(remoteState(), append ? page + 1 : 0).then(function (j) { if (my !== seq) return; busy = false; root.classList.remove('mk-loading'); if (!j || !j.ok) return;
+      var t = document.createElement('div'); t.innerHTML = j.html; var nr = [].slice.call(t.querySelectorAll('[data-mk-row]'));
+      if (!append) { body.innerHTML = ''; rows = []; page = 0; } else page++;
+      nr.forEach(function (r) { body.appendChild(r); }); rows = rows.concat(nr); total = j.total; paintShown(); if (o.onRows) o.onRows(nr, append); })
+      .catch(function () { if (my === seq) { busy = false; root.classList.remove('mk-loading'); } }); }
+  if (R && body) { sent = document.createElement('div'); sent.className = 'mk-more'; body.after(sent);
+    new IntersectionObserver(function (es) { if (es[0].isIntersecting && !busy && rows.length < total) load(true); }, { rootMargin: '600px' }).observe(sent); }
   function apply() {
+    if (R) { clearTimeout(tmr); tmr = setTimeout(function () { load(false); }, 220); cur = -1; return; }
     var v = (q && q.value || '').trim().toLowerCase(), n = 0;
     rows.forEach(function (r) { var ok = (!statTest || test(r, statTest)) && (!v || (r.dataset.q || '').indexOf(v) >= 0) && (!o.extra || o.extra(r)); r.style.display = ok ? '' : 'none'; if (ok) n++; });
     if (shown) shown.textContent = n === rows.length ? rows.length : n + ' / ' + rows.length;
@@ -31,6 +44,7 @@ window.MKList = function (root, o) {
   root.querySelectorAll('[data-mk-sort]').forEach(function (h) { h.addEventListener('click', function () {
     var k = h.dataset.mkSort; sortDir = sortKey === k ? -sortDir : 1; sortKey = k;
     root.querySelectorAll('[data-mk-sort]').forEach(function (x) { x.dataset.dir = x === h ? (sortDir > 0 ? 'asc' : 'desc') : ''; });
+    if (R) { apply(); return; }
     rows.sort(function (a, b) { var x = a.getAttribute('data-s-' + k) || '', y = b.getAttribute('data-s-' + k) || ''; var nx = parseFloat(x), ny = parseFloat(y);
       var c = (!isNaN(nx) && !isNaN(ny) && /^-?[\d.]+$/.test(x) && /^-?[\d.]+$/.test(y)) ? nx - ny : x.localeCompare(y, 'ar'); return c * sortDir; });
     rows.forEach(function (r) { body.appendChild(r); }); }); });
@@ -59,6 +73,6 @@ window.MKList = function (root, o) {
     else if (e.key === 'x' && v[cur]) { var c = v[cur].querySelector('[data-mk-check]'); if (c) { c.checked = !c.checked; syncSel(); } }
     else if (e.key === 'Escape') { rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); if (c) c.checked = false; }); syncSel(); }
   });
-  apply();
-  return { apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
+  if (R) paintShown(); else apply();
+  return { total: function () { return total; }, reload: function () { load(false); }, apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
 };

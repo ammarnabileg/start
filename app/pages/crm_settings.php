@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($a === 'mailtpl') {
         save_setting('crm_mail_tpl_' . $wid, json_encode(['on' => !empty($_POST['on']) ? 1 : 0, 'color' => preg_match('/^#[0-9a-f]{6}$/i', (string)($_POST['color'] ?? '')) ? $_POST['color'] : '#4f46e5',
-            'logo' => preg_match('~^https://~i', trim((string)($_POST['logo'] ?? ''))) ? mb_substr(trim((string)$_POST['logo']), 0, 500) : '', 'sig' => mb_substr(trim((string)($_POST['sig'] ?? '')), 0, 500), 'footer' => mb_substr(trim((string)($_POST['footer'] ?? '')), 0, 300)], JSON_UNESCAPED_UNICODE));
+            'logo' => preg_match('~^https?://~i', trim((string)($_POST['logo'] ?? ''))) ? mb_substr(trim((string)$_POST['logo']), 0, 500) : '', 'sig' => mb_substr(trim((string)($_POST['sig'] ?? '')), 0, 500), 'footer' => mb_substr(trim((string)($_POST['footer'] ?? '')), 0, 300)], JSON_UNESCAPED_UNICODE));
         flash('success', t('اتحفظ ✓')); $back('mail');
     }
     if ($a === 'plans') {
@@ -130,7 +130,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
       <p class="text-xs text-ink-500 mb-3"><?= e(t('شكل موحد لكل إيميلات العملاء (من التفاصيل، والخطط، والإيميل الجماعي): لوجو ولون وتوقيع. كل إيميل فيه رابط إلغاء اشتراك، واللي يلغي مابيوصلوش حاجة تاني.')) ?></p>
       <div class="grid lg:grid-cols-2 gap-4"><form method="post" class="space-y-2 text-sm" id="mt-form"><?= csrf_field() ?><input type="hidden" name="action" value="mailtpl">
         <label class="flex items-center gap-2"><input type="checkbox" name="on" value="1" <?= $mt['on'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('استخدم القالب')) ?></b></label>
-        <div class="grid grid-cols-[1fr_90px] gap-2"><label class="text-xs text-ink-600"><?= e(t('رابط اللوجو (https)')) ?><input name="logo" value="<?= e($mt['logo']) ?>" class="input text-sm" dir="ltr" <?= $dis ?>></label><label class="text-xs text-ink-600"><?= e(t('اللون')) ?><input type="color" name="color" value="<?= e($mt['color']) ?>" class="input !h-10 !p-1" <?= $dis ?>></label></div>
+        <div class="grid grid-cols-[1fr_90px] gap-2"><label class="text-xs text-ink-600"><?= e(t('اللوجو')) ?><input name="logo" value="<?= e($mt['logo']) ?>" class="input text-sm" dir="ltr" <?= $dis ?>></label><label class="text-xs text-ink-600"><?= e(t('اللون')) ?><input type="color" name="color" value="<?= e($mt['color']) ?>" class="input !h-10 !p-1" <?= $dis ?>></label></div>
         <label class="block text-xs text-ink-600"><?= e(t('التوقيع')) ?><textarea name="sig" rows="3" class="input text-sm" dir="auto" <?= $dis ?>><?= e($mt['sig']) ?></textarea></label>
         <label class="block text-xs text-ink-600"><?= e(t('سطر تحت (العنوان، الرقم الضريبي…)')) ?><input name="footer" value="<?= e($mt['footer']) ?>" class="input text-sm" dir="auto" <?= $dis ?>></label>
         <?php if ($mgr): ?><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button><?php endif; ?></form>
@@ -155,6 +155,6 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
   <script>window.CSET = <?= json_encode(['mgr' => $mgr, 'pal' => $pal, 'ws' => (string)(ws('name') ?? ''), 'brand' => ['#4f46e5', '#2563eb', '#0891b2', '#059669', '#16a34a', '#ea580c', '#db2777', '#0f172a'],
     'T' => ['del' => t('احذف'), 'leads' => t('عدد العملاء'), 'main' => t('الأساسي'), 'text' => t('نص'), 'num' => t('رقم'), 'sel' => t('اختيارات'), 'textEx' => t('اكتب هنا…'), 'optAdd' => t('اختيار + Enter'), 'fPrev' => t('هيظهر في ملف العميل كده:'),
       'if' => t('لو'), 'has' => t('فيها'), 'tag' => t('تاج'), 'addRule' => t('ضيف قاعدة'), 'tryT' => t('جرّب القواعد'), 'tryCo' => t('اسم شركة أو مسمى… مثلًا: مطعم الشام'), 'tryPh' => t('رقم… مثلًا: 9665…'), 'noTag' => t('مفيش تاج هيتحط'),
-      'mailBody' => t("أهلًا أحمد،\nده مثال لشكل الإيميل اللي هيوصل لعملائك."), 'unsub' => t('مش عاوز إيميلات تاني'), 'cta' => t('احجز ميعاد')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+      'mailBody' => t("أهلًا أحمد،\nده مثال لشكل الإيميل اللي هيوصل لعملائك."), 'unsub' => t('مش عاوز إيميلات تاني'), 'cta' => t('احجز ميعاد'), 'logoUp' => t('ارفع اللوجو أو اختاره من المكتبة'), 'logoCh' => t('غيّر اللوجو'), 'logoRm' => t('شيله')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/crm-set-ux.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

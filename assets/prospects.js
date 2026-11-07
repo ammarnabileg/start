@@ -15,8 +15,13 @@
   var list = MKList(root, {
     extra: function (r) { var d = r.dataset, v = {}; F.forEach(function (el) { v[el.id] = el.value.trim(); });
       return (!v['pf-src'] || d.src === v['pf-src']) && (!v['pf-stage'] || d.stage === v['pf-stage']) && (!v['pf-owner'] || d.owner === v['pf-owner']) &&
-        (!v['pf-country'] || d.country === v['pf-country']) && (!v['pf-from'] || d.date >= v['pf-from']) && (!v['pf-to'] || d.date <= v['pf-to']); },
-    onOpen: function (r) { open(r); }
+        (!v['pf-country'] || (d.cc || d.country) === v['pf-country']) && (!v['pf-from'] || d.date >= v['pf-from']) && (!v['pf-to'] || d.date <= v['pf-to']); },
+    onOpen: function (r) { open(r); },
+    // كتير عملاء؟ الصفحات والبحث والفلاتر من السيرفر
+    remote: function (st, page) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', 'rows'); u.searchParams.set('page', page);
+      Object.keys(st).forEach(function (k) { u.searchParams.set(k, st[k] == null ? '' : st[k]); });
+      var m = { 'pf-src': 'src', 'pf-stage': 'stage', 'pf-owner': 'owner', 'pf-country': 'country', 'pf-from': 'from', 'pf-to': 'to' }; F.forEach(function (el) { u.searchParams.set(m[el.id], el.value.trim()); });
+      return fetch(u.toString(), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (t) { return JSON.parse(t.slice(t.indexOf('{'))); }); }
   });
   function fcount() { var n = F.filter(function (el) { return el.value.trim(); }).length, b = $('pr-fn'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
   F.forEach(function (el) { el.addEventListener('input', function () { fcount(); list.apply(); }); el.addEventListener('change', function () { fcount(); list.apply(); }); });

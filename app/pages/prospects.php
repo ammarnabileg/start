@@ -116,28 +116,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
 }
 
+crm_country_normalize($wid);
 $where = 'workspace_id = ?'; $args = [$wid];
 if (!$canManage) { $where .= ' AND (owner_id = ? OR owner_id IS NULL)'; $args[] = $uid; }
 // الـ Pipelines: كل واحد قايمته لوحده (تابات فوق الصفحة)
-$pipes = crm_pipelines(); $pl = isset($pipes[$_GET['pl'] ?? '']) ? (string)$_GET['pl'] : 'sales'; $plCnt = [];
+$pipes = crm_pipelines(); $plSel = array_values(array_filter(explode(',', (string)($_GET['pl'] ?? '')), function ($k) use ($pipes) { return isset($pipes[$k]); }));
+if (count($plSel) >= count($pipes)) $plSel = []; // الكل
+$pl = count($plSel) === 1 ? $plSel[0] : 'sales'; $plCnt = [];
 if (count($pipes) > 1) { $st = db()->prepare("SELECT COALESCE(NULLIF(pipeline, ''), 'sales') k, COUNT(*) n FROM crm_leads WHERE $where GROUP BY k"); $st->execute($args); $plCnt = array_column($st->fetchAll(), 'n', 'k');
-    $where .= " AND COALESCE(NULLIF(pipeline, ''), 'sales') = ?"; $args[] = $pl; }
-$st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY id DESC LIMIT 5000");
-$st->execute($args); $rows = $st->fetchAll();
+    if ($plSel) { $where .= " AND COALESCE(NULLIF(pipeline, ''), 'sales') IN (" . implode(',', array_fill(0, count($plSel), '?')) . ')'; array_push($args, ...$plSel); } }
 $sources = crm_sources(); $stages = crm_stages();
-$actN = []; if ($rows) { $q = db()->prepare('SELECT lead_id, COUNT(*) FROM crm_acts WHERE workspace_id = ? GROUP BY lead_id'); $q->execute([$wid]); foreach ($q->fetchAll(PDO::FETCH_NUM) as $x) $actN[(int)$x[0]] = (int)$x[1]; }
 $members = []; foreach (crm_members() as $m) $members[(int)$m['id']] = $m['name'];
-$cnt = ['src' => [], 'stage' => [], 'country' => []];
-foreach ($rows as $r) { foreach (['src' => $r['source'], 'stage' => $r['stage'], 'country' => trim((string)$r['country'])] as $k => $v) if ($v !== '') $cnt[$k][$v] = ($cnt[$k][$v] ?? 0) + 1; }
-arsort($cnt['src']); arsort($cnt['country']);
-$week = date('Y-m-d', strtotime('-7 days'));
-$stat = ['all' => count($rows), 'phone' => 0, 'email' => 0, 'none' => 0, 'new' => 0, 'due' => 0, 'cold' => 0];
+$week = date('Y-m-d', strtotime('-7 days')); $eodS = date('Y-m-d H:i:s', strtotime('today 23:59:59')); $coldS = date('Y-m-d H:i:s', time() - 7 * 86400);
 $eod = strtotime('today 23:59:59'); $open = function ($r) { return !in_array($r['stage'], ['won', 'lost'], true); };
 $isDue = function ($r) use ($eod, $open) { return $open($r) && $r['next_at'] && strtotime($r['next_at']) <= $eod; };
 $isCold = function ($r) use ($open) { return $open($r) && !$r['next_at'] && strtotime($r['last_contact_at'] ?: $r['created_at']) < time() - 7 * 86400; };
-foreach ($rows as $r) { if ($isDue($r)) $stat['due']++; if ($isCold($r)) $stat['cold']++; }
-$stat['ads'] = 0; foreach ($rows as $r) if ($r['source'] === 'ads') $stat['ads']++;
-foreach ($rows as $r) { if ($r['phone']) $stat['phone']++; if ($r['email']) $stat['email']++; if (!$r['phone'] && !$r['email']) $stat['none']++; if (substr((string)$r['created_at'], 0, 10) >= $week) $stat['new']++; }
+// الأرقام والقوايم كلها من SQL (مش بنحمّل كل العملاء في الذاكرة)
+$SQ = ['phone' => "phone IS NOT NULL AND phone <> ''", 'email' => "email IS NOT NULL AND email <> ''", 'none' => "(phone IS NULL OR phone = '') AND (email IS NULL OR email = '')",
+    'new' => 'created_at >= ' . db()->quote($week), 'due' => "stage NOT IN ('won','lost') AND next_at IS NOT NULL AND next_at <= " . db()->quote($eodS),
+    'cold' => "stage NOT IN ('won','lost') AND next_at IS NULL AND COALESCE(last_contact_at, created_at) < " . db()->quote($coldS), 'ads' => "source = 'ads'"];
+$st = db()->prepare('SELECT COUNT(*) a, ' . implode(', ', array_map(function ($k, $c) { return "COALESCE(SUM($c), 0) `$k`"; }, array_keys($SQ), $SQ)) . " FROM crm_leads WHERE $where"); $st->execute($args);
+$stat = array_map('intval', $st->fetch()); $stat['all'] = $stat['a']; unset($stat['a']);
+$cnt = ['src' => [], 'stage' => [], 'country' => []];
+foreach (['src' => 'source', 'stage' => 'stage', 'country' => 'country'] as $k => $col) { $st = db()->prepare("SELECT $col v, COUNT(*) n FROM crm_leads WHERE $where AND $col IS NOT NULL AND $col <> '' GROUP BY $col ORDER BY n DESC"); $st->execute($args); foreach ($st->fetchAll() as $x) $cnt[$k][(string)$x['v']] = (int)$x['n']; }
+$PAGE = 100;
+/** فلترة وترتيب وصفحات على السيرفر */
+$fetchRows = function (array $g) use ($where, $args, $SQ, $PAGE) {
+    $w = $where; $a = $args;
+    if (isset($SQ[$g['stat'] ?? ''])) $w .= ' AND ' . $SQ[$g['stat']];
+    $q = trim((string)($g['q'] ?? '')); if ($q !== '') { $w .= " AND CONCAT_WS(' ', name, company, title, phone, email, tags) LIKE ?"; $a[] = '%' . $q . '%'; }
+    foreach (['src' => 'source', 'stage' => 'stage', 'country' => 'country'] as $k => $col) { $v = trim((string)($g[$k] ?? '')); if ($v !== '') { $w .= " AND $col = ?"; $a[] = $v; } }
+    if (($g['owner'] ?? '') !== '') { $w .= ' AND COALESCE(owner_id, 0) = ?'; $a[] = (int)$g['owner']; }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($g['from'] ?? ''))) { $w .= ' AND created_at >= ?'; $a[] = $g['from'] . ' 00:00:00'; }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($g['to'] ?? ''))) { $w .= ' AND created_at <= ?'; $a[] = $g['to'] . ' 23:59:59'; }
+    $sorts = ['name' => 'name', 'company' => 'company', 'src' => 'source', 'stage' => 'stage', 'last' => 'COALESCE(last_contact_at, created_at)'];
+    $ord = isset($sorts[$g['sort'] ?? '']) ? $sorts[$g['sort']] . ((int)($g['dir'] ?? 1) < 0 ? ' DESC' : ' ASC') . ', id DESC' : 'id DESC';
+    $st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE $w"); $st->execute($a); $total = (int)$st->fetchColumn();
+    $off = max(0, (int)($g['page'] ?? 0)) * $PAGE;
+    $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord LIMIT $PAGE OFFSET $off"); $st->execute($a);
+    return [$st->fetchAll(), $total];
+};
+$cols = 'md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_110px_84px_116px]';
 $hasApollo = crm_has_key();
 $syncAt = explode('|', (string)setting('tg_sync_' . $wid, ''))[0];
 $syncDue = $syncAt === '' || strtotime($syncAt) < time() - 20 * 60;
@@ -145,14 +164,48 @@ $nexts = ['today' => t('النهارده'), '1d' => t('بكرة'), '3d' => t('ب
 $srcIcon = ['inbox' => 'chat', 'comments' => 'chat', 'form' => 'file', 'ads' => 'megaphone', 'whatsapp' => 'chat', 'reveal' => 'eye', 'import' => 'upload', 'manual' => 'pencil', 'tender' => 'file'];
 
 $ago = function ($d) { if (!$d) return ''; $n = (int)floor((strtotime('today') - strtotime(substr($d, 0, 10))) / 86400); return $n <= 0 ? t('النهارده') : ($n === 1 ? t('امبارح') : t('من %s يوم', $n)); };
-render(t('العملاء المستهدفين'), 'prospects', function () use ($pipes, $pl, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
-    $cols = 'md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_110px_84px_116px]';
+$rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, $stages, $srcIcon, $wid) {
+    if (!$rows) return '';
+    $actN = []; $ids = array_map(function ($r) { return (int)$r['id']; }, $rows); $q = db()->prepare('SELECT lead_id, COUNT(*) FROM crm_acts WHERE workspace_id = ? AND lead_id IN (' . implode(',', $ids) . ') GROUP BY lead_id'); $q->execute([$wid]); foreach ($q->fetchAll(PDO::FETCH_NUM) as $x) $actN[(int)$x[0]] = (int)$x[1];
+    ob_start(); ?>
+      <?php foreach ($rows as $r): $has = $r['phone'] || $r['email']; $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
+          $j = crm_lead_card($r, $actN[(int)$r['id']] ?? 0); ?>
+        <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$r['id'] ?>" data-phone="<?= $r['phone'] ? 1 : 0 ?>" data-email="<?= $r['email'] ? 1 : 0 ?>" data-none="<?= $has ? 0 : 1 ?>" data-new="<?= substr((string)$r['created_at'], 0, 10) >= date('Y-m-d', strtotime('-7 days')) ? 1 : 0 ?>"
+          data-src="<?= e($r['source']) ?>" data-stage="<?= e($r['stage']) ?>" data-owner="<?= (int)$r['owner_id'] ?>" data-country="<?= e(crm_country_iso((string)$r['country']) ?: trim((string)$r['country'])) ?>" data-date="<?= e(substr((string)$r['created_at'], 0, 10)) ?>" data-due="<?= $isDue($r) ? 1 : 0 ?>" data-cold="<?= $isCold($r) ? 1 : 0 ?>" data-s-last="<?= e((string)($r['last_contact_at'] ?: '0')) ?>"
+          data-s-name="<?= e(mb_strtolower((string)$r['name'])) ?>" data-s-company="<?= e(mb_strtolower((string)$r['company'])) ?>" data-s-src="<?= e($r['source']) ?>" data-s-stage="<?= e($r['stage']) ?>" data-s-date="<?= e((string)$r['created_at']) ?>"
+          data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['company'] . ' ' . $r['title'] . ' ' . $r['phone'] . ' ' . $r['email'] . ' ' . $r['tags'])) ?>" data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">
+          <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
+          <span class="flex items-center gap-2.5 min-w-0"><span class="mk-av <?= $has ? '!bg-lime-50 !text-lime-800' : '' ?>"><?= e(mb_strtoupper(mb_substr((string)$r['name'], 0, 1))) ?></span>
+            <span class="min-w-0"><b class="block truncate <?= $has ? 'text-ink-900' : 'font-medium text-ink-500' ?>"><?= e($r['name']) ?></b><?php if ($r['title']): ?><span class="block text-xs text-ink-500 truncate"><?= e($r['title']) ?></span><?php endif; ?></span></span>
+          <span class="text-sm text-ink-600 truncate"><?= e($r['company'] ?: '—') ?></span>
+          <span class="flex flex-col gap-0.5 text-xs min-w-0" dir="ltr"><?php if ($r['phone']): ?><span class="text-lime-700 inline-flex items-center gap-1 truncate"><?= ui_icon('phone', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['phone']) ?></span><?php endif; ?><?php if ($r['email']): ?><span class="text-brand-700 inline-flex items-center gap-1 truncate"><?= ui_icon('mail', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['email']) ?></span><?php endif; ?><?php if (!$has): ?><span class="text-ink-300">—</span><?php endif; ?></span>
+          <span><span class="mk-pill bg-ink-100 text-ink-700"><?= ui_icon($srcIcon[$r['source']] ?? 'dots', 'w-3 h-3') ?><?= e($sources[$r['source']] ?? $r['source']) ?></span></span>
+          <span><span class="mk-pill bg-brand-50 text-brand-700" data-stage-pill><?= e($stages[$r['stage']] ?? $r['stage']) ?></span></span>
+          <span class="text-xs min-w-0" data-c="last"><span class="block text-ink-600 truncate" data-c="ago"><?= e($r['last_contact_at'] ? $ago($r['last_contact_at']) : t('ماتواصلناش لسه')) ?></span><?php if ($r['next_at']): ?><span class="block truncate tabular-nums <?= $isDue($r) ? 'text-red-600 font-medium' : 'text-ink-400' ?>" data-c="next"><?= ui_icon('calendar', 'w-3 h-3 inline') ?> <?= e(fmt_date($r['next_at'], 'd/m')) ?></span><?php else: ?><span class="block" data-c="next"></span><?php endif; ?></span>
+          <span class="mk-acts">
+            <?php if ($r['phone']): ?><a class="mk-act" data-log="call" href="tel:<?= e($r['phone']) ?>" title="<?= e(t('اتصال')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?></a><?php endif; ?>
+            <?php if ($wa): ?><a class="mk-act" data-log="wa" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener" title="<?= e(t('واتساب')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?></a><?php endif; ?>
+            <?php if ($r['email']): ?><a class="mk-act" data-log="email" href="mailto:<?= e($r['email']) ?>" title="<?= e(t('إيميل')) ?>"><?= ui_icon('mail', 'w-4 h-4') ?></a><?php endif; ?>
+          </span>
+        </div>
+      <?php endforeach; ?>
+<?php return ob_get_clean(); };
+// صفحات القايمة (بحث/فلاتر/ترتيب/تمرير)
+if (($_GET['ajax'] ?? '') === 'rows') { [$rs, $tot] = $fetchRows($_GET); $J(['ok' => true, 'html' => $rowsHtml($rs), 'total' => $tot, 'n' => count($rs)]); }
+[$rows, $total] = $fetchRows([]);
+
+render(t('العملاء المستهدفين'), 'prospects', function () use ($rowsHtml, $total, $PAGE, $cols, $pipes, $pl, $plSel, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
     $sel = function (string $id, string $label, array $opts) { $h = '<label class="block text-xs text-ink-600">' . e($label) . '<select id="' . $id . '" class="input !mt-1 text-sm"><option value="">' . e(t('الكل')) . '</option>';
         foreach ($opts as $v => $l) $h .= '<option value="' . e((string)$v) . '">' . e($l) . '</option>'; return $h . '</select></label>'; };
     ?>
-    <div id="pr" data-mk>
-    <?php if (count($pipes) > 1): ?><nav class="pr-pipes" aria-label="Pipelines"><?php foreach ($pipes as $k => $v): ?><a href="<?= e(url('prospects') . ($k === 'sales' ? '' : '&pl=' . urlencode($k))) ?>" class="<?= $k === $pl ? 'on' : '' ?>"><?= ui_icon($k === 'sales' ? 'wallet' : 'route', 'w-4 h-4') ?><span><?= e($v) ?></span><b><?= number_format((int)($plCnt[$k] ?? 0)) ?></b></a><?php endforeach; ?>
-      <?php if ($canManage): ?><a href="<?= e(url('crm_capture')) ?>#s-pipes" class="pr-pipe-add" title="<?= e(t('إدارة الـ Pipelines')) ?>"><?= ui_icon('sliders', 'w-4 h-4') ?></a><?php endif; ?></nav><?php endif; ?>
+    <div id="pr" data-mk data-mk-total="<?= (int)$total ?>" data-mk-page="<?= (int)$PAGE ?>">
+    <?php if (count($pipes) > 1): $plAll = array_sum(array_map('intval', $plCnt)); $plLbl = $plSel ? implode('، ', array_map(function ($k) use ($pipes) { return $pipes[$k]; }, $plSel)) : t('كل الـ Pipelines'); ?>
+    <div class="pr-plw"><button type="button" popovertarget="pr-plm" class="pr-plb"><?= ui_icon('route', 'w-4 h-4') ?><span><?= e($plLbl) ?></span><b><?= number_format($plSel ? array_sum(array_map(function ($k) use ($plCnt) { return (int)($plCnt[$k] ?? 0); }, $plSel)) : $plAll) ?></b><?= ui_icon('chevron-down', 'w-4 h-4 opacity-60') ?></button>
+      <div id="pr-plm" popover class="pr-menu pr-plm"><form method="get" data-no-ajax><input type="hidden" name="p" value="prospects">
+        <label class="pr-pla"><input type="checkbox" data-plall <?= $plSel ? '' : 'checked' ?>><span><?= e(t('الكل')) ?></span><b><?= number_format($plAll) ?></b></label>
+        <?php foreach ($pipes as $k => $v): ?><label><input type="checkbox" value="<?= e($k) ?>" data-plk <?= !$plSel || in_array($k, $plSel, true) ? 'checked' : '' ?>><span><?= e($v) ?></span><b><?= number_format((int)($plCnt[$k] ?? 0)) ?></b></label><?php endforeach; ?>
+        <input type="hidden" name="pl" value="<?= e(implode(',', $plSel)) ?>"><div class="flex gap-2 mt-2"><button class="btn-primary !py-1.5 !text-xs flex-1"><?= e(t('عرض')) ?></button><?php if ($canManage): ?><a href="<?= e(url('crm_capture')) ?>#s-stages" class="btn-ghost !py-1.5 !text-xs" title="<?= e(t('إدارة الـ Pipelines')) ?>"><?= ui_icon('sliders', 'w-4 h-4') ?></a><?php endif; ?></div></form></div></div>
+    <?php endif; ?>
     <div class="mk-stats">
       <?php foreach ([['_all', '', t('الكل'), $stat['all'], 'users', 'bg-ink-100 text-ink-700'], ['phone', 'phone=1', t('لديهم رقم'), $stat['phone'], 'phone', 'bg-lime-50 text-lime-700'],
           ['email', 'email=1', t('لديهم بريد'), $stat['email'], 'mail', 'bg-brand-50 text-brand-700'], ['none', 'none=1', t('دون بيانات تواصل'), $stat['none'], 'user', 'bg-amber-50 text-amber-700'],
@@ -184,7 +237,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?= $sel('pf-src', t('المصدر'), array_combine(array_keys($cnt['src']), array_map(function ($k) use ($sources, $cnt) { return ($sources[$k] ?? $k) . ' (' . $cnt['src'][$k] . ')'; }, array_keys($cnt['src'])))) ?>
         <?= $sel('pf-stage', t('المرحلة'), array_combine(array_keys($cnt['stage']), array_map(function ($k) use ($stages, $cnt) { return ($stages[$k] ?? $k) . ' (' . $cnt['stage'][$k] . ')'; }, array_keys($cnt['stage'])))) ?>
         <?php if ($canManage): ?><?= $sel('pf-owner', t('المسؤول'), ['0' => t('من غير مسؤول')] + $members) ?><?php endif; ?>
-        <?= $sel('pf-country', t('الدولة'), array_combine(array_keys($cnt['country']), array_keys($cnt['country']))) ?>
+        <?= $sel('pf-country', t('الدولة'), array_combine(array_map('strval', array_keys($cnt['country'])), array_map(function ($k) use ($cnt) { return crm_country_label((string)$k) . ' (' . $cnt['country'][$k] . ')'; }, array_keys($cnt['country'])))) ?>
         <label class="block text-xs text-ink-600"><?= e(t('اتضاف من')) ?><input type="date" id="pf-from" class="input !mt-1 text-sm"></label>
         <label class="block text-xs text-ink-600"><?= e(t('لحد')) ?><input type="date" id="pf-to" class="input !mt-1 text-sm"></label>
       </div>
@@ -196,27 +249,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <span data-mk-sort="name"><?= e(t('الاسم')) ?></span><span data-mk-sort="company"><?= e(t('الشركة')) ?></span><span><?= e(t('التواصل')) ?></span>
         <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span></span></div>
       <div data-mk-body>
-      <?php foreach ($rows as $r): $has = $r['phone'] || $r['email']; $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
-          $j = crm_lead_card($r, $actN[(int)$r['id']] ?? 0); ?>
-        <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$r['id'] ?>" data-phone="<?= $r['phone'] ? 1 : 0 ?>" data-email="<?= $r['email'] ? 1 : 0 ?>" data-none="<?= $has ? 0 : 1 ?>" data-new="<?= substr((string)$r['created_at'], 0, 10) >= date('Y-m-d', strtotime('-7 days')) ? 1 : 0 ?>"
-          data-src="<?= e($r['source']) ?>" data-stage="<?= e($r['stage']) ?>" data-owner="<?= (int)$r['owner_id'] ?>" data-country="<?= e(trim((string)$r['country'])) ?>" data-date="<?= e(substr((string)$r['created_at'], 0, 10)) ?>" data-due="<?= $isDue($r) ? 1 : 0 ?>" data-cold="<?= $isCold($r) ? 1 : 0 ?>" data-s-last="<?= e((string)($r['last_contact_at'] ?: '0')) ?>"
-          data-s-name="<?= e(mb_strtolower((string)$r['name'])) ?>" data-s-company="<?= e(mb_strtolower((string)$r['company'])) ?>" data-s-src="<?= e($r['source']) ?>" data-s-stage="<?= e($r['stage']) ?>" data-s-date="<?= e((string)$r['created_at']) ?>"
-          data-q="<?= e(mb_strtolower($r['name'] . ' ' . $r['company'] . ' ' . $r['title'] . ' ' . $r['phone'] . ' ' . $r['email'] . ' ' . $r['tags'])) ?>" data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">
-          <input type="checkbox" data-mk-check aria-label="<?= e(t('تحديد')) ?>">
-          <span class="flex items-center gap-2.5 min-w-0"><span class="mk-av <?= $has ? '!bg-lime-50 !text-lime-800' : '' ?>"><?= e(mb_strtoupper(mb_substr((string)$r['name'], 0, 1))) ?></span>
-            <span class="min-w-0"><b class="block truncate <?= $has ? 'text-ink-900' : 'font-medium text-ink-500' ?>"><?= e($r['name']) ?></b><?php if ($r['title']): ?><span class="block text-xs text-ink-500 truncate"><?= e($r['title']) ?></span><?php endif; ?></span></span>
-          <span class="text-sm text-ink-600 truncate"><?= e($r['company'] ?: '—') ?></span>
-          <span class="flex flex-col gap-0.5 text-xs min-w-0" dir="ltr"><?php if ($r['phone']): ?><span class="text-lime-700 inline-flex items-center gap-1 truncate"><?= ui_icon('phone', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['phone']) ?></span><?php endif; ?><?php if ($r['email']): ?><span class="text-brand-700 inline-flex items-center gap-1 truncate"><?= ui_icon('mail', 'w-3.5 h-3.5 shrink-0') ?><?= e($r['email']) ?></span><?php endif; ?><?php if (!$has): ?><span class="text-ink-300">—</span><?php endif; ?></span>
-          <span><span class="mk-pill bg-ink-100 text-ink-700"><?= ui_icon($srcIcon[$r['source']] ?? 'dots', 'w-3 h-3') ?><?= e($sources[$r['source']] ?? $r['source']) ?></span></span>
-          <span><span class="mk-pill bg-brand-50 text-brand-700" data-stage-pill><?= e($stages[$r['stage']] ?? $r['stage']) ?></span></span>
-          <span class="text-xs min-w-0" data-c="last"><span class="block text-ink-600 truncate" data-c="ago"><?= e($r['last_contact_at'] ? $ago($r['last_contact_at']) : t('ماتواصلناش لسه')) ?></span><?php if ($r['next_at']): ?><span class="block truncate tabular-nums <?= $isDue($r) ? 'text-red-600 font-medium' : 'text-ink-400' ?>" data-c="next"><?= ui_icon('calendar', 'w-3 h-3 inline') ?> <?= e(fmt_date($r['next_at'], 'd/m')) ?></span><?php else: ?><span class="block" data-c="next"></span><?php endif; ?></span>
-          <span class="mk-acts">
-            <?php if ($r['phone']): ?><a class="mk-act" data-log="call" href="tel:<?= e($r['phone']) ?>" title="<?= e(t('اتصال')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?></a><?php endif; ?>
-            <?php if ($wa): ?><a class="mk-act" data-log="wa" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener" title="<?= e(t('واتساب')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?></a><?php endif; ?>
-            <?php if ($r['email']): ?><a class="mk-act" data-log="email" href="mailto:<?= e($r['email']) ?>" title="<?= e(t('إيميل')) ?>"><?= ui_icon('mail', 'w-4 h-4') ?></a><?php endif; ?>
-          </span>
-        </div>
-      <?php endforeach; ?>
+      <?= $rowsHtml($rows) ?>
       </div>
       <p data-mk-empty class="hidden p-8 text-center text-sm text-ink-500"><?= e($rows ? t('مفيش عملاء بالفلاتر دي.') : t('لسه مفيش عملاء. أي حد يكلمك من الرسائل أو التعليقات أو الفورم أو الإعلانات هيظهر هنا لوحده، أو استورد ملف، أو دوّر على شخص.')) ?></p>
     </div>

@@ -281,7 +281,7 @@ function crm_auto_tag(array $l): array
 {
     $rules = crm_tag_rules(); if (!$rules) return [];
     $cf = json_decode((string)($l['custom'] ?? ''), true) ?: [];
-    $fields = ['name' => (string)$l['name'], 'company' => (string)$l['company'], 'title' => (string)$l['title'], 'country' => (string)$l['country'], 'note' => (string)$l['note'], 'email' => (string)$l['email'], 'phone' => (string)$l['phone'], 'custom' => implode(' ', $cf)];
+    $fields = ['name' => (string)$l['name'], 'company' => (string)$l['company'], 'title' => (string)$l['title'], 'country' => trim((string)$l['country'] . ' ' . (($cx = countries()[crm_country_iso((string)$l['country'], (string)$l['phone'])] ?? null) ? $cx['ar'] . ' ' . $cx['en'] : '')), 'note' => (string)$l['note'], 'email' => (string)$l['email'], 'phone' => (string)$l['phone'], 'custom' => implode(' ', $cf)];
     $have = array_filter(array_map('trim', explode(',', (string)$l['tags']))); $add = [];
     foreach ($rules as $r) {
         $w = mb_strtolower(trim((string)($r['has'] ?? ''))); $tg = mb_substr(trim((string)($r['tag'] ?? '')), 0, 30); if ($w === '' || $tg === '') continue;

@@ -11,7 +11,7 @@ $json = function (array $a) { crm_sync_won(); header('Content-Type: application/
 $out = function (array $l) {
     return ['id' => (int)$l['id'], 'name' => $l['name'], 'title' => (string)$l['title'], 'company' => (string)$l['company'], 'email' => (string)$l['email'],
         'phone' => (string)$l['phone'], 'pending' => (int)$l['phone_pending'] === 1, 'wa' => crm_wa_digits($l['phone']), 'linkedin' => (string)$l['linkedin'],
-        'country' => (string)$l['country'], 'stage' => $l['stage'], 'source' => $l['source'], 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
+        'country' => crm_country_label((string)$l['country']), 'cc' => crm_country_iso((string)$l['country']), 'stage' => $l['stage'], 'source' => $l['source'], 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
         'note' => (string)$l['note'], 'tags' => (string)$l['tags'], 'owner' => (int)$l['owner_id'], 'next_at' => $l['next_at'] ? fmt_date($l['next_at'], 'Y-m-d\TH:i') : '', // بتوقيت الشركة (اللي الموظف شايفه)
         'next_note' => (string)$l['next_note'], 'created' => $l['created_at'], 'last' => (string)($l['last_contact_at'] ?? ''), 'src_url' => (string)($l['src_url'] ?? ''), 'es' => (string)($l['email_status'] ?? ''), 'edit' => crm_can_edit($l),
         'pl' => (string)($l['pipeline'] ?? 'sales'), 'pin' => (int)($l['pinned'] ?? 0), 'cf' => json_decode((string)($l['custom'] ?? ''), true) ?: (object)[], 'unsub' => (int)($l['unsub'] ?? 0)];
@@ -238,13 +238,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $due = trim((string)($_POST['due'] ?? '')); try { $due = $due !== '' ? (new DateTime($due, new DateTimeZone(site_timezone())))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s') : null; } catch (Exception $e) { $due = null; }
             $to = (int)($_POST['user'] ?? 0); if (!$canManage || !in_array($to, $memberIds, true)) $to = $uid;
             $lid = (int)($_POST['lead'] ?? 0); $ll = $lid ? crm_lead($lid) : null;
+            $lid = $ll ? (int)$ll['id'] : 0;
             db()->prepare('INSERT INTO crm_tasks (workspace_id, user_id, lead_id, title, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')->execute([$wid, $to, $ll ? (int)$ll['id'] : null, $title, $due, $uid]);
             if ($to !== $uid) crm_notify($to, $ll ? (int)$ll['id'] : null, 'task', t('%s ضاف لك مهمة: %s', (string)(current_user()['name'] ?? ''), $title));
         } else {
-            $tid = (int)($_POST['task'] ?? 0);
+            $tid = (int)($_POST['task'] ?? 0); $st = db()->prepare('SELECT lead_id, due_at, done_at FROM crm_tasks WHERE id = ? AND workspace_id = ?'); $st->execute([$tid, $wid]); $tk = $st->fetch() ?: []; $lid = (int)($tk['lead_id'] ?? 0); $doneDue = empty($tk['done_at']) ? ($tk['due_at'] ?? null) : null;
             if ($action === 'task_done') db()->prepare('UPDATE crm_tasks SET done_at = IF(done_at IS NULL, NOW(), NULL) WHERE id = ? AND workspace_id = ? AND (user_id = ? OR user_id IS NULL OR ? = 1)')->execute([$tid, $wid, $uid, $canManage ? 1 : 0]);
             else db()->prepare('DELETE FROM crm_tasks WHERE id = ? AND workspace_id = ? AND (user_id = ? OR created_by = ? OR ? = 1)')->execute([$tid, $wid, $uid, $uid, $canManage ? 1 : 0]);
         }
+        // المهام والمتابعة حاجة واحدة: المتابعة الجاية = أقرب مهمة مفتوحة ليها ميعاد
+        if (!empty($lid)) crm_sync_next_from_tasks((int)$lid, $doneDue ?? null);
         $json(['ok' => true, 'tasks' => crm_tasks_open($uid)]);
     }
     if ($action === 'merge_pair' || $action === 'merge') {

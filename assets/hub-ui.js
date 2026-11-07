@@ -94,7 +94,12 @@
   /* ---------- السرعة والتوزيع ---------- */
   B.sla = function (body) { var s = X.sla, rules = (X.routes || []).slice(), F = T.routeF || {};
     var mem = function (v) { return Object.keys(X.members).map(function (k) { return '<option value="' + k + '"' + (+k === +v ? ' selected' : '') + '>' + esc(X.members[k]) + '</option>'; }).join(''); };
-    function rulesHtml() { return rules.map(function (r, i) { return '<div class="hx-rule">' + esc(T.ifW) + ' <select data-r="field" data-i="' + i + '"' + RO + '>' + Object.keys(F).map(function (k) { return '<option value="' + k + '"' + (r.field === k ? ' selected' : '') + '>' + esc(F[k]) + '</option>'; }).join('') + '</select> = <input data-r="value" data-i="' + i + '" value="' + esc(r.value) + '" dir="auto"' + RO + '> ← <select data-r="owner" data-i="' + i + '"' + RO + '>' + mem(r.owner) + '</select>' + (X.manage ? '<button type="button" data-rr="' + i + '">' + ic('trash') + '</button>' : '') + '</div>'; }).join(''); }
+    function valIn(r, i) { var a = ' data-r="value" data-i="' + i + '"' + RO;
+      if (r.field === 'country') { var cc = X.ccs || [], v = r.value || X.wsCc; var top = cc.filter(function (c) { return c[0] === X.wsCc; });
+        return '<select' + a + '>' + top.concat(cc.filter(function (c) { return c[0] !== X.wsCc; })).map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === v ? ' selected' : '') + '>' + esc(c[1]) + '</option>'; }).join('') + '</select>'; }
+      if (r.field === 'source') { var sr = X.srcs || {}, v2 = r.value || Object.keys(sr)[0]; return '<select' + a + '>' + Object.keys(sr).map(function (k) { return '<option value="' + esc(k) + '"' + (k === v2 ? ' selected' : '') + '>' + esc(sr[k]) + '</option>'; }).join('') + '</select>'; }
+      return '<input' + a + ' value="' + esc(r.value) + '" dir="' + (r.field === 'phone' ? 'ltr' : 'auto') + '" placeholder="' + esc(r.field === 'phone' ? '+966' : '') + '">'; }
+    function rulesHtml() { return rules.map(function (r, i) { return '<div class="hx-rule">' + esc(T.ifW) + ' <select data-r="field" data-i="' + i + '"' + RO + '>' + Object.keys(F).map(function (k) { return '<option value="' + k + '"' + (r.field === k ? ' selected' : '') + '>' + esc(F[k]) + '</option>'; }).join('') + '</select> = ' + valIn(r, i) + ' ← <select data-r="owner" data-i="' + i + '"' + RO + '>' + mem(r.owner) + '</select>' + (X.manage ? '<button type="button" data-rr="' + i + '">' + ic('trash') + '</button>' : '') + '</div>'; }).join(''); }
     body.innerHTML = '<form class="space-y-4" data-no-ajax><div class="hx-card"><b class="hx-l">' + esc(T.slaT) + '</b><p class="hx-d">' + esc(T.slaD) + '</p><div class="hx-range"><input type="range" name="mins" min="5" max="1440" step="5" value="' + (+s.mins || 60) + '"' + RO + '><b data-mv></b></div>' +
       '<div class="abx-quick">' + [15, 30, 60, 240, 1440].map(function (m) { return '<button type="button" data-m="' + m + '">' + esc(m >= 60 ? f(T.hrs, m / 60) : f(T.mins, m)) + '</button>'; }).join('') + '</div>' +
       '<label class="hx-l mt-3">' + esc(T.moveT) + '<div class="flex items-center gap-2"><input type="number" name="move_hours" min="0" max="72" class="input !w-24" value="' + (+s.move_hours || 0) + '"' + RO + '><span class="text-xs text-ink-500">' + esc(T.moveD) + '</span></div></label></div>' +
@@ -104,9 +109,11 @@
     var fm = body.querySelector('form'), mv = fm.querySelector('[data-mv]'), fmt = function (m) { m = +m; return m >= 60 ? f(T.hrs, Math.round(m / 6) / 10) : f(T.mins, m); };
     var p = function () { mv.textContent = fmt(fm.mins.value); fm.querySelectorAll('.hx-prob').forEach(function (r) { r.querySelector('b').textContent = r.querySelector('input').value + '%'; }); }; p();
     fm.addEventListener('input', function (e) { p(); var el = e.target; if (el.dataset.r) rules[+el.dataset.i][el.dataset.r] = el.value; });
-    fm.addEventListener('change', function (e) { var el = e.target; if (el.dataset.r) rules[+el.dataset.i][el.dataset.r] = el.value; });
+    fm.addEventListener('change', function (e) { var el = e.target; if (!el.dataset.r) return; var r = rules[+el.dataset.i]; r[el.dataset.r] = el.value;
+      if (el.dataset.r === 'field') { r.value = ''; var box = fm.querySelector('[data-rules]'); box.innerHTML = rulesHtml(); var nv = box.querySelector('[data-r="value"][data-i="' + el.dataset.i + '"]'); if (nv.tagName === 'SELECT') r.value = nv.value; else nv.focus(); } });
+    rules.forEach(function (r) { if (!r.value && r.field === 'country') r.value = X.wsCc; });
     fm.addEventListener('click', function (e) { var b; if ((b = e.target.closest('[data-m]'))) { fm.mins.value = b.dataset.m; p(); }
-      if (e.target.closest('[data-ar]')) { rules.push({ field: 'source', value: '', owner: Object.keys(X.members)[0] || 0 }); fm.querySelector('[data-rules]').innerHTML = rulesHtml(); }
+      if (e.target.closest('[data-ar]')) { rules.push({ field: 'source', value: Object.keys(X.srcs || {})[0] || '', owner: Object.keys(X.members)[0] || 0 }); fm.querySelector('[data-rules]').innerHTML = rulesHtml(); }
       if ((b = e.target.closest('[data-rr]'))) { rules.splice(+b.dataset.rr, 1); fm.querySelector('[data-rules]').innerHTML = rulesHtml(); } });
     fm.addEventListener('submit', function (e) { e.preventDefault(); var d = { action: 'sla_save', mins: fm.mins.value, move_hours: fm.move_hours.value };
       ['new', 'contacted', 'qualified', 'proposal'].forEach(function (k) { d['prob[' + k + ']'] = fm.elements['prob[' + k + ']'].value; });
