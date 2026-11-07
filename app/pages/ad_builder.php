@@ -234,6 +234,9 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
         'geoUrl' => url('ad_create', ['ajax' => 1]), 'myCountry' => ws_country(), 'lang' => lang(),
         'canSpend' => can('ads.spend'), 'kbProducts' => array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)(kb_get((int)ws('id'))['services']['rows'] ?? [])))),
         's' => ab_strings(),
+        'ux' => ['dCampaign' => t('الاسم بيظهر ليك بس، مش للعملاء.'), 'dGoal' => t('المنصة بتحسّن العرض على حسب الهدف ده.'), 'dBudget' => t('هتدفع كام وإزاي المنصة تصرفها.'), 'dSchedule' => t('إمتى تبدأ وتخلص، والفئات اللي ليها قواعد خاصة.'),
+          'dAdset' => t('كل مجموعة = جمهور وميزانية. اعمل أكتر من واحدة عشان تقارن.'), 'dLoc' => t('الدول والمدن اللي الإعلان هيظهر فيها.'), 'dPeople' => t('السن والنوع والاهتمامات.'), 'dPlace' => t('الإعلان هيظهر فين جوه المنصة.'),
+          'dAd' => t('اسم الإعلان وشكله.'), 'dMedia' => t('الصورة أو الفيديو أول حاجة الناس بتشوفها.'), 'dCopy' => t('أول سطر هو اللي بيوقف الناس. خليه قصير وواضح.'), 'dCta' => t('الزرار ورايح على فين.'), 'age' => t('السن'), 'month' => t('≈ %s في الشهر')],
         'px' => ['s1' => t('الحملة'), 's2' => t('الجمهور والميزانية'), 's3' => t('الإعلانات'), 's4' => t('المراجعة والإطلاق'), 'stepN' => t('خطوة %s'), 'nSets' => t('%s مجموعة'), 'nAds' => t('%s إعلان'), 'nErr' => t('%s محتاج تصحيح'), 'review' => t('جاهز للإطلاق؟'),
           'next' => t('التالي: %s'), 'live' => t('معاينة حية'), 'story' => t('ستوري'), 'feed' => t('الفيد'), 'sponsored' => t('ممول'), 'promoted' => t('مُروَّج'), 'seeMore' => t('عرض المزيد'), 'noHead' => t('العنوان هيظهر هنا'),
           'noImg' => t('ضيف صورة'), 'noVideo' => t('ضيف فيديو'), 'like' => t('أعجبني'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'variant' => t('نسخة %s من %s'), 'looksGood' => t('الإعلان شكله كامل'),
@@ -243,6 +246,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     <script src="assets/ad-builder-launch.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ad-builder-ai.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ad-builder-pro.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/ad-builder-ui.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php if (!empty($_GET['ai'])): ?><script>(function (n) { var t = setInterval(function () { var b = document.getElementById('ab-ai-build'); if (b) { clearInterval(t); b.click(); } else if (++n > 40) clearInterval(t); }, 150); })(0);</script><?php endif; ?>
     <?php
 }, ['full' => true]);
