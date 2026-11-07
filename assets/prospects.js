@@ -75,8 +75,7 @@
       ctxLine(r, 'phone', '[' + (C.oc[b.dataset.qoc] || '') + ']'); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
 
   /* ---------- واتساب من الصف: قوالب جاهزة بالاسم + تسجيل في سجل العميل ---------- */
-  function ctxLine(r, icon, text) { var nm = r.querySelector('.min-w-0 > b'); if (!nm) return; var box = r.querySelector('.pr-ctx'); if (!box) { box = document.createElement('span'); box.className = 'pr-ctx'; nm.parentNode.appendChild(box); }
-    var em = box.querySelector('em'); if (!em) { em = document.createElement('em'); box.appendChild(em); } em.innerHTML = ic(icon, 'w-3 h-3 inline -mt-0.5') + ' ' + esc(text + ' · ' + L.today); em.title = text; }
+  function ctxLine(r, icon, text) { var n = r.querySelector('[data-c=note]'); if (n) { n.textContent = text; n.title = text; } var d = r.querySelector('[data-c=ago]'), t = new Date(), p2 = function (x) { return (x < 10 ? '0' : '') + x; }; if (d) d.textContent = p2(t.getDate()) + '/' + p2(t.getMonth() + 1) + '/' + t.getFullYear(); }
   var LX = (window.LP && window.LP.L) || {};
   function fillT(t, d) { return String(t).replace(/\{name\}/g, (d.name || '').split(/\s+/)[0]).replace(/\{company\}/g, d.company || '').replace(/\{me\}/g, LX.me || '').replace(/\{book\}/g, LX.book || ''); }
   root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href*="wa.me"]'); if (!a) return; var tp = LX.waTpl || []; if (!tp.length) return; e.preventDefault(); e.stopPropagation(); var r = a.closest('[data-mk-row]'), d = jd(r); qRow = r;
@@ -104,11 +103,11 @@
   function expClose(r) { var x = r && r.nextElementSibling; if (x && x.classList.contains('pr-exp')) x.remove(); if (r) r.classList.remove('pr-open'); }
   function expHist(box, id) { box.innerHTML = '<div class="h-10 mk-sk"></div><div class="h-10 mk-sk mt-2"></div>';
     fetch(C.selfUrl + '&ajax=lead&id=' + id, { credentials: 'same-origin' }).then(function (x) { return x.text(); }).then(function (t) { var j = JSON.parse(t.slice(t.indexOf('{'))), a = (j.acts || []).filter(function (x) { return x.kind !== 'stage'; }).slice(0, 5);
-      box.innerHTML = a.length ? a.map(function (x) { return '<div class="pr-hi"><span class="pr-hii">' + ic(KI[x.kind] || 'dots', 'w-3.5 h-3.5') + '</span><div class="min-w-0"><p dir="auto">' + esc(x.body || x.label) + '</p><small>' + esc([x.label, x.who, x.at].filter(Boolean).join(' · ')) + '</small></div></div>'; }).join('') : '<p class="text-xs text-ink-400">' + esc(QT.xNone) + '</p>'; }).catch(function () { box.innerHTML = ''; }); }
+      box.innerHTML = a.length ? a.map(function (x) { return '<div class="pr-hi"><p dir="auto">' + esc(x.body || x.label) + '</p><small>' + esc([x.label, x.who, x.at].filter(Boolean).join(' • ')) + '</small></div>'; }).join('') : '<p class="text-xs text-ink-400">' + esc(QT.xNone) + '</p>'; }).catch(function () { box.innerHTML = ''; }); }
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qexp]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]');
     if (r.classList.contains('pr-open')) return expClose(r); root.querySelectorAll('[data-mk-row].pr-open').forEach(expClose); var d = jd(r); r.classList.add('pr-open');
     var x = document.createElement('div'); x.className = 'pr-exp';
-    x.innerHTML = '<div class="pr-xh"><b>' + ic('clock', 'w-4 h-4') + esc(QT.xHist) + '</b><div data-xh></div></div>';
+    x.innerHTML = '<div class="pr-xh"><b>' + ic('clock', 'w-4 h-4') + esc(QT.xPrev) + '</b><div data-xh></div></div>';
     r.after(x); expHist(x.querySelector('[data-xh]'), d.id); x.classList.add('pr-exp1');
     x.addEventListener('click', function (ev) { if (ev.target.closest('[data-xopen]')) open(r); }); }, true);
   // فورم التحديث جوه الصف: ملاحظة + ميعاد + مرحلة، حفظ واحد (Enter في الملاحظة بيحفظ)
@@ -116,7 +115,7 @@
     if (!note && !at && st === dd.stage) { f.note.focus(); return toast(QT.xEmpty, 'error'); }
     if (st !== dd.stage && st === 'lost') { f.stage.value = dd.stage; open(r); setTimeout(function () { var y = document.querySelector('#pd-stages [data-stg="lost"]'); if (y) y.click(); }, 300); }
     else if (st !== dd.stage) jobs.push(bulk([dd.id], 'stage', { stage: st }).then(function (j) { if (j.ok) { upd(r, 'stage', st); r.dataset.stage = st; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[st] || st; } return j; }));
-    if (note) jobs.push(post(C.importUrl, { action: 'log', id: dd.id, kind: 'note', body: note }).then(function (j) { if (j.ok) { ctxLine(r, 'pencil', note.slice(0, 46)); var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; } return j; }));
+    if (note) jobs.push(post(C.importUrl, { action: 'log', id: dd.id, kind: 'note', body: note }).then(function (j) { if (j.ok) ctxLine(r, 'pencil', note); return j; }));
     if (at) jobs.push(setNext([dd.id], 'at', { at: at, note: note }).then(function (j) { if (j.ok) rowNext(r, j); return j; }));
     if (!jobs.length) return; btn.disabled = true; f.classList.add('busy');
     Promise.all(jobs).then(function (rs) { btn.disabled = false; f.classList.remove('busy'); if (rs.some(function (j) { return !j.ok; })) return toast(L.err, 'error');
@@ -126,6 +125,10 @@
 
   // أي تحميل جديد للقايمة (بحث/فلتر/ترتيب) بيقفل المفتوح
   new MutationObserver(function () { root.querySelectorAll('.pr-exp').forEach(function (x) { var pr = x.previousElementSibling; if (!pr || !pr.classList.contains('pr-open')) x.remove(); }); }).observe(root.querySelector('[data-mk-body]'), { childList: true });
+
+  // عرض / تعديل
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qview],[data-qedit]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); open(r);
+    if (b.hasAttribute('data-qedit')) setTimeout(function () { var t = document.querySelector('[data-pt="dt"]'); if (t) t.click(); }, 250); }, true);
 
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';

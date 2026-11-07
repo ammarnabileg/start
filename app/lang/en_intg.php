@@ -5258,4 +5258,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'افتح ملفه' => 'Open profile',
     'اكتب ملاحظة أو حدد ميعاد أو غيّر المرحلة' => 'Add a note, a date or change the stage',
     'متابعة سريعة' => 'Quick follow-up',
+    'المتابعات السابقة' => 'Previous follow-ups',
+    'آخر ملاحظة' => 'Last note',
+    'آخر المنافسات' => 'Latest tenders',
 ];

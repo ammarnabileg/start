@@ -36,7 +36,7 @@ function nav_items(): array
     $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
-        ['key' => 'tenders', 'label' => t('المنافسات والمناقصات'), 'section' => $s2],
+        ['key' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads']],
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['leads', 'crm_settings']],
