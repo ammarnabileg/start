@@ -121,7 +121,7 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
     ]; ?>
   <div id="cap-ov"></div>
   <div id="hub" class="hub"></div>
-  <aside id="hub-dr" class="hub-dr" aria-hidden="true"><div class="hub-bg" data-hx></div><div class="hub-pn"><header><span class="hub-ic"></span><b></b><button type="button" class="hub-x" data-hx aria-label="✕">✕</button></header><div class="hub-body"></div></div></aside>
+  <aside id="hub-dr" class="hub-dr" aria-hidden="true"><div class="hub-bg" data-hx></div><div class="hub-pn"><header><span class="hub-ic"></span><b></b><button type="button" class="hub-x" data-hx aria-label="✕"><?= ui_icon('x', 'w-4 h-4') ?></button></header><div class="hub-body"></div></div></aside>
   <?php $members = []; foreach (crm_members() as $m) $members[(int)$m['id']] = $m['name']; $fcfg = json_decode((string)setting('crm_form_cfg_' . $wid, ''), true) ?: []; ?>
   <script>window.HUBX = <?= json_encode(['api' => url('crm_leads'), 'self' => url('crm_capture'), 'csrf' => csrf_token(), 'manage' => can('crm.manage') || is_ws_owner(),
     'plans' => crm_plans(), 'chans' => crm_plan_channels(), 'tpl' => crm_templates(), 'sla' => crm_sla_cfg(), 'routes' => array_map(function ($r) { if (($r['field'] ?? '') === 'country') { $c = crm_country_iso((string)($r['value'] ?? '')); if ($c !== '') $r['value'] = $c; } return $r; }, crm_route_rules()),

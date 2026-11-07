@@ -160,7 +160,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
         <p class="text-xs text-red-700 mt-1 mb-3"><?= e(t('ده بيحصل لما تغير كلمة السر أو الصلاحية تخلص. إعادة الربط بتاخد دقيقة ومش بتمسح أي حاجة.')) ?></p>
         <div class="flex flex-wrap gap-2">
           <?php foreach ($badList as $a): $pl = (string)($a['platform'] ?? ''); ?>
-            <form method="post" class="inline-flex items-center gap-2 rounded-full bg-white border border-red-200 ps-1.5 pe-1 py-1"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
+            <form method="post" class="inline-flex items-center gap-2 rounded-full bg-white border border-red-200 ps-1.5 pe-1 py-1" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
               <?= platform_icon($pl, 'w-5 h-5') ?><span class="text-sm text-ink-800"><?= e(trim($a['displayName'] ?? $a['username'] ?? '')) ?></span>
               <?php if (in_array($pl, $connectable, true)): ?><button class="rounded-full bg-red-600 text-white text-xs px-3 py-1 hover:bg-red-700"><?= e(t('إعادة ربط')) ?></button><?php endif; ?>
             </form>
@@ -175,7 +175,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
       <div class="rounded-2xl border border-dashed border-ink-200 p-4 mb-5 flex flex-wrap items-center gap-2">
         <span class="text-sm text-ink-600 me-2"><?= e(t('منصات مهمة لسه مش مربوطة:')) ?></span>
         <?php foreach ($missing as $p): ?>
-          <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>"><?php if ($multi): ?><input type="hidden" name="conn" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
+          <form method="post" class="contents" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>"><?php if ($multi): ?><input type="hidden" name="conn" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
             <button class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-sm hover:border-brand-400 hover:shadow-sm transition"><?= platform_icon($p, 'w-4 h-4') ?><?= e(platform_label($p)) ?> <span class="text-brand-600">+</span></button>
           </form>
         <?php endforeach; ?>
@@ -243,7 +243,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
               <?php if (!$b && in_array($pl, ['facebook', 'instagram', 'whatsapp', 'telegram', 'twitter', 'linkedin', 'tiktok', 'googlebusiness'], true)): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e(url('inbox', ['acct' => $a['_id']])) ?>"><?= e(t('رسايله')) ?></a><?php endif; ?>
               <?php if (!empty($a['profileUrl'])): ?><a class="btn-ghost !py-1.5 text-xs" href="<?= e($a['profileUrl']) ?>" target="_blank" rel="noopener" title="<?= e(t('فتح الصفحة ↗')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a><?php endif; ?>
               <?php if ($b && in_array($pl, $connectable, true)): ?>
-                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
+                <form method="post" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($pl) ?>"><?php if ($multi && !empty($a['_connectionId'])): ?><input type="hidden" name="conn" value="<?= (int)$a['_connectionId'] ?>"><?php endif; ?>
                   <button class="btn-primary !py-1.5 text-xs"><?= e(t('إعادة ربط')) ?></button></form>
               <?php endif; ?>
               <?php if (can('accounts.manage')): ?>
@@ -280,7 +280,7 @@ render(t('الحسابات المربوطة'), 'accounts', function () use ($z, 
         <?php $first = true; foreach ($cat as $gk => [$gl, $items]): ?>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 <?= $first ? '' : 'hidden' ?>" data-panel="<?= e($gk) ?>">
             <?php foreach ($items as $p => $it): $col = platform_icons()[$p][0] ?? '#64748B'; $needsInput = !empty($it['field']) || $it['mode'] === 'apikey'; $have = (int)($byPlat[$p] ?? 0); ?>
-              <form method="post" class="conn-it contents" data-q="<?= e(mb_strtolower($p . ' ' . platform_label($p))) ?>" data-have="<?= $have ?>"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
+              <form method="post" data-no-ajax class="conn-it contents" data-q="<?= e(mb_strtolower($p . ' ' . platform_label($p))) ?>" data-have="<?= $have ?>"><?= csrf_field() ?><input type="hidden" name="action" value="connect"><input type="hidden" name="platform" value="<?= e($p) ?>">
                 <?php if ($multi): ?><input type="hidden" name="conn" class="connField" value="<?= (int)$z->connectionIds()[0] ?>"><?php endif; ?>
                 <?php if ($needsInput): ?>
                   <details class="rounded-xl border border-ink-200 hover:shadow-md transition">

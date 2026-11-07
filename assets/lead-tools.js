@@ -27,10 +27,10 @@
   function badge(k, n, hot) { var i = dl.querySelector('[data-ptn="' + k + '"]'); if (!i) return; i.textContent = n || ''; i.classList.toggle('hot', !!hot); }
 
   /* ---------- نتيجة المكالمة ---------- */
-  var OCC = { answered: ['#16a34a', '✓'], no_answer: ['#d97706', '⟳'], busy: ['#d97706', '⏸'], wrong: ['#dc2626', '✕'], later: ['#2563eb', '⏰'] };
+  var OCC = { answered: ['#16a34a', 'check'], no_answer: ['#d97706', 'refresh'], busy: ['#d97706', 'pause'], wrong: ['#dc2626', 'x'], later: ['#2563eb', 'clock'] };
   function ocShow() { var o = $('pd-oc'); setTab('ct');
-    o.innerHTML = '<div class="flex items-center gap-2 mb-2"><span class="pd-ring">' + ic('phone', 'w-4 h-4') + '</span><b class="text-sm text-ink-900">' + esc(T.how) + '</b><button type="button" class="ms-auto text-ink-400 hover:text-ink-700" data-oc-x>✕</button></div><div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">' +
-      Object.keys(X.oc).map(function (k) { var c = OCC[k] || ['#64748b', '•']; return '<button type="button" class="pd-ocb" data-oc="' + k + '" style="--c:' + c[0] + '"><b>' + c[1] + '</b><span>' + esc(X.oc[k]) + '</span></button>'; }).join('') + '</div>';
+    o.innerHTML = '<div class="flex items-center gap-2 mb-2"><span class="pd-ring">' + ic('phone', 'w-4 h-4') + '</span><b class="text-sm text-ink-900">' + esc(T.how) + '</b><button type="button" class="ms-auto text-ink-400 hover:text-ink-700" data-oc-x>' + ic('x', 'w-4 h-4') + '</button></div><div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">' +
+      Object.keys(X.oc).map(function (k) { var c = OCC[k] || ['#64748b', '•']; return '<button type="button" class="pd-ocb" data-oc="' + k + '" style="--c:' + c[0] + '"><b>' + ic(c[1], 'w-4 h-4') + '</b><span>' + esc(X.oc[k]) + '</span></button>'; }).join('') + '</div>';
     o.classList.remove('hidden'); o.classList.remove('pd-in-a'); void o.offsetWidth; o.classList.add('pd-in-a'); }
   function ocHide() { $('pd-oc').classList.add('hidden'); }
   $('pd-oc').addEventListener('click', function (e) { if (e.target.closest('[data-oc-x]')) return ocHide(); var b = e.target.closest('[data-oc]'); if (!b) return; var ta = $('pd-note-f').b, oc = b.dataset.oc;
@@ -100,7 +100,7 @@
       (tasks.length ? tasks.map(function (t) { return '<li class="pd-task cp-pop" data-task="' + t.id + '"><button type="button" class="pd-tick" data-tdone aria-label="✓"></button><div class="min-w-0 flex-1"><span class="block text-sm text-ink-900 break-words" dir="auto">' + esc(t.title) + '</span><small class="' + (t.over ? 'text-red-600 font-semibold' : 'text-ink-500') + '">' + esc([t.due, t.who].filter(Boolean).join(' · ')) + '</small></div></li>'; }).join('') : '<li class="text-xs text-ink-400 py-2">' + esc(T.noTasks) + '</li>') + '</ul></section>';
     // المتابعة أولًا (مثبتة فوق المهام)، والخطة تحت؛ ولو مفيش خطط مابنعرضش كارت فاضي
     var parts = h.split('</section><section class="pd-card !p-4 mt-3">'), planH = parts[0] + '</section>', taskH = '<section class="pd-card !p-4">' + parts[1];
-    var L0 = lead(); L0.next = L0.next || (L0.next_at || '').replace('T', ' '); var pin = L0.next && !tasks.some(function (t) { return t.title === L0.next_note; }) ? '<li class="pd-task pd-pin' + (L0.due ? ' over' : '') + '"><button type="button" class="pd-tick" data-nclear aria-label="✓"></button><div class="min-w-0 flex-1"><span class="block text-sm text-ink-900" dir="auto">📌 ' + esc(L0.next_note || T.follow) + '</span><small class="' + (L0.due ? 'text-red-600 font-semibold' : 'text-ink-500') + '">' + esc(L0.next) + '</small></div></li>' : '';
+    var L0 = lead(); L0.next = L0.next || (L0.next_at || '').replace('T', ' '); var pin = L0.next && !tasks.some(function (t) { return t.title === L0.next_note; }) ? '<li class="pd-task pd-pin' + (L0.due ? ' over' : '') + '"><button type="button" class="pd-tick" data-nclear aria-label="✓"></button><div class="min-w-0 flex-1"><span class="block text-sm text-ink-900" dir="auto">' + ic('pin', 'w-3.5 h-3.5 inline -mt-0.5 text-brand-600') + ' ' + esc(L0.next_note || T.follow) + '</span><small class="' + (L0.due ? 'text-red-600 font-semibold' : 'text-ink-500') + '">' + esc(L0.next) + '</small></div></li>' : '';
     // حالة العميل جوه نفس الفورم: تختار المرحلة والخطوة الجاية في مكان واحد
     var cs = L0.stage, opts = [].map.call(document.querySelectorAll('#pd-stages [data-stg]'), function (b) { return '<option value="' + b.dataset.stg + '"' + (b.dataset.stg === cs ? ' selected' : '') + '>' + esc(b.textContent) + '</option>'; }).join('');
     taskH = taskH.replace('data-tform data-no-ajax>', 'data-tform data-no-ajax><label class="pd-stsel"><span>' + ic('layers', 'w-4 h-4') + esc(T.stageL) + '</span><select id="pd-stg-sel" name="stage" class="' + (cs === 'won' ? 'won' : cs === 'lost' ? 'lost' : '') + '">' + opts + '</select></label>');
@@ -198,7 +198,7 @@
   var Q = { on: false, list: [], i: 0, tm: null };
   function qBar() { var b = $('pd-queue'); if (!Q.on) { b.classList.add('hidden'); return; }
     b.innerHTML = '<span class="pd-ring">' + ic('phone', 'w-4 h-4') + '</span><b>' + esc(T.queue) + '</b><span class="tabular-nums">' + esc(T.qOf.replace('%s', Q.i + 1).replace('%s', Q.list.length)) + '</span><span class="pd-qprog"><i style="width:' + Math.round((Q.i + 1) / Q.list.length * 100) + '%"></i></span><span data-qmsg class="text-[11px] opacity-90"></span>' +
-      '<button type="button" data-qn>' + esc(T.qNext) + ' ←</button><button type="button" data-qx title="' + esc(T.qExit) + '">✕</button>'; b.classList.remove('hidden'); }
+      '<button type="button" data-qn>' + esc(T.qNext) + ' ←</button><button type="button" data-qx title="' + esc(T.qExit) + '">' + ic('x', 'w-4 h-4') + '</button>'; b.classList.remove('hidden'); }
   function qGo(i) { clearInterval(Q.tm); if (i >= Q.list.length) { Q.on = false; qBar(); toast(T.qEnd); LP.confetti(); return; } Q.i = i; LP.open(Q.list[i]); qBar(); setTimeout(ocShow, 350); }
   function qAuto() { var n = 3, m = $('pd-queue').querySelector('[data-qmsg]'); clearInterval(Q.tm);
     m.innerHTML = esc(T.qAuto.replace('%s', n)) + ' <button type="button" data-qs>' + esc(T.qStay) + '</button>';

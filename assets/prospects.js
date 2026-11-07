@@ -51,10 +51,10 @@
       bulk([d.id], 'stage', { stage: st }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'stage', st); r.dataset.stage = st; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[st] || st; r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); if (st === 'won' && LPm.confetti) LPm.confetti(); }); return; }
     setNext([d.id], b.dataset.qn).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); rowNext(r, j); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
   document.addEventListener('click', function (e) { if (!e.target.closest('.pr-qm,[data-qstage],[data-qnext]')) qClose(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') qClose(); }); window.addEventListener('scroll', qClose, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') qClose(); }); window.addEventListener('wheel', qClose, { passive: true });
 
   /* ---------- جديد من آخر زيارة + المسؤول من الصف ---------- */
-  if (C.sinceN > 0) { var sc = document.createElement('button'); sc.type = 'button'; sc.className = 'pr-since'; sc.textContent = QT.since.replace('%s', C.sinceN.toLocaleString('en-US'));
+  if (C.sinceN > 0) { var sc = document.createElement('button'); sc.type = 'button'; sc.className = 'pr-since'; sc.innerHTML = ic('spark', 'w-4 h-4') + ' ' + esc(QT.since.replace('%s', C.sinceN.toLocaleString('en-US')));
     var tb2 = root.querySelector('.mk-table'); if (tb2) tb2.before(sc); sc.addEventListener('click', function () { var on = !sc.classList.contains('on'); root.querySelector('[data-mk-stat="' + (on ? 'since' : '_all') + '"]').click(); sc.classList.toggle('on', on); });
     root.addEventListener('click', function (e) { var st = e.target.closest('[data-mk-stat]'); if (st && st.dataset.mkStat !== 'since') sc.classList.remove('on'); }); }
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qown]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); qRow = r; var d = jd(r);
@@ -64,27 +64,40 @@
       if (ob) { ob.classList.toggle('none', !nm); ob.title = nm || QT.noOwn; ob.textContent = nm ? nm.charAt(0).toUpperCase() : '+'; } r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
 
   /* ---------- نتيجة المكالمة من الصف: بعد ما تتصل بيسألك حصل إيه (مردّش = محاولة تانية بكرة لوحدها) ---------- */
-  var OCC = { answered: '✓', no_answer: '⟳', busy: '⏸', wrong: '✕', later: '⏰' };
+  var OCC = { answered: 'check', no_answer: 'refresh', busy: 'pause', wrong: 'x', later: 'clock' };
   root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href^="tel:"]'); if (!a) return; e.stopPropagation(); var r = a.closest('[data-mk-row]');
-    setTimeout(function () { qRow = r; qOpen(a, '<b>' + esc(QT.ocQ) + '</b>' + Object.keys(C.oc || {}).map(function (k) { return '<button type="button" data-qoc="' + k + '" class="pr-oc-' + k + '"><i>' + (OCC[k] || '•') + '</i>' + esc(C.oc[k]) + '</button>'; }).join('')); }, 400); }, true);
+    setTimeout(function () { qRow = r; qOpen(a, '<b>' + esc(QT.ocQ) + '</b>' + Object.keys(C.oc || {}).map(function (k) { return '<button type="button" data-qoc="' + k + '" class="pr-oc-' + k + '"><i>' + ic(OCC[k] || 'dots', 'w-4 h-4') + '</i>' + esc(C.oc[k]) + '</button>'; }).join('')); }, 400); }, true);
   qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qoc]'), r = qRow; if (!b || !r) return; var d = jd(r); qClose();
     post(C.importUrl, { action: 'log', id: d.id, kind: 'call', outcome: b.dataset.qoc }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var l = j.lead || {};
       var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0';
       if (l.stage && l.stage !== d.stage) { upd(r, 'stage', l.stage); r.dataset.stage = l.stage; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[l.stage] || l.stage; }
       if (l.next_at) { var x = l.next_at.split('T'), dd = x[0].split('-'); rowNext(r, { next: dd[2] + '/' + dd[1] + '/' + dd[0] + ' ' + (x[1] || ''), next_note: l.next_note || '', due: 0 }); }
-      ctxLine(r, '📞', '[' + (C.oc[b.dataset.qoc] || '') + ']'); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+      ctxLine(r, 'phone', '[' + (C.oc[b.dataset.qoc] || '') + ']'); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
 
   /* ---------- واتساب من الصف: قوالب جاهزة بالاسم + تسجيل في سجل العميل ---------- */
   function ctxLine(r, icon, text) { var nm = r.querySelector('.min-w-0 > b'); if (!nm) return; var box = r.querySelector('.pr-ctx'); if (!box) { box = document.createElement('span'); box.className = 'pr-ctx'; nm.parentNode.appendChild(box); }
-    var em = box.querySelector('em'); if (!em) { em = document.createElement('em'); box.appendChild(em); } em.textContent = icon + ' ' + text + ' · ' + L.today; em.title = text; }
+    var em = box.querySelector('em'); if (!em) { em = document.createElement('em'); box.appendChild(em); } em.innerHTML = ic(icon, 'w-3 h-3 inline -mt-0.5') + ' ' + esc(text + ' · ' + L.today); em.title = text; }
   var LX = (window.LP && window.LP.L) || {};
   function fillT(t, d) { return String(t).replace(/\{name\}/g, (d.name || '').split(/\s+/)[0]).replace(/\{company\}/g, d.company || '').replace(/\{me\}/g, LX.me || '').replace(/\{book\}/g, LX.book || ''); }
   root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href*="wa.me"]'); if (!a) return; var tp = LX.waTpl || []; if (!tp.length) return; e.preventDefault(); e.stopPropagation(); var r = a.closest('[data-mk-row]'), d = jd(r); qRow = r;
     qOpen(a, '<b>' + esc(QT.waQ) + '</b>' + tp.map(function (t, i) { return '<button type="button" data-qwa="' + i + '" class="pr-qwa"><span>' + esc(t.n) + '</span><small dir="auto">' + esc(fillT(t.b, d).slice(0, 70)) + '…</small></button>'; }).join('') + '<button type="button" data-qwa="-1">' + esc(QT.waEmpty) + '</button>' + (LX.editTpl ? '<a class="pr-qm-l" href="' + esc(LX.editTpl) + '">' + esc(QT.waEdit) + '</a>' : '')); }, true);
   qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qwa]'), r = qRow; if (!b || !r) return; var d = jd(r), i = +b.dataset.qwa, t = i >= 0 ? (LX.waTpl || [])[i] : null, txt = t ? fillT(t.b, d) : ''; qClose();
     window.open('https://wa.me/' + d.wa + (txt ? '?text=' + encodeURIComponent(txt) : ''), '_blank', 'noopener');
-    post(C.importUrl, { action: 'log', id: d.id, kind: 'wa', body: t ? t.n : '' }).then(function (j) { if (!j.ok) return; var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0'; ctxLine(r, '💬', t ? t.n : (C.P.T.waDone || 'WhatsApp'));
+    post(C.importUrl, { action: 'log', id: d.id, kind: 'wa', body: t ? t.n : '' }).then(function (j) { if (!j.ok) return; var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0'; ctxLine(r, 'chat', t ? t.n : (C.P.T.waDone || 'WhatsApp'));
       var l = j.lead || {}; if (l.stage && l.stage !== d.stage) { upd(r, 'stage', l.stage); r.dataset.stage = l.stage; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[l.stage] || l.stage; } }); });
+
+  /* ---------- تثبيت وتاج من الصف ---------- */
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qpin]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'), d = jd(r);
+    post(C.importUrl, { action: 'pin', id: d.id }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var on = !b.classList.contains('on'); b.classList.toggle('on', on); toast(on ? QT.pinned : QT.unpinned);
+      var body = r.parentNode; if (on) body.prepend(r); }); }, true);
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qtag]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'), d = jd(r), have = (d.tags || '').split(',').map(function (x) { return x.trim(); });
+    qRow = r; qOpen(b, '<b>' + esc(QT.tagQ) + '</b><input class="pr-tagin" placeholder="' + esc(QT.tagPh) + '" dir="auto"><div class="pr-tagsug">' + (C.allTags || []).filter(function (t) { return have.indexOf(t) < 0; }).slice(0, 12).map(function (t) { return '<button type="button" data-qt="' + esc(t) + '">#' + esc(t) + '</button>'; }).join('') + '</div>');
+    var inp = qm.querySelector('.pr-tagin'); inp.focus(); inp.addEventListener('input', function () { var v = inp.value.trim().toLowerCase(); qm.querySelectorAll('[data-qt]').forEach(function (x) { x.style.display = !v || x.dataset.qt.toLowerCase().indexOf(v) >= 0 ? '' : 'none'; }); });
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && inp.value.trim()) { ev.preventDefault(); addTag(inp.value.trim()); } }); }, true);
+  function addTag(t) { var r = qRow; if (!r) return; var d = jd(r); qClose();
+    bulk([d.id], 'tag', { tag: t }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); var box = r.querySelector('.pr-ctx'), ad = box && box.querySelector('[data-qtag]');
+      if (ad) { var i = document.createElement('i'); i.textContent = '#' + t; ad.after(i); } if ((C.allTags || []).indexOf(t) < 0) (C.allTags = C.allTags || []).unshift(t); toast(QT.qDone); }); }
+  qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qt]'); if (b) addTag(b.dataset.qt); });
 
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
