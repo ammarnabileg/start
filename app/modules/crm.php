@@ -682,7 +682,7 @@ function ps_seasons(string $from, string $to): array
         ['05-01', $L('عيد العمال', 'Labour Day'), $L('👷 تحية لكل اللي بيشتغلوا بإيدهم وقلبهم. شكرًا لفريقنا!', '👷 Thank you to everyone who builds with their hands. Thanks, team!'), ''],
         ['09-23', $L('اليوم الوطني السعودي', 'Saudi National Day'), $L('🇸🇦 اليوم الوطني.. همة حتى القمة. عرض خاص: [العرض]', '🇸🇦 National Day. Special offer: [Offer]'), 'SA'],
         ['10-06', $L('ذكرى 6 أكتوبر', 'October 6'), $L('🇪🇬 كل سنة ومصر منورة. [رسالة الشركة]', '🇪🇬 Happy October 6. [Message]'), 'EG'],
-        ['11-11', $L('11.11', 'Singles Day 11.11'), $L('🛍 عروض 11.11: خصم [النسبة]% ليوم واحد بس!', '🛍 11.11 deals: [Percent]% off, one day only!'), ''],
+        ['11-11', $L('11.11', 'Singles Day 11.11'), $L('🛍 عروض 11.11: خصم [النسبة]% ليوم واحد فقط!', '🛍 11.11 deals: [Percent]% off, one day only!'), ''],
         ['12-25', $L('الكريسماس', 'Christmas'), $L('🎄 عيد ميلاد مجيد لكل اللي بيحتفلوا', '🎄 Merry Christmas to all who celebrate'), ''],
     ];
     $islamic = [ // تقريبي
