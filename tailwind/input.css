@@ -254,6 +254,9 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-stk-i img { @apply w-full h-full object-cover; }
   #dz-ico-st button { @apply rounded-md px-1.5 py-0.5 text-ink-500; } #dz-ico-st button.on { @apply bg-white text-brand-700 shadow-sm; }
   .dz-el.dz-duo svg { @apply rounded-full bg-brand-100 p-1 text-brand-700; } .dz-el.dz-solid svg { @apply rounded-lg bg-brand-600 p-1 text-white; }
+  /* hidden لازم يغلب على flex في الكروت (cp-mode و cp-acc بيستخدموا flex) */
+  .cp-mode[hidden], .cp-acc[hidden], .mk-stat[hidden] { display: none !important; }
+  .ab-n { @apply w-6 h-6 rounded-full bg-brand-600 text-white text-xs grid place-items-center; }
   .dz-float { @apply fixed z-[96] -translate-x-1/2 flex items-center gap-0.5 rounded-xl border border-ink-200 bg-white p-1 shadow-xl; }
   .dz-fb { @apply w-8 h-8 grid place-items-center rounded-lg text-sm text-ink-700 hover:bg-ink-100; }
   .dz-fsep { @apply w-px h-5 bg-ink-200 mx-0.5; }

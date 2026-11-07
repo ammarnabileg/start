@@ -338,7 +338,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
               <?php endforeach; ?>
             </select>
           </form>
-          <div class="tb p-0.5 gap-0.5 overflow-x-auto" style="scrollbar-width:none">
+          <div class="tb p-0.5 gap-0.5 overflow-x-auto hidden" style="scrollbar-width:none" aria-hidden="true">
             <?php foreach (['' => t('كل الحالات'), 'active' => t('شغالة'), 'paused' => t('متوقفة'), 'pending_review' => t('تحت المراجعة'), 'rejected' => t('مرفوضة'), 'completed' => t('خلصت'), 'error' => t('فيها مشكلة')] as $k => $v): ?>
               <a href="<?= e($q(['st' => $k ?: null, 'pg' => null])) ?>" class="h-8 px-3 rounded-lg text-xs flex items-center whitespace-nowrap <?= $k === $status ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>"><?= e($v) ?></a>
             <?php endforeach; ?>
@@ -348,25 +348,26 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         </div>
       </div>
 
-      <!-- الإجماليات: كارت واحد، سطر لكل عملة -->
-      <?php if ($totals): ?>
-      <div class="card p-0 overflow-hidden">
-        <div class="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] text-[11px] text-ink-500 bg-ink-50 border-b border-ink-100">
-          <span class="px-4 py-2"><?= e(t('العملة')) ?></span><span class="px-4 py-2"><?= e(t('الصرف')) ?></span><span class="px-4 py-2"><?= e(t('مرات الظهور')) ?></span><span class="px-4 py-2"><?= e(t('الضغطات')) ?></span><span class="px-4 py-2"><?= e(t('النتايج')) ?></span>
-        </div>
-        <?php foreach ($totals as $cur => $tt): ?>
-          <div class="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] items-center border-b border-ink-100 last:border-0">
-            <span class="px-4 py-3"><span class="rounded-md bg-brand-50 text-brand-700 text-xs font-semibold px-2 py-1" dir="ltr"><?= e($cur ?: '—') ?></span></span>
-            <?php foreach ([ads_money($tt['spend'], $cur ?: null), ads_num($tt['impressions']), ads_num($tt['clicks']), ads_num($tt['results'])] as $i => $v): ?>
-              <span class="ads-num px-4 py-3 tabular-nums <?= $i === 0 ? 'text-xl font-bold text-ink-900' : 'text-lg font-semibold text-ink-800' ?>"><?= e($v) ?></span>
-            <?php endforeach; ?>
-          </div>
+      <!-- كروت الأرقام: ملخص الفترة + فلترة بالحالة بضغطة -->
+      <?php if ($totals || $campaigns):
+        $sum = ['impressions' => 0, 'clicks' => 0, 'results' => 0]; foreach ($totals as $tt) foreach ($sum as $k => $_) $sum[$k] += (float)($tt[$k] ?? 0);
+        $ctr = $sum['impressions'] > 0 ? 100 * $sum['clicks'] / $sum['impressions'] : 0;
+        $byCur = $totals; uasort($byCur, function ($x, $y) { return ($y['spend'] ?? 0) <=> ($x['spend'] ?? 0); }); $mainCur = (string)array_key_first($byCur);
+        $stc = ['' => 0, 'active' => 0, 'paused' => 0, 'pending_review' => 0, 'rejected' => 0]; foreach ($campaigns as $c) { $stc['']++; $k = (string)($c['status'] ?? ''); if (isset($stc[$k])) $stc[$k]++; } ?>
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3" id="ads-kpi">
+        <div class="card p-4"><div class="text-xs text-ink-500 flex items-center gap-1.5"><?= ui_icon('money', 'w-4 h-4 text-brand-600') ?><?= e(t('الإنفاق')) ?></div>
+          <div class="ads-num text-2xl font-bold text-ink-900 mt-1 tabular-nums" dir="ltr"><?= e($mainCur !== '' ? ads_money($byCur[$mainCur]['spend'], $mainCur) : '—') ?></div>
+          <?php if (count($byCur) > 1): ?><div class="text-[11px] text-ink-500 mt-0.5" dir="ltr"><?= e(implode(' · ', array_map(function ($c) use ($byCur) { return ads_money($byCur[$c]['spend'], $c ?: null); }, array_slice(array_keys($byCur), 1)))) ?></div><?php endif; ?></div>
+        <?php foreach ([[t('مرات الظهور'), ads_num($sum['impressions']), 'eye'], [t('النقرات'), ads_num($sum['clicks']), 'pointer'], [t('النتائج'), ads_num($sum['results']), 'target'], [t('نسبة النقر'), number_format($ctr, 2) . '%', 'chart']] as [$l, $v, $ic]): ?>
+          <div class="card p-4"><div class="text-xs text-ink-500 flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4 text-brand-600') ?><?= e($l) ?></div><div class="ads-num text-2xl font-bold text-ink-900 mt-1 tabular-nums"><?= e($v) ?></div></div>
+        <?php endforeach; ?>
+      </div>
+      <div class="mk-stats !mb-0" id="ads-st">
+        <?php foreach (['' => [t('كل الحملات'), 'layers', 'bg-ink-100 text-ink-700'], 'active' => [t('شغالة'), 'zap', 'bg-lime-50 text-lime-700'], 'paused' => [t('متوقفة'), 'clock', 'bg-amber-50 text-amber-700'], 'pending_review' => [t('تحت المراجعة'), 'eye', 'bg-brand-50 text-brand-700'], 'rejected' => [t('مرفوضة'), 'alert', 'bg-red-50 text-red-600']] as $k => [$l, $ic, $cl]): ?>
+          <a href="<?= e($q(['st' => $k ?: null, 'pg' => null])) ?>" class="mk-stat<?= $k === $status ? ' mk-on' : '' ?>"><span class="mk-ic <?= $cl ?>"><?= ui_icon($ic, 'w-5 h-5') ?></span><span><b><?= $status === '' || $k === $status ? (int)$stc[$k] : '·' ?></b><small><?= e($l) ?></small></span></a>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>
-
-      <!-- محتاج انتباهك -->
-      <section id="ads-attn" class="card p-4 hidden"></section>
 
       <!-- الحملات -->
       <section class="card overflow-hidden">
@@ -464,6 +465,26 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
           <?php endif; ?>
         <?php endif; ?>
       </section>
+      <!-- الإنفاق بكل عملة -->
+      <?php if ($totals): ?>
+      <details class="card p-0 overflow-hidden group" id="ads-totals"><summary class="cursor-pointer list-none flex items-center gap-2 px-4 py-3 text-sm font-semibold text-ink-900"><?= e(t('الأرقام بكل عملة')) ?><svg class="w-4 h-4 ms-auto text-ink-400 transition group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] text-[11px] text-ink-500 bg-ink-50 border-b border-ink-100">
+          <span class="px-4 py-2"><?= e(t('العملة')) ?></span><span class="px-4 py-2"><?= e(t('الصرف')) ?></span><span class="px-4 py-2"><?= e(t('مرات الظهور')) ?></span><span class="px-4 py-2"><?= e(t('الضغطات')) ?></span><span class="px-4 py-2"><?= e(t('النتايج')) ?></span>
+        </div>
+        <?php foreach ($totals as $cur => $tt): ?>
+          <div class="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] items-center border-b border-ink-100 last:border-0">
+            <span class="px-4 py-3"><span class="rounded-md bg-brand-50 text-brand-700 text-xs font-semibold px-2 py-1" dir="ltr"><?= e($cur ?: '—') ?></span></span>
+            <?php foreach ([ads_money($tt['spend'], $cur ?: null), ads_num($tt['impressions']), ads_num($tt['clicks']), ads_num($tt['results'])] as $i => $v): ?>
+              <span class="ads-num px-4 py-3 tabular-nums <?= $i === 0 ? 'text-xl font-bold text-ink-900' : 'text-lg font-semibold text-ink-800' ?>"><?= e($v) ?></span>
+            <?php endforeach; ?>
+          </div>
+        <?php endforeach; ?>
+      </details>
+      <?php endif; ?>
+
+      <!-- محتاج انتباهك -->
+      <section id="ads-attn" class="card p-4 hidden"></section>
+
     </div>
     <script>window.ADX2 = <?= json_encode(['csrf' => csrf_token(), 'canSpend' => can('ads.spend'), 'range' => $range, 'period' => ads_date_presets()[$range] ?? '',
       'myCur' => countries()[ws_country()]['cur'] ?? 'USD', 'aiUrl' => url('ads'), 'bulkUrl' => url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range])), 'campUrl' => url('ad_campaign'),
@@ -501,5 +522,8 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
     <script src="assets/ui-ads2.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads3.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ui-ads4.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.ADX5 = <?= json_encode(['pause' => t('إيقاف الحملة'), 'resume' => t('تشغيل الحملة'), 'ownerOnly' => t('التشغيل لصاحب الشركة بس'), 'budget' => t('الميزانية'), 'daily' => t('يومية'), 'lifetime' => t('إجمالية'), 'save' => t('حفظ'),
+      'confirm' => t('أوافق إن ده هيصرف فلوس من حساب الإعلانات'), 'needConf' => t('علّم على خانة الموافقة الأول'), 'busy' => t('بنبعت للمنصة…'), 'done' => t('اتعمل ✓'), 'err' => t('حصلت مشكلة. جرب تاني.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/ui-ads5.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

@@ -141,8 +141,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'new' 
     if ($connId === '' || $accId === '') { flash('error', t('اختار حساب الإعلانات.')); redirect(url('ad_builder')); }
     $data = ab_default_data(ab_platform_of($cpf), $connId, $accId, $cur, $accName);
     $data['campaign']['name'] = trim((string)($_POST['name'] ?? '')) ?: t('حملة جديدة %s', date('d/m'));
+    $goal = (string)($_POST['goal'] ?? ''); if (in_array($goal, ab_caps($data['platform'])['goals'], true)) $data['campaign']['goal'] = $goal;
     $nid = ab_create($wid, $data, $data['campaign']['name']);
-    redirect(url('ad_builder', ['id' => $nid]));
+    redirect(url('ad_builder', array_filter(['id' => $nid, 'ai' => !empty($_POST['ai']) ? 1 : null])));
 }
 
 $targets = [];
@@ -159,37 +160,53 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     if (!$build): ?>
     <div class="space-y-5">
       <?php if ($apiError) error_box($apiError); ?>
-      <section class="card p-5">
-        <h2 class="font-bold text-ink-900"><?= e(t('حملة جديدة متقدمة')) ?></h2>
-        <p class="text-sm text-ink-500 mt-1"><?= e(t('ابني حملة فيها أكتر من مجموعة إعلانية، وفي كل مجموعة أكتر من إعلان. بيتحفظ لوحده، ومش بيتطلق غير لما تراجع وتوافق.')) ?></p>
-        <?php if (!$targets): ?><p class="text-sm text-ink-500 mt-4"><?= e(t('مفيش حسابات إعلانات شغالة.')) ?> <a class="link" href="<?= e(url('ads')) ?>"><?= e(t('اربط حساب')) ?></a></p>
+      <?php $gl = ab_strings()['goals'] ?? []; $goalIc = ['traffic' => 'pointer', 'engagement' => 'heart', 'awareness' => 'eye', 'video_views' => 'film', 'lead_generation' => 'users', 'conversions' => 'money', 'app_promotion' => 'zap', 'page_likes' => 'star']; ?>
+      <section class="card p-0 overflow-hidden">
+        <div class="p-5 bg-gradient-to-l from-brand-50 to-white border-b border-ink-100"><h2 class="text-lg font-bold text-ink-900"><?= e(t('حملة جديدة')) ?></h2>
+          <p class="text-sm text-ink-500 mt-1"><?= e(t('ابني حملة فيها أكتر من مجموعة إعلانية، وفي كل مجموعة أكتر من إعلان. بيتحفظ لوحده، ومش بيتطلق غير بعد مراجعتك وموافقتك.')) ?></p></div>
+        <?php if (!$targets): ?><p class="text-sm text-ink-500 p-5"><?= e(t('مفيش حسابات إعلانات شغالة.')) ?> <a class="link" href="<?= e(url('ads')) ?>"><?= e(t('اربط حساب')) ?></a></p>
         <?php else: ?>
-        <form method="post" class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
+        <form method="post" id="ab-new" class="p-5 space-y-5">
           <?= csrf_field() ?><input type="hidden" name="action" value="new">
-          <label class="block"><span class="label"><?= e(t('حساب الإعلانات')) ?></span>
-            <select name="target" class="input" required>
-              <?php foreach ($targets as $t): $pf = ab_platform_of((string)($t['conn']['platform'] ?? '')); ?>
-                <option value="<?= e(implode('|', [$t['conn']['_id'], $t['acc']['id'], $t['acc']['currency'] ?? '', $t['conn']['platform'] ?? '', $t['acc']['name'] ?? $t['acc']['id']])) ?>"><?= e(ab_platform_label($pf) . ' · ' . ($t['acc']['name'] ?? $t['acc']['id']) . ' · ' . ($t['acc']['currency'] ?? '')) ?></option>
-              <?php endforeach; ?>
-            </select></label>
-          <label class="block"><span class="label"><?= e(t('اسم الحملة')) ?></span><input name="name" class="input" maxlength="200" placeholder="<?= e(t('مثلاً: عرض نوفمبر')) ?>"></label>
-          <button class="btn-primary h-[42px]"><?= e(t('ابدأ')) ?></button>
+          <div><b class="flex items-center gap-2 text-sm text-ink-900 mb-2"><span class="ab-n">1</span><?= e(t('حساب الإعلانات')) ?></b>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <?php foreach ($targets as $i => $t): $pf = ab_platform_of((string)($t['conn']['platform'] ?? '')); ?>
+              <label class="cp-acc !flex-row !items-center !text-start gap-3"><input type="radio" name="target" class="sr-only" data-pf="<?= e($pf) ?>" <?= $i ? '' : 'checked' ?> required value="<?= e(implode('|', [$t['conn']['_id'], $t['acc']['id'], $t['acc']['currency'] ?? '', $t['conn']['platform'] ?? '', $t['acc']['name'] ?? $t['acc']['id']])) ?>">
+                <span class="w-10 h-10 rounded-xl bg-ink-50 grid place-items-center shrink-0"><?= platform_icon((string)($t['conn']['platform'] ?? ''), 'w-6 h-6') ?></span>
+                <span class="min-w-0 flex-1"><b class="block text-sm text-ink-900 truncate"><?= e($t['acc']['name'] ?? $t['acc']['id']) ?></b><span class="text-[11px] text-ink-500"><?= e(ab_platform_label($pf)) ?> · <span dir="ltr"><?= e($t['acc']['currency'] ?? '') ?></span></span></span>
+                <span class="cp-ok !static" aria-hidden="true">✓</span></label>
+            <?php endforeach; ?></div></div>
+          <div><b class="flex items-center gap-2 text-sm text-ink-900 mb-2"><span class="ab-n">2</span><?= e(t('هدف الحملة')) ?></b>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" id="ab-goals">
+            <?php foreach ($gl as $k => [$l, $sub]): ?>
+              <label class="cp-mode !items-start !text-start !px-3 !py-3" data-goal="<?= e($k) ?>"><input type="radio" name="goal" value="<?= e($k) ?>" class="sr-only" <?= $k === 'traffic' ? 'checked' : '' ?>>
+                <span class="flex items-center gap-2 text-sm font-semibold"><?= ui_icon($goalIc[$k] ?? 'target', 'w-4 h-4') ?><?= e($l) ?></span><span class="text-[11px] font-normal text-ink-500"><?= e($sub) ?></span></label>
+            <?php endforeach; ?></div></div>
+          <div><b class="flex items-center gap-2 text-sm text-ink-900 mb-2"><span class="ab-n">3</span><?= e(t('اسم الحملة')) ?></b>
+            <div class="flex flex-wrap items-center gap-3"><input name="name" class="input !mt-0 flex-1 min-w-[240px]" maxlength="200" placeholder="<?= e(t('مثلاً: عرض نوفمبر')) ?>">
+              <label class="inline-flex items-center gap-2 text-sm text-ink-700 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5"><input type="checkbox" name="ai" value="1" class="rounded"> <?= ui_icon('spark', 'w-4 h-4 text-brand-600') ?><?= e(t('ابنيها بالذكاء الاصطناعي من ملف الشركة')) ?></label>
+              <button class="btn-primary !px-6"><?= e(t('ابدأ')) ?> ←</button></div></div>
         </form>
+        <script>window.AB_GOALS = <?= json_encode(array_combine(array_map(function ($t) { return ab_platform_of((string)($t['conn']['platform'] ?? '')); }, $targets), array_map(function ($t) { return ab_caps(ab_platform_of((string)($t['conn']['platform'] ?? '')))['goals']; }, $targets))) ?>;
+          (function () { var f = document.getElementById('ab-new'); if (!f) return; function sync() { var pf = (f.querySelector('[name=target]:checked') || {}).dataset; var ok = (window.AB_GOALS[pf && pf.pf] || []);
+              f.querySelectorAll('[data-goal]').forEach(function (l) { var on = ok.indexOf(l.dataset.goal) > -1; l.hidden = !on; if (!on) l.querySelector('input').checked = false; });
+              if (!f.querySelector('[name=goal]:checked')) { var first = f.querySelector('[data-goal]:not([hidden]) input'); if (first) first.checked = true; } }
+            f.addEventListener('change', function (e) { if (e.target.name === 'target') sync(); }); sync(); })();</script>
         <?php endif; ?>
       </section>
-      <section class="card overflow-hidden">
-        <div class="p-4 border-b border-ink-200"><h2 class="font-bold text-ink-900"><?= e(t('مشاريعك')) ?> <span class="text-xs font-normal text-ink-500">(<?= count($list) ?>)</span></h2></div>
-        <?php if (!$list): ?><p class="p-6 text-sm text-ink-500 text-center"><?= e(t('مفيش مشاريع لسه.')) ?></p><?php else: ?>
-        <div class="divide-y divide-ink-100">
-          <?php $stl = ['draft' => [t('مسودة'), 'bg-ink-100 text-ink-700'], 'launching' => [t('بيتطلق'), 'bg-amber-50 text-amber-800'], 'failed' => [t('اتطلق جزئيًا'), 'bg-red-50 text-red-700'], 'launched' => [t('اتطلق'), 'bg-lime-100 text-lime-800']];
+      <section>
+        <div class="flex items-center gap-2 mb-3"><h2 class="text-lg font-bold text-ink-900"><?= e(t('مشاريعك')) ?></h2><span class="text-xs text-ink-400"><?= count($list) ?></span></div>
+        <?php if (!$list): ?><div class="card p-8 text-center text-sm text-ink-500"><?= e(t('مفيش مشاريع لسه.')) ?></div><?php else: ?>
+        <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <?php $stl = ['draft' => [t('مسودة'), 'bg-ink-100 text-ink-700'], 'launching' => [t('بيتطلق'), 'bg-amber-50 text-amber-800'], 'failed' => [t('اتطلق جزئيًا'), 'bg-red-50 text-red-700'], 'launched' => [t('اتطلقت'), 'bg-lime-100 text-lime-800']];
           foreach ($list as $r): $s = $stl[$r['state']] ?? [$r['state'], 'bg-ink-100']; ?>
-            <div class="ab-proj p-4 flex flex-wrap items-center gap-3" data-id="<?= (int)$r['id'] ?>">
-              <a href="<?= e(url('ad_builder', ['id' => $r['id']])) ?>" class="font-semibold text-ink-900 hover:underline flex-1 min-w-0 truncate"><?= e($r['name']) ?></a>
-              <span class="text-xs text-ink-500"><?= e(ab_platform_label($r['platform'])) ?></span>
-              <span class="text-[11px] rounded px-1.5 py-0.5 <?= $s[1] ?>"><?= e($s[0]) ?></span>
-              <span class="text-xs text-ink-400"><?= e(fmt_date($r['updated_at'], 'd/m h:i A')) ?></span>
-              <button type="button" data-ab="duplicate" class="text-xs link"><?= e(t('نسخ')) ?></button>
-              <button type="button" data-ab="delete" class="text-xs text-red-600 hover:underline"><?= e(t('امسح')) ?></button>
+            <div class="ab-proj card p-4 flex flex-col gap-3 hover:shadow-md hover:border-brand-300 transition" data-id="<?= (int)$r['id'] ?>">
+              <div class="flex items-start gap-3"><span class="w-10 h-10 rounded-xl bg-ink-50 grid place-items-center shrink-0"><?= platform_icon($r['platform'] === 'meta' ? 'facebook' : (string)$r['platform'], 'w-5 h-5') ?></span>
+                <a href="<?= e(url('ad_builder', ['id' => $r['id']])) ?>" class="min-w-0 flex-1"><b class="block text-ink-900 truncate hover:underline"><?= e($r['name']) ?></b><span class="text-[11px] text-ink-500"><?= e(ab_platform_label($r['platform'])) ?> · <?= e(fmt_date($r['updated_at'], 'd/m h:i A')) ?></span></a>
+                <span class="mk-pill <?= $s[1] ?>"><?= e($s[0]) ?></span></div>
+              <div class="flex items-center gap-2 pt-2 border-t border-ink-100"><a href="<?= e(url('ad_builder', ['id' => $r['id']])) ?>" class="btn-primary !py-1 !text-xs"><?= e(t('افتح')) ?></a>
+                <button type="button" data-ab="duplicate" class="btn-ghost !py-1 !text-xs"><?= ui_icon('copy', 'w-3.5 h-3.5') ?><?= e(t('نسخ')) ?></button>
+                <button type="button" data-ab="delete" class="ms-auto p-1.5 rounded-lg text-ink-400 hover:text-red-600 hover:bg-red-50" title="<?= e(t('امسح')) ?>"><?= ui_icon('trash', 'w-4 h-4') ?></button></div>
             </div>
           <?php endforeach; ?>
         </div><?php endif; ?>
@@ -221,5 +238,6 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     <script src="assets/ad-builder.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ad-builder-launch.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/ad-builder-ai.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php if (!empty($_GET['ai'])): ?><script>(function (n) { var t = setInterval(function () { var b = document.getElementById('ab-ai-build'); if (b) { clearInterval(t); b.click(); } else if (++n > 40) clearInterval(t); }, 150); })(0);</script><?php endif; ?>
     <?php
 }, ['full' => true]);

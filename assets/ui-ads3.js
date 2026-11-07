@@ -145,7 +145,7 @@
 
   // ---- (15) الإجمالي بعملة واحدة
   var curs = Object.keys(Z.avg).filter(Boolean), base = C.myCur;
-  var totCard = ($('.ads-num') || {}).closest ? $('.ads-num').closest('.card') : null;
+  var totCard = document.getElementById('ads-totals'); // كارت الأرقام بكل عملة (مش كروت الملخص اللي فوق)
   if (totCard && curs.length > 1) {
     var rates = store.get('fx', {}), box = document.createElement('div'); box.className = 'border-t border-ink-100 p-4 text-sm';
     totCard.appendChild(box);
