@@ -37,6 +37,8 @@
     post(C.selfUrl, { action: 'sync' }).then(function (j) { sy.classList.add('hidden'); if (j.ok && j.new > 0) { toast(L.synced.replace('%s', j.new)); setTimeout(function () { location.reload(); }, 1200); } }).catch(function () { sy.classList.add('hidden'); }); }
 
   /* ---------- نافذة العميل (assets/lead-popup.js مشتركة مع باقي الصفحات) ---------- */
+  // ?stat=ads مثلًا: يفتح الصفحة على كارت الأرقام ده (جاي من نماذج الإعلانات)
+  var stq = new URLSearchParams(location.search).get('stat'); if (stq) { var sb = root.querySelector('[data-mk-stat="' + stq.replace(/[^a-z_]/g, '') + '"]'); if (sb) setTimeout(function () { sb.click(); }, 50); }
   window.PRList = list; var LPm = window.LeadPopup; LPm.host({ rows: function () { return list.rows().filter(function (x) { return x.style.display !== 'none'; }); } });
   var open = LPm.open, jd = LPm.jd, upd = LPm.upd, rowNext = LPm.rowNext, setNext = LPm.setNext, bulk = LPm.bulk;
   // فتح عميل من رابط التنبيه (?lead=ID)

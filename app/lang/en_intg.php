@@ -5229,4 +5229,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'شريحة %s' => 'Slide %s',
     'اضغط على النص عشان تعدّله' => 'Click the text to edit it',
     'مصادر عملاءك آخر 30 يوم' => 'Where your leads came from in the last 30 days',
+    'عملاء الإعلانات في صفحة العملاء' => 'Ad leads on the customers page',
 ];

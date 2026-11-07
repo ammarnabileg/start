@@ -1042,3 +1042,18 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .hub2-main .hub-body #cap-ov .cap-ov{border:0;padding:0;box-shadow:none;background:none}
 @media (max-width:900px){.hub2{grid-template-columns:1fr}.hub2-nav{position:static;flex-direction:row;overflow-x:auto;max-height:none;padding:.4rem}.hub2-gt{display:none}.hub2-nav .hub2-i{width:auto;flex-shrink:0}.hub2-nav .hub2-i em{display:none}}
 .dark .hub2-nav,.dark .hub2-main{background:#0f172a;border-color:rgb(255 255 255/.08)}.dark .hub2-nav .hub2-i{color:#cbd5e1}.dark .hub2-nav .hub2-i.on{background:#1e293b;color:#fff}.dark .hub2-h b{color:#f1f5f9}
+
+/* نماذج الإعلانات: الحملات ككروت */
+.ld-cards table,.ld-cards tbody{display:block}
+.ld-cards thead{display:none}
+.ld-cards tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.7rem;padding:.9rem}
+.ld-cards tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:.45rem .8rem;padding:.85rem;border:1px solid #eef2f7;border-radius:16px;background:#fff;border-top:1px solid #eef2f7!important;transition:box-shadow .15s}
+.ld-cards tbody tr:hover{box-shadow:0 10px 24px -16px rgb(15 23 42/.4)}
+.ld-cards tbody td{padding:0!important;text-align:start!important;display:flex;flex-direction:column;font-size:.85rem}
+.ld-cards tbody td::before{content:attr(data-l);font-size:.68rem;color:#94a3b8;font-weight:500}
+.ld-cards tbody td:first-child{grid-column:1/-1;padding-bottom:.45rem!important;border-bottom:1px dashed #e2e8f0}
+.ld-cards tbody td:first-child::before{display:none}
+.ld-cards tbody td:last-child{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;padding-top:.4rem!important;border-top:1px dashed #e2e8f0}
+.ld-cards tbody td:last-child::before{font-size:.75rem}
+.dark .ld-cards tbody tr{background:#0f172a;border-color:rgb(255 255 255/.08)!important}
+.hx-steps-d li{align-items:flex-start}.hx-steps-d li span{display:flex;flex-direction:column;gap:.15rem}.hx-steps-d li small{font-size:.68rem;color:#64748b;font-weight:400;line-height:1.5}
