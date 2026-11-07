@@ -1084,3 +1084,4 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-since:hover,.pr-since.on{background:#1d4ed8;color:#fff}
 .pr-own{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;color:#fff;background:linear-gradient(135deg,#6366f1,#06b6d4);flex-shrink:0;transition:transform .15s}
 .pr-own:hover{transform:scale(1.1)}.pr-own.none{background:#f1f5f9;color:#94a3b8;border:1px dashed #cbd5e1}
+.pr-qm [data-qoc]{display:flex;align-items:center;gap:.45rem}.pr-qm [data-qoc] i{font-style:normal;width:20px;text-align:center}.pr-oc-answered i{color:#16a34a}.pr-oc-no_answer i,.pr-oc-busy i{color:#d97706}.pr-oc-wrong i{color:#dc2626}.pr-oc-later i{color:#2563eb}

@@ -63,6 +63,17 @@
     bulk([d.id], 'owner', { owner: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'owner', v); var ob = r.querySelector('[data-qown]'), nm = C.members[v] || '';
       if (ob) { ob.classList.toggle('none', !nm); ob.title = nm || QT.noOwn; ob.textContent = nm ? nm.charAt(0).toUpperCase() : '+'; } r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
 
+  /* ---------- نتيجة المكالمة من الصف: بعد ما تتصل بيسألك حصل إيه (مردّش = محاولة تانية بكرة لوحدها) ---------- */
+  var OCC = { answered: '✓', no_answer: '⟳', busy: '⏸', wrong: '✕', later: '⏰' };
+  root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href^="tel:"]'); if (!a) return; e.stopPropagation(); var r = a.closest('[data-mk-row]');
+    setTimeout(function () { qRow = r; qOpen(a, '<b>' + esc(QT.ocQ) + '</b>' + Object.keys(C.oc || {}).map(function (k) { return '<button type="button" data-qoc="' + k + '" class="pr-oc-' + k + '"><i>' + (OCC[k] || '•') + '</i>' + esc(C.oc[k]) + '</button>'; }).join('')); }, 400); }, true);
+  qm.addEventListener('click', function (e) { var b = e.target.closest('[data-qoc]'), r = qRow; if (!b || !r) return; var d = jd(r); qClose();
+    post(C.importUrl, { action: 'log', id: d.id, kind: 'call', outcome: b.dataset.qoc }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var l = j.lead || {};
+      var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; r.dataset.cold = '0';
+      if (l.stage && l.stage !== d.stage) { upd(r, 'stage', l.stage); r.dataset.stage = l.stage; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[l.stage] || l.stage; }
+      if (l.next_at) { var x = l.next_at.split('T'), dd = x[0].split('-'); rowNext(r, { next: dd[2] + '/' + dd[1] + '/' + dd[0] + ' ' + (x[1] || ''), next_note: l.next_note || '', due: 0 }); }
+      r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
+
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
   var tb = root.querySelector('.mk-table'); if (tb) tb.before(vbar);
