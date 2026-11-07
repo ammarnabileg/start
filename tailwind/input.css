@@ -290,6 +290,13 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .ai-tag { @apply rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800; } .ai-tag.w { @apply bg-orange-100 text-orange-800; } .ai-per { @apply mt-1 text-xs text-ink-700; }
   .ai-sk { @apply h-20 rounded-xl mk-sk mb-2; } .ai-ad { @apply rounded-xl bg-ink-50 p-3; animation: pdIn .3s ease-out both; } .ai-fmt { @apply rounded-md bg-ink-200 px-1.5 py-0.5 text-[10px] font-bold text-ink-700; } .ai-art { @apply mt-1.5 rounded-lg bg-pink-50 px-2 py-1 text-[11px] text-pink-900 dark:bg-[#3a0d24] dark:text-[#f9a8d4]; }
   .ai-foot:empty { display: none; }
+  /* جمع العملاء */
+  .cap-ov { @apply mb-4 rounded-2xl border border-ink-200 bg-white p-4; }
+  .cap-k { @apply relative rounded-2xl bg-ink-50 p-3; } .cap-k span { @apply absolute top-3 end-3 w-8 h-8 rounded-xl grid place-items-center; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); } .cap-k b { @apply block text-2xl font-black text-ink-900 tabular-nums; } .cap-k small { @apply block text-xs text-ink-500; } .cap-k em { @apply mt-1 block not-italic text-[11px] text-ink-500; } .cap-k em i { @apply not-italic font-bold; } .cap-k em i.up { @apply text-lime-700; } .cap-k em i.down { @apply text-red-600; }
+  .cap-src { @apply grid grid-cols-[8rem_minmax(0,1fr)_3rem_3.5rem] items-center gap-2 text-sm; } .cap-src > span:first-child { @apply text-ink-700; } .cap-src b { @apply text-end text-ink-900 tabular-nums; } .cap-src em { @apply not-italic text-[11px] font-bold text-ink-400; } .cap-src em.up { @apply text-lime-700; } .cap-src em.down { @apply text-red-600; }
+  .cap-bar { @apply h-2.5 overflow-hidden rounded-full bg-ink-100; } .cap-bar i { @apply block h-full w-0 rounded-full transition-all duration-700; background: var(--c); } .cap-bar i.go { width: var(--w); }
+  .cap-nav { @apply sticky top-16 z-20 -mx-1 rounded-2xl bg-ink-50/90 px-1 py-2 backdrop-blur; } .cap-nav a { @apply transition; } .cap-nav a.on { @apply !bg-brand-600 !text-white !border-brand-600; }
+  .cap-mini { @apply h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-ink-100; } .cap-mini i { @apply block h-full rounded-full bg-brand-500; }
   /* الرسائل والتعليقات */
   .msg-ov { @apply w-full max-w-md; } .msg-hi { @apply w-16 h-16 mx-auto mb-4 rounded-3xl grid place-items-center text-brand-600; background: linear-gradient(135deg, rgb(37 99 235 / .12), rgb(6 182 212 / .12)); }
   .msg-grid { @apply mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2; } .msg-k { @apply flex flex-col items-center gap-0.5 rounded-2xl border border-ink-200 bg-white p-3 transition; } button.msg-k:not(:disabled):hover { @apply -translate-y-0.5 shadow-md; border-color: var(--c); }

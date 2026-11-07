@@ -71,11 +71,19 @@ $st = db()->prepare("SELECT id, name, company FROM crm_leads WHERE workspace_id 
 $st = db()->prepare("SELECT r.id, r.name, COUNT(x.id) n, SUM(x.stage = 'won') w FROM crm_leads x JOIN crm_leads r ON r.id = x.referred_by WHERE x.workspace_id = ? GROUP BY r.id, r.name ORDER BY n DESC LIMIT 10"); $st->execute([$wid]); $refTop = $st->fetchAll();
 $st = db()->prepare("SELECT l.label, l.code, l.clicks, (SELECT COUNT(*) FROM crm_leads x WHERE x.workspace_id = l.workspace_id AND x.link_code = l.code) leads FROM crm_links l WHERE l.workspace_id = ? AND l.url LIKE 'https://wa.me/%' ORDER BY l.id DESC LIMIT 20"); $st->execute([$wid]); $waLinks = $st->fetchAll();
 
-render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks) {
+// مصادر العملاء آخر 30 يوم مقارنة بالـ 30 اللي قبلهم
+$st = db()->prepare("SELECT source, SUM(created_at >= NOW() - INTERVAL 30 DAY) a, SUM(created_at < NOW() - INTERVAL 30 DAY) b FROM crm_leads WHERE workspace_id = ? AND created_at >= NOW() - INTERVAL 60 DAY GROUP BY source"); $st->execute([$wid]);
+$srcStat = []; $srcL = crm_sources(); foreach ($st->fetchAll() as $r) $srcStat[] = ['k' => (string)$r['source'], 'l' => (string)($srcL[$r['source']] ?? $r['source']), 'a' => (int)$r['a'], 'b' => (int)$r['b']];
+$st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ? AND referred_by IS NOT NULL AND created_at >= NOW() - INTERVAL 30 DAY"); $st->execute([$wid]); $refN = (int)$st->fetchColumn();
+render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks, $srcStat, $refN) {
     $qrBtn = function (string $u, string $name) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-qr="' . e($u) . '" data-qrn="' . e($name) . '">▦ QR</button>'; };
     $copy = function (string $u) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-copy="' . e($u) . '">' . e(t('نسخ')) . '</button>'; };
     $sec = 'card p-5 scroll-mt-24';
     ?>
+  <div id="cap-ov"></div>
+  <script>window.CAPU = <?= json_encode(['src' => $srcStat, 'ref' => $refN, 'lpViews' => array_sum(array_map(function ($x) { return (int)($x['views'] ?? 0); }, $lps)), 'lpN' => count($lps), 'waClicks' => array_sum(array_column($waLinks, 'clicks')), 'waLeads' => array_sum(array_column($waLinks, 'leads')), 'prospects' => url('prospects'),
+    'T' => ['title' => t('مصادر العملاء آخر 30 يوم'), 'new' => t('عميل جديد'), 'vs' => t('%s عن الـ 30 يوم اللي قبلها'), 'lp' => t('زيارة لصفحات الهبوط'), 'wa' => t('ضغطة واتساب'), 'waConv' => t('%s اتحولوا لعملاء (%s)'), 'ref' => t('عميل بالإحالة'),
+      'none' => t('لسه مفيش عملاء في آخر 60 يوم. ابدأ بفورم أو رابط واتساب متتبع.'), 'best' => t('أقوى مصدر: %s'), 'all' => t('عرض الكل (%s)'), 'less' => t('عرض أقل'), 'find' => t('ابحث…'), 'open' => t('افتح العملاء'), 'fresh' => t('جديد')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <div class="mb-4 flex flex-wrap gap-1.5 text-xs" id="cap-nav">
     <?php foreach (['links' => ['link', t('روابط وQR')], 'qualify' => ['target', t('فورم ذكي')], 'lp' => ['file', t('صفحات هبوط')], 'wa' => ['chat', t('واتساب متتبع')], 'ref' => ['users', t('الإحالة')], 'card' => ['id', t('كارت بزنس')], 'sheet' => ['chart', 'Google Sheets']] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?>
   </div>
@@ -103,7 +111,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
       <?php if (!$lps): ?><p class="text-sm text-ink-400 py-4 text-center"><?= e(t('لسه مفيش صفحات.')) ?></p><?php endif; ?>
       <div class="divide-y divide-ink-100">
         <?php foreach ($lps as $x): $u = lp_url($x['slug']); ?>
-          <div class="flex flex-wrap items-center gap-2 py-2.5 text-sm"><span class="w-2 h-2 rounded-full <?= !empty($x['on']) ? 'bg-lime-500' : 'bg-ink-300' ?>"></span>
+          <div class="cap-row flex flex-wrap items-center gap-2 py-2.5 text-sm" data-v="<?= (int)($x['views'] ?? 0) ?>" data-q="<?= e(mb_strtolower($x['title'] . ' ' . $x['slug'])) ?>"><span class="w-2 h-2 rounded-full <?= !empty($x['on']) ? 'bg-lime-500' : 'bg-ink-300' ?>"></span>
             <span class="flex-1 min-w-[180px]"><b class="text-ink-900"><?= e($x['title']) ?></b> <span class="text-[11px] text-ink-400" dir="ltr">/<?= e($x['slug']) ?></span> <span class="text-[11px] text-ink-500"> · <?= e(t('%s زيارة', (int)($x['views'] ?? 0))) ?></span></span>
             <?= $copy($u) ?><a href="<?= e($u) ?>" target="_blank" class="btn-ghost !py-1 !text-xs"><?= e(t('افتح')) ?></a><?= $qrBtn($u, $x['title']) ?>
             <button type="button" class="btn-ghost !py-1 !text-xs" data-lp-edit='<?= e(json_encode($x, JSON_UNESCAPED_UNICODE)) ?>'><?= e(t('تعديل')) ?></button>
@@ -134,7 +142,7 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
       <div class="grid sm:grid-cols-2 gap-2 text-sm"><input id="wa-ph" class="input !mt-0 text-sm" dir="ltr" placeholder="<?= e(t('رقم واتساب بكود الدولة')) ?>"><input id="wa-lb" class="input !mt-0 text-sm" dir="auto" placeholder="<?= e(t('اسمه (مثلًا: إعلان العيد)')) ?>">
         <input id="wa-msg" class="input !mt-0 text-sm sm:col-span-2" dir="auto" value="<?= e(t('السلام عليكم، عاوز أعرف تفاصيل أكتر')) ?>"><button type="button" id="wa-go" class="btn-primary !py-1.5 !text-xs sm:col-span-2"><?= e(t('اعمل اللينك')) ?></button></div>
       <div id="wa-out" class="mt-2"></div>
-      <?php if ($waLinks): ?><div class="mt-3 divide-y divide-ink-100 text-xs"><?php foreach ($waLinks as $w): ?><div class="flex items-center gap-2 py-1.5"><span class="flex-1 truncate"><?= e($w['label'] ?: '#' . $w['code']) ?></span><span><?= e(t('%s ضغطة', (int)$w['clicks'])) ?></span><span class="text-lime-700 font-semibold"><?= e(t('%s عميل', (int)$w['leads'])) ?></span><?= $qrBtn(crm_link_short($w['code']), (string)($w['label'] ?: $w['code'])) ?></div><?php endforeach; ?></div><?php endif; ?>
+      <?php if ($waLinks): ?><div class="mt-3 divide-y divide-ink-100 text-xs"><?php foreach ($waLinks as $w): ?><div class="cap-row flex items-center gap-2 py-1.5" data-v="<?= (int)$w['clicks'] ?>" data-l="<?= (int)$w['leads'] ?>" data-q="<?= e(mb_strtolower((string)$w['label'])) ?>"><span class="flex-1 truncate"><?= e($w['label'] ?: '#' . $w['code']) ?></span><span><?= e(t('%s ضغطة', (int)$w['clicks'])) ?></span><span class="text-lime-700 font-semibold"><?= e(t('%s عميل', (int)$w['leads'])) ?></span><?= $qrBtn(crm_link_short($w['code']), (string)($w['label'] ?: $w['code'])) ?></div><?php endforeach; ?></div><?php endif; ?>
     </section>
 
     <!-- #54 -->
@@ -172,4 +180,5 @@ render(t('جمع العملاء'), 'crm_capture', function () use ($cfg, $formUr
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/crm-capture.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/cap-ux.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });
