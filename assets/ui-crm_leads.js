@@ -303,7 +303,7 @@
   function when(s) { var o = { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }; if (D.tz) o.timeZone = D.tz; try { return srvDate(s).toLocaleString(document.documentElement.lang || undefined, o); } catch (e) { delete o.timeZone; return srvDate(s).toLocaleString(undefined, o); } }
   function drawActs(a) {
     tabN('ct', (a || []).filter(function (x) { return x.kind !== 'stage'; }).length);
-    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; k = [uic({ call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'file', stage: 'route' }[x.kind] || 'file', 'w-3.5 h-3.5'), k[1]]; return '<li class="flex gap-2 text-xs"><span class="w-6 h-6 text-ink-600 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? voiceBody(x.body) : '') + '</div></li>'; }).join('')
+    acts.innerHTML = a.length ? a.map(function (x) { var k = D.kinds[x.kind] || ['•', x.kind]; k = [uic({ call: 'phone', wa: 'chat', email: 'mail', meet: 'users', note: 'file', stage: 'route' }[x.kind] || 'file', 'w-3.5 h-3.5'), k[1]]; return '<li class="flex gap-2 text-xs" data-k="' + esc(x.kind) + '"><span class="w-6 h-6 text-ink-600 rounded-full bg-ink-100 grid place-items-center shrink-0">' + k[0] + '</span><div class="min-w-0"><div class="text-ink-500">' + esc(k[1]) + ' · ' + esc(x.who || '—') + ' · ' + esc(when(x.created_at)) + '</div>' + (x.body ? voiceBody(x.body) : '') + '</div></li>'; }).join('')
       : '<li class="text-xs text-ink-400">' + esc(T.noacts) + '</li>';
   }
   var intel = document.getElementById('ld-intel');
@@ -1020,6 +1020,8 @@
 
   draw();
   if (/[?&]go=queue/.test(location.search)) setTimeout(function () { var qb = document.getElementById('ld-queue'); if (qb && !qb.classList.contains('hidden')) qb.click(); }, 300);
+  // واجهة لـ ld-plus.js (تفاعل الدرج)
+  window.__ld = { cur: function () { return cur; }, open: open, logAct: logAct, post: post, draw: draw, D: D, quick: quick, form: form, drawActs: drawActs, stageColor: stageColor, nextBadge: nextBadge };
   var m = location.hash.match(/^#lead-(\d+)$/); if (m) open(+m[1]);
   if (location.hash === '#add') { var ab = document.getElementById('ld-add-btn'); if (ab) ab.click(); }
   if (location.hash === '#due') { var vt = document.querySelector('[data-view=due]'); if (vt) vt.click(); }

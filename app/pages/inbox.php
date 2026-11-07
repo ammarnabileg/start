@@ -736,7 +736,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
               data-url="<?= e(url('inbox', ['c' => $convId, 'a' => $accId])) ?>">
               <?php if ($ll): ?>
                 <div class="text-xs text-ink-700"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('العميل ده في الـ Leads')) ?> · <b><?= e(crm_stages()[$ll['stage']] ?? $ll['stage']) ?></b></div>
-                <a class="link text-xs" href="<?= e(url('crm_leads') . '#lead-' . (int)$ll['id']) ?>"><?= e(t('افتح الـ Lead')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
+                <a class="link text-xs" data-lead-pop="<?= (int)$ll['id'] ?>" href="<?= e(url('prospects', ['lead' => (int)$ll['id']])) ?>"><?= e(t('افتح الـ Lead')) ?> <svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg></a>
               <?php else: ?>
                 <div class="text-xs font-semibold text-ink-900 mb-2"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v8a6 6 0 0012 0V3h-4v8a2 2 0 01-4 0V3zM6 7h4M14 7h4"/></svg> <?= e(t('حوّله لعميل محتمل')) ?><?php if ($lb && $lb['intent']): ?> <span class="rounded-md bg-lime-100 text-lime-700 px-1.5 py-0.5 text-[10px]"><?= e(t('عنده نية شراء')) ?></span><?php endif; ?></div>
                 <input class="input !mt-0 !h-8 !py-0 text-xs mb-1.5" data-f="phone" dir="ltr" value="<?= e($fc['phone']) ?>" placeholder="<?= e(t('الرقم')) ?>">
@@ -842,5 +842,6 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
       'markRead' => t('تعليم كمقروءة'), 'archive' => t('أرشفة'), 'unarchive' => t('رجّعها للنشطة'), 'doneRead' => t('اتعلمت مقروءة'), 'doneArchive' => t('اتأرشفت'), 'doneUnarchive' => t('رجعت للنشطة'),
       'keysTitle' => t('اختصارات الكيبورد'), 'keys' => [['j k', t('المحادثة التالية / السابقة')], ['r', t('اكتب رد')], ['e', t('أرشفة المحادثة')], ['x', t('تحديد المحادثة')], ['/', t('البحث')], ['Ctrl F', t('بحث جوه المحادثة')], ['g', t('انزل لآخر رسالة')], ['Enter', t('إرسال')], ['Shift Enter', t('سطر جديد')], ['#', t('الردود المحفوظة')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/inbox-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php if (module_enabled('crm') && can('crm.view')): require_once __DIR__ . '/../partials/lead_popup.php'; ?><?= lead_popup() ?><script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php
 }, ['full' => true]);

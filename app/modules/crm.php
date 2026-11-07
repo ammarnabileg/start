@@ -1626,3 +1626,15 @@ function crm_add_domains(array $domains): array
     if ($added) crm_save_prefs(['batch' => $batch]);
     return [$added, $dup, $bad];
 }
+
+/** بيانات كارت العميل للنافذة المشتركة (العملاء المستهدفين، الرسائل، أي صفحة) */
+function crm_lead_card(array $r, int $acts = 0): array
+{
+    static $src = null; if ($src === null) $src = crm_sources();
+    $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
+    $j = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'title' => (string)$r['title'], 'company' => (string)$r['company'], 'phone' => (string)$r['phone'], 'email' => (string)$r['email'], 'wa' => $wa,
+            'src' => ($src[$r['source']] ?? $r['source']), 'stage' => $r['stage'], 'owner' => (int)$r['owner_id'], 'tags' => (string)$r['tags'], 'country' => (string)$r['country'],
+            'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '', 'next' => $r['next_at'] ? fmt_date($r['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$r['next_note']];
+    [$j['score'], $j['why']] = crm_score($r, $acts);
+    return $j;
+}

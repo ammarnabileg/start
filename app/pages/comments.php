@@ -179,7 +179,7 @@ function comment_block(array $c, array $labels, bool $isReply = false): void
           <?php endif; ?>
           <?php if (!empty($c['url'])): ?><a href="<?= e($c['url']) ?>" target="_blank" rel="noopener" class="hover:text-ink-900"><?= e(t('فتح ↗')) ?></a><?php endif; ?>
           <?php if (!$mine && module_enabled('crm') && can('crm.view')): $cext = 'cm:' . (string)($c['platform'] ?? $GLOBALS['__cm_pf'] ?? '') . ':' . (string)($from['id'] ?? $from['username'] ?? $nm); $cl = crm_lead_by_ext($cext); ?>
-            <?php if ($cl): ?><a class="text-lime-700 hover:underline" href="<?= e(url('crm_leads') . '#lead-' . (int)$cl['id']) ?>"><?= ui_icon('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('في الـ Leads')) ?></a>
+            <?php if ($cl): ?><a class="text-lime-700 hover:underline" data-lead-pop="<?= (int)$cl['id'] ?>" href="<?= e(url('prospects', ['lead' => (int)$cl['id']])) ?>"><?= ui_icon('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('في الـ Leads')) ?></a>
             <?php else: ?><span data-tolead data-source="comments" data-ext="<?= e($cext) ?>" data-name="<?= e($nm) ?>" data-text="<?= e(mb_substr((string)($c['message'] ?? ''), 0, 600)) ?>" data-where="<?= e(t('تعليق')) ?>" data-url="<?= e($_SERVER['REQUEST_URI'] ?? '') ?>"><button type="button" data-go class="font-semibold <?= !empty($lb['intent']) ? 'text-lime-700' : 'hover:text-ink-900' ?>"><?= ui_icon('magnet', 'w-3.5 h-3.5 inline-block align-[-2px]') ?> <?= e(t('ضيفه Lead')) ?></button></span><?php endif; ?>
           <?php endif; ?>
         </div>
@@ -382,6 +382,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
       'none' => t('مفيش حد مطابق للشروط.'), 'win' => t('الفايز'), 'wins' => t('الفايزين'), 'of' => t('من %s مشارك'), 'saved' => t('اتحفظ ✓'), 'hidden' => t('اتخفى %s تعليق'), 'empty' => t('لسه مفيش ردود للمنشور ده.'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
       'cm' => t('%s تعليق'), 'onp' => t('على %s منشور'), 'price' => t('💰 سأل عن السعر %s'), 'lead' => t('ضيفه Lead'), 'loading' => t('بنحمّل…'), 'noFans' => t('مفيش تعليقات كفاية.'), 'confirmRun' => t('هنلف على آخر 8 منشورات ونخفي المطابق. تكمل؟')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/comments-tools.js?v=<?= e(APP_VERSION) ?>"></script>
+    <?php if (module_enabled('crm') && can('crm.view')): require_once __DIR__ . '/../partials/lead_popup.php'; ?><?= lead_popup() ?><script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script><?php endif; ?>
     <?php if (module_enabled('crm') && can('crm.view')) to_lead_script(); ?>
     <?php
 }, ['full' => true]);
