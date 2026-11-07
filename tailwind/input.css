@@ -1116,3 +1116,27 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-hii{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;flex-shrink:0}
 .pr-hi p{font-size:.86rem;color:#0f172a;line-height:1.6;word-break:break-word}.pr-hi small{font-size:.7rem;color:#94a3b8}
 .dark .pr-exp,.dark [data-mk-row].pr-open{background:#0b1220}.dark .pr-xf,.dark .pr-hi{background:#0f172a;border-color:rgb(255 255 255/.08)}.dark .pr-hi p{color:#e2e8f0}
+
+/* فورم التحديث جوه صف العميل */
+#pr .mk-table{overflow-x:auto}
+#pr .mk-head,#pr [data-mk-row]{column-gap:.5rem;padding-inline:.75rem}
+#pr .mk-acts{gap:.1rem}#pr .mk-acts .mk-act{width:1.6rem;height:1.6rem}
+#pr .pr-2sort{flex-direction:column;gap:0;line-height:1.3}
+.pr-uf{display:flex;flex-direction:column;gap:.3rem;padding:.35rem;border-radius:12px;background:#f8fafc;border:1px solid #eef2f7;transition:border-color .15s,background .3s;cursor:default}
+.pr-uf:focus-within{border-color:#93c5fd;background:#fff}
+.pr-uf.done{background:#ecfdf5;border-color:#86efac}.pr-uf.busy{opacity:.6}
+.pr-uf input[name=note]{width:100%;height:1.9rem;border:1px solid #e2e8f0;border-radius:8px;padding:0 .5rem;font-size:.8rem;background:#fff;outline:none}
+.pr-uf>div{display:flex;gap:.25rem}
+.pr-uf input[type=datetime-local]{flex:1;min-width:0;height:1.8rem;border:1px solid #e2e8f0;border-radius:8px;padding:0 .3rem;font-size:.7rem;background:#fff;outline:none}
+.pr-uf select{width:92px;height:1.8rem;border:1px solid #e2e8f0;border-radius:8px;padding:0 .25rem;font-size:.72rem;background:#fff;outline:none}
+.pr-uf button{width:1.9rem;height:1.8rem;flex-shrink:0;display:grid;place-items:center;border-radius:8px;background:#16a34a;color:#fff}
+.pr-uf button:hover{background:#15803d}
+.pr-exp1{grid-template-columns:1fr}
+.dark .pr-uf{background:#0b1220;border-color:rgb(255 255 255/.08)}.dark .pr-uf input,.dark .pr-uf select{background:#0f172a;border-color:rgb(255 255 255/.1);color:#e2e8f0}
+
+.pr-uf>input[type=datetime-local]{width:100%;height:1.8rem;border:1px solid #e2e8f0;border-radius:8px;padding:0 .35rem;font-size:.72rem;background:#fff;outline:none}
+.pr-uf select{flex:1;width:auto}
+.pr-uf button{width:auto;padding:0 .6rem;display:flex;align-items:center;gap:.25rem;font-size:.75rem;font-weight:700}
+#pr [data-mk-row]>span{min-width:0}
+#pr [data-mk-row] .mk-pill{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pr [data-mk-row] .min-w-0>b.truncate{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35;word-break:break-word}

@@ -180,7 +180,7 @@ $fetchRows = function (array $g) use ($buildWhere, $PAGE) {
     $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord LIMIT $PAGE OFFSET $off"); $st->execute($a);
     return [$st->fetchAll(), $total];
 };
-$cols = 'md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_110px_84px_116px]';
+$cols = 'md:grid-cols-[20px_minmax(120px,1.7fr)_minmax(64px,.9fr)_minmax(104px,1.3fr)_minmax(64px,.8fr)_100px_78px_minmax(220px,1.6fr)_124px]';
 $hasApollo = crm_has_key();
 $syncAt = explode('|', (string)setting('tg_sync_' . $wid, ''))[0];
 $syncDue = $syncAt === '' || strtotime($syncAt) < time() - 20 * 60;
@@ -209,6 +209,7 @@ $rowsHtml = function (array $rows) use ($cols, $isDue, $isCold, $ago, $sources, 
           <span><span class="mk-pill bg-ink-100 text-ink-700"><?= ui_icon($srcIcon[$r['source']] ?? 'dots', 'w-3 h-3') ?><?= e($sources[$r['source']] ?? $r['source']) ?></span></span>
           <span><button type="button" class="mk-pill bg-brand-50 text-brand-700 pr-stbtn" data-stage-pill data-qstage data-mk-stop title="<?= e(t('غيّر المرحلة')) ?>"><?= e($stages[$r['stage']] ?? $r['stage']) ?><?= ui_icon('chevron-down', 'w-3 h-3 opacity-50') ?></button></span>
           <span class="text-xs min-w-0" data-c="last"><span class="block text-ink-600 truncate" data-c="ago"><?= e($r['last_contact_at'] ? $ago($r['last_contact_at']) : t('ماتواصلناش لسه')) ?></span><?php if ($r['next_at']): ?><span class="block truncate tabular-nums <?= $isDue($r) ? 'text-red-600 font-medium' : 'text-ink-400' ?>" data-c="next"><?= ui_icon('calendar', 'w-3 h-3 inline') ?> <?= e(fmt_date($r['next_at'], 'd/m')) ?></span><?php else: ?><span class="block" data-c="next"></span><?php endif; ?></span>
+          <form class="pr-uf" data-no-ajax data-mk-stop><input name="note" dir="auto" autocomplete="off" placeholder="<?= e(t('ملاحظة سريعة…')) ?>"><input type="datetime-local" name="at" title="<?= e(t('المتابعة الجاية')) ?>"><div><select name="stage" title="<?= e(t('المرحلة')) ?>"><?php foreach ($stages as $sk => $sl): ?><option value="<?= e($sk) ?>"<?= $sk === $r['stage'] ? ' selected' : '' ?>><?= e($sl) ?></option><?php endforeach; ?></select><button title="<?= e(t('حفظ')) ?>"><?= ui_icon('check', 'w-4 h-4') ?><span><?= e(t('حفظ')) ?></span></button></div></form>
           <span class="mk-acts"><button type="button" class="mk-act pr-expb" data-qexp data-mk-stop title="<?= e(t('متابعة سريعة وآخر المتابعات')) ?>"><?= ui_icon('chevron-down', 'w-4 h-4') ?></button><?php if ($canManage && $members): $on = (int)$r['owner_id']; $onm = $members[$on] ?? ''; ?><button type="button" class="pr-own<?= $onm ? '' : ' none' ?>" data-qown data-mk-stop title="<?= e($onm ?: t('عيّن مسؤول')) ?>"><?= $onm ? e(mb_strtoupper(mb_substr($onm, 0, 1))) : ui_icon('user_plus', 'w-3.5 h-3.5') ?></button><?php endif; ?><button type="button" class="mk-act" data-qnext data-mk-stop title="<?= e(t('حدد متابعة')) ?>"><?= ui_icon('calendar', 'w-4 h-4') ?></button>
             <?php if ($r['phone']): ?><a class="mk-act" data-log="call" href="tel:<?= e($r['phone']) ?>" title="<?= e(t('اتصال')) ?>"><?= ui_icon('phone', 'w-4 h-4') ?></a><?php endif; ?>
             <?php if ($wa): ?><a class="mk-act" data-log="wa" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener" title="<?= e(t('واتساب')) ?>"><?= ui_icon('chat', 'w-4 h-4') ?></a><?php endif; ?>
@@ -301,7 +302,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     <div class="mk-table">
       <div class="mk-head <?= $cols ?>"><input type="checkbox" data-mk-all aria-label="<?= e(t('تحديد الكل')) ?>">
         <span data-mk-sort="name"><?= e(t('الاسم')) ?></span><span data-mk-sort="company"><?= e(t('الشركة')) ?></span><span><?= e(t('التواصل')) ?></span>
-        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span class="pr-2sort"><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span data-mk-sort="next" title="<?= e(t('رتّب بالمتابعة الجاية')) ?>"><?= e(t('المتابعة')) ?></span></span><span></span></div>
+        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span class="pr-2sort"><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span data-mk-sort="next" title="<?= e(t('رتّب بالمتابعة الجاية')) ?>"><?= e(t('المتابعة')) ?></span></span><span><?= e(t('متابعة سريعة')) ?></span><span></span></div>
       <div data-mk-body>
       <?= $rowsHtml($rows) ?>
       </div>

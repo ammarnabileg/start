@@ -108,20 +108,22 @@
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qexp]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]');
     if (r.classList.contains('pr-open')) return expClose(r); root.querySelectorAll('[data-mk-row].pr-open').forEach(expClose); var d = jd(r); r.classList.add('pr-open');
     var x = document.createElement('div'); x.className = 'pr-exp';
-    x.innerHTML = '<form class="pr-xf" data-no-ajax><textarea name="note" rows="2" dir="auto" placeholder="' + esc(QT.xNote) + '"></textarea><div class="pr-xrow"><label><span>' + esc(QT.xWhen) + '</span><input type="datetime-local" name="at"></label>' +
-      '<label><span>' + esc(QT.xStage) + '</span><select name="stage">' + Object.keys(C.stages).map(function (k) { return '<option value="' + k + '"' + (k === d.stage ? ' selected' : '') + '>' + esc(C.stages[k]) + '</option>'; }).join('') + '</select></label></div>' +
-      '<div class="pr-xrow"><button class="btn-primary !py-1.5 !text-sm flex-1">' + ic('check') + esc(QT.xSave) + '</button><button type="button" class="btn-ghost !py-1.5 !text-xs" data-xopen>' + esc(QT.xOpen) + '</button></div></form>' +
-      '<div class="pr-xh"><b>' + ic('clock', 'w-4 h-4') + esc(QT.xHist) + '</b><div data-xh></div></div>';
-    r.after(x); expHist(x.querySelector('[data-xh]'), d.id); x.querySelector('textarea').focus();
-    x.addEventListener('click', function (ev) { if (ev.target.closest('[data-xopen]')) open(r); });
-    x.querySelector('form').addEventListener('submit', function (ev) { ev.preventDefault(); var f = ev.target, note = f.note.value.trim(), at = f.at.value, st = f.stage.value, dd = jd(r), jobs = [], btn = f.querySelector('.btn-primary');
-      if (!note && !at && st === dd.stage) return toast(QT.xEmpty, 'error');
-      if (st !== dd.stage && st === 'lost') { open(r); setTimeout(function () { var y = document.querySelector('#pd-stages [data-stg="lost"]'); if (y) y.click(); }, 300); }
-      else if (st !== dd.stage) jobs.push(bulk([dd.id], 'stage', { stage: st }).then(function (j) { if (j.ok) { upd(r, 'stage', st); r.dataset.stage = st; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[st] || st; } return j; }));
-      if (note) jobs.push(post(C.importUrl, { action: 'log', id: dd.id, kind: 'note', body: note }).then(function (j) { if (j.ok) ctxLine(r, 'pencil', note.slice(0, 46)); return j; }));
-      if (at) jobs.push(setNext([dd.id], 'at', { at: at, note: note }).then(function (j) { if (j.ok) rowNext(r, j); return j; }));
-      btn.disabled = true; Promise.all(jobs).then(function (rs) { btn.disabled = false; if (rs.some(function (j) { return !j.ok; })) return toast(L.err, 'error');
-        f.note.value = ''; f.at.value = ''; toast(QT.qDone); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); expHist(x.querySelector('[data-xh]'), dd.id); }).catch(function () { btn.disabled = false; toast(L.err, 'error'); }); }); }, true);
+    x.innerHTML = '<div class="pr-xh"><b>' + ic('clock', 'w-4 h-4') + esc(QT.xHist) + '</b><div data-xh></div></div>';
+    r.after(x); expHist(x.querySelector('[data-xh]'), d.id); x.classList.add('pr-exp1');
+    x.addEventListener('click', function (ev) { if (ev.target.closest('[data-xopen]')) open(r); }); }, true);
+  // فورم التحديث جوه الصف: ملاحظة + ميعاد + مرحلة، حفظ واحد (Enter في الملاحظة بيحفظ)
+  root.addEventListener('submit', function (ev) { var f = ev.target.closest('.pr-uf'); if (!f) return; ev.preventDefault(); var r = f.closest('[data-mk-row]'), dd = jd(r), note = f.note.value.trim(), at = f.at.value, st = f.stage.value, jobs = [], btn = f.querySelector('button');
+    if (!note && !at && st === dd.stage) { f.note.focus(); return toast(QT.xEmpty, 'error'); }
+    if (st !== dd.stage && st === 'lost') { f.stage.value = dd.stage; open(r); setTimeout(function () { var y = document.querySelector('#pd-stages [data-stg="lost"]'); if (y) y.click(); }, 300); }
+    else if (st !== dd.stage) jobs.push(bulk([dd.id], 'stage', { stage: st }).then(function (j) { if (j.ok) { upd(r, 'stage', st); r.dataset.stage = st; var p = r.querySelector('[data-stage-pill]'); if (p) p.firstChild.textContent = C.stages[st] || st; } return j; }));
+    if (note) jobs.push(post(C.importUrl, { action: 'log', id: dd.id, kind: 'note', body: note }).then(function (j) { if (j.ok) { ctxLine(r, 'pencil', note.slice(0, 46)); var ag = r.querySelector('[data-c=ago]'); if (ag) ag.textContent = L.today; } return j; }));
+    if (at) jobs.push(setNext([dd.id], 'at', { at: at, note: note }).then(function (j) { if (j.ok) rowNext(r, j); return j; }));
+    if (!jobs.length) return; btn.disabled = true; f.classList.add('busy');
+    Promise.all(jobs).then(function (rs) { btn.disabled = false; f.classList.remove('busy'); if (rs.some(function (j) { return !j.ok; })) return toast(L.err, 'error');
+      f.note.value = ''; f.at.value = ''; f.classList.add('done'); setTimeout(function () { f.classList.remove('done'); }, 1200); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone);
+      var x = r.nextElementSibling; if (x && x.classList.contains('pr-exp')) expHist(x.querySelector('[data-xh]'), dd.id); }).catch(function () { btn.disabled = false; f.classList.remove('busy'); toast(L.err, 'error'); }); });
+  root.addEventListener('click', function (ev) { if (ev.target.closest('.pr-uf')) ev.stopPropagation(); }, true);
+
   // أي تحميل جديد للقايمة (بحث/فلتر/ترتيب) بيقفل المفتوح
   new MutationObserver(function () { root.querySelectorAll('.pr-exp').forEach(function (x) { var pr = x.previousElementSibling; if (!pr || !pr.classList.contains('pr-open')) x.remove(); }); }).observe(root.querySelector('[data-mk-body]'), { childList: true });
 
