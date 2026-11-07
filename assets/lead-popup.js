@@ -165,7 +165,7 @@
     if (k === 'n') return go(function () { $('pd-note-f').b.focus(); });
     if (k === 'r') return go(function () { idEdit(true); });
     if (k === 't') return go(function () { $('pd-tag-f').t.focus(); });
-    if (k === 'f') return go(function () { var t = document.querySelector('[data-pt="tk"]'); if (t) t.click(); setTimeout(function () { var i = document.querySelector('[data-tform] [name=title]'); if (i) i.focus(); }, 150); });
+    if (k === 'f') return go(function () { var t = document.querySelector('[data-pt="ct"]'); if (t) t.click(); var tk = document.getElementById('pd-p-tk'); if (tk) tk.scrollIntoView({ block: 'start', behavior: 'smooth' }); setTimeout(function () { var i = document.querySelector('[data-tform] [name=title]'); if (i) i.focus(); }, 150); });
     if (k === 'w') return go(waOpen);
     if (k === 'c' || k === 'e') return go(function () { var a = $('pd-contact').querySelector('a[data-log="' + (k === 'c' ? 'call' : 'email') + '"]:not(.off)'); if (a) a.click(); });
     if (k === '?' || (e.shiftKey && k === '/')) return go(function () { $('pd-keys-b').click(); });
