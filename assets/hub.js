@@ -1,32 +1,35 @@
-/* المصادر والإعدادات: كل أدوات جمع العملاء والإعدادات وفورمات الإعلانات ككروت؛ الكارت بيفتح محتواه في لوحة جانبية.
-   أدوات الصفحة نفسها بتتنقل للوحة (بنفس الفورمات والأزرار)، والإعدادات وفورمات الإعلانات بتفتح صفحتها جوه اللوحة (embed). */
+/* المصادر والإعدادات: قايمة جانبية ثابتة بالأقسام (نظرة عامة / جمع العملاء / الإعلانات / الإعدادات)، والقسم المختار بيتفتح جنبها مباشرة.
+   أدوات الصفحة نفسها بتتنقل للمحتوى (بنفس الفورمات)، وصفحات الإعدادات وفورمات الإعلانات بتتفتح embed جوه المحتوى. */
 (function () {
   var H = window.HUB, hub = document.getElementById('hub'), dr = document.getElementById('hub-dr'); if (!H || !hub || !dr) return;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function ic(n, c) { return window.uic ? uic(n, c || 'w-5 h-5') : ''; }
   var nav = document.getElementById('cap-nav'), grid = nav ? nav.nextElementSibling : null; if (nav) nav.classList.add('hidden');
-  // أقسام الأدوات بتستخبى وبتظهر جوه اللوحة بس
   var secs = {}; H.tiles.forEach(function (t) { if (t.g === 'cap') { var s = document.getElementById(t.id); if (s) { secs[t.id] = { el: s, home: s.parentNode, next: s.nextSibling }; s.classList.add('hidden'); } } });
   if (grid) grid.classList.add('hidden');
-  hub.innerHTML = Object.keys(H.G).map(function (g) { var ts = H.tiles.filter(function (t) { return t.g === g; }); if (!ts.length) return '';
-    return '<section class="hub-g"><b class="hub-gt">' + esc(H.G[g]) + '</b><div class="hub-grid">' + ts.map(function (t, i) {
-      return '<button type="button" class="hub-t" data-t="' + esc(t.id) + '" style="--c:' + t.c + ';animation-delay:' + i * 30 + 'ms"><span class="hub-ic">' + ic(t.i) + '</span><b>' + esc(t.n) + '</b><small>' + esc(t.d) + '</small>' + (t.m ? '<em>' + esc(t.m) + '</em>' : '') + '<i class="hub-go">' + ic('chevron-left', 'w-4 h-4') + '</i></button>'; }).join('') + '</div></section>'; }).join('');
+  var ov = document.getElementById('cap-ov'); if (ov) ov.classList.add('hidden');
+  var tiles = [{ g: '_', id: 'ov', i: 'chart', c: '#0f172a', n: H.T.ov, d: H.T.ovD }].concat(H.tiles), G = Object.assign({ _: '' }, H.G);
+  // الهيكل: قايمة + محتوى
+  dr.className = 'hub2-main'; dr.removeAttribute('aria-hidden'); dr.innerHTML = '<header class="hub2-h"><span class="hub-ic"></span><div class="min-w-0"><b></b><small></small></div></header><div class="hub-body"></div>';
+  hub.className = 'hub2'; hub.innerHTML = '<nav class="hub2-nav">' + Object.keys(G).map(function (g) { var ts = tiles.filter(function (t) { return t.g === g; }); if (!ts.length) return '';
+    return (G[g] ? '<b class="hub2-gt">' + esc(G[g]) + '</b>' : '') + ts.map(function (t) {
+      return '<button type="button" class="hub2-i" data-t="' + esc(t.id) + '" style="--c:' + t.c + '"><span class="hub-ic">' + ic(t.i, 'w-4 h-4') + '</span><span class="hub2-n">' + esc(t.n) + '</span>' + (t.m ? '<em>' + esc(t.m) + '</em>' : '') + (t.go ? ic('chevron-left', 'w-3.5 h-3.5 opacity-50') : '') + '</button>'; }).join(''); }).join('') + '</nav>';
+  hub.appendChild(dr);
   var body = dr.querySelector('.hub-body'), cur = null;
-  function close() { if (!dr.classList.contains('open')) return; dr.classList.remove('open'); dr.setAttribute('aria-hidden', 'true'); document.documentElement.classList.remove('hub-lock');
-    if (cur && secs[cur]) { var s = secs[cur]; s.el.classList.add('hidden'); s.home.insertBefore(s.el, s.next); }
-    body.innerHTML = ''; cur = null; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
-  function open(id) { var t = H.tiles.filter(function (x) { return x.id === id; })[0]; if (!t) return; if (cur) close();
-    cur = id; dr.querySelector('header b').textContent = t.n; var hi = dr.querySelector('header .hub-ic'); hi.innerHTML = ic(t.i); hi.style.setProperty('--c', t.c);
-    if (t.go) { location.href = t.u; return; }
-    if (t.u) { body.innerHTML = '<div class="hub-load"><span class="ai-spin"></span></div><iframe src="' + esc(t.u) + '" title="' + esc(t.n) + '"></iframe>'; var fr = body.querySelector('iframe'); fr.addEventListener('load', function () { var l = body.querySelector('.hub-load'); if (l) l.remove(); }); }
-    else if (t.x && window.HubX && HubX[id]) { body.innerHTML = ''; HubX[id](body); }
+  function park() { if (cur && secs[cur]) { var s = secs[cur]; s.el.classList.add('hidden'); s.home.insertBefore(s.el, s.next); } if (cur === 'ov' && ov) { ov.classList.add('hidden'); hub.after(ov); } body.innerHTML = ''; }
+  function open(id, keepHash) { var t = tiles.filter(function (x) { return x.id === id; })[0]; if (!t) return; if (t.go) { location.href = t.u; return; } park(); cur = id;
+    hub.querySelectorAll('.hub2-i').forEach(function (b) { b.classList.toggle('on', b.dataset.t === id); });
+    dr.querySelector('.hub2-h b').textContent = t.n; dr.querySelector('.hub2-h small').textContent = t.d || ''; var hi = dr.querySelector('.hub2-h .hub-ic'); hi.innerHTML = ic(t.i); hi.style.setProperty('--c', t.c);
+    if (id === 'ov') { if (ov) { ov.classList.remove('hidden'); body.appendChild(ov); } }
+    else if (t.u) { body.innerHTML = '<div class="hub-load"><span class="ai-spin"></span></div><iframe src="' + esc(t.u) + '" title="' + esc(t.n) + '"></iframe>'; var fr = body.querySelector('iframe');
+      fr.addEventListener('load', function () { var l = body.querySelector('.hub-load'); if (l) l.remove(); try { var fit = function () { fr.style.height = Math.max(420, fr.contentDocument.documentElement.scrollHeight) + 'px'; }; fit(); new ResizeObserver(fit).observe(fr.contentDocument.body); } catch (e) {} }); }
+    else if (t.x && window.HubX && HubX[id]) { HubX[id](body); }
     else if (secs[id]) { var s = secs[id].el; s.classList.remove('hidden'); body.appendChild(s); var h = s.querySelector('h2'); if (h) h.classList.add('hidden'); if (window.HubE && HubE[id]) HubE[id](s); }
-    dr.classList.add('open'); dr.setAttribute('aria-hidden', 'false'); document.documentElement.classList.add('hub-lock');
-    try { history.replaceState(null, '', '#' + id); } catch (e) {} }
-  hub.addEventListener('click', function (e) { var b = e.target.closest('[data-t]'); if (b) open(b.dataset.t); });
-  dr.addEventListener('click', function (e) { if (e.target.closest('[data-hx]')) close(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && dr.classList.contains('open') && !document.querySelector('dialog[open]')) close(); });
-  // بعد حفظ فورم الصفحة بترجع على #lp مثلًا: نفتح نفس الأداة
-  function fromHash() { var h = location.hash.replace('#', ''); if (h && h !== cur && H.tiles.some(function (t) { return t.id === h; })) open(h); }
-  window.addEventListener('hashchange', fromHash); fromHash();
+    dr.classList.remove('hub2-in'); void dr.offsetWidth; dr.classList.add('hub2-in');
+    if (!keepHash) try { history.replaceState(null, '', '#' + id); } catch (e) {}
+    if (innerWidth < 900) dr.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  hub.addEventListener('click', function (e) { var b = e.target.closest('.hub2-nav [data-t]'); if (b) open(b.dataset.t); });
+  function fromHash() { var h = location.hash.replace('#', ''); if (h && h !== cur && tiles.some(function (t) { return t.id === h; })) open(h, true); }
+  window.addEventListener('hashchange', fromHash);
+  if (location.hash && tiles.some(function (t) { return t.id === location.hash.slice(1); })) fromHash(); else open('ov', true);
 })();
