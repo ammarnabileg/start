@@ -66,7 +66,8 @@ $apiError = null;
 $current = null;
 if ($z) {
     try {
-        $targets = ads_usable_accounts($z, ads_connections($z));
+        $fxT = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_targets.json' : ''; // اختبارات بس
+        $targets = $fxT && is_file($fxT) ? (json_decode((string)file_get_contents($fxT), true)['targets'] ?? []) : ads_usable_accounts($z, ads_connections($z));
         foreach ($targets as $t) {
             if ($t['conn']['_id'] . '|' . $t['acc']['id'] === $sel) $current = $t;
         }
@@ -194,6 +195,15 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
       <script>window.AUDX = <?= json_encode(['all' => t('الكل'), 'keys' => t('اختصارات لوحة المفاتيح'), 'kSearch' => t('البحث في الجماهير'), 'kNew' => t('جمهور جديد'),
         'hints' => ['meta_engagement' => t('الأنسب للبداية: ناس عرفوك فعلًا، وغالبًا بيتحولوا أسرع.'), 'website' => t('محتاج Pixel متركّب على موقعك، وإلا الجمهور هيفضل فاضي.'), 'lookalike' => t('ابدأ بـ 1% لأدق تشابه، وكبّر الحجم لو عاوز وصول أكبر.')]], JSON_UNESCAPED_UNICODE) ?>;</script>
       <script src="assets/ui-ad_audiences.js?v=<?= e(APP_VERSION) ?>"></script>
+      <script>window.AUDU = <?= json_encode(['list' => array_map(function ($a) { return ['id' => (string)($a['id'] ?? $a['platformAudienceId'] ?? ''), 'name' => (string)($a['name'] ?? ''), 'type' => (string)($a['type'] ?? ''), 'size' => (float)($a['size'] ?? 0), 'status' => (string)($a['status'] ?? '')]; }, $audiences),
+        'canLook' => (bool)$audiences, 'isMeta' => (bool)$isMeta, 'builder' => url('ad_builder'), 'people' => t('حوالي %s شخص'),
+        'fSmall' => t('صغير جدًا'), 'fNiche' => t('متخصص'), 'fGood' => t('حجم ممتاز'), 'fBroad' => t('واسع'), 'makeLook' => t('مشابه منه'), 'copyId' => t('انسخ الـ ID'), 'copied' => t('اتنسخ ✓'), 'del' => t('حذف'), 'lookName' => t('مشابه 1% - %s'),
+        'sortDef' => t('الترتيب الأصلي'), 'sortSize' => t('الأكبر الأول'), 'sortName' => t('بالاسم'),
+        'ladT' => t('سلّم الجماهير'), 'ladD' => t('ابدأ بالناس اللي عرفوك، اعمل منهم مشابه، وبعدين وسّع.'), 'tWarm' => t('دافي'), 'tWarmD' => t('تفاعلوا أو زاروا أو عملاء'), 'tLook' => t('مشابه'), 'tLookD' => t('ناس شبه الدافيين'), 'tBroad' => t('واسع'), 'tBroadD' => t('استهداف محفوظ واهتمامات'),
+        'nHave' => t('%s جمهور'), 'none' => t('لسه مفيش'), 'nWarm' => t('أول خطوة: اعمل جمهور من الناس اللي اتفاعلوا معاك آخر 90 يوم.'), 'nLook' => t('الخطوة الجاية: اعمل جمهور مشابه 1% من «%s» عشان توصل لناس جديدة شبههم.'), 'nScale' => t('عندك دافي ومشابه. الواسع بيتعمل بالاهتمامات جوه منشئ الحملات: اعمل مجموعة لكل درجة عشان تقارن.'),
+        'doIt' => t('جهّزهولي'), 'toBuilder' => t('افتح منشئ الحملات'), 'warmName' => t('متفاعلين آخر 90 يوم'), 'dN' => t('%s يوم'), 'precise' => t('أدق'), 'wide' => t('أوسع'),
+        'rTip1' => t('1–2%: أقرب ناس لجمهورك، الأفضل للمبيعات.'), 'rTip2' => t('3–5%: توازن بين الدقة والحجم.'), 'rTip3' => t('6–10%: وصول أكبر بدقة أقل، مناسب للانتشار.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+      <script src="assets/ad-aud-ui.js?v=<?= e(APP_VERSION) ?>"></script>
       <?php endif; ?>
     </div>
     <?php
