@@ -282,6 +282,35 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .pd-wat { @apply block w-full text-start rounded-xl px-2 py-1.5 text-xs transition hover:bg-ink-50; } .pd-wat b { @apply block text-ink-900; } .pd-wat span { @apply block text-ink-500 truncate; } .pd-wat.on { @apply bg-brand-50 ring-1 ring-brand-300; }
   .pd-kbd { @apply inline-grid place-items-center min-w-[1.5rem] rounded-md border border-ink-200 bg-ink-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-700; }
   .pd-undo { @apply absolute z-20 bottom-16 start-4 flex items-center gap-3 rounded-xl bg-[#0f172a] px-3 py-2 text-xs text-[#fff] shadow-xl; } .pd-undo button { @apply font-bold text-[#7dd3fc] hover:underline; }
+  /* منشئ الحملات: خطوات ومعاينة */
+  .ab-steps { @apply mb-4 flex items-center gap-2 overflow-x-auto rounded-2xl border border-ink-200 bg-white p-3 shadow-sm; scrollbar-width: none; }
+  .ab-ring { @apply relative w-12 h-12 shrink-0 rounded-full grid place-items-center; background: conic-gradient(#16a34a calc(var(--p) * 1%), #e2e8f0 0); } .ab-ring::before { content: ''; @apply absolute inset-1 rounded-full bg-white; } .ab-ring b { @apply relative text-[11px] font-black text-ink-900 tabular-nums; }
+  .ab-step { @apply flex min-w-[150px] flex-1 items-center gap-2 rounded-xl p-2 transition hover:bg-ink-50; } .ab-step.on { @apply bg-brand-50 ring-2 ring-brand-500; }
+  .ab-si { @apply w-9 h-9 shrink-0 rounded-xl grid place-items-center bg-ink-100 text-ink-500 font-black transition; } .ab-step.ok .ab-si { @apply bg-lime-100 text-lime-700; } .ab-step.on .ab-si { @apply bg-brand-600 text-white; }
+  .ab-step small { @apply block text-[10px] text-ink-400; } .ab-step b { @apply block text-sm text-ink-900 truncate; } .ab-step em { @apply block not-italic text-[11px] text-ink-500 truncate; } .ab-step em i { @apply not-italic font-semibold text-red-600; }
+  .ab-line { @apply h-0.5 w-6 shrink-0 rounded-full bg-ink-200; } .ab-line.ok { @apply bg-lime-500; }
+  .ab-nav { @apply flex items-center justify-between gap-2 rounded-2xl border border-dashed border-ink-200 p-3; }
+  .ab-flash { animation: abFlash 1.2s ease-out; } @keyframes abFlash { 0%, 40% { box-shadow: 0 0 0 4px rgb(37 99 235 / .5); border-radius: 1rem; } 100% { box-shadow: none; } }
+  .ab-pv { @apply p-4; } .ab-seg { @apply inline-flex rounded-lg bg-ink-100 p-0.5; } .ab-seg button { @apply rounded-md px-2 py-1 text-[11px] font-semibold text-ink-500 transition; } .ab-seg button.on { @apply bg-white text-ink-900 shadow-sm; }
+  .ab-stage { @apply grid place-items-center rounded-2xl p-4; background: linear-gradient(160deg, #e0e7ff, #cffafe); }
+  .ab-phone { @apply w-full max-w-[280px] overflow-hidden rounded-[1.6rem] border-[6px] border-[#0f172a] bg-[#fff] text-[#0f172a] shadow-xl transition-all; } .ab-phone.tall { @apply max-w-[220px]; }
+  .ab-feed { @apply bg-[#fff]; } .ab-fh { @apply flex items-center gap-2 p-2.5 text-[12px]; } .ab-fh b { @apply block text-[12px] text-[#0f172a]; } .ab-fh small { @apply block text-[10px] text-[#64748b]; }
+  .ab-av { @apply w-8 h-8 shrink-0 rounded-full grid place-items-center bg-[#2563eb] text-[12px] font-black text-[#fff]; }
+  .ab-fb-t { @apply px-2.5 pb-2 text-[12px] leading-snug text-[#0f172a] whitespace-pre-line break-words; } .ab-more { @apply text-[#64748b] font-semibold; }
+  .ab-pm { @apply relative aspect-square overflow-hidden bg-[#e2e8f0]; } .ab-pm.tall { @apply absolute inset-0 aspect-auto; } .ab-pm.sq { @apply aspect-square; } .ab-pm img { @apply w-full h-full object-cover; }
+  .ab-ph { @apply absolute inset-0 grid place-content-center justify-items-center gap-1 text-[#94a3b8]; } .ab-ph small { @apply text-[10px]; }
+  .ab-play { @apply absolute inset-0 m-auto w-12 h-12 rounded-full bg-[#000]/50 grid place-items-center text-xl text-[#fff]; }
+  .ab-link { @apply flex items-center gap-2 bg-[#f1f5f9] px-2.5 py-2; } .ab-link small { @apply block text-[9px] uppercase text-[#64748b] truncate; } .ab-link b { @apply block text-[12px] text-[#0f172a] truncate; }
+  .ab-cta { @apply shrink-0 rounded-md bg-[#e2e8f0] px-2 py-1 text-[10px] font-bold text-[#0f172a]; }
+  .ab-react { @apply flex justify-around border-t border-[#e2e8f0] py-1.5 text-[10px] text-[#64748b]; }
+  .ab-igcta { @apply flex items-center justify-between bg-[#2563eb] px-2.5 py-2 text-[12px] font-semibold text-[#fff]; } .ab-igic { @apply flex gap-3 px-2.5 pt-2 text-[14px] text-[#0f172a]; }
+  .ab-car { @apply flex gap-2 overflow-x-auto px-2.5 pb-2 snap-x snap-mandatory; scrollbar-width: none; } .ab-cc { @apply w-[78%] shrink-0 snap-start overflow-hidden rounded-lg border border-[#e2e8f0]; } .ab-cct { @apply p-2; } .ab-cct b { @apply block text-[11px] text-[#0f172a] truncate; } .ab-cct small { @apply block text-[10px] text-[#64748b] truncate; }
+  .ab-dots { @apply flex justify-center gap-1 pb-2; } .ab-dots i { @apply w-1.5 h-1.5 rounded-full bg-[#cbd5e1] transition; } .ab-dots i.on { @apply w-4 bg-[#2563eb]; }
+  .ab-ph9 { @apply relative aspect-[9/16] bg-[#0f172a]; } .ab-sto-top { @apply absolute inset-x-0 top-0 flex items-center gap-2 p-2.5 text-[11px] text-[#fff]; background: linear-gradient(#0009, transparent); } .ab-sto-top small { @apply opacity-80; }
+  .ab-sto-bot { @apply absolute inset-x-0 bottom-0 space-y-2 p-3 text-[#fff]; background: linear-gradient(transparent, #000b); } .ab-sto-bot p { @apply text-[11px] leading-snug; } .ab-sto-cta { @apply block rounded-full bg-[#fff] py-1.5 text-center text-[11px] font-bold text-[#0f172a]; }
+  .ab-tt-side { @apply absolute end-2 bottom-20 flex flex-col gap-3 text-lg text-[#fff]; } .ab-tt-side i { @apply not-italic; }
+  .ab-var { @apply mt-3 flex items-center justify-center gap-3 text-xs text-ink-600; } .ab-var button { @apply w-7 h-7 rounded-full bg-ink-100 text-ink-700 transition hover:bg-brand-600 hover:text-white; }
+  .ab-warn { @apply mt-3 space-y-1 text-[11px] text-amber-800; } .ab-warn li { @apply rounded-lg bg-amber-50 px-2 py-1 dark:bg-[#2a1d05] dark:text-[#fcd34d]; } .ab-good { @apply mt-3 text-[11px] font-semibold text-lime-700; }
   /* تفاصيل الحملة */
   .acp-back { @apply inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:gap-2 transition-all; }
   .acp-hero { @apply relative overflow-hidden rounded-3xl p-6 text-[#fff] shadow-lg; background: linear-gradient(120deg, #0f172a 0%, #1e3a8a 55%, #0e7490 100%); }
