@@ -119,6 +119,13 @@ function page_module(string $page): ?string
         'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
         'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],
+        'tenders' => ['tenders'],
+        'competitors' => ['competitors'],
+        'studio' => ['studio', 'studio_media', 'designer'],
+        'publishing' => ['compose', 'posts', 'calendar', 'approvals', 'post_log', 'post_edit', 'queue', 'bulk'],
+        'inbox' => ['inbox', 'comments'],
+        'knowledge' => ['knowledge'],
+        'media' => ['media'],
     ];
     foreach ($map as $m => $pages) {
         if (in_array($page, $pages, true)) return $m;

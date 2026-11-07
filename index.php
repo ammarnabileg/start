@@ -75,7 +75,9 @@ if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
 }
 
 // قسم مقفول للشركة دي
-if (current_workspace() && !module_enabled(page_module($page))) {
+// مكتبة الوسائط بتخدم الصور والرفع لباقي الصفحات (المنشورات، المصمم، الجماعي)، فقفلها بيقفل صفحتها بس
+$mediaSvc = $page === 'media' && (isset($_GET['file']) || isset($_GET['ajax']) || $_SERVER['REQUEST_METHOD'] === 'POST');
+if (current_workspace() && !$mediaSvc && !module_enabled(page_module($page))) {
     flash('error', t('القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.'));
     redirect(url('dashboard'));
 }
