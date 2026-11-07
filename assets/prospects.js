@@ -36,8 +36,16 @@
     $('pd-stage-pill').textContent = C.stages[v] || v; }
   function contactPaint(d) {
     var it = [['phone', 'call', d.phone, 'tel:' + d.phone, L.call], ['chat', 'wa', d.wa, 'https://wa.me/' + d.wa, L.wa], ['mail', 'email', d.email, 'mailto:' + d.email, L.mail]];
-    $('pd-contact').innerHTML = it.map(function (x) { return '<a class="pd-act' + (x[2] ? '' : ' off') + '" href="' + (x[2] ? esc(x[3]) : '#') + '"' + (x[1] === 'wa' ? ' target="_blank" rel="noopener"' : '') + ' data-log="' + x[1] + '">' + ic(x[0], 'w-5 h-5') + '<span>' + esc(x[4]) + '</span><small dir="ltr">' + esc(x[1] === 'wa' ? (d.wa ? '+' + d.wa : '—') : (x[2] || '—')) + '</small></a>'; }).join('');
+    $('pd-contact').innerHTML = it.map(function (x) { return '<a class="pd-act' + (x[2] ? '' : ' off') + '" href="' + (x[2] ? esc(x[3]) : '#') + '"' + (x[1] === 'wa' ? ' target="_blank" rel="noopener"' : '') + ' data-log="' + x[1] + '">' + ic(x[0], 'w-5 h-5') + '<span>' + esc(x[4]) + '</span><small dir="ltr">' + esc(x[1] === 'wa' ? (d.wa ? '+' + d.wa : '—') : (x[2] || '—')) + '</small>' + (x[2] ? '<button type="button" class="pd-cp" data-copy="' + esc(x[1] === 'wa' ? '+' + d.wa : x[2]) + '" title="' + esc(L.copy) + '">' + ic('copy', 'w-3 h-3') + '</button>' : '') + '</a>'; }).join('');
     $('pd-addc').classList.toggle('hidden', !!(d.phone && d.email)); }
+  function pd(t) { var m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t || ''); return m ? new Date(+m[3], m[2] - 1, +m[1]) : null; }
+  function heat(d) { var keys = Object.keys(C.stages).filter(function (k) { return k !== 'lost'; }), i = keys.indexOf(d.stage);
+    if (d.stage === 'lost') return 0; if (d.stage === 'won') return 100;
+    var v = 15 + Math.round(45 * Math.max(0, i) / Math.max(1, keys.length - 1)), l = pd(d.last);
+    if (l) { var g = (Date.now() - l) / 864e5; v += g < 3 ? 25 : g < 7 ? 15 : g < 30 ? 5 : -10; } else v -= 5;
+    if (d.phone || d.wa) v += 8; if (d.email) v += 5; if (d.next) v += d.due ? -5 : 7; return Math.max(0, Math.min(99, v)); }
+  function heatPaint(d) { var v = heat(d), el = $('pd-heat'), c = v >= 70 ? '#ef4444' : v >= 40 ? '#f59e0b' : '#38bdf8';
+    el.style.setProperty('--v', v); el.style.setProperty('--c', c); el.textContent = v; el.title = L.heat.replace('%s', v) + ' · ' + (v >= 70 ? L.hot : v >= 40 ? L.warm : L.cold); }
   function vis() { return list.rows().filter(function (x) { return x.style.display !== 'none'; }); }
   function posPaint() { var v = vis(), i = v.indexOf(cur); $('pd-pos').textContent = i > -1 ? (i + 1) + ' / ' + v.length : ''; }
   function loadActs(r, d) {
@@ -57,6 +65,8 @@
     $('pd-meta').innerHTML = [[L.added, d.added, 'clock'], [L.last, d.last || '—', 'chat'], [L.country, d.country || '—', 'globe'], [L.src, d.src, 'layers']].map(function (x) { return '<div class="rounded-xl bg-ink-50 px-3 py-2.5 min-w-0"><dt class="text-[11px] text-ink-500 flex items-center gap-1">' + ic(x[2], 'w-3.5 h-3.5') + esc(x[0]) + '</dt><dd class="font-semibold text-ink-900 truncate mt-0.5">' + esc(x[1]) + '</dd></div>'; }).join('');
     tags(d.tags); $('pd-open').href = C.leadUrl + '&lead=' + d.id; $('pd-co').classList.add('hidden');
     nextShow(d.next, d.due); $('pd-next-note').value = d.next_note || ''; $('pd-next-at').value = '';
+    heatPaint(d); idEdit(false); popsClose(); tf = '';
+    var bx = dl.querySelector('.pd-hero'); bx.classList.remove('pd-in-a'); void bx.offsetWidth; bx.classList.add('pd-in-a');
     posPaint(); loadActs(r, d); if (!dl.open) dl.showModal();
     $$('[data-mk-row]').forEach(function (x) { x.classList.toggle('mk-focus', x === r); }); r.scrollIntoView({ block: 'nearest' });
   }
@@ -73,7 +83,11 @@
   var KC = { call: '#16a34a', wa: '#22c55e', email: '#2563eb', meet: '#d97706', note: '#64748b', stage: '#7c3aed' };
   function ago(t) { var m = /(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/.exec(t || ''); if (!m) return t; var d = new Date(+m[3], m[2] - 1, +m[1], +m[4], +m[5]), s = (Date.now() - d) / 1000;
     return s < 90 ? L.now : s < 3600 ? L.minAgo.replace('%s', Math.round(s / 60)) : s < 86400 ? L.hrAgo.replace('%s', Math.round(s / 3600)) : s < 86400 * 30 ? L.dayAgo.replace('%s', Math.round(s / 86400)) : t; }
-  function acts(a) { $('pd-acts-n').textContent = a.length ? a.length : ''; $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="cp-pop"><span class="pd-dot text-white" style="background:' + (KC[x.kind] || '#64748b') + '">' + ic(AIC[x.kind] || 'dots', 'w-2.5 h-2.5') + '</span><div class="rounded-xl border border-ink-100 bg-white px-3 py-2"><div class="flex items-center gap-2 text-[11px] text-ink-500"><b class="text-ink-800 text-xs">' + esc(x.label) + '</b><span title="' + esc(x.at) + '">' + esc(ago(x.at)) + '</span>' + (x.who ? '<span class="ms-auto">' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(x.body) + '</p>' : '') + '</div></li>'; }).join('') : '<li class="!ps-0 text-center py-8 text-sm text-ink-400">' + ic('chat', 'w-6 h-6 mx-auto mb-2 opacity-50') + esc(L.noActs) + '</li>'; }
+  var lastActs = [], tf = '';
+  function acts(a) { lastActs = a; var cnt = {}; a.forEach(function (x) { cnt[x.kind] = (cnt[x.kind] || 0) + 1; }); var ks = Object.keys(cnt);
+    $('pd-tf').innerHTML = ks.length > 1 ? ['<button type="button" class="pd-tfb' + (tf ? '' : ' on') + '" data-tf="">' + esc(L.all) + '</button>'].concat(ks.map(function (k) { return '<button type="button" class="pd-tfb' + (tf === k ? ' on' : '') + '" data-tf="' + k + '" style="--k:' + (KC[k] || '#64748b') + '">' + ic(AIC[k] || 'dots', 'w-3 h-3') + cnt[k] + '</button>'; })).join('') : '';
+    if (tf) a = a.filter(function (x) { return x.kind === tf; }); actsList(a); }
+  function actsList(a) { $('pd-acts-n').textContent = lastActs.length ? lastActs.length : ''; $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="cp-pop"><span class="pd-dot text-white" style="background:' + (KC[x.kind] || '#64748b') + '">' + ic(AIC[x.kind] || 'dots', 'w-2.5 h-2.5') + '</span><div class="rounded-xl border border-ink-100 bg-white px-3 py-2"><div class="flex items-center gap-2 text-[11px] text-ink-500"><b class="text-ink-800 text-xs">' + esc(x.label) + '</b><span title="' + esc(x.at) + '">' + esc(ago(x.at)) + '</span>' + (x.who ? '<span class="ms-auto">' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(x.body) + '</p>' : '') + '</div></li>'; }).join('') : '<li class="!ps-0 text-center py-8 text-sm text-ink-400">' + ic('chat', 'w-6 h-6 mx-auto mb-2 opacity-50') + esc(L.noActs) + '</li>'; }
   function nextShow(n, due) { var el = $('pd-next'); el.textContent = n || L.noNext; el.className = 'ms-auto tabular-nums text-xs ' + (due ? 'text-red-600 font-semibold' : 'text-ink-600'); var p = $('pd-due-pill'); if (p) { p.classList.toggle('hidden', !n); p.textContent = (due ? '⏰ ' : '📅 ') + (n || ''); p.style.background = due ? 'rgba(220,38,38,.85)' : ''; } }
   function rowNext(r, j) { upd(r, 'next', j.next || ''); upd(r, 'next_note', j.next_note || ''); var c = r.querySelector('[data-c=next]'); r.dataset.due = j.due && r.dataset.stage !== 'won' && r.dataset.stage !== 'lost' ? '1' : '0';
     r.dataset.cold = '0'; c.className = 'block truncate tabular-nums ' + (r.dataset.due === '1' ? 'text-red-600 font-medium' : 'text-ink-400'); c.innerHTML = j.next ? ic('calendar', 'w-3 h-3 inline') + ' ' + esc(j.next.slice(0, 5)) : ''; }
@@ -92,14 +106,75 @@
   // الضغط على اتصال/واتساب/إيميل في الصف أو البوب أب بيتسجل لوحده
   document.addEventListener('click', function (e) { var a = e.target.closest('#pr [data-log], #pd-contact a'); if (!a) return; var r = a.closest('[data-mk-row]') || cur; if (!r) return;
     var k = a.dataset.log || (/^tel:/.test(a.href) ? 'call' : /wa\.me/.test(a.href) ? 'wa' : 'email'); log(r, k).then(function (j) { if (j.ok) { logged(r, j); } }).catch(function () {}); });
-  function tags(t) { $('pd-tags').innerHTML = String(t || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '<span class="mk-pill bg-ink-100 text-ink-700">#' + esc(x) + '</span>'; }).join(''); }
-  function upd(r, k, v) { var d = jd(r); d[k] = v; r.dataset.j = JSON.stringify(d); if (k === 'stage' || k === 'owner') r.dataset[k] = String(v); }
+  function tags(t) { $('pd-tags').innerHTML = String(t || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '<span class="pd-tag cp-pop">#' + esc(x) + '<button type="button" data-untag="' + esc(x) + '" title="' + esc(L.untag) + '">×</button></span>'; }).join(''); }
+  function upd(r, k, v) { var d = jd(r); d[k] = v; r.dataset.j = JSON.stringify(d); if (k === 'stage' || k === 'owner') r.dataset[k] = String(v); if (r === cur) heatPaint(d); }
   function bulk(ids, op, extra) { var d = { action: 'bulk', op: op, 'ids[]': ids }; Object.keys(extra).forEach(function (k) { d[k] = extra[k]; }); return post(C.importUrl, d); }
   $('pd-stage').addEventListener('change', function () { var v = this.value, r = cur; bulk([jd(r).id], 'stage', { stage: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error');
-    upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; r.dataset.sStage = v; toast(L.saved); }); });
+    upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; r.dataset.sStage = v; if (v === 'won') { confetti(); toast(L.won); } else toast(L.saved); loadActs(r, jd(r)); }); });
   if ($('pd-owner')) $('pd-owner').addEventListener('change', function () { var v = this.value, r = cur; bulk([jd(r).id], 'owner', { owner: v }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'owner', +v); toast(L.saved); }); });
   $('pd-tag-f').addEventListener('submit', function (e) { e.preventDefault(); var t = this.t.value.trim(), r = cur, f = this; if (!t) return;
     bulk([jd(r).id], 'tag', { tag: t }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var d = jd(r), nt = (d.tags ? d.tags + ', ' : '') + t; upd(r, 'tags', nt); r.dataset.q += ' ' + t.toLowerCase(); tags(nt); f.t.value = ''; }); });
+
+  /* ---------- تفاعل إضافي في البوب أب ---------- */
+  function idEdit(on) { $('pd-idv').classList.toggle('hidden', on); $('pd-sub').classList.toggle('hidden', on); $('pd-idf').classList.toggle('hidden', !on);
+    if (on && cur) { var d = jd(cur), f = $('pd-idf'); f.name.value = d.name || ''; f.title.value = d.title || ''; f.company.value = d.company || ''; f.name.focus(); f.name.select(); } }
+  $('pd-edit').addEventListener('click', function () { idEdit(true); });
+  $('pd-idf').addEventListener('click', function (e) { if (e.target.closest('[data-idx]')) idEdit(false); });
+  $('pd-idf').addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); idEdit(false); } });
+  $('pd-idf').addEventListener('submit', function (e) { e.preventDefault(); var f = this, r = cur;
+    post(C.selfUrl, { action: 'edit', id: jd(r).id, name: f.name.value, title: f.title.value, company: f.company.value }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error');
+      upd(r, 'name', j.name); upd(r, 'title', j.title); upd(r, 'company', j.company); $('pd-name').textContent = j.name; $('pd-sub').textContent = [j.title, j.company].filter(Boolean).join(' · ') || L.noTitle;
+      $('pd-av').textContent = j.name.trim().charAt(0).toUpperCase(); var nb = r.querySelector('b'); if (nb) nb.textContent = j.name; idEdit(false); toast(L.saved); }).catch(function () { toast(L.err, 'error'); }); });
+  // نسخ الرقم/الإيميل
+  dl.addEventListener('click', function (e) { var c = e.target.closest('[data-copy]'); if (!c) return; e.preventDefault(); e.stopPropagation();
+    var v = c.dataset.copy, ok = function () { toast(L.copied); c.classList.add('ok'); setTimeout(function () { c.classList.remove('ok'); }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(v).then(ok, ok); else ok(); }, true);
+  // شيل تاج (مع تراجع)
+  dl.addEventListener('click', function (e) { var b = e.target.closest('[data-untag]'); if (!b || !cur) return; var r = cur, t = b.dataset.untag, old = jd(r).tags;
+    post(C.selfUrl, { action: 'untag', id: jd(r).id, tag: t }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); upd(r, 'tags', j.tags); tags(j.tags);
+      undoBar(t, function () { bulk([jd(r).id], 'tag', { tag: t }).then(function (k) { if (k.ok) { upd(r, 'tags', old); if (cur === r) tags(old); } }); }); }); });
+  function undoBar(label, fn) { var u = document.createElement('div'); u.className = 'pd-undo cp-pop'; u.innerHTML = '<span>#' + esc(label) + ' ✕</span><button type="button">' + esc(L.undo) + '</button>';
+    dl.appendChild(u); var tm = setTimeout(function () { u.remove(); }, 5000); u.querySelector('button').onclick = function () { clearTimeout(tm); u.remove(); fn(); }; }
+  // نتائج سريعة بتتكتب في الملاحظة
+  $('pd-quick').addEventListener('click', function (e) { var b = e.target.closest('[data-qr]'); if (!b) return; var ta = $('pd-note-f').b, v = b.dataset.qr;
+    ta.value = ta.value.trim() ? ta.value.trim() + ' · ' + v : v; b.classList.add('on'); setTimeout(function () { b.classList.remove('on'); }, 600); ta.focus(); });
+  $('pd-note-f').b.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('pd-note-f').requestSubmit(); } });
+  // فلتر السجل
+  $('pd-tf').addEventListener('click', function (e) { var b = e.target.closest('[data-tf]'); if (!b) return; tf = b.dataset.tf; acts(lastActs); });
+  // رسائل واتساب الجاهزة
+  function popsClose() { ['pd-wa', 'pd-keys'].forEach(function (i) { $(i).classList.add('hidden'); }); }
+  function fill(t) { var d = jd(cur); return t.replace(/\{name\}/g, (d.name || '').split(' ')[0]).replace(/\{me\}/g, L.me || ''); }
+  function waOpen() { var d = jd(cur); if (!d.wa) return; var p = $('pd-wa');
+    $('pd-wa-l').innerHTML = L.waT.map(function (t, i) { return '<button type="button" class="pd-wat" data-wat="' + i + '"><b>' + esc(L.waN[i]) + '</b><span>' + esc(fill(t)) + '</span></button>'; }).join('');
+    $('pd-wa-t').value = fill(L.waT[0]); p.classList.remove('hidden'); $('pd-keys').classList.add('hidden'); }
+  $('pd-wa-l').addEventListener('click', function (e) { var b = e.target.closest('[data-wat]'); if (!b) return; $('pd-wa-t').value = fill(L.waT[+b.dataset.wat]);
+    [].forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); }); });
+  $('pd-wa-x').addEventListener('click', popsClose);
+  $('pd-wa-go').addEventListener('click', function () { var r = cur, d = jd(r), t = $('pd-wa-t').value.trim();
+    window.open('https://wa.me/' + d.wa + (t ? '?text=' + encodeURIComponent(t) : ''), '_blank', 'noopener'); popsClose();
+    log(r, 'wa', t).then(function (j) { if (j.ok) { logged(r, j); toast(L.logged); } }).catch(function () {}); });
+  // الواتساب في الكروت بيفتح الرسائل الجاهزة بدل الفتح المباشر
+  $('pd-contact').addEventListener('click', function (e) { var a = e.target.closest('a[data-log="wa"]'); if (!a || e.target.closest('[data-copy]')) return; e.preventDefault(); e.stopImmediatePropagation(); waOpen(); }, true);
+  $('pd-keys-b').addEventListener('click', function () { var k = $('pd-keys'); k.classList.toggle('hidden'); $('pd-wa').classList.add('hidden'); });
+  // احتفال بالصفقة
+  function confetti() { var fx = $('pd-fx'), cs = ['#22c55e', '#2563eb', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7'];
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (var i = 0; i < 70; i++) { var p = document.createElement('i'); p.className = 'pd-cf'; p.style.left = Math.random() * 100 + '%'; p.style.background = cs[i % cs.length];
+      p.style.animationDelay = Math.random() * .4 + 's'; p.style.animationDuration = 1.4 + Math.random() * 1.2 + 's'; p.style.transform = 'rotate(' + Math.random() * 360 + 'deg)'; fx.appendChild(p); }
+    setTimeout(function () { fx.innerHTML = ''; }, 3200); }
+  // اختصارات الكيبورد
+  dl.addEventListener('keydown', function (e) { if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || e.ctrlKey || e.metaKey || e.altKey || !cur) return;
+    var k = e.key.toLowerCase(), stg = $$('#pd-stages [data-stg]'), go = function (fn) { e.preventDefault(); fn(); };
+    if (/^[1-9]$/.test(k) && stg[+k - 1]) return go(function () { stg[+k - 1].click(); });
+    if (k === 'n') return go(function () { $('pd-note-f').b.focus(); });
+    if (k === 'r') return go(function () { idEdit(true); });
+    if (k === 't') return go(function () { $('pd-tag-f').t.focus(); });
+    if (k === 'f') return go(function () { var b = $('pd-next-b').querySelector('[data-when="1d"]'); if (b) b.click(); });
+    if (k === 'w') return go(waOpen);
+    if (k === 'c' || k === 'e') return go(function () { var a = $('pd-contact').querySelector('a[data-log="' + (k === 'c' ? 'call' : 'email') + '"]:not(.off)'); if (a) a.click(); });
+    if (k === '?' || (e.shiftKey && k === '/')) return go(function () { $('pd-keys-b').click(); });
+    if (k === 'escape' && !$('pd-wa').classList.contains('hidden') + !$('pd-keys').classList.contains('hidden')) return go(popsClose); });
+  dl.addEventListener('cancel', function (e) { if (!$('pd-wa').classList.contains('hidden') || !$('pd-keys').classList.contains('hidden') || !$('pd-idf').classList.contains('hidden')) { e.preventDefault(); popsClose(); idEdit(false); } });
 
   // فتح عميل من رابط التنبيه (?lead=ID)
   var lm = /[?&]lead=(\d+)/.exec(location.search); if (lm) { var lr = root.querySelector('[data-mk-row][data-id="' + lm[1] + '"]'); if (lr) open(lr); }

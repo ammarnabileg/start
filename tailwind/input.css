@@ -270,6 +270,19 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .pd-stages button.on { @apply text-brand-700 font-bold bg-brand-50/60; } .pd-stages button.on::after { content: ''; @apply absolute bottom-0 inset-x-0 h-1 bg-brand-600; }
   .pd-stages button.lost.on { @apply text-red-700 bg-red-50; } .pd-stages button.lost.on::after { @apply bg-red-500; }
   .pd-card { @apply rounded-2xl border border-ink-200 p-3; }
+  .pd-heat { --v: 0; --c: #38bdf8; @apply absolute -bottom-2 -end-2 w-8 h-8 rounded-full grid place-items-center text-[9px] tracking-tighter font-black text-[#fff] tabular-nums; background: conic-gradient(var(--c) calc(var(--v) * 1%), rgba(255,255,255,.25) 0); box-shadow: 0 0 0 3px #1d4ed8; }
+  .pd-heat::before { content: ''; @apply absolute inset-[3px] rounded-full bg-[#1e3a8a] -z-0; } .pd-heat { isolation: isolate; } .pd-heat::before { z-index: -1; }
+  .pd-in { @apply w-full rounded-lg border-0 bg-[#fff]/95 px-2.5 py-1.5 text-sm text-[#0f172a] placeholder:text-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#fff]/60; }
+  .pd-in-a > * { animation: pdIn .28s ease-out both; } @keyframes pdIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pd-act { @apply relative; } .pd-cp { @apply absolute top-1 end-1 w-6 h-6 rounded-lg grid place-items-center text-[#fff]/70 opacity-0 transition hover:bg-[#fff]/20 hover:text-[#fff]; } .pd-act:hover .pd-cp, .pd-cp.ok { @apply opacity-100; } .pd-cp.ok { @apply bg-[#22c55e] text-[#fff]; }
+  .pd-tag { @apply inline-flex items-center gap-1 rounded-full bg-ink-100 ps-2 pe-1 py-0.5 text-[11px] font-medium text-ink-700; } .pd-tag button { @apply w-4 h-4 rounded-full grid place-items-center text-ink-400 hover:bg-red-100 hover:text-red-600 leading-none; }
+  .pd-qr { @apply rounded-full border border-ink-200 bg-white px-2.5 py-1 text-[11px] font-medium text-ink-600 transition hover:border-brand-400 hover:text-brand-700 active:scale-95; } .pd-qr.on { @apply border-brand-500 bg-brand-50 text-brand-700 scale-105; }
+  .pd-tfb { @apply inline-flex items-center gap-1 rounded-full border border-ink-200 px-2 py-0.5 text-[11px] text-ink-500 transition hover:text-ink-900; } .pd-tfb.on { @apply border-transparent bg-ink-900 text-white; } .pd-tfb[style].on { background: var(--k); }
+  .pd-pop { @apply absolute z-20 bottom-16 end-4 w-[min(380px,calc(100%-2rem))] rounded-2xl border border-ink-200 bg-white p-3 shadow-2xl; animation: pdIn .18s ease-out; }
+  .pd-wat { @apply block w-full text-start rounded-xl px-2 py-1.5 text-xs transition hover:bg-ink-50; } .pd-wat b { @apply block text-ink-900; } .pd-wat span { @apply block text-ink-500 truncate; } .pd-wat.on { @apply bg-brand-50 ring-1 ring-brand-300; }
+  .pd-kbd { @apply inline-grid place-items-center min-w-[1.5rem] rounded-md border border-ink-200 bg-ink-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink-700; }
+  .pd-undo { @apply absolute z-20 bottom-16 start-4 flex items-center gap-3 rounded-xl bg-[#0f172a] px-3 py-2 text-xs text-[#fff] shadow-xl; } .pd-undo button { @apply font-bold text-[#7dd3fc] hover:underline; }
+  .pd-cf { @apply absolute -top-3 w-2 h-3 rounded-sm; animation: pdCf linear forwards; } @keyframes pdCf { to { transform: translateY(110vh) rotate(720deg); opacity: .2; } }
   .pd-q { @apply rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-xs font-medium text-ink-700 transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-800; }
   .pd-q.on { @apply border-brand-500 bg-brand-600 text-white; }
   .pd-kind { @apply flex flex-col items-center gap-1 rounded-xl border border-ink-200 bg-white py-2 text-[11px] font-medium text-ink-700 transition hover:-translate-y-0.5 hover:shadow-sm; }
