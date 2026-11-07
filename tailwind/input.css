@@ -1099,3 +1099,20 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 [data-mk-row]:not(:hover) .pr-tagadd{opacity:0}
 .pr-tagin{width:100%;height:2rem;border:1px solid #e2e8f0;border-radius:9px;padding:0 .55rem;font-size:.82rem;margin:.1rem 0 .35rem}
 .pr-tagsug{display:flex;flex-wrap:wrap;gap:.25rem;max-width:240px}.pr-qm .pr-tagsug button{display:inline-block;width:auto;font-size:.72rem;padding:.15rem .5rem;border-radius:7px;background:#f5f3ff;color:#6d28d9}
+
+/* متابعة سريعة تحت العميل */
+.pr-expb svg{transition:transform .2s}.pr-open .pr-expb svg{transform:rotate(180deg)}.pr-open .pr-expb{background:#eff6ff;color:#1d4ed8}
+[data-mk-row].pr-open{background:#f8fafc}
+.pr-exp{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:1rem;padding:.9rem 1rem 1rem;background:#f8fafc;border-bottom:1px solid #eef2f7;animation:fx-in .2s}
+@media (max-width:900px){.pr-exp{grid-template-columns:1fr}}
+.pr-xf{display:flex;flex-direction:column;gap:.5rem;padding:.75rem;border-radius:14px;background:#fff;border:1px solid #e2e8f0}
+.pr-xf textarea{width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:.5rem .6rem;font-size:.88rem;resize:vertical;outline:none}
+.pr-xf textarea:focus,.pr-xf input:focus,.pr-xf select:focus{border-color:#93c5fd;box-shadow:0 0 0 3px rgb(147 197 253/.25)}
+.pr-xrow{display:flex;gap:.5rem;align-items:flex-end}
+.pr-xrow label{flex:1;display:flex;flex-direction:column;gap:.2rem;font-size:.7rem;color:#64748b}
+.pr-xrow input,.pr-xrow select{height:2.2rem;border:1px solid #e2e8f0;border-radius:10px;padding:0 .5rem;font-size:.82rem;background:#fff;outline:none}
+.pr-xh>b{display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:#475569;margin-bottom:.5rem}
+.pr-hi{display:flex;gap:.55rem;align-items:flex-start;padding:.55rem .7rem;border-radius:12px;background:#fff;border:1px solid #eef2f7;margin-bottom:.4rem}
+.pr-hii{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;flex-shrink:0}
+.pr-hi p{font-size:.86rem;color:#0f172a;line-height:1.6;word-break:break-word}.pr-hi small{font-size:.7rem;color:#94a3b8}
+.dark .pr-exp,.dark [data-mk-row].pr-open{background:#0b1220}.dark .pr-xf,.dark .pr-hi{background:#0f172a;border-color:rgb(255 255 255/.08)}.dark .pr-hi p{color:#e2e8f0}
