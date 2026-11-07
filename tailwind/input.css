@@ -1218,3 +1218,24 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pr [data-mk-row]:hover .pr-ctx{display:flex}
 .pr-ownw{float:inline-end;margin-inline-start:.3rem}.pr-ownw .pr-own{width:1.5rem;height:1.5rem;font-size:.62rem}
 .pr-acts2 .mk-act,.pr-bview,.pr-bedit,.pr-bexp{width:1.85rem;height:1.85rem;flex:0 0 auto}
+
+/* العميل + التواصل + آخر ملاحظة بتاريخها */
+.pr-co{display:flex;align-items:center;gap:.25rem;font-size:.78rem;font-weight:600;color:#334155;margin-top:.1rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pr-co svg{color:#94a3b8;flex-shrink:0}
+.pr-cct{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+.pr-cl{display:flex;align-items:center;gap:.3rem;font-size:.8rem;color:#334155;min-width:0}
+.pr-cl>svg{color:#94a3b8;flex-shrink:0}
+.pr-cl .mk-act{width:1.45rem;height:1.45rem;flex-shrink:0}
+.pr-cl .mk-act:first-of-type{margin-inline-start:auto}
+.pr-em{color:#2563eb;min-width:0}.pr-em:hover{text-decoration:underline}
+.pr-ver{display:grid;place-items:center;width:1rem;height:1rem;border-radius:50%;background:#dcfce7;color:#16a34a;flex-shrink:0}
+.pr-cl.pend{color:#d97706;font-size:.72rem}
+.pr-li{font-size:.72rem;color:#0a66c2;font-weight:600}
+.pr-reveal{display:inline-flex;align-items:center;gap:.25rem;align-self:flex-start;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:8px;background:#f5f3ff;color:#6d28d9;border:1px dashed #c4b5fd}
+.pr-reveal:hover{background:#ede9fe}
+.pr-notec{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+.pr-nd{display:flex;align-items:center;gap:.25rem;font-size:.74rem;color:#94a3b8;font-variant-numeric:tabular-nums}
+.pr-nd svg{color:#2563eb}
+
+.pr-num{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.78rem}
+#pr .mk-head,#pr [data-mk-row]{min-width:1240px}

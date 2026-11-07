@@ -75,7 +75,7 @@
       ctxLine(r, 'phone', '[' + (C.oc[b.dataset.qoc] || '') + ']'); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone); }); });
 
   /* ---------- واتساب من الصف: قوالب جاهزة بالاسم + تسجيل في سجل العميل ---------- */
-  function ctxLine(r, icon, text) { var n = r.querySelector('[data-c=note]'); if (n) { n.textContent = text; n.title = text; } var d = r.querySelector('[data-c=ago]'), t = new Date(), p2 = function (x) { return (x < 10 ? '0' : '') + x; }; if (d) d.textContent = p2(t.getDate()) + '/' + p2(t.getMonth() + 1) + '/' + t.getFullYear(); }
+  function ctxLine(r, icon, text) { var n = r.querySelector('[data-c=note]'); if (n) { n.textContent = text; n.title = text; } var d = r.querySelector('[data-c=ago]'), t = new Date(), p2 = function (x) { return (x < 10 ? '0' : '') + x; }; if (d) { d.textContent = p2(t.getDate()) + '/' + p2(t.getMonth() + 1) + '/' + t.getFullYear(); var w = d.closest('.pr-nd'); if (w) w.classList.remove('hidden'); } }
   var LX = (window.LP && window.LP.L) || {};
   function fillT(t, d) { return String(t).replace(/\{name\}/g, (d.name || '').split(/\s+/)[0]).replace(/\{company\}/g, d.company || '').replace(/\{me\}/g, LX.me || '').replace(/\{book\}/g, LX.book || ''); }
   root.addEventListener('click', function (e) { var a = e.target.closest('[data-mk-row] a[href*="wa.me"]'); if (!a) return; var tp = LX.waTpl || []; if (!tp.length) return; e.preventDefault(); e.stopPropagation(); var r = a.closest('[data-mk-row]'), d = jd(r); qRow = r;
@@ -129,6 +129,10 @@
   // عرض / تعديل
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qview],[data-qedit]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); open(r);
     if (b.hasAttribute('data-qedit')) setTimeout(function () { var t = document.querySelector('[data-pt="dt"]'); if (t) t.click(); }, 250); }, true);
+
+  // كشف البيانات من Apollo من خانة التواصل
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qreveal]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'), d = jd(r); b.disabled = true; b.textContent = QT.revealing;
+    bulk([d.id], 'enrich', {}).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = '!'; return toast(j.error || L.err, 'error'); } toast(QT.revealed); list.reload(); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); }, true);
 
   /* ---------- الفلاتر المحفوظة ---------- */
   var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
