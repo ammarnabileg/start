@@ -30,6 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         . "Use only facts from the company knowledge base (prices, services, offers); never invent numbers or claims.\n"
         . 'Return ONLY JSON: {"items":[{"title":"short label","text":"the content","hashtags":["#tag"],"visual":"one line describing the image or video to use"}]} with exactly ' . $n . ' items, each different in angle.';
     $user = $topic !== '' ? t('الموضوع: %s', $topic) : t('اختار أنسب موضوع من خدمات الشركة.');
+    // إعادة صياغة نسخة واحدة (أقصر/أطول/أقوى في البيع/عاطفية) بنفس الشكل
+    $hows = ['short' => 'Make it noticeably shorter and punchier (about half the length).', 'long' => 'Make it richer and longer with more useful detail.', 'sell' => 'Make it sell harder: stronger hook, clear offer and urgency, direct call to action.', 'emo' => 'Make it more emotional and story-driven, speaking to the reader\'s feelings.'];
+    $base = mb_substr(trim((string)($_POST['base'] ?? '')), 0, 4000);
+    if ($base !== '' && isset($hows[$_POST['how'] ?? ''])) { $n = 1; $user = "Rewrite this content. {$hows[$_POST['how']]} Keep facts unchanged.\n\n" . $base;
+        $sys = str_replace('with exactly ' . max(1, min(6, (int)($_POST['n'] ?? 3))) . ' items', 'with exactly 1 items', $sys); }
     try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 2200, 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
     $txt = (string)($r['text'] ?? ''); if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
     $d = json_decode($txt, true); $items = [];
@@ -44,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $aiOn = function_exists('ai_connection') && ai_connection() && can('ai.use');
-render(t('استوديو المحتوى'), 'studio', function () use ($kinds, $plats, $goals, $tones, $svcs, $aiOn) {
+$wsName = (string)(ws('name') ?? '');
+render(t('استوديو المحتوى'), 'studio', function () use ($kinds, $plats, $goals, $tones, $svcs, $aiOn, $wsName) {
     $seg = function (string $name, array $opts, string $on) { $h = '<div class="flex flex-wrap gap-1.5">';
         foreach ($opts as $k => $l) $h .= '<label class="cursor-pointer"><input type="radio" name="' . $name . '" value="' . e($k) . '" class="peer sr-only"' . ($k === $on ? ' checked' : '') . '><span class="inline-flex rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-300 peer-checked:border-brand-500 peer-checked:bg-brand-600 peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-brand-500/20">' . e($l) . '</span></label>';
         return $h . '</div>'; };
@@ -73,11 +79,14 @@ render(t('استوديو المحتوى'), 'studio', function () use ($kinds, $p
     <div class="min-w-0">
       <div id="st-empty" class="card p-10 text-center"><div class="mx-auto mb-3 w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 to-fuchsia-500 text-white grid place-items-center"><?= ui_icon('spark', 'w-7 h-7') ?></div>
         <b class="block text-ink-900 text-lg"><?= e(t('اختار نوع المحتوى ودوس اكتب')) ?></b><p class="text-sm text-ink-500 mt-1"><?= e(t('بنكتب من ملف شركتك: خدماتك وأسعارك ونبرة كلامك. كل نتيجة تقدر تعدّلها وتنشرها أو تصممها.')) ?></p></div>
-      <div id="st-res" class="grid lg:grid-cols-2 gap-4"></div>
+      <div id="st-res"></div>
     </div>
   </div>
   <?php endif; ?>
   <script>window.ST = <?= json_encode(['csrf' => csrf_token(), 'url' => url('studio'), 'compose' => url('compose'), 'designer' => url('designer'),
-    'L' => ['busy' => t('بنكتب…'), 'err' => t('حصلت مشكلة.'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'post' => t('انشره'), 'design' => t('صمّمه'), 'edit' => t('عدّل'), 'save' => t('حفظ'), 'visual' => t('الصورة المقترحة'), 'more' => t('اكتب نسخ تانية'), 'chars' => t('حرف')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    'L' => ['busy' => t('بنكتب…'), 'err' => t('حصلت مشكلة.'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'post' => t('انشره'), 'design' => t('صمّمه'), 'edit' => t('عدّل'), 'save' => t('حفظ'), 'visual' => t('الصورة المقترحة'), 'more' => t('اكتب نسخ تانية'), 'chars' => t('حرف'),
+      'vText' => t('نص'), 'vPrev' => t('معاينة'), 'variant' => t('نوّع'), 'short' => t('أقصر'), 'long' => t('أطول'), 'sell' => t('أقوى في البيع'), 'emo' => t('عاطفية أكتر'), 'rewriting' => t('بنعيد الصياغة…'),
+      'fav' => t('احفظ'), 'faved' => t('اتحفظت ⭐'), 'saved' => t('المحفوظ'), 'hist' => t('آخر كتابات'), 'restore' => t('رجّعها'), 'noHist' => t('لسه مفيش. اللي هتكتبه هيتحفظ هنا على الجهاز ده.'), 'clear' => t('امسح'),
+      'over' => t('أطول من حد %s (%s حرف)'), 'frame' => t('إطار %s'), 'slide' => t('شريحة %s'), 'now' => t('دلوقتي'), 'likes' => t('إعجاب'), 'editHint' => t('اضغط على النص عشان تعدّله')], 'ws' => $wsName], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/studio.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });
