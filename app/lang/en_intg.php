@@ -5303,4 +5303,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'انسخ كل الأرقام' => 'Copy all numbers',
     'لا توجد أرقام للعملاء المحددين.' => 'No numbers for the selected customers.',
     'لا يسمح واتساب بالإرسال الآلي من رقمك الشخصي، لذلك يُفتح كل رقم في محادثة والرسالة جاهزة.' => "WhatsApp doesn't allow automated sending from a personal number, so each number opens a chat with the message ready.",
+    'إضافة متابعة' => 'Add follow-up',
 ];

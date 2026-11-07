@@ -119,9 +119,11 @@
     if (at) jobs.push(setNext([dd.id], 'at', { at: at, note: note }).then(function (j) { if (j.ok) rowNext(r, j); return j; }));
     if (!jobs.length) return; btn.disabled = true; f.classList.add('busy');
     Promise.all(jobs).then(function (rs) { btn.disabled = false; f.classList.remove('busy'); if (rs.some(function (j) { return !j.ok; })) return toast(L.err, 'error');
-      f.note.value = ''; f.at.value = ''; f.classList.add('done'); setTimeout(function () { f.classList.remove('done'); }, 1200); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone);
+      f.note.value = ''; f.at.value = ''; f.classList.add('done'); setTimeout(function () { r.classList.remove('uf-open'); }, 900); setTimeout(function () { f.classList.remove('done'); }, 1200); r.classList.add('pr-flash'); setTimeout(function () { r.classList.remove('pr-flash'); }, 900); toast(QT.qDone);
       var x = r.nextElementSibling; if (x && x.classList.contains('pr-exp')) expHist(x.querySelector('[data-xh]'), dd.id); }).catch(function () { btn.disabled = false; f.classList.remove('busy'); toast(L.err, 'error'); }); });
   root.addEventListener('click', function (ev) { if (ev.target.closest('.pr-uf')) ev.stopPropagation(); }, true);
+  // الموبايل: الفورم بيظهر لما تدوس "إضافة متابعة"
+  root.addEventListener('click', function (ev) { var b = ev.target.closest('[data-qufo]'); if (!b) return; ev.preventDefault(); ev.stopPropagation(); var r = b.closest('[data-mk-row]'), on = r.classList.toggle('uf-open'); if (on) { var n = r.querySelector('.pr-uf [name=note]'); if (n) n.focus(); } }, true);
 
   // أي تحميل جديد للقايمة (بحث/فلتر/ترتيب) بيقفل المفتوح
   new MutationObserver(function () { root.querySelectorAll('.pr-exp').forEach(function (x) { var pr = x.previousElementSibling; if (!pr || !pr.classList.contains('pr-open')) x.remove(); }); }).observe(root.querySelector('[data-mk-body]'), { childList: true });
