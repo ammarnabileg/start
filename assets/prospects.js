@@ -138,6 +138,8 @@
     qm.querySelectorAll('[data-ct]').forEach(function (x) { x.addEventListener('click', function () { k = x.dataset.ct; qm.querySelectorAll('[data-ct]').forEach(function (y) { y.classList.toggle('on', y === x); }); inp.placeholder = k === 'phone' ? QT.cPhP : QT.cEmP; inp.type = k === 'phone' ? 'tel' : 'email'; inp.focus(); }); });
     qm.querySelector('form').addEventListener('submit', function (ev) { ev.preventDefault(); var v = inp.value.trim(); if (!v) return inp.focus(); var bt = this.querySelector('button'); bt.disabled = true;
       cPost(r, k, 'add', v).then(function (j) { bt.disabled = false; if (!j.ok) return toast(j.error || L.err, 'error'); qClose(); toast(QT.cAdded); list.reload(); }).catch(function () { bt.disabled = false; toast(L.err, 'error'); }); }); }, true);
+  root.addEventListener('click', function (e) { var b = e.target.closest('[data-qcmain]'); if (!b) return; e.preventDefault(); e.stopPropagation(); b.disabled = true;
+    cPost(b.closest('[data-mk-row]'), b.dataset.k, 'main', b.dataset.v).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || L.err, 'error'); } toast(QT.cMkDone); list.reload(); }).catch(function () { b.disabled = false; toast(L.err, 'error'); }); }, true);
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qcdel]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]');
     if (!confirm(QT.cDelQ.replace('%s', b.dataset.v))) return;
     cPost(r, b.dataset.k, 'del', b.dataset.v).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); var ln = b.closest('.pr-cl'); if (ln) ln.remove(); toast(L.saved || QT.qDone); }).catch(function () { toast(L.err, 'error'); }); }, true);

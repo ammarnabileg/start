@@ -1272,3 +1272,6 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pr-dlg #pd-contact{display:flex!important;flex-direction:column;flex-wrap:nowrap;gap:.35rem}
 #pr-dlg #pd-contact .pd-cl{width:100%;max-width:none;flex:0 0 auto}
 #pr-dlg #pd-contact .pd-cl{padding:.3rem .5rem}#pr-dlg .pd-cli{width:1.6rem;height:1.6rem}
+
+.pr-cmk:hover{background:#fef9c3!important;color:#ca8a04!important}
+.pd-cla .mk{opacity:0}.pd-cl:hover .mk{opacity:1}.pd-cla .mk:hover{background:#fef9c3;color:#ca8a04}
