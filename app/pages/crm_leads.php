@@ -216,9 +216,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'url' => crm_book_url()]);
     }
     if ($action === 'form_save' && $canManage) {
+        $c = (json_decode((string)setting('crm_form_cfg_' . $wid, ''), true) ?: []); // نحافظ على أسئلة التأهيل والميزانيات (نفس الإعداد)
         $c = ['title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 120), 'thanks' => mb_substr(trim((string)($_POST['thanks'] ?? '')), 0, 300),
             'company' => !empty($_POST['company']) ? 1 : 0, 'message' => !empty($_POST['message']) ? 1 : 0,
-            'color' => preg_match('/^#[0-9a-f]{6}$/i', (string)($_POST['color'] ?? '')) ? $_POST['color'] : '#4f46e5'];
+            'color' => preg_match('/^#[0-9a-f]{6}$/i', (string)($_POST['color'] ?? '')) ? $_POST['color'] : '#4f46e5'] + $c;
         save_setting('crm_form_cfg_' . $wid, json_encode($c, JSON_UNESCAPED_UNICODE));
         save_setting('crm_form_on_' . $wid, !empty($_POST['on']) ? '1' : '0');
         $json(['ok' => true, 'url' => crm_form_url(!empty($_POST['regen']))]);

@@ -6,7 +6,7 @@
 $wid = (int)($_GET['w'] ?? 0);
 $tok = (string)($_GET['t'] ?? '');
 $real = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
-if ($real === '' || $tok === '' || !hash_equals($real, $tok) || setting('crm_book_on_' . $wid, '0') !== '1') { http_response_code(403); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif">Booking is not available.</p>'); }
+if ($real === '' || $tok === '' || !hash_equals($real, $tok) || setting('crm_book_on_' . $wid, '0') !== '1') { http_response_code(403); exit('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Booking</title><div style="font-family:system-ui,sans-serif;min-height:90vh;display:grid;place-items:center;text-align:center;color:#334155"><div><div style="font-size:42px">📅</div><p style="font-size:18px;font-weight:700;margin:8px 0 4px" dir="rtl">الحجز مش متاح دلوقتي</p><p style="margin:0;color:#64748b">Booking is not available right now.</p></div></div>'); }
 ai_as_workspace($wid, function () use ($wid) {
     $cfg = crm_book_cfg();
     $tz = new DateTimeZone(site_timezone());

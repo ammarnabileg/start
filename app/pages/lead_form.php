@@ -93,6 +93,9 @@ button{border:0;border-radius:10px;padding:11px;font:inherit;font-weight:600;col
 <?php if (!empty($done)): ?><div class="done">✓ <?= e($done) ?></div><?php else: ?>
 <form method="post" id="f">
   <?php if (trim((string)$cfg['title']) !== ''): ?><h2><?= e($cfg['title']) ?></h2><?php endif; ?>
+  <?php if ($refLead): $rc = cap_ref_cfg($wid); $rl = ai_as_workspace($wid, function () use ($refLead) { return crm_lead($refLead); }); if (!empty($rc['on']) && $rl): ?>
+    <div style="margin:0 0 14px;padding:12px 14px;border-radius:14px;background:linear-gradient(120deg,<?= e($color) ?>1a,<?= e($color) ?>0d);border:1px solid <?= e($color) ?>40"><b style="display:block">🤝 <?= e(t('%s رشّحك لينا', preg_split('/\s+/u', trim((string)$rl['name']))[0] ?? '')) ?></b><?php if (trim((string)$rc['get']) !== ''): ?><span style="font-size:14px"><?= e(t('هدية ليك: %s', $rc['get'])) ?></span><?php endif; ?></div>
+  <?php endif; endif; ?>
   <input name="name" required maxlength="255" placeholder="<?= e(t('الاسم')) ?>" autocomplete="name">
   <input name="phone" type="tel" maxlength="40" dir="ltr" placeholder="<?= e(t('رقم الموبايل / واتساب')) ?>" autocomplete="tel">
   <?php if ($mode === 'call'): ?><input type="hidden" name="_mode" value="call"><?php else: ?>

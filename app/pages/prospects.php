@@ -165,7 +165,9 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <button type="button" id="pr-dups" class="pr-pill hidden"><?= ui_icon('users', 'w-4 h-4') ?><span></span></button>
       <div class="pr-view" role="group"><button type="button" data-view="list" class="on" title="<?= e(t('قايمة')) ?>"><?= ui_icon('list', 'w-4 h-4') ?><span><?= e(t('قايمة')) ?></span></button><button type="button" data-view="board" title="<?= e(t('لوحة المراحل')) ?>"><?= ui_icon('grid', 'w-4 h-4') ?><span><?= e(t('لوحة')) ?></span></button></div>
       <button type="button" id="pr-queue" class="btn-ghost"><?= ui_icon('phone', 'w-4 h-4') ?><?= e(t('طابور الاتصال')) ?><b class="pr-qn"></b></button>
-      <button type="button" id="pr-add-btn" class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('عميل جديد')) ?></button>
+      <button type="button" popovertarget="pr-add-menu" class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('عميل جديد')) ?><?= ui_icon('chevron-down', 'w-3.5 h-3.5 opacity-60') ?></button>
+      <div id="pr-add-menu" popover class="pr-menu"><button type="button" id="pr-add-btn"><span style="--c:#4f46e5"><?= ui_icon('plus', 'w-5 h-5') ?></span><b><?= e(t('إضافة يدوي')) ?><small><?= e(t('اكتب الاسم والرقم')) ?></small></b></button>
+        <button type="button" id="pr-card-btn"><span style="--c:#ea580c"><?= ui_icon('image', 'w-5 h-5') ?></span><b><?= e(t('من بطاقة عمل')) ?><small><?= e(t('صوّرها وإحنا نقراها')) ?></small></b></button></div>
       <form method="post" action="<?= e(url('crm_leads')) ?>" class="m-0" data-no-ajax><?= csrf_field() ?><input type="hidden" name="action" value="sync_ads"><button class="btn-ghost" title="<?= e(t('هات عملاء فورمات الإعلانات الجداد')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?><?= e(t('مزامنة الإعلانات')) ?></button></form>
       <button type="button" id="pr-import-btn" class="btn-ghost"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('استيراد ملف')) ?></button>
       <button type="button" id="pr-find-btn" class="btn-primary"><?= ui_icon('search', 'w-4 h-4') ?><?= e(t('ابحث عن شخص')) ?></button>
@@ -242,6 +244,10 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       </form>
     </dialog>
 
+    <dialog id="pr-card" class="mk-dlg !w-[min(860px,96vw)]">
+      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('عميل من بطاقة عمل')) ?></b><span id="pc-n" class="text-xs text-ink-500 me-2"></span><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div id="pc-body" class="p-5"></div>
+    </dialog>
     <dialog id="pr-merge" class="mk-dlg !w-[min(760px,96vw)]">
       <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('دمج العملاء المكررين')) ?></b><span id="pr-mg-pos" class="text-xs text-ink-500 tabular-nums" dir="ltr"></span><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
       <div class="p-5"><p class="text-xs text-ink-500 mb-3"><?= e(t('اختار النسخة اللي هتفضل، واضغط على أي قيمة من التانية عشان تاخدها. السجل والصفقات والمهام بتتجمع في عميل واحد.')) ?></p><div id="pr-mg"></div>
@@ -287,6 +293,11 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
     <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script>window.PCARD = <?= json_encode(['api' => url('crm_capture'), 'csrf' => csrf_token(), 'self' => url('prospects'), 'T' => ['dropT' => t('اسحب صورة البطاقة هنا'), 'dropD' => t('أو اضغط تصوّرها بالموبايل، أو الصق صورة (Ctrl+V)'), 'reading' => t('بنقرا البطاقة…'), 'none' => t('مالقيناش كلام واضح. جرّب صورة أوضح وفي إضاءة كويسة.'),
+      'lines' => t('الكلام اللي اتقرا — اضغط على سطر وبعدين على الخانة اللي يروح لها'), 'pick' => t('اختار الخانة دلوقتي'), 'name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'site' => t('الموقع'), 'event' => t('اتقابلنا فين؟'), 'eventP' => t('معرض، اجتماع، مناسبة…'),
+      'keep' => t('افتكر المكان للبطاقات الجاية'), 'save' => t('احفظ وافتح ملفه'), 'saveNext' => t('احفظ وصوّر اللي بعدها'), 'retake' => t('صورة تانية'), 'dup' => t('موجود قبل كده: %s — هيتحدّث بدل ما يتكرر'), 'need' => t('لازم رقم أو إيميل'), 'saved' => t('اتضاف ✓'), 'merged' => t('كان موجود واتحدّث ✓'), 'count' => t('%s بطاقة النهارده'), 'err' => t('حصلت مشكلة. جرّب تاني.'), 'wa' => t('واتساب'), 'call' => t('اتصال')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="assets/pr-card.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/prospects-pro.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

@@ -534,3 +534,11 @@ function crm_bshift_apply(array $changes, string $kind = 'apply'): array
     if ($ok) { $log = crm_bshift_log(); array_unshift($log, ['at' => date('Y-m-d H:i:s'), 'by' => (string)(current_user()['name'] ?? ''), 'kind' => $kind, 'items' => $ok]); save_setting('crm_bshift_log_' . (int)ws('id'), json_encode(array_slice($log, 0, 20), JSON_UNESCAPED_UNICODE)); }
     return [$ok, $fail];
 }
+
+/* ---------- برنامج الإحالة: المكافآت، رسالة المشاركة، وتسجيل المكافآت اللي اتسلّمت ---------- */
+function cap_ref_cfg(?int $wid = null): array
+{
+    $wid = $wid ?? (int)ws('id'); $c = json_decode((string)setting('crm_ref_cfg_' . $wid, ''), true) ?: [];
+    return $c + ['on' => 1, 'give' => '', 'get' => '', 'when' => 'won', 'msg' => t("أهلًا {name} 👋\nلو تعرف حد محتاج خدماتنا، ابعتله الرابط ده. هو هياخد {get}، وإنت هتاخد {give} أول ما يبقى عميل.\n{link}")];
+}
+function cap_ref_paid(int $wid): array { $p = json_decode((string)setting('crm_ref_paid_' . $wid, ''), true); return is_array($p) ? $p : []; }

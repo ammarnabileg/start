@@ -31,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(url('crm_capture') . '#lp');
     }
     if ($a === 'wa_make') { $r = cap_wa_link((string)($_POST['phone'] ?? ''), (string)($_POST['msg'] ?? ''), mb_substr(trim((string)($_POST['label'] ?? '')), 0, 160)); $r ? $J(['ok' => true] + $r) : $J(['error' => t('اكتب رقم واتساب صحيح بكود الدولة.')], 422); }
+    if ($a === 'ref_cfg') { $mgr = can('crm.manage') || is_ws_owner(); if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
+        save_setting('crm_ref_cfg_' . $wid, json_encode(['on' => !empty($_POST['on']) ? 1 : 0, 'give' => mb_substr(trim((string)($_POST['give'] ?? '')), 0, 120), 'get' => mb_substr(trim((string)($_POST['get'] ?? '')), 0, 120),
+            'when' => ($_POST['when'] ?? '') === 'lead' ? 'lead' : 'won', 'msg' => mb_substr(trim((string)($_POST['msg'] ?? '')), 0, 1000)], JSON_UNESCAPED_UNICODE)); $J(['ok' => true]); }
+    if ($a === 'ref_paid') { $id = (int)($_POST['lead'] ?? 0); $l = crm_lead($id); if (!$l) $J(['ok' => false, 'error' => t('بيانات ناقصة')]);
+        $p = cap_ref_paid($wid); $p[(string)$id] = max(0, (int)($_POST['n'] ?? 0)); save_setting('crm_ref_paid_' . $wid, json_encode($p)); crm_act_add($id, 'note', '🎁 ' . t('اتسلّمت مكافأة الإحالة (%s)', (int)$p[(string)$id])); $J(['ok' => true, 'n' => (int)$p[(string)$id]]); }
     if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
     if ($a === 'card_parse') {
         $txt = mb_substr((string)($_POST['text'] ?? ''), 0, 4000); $c = crm_extract_contacts($txt);
@@ -40,16 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (preg_match('~(https?://|www\.)\S+~i', $ln, $m)) { $site = $site ?: $m[0]; continue; }
             if (preg_match('/@|\d{5,}/', $ln)) continue;
             if ($title === '' && preg_match('/manager|director|ceo|founder|owner|sales|engineer|consultant|head|مدير|مؤسس|مهندس|مستشار|مسؤول|رئيس|مندوب/iu', $ln)) { $title = $ln; continue; }
-            if ($company === '' && preg_match('/\b(co|company|ltd|llc|inc|group|est)\b|شركة|مؤسسة|مجموعة|للتجارة|للمقاولات/iu', $ln)) { $company = $ln; continue; }
+            if ($company === '' && preg_match('/\b(co|company|ltd|llc|inc|group|est)\b|شركة|مؤسسة|مجموعة|للتجارة|للمقاولات/iu', $ln)) { $company = trim(preg_replace('/[+\d][\d\s()-]{6,}/', '', $ln)); continue; }
             if ($name === '' && mb_strlen($ln) <= 40 && preg_match('/^[\p{L}\s.\'-]+$/u', $ln)) { $name = $ln; continue; }
         }
-        $J(['ok' => true, 'name' => $name, 'phone' => $c['phone'], 'email' => $c['email'], 'company' => $company, 'title' => $title, 'site' => $site]);
+        $J(['ok' => true, 'lines' => array_slice($lines, 0, 30), 'name' => $name, 'phone' => $c['phone'], 'email' => $c['email'], 'company' => $company, 'title' => $title, 'site' => $site]);
     }
     if ($a === 'card_save') {
         $l = crm_lead_upsert(['source' => 'manual', 'name' => mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255) ?: t('كارت بزنس'), 'phone' => mb_substr(trim((string)($_POST['phone'] ?? '')), 0, 40), 'email' => mb_substr(trim((string)($_POST['email'] ?? '')), 0, 255),
             'company' => mb_substr(trim((string)($_POST['company'] ?? '')), 0, 255), 'title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255), 'owner_id' => (int)(current_user()['id'] ?? 0)]);
         if (!$l) $J(['error' => t('اكتب رقم أو إيميل على الأقل.')], 422);
-        crm_act_add((int)$l['id'], 'note', '🪪 ' . t('اتضاف من كارت بزنس') . (trim((string)($_POST['event'] ?? '')) !== '' ? ' — ' . mb_substr(trim((string)$_POST['event']), 0, 120) : ''));
+        crm_act_add((int)$l['id'], 'note', '🪪 ' . t('اتضاف من كارت بزنس') . (trim((string)($_POST['event'] ?? '')) !== '' ? ' — ' . mb_substr(trim((string)$_POST['event']), 0, 120) : '') . (trim((string)($_POST['site'] ?? '')) !== '' ? ' · ' . mb_substr(trim((string)$_POST['site']), 0, 200) : ''));
         $J(['ok' => true, 'id' => (int)$l['id'], 'merged' => !empty($l['merged'])]);
     }
     if ($a === 'sheet_save') {
@@ -71,35 +76,75 @@ $st = db()->prepare("SELECT id, name, company FROM crm_leads WHERE workspace_id 
 $st = db()->prepare("SELECT r.id, r.name, COUNT(x.id) n, SUM(x.stage = 'won') w FROM crm_leads x JOIN crm_leads r ON r.id = x.referred_by WHERE x.workspace_id = ? GROUP BY r.id, r.name ORDER BY n DESC LIMIT 10"); $st->execute([$wid]); $refTop = $st->fetchAll();
 $st = db()->prepare("SELECT l.label, l.code, l.clicks, (SELECT COUNT(*) FROM crm_leads x WHERE x.workspace_id = l.workspace_id AND x.link_code = l.code) leads FROM crm_links l WHERE l.workspace_id = ? AND l.url LIKE 'https://wa.me/%' ORDER BY l.id DESC LIMIT 20"); $st->execute([$wid]); $waLinks = $st->fetchAll();
 
+// برنامج الإحالة: السفراء (العملاء الحاليين + أي حد جاب حد) وأرقامهم
+$st = db()->prepare("SELECT l.id, l.name, l.company, l.phone, l.stage, COUNT(x.id) n, COALESCE(SUM(x.stage = 'won'), 0) w, COALESCE(SUM(CASE WHEN x.stage = 'won' THEN x.deal_value END), 0) v
+    FROM crm_leads l LEFT JOIN crm_leads x ON x.referred_by = l.id AND x.workspace_id = l.workspace_id WHERE l.workspace_id = ? AND (l.stage IN ('won','proposal','qualified') OR EXISTS (SELECT 1 FROM crm_leads y WHERE y.referred_by = l.id))
+    GROUP BY l.id ORDER BY n DESC, l.stage = 'won' DESC, l.id DESC LIMIT 300"); $st->execute([$wid]);
+$refAmb = array_map(function ($r) { return ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'co' => (string)$r['company'], 'wa' => crm_wa_digits((string)$r['phone']), 'stage' => (string)$r['stage'], 'n' => (int)$r['n'], 'w' => (int)$r['w'], 'v' => (float)$r['v'], 'link' => cap_ref_link((int)$r['id'])]; }, $st->fetchAll());
+$st = db()->prepare("SELECT COUNT(*) a, COALESCE(SUM(stage = 'won'), 0) w FROM crm_leads WHERE workspace_id = ? AND referred_by IS NOT NULL"); $st->execute([$wid]); $refAll = $st->fetch();
+$st = db()->prepare("SELECT COUNT(*) a, COALESCE(SUM(stage = 'won'), 0) w FROM crm_leads WHERE workspace_id = ? AND referred_by IS NULL"); $st->execute([$wid]); $refOth = $st->fetch();
+$st = db()->prepare("SELECT x.name, x.stage, x.created_at, r.name rn FROM crm_leads x JOIN crm_leads r ON r.id = x.referred_by WHERE x.workspace_id = ? ORDER BY x.id DESC LIMIT 8"); $st->execute([$wid]); $refFeed = $st->fetchAll();
+$refData = ['amb' => $refAmb, 'cfg' => cap_ref_cfg($wid), 'paid' => cap_ref_paid($wid), 'all' => ['a' => (int)$refAll['a'], 'w' => (int)$refAll['w']], 'oth' => ['a' => (int)$refOth['a'], 'w' => (int)$refOth['w']],
+    'T' => ['tSet' => t('الإعدادات والمكافآت'), 'tAmb' => t('السفراء'), 'on' => t('البرنامج شغال'), 'onS' => t('اللي يدخل من لينك إحالة يشوف اسم اللي رشّحه والهدية'),
+        'give' => t('مكافأة صاحب الإحالة'), 'giveP' => t('مثلًا: خصم 10% أو 500 جنيه'), 'get' => t('هدية الشخص الجديد'), 'getP' => t('مثلًا: استشارة مجانية'), 'when' => t('المكافأة تستحق إمتى؟'), 'wLead' => t('أول ما يسجّل'), 'wWon' => t('لما يبقى عميل'),
+        'msg' => t('رسالة المشاركة'), 'save' => t('حفظ'), 'k1' => t('جم بالإحالة'), 'k2' => t('تحويل الإحالات'), 'k3' => t('تحويل باقي المصادر'), 'k4' => t('إيراد من الإحالات'), 'due' => t('مستحق'), 'gave' => t('سلّمت المكافأة'),
+        'send' => t('ابعت واتساب'), 'copy' => t('نسخ اللينك'), 'copied' => t('اتنسخ'), 'noWa' => t('مفيش رقم'), 'find' => t('دوّر على سفير…'), 'fAll' => t('الكل'), 'fDue' => t('ليهم مكافأة'), 'fNew' => t('لسه مابعتلهمش'), 'queue' => t('ابعت للكل واحد ورا التاني'), 'next' => t('التالي'), 'qDone' => t('خلصت الطابور'),
+        'feed' => t('آخر الإحالات'), 'none' => t('لسه مفيش سفراء. أي عميل حالته "تم الاتفاق" أو "عرض سعر" أو "مؤهل" هيظهر هنا تلقائيًا.'), 'by' => t('من طرف %s'), 'ref' => t('%s إحالة'), 'won' => t('%s اتقفل'), 'better' => t('الإحالات بتتحوّل %sx أحسن من باقي المصادر'), 'prev' => t('معاينة'), 'ok' => t('اتحفظ'), 'err' => t('حصل خطأ')],
+    'feed' => array_map(function ($r) { return ['n' => (string)$r['name'], 'by' => (string)$r['rn'], 'st' => (string)$r['stage'], 'at' => fmt_date($r['created_at'], 'd/m')]; }, $refFeed), 'stages' => crm_stages()];
 // مصادر العملاء آخر 30 يوم مقارنة بالـ 30 اللي قبلهم
 $st = db()->prepare("SELECT source, SUM(created_at >= NOW() - INTERVAL 30 DAY) a, SUM(created_at < NOW() - INTERVAL 30 DAY) b FROM crm_leads WHERE workspace_id = ? AND created_at >= NOW() - INTERVAL 60 DAY GROUP BY source"); $st->execute([$wid]);
 $srcStat = []; $srcL = crm_sources(); foreach ($st->fetchAll() as $r) $srcStat[] = ['k' => (string)$r['source'], 'l' => (string)($srcL[$r['source']] ?? $r['source']), 'a' => (int)$r['a'], 'b' => (int)$r['b']];
 $st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE workspace_id = ? AND referred_by IS NOT NULL AND created_at >= NOW() - INTERVAL 30 DAY"); $st->execute([$wid]); $refN = (int)$st->fetchColumn();
-render(t('المصادر والإعدادات'), 'crm_capture', function () use ($cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks, $srcStat, $refN) {
+render(t('المصادر والإعدادات'), 'crm_capture', function () use ($wid, $cfg, $formUrl, $bookUrl, $callUrl, $lps, $sheet, $refLeads, $refTop, $waLinks, $srcStat, $refN, $refData) {
     $qrBtn = function (string $u, string $name) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-qr="' . e($u) . '" data-qrn="' . e($name) . '">▦ QR</button>'; };
     $copy = function (string $u) { return '<button type="button" class="btn-ghost !py-1 !text-xs" data-copy="' . e($u) . '">' . e(t('نسخ')) . '</button>'; };
     $sec = 'card p-5 scroll-mt-24';
     ?>
   <?php $setU = function (string $h) { return url('crm_settings', ['embed' => 1]) . '#' . $h; };
     $tiles = [
-      ['g' => 'cap', 'id' => 'links', 'i' => 'link', 'c' => '#2563eb', 'n' => t('روابط وQR'), 'd' => t('فورم التواصل، "اتصل بيا"، وصفحة الحجز'), 'm' => '3'],
-      ['g' => 'cap', 'id' => 'qualify', 'i' => 'target', 'c' => '#7c3aed', 'n' => t('فورم ذكي'), 'd' => t('أسئلة تأهيل الميزانية والتوقيت'), 'm' => !empty($cfg['qualify']) ? t('مفعّل') : t('مقفول')],
+      ['g' => 'cap', 'id' => 'links', 'i' => 'file', 'c' => '#2563eb', 'n' => t('الفورم والحجز'), 'd' => t('الروابط وQR، إعدادات الفورم، أسئلة التأهيل، وصفحة الحجز'), 'm' => setting('crm_book_on_' . $wid, '0') === '1' ? t('الحجز شغال') : t('الحجز مقفول')],
       ['g' => 'cap', 'id' => 'lp', 'i' => 'file', 'c' => '#0891b2', 'n' => t('صفحات هبوط'), 'd' => t('صفحة لكل حملة من غير موقع'), 'm' => t('%s صفحة', count($lps))],
       ['g' => 'cap', 'id' => 'wa', 'i' => 'chat', 'c' => '#16a34a', 'n' => t('واتساب متتبع'), 'd' => t('رابط بيعرف العميل جه منين'), 'm' => t('%s رابط', count($waLinks))],
-      ['g' => 'cap', 'id' => 'ref', 'i' => 'heart', 'c' => '#db2777', 'n' => t('الإحالة'), 'd' => t('رابط لكل عميل يجيب عملاء'), 'm' => t('%s عميل', $refN)],
-      ['g' => 'cap', 'id' => 'card', 'i' => 'image', 'c' => '#ea580c', 'n' => t('كارت بزنس'), 'd' => t('صوّر الكارت يتسجل عميل'), 'm' => ''],
+      ['g' => 'cap', 'x' => 1, 'id' => 'ref', 'i' => 'heart', 'c' => '#db2777', 'n' => t('برنامج الإحالة'), 'd' => t('عملاءك يجيبوا عملاء مقابل مكافأة'), 'm' => t('%s سفير', count($refData['amb']))],
       ['g' => 'cap', 'id' => 'sheet', 'i' => 'grid', 'c' => '#65a30d', 'n' => 'Google Sheets', 'd' => t('كل صف جديد = عميل'), 'm' => !empty($sheet['url']) ? t('متوصل') : t('مش متوصل')],
+      ['g' => 'cap', 'x' => 1, 'id' => 'auto', 'i' => 'spark', 'c' => '#a855f7', 'n' => t('التقاط من الرسائل'), 'd' => t('أي حد يكتب "عاوز/السعر" يتسجّل لوحده'), 'm' => crm_auto_capture_on($wid) ? t('مفعّل') : t('مقفول')],
+      ['g' => 'cap', 'x' => 1, 'id' => 'track', 'i' => 'globe', 'c' => '#0ea5e9', 'n' => t('تتبع الموقع'), 'd' => t('اعرف مين زار صفحة الأسعار'), 'm' => setting('crm_site_url_' . $wid, '') !== '' ? t('متوصل') : t('مش متوصل')],
       ['g' => 'ads', 'u' => url('leads', ['embed' => 1]), 'id' => 'adforms', 'i' => 'megaphone', 'c' => '#f59e0b', 'n' => t('فورمات الإعلانات'), 'd' => t('فورمات Lead Ads وتنزيلها CSV'), 'm' => ''],
       ['g' => 'set', 'u' => $setU('stages'), 'id' => 's-stages', 'i' => 'layers', 'c' => '#2563eb', 'n' => t('المراحل'), 'd' => t('أسماء وألوان مراحل العميل'), 'm' => t('%s مرحلة', count(crm_stages()))],
       ['g' => 'set', 'u' => $setU('pipes'), 'id' => 's-pipes', 'i' => 'route', 'c' => '#7c3aed', 'n' => 'Pipelines', 'd' => t('أكتر من مسار مبيعات'), 'm' => (string)count(crm_pipelines())],
       ['g' => 'set', 'u' => $setU('fields'), 'id' => 's-fields', 'i' => 'puzzle', 'c' => '#0891b2', 'n' => t('حقول مخصصة'), 'd' => t('بيانات زيادة لكل عميل'), 'm' => t('%s حقل', count(crm_custom_fields()))],
       ['g' => 'set', 'u' => $setU('tags'), 'id' => 's-tags', 'i' => 'tag', 'c' => '#db2777', 'n' => t('تاجات أوتوماتيك'), 'd' => t('تاج بيتحط لوحده بقواعد'), 'm' => t('%s قاعدة', count(crm_tag_rules()))],
       ['g' => 'set', 'u' => $setU('mail'), 'id' => 's-mail', 'i' => 'mail', 'c' => '#ea580c', 'n' => t('الإيميل'), 'd' => t('الإرسال والتتبع والتذكير اليومي'), 'm' => ''],
-      ['g' => 'set', 'u' => $setU('plans'), 'id' => 's-plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('خطوات متابعة أوتوماتيك'), 'm' => t('%s خطة', count(crm_plans()))],
+      ['g' => 'set', 'x' => 1, 'id' => 'plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('خطوات متابعة أوتوماتيك بالأيام'), 'm' => t('%s خطة', count(crm_plans()))],
+      ['g' => 'set', 'x' => 1, 'id' => 'tpl', 'i' => 'chat', 'c' => '#22c55e', 'n' => t('رسائل واتساب الجاهزة'), 'd' => t('القوالب اللي بتظهر في نافذة العميل'), 'm' => t('%s قالب', count(crm_templates()))],
+      ['g' => 'set', 'x' => 1, 'id' => 'sla', 'i' => 'clock', 'c' => '#ef4444', 'n' => t('السرعة والتوزيع'), 'd' => t('وقت الرد، توزيع العملاء، واحتمالات الإغلاق'), 'm' => t('%s دقيقة', (int)crm_sla_cfg()['mins'])],
     ]; ?>
   <div id="cap-ov"></div>
   <div id="hub" class="hub"></div>
   <aside id="hub-dr" class="hub-dr" aria-hidden="true"><div class="hub-bg" data-hx></div><div class="hub-pn"><header><span class="hub-ic"></span><b></b><button type="button" class="hub-x" data-hx aria-label="✕">✕</button></header><div class="hub-body"></div></div></aside>
+  <?php $members = []; foreach (crm_members() as $m) $members[(int)$m['id']] = $m['name']; $fcfg = json_decode((string)setting('crm_form_cfg_' . $wid, ''), true) ?: []; ?>
+  <script>window.HUBX = <?= json_encode(['api' => url('crm_leads'), 'self' => url('crm_capture'), 'csrf' => csrf_token(), 'manage' => can('crm.manage') || is_ws_owner(),
+    'plans' => crm_plans(), 'chans' => crm_plan_channels(), 'tpl' => crm_templates(), 'sla' => crm_sla_cfg(), 'routes' => crm_route_rules(), 'probs' => crm_stage_probs(), 'stages' => crm_stages(), 'members' => $members,
+    'auto' => crm_auto_capture_on($wid), 'cta' => crm_cta_words(), 'track' => crm_track_cfg($wid), 'site' => (string)setting('crm_site_url_' . $wid, ''), 'trackJs' => crm_site_script(),
+    'book' => crm_book_cfg(), 'bookOn' => setting('crm_book_on_' . $wid, '0') === '1', 'form' => $fcfg, 'formOn' => setting('crm_form_on_' . $wid, '1') === '1', 'links' => ['form' => $formUrl, 'call' => $callUrl, 'book' => $bookUrl],
+    'budgets' => cap_budgets($fcfg), 'sheet' => !empty($sheet['url']), 'setUrl' => url('crm_settings'), 'ref' => $refData, 'rules' => crm_plan_rules(),
+    'T' => ['err' => t('حصلت مشكلة.'), 'saved' => t('اتحفظ ✓'), 'save' => t('حفظ'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'share' => t('ابعته واتساب'), 'preview' => t('معاينة'), 'addEnter' => t('اكتب واضغط Enter'), 'color' => t('اللون'), 'untitled' => t('من غير اسم'),
+      'autoT' => t('سجّل العملاء من الرسائل والتعليقات لوحده'), 'autoD' => t('أي حد يكتب كلمة من دول في رسالة أو تعليق بيتضاف عميل محتمل.'), 'ctaT' => t('الكلمات اللي تدل على اهتمام'), 'ctaD' => t('زي: السعر، بكام، عاوز، احجز، التفاصيل'),
+      'demo' => t('مثال'), 'demoMsg' => t('"السلام عليكم، {w} الباقة؟"'), 'captured' => t('اتسجّل عميل'), 'autoOn' => t('اتفعّل ✓ واتضاف %s عميل من الرسائل الموجودة'),
+      'tr1' => t('حط رابط موقعك'), 'tr2' => t('حط الكود في الموقع'), 'tr3' => t('تابع الزيارات في نافذة العميل'), 'site' => t('رابط موقعك'), 'snippet' => t('كود التتبع'), 'snipD' => t('حطه قبل </body> في كل صفحات الموقع. بيعرف العميل لما يرجع من رابط اتبعتله.'),
+      'hot' => t('الصفحات السخنة'), 'hotD' => t('أي زيارة لصفحة فيها الكلمات دي بتعمل متابعة "كلّمه دلوقتي".'), 'waBtn' => t('زرار واتساب عائم في الموقع'), 'waBtnD' => t('بيظهر لكل الزوار وبيتسجل مين ضغط.'), 'waNum' => t('رقم واتساب'), 'btnLabel' => t('نص الزرار'), 'yourSite' => t('موقعك'), 'chatUs' => t('كلّمنا'),
+      'newPlan' => t('خطة جديدة'), 'planName' => t('اسم الخطة (مثلًا: متابعة عميل جديد)'), 'dayN' => t('يوم'), 'subject' => t('عنوان الإيميل'), 'stepText' => t('نص الخطوة أو المهمة…'), 'addStep' => t('ضيف خطوة'), 'vars' => t('متغيرات:'), 'delPlan' => t('احذف الخطة'), 'delPlanQ' => t('تحذف الخطة؟ العملاء اللي ماشيين عليها هتقف.'), 'noPlans' => t('لسه مفيش خطط. اعمل أول خطة: واتساب يوم 0، مكالمة يوم 2، إيميل يوم 5.'),
+      's1' => t('أهلًا {name}، شكرًا لاهتمامك! تحب أبعتلك التفاصيل؟'), 's2' => t('كلّم {name} واعرف احتياجه'), 's3s' => t('عرض خاص ليك يا {name}'), 's3' => t('أهلًا {name}، ده ملخص عرضنا. تحب نحدد ميعاد؟ {book}'),
+      'tplName' => t('اسم القالب (مثلًا: متابعة)'), 'tplNew' => t('أهلًا {name}، معاك {me}. '), 'noTpl' => t('مفيش قوالب. ضيف أول قالب.'), 'sampleName' => t('أحمد'), 'sampleCo' => t('شركة النور'), 'sampleMe' => (string)(current_user()['name'] ?? ''),
+      'slaT' => t('لازم نرد على العميل الجديد خلال'), 'slaD' => t('لو عدّى الوقت ومحدش كلّمه بيوصل تنبيه للمسؤول.'), 'hrs' => t('%s ساعة'), 'mins' => t('%s دقيقة'), 'moveT' => t('انقله لحد تاني لو محدش كلّمه بعد (ساعات)'), 'moveD' => t('0 = ماتنقلوش'),
+      'routeT' => t('توزيع العملاء الجداد'), 'routeD' => t('مين ياخد العميل أول ما يتضاف حسب مصدره أو بلده.'), 'ifW' => t('لو'), 'addRule' => t('ضيف قاعدة'), 'routeF' => ['source' => t('المصدر'), 'country' => t('الدولة'), 'phone' => t('الرقم يبدأ بـ'), 'keyword' => t('كلمة في الرسالة')],
+      'probT' => t('احتمال الإغلاق لكل مرحلة'), 'probD' => t('بيتحسب منه توقع الإيراد في تقارير المبيعات.'),
+      'formT' => t('إعدادات الفورم'), 'formOn' => t('الفورم شغال'), 'fTitle' => t('العنوان'), 'thanks' => t('رسالة الشكر بعد الإرسال'), 'askCo' => t('اسأل عن الشركة'), 'askMsg' => t('خانة رسالة'),
+      'bookT' => t('صفحة الحجز'), 'bookOn' => t('الحجز شغال'), 'bookOff' => t('الحجز مقفول، شغّله'), 'from' => t('من'), 'to' => t('لحد'), 'len' => t('مدة الميعاد (دقيقة)'), 'ahead' => t('متاح لكام يوم قدام'), 'notice' => t('أقل وقت قبل الميعاد (ساعات)'), 'slotsP' => t('المواعيد اللي هتظهر:'),
+      'days' => [t('أحد'), t('اتنين'), t('تلات'), t('أربع'), t('خميس'), t('جمعة'), t('سبت')],
+      'qOn' => t('اسأل أسئلة التأهيل'), 'qOnD' => t('اللي عاوز يبدأ دلوقتي بيطلع فوق في العملاء.'), 'addBudget' => t('ضيف اختيار ميزانية'), 'qBudget' => t('ميزانيتك تقريبًا؟'), 'qWhen' => t('محتاج تبدأ إمتى؟'), 'whens' => [t('دلوقتي'), t('خلال شهر'), t('بعدين')],
+      'lpTitle' => t('عنوان الصفحة'), 'lpCta' => t('سجّل اهتمامك'), 'dropT' => t('اسحب صورة الكارت هنا أو اضغط'), 'dropD' => t('أو صوّره بالموبايل'), 'sh1' => t('افتح الشيت وانشره CSV'), 'sh2' => t('الصق الرابط هنا'), 'sh3' => t('كل ساعة بيتسحب الجديد'), 'findLead' => t('ابحث عن عميل…'), 'tLinks' => t('الروابط وQR'), 'tForm' => t('إعدادات الفورم'), 'tQual' => t('أسئلة التأهيل'), 'tBook' => t('الحجز'), 'tPlans' => t('الخطط'), 'tRules' => t('القواعد'),
+      'rHours' => t('ابعت في ساعات العمل بس'), 'rHoursD' => t('الإيميلات والمهام بتستنى لأول ساعة شغل.'), 'rStop' => t('وقّف الخطة لو العميل رد'), 'rStopD' => t('بيتعمل له مهمة "رد عليه" بدل باقي الخطوات.'), 'rNa' => t('لو مردّش كذا مرة انقله لخطة تانية'), 'rTimes' => t('مرات ←'), 'none' => t('من غير')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script>window.HUB = <?= json_encode(['tiles' => $tiles, 'G' => ['cap' => t('أدوات جمع العملاء'), 'ads' => t('الإعلانات'), 'set' => t('الإعدادات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script>window.CAPU = <?= json_encode(['src' => $srcStat, 'ref' => $refN, 'lpViews' => array_sum(array_map(function ($x) { return (int)($x['views'] ?? 0); }, $lps)), 'lpN' => count($lps), 'waClicks' => array_sum(array_column($waLinks, 'clicks')), 'waLeads' => array_sum(array_column($waLinks, 'leads')), 'prospects' => url('prospects'),
     'T' => ['title' => t('مصادر العملاء آخر 30 يوم'), 'new' => t('عميل جديد'), 'vs' => t('%s عن الـ 30 يوم اللي قبلها'), 'lp' => t('زيارة لصفحات الهبوط'), 'wa' => t('ضغطة واتساب'), 'waConv' => t('%s اتحولوا لعملاء (%s)'), 'ref' => t('عميل بالإحالة'),
@@ -201,5 +246,6 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
   <script src="assets/extract.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/crm-capture.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/cap-ux.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/hub-ui.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/hub.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });
