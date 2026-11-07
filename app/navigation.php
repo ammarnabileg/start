@@ -7,13 +7,20 @@
 function module_catalog(): array
 {
     return [
+        'tenders' => t('آخر المنافسات'),
         'crm' => t('إدارة العملاء'),
+        'competitors' => t('المنافسين'),
+        'studio' => t('استوديو المحتوى'),
+        'publishing' => t('النشر والمنشورات'),
+        'inbox' => t('الرسائل والتعليقات'),
         'automations' => t('الردود التلقائية والـ Workflows'),
         'whatsapp' => t('واتساب للبيزنس'),
         'analytics' => t('التحليلات'),
         'ads' => t('الإعلانات'),
         'gmb' => 'Google Business',
         'phone' => t('التليفون وSMS'),
+        'knowledge' => t('قاعدة المعرفة'),
+        'media' => t('مكتبة الوسائط'),
     ];
 }
 
@@ -36,19 +43,19 @@ function nav_items(): array
     $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
-        ['key' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
+        ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
         ['key' => 'crm', 'label' => t('الشركات المستهدفة'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'prospects', 'label' => t('العملاء'), 'section' => $s2, 'module' => 'crm', 'also' => ['crm_doc', 'crm_leads']],
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['leads', 'crm_settings']],
-        ['key' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
-        ['key' => 'studio', 'label' => t('استوديو المحتوى'), 'section' => $sC,
+        ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
+        ['key' => 'studio', 'module' => 'studio', 'label' => t('استوديو المحتوى'), 'section' => $sC,
             'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')]],
-        ['key' => 'compose', 'label' => t('منشور جديد'), 'section' => $s3],
-        ['key' => 'posts', 'label' => t('المنشورات'), 'section' => $s3,
+        ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
+        ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => $s3, 'module' => 'ads',
             'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير')], 'also' => ['ad_campaign']],
-        ['key' => 'inbox', 'label' => t('الرسائل والتعليقات'), 'section' => $s4, 'tabs' => ['inbox' => t('الرسائل'), 'comments' => t('التعليقات')]],
+        ['key' => 'inbox', 'module' => 'inbox', 'label' => t('الرسائل والتعليقات'), 'section' => $s4, 'tabs' => ['inbox' => t('الرسائل'), 'comments' => t('التعليقات')]],
         ['key' => 'automations', 'label' => t('الردود التلقائية'), 'section' => $s4, 'module' => 'automations',
             'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows', 'crm_plans' => t('خطط متابعة العملاء')]],
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => $s4, 'module' => 'gmb',
@@ -60,8 +67,8 @@ function nav_items(): array
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s5, 'module' => 'crm'],
         ['key' => 'analytics', 'label' => t('التحليلات'), 'section' => $s6, 'module' => 'analytics',
             'tabs' => ['analytics' => t('المنشورات'), 'inbox_analytics' => t('الرسائل'), 'reports' => t('التقارير'), 'goals' => t('الأهداف'), 'alerts' => t('التنبيهات')], 'also' => ['report_print']],
-        ['key' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الإدارة')],
-        ['key' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الإدارة')],
+        ['key' => 'knowledge', 'module' => 'knowledge', 'label' => t('قاعدة المعرفة'), 'section' => t('الإدارة')],
+        ['key' => 'media', 'module' => 'media', 'label' => t('مكتبة الوسائط'), 'section' => t('الإدارة')],
         ['key' => 'accounts', 'label' => t('الحسابات المربوطة'), 'section' => t('الإدارة')],
         ['key' => 'connectors', 'label' => t('التكاملات'), 'section' => t('الإدارة'), 'owner' => true],
         ['key' => 'assistant', 'label' => t('الذكاء الاصطناعي'), 'section' => t('الإدارة')],
