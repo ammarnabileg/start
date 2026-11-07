@@ -218,7 +218,7 @@ $fetchRows = function (array $g) use ($buildWhere, $PAGE) {
     $st = db()->prepare("SELECT * FROM crm_leads WHERE $w ORDER BY $ord LIMIT $PAGE OFFSET $off"); $st->execute($a);
     return [$st->fetchAll(), $total];
 };
-$cols = 'md:grid-cols-[20px_minmax(140px,1.3fr)_minmax(150px,1.2fr)_100px_minmax(130px,1.3fr)_minmax(220px,1.4fr)_40px]';
+$cols = 'md:grid-cols-[20px_minmax(140px,1.3fr)_minmax(150px,1.2fr)_118px_minmax(125px,1.3fr)_minmax(210px,1.4fr)_40px]';
 $hasApollo = crm_has_key();
 $syncAt = explode('|', (string)setting('tg_sync_' . $wid, ''))[0];
 $syncDue = $syncAt === '' || strtotime($syncAt) < time() - 20 * 60;
