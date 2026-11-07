@@ -13,9 +13,9 @@ $nextOut = function (array $l) { return ['next' => $l['next_at'] ? fmt_date($l['
 // تنبيهات المتابعة لأي صفحة مفتوحة (كل دقيقة): بيشغّل الفحص وبيرجع تنبيهات المتابعة الجديدة بتاعتي
 if (($_GET['ajax'] ?? '') === 'due') {
     try { crm_followup_tick(false); } catch (Throwable $e) {}
-    $st = db()->prepare("SELECT id, lead_id, body FROM crm_notifs WHERE workspace_id = ? AND user_id = ? AND kind = 'followup' AND seen = 0 AND id > ? AND created_at > NOW() - INTERVAL 1 DAY ORDER BY id LIMIT 10");
+    $st = db()->prepare("SELECT n.id, n.lead_id, n.body, l.name who FROM crm_notifs n LEFT JOIN crm_leads l ON l.id = n.lead_id WHERE n.workspace_id = ? AND n.user_id = ? AND n.kind = 'followup' AND n.seen = 0 AND n.id > ? AND n.created_at > NOW() - INTERVAL 1 DAY ORDER BY n.id LIMIT 10");
     $st->execute([$wid, $uid, max(0, (int)($_GET['after'] ?? 0))]);
-    $J(['ok' => true, 'items' => array_map(function ($n) { return ['id' => (int)$n['id'], 'body' => (string)$n['body'], 'url' => url('prospects', ['lead' => (int)$n['lead_id']])]; }, $st->fetchAll()), 'unseen' => crm_notifs_unseen($wid, $uid)]);
+    $J(['ok' => true, 'items' => array_map(function ($n) { return ['id' => (int)$n['id'], 'body' => (string)$n['body'], 'who' => (string)($n['who'] ?? ''), 'url' => url('prospects', ['lead' => (int)$n['lead_id']])]; }, $st->fetchAll()), 'unseen' => crm_notifs_unseen($wid, $uid)]);
 }
 // كارت العميل للنافذة المشتركة من أي صفحة
 if (($_GET['ajax'] ?? '') === 'card') {

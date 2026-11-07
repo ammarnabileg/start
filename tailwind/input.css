@@ -1324,3 +1324,17 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   #pr [data-mk-row]:not(.uf-open) .pr-uf{display:none}
   #pr [data-mk-row].uf-open .pr-ufbtn{background:#f1f5f9;color:#475569;border-style:solid;border-color:#e2e8f0}
 }
+
+/* التنبيهات على الموبايل: شريط صغير تحت بدل كروت كبيرة فوق */
+@media (max-width:767px){
+  #fu-box{top:auto!important;bottom:5.5rem;inset-inline:.75rem!important;width:auto!important}
+  #fu-box .fu-card{padding:.6rem .75rem;gap:.55rem;align-items:center;border-radius:14px}
+  #fu-box .fu-ic{width:1.9rem;height:1.9rem}
+  #fu-box .fu-card b{font-size:.8rem}
+  #fu-box .fu-b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #fu-box .fu-card .mt-2{margin-top:.35rem}
+  /* تبويبات الشاشة الجانبية: كلها في سطر واحد */
+  #pd-tabs{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));gap:.15rem;padding:.35rem!important;overflow:visible!important}
+  #pd-tabs>button{flex-direction:column;gap:.15rem;padding:.4rem .1rem!important;font-size:.66rem!important;min-width:0;white-space:nowrap;justify-content:center}
+  #pd-tabs>button span,#pd-tabs>button{overflow:hidden;text-overflow:ellipsis}
+}
