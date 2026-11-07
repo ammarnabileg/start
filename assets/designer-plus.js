@@ -150,7 +150,7 @@
     if (d.layout === 'minimal') { o.push(X.R(W * 0.46, H * 0.3, W * 0.08, 4, m.ac), X.TC(title, Object.assign({}, tt, { top: H * 0.36, fontSize: W * 0.08 })), X.TC(sub, { top: H * 0.55, fontSize: W * 0.032, fill: m.sub, left: W * 0.15, width: W * 0.7 }), X.TC(X.CO, { top: H * 0.86, fontSize: W * 0.026, fill: m.sub, fontWeight: 700 })); return { bg: m.bg, objs: o }; }
     o.push(X.circ(W * 0.1, H * 0.1, W * 0.2, m.ac, { opacity: 0.3 }), X.circ(W * 0.92, H * 0.9, W * 0.26, m.ac, { opacity: 0.2 }), X.TC(title, Object.assign({}, tt, { top: H * 0.3, fontSize: W * 0.1, left: W * 0.08, width: W * 0.84 })), X.TC(sub, { top: H * 0.55, fontSize: W * 0.036, fill: m.sub, left: W * 0.1, width: W * 0.8 }), X.pill(cta, W * 0.5, H * 0.7, m.ac, m.bg === '#0b1020' ? '#0b1020' : '#fff', W * 0.034, true), X.TC(foot, { top: H * 0.9, fontSize: W * 0.024, fill: m.sub }));
     return { bg: m.bg, objs: o }; }
-  function paint(r) { X.setLock(true); cv.clear(); cv.setBackgroundColor(r.bg, function () {}); r.objs.forEach(function (o) { cv.add(o); }); X.setLock(false); cv.discardActiveObject(); cv.requestRenderAll(); }
+  function paint(r, noKit) { X.setLock(true); cv.clear(); cv.setBackgroundColor(r.bg, function () {}); r.objs.forEach(function (o) { cv.add(o); }); X.setLock(false); cv.discardActiveObject(); cv.requestRenderAll(); if (!noKit) document.dispatchEvent(new CustomEvent('dz:tpl')); }
   function busy(b, on, txt) { b.disabled = on; var sp = b.querySelector('span'); if (sp) { if (on) { sp.dataset.o = sp.textContent; sp.textContent = txt; } else if (sp.dataset.o) sp.textContent = sp.dataset.o; } b.classList.toggle('animate-pulse', on); }
   function genInto(prompt, ar) { var st = $('dz-ai-st'); st.textContent = L.imgWait;
     var call = function (d) { var f = new FormData(); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch('index.php?p=ai_task', { method: 'POST', body: f, headers: { 'X-CSRF-Token': C.csrf }, credentials: 'same-origin' }).then(function (r) { return r.json(); }); };
@@ -183,7 +183,7 @@
           if (ow >= W0 * 0.95 && oh >= H0 * 0.6) { // صورة أو خلفية بعرض اللوحة: بتغطي المقاس الجديد كله
             var f = Math.max(W / ow, H / oh); o.scaleX = sx * f; o.scaleY = sy * f; o.left = (W - ow * f) / 2; o.top = (H - oh * f) / 2; return; }
           var cx = o.left - W0 / 2, cy = o.top - H0 / 2; o.left = W / 2 + cx * s; o.top = H / 2 + cy * s; o.scaleX = sx * s; o.scaleY = sy * s; }); // الباقي بنفس النسبة حوالين النص
-        var j = JSON.stringify({ w: W, h: H, name: base + ' — ' + L.sizes[sz], c: c });
+        var j = window.dzSmart ? window.dzSmart({ w: W0, h: H0, name: base + ' — ' + L.sizes[sz], c: src.c }, W, H) : JSON.stringify({ w: W, h: H, name: base + ' — ' + L.sizes[sz], c: c }); // ترتيب ذكي لو متاح
         post({ action: 'dsave', id: 0, name: base + ' — ' + L.sizes[sz], w: W, h: H, pages: 1, data: JSON.stringify({ v: 2, pages: [j] }), thumb: '' }).then(function () { if (++done === sizes.length) { busy(b, false); X.toast(L.resizeDone.replace('%s', done)); PRO.mine(); } }); });
     }
   };

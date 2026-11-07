@@ -103,7 +103,7 @@
 
   /* ---------- 5) معاينة حية لكل حساب ---------- */
   var right = accBox && accBox.closest('.card'), pv = document.createElement('div'); pv.className = 'card p-0 overflow-hidden'; pv.id = 'cp-pv';
-  pv.innerHTML = '<div class="flex items-center gap-2 px-4 h-11 border-b border-ink-100"><b class="text-sm text-ink-900 flex-1"></b><div class="flex gap-1 overflow-x-auto" id="cp-tabs" style="scrollbar-width:none"></div></div><div class="p-4 bg-gradient-to-b from-ink-50 to-white"><div class="mx-auto max-w-[340px] rounded-[2.2rem] border-[10px] border-ink-900 bg-ink-100 shadow-2xl overflow-hidden"><div class="h-5 flex justify-center bg-ink-900"><span class="w-20 h-3.5 rounded-b-xl bg-ink-900"></span></div><div id="cp-card" class="p-3 max-h-[60vh] overflow-y-auto" style="scrollbar-width:thin"></div></div></div>';
+  pv.innerHTML = '<div class="flex items-center gap-2 px-4 h-11 border-b border-ink-100"><b class="text-sm text-ink-900 flex-1"></b><div class="flex gap-1 overflow-x-auto" id="cp-tabs" style="scrollbar-width:none"></div></div><div class="p-4 bg-gradient-to-b from-ink-50 to-white"><div class="mx-auto max-w-[340px] rounded-[2.2rem] border-[10px] border-[#0b0f19] ring-1 ring-ink-200 bg-ink-100 shadow-2xl overflow-hidden"><div class="h-5 flex justify-center bg-[#0b0f19]"><span class="w-20 h-3.5 rounded-b-xl bg-[#0b0f19]"></span></div><div id="cp-card" class="p-3 max-h-[60vh] overflow-y-auto" style="scrollbar-width:thin"></div></div></div>';
   pv.querySelector('b').textContent = P.preview;
   var rc = $('#cp-right'); if (rc) { pv.className += ' lg:sticky lg:top-4'; rc.appendChild(pv); } else content.closest('.card').after(pv);
   var tab = null;
@@ -328,7 +328,7 @@
   function aiRow() { if (!(window.aiRun && window.aiItems) || document.getElementById('cp-aiq')) return;
     var keys = ['improve', 'hook', 'shorten', 'hashtags', 'cta', 'translate_en'].filter(function (k) { return window.aiItems[k]; });
     if (keys.length) { var row = document.createElement('div'); row.className = 'flex flex-wrap items-center gap-1.5 px-3 pb-2.5'; row.id = 'cp-aiq';
-      row.innerHTML = '<span class="text-[11px] font-bold bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦ AI</span>' + keys.map(function (k) { return '<button type="button" data-aiq="' + k + '" class="rounded-full border border-brand-200 bg-gradient-to-l from-brand-50 to-fuchsia-50 px-2.5 py-1 text-[11px] font-medium text-brand-800 hover:shadow-sm hover:-translate-y-px transition disabled:opacity-60">' + q(window.aiItems[k]) + '</button>'; }).join('');
+      row.innerHTML = '<span class="text-[11px] font-bold bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦ AI</span>' + keys.map(function (k) { return '<button type="button" data-aiq="' + k + '" class="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700 hover:shadow-sm hover:-translate-y-px transition disabled:opacity-60">' + q(window.aiItems[k]) + '</button>'; }).join('');
       row.addEventListener('click', function (e) { var b = e.target.closest('[data-aiq]'); if (!b) return; if (!ta.value.trim()) { ta.focus(); ta.classList.add('animate-pulse'); setTimeout(function () { ta.classList.remove('animate-pulse'); }, 700); return; } window.aiRun(ta, b.dataset.aiq, b); });
       ed.appendChild(row); } }
   if (document.readyState === 'complete') aiRow(); else window.addEventListener('load', aiRow);

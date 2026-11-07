@@ -1,6 +1,15 @@
 <?php
 /** استوديو المحتوى: المصمم (زي كانفا). مقاسات جاهزة، قوالب بألوان الشركة، نصوص وأشكال وصور، وحفظ في مكتبة الوسائط أو نشر على طول */
 $wid = (int)ws('id');
+$fontDir = ROOT_DIR . '/uploads/brandfonts/' . $wid;
+$fontTypes = ['ttf' => 'font/ttf', 'otf' => 'font/otf', 'woff' => 'font/woff', 'woff2' => 'font/woff2'];
+// خطوط الشركة المرفوعة (المجلد مقفول للعامة، بتتقري من هنا بس)
+if (isset($_GET['font'])) {
+    $fn = basename((string)$_GET['font']); $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+    if (!preg_match('/^[\w-]{1,60}\.(ttf|otf|woff2?)$/', $fn) || !is_file($fontDir . '/' . $fn)) { http_response_code(404); exit; }
+    header('Content-Type: ' . $fontTypes[$ext]); header('Cache-Control: private, max-age=604800'); readfile($fontDir . '/' . $fn); exit;
+}
+$kit = json_decode((string)setting('dz_kit_' . $wid, ''), true) ?: [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     $J = function (array $d, int $c = 200) { http_response_code($c); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
@@ -17,6 +26,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $act = (string)($_POST['action'] ?? '');
     $uid = (int)(current_user()['id'] ?? 0);
+    // هوية الشركة: ألوان، خط العناوين والنص، اللوجو، وحطه تلقائي
+    if ($act === 'kit_save') {
+        $cols = array_values(array_slice(array_unique(array_filter(array_map(function ($c) { $c = strtolower(trim((string)$c)); return preg_match('/^#[0-9a-f]{6}$/', $c) ? $c : ''; }, (array)json_decode((string)($_POST['colors'] ?? '[]'), true)))), 0, 10));
+        $logo = (string)($_POST['logo'] ?? ''); if (!preg_match('~^index\.php\?p=(media&file=\d+|ai_task&img=[\w.-]+)$~', $logo)) $logo = '';
+        $font = function ($f) { $f = trim((string)$f); return preg_match('/^[\p{L}\p{N} _-]{1,60}$/u', $f) ? $f : ''; };
+        $new = ['colors' => $cols, 'head' => $font($_POST['head'] ?? ''), 'body' => $font($_POST['body'] ?? ''), 'logo' => $logo, 'auto' => !empty($_POST['auto']), 'fonts' => array_values(array_filter((array)($kit['fonts'] ?? []), 'is_array'))];
+        save_setting('dz_kit_' . $wid, json_encode($new, JSON_UNESCAPED_UNICODE)); log_activity('designer.kit', '');
+        $J(['ok' => true, 'kit' => $new]);
+    }
+    if ($act === 'kit_font') {
+        $f = $_FILES['file'] ?? null; $ext = strtolower(pathinfo((string)($f['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || !isset($fontTypes[$ext]) || $f['size'] > 5 * 1048576) $J(['error' => t('ارفع ملف خط (TTF أو OTF أو WOFF) لحد 5 ميجا.')], 422);
+        $head = (string)@file_get_contents($f['tmp_name'], false, null, 0, 4); // التأكد إنه خط فعلًا من أول بايتات الملف
+        if (!in_array($head, ["\x00\x01\x00\x00", 'OTTO', 'true', 'wOFF', 'wOF2'], true)) $J(['error' => t('الملف ده مش خط صالح.')], 422);
+        $name = trim(preg_replace('/[^\p{L}\p{N} _-]+/u', '', (string)($_POST['name'] ?? pathinfo($f['name'], PATHINFO_FILENAME)))) ?: 'Brand Font';
+        $name = mb_substr($name, 0, 40); $fn = substr(preg_replace('/[^a-z0-9]+/', '-', strtolower((function_exists('transliterator_transliterate') ? transliterator_transliterate('Any-Latin; Latin-ASCII', $name) : '') ?: 'font')), 0, 30) . '-' . bin2hex(random_bytes(3)) . '.' . $ext;
+        if (!is_dir($fontDir)) @mkdir($fontDir, 0750, true);
+        if (!move_uploaded_file($f['tmp_name'], $fontDir . '/' . $fn)) $J(['error' => t('ما قدرناش نحفظ الملف على السيرفر.')], 500);
+        $kit['fonts'] = array_values(array_slice(array_merge((array)($kit['fonts'] ?? []), [['name' => $name, 'file' => $fn]]), -12));
+        save_setting('dz_kit_' . $wid, json_encode($kit, JSON_UNESCAPED_UNICODE));
+        $J(['ok' => true, 'font' => ['name' => $name, 'url' => url('designer', ['font' => $fn])]]);
+    }
+    // صور مجانية من Pexels: البحث، والصورة المختارة بتتحفظ في المكتبة (عشان التصدير يشتغل)
+    if ($act === 'stock' || $act === 'stock_add') {
+        $px = connector('pexels'); if (!$px) $J(['error' => t('اربط Pexels من التكاملات الأول.'), 'connect' => url('connectors')], 422);
+        try {
+            if ($act === 'stock') {
+                $q = mb_substr(trim((string)($_POST['q'] ?? '')), 0, 80);
+                $r = $q !== '' ? pexels_request($px['credentials'], '/v1/search', ['query' => $q, 'per_page' => 24, 'page' => max(1, (int)($_POST['page'] ?? 1))]) : pexels_request($px['credentials'], '/v1/curated', ['per_page' => 24, 'page' => max(1, (int)($_POST['page'] ?? 1))]);
+                $J(['ok' => true, 'more' => !empty($r['next_page']), 'items' => array_map(function ($ph) { return ['id' => (int)$ph['id'], 'thumb' => (string)($ph['src']['medium'] ?? ''), 'w' => (int)$ph['width'], 'h' => (int)$ph['height'], 'by' => (string)($ph['photographer'] ?? ''), 'alt' => (string)($ph['alt'] ?? '')]; }, (array)($r['photos'] ?? []))]);
+            }
+            $ph = pexels_request($px['credentials'], '/v1/photos/' . (int)($_POST['id'] ?? 0));
+            $src = (string)($ph['src']['large2x'] ?? $ph['src']['large'] ?? ''); if ($src === '') $J(['error' => t('الصورة مش موجودة.')], 404);
+            $r = safe_fetch($src, ['file' => true, 'max' => 15 * 1048576, 'timeout' => 40, 'headers' => []]);
+            if (!empty($r['err'])) $J(['error' => $r['err']], 502);
+            $mime = (string)mime_content_type($r['file']); if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) { @unlink($r['file']); $J(['error' => t('نوع الملف ده مش مسموح: %s', $mime)], 422); }
+            $row = media_store_path($wid, $r['file'], 'pexels-' . (int)$ph['id'] . '.' . media_types()[$mime], $mime, t('صور مجانية')); @unlink($r['file']);
+            log_activity('designer.stock', (string)(int)$ph['id']);
+            $J(['ok' => true, 'url' => $row['url'], 'by' => (string)($ph['photographer'] ?? '')]);
+        } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+    }
     // تصميماتي: حفظ التصميم نفسه (كل الصفحات) عشان يتفتح ويتعدل تاني
     if ($act === 'dsave') {
         $data = (string)($_POST['data'] ?? ''); $thumb = (string)($_POST['thumb'] ?? '');
@@ -98,11 +148,14 @@ $kbd = ['name' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['taglin
     'focus' => mb_substr(trim((string)($kb['focus']['text'] ?? '')), 0, 120), 'pod' => mb_substr(trim((string)($kb['pod']['text'] ?? $kb['pod']['statement'] ?? '')), 0, 200), 'rtb' => mb_substr(trim((string)($kb['rtb']['text'] ?? '')), 0, 200),
     'svcs' => array_values(array_map(function ($r) { return ['name' => trim((string)($r['name'] ?? '')), 'price' => trim((string)($r['price'] ?? ''))]; }, array_filter((array)($kb['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; }))),
     'faq' => array_values(array_map(function ($r) { return ['q' => trim((string)$r['q']), 'a' => mb_substr(trim((string)$r['a']), 0, 140)]; }, array_filter((array)($kb['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; })))];
+if (!empty($kit['colors'])) $brand = $kit['colors'];
 if (!$brand) $brand = ['#2563eb', '#0f172a', '#f59e0b'];
 // صورة جاية من استوديو الصور أو من المكتبة (نفس الموقع بس، عشان التصدير يشتغل)
 $img = (string)($_GET['img'] ?? ''); if (!preg_match('~^index\.php\?p=(ai_task&img=[\w.-]+|media&file=\d+)$~', $img)) $img = '';
 
-render(t('استوديو المحتوى'), 'designer', function () use ($brand, $co, $img, $kbd) {
+$kitOut = $kit + ['colors' => [], 'head' => '', 'body' => '', 'logo' => '', 'auto' => false, 'fonts' => []];
+$kitOut['fonts'] = array_map(function ($f) { return ['name' => (string)$f['name'], 'url' => url('designer', ['font' => (string)$f['file']])]; }, array_filter((array)$kitOut['fonts'], function ($f) { return is_array($f) && !empty($f['file']); }));
+render(t('استوديو المحتوى'), 'designer', function () use ($brand, $co, $img, $kbd, $kitOut) {
     $fonts = ['Cairo', 'Tajawal', 'Almarai', 'Alexandria', 'Changa', 'El Messiri', 'Lalezar', 'Amiri', 'Reem Kufi', 'Inter', 'Poppins', 'Playfair Display'];
     ?>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700;900&family=Almarai:wght@400;700;800&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;700&family=Inter:wght@400;700;900&family=Poppins:wght@400;700;900&family=Playfair+Display:wght@400;700&display=swap">
@@ -169,7 +222,8 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
             <h3><?= e(t('إطارات صور')) ?></h3><div id="dz-frm" class="grid grid-cols-3 gap-2 mb-4"></div>
             <h3><?= e(t('فواصل وأسهم')) ?></h3><div id="dz-lns" class="grid grid-cols-3 gap-2 mb-4"></div>
             <h3><?= e(t('خلفيات بنقوش')) ?></h3><div id="dz-pat" class="grid grid-cols-4 gap-1.5 mb-4"></div>
-            <h3><?= e(t('أيقونات')) ?></h3><div id="dz-ico" class="grid grid-cols-5 gap-1.5"></div></section>
+            <h3><?= e(t('إيموجي ملونة')) ?></h3><div id="dz-emo" class="grid grid-cols-6 gap-1 mb-4"></div>
+            <h3 class="flex items-center gap-2"><?= e(t('أيقونات')) ?><span id="dz-ico-st" class="ms-auto inline-flex rounded-lg bg-ink-100 p-0.5 text-[10px] font-normal"><button type="button" data-ist="line" class="on"><?= e(t('خطوط')) ?></button><button type="button" data-ist="duo"><?= e(t('ملونة')) ?></button><button type="button" data-ist="solid"><?= e(t('مصمتة')) ?></button></span></h3><div id="dz-ico" class="grid grid-cols-5 gap-1.5"></div></section>
           <section data-pane="text" hidden><h3><?= e(t('أضف نص')) ?></h3>
             <button type="button" class="dz-add text-2xl font-black" data-add="h1"><?= e(t('عنوان كبير')) ?></button>
             <button type="button" class="dz-add text-lg font-bold" data-add="h2"><?= e(t('عنوان فرعي')) ?></button>
@@ -189,11 +243,26 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
             <button type="button" class="btn-primary w-full" data-cmd="lib"><?= ui_icon('folder', 'w-4 h-4') ?><?= e(t('من مكتبة الوسائط')) ?></button>
             <label class="btn-ghost w-full mt-2 cursor-pointer"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('ارفع من جهازك')) ?><input type="file" id="dz-up" accept="image/*" class="hidden"></label>
             <a class="btn-ghost w-full mt-2" href="<?= e(url('studio_media')) ?>"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('ولّد صورة بالذكاء الاصطناعي')) ?></a>
-            <p class="text-[11px] text-ink-400 mt-3"><?= e(t('اسحب أي صورة من جهازك على اللوحة مباشرة.')) ?></p></section>
+            <p class="text-[11px] text-ink-400 mt-3"><?= e(t('اسحب أي صورة من جهازك على اللوحة مباشرة.')) ?></p>
+            <h3 class="!mt-5 flex items-center gap-1"><?= e(t('صور مجانية')) ?> <span class="text-[10px] font-normal text-ink-400">Pexels</span></h3>
+            <div id="dz-stock-box"><form id="dz-stock-f" class="flex gap-1.5" data-no-ajax><input id="dz-stock-q" class="input !mt-0 !py-1.5 text-sm flex-1" dir="auto" placeholder="<?= e(t('ابحث بالإنجليزي أفضل: food, coffee…')) ?>"><button class="btn-primary !py-1.5 !px-2.5"><?= ui_icon('search', 'w-4 h-4') ?></button></form>
+              <div id="dz-stock" class="grid grid-cols-2 gap-1.5 mt-2"></div><button type="button" id="dz-stock-more" class="btn-ghost w-full !py-1 !text-xs mt-2 hidden"><?= e(t('صور كمان')) ?></button></div></section>
           <section data-pane="bg" hidden><h3><?= e(t('لون الخلفية')) ?></h3><div id="dz-bgc" class="grid grid-cols-6 gap-1.5"></div>
             <h3 class="!mt-5"><?= e(t('تدرجات')) ?></h3><div id="dz-bgg" class="grid grid-cols-4 gap-1.5"></div>
             <label class="flex items-center gap-2 mt-4 text-xs text-ink-600"><?= e(t('لون مخصص')) ?><input type="color" id="dz-bgx" class="h-8 w-12 rounded border border-ink-200"></label></section>
-          <section data-pane="brand" hidden><h3><?= e(t('ألوان شركتك')) ?></h3><div id="dz-brand" class="flex flex-wrap gap-2"></div>
+          <section data-pane="brand" hidden>
+            <div class="rounded-2xl border border-ink-200 p-3 mb-4 space-y-3" id="dz-kit">
+              <b class="block text-sm text-ink-900"><?= e(t('هوية الشركة')) ?></b>
+              <div><h3><?= e(t('اللوجو')) ?></h3><div class="flex items-center gap-2"><div id="kit-logo" class="w-16 h-16 rounded-xl border border-dashed border-ink-300 bg-[repeating-conic-gradient(rgb(var(--ink-100))_0_25%,rgb(var(--ink-50))_0_50%)] bg-[length:12px_12px] grid place-items-center overflow-hidden text-[10px] text-ink-400"></div>
+                <div class="flex-1 space-y-1"><button type="button" class="btn-ghost w-full !py-1 !text-xs" data-cmd="kitlogo"><?= e(t('اختار اللوجو')) ?></button><button type="button" class="btn-ghost w-full !py-1 !text-xs" data-cmd="addlogo"><?= e(t('حطه في التصميم')) ?></button></div></div></div>
+              <div><h3><?= e(t('ألوان الهوية')) ?></h3><div id="kit-cols" class="flex flex-wrap gap-1.5"></div></div>
+              <div class="grid grid-cols-2 gap-2"><label class="block text-[11px] text-ink-500"><?= e(t('خط العناوين')) ?><select id="kit-head" class="dz-sel w-full mt-1"></select></label><label class="block text-[11px] text-ink-500"><?= e(t('خط النص')) ?><select id="kit-body" class="dz-sel w-full mt-1"></select></label></div>
+              <label class="btn-ghost w-full !py-1 !text-xs cursor-pointer"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('ارفع خط الشركة')) ?><input type="file" id="kit-font" accept=".ttf,.otf,.woff,.woff2" class="hidden"></label>
+              <label class="flex items-center gap-2 text-xs text-ink-700"><input type="checkbox" id="kit-auto" class="rounded"> <?= e(t('حط اللوجو تلقائيًا في كل قالب')) ?></label>
+              <div class="grid grid-cols-2 gap-2"><button type="button" class="btn-primary !py-1.5 !text-xs" data-cmd="kitsave"><?= e(t('حفظ الهوية')) ?></button><button type="button" class="btn-ghost !py-1.5 !text-xs" data-cmd="kitapply"><?= e(t('طبّق على التصميم')) ?></button></div>
+              <p class="text-[10px] text-ink-400"><?= e(t('الهوية بتتحفظ للشركة كلها، والقوالب والتصميمات بالذكاء الاصطناعي بتستخدمها.')) ?></p>
+            </div>
+            <h3><?= e(t('ألوان شركتك')) ?></h3><div id="dz-brand" class="flex flex-wrap gap-2"></div>
             <p class="text-[11px] text-ink-400 mt-2"><?= e(t('من الهوية البصرية في قاعدة المعرفة. دوس على لون يتطبق على العنصر المحدد.')) ?></p>
             <h3 class="!mt-5"><?= e(t('اسم الشركة')) ?></h3><button type="button" class="dz-add font-bold" data-add="brandname"><?= e((string)($co['name'] ?? t('اسم الشركة'))) ?></button>
             <?php if (!empty($co['tagline'])): ?><button type="button" class="dz-add text-sm" data-add="tagline"><?= e((string)$co['tagline']) ?></button><?php endif; ?></section>
@@ -245,7 +314,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       </aside>
     </div>
   </div>
-  <script>window.DZ = <?= json_encode(['icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield'), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
+  <script>window.DZ = <?= json_encode(['kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield'), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
     'title' => mb_substr((string)($_GET['title'] ?? ''), 0, 120), 'text' => mb_substr((string)($_GET['text'] ?? ''), 0, 160), 'fonts' => $fonts,
     'L' => ['h1' => t('عنوان كبير'), 'h2' => t('عنوان فرعي'), 'p' => t('اكتب النص هنا'), 'cta' => t('اطلب الآن'), 'quote' => t('«خدمة ممتازة وسرعة في التنفيذ»'), 'quoteBy' => t('— عميل سعيد'), 'company' => t('اسم الشركة'),
       'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('عندك تصميم لسه شغال عليه. نكمّله؟'), 'replace' => t('القالب هيبدل التصميم الحالي. تكمل؟'),
@@ -266,7 +335,8 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       'stk' => [t('جديد'), t('خصم'), t('الأكثر مبيعًا'), t('توصيل مجاني'), t('عرض محدود'), t('حصري'), t('مجانًا'), t('اطلب الآن')],
       'tsty' => [[t('عنوان فخم'), t('وصف قصير أنيق')], [t('عنوان قوي'), t('سطر يشرح الفكرة')], [t('عرض اليوم'), t('لحد نص الليل')], ['NEW COLLECTION', 'Limited edition']],
       'aiBusy' => t('بنصمّم…'), 'carBusy' => t('بنكتب الكاروسيل…'), 'carDone' => t('اتعمل كاروسيل من %s صفحات ✓'), 'imgWait' => t('التصميم جاهز، وبنولّد الصورة…'), 'resizeDone' => t('اتعملت %s نسخ واتحفظت في تصميماتي ✓'),
-      'sizes' => ['1080x1080' => t('بوست'), '1080x1350' => t('طولي'), '1080x1920' => t('ستوري'), '1200x628' => t('عرضي')], 'nothing' => t('مفيش نتايج.'),
+      'sizes' => ['1080x1080' => t('بوست'), '1080x1350' => t('طولي'), '1080x1920' => t('ستوري'), '1200x628' => t('عرضي')], 'nothing' => t('مفيش نتايج.'), 'kitSaved' => t('اتحفظت الهوية ✓'), 'kitApplied' => t('اتطبقت الهوية على التصميم ✓'), 'noLogo' => t('اختار اللوجو الأول.'), 'fontUp' => t('اترفع الخط ✓'), 'defFont' => t('افتراضي'),
+      'stockConnect' => t('اربط Pexels من التكاملات عشان تدوّر في صور مجانية.'), 'stockOpen' => t('فتح التكاملات'), 'stockAdding' => t('بنحفظ الصورة في المكتبة…'), 'by' => t('تصوير'), 'addColor' => t('لون'),
       't1' => t('عرض'), 't2' => t('منتج'), 't3' => t('عن الشركة'), 't4' => t('ليه تختارنا'), 't5' => t('أسئلة شائعة'), 't6' => t('المواعيد والتواصل'), 't7' => t('قبل وبعد'), 't8' => t('فعالية'), 't9' => t('توظيف'), 't10' => t('جديد عندنا'), 't11' => t('خبر'), 't12' => t('ستوري عرض'), 't13' => t('ستوري تصويت'), 't14' => t('غلاف كاروسيل'), 't15' => t('تهنئة'), 't16' => t('قائمة الأسعار'),
       'cAll' => t('الكل'), 'cOffer' => t('عروض'), 'cProduct' => t('منتجات'), 'cQuote' => t('الشركة'), 'cEdu' => t('معلومات'), 'cEvent' => t('فعاليات'), 'cStory' => t('ستوري'), 'cCarousel' => t('كاروسيل'), 'cSeason' => t('مناسبات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script src="assets/vendor/fabric-5.3.0.min.js"></script>
@@ -274,4 +344,5 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
   <script src="assets/vendor/jspdf-4.2.1.umd.min.js" defer></script>
   <script src="assets/designer-pro.js?v=<?= e(APP_VERSION) ?>"></script>
   <script src="assets/designer-plus.js?v=<?= e(APP_VERSION) ?>"></script>
+  <script src="assets/designer-kit.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php });

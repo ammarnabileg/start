@@ -166,6 +166,19 @@ function connector_registry(): array
                 return t('المفتاح يعمل');
             },
         ],
+        // صور مجانية للمصمم (Pexels): البحث بيعدّي من السيرفر، والصورة المختارة بتتحفظ في مكتبة الوسائط
+        'pexels' => [
+            'name' => 'Pexels', 'category' => 'creative', 'single' => true,
+            'logo' => 'P', 'color' => '#05A081',
+            'description' => t('مكتبة صور مجانية للاستخدام التجاري جوه المصمم.'),
+            'docs' => 'https://www.pexels.com/api/',
+            'help' => t('من pexels.com/api اعمل حساب واطلب API Key (مجاني). الصور مجانية للاستخدام التجاري.'),
+            'fields' => [['key' => 'api_key', 'label' => 'API Key', 'secret' => true]],
+            'test' => function (array $c): string {
+                $r = pexels_request($c, '/v1/curated', ['per_page' => 1]);
+                return t('المفتاح يعمل');
+            },
+        ],
     ];
 }
 
@@ -238,6 +251,19 @@ function hf_base(): string
 }
 
 /** طلب لـ Higgsfield. $path ممكن يبقى رابط كامل (status_url) بس لازم يكون على نفس الدومين */
+/** طلب لـ Pexels (في الاختبارات بس ممكن يتوجه لسيرفر محلي) */
+function pexels_request(array $c, string $path, array $q = []): array
+{
+    $base = getenv('UI_FIXTURES') && getenv('PEXELS_BASE') ? (string)getenv('PEXELS_BASE') : 'https://api.pexels.com';
+    $ch = curl_init($base . $path . ($q ? '?' . http_build_query($q) : ''));
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_HTTPHEADER => ['Authorization: ' . $c['api_key'], 'Accept: application/json']]);
+    $raw = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
+    if ($raw === false) throw new Exception(t('تعذر الاتصال بـ %s: %s', 'Pexels', $err));
+    if ($st === 401 || $st === 403) throw new Exception(t('مفتاح %s غير صحيح أو ليس له صلاحية.', 'Pexels'));
+    if ($st >= 400) throw new Exception(t('خطأ من %s (%s)', 'Pexels', $st));
+    return json_decode($raw, true) ?: [];
+}
+
 function hf_request(array $c, string $method, string $path, ?array $body = null): array
 {
     $url = strpos($path, 'https://') === 0 || strpos($path, 'http://') === 0 ? $path : hf_base() . $path;

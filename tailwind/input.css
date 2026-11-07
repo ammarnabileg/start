@@ -220,7 +220,7 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-tpl:hover span { @apply opacity-100; }
   .dz-cat { @apply rounded-full border border-ink-200 px-2.5 py-1 text-[11px] text-ink-600 hover:border-brand-300; }
   .dz-cat.on { @apply bg-ink-900 border-ink-900 text-white; }
-  .dz-stage { @apply relative flex-1 min-w-0 grid place-items-center overflow-auto bg-[repeating-conic-gradient(#f1f5f9_0_25%,#f8fafc_0_50%)] bg-[length:24px_24px]; }
+  .dz-stage { @apply relative flex-1 min-w-0 grid place-items-center overflow-auto bg-[repeating-conic-gradient(rgb(var(--ink-100))_0_25%,rgb(var(--ink-50))_0_50%)] bg-[length:24px_24px]; }
   .dz-wrap { @apply shadow-[0_20px_60px_-15px_rgba(15,23,42,.35)]; }
   .dz-drop { @apply absolute inset-4 grid place-items-center rounded-2xl border-4 border-dashed border-brand-400 bg-brand-50/70 text-brand-800 font-semibold pointer-events-none; }
   .dz-props { @apply w-64 shrink-0 border-s border-ink-200 flex flex-col overflow-y-auto; }
@@ -250,6 +250,10 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-dcard:hover .dz-ddel { @apply opacity-100; }
   /* hidden لازم يغلب على flex/grid جوه المصمم (وإلا أدوات الصورة بتظهر مع النص) */
   .dz-shell [hidden], .dz-props [hidden] { display: none !important; }
+  .dz-stk-i { @apply relative w-full overflow-hidden rounded-lg bg-ink-100 transition hover:ring-4 hover:ring-brand-500/25; }
+  .dz-stk-i img { @apply w-full h-full object-cover; }
+  #dz-ico-st button { @apply rounded-md px-1.5 py-0.5 text-ink-500; } #dz-ico-st button.on { @apply bg-white text-brand-700 shadow-sm; }
+  .dz-el.dz-duo svg { @apply rounded-full bg-brand-100 p-1 text-brand-700; } .dz-el.dz-solid svg { @apply rounded-lg bg-brand-600 p-1 text-white; }
   .dz-float { @apply fixed z-[96] -translate-x-1/2 flex items-center gap-0.5 rounded-xl border border-ink-200 bg-white p-1 shadow-xl; }
   .dz-fb { @apply w-8 h-8 grid place-items-center rounded-lg text-sm text-ink-700 hover:bg-ink-100; }
   .dz-fsep { @apply w-px h-5 bg-ink-200 mx-0.5; }

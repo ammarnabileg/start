@@ -170,7 +170,7 @@
     if (cv.getObjects().length && hist.length > 1 && !confirm(L.replace)) return;
     var t = TPL[i]; lock = true; cv.clear(); setSize(t.size); var r = t.b();
     cv.setBackgroundColor(r.bg, function () {}); r.objs.forEach(function (o) { cv.add(o); });
-    lock = false; cv.discardActiveObject(); cv.requestRenderAll(); snap();
+    lock = false; cv.discardActiveObject(); cv.requestRenderAll(); document.dispatchEvent(new CustomEvent('dz:tpl')); snap();
   }
   // معاينات حقيقية للقوالب (بتترسم مرة واحدة بعد ما الخطوط تحمل)
   var CATS = [['all', L.cAll], ['offer', L.cOffer], ['product', L.cProduct], ['quote', L.cQuote], ['edu', L.cEdu], ['event', L.cEvent], ['story', L.cStory], ['carousel', L.cCarousel], ['season', L.cSeason]];

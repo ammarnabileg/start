@@ -218,7 +218,7 @@
   var pvT = null;
   function brandPreview() { readBR(); clearTimeout(pvT); pvT = setTimeout(function () { var s = brandSources()[0], pr = document.getElementById('cpt-prev'); if (!pr) return;
     if (!s) { pr.innerHTML = '<p class="text-xs text-ink-400 text-center py-6 rounded-xl bg-ink-50">' + esc(T.noImg) + '</p>'; return; }
-    toFile(s).then(brandFile).then(function (f) { pr.innerHTML = '<img src="' + URL.createObjectURL(f) + '" class="w-full max-h-72 object-contain rounded-xl border border-ink-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px]">'; }).catch(function () {}); }, 200); }
+    toFile(s).then(brandFile).then(function (f) { pr.innerHTML = '<img src="' + URL.createObjectURL(f) + '" class="w-full max-h-72 object-contain rounded-xl border border-ink-200 bg-[repeating-conic-gradient(rgb(var(--ink-100))_0_25%,rgb(var(--ink-50))_0_50%)] bg-[length:16px_16px]">'; }).catch(function () {}); }, 200); }
   function brandApply() {
     readBR(); var src = brandSources(); if (!src.length) return toast(T.noImg);
     var inp = document.getElementById('mediaInput'), keep = [].slice.call(inp.files || []).filter(function (f, i) { return !src.some(function (s) { return s.kind === 'file' && s.i === i; }); });
