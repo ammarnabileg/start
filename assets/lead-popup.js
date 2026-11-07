@@ -175,6 +175,6 @@
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-lead-pop]'); if (!b) return; e.preventDefault(); openId(+b.dataset.leadPop); });
   dl.addEventListener('close', function () { if (H.onClose && cur) H.onClose(jd(cur)); });
   function touched(r) { q(r, '[data-c=ago]').textContent = L.today; r.setAttribute('data-s-last', new Date().toISOString().slice(0, 19).replace('T', ' ')); r.dataset.cold = '0'; }
-  window.LeadPopup = { touched: touched, cur: function () { return cur; }, refresh: refresh, reload: function () { if (cur) loadActs(cur, jd(cur)); }, onData: function (f) { HK.data.push(f); }, onOpen: function (f) { HK.open.push(f); }, confetti: confetti, hostRows: function () { return vis(); }, H: function () { return H; }, open: open, openId: openId, jd: jd, upd: upd, rowNext: rowNext, setNext: setNext, bulk: bulk, host: function (h) { H = h || {}; } };
+  window.LeadPopup = { log: log, touched: touched, cur: function () { return cur; }, refresh: refresh, reload: function () { if (cur) loadActs(cur, jd(cur)); }, onData: function (f) { HK.data.push(f); }, onOpen: function (f) { HK.open.push(f); }, confetti: confetti, hostRows: function () { return vis(); }, H: function () { return H; }, open: open, openId: openId, jd: jd, upd: upd, rowNext: rowNext, setNext: setNext, bulk: bulk, host: function (h) { H = h || {}; } };
   var lm = /[?&]lead=(\d+)/.exec(location.search); if (lm && !/[?&]p=crm_leads/.test(location.search)) openId(+lm[1]);
 })();

@@ -73,7 +73,7 @@
       if (e.target.closest('[data-rmplan]')) { if (!confirm(T.delPlanQ)) return; plans.splice(cur, 1); cur = plans.length ? 0 : -1; return persist(e.target.closest('[data-rmplan]')); }
       if ((b = e.target.closest('[data-save]'))) persist(b); });
     body.addEventListener('input', function (e) { var el = e.target; if (el.matches('[data-name]')) plans[cur].name = el.value; if (el.dataset.k) plans[cur].steps[+el.dataset.i][el.dataset.k] = el.dataset.k === 'day' ? +el.value : el.value; });
-    function persist(btn) { save(btn, api({ action: 'plans_save', plans: plans }), function (j) { if (j.plans) { plans = j.plans; X.plans = j.plans; if (cur >= plans.length) cur = plans.length - 1; } paint(); }); } };
+    function persist(btn) { save(btn, api({ action: 'plans_save', plans: JSON.stringify(plans) }), function (j) { if (j.plans) { plans = j.plans; X.plans = j.plans; if (cur >= plans.length) cur = plans.length - 1; } paint(); }); } };
   /* ---------- رسائل واتساب الجاهزة ---------- */
   B.tpl = function (body) { var list = JSON.parse(JSON.stringify(X.tpl || [])), cur = 0;
     function fill(t) { return String(t || '').replace(/\{name\}/g, T.sampleName).replace(/\{company\}/g, T.sampleCo).replace(/\{me\}/g, T.sampleMe).replace(/\{book\}/g, 'https://…/book'); }
@@ -90,7 +90,7 @@
       if ((b = e.target.closest('[data-v]'))) { var ta = body.querySelector('[data-b]'), s = ta.selectionStart || ta.value.length; ta.value = ta.value.slice(0, s) + b.dataset.v + ta.value.slice(ta.selectionEnd || s); ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); return; }
       if (e.target.closest('[data-rm]') && !e.target.closest('.hx-chip')) { list.splice(cur, 1); cur = 0; persist(e.target.closest('[data-rm]')); return; }
       if ((b = e.target.closest('[data-save]'))) persist(b); });
-    function persist(btn) { save(btn, api({ action: 'tpl_save', tpl: list }), function (j) { if (j.tpl) { list = j.tpl; X.tpl = j.tpl; } paint(); }); } };
+    function persist(btn) { save(btn, api({ action: 'tpl_save', tpl: JSON.stringify(list) }), function (j) { if (j.tpl) { list = j.tpl; X.tpl = j.tpl; } paint(); }); } };
   /* ---------- السرعة والتوزيع ---------- */
   B.sla = function (body) { var s = X.sla, rules = (X.routes || []).slice(), F = T.routeF || {};
     var mem = function (v) { return Object.keys(X.members).map(function (k) { return '<option value="' + k + '"' + (+k === +v ? ' selected' : '') + '>' + esc(X.members[k]) + '</option>'; }).join(''); };

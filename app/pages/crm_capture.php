@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../partials/hubx_t.php';
 /** أدوات جمع العملاء (#51 #52 #53 #54 #56 #57 #58 #60) — كلها مجانية ومن غير ذكاء اصطناعي */
 $wid = (int)ws('id');
 $mgr = can('crm.manage') || is_ws_owner();
@@ -113,7 +114,7 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
       ['g' => 'set', 'u' => $setU('stages,pipes'), 'id' => 's-stages', 'i' => 'layers', 'c' => '#2563eb', 'n' => t('المراحل والـ Pipelines'), 'd' => t('مراحل العميل ومسارات البيع'), 'm' => t('%s مرحلة', count(crm_stages())) . ' · ' . count(crm_pipelines()) . ' Pipeline'],
       ['g' => 'set', 'u' => $setU('fields,tags'), 'id' => 's-fields', 'i' => 'puzzle', 'c' => '#0891b2', 'n' => t('الحقول والتاجات'), 'd' => t('بيانات زيادة لكل عميل وتاجات بتتحط لوحدها'), 'm' => t('%s حقل', count(crm_custom_fields())) . ' · ' . t('%s قاعدة', count(crm_tag_rules()))],
       ['g' => 'set', 'u' => $setU('mail'), 'id' => 's-mail', 'i' => 'mail', 'c' => '#ea580c', 'n' => t('الإيميل'), 'd' => t('الإرسال والتتبع والتذكير اليومي'), 'm' => ''],
-      ['g' => 'set', 'x' => 1, 'id' => 'plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('خطوات متابعة أوتوماتيك بالأيام'), 'm' => t('%s خطة', count(crm_plans()))],
+      ['g' => 'set', 'u' => url('crm_plans'), 'go' => 1, 'id' => 'plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('اتنقلت للردود التلقائية والـ Workflows'), 'm' => t('%s خطة', count(crm_plans()))],
       ['g' => 'set', 'x' => 1, 'id' => 'tpl', 'i' => 'chat', 'c' => '#22c55e', 'n' => t('رسائل واتساب الجاهزة'), 'd' => t('القوالب اللي بتظهر في نافذة العميل'), 'm' => t('%s قالب', count(crm_templates()))],
       ['g' => 'set', 'x' => 1, 'id' => 'sla', 'i' => 'clock', 'c' => '#ef4444', 'n' => t('السرعة والتوزيع'), 'd' => t('وقت الرد، توزيع العملاء، واحتمالات الإغلاق'), 'm' => t('%s دقيقة', (int)crm_sla_cfg()['mins'])],
     ]; ?>
@@ -127,23 +128,7 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
     'auto' => crm_auto_capture_on($wid), 'cta' => crm_cta_words(), 'track' => crm_track_cfg($wid), 'site' => (string)setting('crm_site_url_' . $wid, ''), 'trackJs' => crm_site_script(),
     'book' => crm_book_cfg(), 'bookOn' => setting('crm_book_on_' . $wid, '0') === '1', 'form' => $fcfg, 'formOn' => setting('crm_form_on_' . $wid, '1') === '1', 'links' => ['form' => $formUrl, 'call' => $callUrl, 'book' => $bookUrl],
     'budgets' => cap_budgets($fcfg), 'sheet' => !empty($sheet['url']), 'setUrl' => url('crm_settings'), 'ref' => $refData, 'rules' => crm_plan_rules(),
-    'T' => ['err' => t('حصلت مشكلة.'), 'saved' => t('اتحفظ ✓'), 'save' => t('حفظ'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'share' => t('ابعته واتساب'), 'preview' => t('معاينة'), 'addEnter' => t('اكتب واضغط Enter'), 'color' => t('اللون'), 'untitled' => t('من غير اسم'),
-      'autoT' => t('سجّل العملاء من الرسائل والتعليقات لوحده'), 'autoD' => t('أي حد يكتب كلمة من دول في رسالة أو تعليق بيتضاف عميل محتمل.'), 'ctaT' => t('الكلمات اللي تدل على اهتمام'), 'ctaD' => t('زي: السعر، بكام، عاوز، احجز، التفاصيل'),
-      'demo' => t('مثال'), 'demoMsg' => t('"السلام عليكم، {w} الباقة؟"'), 'captured' => t('اتسجّل عميل'), 'autoOn' => t('اتفعّل ✓ واتضاف %s عميل من الرسائل الموجودة'),
-      'tr1' => t('حط رابط موقعك'), 'tr2' => t('حط الكود في الموقع'), 'tr3' => t('تابع الزيارات في نافذة العميل'), 'site' => t('رابط موقعك'), 'snippet' => t('كود التتبع'), 'snipD' => t('حطه قبل </body> في كل صفحات الموقع. بيعرف العميل لما يرجع من رابط اتبعتله.'),
-      'hot' => t('الصفحات السخنة'), 'hotD' => t('أي زيارة لصفحة فيها الكلمات دي بتعمل متابعة "كلّمه دلوقتي".'), 'waBtn' => t('زرار واتساب عائم في الموقع'), 'waBtnD' => t('بيظهر لكل الزوار وبيتسجل مين ضغط.'), 'waNum' => t('رقم واتساب'), 'btnLabel' => t('نص الزرار'), 'yourSite' => t('موقعك'), 'chatUs' => t('كلّمنا'),
-      'newPlan' => t('خطة جديدة'), 'planName' => t('اسم الخطة (مثلًا: متابعة عميل جديد)'), 'dayN' => t('يوم'), 'subject' => t('عنوان الإيميل'), 'stepText' => t('نص الخطوة أو المهمة…'), 'addStep' => t('ضيف خطوة'), 'vars' => t('متغيرات:'), 'delPlan' => t('احذف الخطة'), 'delPlanQ' => t('تحذف الخطة؟ العملاء اللي ماشيين عليها هتقف.'), 'noPlans' => t('لسه مفيش خطط. اعمل أول خطة: واتساب يوم 0، مكالمة يوم 2، إيميل يوم 5.'),
-      's1' => t('أهلًا {name}، شكرًا لاهتمامك! تحب أبعتلك التفاصيل؟'), 's2' => t('كلّم {name} واعرف احتياجه'), 's3s' => t('عرض خاص ليك يا {name}'), 's3' => t('أهلًا {name}، ده ملخص عرضنا. تحب نحدد ميعاد؟ {book}'),
-      'tplName' => t('اسم القالب (مثلًا: متابعة)'), 'tplNew' => t('أهلًا {name}، معاك {me}. '), 'noTpl' => t('مفيش قوالب. ضيف أول قالب.'), 'sampleName' => t('أحمد'), 'sampleCo' => t('شركة النور'), 'sampleMe' => (string)(current_user()['name'] ?? ''),
-      'slaT' => t('لازم نرد على العميل الجديد خلال'), 'slaD' => t('لو عدّى الوقت ومحدش كلّمه بيوصل تنبيه للمسؤول.'), 'hrs' => t('%s ساعة'), 'mins' => t('%s دقيقة'), 'moveT' => t('انقله لحد تاني لو محدش كلّمه بعد (ساعات)'), 'moveD' => t('0 = ماتنقلوش'),
-      'routeT' => t('توزيع العملاء الجداد'), 'routeD' => t('مين ياخد العميل أول ما يتضاف حسب مصدره أو بلده.'), 'ifW' => t('لو'), 'addRule' => t('ضيف قاعدة'), 'routeF' => ['source' => t('المصدر'), 'country' => t('الدولة'), 'phone' => t('الرقم يبدأ بـ'), 'keyword' => t('كلمة في الرسالة')],
-      'probT' => t('احتمال الإغلاق لكل مرحلة'), 'probD' => t('بيتحسب منه توقع الإيراد في تقارير المبيعات.'),
-      'formT' => t('إعدادات الفورم'), 'formOn' => t('الفورم شغال'), 'fTitle' => t('العنوان'), 'thanks' => t('رسالة الشكر بعد الإرسال'), 'askCo' => t('اسأل عن الشركة'), 'askMsg' => t('خانة رسالة'),
-      'bookT' => t('صفحة الحجز'), 'bookOn' => t('الحجز شغال'), 'bookOff' => t('الحجز مقفول، شغّله'), 'from' => t('من'), 'to' => t('لحد'), 'len' => t('مدة الميعاد (دقيقة)'), 'ahead' => t('متاح لكام يوم قدام'), 'notice' => t('أقل وقت قبل الميعاد (ساعات)'), 'slotsP' => t('المواعيد اللي هتظهر:'),
-      'days' => [t('أحد'), t('اتنين'), t('تلات'), t('أربع'), t('خميس'), t('جمعة'), t('سبت')],
-      'qOn' => t('اسأل أسئلة التأهيل'), 'qOnD' => t('اللي عاوز يبدأ دلوقتي بيطلع فوق في العملاء.'), 'addBudget' => t('ضيف اختيار ميزانية'), 'qBudget' => t('ميزانيتك تقريبًا؟'), 'qWhen' => t('محتاج تبدأ إمتى؟'), 'whens' => [t('دلوقتي'), t('خلال شهر'), t('بعدين')],
-      'lpTitle' => t('عنوان الصفحة'), 'lpCta' => t('سجّل اهتمامك'), 'dropT' => t('اسحب صورة الكارت هنا أو اضغط'), 'dropD' => t('أو صوّره بالموبايل'), 'sh1' => t('افتح الشيت وانشره CSV'), 'sh2' => t('الصق الرابط هنا'), 'sh3' => t('كل ساعة بيتسحب الجديد'), 'findLead' => t('ابحث عن عميل…'), 'tLinks' => t('الروابط وQR'), 'tForm' => t('إعدادات الفورم'), 'tQual' => t('أسئلة التأهيل'), 'tBook' => t('الحجز'), 'tPlans' => t('الخطط'), 'tRules' => t('القواعد'),
-      'rHours' => t('ابعت في ساعات العمل بس'), 'rHoursD' => t('الإيميلات والمهام بتستنى لأول ساعة شغل.'), 'rStop' => t('وقّف الخطة لو العميل رد'), 'rStopD' => t('بيتعمل له مهمة "رد عليه" بدل باقي الخطوات.'), 'rNa' => t('لو مردّش كذا مرة انقله لخطة تانية'), 'rTimes' => t('مرات ←'), 'none' => t('من غير')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    'T' => hubx_t()], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script>window.HUB = <?= json_encode(['tiles' => $tiles, 'G' => ['cap' => t('أدوات جمع العملاء'), 'ads' => t('الإعلانات'), 'set' => t('الإعدادات')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
   <script>window.CAPU = <?= json_encode(['src' => $srcStat, 'ref' => $refN, 'lpViews' => array_sum(array_map(function ($x) { return (int)($x['views'] ?? 0); }, $lps)), 'lpN' => count($lps), 'waClicks' => array_sum(array_column($waLinks, 'clicks')), 'waLeads' => array_sum(array_column($waLinks, 'leads')), 'prospects' => url('prospects'),
     'T' => ['title' => t('مصادر العملاء آخر 30 يوم'), 'new' => t('عميل جديد'), 'vs' => t('%s عن الـ 30 يوم اللي قبلها'), 'lp' => t('زيارة لصفحات الهبوط'), 'wa' => t('ضغطة واتساب'), 'waConv' => t('%s اتحولوا لعملاء (%s)'), 'ref' => t('عميل بالإحالة'),

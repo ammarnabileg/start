@@ -865,3 +865,10 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pd-p-tk>section+section{border-radius:16px;padding:.8rem!important}
 .dark #pr-dlg .pd-tabs{background:#0b1220}.dark .pd-tform,.dark .pd-stsel{background:#0f172a;border-color:rgb(255 255 255/.08)}
 #pr-dlg .pd-cts .pd-act span{white-space:nowrap}
+
+/* تحديث واحد: حالة + ملاحظة + خطوة + متابعة */
+.pd-tform .pd-stsel{margin:0 0 .5rem;background:none;border:0;padding:0 0 .55rem;border-bottom:1px solid #f1f5f9;border-radius:0}
+.pd-unote{width:100%;border:0;resize:none;font-size:.92rem;padding:.25rem .2rem;background:transparent;color:#0f172a;outline:none}
+.pd-unext{display:flex;align-items:center;gap:.4rem;padding:.45rem .55rem;border-radius:10px;background:#f8fafc;color:#94a3b8;margin-top:.3rem}
+.pd-unext input{flex:1;border:0;background:transparent;font-size:.85rem;outline:none;color:#0f172a}
+.dark .pd-unext{background:#1e293b}.dark .pd-unote,.dark .pd-unext input{color:#f1f5f9}

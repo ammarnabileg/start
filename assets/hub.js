@@ -17,6 +17,7 @@
     body.innerHTML = ''; cur = null; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
   function open(id) { var t = H.tiles.filter(function (x) { return x.id === id; })[0]; if (!t) return; if (cur) close();
     cur = id; dr.querySelector('header b').textContent = t.n; var hi = dr.querySelector('header .hub-ic'); hi.innerHTML = ic(t.i); hi.style.setProperty('--c', t.c);
+    if (t.go) { location.href = t.u; return; }
     if (t.u) { body.innerHTML = '<div class="hub-load"><span class="ai-spin"></span></div><iframe src="' + esc(t.u) + '" title="' + esc(t.n) + '"></iframe>'; var fr = body.querySelector('iframe'); fr.addEventListener('load', function () { var l = body.querySelector('.hub-load'); if (l) l.remove(); }); }
     else if (t.x && window.HubX && HubX[id]) { body.innerHTML = ''; HubX[id](body); }
     else if (secs[id]) { var s = secs[id].el; s.classList.remove('hidden'); body.appendChild(s); var h = s.querySelector('h2'); if (h) h.classList.add('hidden'); if (window.HubE && HubE[id]) HubE[id](s); }
