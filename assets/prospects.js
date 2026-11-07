@@ -12,6 +12,9 @@
   /* ---------- القايمة: كروت الأرقام، بحث، فلاتر، ترتيب، تحديد، كيبورد ---------- */
   var root = $('pr'); if (!root) return;
   var F = ['pf-src', 'pf-stage', 'pf-owner', 'pf-country', 'pf-from', 'pf-to'].map($).filter(Boolean);
+  function srvUrl(kind, st, page) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', kind); if (page != null) u.searchParams.set('page', page);
+    Object.keys(st || {}).forEach(function (k) { u.searchParams.set(k, st[k] == null ? '' : st[k]); });
+    var m = { 'pf-src': 'src', 'pf-stage': 'stage', 'pf-owner': 'owner', 'pf-country': 'country', 'pf-from': 'from', 'pf-to': 'to' }; F.forEach(function (el) { u.searchParams.set(m[el.id], el.value.trim()); }); return u.toString(); }
   var list = MKList(root, {
     extra: function (r) { var d = r.dataset, v = {}; F.forEach(function (el) { v[el.id] = el.value.trim(); });
       return (!v['pf-src'] || d.src === v['pf-src']) && (!v['pf-stage'] || d.stage === v['pf-stage']) && (!v['pf-owner'] || d.owner === v['pf-owner']) &&
@@ -19,7 +22,8 @@
     onOpen: function (r) { open(r); },
     onRows: function (nr, append, j) { if (j && j.stages && !append) C.byStage = j.stages; if (window.PRBoard) PRBoard(); },
     // كتير عملاء؟ الصفحات والبحث والفلاتر من السيرفر
-    remote: function (st, page) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', 'rows'); u.searchParams.set('page', page);
+    remote: function (st, page) { return fetch(srvUrl('rows', st, page), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (t) { return JSON.parse(t.slice(t.indexOf('{'))); }); },
+    _old: function (st, page) { var u = new URL(location.href); u.searchParams.delete('lead'); u.searchParams.set('ajax', 'rows'); u.searchParams.set('page', page);
       Object.keys(st).forEach(function (k) { u.searchParams.set(k, st[k] == null ? '' : st[k]); });
       var m = { 'pf-src': 'src', 'pf-stage': 'stage', 'pf-owner': 'owner', 'pf-country': 'country', 'pf-from': 'from', 'pf-to': 'to' }; F.forEach(function (el) { u.searchParams.set(m[el.id], el.value.trim()); });
       return fetch(u.toString(), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (t) { return JSON.parse(t.slice(t.indexOf('{'))); }); }
@@ -39,16 +43,27 @@
   var lm = /[?&]lead=(\d+)/.exec(location.search); if (lm) { var lr = root.querySelector('[data-mk-row][data-id="' + lm[1] + '"]'); if (lr) open(lr); }
   /* ---------- عمليات بالجملة ---------- */
   function ids() { return list.selected().map(function (r) { return jd(r).id; }); }
+  var P2 = C.P.T;
+  function scope() { if (!list.allMode || !list.allMode()) return Promise.resolve({ ids: ids(), all: false });
+    return fetch(srvUrl('ids', list.state()), { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (t) { var j = JSON.parse(t.slice(t.indexOf('{'))); return { ids: j.ids || [], all: true }; }); }
+  // دفعات 200: حد السيرفر لكل طلب (وعشان max_input_vars في PHP)
+  function batched(all, fn) { var n = all.length, i = 0, last = { ok: true }; if (n > 400) toast(P2.working.replace('%s', 0).replace('%s', n.toLocaleString('en-US')));
+    function step() { if (i >= n) return Promise.resolve(last); var part = all.slice(i, i + 200); i += part.length;
+      return fn(part).then(function (j) { last = j; if (!j.ok) return j; if (n > 400) toast(P2.working.replace('%s', i.toLocaleString('en-US')).replace('%s', n.toLocaleString('en-US'))); return step(); }); }
+    return step(); }
+  function run(fn, local) { return scope().then(function (sc) { if (!sc.ids.length) return; if (sc.all && sc.ids.length > 400 && !confirm(P2.bigAsk.replace('%s', sc.ids.length.toLocaleString('en-US')))) return;
+    return batched(sc.ids, fn).then(function (j) { done(j, sc.ids.length); if (j.ok) { if (sc.all) list.reload(); else if (local) local(); } }); }); }
   function done(j, n) { if (!j.ok) return toast(j.error || L.err, 'error'); toast(L.done2.replace('%s', n)); }
-  $('pb-stage').addEventListener('change', function () { var v = this.value, s = list.selected(), el = this; if (!v || !s.length) return;
-    bulk(ids(), 'stage', { stage: v }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; }); el.value = ''; }); });
-  if ($('pb-owner')) $('pb-owner').addEventListener('change', function () { var v = this.value, s = list.selected(), el = this; if (!v || !s.length) return;
-    bulk(ids(), 'owner', { owner: v }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { upd(r, 'owner', +v); }); el.value = ''; }); });
-  $('pb-next').addEventListener('change', function () { var v = this.value, s = list.selected(), el = this; if (!v || !s.length) return;
-    setNext(ids(), v).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { rowNext(r, j); }); el.value = ''; list.apply(); }); });
-  $('pb-tag').addEventListener('click', function () { var s = list.selected(), t = (prompt(L.tagAsk) || '').trim(); if (!t || !s.length) return;
-    bulk(ids(), 'tag', { tag: t }).then(function (j) { done(j, s.length); if (j.ok) s.forEach(function (r) { var d = jd(r); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); }); }); });
+  $('pb-stage').addEventListener('change', function () { var v = this.value, s0 = list.selected(), el = this; if (!v || !s0.length) return; el.value = '';
+    run(function (part) { return bulk(part, 'stage', { stage: v }); }, function () { s0.forEach(function (r) { upd(r, 'stage', v); r.querySelector('[data-stage-pill]').textContent = C.stages[v] || v; }); }); });
+  if ($('pb-owner')) $('pb-owner').addEventListener('change', function () { var v = this.value, s0 = list.selected(), el = this; if (!v || !s0.length) return; el.value = '';
+    run(function (part) { return bulk(part, 'owner', { owner: v }); }, function () { s0.forEach(function (r) { upd(r, 'owner', +v); }); }); });
+  $('pb-next').addEventListener('change', function () { var v = this.value, s0 = list.selected(), el = this, lj = null; if (!v || !s0.length) return; el.value = '';
+    run(function (part) { return setNext(part, v).then(function (j) { lj = j; return j; }); }, function () { s0.forEach(function (r) { rowNext(r, lj); }); }); });
+  $('pb-tag').addEventListener('click', function () { var s0 = list.selected(), t = (prompt(L.tagAsk) || '').trim(); if (!t || !s0.length) return;
+    run(function (part) { return bulk(part, 'tag', { tag: t }); }, function () { s0.forEach(function (r) { var d = jd(r); upd(r, 'tags', (d.tags ? d.tags + ', ' : '') + t); }); }); });
   $('pb-csv').addEventListener('click', function () { var s = list.selected(); if (!s.length) return;
+    if (list.allMode && list.allMode()) { location.href = srvUrl('export', list.state()); return; } // كل اللي ماشيين على الفلتر من السيرفر
     var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var lines = [[L.cols.name, L.cols.phone, L.cols.email, L.cols.company, L.cols.title, L.cols.country, L.src, L.added].map(q).join(',')].concat(s.map(function (r) { var d = jd(r);
       return [d.name, d.phone, d.email, d.company, d.title, d.country, d.src, d.added].map(q).join(','); }));

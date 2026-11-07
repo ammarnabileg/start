@@ -20,7 +20,8 @@ window.MKList = function (root, o) {
   function load(append) { var my = ++seq; busy = true; root.classList.add('mk-loading');
     return R(remoteState(), append ? page + 1 : 0).then(function (j) { if (my !== seq) return; busy = false; root.classList.remove('mk-loading'); if (!j || !j.ok) return;
       var t = document.createElement('div'); t.innerHTML = j.html; var nr = [].slice.call(t.querySelectorAll('[data-mk-row]'));
-      if (!append) { body.innerHTML = ''; rows = []; page = 0; } else page++;
+      if (!append) { body.innerHTML = ''; rows = []; page = 0; allMode = false; if (bar) bar.classList.remove('mk-bar-on'); } else page++;
+      if (append && allMode) setTimeout(function () { nr.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); if (c) c.checked = true; }); syncSel(); });
       nr.forEach(function (r) { body.appendChild(r); }); rows = rows.concat(nr); total = j.total; paintShown(); if (o.onRows) o.onRows(nr, append, j); })
       .catch(function () { if (my === seq) { busy = false; root.classList.remove('mk-loading'); } }); }
   if (R && body) { sent = document.createElement('div'); sent.className = 'mk-more'; body.after(sent);
@@ -50,8 +51,14 @@ window.MKList = function (root, o) {
     rows.forEach(function (r) { body.appendChild(r); }); }); });
   // تحديد
   function sel() { return rows.filter(function (r) { var c = r.querySelector('[data-mk-check]'); return c && c.checked; }); }
-  function syncSel() { var s = sel(); rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); r.classList.toggle('mk-sel', !!(c && c.checked)); });
-    if (bar) { bar.classList.toggle('mk-bar-on', s.length > 0); if (nSel) nSel.textContent = s.length; }
+  // "اختار الكل" في وضع السيرفر: يشمل كل اللي ماشيين على الفلتر حتى اللي ماتحمّلوش
+  var allMode = false, selAll = root.querySelector('[data-mk-selall]');
+  function paintAll() { if (!selAll) return; var vis = visible(), allLoaded = vis.length > 0 && vis.every(function (r) { var c = r.querySelector('[data-mk-check]'); return c && c.checked; });
+    var show = !!R && allLoaded && total > rows.length; selAll.classList.toggle('hidden', !show && !allMode); var f = function (t) { return t.replace('%s', total.toLocaleString('en-US')); };
+    selAll.textContent = allMode ? f(selAll.dataset.tOn) : f(selAll.dataset.tAll); selAll.classList.toggle('on', allMode); if (allMode && nSel) nSel.textContent = total.toLocaleString('en-US'); }
+  if (selAll) selAll.addEventListener('click', function () { if (allMode) { allMode = false; rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); if (c) c.checked = false; }); syncSel(); return; } allMode = true; paintAll(); });
+  function syncSel() { var s = sel(); if (allMode && s.length < rows.length) allMode = false; rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); r.classList.toggle('mk-sel', !!(c && c.checked)); });
+    if (bar) { bar.classList.toggle('mk-bar-on', s.length > 0); if (nSel) nSel.textContent = s.length; } paintAll();
     var all = root.querySelector('[data-mk-all]'); if (all) { var vis = visible(); all.checked = vis.length > 0 && vis.every(function (r) { var c = r.querySelector('[data-mk-check]'); return c && c.checked; }); }
     if (o.onSelect) o.onSelect(s); }
   root.addEventListener('change', function (e) { if (e.target.matches('[data-mk-check]')) syncSel();
@@ -74,5 +81,5 @@ window.MKList = function (root, o) {
     else if (e.key === 'Escape') { rows.forEach(function (r) { var c = r.querySelector('[data-mk-check]'); if (c) c.checked = false; }); syncSel(); }
   });
   if (R) paintShown(); else apply();
-  return { total: function () { return total; }, reload: function () { load(false); }, more: function () { return rows.length < total && !busy ? load(true) : Promise.resolve(); }, apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
+  return { allMode: function () { return allMode; }, state: remoteState, total: function () { return total; }, reload: function () { load(false); }, more: function () { return rows.length < total && !busy ? load(true) : Promise.resolve(); }, apply: apply, selected: sel, rows: function () { return rows; }, remove: function (r) { rows = rows.filter(function (x) { return x !== r; }); r.remove(); apply(); syncSel(); }, clear: function () { if (clr) clr.click(); } };
 };

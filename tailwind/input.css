@@ -874,3 +874,6 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .dark .pd-unext{background:#1e293b}.dark .pd-unote,.dark .pd-unext input{color:#f1f5f9}
 
 .pr-bmore{display:flex;align-items:flex-start;padding:.5rem;min-width:160px}
+
+.mk-selall{font-size:.78rem;font-weight:600;padding:.3rem .7rem;border-radius:9px;background:#eff6ff;color:#1d4ed8;white-space:nowrap}
+.mk-selall.on{background:#1d4ed8;color:#fff}
