@@ -85,6 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $J(['ok' => true, 'phone' => $ph ?: (string)$l['phone'], 'email' => $em ?: (string)$l['email'], 'wa' => function_exists('crm_wa_digits') ? crm_wa_digits($ph ?: (string)$l['phone']) : '']);
     }
     // المتابعة الجاية: النهارده، بكرة، بعد 3 أيام، الأسبوع الجاي، تاريخ محدد، أو مفيش
+    if ($a === 'view_save' || $a === 'view_del') {
+        $k = 'crm_views_' . $wid . '_' . $uid; $v = json_decode((string)setting($k, ''), true); $v = is_array($v) ? $v : [];
+        if ($a === 'view_del') $v = array_values(array_filter($v, function ($x) { return ($x['id'] ?? '') !== (string)($_POST['id'] ?? ''); }));
+        else { $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 40); $st = json_decode((string)($_POST['state'] ?? ''), true);
+            if ($name === '' || !is_array($st)) $J(['ok' => false, 'error' => t('اكتب اسم للفلتر.')]);
+            $clean = []; foreach (['q', 'stat', 'src', 'stage', 'owner', 'country', 'from', 'to', 'pl', 'sort', 'dir'] as $f) if (isset($st[$f]) && (string)$st[$f] !== '') $clean[$f] = mb_substr((string)$st[$f], 0, 120);
+            $v[] = ['id' => substr(bin2hex(random_bytes(4)), 0, 8), 'name' => $name, 's' => $clean]; $v = array_slice($v, -12); }
+        save_setting($k, json_encode($v, JSON_UNESCAPED_UNICODE)); $J(['ok' => true, 'views' => $v]);
+    }
     if ($a === 'next') {
         $w = (string)($_POST['when'] ?? ''); $tz = new DateTimeZone(site_timezone()); $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 255); $n = 0; $last = null;
         $d = null;
@@ -154,7 +163,8 @@ $buildWhere = function (array $g) use ($where, $args, $SQ) {
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($g['from'] ?? ''))) { $w .= ' AND created_at >= ?'; $a[] = $g['from'] . ' 00:00:00'; }
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($g['to'] ?? ''))) { $w .= ' AND created_at <= ?'; $a[] = $g['to'] . ' 23:59:59'; }
     $sorts = ['name' => 'name', 'company' => 'company', 'src' => 'source', 'stage' => 'stage', 'last' => 'COALESCE(last_contact_at, created_at)'];
-    $ord = isset($sorts[$g['sort'] ?? '']) ? $sorts[$g['sort']] . ((int)($g['dir'] ?? 1) < 0 ? ' DESC' : ' ASC') . ', id DESC' : 'id DESC';
+    $ord = ($g['sort'] ?? '') === 'next' ? 'next_at IS NULL, next_at' . ((int)($g['dir'] ?? 1) < 0 ? ' DESC' : ' ASC') . ', id DESC'
+        : (isset($sorts[$g['sort'] ?? '']) ? $sorts[$g['sort']] . ((int)($g['dir'] ?? 1) < 0 ? ' DESC' : ' ASC') . ', id DESC' : 'id DESC');
     return [$w, $a, $ord];
 };
 $fetchRows = function (array $g) use ($buildWhere, $PAGE) {
@@ -230,7 +240,7 @@ if (($_GET['ajax'] ?? '') === 'dups') {
 [$rows, $total] = $fetchRows([]); $byStage = $GLOBALS['pr_by_stage'] ?? [];
 $st = db()->prepare("SELECT COUNT(*) FROM crm_leads WHERE $where AND phone IS NOT NULL AND phone <> '' AND stage NOT IN ('won','lost')"); $st->execute($args); $qN = (int)$st->fetchColumn();
 
-render(t('العملاء المستهدفين'), 'prospects', function () use ($byStage, $qN, $rowsHtml, $total, $PAGE, $cols, $pipes, $pl, $plSel, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
+render(t('العملاء المستهدفين'), 'prospects', function () use ($uid, $wid, $byStage, $qN, $rowsHtml, $total, $PAGE, $cols, $pipes, $pl, $plSel, $plCnt, $isDue, $isCold, $ago, $rows, $sources, $stages, $members, $cnt, $stat, $hasApollo, $canManage, $syncDue, $srcIcon, $nexts, $kinds) {
     $sel = function (string $id, string $label, array $opts) { $h = '<label class="block text-xs text-ink-600">' . e($label) . '<select id="' . $id . '" class="input !mt-1 text-sm"><option value="">' . e(t('الكل')) . '</option>';
         foreach ($opts as $v => $l) $h .= '<option value="' . e((string)$v) . '">' . e($l) . '</option>'; return $h . '</select></label>'; };
     ?>
@@ -277,13 +287,13 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <label class="block text-xs text-ink-600"><?= e(t('اتضاف من')) ?><input type="date" id="pf-from" class="input !mt-1 text-sm"></label>
         <label class="block text-xs text-ink-600"><?= e(t('لحد')) ?><input type="date" id="pf-to" class="input !mt-1 text-sm"></label>
       </div>
-      <div class="flex justify-between items-center mt-3"><button type="button" id="pf-reset" class="text-xs link"><?= e(t('امسح الفلاتر')) ?></button></div>
+      <div class="flex justify-between items-center mt-3"><button type="button" id="pf-reset" class="text-xs link"><?= e(t('امسح الفلاتر')) ?></button><button type="button" id="pf-save" class="btn-ghost !py-1 !text-xs"><?= ui_icon('star', 'w-4 h-4') ?><?= e(t('احفظ الفلتر ده')) ?></button></div>
     </div>
 
     <div class="mk-table">
       <div class="mk-head <?= $cols ?>"><input type="checkbox" data-mk-all aria-label="<?= e(t('تحديد الكل')) ?>">
         <span data-mk-sort="name"><?= e(t('الاسم')) ?></span><span data-mk-sort="company"><?= e(t('الشركة')) ?></span><span><?= e(t('التواصل')) ?></span>
-        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span></span></div>
+        <span data-mk-sort="src"><?= e(t('المصدر')) ?></span><span data-mk-sort="stage"><?= e(t('المرحلة')) ?></span><span class="pr-2sort"><span data-mk-sort="last"><?= e(t('آخر تواصل')) ?></span><span data-mk-sort="next" title="<?= e(t('رتّب بالمتابعة الجاية')) ?>"><?= e(t('المتابعة')) ?></span></span><span></span></div>
       <div data-mk-body>
       <?= $rowsHtml($rows) ?>
       </div>
@@ -362,7 +372,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?php endif; ?>
       </div>
     </dialog>
-    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'pl' => $pl, 'byStage' => (object)$byStage, 'qN' => $qN, 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'), 'more' => t('حمّل %s كمان'), 'working' => t('بنشتغل… %s / %s'), 'bigAsk' => t('هتتطبق على %s عميل. متأكد؟'),
+    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'views' => (function () use ($wid, $uid) { $v = json_decode((string)setting('crm_views_' . $wid . '_' . $uid, ''), true); return is_array($v) ? $v : []; })(), 'plSel' => implode(',', $plSel), 'pl' => $pl, 'byStage' => (object)$byStage, 'qN' => $qN, 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'), 'more' => t('حمّل %s كمان'), 'vName' => t('اسم الفلتر (مثلًا: مهتمين من الإعلانات)'), 'vSaved' => t('اتحفظ الفلتر ⭐'), 'vDel' => t('امسح الفلتر ده؟'), 'vEmpty' => t('اختار فلتر أو اكتب بحث الأول'), 'vTitle' => t('فلاتر محفوظة'), 'working' => t('بنشتغل… %s / %s'), 'bigAsk' => t('هتتطبق على %s عميل. متأكد؟'),
         'keep' => t('دي اللي هتفضل'), 'merged' => t('اتدمج ✓'), 'mgDone' => t('خلصنا الدمج'), 'dupFound' => t('موجود قبل كده: %s — هيتدمج معاه.'), 'seqLoad' => t('بنجيب الـ Sequences…'), 'noSeq' => t('مفيش Sequences في Apollo.'), 'enriched' => t('اتكشف %s'), 'added' => t('اتضاف ✓'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'stage' => t('المرحلة'), 'country' => t('الدولة')]]], 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'), 'leadUrl' => url('crm_leads'), 'syncDue' => $syncDue,
         'xlsLib' => 'assets/vendor/xlsx-0.20.3.full.min.js?v=' . APP_VERSION, 'stages' => $stages, 'members' => $members,
         'L' => lead_popup_L()], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

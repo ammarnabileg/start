@@ -37,6 +37,28 @@
     post(C.selfUrl, { action: 'sync' }).then(function (j) { sy.classList.add('hidden'); if (j.ok && j.new > 0) { toast(L.synced.replace('%s', j.new)); setTimeout(function () { location.reload(); }, 1200); } }).catch(function () { sy.classList.add('hidden'); }); }
 
   /* ---------- نافذة العميل (assets/lead-popup.js مشتركة مع باقي الصفحات) ---------- */
+  /* ---------- الفلاتر المحفوظة ---------- */
+  var VT = C.P.T, views = C.views || [], vbar = document.createElement('div'); vbar.className = 'pr-views';
+  var tb = root.querySelector('.mk-table'); if (tb) tb.before(vbar);
+  function curState() { var st = list.state ? list.state() : {}, m = { 'pf-src': 'src', 'pf-stage': 'stage', 'pf-owner': 'owner', 'pf-country': 'country', 'pf-from': 'from', 'pf-to': 'to' }, o = {};
+    if (st.q) o.q = st.q; if (st.stat) o.stat = st.stat; if (st.sort) { o.sort = st.sort; o.dir = st.dir; } F.forEach(function (el) { if (el.value.trim()) o[m[el.id]] = el.value.trim(); }); if (C.plSel) o.pl = C.plSel; return o; }
+  function norm(o) { return Object.keys(o || {}).sort().map(function (k) { return k + '=' + String(o[k]); }).join('&'); }
+  function same(a, b) { return norm(a) === norm(b); }
+  function paintViews() { var cs = curState(); vbar.classList.toggle('hidden', !views.length);
+    vbar.innerHTML = '<span>' + ic('star', 'w-3.5 h-3.5') + esc(VT.vTitle) + '</span>' + views.map(function (v) { return '<button type="button" data-vw="' + esc(v.id) + '" class="' + (same(v.s, cs) ? 'on' : '') + '">' + esc(v.name) + '<i data-vdel="' + esc(v.id) + '">×</i></button>'; }).join(''); }
+  function applyView(v) { var s = v.s || {};
+    if ((s.pl || '') !== (C.plSel || '')) { var u = new URL(location.href); u.searchParams.set('pl', s.pl || ''); u.searchParams.set('view', v.id); location.href = u.toString(); return; }
+    var m = { src: 'pf-src', stage: 'pf-stage', owner: 'pf-owner', country: 'pf-country', from: 'pf-from', to: 'pf-to' }; F.forEach(function (el) { el.value = ''; }); Object.keys(m).forEach(function (k) { if (s[k] && $(m[k])) $(m[k]).value = s[k]; }); fcount();
+    var q = root.querySelector('[data-mk-q]'); if (q) q.value = s.q || '';
+    var sb = root.querySelector('[data-mk-stat="' + (s.stat || '_all') + '"]'); if (sb && !sb.classList.contains('mk-on')) sb.click(); else list.apply();
+    if (s.sort) { var h = root.querySelector('[data-mk-sort="' + s.sort + '"]'); if (h) { h.click(); if ((s.dir || 1) < 0) h.click(); } }
+    setTimeout(paintViews, 300); }
+  vbar.addEventListener('click', function (e) { var d = e.target.closest('[data-vdel]'); if (d) { e.stopPropagation(); if (!confirm(VT.vDel)) return; post(C.selfUrl, { action: 'view_del', id: d.dataset.vdel }).then(function (j) { if (j.ok) { views = j.views; paintViews(); } }); return; }
+    var b = e.target.closest('[data-vw]'); if (b) applyView(views.filter(function (v) { return v.id === b.dataset.vw; })[0]); });
+  if ($('pf-save')) $('pf-save').addEventListener('click', function () { var st = curState(); if (!Object.keys(st).length) return toast(VT.vEmpty, 'error'); var n = (prompt(VT.vName) || '').trim(); if (!n) return;
+    post(C.selfUrl, { action: 'view_save', name: n, state: JSON.stringify(st) }).then(function (j) { if (!j.ok) return toast(j.error || L.err, 'error'); views = j.views; paintViews(); toast(VT.vSaved); }); });
+  root.addEventListener('input', function () { setTimeout(paintViews, 400); }); root.addEventListener('change', function () { setTimeout(paintViews, 400); }); root.addEventListener('click', function (e) { if (e.target.closest('[data-mk-stat],[data-mk-sort]')) setTimeout(paintViews, 400); });
+  paintViews(); var vq = new URLSearchParams(location.search).get('view'); if (vq) { var vv = views.filter(function (v) { return v.id === vq; })[0]; if (vv) setTimeout(function () { applyView(vv); }, 60); }
   // ?stat=ads مثلًا: يفتح الصفحة على كارت الأرقام ده (جاي من نماذج الإعلانات)
   var stq = new URLSearchParams(location.search).get('stat'); if (stq) { var sb = root.querySelector('[data-mk-stat="' + stq.replace(/[^a-z_]/g, '') + '"]'); if (sb) setTimeout(function () { sb.click(); }, 50); }
   window.PRList = list; var LPm = window.LeadPopup; LPm.host({ rows: function () { return list.rows().filter(function (x) { return x.style.display !== 'none'; }); } });
