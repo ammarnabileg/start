@@ -279,7 +279,7 @@ render(t('تقارير المبيعات'), 'crm_reports', function () use ($rows
 
     <?php if ($closing): ?>
     <div class="card p-4"><div class="font-semibold text-ink-900 mb-2">⏳ <?= e(t('صفقات متوقع تتقفل خلال أسبوعين')) ?></div>
-      <div class="divide-y divide-ink-100"><?php foreach ($closing as $d): ?><a href="<?= e(url('crm_leads') . '#lead-' . (int)$d['id']) ?>" class="flex items-center gap-3 py-2 text-sm hover:bg-ink-50 px-1 rounded"><span class="flex-1"><b><?= e($d['title']) ?></b> · <?= e($d['name']) ?></span><span><?= e(number_format((float)$d['value'])) ?></span><span class="text-xs <?= strtotime($d['close_at']) < strtotime('today') ? 'text-red-600' : 'text-ink-500' ?>"><?= e(fmt_date($d['close_at'], 'd/m')) ?></span></a><?php endforeach; ?></div></div>
+      <div class="divide-y divide-ink-100"><?php foreach ($closing as $d): ?><a href="<?= e(url('prospects', ['lead' => (int)$d['id']])) ?>" class="flex items-center gap-3 py-2 text-sm hover:bg-ink-50 px-1 rounded"><span class="flex-1"><b><?= e($d['title']) ?></b> · <?= e($d['name']) ?></span><span><?= e(number_format((float)$d['value'])) ?></span><span class="text-xs <?= strtotime($d['close_at']) < strtotime('today') ? 'text-red-600' : 'text-ink-500' ?>"><?= e(fmt_date($d['close_at'], 'd/m')) ?></span></a><?php endforeach; ?></div></div>
     <?php endif; ?>
     <?php
 }, ['full' => true]);

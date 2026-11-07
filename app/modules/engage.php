@@ -392,7 +392,7 @@ function crm_daily_digest(): int
         $st = db()->prepare("SELECT title, due_at FROM crm_tasks WHERE workspace_id = ? AND user_id = ? AND done_at IS NULL AND (due_at IS NULL OR due_at <= ?) ORDER BY due_at LIMIT 30");
         $st->execute([$wid, $uid, $end]); $tasks = $st->fetchAll();
         if (!$leads && !$tasks) continue;
-        $li = ''; foreach ($leads as $l) $li .= '<li><a href="' . e(url('crm_leads') . '#lead-' . (int)$l['id']) . '">' . e($l['name']) . '</a>' . ($l['next_note'] ? ' — ' . e($l['next_note']) : '') . ' <small style="color:#64748b">' . e(fmt_date($l['next_at'], 'h:i A')) . '</small></li>';
+        $li = ''; foreach ($leads as $l) $li .= '<li><a href="' . e(url('prospects', ['lead' => (int)$l['id']])) . '">' . e($l['name']) . '</a>' . ($l['next_note'] ? ' — ' . e($l['next_note']) : '') . ' <small style="color:#64748b">' . e(fmt_date($l['next_at'], 'h:i A')) . '</small></li>';
         $ti = ''; foreach ($tasks as $t) $ti .= '<li>' . e($t['title']) . ($t['due_at'] ? ' <small style="color:#64748b">' . e(fmt_date($t['due_at'], 'd/m h:i A')) . '</small>' : '') . '</li>';
         $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.8" dir="' . (is_rtl() ? 'rtl' : 'ltr') . '"><p>' . e(t('صباح الخير %s، ده شغلك النهارده:', preg_split('/\s+/u', (string)$m['name'])[0] ?? '')) . '</p>'
             . ($li ? '<b>' . e(t('متابعات العملاء (%s)', count($leads))) . '</b><ul>' . $li . '</ul>' : '') . ($ti ? '<b>' . e(t('مهام (%s)', count($tasks))) . '</b><ul>' . $ti . '</ul>' : '')

@@ -8,7 +8,7 @@ $hasApollo = crm_has_key();
 $J = function (array $a, int $code = 200) { http_response_code($code); header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 $getCo = function (int $id) use ($wid) { $st = db()->prepare('SELECT * FROM crm_companies WHERE id = ? AND workspace_id = ?'); $st->execute([$id, $wid]); return $st->fetch() ?: null; };
 $person = function (array $l) { return ['id' => (int)$l['id'], 'name' => (string)$l['name'], 'title' => (string)$l['title'], 'email' => (string)$l['email'], 'phone' => (string)$l['phone'],
-    'wa' => function_exists('crm_wa_digits') ? crm_wa_digits($l['phone']) : '', 'source' => (string)$l['source'], 'url' => url('crm_leads', ['lead' => (int)$l['id']])]; };
+    'wa' => function_exists('crm_wa_digits') ? crm_wa_digits($l['phone']) : '', 'source' => (string)$l['source'], 'url' => url('prospects', ['lead' => (int)$l['id']])]; };
 
 // بوب أب الشركة: الأشخاص المعروفين + أهم الأشخاص من Apollo
 if (($_GET['ajax'] ?? '') === 'company') {

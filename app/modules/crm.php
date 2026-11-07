@@ -1634,7 +1634,7 @@ function crm_lead_card(array $r, int $acts = 0): array
     $wa = $r['phone'] ? crm_wa_digits($r['phone']) : '';
     $j = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'title' => (string)$r['title'], 'company' => (string)$r['company'], 'phone' => (string)$r['phone'], 'email' => (string)$r['email'], 'wa' => $wa,
             'src' => ($src[$r['source']] ?? $r['source']), 'stage' => $r['stage'], 'owner' => (int)$r['owner_id'], 'tags' => (string)$r['tags'], 'country' => (string)$r['country'],
-            'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '', 'next' => $r['next_at'] ? fmt_date($r['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$r['next_note']];
+            'added' => fmt_date($r['created_at'], 'd/m/Y'), 'last' => $r['last_contact_at'] ? fmt_date($r['last_contact_at'], 'd/m/Y') : '', 'next' => $r['next_at'] ? fmt_date($r['next_at'], 'd/m/Y H:i') : '', 'next_note' => (string)$r['next_note'], 'value' => (float)($r['deal_value'] ?? 0), 'due' => !empty($r['next_at']) && strtotime($r['next_at']) <= strtotime('today 23:59:59') ? 1 : 0];
     [$j['score'], $j['why']] = crm_score($r, $acts);
     return $j;
 }

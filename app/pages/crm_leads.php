@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'text' => $_POST['text'] ?? '', 'url' => $_POST['url'] ?? '', 'where' => $_POST['where'] ?? '', 'owner_id' => $canManage ? null : $uid]);
         if (!$l) $json(['ok' => false, 'error' => t('حصل خطأ، جرب تاني')]);
         log_activity('crm.from_social', (string)$l['id']);
-        $json(['ok' => true, 'merged' => $l['merged'], 'id' => (int)$l['id'], 'phone' => (string)$l['phone'], 'email' => (string)$l['email'], 'url' => url('crm_leads') . '#lead-' . (int)$l['id']]);
+        $json(['ok' => true, 'merged' => $l['merged'], 'id' => (int)$l['id'], 'phone' => (string)$l['phone'], 'email' => (string)$l['email'], 'url' => url('prospects', ['lead' => (int)$l['id']])]);
     }
     if ($action === 'bulk' || $action === 'enrich_stale') {
         // عمليات على عملاء كتير مرة واحدة
@@ -427,6 +427,13 @@ try { crm_meeting_reminders(); } catch (Throwable $t) { /* الـ cron هيكم�
 $where = 'workspace_id = ?';
 $args = [$wid];
 if (!$canManage) { $where .= ' AND (owner_id = ? OR owner_id IS NULL)'; $args[] = $uid; }
+// الصفحة اتدمجت في "العملاء المستهدفين": أي رابط قديم (#lead-ID أو ?lead= أو طابور الاتصال) بيفتح نفس العميل هناك
+if (($_GET['export'] ?? '') !== 'csv') {
+    $to = url('prospects'); header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><script>var u=' . json_encode($to) . ',m=location.hash.match(/^#lead-(\\d+)/),q=new URLSearchParams(location.search);'
+        . 'if(m)u+="&lead="+m[1];else if(q.get("lead"))u+="&lead="+encodeURIComponent(q.get("lead"));if(q.get("go")==="queue")u+="&queue=1";location.replace(u);</script><noscript><a href="' . e($to) . '">' . e(t('العملاء المستهدفين')) . '</a></noscript>';
+    exit;
+}
 $pipes = crm_pipelines(); $curPl = isset($pipes[$_GET['pl'] ?? '']) ? (string)$_GET['pl'] : 'sales';
 if (count($pipes) > 1) { $where .= ' AND pipeline = ?'; $args[] = $curPl; }
 $st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY pinned DESC, (next_at IS NULL), next_at, id DESC LIMIT 2000");
@@ -905,8 +912,5 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
             'autoOn' => t('اتفعّل: اتضاف %s دلوقتي، والباقي كل 6 ساعات.'), 'autoOff' => t('الإضافة الأوتوماتيك اتقفلت.'), 'scanning' => t('بنحلّل…'), 'scanned' => t('اتحلّل %s محادثة'), 'cmt' => t('تعليق'), 'msgK' => t('رسالة'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى الوظيفي'), 'country' => t('الدولة'), 'tags' => t('تاجات'), 'note' => t('ملاحظات')]],
     ], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/ui-crm_leads.js?v=<?= e(APP_VERSION) ?>"></script>
-    <script>window.LDP = <?= json_encode(['all' => t('الكل'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'won' => t('مبروك! صفقة جديدة 🎉'), 'saved' => t('اتحفظ ✓'), 'err' => t('حصلت مشكلة.'), 'keys' => t('اختصارات الكيبورد'),
-      'list' => [['j / k', t('العميل اللي بعده / قبله')], ['1 – 9', t('غيّر المرحلة')], ['N', t('اكتب ملاحظة')], ['C', t('اتصال')], ['W', t('واتساب')], ['E', t('إيميل')], ['Enter', t('احفظ الملاحظة')], ['Esc', t('إغلاق')]]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-    <script src="assets/ld-plus.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

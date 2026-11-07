@@ -327,7 +327,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <div class="flex items-center gap-3 px-4 py-2 border-t border-ink-100 text-[11px] text-ink-400"><span>↑↓ <?= e(t('للتنقل')) ?></span><span>Enter <?= e(t('للفتح')) ?></span><span class="ms-auto"><?= e(t('من غير ذكاء اصطناعي')) ?></span></div>
   </div>
 </div>
-<script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('crm_leads') . '#lead-', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script>window.CK = <?= json_encode(['pages' => $ckPages, 'acts' => $ckAct, 'search' => url('search'), 'lead' => url('prospects') . '&lead=', 'tr' => ['pages' => t('الصفحات'), 'acts' => t('إجراءات سريعة'), 'leads' => t('العملاء'), 'none' => t('مفيش نتايج.'), 'recent' => t('فتحتها قريب')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/cmdk.js?v=<?= e(APP_VERSION) ?>"></script>
 <?php if (module_enabled('crm') && can('crm.view')): ?>
 <script>window.FU = <?= json_encode(['url' => url('prospects') . '&ajax=due', 'ws' => (int)$curWs['id'], 'L' => ['title' => t('ميعاد متابعة'), 'open' => t('افتح'), 'later' => t('تمام'), 'perm' => t('فعّل إشعارات المتصفح عشان يوصلك التنبيه حتى لو الصفحة مش قدامك'), 'permOn' => t('فعّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

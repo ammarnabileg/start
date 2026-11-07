@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         tnd_mark($tid, 'applied', null, (int)$l['id']);
         log_activity('tenders.deal', (string)$t['ref']);
-        $J(['ok' => true, 'status' => 'applied', 'lead' => (int)$l['id'], 'url' => url('crm_leads', ['lead' => (int)$l['id']])]);
+        $J(['ok' => true, 'status' => 'applied', 'lead' => (int)$l['id'], 'url' => url('prospects', ['lead' => (int)$l['id']])]);
     }
     $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
 }
@@ -160,7 +160,7 @@ render(t('المنافسات والمناقصات'), 'tenders', function () use 
           $bk = $t['booklet'] === null ? '' : ((float)$t['booklet'] > 0 ? number_format((float)$t['booklet']) . ' ' . t('ريال') : t('مجانًا'));
           $j = ['id' => (int)$t['id'], 'name' => $t['name'], 'agency' => (string)$t['agency'], 'branch' => (string)$t['branch'], 'activity' => trim((string)$t['activity']), 'type' => (string)$t['type'], 'ref' => (string)$t['ref'],
             'booklet' => $bk, 'deadline' => $dlTxt, 'inquiry' => $t['inquiry_at'] ? fmt_date($t['inquiry_at'], 'd/m/Y') : '', 'published' => $t['published_at'] ? fmt_date($t['published_at'], 'd/m/Y') : '',
-            'url' => tnd_url($t), 'hits' => array_values($t['hits']), 'lead' => !empty($t['lead_id']) ? url('crm_leads', ['lead' => (int)$t['lead_id']]) : '', 'days' => $d]; ?>
+            'url' => tnd_url($t), 'hits' => array_values($t['hits']), 'lead' => !empty($t['lead_id']) ? url('prospects', ['lead' => (int)$t['lead_id']]) : '', 'days' => $d]; ?>
         <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$t['id'] ?>" data-match="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act ? 1 : 0 ?>" data-soon="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act && $left < 3 * 86400 ? 1 : 0 ?>"
           data-act="<?= $act && $t['mark'] !== 'hidden' ? 1 : 0 ?>" data-mark="<?= e((string)$t['mark']) ?>" data-q="<?= e(mb_strtolower($t['name'] . ' ' . $t['agency'] . ' ' . $t['branch'] . ' ' . $t['activity'] . ' ' . $t['ref'])) ?>"
           data-s-name="<?= e(mb_strtolower($t['name'])) ?>" data-s-act="<?= e(mb_strtolower((string)$t['activity'])) ?>" data-s-dl="<?= e((string)$t['deadline']) ?>" data-s-bk="<?= (float)$t['booklet'] ?>" data-s-type="<?= e((string)$t['type']) ?>"

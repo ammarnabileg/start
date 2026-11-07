@@ -26,7 +26,14 @@ if (($_GET['ajax'] ?? '') === 'card') {
 // بوب أب العميل: سجل التواصل والمتابعة
 if (($_GET['ajax'] ?? '') === 'lead') {
     $l = $getLead((int)($_GET['id'] ?? 0)); if (!$l) $J(['ok' => false], 404);
-    $J(['ok' => true, 'acts' => array_map($actOut, array_slice(crm_acts((int)$l['id']), 0, 20)), 'note' => (string)$l['note'],
+    $raw = crm_acts((int)$l['id']); $lid = (int)$l['id'];
+    $tq = db()->prepare('SELECT t.id, t.title, t.due_at, t.user_id, u.name who FROM crm_tasks t LEFT JOIN users u ON u.id = t.user_id WHERE t.workspace_id = ? AND t.lead_id = ? AND t.done_at IS NULL ORDER BY (t.due_at IS NULL), t.due_at, t.id DESC LIMIT 30'); $tq->execute([$wid, $lid]);
+    $tasks = array_map(function ($t) { return ['id' => (int)$t['id'], 'title' => (string)$t['title'], 'due' => $t['due_at'] ? fmt_date($t['due_at'], 'd/m/Y H:i') : '', 'over' => $t['due_at'] && strtotime($t['due_at']) < time() ? 1 : 0, 'who' => (string)($t['who'] ?? '')]; }, $tq->fetchAll());
+    $mails = array_map(function ($m) { return ['subject' => (string)$m['subject'], 'opens' => (int)$m['opens'], 'clicks' => (int)$m['clicks'], 'at' => fmt_date($m['created_at'], 'd/m/Y H:i'), 'opened' => $m['opened_at'] ? fmt_date($m['opened_at'], 'd/m/Y H:i') : '']; }, crm_mails($lid));
+    $deals = array_map(function ($d) { return ['id' => (int)$d['id'], 'title' => (string)$d['title'], 'value' => (float)$d['value'], 'status' => (string)$d['status'], 'close' => (string)($d['close_at'] ?? '')]; }, crm_deals($lid));
+    $J(['ok' => true, 'acts' => array_map($actOut, array_slice($raw, 0, 30)), 'note' => (string)$l['note'],
+        'deals' => $deals, 'mails' => $mails, 'tasks' => $tasks, 'run' => crm_lead_run($lid), 'intel' => crm_intel($l, $raw), 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
+        'pl' => (string)($l['pipeline'] ?? 'sales'), 'cf' => json_decode((string)($l['custom'] ?? ''), true) ?: (object)[], 'lost' => (string)($l['lost_reason'] ?? ''), 'unsub' => (int)($l['unsub'] ?? 0),
         'company' => $l['company_id'] ? url('crm', ['open' => (int)$l['company_id']]) : ''] + $nextOut($l));
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -47,6 +54,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ti = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 190); $co = mb_substr(trim((string)($_POST['company'] ?? '')), 0, 190);
         db()->prepare('UPDATE crm_leads SET name = ?, title = ?, company = ? WHERE id = ?')->execute([$n, $ti !== '' ? $ti : null, $co !== '' ? $co : null, (int)$l['id']]);
         $J(['ok' => true, 'name' => $n, 'title' => $ti, 'company' => $co]);
+    }
+    // حقل واحد من تاب البيانات: قيمة الصفقة، الـ Pipeline، أو حقل مخصص (بيتحفظ لوحده)
+    if ($a === 'field') {
+        $l = $getLead((int)($_POST['id'] ?? 0)); if (!$l) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $f = (string)($_POST['f'] ?? ''); $v = trim((string)($_POST['v'] ?? '')); $lid = (int)$l['id'];
+        if ($f === 'value') { $n = $v === '' ? null : max(0, (float)str_replace(',', '.', $v)); db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ?')->execute([$n, $lid]); }
+        elseif ($f === 'pipeline') { if (!isset(crm_pipelines()[$v])) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400); db()->prepare('UPDATE crm_leads SET pipeline = ? WHERE id = ?')->execute([$v, $lid]); }
+        elseif (strpos($f, 'cf.') === 0) { $cf = json_decode((string)($l['custom'] ?? ''), true) ?: []; $cf[substr($f, 3)] = $v; $cf = crm_custom_clean($cf);
+            db()->prepare('UPDATE crm_leads SET custom = ? WHERE id = ?')->execute([$cf ? json_encode($cf, JSON_UNESCAPED_UNICODE) : null, $lid]); }
+        else $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 400);
+        $J(['ok' => true]);
     }
     // شيل تاج
     if ($a === 'untag') {
@@ -143,6 +161,10 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <span class="text-xs text-ink-500 tabular-nums" title="<?= e(t('معروض')) ?>"><span data-mk-shown></span></span>
       <span id="pr-sync" class="text-xs text-ink-400 hidden"><?= ui_icon('refresh', 'w-3.5 h-3.5 inline animate-spin') ?> <?= e(t('بنجيب الجديد…')) ?></span>
       <span class="ms-auto"></span>
+      <button type="button" id="pr-dups" class="pr-pill hidden"><?= ui_icon('users', 'w-4 h-4') ?><span></span></button>
+      <div class="pr-view" role="group"><button type="button" data-view="list" class="on" title="<?= e(t('قايمة')) ?>"><?= ui_icon('list', 'w-4 h-4') ?><span><?= e(t('قايمة')) ?></span></button><button type="button" data-view="board" title="<?= e(t('لوحة المراحل')) ?>"><?= ui_icon('grid', 'w-4 h-4') ?><span><?= e(t('لوحة')) ?></span></button></div>
+      <button type="button" id="pr-queue" class="btn-ghost"><?= ui_icon('phone', 'w-4 h-4') ?><?= e(t('طابور الاتصال')) ?><b class="pr-qn"></b></button>
+      <button type="button" id="pr-add-btn" class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('عميل جديد')) ?></button>
       <button type="button" id="pr-import-btn" class="btn-ghost"><?= ui_icon('upload', 'w-4 h-4') ?><?= e(t('استيراد ملف')) ?></button>
       <button type="button" id="pr-find-btn" class="btn-primary"><?= ui_icon('search', 'w-4 h-4') ?><?= e(t('ابحث عن شخص')) ?></button>
     </div>
@@ -188,6 +210,7 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       </div>
       <p data-mk-empty class="hidden p-8 text-center text-sm text-ink-500"><?= e($rows ? t('مفيش عملاء بالفلاتر دي.') : t('لسه مفيش عملاء. أي حد يكلمك من الرسائل أو التعليقات أو الفورم أو الإعلانات هيظهر هنا لوحده، أو استورد ملف، أو دوّر على شخص.')) ?></p>
     </div>
+    <div id="pr-board" class="pr-board hidden"></div>
 
     <div class="mk-bar" data-mk-bar>
       <span class="text-sm"><b data-mk-nsel>0</b> <?= e(t('محدد')) ?></span>
@@ -195,12 +218,39 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
       <?php if ($canManage): ?><select id="pb-owner" aria-label="<?= e(t('المسؤول')) ?>"><option value=""><?= e(t('عيّن مسؤول…')) ?></option><?php foreach ($members as $k => $l): ?><option value="<?= (int)$k ?>"><?= e($l) ?></option><?php endforeach; ?></select><?php endif; ?>
       <select id="pb-next" aria-label="<?= e(t('المتابعة')) ?>"><option value=""><?= e(t('حدد متابعة…')) ?></option><?php foreach ($nexts as $k => $l): ?><option value="<?= e($k) ?>"><?= e($l) ?></option><?php endforeach; ?></select>
       <button type="button" id="pb-tag"><?= ui_icon('hash', 'w-4 h-4 inline') ?> <?= e(t('تاج')) ?></button>
+      <?php if ($hasApollo && can('crm.reveal')): ?><button type="button" id="pb-enrich"><?= ui_icon('spark', 'w-4 h-4 inline') ?> <?= e(t('اكشف بياناتهم')) ?></button><button type="button" id="pb-seq"><?= ui_icon('mail', 'w-4 h-4 inline') ?> Sequence</button><?php endif; ?>
       <button type="button" id="pb-csv"><?= ui_icon('download', 'w-4 h-4 inline') ?> <?= e(t('تصدير')) ?></button>
       <button type="button" data-mk-clear class="!px-2" title="<?= e(t('إلغاء التحديد')) ?>"><?= ui_icon('x', 'w-4 h-4') ?></button>
     </div>
     </div>
 
     <?= lead_popup() ?>
+
+    <dialog id="pr-add" class="mk-dlg !w-[min(520px,96vw)]">
+      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('عميل جديد')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <form id="pr-add-f" class="p-5 grid grid-cols-2 gap-3 text-sm" data-no-ajax>
+        <label class="col-span-2 pr-fl"><input name="name" required maxlength="255" placeholder=" " dir="auto"><span><?= e(t('الاسم')) ?> *</span></label>
+        <label class="pr-fl"><input name="phone" maxlength="40" placeholder=" " dir="ltr" inputmode="tel"><span><?= e(t('الرقم')) ?></span></label>
+        <label class="pr-fl"><input name="email" type="email" maxlength="255" placeholder=" " dir="ltr"><span><?= e(t('الإيميل')) ?></span></label>
+        <label class="pr-fl"><input name="company" maxlength="255" placeholder=" " dir="auto"><span><?= e(t('الشركة')) ?></span></label>
+        <label class="pr-fl"><input name="title" maxlength="255" placeholder=" " dir="auto"><span><?= e(t('المسمى')) ?></span></label>
+        <p id="pr-add-dup" class="col-span-2 hidden rounded-xl bg-amber-50 p-2 text-xs text-amber-800"></p>
+        <p class="col-span-2 text-[11px] text-ink-500"><?= e(t('لازم رقم أو إيميل. لو العميل موجود هيتدمج معاه بدل ما يتكرر.')) ?></p>
+        <button class="btn-primary col-span-2"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('أضف وافتح ملفه')) ?></button>
+      </form>
+    </dialog>
+
+    <dialog id="pr-merge" class="mk-dlg !w-[min(760px,96vw)]">
+      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('دمج العملاء المكررين')) ?></b><span id="pr-mg-pos" class="text-xs text-ink-500 tabular-nums" dir="ltr"></span><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div class="p-5"><p class="text-xs text-ink-500 mb-3"><?= e(t('اختار النسخة اللي هتفضل، واضغط على أي قيمة من التانية عشان تاخدها. السجل والصفقات والمهام بتتجمع في عميل واحد.')) ?></p><div id="pr-mg"></div>
+        <div class="flex items-center gap-2 mt-4"><button type="button" id="pr-mg-skip" class="btn-ghost"><?= e(t('مش مكررين، اللي بعده')) ?></button><button type="button" id="pr-mg-go" class="btn-primary ms-auto"><?= ui_icon('users', 'w-4 h-4') ?><?= e(t('ادمجهم')) ?></button></div></div>
+    </dialog>
+
+    <dialog id="pr-seq" class="mk-dlg !w-[min(480px,96vw)]">
+      <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('ضيفهم لـ Sequence في Apollo')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
+      <div class="p-5 space-y-3 text-sm"><div id="pr-seq-l" class="space-y-1.5"></div><label class="block text-xs text-ink-600"><?= e(t('هيتبعت من')) ?><select id="pr-seq-acc" class="input !mt-1 text-sm"></select></label>
+        <p class="text-[11px] text-ink-500"><?= e(t('اللي مالهوش إيميل هيتشال لوحده.')) ?></p><button type="button" id="pr-seq-go" class="btn-primary w-full" disabled><?= e(t('ضيفهم')) ?></button></div>
+    </dialog>
 
     <dialog id="pr-import" class="mk-dlg !w-[min(620px,96vw)]">
       <div class="mk-dlg-head"><b class="flex-1 text-ink-900"><?= e(t('استيراد عملاء من ملف')) ?></b><button type="button" data-close class="p-2 rounded-xl text-ink-400 hover:bg-ink-100"><?= ui_icon('x', 'w-5 h-5') ?></button></div>
@@ -228,11 +278,13 @@ render(t('العملاء المستهدفين'), 'prospects', function () use ($
         <?php endif; ?>
       </div>
     </dialog>
-    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'), 'leadUrl' => url('crm_leads'), 'syncDue' => $syncDue,
+    <script>window.PR = <?= json_encode(['csrf' => csrf_token(), 'importUrl' => url('crm_leads'), 'P' => ['api' => url('crm_leads'), 'stages' => $stages, 'queue' => !empty($_GET['queue']), 'T' => ['due' => t('متابعة النهارده'), 'drop' => t('اسحب هنا'), 'empty' => t('مفيش'), 'qNone' => t('مفيش عملاء ليهم رقم في القايمة المعروضة.'), 'dups' => t('%s مكررين'),
+        'keep' => t('دي اللي هتفضل'), 'merged' => t('اتدمج ✓'), 'mgDone' => t('خلصنا الدمج'), 'dupFound' => t('موجود قبل كده: %s — هيتدمج معاه.'), 'seqLoad' => t('بنجيب الـ Sequences…'), 'noSeq' => t('مفيش Sequences في Apollo.'), 'enriched' => t('اتكشف %s'), 'added' => t('اتضاف ✓'), 'f' => ['name' => t('الاسم'), 'phone' => t('الرقم'), 'email' => t('الإيميل'), 'company' => t('الشركة'), 'title' => t('المسمى'), 'stage' => t('المرحلة'), 'country' => t('الدولة')]]], 'selfUrl' => url('prospects'), 'findUrl' => url('crm_find'), 'leadUrl' => url('crm_leads'), 'syncDue' => $syncDue,
         'xlsLib' => 'assets/vendor/xlsx-0.20.3.full.min.js?v=' . APP_VERSION, 'stages' => $stages, 'members' => $members,
         'L' => lead_popup_L()], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="assets/mk-list.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/lead-popup.js?v=<?= e(APP_VERSION) ?>"></script>
     <script src="assets/prospects.js?v=<?= e(APP_VERSION) ?>"></script>
+    <script src="assets/prospects-pro.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 });

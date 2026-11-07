@@ -33,7 +33,7 @@
     fetch(C.selfUrl + '&ajax=lead&id=' + d.id, { credentials: 'same-origin' }).then(function (x) { if (!x.ok) throw new Error('HTTP ' + x.status); return x.text(); })
       .then(function (t) { var j; try { j = JSON.parse(t.slice(t.indexOf('{'))); } catch (e) { throw new Error('bad json'); } // لو السيرفر طبع تحذير قبل الرد
         if (cur !== r) return; if (!j.ok) throw new Error('not ok');
-        acts(j.acts); nextShow(j.next, j.due); if (j.company) { $('pd-co').href = j.company; $('pd-co').classList.remove('hidden'); } })
+        acts(j.acts); nextShow(j.next, j.due); HK.data.forEach(function (fn) { try { fn(j, d, r); } catch (e) { if (window.console) console.error(e); } }); if (j.company) { $('pd-co').href = j.company; $('pd-co').classList.remove('hidden'); } })
       .catch(function (e) { if (cur !== r) return; if (window.console) console.warn('lead acts', e);
         $('pd-acts').innerHTML = '<li class="!ps-0 text-sm text-ink-500">' + esc(L.loadErr) + ' <button type="button" class="link" data-retry>' + esc(L.retry) + '</button></li>'; }); }
   function open(r) {
@@ -47,7 +47,7 @@
     nextShow(d.next, d.due); $('pd-next-note').value = d.next_note || ''; $('pd-next-at').value = '';
     heatPaint(d); idEdit(false); popsClose(); tf = '';
     var bx = dl.querySelector('.pd-hero'); bx.classList.remove('pd-in-a'); void bx.offsetWidth; bx.classList.add('pd-in-a');
-    posPaint(); loadActs(r, d); if (!dl.open) dl.showModal();
+    posPaint(); loadActs(r, d); if (!dl.open) dl.showModal(); HK.open.forEach(function (fn) { fn(d, r); });
     $$('[data-mk-row]').forEach(function (x) { x.classList.toggle('mk-focus', x === r); }); if (r.isConnected) r.scrollIntoView({ block: 'nearest' });
   }
   function nav(step) { var v = vis(), i = v.indexOf(cur), n = v[i + step]; if (n) open(n); }
@@ -67,7 +67,7 @@
   function acts(a) { lastActs = a; var cnt = {}; a.forEach(function (x) { cnt[x.kind] = (cnt[x.kind] || 0) + 1; }); var ks = Object.keys(cnt);
     $('pd-tf').innerHTML = ks.length > 1 ? ['<button type="button" class="pd-tfb' + (tf ? '' : ' on') + '" data-tf="">' + esc(L.all) + '</button>'].concat(ks.map(function (k) { return '<button type="button" class="pd-tfb' + (tf === k ? ' on' : '') + '" data-tf="' + k + '" style="--k:' + (KC[k] || '#64748b') + '">' + ic(AIC[k] || 'dots', 'w-3 h-3') + cnt[k] + '</button>'; })).join('') : '';
     if (tf) a = a.filter(function (x) { return x.kind === tf; }); actsList(a); }
-  function actsList(a) { $('pd-acts-n').textContent = lastActs.length ? lastActs.length : ''; $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="cp-pop"><span class="pd-dot text-white" style="background:' + (KC[x.kind] || '#64748b') + '">' + ic(AIC[x.kind] || 'dots', 'w-2.5 h-2.5') + '</span><div class="rounded-xl border border-ink-100 bg-white px-3 py-2"><div class="flex items-center gap-2 text-[11px] text-ink-500"><b class="text-ink-800 text-xs">' + esc(x.label) + '</b><span title="' + esc(x.at) + '">' + esc(ago(x.at)) + '</span>' + (x.who ? '<span class="ms-auto">' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(x.body) + '</p>' : '') + '</div></li>'; }).join('') : '<li class="!ps-0 text-center py-8 text-sm text-ink-400">' + ic('chat', 'w-6 h-6 mx-auto mb-2 opacity-50') + esc(L.noActs) + '</li>'; }
+  function actsList(a) { $('pd-acts-n').textContent = lastActs.length ? lastActs.length : ''; $('pd-acts').innerHTML = a.length ? a.map(function (x) { return '<li class="cp-pop"><span class="pd-dot text-white" style="background:' + (KC[x.kind] || '#64748b') + '">' + ic(AIC[x.kind] || 'dots', 'w-2.5 h-2.5') + '</span><div class="rounded-xl border border-ink-100 bg-white px-3 py-2"><div class="flex items-center gap-2 text-[11px] text-ink-500"><b class="text-ink-800 text-xs">' + esc(x.label) + '</b><span title="' + esc(x.at) + '">' + esc(ago(x.at)) + '</span>' + (x.who ? '<span class="ms-auto">' + esc(x.who) + '</span>' : '') + '</div>' + (x.body ? bodyHtml(x.body) : '') + '</div></li>'; }).join('') : '<li class="!ps-0 text-center py-8 text-sm text-ink-400">' + ic('chat', 'w-6 h-6 mx-auto mb-2 opacity-50') + esc(L.noActs) + '</li>'; }
   function nextShow(n, due) { var el = $('pd-next'); el.textContent = n || L.noNext; el.className = 'ms-auto tabular-nums text-xs ' + (due ? 'text-red-600 font-semibold' : 'text-ink-600'); var p = $('pd-due-pill'); if (p) { p.classList.toggle('hidden', !n); p.textContent = (due ? '⏰ ' : '📅 ') + (n || ''); p.style.background = due ? 'rgba(220,38,38,.85)' : ''; } }
   function rowNext(r, j) { upd(r, 'next', j.next || ''); upd(r, 'next_note', j.next_note || ''); var c = q(r, '[data-c=next]'); r.dataset.due = j.due && r.dataset.stage !== 'won' && r.dataset.stage !== 'lost' ? '1' : '0';
     r.dataset.cold = '0'; c.className = 'block truncate tabular-nums ' + (r.dataset.due === '1' ? 'text-red-600 font-medium' : 'text-ink-400'); c.innerHTML = j.next ? ic('calendar', 'w-3 h-3 inline') + ' ' + esc(j.next.slice(0, 5)) : ''; }
@@ -157,11 +157,19 @@
   dl.addEventListener('cancel', function (e) { if (!$('pd-wa').classList.contains('hidden') || !$('pd-keys').classList.contains('hidden') || !$('pd-idf').classList.contains('hidden')) { e.preventDefault(); popsClose(); idEdit(false); } });
 
 
+  // ملاحظة صوتية في السجل بتتشغل مكانها
+  function bodyHtml(b) { var m = /^🎙 voice:(\S+)\s*(\S*)\n?([\s\S]*)$/.exec(b); if (!m || !C.X) return '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(b) + '</p>';
+    return '<div class="pd-voice"><audio controls preload="none" src="' + esc(C.X.voice + encodeURIComponent(m[1])) + '"></audio><small>' + esc(m[2]) + '</small></div>' + (m[3] ? '<p class="text-sm text-ink-800 break-words mt-0.5" dir="auto">' + esc(m[3]) + '</p>' : ''); }
+  var HK = { data: [], open: [] };
+  // تحديث العميل بعد أي عملية من الأدوات: بيانات الكارت من السيرفر + الصف في القايمة
+  function refresh() { var r = cur; if (!r) return Promise.resolve(); return fetch(C.selfUrl + '&ajax=card&id=' + jd(r).id, { credentials: 'same-origin' }).then(function (x) { return x.text(); }).then(function (t) { var j = JSON.parse(t.slice(t.indexOf('{'))); if (!j.ok) return;
+      r.dataset.j = JSON.stringify(j.d); r.dataset.stage = j.d.stage; q(r, '[data-stage-pill]').textContent = C.stages[j.d.stage] || j.d.stage; if (cur === r) open(r); if (H.onChange) H.onChange(r, j.d); }); }
   function rowFor(d) { var e = document.createElement('div'); e.dataset.j = JSON.stringify(d); e.dataset.id = d.id; e.dataset.stage = d.stage; e.dataset.q = ''; return e; }
   function openId(id) { return fetch(C.selfUrl + '&ajax=card&id=' + id, { credentials: 'same-origin' }).then(function (x) { return x.text(); }).then(function (t) { var j = JSON.parse(t.slice(t.indexOf('{')));
     if (!j.ok) throw new Error('no lead'); var ex = document.querySelector('[data-mk-row][data-id="' + id + '"]'); if (ex) { ex.dataset.j = JSON.stringify(j.d); open(ex); } else open(rowFor(j.d)); }).catch(function () { toast(L.err, 'error'); }); }
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-lead-pop]'); if (!b) return; e.preventDefault(); openId(+b.dataset.leadPop); });
   dl.addEventListener('close', function () { if (H.onClose && cur) H.onClose(jd(cur)); });
-  window.LeadPopup = { open: open, openId: openId, jd: jd, upd: upd, rowNext: rowNext, setNext: setNext, bulk: bulk, host: function (h) { H = h || {}; } };
+  function touched(r) { q(r, '[data-c=ago]').textContent = L.today; r.setAttribute('data-s-last', new Date().toISOString().slice(0, 19).replace('T', ' ')); r.dataset.cold = '0'; }
+  window.LeadPopup = { touched: touched, cur: function () { return cur; }, refresh: refresh, reload: function () { if (cur) loadActs(cur, jd(cur)); }, onData: function (f) { HK.data.push(f); }, onOpen: function (f) { HK.open.push(f); }, confetti: confetti, hostRows: function () { return vis(); }, H: function () { return H; }, open: open, openId: openId, jd: jd, upd: upd, rowNext: rowNext, setNext: setNext, bulk: bulk, host: function (h) { H = h || {}; } };
   var lm = /[?&]lead=(\d+)/.exec(location.search); if (lm && !/[?&]p=crm_leads/.test(location.search)) openId(+lm[1]);
 })();
