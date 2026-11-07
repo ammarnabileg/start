@@ -5286,4 +5286,8 @@ If you know someone who needs our services, send them this link. They get {get},
     'الرقم غير صحيح.' => 'Invalid number.',
     'أرقام إضافية' => 'Extra phones',
     'إيميلات إضافية' => 'Extra emails',
+    'اكشف' => 'Reveal',
+    'اكشف الرقم' => 'Reveal phone',
+    'اكشف الإيميل' => 'Reveal email',
+    'اكشف البيانات من Apollo' => 'Reveal data via Apollo',
 ];
