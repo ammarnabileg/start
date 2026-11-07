@@ -130,7 +130,7 @@
 
   // عرض / تعديل
   root.addEventListener('click', function (e) { var b = e.target.closest('[data-qview],[data-qedit]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var r = b.closest('[data-mk-row]'); open(r);
-    if (b.hasAttribute('data-qedit')) setTimeout(function () { var t = document.querySelector('[data-pt="dt"]'); if (t) t.click(); }, 250); }, true);
+    if (b.hasAttribute('data-qedit')) setTimeout(function () { var t = document.getElementById('pd-edit'); if (t) t.click(); }, 250); }, true);
 
   // أكتر من رقم وأكتر من إيميل
   function cPost(r, k, op, v) { return post(C.selfUrl, { action: 'contacts', id: jd(r).id, k: k, op: op, v: v }); }

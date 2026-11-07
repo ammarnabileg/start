@@ -1360,3 +1360,40 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .dark .pd-intel{background:rgb(124 58 237/.1);border-color:rgb(167 139 250/.3);color:#cbd5e1}
 .dark .pd-intel b,.dark .pd-intel strong{color:#f1f5f9}
 .dark .pd-tabs button.on{background:#1e293b;color:#93c5fd;box-shadow:none}
+/* الشاشة الجانبية: من غير الملخص السريع وسؤال نتيجة المكالمة */
+#pr-dlg #pd-intel,#pr-dlg:not(:has(#pd-queue:not(.hidden))) #pd-oc{display:none!important}
+
+/* خانة التواصل في الشاشة الجانبية: شرائح صغيرة */
+#pr-dlg #pd-contact{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:.35rem;margin-top:.7rem}
+#pr-dlg #pd-contact .pd-cl{width:auto!important;flex:0 1 auto;max-width:100%;padding:.2rem .3rem .2rem .55rem!important;border-radius:999px;gap:.3rem;background:rgb(255 255 255/.92)}
+#pr-dlg #pd-contact .pd-cl b{font-size:.78rem;flex:0 1 auto}
+#pr-dlg #pd-contact .pd-cl.main{box-shadow:inset 0 0 0 1.5px #93c5fd}
+#pr-dlg #pd-contact .pd-cli{width:auto!important;height:auto!important;background:none!important;color:#64748b}
+#pr-dlg .pd-cla{margin-inline-start:.1rem}
+#pr-dlg .pd-cla a,#pr-dlg .pd-cla button{width:1.45rem!important;height:1.45rem!important;border-radius:999px}
+#pr-dlg .pd-cla .mk,#pr-dlg .pd-cla .del,#pr-dlg .pd-cla [data-copy]{display:none}
+#pr-dlg .pd-cl:hover .pd-cla .mk,#pr-dlg .pd-cl:hover .pd-cla .del,#pr-dlg .pd-cl:hover .pd-cla [data-copy]{display:grid;opacity:1}
+.pd-cadd{display:inline-flex;align-items:center;gap:.25rem;font-size:.74rem;font-weight:700;padding:.3rem .65rem;border-radius:999px;color:#fff;background:rgb(255 255 255/.15);border:1px dashed rgb(255 255 255/.5)}
+.pd-cadd:hover{background:rgb(255 255 255/.25)}
+#pr-dlg .pd-addc{margin-top:.45rem}
+/* الهيدر: عناصر قابلة للضغط */
+#pd-name{cursor:pointer}#pd-name:hover{text-decoration:underline dotted;text-underline-offset:4px}
+#pd-stage-pill,#pd-due-pill{cursor:pointer;transition:transform .12s,background .12s}
+#pd-stage-pill:hover,#pd-due-pill:hover{transform:translateY(-1px);filter:brightness(1.06)}
+#pd-stage-pill::after,#pd-due-pill::after{content:'▾';font-size:.65em;margin-inline-start:.3rem;opacity:.7}
+#pd-due-pill.none{opacity:.75;border:1px dashed currentColor;background:transparent!important}
+.pd-hm{position:absolute;z-index:60;min-width:200px;max-width:280px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 18px 40px -12px rgb(15 23 42/.35);padding:.4rem;display:flex;flex-direction:column;gap:.1rem}
+.pd-hm>b{font-size:.72rem;color:#64748b;padding:.25rem .5rem}
+.pd-hm>button{text-align:start;padding:.45rem .6rem;border-radius:9px;font-size:.84rem;color:#0f172a}
+.pd-hm>button:hover{background:#f1f5f9}.pd-hm>button.on{background:#eff6ff;color:#1d4ed8;font-weight:700}
+.pd-hm label{display:flex;flex-direction:column;gap:.2rem;font-size:.72rem;color:#64748b;padding:.4rem .5rem;border-top:1px solid #f1f5f9;margin-top:.2rem}
+.pd-hm input{height:2rem;border:1px solid #e2e8f0;border-radius:8px;padding:0 .4rem;font-size:.8rem}
+.dark .pd-hm{background:#0f172a;border-color:rgb(255 255 255/.1)}.dark .pd-hm>button{color:#e2e8f0}.dark .pd-hm>button:hover{background:#1e293b}.dark .pd-hm input{background:#0b1220;border-color:rgb(255 255 255/.12);color:#e2e8f0;color-scheme:dark}
+.dark #pr-dlg #pd-contact .pd-cl{background:rgb(15 23 42/.85)}
+/* قايمة "+ رقم أو إيميل" في الجدول */
+.pr-cform{display:flex!important;gap:.3rem;align-items:center}
+.pr-cform input.pr-tagin{flex:1 1 auto;min-width:0;width:auto!important;margin:0!important;height:2.1rem}
+.pr-cform button{flex:0 0 auto;width:auto!important;height:2.1rem;padding:0 .8rem!important;border-radius:9px}
+#pr-dlg #pd-addc.hidden{display:none!important}
+#pr-dlg #pd-contact svg.pd-cli{width:.9rem!important;height:.9rem!important;padding:0!important;border-radius:0!important;flex-shrink:0}
+#pr-dlg .pd-cadd{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}#pr-dlg .pd-cadd:hover{background:#dbeafe}.dark #pr-dlg .pd-cadd{color:#93c5fd;background:rgb(37 99 235/.15);border-color:rgb(147 197 253/.35)}
