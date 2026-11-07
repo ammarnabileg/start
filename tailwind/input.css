@@ -1284,3 +1284,21 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-uf select{width:84px}
 #pr .pr-nm{word-break:normal;overflow-wrap:normal;flex-wrap:wrap;row-gap:.1rem}#pr .pr-own{width:1.4rem;height:1.4rem;font-size:.65rem}
 #pr .pr-st{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+/* إيميل جماعي + قايمة واتساب */
+.pr-bdlg{width:min(560px,94vw);max-height:86vh;border-radius:18px;padding:0;border:0;box-shadow:0 30px 60px -20px rgb(15 23 42/.4)}
+.pr-bdlg::backdrop{background:rgb(15 23 42/.45);backdrop-filter:blur(2px)}
+.pr-bf{display:flex;flex-direction:column;gap:.55rem;padding:1.1rem 1.2rem}
+.pr-bf header{display:flex;align-items:center;justify-content:space-between}
+.pr-bf header b{display:flex;align-items:center;gap:.4rem;font-size:1.05rem;color:#0f172a}
+.pr-bf header button{width:2rem;height:2rem;border-radius:10px;display:grid;place-items:center;color:#64748b}.pr-bf header button:hover{background:#f1f5f9}
+.pr-bsub{font-size:.8rem;color:#64748b;line-height:1.6}
+.pr-bf input,.pr-bf textarea{width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:.55rem .7rem;font-size:.88rem;outline:none}
+.pr-bf input:focus,.pr-bf textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 3px rgb(147 197 253/.25)}
+.pr-bf small{font-size:.72rem;color:#94a3b8}
+.pr-bst{font-size:.82rem;color:#334155;min-height:1rem}
+.pr-wal{display:flex;flex-direction:column;gap:.3rem;max-height:45vh;overflow-y:auto}
+.pr-wai{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.6rem;align-items:center;padding:.45rem .6rem;border:1px solid #eef2f7;border-radius:12px;font-size:.84rem}
+.pr-wai>span:first-child{display:flex;flex-direction:column;min-width:0}.pr-wai small{font-size:.7rem;color:#94a3b8}
+.pr-wai.done{background:#f0fdf4;border-color:#bbf7d0}.pr-wai.done button{background:#16a34a}
+.dark .pr-bdlg{background:#0f172a;color:#e2e8f0}.dark .pr-bf header b{color:#f1f5f9}.dark .pr-bf input,.dark .pr-bf textarea{background:#0b1220;border-color:rgb(255 255 255/.1);color:#e2e8f0}.dark .pr-wai{border-color:rgb(255 255 255/.08)}

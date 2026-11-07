@@ -555,12 +555,20 @@ function crm_send_email(array $l, string $subject, string $text, string $via = '
     // الروابط بتتحول عشان نعرف إنه ضغط، وبعدها بيروح للرابط الأصلي
     $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
     $html = crm_mail_wrap($html, $base . '&x=1') . '<img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
-    send_mail((string)$l['email'], $subject, $html, null, $wid);
-    db()->prepare('INSERT INTO crm_mails (workspace_id, lead_id, user_id, token, subject) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)(current_user()['id'] ?? 0) ?: null, $tok, $subject]);
+    // كل إيميلات العميل (الأساسي + الإضافي)؛ كل عنوان بإيميل لوحده عشان التتبع يبقى لكل واحد
+    $to = array_values(array_unique(array_filter(array_merge([(string)$l['email']], json_decode((string)($l['emails'] ?? ''), true) ?: []), function ($x) { return filter_var($x, FILTER_VALIDATE_EMAIL); })));
+    $sent = 0; $err = null;
+    foreach ($to as $i => $addr) {
+        $tk = $i ? bin2hex(random_bytes(16)) : $tok; $bs = base_url() . '/index.php?p=crm_t&k=' . $tk;
+        $h = $i ? str_replace($base, $bs, $html) : $html;
+        try { send_mail($addr, $subject, $h, null, $wid); $sent++; } catch (Throwable $ex) { $err = $ex; continue; }
+        db()->prepare('INSERT INTO crm_mails (workspace_id, lead_id, user_id, token, subject) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)(current_user()['id'] ?? 0) ?: null, $tk, $subject]);
+    }
+    if (!$sent) throw ($err ?: new CrmException(t('العميل ده مالوش إيميل.')));
     crm_act_add((int)$l['id'], 'email', ($via !== '' ? $via . ' ' : '') . '“' . $subject . '”' . "\n" . mb_substr($text, 0, 1500));
     db()->prepare('UPDATE crm_leads SET last_contact_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
     if ($l['stage'] === 'new') db()->prepare("UPDATE crm_leads SET stage = 'contacted' WHERE id = ?")->execute([(int)$l['id']]);
-    return ['token' => $tok];
+    return ['token' => $tok, 'sent' => $sent];
 }
 /** #72 قالب HTML للإيميل (لوجو ولون وتوقيع) + #73 رابط إلغاء الاشتراك في كل إيميل */
 function crm_mail_tpl(): array
