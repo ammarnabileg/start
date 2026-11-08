@@ -166,7 +166,8 @@ function ai_reply_cfg(int $wid): array
 {
     $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
     $pl = array_values(array_filter(array_map('strval', (array)($c['platforms'] ?? []))));
-    return ['platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
+    $sv = (array)($c['save'] ?? []);
+    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
         'sig' => mb_substr((string)($c['sig'] ?? ''), 0, 80), 'when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
         'mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
         'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
@@ -190,6 +191,69 @@ function ai_drafts(int $wid): array
 }
 
 /** الردود اللي الإيجنت بعتها (بصمة النص) عشان نفرّق بينها وبين رد البشر */
+/* ---------- توفير الرصيد: إجابات من غير ذكاء اصطناعي ---------- */
+function ai_norm_q(string $t): string
+{
+    $t = mb_strtolower(trim($t));
+    $t = strtr($t, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي', 'ؤ' => 'و', 'ئ' => 'ي', 'ـ' => '']);
+    $t = preg_replace('/[\x{064B}-\x{0652}]/u', '', $t);
+    $t = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $t);
+    return trim(preg_replace('/\s+/u', ' ', $t));
+}
+function ai_words(string $n): array
+{
+    static $stop = ['في', 'من', 'علي', 'على', 'عن', 'الى', 'الي', 'هل', 'ما', 'ماذا', 'كم', 'هو', 'هي', 'انا', 'انت', 'عندكم', 'لو', 'يا', 'و', 'او', 'the', 'a', 'an', 'is', 'are', 'do', 'you', 'to', 'of', 'for', 'and', 'in', 'what', 'how'];
+    $w = []; foreach (explode(' ', $n) as $x) { $x = preg_replace('/^(ال|وال|بال|لل)/u', '', $x); if (mb_strlen($x) >= 2 && !in_array($x, $stop, true)) $w[$x] = 1; }
+    return array_keys($w);
+}
+/** إحصائيات التوفير لليوم */
+function ai_save_stat(int $wid, string $k): void
+{
+    $key = 'ai_save_' . $wid; $d = json_decode((string)setting($key, ''), true) ?: []; $day = date('Y-m-d');
+    if (($d['day'] ?? '') !== $day) $d = ['day' => $day];
+    $d[$k] = (int)($d[$k] ?? 0) + 1; save_setting($key, json_encode($d));
+}
+/** إجابة ببلاش لو ينفع: تحية/شكر/إيموجي، سؤال شائع، أو سؤال اتجاوب قبل كده. null = لازم الذكاء الاصطناعي */
+function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?array
+{
+    $sv = $cfg['save']; $n = ai_norm_q($msg); $ar = (bool)preg_match('/\p{Arabic}/u', $msg) || (!preg_match('/[a-z]/i', $msg) && lang() === 'ar');
+    // إيموجي/ملصق/علامات بس: مفيش رد
+    if ($n === '') return ['action' => 'reply', 'reply' => '', 'reason' => t('رسالة بلا نص'), 'src' => 'skip'];
+    if ($sv['greet']) {
+        $greet = '/^(السلام عليكم( ورحمه الله( وبركاته)?)?|سلام|مرحبا|مرحب|اهلا|اهلين|هلا|هاي|هلو|صباح الخير|مساء الخير|hi|hello|hey|good (morning|evening))( \S+)?$/u';
+        $thanks = '/^(شكرا( جزيلا)?( لك| لكم)?|مشكور|مشكورين|تسلم|يعطيك العافيه|جزاك الله خير|ممتاز|تمام|اوكي|اوك|ok|okay|thanks|thank you|thx|👍)$/u';
+        if (preg_match($greet, $n)) return ['action' => 'reply', 'reply' => $sv['greetText'] !== '' ? $sv['greetText'] : ($ar ? 'أهلًا وسهلًا بك 👋 كيف نقدر نساعدك اليوم؟' : 'Hi there 👋 How can we help you today?'), 'reason' => t('تحية'), 'src' => 'greet'];
+        if (preg_match($thanks, $n)) return ['action' => 'reply', 'reply' => $channel === 'comment' ? '' : ($ar ? 'العفو، في خدمتك دائمًا 🤍' : 'You’re welcome! 🤍'), 'reason' => t('شكر'), 'src' => 'greet'];
+    }
+    $qw = ai_words($n);
+    if ($sv['faq'] && count($qw) >= 2 && function_exists('kb_get')) {
+        $best = null; $bs = 0;
+        foreach ((array)(kb_get($wid)['faq']['rows'] ?? []) as $r) { $q = trim((string)($r['q'] ?? '')); $a = trim((string)($r['a'] ?? '')); if ($q === '' || $a === '') continue;
+            $fw = ai_words(ai_norm_q($q)); if (!$fw) continue; $in = count(array_intersect($qw, $fw)); $sc = $in / max(count($fw), count($qw));
+            if ($sc > $bs) { $bs = $sc; $best = $a; } }
+        if ($best !== null && $bs >= 0.6) return ['action' => 'reply', 'reply' => $best, 'reason' => t('من الأسئلة الشائعة'), 'src' => 'faq'];
+    }
+    if ($sv['cache'] && count($qw) >= 2) {
+        $c = json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: []; $k = $channel . ':' . implode(' ', $qw);
+        if (isset($c[$k]) && (int)$c[$k]['t'] > time() - 14 * 86400) return ['action' => 'reply', 'reply' => (string)$c[$k]['r'], 'reason' => t('سؤال متكرر'), 'src' => 'cache'];
+    }
+    return null;
+}
+/** قرار الرد: الأرخص الأول، وبعدين الذكاء الاصطناعي بسياق أقصر، وحفظ الإجابة للأسئلة المتكررة */
+function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $history = ''): array
+{
+    $c = ai_cheap_answer($wid, $cfg, $msg, $channel);
+    if ($c !== null) { ai_save_stat($wid, $c['src']); return $c + ['confidence' => 1]; }
+    $d = kb_decide($wid, $msg, $channel, mb_substr($history, -1200), ai_reply_style($cfg));
+    ai_save_stat($wid, 'ai');
+    if ($cfg['save']['cache'] && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
+        $qw = ai_words(ai_norm_q($msg));
+        // بنحفظ الأسئلة العامة بس (مش لو المحادثة فيها سياق خاص)
+        if (count($qw) >= 2 && count($qw) <= 12) { $cc = json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: []; $cc[$channel . ':' . implode(' ', $qw)] = ['r' => trim((string)$d['reply'], " \n\"'«»"), 't' => time()]; save_setting('ai_cache_' . $wid, json_encode(array_slice($cc, -400, null, true), JSON_UNESCAPED_UNICODE)); }
+    }
+    return $d + ['src' => 'ai'];
+}
+
 /** تعليمات الأسلوب للموديل */
 function ai_reply_style(array $c): string
 {
@@ -274,7 +338,7 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
             if ($fresh) { $hist[] = 'Customer: ' . mb_substr($m, 0, 400); $evTs = ai_ts($c['lastMessageAt'] ?? null) ?: time(); if ($human && $human > $evTs) continue; }
             elseif ($ms && $lastDir === 'outgoing') continue;
             if ($human && $human > $now - $pause && $human > $res) { ai_agent_pause_set($wid, 'c:' . $id, $human + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // البشري رد من أقل من مدة الإيقاف
-            $d = kb_decide($wid, $m, 'message', implode("\n", array_slice($hist, -12, 11)), ai_reply_style($cfg));
+            $d = ai_decide($wid, $cfg, $m, 'message', implode("\n", array_slice($hist, -7, 6)));
             $text = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
             if ($d['action'] === 'handoff') {
                 kb_handoff_email($wid, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), $m, $d['reason'], base_url() . '/' . url('inbox', ['c' => $id, 'a' => $acc]));
@@ -295,7 +359,7 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
         if ($cfg['comments'] && $cfg['mode'] === 'send' && $pid !== '' && $acc !== '' && $cid !== '' && $tx !== '' && !isset($done[$k]) && ai_platform_on($cfg, (string)$hookCmt['platform'])
             && !(ai_human_recent($wid, 'p:' . $pid, $cfg['pause']) && ai_agent_resumed($wid, 'p:' . $pid) < time() - 5)) {
             try {
-                $d = kb_decide($wid, $tx, 'comment', '', ai_reply_style($cfg)); $rt = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
+                $d = ai_decide($wid, $cfg, $tx, 'comment'); $rt = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
                 if ($d['action'] === 'handoff') { kb_handoff_email($wid, (string)$hookCmt['name'], (string)$hookCmt['platform'], $tx, $d['reason'], base_url() . '/' . url('comments', ['post' => $pid])); }
                 if ($rt !== '') { $z->replyComment($pid, $acc, $rt, $cid); ai_sent_mark($wid, $rt); log_activity('ai.auto_comment', $cid); $n++; }
                 ai_agent_log_add($wid, ['kind' => 'comment', 'who' => (string)$hookCmt['name'], 'platform' => (string)$hookCmt['platform'], 'in' => mb_substr($tx, 0, 300), 'out' => mb_substr($rt, 0, 400), 'handoff' => $d['action'] === 'handoff', 'reason' => (string)$d['reason'], 'link' => url('comments', ['post' => $pid])]);
@@ -328,7 +392,7 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
                 $k = 'cm:' . $cid; if (isset($done[$k])) continue;
                 if (ai_ts($c['createdTime'] ?? $c['createdAt'] ?? null) < $now - 3 * 86400) { $done[$k] = 1; continue; } // قديم: مانردش
                 try {
-                    $d = kb_decide($wid, $tx, 'comment', '', ai_reply_style($cfg));
+                    $d = ai_decide($wid, $cfg, $tx, 'comment');
                     $rt = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
                     if ($d['action'] === 'handoff') { kb_handoff_email($wid, (string)($c['from']['name'] ?? ''), (string)($p['platform'] ?? ''), $tx, $d['reason'], base_url() . '/' . url('comments', ['post' => $pid])); log_activity('ai.handoff', 'comment ' . $cid . ' ' . $d['reason']); }
                     if ($rt !== '') { $z->replyComment($pid, $acc, $rt, $cid); ai_sent_mark($wid, $rt); log_activity('ai.auto_comment', $cid); $n++; }

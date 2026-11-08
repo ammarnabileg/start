@@ -385,7 +385,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'Return ONLY JSON: {"action":"reply"|"handoff","reply":"the reply text (if handoff: a short polite message saying a team member will follow up)","reason":"short reason in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '","confidence":0-1}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 500, 'reply');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 320, 'reply');
     $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
     $d = json_decode($j, true);
     if (!is_array($d)) $d = ['action' => 'reply', 'reply' => trim($r['text']), 'reason' => '', 'confidence' => 0.5];

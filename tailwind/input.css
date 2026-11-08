@@ -1620,3 +1620,8 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .tp-nav.journey{position:relative}
 .dark .tp-seg{background:#1e293b}.dark .tp-seg button.on{background:#0f172a;color:#93c5fd}.dark .tp-tab{color:#cbd5e1}.dark .tp-tab:hover{background:#1e293b}
 .ag-hook{margin-top:.6rem;font-size:.76rem;border-radius:10px;padding:.4rem .65rem}.ag-hook:empty{display:none}.ag-hook.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}.ag-hook.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}.ag-hook .link{font-weight:700;margin-inline-start:.3rem}
+
+.ag-free{margin-inline-start:auto;font-size:.68rem;font-weight:600;color:#15803d;background:#f0fdf4;border-radius:99px;padding:.1rem .55rem}
+.ag-model{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem;margin-top:.6rem;font-size:.74rem;color:#64748b}.ag-model b{color:#0f172a}
+.ag-freebadge{font-style:normal;font-size:.62rem;background:#dcfce7;color:#15803d;border-radius:99px;padding:.05rem .45rem;margin-inline-start:.3rem}
+.dark .ag-model b{color:#e2e8f0}.dark .ag-free{background:rgb(34 197 94/.12)}
