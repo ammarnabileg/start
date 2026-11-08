@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             $text = trim($r['text'], " \n\"'«»") ?: $text;
         } catch (Throwable $e) {}
     }
-    try { $z->replyComment($postId, $accId, $text, $cid); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+    try { $z->replyComment($postId, $accId, $text, $cid); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); } if (function_exists('ai_human_mark')) ai_human_mark((int)ws('id'), 'p:' . $postId);
     log_activity('comment.reply_bulk', $cid);
     $J(['ok' => true, 'text' => $text]);
 }
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $postId && $accId) {
             if ($text === '') {
                 flash('error', t('اكتب الرد الأول.'));
             } else {
-                $z->replyComment($postId, $accId, $text, $commentId ?: null);
+                $z->replyComment($postId, $accId, $text, $commentId ?: null); if (function_exists('ai_human_mark')) ai_human_mark((int)ws('id'), 'p:' . $postId);
                 log_activity('comment.reply', $postId);
                 flash('success', t('تم إرسال الرد.'));
             }

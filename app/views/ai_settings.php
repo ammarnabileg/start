@@ -24,7 +24,7 @@ function ai_settings_post(string $action): void
             return;
         }
         $days = array_values(array_intersect(array_map('intval', (array)($_POST['days'] ?? [])), range(0, 6)));
-        save_setting('ai_reply_cfg_' . $wid, json_encode(['mode' => ($_POST['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => (string)($_POST['from'] ?? '09:00'), 'to' => (string)($_POST['to'] ?? '21:00'), 'days' => $days]));
+        save_setting('ai_reply_cfg_' . $wid, json_encode(['when' => ($_POST['when'] ?? '') === 'always' ? 'always' : 'off', 'comments' => !empty($_POST['comments']) ? 1 : 0, 'pause' => max(5, min(240, (int)($_POST['pause'] ?? 30))), 'mode' => ($_POST['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => (string)($_POST['from'] ?? '09:00'), 'to' => (string)($_POST['to'] ?? '21:00'), 'days' => $days]));
         flash('success', t('تم حفظ إعدادات الرد التلقائي.'));
         return;
     }
@@ -171,6 +171,13 @@ function ai_settings_render(string $tab): void
               <summary class="text-sm link cursor-pointer"><?= e(t('إعدادات الرد التلقائي')) ?></summary>
               <form method="post" class="mt-3 space-y-3 text-sm">
                 <?= csrf_field() ?><input type="hidden" name="action" value="ai_reply_cfg"><input type="hidden" name="back" value="usage">
+                <div class="space-y-1.5">
+                  <span class="label"><?= e(t('متى يرد الإيجنت؟')) ?></span>
+                  <label class="flex items-center gap-2"><input type="radio" name="when" value="always" <?= $rc['when'] === 'always' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><?= e(t('طوال الوقت')) ?></span></label>
+                  <label class="flex items-center gap-2"><input type="radio" name="when" value="off" <?= $rc['when'] === 'off' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><?= e(t('خارج مواعيد العمل فقط')) ?></span></label>
+                </div>
+                <label class="flex items-start gap-2"><input type="checkbox" name="comments" value="1" class="mt-1" <?= $rc['comments'] ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><b class="text-ink-900"><?= e(t('الرد على التعليقات أيضًا')) ?></b><span class="block text-xs text-ink-500"><?= e(t('رد علني قصير من قاعدة المعرفة فقط، ويعمل مع الإرسال المباشر. التعليقات الأقدم من 3 أيام لا يُرد عليها.')) ?></span></span></label>
+                <label class="flex items-center justify-between gap-2"><span><b class="text-ink-900"><?= e(t('يتوقف بعد رد بشري لمدة (دقيقة)')) ?></b><span class="block text-xs text-ink-500"><?= e(t('لو رد أحد من الفريق يدويًا، يتوقف الإيجنت عن الرد في نفس المحادثة أو المنشور حتى تمر هذه المدة من آخر رد بشري.')) ?></span></span><input type="number" name="pause" min="5" max="240" value="<?= (int)$rc['pause'] ?>" class="input !w-20 text-center" <?= $owner ? '' : 'disabled' ?>></label>
                 <div class="grid grid-cols-2 gap-2">
                   <label class="block"><span class="label"><?= e(t('بداية العمل')) ?></span><input type="time" name="from" value="<?= e($rc['from']) ?>" class="input" <?= $owner ? '' : 'disabled' ?>></label>
                   <label class="block"><span class="label"><?= e(t('نهاية العمل')) ?></span><input type="time" name="to" value="<?= e($rc['to']) ?>" class="input" <?= $owner ? '' : 'disabled' ?>></label>
