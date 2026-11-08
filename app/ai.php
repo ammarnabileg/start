@@ -106,6 +106,7 @@ function ai_tasks(): array
         'compose' => ['name' => t('كتابة المنشورات'), 'desc' => t('كتابة منشور من فكرة، أو تحسين نص مكتوب.'), 'icon' => 'M4 20h4L18.5 9.5a2.1 2.1 0 00-4-4L4 16v4z', 'hint' => t('الموديلات السريعة كافية'), 'max' => 600],
         'analyze' => ['name' => t('التحليل والتلخيص'), 'desc' => t('تلخيص المحادثات، مراجعة المنشورات، شرح الأرقام والتقييمات.'), 'icon' => 'M4 19V5m0 14h16M8 15l3-4 3 2 4-6', 'hint' => t('موديل متوسط يكفي'), 'max' => 700],
         'classify' => ['name' => t('التصنيف'), 'desc' => t('تصنيف الرسائل والتعليقات، معرفة إحساس العميل ونية الشراء.'), 'icon' => 'M4 6h16M4 12h10M4 18h6', 'hint' => t('الأرخص هو الأنسب لأنه يعمل كثيرًا'), 'max' => 400],
+        'reply_fast' => ['name' => t('الردود البسيطة (الرد الذكي)'), 'desc' => t('الأسئلة القصيرة الواضحة في الرد الذكي. اختر لها موديلًا أرخص، والأسئلة المعقدة تذهب لموديل الردود.'), 'icon' => 'M13 3L4 14h7l-1 7 9-11h-7z', 'hint' => t('الأرخص والأسرع')],
         'reply' => ['name' => t('اقتراح الردود'), 'desc' => t('اقتراح رد على رسالة أو تعليق من سياق المحادثة.'), 'icon' => 'M4 5h16v10H8l-4 4z', 'hint' => t('الأرخص والأسرع هو الأنسب'), 'max' => 300],
     ];
 }
@@ -165,6 +166,7 @@ function ai_task_chain(string $task): array
         if (count($chain) >= 6) break;
     }
     // مفيش موديل متعلّم عليه للمهمة دي (أو اتشال): نرجع للتلقائي بدل ما المهمة تقف
+    if (!$chain && $task === 'reply_fast') return ai_task_chain('reply');
     return $chain ?: $conns;
 }
 
@@ -224,7 +226,7 @@ function ai_with_kb(array $messages, string $task): array
     // آخر رسالة من المستخدم = اللي بندور على أجزاء الملفات المناسبة ليها
     $query = '';
     for ($i = count($messages) - 1; $i >= 0; $i--) { if (($messages[$i]['role'] ?? '') === 'user') { $c = $messages[$i]['content']; $query = is_array($c) ? (string)($c[0]['text'] ?? '') : (string)$c; break; } }
-    if (!in_array($task, ['assistant', 'compose', 'reply', 'analyze', 'classify'], true)) return $messages;
+    if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'classify'], true)) return $messages;
     $kb = ai_kb((int)ws('id'), mb_substr($query, 0, 2000));
     $note = ai_country_note();
     if ($kb !== '') $note .= "\n\nCOMPANY KNOWLEDGE BASE — follow it strictly. Use ONLY these facts for prices, services, hours, addresses, policies and offers; never invent any. Respect TONE, NEVER SAY and ANTI-HYPE rules in everything you write. If something isn't covered, say you'll check and get back.\n\n" . $kb;

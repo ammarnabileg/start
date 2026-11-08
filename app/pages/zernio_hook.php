@@ -46,6 +46,18 @@ $handle = function (string $type, array $ev) use ($wid) {
     return ai_auto_reply($wid, false, null, ['id' => (string)($cm['id'] ?? ''), 'postId' => (string)($cm['postId'] ?? $ev['post']['id'] ?? $cm['platformPostId'] ?? $ev['post']['platformPostId'] ?? ''), 'accountId' => $acc,
         'text' => (string)($cm['text'] ?? ''), 'platform' => (string)($cm['platform'] ?? $ev['account']['platform'] ?? ''), 'name' => (string)($cm['author']['name'] ?? $cm['author']['username'] ?? '')]);
 };
+// تجميع: العميل بيبعت كذا رسالة ورا بعض. كل رسالة بتتسجل، وبعد ثواني آخر رسالة بس هي اللي بترد على الكل (طلب ذكاء واحد بدل كذا)
+if ($type === 'message.received' && function_exists('ai_reply_cfg') && ai_reply_cfg($wid)['save']['batch'] && trim((string)($ev['message']['text'] ?? '')) !== '') {
+    $pk = 'ai_hook_pend_' . $wid . '_' . md5((string)($ev['message']['conversationId'] ?? $ev['conversation']['id'] ?? '')) . '_';
+    $me = $pk . sprintf('%.4f', microtime(true)) . '_' . substr(md5($eid . $raw), 0, 6);
+    save_setting($me, (string)$ev['message']['text']);
+    sleep((int)(getenv('AI_BATCH_WAIT') ?: 8));
+    $q = db()->prepare('SELECT name, value FROM settings WHERE name LIKE ? ORDER BY name');
+    $q->execute([$pk . '%']); $rows = $q->fetchAll(PDO::FETCH_KEY_PAIR);
+    if (!$rows || array_key_last($rows) !== $me) exit; // فيه رسالة أحدث هي اللي هترد
+    db()->prepare('DELETE FROM settings WHERE name LIKE ?')->execute([$pk . '%']);
+    $ev['message']['text'] = implode("\n", array_values(array_filter($rows, function ($v, $k) { return (float)preg_replace('/^.*_(\d+\.\d+)_\w+$/', '$1', $k) > microtime(true) - 300; }, ARRAY_FILTER_USE_BOTH)));
+}
 $key = $type === 'message.received' ? 'c:' . (string)($ev['message']['conversationId'] ?? $ev['conversation']['id'] ?? '') : 'cm:' . (string)($ev['comment']['id'] ?? '');
 $lk = 'ai_hook_lock_' . $wid . '_' . md5($key);
 if ((int)setting($lk, '0') > time() - 60) { usleep(1500000); } // رسالتين ورا بعض في نفس المحادثة: نستنى الأولى تخلص

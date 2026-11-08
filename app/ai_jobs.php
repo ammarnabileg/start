@@ -167,7 +167,7 @@ function ai_reply_cfg(int $wid): array
     $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
     $pl = array_values(array_filter(array_map('strval', (array)($c['platforms'] ?? []))));
     $sv = (array)($c['save'] ?? []);
-    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
+    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'route' => ($sv['route'] ?? 1) ? 1 : 0, 'batch' => ($sv['batch'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
         'sig' => mb_substr((string)($c['sig'] ?? ''), 0, 80), 'when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
         'mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
         'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
@@ -244,14 +244,24 @@ function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $h
 {
     $c = ai_cheap_answer($wid, $cfg, $msg, $channel);
     if ($c !== null) { ai_save_stat($wid, $c['src']); return $c + ['confidence' => 1]; }
-    $d = kb_decide($wid, $msg, $channel, mb_substr($history, -1200), ai_reply_style($cfg));
-    ai_save_stat($wid, 'ai');
-    if ($cfg['save']['cache'] && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
+    $fast = $cfg['save']['route'] && ai_is_simple($msg);
+    $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply');
+    ai_save_stat($wid, $fast ? 'fast' : 'ai');
+    // بنحفظ بس لو مفيش سياق قبلها: «وكام سعرها؟» إجابتها بتعتمد على المحادثة ومينفعش تتكرر لعميل تاني
+    if ($cfg['save']['cache'] && trim($history) === '' && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
         $qw = ai_words(ai_norm_q($msg));
         // بنحفظ الأسئلة العامة بس (مش لو المحادثة فيها سياق خاص)
         if (count($qw) >= 2 && count($qw) <= 12) { $cc = json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: []; $cc[$channel . ':' . implode(' ', $qw)] = ['r' => trim((string)$d['reply'], " \n\"'«»"), 't' => time()]; save_setting('ai_cache_' . $wid, json_encode(array_slice($cc, -400, null, true), JSON_UNESCAPED_UNICODE)); }
     }
     return $d + ['src' => 'ai'];
+}
+
+/** سؤال قصير واضح (سعر/مواعيد/مكان...) يكفيه موديل أرخص؛ الشكوى أو الطلب المركّب يذهب للموديل الأقوى */
+function ai_is_simple(string $m): bool
+{
+    $m = trim($m); $n = mb_strlen($m);
+    if ($n === 0 || $n > 90 || substr_count($m, '?') + substr_count($m, '؟') > 1 || preg_match('/\n.*\n/u', $m)) return false;
+    return !preg_match('/(شكو|مشكل|زعلان|سيء|سيئ|استرجاع|استرداد|ارجاع|إرجاع|تعويض|غلط|خطأ|متأخر|اتأخر|ما وصل|موصلش|لم يصل|refund|complain|problem|issue|broken|wrong|late|cancel|الغاء|إلغاء|لغي|عقد|مقارن|افرق|الفرق|compare)/iu', $m);
 }
 
 /** تعليمات الأسلوب للموديل */

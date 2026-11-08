@@ -371,7 +371,7 @@ function kb_trigger_options(): array
  * قرار الرد: يرد ولا يحوّل لموظف. بيرجع: action (reply|handoff), reply, reason, confidence
  * ده اللي الرد التلقائي على الرسايل والتعليقات هيشتغل بيه.
  */
-function kb_decide(int $wid, string $message, string $channel = 'message', string $history = '', string $style = ''): array
+function kb_decide(int $wid, string $message, string $channel = 'message', string $history = '', string $style = '', string $task = 'reply'): array
 {
     $esc = kb_escalation($wid);
     $trig = array_intersect_key(kb_trigger_options(), array_flip($esc['triggers']));
@@ -385,7 +385,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'Return ONLY JSON: {"action":"reply"|"handoff","reply":"the reply text (if handoff: a short polite message saying a team member will follow up)","reason":"short reason in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '","confidence":0-1}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 320, 'reply');
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 220 : 320, $task);
     $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
     $d = json_decode($j, true);
     if (!is_array($d)) $d = ['action' => 'reply', 'reply' => trim($r['text']), 'reason' => '', 'confidence' => 0.5];

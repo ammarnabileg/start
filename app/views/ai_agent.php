@@ -74,7 +74,7 @@ function ai_agent_ajax(string $a): void
         if (isset($in['len']) && in_array($in['len'], ['short', 'medium', 'detailed'], true)) $c['len'] = $in['len'];
         if (isset($in['tone']) && in_array($in['tone'], ['friendly', 'formal', 'brand'], true)) $c['tone'] = $in['tone'];
         if (isset($in['sig'])) $c['sig'] = mb_substr(trim((string)$in['sig']), 0, 80);
-        foreach (['greet', 'faq', 'cache'] as $sk) if (isset($in['save_' . $sk])) $c['save'][$sk] = $in['save_' . $sk] === '1' ? 1 : 0;
+        foreach (['greet', 'faq', 'cache', 'route', 'batch'] as $sk) if (isset($in['save_' . $sk])) $c['save'][$sk] = $in['save_' . $sk] === '1' ? 1 : 0;
         if (isset($in['greetText'])) $c['save']['greetText'] = mb_substr(trim((string)$in['greetText']), 0, 200);
         if (isset($in['clearCache'])) save_setting('ai_cache_' . $wid, '');
         if (isset($in['from']) && preg_match('/^\d\d:\d\d$/', $in['from'])) $c['from'] = $in['from'];
@@ -161,7 +161,7 @@ function ai_agent_state(int $wid): array
     $active = $on && !$issues;
     return ['cfg' => $c, 'on' => $on, 'active' => $active, 'inHours' => ai_in_hours($wid), 'issues' => $issues,
         'last' => ($lr = (int)setting('ai_agent_last_' . $wid, '0')) ? $fmt($lr) : '',
-        'saved' => (function () use ($wid) { $d = json_decode((string)setting('ai_save_' . $wid, ''), true) ?: []; if (($d['day'] ?? '') !== date('Y-m-d')) $d = []; $f = (int)($d['greet'] ?? 0) + (int)($d['faq'] ?? 0) + (int)($d['cache'] ?? 0) + (int)($d['skip'] ?? 0); return ['free' => $f, 'ai' => (int)($d['ai'] ?? 0), 'greet' => (int)($d['greet'] ?? 0), 'faq' => (int)($d['faq'] ?? 0), 'cache' => (int)($d['cache'] ?? 0), 'cached' => count(json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: [])]; })(),
+        'saved' => (function () use ($wid) { $d = json_decode((string)setting('ai_save_' . $wid, ''), true) ?: []; if (($d['day'] ?? '') !== date('Y-m-d')) $d = []; $f = (int)($d['greet'] ?? 0) + (int)($d['faq'] ?? 0) + (int)($d['cache'] ?? 0) + (int)($d['skip'] ?? 0); return ['free' => $f, 'ai' => (int)($d['ai'] ?? 0) + (int)($d['fast'] ?? 0), 'fast' => (int)($d['fast'] ?? 0), 'greet' => (int)($d['greet'] ?? 0), 'faq' => (int)($d['faq'] ?? 0), 'cache' => (int)($d['cache'] ?? 0), 'cached' => count(json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: [])]; })(),
         'model' => (function () use ($wid) { $o = []; foreach ((function_exists('ai_picks') ? ai_picks($wid) : []) as $k => $tasks) if (in_array('reply', (array)$tasks, true)) $o[] = explode('|', $k, 2)[1] ?? $k; return $o ? implode('، ', array_slice($o, 0, 3)) : t('الافتراضي'); })(),
         'hook' => (function () use ($wid, $fmt) { $h = json_decode((string)setting('ai_hook_' . $wid, ''), true) ?: []; $l = json_decode((string)setting('ai_hook_last_' . $wid, ''), true) ?: []; return ['on' => !empty($h['on']), 'err' => (string)($h['err'] ?? ''), 'last' => !empty($l['t']) ? $fmt($l['t']) : '']; })(),
         'today' => ['replies' => count(array_filter($log, function ($x) use ($today) { return $x['t'] >= $today && in_array($x['kind'], ['msg', 'comment'], true); })),
@@ -227,6 +227,8 @@ function ai_agent_render(): void
         <input class="ag-sig" data-greet maxlength="200" dir="auto" placeholder="<?= e(t('رسالة الترحيب (اختياري) — مثلًا: أهلًا بك في [اسم الشركة]! كيف نخدمك؟')) ?>">
         <label class="ag-row"><span><b><?= e(t('الإجابة من الأسئلة الشائعة مباشرة')) ?></b><small><?= e(t('لو السؤال يطابق سؤالًا في قاعدة المعرفة، تُرسل الإجابة المعتمدة كما هي')) ?></small></span><button type="button" class="ag-sw sm" data-save="faq"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('إعادة استخدام الإجابات المتكررة')) ?></b><small data-cachen></small></span><button type="button" class="ag-sw sm" data-save="cache"><i></i></button></label>
+        <label class="ag-row"><span><b><?= e(t('موديل أرخص للأسئلة البسيطة')) ?></b><small><?= e(t('السؤال القصير الواضح يذهب لموديل «الردود البسيطة»، والشكاوى والأسئلة المركبة لموديل الردود الأقوى')) ?></small></span><button type="button" class="ag-sw sm" data-save="route"><i></i></button></label>
+        <label class="ag-row"><span><b><?= e(t('تجميع الرسائل المتتالية')) ?></b><small><?= e(t('لو أرسل العميل عدة رسائل وراء بعض، ينتظر ثواني ويرد ردًا واحدًا عليها كلها')) ?></small></span><button type="button" class="ag-sw sm" data-save="batch"><i></i></button></label>
         <div class="ag-model"><span><?= e(t('موديل الردود الحالي:')) ?> <b data-model></b></span><a class="link" href="<?= e(url('assistant')) ?>"><?= e(t('اختر موديلًا أرخص')) ?> ←</a><?php if ($owner): ?><button type="button" class="link" data-clearcache><?= e(t('مسح الإجابات المحفوظة')) ?></button><?php endif; ?></div>
       </section>
 
