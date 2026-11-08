@@ -106,7 +106,11 @@
     taskH = taskH.replace('data-tform data-no-ajax>', 'data-tform data-no-ajax><label class="pd-stsel"><span>' + ic('layers', 'w-4 h-4') + esc(T.stageL) + '</span><select id="pd-stg-sel" name="stage" class="' + (cs === 'won' ? 'won' : cs === 'lost' ? 'lost' : '') + '">' + opts + '</select></label>');
     taskH = taskH.replace('<ul class="space-y-1.5 mt-3">', '<ul class="space-y-1.5 mt-3">' + pin); if (pin) taskH = taskH.replace('<li class="text-xs text-ink-400 py-2">' + esc(T.noTasks) + '</li>', '');
     h = taskH + (run || X.plans.length ? planH.replace('<section class="pd-card !p-4">', '<section class="pd-card !p-4 mt-3">') : '<p class="text-[11px] text-ink-400 mt-3 px-1">' + ic('refresh', 'w-3 h-3 inline') + ' <a class="link" href="' + esc(X.settings) + '">' + esc(T.mkPlan) + '</a></p>');
-    p.innerHTML = h; badge('tk', tasks.length + (run ? 1 : 0), (run && run.state === 'due') || tasks.some(function (t) { return t.over; })); }
+    p.innerHTML = h;
+    // الفورم بلوك واحد متصل: المسؤول جنب الحالة، والمهام لازقة تحت الفورم
+    var tf = p.querySelector('[data-tform]'); if (tf) { var us = tf.querySelector('select[name=user]'), sr = tf.querySelector('.pd-stsel'); if (us && sr) { us.className = 'pd-usel'; sr.appendChild(us); }
+      var ul = tf.parentNode.querySelector('ul'); if (ul) { ul.className = 'pd-tlist'; if (!ul.children.length) ul.remove(); } }
+    badge('tk', tasks.length + (run ? 1 : 0), (run && run.state === 'due') || tasks.some(function (t) { return t.over; })); }
   $('pd-p-tk').addEventListener('click', function (e) { var d = lead(), b;
     if ((b = e.target.closest('[data-pstart]'))) { busy(b, true); return api({ action: 'plan_start', id: d.id, plan: b.dataset.pstart }).then(function (j) { busy(b, false); if (!j.ok) return fail(j); toast(T.saved); LP.refresh(); }); }
     if ((b = e.target.closest('[data-pl]'))) { var a = b.dataset.pl; if (a === 'wa') { window.open('https://wa.me/' + d.wa + '?text=' + encodeURIComponent(data.run.text), '_blank', 'noopener'); a = 'plan_do'; }
