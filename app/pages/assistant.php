@@ -7,11 +7,14 @@ $wid = (int)ws('id');
 $hist = &$_SESSION['ai_chat'][$wid];
 if (!is_array($hist)) $hist = [];
 $connected = ai_connection() !== null;
-$tabs = ['models' => t('الموديلات والمهام'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
+$tabs = ['models' => t('الموديلات والمهام'), 'agent' => t('الإيجنت'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
+require_once __DIR__ . '/../views/ai_agent.php';
+if ($tab_req = (string)($_GET['ajax'] ?? '')) { if (strpos($tab_req, 'agent_') === 0) ai_agent_ajax($tab_req); }
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'models';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? 'ask');
+    if (strpos($action, 'agent_') === 0) ai_agent_ajax($action);
     // إعدادات الذكاء الاصطناعي
     if ($action === 'ai_feature') ai_feature_post();
     if (strpos($action, 'ai_') === 0) { ai_settings_post($action); redirect(url('assistant', ['tab' => $_POST['back'] ?? 'models'])); }
@@ -58,6 +61,7 @@ render(t('الذكاء الاصطناعي'), 'assistant', function () use ($conn
     </div>
     <?php
     if ($tab === 'features') { ai_features_render(); return; }
+    if ($tab === 'agent') { ai_agent_render(); return; }
     if ($connected) echo '<div class="card p-4 mb-5 flex items-center gap-3 text-sm"><span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-cyan-500 text-[#fff] flex items-center justify-center">' . ai_icon('spark', 'w-4 h-4') . '</span><span class="flex-1 text-ink-600">' . e(t('المحادثة مع الذكاء الاصطناعي أصبحت في اللوحة الجانبية، متاحة من أي صفحة. اضغط ✨ أو Ctrl+J.')) . '</span><button type="button" data-cp-toggle class="btn-primary !py-1.5 !text-xs">' . e(t('افتح المحادثة')) . '</button></div>';
     // شركة ملهاش أي مزود: كارت واضح بدل قائمة الموديلات (باقي التبويبات شغالة عادي)
     if (!$connected && $tab === 'models') {

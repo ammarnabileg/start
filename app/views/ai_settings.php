@@ -166,30 +166,8 @@ function ai_settings_render(string $tab): void
                   <span class="absolute top-0.5 start-0.5 w-5 h-5 rounded-full bg-[#fff] shadow transition-transform <?= $won ? 'translate-x-5 rtl:-translate-x-5' : '' ?>"></span></button>
               </form>
             <?php endforeach; ?>
-            <?php $rc = ai_reply_cfg((int)ws('id')); $dn = [t('الأحد'), t('الإثنين'), t('الثلاثاء'), t('الأربعاء'), t('الخميس'), t('الجمعة'), t('السبت')]; ?>
-            <details class="mt-4 rounded-xl border border-ink-200 p-3" <?= ai_auto_enabled((int)ws('id'), 'reply') ? 'open' : '' ?>>
-              <summary class="text-sm link cursor-pointer"><?= e(t('إعدادات الرد التلقائي')) ?></summary>
-              <form method="post" class="mt-3 space-y-3 text-sm">
-                <?= csrf_field() ?><input type="hidden" name="action" value="ai_reply_cfg"><input type="hidden" name="back" value="usage">
-                <div class="space-y-1.5">
-                  <span class="label"><?= e(t('متى يرد الإيجنت؟')) ?></span>
-                  <label class="flex items-center gap-2"><input type="radio" name="when" value="always" <?= $rc['when'] === 'always' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><?= e(t('طوال الوقت')) ?></span></label>
-                  <label class="flex items-center gap-2"><input type="radio" name="when" value="off" <?= $rc['when'] === 'off' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><?= e(t('خارج مواعيد العمل فقط')) ?></span></label>
-                </div>
-                <label class="flex items-start gap-2"><input type="checkbox" name="comments" value="1" class="mt-1" <?= $rc['comments'] ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><b class="text-ink-900"><?= e(t('الرد على التعليقات أيضًا')) ?></b><span class="block text-xs text-ink-500"><?= e(t('رد علني قصير من قاعدة المعرفة فقط، ويعمل مع الإرسال المباشر. التعليقات الأقدم من 3 أيام لا يُرد عليها.')) ?></span></span></label>
-                <label class="flex items-center justify-between gap-2"><span><b class="text-ink-900"><?= e(t('يتوقف بعد رد بشري لمدة (دقيقة)')) ?></b><span class="block text-xs text-ink-500"><?= e(t('لو رد أحد من الفريق يدويًا، يتوقف الإيجنت عن الرد في نفس المحادثة أو المنشور حتى تمر هذه المدة من آخر رد بشري.')) ?></span></span><input type="number" name="pause" min="5" max="240" value="<?= (int)$rc['pause'] ?>" class="input !w-20 text-center" <?= $owner ? '' : 'disabled' ?>></label>
-                <div class="grid grid-cols-2 gap-2">
-                  <label class="block"><span class="label"><?= e(t('بداية العمل')) ?></span><input type="time" name="from" value="<?= e($rc['from']) ?>" class="input" <?= $owner ? '' : 'disabled' ?>></label>
-                  <label class="block"><span class="label"><?= e(t('نهاية العمل')) ?></span><input type="time" name="to" value="<?= e($rc['to']) ?>" class="input" <?= $owner ? '' : 'disabled' ?>></label>
-                </div>
-                <div><span class="label"><?= e(t('أيام العمل')) ?></span><div class="flex flex-wrap gap-1.5 mt-1"><?php foreach ($dn as $di => $dl): ?><label class="chip !py-1 text-xs cursor-pointer"><input type="checkbox" name="days[]" value="<?= $di ?>" class="w-3.5 h-3.5" <?= in_array($di, $rc['days'], true) ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>> <?= e($dl) ?></label><?php endforeach; ?></div></div>
-                <div class="space-y-1.5">
-                  <label class="flex items-start gap-2"><input type="radio" name="mode" value="draft" class="mt-1" <?= $rc['mode'] === 'draft' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><b class="text-ink-900"><?= e(t('مسودة للمراجعة (موصى به)')) ?></b><span class="block text-xs text-ink-500"><?= e(t('يجهّز الرد ويظهر في المحادثة، وأنت تضغط إرسال.')) ?></span></span></label>
-                  <label class="flex items-start gap-2"><input type="radio" name="mode" value="send" class="mt-1" <?= $rc['mode'] === 'send' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>><span><b class="text-ink-900"><?= e(t('إرسال مباشر')) ?></b><span class="block text-xs text-red-600"><?= e(t('يرسل للعميل بدون مراجعة. أي خطأ في معلومات الشركة سيصل للعميل.')) ?></span></span></label>
-                </div>
-                <button class="btn-ghost" <?= $owner ? '' : 'disabled' ?>><?= e(t('حفظ')) ?></button>
-              </form>
-            </details>
+            <?php  ?>
+            <a href="<?= e(url('assistant', ['tab' => 'agent'])) ?>" class="mt-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800 hover:bg-brand-100"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('إعدادات الإيجنت وسجله وتجربته في تبويب الإيجنت')) ?> ←</a>
             <form method="post" class="mt-4 flex items-start gap-2 text-sm">
               <?= csrf_field() ?><input type="hidden" name="action" value="ai_call_consent"><input type="hidden" name="back" value="usage">
               <input type="checkbox" name="consent" value="1" class="mt-1" onchange="this.form.requestSubmit()" <?= setting('ai_call_consent_' . (int)ws('id'), '0') === '1' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>
