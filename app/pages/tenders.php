@@ -104,7 +104,7 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
       <a href="<?= e(url('knowledge')) ?>" class="kwp-kb"><?= e(t('الكلمات التلقائية مأخوذة من معرفة الشركة')) ?> ←</a>
     </div>
     <style>
-      .kwp{width:min(460px,94vw);max-height:72vh;overflow-y:auto;border-radius:16px;border:1px solid #e2e8f0;background:#fff;padding:.75rem;box-shadow:0 24px 50px -16px rgb(15 23 42/.35);font-size:.8rem}
+      .kwp{position:fixed;inset:auto;margin:0;width:min(460px,94vw);max-height:72vh;overflow-y:auto;border-radius:16px;border:1px solid #e2e8f0;background:#fff;padding:.75rem;box-shadow:0 24px 50px -16px rgb(15 23 42/.35);font-size:.8rem}
       .kwp-h{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}.kwp-h b{font-size:.92rem;color:#0f172a}
       .kwp-n{font-size:.68rem;font-weight:700;background:#eff6ff;color:#1d4ed8;border-radius:99px;padding:0 .45rem}
       .kwp-ai{margin-inline-start:auto;display:inline-flex;align-items:center;gap:.2rem;font-size:.72rem;font-weight:600;padding:.2rem .5rem;border-radius:99px;background:#f5f3ff;color:#6d28d9}
@@ -123,7 +123,7 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
       .kwp-kb{display:block;margin-top:.6rem;font-size:.7rem;color:#2563eb}
       .dark .kwp{background:#0f172a;border-color:rgb(255 255 255/.1)}.dark .kwp-h b{color:#f1f5f9}.dark .kwp-tabs{background:#1e293b}.dark .kwp-tabs button.on{background:#0f172a;color:#93c5fd}
       .dark .kwp-add input,.dark .kwp-cfg textarea,.dark .kwp-cfg input{background:#0b1220;border-color:rgb(255 255 255/.12);color:#e2e8f0}
-    .kw{display:inline-flex;align-items:center;gap:.2rem;font-size:.7rem;border-radius:9999px;padding:.15rem .5rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}.kw .kw-n{margin-inline-start:.35rem;border-radius:9999px;background:rgba(255,255,255,.8);padding:0 .35rem;font-size:10px;font-weight:700}.kw.zero{opacity:.55;border-style:dashed}</style>
+    .kw{display:inline-flex;align-items:center;gap:.2rem;font-size:.7rem;border-radius:9999px;padding:.15rem .5rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);border-style:dashed;background:#f8fafc;color:rgb(148 163 184)}.kw.off::before{content:'+';font-weight:700;margin-inline-end:.15rem}.kw:not(.off):not(.mine)::before{content:'✓';font-weight:700;margin-inline-end:.1rem;font-size:.65rem}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}.kw .kw-n{margin-inline-start:.35rem;border-radius:9999px;background:rgba(255,255,255,.8);padding:0 .35rem;font-size:10px;font-weight:700}.kw.zero{opacity:.55;border-style:dashed}</style>
     <script>
     (function () { var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.'), 'aiBusy' => t('بنختار الكلمات…'),
         'needAi' => $mgr && function_exists('ai_connection') && ai_connection() && tnd_activities(1) && ((!$ai['keywords'] && !$ai['activities']) || ($ai['sig'] ?? '') !== md5(tg_kb_brief()))], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
@@ -132,8 +132,17 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
       function quiet(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
       document.querySelectorAll('[data-kw-list]').forEach(function (l) { l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (!b) return;
         if (b.dataset.a === 'kw_del') return post({ action: b.dataset.a, w: b.dataset.kw });
-        var on = b.dataset.a === 'kw_on'; b.disabled = true; quiet({ action: b.dataset.a, w: b.dataset.kw }).then(function (j) { b.disabled = false; if (!j.ok) return window.fxToast && fxToast(j.error || C.err, 'error'); b.classList.toggle('off', !on); b.dataset.a = on ? 'kw_off' : 'kw_on'; window.__kwDirty = 1; }); }); });
-      var pop = document.getElementById('tnd-cfg'); if (pop) pop.addEventListener('toggle', function (e) { if (e.newState === 'closed' && window.__kwDirty) location.reload(); });
+        var on = b.dataset.a === 'kw_on'; b.disabled = true; quiet({ action: b.dataset.a, w: b.dataset.kw }).then(function (j) { b.disabled = false; if (!j.ok) return window.fxToast && fxToast(j.error || C.err, 'error'); b.classList.toggle('off', !on); b.dataset.a = on ? 'kw_off' : 'kw_on'; keepOpen(); location.reload(); }); }); });
+      // بعد أي تعديل: الصفحة تتحدث فورًا (القائمة والعدادات) واللوحة ترجع مفتوحة على نفس التبويب
+      var pop = document.getElementById('tnd-cfg'), trig = [].filter.call(document.querySelectorAll('button[popovertarget="tnd-cfg"]:not(.kwp-x)'), function (x) { return x.offsetParent; })[0];
+      document.addEventListener('click', function (e) { var t = e.target.closest('button[popovertarget="tnd-cfg"]:not(.kwp-x)'); if (t) trig = t; }, true);
+      function keepOpen() { try { var on = document.querySelector('[data-kt].on'); sessionStorage.setItem('kwOpen', JSON.stringify({ t: on ? on.dataset.kt : '', y: window.scrollY })); } catch (e) {} }
+      function place() { if (!pop || !trig) return; var r = trig.getBoundingClientRect(), w = pop.offsetWidth, rtl = document.documentElement.dir === 'rtl';
+        var x = rtl ? r.left : r.right - w; x = Math.max(12, Math.min(x, innerWidth - w - 12)); pop.style.top = (r.bottom + 8) + 'px'; pop.style.left = x + 'px'; pop.style.maxHeight = (innerHeight - r.bottom - 24) + 'px'; }
+      if (pop) { pop.addEventListener('toggle', function (e) { if (e.newState === 'open') place(); }); addEventListener('resize', function () { if (pop.matches(':popover-open')) place(); }); addEventListener('scroll', function () { if (pop.matches(':popover-open')) place(); }, { passive: true }); }
+      try { var ko = JSON.parse(sessionStorage.getItem('kwOpen') || 'null'); if (ko && pop) { sessionStorage.removeItem('kwOpen'); window.scrollTo(0, ko.y || 0); pop.showPopover(); if (ko.t) { var tb = document.querySelector('[data-kt="' + ko.t + '"]'); if (tb) tb.click(); } } } catch (e) {}
+      // الإضافة والحذف كمان يرجعوا اللوحة مفتوحة
+      var _post = post; post = function (d) { keepOpen(); return _post(d); };
       var ai = document.getElementById('kw-ai'); if (ai) ai.addEventListener('click', function () { ai.disabled = true; ai.querySelector('span').textContent = C.aiBusy; post({ action: 'kw_ai' }); });
       if (C.needAi) { var f = new FormData(); f.append('_csrf', C.csrf); f.append('action', 'kw_ai'); fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) location.reload(); }); }
       var fa = document.getElementById('kw-add'); if (fa) fa.addEventListener('submit', function (e) { e.preventDefault(); var w = fa.w.value.trim(); if (w) post({ action: 'kw_add', w: w }); });

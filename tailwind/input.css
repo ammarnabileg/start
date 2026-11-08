@@ -1599,3 +1599,11 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .ag-fix{display:flex;flex-direction:column;gap:.3rem;margin-top:.35rem}.ag-fix .btn-primary{align-self:flex-start}
 .ag-rated{font-size:.72rem;color:#64748b;margin-top:.6rem}
 .dark .ag-plats button,.dark .ag-sig,.dark .ag-dr textarea,.dark .ag-sgi textarea,.dark .ag-sgi input,.dark .ag-fix textarea{background:#0f172a;border-color:rgb(255 255 255/.12);color:#e2e8f0}.dark .ag-dr,.dark .ag-sgi{background:rgb(99 102 241/.08);border-color:rgb(99 102 241/.25)}
+
+/* القوالب الجاهزة */
+.tp-meta{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.35rem}
+.tp-f{display:inline-flex;align-items:center;gap:.2rem;font-size:.66rem;font-weight:700;color:#6d28d9;background:#f5f3ff;border-radius:99px;padding:.05rem .45rem}
+.tp-p{font-size:.66rem;color:#0369a1;background:#f0f9ff;border-radius:99px;padding:.05rem .45rem}
+.tp-w{display:flex;gap:.3rem;align-items:flex-start;font-size:.7rem;color:#92400e;background:#fffbeb;border-radius:9px;padding:.3rem .45rem;margin-top:.5rem;line-height:1.5}
+.tp-w svg{flex-shrink:0;margin-top:.1rem;color:#d97706}
+.dark .tp-f{background:rgb(124 58 237/.18);color:#c4b5fd}.dark .tp-p{background:rgb(14 165 233/.15);color:#7dd3fc}.dark .tp-w{background:rgb(245 158 11/.1);color:#fcd34d}

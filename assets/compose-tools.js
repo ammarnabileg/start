@@ -31,8 +31,8 @@
   function tplList(ind) { return ind === '__mine' ? (X.mine || []) : (X.tpl[ind] || []); }
   function tplPane(ind) {
     var inds = Object.keys(X.tpl), mine = X.mine || [];
-    tab = ind || tab || (mine.length ? '__mine' : inds[0]);
-    var tabs = ['__mine'].concat(inds).map(function (k) { var n = tplList(k).length, on = k === tab;
+    tab = ind || tab || (mine.length ? '__mine' : inds[0]); if (tab === '__mine' && !mine.length && !ind) tab = inds[0];
+    var tabs = inds.concat(['__mine']).map(function (k) { var n = tplList(k).length, on = k === tab;
       return '<button type="button" data-ind="' + esc(k) + '" class="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-start transition ' + (on ? 'bg-brand-600 text-white shadow' : 'text-ink-700 hover:bg-ink-100') + '">' + (k === '__mine' ? uic('star', 'w-4 h-4') : '') + '<span class="flex-1 truncate">' + esc(k === '__mine' ? T.mine : k) + '</span><span class="text-[11px] tabular-nums ' + (on ? 'text-white/80' : 'text-ink-400') + '">' + n + '</span></button>'; }).join('');
     show(head('copy', T.tplT, '<button type="button" class="btn-primary !py-1.5 !text-sm" data-x="newtpl">' + uic('plus', 'w-4 h-4') + esc(T.newTpl) + '</button>') +
       '<div class="grid md:grid-cols-[200px_minmax(0,1fr)] gap-4"><nav class="space-y-1 md:max-h-[60vh] overflow-y-auto">' + tabs + '</nav><div class="min-w-0">' +
@@ -43,11 +43,12 @@
   function hl(t) { return esc(t).replace(/\[([^\]]{1,40})\]/g, '<mark class="rounded bg-amber-100 text-amber-900 px-0.5">[$1]</mark>'); }
   function drawTpl() {
     var list = tplList(tab), v = q.trim().toLowerCase(), box = document.getElementById('cpt-tl');
-    var html = list.map(function (t, i) { if (v && (t.n + ' ' + t.b).toLowerCase().indexOf(v) < 0) return '';
+    var html = list.map(function (t, i) { if (v && (t.n + ' ' + t.b + ' ' + (t.f || '') + ' ' + (t.p || '')).toLowerCase().indexOf(v) < 0) return '';
       return '<div class="group rounded-2xl border border-ink-200 bg-white p-3 flex flex-col hover:border-brand-300 hover:shadow-md transition cp-pop"><div class="flex items-center gap-2"><b class="text-sm text-ink-900 flex-1 truncate">' + esc(t.n) + '</b>' +
         '<button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-ink-100 hover:text-brand-700" data-edit="' + i + '" title="' + esc(T.edit) + '">' + uic('pencil', 'w-4 h-4') + '</button>' +
         (tab === '__mine' ? '<button type="button" class="p-1.5 rounded-lg text-ink-400 hover:bg-red-50 hover:text-red-600" data-del="' + i + '" title="' + esc(T.del) + '">' + uic('trash', 'w-4 h-4') + '</button>' : '') + '</div>' +
-        '<p class="text-xs text-ink-600 whitespace-pre-line line-clamp-5 mt-1.5 flex-1" dir="auto">' + hl(t.b) + '</p><button type="button" class="btn-primary !py-1.5 !text-xs w-full mt-3 opacity-90 group-hover:opacity-100" data-use="' + i + '">' + esc(T.use) + '</button></div>'; }).join('');
+        (t.f || t.p ? '<div class="tp-meta">' + (t.f ? '<span class="tp-f">' + uic('spark', 'w-3 h-3') + esc(t.f) + '</span>' : '') + (t.p ? '<span class="tp-p">' + esc(t.p) + '</span>' : '') + '</div>' : '') +
+        '<p class="text-xs text-ink-600 whitespace-pre-line line-clamp-5 mt-1.5 flex-1" dir="auto">' + hl(t.b) + '</p>' + (t.w ? '<p class="tp-w">' + uic('bulb', 'w-3.5 h-3.5') + '<span>' + esc(t.w) + '</span></p>' : '') + '<button type="button" class="btn-primary !py-1.5 !text-xs w-full mt-3 opacity-90 group-hover:opacity-100" data-use="' + i + '">' + esc(T.use) + '</button></div>'; }).join('');
     box.innerHTML = html || '<div class="sm:col-span-2 text-center py-10 text-sm text-ink-500">' + esc(tab === '__mine' && !list.length ? T.noMine : T.nothing) + '</div>';
   }
   function tplEdit(i, from) { // from: '__mine' أو مجال (نسخة في قوالبي) أو 'new'

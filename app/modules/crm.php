@@ -726,30 +726,8 @@ function ws_approvers(): array
 /** #1 قوالب منشورات جاهزة حسب المجال؛ [ ] = خانة تتملي */
 function cpt_templates(): array
 {
-    if (!is_rtl()) return [
-        'Jobs' => [['n' => 'Hiring', 'b' => "📣 We're hiring: [Job title]\n📍 [City]\n💰 [Salary range]\n✅ Requirements: [Requirements]\n\nApply now: [Link]\n#hiring #jobs"],
-            ['n' => 'Urgent role', 'b' => "🚨 Urgent opening at [Company]\nRole: [Job title] · [City]\nSend your CV to [Email]\n#jobs"]],
-        'Restaurants' => [['n' => 'Offer', 'b' => "🔥 This week only: [Offer]\n🍽 Valid at all branches until [Date]\nOrder now: [Link or number]"], ['n' => 'New dish', 'b' => "✨ New on our menu: [Dish]\n[One-line description]\nTry it today and tell us what you think 👇"]],
-        'Real estate' => [['n' => 'Unit', 'b' => "🏠 [Unit type] for [sale/rent] in [Area]\n📐 [Size] m² · [Bedrooms] bedrooms\n💰 [Price]\n📞 [Number]"], ['n' => 'Project launch', 'b' => "🏙 Launching [Project] in [Area]\nDown payment from [Amount] and installments over [Years] years\nBook a viewing: [Link]"]],
-        'Services' => [['n' => 'Offer', 'b' => "🎯 [Service] starting from [Price]\n✅ [Benefit 1]\n✅ [Benefit 2]\nBook a free consultation: [Link]"], ['n' => 'Testimonial', 'b' => "💬 \"[Client quote]\"\n— [Client name], [Company]\nWant the same results? [Link]"]],
-        'E-commerce' => [['n' => 'Sale', 'b' => "🛍 [Discount]% off [Products]\n⏰ Until [Date]\nShop now: [Link]\n#sale"], ['n' => 'New arrival', 'b' => "🆕 Just arrived: [Product]\n[Short description]\nPrice: [Price] · Free delivery over [Amount]"]],
-        'Engagement' => [['n' => 'Question', 'b' => "🤔 Quick question: [Question]?\nTell us in the comments 👇"], ['n' => 'Tip', 'b' => "💡 Tip of the day: [Tip]\nSave this post so you don't forget it 📌"]],
-    ];
-    return [
-        'وظائف' => [['n' => 'إعلان وظيفة', 'b' => "📣 مطلوب: [المسمى الوظيفي]\n📍 [المدينة]\n💰 الراتب: [من - إلى]\n✅ المتطلبات: [المتطلبات]\n\nللتقديم: [الرابط أو الإيميل]\n#وظائف #توظيف"],
-            ['n' => 'وظيفة عاجلة', 'b' => "🚨 فرصة عاجلة في [اسم الشركة]\nالوظيفة: [المسمى] · [المدينة]\nابعت السي في على [الإيميل]\n#وظائف"],
-            ['n' => 'أكتر من وظيفة', 'b' => "💼 [اسم الشركة] تعلن عن وظائف:\n1️⃣ [وظيفة 1]\n2️⃣ [وظيفة 2]\n3️⃣ [وظيفة 3]\n📍 [المدينة]\nاكتب «عاوز» في الكومنت ونبعتلك التفاصيل 👇"]],
-        'مطاعم' => [['n' => 'عرض', 'b' => "🔥 الأسبوع ده بس: [العرض]\n🍽 في كل الفروع لحد [التاريخ]\nاطلب دلوقتي: [الرابط أو الرقم]"],
-            ['n' => 'صنف جديد', 'b' => "✨ جديد في المنيو: [اسم الصنف]\n[وصف في سطر]\nجرّبه النهارده وقولنا رأيك 👇"]],
-        'عقارات' => [['n' => 'وحدة', 'b' => "🏠 [نوع الوحدة] لل[بيع/إيجار] في [المنطقة]\n📐 [المساحة] م² · [عدد الغرف] غرف\n💰 [السعر]\n📞 [الرقم]"],
-            ['n' => 'إطلاق مشروع', 'b' => "🏙 إطلاق [اسم المشروع] في [المنطقة]\nمقدم يبدأ من [المبلغ] وتقسيط على [عدد السنين] سنين\nاحجز معاينة: [الرابط]"]],
-        'خدمات' => [['n' => 'عرض خدمة', 'b' => "🎯 [الخدمة] تبدأ من [السعر]\n✅ [ميزة 1]\n✅ [ميزة 2]\nاحجز استشارة مجانية: [الرابط]"],
-            ['n' => 'رأي عميل', 'b' => "💬 \"[كلام العميل]\"\n— [اسم العميل]، [شركته]\nعاوز نفس النتيجة؟ [الرابط]"]],
-        'متاجر' => [['n' => 'تخفيضات', 'b' => "🛍 خصم [النسبة]% على [المنتجات]\n⏰ لحد [التاريخ]\nاطلب دلوقتي: [الرابط]\n#عروض"],
-            ['n' => 'منتج جديد', 'b' => "🆕 وصل حديثًا: [اسم المنتج]\n[وصف قصير]\nالسعر: [السعر] · توصيل مجاني فوق [المبلغ]"]],
-        'تفاعل' => [['n' => 'سؤال', 'b' => "🤔 سؤال سريع: [السؤال]؟\nقولنا في الكومنتات 👇"],
-            ['n' => 'نصيحة', 'b' => "💡 نصيحة اليوم: [النصيحة]\nاحفظ المنشور عشان ماتنساش 📌"]],
-    ];
+    require_once __DIR__ . '/post_templates.php';
+    return is_rtl() ? post_templates_ar() : post_templates_en();
 }
 
 /* ---------- #67 #95 أسباب الخسارة ---------- */
