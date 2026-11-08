@@ -249,23 +249,24 @@ function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?a
     return null;
 }
 /** قرار الرد: الأرخص الأول، وبعدين الذكاء الاصطناعي بسياق أقصر، وحفظ الإجابة للأسئلة المتكررة */
-function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $history = ''): array
+function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $history = '', bool $test = false): array
 {
     $c = ai_cheap_answer($wid, $cfg, $msg, $channel);
-    if ($c !== null) { ai_save_stat($wid, $c['src']); return $c + ['confidence' => 1]; }
+    if ($c !== null) { if (!$test) ai_save_stat($wid, $c['src']); return $c + ['confidence' => 1]; }
     // حد يومي: بعده الرسائل بتتحول للفريق بدل ما الرصيد يخلص (سبام أو ضغط مفاجئ)
     if ($cfg['save']['cap'] > 0) { $st = json_decode((string)setting('ai_save_' . $wid, ''), true) ?: []; if (($st['day'] ?? '') === date('Y-m-d') && (int)($st['ai'] ?? 0) + (int)($st['fast'] ?? 0) >= $cfg['save']['cap']) return ['action' => 'handoff', 'reply' => '', 'reason' => t('اكتمل الحد اليومي للذكاء الاصطناعي'), 'confidence' => 0, 'src' => 'cap', 'model' => '', 'cost' => 0]; }
     $fast = $cfg['save']['route'] && ai_is_simple($msg);
     $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply', (bool)$cfg['save']['smart']);
-    if (!empty($d['look'])) $d['reason'] = trim((string)$d['reason']) . ' · 🔎 ' . implode('، ', $d['look']);
-    ai_save_stat($wid, $fast ? 'fast' : 'ai');
+    if (!empty($d['look']) && !$test) $d['reason'] = trim((string)$d['reason']) . ' · 🔎 ' . implode('، ', $d['look']);
+    if (!$test) ai_save_stat($wid, $fast ? 'fast' : 'ai');
+    $d['fast'] = $fast;
     if ($d['action'] === 'reply' && ($g = ai_reply_guard($wid, $msg, (string)$d['reply'])) !== '') {
         // تعليق عام: منردش خالص. رسالة خاصة: تتحفظ مسودة للمراجعة حتى لو الوضع «إرسال تلقائي»
         if ($channel === 'comment') return ['action' => 'handoff', 'reply' => '', 'reason' => $g, 'confidence' => 0, 'src' => 'guard', 'model' => $d['model'] ?? '', 'cost' => $d['cost'] ?? null];
         return $d + ['guard' => $g, 'src' => 'ai'] ;
     }
     // بنحفظ بس لو مفيش سياق قبلها: «وكام سعرها؟» إجابتها بتعتمد على المحادثة ومينفعش تتكرر لعميل تاني
-    if ($cfg['save']['cache'] && trim($history) === '' && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
+    if (!$test && $cfg['save']['cache'] && trim($history) === '' && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
         $qw = ai_words(ai_norm_q($msg));
         // بنحفظ الأسئلة العامة بس (مش لو المحادثة فيها سياق خاص)
         if (count($qw) >= 2 && count($qw) <= 12) { $cc = json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: []; $cc[$channel . ':' . implode(' ', $qw)] = ['r' => trim((string)$d['reply'], " \n\"'«»"), 't' => time()]; save_setting('ai_cache_' . $wid, json_encode(array_slice($cc, -400, null, true), JSON_UNESCAPED_UNICODE)); }

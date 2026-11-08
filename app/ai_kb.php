@@ -520,7 +520,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
     if ($out !== '' && preg_match('/^\s*[\{\[]|"action"\s*:|"reply"\s*:|```/u', $out)) { $d['action'] = 'handoff'; $out = ''; $d['reason'] = t('رد الذكاء الاصطناعي غير مكتمل'); }
     if ($d['action'] === 'handoff' && $out === '' && $esc['message'] !== '') $out = $esc['message'];
     $d['reply'] = $out;
-    return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null, 'look' => $route ? $route['labels'] : null];
+    return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null, 'look' => $route ? $route['labels'] : null, 'routed' => $route !== null, 'routeCost' => $route['cost'] ?? null];
 }
 
 /** إيميل التحويل للموظف المسؤول */
