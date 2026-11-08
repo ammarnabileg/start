@@ -7,7 +7,7 @@ $wid = (int)ws('id');
 $hist = &$_SESSION['ai_chat'][$wid];
 if (!is_array($hist)) $hist = [];
 $connected = ai_connection() !== null;
-$tabs = ['models' => t('الموديلات والمهام'), 'agent' => t('الإيجنت'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
+$tabs = ['models' => t('الموديلات والمهام'), 'agent' => t('الرد الذكي'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
 require_once __DIR__ . '/../views/ai_agent.php';
 if ($tab_req = (string)($_GET['ajax'] ?? '')) { if (strpos($tab_req, 'agent_') === 0) ai_agent_ajax($tab_req); }
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'models';

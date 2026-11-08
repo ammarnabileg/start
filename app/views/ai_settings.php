@@ -167,7 +167,7 @@ function ai_settings_render(string $tab): void
               </form>
             <?php endforeach; ?>
             <?php  ?>
-            <a href="<?= e(url('assistant', ['tab' => 'agent'])) ?>" class="mt-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800 hover:bg-brand-100"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('إعدادات الإيجنت وسجله وتجربته في تبويب الإيجنت')) ?> ←</a>
+            <a href="<?= e(url('assistant', ['tab' => 'agent'])) ?>" class="mt-4 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-800 hover:bg-brand-100"><?= ui_icon('spark', 'w-4 h-4') ?><?= e(t('إعدادات الرد الذكي وسجله وتجربته في تبويب الرد الذكي')) ?> ←</a>
             <form method="post" class="mt-4 flex items-start gap-2 text-sm">
               <?= csrf_field() ?><input type="hidden" name="action" value="ai_call_consent"><input type="hidden" name="back" value="usage">
               <input type="checkbox" name="consent" value="1" class="mt-1" onchange="this.form.requestSubmit()" <?= setting('ai_call_consent_' . (int)ws('id'), '0') === '1' ? 'checked' : '' ?> <?= $owner ? '' : 'disabled' ?>>

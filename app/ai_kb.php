@@ -371,7 +371,7 @@ function kb_trigger_options(): array
  * قرار الرد: يرد ولا يحوّل لموظف. بيرجع: action (reply|handoff), reply, reason, confidence
  * ده اللي الرد التلقائي على الرسايل والتعليقات هيشتغل بيه.
  */
-function kb_decide(int $wid, string $message, string $channel = 'message', string $history = ''): array
+function kb_decide(int $wid, string $message, string $channel = 'message', string $history = '', string $style = ''): array
 {
     $esc = kb_escalation($wid);
     $trig = array_intersect_key(kb_trigger_options(), array_flip($esc['triggers']));
@@ -383,6 +383,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'Hand off when ANY of these is true: ' . implode('; ', $trig) . ($trig ? '' : 'never') . '. Also hand off if answering would require facts not in the knowledge base.' . "\n"
         . 'If you answer: follow TONE, NEVER SAY and ANTI-HYPE rules, use only knowledge-base facts, keep it short' . ($channel === 'comment' ? ' and public-safe (no personal details; invite to DM for specifics)' : '') . '.' . "\n"
         . 'Return ONLY JSON: {"action":"reply"|"handoff","reply":"the reply text (if handoff: a short polite message saying a team member will follow up)","reason":"short reason in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '","confidence":0-1}';
+    if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 500, 'reply');
     $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];

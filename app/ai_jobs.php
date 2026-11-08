@@ -165,7 +165,9 @@ function ai_call_transcript(Zernio $z, string $id): string
 function ai_reply_cfg(int $wid): array
 {
     $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
-    return ['when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
+    $pl = array_values(array_filter(array_map('strval', (array)($c['platforms'] ?? []))));
+    return ['platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
+        'sig' => mb_substr((string)($c['sig'] ?? ''), 0, 80), 'when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
         'mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
         'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
 }
@@ -188,6 +190,22 @@ function ai_drafts(int $wid): array
 }
 
 /** الردود اللي الإيجنت بعتها (بصمة النص) عشان نفرّق بينها وبين رد البشر */
+/** تعليمات الأسلوب للموديل */
+function ai_reply_style(array $c): string
+{
+    $l = ['short' => 'Keep it to 1-2 short sentences.', 'medium' => 'Keep it to 2-4 sentences.', 'detailed' => 'Give a complete but focused answer (up to 6 sentences).'][$c['len']];
+    $t = ['friendly' => 'Warm, friendly and simple.', 'formal' => 'Polite and formal.', 'brand' => 'Follow the TONE section of the knowledge base.'][$c['tone']];
+    return $l . ' ' . $t . ' Do not add a signature.';
+}
+/** المنصة دي مسموح للرد الذكي يرد عليها؟ (فاضي = كل المنصات) */
+function ai_platform_on(array $c, string $platform): bool
+{
+    return !$c['platforms'] || in_array($platform, $c['platforms'], true);
+}
+function ai_sign(array $c, string $text): string
+{
+    return $c['sig'] !== '' && $text !== '' ? $text . "\n— " . $c['sig'] : $text;
+}
 function ai_sent_mark(int $wid, string $text): void
 {
     $l = json_decode((string)setting('ai_sent_' . $wid, ''), true) ?: []; $l[] = md5(trim($text)); save_setting('ai_sent_' . $wid, json_encode(array_slice(array_values(array_unique($l)), -500)));
@@ -234,6 +252,7 @@ function ai_auto_reply(int $wid, bool $force = false): int
         $id = (string)($c['id'] ?? ''); $acc = (string)($c['accountId'] ?? '');
         $m = $c['lastMessage'] ?? ''; $m = trim(is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m);
         if ($id === '' || $acc === '' || $m === '' || (int)($c['unreadCount'] ?? 0) < 1) continue;
+        if (!ai_platform_on($cfg, (string)($c['platform'] ?? ''))) continue;
         $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
         if (($done[$id] ?? '') === $h) continue;
         $who = (string)($c['participantName'] ?? ''); $plat = (string)($c['platform'] ?? ''); $res = ai_agent_resumed($wid, 'c:' . $id);
@@ -246,15 +265,15 @@ function ai_auto_reply(int $wid, bool $force = false): int
                 if ($out && $tx !== '' && !ai_sent_is($wid, $tx)) $human = max($human, $ts);
                 if ($tx !== '') $hist[] = ($out ? 'Us: ' : 'Customer: ') . mb_substr($tx, 0, 400); }
             if ($human && $human > $now - $pause && $human > $res) { ai_agent_pause_set($wid, 'c:' . $id, $human + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // البشري رد من أقل من مدة الإيقاف
-            $d = kb_decide($wid, $m, 'message', implode("\n", array_slice($hist, -12, 11)));
-            $text = trim($d['reply'], " \n\"'«»");
+            $d = kb_decide($wid, $m, 'message', implode("\n", array_slice($hist, -12, 11)), ai_reply_style($cfg));
+            $text = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
             if ($d['action'] === 'handoff') {
                 kb_handoff_email($wid, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), $m, $d['reason'], base_url() . '/' . url('inbox', ['c' => $id, 'a' => $acc]));
                 log_activity('ai.handoff', $id . ' ' . $d['reason']);
             }
             if ($text === '') { $done[$id] = $h; if ($d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => '', 'handoff' => true, 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]); continue; }
             if ($cfg['mode'] === 'send') { $z->sendMessage($id, $acc, $text); ai_sent_mark($wid, $text); log_activity('ai.auto_reply', $id); }
-            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => $d['reason']];
+            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => $d['reason'], 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send', 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
             $done[$id] = $h; $n++;
         } catch (Throwable $e) {
@@ -266,7 +285,7 @@ function ai_auto_reply(int $wid, bool $force = false): int
         $posts = []; try { $posts = $z->commentedPosts(['limit' => 8, 'profileId' => zernio_profile()])['data'] ?? []; } catch (Throwable $e) {}
         foreach ($posts as $p) {
             if ($n >= 10) break;
-            $pid = (string)($p['id'] ?? ''); $acc = (string)($p['accountId'] ?? ''); if ($pid === '' || $acc === '') continue;
+            $pid = (string)($p['id'] ?? ''); $acc = (string)($p['accountId'] ?? ''); if ($pid === '' || $acc === '') continue; if (!ai_platform_on($cfg, (string)($p['platform'] ?? ''))) continue;
             $resP = ai_agent_resumed($wid, 'p:' . $pid);
             if (ai_human_recent($wid, 'p:' . $pid, $cfg['pause']) && $resP < time() - 5) { ai_agent_pause_set($wid, 'p:' . $pid, time() + $pause, ['name' => t('منشور'), 'platform' => (string)($p['platform'] ?? ''), 'kind' => 'comment']); continue; }
             try { $list = $z->comments($pid, $acc); } catch (Throwable $e) { continue; }
@@ -284,8 +303,8 @@ function ai_auto_reply(int $wid, bool $force = false): int
                 $k = 'cm:' . $cid; if (isset($done[$k])) continue;
                 if (ai_ts($c['createdTime'] ?? $c['createdAt'] ?? null) < $now - 3 * 86400) { $done[$k] = 1; continue; } // قديم: مانردش
                 try {
-                    $d = kb_decide($wid, $tx, 'comment');
-                    $rt = trim($d['reply'], " \n\"'«»");
+                    $d = kb_decide($wid, $tx, 'comment', '', ai_reply_style($cfg));
+                    $rt = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
                     if ($d['action'] === 'handoff') { kb_handoff_email($wid, (string)($c['from']['name'] ?? ''), (string)($p['platform'] ?? ''), $tx, $d['reason'], base_url() . '/' . url('comments', ['post' => $pid])); log_activity('ai.handoff', 'comment ' . $cid . ' ' . $d['reason']); }
                     if ($rt !== '') { $z->replyComment($pid, $acc, $rt, $cid); ai_sent_mark($wid, $rt); log_activity('ai.auto_comment', $cid); $n++; }
                     if ($rt !== '' || $d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'comment', 'who' => (string)($c['from']['name'] ?? ''), 'platform' => (string)($p['platform'] ?? ''), 'in' => mb_substr($tx, 0, 300), 'out' => mb_substr($rt, 0, 400), 'handoff' => $d['action'] === 'handoff', 'reason' => (string)$d['reason'], 'link' => url('comments', ['post' => $pid])]);
