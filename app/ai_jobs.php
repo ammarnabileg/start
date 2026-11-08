@@ -233,7 +233,7 @@ function ai_ts($v): int { if (is_numeric($v)) return (int)$v > 2000000000 ? (int
  * بيشتغل خارج المواعيد أو طول الوقت حسب الإعداد. لو حد من الفريق رد بإيده (من هنا أو من التطبيق نفسه)
  * الإيجنت بيسكت على المحادثة/المنشور ده لحد ما تعدي مدة الإيقاف (افتراضي 30 دقيقة) من آخر رد بشري.
  */
-function ai_auto_reply(int $wid, bool $force = false): int
+function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?array $hookCmt = null): int
 {
     $cfg = ai_reply_cfg($wid);
     if (!ai_connection() || ai_kb($wid) === '') return 0;
@@ -246,7 +246,9 @@ function ai_auto_reply(int $wid, bool $force = false): int
     $drafts = ai_drafts($wid);
     $n = 0;
     // ---------- الرسايل ----------
-    $conv = $z->conversations(['limit' => 30, 'profileId' => zernio_profile()])['data'] ?? [];
+    // من الإشعار الفوري: نرد على الرسالة اللي في الإشعار نفسه (قائمة المحادثات عند Zernio بتتأخر دقايق)
+    $fresh = $hookMsg !== null;
+    $conv = $fresh ? [$hookMsg] : ($hookCmt !== null ? [] : ($z->conversations(['limit' => 30, 'profileId' => zernio_profile()])['data'] ?? []));
     foreach ($conv as $c) {
         if ($n >= 10) break;
         $id = (string)($c['id'] ?? ''); $acc = (string)($c['accountId'] ?? '');
@@ -256,7 +258,7 @@ function ai_auto_reply(int $wid, bool $force = false): int
         if ($id === '' || $acc === '' || $m === '' || ((int)($c['unreadCount'] ?? 0) < 1 && $lt < time() - 7200)) continue;
         if (!ai_platform_on($cfg, (string)($c['platform'] ?? ''))) continue;
         $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
-        if (($done[$id] ?? '') === $h) continue;
+        if (!$fresh && ($done[$id] ?? '') === $h) continue;
         $who = (string)($c['participantName'] ?? ''); $plat = (string)($c['platform'] ?? ''); $res = ai_agent_resumed($wid, 'c:' . $id);
         if (ai_human_recent($wid, 'c:' . $id, $cfg['pause']) && $res < time() - 5) { $hh = json_decode((string)setting('ai_human_' . $wid, ''), true) ?: []; ai_agent_pause_set($wid, 'c:' . $id, (int)($hh['c:' . $id] ?? time()) + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // رد بشري من جوه المنصة
         try {
@@ -268,7 +270,9 @@ function ai_auto_reply(int $wid, bool $force = false): int
                 if ($tx !== '') $hist[] = ($out ? 'Us: ' : 'Customer: ') . mb_substr($tx, 0, 400); }
             // آخر رسالة في المحادثة لازم تكون من العميل (لو إحنا اللي ردينا آخر حاجة، مفيش رد)
             $lastDir = ''; foreach ((array)$ms as $x) { if (trim((string)($x['message'] ?? $x['text'] ?? '')) !== '') $lastDir = (string)($x['direction'] ?? ''); }
-            if ($ms && $lastDir === 'outgoing') { $done[$id] = $h; continue; }
+            // قائمة الرسايل ممكن تكون متأخرة: في الإشعار الفوري الرسالة الجديدة مضمونة، فبنضيفها للسياق ومانقفش
+            if ($fresh) { $hist[] = 'Customer: ' . mb_substr($m, 0, 400); $evTs = ai_ts($c['lastMessageAt'] ?? null) ?: time(); if ($human && $human > $evTs) continue; }
+            elseif ($ms && $lastDir === 'outgoing') continue;
             if ($human && $human > $now - $pause && $human > $res) { ai_agent_pause_set($wid, 'c:' . $id, $human + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // البشري رد من أقل من مدة الإيقاف
             $d = kb_decide($wid, $m, 'message', implode("\n", array_slice($hist, -12, 11)), ai_reply_style($cfg));
             $text = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
@@ -282,11 +286,27 @@ function ai_auto_reply(int $wid, bool $force = false): int
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send', 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
             $done[$id] = $h; $n++;
         } catch (Throwable $e) {
+            ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who ?? '', 'platform' => $plat ?? '', 'in' => mb_substr($m, 0, 300), 'out' => '', 'reason' => 'خطأ: ' . mb_substr($e->getMessage(), 0, 160)]);
             break; // حد الاستهلاك أو مشكلة في المزود: نقف
         }
     }
+    if ($hookCmt !== null) {
+        $pid = (string)$hookCmt['postId']; $acc = (string)$hookCmt['accountId']; $cid = (string)$hookCmt['id']; $tx = trim((string)$hookCmt['text']); $k = 'cm:' . $cid;
+        if ($cfg['comments'] && $cfg['mode'] === 'send' && $pid !== '' && $acc !== '' && $cid !== '' && $tx !== '' && !isset($done[$k]) && ai_platform_on($cfg, (string)$hookCmt['platform'])
+            && !(ai_human_recent($wid, 'p:' . $pid, $cfg['pause']) && ai_agent_resumed($wid, 'p:' . $pid) < time() - 5)) {
+            try {
+                $d = kb_decide($wid, $tx, 'comment', '', ai_reply_style($cfg)); $rt = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
+                if ($d['action'] === 'handoff') { kb_handoff_email($wid, (string)$hookCmt['name'], (string)$hookCmt['platform'], $tx, $d['reason'], base_url() . '/' . url('comments', ['post' => $pid])); }
+                if ($rt !== '') { $z->replyComment($pid, $acc, $rt, $cid); ai_sent_mark($wid, $rt); log_activity('ai.auto_comment', $cid); $n++; }
+                ai_agent_log_add($wid, ['kind' => 'comment', 'who' => (string)$hookCmt['name'], 'platform' => (string)$hookCmt['platform'], 'in' => mb_substr($tx, 0, 300), 'out' => mb_substr($rt, 0, 400), 'handoff' => $d['action'] === 'handoff', 'reason' => (string)$d['reason'], 'link' => url('comments', ['post' => $pid])]);
+                $done[$k] = 1;
+            } catch (Throwable $e) { ai_agent_log_add($wid, ['kind' => 'comment', 'who' => (string)$hookCmt['name'], 'platform' => (string)$hookCmt['platform'], 'in' => mb_substr($tx, 0, 300), 'out' => '', 'reason' => 'خطأ: ' . mb_substr($e->getMessage(), 0, 160)]); }
+        }
+        save_setting('ai_replied_' . $wid, json_encode(array_slice($done, -600, null, true)));
+        return $n;
+    }
     // ---------- التعليقات (رد عام على التعليق، من قاعدة المعرفة بس) ----------
-    if ($cfg['comments'] && $cfg['mode'] === 'send' && $n < 10) {
+    if (!$fresh && $cfg['comments'] && $cfg['mode'] === 'send' && $n < 10) {
         $posts = []; try { $posts = $z->commentedPosts(['limit' => 8, 'profileId' => zernio_profile()])['data'] ?? []; } catch (Throwable $e) {}
         foreach ($posts as $p) {
             if ($n >= 10) break;
