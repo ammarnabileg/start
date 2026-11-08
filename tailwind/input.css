@@ -1670,3 +1670,10 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .cs-ftr{display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap}.cs-ftr .cx-sel{height:2rem;font-size:.74rem}
 .dark .cs-cardl,.dark .cs-head{color:#94a3b8}.dark .cs-cardl b,.dark .cs-head b,.dark .cs-am b,.dark .cs-sec h4{color:#f1f5f9}.dark .cs-acc{border-color:#334155}.dark .cs-acc.bad{background:#450a0a;border-color:#7f1d1d}
 .dark .cs-post{border-color:#1e293b}.dark .cs-post:hover{background:#1e293b}.dark .cs-post p{color:#e2e8f0}.dark .cs-chip,.dark .cs-mix i{background:#1e293b;color:#cbd5e1}.dark .cs-fast{background:#064e3b;color:#6ee7b7}.dark .cs-note{background:#422006;color:#fde68a}.dark .cs-heat i{outline-color:#1e293b}.dark .cs-links{border-color:#334155}.dark .cs-links summary{color:#cbd5e1}
+.cs-ax{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.7rem;color:#64748b;margin-top:.45rem}.cs-ax b{color:#0f172a}.cs-ax small{color:#94a3b8}
+.cs-kp{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:.45rem}.cs-kp div{border:1px solid #e2e8f0;border-radius:12px;padding:.5rem .6rem;display:flex;flex-direction:column}.cs-kp small{font-size:.66rem;color:#64748b}.cs-kp b{font-size:1.05rem;font-weight:800;color:#0f172a}.cs-kp i{font-style:normal;font-size:.62rem;color:#94a3b8}
+.cs-cm{display:flex;gap:.5rem;align-items:flex-start;padding:.5rem .55rem;border-radius:12px;border:1px solid #f1f5f9;margin-bottom:.35rem}.cs-cm .cs-pl{width:1.2rem;height:1.2rem;font-size:.5rem;border-radius:5px}.cs-cm p{font-size:.78rem;color:#1e293b;line-height:1.5;margin:.15rem 0}
+.cs-w{font-size:.62rem;background:#fee2e2;color:#b91c1c;border-radius:99px;padding:0 .4rem;font-weight:600}.cs-w.q{background:#e0f2fe;color:#0369a1}
+.cs-rep{font-size:.64rem;color:#16a34a;font-weight:600}.cs-norep{font-size:.64rem;color:#dc2626;font-weight:600}
+.cs-chip.neg{background:#fee2e2;color:#991b1b}.cs-chip.neg i{color:#dc2626}
+.dark .cs-ax b,.dark .cs-kp b{color:#f1f5f9}.dark .cs-kp div,.dark .cs-cm{border-color:#334155}.dark .cs-cm p{color:#e2e8f0}.dark .cs-chip.neg{background:#450a0a;color:#fecaca}

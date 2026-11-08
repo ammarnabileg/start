@@ -528,6 +528,26 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '054_comp_social2' => [
+        "CREATE TABLE IF NOT EXISTS competitor_comments (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            social_id INT UNSIGNED NOT NULL,
+            post_ext VARCHAR(120) NOT NULL,
+            ext_id VARCHAR(120) NOT NULL,
+            parent_ext VARCHAR(120) NULL,
+            author VARCHAR(190) NULL,
+            text TEXT NULL,
+            is_owner TINYINT(1) NOT NULL DEFAULT 0,
+            at DATETIME NULL,
+            UNIQUE KEY soc_ext (social_id, ext_id),
+            INDEX soc_post (social_id, post_ext),
+            FOREIGN KEY (social_id) REFERENCES competitor_social(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE competitor_posts ADD COLUMN views7 INT UNSIGNED NULL",
+        "ALTER TABLE competitor_posts ADD COLUMN music VARCHAR(190) NULL",
+        "ALTER TABLE competitor_social ADD COLUMN ext_url VARCHAR(500) NULL",
+        "ALTER TABLE competitor_social ADD COLUMN comments_at DATETIME NULL",
+    ],
     '053_comp_social' => [
         "CREATE TABLE IF NOT EXISTS competitor_social (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

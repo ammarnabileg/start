@@ -57,6 +57,9 @@ function comp_ev_title(string $kind, string $subject): string
         case 'offer_new': return t('عرض جديد');
         case 'offer_gone': return t('عرض خلص');
         case 'hours': return t('غيّر المواعيد');
+        case 'soc_bio': return t('غيّر وصف حسابه على %s', $subject);
+        case 'soc_name': return t('غيّر اسم حسابه على %s', $subject);
+        case 'soc_link': return t('غيّر الرابط في حسابه على %s', $subject);
     }
     return $subject;
 }
