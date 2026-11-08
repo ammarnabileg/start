@@ -130,6 +130,7 @@ function ai_agent_ajax(string $a): void
         if ($v !== 'up' && $fix !== '' && trim((string)($row['in'] ?? '')) !== '') { $sg = ai_agent_suggest($wid); $sg[$id] = ['q' => (string)$row['in'], 'a' => $fix, 't' => time()]; save_setting('ai_kb_suggest_' . $wid, json_encode(array_slice($sg, -40, null, true), JSON_UNESCAPED_UNICODE)); }
         $J(['ok' => true] + ai_agent_state($wid));
     }
+    if ($a === 'agent_report') $J(['ok' => true, 'r' => ai_agent_report($wid, (int)($_POST['days'] ?? $_GET['days'] ?? 7))]);
     if ($a === 'agent_suggest') {
         $id = (string)($_POST['id'] ?? ''); $sg = ai_agent_suggest($wid); $x = $sg[$id] ?? null; if (!$x) $J(['ok' => false, 'error' => t('غير موجود.')]);
         if (($_POST['do'] ?? '') === 'add') {
@@ -146,6 +147,37 @@ function ai_agent_ajax(string $a): void
 }
 
 function ai_agent_platforms(): array { return ['whatsapp', 'facebook', 'instagram', 'twitter', 'telegram', 'tiktok', 'linkedin', 'youtube', 'threads']; }
+/** تقرير الرصيد: الردود ببلاش مقابل المدفوعة، التكلفة الفعلية من سجل الاستهلاك، والتوصيات */
+function ai_agent_report(int $wid, int $days): array
+{
+    $days = in_array($days, [7, 30], true) ? $days : 7; $from = date('Y-m-d', strtotime('-' . ($days - 1) . ' days'));
+    $h = json_decode((string)setting('ai_save_hist_' . $wid, ''), true) ?: []; $n = [];
+    foreach ($h as $d => $x) if ($d >= $from) foreach ($x as $k => $v) $n[$k] = ($n[$k] ?? 0) + (int)$v;
+    $free = ($n['greet'] ?? 0) + ($n['faq'] ?? 0) + ($n['cache'] ?? 0) + ($n['skip'] ?? 0);
+    $models = []; $cost = 0.0; $calls = 0; $tin = 0;
+    try {
+        $st = db()->prepare("SELECT task, model, COUNT(*) n, COALESCE(SUM(cost),0) c, AVG(tokens_in) ti, AVG(tokens_out) tt, SUM(cost IS NULL) unk FROM ai_usage WHERE workspace_id = ? AND task IN ('reply','reply_fast') AND created_at >= ? GROUP BY task, model ORDER BY c DESC");
+        $st->execute([$wid, $from . ' 00:00:00']);
+        foreach ($st->fetchAll() as $r) { $models[] = ['task' => $r['task'] === 'reply_fast' ? t('بسيطة') : t('عادية'), 'fast' => $r['task'] === 'reply_fast', 'model' => (string)$r['model'], 'n' => (int)$r['n'], 'cost' => round((float)$r['c'], 4), 'avg' => (int)$r['n'] ? round((float)$r['c'] / (int)$r['n'], 5) : 0, 'tin' => (int)$r['ti'], 'tout' => (int)$r['tt'], 'unk' => (int)$r['unk']];
+            $cost += (float)$r['c']; $calls += (int)$r['n']; $tin += (int)$r['ti'] * (int)$r['n']; }
+    } catch (Throwable $e) {}
+    $avg = $calls ? $cost / $calls : 0;
+    // نسبة المجاني بتتحسب من يوم ما العدّاد اشتغل بس (عشان متطلعش أقل من الحقيقة)
+    $since = max($from, $h ? (string)array_key_first($h) : date('Y-m-d')); $callsS = $calls;
+    if ($since > $from) { try { $q = db()->prepare("SELECT COUNT(*) FROM ai_usage WHERE workspace_id = ? AND task IN ('reply','reply_fast') AND created_at >= ?"); $q->execute([$wid, $since . ' 00:00:00']); $callsS = (int)$q->fetchColumn(); } catch (Throwable $e) {} }
+    $tot = $free + $callsS;
+    $tips = [];
+    $byTask = []; foreach ($models as $m) $byTask[$m['fast'] ? 'f' : 'r'][$m['model']] = 1;
+    if (!empty($byTask['f']) && !empty($byTask['r']) && !array_diff_key($byTask['f'], $byTask['r'])) $tips[] = t('الأسئلة البسيطة تعمل بنفس موديل الردود العادية، فلا يوجد توفير منها. اختر لمهمة «الردود البسيطة» موديلًا أرخص من صفحة المساعد الذكي.');
+    if ($tot >= 20 && $free / $tot < 0.25) $tips[] = t('%s%% فقط من الردود كانت بدون رصيد. أضف الأسئلة المتكررة إلى الأسئلة الشائعة لتُجاب مجانًا.', round($free / $tot * 100));
+    if (($sg = count(ai_agent_suggest($wid))) > 0) $tips[] = t('لديك %s اقتراح بانتظار الاعتماد. كل اقتراح تعتمده يحوّل سؤالًا متكررًا إلى إجابة مجانية.', $sg);
+    if ($calls && $tin / $calls > 2500) $tips[] = t('متوسط مدخلات الرد الواحد كبير (%s توكن). راجع ملفات قاعدة المعرفة واحذف المكرر أو غير المفيد للعملاء.', number_format($tin / $calls));
+    if (($n['cap'] ?? 0) > 0) $tips[] = t('تحوّلت %s رسالة للفريق بسبب الحد اليومي. ارفع الحد لو كان الفريق لا يلحق بالرد.', $n['cap']);
+    if (!$tips && $tot) $tips[] = t('لا توجد مشكلة واضحة في الاستهلاك خلال هذه الفترة.');
+    return ['days' => $days, 'free' => $free, 'byFree' => ['greet' => $n['greet'] ?? 0, 'faq' => $n['faq'] ?? 0, 'cache' => $n['cache'] ?? 0, 'skip' => $n['skip'] ?? 0], 'ai' => $calls, 'fast' => $n['fast'] ?? 0, 'cap' => $n['cap'] ?? 0,
+        'cost' => round($cost, 4), 'avg' => round($avg, 5), 'saved' => round($free * $avg, 4), 'month' => round($cost / $days * 30, 2), 'freePct' => $tot ? round($free / $tot * 100) : 0, 'models' => $models, 'tips' => $tips, 'histStart' => $h ? array_key_first($h) : ''];
+}
+
 function ai_agent_suggest(int $wid): array { $s = json_decode((string)setting('ai_kb_suggest_' . $wid, ''), true); return is_array($s) ? $s : []; }
 
 function ai_agent_state(int $wid): array
@@ -234,6 +266,13 @@ function ai_agent_render(): void
         <div class="ag-model"><span><?= e(t('موديل الردود الحالي:')) ?> <b data-model></b></span><a class="link" href="<?= e(url('assistant')) ?>"><?= e(t('اختر موديلًا أرخص')) ?> ←</a><?php if ($owner): ?><button type="button" class="link" data-clearcache><?= e(t('مسح الإجابات المحفوظة')) ?></button><?php endif; ?></div>
       </section>
 
+      <?php if ($owner): ?>
+      <section class="card ag-card" data-rep-box>
+        <h3><?= ui_icon('chart', 'w-4 h-4') ?><?= e(t('تقرير الرصيد')) ?><span class="ag-rseg"><button type="button" data-rdays="7" class="on"><?= e(t('7 أيام')) ?></button><button type="button" data-rdays="30"><?= e(t('30 يومًا')) ?></button></span></h3>
+        <div data-rep><p class="ag-hint"><?= e(t('جارٍ التحميل…')) ?></p></div>
+      </section>
+      <?php endif; ?>
+
       <section class="card ag-card" data-drafts-box>
         <h3><?= ui_icon('pencil', 'w-4 h-4') ?><?= e(t('مسودات بانتظار المراجعة')) ?><span class="ag-n" data-dn></span></h3>
         <div class="ag-drafts" data-drafts></div>
@@ -275,7 +314,7 @@ function ai_agent_render(): void
     <script>
     (function () {
       var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('assistant', ['tab' => 'agent']), 'inbox' => url('inbox'), 'comments' => url('comments'), 'owner' => $owner, 'st' => $st,
-        'T' => ['fromStaff' => t('من رد الموظف — اعتمده ليُجاب تلقائيًا بعد ذلك'), 'on' => t('يعمل 24 ساعة: يرد على الرسائل من قاعدة المعرفة.'), 'off' => t('متوقف: لا يرد على أحد.'), 'blocked' => t('مفعّل لكنه لن يعمل:'),
+        'T' => ['rFree' => t('ردود بدون رصيد'), 'rAi' => t('ردود بالذكاء الاصطناعي'), 'rFast' => t('منها %s بالموديل الأرخص'), 'rCost' => t('التكلفة الفعلية'), 'rAvg' => t('متوسط الرد %s'), 'rMonth' => t('المتوقع شهريًا'), 'rSaved' => t('وفّرت حوالي %s'), 'rBreak' => t('بدون رصيد: تحية وشكر %1 · أسئلة شائعة %2 · إجابات متكررة %3 · تجاهل %4'), 'rModel' => t('الموديل'), 'rType' => t('النوع'), 'rN' => t('عدد'), 'rTok' => t('توكن داخل/خارج'), 'rCostH' => t('التكلفة'), 'rNone' => t('لا توجد ردود بالذكاء الاصطناعي في هذه الفترة.'), 'rSince' => t('عدّاد الردود المجانية يعمل منذ %s'), 'rCopy' => t('نسخ التقرير'), 'rCopied' => t('تم نسخ التقرير'), 'fromStaff' => t('من رد الموظف — اعتمده ليُجاب تلقائيًا بعد ذلك'), 'on' => t('يعمل 24 ساعة: يرد على الرسائل من قاعدة المعرفة.'), 'off' => t('متوقف: لا يرد على أحد.'), 'blocked' => t('مفعّل لكنه لن يعمل:'),
           'resume' => t('استئناف الآن'), 'left' => t('متبقٍ %s د'), 'noPaused' => t('لا توجد محادثات متوقف فيها حاليًا.'), 'noLog' => t('لم يقم بأي شيء بعد.'), 'reply' => t('رد'), 'handoff' => t('تحويل للفريق'), 'draft' => t('مسودة'),
           'msg' => t('رسالة'), 'comment' => t('تعليق'), 'testing' => t('جارٍ التفكير…'), 'willReply' => t('سيرد هكذا'), 'willHand' => t('سيحوّل للفريق'), 'why' => t('السبب'), 'err' => t('حدثت مشكلة.'), 'ran' => t('تم التشغيل: %s رد'),
           'sendWarn' => t('الإرسال المباشر سيرسل ردودًا للعملاء دون مراجعة. هل أنت متأكد؟'), 'running' => t('جارٍ التشغيل…'), 'freeToday' => t('اليوم: %s رد بدون رصيد · %s بالذكاء الاصطناعي'), 'cacheN' => t('%s إجابة محفوظة، تُستخدم لنفس السؤال لمدة 14 يومًا'), 'clearQ' => t('مسح كل الإجابات المحفوظة؟'), 'free' => t('بدون رصيد'), 'hookOn' => t('الرد الفوري مفعّل: يرد خلال ثوانٍ من وصول الرسالة، حتى واللوحة مغلقة.'), 'hookLast' => t('آخر إشعار: %s'), 'hookOff' => t('الرد الفوري غير مفعّل، فيعمل الرد الذكي فقط أثناء فتح اللوحة.'), 'hookFix' => t('تفعيل الرد الفوري'), 'open' => t('فتح'), 'send' => t('إرسال'), 'discard' => t('تجاهل'), 'noDrafts' => t('لا توجد مسودات.'), 'handDraft' => t('يحتاج تدخل الفريق'), 'openToSend' => t('افتح المحادثة'), 'sent' => t('تم الإرسال ✓'), 'good' => t('رد جيد'), 'bad' => t('رد غير مناسب'), 'fixPh' => t('اكتب الرد الصحيح (سيُقترح إضافته لقاعدة المعرفة)'), 'saveFix' => t('حفظ'), 'thanks' => t('شكرًا، تم التقييم'), 'add' => t('أضف للأسئلة الشائعة'), 'noSug' => t('لا توجد اقتراحات.'), 'rated' => t('التقييمات: 👍 %s · 👎 %s'), 'added' => t('أضيف لقاعدة المعرفة ✓'), 'edited' => t('معدّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
@@ -342,6 +381,22 @@ function ai_agent_render(): void
         if ((b = e.target.closest('[data-ch]'))) { $$('[data-ch]').forEach(function (x) { x.classList.toggle('on', x === b); }); return; }
         if ((b = e.target.closest('[data-sug]'))) { var ta = $('[data-test] textarea'); ta.value = b.textContent; ta.focus(); return; }
       });
+      var rDays = 7;
+      function money(v) { return '$' + (v < 0.01 && v > 0 ? v.toFixed(4) : v.toFixed(2)); }
+      function rep() { var box = $('[data-rep]'); if (!box) return; post({ action: 'agent_report', days: rDays }).then(function (j) { if (!j.ok) return; var r = j.r;
+        var tile = function (l, v, s) { return '<div class="ag-rt"><small>' + esc(l) + '</small><b>' + v + '</b>' + (s ? '<i>' + esc(s) + '</i>' : '') + '</div>'; };
+        var h = '<div class="ag-rts">' + tile(T.rFree, r.free, r.freePct + '%') + tile(T.rAi, r.ai, r.fast ? T.rFast.replace('%s', r.fast) : '') + tile(T.rCost, money(r.cost), T.rAvg.replace('%s', money(r.avg))) + tile(T.rMonth, money(r.month), T.rSaved.replace('%s', money(r.saved))) + '</div>';
+        h += '<p class="ag-rbr">' + esc(T.rBreak.replace('%1', r.byFree.greet).replace('%2', r.byFree.faq).replace('%3', r.byFree.cache).replace('%4', r.byFree.skip)) + '</p>';
+        if (r.models.length) h += '<div class="ag-rtb"><table><thead><tr><th>' + esc(T.rModel) + '</th><th>' + esc(T.rType) + '</th><th>' + esc(T.rN) + '</th><th>' + esc(T.rTok) + '</th><th>' + esc(T.rCostH) + '</th></tr></thead><tbody>' + r.models.map(function (m) { return '<tr><td dir="ltr">' + esc(m.model) + '</td><td>' + esc(m.task) + '</td><td>' + m.n + '</td><td dir="ltr">' + m.tin + ' / ' + m.tout + '</td><td dir="ltr">' + money(m.cost) + (m.unk ? ' *' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+        else h += '<p class="ag-hint">' + esc(T.rNone) + '</p>';
+        h += '<ul class="ag-tips">' + r.tips.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+        if (r.histStart) h += '<p class="ag-hint">' + esc(T.rSince.replace('%s', r.histStart)) + '</p>';
+        h += '<button type="button" class="btn-ghost !py-1.5 !text-xs border border-ink-200" data-rcopy>' + esc(T.rCopy) + '</button>';
+        box.innerHTML = h; box._r = r; }); }
+      root.addEventListener('click', function (e) { var b = e.target.closest('[data-rdays]'); if (b) { rDays = +b.dataset.rdays; $$('[data-rdays]').forEach(function (x) { x.classList.toggle('on', x === b); }); rep(); return; }
+        if (e.target.closest('[data-rcopy]')) { var r = $('[data-rep]')._r; if (!r) return; var t = 'Smart Reply report (' + r.days + 'd)\nfree: ' + r.free + ' (' + r.freePct + '%) greet ' + r.byFree.greet + ' faq ' + r.byFree.faq + ' cache ' + r.byFree.cache + ' skip ' + r.byFree.skip + '\nAI: ' + r.ai + ' (fast ' + r.fast + ') cap: ' + r.cap + '\ncost: ' + money(r.cost) + ' avg ' + money(r.avg) + ' month~' + money(r.month) + '\n' + r.models.map(function (m) { return m.model + ' [' + (m.fast ? 'fast' : 'reply') + '] n=' + m.n + ' tok=' + m.tin + '/' + m.tout + ' ' + money(m.cost); }).join('\n');
+          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast(T.rCopied); }, function () { window.prompt('', t); }); } });
+      rep();
       var cpT; $('[data-cap]').addEventListener('input', function () { var v = this.value; clearTimeout(cpT); cpT = setTimeout(function () { save({ cap: v }); }, 700); });
       var grT; $('[data-greet]').addEventListener('input', function () { var v = this.value; clearTimeout(grT); grT = setTimeout(function () { save({ greetText: v }); }, 700); });
       var sgT; $('[data-sig]').addEventListener('input', function () { var v = this.value; clearTimeout(sgT); sgT = setTimeout(function () { save({ sig: v }); }, 700); });

@@ -212,6 +212,8 @@ function ai_save_stat(int $wid, string $k): void
     $key = 'ai_save_' . $wid; $d = json_decode((string)setting($key, ''), true) ?: []; $day = date('Y-m-d');
     if (($d['day'] ?? '') !== $day) $d = ['day' => $day];
     $d[$k] = (int)($d[$k] ?? 0) + 1; save_setting($key, json_encode($d));
+    $h = json_decode((string)setting('ai_save_hist_' . $wid, ''), true) ?: []; $h[$day][$k] = (int)($h[$day][$k] ?? 0) + 1;
+    ksort($h); save_setting('ai_save_hist_' . $wid, json_encode(array_slice($h, -35, null, true)));
 }
 /** إجابة ببلاش لو ينفع: تحية/شكر/إيموجي، سؤال شائع، أو سؤال اتجاوب قبل كده. null = لازم الذكاء الاصطناعي */
 function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?array
