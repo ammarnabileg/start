@@ -7,6 +7,7 @@
   function f(s) { var a = [].slice.call(arguments, 1); return String(s).replace(/%s/g, function () { return a.shift(); }); }
   function toast(m, k) { if (window.fxToast) fxToast(m, k || 'success'); }
   function num(v) { return (+v || 0).toLocaleString('en-US'); }
+  function kfmt(v) { if (v == null) return '—'; var a = Math.abs(v), s = v < 0 ? '-' : ''; return s + (a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M' : a >= 1e4 ? (a / 1e3).toFixed(a >= 1e5 ? 0 : 1) + 'K' : a.toLocaleString('en-US')); }
   var KC = { price_up: '#dc2626', price_down: '#16a34a', price: '#d97706', offer_new: '#2563eb', offer_gone: '#64748b', svc_new: '#0891b2', svc_gone: '#64748b', hours: '#64748b', down: '#dc2626', up: '#16a34a' };
   var KI = { price_up: 'trend_up', price_down: 'trend_down', price: 'tag', offer_new: 'star', offer_gone: 'star', svc_new: 'plus', svc_gone: 'trash', hours: 'clock', down: 'alert', up: 'check' };
   var GR = [['#2563eb', '#06b6d4'], ['#7c3aed', '#ec4899'], ['#059669', '#84cc16'], ['#ea580c', '#f59e0b'], ['#0f766e', '#22d3ee'], ['#be123c', '#f97316']];
@@ -39,6 +40,7 @@
       return '<article class="cx-card" data-cid="' + c.id + '" tabindex="0"><div class="flex items-start gap-3"><span class="cx-av" style="background:' + grad(c.name) + '">' + esc(c.name.charAt(0)) + '</span><div class="min-w-0 flex-1"><b class="block truncate text-ink-900">' + esc(c.name) + '</b><a class="text-xs link" dir="ltr" href="' + esc(c.url) + '" target="_blank" rel="noopener" data-stop>' + esc(c.host) + '</a></div>' +
         '<span class="cx-st ' + (!c.checked ? 'never' : c.ok ? 'ok' : 'bad') + '" title="' + esc(c.checked) + '"><i></i>' + esc(!c.checked ? T.never : c.ok ? c.ago : T.down) + '</span></div>' +
         '<div class="cx-mini"><span><b>' + c.services.length + '</b> ' + esc(T.svc) + '</span><span><b>' + c.offers.length + '</b> ' + esc(T.offers) + '</span>' + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '</div>' +
+        (c.soc && c.soc.followers ? '<div class="cs-cardl">' + ic('users', 'w-3.5 h-3.5') + '<b>' + kfmt(c.soc.followers) + '</b> ' + esc(T.sFol) + (c.soc.g7 != null && c.soc.g7 !== 0 ? ' <em class="' + (c.soc.g7 > 0 ? 'up' : 'dn') + '">' + (c.soc.g7 > 0 ? '+' : '') + kfmt(c.soc.g7) + ' ' + esc(T.sWeek) + '</em>' : '') + '</div>' : '') +
         (last ? evRow(last) : '<p class="text-xs text-ink-400">' + esc(T.noCh) + '</p>') +
         '<div class="cx-acts" data-stop><button type="button" class="btn-ghost !py-1 !text-xs" data-check>' + ic('refresh') + '<span>' + esc(T.check) + '</span></button>' + c.links.map(function (l) { return '<a class="cx-lk" href="' + esc(l) + '" target="_blank" rel="noopener" title="' + esc(l) + '">' + ic('link') + '</a>'; }).join('') +
         '<button type="button" class="cx-del" data-del title="' + esc(T.del) + '">' + ic('trash') + '</button></div></article>'; }).join('') + '</section>';
@@ -68,22 +70,80 @@
   function sheetBody() { var c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (!c) return ''; var ev = D.events.filter(function (e) { return e.cid === c.id; }), st = stand(c.id);
     var head = '<header><span class="cx-av" style="background:' + grad(c.name) + '">' + esc(c.name.charAt(0)) + '</span><div class="min-w-0 flex-1"><b class="block text-lg text-ink-900 truncate">' + esc(c.name) + '</b><a class="text-xs link" dir="ltr" href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.host) + ' ↗</a>' + (c.note ? '<p class="text-xs text-ink-500 mt-1">' + esc(c.note) + '</p>' : '') + '</div><button type="button" class="cx-x" data-shx>' + ic('x', 'w-5 h-5') + '</button></header>' +
       '<div class="cx-mini px-5">' + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '<span>' + esc(c.checked) + '</span></div>' +
-      '<nav class="cx-tabs">' + [['ch', T.tCh, ev.length], ['svc', T.tSvc, c.services.length], ['off', T.tOff, c.offers.length]].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + ' <i>' + x[2] + '</i></button>'; }).join('') + '</nav>';
+      '<nav class="cx-tabs">' + [['ch', T.tCh, ev.length], ['svc', T.tSvc, c.services.length], ['off', T.tOff, c.offers.length], ['soc', T.tSoc, c.soc ? c.soc.n : 0]].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + ' <i>' + x[2] + '</i></button>'; }).join('') + '</nav>';
     var body = '';
     if (sTab === 'ch') body = ev.length ? ev.map(function (e) { return evRow(e); }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noCh) + '</p>';
     if (sTab === 'svc') { var mine = {}; D.prices.forEach(function (r) { var x = r.them[c.id]; if (x) mine[x.price + '|' + r.name] = r; });
       var list = c.services.filter(function (s) { return !sq || s.name.toLowerCase().indexOf(sq) >= 0; });
       body = '<label class="mk-search !w-full !h-9 mb-3"><input type="search" data-sq value="' + esc(sq) + '" placeholder="' + esc(T.find) + '"></label>' + (c.services.length ? '<div class="cx-svcs">' + list.map(function (s) { var r = D.prices.filter(function (p) { var x = p.them[c.id]; return x && x.price === s.price && (p.name === s.name || true) && x.n != null; })[0], x = r ? r.them[c.id] : null;
         return '<div class="cx-svc"><span dir="auto">' + esc(s.name) + '</span><b dir="auto">' + esc(s.price) + '</b>' + (x && x.d ? '<em class="' + (x.d < 0 ? 'ch' : 'ex') + '" title="' + esc(T.vs + ' ' + r.mine) + '">' + (x.d > 0 ? '+' : '') + x.d + '%</em>' : '<em></em>') + '</div>'; }).join('') + '</div>' : '<p class="text-sm text-ink-400">' + esc(T.noSvc) + '</p>'); }
+    if (sTab === 'soc') body = '<div data-soc>' + (SOC[c.id] ? socBody(c, SOC[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.sLoading) + '</p>') + '</div>';
     if (sTab === 'off') body = c.offers.length ? c.offers.map(function (o) { return '<div class="cx-off">' + ic('star') + '<span dir="auto">' + esc(o) + '</span></div>'; }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noOff) + '</p>';
     return head + '<div class="cx-shc">' + body + '</div>'; }
+
+  /* ---------- السوشيال ---------- */
+  var SOC = {}, socF = { pl: '', sort: 'new', q: '', more: 30 }, pollT = null;
+  var PL = { instagram: ['#e1306c', 'IG'], tiktok: ['#111827', 'TT'], facebook: ['#1877f2', 'FB'], youtube: ['#ff0000', 'YT'] };
+  var TY = { reel: 'Reels', image: 'tImage', carousel: 'tCarousel', video: 'tVideo', short: 'Shorts', text: 'tText' };
+  function tyName(t) { var k = TY[t] || t; return T[k] || k; }
+  function plBadge(pl) { var x = PL[pl] || ['#64748b', pl.slice(0, 2).toUpperCase()]; return '<i class="cs-pl" style="--c:' + x[0] + '">' + x[1] + '</i>'; }
+  function spark(sr) { if (!sr || sr.length < 2) return '<div class="cs-spk none">' + esc(T.sSoon) + '</div>'; var v = sr.map(function (r) { return r[1]; }), lo = Math.min.apply(null, v), hi = Math.max.apply(null, v), w = 160, h = 36;
+    var pts = v.map(function (y, i) { return (i / (v.length - 1) * w).toFixed(1) + ',' + (hi === lo ? h / 2 : h - 3 - (y - lo) / (hi - lo) * (h - 6)).toFixed(1); }).join(' ');
+    return '<svg class="cs-spk" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>'; }
+  function delta(g) { if (!g) return '<span class="cs-d">—</span>'; return '<span class="cs-d ' + (g.abs > 0 ? 'up' : g.abs < 0 ? 'dn' : '') + '">' + (g.abs > 0 ? '+' : '') + kfmt(g.abs) + (g.pct != null ? ' (' + (g.pct > 0 ? '+' : '') + g.pct + '%)' : '') + '</span>'; }
+  function postRow(x, rank) { var m = [x.views != null ? ic('eye', 'w-3 h-3') + kfmt(x.views) : '', ic('heart', 'w-3 h-3') + kfmt(x.likes), ic('chat', 'w-3 h-3') + kfmt(x.comments), x.shares != null ? ic('share', 'w-3 h-3') + kfmt(x.shares) : ''].filter(Boolean).map(function (z) { return '<span>' + z + '</span>'; }).join('');
+    return '<a class="cs-post" href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' + (rank ? '<b class="cs-rk">' + rank + '</b>' : '') + (x.thumb ? '<img src="' + esc(x.thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') +
+      '<div class="min-w-0 flex-1"><div class="cs-pm">' + plBadge(x.platform) + '<span>' + esc(tyName(x.type)) + '</span>' + (x.paid ? '<span class="cs-paid">' + esc(T.sPaid) + '</span>' : '') + '<span class="ms-auto">' + esc(x.at) + '</span></div>' +
+      '<p dir="auto">' + esc(x.caption || '—') + '</p><div class="cs-pn">' + m + (x.er != null ? '<span class="cs-er">' + esc(T.sEr) + ' <bdi dir="ltr">' + x.er + '%</bdi></span>' : '') + '</div></div></a>'; }
+  function socBody(c, r) {
+    var h = '<div class="cs-head"><div>' + (r.accounts.length ? '<b>' + kfmt(r.total) + '</b> ' + esc(T.sFolAll) : esc(T.sNoAcc)) + '</div>' +
+      (r.on ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-srefresh' + (r.accounts.some(function (a) { return a.pending; }) ? ' disabled' : '') + '>' + ic('refresh') + '<span>' + esc(r.accounts.some(function (a) { return a.pending; }) ? T.sReading : T.sRefresh) + '</span></button>' : '') + '</div>';
+    if (!r.on) h += '<div class="cs-note">' + esc(T.sNoApify) + '</div>';
+    if (r.fast) h += '<div class="cs-fast">' + ic('trend_up', 'w-4 h-4') + esc(f(T.sFast, r.fast.platform, (r.fast.pct > 0 ? '+' : '') + r.fast.pct + '%')) + '</div>';
+    h += r.accounts.map(function (a) {
+      return '<div class="cs-acc' + (a.ok || a.pending ? '' : ' bad') + '"><div class="cs-ah">' + plBadge(a.platform) + '<div class="min-w-0 flex-1"><a class="font-semibold text-ink-900 truncate block" href="' + esc(a.url) + '" target="_blank" rel="noopener" dir="ltr">' + esc(a.name || a.handle) + '</a><small dir="ltr">@' + esc(a.handle.replace(/^@/, '')) + '</small></div>' +
+        (a.pending ? '<span class="cs-pend"><span class="ai-spin"></span>' + esc(T.sReading) + '</span>' : a.checked ? '<small class="text-ink-400">' + esc(a.checked) + '</small>' : '') + '</div>' +
+        (!a.ok && !a.pending && a.err ? '<p class="cs-err">' + esc(a.err) + '</p>' : '') + (!a.checked && !a.pending ? '<p class="cs-err">' + esc(r.on ? T.sNever : T.sNoApify) + '</p>' : '') +
+        (a.followers != null ? '<div class="cs-am"><div><small>' + esc(T.sFol) + '</small><b>' + kfmt(a.followers) + '</b></div><div><small>' + esc(T.s7) + '</small>' + delta(a.g7) + '</div><div><small>' + esc(T.s30) + '</small>' + delta(a.g30) + '</div>' +
+          '<div><small>' + esc(T.sPw) + '</small><b>' + a.perWeek + '</b></div><div><small>' + esc(T.sErAvg) + '</small><b><bdi dir="ltr">' + (a.er != null ? a.er + '%' : '—') + '</bdi></b></div></div>' + spark(a.series) + (a.tracked ? '<small class="cs-since">' + esc(f(T.sSince, a.tracked)) + '</small>' : '') : '') + '</div>'; }).join('');
+    // روابط
+    h += '<details class="cs-links"' + (r.accounts.length ? '' : ' open') + '><summary>' + ic('link', 'w-3.5 h-3.5') + esc(T.sLinks) + '</summary><p>' + esc(T.sLinksH) + '</p><textarea data-slinks rows="3" class="input" dir="ltr" placeholder="https://instagram.com/…">' + esc(c.links.join('\n')) + '</textarea><button type="button" class="btn-primary !py-1.5 !text-xs" data-slsave>' + esc(T.sSave) + '</button></details>';
+    if (!r.posts.length) return h + (r.accounts.length ? '<p class="text-sm text-ink-400 mt-3">' + esc(T.sNoPosts) + '</p>' : '');
+    // أفضل 10
+    if (r.top.length) h += '<section class="cs-sec"><h4>' + esc(T.sTop) + '</h4>' + r.top.map(function (x, i) { return postRow(x, i + 1); }).join('') + '</section>';
+    // نوع المحتوى
+    var mt = 0; Object.keys(r.mix).forEach(function (k) { mt += r.mix[k]; });
+    if (mt) h += '<section class="cs-sec"><h4>' + esc(T.sMix) + ' <small>' + esc(f(T.s90, mt)) + '</small></h4><div class="cs-mix">' + Object.keys(r.mix).map(function (k) { var pc = Math.round(r.mix[k] / mt * 100); return '<div><span>' + esc(tyName(k)) + '</span><i><b style="width:' + pc + '%"></b></i><em><bdi dir="ltr">' + pc + '%</bdi></em></div>'; }).join('') + '</div></section>';
+    // أوقات النشر
+    var mx = 0; r.heat.forEach(function (d) { d.forEach(function (v) { if (v > mx) mx = v; }); });
+    if (mx) { var best = [], days = T.sDays.split(','); r.heat.forEach(function (d, di) { d.forEach(function (v, hh) { if (v) best.push([v, di, hh]); }); }); best.sort(function (a, b) { return b[0] - a[0]; });
+      h += '<section class="cs-sec"><h4>' + esc(T.sHeat) + '</h4><p class="cs-sub">' + esc(T.sBest) + ': ' + best.slice(0, 3).map(function (b) { return days[b[1]] + ' ' + (b[2] % 12 || 12) + (b[2] < 12 ? T.am : T.pm); }).join('، ') + '</p><div class="cs-heat"><span></span>' + [0, 3, 6, 9, 12, 15, 18, 21].map(function (x) { return '<em style="grid-column:span 3">' + (x % 12 || 12) + (x < 12 ? T.am : T.pm) + '</em>'; }).join('') +
+        r.heat.map(function (d, di) { return '<span>' + esc(days[di]) + '</span>' + d.map(function (v, hh) { return '<i style="--o:' + (v ? (0.18 + v / mx * 0.82).toFixed(2) : 0) + '" title="' + esc(days[di] + ' ' + hh + ':00 — ' + v) + '"></i>'; }).join(''); }).join('') + '</div></section>'; }
+    // هاشتاجات ومنشن
+    var chips = function (o, pre) { return Object.keys(o).map(function (k) { return '<span class="cs-chip" dir="auto">' + pre + esc(k) + ' <i>' + o[k] + '</i></span>'; }).join(''); };
+    if (Object.keys(r.tags).length) h += '<section class="cs-sec"><h4>' + esc(T.sTags) + '</h4><div class="cs-chips">' + chips(r.tags, '#') + '</div></section>';
+    if (Object.keys(r.ments).length) h += '<section class="cs-sec"><h4>' + esc(T.sMents) + '</h4><div class="cs-chips">' + chips(r.ments, '@') + '</div></section>';
+    // كل المنشورات
+    var pls = {}; r.posts.forEach(function (x) { pls[x.platform] = 1; });
+    var list = r.posts.filter(function (x) { return (!socF.pl || x.platform === socF.pl) && (!socF.q || (x.caption || '').toLowerCase().indexOf(socF.q) >= 0); });
+    if (socF.sort === 'eng') list = list.slice().sort(function (a, b) { return b.eng - a.eng; });
+    h += '<section class="cs-sec"><h4>' + esc(T.sAll) + ' <small>' + list.length + '</small></h4><div class="cs-ftr"><select data-sfp class="cx-sel"><option value="">' + esc(T.sAllPl) + '</option>' + Object.keys(pls).map(function (k) { return '<option value="' + k + '"' + (socF.pl === k ? ' selected' : '') + '>' + esc((PL[k] ? { instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube' }[k] : k)) + '</option>'; }).join('') + '</select>' +
+      '<select data-ssort class="cx-sel"><option value="new">' + esc(T.sNew) + '</option><option value="eng"' + (socF.sort === 'eng' ? ' selected' : '') + '>' + esc(T.sMost) + '</option></select><input type="search" data-sq2 class="input !h-8 !text-xs flex-1" placeholder="' + esc(T.sFind) + '" value="' + esc(socF.q) + '"></div>' +
+      list.slice(0, socF.more).map(function (x) { return postRow(x); }).join('') + (list.length > socF.more ? '<button type="button" class="btn-ghost w-full !text-xs" data-smore>' + esc(T.sMore) + '</button>' : '') + '</section>';
+    return h; }
+  function socPaint() { var a = root.querySelector('[data-soc]'); var c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (a && c && SOC[c.id]) a.innerHTML = socBody(c, SOC[c.id]); }
+  function socLoad(id, action, extra) { return post(Object.assign({ action: action || 'social', id: id }, extra || {})).then(function (j) { if (!j || !j.ok) { toast((j && j.error) || T.err, 'error'); return j; } SOC[id] = j.r; if (j.links) D.comps.forEach(function (c) { if (c.id === id) c.links = j.links; }); if (openId === id && sTab === 'soc') socPaint(); socWatch(id); return j; }); }
+  function socWatch(id) { clearTimeout(pollT); var r = SOC[id]; if (!r || !r.accounts.some(function (a) { return a.pending; }) || openId !== id) return; pollT = setTimeout(function () { socLoad(id, 'social_poll'); }, 8000); }
   function openSheet(id) { openId = id; sTab = 'ch'; sq = ''; var sh = root.querySelector('[data-sh]'); sh.querySelector('aside').innerHTML = sheetBody(); sh.classList.add('open'); document.documentElement.classList.add('hub-lock'); }
-  function closeSheet() { openId = null; var sh = root.querySelector('[data-sh]'); if (sh) sh.classList.remove('open'); document.documentElement.classList.remove('hub-lock'); }
+  function closeSheet() { clearTimeout(pollT); openId = null; var sh = root.querySelector('[data-sh]'); if (sh) sh.classList.remove('open'); document.documentElement.classList.remove('hub-lock'); }
 
   root.addEventListener('click', function (e) { var t = e.target, b;
     if (t.closest('[data-open-add]')) { var pp = root.querySelector('[data-pop]'); pp.classList.toggle('hidden'); if (!pp.classList.contains('hidden')) pp.querySelector('[name=name]').focus(); return; }
     if ((b = t.closest('[data-fk]'))) { flt.kind = b.dataset.fk; paint(); return; }
-    if ((b = t.closest('[data-st]'))) { sTab = b.dataset.st; root.querySelector('[data-sh] aside').innerHTML = sheetBody(); return; }
+    if ((b = t.closest('[data-st]'))) { sTab = b.dataset.st; root.querySelector('[data-sh] aside').innerHTML = sheetBody(); if (sTab === 'soc') { socF = { pl: '', sort: 'new', q: '', more: 30 }; socLoad(openId); } return; }
+    if ((b = t.closest('[data-srefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; socLoad(openId, 'social_refresh').then(function (j) { if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sNoAcc); }); return; }
+    if ((b = t.closest('[data-slsave]'))) { var ta = root.querySelector('[data-slinks]'); b.disabled = true; socLoad(openId, 'links', { links: ta.value }).then(function (j) { b.disabled = false; if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sSaved); }); return; }
+    if (t.closest('[data-smore]')) { socF.more += 30; socPaint(); return; }
     if (t.closest('[data-shx]')) { closeSheet(); return; }
     var card = t.closest('[data-cid]'); if (!card) return; var id = +card.dataset.cid;
     if ((b = t.closest('[data-check]'))) { b.disabled = true; b.classList.add('pd-busy'); b.querySelector('span').textContent = T.checking; post({ action: 'check', id: id }).then(after).catch(function () { toast(T.err, 'error'); paint(); }); return; }
@@ -92,8 +152,9 @@
     if (t.closest('[data-stop]')) return; openSheet(id); });
   root.addEventListener('keydown', function (e) { var c = e.target.closest('[data-cid]'); if (c && e.key === 'Enter' && e.target === c) openSheet(+c.dataset.cid); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openId) closeSheet(); });
-  root.addEventListener('change', function (e) { if (e.target.matches('[data-fc]')) { flt.cid = e.target.value; paint(); } if (e.target.matches('[data-only]')) { onlyCheap = e.target.checked; paint(); } });
+  root.addEventListener('change', function (e) { if (e.target.matches('[data-sfp]')) { socF.pl = e.target.value; socF.more = 30; socPaint(); return; } if (e.target.matches('[data-ssort]')) { socF.sort = e.target.value; socPaint(); return; } if (e.target.matches('[data-fc]')) { flt.cid = e.target.value; paint(); } if (e.target.matches('[data-only]')) { onlyCheap = e.target.checked; paint(); } });
   root.addEventListener('input', function (e) { var t = e.target;
+    if (t.matches('[data-sq2]')) { socF.q = t.value.trim().toLowerCase(); socPaint(); var n2 = root.querySelector('[data-sq2]'); n2.focus(); n2.setSelectionRange(n2.value.length, n2.value.length); return; }
     if (t.matches('[data-sq]')) { sq = t.value.trim().toLowerCase(); var a = root.querySelector('[data-sh] aside'); a.innerHTML = sheetBody(); var n = a.querySelector('[data-sq]'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
     if (t.name === 'url' && t.closest('[data-add]')) { var v = t.value.trim().replace(/^https?:\/\//, '').split('/')[0], fv = t.closest('[data-add]').querySelector('[data-fav]'); fv.textContent = v ? v.charAt(0).toUpperCase() : ''; if (!v) fv.innerHTML = ic('link'); fv.classList.toggle('on', !!v);
       var nm = t.form.name; if (v && !nm.value) nm.placeholder = v.replace(/^www\./, '').split('.')[0]; } });
