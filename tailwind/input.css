@@ -1397,3 +1397,17 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pr-dlg #pd-addc.hidden{display:none!important}
 #pr-dlg #pd-contact svg.pd-cli{width:.9rem!important;height:.9rem!important;padding:0!important;border-radius:0!important;flex-shrink:0}
 #pr-dlg .pd-cadd{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}#pr-dlg .pd-cadd:hover{background:#dbeafe}.dark #pr-dlg .pd-cadd{color:#93c5fd;background:rgb(37 99 235/.15);border-color:rgb(147 197 253/.35)}
+
+/* حقول مخصصة: شبكة صغيرة في تبويب التواصل */
+#pd-p-dt .space-y-2{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem}
+#pd-p-dt .space-y-2>b{grid-column:1/-1}
+/* المتابعات السابقة تحت الصف: أصغر وأضيق */
+.pr-exp{padding:.5rem .9rem .6rem!important;gap:.4rem!important}
+.pr-xh>b{font-size:.74rem!important;margin-bottom:.3rem!important}
+.pr-hi{padding:.3rem .6rem!important;margin-bottom:.25rem!important;border-radius:9px!important;gap:.45rem!important;align-items:center!important}
+.pr-hi>div{display:flex;align-items:baseline;gap:.6rem;min-width:0;flex:1}
+.pr-hi p{font-size:.8rem!important;line-height:1.4!important;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr-hi small{font-size:.66rem!important;white-space:nowrap;flex-shrink:0}
+.pr-hii{width:20px!important;height:20px!important;border-radius:6px!important}
+.pr-hii svg{width:.75rem;height:.75rem}
+.pr-hi{display:flex!important;flex-direction:row!important;align-items:baseline!important;justify-content:space-between}.pr-hi>p{flex:1}

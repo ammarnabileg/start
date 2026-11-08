@@ -156,13 +156,12 @@
   /* ---------- البيانات ---------- */
   function dtPaint(j) { var p = $('pd-p-dt'), byDeals = (j.deals || []).length > 0, cf = j.cf || {};
     var row = function (lab, inner, k) { return '<label class="pd-fld" data-f="' + k + '"><span>' + esc(lab) + '</span>' + inner + '<i class="pd-tick2">✓</i></label>'; };
-    var h = row(T.value, '<input class="input !mt-0 text-sm" data-fv="value" inputmode="decimal" dir="ltr" value="' + esc(j.value) + '"' + (byDeals ? ' disabled title="' + esc(T.byDeals) + '"' : '') + '>' + (byDeals ? '<small class="text-[11px] text-ink-400">' + esc(T.byDeals) + '</small>' : ''), 'value');
+    var h = '';
     if (Object.keys(X.pipes).length > 1) h += row(T.pipe, '<select class="input !mt-0 text-sm" data-fv="pipeline">' + Object.keys(X.pipes).map(function (k) { return '<option value="' + esc(k) + '"' + (k === j.pl ? ' selected' : '') + '>' + esc(X.pipes[k]) + '</option>'; }).join('') + '</select>', 'pipeline');
     if (X.cf.length) { h += '<b class="block text-xs text-ink-500 mt-3 mb-1">' + esc(T.fields) + '</b>'; X.cf.forEach(function (f) { var v = cf[f.key] || '', k = 'cf.' + f.key;
       h += row(f.label, f.type === 'select' ? '<select class="input !mt-0 text-sm" data-fv="' + esc(k) + '"><option value="">—</option>' + (f.opts || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>'
         : '<input class="input !mt-0 text-sm" data-fv="' + esc(k) + '" value="' + esc(v) + '" ' + (f.type === 'number' ? 'inputmode="decimal" dir="ltr"' : 'dir="auto"') + ' maxlength="200">', k); }); }
-    else h += '<p class="text-[11px] text-ink-400 mt-3">' + esc(T.noFields) + ' <a class="link" href="' + esc(X.settings) + '">' + ic('chevron-left', 'w-3 h-3 inline') + '</a></p>';
-    p.innerHTML = '<div class="space-y-2">' + h + '</div>'; }
+    p.classList.toggle('hidden', !h); p.innerHTML = h ? '<div class="space-y-2">' + h.replace('mt-3 mb-1', 'mb-1') + '</div>' : ''; }
   $('pd-p-dt').addEventListener('change', function (e) { var el = e.target.closest('[data-fv]'); if (!el) return; var lab = el.closest('.pd-fld');
     api({ action: 'field', id: lead().id, f: el.dataset.fv, v: el.value }, C.selfUrl).then(function (j) { if (!j.ok) return fail(j); lab.classList.remove('ok'); void lab.offsetWidth; lab.classList.add('ok'); if (el.dataset.fv === 'value') LP.refresh(); }).catch(function () { fail(); }); });
 
