@@ -74,7 +74,7 @@ function ai_agent_ajax(string $a): void
         if (isset($in['len']) && in_array($in['len'], ['short', 'medium', 'detailed'], true)) $c['len'] = $in['len'];
         if (isset($in['tone']) && in_array($in['tone'], ['friendly', 'formal', 'brand'], true)) $c['tone'] = $in['tone'];
         if (isset($in['sig'])) $c['sig'] = mb_substr(trim((string)$in['sig']), 0, 80);
-        foreach (['greet', 'faq', 'cache', 'route', 'batch'] as $sk) if (isset($in['save_' . $sk])) $c['save'][$sk] = $in['save_' . $sk] === '1' ? 1 : 0;
+        foreach (['greet', 'faq', 'cache', 'route', 'batch', 'smart'] as $sk) if (isset($in['save_' . $sk])) $c['save'][$sk] = $in['save_' . $sk] === '1' ? 1 : 0;
         if (isset($in['cap'])) $c['save']['cap'] = max(0, min(5000, (int)$in['cap']));
         if (isset($in['greetText'])) $c['save']['greetText'] = mb_substr(trim((string)$in['greetText']), 0, 200);
         if (isset($in['clearCache'])) save_setting('ai_cache_' . $wid, '');
@@ -156,10 +156,10 @@ function ai_agent_report(int $wid, int $days): array
     $free = ($n['greet'] ?? 0) + ($n['faq'] ?? 0) + ($n['cache'] ?? 0) + ($n['skip'] ?? 0);
     $models = []; $cost = 0.0; $calls = 0; $tin = 0;
     try {
-        $st = db()->prepare("SELECT task, model, COUNT(*) n, COALESCE(SUM(cost),0) c, AVG(tokens_in) ti, AVG(tokens_out) tt, SUM(cost IS NULL) unk FROM ai_usage WHERE workspace_id = ? AND task IN ('reply','reply_fast') AND created_at >= ? GROUP BY task, model ORDER BY c DESC");
+        $st = db()->prepare("SELECT task, model, COUNT(*) n, COALESCE(SUM(cost),0) c, AVG(tokens_in) ti, AVG(tokens_out) tt, SUM(cost IS NULL) unk FROM ai_usage WHERE workspace_id = ? AND task IN ('reply','reply_fast','reply_route') AND created_at >= ? GROUP BY task, model ORDER BY c DESC");
         $st->execute([$wid, $from . ' 00:00:00']);
-        foreach ($st->fetchAll() as $r) { $models[] = ['task' => $r['task'] === 'reply_fast' ? t('بسيطة') : t('عادية'), 'fast' => $r['task'] === 'reply_fast', 'model' => (string)$r['model'], 'n' => (int)$r['n'], 'cost' => round((float)$r['c'], 4), 'avg' => (int)$r['n'] ? round((float)$r['c'] / (int)$r['n'], 5) : 0, 'tin' => (int)$r['ti'], 'tout' => (int)$r['tt'], 'unk' => (int)$r['unk']];
-            $cost += (float)$r['c']; $calls += (int)$r['n']; $tin += (int)$r['ti'] * (int)$r['n']; }
+        foreach ($st->fetchAll() as $r) { $models[] = ['task' => $r['task'] === 'reply_route' ? t('توجيه') : ($r['task'] === 'reply_fast' ? t('بسيطة') : t('عادية')), 'fast' => $r['task'] === 'reply_fast', 'model' => (string)$r['model'], 'n' => (int)$r['n'], 'cost' => round((float)$r['c'], 4), 'avg' => (int)$r['n'] ? round((float)$r['c'] / (int)$r['n'], 5) : 0, 'tin' => (int)$r['ti'], 'tout' => (int)$r['tt'], 'unk' => (int)$r['unk']];
+            $cost += (float)$r['c']; if ($r['task'] !== 'reply_route') { $calls += (int)$r['n']; $tin += (int)$r['ti'] * (int)$r['n']; } }
     } catch (Throwable $e) {}
     $avg = $calls ? $cost / $calls : 0;
     // نسبة المجاني بتتحسب من يوم ما العدّاد اشتغل بس (عشان متطلعش أقل من الحقيقة)
@@ -260,6 +260,7 @@ function ai_agent_render(): void
         <input class="ag-sig" data-greet maxlength="200" dir="auto" placeholder="<?= e(t('رسالة الترحيب (اختياري) — مثلًا: أهلًا بك في [اسم الشركة]! كيف نخدمك؟')) ?>">
         <label class="ag-row"><span><b><?= e(t('الإجابة من الأسئلة الشائعة مباشرة')) ?></b><small><?= e(t('لو السؤال يطابق سؤالًا في قاعدة المعرفة، تُرسل الإجابة المعتمدة كما هي')) ?></small></span><button type="button" class="ag-sw sm" data-save="faq"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('إعادة استخدام الإجابات المتكررة')) ?></b><small data-cachen></small></span><button type="button" class="ag-sw sm" data-save="cache"><i></i></button></label>
+        <label class="ag-row"><span><b><?= e(t('البحث الذكي في قاعدة المعرفة')) ?></b><small><?= e(t('خطوتان: الذكاء الاصطناعي يقرأ خريطة أقسام قاعدة المعرفة ويحدد المدخلات التي فيها الإجابة، ثم يرد من محتواها فقط. أدق، ويستهلك توكنز أكثر قليلًا')) ?></small></span><button type="button" class="ag-sw sm" data-save="smart"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('موديل أرخص للأسئلة البسيطة')) ?></b><small><?= e(t('السؤال القصير الواضح يذهب لموديل «الردود البسيطة»، والشكاوى والأسئلة المركبة لموديل الردود الأقوى')) ?></small></span><button type="button" class="ag-sw sm" data-save="route"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('تجميع الرسائل المتتالية')) ?></b><small><?= e(t('لو أرسل العميل عدة رسائل وراء بعض، ينتظر ثواني ويرد ردًا واحدًا عليها كلها')) ?></small></span><button type="button" class="ag-sw sm" data-save="batch"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('حد يومي لردود الذكاء الاصطناعي')) ?></b><small><?= e(t('بعده تتحول الرسائل الجديدة للفريق بدل استهلاك الرصيد. 0 = بلا حد')) ?></small></span><input type="number" min="0" max="5000" class="ag-sig !w-24 !mt-0" data-cap></label>

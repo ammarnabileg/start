@@ -167,7 +167,7 @@ function ai_reply_cfg(int $wid): array
     $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
     $pl = array_values(array_filter(array_map('strval', (array)($c['platforms'] ?? []))));
     $sv = (array)($c['save'] ?? []);
-    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'route' => ($sv['route'] ?? 1) ? 1 : 0, 'cap' => max(0, min(5000, (int)($sv['cap'] ?? 0))), 'batch' => ($sv['batch'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
+    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'route' => ($sv['route'] ?? 1) ? 1 : 0, 'smart' => ($sv['smart'] ?? 1) ? 1 : 0, 'cap' => max(0, min(5000, (int)($sv['cap'] ?? 0))), 'batch' => ($sv['batch'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
         'sig' => mb_substr((string)($c['sig'] ?? ''), 0, 80), 'when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
         'mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
         'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
@@ -256,7 +256,8 @@ function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $h
     // حد يومي: بعده الرسائل بتتحول للفريق بدل ما الرصيد يخلص (سبام أو ضغط مفاجئ)
     if ($cfg['save']['cap'] > 0) { $st = json_decode((string)setting('ai_save_' . $wid, ''), true) ?: []; if (($st['day'] ?? '') === date('Y-m-d') && (int)($st['ai'] ?? 0) + (int)($st['fast'] ?? 0) >= $cfg['save']['cap']) return ['action' => 'handoff', 'reply' => '', 'reason' => t('اكتمل الحد اليومي للذكاء الاصطناعي'), 'confidence' => 0, 'src' => 'cap', 'model' => '', 'cost' => 0]; }
     $fast = $cfg['save']['route'] && ai_is_simple($msg);
-    $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply');
+    $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply', (bool)$cfg['save']['smart']);
+    if (!empty($d['look'])) $d['reason'] = trim((string)$d['reason']) . ' · 🔎 ' . implode('، ', $d['look']);
     ai_save_stat($wid, $fast ? 'fast' : 'ai');
     if ($d['action'] === 'reply' && ($g = ai_reply_guard($wid, $msg, (string)$d['reply'])) !== '') {
         // تعليق عام: منردش خالص. رسالة خاصة: تتحفظ مسودة للمراجعة حتى لو الوضع «إرسال تلقائي»

@@ -5468,4 +5468,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'الرد فيه رابط غير موجود في قاعدة المعرفة' => 'Reply contains a link not in the knowledge base',
     'أُرسلت للعميل رسالة انتظار' => 'A holding message was sent to the customer',
     'الرد محفوظ كمسودة بانتظار مراجعتك' => 'The reply was saved as a draft awaiting your review',
+    'توجيه' => 'Routing',
+    'البحث الذكي في قاعدة المعرفة' => 'Smart knowledge base search',
+    'خطوتان: الذكاء الاصطناعي يقرأ خريطة أقسام قاعدة المعرفة ويحدد المدخلات التي فيها الإجابة، ثم يرد من محتواها فقط. أدق، ويستهلك توكنز أكثر قليلًا' => 'Two steps: the AI reads a map of your knowledge base sections, picks the inputs that hold the answer, then replies from their content only. More accurate, uses slightly more tokens',
 ];

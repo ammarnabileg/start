@@ -166,6 +166,7 @@ function ai_task_chain(string $task): array
         if (count($chain) >= 6) break;
     }
     // مفيش موديل متعلّم عليه للمهمة دي (أو اتشال): نرجع للتلقائي بدل ما المهمة تقف
+    if (!$chain && $task === 'reply_route') return ai_task_chain('reply_fast');
     if (!$chain && $task === 'reply_fast') return ai_task_chain('reply');
     return $chain ?: $conns;
 }
@@ -227,10 +228,11 @@ function ai_with_kb(array $messages, string $task): array
     $query = '';
     for ($i = count($messages) - 1; $i >= 0; $i--) { if (($messages[$i]['role'] ?? '') === 'user') { $c = $messages[$i]['content']; $query = is_array($c) ? (string)($c[0]['text'] ?? '') : (string)$c; break; } }
     if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'classify'], true)) return $messages;
+    if (!empty($GLOBALS['__kb_skip'])) return $messages; // خطوة التوجيه: الخريطة جوه البرومبت بالفعل
     $lean = $task === 'reply' || $task === 'reply_fast';
     // في الرد الذكي: البحث بآخر رسالة للعميل بس، مش بالمحادثة كلها (السياق القديم بيجيب أجزاء ملهاش علاقة)
     if ($lean && ($p = mb_strrpos($query, "Customer's latest")) !== false) $query = (string)preg_replace('/^[^\n]*\n/u', '', mb_substr($query, $p));
-    $kb = $lean ? kb_compile((int)ws('id'), mb_substr($query, 0, 600), true) : ai_kb((int)ws('id'), mb_substr($query, 0, 2000));
+    $kb = $lean && isset($GLOBALS['__kb_override']) ? (string)$GLOBALS['__kb_override'] : ($lean ? kb_compile((int)ws('id'), mb_substr($query, 0, 600), true) : ai_kb((int)ws('id'), mb_substr($query, 0, 2000)));
     $note = ai_country_note();
     if ($kb !== '') $note .= "\n\nCOMPANY KNOWLEDGE BASE — follow it strictly. Use ONLY these facts for prices, services, hours, addresses, policies and offers; never invent any. Respect TONE, NEVER SAY and ANTI-HYPE rules in everything you write. If something isn't covered, say you'll check and get back.\n\n" . $kb;
     if (($messages[0]['role'] ?? '') === 'system') $messages[0]['content'] .= "\n\n" . $note;

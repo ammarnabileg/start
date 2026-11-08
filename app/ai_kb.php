@@ -235,13 +235,14 @@ function kb_terms(string $s): array
 }
 
 /** أنسب أجزاء الملفات لسؤال معين (بحث بالكلمات المشتركة) */
-function kb_relevant_chunks(int $wid, string $query, int $limit = 5): array
+function kb_relevant_chunks(int $wid, string $query, int $limit = 5, ?array $onlyIds = null): array
 {
     try {
-        $st = db()->prepare("SELECT name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
+        $st = db()->prepare("SELECT id, name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id");
         $st->execute([$wid]);
         $files = $st->fetchAll();
     } catch (Throwable $e) { return []; }
+    if ($onlyIds !== null) $files = array_values(array_filter($files, function ($f) use ($onlyIds) { return in_array((int)$f['id'], $onlyIds, true); }));
     if (!$files) return [];
     $q = kb_terms($query);
     $scored = [];
@@ -253,8 +254,83 @@ function kb_relevant_chunks(int $wid, string $query, int $limit = 5): array
             if ($score > 0) $scored[] = [$score, '[' . $f['name'] . "]\n" . $c];
         }
     }
+    if (!$scored && $onlyIds) foreach ($files as $f) foreach (array_slice(kb_chunks((string)$f['content']), 0, 2) as $c) $scored[] = [1, '[' . $f['name'] . "]\n" . $c];
     usort($scored, function ($a, $b) { return $b[0] <=> $a[0]; });
     return array_column(array_slice($scored, 0, $limit), 1);
+}
+
+/* ---------- البحث الذكي: خريطة قاعدة المعرفة → الموديل يختار المدخلات → نجيب محتواها بس ---------- */
+/** الأقسام اللي بتتبعت دايمًا مع الرد (قواعد مش معلومات) */
+function kb_rule_secs(): array { return ['tone', 'never_say', 'anti_hype', 'escalation', 'visual_style']; }
+
+/** خريطة: كل قسم فيه بيانات + أسماء المدخلات اللي مش فاضية (وأسماء الخدمات وأسئلة الشائعة والملفات) */
+function kb_map(int $wid): array
+{
+    $k = kb_get($wid); $lines = []; $paths = []; $labels = [];
+    foreach (kb_schema() as $sec => $d) {
+        if (in_array($sec, kb_rule_secs(), true)) continue;
+        $type = $d['type'] ?? ''; $lab = (string)($d['nav'] ?? $d['label']);
+        if ($type === 'fields') {
+            $f = []; foreach ($d['fields'] as $fk => $fd) if (trim((string)($k[$sec][$fk] ?? '')) !== '') { $f[] = $sec . '.' . $fk . '=' . $fd[0]; $paths[$sec . '.' . $fk] = 1; $labels[$sec . '.' . $fk] = $lab . ' › ' . $fd[0]; }
+            if ($f) { $lines[] = '[' . $sec . '] ' . $lab . ': ' . implode(' | ', $f); $paths[$sec] = 1; $labels[$sec] = $lab; }
+        } elseif ($type === 'rows') {
+            $cols = array_keys($d['cols'] ?? []); $first = $cols[0] ?? 'name';
+            $rows = array_values(array_filter((array)($k[$sec]['rows'] ?? []), function ($r) use ($first) { return trim((string)($r[$first] ?? '')) !== ''; }));
+            if (!$rows) continue;
+            $it = []; foreach ($rows as $i => $r) { $it[] = '#' . ($i + 1) . ' ' . mb_substr(trim((string)$r[$first]), 0, 60); $paths[$sec . '#' . ($i + 1)] = 1; $labels[$sec . '#' . ($i + 1)] = $lab . ' › ' . mb_substr(trim((string)$r[$first]), 0, 40); }
+            $lines[] = '[' . $sec . '] ' . $lab . ' (' . count($rows) . '): ' . implode(' | ', $it); $paths[$sec] = 1; $labels[$sec] = $lab;
+        } else {
+            $v = trim((string)($k[$sec]['text'] ?? '')); if ($v === '') continue;
+            $lines[] = '[' . $sec . '] ' . $lab . ' (text)'; $paths[$sec] = 1; $labels[$sec] = $lab;
+        }
+    }
+    try { $st = db()->prepare('SELECT id, name FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id'); $st->execute([$wid]);
+        foreach ($st->fetchAll() as $f) { $lines[] = '[file:' . (int)$f['id'] . '] ' . t('ملف') . ': ' . mb_substr((string)$f['name'], 0, 80); $paths['file:' . (int)$f['id']] = 1; $labels['file:' . (int)$f['id']] = t('ملف') . ' › ' . mb_substr((string)$f['name'], 0, 40); }
+    } catch (Throwable $e) {}
+    return ['text' => mb_substr(implode("\n", $lines), 0, 7000), 'paths' => $paths, 'labels' => $labels];
+}
+
+/** محتوى المدخلات المختارة بس + قواعد الأسلوب والممنوعات دايمًا */
+function kb_fetch(int $wid, array $look, string $query): string
+{
+    $k = kb_get($wid); $sch = kb_schema(); $out = []; $files = [];
+    $name = trim((string)($k['company']['name'] ?? '')); if ($name !== '') $out[] = '## COMPANY NAME' . "\n" . $name;
+    $bySec = [];
+    foreach ($look as $p) {
+        if (strpos($p, 'file:') === 0) { $files[] = (int)substr($p, 5); continue; }
+        if (preg_match('/^([a-z_]+)(?:\.([a-z_]+)|#(\d+))?$/', $p, $m) && isset($sch[$m[1]])) $bySec[$m[1]][] = isset($m[2]) && $m[2] !== '' ? ['f', $m[2]] : (isset($m[3]) ? ['r', (int)$m[3]] : ['all']);
+    }
+    foreach ($bySec as $sec => $wants) {
+        $d = $sch[$sec]; $type = $d['type'] ?? ''; $lab = (string)$d['label']; $all = in_array(['all'], $wants, true); $l = [];
+        if ($type === 'fields') { foreach ($d['fields'] as $fk => $fd) if (($all || in_array(['f', $fk], $wants, true)) && ($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $fd[0] . ': ' . $v; }
+        elseif ($type === 'rows') {
+            $cols = $d['cols'] ?? []; $first = array_keys($cols)[0] ?? 'name';
+            $rows = array_values(array_filter((array)($k[$sec]['rows'] ?? []), function ($r) use ($first) { return trim((string)($r[$first] ?? '')) !== ''; }));
+            foreach ($rows as $i => $r) if ($all || in_array(['r', $i + 1], $wants, true)) { $c = []; foreach ($cols as $ck => $cl) if (($v = trim((string)($r[$ck] ?? ''))) !== '') $c[] = $cl . ': ' . $v; $l[] = '- ' . implode(' · ', $c); }
+        } else { $v = trim((string)($k[$sec]['text'] ?? '')); if ($v !== '') $l[] = $v; }
+        if ($l) $out[] = '## ' . $lab . "\n" . implode("\n", $l);
+    }
+    if ($files) { $ch = kb_relevant_chunks($wid, $query, 3, $files); if ($ch) $out[] = "## FROM COMPANY DOCUMENTS\n" . implode("\n---\n", $ch); }
+    // قواعد الأسلوب والممنوعات: من النسخة الكاملة
+    foreach (preg_split('/\n\n(?=## )/u', kb_compile($wid, '', false)) as $blk) if (preg_match('/^## (TONE|NEVER SAY|ANTI-HYPE)/u', $blk)) $out[] = $blk;
+    return mb_substr(implode("\n\n", $out), 0, 9000);
+}
+
+/** الخطوة الأولى: الموديل يختار أنهي مدخلات فيها الإجابة. null = فشل (نرجع للبحث بالكلمات) */
+function kb_route(int $wid, string $message, string $history = ''): ?array
+{
+    $map = kb_map($wid); if (!$map['paths']) return null;
+    $sys = "You route customer questions to the right parts of a company knowledge base. Below is the MAP: each line is [section] then the available inputs (path=label) or items (#n name).\n"
+        . "Pick the smallest set of paths that contain the facts needed to answer the customer's latest message (use the conversation for context, e.g. pronouns). Paths: \"section\" (whole), \"section.field\", \"section#n\" (one item), \"file:ID\". Max 8.\n"
+        . "If the message needs no company facts (greeting, thanks, small talk, off-topic), return an empty list.\n"
+        . "Return ONLY JSON: {\"look\":[\"path\",...]}\n\nMAP:\n" . $map['text'];
+    $user = ($history !== '' ? "Conversation:\n" . mb_substr($history, -500) . "\n\n" : '') . "Latest message:\n" . mb_substr($message, 0, 600);
+    $GLOBALS['__kb_skip'] = true;
+    try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 200, 'reply_route'); } catch (Throwable $e) { unset($GLOBALS['__kb_skip']); return null; }
+    unset($GLOBALS['__kb_skip']);
+    if (!preg_match('/\{.*\}/s', (string)$r['text'], $m) || !is_array($j = json_decode($m[0], true)) || !isset($j['look']) || !is_array($j['look'])) return null;
+    $look = []; foreach ($j['look'] as $p) { $p = trim((string)$p); if (isset($map['paths'][$p])) $look[$p] = 1; } $look = array_slice(array_keys($look), 0, 8);
+    return ['look' => $look, 'labels' => array_map(function ($p) use ($map) { return $map['labels'][$p] ?? $p; }, $look), 'cost' => $r['cost'] ?? null];
 }
 
 /* ---------- تحويل الملفات لنص ---------- */
@@ -410,8 +486,9 @@ function kb_trigger_options(): array
  * قرار الرد: يرد ولا يحوّل لموظف. بيرجع: action (reply|handoff), reply, reason, confidence
  * ده اللي الرد التلقائي على الرسايل والتعليقات هيشتغل بيه.
  */
-function kb_decide(int $wid, string $message, string $channel = 'message', string $history = '', string $style = '', string $task = 'reply'): array
+function kb_decide(int $wid, string $message, string $channel = 'message', string $history = '', string $style = '', string $task = 'reply', bool $smart = false): array
 {
+    $route = null;
     $esc = kb_escalation($wid);
     $trig = array_intersect_key(kb_trigger_options(), array_flip($esc['triggers']));
     // كلمات بتحوّل فورًا من غير ما نسأل الموديل
@@ -424,7 +501,8 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'Return ONLY compact JSON: {"action":"reply"|"handoff","reply":"' . ($esc['message'] !== '' ? 'the reply text (empty string if handoff)' : 'the reply text (if handoff: one short polite line saying a team member will follow up)') . '","reason":"max 6 words in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '"}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 350 : 450, $task);
+    if ($smart && ($route = kb_route($wid, $message, $history)) !== null) $GLOBALS['__kb_override'] = kb_fetch($wid, $route['look'], $message);
+    try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 350 : 450, $task); } finally { unset($GLOBALS['__kb_override']); }
     $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
     $d = json_decode($j, true);
     if (!is_array($d)) {
@@ -442,7 +520,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
     if ($out !== '' && preg_match('/^\s*[\{\[]|"action"\s*:|"reply"\s*:|```/u', $out)) { $d['action'] = 'handoff'; $out = ''; $d['reason'] = t('رد الذكاء الاصطناعي غير مكتمل'); }
     if ($d['action'] === 'handoff' && $out === '' && $esc['message'] !== '') $out = $esc['message'];
     $d['reply'] = $out;
-    return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null];
+    return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null, 'look' => $route ? $route['labels'] : null];
 }
 
 /** إيميل التحويل للموظف المسؤول */
