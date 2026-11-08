@@ -130,7 +130,18 @@ function kb_antihype_rules(): array
 }
 
 /** بيجمع كل الأقسام في نص واحد للذكاء الاصطناعي، ومعاه أجزاء الملفات المناسبة للسؤال */
-function kb_compile(int $wid, string $query = ''): string
+/** أعلى صفوف تطابقًا مع السؤال، مع الحفاظ على ترتيبها الأصلي */
+function kb_top(array $rows, string $query, int $n, callable $text): array
+{
+    if (count($rows) <= $n || $query === '') return array_slice(array_values($rows), 0, $n);
+    $pf = function ($t) { $o = []; foreach (kb_terms($t) as $w) $o[mb_substr($w, 0, 5)] = 1; return $o; }; $q = $pf($query); $sc = [];
+    foreach (array_values($rows) as $i => $r) $sc[$i] = count(array_intersect_key($pf($text($r)), $q)) * 100 - $i;
+    arsort($sc); $keep = array_slice(array_keys($sc), 0, $n); sort($keep);
+    $rows = array_values($rows); return array_map(function ($i) use ($rows) { return $rows[$i]; }, $keep);
+}
+
+/** $lean = نسخة مختصرة للرد على العملاء: من غير التموضع والهوية البصرية، وأنسب الأسئلة والخدمات بس */
+function kb_compile(int $wid, string $query = '', bool $lean = false): string
 {
     $k = kb_get($wid);
     $out = [];
@@ -140,8 +151,11 @@ function kb_compile(int $wid, string $query = ''): string
     if ($v = $fields('contact')) $out[] = "## CONTACT (give exactly as written; never invent other channels)\n" . $v;
     if ($v = $fields('hours')) $out[] = "## WORKING HOURS (only these; never guess other times)\n" . $v;
     $rows = array_filter((array)($k['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; });
+    // «إيه خدماتكم/أسعاركم؟» = محتاج القائمة كلها
+    if ($lean && !preg_match('/(خدمات|اسعار|أسعار|قائم|منيو|كل الباقات|الباقات|services|prices|price list|menu|packages)/iu', $query)) $rows = kb_top($rows, $query, 10, function ($r) { return ($r['name'] ?? '') . ' ' . ($r['desc'] ?? $r['details'] ?? ''); });
     if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows));
     $faq = array_filter((array)($k['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; });
+    if ($lean) $faq = kb_top($faq, $query, 6, function ($r) { return $r['q'] . ' ' . $r['a']; });
     if ($faq) $out[] = "## FAQ (approved answers)\n" . implode("\n", array_map(function ($r) { return 'Q: ' . trim($r['q']) . "\nA: " . trim($r['a']); }, $faq));
     $tone = $k['tone'] ?? [];
     if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
@@ -151,24 +165,26 @@ function kb_compile(int $wid, string $query = ''): string
             . (isset($tone['emoji']) ? 'Emoji: ' . ['none' => 'never', 'light' => 'at most 1-2', 'normal' => 'normal'][$tone['emoji']] . "\n" : '') . trim((string)($tone['notes'] ?? ''));
     }
     $pos = [];
+    if (!$lean) {
     if ($v = $fields('audience')) $pos[] = "### Target audience & their problem\n" . $v;
     if ($v = $fields('frame_ref')) $pos[] = "### Frame of reference (category we compete in)\n" . $v;
     foreach (['pod' => 'Point of difference vs competitors', 'rtb' => 'Reasons to believe (proof)'] as $pk => $pl) if ($v = trim((string)($k[$pk]['text'] ?? ''))) $pos[] = "### " . $pl . "\n" . $v;
     $po = array_filter((array)($k['pos_offers']['rows'] ?? []), function ($r) { return trim((string)($r['offer'] ?? '')) !== ''; });
     if ($po) $pos[] = "### Per product/service positioning\n" . implode("\n", array_map(function ($r) { $l = '- ' . trim($r['offer']) . ':'; foreach (['audience' => 'audience', 'problem' => 'problem', 'frame' => 'category', 'pod' => 'difference', 'rtb' => 'proof'] as $c => $n) if (trim((string)($r[$c] ?? '')) !== '') $l .= ' ' . $n . ': ' . trim(preg_replace('/\s+/', ' ', $r[$c])) . ';'; return rtrim($l, ';'); }, $po));
+    }
     if ($pos) $out[] = "## POSITIONING STATEMENT (use it to frame strategy, content and replies; never overclaim beyond the proof)\n" . implode("\n", $pos);
-    if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . $v;
+    if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . ($lean ? mb_substr($v, 0, 300) : $v);
     if ($v = trim((string)($k['never_say']['text'] ?? ''))) $out[] = "## NEVER SAY (strictly forbidden words, topics and promises)\n" . implode("\n", array_map(function ($l) { return '- ' . trim($l); }, array_filter(explode("\n", $v), 'trim')));
     $ah = $k['anti_hype'] ?? [];
     $rules = array_intersect_key(kb_antihype_rules(), array_flip((array)($ah['rules'] ?? [])));
     if ($rules || trim((string)($ah['words'] ?? '')) !== '') $out[] = "## ANTI-HYPE RULES\n" . implode("\n", array_map(function ($r) { return '- ' . $r; }, $rules)) . (trim((string)($ah['words'] ?? '')) !== '' ? "\n- Never use these words: " . trim($ah['words']) : '');
     $vs = $k['visual_style'] ?? [];
-    if (trim((string)($vs['colors'] ?? '') . ($vs['style'] ?? '')) !== '') $out[] = "## VISUAL STYLE\nColors: " . trim((string)($vs['colors'] ?? '')) . "\nStyle: " . trim((string)($vs['style'] ?? ''));
+    if (!$lean && trim((string)($vs['colors'] ?? '') . ($vs['style'] ?? '')) !== '') $out[] = "## VISUAL STYLE\nColors: " . trim((string)($vs['colors'] ?? '')) . "\nStyle: " . trim((string)($vs['style'] ?? ''));
     $txt = implode("\n\n", $out);
     // الملفات: أنسب أجزاء للسؤال (أو أول أجزاء لو مفيش سؤال)
-    $chunks = kb_relevant_chunks($wid, $query, $query !== '' ? 5 : 3);
+    $chunks = kb_relevant_chunks($wid, $query, $lean ? 2 : ($query !== '' ? 5 : 3));
     if ($chunks) $txt .= "\n\n## FROM COMPANY DOCUMENTS\n" . implode("\n---\n", $chunks);
-    return mb_substr($txt, 0, 14000);
+    return mb_substr($txt, 0, $lean ? 6000 : 14000);
 }
 
 /** بيقسم النص لأجزاء ~900 حرف على حدود الفقرات */

@@ -227,7 +227,10 @@ function ai_with_kb(array $messages, string $task): array
     $query = '';
     for ($i = count($messages) - 1; $i >= 0; $i--) { if (($messages[$i]['role'] ?? '') === 'user') { $c = $messages[$i]['content']; $query = is_array($c) ? (string)($c[0]['text'] ?? '') : (string)$c; break; } }
     if (!in_array($task, ['assistant', 'compose', 'reply', 'reply_fast', 'analyze', 'classify'], true)) return $messages;
-    $kb = ai_kb((int)ws('id'), mb_substr($query, 0, 2000));
+    $lean = $task === 'reply' || $task === 'reply_fast';
+    // في الرد الذكي: البحث بآخر رسالة للعميل بس، مش بالمحادثة كلها (السياق القديم بيجيب أجزاء ملهاش علاقة)
+    if ($lean && ($p = mb_strrpos($query, "Customer's latest")) !== false) $query = (string)preg_replace('/^[^\n]*\n/u', '', mb_substr($query, $p));
+    $kb = $lean ? kb_compile((int)ws('id'), mb_substr($query, 0, 600), true) : ai_kb((int)ws('id'), mb_substr($query, 0, 2000));
     $note = ai_country_note();
     if ($kb !== '') $note .= "\n\nCOMPANY KNOWLEDGE BASE — follow it strictly. Use ONLY these facts for prices, services, hours, addresses, policies and offers; never invent any. Respect TONE, NEVER SAY and ANTI-HYPE rules in everything you write. If something isn't covered, say you'll check and get back.\n\n" . $kb;
     if (($messages[0]['role'] ?? '') === 'system') $messages[0]['content'] .= "\n\n" . $note;
