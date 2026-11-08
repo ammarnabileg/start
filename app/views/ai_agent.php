@@ -264,6 +264,7 @@ function ai_agent_render(): void
         <label class="ag-row"><span><b><?= e(t('تجميع الرسائل المتتالية')) ?></b><small><?= e(t('لو أرسل العميل عدة رسائل وراء بعض، ينتظر ثواني ويرد ردًا واحدًا عليها كلها')) ?></small></span><button type="button" class="ag-sw sm" data-save="batch"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('حد يومي لردود الذكاء الاصطناعي')) ?></b><small><?= e(t('بعده تتحول الرسائل الجديدة للفريق بدل استهلاك الرصيد. 0 = بلا حد')) ?></small></span><input type="number" min="0" max="5000" class="ag-sig !w-24 !mt-0" data-cap></label>
         <div class="ag-model"><span><?= e(t('موديل الردود الحالي:')) ?> <b data-model></b></span><a class="link" href="<?= e(url('assistant')) ?>"><?= e(t('اختر موديلًا أرخص')) ?> ←</a><?php if ($owner): ?><button type="button" class="link" data-clearcache><?= e(t('مسح الإجابات المحفوظة')) ?></button><?php endif; ?></div>
+      <p class="ag-hint !mt-2 !mb-0" dir="ltr" style="text-align:end;opacity:.6">v<?= e(APP_VERSION) ?></p>
       </section>
 
       <?php if ($owner): ?>

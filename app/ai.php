@@ -470,14 +470,16 @@ function ai_chat_direct(array $c, array $messages, int $maxTokens): array
         foreach ($r['content'] ?? [] as $b) if (($b['type'] ?? '') === 'text') $text .= $b['text'];
         $u = $r['usage'] ?? [];
         $u['total_tokens'] = (int)($u['input_tokens'] ?? 0) + (int)($u['output_tokens'] ?? 0);
-        return ['text' => trim($text), 'model' => (string)($r['model'] ?? $model), 'usage' => $u];
+        return ['text' => trim($text), 'model' => (string)($r['model'] ?? $model), 'usage' => $u, 'finish' => ($r['stop_reason'] ?? '') === 'max_tokens' ? 'length' : (string)($r['stop_reason'] ?? '')];
     }
     // OpenAI، و Gemini من خلال الواجهة المتوافقة مع OpenAI
     $path = $p === 'gemini' ? '/openai/chat/completions' : '/chat/completions';
     $body = ['model' => $model, 'messages' => $messages];
     $body[$p === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = $p === 'openai' && preg_match('/^(o\d|gpt-5)/', $model) ? $maxTokens * 4 : $maxTokens;
+    // Gemini 2.5/3 بيفكر قبل ما يكتب، والتفكير بيتخصم من نفس الحد فالرد بيطلع مقطوع. بنقلل التفكير ونسيب مساحة (الدفع على اللي اتولّد فعلًا مش على الحد)
+    if ($p === 'gemini' && preg_match('/gemini-(2\.5|[3-9])/', $model)) { $body['reasoning_effort'] = preg_match('/flash/', $model) ? 'none' : 'low'; $body['max_tokens'] = $maxTokens + 2048; }
     $r = ai_req($p, 'POST', $path, $key, $body);
-    return ['text' => trim((string)($r['choices'][0]['message']['content'] ?? '')), 'model' => (string)($r['model'] ?? $model), 'usage' => $r['usage'] ?? []];
+    return ['text' => trim((string)($r['choices'][0]['message']['content'] ?? '')), 'model' => (string)($r['model'] ?? $model), 'usage' => $r['usage'] ?? [], 'finish' => (string)($r['choices'][0]['finish_reason'] ?? '')];
 }
 
 /**
@@ -532,12 +534,14 @@ function ai_chat_openrouter(array $c, array $messages, int $maxTokens): array
             $r = ai_http('POST', '/chat/completions', $c['credentials']['api_key'], [
                 'models' => $group,
                 'messages' => $messages,
-                'max_tokens' => $maxTokens,
+                'max_tokens' => $maxTokens + 1024,
                 'temperature' => 0.3,
+                // موديلات التفكير: تفكير قليل ومش بيرجع في الرد، ومساحة إضافية عشان الرد ميتقطعش
+                'reasoning' => ['effort' => 'low', 'exclude' => true],
             ], 90);
             $text = trim((string)($r['choices'][0]['message']['content'] ?? ''));
             if ($text === '') { $last = new AiException(t('الموديل رجع رد فاضي.')); continue; }
-            return ['text' => $text, 'model' => (string)($r['model'] ?? $group[0]), 'usage' => $r['usage'] ?? []];
+            return ['text' => $text, 'model' => (string)($r['model'] ?? $group[0]), 'usage' => $r['usage'] ?? [], 'finish' => (string)($r['choices'][0]['finish_reason'] ?? '')];
         } catch (AiException $e) {
             $last = $e;
             // مفتاح غلط أو رصيد خلص: مفيش فايدة نكمل

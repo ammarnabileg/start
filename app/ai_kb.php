@@ -429,7 +429,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
     $d = json_decode($j, true);
     if (!is_array($d)) {
         $raw = trim((string)$r['text']);
-        if ($raw !== '' && $raw[0] !== '{' && strpos($raw, '"action"') === false && strpos($raw, '```') === false) $d = ['action' => 'reply', 'reply' => $raw, 'reason' => '', 'confidence' => 0.5]; // رد نصي عادي من غير JSON
+        if ($raw !== '' && ($r['finish'] ?? '') !== 'length' && $raw[0] !== '{' && strpos($raw, '"action"') === false && strpos($raw, '```') === false) $d = ['action' => 'reply', 'reply' => $raw, 'reason' => '', 'confidence' => 0.5]; // رد نصي عادي من غير JSON
         else {
             // JSON مقطوع أو بايظ: عمرنا ما نبعت شكله للعميل. لو الرد كامل جوّاه (مقفول بعلامة تنصيص) ناخده، غير كده نحوّل للفريق
             $d = ['action' => 'handoff', 'reply' => '', 'reason' => t('رد الذكاء الاصطناعي غير مكتمل'), 'confidence' => 0, 'broken' => 1];
