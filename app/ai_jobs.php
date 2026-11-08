@@ -251,7 +251,9 @@ function ai_auto_reply(int $wid, bool $force = false): int
         if ($n >= 10) break;
         $id = (string)($c['id'] ?? ''); $acc = (string)($c['accountId'] ?? '');
         $m = $c['lastMessage'] ?? ''; $m = trim(is_array($m) ? (string)($m['text'] ?? $m['message'] ?? '') : (string)$m);
-        if ($id === '' || $acc === '' || $m === '' || (int)($c['unreadCount'] ?? 0) < 1) continue;
+        // جديدة: مش مقروءة، أو آخر رسالة من أقل من ساعتين (حتى لو حد فتح المحادثة من غير ما يرد)
+        $lt = ai_ts($c['lastMessageAt'] ?? $c['updatedTime'] ?? null);
+        if ($id === '' || $acc === '' || $m === '' || ((int)($c['unreadCount'] ?? 0) < 1 && $lt < time() - 7200)) continue;
         if (!ai_platform_on($cfg, (string)($c['platform'] ?? ''))) continue;
         $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
         if (($done[$id] ?? '') === $h) continue;
@@ -264,6 +266,9 @@ function ai_auto_reply(int $wid, bool $force = false): int
             foreach ((array)$ms as $x) { $tx = trim((string)($x['message'] ?? $x['text'] ?? '')); $out = ($x['direction'] ?? '') === 'outgoing'; $ts = ai_ts($x['createdAt'] ?? null);
                 if ($out && $tx !== '' && !ai_sent_is($wid, $tx)) $human = max($human, $ts);
                 if ($tx !== '') $hist[] = ($out ? 'Us: ' : 'Customer: ') . mb_substr($tx, 0, 400); }
+            // آخر رسالة في المحادثة لازم تكون من العميل (لو إحنا اللي ردينا آخر حاجة، مفيش رد)
+            $lastDir = ''; foreach ((array)$ms as $x) { if (trim((string)($x['message'] ?? $x['text'] ?? '')) !== '') $lastDir = (string)($x['direction'] ?? ''); }
+            if ($ms && $lastDir === 'outgoing') { $done[$id] = $h; continue; }
             if ($human && $human > $now - $pause && $human > $res) { ai_agent_pause_set($wid, 'c:' . $id, $human + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // البشري رد من أقل من مدة الإيقاف
             $d = kb_decide($wid, $m, 'message', implode("\n", array_slice($hist, -12, 11)), ai_reply_style($cfg));
             $text = ai_sign($cfg, trim($d['reply'], " \n\"'«»"));
