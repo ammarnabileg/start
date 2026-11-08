@@ -218,7 +218,7 @@ function ai_save_stat(int $wid, string $k): void
 /** إجابة ببلاش لو ينفع: تحية/شكر/إيموجي، سؤال شائع، أو سؤال اتجاوب قبل كده. null = لازم الذكاء الاصطناعي */
 function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?array
 {
-    $sv = $cfg['save']; $n = ai_norm_q($msg); $ar = (bool)preg_match('/\p{Arabic}/u', $msg) || (!preg_match('/[a-z]/i', $msg) && lang() === 'ar');
+    $sv = $cfg['save']; $n = preg_replace('/(\p{L})\1{2,}/u', '$1', ai_norm_q($msg)); $n = preg_replace('/^hel+o+$/u', 'hello', preg_replace('/^hi+$/u', 'hi', preg_replace('/^hey+$/u', 'hey', $n))); $ar = (bool)preg_match('/\p{Arabic}/u', $msg) || (!preg_match('/[a-z]/i', $msg) && lang() === 'ar');
     // إيموجي/ملصق/علامات بس: مفيش رد
     if ($n === '') return ['action' => 'reply', 'reply' => '', 'reason' => t('رسالة بلا نص'), 'src' => 'skip'];
     if ($channel === 'comment') {

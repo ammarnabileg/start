@@ -424,12 +424,24 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
         . 'Return ONLY compact JSON: {"action":"reply"|"handoff","reply":"' . ($esc['message'] !== '' ? 'the reply text (empty string if handoff)' : 'the reply text (if handoff: one short polite line saying a team member will follow up)') . '","reason":"max 6 words in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '"}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 220 : 320, $task);
+    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 350 : 450, $task);
     $j = $r['text']; if (preg_match('/\{.*\}/s', $j, $m)) $j = $m[0];
     $d = json_decode($j, true);
-    if (!is_array($d)) $d = ['action' => 'reply', 'reply' => trim($r['text']), 'reason' => '', 'confidence' => 0.5];
+    if (!is_array($d)) {
+        $raw = trim((string)$r['text']);
+        if ($raw !== '' && $raw[0] !== '{' && strpos($raw, '"action"') === false && strpos($raw, '```') === false) $d = ['action' => 'reply', 'reply' => $raw, 'reason' => '', 'confidence' => 0.5]; // رد نصي عادي من غير JSON
+        else {
+            // JSON مقطوع أو بايظ: عمرنا ما نبعت شكله للعميل. لو الرد كامل جوّاه (مقفول بعلامة تنصيص) ناخده، غير كده نحوّل للفريق
+            $d = ['action' => 'handoff', 'reply' => '', 'reason' => t('رد الذكاء الاصطناعي غير مكتمل'), 'confidence' => 0, 'broken' => 1];
+            if (preg_match('/"reply"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"\s*[,}]/u', $raw, $mm)) { $t = json_decode('"' . $mm[1] . '"'); if (is_string($t) && trim($t) !== '' && !preg_match('/handoff/', $raw)) $d = ['action' => 'reply', 'reply' => $t, 'reason' => '', 'confidence' => 0.5]; }
+        }
+    }
     $d['action'] = ($d['action'] ?? '') === 'handoff' ? 'handoff' : 'reply';
     if ($d['action'] === 'handoff' && $esc['message'] !== '') $d['reply'] = $esc['message'];
+    $out = trim((string)($d['reply'] ?? ''));
+    if ($out !== '' && preg_match('/^\s*[\{\[]|"action"\s*:|"reply"\s*:|```/u', $out)) { $d['action'] = 'handoff'; $out = ''; $d['reason'] = t('رد الذكاء الاصطناعي غير مكتمل'); }
+    if ($d['action'] === 'handoff' && $out === '' && $esc['message'] !== '') $out = $esc['message'];
+    $d['reply'] = $out;
     return ['action' => $d['action'], 'reply' => trim((string)($d['reply'] ?? '')), 'reason' => (string)($d['reason'] ?? ''), 'confidence' => (float)($d['confidence'] ?? 0.5), 'model' => $r['model'], 'cost' => $r['cost'] ?? null];
 }
 

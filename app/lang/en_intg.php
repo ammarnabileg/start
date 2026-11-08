@@ -5459,4 +5459,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'متوسط مدخلات الرد الواحد كبير (%s توكن). راجع ملفات قاعدة المعرفة واحذف المكرر أو غير المفيد للعملاء.' => 'Average input per reply is large (%s tokens). Review knowledge base files and remove duplicates or content customers don’t need.',
     'تحوّلت %s رسالة للفريق بسبب الحد اليومي. ارفع الحد لو كان الفريق لا يلحق بالرد.' => '%s messages went to the team because of the daily limit. Raise it if the team can’t keep up.',
     'لا توجد مشكلة واضحة في الاستهلاك خلال هذه الفترة.' => 'No obvious usage problem in this period.',
+    'رد الذكاء الاصطناعي غير مكتمل' => 'AI reply was incomplete',
 ];
