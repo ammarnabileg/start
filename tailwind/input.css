@@ -1411,3 +1411,5 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-hii{width:20px!important;height:20px!important;border-radius:6px!important}
 .pr-hii svg{width:.75rem;height:.75rem}
 .pr-hi{display:flex!important;flex-direction:row!important;align-items:baseline!important;justify-content:space-between}.pr-hi>p{flex:1}
+
+svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
