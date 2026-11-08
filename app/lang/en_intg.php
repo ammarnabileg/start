@@ -5323,4 +5323,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'نشاطات' => 'Activities',
     'كلمات' => 'Words',
     'أضف كلمات بحث أو مجالات أولًا: يتم السحب عليها فقط لتوفير الرصيد.' => 'Add search words or activities first: pulling only uses them to save credit.',
+    'البريد' => 'Email',
 ];

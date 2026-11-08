@@ -1503,3 +1503,20 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
   #pr-dlg .pd-hero>.flex.items-start>:last-child{order:-1;width:100%;justify-content:flex-end;gap:.4rem;margin-bottom:-.2rem}
   #pr-dlg .pd-hero>.flex.items-start>.flex-1{flex:1 1 0;min-width:0}
 }
+/* الموبايل: سطر البيانات أصغر عشان الفورم يبان بدري */
+@media (max-width:767px){
+  #pr-dlg .pd-hero{padding:.6rem .8rem .4rem!important}
+  #pr-dlg .pd-av{width:2.6rem!important;height:2.6rem!important;font-size:1.1rem!important;border-radius:12px!important}
+  #pr-dlg .pd-info{gap:.25rem .35rem!important;margin-top:.4rem!important;padding-top:.4rem!important}
+  #pr-dlg .pd-info .pd-meta{flex-basis:100%;font-size:.68rem!important;gap:.1rem .5rem!important;color:#64748b}
+  #pr-dlg .pd-info .pd-meta *{font-size:.68rem!important}
+  #pr-dlg .pd-info .pd-meta svg{width:.75rem;height:.75rem}
+  #pr-dlg .pd-info #pd-owner,#pr-dlg .pd-info .pd-plsel{height:1.6rem!important;font-size:.7rem!important;max-width:120px!important}
+  #pr-dlg .pd-info #pd-tag-f input{height:1.6rem;width:64px;font-size:.68rem}
+  #pr-dlg #pd-contact .pd-cl b{font-size:.72rem}
+  #pr-dlg .pd-cadd{font-size:.68rem;padding:.2rem .5rem}
+  #pd-tabs{padding:.25rem .35rem!important}
+  #pd-tabs>button{font-size:.72rem!important;padding:.35rem .2rem!important;gap:.2rem!important;flex:1 1 0;min-width:0}
+  #pd-tabs>button svg{width:.85rem;height:.85rem}
+  #pr-dlg .pd-pane{padding:.6rem!important}
+}
