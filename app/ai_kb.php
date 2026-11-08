@@ -140,6 +140,20 @@ function kb_top(array $rows, string $query, int $n, callable $text): array
     $rows = array_values($rows); return array_map(function ($i) use ($rows) { return $rows[$i]; }, $keep);
 }
 
+/** تصنيف السؤال لأقسام قاعدة المعرفة بالكلمات (بدون استدعاء ذكاء = بدون رصيد). [] = مش واضح → كل الأقسام المختصرة */
+function kb_intent(string $q): array
+{
+    $q = mb_strtolower(strtr($q, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي']));
+    $map = [
+        'services' => '/(سعر|اسعار|بكام|بكم|كام|تكلف|تكلفه|ثمن|خدم|باق|عرض|عروض|خصم|منتج|متوفر|موجود عندكم|انواع|منيو|قائمه|price|cost|how much|service|package|offer|discount|product|menu|available)/u',
+        'hours' => '/(مواعيد|ميعاد|الساعه كام|امتي|متي|تفتح|تقفل|تغلق|مفتوح|دوام|اجاز|عطل|الجمعه|السبت|hours|open|close|when|holiday|friday)/u',
+        'contact' => '/(عنوان|مكان|موقع|فين|وين|فرع|فروع|لوكيشن|خريطه|رقم|تليفون|هاتف|واتس|ايميل|تواصل|اتصل|حجز|احجز|موعد|address|location|where|branch|map|phone|number|whatsapp|email|contact|book|appointment)/u',
+        'policy' => '/(توصيل|شحن|دفع|فيزا|كاش|تقسيط|استرجاع|استرداد|ارجاع|استبدال|الغاء|الغي|ضمان|سياس|شروط|مده|يوصل|delivery|shipping|pay|card|cash|install|refund|return|exchange|cancel|warranty|policy|terms)/u',
+    ];
+    $o = []; foreach ($map as $k => $re) if (preg_match($re, $q)) $o[] = $k;
+    return $o;
+}
+
 /** $lean = نسخة مختصرة للرد على العملاء: من غير التموضع والهوية البصرية، وأنسب الأسئلة والخدمات بس */
 function kb_compile(int $wid, string $query = '', bool $lean = false): string
 {
@@ -147,15 +161,23 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     $out = [];
     $sch = kb_schema();
     $fields = function ($sec) use ($k, $sch) { $l = []; foreach ($sch[$sec]['fields'] as $fk => $f) if (($v = trim((string)($k[$sec][$fk] ?? ''))) !== '') $l[] = $f[0] . ': ' . (strpos($v, "\n") !== false ? "\n  " . str_replace("\n", "\n  ", $v) : $v); return implode("\n", $l); };
+    // الرد الذكي: نصنّف السؤال الأول وبعدين نبحث جوه الأقسام دي بس
+    $in = $lean ? kb_intent($query) : [];
+    if ($in) {
+        $has = ['services' => !empty($k['services']['rows']), 'hours' => $fields('hours') !== '', 'contact' => $fields('contact') !== '', 'policy' => !empty($k['faq']['rows'])];
+        foreach ($in as $x) if (!$has[$x]) { $in = []; break; } // القسم فاضي: الإجابة ممكن تكون في مكان تاني، فنرجع للبحث العام
+    }
+    $want = function ($sec) use ($in) { return !$in || in_array($sec, $in, true); };
     if ($v = $fields('company')) $out[] = "## COMPANY\n" . $v;
-    if ($v = $fields('contact')) $out[] = "## CONTACT (give exactly as written; never invent other channels)\n" . $v;
-    if ($v = $fields('hours')) $out[] = "## WORKING HOURS (only these; never guess other times)\n" . $v;
+    if ($want('contact') && $v = $fields('contact')) $out[] = "## CONTACT (give exactly as written; never invent other channels)\n" . $v;
+    if (($want('hours') || $want('contact')) && $v = $fields('hours')) $out[] = "## WORKING HOURS (only these; never guess other times)\n" . $v;
     $rows = array_filter((array)($k['services']['rows'] ?? []), function ($r) { return trim((string)($r['name'] ?? '')) !== ''; });
     // «إيه خدماتكم/أسعاركم؟» = محتاج القائمة كلها
     if ($lean && !preg_match('/(خدمات|اسعار|أسعار|قائم|منيو|كل الباقات|الباقات|services|prices|price list|menu|packages)/iu', $query)) $rows = kb_top($rows, $query, 10, function ($r) { return ($r['name'] ?? '') . ' ' . ($r['desc'] ?? $r['details'] ?? ''); });
+    if (!$want('services')) $rows = [];
     if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows));
     $faq = array_filter((array)($k['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; });
-    if ($lean) $faq = kb_top($faq, $query, 6, function ($r) { return $r['q'] . ' ' . $r['a']; });
+    if ($lean) $faq = kb_top($faq, $query, $in && !in_array('policy', $in, true) ? 3 : 6, function ($r) { return $r['q'] . ' ' . $r['a']; });
     if ($faq) $out[] = "## FAQ (approved answers)\n" . implode("\n", array_map(function ($r) { return 'Q: ' . trim($r['q']) . "\nA: " . trim($r['a']); }, $faq));
     $tone = $k['tone'] ?? [];
     if (!empty($tone['style']) || !empty($tone['dialect']) || trim((string)($tone['notes'] ?? '')) !== '') {
@@ -173,7 +195,7 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     if ($po) $pos[] = "### Per product/service positioning\n" . implode("\n", array_map(function ($r) { $l = '- ' . trim($r['offer']) . ':'; foreach (['audience' => 'audience', 'problem' => 'problem', 'frame' => 'category', 'pod' => 'difference', 'rtb' => 'proof'] as $c => $n) if (trim((string)($r[$c] ?? '')) !== '') $l .= ' ' . $n . ': ' . trim(preg_replace('/\s+/', ' ', $r[$c])) . ';'; return rtrim($l, ';'); }, $po));
     }
     if ($pos) $out[] = "## POSITIONING STATEMENT (use it to frame strategy, content and replies; never overclaim beyond the proof)\n" . implode("\n", $pos);
-    if ($v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . ($lean ? mb_substr($v, 0, 300) : $v);
+    if ((!$in || $want('services')) && $v = trim((string)($k['focus']['text'] ?? ''))) $out[] = "## CURRENT FOCUS (what to promote now)\n" . ($lean ? mb_substr($v, 0, 300) : $v);
     if ($v = trim((string)($k['never_say']['text'] ?? ''))) $out[] = "## NEVER SAY (strictly forbidden words, topics and promises)\n" . implode("\n", array_map(function ($l) { return '- ' . trim($l); }, array_filter(explode("\n", $v), 'trim')));
     $ah = $k['anti_hype'] ?? [];
     $rules = array_intersect_key(kb_antihype_rules(), array_flip((array)($ah['rules'] ?? [])));
@@ -182,7 +204,8 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     if (!$lean && trim((string)($vs['colors'] ?? '') . ($vs['style'] ?? '')) !== '') $out[] = "## VISUAL STYLE\nColors: " . trim((string)($vs['colors'] ?? '')) . "\nStyle: " . trim((string)($vs['style'] ?? ''));
     $txt = implode("\n\n", $out);
     // الملفات: أنسب أجزاء للسؤال (أو أول أجزاء لو مفيش سؤال)
-    $chunks = kb_relevant_chunks($wid, $query, $lean ? 2 : ($query !== '' ? 5 : 3));
+    // المواعيد/التواصل/الأسعار متسجلة في أقسامها، فمش محتاجين ملفات؛ السياسات والأسئلة الغامضة بس
+    $chunks = $in && !in_array('policy', $in, true) ? [] : kb_relevant_chunks($wid, $query, $lean ? 2 : ($query !== '' ? 5 : 3));
     if ($chunks) $txt .= "\n\n## FROM COMPANY DOCUMENTS\n" . implode("\n---\n", $chunks);
     return mb_substr($txt, 0, $lean ? 6000 : 14000);
 }
@@ -398,7 +421,7 @@ function kb_decide(int $wid, string $message, string $channel = 'message', strin
     $sys = 'You are the customer service AI for "' . ws('name') . '". Decide whether to answer this customer ' . ($channel === 'comment' ? 'public comment' : 'private message') . ' yourself or hand it off to a human employee.' . "\n"
         . 'Hand off when ANY of these is true: ' . implode('; ', $trig) . ($trig ? '' : 'never') . '. Also hand off if answering would require facts not in the knowledge base.' . "\n"
         . 'If you answer: follow TONE, NEVER SAY and ANTI-HYPE rules, use only knowledge-base facts, keep it short' . ($channel === 'comment' ? ' and public-safe (no personal details; invite to DM for specifics)' : '') . '.' . "\n"
-        . 'Return ONLY JSON: {"action":"reply"|"handoff","reply":"the reply text (if handoff: a short polite message saying a team member will follow up)","reason":"short reason in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '","confidence":0-1}';
+        . 'Return ONLY compact JSON: {"action":"reply"|"handoff","reply":"' . ($esc['message'] !== '' ? 'the reply text (empty string if handoff)' : 'the reply text (if handoff: one short polite line saying a team member will follow up)') . '","reason":"max 6 words in ' . (lang() === 'ar' ? 'Arabic' : 'English') . '"}';
     if ($style !== '') $sys .= "\nREPLY STYLE: " . $style;
     $user = ($history !== '' ? "Conversation so far:\n" . mb_substr($history, -2500) . "\n\n" : '') . "Customer's latest " . $channel . ":\n" . mb_substr($message, 0, 2000);
     $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], $task === 'reply_fast' ? 220 : 320, $task);

@@ -219,6 +219,13 @@ function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?a
     $sv = $cfg['save']; $n = ai_norm_q($msg); $ar = (bool)preg_match('/\p{Arabic}/u', $msg) || (!preg_match('/[a-z]/i', $msg) && lang() === 'ar');
     // إيموجي/ملصق/علامات بس: مفيش رد
     if ($n === '') return ['action' => 'reply', 'reply' => '', 'reason' => t('رسالة بلا نص'), 'src' => 'skip'];
+    if ($channel === 'comment') {
+        // منشن لصاحب بس (@sara @ali): الكلام مش لينا
+        if (preg_match('/^(\s*@[\p{L}\p{N}._]+)+\s*$/u', trim($msg))) return ['action' => 'reply', 'reply' => '', 'reason' => t('منشن لأشخاص فقط'), 'src' => 'skip'];
+        // مدح قصير من غير سؤال: شكر جاهز
+        if ($sv['greet'] && !preg_match('/[?؟]/u', $msg) && preg_match('/^((ما ?شاء ?الله|تبارك الله|جميل|جميله|روعه|رائع|تحفه|حلو|حلوه|احسنتم|ابداع|مبدعين|عظيم|فخم|wow|nice|amazing|beautiful|great|love it|perfect|awesome)\s*){1,3}$/u', $n))
+            return ['action' => 'reply', 'reply' => $ar ? 'شكرًا لك، كلامك يسعدنا 🤍' : 'Thank you so much! 🤍', 'reason' => t('مدح'), 'src' => 'greet'];
+    }
     if ($sv['greet']) {
         $greet = '/^(السلام عليكم( ورحمه الله( وبركاته)?)?|سلام|مرحبا|مرحب|اهلا|اهلين|هلا|هاي|هلو|صباح الخير|مساء الخير|hi|hello|hey|good (morning|evening))( \S+)?$/u';
         $thanks = '/^(شكرا( جزيلا)?( لك| لكم)?|مشكور|مشكورين|تسلم|يعطيك العافيه|جزاك الله خير|ممتاز|تمام|اوكي|اوك|ok|okay|thanks|thank you|thx|👍)$/u';
