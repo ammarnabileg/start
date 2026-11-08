@@ -1607,3 +1607,16 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .tp-w{display:flex;gap:.3rem;align-items:flex-start;font-size:.7rem;color:#92400e;background:#fffbeb;border-radius:9px;padding:.3rem .45rem;margin-top:.5rem;line-height:1.5}
 .tp-w svg{flex-shrink:0;margin-top:.1rem;color:#d97706}
 .dark .tp-f{background:rgb(124 58 237/.18);color:#c4b5fd}.dark .tp-p{background:rgb(14 165 233/.15);color:#7dd3fc}.dark .tp-w{background:rgb(245 158 11/.1);color:#fcd34d}
+
+.tp-bar{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;margin:-.25rem 0 .8rem}
+.tp-seg{display:inline-flex;gap:.2rem;padding:.2rem;border-radius:12px;background:#f1f5f9}
+.tp-seg button{font-size:.78rem;font-weight:600;color:#475569;padding:.35rem .8rem;border-radius:9px}.tp-seg button.on{background:#fff;color:#1d4ed8;box-shadow:0 1px 3px rgb(15 23 42/.1)}
+.tp-tab{width:100%;display:flex;align-items:center;gap:.5rem;border-radius:12px;padding:.5rem .65rem;text-align:start;color:#334155;transition:background .15s}
+.tp-tab:hover{background:#f1f5f9}.tp-tab.on{background:rgb(var(--brand-600,37 99 235));color:#fff;box-shadow:0 6px 14px -6px rgb(37 99 235/.6)}
+.tp-tl{flex:1;min-width:0;display:flex;flex-direction:column}.tp-tl b{font-size:.84rem;font-weight:600}.tp-tl small{font-size:.66rem;opacity:.7;line-height:1.35;margin-top:.1rem}
+.tp-n{font-size:.68rem;opacity:.7;font-variant-numeric:tabular-nums}
+.tp-step{font-style:normal;width:1.4rem;height:1.4rem;border-radius:99px;display:grid;place-items:center;font-size:.7rem;font-weight:800;background:#e0e7ff;color:#3730a3;flex-shrink:0}
+.tp-tab.on .tp-step{background:rgb(255 255 255/.25);color:#fff}
+.tp-nav.journey{position:relative}
+.dark .tp-seg{background:#1e293b}.dark .tp-seg button.on{background:#0f172a;color:#93c5fd}.dark .tp-tab{color:#cbd5e1}.dark .tp-tab:hover{background:#1e293b}
+.ag-hook{margin-top:.6rem;font-size:.76rem;border-radius:10px;padding:.4rem .65rem}.ag-hook:empty{display:none}.ag-hook.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}.ag-hook.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}.ag-hook .link{font-weight:700;margin-inline-start:.3rem}

@@ -27,16 +27,27 @@
   }); };
 
   /* ---------- #1 القوالب: تصفح، بحث، استخدام، تعديل (أي قالب)، حذف، وقالب جديد ---------- */
-  var tab = '', q = '';
-  function tplList(ind) { return ind === '__mine' ? (X.mine || []) : (X.tpl[ind] || []); }
+  var tab = '', q = '', view = 'stage', tlang = (X.uiLang === 'en' ? 'en' : 'ar');
+  function indSet() { return tlang === 'en' ? (X.tplEn || X.tpl) : (X.tplAr || X.tpl); }
+  function stage(k) { return (X.journey || []).filter(function (s) { return 'j:' + s.k === k; })[0]; }
+  function tplList(ind) {
+    if (ind === '__mine') return X.mine || [];
+    if (ind && ind.indexOf('j:') === 0) { var st = stage(ind); return st ? st.items.map(function (t) { return tlang === 'en' ? { n: t.en.n, f: t.en.f, w: t.en.w, b: t.en.b, p: t.p } : { n: t.n, f: t.f, w: t.w, b: t.b, p: t.p }; }) : []; }
+    return indSet()[ind] || [];
+  }
   function tplPane(ind) {
-    var inds = Object.keys(X.tpl), mine = X.mine || [];
-    tab = ind || tab || (mine.length ? '__mine' : inds[0]); if (tab === '__mine' && !mine.length && !ind) tab = inds[0];
-    var tabs = inds.concat(['__mine']).map(function (k) { var n = tplList(k).length, on = k === tab;
-      return '<button type="button" data-ind="' + esc(k) + '" class="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-start transition ' + (on ? 'bg-brand-600 text-white shadow' : 'text-ink-700 hover:bg-ink-100') + '">' + (k === '__mine' ? uic('star', 'w-4 h-4') : '') + '<span class="flex-1 truncate">' + esc(k === '__mine' ? T.mine : k) + '</span><span class="text-[11px] tabular-nums ' + (on ? 'text-white/80' : 'text-ink-400') + '">' + n + '</span></button>'; }).join('');
-    show(head('copy', T.tplT, '<button type="button" class="btn-primary !py-1.5 !text-sm" data-x="newtpl">' + uic('plus', 'w-4 h-4') + esc(T.newTpl) + '</button>') +
-      '<div class="grid md:grid-cols-[200px_minmax(0,1fr)] gap-4"><nav class="space-y-1 md:max-h-[60vh] overflow-y-auto">' + tabs + '</nav><div class="min-w-0">' +
-      '<label class="mk-search !w-full mb-3">' + uic('search') + '<input type="search" id="cpt-q" placeholder="' + esc(T.tplSearch) + '" value="' + esc(q) + '"></label><div id="cpt-tl" class="grid sm:grid-cols-2 gap-3 max-h-[56vh] overflow-y-auto p-0.5"></div>' +
+    var mine = X.mine || [], J = X.journey || [], inds = Object.keys(indSet());
+    if (ind) { view = ind.indexOf('j:') === 0 ? 'stage' : (ind === '__mine' ? view : 'ind'); tab = ind; }
+    var keys = view === 'stage' ? J.map(function (s) { return 'j:' + s.k; }) : inds;
+    if (!tab || (tab !== '__mine' && keys.indexOf(tab) < 0)) tab = keys[0];
+    var tabs = keys.concat(['__mine']).map(function (k, i) { var n = tplList(k).length, on = k === tab, st = stage(k);
+      var label = k === '__mine' ? T.mine : st ? (tlang === 'en' ? st.en : st.ar) : k, sub = st ? (tlang === 'en' ? st.g_en : st.g_ar) : '';
+      return '<button type="button" data-ind="' + esc(k) + '" class="tp-tab' + (on ? ' on' : '') + '">' + (st ? '<i class="tp-step">' + (i + 1) + '</i>' : k === '__mine' ? uic('star', 'w-4 h-4') : '') + '<span class="tp-tl"><b>' + esc(label) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span><span class="tp-n">' + n + '</span></button>'; }).join('');
+    var bar = '<div class="tp-bar"><div class="tp-seg">' + [['stage', T.byStage || 'Stage'], ['ind', T.byInd || 'Industry']].map(function (v) { return '<button type="button" data-tview="' + v[0] + '" class="' + (view === v[0] ? 'on' : '') + '">' + esc(v[1]) + '</button>'; }).join('') + '</div>' +
+      '<div class="tp-seg">' + [['ar', 'عربي'], ['en', 'English']].map(function (v) { return '<button type="button" data-tlang="' + v[0] + '" class="' + (tlang === v[0] ? 'on' : '') + '">' + v[1] + '</button>'; }).join('') + '</div></div>';
+    show(head('copy', T.tplT, '<button type="button" class="btn-primary !py-1.5 !text-sm" data-x="newtpl">' + uic('plus', 'w-4 h-4') + esc(T.newTpl) + '</button>') + bar +
+      '<div class="grid md:grid-cols-[230px_minmax(0,1fr)] gap-4"><nav class="tp-nav' + (view === 'stage' ? ' journey' : '') + ' space-y-1 md:max-h-[60vh] overflow-y-auto">' + tabs + '</nav><div class="min-w-0">' +
+      '<label class="mk-search !w-full mb-3">' + uic('search') + '<input type="search" id="cpt-q" placeholder="' + esc(T.tplSearch) + '" value="' + esc(q) + '"></label><div id="cpt-tl" class="grid sm:grid-cols-2 gap-3 max-h-[56vh] overflow-y-auto p-0.5" dir="' + (tlang === 'en' && tab !== '__mine' ? 'ltr' : 'auto') + '"></div>' +
       '<p class="text-[11px] text-ink-400 mt-3">' + esc(T.tplHint) + '</p></div></div>', 'tpl');
     drawTpl(); var qi = document.getElementById('cpt-q'); qi.addEventListener('input', function () { q = qi.value; drawTpl(); });
   }
@@ -249,7 +260,7 @@
     if (k === 'ab') { var abx = document.getElementById('cpt-ab'); abx.classList.toggle('hidden'); b.classList.toggle('on', !abx.classList.contains('hidden')); if (!abx.classList.contains('hidden')) { var at = abx.querySelector('textarea'); if (!at.value) at.value = ta.value; at.focus(); } return; }
   });
   pane.addEventListener('click', function (e) {
-    var x = e.target.closest('[data-x],[data-ind],[data-use],[data-del],[data-edit],[data-addtags],[data-deltags],[data-tedit],[data-ptag]'); if (!x) return;
+    var x = e.target.closest('[data-x],[data-ind],[data-tview],[data-tlang],[data-use],[data-del],[data-edit],[data-addtags],[data-deltags],[data-tedit],[data-ptag]'); if (!x) return;
     if (x.dataset.x === 'back') return tplPane();
     if (x.dataset.x === 'newtpl') return tplEdit(-1, 'new');
     if (x.dataset.edit !== undefined) return tplEdit(+x.dataset.edit, tab);
@@ -265,6 +276,8 @@
     if (x.dataset.x === 'close') return hide();
     if (x.dataset.x === 'brandgo') return brandApply();
     if (x.dataset.ind) { q = ''; return tplPane(x.dataset.ind); }
+    if (x.dataset.tview) { view = x.dataset.tview; tab = ''; q = ''; return tplPane(); }
+    if (x.dataset.tlang) { tlang = x.dataset.tlang; if (view === 'ind') tab = ''; return tplPane(tab || undefined); }
     if (x.dataset.use !== undefined) {
       var t = tplList(tab)[+x.dataset.use];
       if (ta.value.trim() && !confirm(T.replaceQ)) return;

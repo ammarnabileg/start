@@ -8,6 +8,9 @@ $wid = (int)ws('id');
 $out = ['ok' => true, 'ran' => false];
 try {
     if ($wid && function_exists('ai_auto_enabled') && ai_auto_enabled($wid, 'reply') && ai_feature_on('auto_reply', $wid)) {
+        // الرد الفوري: لو مش متسجل في Zernio، نحاول نسجله (مرة كل ساعة)
+        $hk = json_decode((string)setting('ai_hook_' . $wid, ''), true) ?: [];
+        if (empty($hk['on']) && (int)($hk['at'] ?? 0) < time() - 3600) { require_once __DIR__ . '/../views/ai_agent.php'; try { ai_hook_sync($wid, true); } catch (Throwable $e) {} }
         $last = (int)setting('ai_tick_' . $wid, '0');
         if ($last < time() - 55) {
             save_setting('ai_tick_' . $wid, (string)time());

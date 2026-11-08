@@ -33,6 +33,32 @@ function ai_agent_resumed(int $wid, string $key): int
     return (int)($r[$key] ?? 0);
 }
 
+/** الرد الفوري: يسجّل إشعار Zernio (رسالة/تعليق جديد) على رابط المنصة، أو يقفله */
+function ai_hook_sync(int $wid, bool $on): array
+{
+    $cfg = json_decode((string)setting('ai_hook_' . $wid, ''), true) ?: [];
+    $z = zernio_or_null($err); if (!$z) return ['ok' => false, 'error' => $err ?: t('لا توجد حسابات تواصل مربوطة.')];
+    if (empty($cfg['token'])) $cfg['token'] = bin2hex(random_bytes(16));
+    if (empty($cfg['secret'])) $cfg['secret'] = bin2hex(random_bytes(24));
+    $url = rtrim(base_url(), '/') . '/index.php?p=zernio_hook&w=' . $wid . '&k=' . $cfg['token'];
+    $clients = $z instanceof ZernioMulti ? array_map(function ($id) use ($z) { return [$id, $z->client($id), $z->profileOf($id)]; }, $z->connectionIds()) : [[0, $z, function_exists('zernio_profile') ? zernio_profile() : null]];
+    $ids = (array)($cfg['ids'] ?? []); $errs = [];
+    foreach ($clients as [$cid, $c, $prof]) {
+        try {
+            $wh = (string)($ids[$cid] ?? '');
+            if (!$on) { if ($wh !== '') { $c->request('PUT', '/v1/webhooks/settings', [], ['webhookId' => $wh, 'isActive' => false]); } continue; }
+            $body = ['name' => 'Smart Reply · ' . mb_substr((string)ws('name'), 0, 30), 'url' => $url, 'secret' => $cfg['secret'], 'events' => ['message.received', 'comment.received'], 'isActive' => true] + ($prof ? ['profileIds' => [$prof]] : []);
+            if ($wh !== '') { try { $c->request('PUT', '/v1/webhooks/settings', [], ['webhookId' => $wh] + $body); continue; } catch (Throwable $e) { /* اتمسح من هناك: نعمله من جديد */ } }
+            $r = $c->request('POST', '/v1/webhooks/settings', [], $body);
+            $nid = (string)($r['webhook']['_id'] ?? $r['webhook']['id'] ?? $r['webhook']['webhookId'] ?? '');
+            if ($nid !== '') $ids[$cid] = $nid;
+        } catch (Throwable $e) { $errs[] = $e->getMessage(); }
+    }
+    $cfg['ids'] = $ids; $cfg['on'] = $on && !$errs; $cfg['at'] = time(); $cfg['err'] = $errs ? mb_substr(implode(' · ', $errs), 0, 300) : '';
+    save_setting('ai_hook_' . $wid, json_encode($cfg));
+    return ['ok' => !$errs, 'error' => $cfg['err']];
+}
+
 /** طلبات الشاشة (JSON) */
 function ai_agent_ajax(string $a): void
 {
@@ -53,6 +79,7 @@ function ai_agent_ajax(string $a): void
         if (isset($in['days'])) $c['days'] = array_values(array_intersect(array_map('intval', array_filter(explode(',', (string)$in['days']), 'strlen')), range(0, 6)));
         save_setting('ai_reply_cfg_' . $wid, json_encode(['when' => $c['when'], 'comments' => $c['comments'] ? 1 : 0, 'pause' => $c['pause'], 'mode' => $c['mode'], 'from' => $c['from'], 'to' => $c['to'], 'days' => $c['days'], 'platforms' => $c['platforms'], 'len' => $c['len'], 'tone' => $c['tone'], 'sig' => $c['sig']], JSON_UNESCAPED_UNICODE));
         if (isset($in['on'])) save_setting('ai_auto_reply_' . $wid, $in['on'] === '1' ? '1' : '0');
+        if (isset($in['on'])) ai_hook_sync($wid, $in['on'] === '1');
         log_activity('ai.agent_cfg', json_encode($c));
         $J(['ok' => true] + ai_agent_state($wid));
     }
@@ -109,6 +136,7 @@ function ai_agent_ajax(string $a): void
         unset($sg[$id]); save_setting('ai_kb_suggest_' . $wid, json_encode($sg, JSON_UNESCAPED_UNICODE));
         $J(['ok' => true] + ai_agent_state($wid));
     }
+    if ($a === 'agent_hook') { $r = ai_hook_sync($wid, true); $J(['ok' => $r['ok'], 'error' => $r['error']] + ai_agent_state($wid)); }
     if ($a === 'agent_state') $J(['ok' => true] + ai_agent_state($wid));
     $J(['ok' => false], 400);
 }
@@ -130,6 +158,7 @@ function ai_agent_state(int $wid): array
     $active = $on && !$issues;
     return ['cfg' => $c, 'on' => $on, 'active' => $active, 'inHours' => ai_in_hours($wid), 'issues' => $issues,
         'last' => ($lr = (int)setting('ai_agent_last_' . $wid, '0')) ? $fmt($lr) : '',
+        'hook' => (function () use ($wid, $fmt) { $h = json_decode((string)setting('ai_hook_' . $wid, ''), true) ?: []; $l = json_decode((string)setting('ai_hook_last_' . $wid, ''), true) ?: []; return ['on' => !empty($h['on']), 'err' => (string)($h['err'] ?? ''), 'last' => !empty($l['t']) ? $fmt($l['t']) : '']; })(),
         'today' => ['replies' => count(array_filter($log, function ($x) use ($today) { return $x['t'] >= $today && in_array($x['kind'], ['msg', 'comment'], true); })),
             'handoffs' => count(array_filter($log, function ($x) use ($today) { return $x['t'] >= $today && !empty($x['handoff']); })),
             'drafts' => count(ai_drafts($wid))],
@@ -160,6 +189,7 @@ function ai_agent_render(): void
           <div><small><?= e(t('متوقف فيها')) ?></small><b data-k="paused">0</b></div>
           <div><small><?= e(t('آخر تشغيل')) ?></small><b data-k="last">—</b></div>
         </div>
+        <div class="ag-hook" data-hook></div>
         <?php if ($owner): ?><div class="ag-run"><button type="button" class="btn-ghost !py-1.5 !text-xs" data-run><?= ui_icon('refresh', 'w-4 h-4') ?><?= e(t('تشغيل الآن')) ?></button><span class="text-[11px] text-ink-400"><?= e(t('يعمل تلقائيًا مع التشغيل الدوري، وهذا الزر يشغّله فورًا.')) ?></span></div><?php endif; ?>
       </section>
 
@@ -229,7 +259,7 @@ function ai_agent_render(): void
         'T' => ['on' => t('يعمل 24 ساعة: يرد على الرسائل من قاعدة المعرفة.'), 'off' => t('متوقف: لا يرد على أحد.'), 'blocked' => t('مفعّل لكنه لن يعمل:'),
           'resume' => t('استئناف الآن'), 'left' => t('متبقٍ %s د'), 'noPaused' => t('لا توجد محادثات متوقف فيها حاليًا.'), 'noLog' => t('لم يقم بأي شيء بعد.'), 'reply' => t('رد'), 'handoff' => t('تحويل للفريق'), 'draft' => t('مسودة'),
           'msg' => t('رسالة'), 'comment' => t('تعليق'), 'testing' => t('جارٍ التفكير…'), 'willReply' => t('سيرد هكذا'), 'willHand' => t('سيحوّل للفريق'), 'why' => t('السبب'), 'err' => t('حدثت مشكلة.'), 'ran' => t('تم التشغيل: %s رد'),
-          'sendWarn' => t('الإرسال المباشر سيرسل ردودًا للعملاء دون مراجعة. هل أنت متأكد؟'), 'running' => t('جارٍ التشغيل…'), 'open' => t('فتح'), 'send' => t('إرسال'), 'discard' => t('تجاهل'), 'noDrafts' => t('لا توجد مسودات.'), 'handDraft' => t('يحتاج تدخل الفريق'), 'openToSend' => t('افتح المحادثة'), 'sent' => t('تم الإرسال ✓'), 'good' => t('رد جيد'), 'bad' => t('رد غير مناسب'), 'fixPh' => t('اكتب الرد الصحيح (سيُقترح إضافته لقاعدة المعرفة)'), 'saveFix' => t('حفظ'), 'thanks' => t('شكرًا، تم التقييم'), 'add' => t('أضف للأسئلة الشائعة'), 'noSug' => t('لا توجد اقتراحات.'), 'rated' => t('التقييمات: 👍 %s · 👎 %s'), 'added' => t('أضيف لقاعدة المعرفة ✓'), 'edited' => t('معدّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+          'sendWarn' => t('الإرسال المباشر سيرسل ردودًا للعملاء دون مراجعة. هل أنت متأكد؟'), 'running' => t('جارٍ التشغيل…'), 'hookOn' => t('الرد الفوري مفعّل: يرد خلال ثوانٍ من وصول الرسالة، حتى واللوحة مغلقة.'), 'hookLast' => t('آخر إشعار: %s'), 'hookOff' => t('الرد الفوري غير مفعّل، فيعمل الرد الذكي فقط أثناء فتح اللوحة.'), 'hookFix' => t('تفعيل الرد الفوري'), 'open' => t('فتح'), 'send' => t('إرسال'), 'discard' => t('تجاهل'), 'noDrafts' => t('لا توجد مسودات.'), 'handDraft' => t('يحتاج تدخل الفريق'), 'openToSend' => t('افتح المحادثة'), 'sent' => t('تم الإرسال ✓'), 'good' => t('رد جيد'), 'bad' => t('رد غير مناسب'), 'fixPh' => t('اكتب الرد الصحيح (سيُقترح إضافته لقاعدة المعرفة)'), 'saveFix' => t('حفظ'), 'thanks' => t('شكرًا، تم التقييم'), 'add' => t('أضف للأسئلة الشائعة'), 'noSug' => t('لا توجد اقتراحات.'), 'rated' => t('التقييمات: 👍 %s · 👎 %s'), 'added' => t('أضيف لقاعدة المعرفة ✓'), 'edited' => t('معدّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
       var root = document.getElementById('ag'), T = C.T, st = C.st, $ = function (s) { return root.querySelector(s); }, $$ = function (s) { return root.querySelectorAll(s); };
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
       function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } }).then(function (r) { return r.json(); }); }
@@ -253,6 +283,8 @@ function ai_agent_render(): void
         $('[data-sn]').textContent = st.suggest.length || '';
         $('[data-sugs]').innerHTML = st.suggest.length ? st.suggest.map(function (x) { return '<div class="ag-sgi" data-sid="' + esc(x.id) + '"><input dir="auto" data-q value="' + esc(x.q) + '"><textarea dir="auto" rows="2" data-a>' + esc(x.a) + '</textarea><div class="ag-dra"><button type="button" class="btn-primary !py-1 !text-xs" data-sadd>' + esc(T.add) + '</button><button type="button" class="btn-ghost !py-1 !text-xs" data-sdrop>' + esc(T.discard) + '</button></div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noSug) + '</p>';
         $('[data-rated]').textContent = T.rated.replace('%s', st.rated.up).replace('%s', st.rated.down);
+        var hk = $('[data-hook]'); hk.className = 'ag-hook ' + (st.hook.on ? 'ok' : st.on ? 'warn' : '');
+        hk.innerHTML = st.hook.on ? '⚡ ' + esc(T.hookOn) + (st.hook.last ? ' · ' + esc(T.hookLast.replace('%s', st.hook.last)) : '') : (st.on ? '⚠️ ' + esc(st.hook.err || T.hookOff) + (C.owner ? ' <button type="button" class="link" data-hookfix>' + esc(T.hookFix) + '</button>' : '') : '');
         $('[data-pn]').textContent = st.paused.length || '';
         $('[data-paused]').innerHTML = st.paused.length ? st.paused.map(function (p) { return '<div class="ag-pi"><span class="ag-pic">' + (p.kind === 'comment' ? '💬' : '✉️') + '</span><div class="min-w-0 flex-1"><b>' + esc(p.name || p.key) + '</b><small>' + esc([p.platform, T.left.replace('%s', p.mins)].filter(Boolean).join(' · ')) + '</small></div>' + (C.owner ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-resume="' + esc(p.key) + '">' + esc(T.resume) + '</button>' : '') + '</div>'; }).join('') : '<p class="ag-empty">' + esc(T.noPaused) + '</p>';
         var L = st.log.filter(function (x) { return !lf || (lf === 'handoff' ? x.handoff : lf === 'draft' ? x.draft : x.kind === lf); });
@@ -277,6 +309,7 @@ function ai_agent_render(): void
           fx.querySelector('button').addEventListener('click', function () { post({ action: 'agent_rate', id: rw.dataset.lid, v: 'down', fix: fx.querySelector('textarea').value }).then(function (j) { if (j.ok) { st = j; paint(); toast(T.thanks); } }); }); return; }
         if ((b = e.target.closest('[data-sadd],[data-sdrop]'))) { var si = b.closest('[data-sid]'), add = b.hasAttribute('data-sadd'); b.disabled = true;
           post({ action: 'agent_suggest', id: si.dataset.sid, do: add ? 'add' : 'drop', q: si.querySelector('[data-q]').value, a: si.querySelector('[data-a]').value }).then(function (j) { if (!j.ok) { b.disabled = false; return toast(j.error || T.err, 'error'); } st = j; paint(); if (add) toast(T.added); }); return; }
+        if ((b = e.target.closest('[data-hookfix]'))) { b.disabled = true; post({ action: 'agent_hook' }).then(function (j) { st = j; paint(); if (!j.ok) toast(j.error || T.err, 'error'); }); return; }
         if ((b = e.target.closest('[data-resume]'))) { b.disabled = true; post({ action: 'agent_resume', key: b.dataset.resume }).then(function (j) { if (j.ok) { st = j; paint(); } }); return; }
         if ((b = e.target.closest('[data-lf]'))) { lf = b.dataset.lf; $$('[data-lf]').forEach(function (x) { x.classList.toggle('on', x === b); }); paint(); return; }
         if ((b = e.target.closest('[data-run]'))) { b.disabled = true; var o = b.innerHTML; b.textContent = T.running; post({ action: 'agent_run' }).then(function (j) { b.disabled = false; b.innerHTML = o; if (!j.ok) return toast(j.error || T.err, 'error'); st = j; paint(); toast(T.ran.replace('%s', j.n)); }).catch(function () { b.disabled = false; b.innerHTML = o; toast(T.err, 'error'); }); return; }
