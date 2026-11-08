@@ -252,16 +252,39 @@ function tnd_apify_req(string $method, string $path, ?array $body = null, ?strin
     return is_array($d) ? $d : [];
 }
 
+/** كلمات السحب: اتحاد كلمات البحث والمجالات لكل الشركات النشطة. السحب بيبقى عليها بس عشان Apify بيحاسب على كل منافسة */
+function tnd_pull_words(int $max = 80): array
+{
+    $out = []; $prev = $GLOBALS['__ws_override'] ?? null;
+    try {
+        foreach (db()->query("SELECT * FROM workspaces WHERE COALESCE(status, 'active') = 'active'")->fetchAll() as $w) {
+            $GLOBALS['__ws_override'] = $w;
+            foreach (tnd_cfg()['words'] as $x) { $k = tnd_norm($x); if (mb_strlen($k) >= 2 && !isset($out[$k])) $out[$k] = $x; }
+        }
+    } catch (Throwable $e) {}
+    if ($prev === null) unset($GLOBALS['__ws_override']); else $GLOBALS['__ws_override'] = $prev;
+    return array_values(array_slice($out, 0, $max));
+}
+
 /** يبدأ تشغيلة. full = كل المنافسات المفتوحة (أول مرة)، وإلا الجديد من آخر يومين */
 function tnd_apify_start(bool $full): string
 {
+    $words = tnd_pull_words(); if (!$words) throw new RuntimeException(t('أضف كلمات بحث أو مجالات أولًا: يتم السحب عليها فقط لتوفير الرصيد.'));
     if (tnd_apify_actor() === 'dottti~etimad-tender-radar') {
-        $in = ['keywords' => [], 'matchMode' => 'any', 'onlyOpen' => true, 'maxItems' => $full ? 3000 : 400];
+        // بيحاسب على المنافسات اللي عدّت الفلتر بس
+        $in = ['keywords' => $words, 'matchMode' => 'any', 'onlyOpen' => true, 'maxItems' => $full ? 1500 : 300];
         if (!$full) $in['publishDateId'] = '2'; // منذ يومين: بيغطي يوم كامل لو تشغيلة فاتت
-    } else $in = ['maxItems' => $full ? 600 : 150]; // الأحدث الأول. أول مرة 600 (≈1.2 دولار)، وبعدها 150 في اليوم (≈0.3 دولار) والجديد حوالي 80: الشهر كله جوه رصيد Apify المجاني
+        $kw = '';
+    } else {
+        // الخدمة الأرخص بتاخد كلمة واحدة في التشغيلة: طابور كلمات، كل تشغيلة بكلمة
+        $q = json_decode((string)setting('tenders_apify_queue', ''), true);
+        if (!is_array($q) || !$q) { $q = $words; }
+        $kw = (string)array_shift($q); save_setting('tenders_apify_queue', json_encode(array_values($q), JSON_UNESCAPED_UNICODE));
+        $in = ['keyword' => $kw, 'maxItems' => $full ? 100 : 25];
+    }
     $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode(tnd_apify_actor()) . '/runs', $in);
     $id = (string)($r['data']['id'] ?? ''); if ($id === '') throw new RuntimeException(t('Apify مارجعش رقم التشغيلة.'));
-    save_setting('tenders_apify_run', json_encode(['id' => $id, 'full' => $full, 'at' => gmdate('c')]));
+    save_setting('tenders_apify_run', json_encode(['id' => $id, 'full' => $full, 'kw' => $kw, 'at' => gmdate('c')], JSON_UNESCAPED_UNICODE));
     return $id;
 }
 
@@ -296,7 +319,7 @@ function tnd_apify_collect(): ?array
     }
     if ($tot['new'] + $tot['updated'] > 0) save_setting('tenders_last_ingest', gmdate('Y-m-d H:i:s'));
     save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify' . (!empty($run['full']) ? ' (full)' : '')] + $tot + ['note' => '']));
-    if (!empty($run['full'])) save_setting('tenders_apify_full_done', gmdate('Y-m-d'));
+    $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (!empty($run['full']) && (!is_array($q) || !$q)) save_setting('tenders_apify_full_done', gmdate('Y-m-d'));
     return $tot;
 }
 
@@ -305,8 +328,9 @@ function tnd_apify_tick(): string
 {
     if (!tnd_apify_on()) return '';
     try {
-        $c = tnd_apify_collect(); if ($c !== null) return 'collected+' . ($c['new'] ?? 0);
+        $c = tnd_apify_collect(); if ($c !== null) { $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); return 'collected+' . ($c['new'] ?? 0); }
         if ((string)setting('tenders_apify_run', '') !== '') return 'running';
+        $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start(false); return 'next word'; }
         $today = gmdate('Y-m-d');
         if ((string)setting('tenders_apify_day', '') === $today) return '';
         $full = (string)setting('tenders_apify_full_done', '') === '' || (gmdate('j') === '1' && tnd_apify_actor() === 'dottti~etimad-tender-radar'); // أول مرة، وأول كل شهر لفة كاملة (للخدمة الغنية بس) عشان المواعيد اللي اتمدت

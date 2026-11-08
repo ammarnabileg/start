@@ -84,27 +84,56 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
       $chip = function ($w, $kind) use ($cnt, $offK) { $off = $kind !== 'mine' && isset($offK[tnd_norm($w)]); $n = (int)($cnt[$w] ?? 0);
         return '<button type="button" data-kw="' . e($w) . '" data-a="' . ($kind === 'mine' ? 'kw_del' : ($off ? 'kw_on' : 'kw_off')) . '" class="kw ' . ($kind === 'mine' ? 'mine' : '') . ($off ? ' off' : '') . (!$off && !$n ? ' zero' : '') . '" title="'
           . e($kind === 'mine' ? t('شيلها') : ($off ? t('رجّعها') : t('وقّفها'))) . ($n ? '' : ' · ' . t('مفيش منافسات نشطة بتطابقها دلوقتي')) . '">' . e($w) . '<span class="kw-n">' . $n . '</span>' . ($kind === 'mine' ? ' ×' : '') . '</button>'; }; ?>
-    <div id="tnd-cfg" popover class="m-0 w-[min(680px,94vw)] max-h-[78vh] overflow-y-auto rounded-2xl border border-ink-200 bg-white p-4 shadow-2xl space-y-3 text-sm">
-      <div class="flex items-center gap-2 sticky -top-4 -mx-4 -mt-4 px-4 pt-4 pb-2 bg-white z-10 border-b border-ink-100"><b class="text-ink-900 flex-1"><?= e(t('كلمات البحث')) ?></b>
-        <?php if (function_exists('ai_connection') && ai_connection()): ?><button type="button" id="kw-ai" class="btn-ghost !py-1 !text-xs"><?= ui_icon('spark', 'w-3.5 h-3.5') ?><span><?= e($ai['keywords'] || $ai['activities'] ? t('حدّث بلغة اعتماد') : t('اقترح كلمات بلغة اعتماد')) ?></span></button><?php endif; ?>
-        <a href="<?= e(url('knowledge')) ?>" class="text-xs link"><?= e(t('معرفة الشركة')) ?></a></div>
-      <p class="text-xs text-ink-500"><?= e(t('الرقم جنب كل كلمة = عدد المنافسات النشطة اللي بتطابقها دلوقتي. دوس على كلمة توقفها أو ترجّعها.')) ?><?php if ($ai['why']): ?> <span class="text-ink-700"><?= e($ai['why']) ?></span><?php endif; ?></p>
-      <?php foreach (['act' => t('نشاطات اعتماد'), 'kw' => ($ai['keywords'] ? t('كلمات عناوين المنافسات') : t('كلمات من معرفة الشركة')), 'mine' => t('كلماتك')] as $k => $l): if (!$grp[$k] && $k !== 'mine') continue; ?>
-        <div><span class="text-[11px] font-semibold text-ink-500"><?= e($l) ?></span><div class="flex flex-wrap gap-1.5 mt-1.5" data-kw-list><?php foreach ($grp[$k] as $w) echo $chip($w, $k); ?></div></div>
-      <?php endforeach; ?>
-      <form id="kw-add" class="flex gap-2 m-0" data-no-ajax><input name="w" maxlength="40" class="input !mt-0 flex-1 text-sm" dir="auto" placeholder="<?= e(t('ضيف كلمة بالشكل اللي بيتكتب في عناوين المنافسات (مثلًا: صيانة شبكات)')) ?>"><button class="btn-ghost !text-xs"><?= e(t('أضف')) ?></button></form>
-      <details class="text-xs"><summary class="cursor-pointer text-ink-600"><?= e(t('استبعاد وأيام')) ?></summary>
-        <form id="kw-cfg" class="space-y-2 mt-2 m-0" data-no-ajax>
-          <textarea name="not" rows="2" class="input text-sm" dir="auto" placeholder="<?= e(t('استبعد لو فيها (كلمة في كل سطر)')) ?>"><?= e(implode("\n", (array)$cfg['not'])) ?></textarea>
-          <label class="flex items-center justify-between gap-2"><span class="text-ink-600"><?= e(t('اخفي اللي فاضل على آخر موعد فيها أقل من (يوم)')) ?></span><input type="number" name="min_days" value="<?= (int)$cfg['min_days'] ?>" min="0" max="30" class="input !mt-0 !w-20 text-center"></label>
-          <button class="btn-ghost !text-xs w-full"><?= e(t('حفظ')) ?></button></form></details>
+    <div id="tnd-cfg" popover class="m-0 kwp">
+      <div class="kwp-h"><b><?= e(t('كلمات البحث')) ?></b><span class="kwp-n"><?= count($cfg['words']) ?></span>
+        <?php if (function_exists('ai_connection') && ai_connection()): ?><button type="button" id="kw-ai" class="kwp-ai" title="<?= e(t('حدّث بلغة اعتماد')) ?>"><?= ui_icon('spark', 'w-3.5 h-3.5') ?><span><?= e(t('اقتراح')) ?></span></button><?php endif; ?>
+        <button type="button" class="kwp-x" popovertarget="tnd-cfg" popovertargetaction="hide"><?= ui_icon('x', 'w-4 h-4') ?></button></div>
+      <p class="kwp-note"><?= ui_icon('bulb', 'w-3.5 h-3.5') ?><?= e(t('يتم السحب على الكلمات المفعّلة فقط لتوفير الرصيد. الرقم = عدد المنافسات النشطة المطابقة.')) ?></p>
+      <form id="kw-add" class="kwp-add" data-no-ajax><input name="w" maxlength="40" dir="auto" placeholder="<?= e(t('أضف كلمة… مثلًا: صيانة شبكات')) ?>"><button><?= ui_icon('plus', 'w-4 h-4') ?></button></form>
+      <div class="kwp-tabs" role="tablist"><?php $first = true; foreach (['act' => t('نشاطات'), 'kw' => t('كلمات'), 'mine' => t('كلماتك')] as $k => $l): if (!$grp[$k] && $k !== 'mine') continue; ?><button type="button" data-kt="<?= $k ?>" class="<?= $first ? 'on' : '' ?>"><?= e($l) ?><i><?= count($grp[$k]) ?></i></button><?php $first = false; endforeach; ?></div>
+      <?php $first = true; foreach (['act', 'kw', 'mine'] as $k): if (!$grp[$k] && $k !== 'mine') continue;
+        $live = []; $zero = []; foreach ($grp[$k] as $w) { if ($k !== 'mine' && !(int)($cnt[$w] ?? 0) && !isset($offK[tnd_norm($w)])) $zero[] = $w; else $live[] = $w; } ?>
+        <div class="kwp-pane<?= $first ? '' : ' hidden' ?>" data-kp="<?= $k ?>"><div class="kwp-list" data-kw-list><?php foreach ($live as $w) echo $chip($w, $k); ?><?php if (!$grp[$k]): ?><span class="kwp-empty"><?= e(t('لم تُضف كلمات بعد.')) ?></span><?php endif; ?></div>
+          <?php if ($zero): ?><details class="kwp-zero"><summary><?= e(t('بلا نتائج حاليًا (%s)', count($zero))) ?></summary><div class="kwp-list" data-kw-list><?php foreach ($zero as $w) echo $chip($w, $k); ?></div></details><?php endif; ?></div>
+      <?php $first = false; endforeach; ?>
+      <details class="kwp-more"><summary><?= ui_icon('sliders', 'w-3.5 h-3.5') ?><?= e(t('استبعاد وأيام')) ?></summary>
+        <form id="kw-cfg" class="kwp-cfg" data-no-ajax>
+          <textarea name="not" rows="2" dir="auto" placeholder="<?= e(t('استبعد لو فيها (كلمة في كل سطر)')) ?>"><?= e(implode("\n", (array)$cfg['not'])) ?></textarea>
+          <label><span><?= e(t('اخفي اللي فاضل على آخر موعد فيها أقل من (يوم)')) ?></span><input type="number" name="min_days" value="<?= (int)$cfg['min_days'] ?>" min="0" max="30"></label>
+          <button class="btn-ghost !text-xs"><?= e(t('حفظ')) ?></button></form></details>
+      <a href="<?= e(url('knowledge')) ?>" class="kwp-kb"><?= e(t('الكلمات التلقائية مأخوذة من معرفة الشركة')) ?> ←</a>
     </div>
-    <style>.kw{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;border-radius:9999px;padding:.25rem .65rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}.kw .kw-n{margin-inline-start:.35rem;border-radius:9999px;background:rgba(255,255,255,.8);padding:0 .35rem;font-size:10px;font-weight:700}.kw.zero{opacity:.55;border-style:dashed}</style>
+    <style>
+      .kwp{width:min(460px,94vw);max-height:72vh;overflow-y:auto;border-radius:16px;border:1px solid #e2e8f0;background:#fff;padding:.75rem;box-shadow:0 24px 50px -16px rgb(15 23 42/.35);font-size:.8rem}
+      .kwp-h{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}.kwp-h b{font-size:.92rem;color:#0f172a}
+      .kwp-n{font-size:.68rem;font-weight:700;background:#eff6ff;color:#1d4ed8;border-radius:99px;padding:0 .45rem}
+      .kwp-ai{margin-inline-start:auto;display:inline-flex;align-items:center;gap:.2rem;font-size:.72rem;font-weight:600;padding:.2rem .5rem;border-radius:99px;background:#f5f3ff;color:#6d28d9}
+      .kwp-x{width:1.7rem;height:1.7rem;border-radius:8px;display:grid;place-items:center;color:#64748b}.kwp-x:hover{background:#f1f5f9}
+      .kwp-note{display:flex;gap:.3rem;align-items:flex-start;font-size:.7rem;color:#64748b;line-height:1.5;margin-bottom:.5rem}
+      .kwp-add{display:flex;gap:.3rem;margin:0 0 .5rem}.kwp-add input{flex:1;min-width:0;height:2rem;border:1px solid #e2e8f0;border-radius:10px;padding:0 .6rem;font-size:.8rem;outline:none}.kwp-add input:focus{border-color:#93c5fd}
+      .kwp-add button{width:2rem;height:2rem;border-radius:10px;display:grid;place-items:center;background:#2563eb;color:#fff}
+      .kwp-tabs{display:flex;gap:.2rem;padding:.2rem;background:#f1f5f9;border-radius:10px;margin-bottom:.5rem}
+      .kwp-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:.3rem;font-size:.74rem;font-weight:600;color:#64748b;padding:.3rem;border-radius:8px}
+      .kwp-tabs button.on{background:#fff;color:#1d4ed8;box-shadow:0 1px 3px rgb(15 23 42/.08)}.kwp-tabs i{font-style:normal;font-size:.65rem;opacity:.7}
+      .kwp-list{display:flex;flex-wrap:wrap;gap:.3rem}.kwp-empty{font-size:.72rem;color:#94a3b8}
+      .kwp-zero,.kwp-more{margin-top:.5rem}.kwp-zero summary,.kwp-more summary{cursor:pointer;font-size:.72rem;color:#64748b;display:flex;align-items:center;gap:.25rem}
+      .kwp-zero .kwp-list{margin-top:.4rem}
+      .kwp-cfg{display:flex;flex-direction:column;gap:.4rem;margin-top:.4rem}.kwp-cfg textarea{border:1px solid #e2e8f0;border-radius:10px;padding:.4rem .6rem;font-size:.78rem}
+      .kwp-cfg label{display:flex;align-items:center;justify-content:space-between;gap:.5rem;font-size:.72rem;color:#475569}.kwp-cfg input{width:4rem;height:1.8rem;border:1px solid #e2e8f0;border-radius:8px;text-align:center}
+      .kwp-kb{display:block;margin-top:.6rem;font-size:.7rem;color:#2563eb}
+      .dark .kwp{background:#0f172a;border-color:rgb(255 255 255/.1)}.dark .kwp-h b{color:#f1f5f9}.dark .kwp-tabs{background:#1e293b}.dark .kwp-tabs button.on{background:#0f172a;color:#93c5fd}
+      .dark .kwp-add input,.dark .kwp-cfg textarea,.dark .kwp-cfg input{background:#0b1220;border-color:rgb(255 255 255/.12);color:#e2e8f0}
+    .kw{display:inline-flex;align-items:center;gap:.2rem;font-size:.7rem;border-radius:9999px;padding:.15rem .5rem;border:1px solid rgb(252 211 77);background:rgb(255 251 235);color:rgb(146 64 14)}.kw.off{border-color:rgb(226 232 240);background:#fff;color:rgb(148 163 184);text-decoration:line-through}.kw.mine{border-color:rgb(147 197 253);background:rgb(239 246 255);color:rgb(30 64 175)}.kw .kw-n{margin-inline-start:.35rem;border-radius:9999px;background:rgba(255,255,255,.8);padding:0 .35rem;font-size:10px;font-weight:700}.kw.zero{opacity:.55;border-style:dashed}</style>
     <script>
     (function () { var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('tenders'), 'err' => t('حصلت مشكلة.'), 'aiBusy' => t('بنختار الكلمات…'),
         'needAi' => $mgr && function_exists('ai_connection') && ai_connection() && tnd_activities(1) && ((!$ai['keywords'] && !$ai['activities']) || ($ai['sig'] ?? '') !== md5(tg_kb_brief()))], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
       function post(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { if (window.fxToast) fxToast(j.error || C.err, 'error'); return; } location.reload(); }); }
-      document.querySelectorAll('[data-kw-list]').forEach(function (l) { l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (b) post({ action: b.dataset.a, w: b.dataset.kw }); }); });
+      document.querySelectorAll('[data-kt]').forEach(function (t) { t.addEventListener('click', function () { document.querySelectorAll('[data-kt]').forEach(function (x) { x.classList.toggle('on', x === t); }); document.querySelectorAll('[data-kp]').forEach(function (p) { p.classList.toggle('hidden', p.dataset.kp !== t.dataset.kt); }); }); });
+      function quiet(d) { var f = new FormData(); f.append('_csrf', C.csrf); Object.keys(d).forEach(function (k) { f.append(k, d[k]); }); return fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
+      document.querySelectorAll('[data-kw-list]').forEach(function (l) { l.addEventListener('click', function (e) { var b = e.target.closest('[data-kw]'); if (!b) return;
+        if (b.dataset.a === 'kw_del') return post({ action: b.dataset.a, w: b.dataset.kw });
+        var on = b.dataset.a === 'kw_on'; b.disabled = true; quiet({ action: b.dataset.a, w: b.dataset.kw }).then(function (j) { b.disabled = false; if (!j.ok) return window.fxToast && fxToast(j.error || C.err, 'error'); b.classList.toggle('off', !on); b.dataset.a = on ? 'kw_off' : 'kw_on'; window.__kwDirty = 1; }); }); });
+      var pop = document.getElementById('tnd-cfg'); if (pop) pop.addEventListener('toggle', function (e) { if (e.newState === 'closed' && window.__kwDirty) location.reload(); });
       var ai = document.getElementById('kw-ai'); if (ai) ai.addEventListener('click', function () { ai.disabled = true; ai.querySelector('span').textContent = C.aiBusy; post({ action: 'kw_ai' }); });
       if (C.needAi) { var f = new FormData(); f.append('_csrf', C.csrf); f.append('action', 'kw_ai'); fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) location.reload(); }); }
       var fa = document.getElementById('kw-add'); if (fa) fa.addEventListener('submit', function (e) { e.preventDefault(); var w = fa.w.value.trim(); if (w) post({ action: 'kw_add', w: w }); });
