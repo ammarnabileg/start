@@ -5466,4 +5466,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'العميل كتب بالعربي والرد بلغة أخرى' => 'Customer wrote in Arabic but the reply is in another language',
     'الرد فيه رقم غير موجود في قاعدة المعرفة: %s' => 'Reply contains a number not in the knowledge base: %s',
     'الرد فيه رابط غير موجود في قاعدة المعرفة' => 'Reply contains a link not in the knowledge base',
+    'أُرسلت للعميل رسالة انتظار' => 'A holding message was sent to the customer',
+    'الرد محفوظ كمسودة بانتظار مراجعتك' => 'The reply was saved as a draft awaiting your review',
 ];

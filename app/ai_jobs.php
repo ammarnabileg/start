@@ -374,6 +374,15 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
     $done = json_decode((string)setting('ai_replied_' . $wid, ''), true) ?: [];
     $drafts = ai_drafts($wid);
     $n = 0;
+    // رد اتمسك في الفحص وماحدش راجعه خلال 10 دقايق: العميل ياخد رسالة انتظار مهذبة بدل ما يفضل مستني (المسودة بتفضل للمراجعة)
+    if ($cfg['mode'] === 'send') foreach ($drafts as $did => &$dr) {
+        if (empty($dr['guard']) || !empty($dr['held']) || (int)($dr['t'] ?? 0) > $now - (int)(getenv('AI_HOLD_AFTER') ?: 600) || empty($dr['acc'])) continue;
+        if (ai_human_recent($wid, 'c:' . $did, 60)) { $dr['held'] = 1; continue; } // موظف رد بالفعل
+        $esc = function_exists('kb_escalation') ? (string)kb_escalation($wid)['message'] : '';
+        $ar = (bool)preg_match('/\p{Arabic}/u', (string)($dr['in'] ?? ''));
+        $hold = $esc !== '' ? $esc : ($ar ? 'شكرًا لتواصلك 🤍 سيتواصل معك أحد أعضاء الفريق قريبًا للرد على سؤالك.' : 'Thanks for reaching out 🤍 A team member will get back to you shortly.');
+        try { $z->sendMessage((string)$did, (string)$dr['acc'], $hold); ai_sent_mark($wid, $hold); $dr['held'] = 1; $dr['reason'] = (string)($dr['reason'] ?? '') . ' · ' . t('أُرسلت للعميل رسالة انتظار'); ai_save_stat($wid, 'hold'); } catch (Throwable $e) {}
+    } unset($dr);
     // ---------- الرسايل ----------
     // من الإشعار الفوري: نرد على الرسالة اللي في الإشعار نفسه (قائمة المحادثات عند Zernio بتتأخر دقايق)
     $fresh = $hookMsg !== null;
@@ -411,7 +420,8 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
             }
             if ($text === '') { $done[$id] = $h; if ($d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => '', 'handoff' => true, 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]); continue; }
             if ($cfg['mode'] === 'send' && empty($d['guard'])) { $z->sendMessage($id, $acc, $text); ai_sent_mark($wid, $text); log_activity('ai.auto_reply', $id); }
-            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => !empty($d['guard']) ? '⚠ ' . $d['guard'] : $d['reason'], 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
+            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => !empty($d['guard']) ? '⚠ ' . $d['guard'] : $d['reason'], 'guard' => !empty($d['guard']) ? 1 : 0, 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
+            if (!empty($d['guard']) && $cfg['mode'] === 'send') kb_handoff_email($wid, $who, $plat, $m, '⚠ ' . $d['guard'] . ' — ' . t('الرد محفوظ كمسودة بانتظار مراجعتك'), base_url() . '/' . url('assistant', ['tab' => 'agent']));
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send' || !empty($d['guard']), 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
             $done[$id] = $h; $n++;
         } catch (Throwable $e) {
