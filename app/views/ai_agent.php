@@ -75,6 +75,7 @@ function ai_agent_ajax(string $a): void
         if (isset($in['tone']) && in_array($in['tone'], ['friendly', 'formal', 'brand'], true)) $c['tone'] = $in['tone'];
         if (isset($in['sig'])) $c['sig'] = mb_substr(trim((string)$in['sig']), 0, 80);
         foreach (['greet', 'faq', 'cache', 'route', 'batch'] as $sk) if (isset($in['save_' . $sk])) $c['save'][$sk] = $in['save_' . $sk] === '1' ? 1 : 0;
+        if (isset($in['cap'])) $c['save']['cap'] = max(0, min(5000, (int)$in['cap']));
         if (isset($in['greetText'])) $c['save']['greetText'] = mb_substr(trim((string)$in['greetText']), 0, 200);
         if (isset($in['clearCache'])) save_setting('ai_cache_' . $wid, '');
         if (isset($in['from']) && preg_match('/^\d\d:\d\d$/', $in['from'])) $c['from'] = $in['from'];
@@ -170,7 +171,7 @@ function ai_agent_state(int $wid): array
         'paused' => array_map(function ($k, $x) use ($fmt) { return ['key' => $k, 'name' => (string)($x['name'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'kind' => (string)($x['kind'] ?? ''), 'until' => $fmt($x['until']), 'mins' => max(1, (int)ceil(($x['until'] - time()) / 60))]; }, array_keys(ai_agent_paused($wid)), ai_agent_paused($wid)),
         'log' => array_map(function ($x) use ($fmt) { return $x + ['at' => $fmt($x['t'])]; }, array_slice($log, 0, 25)),
         'drafts' => array_map(function ($k, $x) use ($fmt) { return ['id' => (string)$k, 'text' => (string)$x['text'], 'who' => (string)($x['who'] ?? ''), 'platform' => (string)($x['platform'] ?? ''), 'in' => (string)($x['in'] ?? ''), 'handoff' => !empty($x['handoff']), 'reason' => (string)($x['reason'] ?? ''), 'canSend' => !empty($x['acc']), 'at' => $fmt($x['t']), 'link' => url('inbox', ['c' => $k, 'a' => (string)($x['acc'] ?? '')])]; }, array_keys(ai_drafts($wid)), ai_drafts($wid)),
-        'suggest' => array_map(function ($k, $x) { return ['id' => (string)$k, 'q' => (string)$x['q'], 'a' => (string)$x['a']]; }, array_keys(ai_agent_suggest($wid)), ai_agent_suggest($wid)),
+        'suggest' => array_map(function ($k, $x) { return ['id' => (string)$k, 'q' => (string)$x['q'], 'a' => (string)$x['a'], 'human' => ($x['src'] ?? '') === 'human']; }, array_keys(ai_agent_suggest($wid)), ai_agent_suggest($wid)),
         'rated' => ['up' => count(array_filter($log, function ($x) { return ($x['rate'] ?? '') === 'up'; })), 'down' => count(array_filter($log, function ($x) { return ($x['rate'] ?? '') === 'down'; }))]];
 }
 
@@ -229,6 +230,7 @@ function ai_agent_render(): void
         <label class="ag-row"><span><b><?= e(t('إعادة استخدام الإجابات المتكررة')) ?></b><small data-cachen></small></span><button type="button" class="ag-sw sm" data-save="cache"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('موديل أرخص للأسئلة البسيطة')) ?></b><small><?= e(t('السؤال القصير الواضح يذهب لموديل «الردود البسيطة»، والشكاوى والأسئلة المركبة لموديل الردود الأقوى')) ?></small></span><button type="button" class="ag-sw sm" data-save="route"><i></i></button></label>
         <label class="ag-row"><span><b><?= e(t('تجميع الرسائل المتتالية')) ?></b><small><?= e(t('لو أرسل العميل عدة رسائل وراء بعض، ينتظر ثواني ويرد ردًا واحدًا عليها كلها')) ?></small></span><button type="button" class="ag-sw sm" data-save="batch"><i></i></button></label>
+        <label class="ag-row"><span><b><?= e(t('حد يومي لردود الذكاء الاصطناعي')) ?></b><small><?= e(t('بعده تتحول الرسائل الجديدة للفريق بدل استهلاك الرصيد. 0 = بلا حد')) ?></small></span><input type="number" min="0" max="5000" class="ag-sig !w-24 !mt-0" data-cap></label>
         <div class="ag-model"><span><?= e(t('موديل الردود الحالي:')) ?> <b data-model></b></span><a class="link" href="<?= e(url('assistant')) ?>"><?= e(t('اختر موديلًا أرخص')) ?> ←</a><?php if ($owner): ?><button type="button" class="link" data-clearcache><?= e(t('مسح الإجابات المحفوظة')) ?></button><?php endif; ?></div>
       </section>
 
@@ -254,7 +256,7 @@ function ai_agent_render(): void
 
       <section class="card ag-card">
           <h3><?= ui_icon('bulb', 'w-4 h-4') ?><?= e(t('اقتراحات لقاعدة المعرفة')) ?><span class="ag-n" data-sn></span></h3>
-          <p class="ag-hint"><?= e(t('لما تقيّم رد بـ 👎 وتكتب الرد الصحيح، بيظهر هنا عشان تضيفه للأسئلة الشائعة فيتعلمه الرد الذكي.')) ?></p>
+          <p class="ag-hint"><?= e(t('يظهر هنا ردّ موظفيك على الأسئلة التي حوّلها الرد الذكي، وتصحيحاتك للردود المقيّمة بـ 👎. اعتمد الاقتراح فيُجاب السؤال بعد ذلك تلقائيًا وبدون رصيد.')) ?></p>
           <div class="ag-sugs" data-sugs></div>
           <div class="ag-rated" data-rated></div>
         </section>
@@ -273,7 +275,7 @@ function ai_agent_render(): void
     <script>
     (function () {
       var C = <?= json_encode(['csrf' => csrf_token(), 'url' => url('assistant', ['tab' => 'agent']), 'inbox' => url('inbox'), 'comments' => url('comments'), 'owner' => $owner, 'st' => $st,
-        'T' => ['on' => t('يعمل 24 ساعة: يرد على الرسائل من قاعدة المعرفة.'), 'off' => t('متوقف: لا يرد على أحد.'), 'blocked' => t('مفعّل لكنه لن يعمل:'),
+        'T' => ['fromStaff' => t('من رد الموظف — اعتمده ليُجاب تلقائيًا بعد ذلك'), 'on' => t('يعمل 24 ساعة: يرد على الرسائل من قاعدة المعرفة.'), 'off' => t('متوقف: لا يرد على أحد.'), 'blocked' => t('مفعّل لكنه لن يعمل:'),
           'resume' => t('استئناف الآن'), 'left' => t('متبقٍ %s د'), 'noPaused' => t('لا توجد محادثات متوقف فيها حاليًا.'), 'noLog' => t('لم يقم بأي شيء بعد.'), 'reply' => t('رد'), 'handoff' => t('تحويل للفريق'), 'draft' => t('مسودة'),
           'msg' => t('رسالة'), 'comment' => t('تعليق'), 'testing' => t('جارٍ التفكير…'), 'willReply' => t('سيرد هكذا'), 'willHand' => t('سيحوّل للفريق'), 'why' => t('السبب'), 'err' => t('حدثت مشكلة.'), 'ran' => t('تم التشغيل: %s رد'),
           'sendWarn' => t('الإرسال المباشر سيرسل ردودًا للعملاء دون مراجعة. هل أنت متأكد؟'), 'running' => t('جارٍ التشغيل…'), 'freeToday' => t('اليوم: %s رد بدون رصيد · %s بالذكاء الاصطناعي'), 'cacheN' => t('%s إجابة محفوظة، تُستخدم لنفس السؤال لمدة 14 يومًا'), 'clearQ' => t('مسح كل الإجابات المحفوظة؟'), 'free' => t('بدون رصيد'), 'hookOn' => t('الرد الفوري مفعّل: يرد خلال ثوانٍ من وصول الرسالة، حتى واللوحة مغلقة.'), 'hookLast' => t('آخر إشعار: %s'), 'hookOff' => t('الرد الفوري غير مفعّل، فيعمل الرد الذكي فقط أثناء فتح اللوحة.'), 'hookFix' => t('تفعيل الرد الفوري'), 'open' => t('فتح'), 'send' => t('إرسال'), 'discard' => t('تجاهل'), 'noDrafts' => t('لا توجد مسودات.'), 'handDraft' => t('يحتاج تدخل الفريق'), 'openToSend' => t('افتح المحادثة'), 'sent' => t('تم الإرسال ✓'), 'good' => t('رد جيد'), 'bad' => t('رد غير مناسب'), 'fixPh' => t('اكتب الرد الصحيح (سيُقترح إضافته لقاعدة المعرفة)'), 'saveFix' => t('حفظ'), 'thanks' => t('شكرًا، تم التقييم'), 'add' => t('أضف للأسئلة الشائعة'), 'noSug' => t('لا توجد اقتراحات.'), 'rated' => t('التقييمات: 👍 %s · 👎 %s'), 'added' => t('أضيف لقاعدة المعرفة ✓'), 'edited' => t('معدّل')]], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
@@ -295,6 +297,7 @@ function ai_agent_render(): void
         $$('[data-opt]').forEach(function (g) { g.querySelectorAll('[data-v]').forEach(function (b) { b.classList.toggle('on', b.dataset.v === c[g.dataset.opt]); }); });
         var sg = $('[data-sig]'); if (document.activeElement !== sg) sg.value = c.sig || '';
         $$('[data-save]').forEach(function (b) { b.classList.toggle('on', !!c.save[b.dataset.save]); b.disabled = !C.owner; });
+        var cp = $('[data-cap]'); if (document.activeElement !== cp) cp.value = c.save.cap || 0; cp.disabled = !C.owner;
         var gt = $('[data-greet]'); if (document.activeElement !== gt) gt.value = c.save.greetText || ''; gt.classList.toggle('hidden', !c.save.greet);
         $('[data-free]').textContent = T.freeToday.replace('%s', st.saved.free).replace('%s', st.saved.ai);
         $('[data-cachen]').textContent = T.cacheN.replace('%s', st.saved.cached); $('[data-model]').textContent = st.model || '—';
@@ -302,7 +305,7 @@ function ai_agent_render(): void
         $('[data-drafts]').innerHTML = st.drafts.length ? st.drafts.map(function (d) { return '<div class="ag-dr" data-did="' + esc(d.id) + '"><div class="ag-lh"><b>' + esc(d.who || '') + '</b><small>' + esc([d.platform, d.at].filter(Boolean).join(' · ')) + '</small>' + (d.handoff ? '<span class="ag-tag hand">' + esc(T.handDraft) + '</span>' : '') + '<a href="' + esc(d.link) + '" class="ms-auto link text-xs">' + esc(T.open) + '</a></div>' +
           (d.in ? '<p class="ag-in" dir="auto">' + esc(d.in) + '</p>' : '') + '<textarea dir="auto" rows="2">' + esc(d.text) + '</textarea><div class="ag-dra">' + (d.canSend && C.owner ? '<button type="button" class="btn-primary !py-1 !text-xs" data-dsend>' + esc(T.send) + '</button>' : '<a class="btn-ghost !py-1 !text-xs" href="' + esc(d.link) + '">' + esc(T.openToSend) + '</a>') + (C.owner ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-ddrop>' + esc(T.discard) + '</button>' : '') + '</div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noDrafts) + '</p>';
         $('[data-sn]').textContent = st.suggest.length || '';
-        $('[data-sugs]').innerHTML = st.suggest.length ? st.suggest.map(function (x) { return '<div class="ag-sgi" data-sid="' + esc(x.id) + '"><input dir="auto" data-q value="' + esc(x.q) + '"><textarea dir="auto" rows="2" data-a>' + esc(x.a) + '</textarea><div class="ag-dra"><button type="button" class="btn-primary !py-1 !text-xs" data-sadd>' + esc(T.add) + '</button><button type="button" class="btn-ghost !py-1 !text-xs" data-sdrop>' + esc(T.discard) + '</button></div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noSug) + '</p>';
+        $('[data-sugs]').innerHTML = st.suggest.length ? st.suggest.map(function (x) { return '<div class="ag-sgi" data-sid="' + esc(x.id) + '">' + (x.human ? '<small class="ag-src">' + esc(T.fromStaff) + '</small>' : '') + '<input dir="auto" data-q value="' + esc(x.q) + '"><textarea dir="auto" rows="2" data-a>' + esc(x.a) + '</textarea><div class="ag-dra"><button type="button" class="btn-primary !py-1 !text-xs" data-sadd>' + esc(T.add) + '</button><button type="button" class="btn-ghost !py-1 !text-xs" data-sdrop>' + esc(T.discard) + '</button></div></div>'; }).join('') : '<p class="ag-empty">' + esc(T.noSug) + '</p>';
         $('[data-rated]').textContent = T.rated.replace('%s', st.rated.up).replace('%s', st.rated.down);
         var hk = $('[data-hook]'); hk.className = 'ag-hook ' + (st.hook.on ? 'ok' : st.on ? 'warn' : '');
         hk.innerHTML = st.hook.on ? '⚡ ' + esc(T.hookOn) + (st.hook.last ? ' · ' + esc(T.hookLast.replace('%s', st.hook.last)) : '') : (st.on ? '⚠️ ' + esc(st.hook.err || T.hookOff) + (C.owner ? ' <button type="button" class="link" data-hookfix>' + esc(T.hookFix) + '</button>' : '') : '');
@@ -339,6 +342,7 @@ function ai_agent_render(): void
         if ((b = e.target.closest('[data-ch]'))) { $$('[data-ch]').forEach(function (x) { x.classList.toggle('on', x === b); }); return; }
         if ((b = e.target.closest('[data-sug]'))) { var ta = $('[data-test] textarea'); ta.value = b.textContent; ta.focus(); return; }
       });
+      var cpT; $('[data-cap]').addEventListener('input', function () { var v = this.value; clearTimeout(cpT); cpT = setTimeout(function () { save({ cap: v }); }, 700); });
       var grT; $('[data-greet]').addEventListener('input', function () { var v = this.value; clearTimeout(grT); grT = setTimeout(function () { save({ greetText: v }); }, 700); });
       var sgT; $('[data-sig]').addEventListener('input', function () { var v = this.value; clearTimeout(sgT); sgT = setTimeout(function () { save({ sig: v }); }, 700); });
       $('[data-test]').addEventListener('submit', function (e) { e.preventDefault(); var f = this, m = f.m.value.trim(), out = $('[data-out]'), btn = f.querySelector('.btn-primary'); if (!m) return f.m.focus();

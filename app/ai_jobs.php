@@ -167,7 +167,7 @@ function ai_reply_cfg(int $wid): array
     $c = json_decode((string)setting('ai_reply_cfg_' . $wid, ''), true) ?: [];
     $pl = array_values(array_filter(array_map('strval', (array)($c['platforms'] ?? []))));
     $sv = (array)($c['save'] ?? []);
-    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'route' => ($sv['route'] ?? 1) ? 1 : 0, 'batch' => ($sv['batch'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
+    return ['save' => ['greet' => ($sv['greet'] ?? 1) ? 1 : 0, 'faq' => ($sv['faq'] ?? 1) ? 1 : 0, 'cache' => ($sv['cache'] ?? 1) ? 1 : 0, 'route' => ($sv['route'] ?? 1) ? 1 : 0, 'cap' => max(0, min(5000, (int)($sv['cap'] ?? 0))), 'batch' => ($sv['batch'] ?? 1) ? 1 : 0, 'greetText' => mb_substr((string)($sv['greetText'] ?? ''), 0, 200)], 'platforms' => $pl, 'len' => in_array($c['len'] ?? '', ['short', 'medium', 'detailed'], true) ? $c['len'] : 'short', 'tone' => in_array($c['tone'] ?? '', ['friendly', 'formal', 'brand'], true) ? $c['tone'] : 'brand',
         'sig' => mb_substr((string)($c['sig'] ?? ''), 0, 80), 'when' => 'always', 'comments' => !empty($c['comments']), 'pause' => max(5, min(240, (int)($c['pause'] ?? 30))),
         'mode' => ($c['mode'] ?? '') === 'send' ? 'send' : 'draft', 'from' => preg_match('/^\d\d:\d\d$/', $c['from'] ?? '') ? $c['from'] : '09:00',
         'to' => preg_match('/^\d\d:\d\d$/', $c['to'] ?? '') ? $c['to'] : '21:00', 'days' => array_values(array_map('intval', (array)($c['days'] ?? [0, 1, 2, 3, 4, 6])))];
@@ -251,6 +251,8 @@ function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $h
 {
     $c = ai_cheap_answer($wid, $cfg, $msg, $channel);
     if ($c !== null) { ai_save_stat($wid, $c['src']); return $c + ['confidence' => 1]; }
+    // حد يومي: بعده الرسائل بتتحول للفريق بدل ما الرصيد يخلص (سبام أو ضغط مفاجئ)
+    if ($cfg['save']['cap'] > 0) { $st = json_decode((string)setting('ai_save_' . $wid, ''), true) ?: []; if (($st['day'] ?? '') === date('Y-m-d') && (int)($st['ai'] ?? 0) + (int)($st['fast'] ?? 0) >= $cfg['save']['cap']) return ['action' => 'handoff', 'reply' => '', 'reason' => t('اكتمل الحد اليومي للذكاء الاصطناعي'), 'confidence' => 0, 'src' => 'cap', 'model' => '', 'cost' => 0]; }
     $fast = $cfg['save']['route'] && ai_is_simple($msg);
     $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply');
     ai_save_stat($wid, $fast ? 'fast' : 'ai');
@@ -297,6 +299,25 @@ function ai_sent_is(int $wid, string $text): bool
     return isset($c[$wid][md5(trim($text))]);
 }
 /** رد بشري من جوه المنصة (صندوق الرسائل/التعليقات): الإيجنت يسكت على المحادثة دي */
+/** الموظف رد على سؤال الرد الذكي حوّله: ردّه يبقى اقتراح للأسئلة الشائعة (المرة الجاية الإجابة ببلاش وبجودة الموظف) */
+function ai_learn_human(int $wid, string $key, string $text): void
+{
+    $text = trim($text); if (mb_strlen($text) < 8) return;
+    [$k, $id] = array_pad(explode(':', $key, 2), 2, ''); if ($id === '') return;
+    $needle = $k === 'c' ? 'c=' . $id : 'post=' . $id;
+    $log = json_decode((string)setting('ai_agent_log_' . $wid, ''), true) ?: [];
+    foreach (array_reverse($log) as $x) {
+        if ((int)($x['t'] ?? 0) < time() - 2 * 86400) break;
+        $l = (string)($x['link'] ?? '');
+        if (empty($x['handoff']) || trim((string)($x['in'] ?? '')) === '' || !preg_match('/[?&]' . preg_quote($needle, '/') . '(&|$)/', $l)) continue;
+        $sg = json_decode((string)setting('ai_kb_suggest_' . $wid, ''), true) ?: [];
+        $sid = 'h' . ($x['id'] ?? md5($l));
+        if (isset($sg[$sid])) return;
+        $sg[$sid] = ['q' => (string)$x['in'], 'a' => mb_substr($text, 0, 600), 't' => time(), 'src' => 'human'];
+        save_setting('ai_kb_suggest_' . $wid, json_encode(array_slice($sg, -40, null, true), JSON_UNESCAPED_UNICODE));
+        return;
+    }
+}
 function ai_human_mark(int $wid, string $key): void
 {
     $h = json_decode((string)setting('ai_human_' . $wid, ''), true) ?: []; $h[$key] = time();

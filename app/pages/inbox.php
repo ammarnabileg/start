@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if ($text === '' && !$attachUrl) {
                     flash('error', t('اكتب رسالة الأول.'));
                 } else {
-                    $z->sendMessage($convId, $accId, $text, $attachUrl, $attachType); if (function_exists('ai_human_mark')) ai_human_mark((int)ws('id'), 'c:' . $convId);
+                    $z->sendMessage($convId, $accId, $text, $attachUrl, $attachType); if (function_exists('ai_human_mark')) ai_human_mark((int)ws('id'), 'c:' . $convId); if (function_exists('ai_learn_human')) ai_learn_human((int)ws('id'), 'c:' . $convId, (string)$text);
                     log_activity('inbox.reply', $convId);
                 }
                 $back .= '#bottom';
