@@ -1445,3 +1445,11 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .pd-tadd:hover,.pd-tadd.on{color:#1d4ed8;border-color:#93c5fd;background:#eff6ff}
 #pd-p-tk .pd-unext.hidden{display:none!important}
 .dark .pd-tadd{background:#0f172a;border-color:rgb(255 255 255/.15);color:#cbd5e1}
+
+#pd-p-tk .pd-at.hidden,#pd-p-tk .pd-atb.hidden{display:none!important}
+#pd-p-tk .pd-atb span{display:inline-flex;align-items:center;padding:.25rem .45rem}
+#pd-p-tk .pd-tform>div:last-child{flex-wrap:nowrap;overflow-x:auto}
+#pd-p-tk .pd-when{display:flex;align-items:center;gap:.25rem;flex-wrap:nowrap}
+#pd-p-tk .pd-when>b{font-size:.74rem;white-space:nowrap;margin-inline-end:.15rem}
+#pd-p-tk .pd-chipr span{white-space:nowrap}
+#pd-p-tk .pd-tadd,#pd-p-tk .pd-tform .btn-primary{white-space:nowrap;flex-shrink:0}
