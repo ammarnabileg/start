@@ -229,9 +229,9 @@ function ai_cheap_answer(int $wid, array $cfg, string $msg, string $channel): ?a
     if ($sv['faq'] && count($qw) >= 2 && function_exists('kb_get')) {
         $best = null; $bs = 0;
         foreach ((array)(kb_get($wid)['faq']['rows'] ?? []) as $r) { $q = trim((string)($r['q'] ?? '')); $a = trim((string)($r['a'] ?? '')); if ($q === '' || $a === '') continue;
-            $fw = ai_words(ai_norm_q($q)); if (!$fw) continue; $in = count(array_intersect($qw, $fw)); $sc = $in / max(count($fw), count($qw));
+            $fw = ai_words(ai_norm_q($q)); if (!$fw) continue; $in = count(array_intersect($qw, $fw)); $sc = $in >= 2 ? $in / max(count($fw), count($qw)) : 0;
             if ($sc > $bs) { $bs = $sc; $best = $a; } }
-        if ($best !== null && $bs >= 0.6) return ['action' => 'reply', 'reply' => $best, 'reason' => t('من الأسئلة الشائعة'), 'src' => 'faq'];
+        if ($best !== null && $bs >= 0.7) return ['action' => 'reply', 'reply' => $best, 'reason' => t('من الأسئلة الشائعة'), 'src' => 'faq'];
     }
     if ($sv['cache'] && count($qw) >= 2) {
         $c = json_decode((string)setting('ai_cache_' . $wid, ''), true) ?: []; $k = $channel . ':' . implode(' ', $qw);
