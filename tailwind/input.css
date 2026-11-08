@@ -802,7 +802,7 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pr-dlg>*{flex-shrink:0}
 #pr-dlg .pd-body{flex:1 1 auto;min-height:0;overflow-y:auto}
 #pr-dlg .pd-body.pd-one{display:block}
-#pr-dlg .pd-side.hidden{display:none!important}
+#pr-dlg .pd-info.hidden{display:none!important}
 #pd-addc:has(input[name=phone].hidden):has(input[name=email].hidden){display:none!important}
 #pr-dlg .pd-tabs{position:sticky;top:0;z-index:5;background:#fff}
 /* هيدر فاتح */
@@ -1453,3 +1453,32 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 #pd-p-tk .pd-when>b{font-size:.74rem;white-space:nowrap;margin-inline-end:.15rem}
 #pd-p-tk .pd-chipr span{white-space:nowrap}
 #pd-p-tk .pd-tadd,#pd-p-tk .pd-tform .btn-primary{white-space:nowrap;flex-shrink:0}
+
+/* سطر البيانات تحت الاسم: كله في سطر أو اتنين */
+#pr-dlg .pd-hero{padding-bottom:.6rem!important}
+#pr-dlg .pd-hero>.flex{border-bottom:0!important}
+#pr-dlg .pd-info{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;align-items:center;gap:.35rem .5rem!important;padding:.45rem .9rem!important;border-top:1px dashed #e2e8f0;border-bottom:1px solid #eef2f7}
+#pr-dlg .pd-info>*{margin:0!important}
+#pr-dlg .pd-info .pd-card{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+#pr-dlg .pd-info .pd-card>span.text-xs{display:none}
+#pr-dlg .pd-info .pd-card .mt-2{margin-top:0!important}
+#pr-dlg .pd-info .pd-card label{gap:.3rem!important}
+#pr-dlg .pd-info .pd-card label>b{display:none}
+#pr-dlg .pd-info #pd-owner{height:1.75rem!important;font-size:.74rem!important;padding:0 1.6rem 0 .5rem!important;border-radius:999px!important;max-width:150px!important}
+#pr-dlg .pd-info .pd-meta{font-size:.74rem;gap:.15rem .6rem!important}
+#pr-dlg .pd-info .pd-meta *{font-size:.74rem}
+#pr-dlg .pd-info #pd-tag-f input{height:1.75rem;font-size:.72rem;border-radius:999px;width:84px}
+#pr-dlg .pd-info #pd-contact{margin:0!important;display:contents!important}
+#pr-dlg .pd-info .pd-addc{flex-basis:100%}
+.pd-plsel{height:1.75rem;font-size:.74rem;border:1px solid #e2e8f0;border-radius:999px;padding:0 1.6rem 0 .5rem;background:#fff;max-width:150px}
+.dark .pd-plsel{background:#0f172a;border-color:rgb(255 255 255/.12);color:#e2e8f0}
+.dark #pr-dlg .pd-info{border-color:rgb(255 255 255/.08)}
+/* أكتر من مهمة */
+#pd-p-tk .pd-unext{position:relative}
+.pd-trm{width:1.4rem;height:1.4rem;border-radius:999px;display:grid;place-items:center;color:#94a3b8;flex-shrink:0}
+.pd-trm:hover{background:#fee2e2;color:#dc2626}
+
+#pr-dlg .pd-info{border-top:1px dashed #e2e8f0;border-bottom:0;margin-top:.55rem;padding:.5rem 0 0!important}
+#pr-dlg .pd-info .pd-own{display:inline-flex;align-items:center;gap:.25rem;color:#94a3b8}
+#pr-dlg .pd-info .pd-tagw{display:inline-flex;align-items:center;gap:.25rem}
+#pr-dlg .pd-side.hidden{display:none!important}
