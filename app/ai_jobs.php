@@ -258,6 +258,11 @@ function ai_decide(int $wid, array $cfg, string $msg, string $channel, string $h
     $fast = $cfg['save']['route'] && ai_is_simple($msg);
     $d = kb_decide($wid, $msg, $channel, mb_substr($history, $fast ? -500 : -1200), ai_reply_style($cfg), $fast ? 'reply_fast' : 'reply');
     ai_save_stat($wid, $fast ? 'fast' : 'ai');
+    if ($d['action'] === 'reply' && ($g = ai_reply_guard($wid, $msg, (string)$d['reply'])) !== '') {
+        // تعليق عام: منردش خالص. رسالة خاصة: تتحفظ مسودة للمراجعة حتى لو الوضع «إرسال تلقائي»
+        if ($channel === 'comment') return ['action' => 'handoff', 'reply' => '', 'reason' => $g, 'confidence' => 0, 'src' => 'guard', 'model' => $d['model'] ?? '', 'cost' => $d['cost'] ?? null];
+        return $d + ['guard' => $g, 'src' => 'ai'] ;
+    }
     // بنحفظ بس لو مفيش سياق قبلها: «وكام سعرها؟» إجابتها بتعتمد على المحادثة ومينفعش تتكرر لعميل تاني
     if ($cfg['save']['cache'] && trim($history) === '' && $d['action'] === 'reply' && trim((string)$d['reply']) !== '') {
         $qw = ai_words(ai_norm_q($msg));
@@ -273,6 +278,26 @@ function ai_is_simple(string $m): bool
     $m = trim($m); $n = mb_strlen($m);
     if ($n === 0 || $n > 90 || substr_count($m, '?') + substr_count($m, '؟') > 1 || preg_match('/\n.*\n/u', $m)) return false;
     return !preg_match('/(شكو|مشكل|زعلان|سيء|سيئ|استرجاع|استرداد|ارجاع|إرجاع|تعويض|غلط|خطأ|متأخر|اتأخر|ما وصل|موصلش|لم يصل|refund|complain|problem|issue|broken|wrong|late|cancel|الغاء|إلغاء|لغي|عقد|مقارن|افرق|الفرق|compare)/iu', $m);
+}
+
+/** فحص رد الذكاء الاصطناعي قبل الإرسال. بيرجّع سبب المشكلة أو '' لو سليم */
+function ai_reply_guard(int $wid, string $msg, string $reply): string
+{
+    $r = trim($reply); if ($r === '') return '';
+    if (preg_match('/^\s*[\{\[]|"action"\s*:|```/u', $r)) return t('رد بصيغة غير صالحة');
+    if (preg_match('/\[[^\]\n]{2,30}\]|\{\{|\bXXX\b|\bTODO\b|<[a-z]+>/u', $r)) return t('الرد فيه خانة فارغة لم تُملأ');
+    if (preg_match('/(as an ai|language model|i am an ai|i don\'t have access|كنموذج لغوي|كذكاء اصطناعي|أنا ذكاء اصطناعي|لا أملك صلاحية الوصول)/iu', $r)) return t('الرد يتكلم عن نفسه كذكاء اصطناعي');
+    if (preg_match('/\p{Arabic}/u', $msg) && !preg_match('/\p{Arabic}/u', $r)) return t('العميل كتب بالعربي والرد بلغة أخرى');
+    // أي رقم (سعر/مدة/تليفون) أو رابط في الرد لازم يكون موجود في قاعدة المعرفة أو في كلام العميل، غير كده ممكن يكون متألف
+    $norm = function ($t) { return strtr($t, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '٫' => '.', ',' => '']); };
+    $kb = function_exists('kb_compile') ? $norm(kb_compile($wid, '', false) . "\n" . implode("\n", function_exists('kb_relevant_chunks') ? kb_relevant_chunks($wid, $msg . ' ' . $reply, 8) : [])) : '';
+    if ($kb === '') return '';
+    $hay = $kb . "\n" . $norm($msg);
+    preg_match_all('/\d+(?:\.\d+)?/u', $norm($r), $m);
+    foreach (array_unique($m[0]) as $num) { if (strlen($num) < 2 || preg_match('/^(24|7|10|12|30|60|100)$/', $num)) continue; if (!preg_match('/(?<![\d.])' . preg_quote($num, '/') . '(?![\d])/u', $hay)) return t('الرد فيه رقم غير موجود في قاعدة المعرفة: %s', $num); }
+    preg_match_all('~(?:https?://|www\.)[^\s<>"]+~iu', $r, $u);
+    foreach ($u[0] as $link) { $host = preg_replace('~^(?:https?://)?(?:www\.)?([^/:?#]+).*$~i', '$1', $link); if (stripos($hay, $host) === false) return t('الرد فيه رابط غير موجود في قاعدة المعرفة'); }
+    return '';
 }
 
 /** تعليمات الأسلوب للموديل */
@@ -385,9 +410,9 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
                 log_activity('ai.handoff', $id . ' ' . $d['reason']);
             }
             if ($text === '') { $done[$id] = $h; if ($d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => '', 'handoff' => true, 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]); continue; }
-            if ($cfg['mode'] === 'send') { $z->sendMessage($id, $acc, $text); ai_sent_mark($wid, $text); log_activity('ai.auto_reply', $id); }
-            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => $d['reason'], 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
-            ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send', 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
+            if ($cfg['mode'] === 'send' && empty($d['guard'])) { $z->sendMessage($id, $acc, $text); ai_sent_mark($wid, $text); log_activity('ai.auto_reply', $id); }
+            else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => !empty($d['guard']) ? '⚠ ' . $d['guard'] : $d['reason'], 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
+            ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send' || !empty($d['guard']), 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
             $done[$id] = $h; $n++;
         } catch (Throwable $e) {
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who ?? '', 'platform' => $plat ?? '', 'in' => mb_substr($m, 0, 300), 'out' => '', 'reason' => 'خطأ: ' . mb_substr($e->getMessage(), 0, 160)]);
