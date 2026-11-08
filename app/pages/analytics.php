@@ -457,6 +457,21 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
             <?php endforeach; ?>
           </div>
 
+          <?php /* الرسائل في النظرة العامة: نفس الفترة، وتفاصيلها في قسم الرسائل */
+          $fxd = getenv('UI_FIXTURES'); $mfx = $fxd && is_file($fxd . '/inbox_analytics.json') ? json_decode((string)file_get_contents($fxd . '/inbox_analytics.json'), true) : null;
+          $mq = ['fromDate' => $per['from'], 'toDate' => $per['to'], 'profileId' => zernio_profile()];
+          [$mv] = $mfx ? [$mfx['volume'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'volume', $mq); });
+          [$mr] = $mfx ? [$mfx['response-time'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'response-time', $mq); });
+          $ms = (array)($mv['summary'] ?? []); $mrs = (array)($mr['summary'] ?? []);
+          if ($ms || $mrs): ?>
+        <a href="<?= e($q(['tab' => 'messages'])) ?>" class="card p-4 flex flex-wrap items-center gap-x-6 gap-y-3 hover:border-brand-300 transition">
+          <b class="flex items-center gap-2 text-sm text-ink-900"><?= ui_icon('chat', 'w-4 h-4 text-brand-600') ?><?= e(t('الرسائل')) ?></b>
+          <?php foreach ([[t('واردة'), number_format((int)($ms['received'] ?? 0))], [t('مُرسلة'), number_format((int)($ms['sent'] ?? 0))], [t('فشلت'), number_format((int)($ms['failed'] ?? 0))], [t('الرد المعتاد'), !empty($mrs['medianSeconds']) ? an_duration((float)$mrs['medianSeconds']) : '—']] as $k): ?>
+            <span class="flex flex-col"><small class="text-[11px] text-ink-500"><?= e($k[0]) ?></small><b class="text-lg text-ink-900 tabular-nums"><?= e($k[1]) ?></b></span>
+          <?php endforeach; ?>
+          <span class="ms-auto text-xs text-brand-700 flex items-center gap-1"><?= e(t('التفاصيل')) ?><?= ui_icon('chevron-left', 'w-3.5 h-3.5') ?></span>
+        </a>
+      <?php endif; ?>
           <section class="card p-5">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
               <h2 class="font-bold text-ink-900 flex items-center gap-2"><?= e(t('الأداء يوم بيوم')) ?>
@@ -571,7 +586,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
               <h2 class="font-bold text-ink-900 mb-3"><?= e(t('أفضل 10 منشورات')) ?></h2>
               <?php if ($E['top']): ?><?= an_notice($E['top']) ?>
               <?php elseif (!$topList): ?><?= an_empty(t('مفيش منشورات في الفترة دي.')) ?>
-              <?php else: ?><ol class="space-y-3"><?php foreach ($topList as $i => $p) $postItem($p, $i, true); ?></ol><?php endif; ?>
+              <?php else: ?><ol class="space-y-3 an-top"><?php foreach ($topList as $i => $p) $postItem($p, $i, true); ?></ol><?php if (count($topList) > 5): ?><button type="button" class="an-more" onclick="this.previousElementSibling.classList.add('all');this.remove()"><?= e(t('اعرض الكل (%s)', count($topList))) ?></button><?php endif; ?><?php endif; ?>
               <?php $ins = (array)($D['ins'] ?? []); if ($ins): ?>
                 <div class="mt-4 rounded-xl border border-lime-200 bg-lime-50/50 p-3">
                   <div class="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5"><?= ui_icon('bulb', 'w-4 h-4 text-amber-500') ?><?= e(t('ليه منشوراتك الناجحة نجحت')) ?></div>
@@ -610,21 +625,6 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
 
       <?php
       /* =========================== المنشورات =========================== */
-          /* الرسائل في النظرة العامة: نفس الفترة، وتفاصيلها في قسم الرسائل */
-          $fxd = getenv('UI_FIXTURES'); $mfx = $fxd && is_file($fxd . '/inbox_analytics.json') ? json_decode((string)file_get_contents($fxd . '/inbox_analytics.json'), true) : null;
-          $mq = ['fromDate' => $per['from'], 'toDate' => $per['to'], 'profileId' => zernio_profile()];
-          [$mv] = $mfx ? [$mfx['volume'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'volume', $mq); });
-          [$mr] = $mfx ? [$mfx['response-time'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'response-time', $mq); });
-          $ms = (array)($mv['summary'] ?? []); $mrs = (array)($mr['summary'] ?? []);
-          if ($ms || $mrs): ?>
-        <a href="<?= e($q(['tab' => 'messages'])) ?>" class="card p-4 flex flex-wrap items-center gap-x-6 gap-y-3 hover:border-brand-300 transition">
-          <b class="flex items-center gap-2 text-sm text-ink-900"><?= ui_icon('chat', 'w-4 h-4 text-brand-600') ?><?= e(t('الرسائل')) ?></b>
-          <?php foreach ([[t('واردة'), number_format((int)($ms['received'] ?? 0))], [t('مُرسلة'), number_format((int)($ms['sent'] ?? 0))], [t('فشلت'), number_format((int)($ms['failed'] ?? 0))], [t('الرد المعتاد'), !empty($mrs['medianSeconds']) ? an_duration((float)$mrs['medianSeconds']) : '—']] as $k): ?>
-            <span class="flex flex-col"><small class="text-[11px] text-ink-500"><?= e($k[0]) ?></small><b class="text-lg text-ink-900 tabular-nums"><?= e($k[1]) ?></b></span>
-          <?php endforeach; ?>
-          <span class="ms-auto text-xs text-brand-700 flex items-center gap-1"><?= e(t('التفاصيل')) ?><?= ui_icon('chevron-left', 'w-3.5 h-3.5') ?></span>
-        </a>
-      <?php endif;
       elseif ($tab === 'posts'):
           $posts = (array)($D['posts']['posts'] ?? []);
           $tagsMap = an_tags_map();

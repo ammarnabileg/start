@@ -383,6 +383,8 @@ function ip_private_reply_block(array $c, string $postId, string $accId, bool $i
 render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $platform, $acctFilter, $q, $base, $accounts, $convs, $next, $messages, $current, $convId, $accId, $apiError, $pageLabels, $convLabels, $labelError, $posts, $comments, $currentPost, $postId, $msgPlatforms) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
+    $hasLi = false; foreach ((array)$accounts as $ax) if (($ax['platform'] ?? '') === 'linkedin') { $hasLi = true; break; }
+    if ($hasLi): ?><details class="mb-3 text-xs rounded-xl border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2"><summary class="cursor-pointer font-semibold"><?= e(t('لماذا لا تظهر رسائل لينكدإن هنا؟')) ?></summary><p class="mt-1.5 leading-6"><?= e(t('لينكدإن لا يسمح لأي تطبيق خارجي بقراءة الرسائل الخاصة، فلن تظهر هنا. تعليقات لينكدإن تظهر في صفحة التعليقات فقط إذا كان الحساب المربوط صفحة شركة، وقد تتأخر حتى 10–15 دقيقة.')) ?> <a class="link" href="<?= e(url('comments')) ?>"><?= e(t('التعليقات')) ?></a></p></details><?php endif;
     $folders = ['inbox' => t('الوارد'), 'requests' => t('طلبات الرسائل'), 'comments' => t('رد خاص على تعليق')];
     $plat = $current['platform'] ?? '';
     // الرقم التجريبي المشترك لواتساب: الإرسال بس، من غير تفاعلات

@@ -1525,3 +1525,7 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 #an-bar.emb .card>*:not(#an-sec-btn):not(#an-sec){display:none!important}
 
 #an-bar.emb-m #an-acc{display:none!important}
+
+.an-top:not(.all)>li:nth-child(n+6){display:none}
+.an-more{margin-top:.6rem;width:100%;font-size:.78rem;font-weight:600;color:#1d4ed8;padding:.45rem;border-radius:10px;background:#eff6ff}.an-more:hover{background:#dbeafe}
+.dark .an-more{background:rgb(37 99 235/.15);color:#93c5fd}
