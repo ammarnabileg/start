@@ -59,6 +59,8 @@ function comp_ev_title(string $kind, string $subject): string
         case 'hours': return t('غيّر المواعيد');
         case 'soc_bio': return t('غيّر وصف حسابه على %s', $subject);
         case 'soc_name': return t('غيّر اسم حسابه على %s', $subject);
+        case 'ad_new': return t('إعلان جديد: %s', $subject);
+        case 'ad_stop': return t('أوقف إعلان: %s', $subject);
         case 'soc_link': return t('غيّر الرابط في حسابه على %s', $subject);
     }
     return $subject;

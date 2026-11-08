@@ -528,6 +528,46 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '055_comp_ads' => [
+        "CREATE TABLE IF NOT EXISTS competitor_ads (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            competitor_id INT UNSIGNED NOT NULL,
+            ext_id VARCHAR(64) NOT NULL,
+            page_name VARCHAR(190) NULL,
+            active TINYINT(1) NOT NULL DEFAULT 1,
+            started DATE NULL,
+            ended DATE NULL,
+            platforms VARCHAR(190) NULL,
+            body TEXT NULL,
+            title VARCHAR(300) NULL,
+            cta VARCHAR(80) NULL,
+            link VARCHAR(700) NULL,
+            format VARCHAR(20) NULL,
+            thumb VARCHAR(700) NULL,
+            variants SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+            first_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen DATETIME NULL,
+            UNIQUE KEY comp_ext (competitor_id, ext_id),
+            INDEX comp_act (competitor_id, active),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_landing (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            competitor_id INT UNSIGNED NOT NULL,
+            url VARCHAR(700) NOT NULL,
+            url_hash CHAR(32) NOT NULL,
+            title VARCHAR(300) NULL,
+            h1 VARCHAR(300) NULL,
+            descr VARCHAR(500) NULL,
+            prices VARCHAR(500) NULL,
+            ok TINYINT(1) NOT NULL DEFAULT 0,
+            fetched_at DATETIME NULL,
+            UNIQUE KEY comp_url (competitor_id, url_hash),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "ALTER TABLE competitors ADD COLUMN ads_check DATETIME NULL",
+    ],
     '054_comp_social2' => [
         "CREATE TABLE IF NOT EXISTS competitor_comments (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -8,8 +8,8 @@
   function toast(m, k) { if (window.fxToast) fxToast(m, k || 'success'); }
   function num(v) { return (+v || 0).toLocaleString('en-US'); }
   function kfmt(v) { if (v == null) return '—'; var a = Math.abs(v), s = v < 0 ? '-' : ''; return s + (a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M' : a >= 1e4 ? (a / 1e3).toFixed(a >= 1e5 ? 0 : 1) + 'K' : a.toLocaleString('en-US')); }
-  var KC = { price_up: '#dc2626', price_down: '#16a34a', price: '#d97706', offer_new: '#2563eb', offer_gone: '#64748b', svc_new: '#0891b2', svc_gone: '#64748b', hours: '#64748b', down: '#dc2626', up: '#16a34a', soc_bio: '#db2777', soc_name: '#db2777', soc_link: '#db2777' };
-  var KI = { price_up: 'trend_up', price_down: 'trend_down', price: 'tag', offer_new: 'star', offer_gone: 'star', svc_new: 'plus', svc_gone: 'trash', hours: 'clock', down: 'alert', up: 'check', soc_bio: 'pencil', soc_name: 'pencil', soc_link: 'link' };
+  var KC = { price_up: '#dc2626', price_down: '#16a34a', price: '#d97706', offer_new: '#2563eb', offer_gone: '#64748b', svc_new: '#0891b2', svc_gone: '#64748b', hours: '#64748b', down: '#dc2626', up: '#16a34a', soc_bio: '#db2777', soc_name: '#db2777', soc_link: '#db2777', ad_new: '#7c3aed', ad_stop: '#64748b' };
+  var KI = { price_up: 'trend_up', price_down: 'trend_down', price: 'tag', offer_new: 'star', offer_gone: 'star', svc_new: 'plus', svc_gone: 'trash', hours: 'clock', down: 'alert', up: 'check', soc_bio: 'pencil', soc_name: 'pencil', soc_link: 'link', ad_new: 'megaphone', ad_stop: 'megaphone' };
   var GR = [['#2563eb', '#06b6d4'], ['#7c3aed', '#ec4899'], ['#059669', '#84cc16'], ['#ea580c', '#f59e0b'], ['#0f766e', '#22d3ee'], ['#be123c', '#f97316']];
   function grad(n) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; var g = GR[h % GR.length]; return 'linear-gradient(135deg,' + g[0] + ',' + g[1] + ')'; }
   function post(d) { var fd = new FormData(); fd.append('_csrf', X.csrf); fd.append('ajax', '1'); Object.keys(d).forEach(function (k) { fd.append(k, d[k]); });
@@ -70,7 +70,7 @@
   function sheetBody() { var c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (!c) return ''; var ev = D.events.filter(function (e) { return e.cid === c.id; }), st = stand(c.id);
     var head = '<header><span class="cx-av" style="background:' + grad(c.name) + '">' + esc(c.name.charAt(0)) + '</span><div class="min-w-0 flex-1"><b class="block text-lg text-ink-900 truncate">' + esc(c.name) + '</b><a class="text-xs link" dir="ltr" href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.host) + ' ↗</a>' + (c.note ? '<p class="text-xs text-ink-500 mt-1">' + esc(c.note) + '</p>' : '') + '</div><button type="button" class="cx-x" data-shx>' + ic('x', 'w-5 h-5') + '</button></header>' +
       '<div class="cx-mini px-5">' + (st.ch ? '<span class="cheap">' + esc(f(T.cheaperIn, st.ch)) + '</span>' : '') + (st.ex ? '<span class="exp">' + esc(f(T.pricierIn, st.ex)) + '</span>' : '') + '<span>' + esc(c.checked) + '</span></div>' +
-      '<nav class="cx-tabs">' + [['ch', T.tCh, ev.length], ['svc', T.tSvc, c.services.length], ['off', T.tOff, c.offers.length], ['soc', T.tSoc, c.soc ? c.soc.n : 0]].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + ' <i>' + x[2] + '</i></button>'; }).join('') + '</nav>';
+      '<nav class="cx-tabs">' + [['ch', T.tCh, ev.length], ['svc', T.tSvc, c.services.length], ['off', T.tOff, c.offers.length], ['soc', T.tSoc, c.soc ? c.soc.n : 0], ['ads', T.tAds, c.ads || 0]].map(function (x) { return '<button type="button" data-st="' + x[0] + '"' + (sTab === x[0] ? ' class="on"' : '') + '>' + esc(x[1]) + ' <i>' + x[2] + '</i></button>'; }).join('') + '</nav>';
     var body = '';
     if (sTab === 'ch') body = ev.length ? ev.map(function (e) { return evRow(e); }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noCh) + '</p>';
     if (sTab === 'svc') { var mine = {}; D.prices.forEach(function (r) { var x = r.them[c.id]; if (x) mine[x.price + '|' + r.name] = r; });
@@ -78,6 +78,7 @@
       body = '<label class="mk-search !w-full !h-9 mb-3"><input type="search" data-sq value="' + esc(sq) + '" placeholder="' + esc(T.find) + '"></label>' + (c.services.length ? '<div class="cx-svcs">' + list.map(function (s) { var r = D.prices.filter(function (p) { var x = p.them[c.id]; return x && x.price === s.price && (p.name === s.name || true) && x.n != null; })[0], x = r ? r.them[c.id] : null;
         return '<div class="cx-svc"><span dir="auto">' + esc(s.name) + '</span><b dir="auto">' + esc(s.price) + '</b>' + (x && x.d ? '<em class="' + (x.d < 0 ? 'ch' : 'ex') + '" title="' + esc(T.vs + ' ' + r.mine) + '">' + (x.d > 0 ? '+' : '') + x.d + '%</em>' : '<em></em>') + '</div>'; }).join('') + '</div>' : '<p class="text-sm text-ink-400">' + esc(T.noSvc) + '</p>'); }
     if (sTab === 'soc') body = '<div data-soc>' + (SOC[c.id] ? socBody(c, SOC[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.sLoading) + '</p>') + '</div>';
+    if (sTab === 'ads') body = '<div data-ads>' + (ADS[c.id] ? adsBody(c, ADS[c.id]) : '<p class="text-sm text-ink-400"><span class="ai-spin"></span> ' + esc(T.aLoading) + '</p>') + '</div>';
     if (sTab === 'off') body = c.offers.length ? c.offers.map(function (o) { return '<div class="cx-off">' + ic('star') + '<span dir="auto">' + esc(o) + '</span></div>'; }).join('') : '<p class="text-sm text-ink-400">' + esc(T.noOff) + '</p>';
     return head + '<div class="cx-shc">' + body + '</div>'; }
 
@@ -146,13 +147,52 @@
   function socPaint() { var a = root.querySelector('[data-soc]'); var c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (a && c && SOC[c.id]) a.innerHTML = socBody(c, SOC[c.id]); }
   function socLoad(id, action, extra) { return post(Object.assign({ action: action || 'social', id: id }, extra || {})).then(function (j) { if (!j || !j.ok) { toast((j && j.error) || T.err, 'error'); return j; } SOC[id] = j.r; if (j.links) D.comps.forEach(function (c) { if (c.id === id) c.links = j.links; }); if (openId === id && sTab === 'soc') socPaint(); socWatch(id); return j; }); }
   function socWatch(id) { clearTimeout(pollT); var r = SOC[id]; if (!r || !r.accounts.some(function (a) { return a.pending; }) || openId !== id) return; pollT = setTimeout(function () { socLoad(id, 'social_poll'); }, 8000); }
+
+  /* ---------- الإعلانات ---------- */
+  var ADS = {}, adF = { pl: '', q: '', more: 20 }, adT = null;
+  var APL = { facebook: ['#1877f2', 'FB'], instagram: ['#e1306c', 'IG'], messenger: ['#0084ff', 'MS'], audience_network: ['#64748b', 'AN'], threads: ['#111827', 'TH'], whatsapp: ['#16a34a', 'WA'] };
+  var APN = { facebook: 'Facebook', instagram: 'Instagram', messenger: 'Messenger', audience_network: 'Audience Network', threads: 'Threads', whatsapp: 'WhatsApp' };
+  function apl(p) { var x = APL[p] || ['#64748b', p.slice(0, 2).toUpperCase()]; return '<i class="cs-pl" style="--c:' + x[0] + '" title="' + esc(APN[p] || p) + '">' + x[1] + '</i>'; }
+  function adCard(a) {
+    return '<div class="ca-ad' + (a.active ? '' : ' off') + '">' + (a.thumb ? '<img src="' + esc(a.thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '<span class="ca-noimg">' + ic('megaphone', 'w-5 h-5') + '</span>') +
+      '<div class="min-w-0 flex-1"><div class="cs-pm"><span class="ca-days' + (a.days >= 30 ? ' win' : '') + '">' + (a.days >= 30 ? '🏆 ' : '') + esc(f(a.active ? T.aDays : T.aRan, a.days)) + '</span>' + (a.isNew && a.active ? '<span class="ca-new">' + esc(T.aNewB) + '</span>' : '') + '<span class="ca-pls">' + a.platforms.map(apl).join('') + '</span></div>' +
+      (a.title ? '<b class="ca-t" dir="auto">' + esc(a.title) + '</b>' : '') + '<p dir="auto">' + esc(a.body || '—') + '</p>' +
+      '<div class="ca-meta">' + (a.cta ? '<span class="ca-cta">' + esc(a.cta) + '</span>' : '') + '<span>' + esc(T['f_' + a.format] || a.format) + '</span>' + (a.variants > 1 ? '<span>' + esc(f(T.aVar, a.variants)) + '</span>' : '') + '<span>' + esc(a.start) + (a.end ? ' ← ' + esc(a.end) : '') + '</span>' +
+      (a.host ? '<a class="link" href="' + esc(a.link) + '" target="_blank" rel="noopener" dir="ltr">' + esc(a.host) + '</a>' : '') + '<a class="link ms-auto" href="' + esc(a.lib) + '" target="_blank" rel="noopener">' + esc(T.aLib) + ' ↗</a></div></div></div>'; }
+  function bars(o, nameF, den) { var t = den || 0; if (!t) Object.keys(o).forEach(function (k) { t += o[k]; }); return '<div class="cs-mix">' + Object.keys(o).map(function (k) { var pc = Math.round(o[k] / t * 100); return '<div><span>' + esc(nameF(k)) + '</span><i><b style="width:' + pc + '%"></b></i><em><bdi dir="ltr">' + o[k] + '</bdi></em></div>'; }).join('') + '</div>'; }
+  function adsBody(c, r) {
+    var busy = r.pending, h = '<div class="cs-head"><div>' + (r.checked ? '<small class="text-ink-400">' + esc(T.aChecked) + ' ' + esc(r.checked) + '</small>' : '') + '</div>' + (r.on && r.page ? '<button type="button" class="btn-ghost !py-1 !text-xs" data-arefresh' + (busy ? ' disabled' : '') + '>' + ic('refresh') + '<span>' + esc(busy ? T.sReading : T.aRefresh) + '</span></button>' : '') + '</div>';
+    if (!r.on) return h + '<div class="cs-note">' + esc(T.aNoApify) + '</div>';
+    if (!r.page) return h + '<div class="cs-note">' + esc(T.aNoPage) + '</div>';
+    if (r.err) h += '<p class="cs-err">' + esc(r.err) + '</p>';
+    if (busy) h += '<p class="cs-pend mb-2"><span class="ai-spin"></span>' + esc(T.aBusy) + '</p>';
+    var k = r.k;
+    h += '<div class="cs-kp">' + [[k.active, T.aActive, ''], [k.win, T.aWin, T.aWinH], [k.new, T.aNew, T.aNewH], [k.avgDays, T.aAvg, T.aAvgH]].map(function (x) { return '<div><small>' + esc(x[1]) + '</small><b>' + x[0] + '</b>' + (x[2] ? '<i>' + esc(x[2]) + '</i>' : '') + '</div>'; }).join('') + '</div>';
+    if (!r.checked && !busy) return h + '<p class="text-sm text-ink-400 mt-3">' + esc(T.aNever) + '</p>';
+    if (!k.active) return h + '<p class="text-sm text-ink-400 mt-3">' + esc(T.aNone) + '</p>' + stoppedHtml(r);
+    if (Object.keys(r.platforms).length) h += '<section class="cs-sec"><h4>' + esc(T.aPl) + '</h4>' + bars(r.platforms, function (p) { return APN[p] || p; }, r.k.active) + '</section>';
+    if (Object.keys(r.formats).length > 1 || Object.keys(r.ctas).length) h += '<section class="cs-sec"><h4>' + esc(T.aFmt) + '</h4>' + bars(r.formats, function (x) { return T['f_' + x] || x; }) + (Object.keys(r.ctas).length ? '<p class="cs-sub" style="margin-top:.8rem">' + esc(T.aCtas) + '</p><div class="cs-chips">' + Object.keys(r.ctas).map(function (x) { return '<span class="cs-chip">' + esc(x) + ' <i>' + r.ctas[x] + '</i></span>'; }).join('') + '</div>' : '') + '</section>';
+    if (r.win.length) h += '<section class="cs-sec"><h4>' + esc(T.aWinT) + ' <small>' + r.win.length + '</small></h4><p class="cs-sub">' + esc(T.aWinD) + '</p>' + r.win.map(adCard).join('') + '</section>';
+    if (r.new.length) h += '<section class="cs-sec"><h4>' + esc(T.aNewT) + ' <small>' + r.new.length + '</small></h4>' + r.new.map(adCard).join('') + '</section>';
+    if (r.landing.length) h += '<section class="cs-sec"><h4>' + esc(T.aLand) + ' <small>' + r.landing.length + '</small></h4>' + r.landing.map(function (l) { return '<div class="ca-lp"><div class="flex items-center gap-2"><a class="link truncate flex-1" dir="ltr" href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.url.replace(/^https?:\/\/(www\.)?/, '')) + '</a><span class="ca-n">' + esc(f(T.aLpN, l.n)) + '</span></div>' +
+      (l.ok === null ? '<small class="text-ink-400">' + esc(T.aLpWait) + '</small>' : l.ok ? ((l.title || l.h1) ? '<b dir="auto">' + esc(l.h1 || l.title) + '</b>' : '') + (l.descr ? '<p dir="auto">' + esc(l.descr) + '</p>' : '') + (l.prices.length ? '<div class="cs-chips">' + l.prices.map(function (x) { return '<span class="cs-chip" dir="auto">' + esc(x) + '</span>'; }).join('') + '</div>' : '') : '<small class="cs-err">' + esc(T.aLpBad) + '</small>') + '</div>'; }).join('') + '</section>';
+    var pls = {}; r.active.forEach(function (a) { a.platforms.forEach(function (p) { pls[p] = 1; }); });
+    var list = r.active.filter(function (a) { return (!adF.pl || a.platforms.indexOf(adF.pl) >= 0) && (!adF.q || ((a.body || '') + ' ' + (a.title || '')).toLowerCase().indexOf(adF.q) >= 0); });
+    h += '<section class="cs-sec"><h4>' + esc(T.aAll) + ' <small>' + list.length + '</small></h4><div class="cs-ftr"><select data-afp class="cx-sel"><option value="">' + esc(T.sAllPl) + '</option>' + Object.keys(pls).map(function (p) { return '<option value="' + p + '"' + (adF.pl === p ? ' selected' : '') + '>' + esc(APN[p] || p) + '</option>'; }).join('') + '</select><input type="search" data-aq class="input !h-8 !text-xs flex-1" placeholder="' + esc(T.aFind) + '" value="' + esc(adF.q) + '"></div>' +
+      list.slice(0, adF.more).map(adCard).join('') + (list.length > adF.more ? '<button type="button" class="btn-ghost w-full !text-xs" data-amore>' + esc(T.sMore) + '</button>' : '') + '</section>';
+    return h + stoppedHtml(r); }
+  function stoppedHtml(r) { return r.stopped.length ? '<details class="cs-links mt-3"><summary>' + esc(f(T.aStopped, r.k.stopped)) + '</summary>' + r.stopped.map(adCard).join('') + '</details>' : ''; }
+  function adsPaint() { var a = root.querySelector('[data-ads]'), c = D.comps.filter(function (x) { return x.id === openId; })[0]; if (a && c && ADS[c.id]) a.innerHTML = adsBody(c, ADS[c.id]); }
+  function adsLoad(id, action) { return post({ action: action || 'ads', id: id }).then(function (j) { if (!j || !j.ok) { toast((j && j.error) || T.err, 'error'); if (ADS[id]) adsPaint(); return j; } ADS[id] = j.r; D.comps.forEach(function (c) { if (c.id === id) c.ads = j.r.k.active; }); if (openId === id && sTab === 'ads') adsPaint(); clearTimeout(adT); if (j.r.pending && openId === id) adT = setTimeout(function () { adsLoad(id, 'ads_poll'); }, 8000); return j; }); }
   function openSheet(id) { openId = id; sTab = 'ch'; sq = ''; var sh = root.querySelector('[data-sh]'); sh.querySelector('aside').innerHTML = sheetBody(); sh.classList.add('open'); document.documentElement.classList.add('hub-lock'); }
-  function closeSheet() { clearTimeout(pollT); openId = null; var sh = root.querySelector('[data-sh]'); if (sh) sh.classList.remove('open'); document.documentElement.classList.remove('hub-lock'); }
+  function closeSheet() { clearTimeout(pollT); clearTimeout(adT); openId = null; var sh = root.querySelector('[data-sh]'); if (sh) sh.classList.remove('open'); document.documentElement.classList.remove('hub-lock'); }
 
   root.addEventListener('click', function (e) { var t = e.target, b;
     if (t.closest('[data-open-add]')) { var pp = root.querySelector('[data-pop]'); pp.classList.toggle('hidden'); if (!pp.classList.contains('hidden')) pp.querySelector('[name=name]').focus(); return; }
     if ((b = t.closest('[data-fk]'))) { flt.kind = b.dataset.fk; paint(); return; }
-    if ((b = t.closest('[data-st]'))) { sTab = b.dataset.st; root.querySelector('[data-sh] aside').innerHTML = sheetBody(); if (sTab === 'soc') { socF = { pl: '', sort: 'new', q: '', more: 30 }; socLoad(openId); } return; }
+    if ((b = t.closest('[data-st]'))) { sTab = b.dataset.st; root.querySelector('[data-sh] aside').innerHTML = sheetBody(); if (sTab === 'soc') { socF = { pl: '', sort: 'new', q: '', more: 30 }; socLoad(openId); } if (sTab === 'ads') { adF = { pl: '', q: '', more: 20 }; adsLoad(openId); } return; }
+    if ((b = t.closest('[data-arefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; adsLoad(openId, 'ads_refresh').then(function (j) { if (j && j.ok) toast(T.aStarted); }); return; }
+    if (t.closest('[data-amore]')) { adF.more += 20; adsPaint(); return; }
     if ((b = t.closest('[data-srefresh]'))) { b.disabled = true; b.querySelector('span').textContent = T.sReading; socLoad(openId, 'social_refresh').then(function (j) { if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sNoAcc); }); return; }
     if ((b = t.closest('[data-slsave]'))) { var ta = root.querySelector('[data-slinks]'); b.disabled = true; socLoad(openId, 'links', { links: ta.value }).then(function (j) { b.disabled = false; if (j && j.ok) toast(j.started ? f(T.sStarted, j.started) : T.sSaved); }); return; }
     if (t.closest('[data-smore]')) { socF.more += 30; socPaint(); return; }
@@ -164,8 +204,9 @@
     if (t.closest('[data-stop]')) return; openSheet(id); });
   root.addEventListener('keydown', function (e) { var c = e.target.closest('[data-cid]'); if (c && e.key === 'Enter' && e.target === c) openSheet(+c.dataset.cid); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openId) closeSheet(); });
-  root.addEventListener('change', function (e) { if (e.target.matches('[data-sfp]')) { socF.pl = e.target.value; socF.more = 30; socPaint(); return; } if (e.target.matches('[data-ssort]')) { socF.sort = e.target.value; socPaint(); return; } if (e.target.matches('[data-fc]')) { flt.cid = e.target.value; paint(); } if (e.target.matches('[data-only]')) { onlyCheap = e.target.checked; paint(); } });
+  root.addEventListener('change', function (e) { if (e.target.matches('[data-afp]')) { adF.pl = e.target.value; adF.more = 20; adsPaint(); return; } if (e.target.matches('[data-sfp]')) { socF.pl = e.target.value; socF.more = 30; socPaint(); return; } if (e.target.matches('[data-ssort]')) { socF.sort = e.target.value; socPaint(); return; } if (e.target.matches('[data-fc]')) { flt.cid = e.target.value; paint(); } if (e.target.matches('[data-only]')) { onlyCheap = e.target.checked; paint(); } });
   root.addEventListener('input', function (e) { var t = e.target;
+    if (t.matches('[data-aq]')) { adF.q = t.value.trim().toLowerCase(); adsPaint(); var n3 = root.querySelector('[data-aq]'); n3.focus(); n3.setSelectionRange(n3.value.length, n3.value.length); return; }
     if (t.matches('[data-sq2]')) { socF.q = t.value.trim().toLowerCase(); socPaint(); var n2 = root.querySelector('[data-sq2]'); n2.focus(); n2.setSelectionRange(n2.value.length, n2.value.length); return; }
     if (t.matches('[data-sq]')) { sq = t.value.trim().toLowerCase(); var a = root.querySelector('[data-sh] aside'); a.innerHTML = sheetBody(); var n = a.querySelector('[data-sq]'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
     if (t.name === 'url' && t.closest('[data-add]')) { var v = t.value.trim().replace(/^https?:\/\//, '').split('/')[0], fv = t.closest('[data-add]').querySelector('[data-fav]'); fv.textContent = v ? v.charAt(0).toUpperCase() : ''; if (!v) fv.innerHTML = ic('link'); fv.classList.toggle('on', !!v);

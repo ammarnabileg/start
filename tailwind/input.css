@@ -1677,3 +1677,13 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .cs-rep{font-size:.64rem;color:#16a34a;font-weight:600}.cs-norep{font-size:.64rem;color:#dc2626;font-weight:600}
 .cs-chip.neg{background:#fee2e2;color:#991b1b}.cs-chip.neg i{color:#dc2626}
 .dark .cs-ax b,.dark .cs-kp b{color:#f1f5f9}.dark .cs-kp div,.dark .cs-cm{border-color:#334155}.dark .cs-cm p{color:#e2e8f0}.dark .cs-chip.neg{background:#450a0a;color:#fecaca}
+/* إعلانات المنافسين */
+.ca-ad{display:flex;gap:.6rem;align-items:flex-start;padding:.6rem;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:.45rem}.ca-ad.off{opacity:.7;background:#f8fafc}
+.ca-ad img,.ca-noimg{width:64px;height:64px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f1f5f9}.ca-noimg{display:grid;place-items:center;color:#94a3b8}
+.ca-ad p{font-size:.78rem;color:#1e293b;line-height:1.55;margin:.2rem 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.ca-t{display:block;font-size:.8rem;color:#0f172a;margin-top:.2rem}
+.ca-days{font-weight:700;color:#475569}.ca-days.win{color:#b45309}.ca-new{background:#ede9fe;color:#6d28d9;border-radius:99px;padding:0 .45rem;font-weight:700}
+.ca-pls{display:inline-flex;gap:.2rem;margin-inline-start:auto}.ca-pls .cs-pl{width:1.15rem;height:1.15rem;font-size:.45rem;border-radius:4px}
+.ca-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .7rem;font-size:.66rem;color:#64748b}.ca-cta{background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:.05rem .45rem;font-weight:700}
+.ca-lp{border:1px solid #e2e8f0;border-radius:12px;padding:.55rem .7rem;margin-bottom:.4rem;font-size:.76rem}.ca-lp b{display:block;color:#0f172a;margin-top:.25rem}.ca-lp p{color:#64748b;margin:.15rem 0 .35rem}.ca-n{font-size:.66rem;color:#64748b;white-space:nowrap}
+.dark .ca-ad,.dark .ca-lp{border-color:#334155}.dark .ca-ad.off{background:#0f172a}.dark .ca-ad p{color:#e2e8f0}.dark .ca-t,.dark .ca-lp b{color:#f1f5f9}.dark .ca-cta{background:#1e3a8a;color:#bfdbfe}.dark .ca-new{background:#4c1d95;color:#ddd6fe}
