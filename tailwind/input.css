@@ -1523,3 +1523,5 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 
 /* التحليلات: قسم الرسائل/التقارير ليه فلاتره جوه، فشريط الفترة اللي فوق بيستخبى */
 #an-bar.emb .card>*:not(#an-sec-btn):not(#an-sec){display:none!important}
+
+#an-bar.emb-m #an-acc{display:none!important}

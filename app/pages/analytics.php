@@ -240,7 +240,7 @@ if ($z) {
 }
 
 render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $sec, $per, $acc, $curAcc, $accounts, $accMap, $D, $E) {
-    if (!$z) { no_api_box(); return; }
+    if (!$z && $tab !== 'reports') { no_api_box(); return; }
 
     $q = function (array $over = []) use ($tab, $sec, $per, $acc) {
         $p = ['tab' => $tab, 'a' => $acc];
@@ -265,7 +265,7 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     <div class="space-y-5">
 
       <!-- الفلاتر: شريط واحد مدمج بيفضل ظاهر وانت بتنزل -->
-      <div id="an-bar" class="<?= in_array($tab, ['messages', 'reports'], true) ? 'emb ' : '' ?>sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
+      <div id="an-bar" class="<?= $tab === 'reports' ? 'emb ' : ($tab === 'messages' ? 'emb-m ' : '') ?>sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
         <div class="card px-3 py-2 flex flex-wrap items-center gap-2">
           <?php $secMeta = ['overview' => ['chart', t('الأرقام الأساسية والأداء اليومي')], 'posts' => ['file', t('أفضل المنشورات والهاشتاجات وتجارب A/B')], 'audience' => ['users', t('المتابعين ونموهم')], 'timing' => ['clock', t('أفضل وقت ونوع محتوى')], 'platforms' => ['layers', t('كل منصة لوحدها')], 'messages' => ['chat', t('سرعة الرد وحجم الرسائل والتعليقات')], 'reports' => ['file', t('تقارير جاهزة للطباعة والإرسال الدوري')]]; ?>
           <button type="button" popovertarget="an-sec" id="an-sec-btn" class="tb h-9 px-3 gap-2 text-sm font-semibold !text-ink-900"><?= ui_icon($secMeta[$tab][0] ?? 'chart', 'w-4 h-4 text-brand-600') ?><?= e($tabs[$tab]) ?><svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -331,11 +331,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
       /* =========================== نظرة عامة =========================== */
       /* =========== الرسائل والتقارير: جوه نفس الصفحة (نفس الأقسام) =========== */
       if ($tab === 'messages' || $tab === 'reports'):
-          $src = url($tab === 'messages' ? 'inbox_analytics' : 'reports', ['embed' => 1, 'd' => $per['custom'] ? null : $per['days']]); ?>
-        <iframe id="an-embed" src="<?= e($src) ?>" class="w-full rounded-2xl border-0 bg-transparent" style="min-height:70vh" loading="eager" title="<?= e($tabs[$tab]) ?>"></iframe>
-        <script>(function () { var f = document.getElementById('an-embed'); function fit() { try { var d = f.contentDocument; if (d && d.body) f.style.height = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight) + 'px'; } catch (e) {} }
-          f.addEventListener('load', function () { fit(); try { new ResizeObserver(fit).observe(f.contentDocument.body); f.contentDocument.addEventListener('click', function () { setTimeout(fit, 300); }); } catch (e) { setInterval(fit, 1000); } }); })();</script>
-      <?php
+          // دمج حقيقي: محتوى صفحة الرسائل/التقارير نفسه هنا، بفترة الصفحة دي
+          (function () use ($tab, $per) { $GLOBALS['AN_INLINE'] = 1; $GLOBALS['AN_PER'] = $per; $_GET['d'] = (string)$per['days'];
+              include __DIR__ . '/' . ($tab === 'messages' ? 'inbox_analytics' : 'reports') . '.php'; unset($GLOBALS['AN_INLINE']); })();
       elseif ($tab === 'overview'):
           $dates = an_date_list($per['from'], $per['to']);
           $pdates = an_date_list($per['pfrom'], $per['pto']);
@@ -612,6 +610,21 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
 
       <?php
       /* =========================== المنشورات =========================== */
+          /* الرسائل في النظرة العامة: نفس الفترة، وتفاصيلها في قسم الرسائل */
+          $fxd = getenv('UI_FIXTURES'); $mfx = $fxd && is_file($fxd . '/inbox_analytics.json') ? json_decode((string)file_get_contents($fxd . '/inbox_analytics.json'), true) : null;
+          $mq = ['fromDate' => $per['from'], 'toDate' => $per['to'], 'profileId' => zernio_profile()];
+          [$mv] = $mfx ? [$mfx['volume'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'volume', $mq); });
+          [$mr] = $mfx ? [$mfx['response-time'] ?? null] : an_try(function () use ($z, $mq) { return an_inbox($z, 'response-time', $mq); });
+          $ms = (array)($mv['summary'] ?? []); $mrs = (array)($mr['summary'] ?? []);
+          if ($ms || $mrs): ?>
+        <a href="<?= e($q(['tab' => 'messages'])) ?>" class="card p-4 flex flex-wrap items-center gap-x-6 gap-y-3 hover:border-brand-300 transition">
+          <b class="flex items-center gap-2 text-sm text-ink-900"><?= ui_icon('chat', 'w-4 h-4 text-brand-600') ?><?= e(t('الرسائل')) ?></b>
+          <?php foreach ([[t('واردة'), number_format((int)($ms['received'] ?? 0))], [t('مُرسلة'), number_format((int)($ms['sent'] ?? 0))], [t('فشلت'), number_format((int)($ms['failed'] ?? 0))], [t('الرد المعتاد'), !empty($mrs['medianSeconds']) ? an_duration((float)$mrs['medianSeconds']) : '—']] as $k): ?>
+            <span class="flex flex-col"><small class="text-[11px] text-ink-500"><?= e($k[0]) ?></small><b class="text-lg text-ink-900 tabular-nums"><?= e($k[1]) ?></b></span>
+          <?php endforeach; ?>
+          <span class="ms-auto text-xs text-brand-700 flex items-center gap-1"><?= e(t('التفاصيل')) ?><?= ui_icon('chevron-left', 'w-3.5 h-3.5') ?></span>
+        </a>
+      <?php endif;
       elseif ($tab === 'posts'):
           $posts = (array)($D['posts']['posts'] ?? []);
           $tagsMap = an_tags_map();

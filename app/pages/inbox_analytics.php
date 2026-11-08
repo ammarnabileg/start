@@ -5,6 +5,8 @@ $days = an_range_days($_GET['d'] ?? 30);
 $platforms = ['facebook', 'instagram', 'whatsapp', 'twitter', 'linkedin', 'telegram', 'tiktok'];
 $plat = in_array($_GET['pl'] ?? '', $platforms, true) ? $_GET['pl'] : '';
 [$from, $to] = an_dates($days);
+// جوه التحليلات: نفس فترة الصفحة (حتى لو فترة مخصصة)
+if (!empty($GLOBALS['AN_PER']['custom'])) { $from = (string)$GLOBALS['AN_PER']['from']; $to = (string)$GLOBALS['AN_PER']['to']; $days = max(1, (int)round((strtotime($to) - strtotime($from)) / 86400) + 1); }
 
 $res = [];
 $errs = [];
@@ -72,19 +74,21 @@ if ($z) {
     $words = ia2_top_words($texts, 20);
 }
 
-render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies, $prevVol) {
+$__sec = function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies, $prevVol) {
     if (!$z && !$fx) { no_api_box(); return; }
     $q = function (array $over = []) use ($days, $plat) {
-        return url('inbox_analytics', array_filter($over + ['d' => $days, 'pl' => $plat], function ($v) { return $v !== '' && $v !== null; }));
+        $in = !empty($GLOBALS['AN_INLINE']) && empty($over['csv']); $pp = $over + ['d' => $days, 'pl' => $plat] + ($in ? ['tab' => 'messages'] + array_intersect_key($_GET, ['from' => 1, 'to' => 1]) : []);
+        return url($in ? 'analytics' : 'inbox_analytics', array_filter($pp, function ($v) { return $v !== '' && $v !== null; }));
     };
     $vol = $res['volume'] ?? null;
     $sum = $vol['summary'] ?? [];
     ?>
     <div class="space-y-5">
       <form method="get" class="card p-4 flex flex-wrap items-end gap-3">
-        <input type="hidden" name="p" value="inbox_analytics">
+        <?php $IN = !empty($GLOBALS['AN_INLINE']); ?>
+        <input type="hidden" name="p" value="<?= $IN ? 'analytics' : 'inbox_analytics' ?>"><?php if ($IN): ?><input type="hidden" name="tab" value="messages"><?php foreach (array_intersect_key($_GET, ['from' => 1, 'to' => 1]) as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>"><?php endforeach; endif; ?>
         <input type="hidden" name="d" value="<?= (int)$days ?>">
-        <div>
+        <div<?= $IN ? ' class="hidden"' : '' ?>>
           <label class="label"><?= e(t('الفترة')) ?></label>
           <div class="flex gap-1">
             <?php foreach (an_ranges() as $r): ?>
@@ -316,4 +320,7 @@ render(t('تحليلات الرسائل'), 'inbox_analytics', function () use ($
       <?php ia2_section($team, $sample, $sampleConvs, $fromReplies, $words, $ads, $convErr, $res['response-time'] ?? null, $errs['response-time'] ?? null); ?>
     </div>
     <?php
-});
+};
+// جوه صفحة التحليلات الموحدة: المحتوى بس من غير إطار الصفحة
+if (!empty($GLOBALS['AN_INLINE'])) { $__sec(); return; }
+render(t('تحليلات الرسائل'), 'inbox_analytics', $__sec);

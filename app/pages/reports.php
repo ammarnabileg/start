@@ -46,7 +46,7 @@ $accounts = rp_clients($wid) ? rp_accounts($wid, $accErr) : [];
 $sched = rp_schedule($wid);
 $token = $canManage ? rp_cron_token() : '';
 
-render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) {
+$__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) {
     $tz = rp_tz($wid);
     $w = rp_period('last_week', $tz);
     $m = rp_period('last_month', $tz);
@@ -115,7 +115,7 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
               <p class="text-sm text-ink-700 mt-2"><?= e($sched['frequency'] === 'weekly' ? t('بيتبعت كل اتنين.') : t('بيتبعت أول كل شهر.')) ?></p>
             <?php endif; ?>
           <?php else: ?>
-            <form method="post" class="space-y-4 mt-4">
+            <form method="post" action="<?= e(url('reports')) ?>" class="space-y-4 mt-4">
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="save_schedule">
               <label class="block"><span class="label"><?= e(t('المستلمين')) ?></span>
@@ -143,7 +143,7 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
               <div id="rp-rc" class="flex flex-wrap gap-1"></div>
               <button class="btn-primary"><?= e(t('حفظ')) ?></button>
             </form>
-            <form method="post" class="mt-3" onsubmit="return confirm('<?= tjs('نبعت تقرير تجريبي دلوقتي؟') ?>')">
+            <form method="post" action="<?= e(url('reports')) ?>" class="mt-3" onsubmit="return confirm('<?= tjs('نبعت تقرير تجريبي دلوقتي؟') ?>')">
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="send_test">
               <button class="btn-ghost w-full"><?= e(t('ابعت تجربة دلوقتي')) ?></button>
@@ -238,4 +238,7 @@ render(t('التقارير'), 'reports', function () use ($wid, $accounts, $accE
     })();
     </script>
     <?php
-});
+};
+// جوه صفحة التحليلات الموحدة: المحتوى بس من غير إطار الصفحة
+if (!empty($GLOBALS['AN_INLINE'])) { $__sec(); return; }
+render(t('التقارير'), 'reports', $__sec);

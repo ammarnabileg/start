@@ -5326,4 +5326,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'البريد' => 'Email',
     'سرعة الرد وحجم الرسائل والتعليقات' => 'Response time and message volume',
     'تقارير جاهزة للطباعة والإرسال الدوري' => 'Printable and scheduled reports',
+    'واردة' => 'Received',
+    'مُرسلة' => 'Sent',
+    'فشلت' => 'Failed',
 ];
