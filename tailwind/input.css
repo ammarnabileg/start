@@ -1520,3 +1520,6 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
   #pd-tabs>button svg{width:.85rem;height:.85rem}
   #pr-dlg .pd-pane{padding:.6rem!important}
 }
+
+/* التحليلات: قسم الرسائل/التقارير ليه فلاتره جوه، فشريط الفترة اللي فوق بيستخبى */
+#an-bar.emb .card>*:not(#an-sec-btn):not(#an-sec){display:none!important}

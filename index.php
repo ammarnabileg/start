@@ -40,6 +40,13 @@ if (setting('app_version') !== APP_VERSION) {
 $page = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'dashboard'));
 // صفحات اتدمجت في 1.7.0
 $merged = ['compose_pro' => 'compose', 'inbox_pro' => 'inbox'];
+// تحليلات الرسائل والتقارير بقوا أقسام جوه صفحة التحليلات (الصفحات نفسها بتشتغل جوه الصفحة الموحدة)
+if (($page === 'inbox_analytics' || $page === 'reports') && $_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['embed']) && ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '') === 'iframe') {
+    redirect(url($page, ['embed' => 1] + array_diff_key($_GET, ['p' => 1]))); // رجوع بعد حفظ جوه القسم: يفضل جوه الإطار
+}
+if (($page === 'inbox_analytics' || $page === 'reports') && $_SERVER['REQUEST_METHOD'] === 'GET' && empty($_GET['embed']) && !array_diff(array_keys($_GET), ['p', 'd', 'days'])) {
+    redirect(url('analytics', ['tab' => $page === 'reports' ? 'reports' : 'messages'] + array_intersect_key($_GET, ['d' => 1])));
+}
 if (isset($merged[$page])) {
     redirect(url($merged[$page], array_diff_key($_GET, ['p' => 1])));
 }

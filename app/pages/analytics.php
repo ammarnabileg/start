@@ -12,6 +12,8 @@ $tabs = [
     'audience' => t('الجمهور'),
     'timing' => t('التوقيت والمحتوى'),
     'platforms' => t('المنصات'),
+    'messages' => t('الرسائل'),
+    'reports' => t('التقارير'),
 ];
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? (string)$_GET['tab'] : 'overview';
 $sec = in_array($_GET['sec'] ?? '', ['insights', 'facebook', 'youtube', 'ga'], true) ? (string)$_GET['sec'] : 'insights';
@@ -263,9 +265,9 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
     <div class="space-y-5">
 
       <!-- الفلاتر: شريط واحد مدمج بيفضل ظاهر وانت بتنزل -->
-      <div id="an-bar" class="sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
+      <div id="an-bar" class="<?= in_array($tab, ['messages', 'reports'], true) ? 'emb ' : '' ?>sticky top-16 z-30 -mx-1 px-1 py-2 bg-ink-50/85 backdrop-blur supports-[backdrop-filter]:bg-ink-50/70">
         <div class="card px-3 py-2 flex flex-wrap items-center gap-2">
-          <?php $secMeta = ['overview' => ['chart', t('الأرقام الأساسية والأداء اليومي')], 'posts' => ['file', t('أفضل المنشورات والهاشتاجات وتجارب A/B')], 'audience' => ['users', t('المتابعين ونموهم')], 'timing' => ['clock', t('أفضل وقت ونوع محتوى')], 'platforms' => ['layers', t('كل منصة لوحدها')]]; ?>
+          <?php $secMeta = ['overview' => ['chart', t('الأرقام الأساسية والأداء اليومي')], 'posts' => ['file', t('أفضل المنشورات والهاشتاجات وتجارب A/B')], 'audience' => ['users', t('المتابعين ونموهم')], 'timing' => ['clock', t('أفضل وقت ونوع محتوى')], 'platforms' => ['layers', t('كل منصة لوحدها')], 'messages' => ['chat', t('سرعة الرد وحجم الرسائل والتعليقات')], 'reports' => ['file', t('تقارير جاهزة للطباعة والإرسال الدوري')]]; ?>
           <button type="button" popovertarget="an-sec" id="an-sec-btn" class="tb h-9 px-3 gap-2 text-sm font-semibold !text-ink-900"><?= ui_icon($secMeta[$tab][0] ?? 'chart', 'w-4 h-4 text-brand-600') ?><?= e($tabs[$tab]) ?><svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
           <div id="an-sec" popover class="m-0 w-[min(380px,92vw)] rounded-2xl border border-ink-200 bg-white p-2 shadow-2xl">
             <?php $si = 0; foreach ($tabs as $k => $label): $si++; $on = $k === $tab; ?>
@@ -327,7 +329,14 @@ render(t('التحليلات'), 'analytics', function () use ($z, $tabs, $tab, $
 
       <?php
       /* =========================== نظرة عامة =========================== */
-      if ($tab === 'overview'):
+      /* =========== الرسائل والتقارير: جوه نفس الصفحة (نفس الأقسام) =========== */
+      if ($tab === 'messages' || $tab === 'reports'):
+          $src = url($tab === 'messages' ? 'inbox_analytics' : 'reports', ['embed' => 1, 'd' => $per['custom'] ? null : $per['days']]); ?>
+        <iframe id="an-embed" src="<?= e($src) ?>" class="w-full rounded-2xl border-0 bg-transparent" style="min-height:70vh" loading="eager" title="<?= e($tabs[$tab]) ?>"></iframe>
+        <script>(function () { var f = document.getElementById('an-embed'); function fit() { try { var d = f.contentDocument; if (d && d.body) f.style.height = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight) + 'px'; } catch (e) {} }
+          f.addEventListener('load', function () { fit(); try { new ResizeObserver(fit).observe(f.contentDocument.body); f.contentDocument.addEventListener('click', function () { setTimeout(fit, 300); }); } catch (e) { setInterval(fit, 1000); } }); })();</script>
+      <?php
+      elseif ($tab === 'overview'):
           $dates = an_date_list($per['from'], $per['to']);
           $pdates = an_date_list($per['pfrom'], $per['pto']);
           $sumDaily = function ($resp) {

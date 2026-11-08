@@ -14,6 +14,11 @@
   <?= $content ?>
 </main>
 <script src="assets/app.js?v=<?= e(APP_VERSION) ?>"></script>
+<script>
+// جوه إطار: أي رابط لصفحة تانية يفتح في الصفحة الأساسية مش جوه الإطار
+(function () { if (window.top === window) return; var cur = (/[?&]p=([a-z_]+)/.exec(location.search) || [])[1];
+  document.addEventListener('click', function (e) { var a = e.target.closest('a[href]'); if (!a || a.target) return; var m = /[?&]p=([a-z_]+)/.exec(a.getAttribute('href') || ''); if (m && m[1] !== cur) a.target = '_top'; }, true); })();
+</script>
 <script src="assets/live.js?v=<?= e(APP_VERSION) ?>"></script>
 </body>
 </html>
