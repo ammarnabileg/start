@@ -1482,3 +1482,24 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 #pr-dlg .pd-info .pd-own{display:inline-flex;align-items:center;gap:.25rem;color:#94a3b8}
 #pr-dlg .pd-info .pd-tagw{display:inline-flex;align-items:center;gap:.25rem}
 #pr-dlg .pd-side.hidden{display:none!important}
+/* قايمة الهيدر بتستخبى فعلًا */
+.pd-hm.hidden{display:none!important}
+@media (max-width:767px){
+  /* الهيدر: الشرايح في سطر واحد بتلف */
+  #pr-dlg .pd-hero .flex-wrap.mt-2{flex-direction:row!important;flex-wrap:wrap!important;gap:.3rem!important}
+  #pd-stage-pill,#pd-due-pill,#pd-enrich{white-space:nowrap;font-size:.72rem!important;padding:.2rem .55rem!important}
+  #pd-name{font-size:1.05rem!important}
+  /* الفورم: الاختيارات بتلف والحفظ دايمًا ظاهر */
+  #pd-p-tk .pd-tform>div:last-child{flex-wrap:wrap!important;overflow:visible!important}
+  #pd-p-tk .pd-when{flex-wrap:wrap!important;width:100%}
+  #pd-p-tk .pd-tform>div:last-child .btn-primary{flex:1 1 100%;justify-content:center;margin:.2rem 0 0!important;height:2.3rem}
+  #pd-p-tk .pd-stsel select{flex:1 1 55%}
+  #pd-p-tk .pd-stsel .pd-usel{flex:1 1 40%}
+  #pd-p-tk .pd-stsel>span{font-size:0;gap:0}
+  #pd-p-tk .pd-stsel>span svg{width:1rem;height:1rem}
+}
+@media (max-width:767px){
+  #pr-dlg .pd-hero>.flex.items-start{flex-wrap:wrap;gap:.6rem!important}
+  #pr-dlg .pd-hero>.flex.items-start>:last-child{order:-1;width:100%;justify-content:flex-end;gap:.4rem;margin-bottom:-.2rem}
+  #pr-dlg .pd-hero>.flex.items-start>.flex-1{flex:1 1 0;min-width:0}
+}
