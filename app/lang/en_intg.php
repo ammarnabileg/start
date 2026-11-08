@@ -5312,4 +5312,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'تاريخ محدد' => 'Specific date',
     'اضغط للتعديل' => 'Click to edit',
     'رقم أو بريد' => 'Phone or email',
+    'سجّل التحديث' => 'Log update',
+    'المهمة… مثلًا: إرسال عرض السعر' => 'Task… e.g. send the quote',
 ];

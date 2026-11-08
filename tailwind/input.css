@@ -1440,3 +1440,8 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 #pd-p-tk .pd-tlist .pd-task{border:0!important;border-radius:0!important;border-top:1px solid #eef2f7!important;margin:0!important;box-shadow:none!important}
 #pd-p-tk .pd-tlist .pd-task:first-child{border-top:0!important}
 .dark #pd-p-tk .pd-tlist{border-color:rgb(255 255 255/.1)}.dark #pd-p-tk .pd-tlist .pd-task{border-top-color:rgb(255 255 255/.06)!important}
+
+.pd-tadd{display:inline-flex;align-items:center;gap:.2rem;font-size:.74rem;font-weight:600;padding:.2rem .55rem;border-radius:999px;color:#475569;border:1px dashed #cbd5e1;background:#fff}
+.pd-tadd:hover,.pd-tadd.on{color:#1d4ed8;border-color:#93c5fd;background:#eff6ff}
+#pd-p-tk .pd-unext.hidden{display:none!important}
+.dark .pd-tadd{background:#0f172a;border-color:rgb(255 255 255/.15);color:#cbd5e1}

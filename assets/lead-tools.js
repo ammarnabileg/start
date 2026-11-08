@@ -93,10 +93,10 @@
     else h += '<p class="text-xs text-ink-500">' + esc(T.noPlans) + ' <a class="link" href="' + esc(X.settings) + '">' + ic('chevron-left', 'w-3 h-3 inline') + '</a></p>';
     h += '</section><section class="pd-card !p-4 mt-3"><div class="flex items-center gap-2 mb-2">' + ic('check', 'w-4 h-4 text-lime-600') + '<b class="text-sm text-ink-900">' + esc(T.tasks) + '</b><span class="text-[11px] text-ink-400">' + (tasks.length || '') + '</span></div>' +
       '<form class="pd-tform" data-tform data-no-ajax><textarea name="note" rows="2" class="pd-unote" dir="auto" placeholder="' + esc(T.noteQ) + '"></textarea>' +
-      '<div class="pd-unext">' + ic('arrow-left', 'w-4 h-4') + '<input name="title" dir="auto" placeholder="' + esc(T.taskPh) + '"></div><div class="flex flex-wrap items-center gap-1.5 mt-1.5">' +
-      '<span class="pd-when"><b>' + esc(T.whenL) + '</b>' + [['0', T.today], ['1', T.tomorrow], ['3', T.d3], ['7', T.week], ['', T.noDue]].map(function (x, i) { return '<label class="pd-chipr"><input type="radio" name="due" value="' + x[0] + '"' + (i === 1 ? ' checked' : '') + '><span>' + esc(x[1]) + '</span></label>'; }).join('') + '<input type="datetime-local" name="at" class="pd-at" title="' + esc(T.pick) + '"></span>' +
+      '<div class="pd-unext hidden">' + ic('check', 'w-4 h-4') + '<input name="title" dir="auto" placeholder="' + esc(T.taskPh) + '"></div><div class="flex flex-wrap items-center gap-1.5 mt-1.5">' +
+      '<span class="pd-when"><b>' + esc(T.nextL) + '</b>' + [['0', T.today], ['1', T.tomorrow], ['3', T.d3], ['7', T.week], ['', T.noDue]].map(function (x, i) { return '<label class="pd-chipr"><input type="radio" name="due" value="' + x[0] + '"' + (i === 1 ? ' checked' : '') + '><span>' + esc(x[1]) + '</span></label>'; }).join('') + '<input type="datetime-local" name="at" class="pd-at" title="' + esc(T.pick) + '"></span>' +
       (X.manage ? '<select name="user" class="input !mt-0 !py-1 !h-8 text-xs !w-auto">' + Object.keys(X.members).map(function (k) { return '<option value="' + k + '"' + (+k === X.me ? ' selected' : '') + '>' + esc(+k === X.me ? T.me : X.members[k]) + '</option>'; }).join('') + '</select>' : '') +
-      '<button class="btn-primary !py-1 !px-3 !text-xs ms-auto">' + esc(T.saveUpd) + '</button></div></form><ul class="space-y-1.5 mt-3">' +
+      '<button type="button" class="pd-tadd" data-tadd>' + ic('plus', 'w-3.5 h-3.5') + esc(T.addTask) + '</button><button class="btn-primary !py-1 !px-3 !text-xs ms-auto">' + esc(T.saveUpd) + '</button></div></form><ul class="space-y-1.5 mt-3">' +
       (tasks.length ? tasks.map(function (t) { return '<li class="pd-task cp-pop" data-task="' + t.id + '"><button type="button" class="pd-tick" data-tdone aria-label="✓"></button><div class="min-w-0 flex-1"><span class="block text-sm text-ink-900 break-words" dir="auto">' + esc(t.title) + '</span><small class="' + (t.over ? 'text-red-600 font-semibold' : 'text-ink-500') + '">' + esc([t.due, t.who].filter(Boolean).join(' · ')) + '</small></div></li>'; }).join('') : '<li class="text-xs text-ink-400 py-2">' + esc(T.noTasks) + '</li>') + '</ul></section>';
     // المتابعة أولًا (مثبتة فوق المهام)، والخطة تحت؛ ولو مفيش خطط مابنعرضش كارت فاضي
     var parts = h.split('</section><section class="pd-card !p-4 mt-3">'), planH = parts[0] + '</section>', taskH = '<section class="pd-card !p-4">' + parts[1];
@@ -121,17 +121,20 @@
     if (t.name === 'due') { var at = t.form.querySelector('[name=at]'); if (at) at.value = ''; }
     if (t.name === 'at' && t.value) [].forEach.call(t.form.querySelectorAll('[name=due]'), function (r) { r.checked = false; });
     if (t.id === 'pd-stg-sel') t.className = t.value === 'won' ? 'won' : t.value === 'lost' ? 'lost' : ''; });
+  $('pd-p-tk').addEventListener('click', function (e) { var b = e.target.closest('[data-tadd]'); if (!b) return; var f = b.closest('form'), x = f.querySelector('.pd-unext'); x.classList.toggle('hidden'); b.classList.toggle('on', !x.classList.contains('hidden')); if (!x.classList.contains('hidden')) f.title.focus(); });
+  // التحديث: بيسجّل اللي حصل + الحالة + موعد المتابعة الجاية؛ والمهمة اختيارية بنفس الموعد
   $('pd-p-tk').addEventListener('submit', function (e) { e.preventDefault(); var f = e.target, b = f.querySelector('button.btn-primary'), dv = (f.querySelector('[name=due]:checked') || {}).value, due = '';
-    var L0 = lead(), st = f.stage ? f.stage.value : L0.stage, note = (f.note && f.note.value || '').trim(), nx = f.title.value.trim(), hasDate = (f.at && f.at.value) || (dv !== '' && dv != null);
-    if (st === L0.stage && !note && !nx) { (f.note || f.title).focus(); return toast(T.updEmpty, 'error'); }
+    var L0 = lead(), st = f.stage ? f.stage.value : L0.stage, note = (f.note && f.note.value || '').trim(), nx = f.title.value.trim();
+    if (f.at && f.at.value) due = f.at.value; else if (dv !== '' && dv != null) { var dt = new Date(); dt.setDate(dt.getDate() + +dv); dt.setHours(dv === '0' ? Math.max(dt.getHours() + 1, 16) : 11, 0, 0, 0); var p = function (n) { return (n < 10 ? '0' : '') + n; }; due = dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate()) + 'T' + p(dt.getHours()) + ':00'; }
+    if (st === 'won' || st === 'lost') due = '';
+    if (st === L0.stage && !note && !nx && !due) { (f.note || f.title).focus(); return toast(T.updEmpty, 'error'); }
     var jobs = [];
     if (st !== L0.stage) { var sb = document.querySelector('#pd-stages [data-stg="' + st + '"]'); if (sb) sb.click(); }
     if (note) jobs.push(LP.log ? LP.log(LP.cur(), 'note', note) : api({ action: 'log', id: L0.id, kind: 'note', body: note }));
-    if (!nx && (st === 'won' || st === 'lost')) hasDate = false; // اتقفل: مفيش متابعة
-    if (!nx && !hasDate) { busy(b, true); return Promise.all(jobs).then(function () { busy(b, false); toast(T.saved); LP.reload(); }).catch(function () { busy(b, false); fail(); }); }
-    if (!nx) f.title.value = T.follow;
-    if (f.at && f.at.value) { due = f.at.value; } else if (dv !== '' && dv != null) { var dt = new Date(); dt.setDate(dt.getDate() + +dv); dt.setHours(dv === '0' ? Math.max(dt.getHours() + 1, 16) : 11, 0, 0, 0); var p = function (n) { return (n < 10 ? '0' : '') + n; }; due = dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate()) + 'T' + p(dt.getHours()) + ':00'; }
-    busy(b, true); api({ action: 'task_add', title: f.title.value, due: due, user: f.user ? f.user.value : X.me, lead: lead().id }).then(function (j) { busy(b, false); if (!j.ok) return fail(j); toast(T.saved); LP.reload(); }).catch(function () { busy(b, false); fail(); }); });
+    if (due && LP.setNext) jobs.push(LP.setNext([L0.id], 'at', { at: due, note: nx || note.slice(0, 200) }).then(function (j) { if (j && j.ok && LP.rowNext && LP.cur()) LP.rowNext(LP.cur(), j); return j; }));
+    else if (dv === '' && f.querySelector('[name=due]:checked') && L0.next && LP.setNext) jobs.push(LP.setNext([L0.id], 'none'));
+    if (nx) jobs.push(api({ action: 'task_add', title: nx, due: due, user: f.user ? f.user.value : X.me, lead: L0.id }));
+    busy(b, true); Promise.all(jobs).then(function (rs) { busy(b, false); if (rs.some(function (j) { return j && j.ok === false; })) return fail(rs.filter(function (j) { return j && j.ok === false; })[0]); toast(T.saved); LP.reload(); }).catch(function () { busy(b, false); fail(); }); });
 
   /* ---------- الإيميل ---------- */
   var VARS = ['{name}', '{company}', '{me}', '{book}'];
