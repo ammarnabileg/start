@@ -360,3 +360,41 @@ document.addEventListener('click', function (e) {
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.)/.test(location.hostname))) {
   window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
+
+// تصغير الصور الكبيرة في أي حقل رفع في المنصة قبل ما الصفحة تقراها (أقصى ضلع 2560px، جودة 0.86)
+(function () {
+  if (!window.DataTransfer || !window.Promise) return;
+  function shrink(f, keepPng) {
+    return new Promise(function (done) {
+      if (!/^image\/(jpeg|png|webp|bmp)$/i.test(f.type) || f.size < 1.5 * 1048576) return done(f);
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onerror = function () { URL.revokeObjectURL(u); done(f); };
+      im.onload = function () {
+        URL.revokeObjectURL(u); var k = Math.min(1, 2560 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+        c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        // نحافظ على نوع الملف عشان الصفحات اللي بتقبل أنواع معينة؛ PNG كبير بنحوّله WebP لو مسموح
+        var type = /png|bmp/i.test(f.type) ? (keepPng ? 'image/png' : 'image/webp') : f.type;
+        if (type === 'image/webp' && c.toDataURL('image/webp').indexOf('data:image/webp') !== 0) type = 'image/jpeg';
+        c.toBlob(function (b) {
+          if (!b || b.size >= f.size) return done(f);
+          var ext = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' }[type] || 'jpg';
+          done(new File([b], f.name.replace(/\.[^.]+$/, '') + '.' + ext, { type: type, lastModified: Date.now() }));
+        }, type, 0.86);
+      };
+      im.src = u;
+    });
+  }
+  window.uiShrinkImage = shrink;
+  window.addEventListener('change', function (e) {
+    var el = e.target;
+    if (!el || el.tagName !== 'INPUT' || el.type !== 'file' || el.__shrunk || !el.files || !el.files.length || el.hasAttribute('data-no-shrink')) return;
+    var fs = [].slice.call(el.files); if (!fs.some(function (f) { return /^image\/(jpeg|png|webp|bmp)$/i.test(f.type) && f.size >= 1.5 * 1048576; })) return;
+    // لو الحقل بيقبل أنواع محددة مش فيها webp، نخلي PNG زي ما هو
+    var accept = (el.getAttribute('accept') || '').toLowerCase(), webpOk = !accept || /image\/\*|webp/.test(accept);
+    e.stopImmediatePropagation(); el.disabled = false;
+    Promise.all(fs.map(function (f) { return shrink(f, !webpOk); })).then(function (out) {
+      try { var dt = new DataTransfer(); out.forEach(function (f) { dt.items.add(f); }); el.files = dt.files; } catch (x) {}
+      el.__shrunk = true; el.dispatchEvent(new Event('change', { bubbles: true })); el.__shrunk = false;
+    });
+  }, true);
+})();

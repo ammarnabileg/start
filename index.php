@@ -103,4 +103,5 @@ if (!is_file($file)) {
     $file = __DIR__ . '/app/pages/dashboard.php';
 }
 
+if (!empty($_FILES)) { require_once __DIR__ . '/app/upload_shrink.php'; try { upload_shrink_all(); } catch (Throwable $e) {} }
 require $file;
