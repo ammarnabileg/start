@@ -1702,3 +1702,10 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 /* التبويبات بقت 6: تتسحب بالعرض بدل ما تخرج برّه الشاشة */
 .cx-tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cx-tabs::-webkit-scrollbar{display:none}.cx-tabs button{white-space:nowrap;flex-shrink:0}
 .cs-sec .cs-sub{margin:.55rem 0 .35rem;line-height:1.6}.cs-sec .cs-chips + .cs-sub{margin-top:.7rem}.cw-psi + .cs-sub{margin-top:.5rem}
+
+.cx-why{font-size:.7rem;line-height:1.55;color:#b45309;background:#fffbeb;border-radius:8px;padding:.35rem .55rem;margin:.15rem 0 .45rem}.cx-why small{color:#92400e}.dark .cx-why{background:#422006;color:#fde68a}
+
+.ag-skips{display:flex;flex-direction:column;gap:.4rem}.ag-sk{display:flex;gap:.6rem;align-items:flex-start;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:.5rem .65rem}
+.ag-skh{display:flex;align-items:center;gap:.4rem;font-size:.74rem}.ag-skh span{font-size:.64rem;color:#64748b;background:#f1f5f9;border-radius:99px;padding:0 .4rem}.ag-skh small{margin-inline-start:auto;color:#94a3b8;font-size:.64rem}
+.ag-sk p{font-size:.76rem;color:#334155;margin:.15rem 0}.ag-sk em{font-style:normal;font-size:.72rem;color:#92400e;font-weight:600}.ag-empty{font-size:.76rem;color:#94a3b8}
+.dark .ag-sk{background:#422006;border-color:#78350f}.dark .ag-sk p{color:#e2e8f0}.dark .ag-sk em{color:#fde68a}

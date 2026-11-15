@@ -7,6 +7,8 @@ if (!function_exists('array_is_list')) { function array_is_list(array $a): bool 
 function kbi_fetch(string $url, int $max = 600000): array
 {
     $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; AIPushProfile/1.0)']);
+    // مواقع كتير بترفض أي متصفح مش معروف: محاولة تانية بهوية متصفح عادي
+    if (!empty($r['err'])) $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36']);
     return empty($r['err']) ? ['url' => $r['url'], 'html' => $r['body']] : ['err' => $r['err']];
 }
 function kbi_abs(string $href, string $base): string

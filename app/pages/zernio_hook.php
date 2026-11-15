@@ -31,7 +31,10 @@ $incoming = ($type === 'message.received' && ($ev['message']['direction'] ?? 'in
 save_setting('ai_hook_last_' . $wid, json_encode(['t' => time(), 'event' => $type, 'raw' => mb_substr($raw, 0, 3000)], JSON_UNESCAPED_UNICODE));
 if ($dup || !$incoming) exit;
 // رسالة صادرة من التطبيق نفسه بتيجي message.sent: مش بنرد عليها (الإيقاف بعد الرد البشري بيتحسب من سجل المحادثة)
-if (!function_exists('ai_auto_enabled') || !ai_auto_enabled($wid, 'reply') || !ai_feature_on('auto_reply', $wid)) exit;
+if (!function_exists('ai_auto_enabled') || !ai_auto_enabled($wid, 'reply') || !ai_feature_on('auto_reply', $wid)) {
+    if (function_exists('ai_skip')) ai_skip($wid, (string)($ev['message']['sender']['name'] ?? $ev['comment']['author']['name'] ?? ''), (string)($ev['message']['platform'] ?? $ev['comment']['platform'] ?? ''), (string)($ev['message']['text'] ?? $ev['comment']['text'] ?? ''), 'الرد الذكي متوقف (زر التشغيل أو ميزة الرد التلقائي في الأقسام)', []);
+    exit;
+}
 
 // كل إشعار بيتعالج من بياناته هو (قائمة Zernio بتتأخر). القفل لكل محادثة/تعليق بس، فكذا رسالة تترد في نفس الوقت
 $handle = function (string $type, array $ev) use ($wid) {
@@ -62,6 +65,6 @@ $key = $type === 'message.received' ? 'c:' . (string)($ev['message']['conversati
 $lk = 'ai_hook_lock_' . $wid . '_' . md5($key);
 if ((int)setting($lk, '0') > time() - 60) { usleep(1500000); } // رسالتين ورا بعض في نفس المحادثة: نستنى الأولى تخلص
 save_setting($lk, (string)time());
-try { ai_as_workspace($wid, function () use ($handle, $type, $ev) { return $handle($type, $ev); }); } catch (Throwable $e) {}
+try { ai_as_workspace($wid, function () use ($handle, $type, $ev) { return $handle($type, $ev); }); } catch (Throwable $e) { if (function_exists('ai_skip')) ai_skip($wid, '', '', (string)($ev['message']['text'] ?? $ev['comment']['text'] ?? ''), 'خطأ: %s', [mb_substr($e->getMessage(), 0, 160)]); }
 save_setting($lk, '0');
 exit;
