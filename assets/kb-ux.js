@@ -140,29 +140,34 @@
     var syncing = false;
     function sync() {
       if (syncing) return; syncing = true;
-      var ns = names(), have = cards().map(offerOf);
+      // فهرس واحد اسم ← بطاقة (بدل البحث في كل البطاقات جوه كل لفة: كان 12 ثانية مع 1500 خدمة)
+      var ns = names(), all = cards(), byOffer = {}, nsSet = {};
+      ns.forEach(function (n) { nsSet[n] = 1; });
+      all.forEach(function (c) { var o = offerOf(c); if (o && !byOffer[o]) byOffer[o] = c; });
+      var empties = all.filter(function (c) { return ![].some.call(c.querySelectorAll('[data-col]'), function (x) { return x.value.trim(); }); });
+      var box = pf.querySelector('.kb-rows'), tplCard = all[all.length - 1];
       ns.forEach(function (n) {
-        if (have.indexOf(n) > -1) return;
-        var empty = cards().filter(function (c) { return ![].some.call(c.querySelectorAll('[data-col]'), function (x) { return x.value.trim(); }); })[0];
-        var c = empty || cards()[cards().length - 1].cloneNode(true);
-        if (!empty) { c.querySelectorAll('[data-col]').forEach(function (x) { x.value = ''; }); var bb = c.querySelector('.kb-link-badge'); if (bb) bb.remove(); pf.querySelector('.kb-rows').appendChild(c); }
-        c.querySelector('[data-col="offer"]').value = n; have.push(n);
+        if (byOffer[n]) return;
+        var c = empties.shift();
+        if (!c) { c = tplCard.cloneNode(true); c.querySelectorAll('[data-col]').forEach(function (x) { x.value = ''; }); var bb = c.querySelector('.kb-link-badge'); if (bb) bb.remove(); box.appendChild(c); all.push(c); }
+        c.querySelector('[data-col="offer"]').value = n; byOffer[n] = c;
       });
-      cards().forEach(function (c) {
-        var o = offerOf(c), inp = c.querySelector('[data-col="offer"]'), linked = !!o && ns.indexOf(o) > -1;
+      all.forEach(function (c) {
+        var o = offerOf(c), inp = c.querySelector('[data-col="offer"]'), linked = !!o && !!nsSet[o];
         inp.readOnly = linked; inp.classList.toggle('!bg-ink-50', linked); inp.title = linked ? U.linkedHint : '';
         if (o) badge(c, linked ? 'ok' : 'orphan'); else { var b = c.querySelector('.kb-link-badge'); if (b) b.remove(); }
         c.dataset.offer = o;
       });
-      // ترتيب البطاقات زي ترتيب الخدمات
-      var box = pf.querySelector('.kb-rows');
-      ns.slice().reverse().forEach(function (n) { var c = cards().filter(function (x) { return offerOf(x) === n; })[0]; if (c) box.insertBefore(c, box.firstChild); });
+      // ترتيب البطاقات زي ترتيب الخدمات (بإطار واحد بدل إدخال كل بطاقة لوحدها)
+      var frag = document.createDocumentFragment(), placed = {};
+      ns.forEach(function (n) { var c = byOffer[n]; if (c && !placed[n]) { placed[n] = 1; frag.appendChild(c); } });
+      box.insertBefore(frag, box.firstChild);
       // زرار "التموضع" جنب كل خدمة
       sf.querySelectorAll('.kb-row').forEach(function (r) {
         var n = (r.querySelector('[data-col="name"]') || {}).value || '', btn = r.querySelector('.kb-to-pos');
         if (!btn) { btn = document.createElement('button'); btn.type = 'button'; btn.className = 'kb-to-pos self-center whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-medium text-brand-700 bg-brand-50 hover:bg-brand-100'; var del = r.querySelector('.kb-del'); r.insertBefore(btn, del); }
         btn.textContent = U.toPos; btn.classList.toggle('invisible', !n.trim()); btn.dataset.offer = n.trim();
-        var c = cards().filter(function (x) { return offerOf(x) === n.trim(); })[0], done = c && [].filter.call(c.querySelectorAll('textarea[data-col]'), function (x) { return x.value.trim(); }).length;
+        var c = byOffer[n.trim()], done = c && [].filter.call(c.querySelectorAll('textarea[data-col]'), function (x) { return x.value.trim(); }).length;
         btn.textContent = U.toPos + (c ? ' ' + (done || 0) + '/5' : '');
       });
       syncing = false;

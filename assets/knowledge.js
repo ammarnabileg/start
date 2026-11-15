@@ -24,7 +24,9 @@
   // الحفظ التلقائي (بعد ما يبطّل كتابة بثانية)
   function collect(form) {
     var fd = new FormData(form);
-    form.querySelectorAll('.kb-row').forEach(function (row, i) { row.querySelectorAll('[data-col]').forEach(function (el) { fd.append('d[rows][' + i + '][' + el.dataset.col + ']', el.value); }); });
+    // الصفوف بتتبعت JSON واحد: آلاف الخانات المنفصلة PHP بيقطعها (max_input_vars) من غير ما يقول
+    var rows = []; form.querySelectorAll('.kb-row').forEach(function (row) { var o = {}; row.querySelectorAll('[data-col]').forEach(function (el) { o[el.dataset.col] = el.value; }); rows.push(o); });
+    if (rows.length) fd.append('rows_json', JSON.stringify(rows));
     fd.append('action', 'kb_save'); fd.append('section', form.dataset.section); return fd;
   }
   var timers = {};
@@ -142,11 +144,20 @@
     var btn = form.querySelector('.kb-fill'), lbl = btn.querySelector('span'), txt = lbl.textContent, ico = btn.innerHTML;
     var ac = window.AbortController ? new AbortController() : null; form.__ac = ac;
     btn.classList.add('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = STOP + '<span></span>'; btn.querySelector('span').textContent = K.filling + ' · ' + K.stop; btn.title = K.stop;
-    var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', form.dataset.section); fd.append('mode', mode || 'update');
-    return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return false; }
-      suggest(form, d.data || {}, d.meta); return true;
-    }).catch(function (e) { if (e && e.name === 'AbortError') { window.aiToast && aiToast(K.stopped); return 'stopped'; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
+    // الخدمات وتفاصيلها: ممكن تبقى +1000، فالسيرفر بيشتغل خطوة خطوة والمتصفح بيطلب اللي بعدها ويجمّع
+    var sec = form.dataset.section, stepped = sec === 'services' || sec === 'pos_offers', key = sec === 'pos_offers' ? 'offer' : 'name', acc = [], seen = {};
+    function ask(step) {
+      var fd = new FormData(); fd.append('action', 'kb_fill'); fd.append('section', sec); fd.append('mode', mode || 'update'); if (stepped) fd.append('step', step);
+      return fetch('index.php?p=knowledge', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() }, signal: ac ? ac.signal : undefined }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) { if (acc.length) { suggest(form, { rows: acc }, d.meta); window.aiToast && aiToast(d.error); return true; } window.aiToast ? aiToast(d.error) : alert(d.error); return false; }
+        if (!d.total) { suggest(form, d.data || {}, d.meta); return true; }
+        ((d.data || {}).rows || []).forEach(function (r) { var k = String(r[key] || '').trim().toLowerCase(); if (k && !seen[k]) { seen[k] = 1; acc.push(r); } });
+        var sp = btn.querySelector('span'); if (sp) sp.textContent = K.filling + ' ' + (d.step + 1) + '/' + d.total + ' · ' + acc.length + ' · ' + K.stop;
+        if (d.step + 1 < d.total) return ask(d.step + 1);
+        suggest(form, { rows: acc }, d.meta); return true;
+      });
+    }
+    return ask(0).catch(function (e) { if (e && e.name === 'AbortError') { if (acc.length) suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.stopped); return 'stopped'; } if (acc.length) { suggest(form, { rows: acc }, ''); window.aiToast && aiToast(K.err); return true; } window.aiToast ? aiToast(K.err) : alert(K.err); return false; })
       .finally(function () { form.__ac = null; btn.classList.remove('kb-running', '!border-red-200', '!bg-red-50', '!text-red-700'); btn.innerHTML = ico; btn.title = ''; btn.querySelector('span').textContent = txt; });
   }
   root.addEventListener('click', function (e) {

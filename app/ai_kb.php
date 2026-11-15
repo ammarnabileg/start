@@ -135,9 +135,14 @@ function kb_top(array $rows, string $query, int $n, callable $text): array
 {
     if (count($rows) <= $n || $query === '') return array_slice(array_values($rows), 0, $n);
     $pf = function ($t) { $o = []; foreach (kb_terms($t) as $w) $o[mb_substr($w, 0, 5)] = 1; return $o; }; $q = $pf($query); $sc = [];
-    foreach (array_values($rows) as $i => $r) $sc[$i] = count(array_intersect_key($pf($text($r)), $q)) * 100 - $i;
+    // الكلمة النادرة (رقم موديل، مقاس، كود) وزنها أكبر من الكلمة اللي في كل المنتجات (زي «منتج»)
+    $rows = array_values($rows); $N = count($rows); $tx = []; $df = array_fill_keys(array_keys($q), 0);
+    foreach ($rows as $i => $r) { $tx[$i] = array_intersect_key($pf($text($r)), $q); foreach ($tx[$i] as $w => $_) $df[$w]++; }
+    $wt = []; foreach ($df as $w => $d) $wt[$w] = log(($N + 1) / ($d + 1)) + 0.05;
+    // الترتيب الأصلي يكسر التعادل بس (كسر صغير، مايغلبش كلمة متطابقة)
+    foreach ($rows as $i => $r) { $v = 0.0; foreach ($tx[$i] as $w => $_) $v += $wt[$w]; $sc[$i] = $v - $i / ($N + 1) * 0.01; }
     arsort($sc); $keep = array_slice(array_keys($sc), 0, $n); sort($keep);
-    $rows = array_values($rows); return array_map(function ($i) use ($rows) { return $rows[$i]; }, $keep);
+    return array_map(function ($i) use ($rows) { return $rows[$i]; }, $keep);
 }
 
 /** تصنيف السؤال لأقسام قاعدة المعرفة بالكلمات (بدون استدعاء ذكاء = بدون رصيد). [] = مش واضح → كل الأقسام المختصرة */
@@ -175,7 +180,10 @@ function kb_compile(int $wid, string $query = '', bool $lean = false): string
     // «إيه خدماتكم/أسعاركم؟» = محتاج القائمة كلها
     if ($lean && !preg_match('/(خدمات|اسعار|أسعار|قائم|منيو|كل الباقات|الباقات|services|prices|price list|menu|packages)/iu', $query)) $rows = kb_top($rows, $query, 10, function ($r) { return ($r['name'] ?? '') . ' ' . ($r['desc'] ?? $r['details'] ?? ''); });
     if (!$want('services')) $rows = [];
-    if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows));
+    // كتالوج كبير (+1000): مانبعتش القايمة كلها في كل طلب (تكلفة ضخمة)؛ الأقرب للسؤال بس + ملاحظة إن فيه أكتر
+    $svcAll = count($rows); $svcCap = $lean ? 40 : 150; $svcNote = '';
+    if ($svcAll > $svcCap) { $rows = kb_top($rows, $query, $svcCap, function ($r) { return ($r['name'] ?? '') . ' ' . ($r['details'] ?? ''); }); $svcNote = "\n(The catalogue has {$svcAll} items; only the " . count($rows) . " most relevant are listed. Ask the customer which product/category they need instead of listing everything, and never say an item is unavailable just because it is not listed here.)"; }
+    if ($rows) $out[] = "## SERVICES & PRICES (only these prices are valid)\n" . implode("\n", array_map(function ($r) { return '- ' . trim($r['name']) . (trim((string)($r['price'] ?? '')) !== '' ? ' — ' . trim($r['price']) : '') . (trim((string)($r['details'] ?? '')) !== '' ? ': ' . trim($r['details']) : ''); }, $rows)) . $svcNote;
     $faq = array_filter((array)($k['faq']['rows'] ?? []), function ($r) { return trim((string)($r['q'] ?? '')) !== '' && trim((string)($r['a'] ?? '')) !== ''; });
     if ($lean) $faq = kb_top($faq, $query, $in && !in_array('policy', $in, true) ? 3 : 6, function ($r) { return $r['q'] . ' ' . $r['a']; });
     if ($faq) $out[] = "## FAQ (approved answers)\n" . implode("\n", array_map(function ($r) { return 'Q: ' . trim($r['q']) . "\nA: " . trim($r['a']); }, $faq));
@@ -230,7 +238,7 @@ function kb_terms(string $s): array
 {
     $s = mb_strtolower(preg_replace('/[\x{064B}-\x{0652}\x{0640}]/u', '', $s));
     $s = strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي']);
-    preg_match_all('/[\p{L}\p{N}]{3,}/u', $s, $m);
+    preg_match_all('/[\p{L}\p{N}]{3,}|(?<![\p{L}\p{N}])\p{N}{2}(?![\p{L}\p{N}])/u', $s, $m); // الأرقام من خانتين (مقاسات، كميات) مهمة في الكتالوجات
     return array_values(array_unique(array_map(function ($w) { return preg_replace('/^(ال|وال|بال|لل)(?=\p{L}{3,})/u', '', $w); }, $m[0])));
 }
 

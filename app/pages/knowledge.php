@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (($sd['type'] ?? '') === 'rows') {
                 $rows = (array)($old['rows'] ?? []);
                 foreach ((array)($data['rows'] ?? []) as $rw) { $clean = []; foreach ($sd['cols'] as $ck => $_) $clean[$ck] = $str($rw[$ck] ?? '', 1500); if (implode('', $clean) !== '') { $rows[] = $clean; $n++; } }
-                $old['rows'] = array_slice($rows, 0, 200);
+                $old['rows'] = array_slice($rows, 0, 3000);
             } else foreach ($data as $f => $v) if (isset($sd['fields'][$f])) { $old[$f] = $str($v); $n++; }
             kb_save($wid, $sec, $old);
         }
@@ -57,12 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
             case 'rows':
                 $rows = [];
+                // القوائم الكبيرة بتيجي JSON (max_input_vars في PHP بيقطع آلاف الخانات من غير ما يقول)
+                if (isset($_POST['rows_json'])) $in['rows'] = json_decode((string)$_POST['rows_json'], true) ?: [];
                 foreach ((array)($in['rows'] ?? []) as $r) {
                     $row = [];
                     foreach (array_keys($schema[$sec]['cols']) as $c) $row[$c] = $str($r[$c] ?? '', 2000);
                     if (implode('', $row) !== '') $rows[] = $row;
                 }
-                $data = ['rows' => array_slice($rows, 0, 300)];
+                $data = ['rows' => array_slice($rows, 0, 3000)];
                 break;
             case 'tone':
                 $data = ['style' => array_values(array_intersect((array)($in['style'] ?? []), array_keys(kb_tone_options()))), 'langs' => array_values(array_intersect((array)($in['langs'] ?? []), array_keys(kb_lang_options()))), 'lang_rule' => ($in['lang_rule'] ?? '') === 'default' ? 'default' : 'match', 'dialect' => isset(kb_dialect_options()[$in['dialect'] ?? '']) ? $in['dialect'] : 'match',
@@ -251,6 +253,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return [$d, $r];
             };
             $key = $sec === 'pos_offers' ? 'offer' : ($sec === 'faq' ? 'q' : 'name');
+            // ---- القوائم الطويلة (كتالوج +1000 منتج): الشغل بيتقسم خطوات، والمتصفح بيطلب الخطوة اللي بعدها ----
+            $step = isset($_POST['step']) ? max(0, (int)$_POST['step']) : -1;
+            // طلب جزء واحد بس (من غير "رجّع فاضي؟ اطلب تاني": جزء من غير منتجات ممكن يبقى فاضي فعلًا)
+            $askPart = function (string $sysX, string $userX) use ($type, $schema, $sec, &$cost) {
+                $msgs = [['role' => 'system', 'content' => $sysX], ['role' => 'user', 'content' => mb_substr($userX, 0, 40000)]];
+                $r = ai_chat($msgs, 6000, 'analyze'); $cost += (float)($r['cost'] ?? 0);
+                $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
+                if (!is_array($d)) {
+                    $msgs[] = ['role' => 'assistant', 'content' => mb_substr((string)$r['text'], 0, 6000)];
+                    $msgs[] = ['role' => 'user', 'content' => 'Your reply was cut off or was not valid JSON. Reply again with ONLY a complete JSON object in the exact shape requested. Keep each value short so it fits.'];
+                    $r = ai_chat($msgs, 6000, 'analyze'); $cost += (float)($r['cost'] ?? 0); $d = kb_fill_norm(kb_parse_json((string)$r['text']), $type, $schema[$sec], $sec);
+                }
+                return [is_array($d) ? $d : ['rows' => []], $r];
+            };
+            // التحقق من الأسعار بيبقى ضد الجزء اللي المنتجات اتطلعت منه (مش ضد المصادر المقصوصة على 45 ألف حرف)
+            $stepOut = function (array $rows, int $step, int $total, $r, string $src = '') use ($json, &$cost, $type, $schema, $sec, $user) {
+                $d = kb_norm_rows(['rows' => $rows], array_keys($schema[$sec]['cols']));
+                $d = kb_strip_unsourced_prices($d, $src !== '' ? $src : $user);
+                $json(['ok' => true, 'data' => $d, 'step' => $step, 'total' => $total, 'meta' => (string)($r['model'] ?? '') . ($cost > 0 ? ' · $' . rtrim(rtrim(number_format($cost, 5), '0'), '.') : '')]);
+            };
+            if ($step >= 0 && $sec === 'services') {
+                // المستندات كاملة (من غير حد 45 ألف حرف) مقسومة أجزاء ~9000 حرف على حدود السطور
+                $docs = ''; $st = db()->prepare("SELECT name, content FROM kb_files WHERE workspace_id = ? AND enabled = 1 ORDER BY id"); $st->execute([$wid]);
+                foreach ($st->fetchAll() as $f) $docs .= "\n### " . $f['name'] . "\n" . (string)$f['content'];
+                $parts = []; $cur2 = '';
+                foreach (preg_split('/\R/u', $docs) as $ln) { if (mb_strlen($cur2) + mb_strlen($ln) > 9000 && $cur2 !== '') { $parts[] = $cur2; $cur2 = ''; } $cur2 .= mb_substr($ln, 0, 9000) . "\n"; }
+                if (trim($cur2) !== '') $parts[] = $cur2;
+                if (count($parts) > 1) {
+                    $i = min($step, count($parts) - 1);
+                    [$dd, $r] = $askPart($sys . ' PART MODE: the documents are a long catalogue split into parts. Extract EVERY product, service, package and plan that appears in THIS PART only — do not skip any, do not add items from elsewhere. One row per item with its exact name as written; "details" under 20 words; "price" only if written next to the item in this part. If this part has no products, return {"rows":[]}.',
+                        "DOCUMENT PART " . ($i + 1) . " of " . count($parts) . ":\n" . $parts[$i]);
+                    $stepOut((array)($dd['rows'] ?? []), $i, count($parts), $r, $parts[$i]);
+                }
+                // مستند قصير: الطريقة العادية تحت
+            }
+            if ($step >= 0 && $sec === 'pos_offers') {
+                $svc = []; foreach ((array)(kb_get($wid)['services']['rows'] ?? []) as $sr) { $n = trim((string)($sr['name'] ?? '')); if ($n !== '' && !isset($svc[mb_strtolower($n)])) $svc[mb_strtolower($n)] = $sr; }
+                $svc = array_values($svc); $per = 10;
+                if (count($svc) > 6) {
+                    $total = (int)ceil(count($svc) / $per); $i = min($step, $total - 1); $chunk = array_slice($svc, $i * $per, $per);
+                    $names = array_map(function ($x) { return trim((string)$x['name']); }, $chunk);
+                    // سياق خفيف: ملخص الشركة + الخدمات دي بس (مش الكتالوج كله في كل طلب)
+                    $ctx = "SOURCES\n" . mb_substr(kb_compile($wid, implode(' ', $names), true), 0, 12000) . "\n\n## THESE OFFERINGS\n" . implode("\n", array_map(function ($x) { return '- ' . trim((string)$x['name']) . (trim((string)($x['price'] ?? '')) !== '' ? ' — ' . trim((string)$x['price']) : '') . (trim((string)($x['details'] ?? '')) !== '' ? ': ' . trim((string)$x['details']) : ''); }, $chunk));
+                    [$dd, $r] = $askPart($sys . ' ONLY these offerings, exactly one row each, using these exact names in "offer". Every field must be filled with specific content (mark expert suggestions): ' . json_encode($names, JSON_UNESCAPED_UNICODE) . '.', $ctx);
+                    $stepOut((array)($dd['rows'] ?? []), $i, $total, $r, $ctx . "\n" . $user);
+                }
+            }
             $empty = function (array $row) use ($key) { foreach ($row as $k => $v) if ($k !== $key && $k !== 'price' && trim((string)$v) !== '') return false; return true; };
             if ($sec === 'pos_offers') {
                 // تموضع كل خدمة: الخدمات كتير فبنطلبها على دفعات (6 في كل طلب) بالأسامي بالظبط، عشان الرد مايتقطعش والموديل مايملاش الأول بس
