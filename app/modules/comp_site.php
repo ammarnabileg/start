@@ -123,9 +123,11 @@ function cw_check(array $c, bool $force = false): int
     static $psiBudget = 2; // PageSpeed بطيء (لحد دقيقة): أقصى 2 في التشغيلة الواحدة
     $pdo = db(); $cid = (int)$c['id']; $wid = (int)$c['workspace_id']; $old = cw_row($cid); $ev = [];
     $t0 = microtime(true);
-    $r = safe_fetch((string)$c['url'], ['max' => 1500000, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; MarketWatch/1.0)']);
+    $k = kbi_fetch((string)$c['url'], 1500000); // نفس القراءة (مع Apify لو الموقع حاجب السيرفر)
+    $r = empty($k['err']) ? ['url' => $k['url'], 'body' => $k['html']] : ['err' => $k['err']];
     $ms = (int)round((microtime(true) - $t0) * 1000); $ok = empty($r['err']) && (string)($r['body'] ?? '') !== '';
-    $pdo->prepare('REPLACE INTO competitor_site_days (competitor_id, day, ok, ms) VALUES (?, ?, ?, ?)')->execute([$cid, date('Y-m-d'), $ok ? 1 : 0, $ok ? $ms : null]);
+    if ($ok && ($k['via'] ?? '') === 'apify') $ms = null; // الوقت هنا وقت Apify مش وقت الموقع
+    $pdo->prepare('REPLACE INTO competitor_site_days (competitor_id, day, ok, ms) VALUES (?, ?, ?, ?)')->execute([$cid, date('Y-m-d'), $ok ? 1 : 0, $ok && $ms !== null ? $ms : null]);
     $set = []; $had = !empty($old['checked_at']);
     if ($ok) {
         $html = (string)$r['body']; $clean = preg_replace('~<(script|style|noscript|svg)[^>]*>.*?</\1>~is', ' ', $html);

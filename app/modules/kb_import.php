@@ -6,10 +6,38 @@ if (!function_exists('array_is_list')) { function array_is_list(array $a): bool 
 /** جلب صفحة عامة بأمان: الدومين لازم يشاور على IP عام، والـ IP بيتثبت للاتصال، وكل تحويل بيتشيك من جديد */
 function kbi_fetch(string $url, int $max = 600000): array
 {
-    $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; AIPushProfile/1.0)']);
-    // مواقع كتير بترفض أي متصفح مش معروف: محاولة تانية بهوية متصفح عادي
-    if (!empty($r['err'])) $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36']);
-    return empty($r['err']) ? ['url' => $r['url'], 'html' => $r['body']] : ['err' => $r['err']];
+    static $blocked = []; static $viaApify = 3; // لو الموقع رافض سيرفرنا: باقي صفحاته تتقري من Apify على طول (لحد 3 صفحات في الطلب)
+    $host = strtolower((string)parse_url($url, PHP_URL_HOST));
+    if (!isset($blocked[$host])) {
+        $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; AIPushProfile/1.0)']);
+        // مواقع كتير بترفض أي متصفح مش معروف: محاولة تانية بهوية متصفح عادي
+        if (!empty($r['err'])) $r = safe_fetch($url, ['max' => $max, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36']);
+        if (empty($r['err'])) return ['url' => $r['url'], 'html' => $r['body']];
+        $err = (string)$r['err'];
+    } else $err = $blocked[$host];
+    // الموقع بيقفل الاتصال في وش السيرفر (حجب دول/زيارات آلية): نقراه من Apify ببروكسي سكني من بلد الشركة
+    if ($viaApify > 0 && function_exists('cs_on') && cs_on() && preg_match('~^https?://~i', $url)) {
+        $blocked[$host] = $err; $viaApify--;
+        $a = kbi_fetch_apify($url);
+        if (!empty($a['html'])) return ['url' => $a['url'] ?: $url, 'html' => mb_substr($a['html'], 0, $max), 'via' => 'apify'];
+        if (!empty($a['err'])) $err .= ' · Apify: ' . $a['err'];
+    }
+    return ['err' => $err];
+}
+
+/** قراءة صفحة عن طريق Apify (RAG Web Browser) — بيستنى النتيجة (لحد 100 ثانية) */
+function kbi_fetch_apify(string $url): array
+{
+    $tok = (string)(function_exists('tnd_apify_conn') ? (tnd_apify_conn()['credentials']['api_key'] ?? '') : ''); if ($tok === '') return ['err' => 'no key'];
+    $cc = function_exists('ws_country') ? strtoupper((string)ws_country()) : 'SA';
+    $in = ['query' => $url, 'maxResults' => 1, 'outputFormats' => ['html'], 'scrapingTool' => 'raw-http', 'requestTimeoutSecs' => 60, 'proxyConfiguration' => ['useApifyProxy' => true, 'apifyProxyGroups' => ['RESIDENTIAL'], 'apifyProxyCountry' => $cc ?: 'SA']];
+    $ch = curl_init(rtrim((string)(getenv('APIFY_BASE') ?: 'https://api.apify.com'), '/') . '/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items?timeout=90&memory=1024');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($in), CURLOPT_TIMEOUT => 100, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $tok]]);
+    $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    $j = json_decode($raw, true); if ($code >= 400 || !is_array($j)) return ['err' => 'HTTP ' . $code];
+    $it = (array)($j[0] ?? []); $html = (string)($it['html'] ?? '');
+    if ($html === '' || ($it['crawl']['httpStatusCode'] ?? 200) >= 400) return ['err' => t('الموقع لم يفتح حتى عبر Apify') . (isset($it['crawl']['httpStatusCode']) ? ' (' . $it['crawl']['httpStatusCode'] . ')' : '')];
+    return ['url' => (string)($it['metadata']['url'] ?? $it['crawl']['loadedUrl'] ?? $url), 'html' => $html];
 }
 function kbi_abs(string $href, string $base): string
 {

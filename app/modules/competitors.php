@@ -59,6 +59,8 @@ function comp_ev_title(string $kind, string $subject): string
         case 'hours': return t('غيّر المواعيد');
         case 'soc_bio': return t('غيّر وصف حسابه على %s', $subject);
         case 'soc_name': return t('غيّر اسم حسابه على %s', $subject);
+        case 'rating': return t('تغيّر تقييم %s على خرائط جوجل', $subject);
+        case 'rev_bad': return t('تقييم سلبي جديد على %s', $subject);
         case 'page_new': return t('صفحة جديدة في موقعه: %s', $subject);
         case 'seo': return t('غيّر %s', $subject);
         case 'tech_new': return t('أضاف إلى موقعه: %s', $subject);

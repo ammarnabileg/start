@@ -1709,3 +1709,14 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .ag-skh{display:flex;align-items:center;gap:.4rem;font-size:.74rem}.ag-skh span{font-size:.64rem;color:#64748b;background:#f1f5f9;border-radius:99px;padding:0 .4rem}.ag-skh small{margin-inline-start:auto;color:#94a3b8;font-size:.64rem}
 .ag-sk p{font-size:.76rem;color:#334155;margin:.15rem 0}.ag-sk em{font-style:normal;font-size:.72rem;color:#92400e;font-weight:600}.ag-empty{font-size:.76rem;color:#94a3b8}
 .dark .ag-sk{background:#422006;border-color:#78350f}.dark .ag-sk p{color:#e2e8f0}.dark .ag-sk em{color:#fde68a}
+/* تقييمات المنافس */
+.cg-st{color:#f59e0b}.cg-big{font-size:1.2rem;margin-inline-end:.3rem}.cg-stars{display:inline-flex;font-size:.75rem;vertical-align:middle}.cg-stars i{font-style:normal;color:#e2e8f0}.cg-stars i.on{color:#f59e0b}.cg-stars i.half{color:#fcd34d}
+.cg-dist{display:flex;flex-direction:column;gap:.3rem}.cg-dist div{display:grid;grid-template-columns:2.2rem 1fr 2rem;align-items:center;gap:.5rem;font-size:.74rem;color:#334155}.cg-dist i{height:8px;border-radius:99px;background:#f1f5f9;overflow:hidden}.cg-dist b{display:block;height:100%;border-radius:99px}
+.cg-dist .s5{background:#16a34a}.cg-dist .s4{background:#65a30d}.cg-dist .s3{background:#eab308}.cg-dist .s2{background:#f97316}.cg-dist .s1{background:#dc2626}.cg-dist em{font-style:normal;font-weight:700;text-align:end}
+.cg-rv{border:1px solid #fee2e2;border-radius:12px;padding:.55rem .65rem;margin-bottom:.4rem}.cg-rv p{font-size:.78rem;color:#1e293b;line-height:1.55;margin:.2rem 0}.cg-s{color:#f59e0b;letter-spacing:-.05em}.cg-s i{font-style:normal;color:#e2e8f0}
+.cg-reply{background:#f8fafc;border-radius:8px;padding:.35rem .5rem;margin-top:.3rem}.cg-reply small{font-size:.64rem;color:#64748b}.cg-reply p{font-size:.74rem;margin:0}
+.cg-br{border:1px solid #e2e8f0;border-radius:12px;padding:.6rem .7rem;margin-bottom:.45rem}.cg-br b{font-size:.84rem;color:#0f172a}.cg-br small{font-size:.68rem}
+.cg-rt{text-align:end;flex-shrink:0}.cg-rt b{font-size:1rem}.cg-rt em{font-style:normal;font-size:.68rem;font-weight:700;margin-inline-start:.2rem}.cg-rt em.up,.cg-rt small em.up{color:#16a34a}.cg-rt em.dn{color:#dc2626}.cg-rt small{display:block;color:#64748b}
+.cg-spk{width:100%;height:26px;margin-top:.35rem;color:#f59e0b}.cg-closed{font-size:.62rem;background:#fee2e2;color:#b91c1c;border-radius:99px;padding:.05rem .45rem;font-weight:700}
+.cg-hrs summary{cursor:pointer;color:#2563eb}.cg-hrs div{display:flex;justify-content:space-between;gap:1rem;font-size:.68rem;color:#475569}
+.dark .cg-rv{border-color:#7f1d1d}.dark .cg-rv p{color:#e2e8f0}.dark .cg-reply{background:#0f172a}.dark .cg-br{border-color:#334155}.dark .cg-br b{color:#f1f5f9}.dark .cg-dist i{background:#1e293b}.dark .cg-dist div{color:#cbd5e1}

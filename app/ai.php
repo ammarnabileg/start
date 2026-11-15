@@ -645,6 +645,7 @@ function ai_stream(array $c, array $messages, int $maxTokens, callable $onDelta)
             elseif ($t === 'error') throw new AiException((string)($e['error']['message'] ?? 'error'));
         });
         $usage['total_tokens'] = ($usage['input_tokens'] ?? 0) + ($usage['output_tokens'] ?? 0);
+        if (trim($text) === '') throw new AiException(t('الموديل رجع ردًا فارغًا. جرّب مرة أخرى أو اختر موديلًا آخر من صفحة المساعد.'));
         return ['text' => trim($text), 'model' => $model, 'usage' => $usage];
     }
     // OpenAI و Gemini و OpenRouter: نفس شكل OpenAI
@@ -665,7 +666,7 @@ function ai_stream(array $c, array $messages, int $maxTokens, callable $onDelta)
         foreach (array_slice(array_chunk($models, 3), 0, 6) as $group) {
             try {
                 ai_stream_request(AI_BASE . '/chat/completions', ['Authorization: Bearer ' . $key, 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')],
-                    ['models' => $group, 'messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => 0.3, 'stream' => true, 'usage' => ['include' => true]], $parse);
+                    ['models' => $group, 'messages' => $messages, 'max_tokens' => $maxTokens + 1024, 'temperature' => 0.3, 'stream' => true, 'usage' => ['include' => true], 'reasoning' => ['effort' => 'low', 'exclude' => true]], $parse);
                 if ($text !== '') return ['text' => trim($text), 'model' => $model ?: $group[0], 'usage' => $usage];
             } catch (AiException $e) {
                 $last = $e;
@@ -678,7 +679,10 @@ function ai_stream(array $c, array $messages, int $maxTokens, callable $onDelta)
     $path = $p === 'gemini' ? '/openai/chat/completions' : '/chat/completions';
     $body = ['model' => $model, 'messages' => $messages, 'stream' => true, 'stream_options' => ['include_usage' => true]];
     $body[$p === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = $p === 'openai' && preg_match('/^(o\d|gpt-5)/', $model) ? $maxTokens * 4 : $maxTokens;
+    // Gemini 2.5/3 بيفكر الأول والتفكير بيتخصم من الحد: الرد كان بيطلع فاضي (فقاعة فاضية في الشات)
+    if ($p === 'gemini' && preg_match('/gemini-(2\.5|[3-9])/', $model)) { $body['reasoning_effort'] = preg_match('/flash/', $model) ? 'none' : 'low'; $body['max_tokens'] = $maxTokens + 2048; }
     $auth = $p === 'gemini' ? ['x-goog-api-key: ' . $key, 'Authorization: Bearer ' . $key] : ['Authorization: Bearer ' . $key];
     ai_stream_request(ai_base($p) . $path, $auth, $body, $parse);
+    if (trim($text) === '') { $r = ai_chat_direct($c, $messages, $maxTokens); if (trim((string)$r['text']) === '') throw new AiException(t('الموديل رجع ردًا فارغًا. جرّب مرة أخرى أو اختر موديلًا آخر من صفحة المساعد.')); $onDelta($r['text']); return $r; }
     return ['text' => trim($text), 'model' => $model, 'usage' => $usage];
 }
