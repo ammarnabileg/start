@@ -5807,4 +5807,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'الصور بموديل GPT من OpenAI (من رصيد حسابك هناك) وبستايل شركتك من ملف الشركة.' => 'Images use OpenAI’s GPT model (billed to your OpenAI account) in your company style.',
     'ولّد الصورة كمان (OpenAI GPT)' => 'Also generate the image (OpenAI GPT)',
     'اربط OpenAI عشان الصورة تتولد لوحدها' => 'Connect OpenAI to generate the image automatically',
+    'المساحة غير محدودة · الصور الكبيرة تُصغَّر تلقائيًا' => 'Unlimited storage · large images are compressed automatically',
 ];

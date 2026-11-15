@@ -95,8 +95,7 @@
       Object.keys(st.folders).filter(Boolean).sort(function (a, b) { return a.localeCompare(b); }).forEach(function (p) { var acc = ''; p.split('/').forEach(function (part, i) { var parent = acc; acc = acc ? acc + '/' + part : part; if (seen[acc]) return; if (i > 0 && !(L.t === 'folder' && (L.f === parent || L.f.indexOf(parent + '/') === 0))) return; seen[acc] = 1; var open = L.t === 'folder' && (L.f === acc || L.f.indexOf(acc + '/') === 0); h += row('data-gof="' + esc(acc) + '" data-drop="' + esc(acc) + '"', open ? '📂' : uic('folder', 'w-4 h-4'), part, st.folders[acc] || null, L.t === 'folder' && L.f === acc, i); }); });
       if (st.folders[''] != null) h += row('data-gof="" data-drop=""', uic('folder', 'w-4 h-4'), S.noFolder, st.folders[''], L.t === 'folder' && L.f === '');
       if (!opt.picker) h += '</div><div class="px-1.5 pt-3">' + row('data-go="trash"', uic('trash', 'w-4 h-4'), S.trash, counts.trash || null, L.t === 'trash');
-      var max = Math.max(st.usage * 1.25, 104857600);
-      h += '</div><div class="px-3 pt-5 text-[11px] text-ink-500"><div class="h-1.5 rounded-full bg-ink-200 overflow-hidden"><div class="h-full bg-brand-500" style="width:' + Math.min(100, st.usage / max * 100).toFixed(1) + '%"></div></div><div class="mt-1">' + esc(fmt(S.usage, size(st.usage))) + '</div><div class="text-ink-400">' + esc(fmt(S.maxSize, size(M.max))) + '</div></div>';
+      h += '</div><div class="px-3 pt-5 text-[11px] text-ink-500"><div>' + esc(fmt(S.usage, size(st.usage))) + '</div><div class="text-ink-400">' + esc(S.unlimited || '') + '</div></div>';
       $('.mx-nav').innerHTML = h;
     }
     function thumb(f, big) {
@@ -263,8 +262,33 @@
     }
     function finishBatch() { var newImgs = batch.keys.map(function (k) { return +k.slice(1); }); if (batch.ok && M.canAi && store.get('autoai', false)) setTimeout(function () { aiTag(st.all.filter(function (f) { return newImgs.indexOf(f.id) >= 0 && f.kind === 'image' && !f.ai; }).map(function (f) { return f.id; })); }, 900);
       if (batch.ok) toast(fmt(S.uploaded, batch.ok), 'ok'); if (batch.dup) toast(fmt(S.dups, batch.dup), 'ok'); if (batch.keys.length) st.sel = opt.picker && !opt.multiple ? batch.keys.slice(-1) : batch.keys; batch = { ok: 0, dup: 0, keys: [] }; load(); }
+    // تصغير الصور الكبيرة في المتصفح قبل الرفع: أقصى ضلع 2560px وجودة عالية (0.86)، ولو لسه أكبر من حد الخادم نقلل الجودة تدريجيًا
+    function shrink(f) {
+      return new Promise(function (done) {
+        if (!/^image\/(jpeg|png|webp|bmp|heic|heif)$/i.test(f.type) || (f.size < 1.5 * 1048576 && f.size <= M.max)) return done(f);
+        var u = URL.createObjectURL(f), im = new Image();
+        im.onerror = function () { URL.revokeObjectURL(u); done(f); };
+        im.onload = function () {
+          URL.revokeObjectURL(u); var L = 2560, k = Math.min(1, L / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+          c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          var webp = c.toDataURL('image/webp').indexOf('data:image/webp') === 0, type = webp ? 'image/webp' : (/png/i.test(f.type) ? 'image/png' : 'image/jpeg'), ext = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' }[type];
+          (function tryQ(q) {
+            c.toBlob(function (b) {
+              if (!b) return done(f);
+              if (b.size > M.max && q > 0.5 && type !== 'image/png') return tryQ(q - 0.1);
+              if (b.size >= f.size) return done(f);
+              done(new File([b], f.name.replace(/\.[^.]+$/, '') + '.' + ext, { type: type, lastModified: Date.now() }));
+            }, type, q);
+          })(0.86);
+        };
+        im.src = u;
+      });
+    }
     function upload(files) {
       files = [].slice.call(files || []); if (!files.length || !M.canEdit) return;
+      Promise.all(files.map(shrink)).then(upload2);
+    }
+    function upload2(files) {
       if (st.loc.t === 'trash') go({ t: 'all', f: '' });
       files.filter(function (f) { return f.size > M.max; }).forEach(function (f) { toast(fmt(S.tooBig, f.name, size(M.max)), 'err'); });
       files.filter(function (f) { return f.size <= M.max; }).forEach(function (f) {
