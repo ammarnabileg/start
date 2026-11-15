@@ -96,3 +96,12 @@ function ai_country_note(): string
         . ($c['dialect_en'] !== '' ? ' Local Arabic dialect: ' . $c['dialect_en'] . '.' : '')
         . ' Every example, city, district, currency, payment method, holiday, cultural reference and slang you produce must fit ' . $c['en'] . ' specifically — never use examples from another country (e.g. do not mention another Gulf country\'s cities or currency) unless the business data itself does.';
 }
+
+/** اسم الدولة من الكود (من قائمة الدول، وإلا من Intl لو متاح) */
+function country_name(string $cc): string
+{
+    $cc = strtoupper($cc); $r = countries()[$cc] ?? null;
+    if ($r) return (string)$r[lang() === 'ar' ? 'ar' : 'en'];
+    if (class_exists('Locale')) { $n = Locale::getDisplayRegion('-' . $cc, lang() === 'ar' ? 'ar' : 'en'); if ($n && $n !== $cc) return $n; }
+    return $cc;
+}

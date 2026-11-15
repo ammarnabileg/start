@@ -1,12 +1,19 @@
 <?php
-/** التنبيهات: قواعد يظبطها صاحب الشركة، والتنبيهات اللي حصلت */
+/** مركز التنبيهات (الجرس): تنبيهات العملاء (CRM) + تنبيهات الأداء وقواعدها — مكان واحد بدل اتنين */
 $wid = (int)ws('id');
+$uid = (int)(current_user()['id'] ?? 0);
 $canManage = can('settings.manage');
+$canAn = can('analytics.view') && module_enabled('analytics');
+$canCrm = can('crm.view') && module_enabled('crm') && function_exists('crm_notifs');
+if (!$canAn && !$canCrm) redirect(url('dashboard'));
 $catalog = rp_alert_rules();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
-    if ($action === 'seen_all') {
+    if (!$canAn && !in_array($action, ['crm_seen'], true)) redirect(url('alerts'));
+    if ($action === 'crm_seen') {
+        if ($canCrm) db()->prepare('UPDATE crm_notifs SET seen = 1 WHERE workspace_id = ? AND user_id = ?')->execute([$wid, $uid]);
+    } elseif ($action === 'seen_all') {
         db()->prepare("UPDATE alerts SET seen = 1 WHERE workspace_id = ? AND seen = 0")->execute([$wid]);
     } elseif ($action === 'seen') {
         db()->prepare("UPDATE alerts SET seen = 1 WHERE workspace_id = ? AND id = ?")->execute([$wid, (int)($_POST['id'] ?? 0)]);
@@ -39,7 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect(url('alerts'));
 }
 
-$hasApi = (bool)rp_clients($wid);
+$crmList = $canCrm ? crm_notifs($uid, 30) : [];
+$hasApi = $canAn && (bool)rp_clients($wid);
 if ($hasApi) rp_evaluate_alerts($wid);
 $rules = rp_rules_for($wid);
 $st = db()->prepare("SELECT * FROM alerts WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100");
@@ -53,7 +61,27 @@ $st = db()->prepare("SELECT rule, COUNT(*) n, MAX(created_at) last_at, SUM(creat
 $st->execute([$wid]);
 foreach ($st->fetchAll() as $r) $stats[$r['rule']] = $r;
 
-render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval, $stats) {
+render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval, $stats, $crmList, $canCrm, $canAn) {
+    if ($canCrm): $cu = count(array_filter($crmList, function ($x) { return !(int)$x['seen']; })); ?>
+    <div class="card p-5 mb-5" id="notifs">
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <h2 class="font-bold text-ink-900"><?= e(t('تنبيهات العملاء')) ?></h2>
+        <?php if ($cu): ?><span class="bg-red-600 text-white text-[11px] rounded-full px-2 py-0.5"><?= (int)$cu ?></span>
+          <form method="post" class="ms-auto"><?= csrf_field() ?><input type="hidden" name="action" value="crm_seen"><button class="btn-ghost text-sm"><?= e(t('علّم الكل كمقروء')) ?></button></form><?php endif; ?>
+      </div>
+      <?php if (!$crmList): ?><p class="text-sm text-ink-500"><?= e(t('لا توجد تنبيهات للعملاء.')) ?></p>
+      <?php else: ?><ul class="divide-y divide-ink-100">
+        <?php foreach ($crmList as $n): ?>
+          <li class="py-2.5 flex gap-3 items-start <?= (int)$n['seen'] ? 'opacity-70' : '' ?>">
+            <span class="w-2 h-2 mt-2 rounded-full shrink-0 <?= (int)$n['seen'] ? 'bg-ink-200' : 'bg-brand-600' ?>"></span>
+            <div class="min-w-0 flex-1"><p class="text-sm text-ink-800 break-words <?= (int)$n['seen'] ? '' : 'font-semibold' ?>"><?= e((string)$n['body']) ?></p>
+              <p class="text-xs text-ink-500 mt-0.5"><?= e(fmt_date($n['created_at'], 'd/m h:i A')) ?><?php if ($n['lead_id']): ?> · <a class="link" href="<?= e(url('prospects', ['lead' => (int)$n['lead_id']])) ?>"><?= e($n['name'] ?: t('فتح العميل')) ?></a><?php endif; ?></p></div>
+          </li>
+        <?php endforeach; ?></ul>
+      <?php endif; ?>
+    </div>
+    <?php endif;
+    if (!$canAn) return;
     $icons = ['ai_anomaly' => 'spark', 'post_above' => 'trend_up', 'impressions_drop' => 'trend_down', 'follower_drop' => 'users', 'reconnect' => 'plug', 'unread_old' => 'chat'];
     $links = ['post_above' => url('analytics'), 'impressions_drop' => url('analytics'), 'follower_drop' => url('analytics'), 'reconnect' => url('accounts'), 'unread_old' => url('inbox')];
     ?>

@@ -19,7 +19,7 @@ $payload = function () use ($host) {
         'day' => substr((string)$e['created_at'], 0, 10), 'date' => fmt_date($e['created_at'], 'd/m'), 'recent' => strtotime($e['created_at']) >= $since ? 1 : 0]; }, $events);
     $P = []; $cheaper = 0;
     foreach ($prices as $r) { $mn = comp_price_num((string)$r['mine']); $th = [];
-        foreach ($r['them'] as $cid => $h) { $n = comp_price_num((string)$h['price']); $th[(string)$cid] = ['price' => (string)$h['price'], 'n' => $n, 'd' => ($mn && $n !== null) ? (int)round(($n - $mn) / $mn * 100) : null]; if ($mn && $n !== null && $n < $mn) $cheaper++; }
+        foreach ((array)($r['them'] ?? []) as $cid => $h) { if (!is_array($h)) continue; $n = comp_price_num((string)$h['price']); $th[(string)$cid] = ['price' => (string)$h['price'], 'n' => $n, 'd' => ($mn && $n !== null) ? (int)round(($n - $mn) / $mn * 100) : null]; if ($mn && $n !== null && $n < $mn) $cheaper++; }
         $P[] = ['name' => (string)$r['name'], 'mine' => (string)$r['mine'], 'mn' => $mn, 'them' => (object)$th]; }
     $rec = array_filter($E, function ($e) { return $e['recent'] && $e['kind'] !== 'first'; });
     return ['comps' => $C, 'events' => array_values(array_filter($E, function ($e) { return $e['kind'] !== 'first'; })), 'prices' => $P, 'saved' => cmp_saved_ids(),

@@ -40,40 +40,6 @@
     fm.addEventListener('input', function () { wab.style.background = fm.color.value; wab.querySelector('b').textContent = fm.label.value || T.chatUs; wab.style.display = fm.btn.checked ? '' : 'none'; });
     fm.querySelector('[data-cp]').onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(X.trackJs); toast(T.copied); };
     fm.addEventListener('submit', function (e) { e.preventDefault(); save(fm.querySelector('.btn-primary'), api({ action: 'track_save', site: fm.site.value, hot: chipVals(fm.querySelector('[data-chips]')).join(', '), btn: fm.btn.checked ? 1 : '', wa: fm.wa.value, label: fm.label.value, color: fm.color.value }), function () { X.site = fm.site.value; }); }); };
-  /* ---------- خطط المتابعة ---------- */
-  var CH = { email: ['mail', '#2563eb'], wa: ['chat', '#16a34a'], call: ['phone', '#ea580c'], task: ['check', '#7c3aed'] };
-  function rulesForm() { var r = X.rules || {};
-    return '<form class="hx-card space-y-4" data-rules data-no-ajax>' + sw('hours', !!+r.hours, T.rHours, T.rHoursD) + '<div class="flex flex-wrap gap-1">' + DAYS.map(function (d, i) { return '<label class="pd-chipr"><input type="checkbox" name="days[]" value="' + i + '"' + ((r.days || []).indexOf(i) >= 0 ? ' checked' : '') + RO + '><span>' + esc(d) + '</span></label>'; }).join('') + '</div>' +
-      '<div class="grid grid-cols-2 gap-2"><label class="hx-l">' + esc(T.from) + '<input type="time" name="from" class="input" value="' + esc(r.from || '09:00') + '"' + RO + '></label><label class="hx-l">' + esc(T.to) + '<input type="time" name="to" class="input" value="' + esc(r.to || '18:00') + '"' + RO + '></label></div>' +
-      sw('stop_reply', !!+r.stop_reply, T.rStop, T.rStopD) + '<div><b class="hx-l">' + esc(T.rNa) + '</b><div class="flex items-center gap-2 mt-1"><input type="number" min="0" max="10" name="na_n" class="input !mt-0 !w-20" value="' + (+r.na_n || 0) + '"' + RO + '><span class="text-xs text-ink-500">' + esc(T.rTimes) + '</span><select name="na_plan" class="input !mt-0 flex-1"' + RO + '><option value="0">' + esc(T.none) + '</option>' + (X.plans || []).map(function (p) { return '<option value="' + p.id + '"' + (+r.na_plan === +p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></div></div>' +
-      (X.manage ? '<button class="btn-primary w-full">' + esc(T.save) + '</button>' : '') + '</form>'; }
-  document.addEventListener('submit', function (e) { var fm = e.target.closest('[data-rules]'); if (!fm) return; e.preventDefault(); var fd = new FormData(fm); fd.append('_csrf', X.csrf); fd.append('action', 'plans');
-    var b = fm.querySelector('.btn-primary'); save(b, fetch(X.setUrl, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return { ok: r.ok }; }), function () { X.rules = { hours: fm.hours.checked ? 1 : 0, days: fd.getAll('days[]').map(Number), from: fm.from.value, to: fm.to.value, stop_reply: fm.stop_reply.checked ? 1 : 0, na_n: +fm.na_n.value, na_plan: +fm.na_plan.value }; }); });
-  var planTab = 0;
-  B.plans = function (body) { var plans = JSON.parse(JSON.stringify(X.plans || [])), cur = plans.length ? 0 : -1;
-    function paint() { var p = plans[cur];
-      var top = '<div class="hx-tabs hx-tabs-lg mb-3"><button type="button" data-pt2="0" class="' + (planTab ? '' : 'on') + '">' + esc(T.tPlans) + '</button><button type="button" data-pt2="1" class="' + (planTab ? 'on' : '') + '">' + esc(T.tRules) + '</button></div>';
-      if (planTab) { body.innerHTML = top + rulesForm(); return; }
-      body.innerHTML = top + '<div class="hx-card"><div class="hx-tabs">' + plans.map(function (x, i) { return '<button type="button" data-p="' + i + '" class="' + (i === cur ? 'on' : '') + '">' + esc(x.name || T.untitled) + ' <i>' + (x.steps || []).length + '</i></button>'; }).join('') + (X.manage ? '<button type="button" data-new>+ ' + esc(T.newPlan) + '</button>' : '') + '</div>' +
-        (p ? '<div class="mt-4 space-y-3"><input class="input text-lg font-bold" data-name value="' + esc(p.name) + '" placeholder="' + esc(T.planName) + '"' + RO + '>' +
-          '<ol class="hx-tl">' + (p.steps || []).map(function (s, i) { var c = CH[s.ch] || CH.task; return '<li style="--c:' + c[1] + '"><span class="hx-dot">' + ic(c[0]) + '</span><div class="hx-step"><div class="flex flex-wrap items-center gap-2"><span class="hx-day">' + esc(T.dayN) + ' <input type="number" min="0" max="365" data-k="day" data-i="' + i + '" value="' + (+s.day || 0) + '"' + RO + '></span>' +
-            '<div class="abx-seg !mt-0">' + Object.keys(CH).map(function (k) { return '<button type="button" data-ch="' + k + '" data-i="' + i + '" class="' + (s.ch === k ? 'on' : '') + '">' + esc((X.chans[k] || [k, k])[1] || k) + '</button>'; }).join('') + '</div>' + (X.manage ? '<button type="button" class="ms-auto text-ink-400 hover:text-red-600" data-del="' + i + '">' + ic('trash') + '</button>' : '') + '</div>' +
-            (s.ch === 'email' ? '<input class="input text-sm mt-2" data-k="subject" data-i="' + i + '" placeholder="' + esc(T.subject) + '" value="' + esc(s.subject || '') + '"' + RO + '>' : '') + '<textarea class="input text-sm mt-2" rows="2" dir="auto" data-k="text" data-i="' + i + '" placeholder="' + esc(T.stepText) + '"' + RO + '>' + esc(s.text || '') + '</textarea></div></li>'; }).join('') +
-          (X.manage ? '<li class="add"><span class="hx-dot">+</span><button type="button" class="btn-ghost !text-xs" data-add>' + esc(T.addStep) + '</button></li>' : '') + '</ol>' +
-          '<p class="hx-d">' + esc(T.vars) + ' <code>{name}</code> <code>{company}</code> <code>{me}</code> <code>{book}</code></p>' + (X.manage ? '<div class="flex gap-2"><button type="button" class="btn-primary flex-1" data-save>' + esc(T.save) + '</button><button type="button" class="btn-ghost !text-red-600" data-rmplan>' + esc(T.delPlan) + '</button></div>' : '') + '</div>'
-          : '<p class="hx-empty">' + esc(T.noPlans) + '</p>') + '</div>'; }
-    paint();
-    body.addEventListener('click', function (e) { var b;
-      if ((b = e.target.closest('[data-pt2]'))) { planTab = +b.dataset.pt2; return paint(); }
-      if ((b = e.target.closest('[data-p]'))) { cur = +b.dataset.p; return paint(); }
-      if (e.target.closest('[data-new]')) { plans.push({ id: 0, name: '', steps: [{ day: 0, ch: 'wa', text: T.s1 }, { day: 2, ch: 'call', text: T.s2 }, { day: 5, ch: 'email', subject: T.s3s, text: T.s3 }] }); cur = plans.length - 1; return paint(); }
-      if ((b = e.target.closest('[data-ch]'))) { plans[cur].steps[+b.dataset.i].ch = b.dataset.ch; return paint(); }
-      if ((b = e.target.closest('[data-del]'))) { plans[cur].steps.splice(+b.dataset.del, 1); return paint(); }
-      if (e.target.closest('[data-add]')) { var st = plans[cur].steps, last = st[st.length - 1]; st.push({ day: last ? (+last.day || 0) + 2 : 0, ch: 'task', text: '' }); return paint(); }
-      if (e.target.closest('[data-rmplan]')) { if (!confirm(T.delPlanQ)) return; plans.splice(cur, 1); cur = plans.length ? 0 : -1; return persist(e.target.closest('[data-rmplan]')); }
-      if ((b = e.target.closest('[data-save]'))) persist(b); });
-    body.addEventListener('input', function (e) { var el = e.target; if (el.matches('[data-name]')) plans[cur].name = el.value; if (el.dataset.k) plans[cur].steps[+el.dataset.i][el.dataset.k] = el.dataset.k === 'day' ? +el.value : el.value; });
-    function persist(btn) { save(btn, api({ action: 'plans_save', plans: JSON.stringify(plans) }), function (j) { if (j.plans) { plans = j.plans; X.plans = j.plans; if (cur >= plans.length) cur = plans.length - 1; } paint(); }); } };
   /* ---------- رسائل واتساب الجاهزة ---------- */
   B.tpl = function (body) { var list = JSON.parse(JSON.stringify(X.tpl || [])), cur = 0;
     function fill(t) { return String(t || '').replace(/\{name\}/g, T.sampleName).replace(/\{company\}/g, T.sampleCo).replace(/\{me\}/g, T.sampleMe).replace(/\{book\}/g, 'https://…/book'); }

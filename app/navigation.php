@@ -13,7 +13,7 @@ function module_catalog(): array
         'studio' => t('استوديو المحتوى'),
         'publishing' => t('النشر والمنشورات'),
         'inbox' => t('الرسائل والتعليقات'),
-        'automations' => t('الردود التلقائية والـ Workflows'),
+        'automations' => t('الردود التلقائية'),
         'whatsapp' => t('واتساب للبيزنس'),
         'analytics' => t('التحليلات'),
         'ads' => t('الإعلانات'),
@@ -39,8 +39,8 @@ function module_enabled(?string $m): bool
 function nav_items(): array
 {
     $owner = is_ws_owner();
-    // القايمة مقسمة على رحلة المنصة: السوق ← المحتوى ← النشر وجمع العملاء ← المبيعات ← النتائج، والإدارة في الآخر
-    $s1 = t('شركتك'); $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('النشر وجمع العملاء'); $s5 = t('المبيعات'); $s6 = t('النتائج');
+    // القايمة مقسمة على رحلة المنصة: السوق ← المحتوى ← النشر ← التواصل مع العملاء ← النتائج، والإدارة في الآخر
+    $s2 = t('السوق والفرص'); $sC = t('المحتوى'); $s3 = t('النشر والوصول'); $s4 = t('التواصل مع العملاء'); $s6 = t('النتائج');
     $items = [
         ['key' => 'dashboard', 'label' => t('الرئيسية'), 'section' => ''],
         ['key' => 'tenders', 'module' => 'tenders', 'label' => t('آخر المنافسات'), 'section' => $s2],
@@ -115,7 +115,7 @@ function module_pages(): array
         'crm' => ['crm', 'crm_find', 'prospects', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
-        'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts'],
+        'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals'],
         'ads' => ['ads', 'ad_builder', 'ad_create', 'ad_audiences', 'leads', 'ad_campaign'],
         'gmb' => ['gmb_reviews', 'gmb_location', 'gmb_media'],
         'phone' => ['phone_numbers', 'sms', 'calls', 'phone_kyc', 'sms_mine'],

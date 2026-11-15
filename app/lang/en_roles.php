@@ -33,7 +33,6 @@ return [
     'مالك الشركة بس يقدر يغيّر دور مالك تاني أو يشيله.' => 'Only an owner can change or remove another owner.',
     'الأدوار والصلاحيات' => 'Roles & permissions',
     'اعمل أدوار باسماء من عندك، واختار لكل دور الحاجات اللي يقدر يعملها.' => 'Create roles with your own names and choose what each role can do.',
-    'جاهز' => 'Built-in',
     '%s صلاحية · %s عضو' => '%s permissions · %s members',
     'اسم الدور' => 'Role name',
     'حفظ الدور' => 'Save role',

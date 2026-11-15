@@ -15,7 +15,7 @@ function lead_popup_X(): array
     $canManage = can('crm.manage') || is_ws_owner(); $members = []; foreach (crm_members() as $m) $members[(int)$m['id']] = $m['name'];
     return ['api' => url('crm_leads'), 'voice' => url('crm_leads') . '&voice=', 'settings' => url('crm_settings'), 'oc' => crm_call_outcomes(), 'lost' => crm_lost_reasons(), 'dealSt' => crm_deal_statuses(),
         'plans' => [],
-        'chans' => array_map(function ($c) { return $c[1]; }, crm_plan_channels()), 'pipes' => crm_pipelines(), 'cf' => crm_custom_fields(), 'apollo' => crm_has_key() && can('crm.reveal'), 'manage' => $canManage, 'members' => $members, 'me' => (int)(current_user()['id'] ?? 0),
+        'chans' => array_map(function ($c) { return $c[1]; }, crm_channels()), 'pipes' => crm_pipelines(), 'cf' => crm_custom_fields(), 'apollo' => crm_has_key() && can('crm.reveal'), 'manage' => $canManage, 'members' => $members, 'me' => (int)(current_user()['id'] ?? 0),
         'T' => ['how' => t('المكالمة كانت عاملة إزاي؟'), 'deals' => t('الصفقات'), 'addDeal' => t('صفقة جديدة'), 'dealName' => t('اسم الصفقة (مثلًا: باقة سنوية)'), 'value' => t('القيمة'), 'closeAt' => t('هتتقفل إمتى؟'), 'add' => t('أضف'), 'noDeals' => t('مفيش صفقات لسه. ضيف أول صفقة وتابع قيمتها هنا.'),
           'total' => t('إجمالي المفتوح والمكسوب'), 'sure' => t('متأكد؟'), 'inDays' => t('بعد %s يوم'), 'late' => t('متأخرة %s يوم'), 'today' => t('النهارده'),
           'plan' => t('خطة المتابعة'), 'noPlan' => t('مفيش خطة شغالة. اختار خطة تمشي بيها خطوة بخطوة:'), 'noPlans' => t('مفيش خطط متعملة. اعمل خطة من الإعدادات.'), 'start' => t('ابدأ'), 'step' => t('خطوة %s من %s'), 'done' => t('نفذتها ✓'), 'skip' => t('تخطّي'), 'stop' => t('وقّف الخطة'), 'sendWa' => t('ابعتها واتساب'), 'dueAt' => t('ميعادها'),

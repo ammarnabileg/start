@@ -32,7 +32,7 @@ if (($_GET['ajax'] ?? '') === 'lead') {
     $mails = array_map(function ($m) { return ['subject' => (string)$m['subject'], 'opens' => (int)$m['opens'], 'clicks' => (int)$m['clicks'], 'at' => fmt_date($m['created_at'], 'd/m/Y H:i'), 'opened' => $m['opened_at'] ? fmt_date($m['opened_at'], 'd/m/Y H:i') : '']; }, crm_mails($lid));
     $deals = array_map(function ($d) { return ['id' => (int)$d['id'], 'title' => (string)$d['title'], 'value' => (float)$d['value'], 'status' => (string)$d['status'], 'close' => (string)($d['close_at'] ?? '')]; }, crm_deals($lid));
     $J(['ok' => true, 'acts' => array_map($actOut, array_slice($raw, 0, 30)), 'note' => (string)$l['note'],
-        'deals' => $deals, 'mails' => $mails, 'tasks' => $tasks, 'run' => crm_lead_run($lid), 'intel' => crm_intel($l, $raw), 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
+        'deals' => $deals, 'mails' => $mails, 'tasks' => $tasks, 'run' => null, 'intel' => crm_intel($l, $raw), 'value' => $l['deal_value'] === null ? '' : rtrim(rtrim((string)$l['deal_value'], '0'), '.'),
         'pl' => (string)($l['pipeline'] ?? 'sales'), 'cf' => json_decode((string)($l['custom'] ?? ''), true) ?: (object)[], 'lost' => (string)($l['lost_reason'] ?? ''), 'unsub' => (int)($l['unsub'] ?? 0),
         'company' => $l['company_id'] ? url('crm', ['open' => (int)$l['company_id']]) : ''] + $nextOut($l));
 }
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sent = 0; $leads = 0; $skip = 0; $errs = [];
         foreach (array_slice((array)($_POST['ids'] ?? []), 0, 25) as $id) { $l = $getLead((int)$id); if (!$l) continue;
             if (!crm_can_edit($l) || (!$l['email'] && !$l['emails']) || !empty($l['unsub'])) { $skip++; continue; }
-            try { $r = crm_send_email($l, crm_plan_text($sub, $l), crm_plan_text($body, $l)); $sent += (int)($r['sent'] ?? 1); $leads++; }
+            try { $r = crm_send_email($l, crm_fill_vars($sub, $l), crm_fill_vars($body, $l)); $sent += (int)($r['sent'] ?? 1); $leads++; }
             catch (Throwable $ex) { $errs[] = $ex->getMessage(); } }
         if (!$sent && $errs) $J(['ok' => false, 'error' => $errs[0]]);
         log_activity('crm.email_bulk', (string)$sent);

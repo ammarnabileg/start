@@ -62,28 +62,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'logo' => preg_match('~^https?://~i', trim((string)($_POST['logo'] ?? ''))) ? mb_substr(trim((string)$_POST['logo']), 0, 500) : '', 'sig' => mb_substr(trim((string)($_POST['sig'] ?? '')), 0, 500), 'footer' => mb_substr(trim((string)($_POST['footer'] ?? '')), 0, 300)], JSON_UNESCAPED_UNICODE));
         flash('success', t('اتحفظ ✓')); $back('mail');
     }
-    if ($a === 'plans') {
-        $days = array_values(array_intersect(array_map('intval', (array)($_POST['days'] ?? [])), range(0, 6)));
-        $tm = function ($v, $d) { return preg_match('/^\d{2}:\d{2}$/', (string)$v) ? $v : $d; };
-        save_setting('crm_plan_rules_' . $wid, json_encode(['hours' => !empty($_POST['hours']) ? 1 : 0, 'days' => $days, 'from' => $tm($_POST['from'] ?? '', '09:00'), 'to' => $tm($_POST['to'] ?? '', '18:00'),
-            'stop_reply' => !empty($_POST['stop_reply']) ? 1 : 0, 'na_n' => max(0, min(10, (int)($_POST['na_n'] ?? 0))), 'na_plan' => (int)($_POST['na_plan'] ?? 0)]));
-        flash('success', t('اتحفظ ✓')); $back('plans');
-    }
 }
 
 $sc = crm_stage_cfg(); $stages = crm_stages(); $pal = crm_stage_palette(); $colors = crm_stage_colors();
 $st = db()->prepare('SELECT stage, COUNT(*) n FROM crm_leads WHERE workspace_id = ? GROUP BY stage'); $st->execute([$wid]); $cnt = array_column($st->fetchAll(), 'n', 'stage');
 $st = db()->prepare('SELECT pipeline, COUNT(*) n FROM crm_leads WHERE workspace_id = ? GROUP BY pipeline'); $st->execute([$wid]); $pcnt = array_column($st->fetchAll(), 'n', 'pipeline');
 $custKeys = array_column((array)$sc['custom'], 'key');
-$pr = crm_plan_rules();
 
-render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr, $sc, $stages, $pal, $colors, $cnt, $pcnt, $custKeys, $pr) {
+render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr, $sc, $stages, $pal, $colors, $cnt, $pcnt, $custKeys) {
     $dis = $mgr ? '' : 'disabled'; $sec = 'card p-5 scroll-mt-24';
     $palSel = function (string $name, string $cur) use ($pal, $dis) { $h = '<select name="' . e($name) . '" class="input !mt-0 !py-1 !w-28 text-xs" ' . $dis . '>'; foreach ($pal as $k => $cls) $h .= '<option value="' . e($k) . '"' . ($k === $cur ? ' selected' : '') . '>' . e($k) . '</option>'; return $h . '</select>'; };
     $curColor = function (string $k) use ($colors, $pal) { $c = $colors[$k] ?? ''; foreach ($pal as $n => $cls) if ($cls === $c) return $n; return 'teal'; };
     ?>
   <?php if (!$mgr): ?><div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><?= e(t('الإعدادات دي بيعدّلها مدير العملاء بس.')) ?></div><?php endif; ?>
-  <div class="mb-4 flex flex-wrap gap-1.5 text-xs"><?php foreach (['stages' => ['sliders', t('المراحل')], 'pipes' => ['route', 'Pipelines'], 'fields' => ['puzzle', t('حقول مخصصة')], 'tags' => ['tag', t('تاجات أوتوماتيك')], 'mail' => ['mail', t('قالب الإيميل')], 'plans' => ['refresh', t('قواعد خطط المتابعة')]] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?></div>
+  <div class="mb-4 flex flex-wrap gap-1.5 text-xs"><?php foreach (['stages' => ['sliders', t('المراحل')], 'pipes' => ['route', 'Pipelines'], 'fields' => ['puzzle', t('حقول مخصصة')], 'tags' => ['tag', t('تاجات أوتوماتيك')], 'mail' => ['mail', t('قالب الإيميل')]] as $k => [$ic, $v]): ?><a href="#<?= $k ?>" class="chip inline-flex items-center gap-1.5"><?= ui_icon($ic, 'w-4 h-4') ?><?= e($v) ?></a><?php endforeach; ?></div>
   <div class="grid xl:grid-cols-2 gap-4">
     <section id="stages" class="<?= $sec ?>"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M8 10v4M16 16v4"/></svg> <?= e(t('المراحل')) ?></h2>
       <p class="text-xs text-ink-500 mb-3"><?= e(t('غيّر الأسماء والألوان، وضيف لحد 4 مراحل زيادة (بتتحط قبل "بقى عميل"). "جديد" و"بقى عميل" و"مش مناسب" أساسيين في التقارير فمابيتمسحوش.')) ?></p>

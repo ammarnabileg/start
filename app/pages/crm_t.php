@@ -8,7 +8,6 @@ $u = (string)($_GET['u'] ?? '');
 if (!empty($_GET['x'])) {
     if ($m) ai_as_workspace((int)$m['workspace_id'], function () use ($m) {
         db()->prepare('UPDATE crm_leads SET unsub = 1 WHERE id = ? AND workspace_id = ?')->execute([(int)$m['lead_id'], (int)$m['workspace_id']]);
-        db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE lead_id = ? AND workspace_id = ? AND state IN ('wait','due')")->execute([(int)$m['lead_id'], (int)$m['workspace_id']]);
         crm_act_add((int)$m['lead_id'], 'note', '🚫 ' . t('لغى الاشتراك في الإيميلات'));
     });
     header('Content-Type: text/html; charset=utf-8');

@@ -26,7 +26,7 @@ function media_max_bytes(): int
 {
     $b = function ($v) { $v = trim((string)$v); $n = (float)$v; switch (strtolower(substr($v, -1))) { case 'g': $n *= 1024; case 'm': $n *= 1024; case 'k': $n *= 1024; } return (int)$n; };
     $a = $b(ini_get('upload_max_filesize') ?: '2M'); $p = $b(ini_get('post_max_size') ?: '8M');
-    return min($a ?: PHP_INT_MAX, $p ?: PHP_INT_MAX, 200 * 1024 * 1024);
+    return min($a ?: PHP_INT_MAX, $p ? $p - 65536 : PHP_INT_MAX, 200 * 1024 * 1024); // بنسيب 64KB لباقي حقول الطلب
 }
 
 function media_row(array $r): array

@@ -318,7 +318,7 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
     try {
         if (array_key_exists('ext_id', $b) && $b['ext_id']) $pdo->prepare('UPDATE crm_leads SET ext_id = NULL WHERE id = ?')->execute([$drop]); // unique لو موجود
         $vals[] = $keep; $pdo->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
-        foreach (['crm_acts', 'crm_deals', 'crm_plan_runs', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
+        foreach (['crm_acts', 'crm_deals', 'crm_bookings', 'crm_visits', 'crm_mails', 'crm_notifs'] as $tb) { try { $pdo->prepare("UPDATE $tb SET lead_id = ? WHERE lead_id = ? AND workspace_id = ?")->execute([$keep, $drop, $wid]); } catch (Throwable $e) {} }
         $pdo->prepare('UPDATE crm_leads SET referred_by = ? WHERE referred_by = ? AND workspace_id = ?')->execute([$keep, $drop, $wid]);
         $pdo->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([$drop, $wid]);
         $pdo->commit();
@@ -328,49 +328,14 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
     return true;
 }
 
-/* ---------- #78 #79 #80 قواعد خطط المتابعة ---------- */
-function crm_plan_rules(): array
-{
-    $r = (json_decode((string)setting('crm_plan_rules_' . (int)ws('id'), ''), true) ?: []) + ['hours' => 0, 'days' => [0, 1, 2, 3, 4], 'from' => '09:00', 'to' => '18:00', 'stop_reply' => 0, 'na_n' => 0, 'na_plan' => 0];
-    $r['days'] = array_map('intval', (array)$r['days']);
-    return $r;
-}
-/** لو دلوقتي برّه ساعات الشغل: أول ميعاد شغل جاي (بتوقيت السيرفر). جوّه الساعات: null */
-function crm_plan_next_open(?int $ts = null): ?string
-{
-    $r = crm_plan_rules(); if (empty($r['hours']) || !$r['days']) return null;
-    $tz = new DateTimeZone(site_timezone()); $d = new DateTime('@' . ($ts ?? time())); $d->setTimezone($tz);
-    $in = function (DateTime $x) use ($r) { $hm = $x->format('H:i'); return in_array((int)$x->format('w'), $r['days'], true) && $hm >= $r['from'] && $hm < $r['to']; };
-    if ($in($d)) return null;
-    for ($i = 0; $i < 8; $i++) {
-        $c = (clone $d)->modify("+$i day"); [$h, $m] = array_map('intval', explode(':', $r['from'])); $c->setTime($h, $m);
-        if ($c > $d && in_array((int)$c->format('w'), $r['days'], true)) return $c->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
-    }
-    return null;
-}
-/** #80 العميل رد: وقّف خطته وخلّي الموظف يرد */
-function crm_plan_on_reply(int $leadId, string $where): bool
-{
-    $r = crm_plan_rules(); if (empty($r['stop_reply'])) return false;
-    $st = db()->prepare("SELECT id FROM crm_plan_runs WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due') AND started_at < DATE_SUB(NOW(), INTERVAL 2 MINUTE) LIMIT 1"); $st->execute([(int)ws('id'), $leadId]);
-    if (!$st->fetchColumn()) return false;
-    crm_plan_stop($leadId);
-    db()->prepare('UPDATE crm_leads SET next_at = NOW(), next_note = ? WHERE id = ?')->execute([mb_substr('💬 ' . t('العميل رد (%s)، الخطة وقفت. رد عليه.', $where), 0, 255), $leadId]);
-    return true;
-}
+/* ---------- نتيجة المكالمة ---------- */
 /** #78 بعد نتيجة مكالمة */
 function crm_on_call_outcome(array $l, string $oc): string
 {
     if ($oc === 'answered') { db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]); return ''; }
     if ($oc !== 'no_answer') return '';
     $n = (int)($l['no_answer'] ?? 0) + 1; db()->prepare('UPDATE crm_leads SET no_answer = ? WHERE id = ?')->execute([$n, (int)$l['id']]);
-    return ''; // خطط المتابعة اتشالت: مفيش تسجيل تلقائي في خطة بعد المكالمات اللي ماتردّش (عدّاد عدم الرد فاضل شغال)
-    $r = crm_plan_rules(); if ($r['na_n'] < 1 || $n < $r['na_n'] || !$r['na_plan'] || !($p = crm_plan((int)$r['na_plan']))) return '';
-    db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due')")->execute([(int)ws('id'), (int)$l['id']]);
-    db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]);
-    crm_act_add((int)$l['id'], 'note', '🔁 ' . t('مردّش %s مرات، اتنقل لخطة: %s', $n, $p['name']));
-    crm_plan_start((int)$l['id'], (int)$p['id']);
-    return $p['name'];
+    return ''; // عدّاد عدم الرد بس (خطط المتابعة اتشالت)
 }
 
 

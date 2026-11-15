@@ -8,4 +8,5 @@ return [
     'app/pages/compose_pro.php', // 1.7.0: اتدمجت في صفحة منشور جديد
     'app/pages/inbox_pro.php',   // 1.7.0: اتدمجت في صفحة الرسائل
     'app/pages/crm_plans.php',   // 3.230.0: خطط متابعة العملاء اتشالت بطلب المالك
+    'assets/ui-crm_leads.js',    // 3.237.0: واجهة صفحة الـ Leads القديمة (اتدمجت في العملاء)
 ];

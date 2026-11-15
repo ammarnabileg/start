@@ -630,6 +630,7 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .cs-grip{color:#cbd5e1;display:flex}
 .cs-sw{display:flex;gap:2px;flex-wrap:nowrap;flex-shrink:0}
 .cs-sw button{width:15px;height:15px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgb(0 0 0/.1);transition:transform .15s}
+@media (max-width:640px){.cs-row{flex-wrap:wrap;row-gap:.35rem}.cs-row input[type=text],.cs-row input:not([type]){min-width:0;flex:1 1 8rem}.cs-sw{flex-wrap:wrap}}
 .cs-sw button:hover{transform:scale(1.2)}
 .cs-sw button.on{box-shadow:0 0 0 2px #0f172a;transform:scale(1.1)}
 .cs-cnt{font-size:.7rem;min-width:2rem;text-align:center;padding:.1rem .4rem;border-radius:99px;background:#f1f5f9;color:#64748b}
@@ -1742,3 +1743,4 @@ details[data-rules] summary{cursor:pointer;list-style:none}details[data-rules] s
 .au-kc{display:flex;flex-direction:column;gap:.15rem;text-align:start;border:1px solid #e2e8f0;border-radius:14px;padding:.65rem .8rem;transition:background .15s,border-color .15s}.au-kc:hover{background:#f8fafc}
 .au-kc b{font-size:.84rem;color:#0f172a}.au-kc small{font-size:.68rem;color:#64748b;line-height:1.5}.au-kc.on{border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgb(59 130 246/.12)}
 .dark .au-kind.cmt{background:#172554;color:#bfdbfe}.dark .au-kind.msg{background:#2e1065;color:#ddd6fe}.dark .au-kc{border-color:#334155}.dark .au-kc:hover{background:#1e293b}.dark .au-kc b{color:#f1f5f9}.dark .au-kc.on{background:#172554;border-color:#3b82f6}
+.grid>.card,.grid>section{min-width:0}
