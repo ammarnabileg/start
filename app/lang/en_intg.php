@@ -5722,4 +5722,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'اكتب نوع النشاط والمدينة، مثل: شركات مقاولات كهربائية الرياض' => 'Type the business type and city, e.g. electrical contracting companies Riyadh',
     'مثال: شركات توريد معدات صناعية جدة' => 'e.g. industrial equipment suppliers Jeddah',
     'كلمة في كل سطر، كما يكتبها العميل في جوجل. مثال: توريد مولدات كهربائية الرياض' => 'One keyword per line, as a customer types it in Google. e.g. electric generator supply Riyadh',
+    'إلغاء الكل' => 'Deselect all',
+    'الأدوات' => 'Tools',
 ];

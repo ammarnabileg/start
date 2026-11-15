@@ -128,7 +128,7 @@ $boards = [];
 $apiError = null;
 $profileId = null;
 $validation = null;
-$old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'schedule', 'opt' => [], 'rec' => [], 'extra' => []];
+$old = ['content' => '', 'accounts' => [], 'when' => '', 'mode' => 'queue', 'opt' => [], 'rec' => [], 'extra' => []];
 $done = $_SESSION['cp_done'] ?? null;
 unset($_SESSION['cp_done']);
 // تكرار منشور من صفحة المنشورات: النص والحسابات بس، والمستخدم يراجع قبل النشر
@@ -702,7 +702,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       <div class="space-y-4 min-w-0 flex flex-col" id="cp-right">
         <div class="card p-5">
           <div class="flex items-center justify-between mb-3"><span class="font-bold text-ink-900"><?= e(t('انشر على')) ?></span>
-            <button type="button" id="selectAll" class="text-xs link"><?= e(t('اختار الكل')) ?></button></div>
+            <button type="button" id="selectAll" class="text-xs link" data-none="<?= e(t('إلغاء الكل')) ?>"><?= e(t('اختار الكل')) ?></button></div>
           <div class="space-y-2 grid grid-cols-3 gap-2 !space-y-0 max-h-96 overflow-auto p-1 -m-1">
             <?php foreach ($accounts as $a): ?>
               <label class="cp-acc">
@@ -719,7 +719,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
         <div class="card p-5 space-y-3" id="cp-when">
           <span class="font-bold block text-ink-900"><?= e(t('إمتى؟')) ?></span>
           <div class="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="<?= e(t('إمتى؟')) ?>">
-          <?php foreach (['schedule' => [t('جدولة'), 'calendar', t('جدولة لوقت محدد')], 'queue' => [t('الطابور'), 'layers', t('ضيف للطابور (أقرب ميعاد فاضي)')], 'now' => [t('نشر فوري'), 'zap', t('انشر دلوقتي')], 'draft' => [t('مسودة'), 'file', t('احفظ كمسودة')]] as $k => [$l, $ic, $tip]): ?>
+          <?php foreach (['queue' => [t('الطابور'), 'layers', t('ضيف للطابور (أقرب ميعاد فاضي)')], 'schedule' => [t('جدولة'), 'calendar', t('جدولة لوقت محدد')], 'now' => [t('نشر فوري'), 'zap', t('انشر دلوقتي')], 'draft' => [t('مسودة'), 'file', t('احفظ كمسودة')]] as $k => [$l, $ic, $tip]): ?>
             <label class="cp-mode" title="<?= e($tip) ?>"><input type="radio" name="mode" value="<?= $k ?>" <?= $old['mode'] === $k ? 'checked' : '' ?> class="mode sr-only"><?= ui_icon($ic, 'w-5 h-5') ?><span><?= e($l) ?></span></label>
           <?php endforeach; ?></div>
           <div id="whenBox">
@@ -820,7 +820,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
     <script>window.CPX = <?= json_encode(['ws' => (int)ws('id'),
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
       'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
-      'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'),
+      'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'), 'tools' => t('الأدوات'), 'aiMenu' => t('الذكاء الاصطناعي'),
       'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
       'xMax' => t('X بيقبل 4 صور بس'), 'needVideo' => t('تيك توك ويوتيوب محتاجين فيديو'), 'igMedia' => t('إنستجرام محتاج صورة أو فيديو'),
       'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'repost' => t('إعادة نشر'), 'send' => t('إرسال'), 'now' => t('الآن'), 'kStory' => t('ستوري'), 'kReel' => t('ريلز'), 'needMedia' => t('الستوري والريلز محتاجين صورة أو فيديو'), 'kNo' => t('%s مابيدعمش النوع ده، هيتنشر منشور عادي'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),

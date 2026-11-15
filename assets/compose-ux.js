@@ -31,10 +31,30 @@
   /* ---------- 2) أدوات النص: إيموجي + هاشتاج ---------- */
   var bar = document.createElement('div'); bar.className = 'flex flex-wrap items-center gap-1 border-t border-ink-100 px-2 py-1.5';
   bar.innerHTML = '<button type="button" data-tl="emoji" class="relative inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 007 0M9 9.5h.01M15 9.5h.01"/></svg>' + esc(P.emoji) + '</button>'
-    + '<button type="button" data-tl="#" class="rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100"># ' + esc(P.hashtag) + '</button>'
-    + '<button type="button" data-tl="nl" class="rounded-lg px-2 py-1 text-xs text-ink-600 hover:bg-ink-100">↵ ' + esc(P.line) + '</button>'
     + '<span id="cp-tags" class="ms-auto text-[11px] text-ink-500"></span><span id="cp-draft" class="text-[11px] text-amber-700"></span>';
   content.closest('label').after(bar);
+  // قوائم منسدلة في شريط المحرر («الأدوات» و«الذكاء الاصطناعي»): العنصر نفسه بيتنقل جوه القائمة (مش نسخة) فكل حاجة بتفضل شغالة
+  // اللوحة بعرض شريط المحرر عشان تفضل جوه الشاشة على الموبايل. فتح قائمة بيقفل التانية.
+  bar.style.position = 'relative'; var drops = [];
+  window.cpDrop = function (id, label, icon, content, before) {
+    var dd = document.createElement('div'); dd.className = 'cp-dd';
+    dd.innerHTML = '<button type="button" id="' + id + '-btn" aria-expanded="false" class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100">' + icon + esc(label) + '<svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>';
+    var panel = document.createElement('div'); panel.id = id + '-pop'; panel.className = 'hidden absolute z-40 top-full mt-2 rounded-2xl border border-ink-200 bg-white p-3 shadow-2xl'; panel.style.left = '6px'; panel.style.right = '6px';
+    content.style.display = 'flex'; content.style.flexWrap = 'wrap'; content.style.gap = '.4rem'; content.style.padding = '0'; content.querySelectorAll(':scope > *').forEach(function (x) { x.style.whiteSpace = 'nowrap'; });
+    panel.appendChild(content); dd.appendChild(panel); bar.insertBefore(dd, before || bar.querySelector('#cp-tags'));
+    var btn = dd.querySelector('button');
+    function show(on) { panel.classList.toggle('hidden', !on); btn.setAttribute('aria-expanded', on ? 'true' : 'false'); btn.classList.toggle('bg-ink-100', on); }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); var open = panel.classList.contains('hidden'); drops.forEach(function (f) { f(false); }); show(open); });
+    drops.push(show);
+    return { el: dd, show: show };
+  };
+  document.addEventListener('click', function (e) { if (document.body.contains(e.target) && !e.target.closest('.cp-dd')) drops.forEach(function (f) { f(false); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') drops.forEach(function (f) { f(false); }); });
+  (function () {
+    var tw = $('#cp-tools'); if (!tw) return;
+    var lbl = tw.querySelector(':scope > .cp-sec'); if (lbl) lbl.remove();
+    window.cpDrop('cp-tools', P.tools || 'Tools', '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6z"/></svg>', tw);
+  })();
   function insert(v) { var s = content.selectionStart, e = content.selectionEnd; content.value = content.value.slice(0, s) + v + content.value.slice(e); content.setSelectionRange(s + v.length, s + v.length); content.focus(); content.dispatchEvent(new Event('input', { bubbles: true })); }
   var pop = null;
   bar.addEventListener('click', function (e) {
@@ -326,11 +346,12 @@
     stack.innerHTML = acc.slice(0, 6).map(function (c) { var pic = c.dataset.pic ? '<img src="' + q(c.dataset.pic) + '" referrerpolicy="no-referrer" class="w-full h-full object-cover">' : '<span class="w-full h-full grid place-items-center text-[10px] font-bold text-brand-700 bg-brand-50">' + q((c.dataset.name || '?').charAt(0)) + '</span>';
       return '<span class="relative w-7 h-7 rounded-full ring-2 ring-white overflow-hidden bg-white cp-pop" title="' + q(c.dataset.name) + '">' + pic + '</span>'; }).join('') + (acc.length > 6 ? '<span class="w-7 h-7 rounded-full ring-2 ring-white bg-ink-100 text-[10px] grid place-items-center text-ink-600">+' + (acc.length - 6) + '</span>' : ''); }
   function aiRow() { if (!(window.aiRun && window.aiItems) || document.getElementById('cp-aiq')) return;
-    var keys = ['improve', 'hook', 'shorten', 'hashtags', 'cta', 'translate_en'].filter(function (k) { return window.aiItems[k]; });
+    var keys = (ta.dataset.ai || 'improve,hook,shorten,hashtags,cta,translate_en').split(',').filter(function (k) { return window.aiItems[k]; });
     if (keys.length) { var row = document.createElement('div'); row.className = 'flex flex-wrap items-center gap-1.5 px-3 pb-2.5'; row.id = 'cp-aiq';
       row.innerHTML = '<span class="text-[11px] font-bold bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦ AI</span>' + keys.map(function (k) { return '<button type="button" data-aiq="' + k + '" class="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700 hover:shadow-sm hover:-translate-y-px transition disabled:opacity-60">' + q(window.aiItems[k]) + '</button>'; }).join('');
       row.addEventListener('click', function (e) { var b = e.target.closest('[data-aiq]'); if (!b) return; if (!ta.value.trim()) { ta.focus(); ta.classList.add('animate-pulse'); setTimeout(function () { ta.classList.remove('animate-pulse'); }, 700); return; } window.aiRun(ta, b.dataset.aiq, b); });
-      ed.appendChild(row); } }
+      var lb = row.querySelector(':scope > span'); if (window.cpDrop) { if (lb) lb.remove(); var tb = document.querySelector('#cp-tools-btn'); window.cpDrop('cp-aiq', (window.CPX && CPX.aiMenu) || 'AI', '<span class="text-[13px] leading-none bg-gradient-to-l from-brand-600 to-fuchsia-600 bg-clip-text text-transparent">✦</span>', row, tb ? tb.closest('.cp-dd').nextSibling : null); }
+      else ed.appendChild(row); } }
   if (document.readyState === 'complete') aiRow(); else window.addEventListener('load', aiRow);
   function grow() { ta.style.height = 'auto'; ta.style.height = Math.min(520, Math.max(180, ta.scrollHeight + 2)) + 'px'; }
   ta.addEventListener('input', function () { paintRing(); grow(); });

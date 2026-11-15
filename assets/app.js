@@ -59,10 +59,17 @@
   modes.forEach(function (r) { r.addEventListener('change', syncMode); }); if (modes.length) syncMode();
 
   var all = document.getElementById('selectAll');
-  if (all) all.addEventListener('click', function () {
-    var boxes = document.querySelectorAll('.acc'), on = Array.prototype.some.call(boxes, function (b) { return !b.checked; });
-    boxes.forEach(function (b) { b.checked = on; b.dispatchEvent(new Event('change')); });
-  });
+  if (all) {
+    // الحدث لازم يطلع لفوق (bubbles): العدّاد والمعاينة والحسابات اللي هتتنشر بتسمع على مستوى الصفحة
+    var allTxt = all.textContent, allLbl = function () { var boxes = document.querySelectorAll('.acc'); all.textContent = boxes.length && !Array.prototype.some.call(boxes, function (b) { return !b.checked && !b.disabled; }) ? (all.dataset.none || allTxt) : allTxt; };
+    all.addEventListener('click', function () {
+      var boxes = Array.prototype.filter.call(document.querySelectorAll('.acc'), function (b) { return !b.disabled; }), on = boxes.some(function (b) { return !b.checked; });
+      boxes.forEach(function (b) { if (b.checked !== on) { b.checked = on; b.dispatchEvent(new Event('change', { bubbles: true })); } });
+      allLbl();
+    });
+    document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('acc')) allLbl(); });
+    allLbl();
+  }
 
   var mi = document.getElementById('mediaInput'), mp = document.getElementById('mediaPreview');
   if (mi) mi.addEventListener('change', function () {
