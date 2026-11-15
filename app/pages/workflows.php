@@ -74,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 }
 
 $list = [];
+$cms = [];
 $wf = null;
 $runs = [];
 $accounts = [];
@@ -85,9 +86,10 @@ if ($z) {
             $fx = json_decode((string)file_get_contents($fixture), true) ?: [];
             $list = $fx['workflows'] ?? [];
             foreach ($list as $it) if (($it['id'] ?? '') === $viewId) { $wf = $it; $runs = $it['runs'] ?? []; }
-            $accounts = $fx['accounts'] ?? [];
+            $accounts = $fx['accounts'] ?? []; $cms = $fx['automations'] ?? [];
         } else {
             $list = ip_workflows($z, null);
+            try { $cms = ip_automations($z); } catch (ZernioException $ex) { $cms = []; } // الردود على التعليقات: نفس القائمة
             if ($viewId !== '') {
                 $wf = ip_workflow($z, $viewId);
                 try { $runs = ip_workflow_runs($z, $viewId)['executions'] ?? []; } catch (ZernioException $ex) { $runs = []; }
@@ -137,7 +139,7 @@ function wf_ordered_nodes(array $wf): array
     return $out;
 }
 
-render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $runs, $accounts, $isNew, $viewId, $apiError) {
+render(t('الردود التلقائية'), 'workflows', function () use ($z, $list, $cms, $wf, $runs, $accounts, $isNew, $viewId, $apiError) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
     $cnt = ['active' => 0, 'paused' => 0, 'draft' => 0]; foreach ($list as $w) { $s = (string)($w['status'] ?? ''); if (isset($cnt[$s])) $cnt[$s]++; }
@@ -156,13 +158,13 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
         <?php endforeach; ?>
       </div>
       <button type="button" id="wf-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
-      <a href="<?= e(url('workflows', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('Workflow جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
+      <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('رد تلقائي جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
     </div>
 
     <div class="grid lg:grid-cols-[22rem_1fr] 2xl:grid-cols-[22rem_1fr_20rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="wf">
       <!-- القائمة -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= ($isNew || $viewing) ? 'hidden lg:flex' : 'flex' ?>">
-        <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الـ Workflows')) ?></b><span class="text-xs text-ink-400" id="wf-vis"></span></div>
+        <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الأتمتة')) ?></b><span class="text-xs text-ink-400" id="wf-vis"></span></div>
         <div class="flex-1 min-h-0 overflow-y-auto" id="wf-list">
           <?php if (!$list): ?>
             <div class="p-8 text-center">
@@ -180,7 +182,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
                   <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($w['platform'] ?? ''), 'w-[16px] h-[16px]', 'badge') ?></span>
                 </span>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2"><span class="text-sm font-medium text-ink-900 truncate"><?= e($w['name'] ?? '') ?></span><?= wf_status_badge($st) ?></div>
+                  <div class="flex items-center gap-2"><span class="au-kind msg"><?= e(t('رسالة')) ?></span><span class="text-sm font-medium text-ink-900 truncate"><?= e($w['name'] ?? '') ?></span><?= wf_status_badge($st) ?></div>
                   <p class="text-[11px] text-ink-500 mt-0.5 truncate"><?= e($w['accountName'] ?? platform_label((string)($w['platform'] ?? ''))) ?> · <?= e(t('%s خطوة', (int)($w['nodeCount'] ?? count($w['nodes'] ?? [])))) ?></p>
                   <div class="flex items-center gap-2 mt-1.5"><div class="flex-1 h-1 rounded-full bg-ink-100 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-l from-lime-500 to-brand-600" style="width:<?= $rate ?>%"></div></div><span class="text-[10px] text-ink-500 tabular-nums" title="<?= e(t('بدأ %s مرة · خلص %s', $bs, $bc)) ?>"><?= $bc ?>/<?= $bs ?></span></div>
                 </div>
@@ -191,6 +193,24 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
                 <span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition relative after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span>
               </label>
               <?php endif; ?>
+            </div>
+          <?php endforeach; ?>
+          <?php foreach ($cms as $it): $io = !empty($it['isActive']); $kw = (array)($it['keywords'] ?? []); ?>
+            <div class="wf-item group relative border-b border-ink-100 transition hover:bg-ink-50" data-id="<?= e($it['id'] ?? '') ?>" data-st="<?= $io ? 'active' : 'paused' ?>" data-url="index.php?p=automations" data-q="<?= e(mb_strtolower(($it['name'] ?? '') . ' ' . implode(' ', $kw) . ' ' . t('تعليق'))) ?>">
+              <a href="<?= e(url('automations', ['id' => $it['id'] ?? ''])) ?>" class="flex gap-3 p-3.5 pe-16">
+                <span class="relative shrink-0 w-10 h-10 rounded-xl <?= $io ? 'bg-brand-50 text-brand-600' : 'bg-ink-100 text-ink-400' ?> flex items-center justify-center">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7z"/></svg>
+                  <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($it['platform'] ?? ''), 'w-[16px] h-[16px]', 'badge') ?></span>
+                </span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2"><span class="au-kind cmt"><?= e(t('تعليق')) ?></span><span class="text-sm font-medium text-ink-900 truncate"><?= e($it['name'] ?? '') ?></span><?= wf_status_badge($io ? 'active' : 'paused') ?></div>
+                  <p class="text-[11px] text-ink-500 mt-0.5 truncate"><?= e($kw ? implode('، ', array_slice($kw, 0, 4)) : t('أي تعليق')) ?> · <?= e(!empty($it['platformPostId']) ? t('منشور واحد') : t('كل المنشورات')) ?></p>
+                </div>
+              </a>
+              <label class="absolute top-4 end-3.5 inline-flex cursor-pointer" title="<?= e($io ? t('إيقاف') : t('تشغيل')) ?>">
+                <input type="checkbox" class="wf-toggle sr-only peer" <?= $io ? 'checked' : '' ?>>
+                <span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition relative after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span>
+              </label>
             </div>
           <?php endforeach; ?>
           <div id="wf-empty" class="hidden p-8 text-center text-sm text-ink-500"><?= e(t('مفيش نتائج.')) ?></div>
@@ -208,6 +228,13 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
               <span class="rounded-md bg-ink-100 text-ink-600 px-2 py-0.5 text-[11px]"><?= e(t('هيتعمل كمسودة')) ?></span>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
+              <section class="space-y-2">
+                <b class="text-sm text-ink-900"><?= e(t('يبدأ عندما…')) ?></b>
+                <div class="grid sm:grid-cols-2 gap-2">
+                  <a class="au-kc" href="<?= e(url('automations', ['new' => 1])) ?>"><b><?= e(t('يعلّق شخص على منشور')) ?></b><small><?= e(t('رد عام تحت التعليق و/أو رسالة خاصة · إنستجرام، فيسبوك، لينكدإن، تيك توك، ثريدز، يوتيوب')) ?></small></a>
+                  <span class="au-kc on"><b><?= e(t('يرسل شخص رسالة خاصة')) ?></b><small><?= e(t('رد تلقائي في المحادثة · واتساب، إنستجرام، فيسبوك، تيليجرام، X وغيرها (لينكدإن لا يدعم الرسائل)')) ?></small></span>
+                </div>
+              </section>
               <section class="space-y-3">
                 <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">1</span><b class="text-sm text-ink-900"><?= e(t('على أنهي حساب؟')) ?></b></div>
                 <div class="grid sm:grid-cols-2 gap-2" id="wf-accs">
@@ -218,18 +245,12 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
                     </label>
                   <?php endforeach; ?>
                 </div>
-                <?php if (!$accounts): ?><p class="text-xs text-red-600"><?= e(t('مفيش حساب رسائل مربوط.')) ?></p><?php endif; ?>
+                <?php if (!$accounts): ?><div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-900 leading-relaxed"><?= e(t('لا يوجد حساب مربوط يدعم الرسائل الخاصة. لينكدإن لا يسمح بالرسائل الخاصة عبر الـ API، لذلك لا تظهر حساباته هنا. يمكنك الرد تلقائيًا على تعليقات لينكدإن من نوع «يعلّق شخص على منشور»، أو اربط واتساب أو إنستجرام أو فيسبوك للرسائل.')) ?> <a class="link font-semibold" href="<?= e(url('automations', ['new' => 1])) ?>"><?= e(t('أنشئ ردًا على التعليقات')) ?> ←</a></div><?php endif; ?>
               </section>
+              <input type="hidden" name="trigger" id="wf-trig" value="inbound_message">
+              <div id="wf-trigs" class="hidden"><button type="button" data-t="inbound_message"></button></div>
               <section class="space-y-3">
-                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">2</span><b class="text-sm text-ink-900"><?= e(t('يبدأ لما...')) ?></b></div>
-                <input type="hidden" name="trigger" id="wf-trig" value="inbound_message">
-                <div class="grid sm:grid-cols-2 gap-2" id="wf-trigs">
-                  <button type="button" data-t="inbound_message" class="text-start rounded-xl border border-ink-200 p-3 hover:bg-ink-50 transition"><span class="flex items-center gap-2"><svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg><b class="text-sm text-ink-900"><?= e(t('حد يبعت رسالة خاصة')) ?></b></span><span class="block text-[11px] text-ink-500 mt-1"><?= e(t('على كل المنصات المربوطة')) ?></span></button>
-                  <button type="button" data-t="comment" class="text-start rounded-xl border border-ink-200 p-3 hover:bg-ink-50 transition disabled:opacity-40 disabled:cursor-not-allowed"><span class="flex items-center gap-2"><svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4zM8 9h8M8 12h4"/></svg><b class="text-sm text-ink-900"><?= e(t('حد يكتب تعليق')) ?></b></span><span class="block text-[11px] text-ink-500 mt-1"><?= e(t('إنستجرام وفيسبوك بس')) ?></span></button>
-                </div>
-              </section>
-              <section class="space-y-3">
-                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">3</span><b class="text-sm text-ink-900"><?= e(t('وفيها الكلمات دي (اختياري)')) ?></b></div>
+                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">2</span><b class="text-sm text-ink-900"><?= e(t('وفيها الكلمات دي (اختياري)')) ?></b></div>
                 <input type="hidden" name="keywords" id="wf-kw" value="">
                 <div id="wf-chips" class="flex flex-wrap items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-2 py-2 min-h-[2.75rem] focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10 transition cursor-text">
                   <input id="wf-kwin" class="flex-1 min-w-[8rem] border-0 bg-transparent p-1 text-sm focus:ring-0 focus:outline-none" placeholder="<?= e(t('اكتب كلمة واضغط Enter')) ?>" dir="auto">
@@ -242,7 +263,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
                 </div>
               </section>
               <section class="space-y-3">
-                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">4</span><b class="text-sm text-ink-900"><?= e(t('يرد بالرسالة دي')) ?></b></div>
+                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">3</span><b class="text-sm text-ink-900"><?= e(t('يرد بالرسالة دي')) ?></b></div>
                 <div class="flex flex-wrap items-center gap-1.5"><span class="text-[11px] text-ink-500"><?= e(t('إدراج:')) ?></span><button type="button" data-var="{{contact.name}}" class="rounded-lg border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700 hover:bg-brand-100"><?= e(t('اسم الشخص')) ?></button><span class="ms-auto wf-cnt text-[11px] text-ink-400 tabular-nums"></span></div>
                 <textarea data-ai="auto_msg,improve" name="text" required rows="4" maxlength="1000" class="input" dir="auto" placeholder="<?= e(t('أهلاً {{contact.name}}! إزاي نقدر نساعدك؟')) ?>"></textarea>
                 <p class="text-[11px] text-ink-500"><?= e(t('الرسائل بتتبعت بس جوه نافذة الـ 24 ساعة بتاعة المنصة.')) ?></p>
@@ -286,7 +307,7 @@ render(t('الـ Workflows'), 'workflows', function () use ($z, $list, $wf, $run
             <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 4h4v4H5zM15 16h4v4h-4zM7 8v4a2 2 0 002 2h6a2 2 0 012 2"/></svg></div>
             <p class="font-medium text-ink-900"><?= e(t('اختار Workflow عشان تشوف خطواته، أو اعمل واحد جديد')) ?></p>
             <p class="text-xs text-ink-500 mt-1 max-w-sm"><?= e(t('محادثات أوتوماتيك: لما حد يبعت رسالة أو يكتب تعليق فيه كلمة معينة، البرنامج يرد عليه بالخطوات اللي حددتها.')) ?></p>
-            <a href="<?= e(url('workflows', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('Workflow جديد')) ?></a>
+            <a href="<?= e(url('workflows', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('رد تلقائي جديد')) ?></a>
           </div>
         <?php endif; ?>
       </div>

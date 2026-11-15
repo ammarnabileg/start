@@ -1737,3 +1737,8 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 details[data-rules] summary{cursor:pointer;list-style:none}details[data-rules] summary::-webkit-details-marker{display:none}
 .dark .cx-cmpt th.me,.dark .cx-cmpt td.me{background:#172554}.dark .cx-self{background:#172554;color:#bfdbfe}.dark .cx-sv,.dark .cx-dc{border-color:#334155}.dark .cx-sv p{color:#e2e8f0}.dark .cx-star{background:#0f172a;border-color:#334155}.dark .cx-seas span{color:#cbd5e1}.dark .cx-rule{color:#cbd5e1}
 @media print{html.cx-printing body *{visibility:hidden!important}html.cx-printing .cx-ov>section:first-child,html.cx-printing .cx-ov>section:first-child *{visibility:visible!important}html.cx-printing .cx-ov>section:first-child{position:absolute;inset:0 0 auto 0}}
+/* الردود التلقائية (تعليقات + رسائل في صفحة واحدة) */
+.au-kind{flex-shrink:0;font-size:.6rem;font-weight:700;border-radius:6px;padding:.05rem .4rem}.au-kind.cmt{background:#eff6ff;color:#1d4ed8}.au-kind.msg{background:#f5f3ff;color:#6d28d9}
+.au-kc{display:flex;flex-direction:column;gap:.15rem;text-align:start;border:1px solid #e2e8f0;border-radius:14px;padding:.65rem .8rem;transition:background .15s,border-color .15s}.au-kc:hover{background:#f8fafc}
+.au-kc b{font-size:.84rem;color:#0f172a}.au-kc small{font-size:.68rem;color:#64748b;line-height:1.5}.au-kc.on{border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgb(59 130 246/.12)}
+.dark .au-kind.cmt{background:#172554;color:#bfdbfe}.dark .au-kind.msg{background:#2e1065;color:#ddd6fe}.dark .au-kc{border-color:#334155}.dark .au-kc:hover{background:#1e293b}.dark .au-kc b{color:#f1f5f9}.dark .au-kc.on{background:#172554;border-color:#3b82f6}

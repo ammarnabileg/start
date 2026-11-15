@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 }
 
 $list = [];
+$wfs = [];
 $accounts = [];
 $current = null;
 $logs = [];
@@ -108,9 +109,10 @@ if ($z) {
             $fx = json_decode((string)file_get_contents($fixture), true) ?: [];
             $list = $fx['automations'] ?? [];
             foreach ($list as $it) if (($it['id'] ?? '') === $editId) { $current = $it; $logs = $it['recentLogs'] ?? []; }
-            $accounts = $fx['accounts'] ?? [];
+            $accounts = $fx['accounts'] ?? []; $wfs = $fx['workflows'] ?? [];
         } else {
             $list = ip_automations($z);
+            try { $wfs = ip_workflows($z, null); } catch (ZernioException $ex) { $wfs = []; } // الردود على الرسائل الخاصة: نفس القائمة
             if ($editId !== '') {
                 $r = ip_automation($z, $editId);
                 $current = $r['automation'] ?? null;
@@ -123,14 +125,14 @@ if ($z) {
     }
 }
 
-render(t('الردود التلقائية على التعليقات'), 'automations', function () use ($z, $list, $accounts, $current, $logs, $editId, $isNew, $apiError) {
+render(t('الردود التلقائية'), 'automations', function () use ($z, $list, $wfs, $accounts, $current, $logs, $editId, $isNew, $apiError) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
     $modes = ['contains' => [t('يحتوي على الكلمة'), t('أي تعليق فيه الكلمة، حتى لو جزء من كلمة أطول.')], 'word' => [t('كلمة مستقلة'), t('الكلمة لازم تكون لوحدها، مش جزء من كلمة تانية.')], 'exact' => [t('مطابق تمامًا'), t('التعليق كله لازم يكون الكلمة دي بس.')]];
     $editing = $isNew || $current;
     $a = $current ?? [];
     $plat = (string)($a['platform'] ?? '');
-    $on = 0; foreach ($list as $it) if (!empty($it['isActive'])) $on++;
+    $on = 0; foreach ($list as $it) if (!empty($it['isActive'])) $on++; foreach ($wfs as $w) if (($w['status'] ?? '') === 'active') $on++; $total = count($list) + count($wfs);
     ?>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <div class="relative flex-1 min-w-[14rem] max-w-md">
@@ -138,12 +140,17 @@ render(t('الردود التلقائية على التعليقات'), 'automati
         <input type="search" id="au-q" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('ابحث بالاسم أو الكلمة...')) ?> (/)" dir="auto">
       </div>
       <div class="tb p-0.5 gap-0.5" id="au-f">
-        <button type="button" data-f="all" class="on h-9 px-3 rounded-lg text-xs"><?= e(t('الكل')) ?> <span class="tabular-nums text-ink-400"><?= count($list) ?></span></button>
+        <button type="button" data-f="all" class="on h-9 px-3 rounded-lg text-xs"><?= e(t('الكل')) ?> <span class="tabular-nums text-ink-400"><?= $total ?></span></button>
         <button type="button" data-f="on" class="h-9 px-3 rounded-lg text-xs"><?= e(t('شغالة')) ?> <span class="tabular-nums text-ink-400" id="au-non"><?= $on ?></span></button>
-        <button type="button" data-f="off" class="h-9 px-3 rounded-lg text-xs"><?= e(t('متوقفة')) ?> <span class="tabular-nums text-ink-400" id="au-noff"><?= count($list) - $on ?></span></button>
+        <button type="button" data-f="off" class="h-9 px-3 rounded-lg text-xs"><?= e(t('متوقفة')) ?> <span class="tabular-nums text-ink-400" id="au-noff"><?= $total - $on ?></span></button>
+      </div>
+      <div class="tb p-0.5 gap-0.5" id="au-k">
+        <button type="button" data-k="all" class="on h-9 px-3 rounded-lg text-xs bg-white shadow-sm text-ink-900 font-medium"><?= e(t('كل الأنواع')) ?></button>
+        <button type="button" data-k="cmt" class="h-9 px-3 rounded-lg text-xs"><?= e(t('على التعليقات')) ?> <span class="tabular-nums text-ink-400"><?= count($list) ?></span></button>
+        <button type="button" data-k="msg" class="h-9 px-3 rounded-lg text-xs"><?= e(t('على الرسائل')) ?> <span class="tabular-nums text-ink-400"><?= count($wfs) ?></span></button>
       </div>
       <button type="button" id="au-help" class="tb w-10 justify-center text-sm font-semibold text-ink-500" title="<?= e(t('اختصارات الكيبورد')) ?> (?)">?</button>
-      <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('أتمتة جديدة')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
+      <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary ms-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><?= e(t('رد تلقائي جديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">N</kbd></a>
     </div>
 
     <div class="grid lg:grid-cols-[22rem_1fr] 2xl:grid-cols-[22rem_1fr_20rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="au">
@@ -151,7 +158,7 @@ render(t('الردود التلقائية على التعليقات'), 'automati
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $editing ? 'hidden lg:flex' : 'flex' ?>">
         <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الأتمتة')) ?></b><span class="text-xs text-ink-400" id="au-vis"></span></div>
         <div class="flex-1 min-h-0 overflow-y-auto" id="au-list">
-          <?php if (!$list): ?>
+          <?php if (!$list && !$wfs): ?>
             <div class="p-8 text-center">
               <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center"><svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7z"/></svg></div>
               <p class="text-sm font-medium text-ink-900"><?= e(t('مفيش أتمتة لسه')) ?></p>
@@ -159,7 +166,7 @@ render(t('الردود التلقائية على التعليقات'), 'automati
             </div>
           <?php endif; ?>
           <?php foreach ($list as $it): $io = !empty($it['isActive']); $s = $it['stats'] ?? []; $sel = ($it['id'] ?? '') === $editId; $kw = (array)($it['keywords'] ?? []); ?>
-            <div class="au-item group relative border-b border-ink-100 transition <?= $sel ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-id="<?= e($it['id'] ?? '') ?>" data-on="<?= $io ? 1 : 0 ?>" data-q="<?= e(mb_strtolower(($it['name'] ?? '') . ' ' . implode(' ', $kw))) ?>">
+            <div class="au-item group relative border-b border-ink-100 transition <?= $sel ? 'bg-brand-50/70' : 'hover:bg-ink-50' ?>" data-id="<?= e($it['id'] ?? '') ?>" data-on="<?= $io ? 1 : 0 ?>" data-kind="cmt" data-q="<?= e(mb_strtolower(($it['name'] ?? '') . ' ' . implode(' ', $kw))) ?>">
               <?php if ($sel): ?><span class="absolute inset-y-0 start-0 w-1 bg-brand-600 rounded-e"></span><?php endif; ?>
               <a href="<?= e(url('automations', ['id' => $it['id'] ?? ''])) ?>" class="flex gap-3 p-3.5 pe-16">
                 <span class="relative shrink-0 w-10 h-10 rounded-xl <?= $io ? 'bg-brand-50 text-brand-600' : 'bg-ink-100 text-ink-400' ?> flex items-center justify-center">
@@ -167,7 +174,7 @@ render(t('الردود التلقائية على التعليقات'), 'automati
                   <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($it['platform'] ?? ''), 'w-[16px] h-[16px]', 'badge') ?></span>
                 </span>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2"><span class="au-name text-sm font-medium text-ink-900 truncate"><?= e($it['name'] ?? '') ?></span><span class="au-dot w-1.5 h-1.5 rounded-full shrink-0 <?= $io ? 'bg-lime-500 animate-pulse' : 'bg-ink-300' ?>"></span></div>
+                  <div class="flex items-center gap-2"><span class="au-kind cmt"><?= e(t('تعليق')) ?></span><span class="au-name text-sm font-medium text-ink-900 truncate"><?= e($it['name'] ?? '') ?></span><span class="au-dot w-1.5 h-1.5 rounded-full shrink-0 <?= $io ? 'bg-lime-500 animate-pulse' : 'bg-ink-300' ?>"></span></div>
                   <div class="flex flex-wrap gap-1 mt-1.5">
                     <?php foreach (array_slice($kw, 0, 4) as $k): ?><span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($k) ?></span><?php endforeach; ?>
                     <?php if (count($kw) > 4): ?><span class="text-[10px] text-ink-400">+<?= count($kw) - 4 ?></span><?php endif; ?>
@@ -179,6 +186,25 @@ render(t('الردود التلقائية على التعليقات'), 'automati
                     <?php if ((int)($s['dmsFailed'] ?? 0)): ?><span class="text-red-600" title="<?= e(t('رسائل فشلت')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17.5v.01"/></svg> <?= (int)$s['dmsFailed'] ?></span><?php endif; ?>
                     <span class="truncate"><?= e(!empty($it['platformPostId']) ? t('منشور واحد') : t('كل المنشورات')) ?></span>
                   </div>
+                </div>
+              </a>
+              <label class="absolute top-4 end-3.5 inline-flex cursor-pointer" title="<?= e($io ? t('إيقاف') : t('تشغيل')) ?>">
+                <input type="checkbox" class="au-toggle sr-only peer" <?= $io ? 'checked' : '' ?>>
+                <span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition relative after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span>
+              </label>
+            </div>
+          <?php endforeach; ?>
+          <?php foreach ($wfs as $w): $st = (string)($w['status'] ?? ''); $io = $st === 'active'; ?>
+            <div class="au-item group relative border-b border-ink-100 transition hover:bg-ink-50" data-id="<?= e($w['id'] ?? '') ?>" data-on="<?= $io ? '1' : '0' ?>" data-kind="msg" data-url="index.php?p=workflows" data-q="<?= e(mb_strtolower(($w['name'] ?? '') . ' ' . t('رسالة'))) ?>">
+              <a href="<?= e(url('workflows', ['id' => $w['id'] ?? ''])) ?>" class="flex gap-3 p-3.5 pe-16">
+                <span class="relative shrink-0 w-10 h-10 rounded-xl <?= $io ? 'bg-violet-50 text-violet-600' : 'bg-ink-100 text-ink-400' ?> flex items-center justify-center">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4zM8 9h8M8 12h5"/></svg>
+                  <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($w['platform'] ?? ''), 'w-[16px] h-[16px]', 'badge') ?></span>
+                </span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2"><span class="au-kind msg"><?= e(t('رسالة')) ?></span><span class="au-name text-sm font-medium text-ink-900 truncate"><?= e($w['name'] ?? '') ?></span><span class="au-dot w-1.5 h-1.5 rounded-full shrink-0 <?= $io ? 'bg-lime-500 animate-pulse' : 'bg-ink-300' ?>"></span></div>
+                  <p class="text-[11px] text-ink-500 mt-1 truncate"><?= e(($w['accountName'] ?? platform_label((string)($w['platform'] ?? ''))) . ' · ' . ($st === 'draft' ? t('مسودة') : ($io ? t('شغالة') : t('متوقفة')))) ?></p>
+                  <div class="flex items-center gap-3 mt-1.5 text-[11px] text-ink-500 tabular-nums"><span title="<?= e(t('مرات التشغيل')) ?>">⚡ <?= (int)($w['totalStarted'] ?? 0) ?></span></div>
                 </div>
               </a>
               <label class="absolute top-4 end-3.5 inline-flex cursor-pointer" title="<?= e($io ? t('إيقاف') : t('تشغيل')) ?>">
@@ -211,6 +237,15 @@ render(t('الردود التلقائية على التعليقات'), 'automati
               <label class="inline-flex items-center gap-2 text-xs text-ink-600 cursor-pointer"><input type="checkbox" name="is_active" value="1" class="sr-only peer" <?= ($a['isActive'] ?? true) ? 'checked' : '' ?>><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition relative after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span><span class="au-onlbl"></span></label>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
+              <?php if (!$current): ?>
+              <section class="space-y-2">
+                <b class="text-sm text-ink-900"><?= e(t('يبدأ عندما…')) ?></b>
+                <div class="grid sm:grid-cols-2 gap-2">
+                  <span class="au-kc on"><b><?= e(t('يعلّق شخص على منشور')) ?></b><small><?= e(t('رد عام تحت التعليق و/أو رسالة خاصة · إنستجرام، فيسبوك، لينكدإن، تيك توك، ثريدز، يوتيوب')) ?></small></span>
+                  <a class="au-kc" href="<?= e(url('workflows', ['new' => 1])) ?>"><b><?= e(t('يرسل شخص رسالة خاصة')) ?></b><small><?= e(t('رد تلقائي في المحادثة · واتساب، إنستجرام، فيسبوك، تيليجرام، X وغيرها (لينكدإن لا يدعم الرسائل)')) ?></small></a>
+                </div>
+              </section>
+              <?php endif; ?>
               <!-- 1 المكان -->
               <section class="space-y-3">
                 <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">1</span><b class="text-sm text-ink-900"><?= e(t('فين؟')) ?></b></div>

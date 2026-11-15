@@ -11,13 +11,15 @@
   function listApply() {
     var v = q ? q.value.trim().toLowerCase() : '', n = 0;
     $$('.au-item').forEach(function (it) {
-      var hit = (!v || it.dataset.q.indexOf(v) > -1) && (filt === 'all' || (filt === 'on') === (it.dataset.on === '1'));
+      var hit = (!v || it.dataset.q.indexOf(v) > -1) && (filt === 'all' || (filt === 'on') === (it.dataset.on === '1')) && (kind === 'all' || it.dataset.kind === kind);
       it.style.display = hit ? '' : 'none'; if (hit) n++;
     });
     var em = $('#au-empty'); if (em) em.classList.toggle('hidden', n > 0 || !$$('.au-item').length);
     var vis = $('#au-vis'); if (vis) vis.textContent = $$('.au-item').length ? n + '/' + $$('.au-item').length : '';
   }
   if (q) q.addEventListener('input', listApply);
+  var kind = 'all';
+  $$('#au-k [data-k]').forEach(function (b) { b.addEventListener('click', function () { kind = b.dataset.k; $$('#au-k [data-k]').forEach(function (x) { var on = x === b; ['on', 'bg-white', 'shadow-sm', 'text-ink-900', 'font-medium'].forEach(function (c) { x.classList.toggle(c, on); }); }); listApply(); }); });
   $$('#au-f [data-f]').forEach(function (b) {
     b.addEventListener('click', function () { filt = b.dataset.f; $$('#au-f [data-f]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.classList.toggle('bg-white', on); x.classList.toggle('shadow-sm', on); x.classList.toggle('text-ink-900', on); x.classList.toggle('font-medium', on); }); listApply(); });
   });
@@ -27,7 +29,7 @@
     var c = e.target.closest('.au-toggle'); if (!c) return;
     var it = c.closest('.au-item'), on = c.checked; c.disabled = true;
     var fd = new FormData(); fd.append('action', 'toggle_json'); fd.append('id', it.dataset.id); fd.append('on', on ? '1' : '');
-    fetch('index.php?p=automations', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
+    fetch(it.dataset.url || 'index.php?p=automations', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
       if (d.error) throw new Error(d.error);
       it.dataset.on = on ? '1' : '0'; var dot = it.querySelector('.au-dot'); if (dot) { dot.className = 'au-dot w-1.5 h-1.5 rounded-full shrink-0 ' + (on ? 'bg-lime-500 animate-pulse' : 'bg-ink-300'); }
       var ic = it.querySelector('a > span'); if (ic) { ic.classList.toggle('bg-brand-50', on); ic.classList.toggle('text-brand-600', on); ic.classList.toggle('bg-ink-100', !on); ic.classList.toggle('text-ink-400', !on); }

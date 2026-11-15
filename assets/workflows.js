@@ -24,7 +24,7 @@
 
   function setStatus(id, on, done) {
     var fd = new FormData(); fd.append('action', 'toggle_json'); fd.append('id', id); fd.append('on', on ? '1' : '');
-    return fetch('index.php?p=workflows', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
+    var itU = document.querySelector('.wf-item[data-id="' + CSS.escape(id) + '"]'); return fetch((itU && itU.dataset.url) || 'index.php?p=workflows', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.json(); }).then(function (d) {
       if (d.error) throw new Error(d.error);
       var st = on ? 'active' : 'paused', it = $('.wf-item[data-id="' + CSS.escape(id) + '"]');
       if (it) { it.dataset.st = st; var b = it.querySelector('.wf-badge'); if (b) b.outerHTML = badge(st); var tg = it.querySelector('.wf-toggle'); if (tg) tg.checked = on; var ic = it.querySelector('a > span'); if (ic) { ic.classList.toggle('bg-brand-50', on); ic.classList.toggle('text-brand-600', on); ic.classList.toggle('bg-ink-100', !on); ic.classList.toggle('text-ink-400', !on); } }
@@ -69,7 +69,7 @@
     function drawPick(box, attr, val) { $$('[data-' + attr + ']', box).forEach(function (b) { var on = b.dataset[attr] === val; ['border-brand-500', 'bg-brand-50', 'ring-2', 'ring-brand-500/20'].forEach(function (k) { b.classList.toggle(k, on); }); }); }
     $$('#wf-trigs [data-t]').forEach(function (b) { b.onclick = function () { if (b.disabled) return; trig.value = b.dataset.t; sync(); }; });
     $$('#wf-mts [data-m]').forEach(function (b) { b.onclick = function () { mt.value = b.dataset.m; sync(); }; });
-    function platUi() { var ok = W.commentPlats.indexOf(plat()) > -1, cb = $('#wf-trigs [data-t=comment]'); cb.disabled = !ok; if (!ok && trig.value === 'comment') trig.value = 'inbound_message'; }
+    function platUi() { var ok = W.commentPlats.indexOf(plat()) > -1, cb = $('#wf-trigs [data-t=comment]'); if (cb) cb.disabled = !ok; if (!ok && trig.value === 'comment') trig.value = 'inbound_message'; }
     $$('#wf-accs input').forEach(function (r) { r.addEventListener('change', function () { platUi(); sync(); }); });
     // المتغيرات
     $$('[data-var]').forEach(function (b) { b.onclick = function () { var v = b.dataset.var, s = txt.selectionStart || txt.value.length, en = txt.selectionEnd || s; txt.value = txt.value.slice(0, s) + v + txt.value.slice(en); txt.focus(); txt.setSelectionRange(s + v.length, s + v.length); txt.dispatchEvent(new Event('input', { bubbles: true })); }; });
