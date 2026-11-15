@@ -47,14 +47,31 @@ $run = function (array $msgs, int $max, string $group, callable $finish) use ($s
 if (in_array($task, ['image', 'image_status'], true)) {
     if (!ai_feature_on('image')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
     if (!can('posts.create')) $out(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
-    $hf = connector('higgsfield');
-    if (!$hf) $out(['error' => t('اربط Higgsfield أولًا من صفحة التكاملات.')], 422);
+    $hf = connector('higgsfield'); $oa = function_exists('img_openai_conn') ? img_openai_conn() : null;
+    $video = $task === 'image' && ($_POST['kind'] ?? '') === 'video';
+    // الصور: OpenAI لو مربوط (الأساسي). الفيديو: Higgsfield
+    if ($task === 'image' && !$video && $oa) {
+        $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500);
+        if ($prompt === '') $out(['error' => t('اكتب وصف الصورة أولًا.')], 422);
+        $vs = kb_get((int)ws('id'))['visual_style'] ?? []; $style = trim(trim((string)($vs['style'] ?? '')) . ' ' . (trim((string)($vs['colors'] ?? '')) !== '' ? 'Brand colors: ' . $vs['colors'] : ''));
+        $ar = (string)($_POST['aspect'] ?? '1:1');
+        try { $names = img_openai_generate($prompt . ($style !== '' ? '. Style: ' . $style : ''), $ar, (int)($_POST['count'] ?? 1) === 2 ? 2 : 1); }
+        catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }
+        $rid = 'oa-' . bin2hex(random_bytes(8)); $_SESSION['oa_img'][$rid] = $names;
+        log_activity('ai.image', 'openai x' . count($names));
+        $out(['id' => $rid, 'ids' => [$rid], 'status' => 'queued', 'provider' => 'openai']);
+    }
+    if ($task === 'image_status' && strpos((string)($_POST['id'] ?? ''), 'oa-') === 0) {
+        $rid = (string)$_POST['id']; $names = $_SESSION['oa_img'][$rid] ?? null; if ($names === null) $out(['error' => t('طلب غير صحيح.')], 400);
+        unset($_SESSION['oa_img'][$rid]);
+        $out(['status' => 'completed', 'images' => array_map(function ($n) { return ['name' => $n, 'src' => url('ai_task', ['img' => $n]), 'video' => false]; }, $names)]);
+    }
+    if (!$hf) $out(['error' => $video ? t('توليد الفيديو يحتاج ربط Higgsfield من صفحة التكاملات.') : t('اربط OpenAI (أو Higgsfield) من صفحة التكاملات لتوليد الصور.')], 422);
     $c = $hf['credentials'];
     try {
         if ($task === 'image') {
             $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500);
             if ($prompt === '') $out(['error' => t('اكتب وصف الصورة أولًا.')], 422);
-            $video = ($_POST['kind'] ?? '') === 'video';
             if ($video && !ai_feature_on('video')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
             $path = '/' . ltrim(trim((string)($video ? ($c['video_model'] ?? '') : ($c['model'] ?? ''))) ?: ($video ? '/higgsfield/cinema-studio/4.0' : '/higgsfield-ai/soul/v2/standard'), '/');
             if (!preg_match('#^/[\w./-]+$#', $path)) $out(['error' => t('مسار الموديل غير صحيح.')], 422);
@@ -63,6 +80,7 @@ if (in_array($task, ['image', 'image_status'], true)) {
             $body = ['prompt' => $prompt . ($style !== '' ? '. Style: ' . $style : '')];
             if ($video && ($src = (string)($_POST['src'] ?? '')) !== '') {
                 $meta = hf_lib_valid($src) ? json_decode((string)@file_get_contents(hf_lib_dir((int)ws('id')) . '/' . $src . '.json'), true) : null;
+                if ($meta && ($meta['provider'] ?? '') === 'openai') $out(['error' => t('تحويل صور OpenAI إلى فيديو غير متاح: Higgsfield يحتاج رابطًا عامًا للصورة.')], 422);
                 if (!$meta || time() - (int)$meta['t'] > 6.5 * 86400) $out(['error' => t('يمكن تحويل الصور المولّدة خلال آخر 7 أيام فقط.')], 422);
                 $body['image_urls'] = [$meta['src']];
             }

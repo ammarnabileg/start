@@ -1,26 +1,26 @@
 <?php
 /** استوديو المحتوى: الصور والفيديو بالذكاء الاصطناعي (Higgsfield). النتايج بتتحفظ في مكتبة الوسائط وتتفتح في المصمم أو منشور جديد */
 $wid = (int)ws('id');
-$hf = connector('higgsfield');
-$on = $hf && ai_feature_on('image');
+$hf = connector('higgsfield'); $oa = function_exists('img_openai_conn') ? img_openai_conn() : null;
+$on = ($hf || $oa) && ai_feature_on('image');
 $lib = $on ? hf_lib_list($wid, 30) : [];
-render(t('استوديو المحتوى'), 'studio_media', function () use ($on, $lib, $hf) {
+render(t('استوديو المحتوى'), 'studio_media', function () use ($on, $lib, $hf, $oa) {
     $ratios = ['1:1' => [t('مربع'), 'aspect-square'], '4:5' => [t('بوست'), 'aspect-[4/5]'], '9:16' => [t('ستوري'), 'aspect-[9/16]'], '16:9' => [t('عرضي'), 'aspect-video']];
     ?>
   <?php if (!$on): ?>
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-ink-900 text-white grid place-items-center font-bold">H</div>
-      <b class="block text-ink-900"><?= e($hf ? t('توليد الصور متوقف في إعدادات الذكاء الاصطناعي') : t('اربط Higgsfield من التكاملات')) ?></b>
-      <p class="text-sm text-ink-500 mt-1"><?= e(t('توليد الصور والفيديو بيستخدم حساب Higgsfield بتاعك، والنتايج بتتحفظ في مكتبة الوسائط.')) ?></p>
-      <a href="<?= e(url($hf ? 'assistant' : 'connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e($hf ? t('إعدادات الذكاء الاصطناعي') : t('فتح التكاملات')) ?></a></div>
+      <b class="block text-ink-900"><?= e(($hf || $oa) ? t('توليد الصور متوقف في إعدادات الذكاء الاصطناعي') : t('اربط OpenAI من التكاملات لتوليد الصور')) ?></b>
+      <p class="text-sm text-ink-500 mt-1"><?= e(t('الصور تُولَّد بموديل GPT للصور من OpenAI، والفيديو عبر Higgsfield. النتائج تُحفظ في مكتبة الوسائط.')) ?></p>
+      <a href="<?= e(url(($hf || $oa) ? 'assistant' : 'connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(($hf || $oa) ? t('إعدادات الذكاء الاصطناعي') : t('فتح التكاملات')) ?></a></div>
   <?php else: ?>
   <div class="card p-5 space-y-4" id="sm">
     <div class="relative"><textarea id="sm-p" rows="3" class="input !mt-0 text-base leading-7 pe-28" dir="auto" maxlength="1500" placeholder="<?= e(t('صِف الصورة: مثلًا طبق مشويات على طاولة خشب بإضاءة دافية، تصوير احترافي')) ?>"></textarea>
       <button type="button" id="sm-go" class="btn-primary absolute bottom-3 end-3"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button></div>
     <div class="flex flex-wrap items-center gap-4">
-      <div class="inline-flex rounded-xl bg-ink-100 p-1 text-sm"><?php foreach (['image' => [t('صورة'), 'image']] + (ai_feature_on('video') ? ['video' => [t('فيديو'), 'film']] : []) as $k => [$l, $ic]): ?><label class="cp-kind flex items-center gap-1.5 rounded-lg px-3 py-1.5 cursor-pointer text-ink-600 has-[:checked]:bg-white has-[:checked]:text-brand-700 has-[:checked]:shadow-sm"><input type="radio" name="sm-kind" value="<?= $k ?>" class="sr-only" <?= $k === 'image' ? 'checked' : '' ?>><?= ui_icon($ic, 'w-4 h-4') ?><?= e($l) ?></label><?php endforeach; ?></div>
+      <div class="inline-flex rounded-xl bg-ink-100 p-1 text-sm"><?php foreach (['image' => [t('صورة'), 'image']] + (ai_feature_on('video') && $hf ? ['video' => [t('فيديو'), 'film']] : []) as $k => [$l, $ic]): ?><label class="cp-kind flex items-center gap-1.5 rounded-lg px-3 py-1.5 cursor-pointer text-ink-600 has-[:checked]:bg-white has-[:checked]:text-brand-700 has-[:checked]:shadow-sm"><input type="radio" name="sm-kind" value="<?= $k ?>" class="sr-only" <?= $k === 'image' ? 'checked' : '' ?>><?= ui_icon($ic, 'w-4 h-4') ?><?= e($l) ?></label><?php endforeach; ?></div>
       <div class="flex gap-1.5"><?php foreach ($ratios as $k => [$l, $cls]): ?><label class="cursor-pointer"><input type="radio" name="sm-ar" value="<?= $k ?>" class="peer sr-only" <?= $k === '1:1' ? 'checked' : '' ?>><span class="flex flex-col items-center gap-1 rounded-xl border border-ink-200 px-3 py-2 text-[11px] text-ink-600 peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-800"><span class="block w-5 <?= $cls ?> rounded-[3px] border-2 border-current"></span><?= e($l) ?></span></label><?php endforeach; ?></div>
       <label class="inline-flex items-center gap-2 text-sm text-ink-600"><input type="checkbox" id="sm-two" class="rounded"> <?= e(t('نسختين')) ?></label>
-      <span class="ms-auto text-[11px] text-ink-400"><?= e(t('بيستهلك من رصيد Higgsfield، وبيستخدم ستايل شركتك من ملف الشركة.')) ?></span>
+      <span class="ms-auto text-[11px] text-ink-400"><?= e($oa ? t('الصور بموديل GPT من OpenAI (من رصيد حسابك هناك) وبستايل شركتك من ملف الشركة.') : t('بيستهلك من رصيد Higgsfield، وبيستخدم ستايل شركتك من ملف الشركة.')) ?></span>
     </div>
     <p id="sm-st" class="hidden text-sm"></p>
   </div>
