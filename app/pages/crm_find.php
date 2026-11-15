@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $s = $st->fetch(); if (!$s) $json(['ok' => false, 'error' => t('البحث ده مش موجود.')]);
         $filters = json_decode((string)$s['filters'], true) ?: [];
         $onlyNew = array_flip((array)json_decode((string)$s['new_ids'], true));
-        db()->prepare('UPDATE crm_searches SET new_ids = NULL, new_count = 0 WHERE id = ?')->execute([(int)$_POST['id']]);
+        db()->prepare('UPDATE crm_searches SET new_ids = NULL, new_count = 0 WHERE id = ? AND workspace_id = ?')->execute([(int)$_POST['id'], $wid]);
         $action = 'search';
     }
     if ($action === 'search') {

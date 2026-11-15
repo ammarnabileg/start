@@ -21,19 +21,21 @@ save_setting('cron_running', (string)time());
 
 $out = [];
 try {
-    $rows = db()->query("SELECT w.id, w.name FROM workspaces w WHERE COALESCE(w.status, 'active') = 'active'
-        AND EXISTS (SELECT 1 FROM connectors c WHERE c.workspace_id = w.id AND c.provider = 'zernio') ORDER BY w.id")->fetchAll();
+    // كل الشركات النشطة: شغل الـ CRM (المتابعات، سرعة الرد، الاجتماعات، الإيميلات) مالوش علاقة بـ Zernio
+    // والخطوات اللي محتاجة Zernio (تنبيهات الأداء، الرد الآلي، الحملات، تقارير التحليلات) بتتعدى للي مش رابطه
+    $rows = db()->query("SELECT w.id, w.name, EXISTS (SELECT 1 FROM connectors c WHERE c.workspace_id = w.id AND c.provider = 'zernio') has_z
+        FROM workspaces w WHERE COALESCE(w.status, 'active') = 'active' ORDER BY w.id")->fetchAll();
     foreach ($rows as $w) {
-        $wid = (int)$w['id'];
-        $line = 'ws ' . $wid . ':';
-        try {
+        $wid = (int)$w['id']; $hasZ = (bool)$w['has_z'];
+        $line = 'ws ' . $wid . ($hasZ ? '' : ' (no zernio)') . ':';
+        if ($hasZ) try {
             $line .= ' alerts+' . rp_evaluate_alerts($wid, true);
         } catch (Throwable $t) {
             $line .= ' alerts=error';
         }
         // الذكاء الاصطناعي في الخلفية (لو صاحب الشركة مفعّله)
         // تحليل الرسايل بقى يدوي بس (المستخدم بيختار)، عشان مايستهلكش رصيد لوحده
-        foreach (['alerts' => 'ai_smart_alerts', 'reply' => 'ai_auto_reply'] as $what => $fn) {
+        foreach ($hasZ ? ['alerts' => 'ai_smart_alerts', 'reply' => 'ai_auto_reply'] : [] as $what => $fn) {
             if (!ai_auto_enabled($wid, $what) || !ai_feature_on(['classify' => 'classify_btn', 'alerts' => 'alerts_bg', 'reply' => 'auto_reply'][$what], $wid)) continue;
             try {
                 $line .= ' ai_' . $what . '+' . (int)ai_as_workspace($wid, function () use ($fn, $wid) { return $fn($wid); });
@@ -137,13 +139,6 @@ try {
         } catch (Throwable $t) {
             $line .= ' sla=error';
         }
-        // خطط المتابعة: الإيميلات المستحقة بتتبعت، والباقي بيتحول مهام
-        try {
-            $n = (int)ai_as_workspace($wid, function () { return 0; /* خطط المتابعة اتشالت */ });
-            if ($n) $line .= ' plan_steps+' . $n;
-        } catch (Throwable $t) {
-            $line .= ' plans=error';
-        }
         // البحوث المحفوظة في Apollo: الأشخاص الجداد كل يوم (مابيصرفش كريديت)
         try {
             $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_searches_daily() : 0; });
@@ -152,13 +147,13 @@ try {
             $line .= ' apollo_saved=error';
         }
         // حملات الرسائل: دفعة لكل شركة
-        try {
+        if ($hasZ) try {
             $n = (int)ai_as_workspace($wid, function () use ($wid) { return camp_tick($wid, 60); });
             if ($n) $line .= ' campaigns+' . $n;
         } catch (Throwable $t) {
             $line .= ' campaigns=error';
         }
-        try {
+        if ($hasZ) try {
             $s = rp_schedule($wid);
             $kind = rp_due($s, rp_tz($wid));
             if ($kind) {
