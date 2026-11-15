@@ -112,7 +112,7 @@ function cg_store_reviews(array $c, array $items): void
         if ($isNew && !empty($p['reviews_at']) && $stars !== null && $stars <= 2) { $bad++; if ($bad <= 5) $ev->execute([$wid, $cid, 'rev_bad', mb_substr((string)$p['title'], 0, 255), $stars . '★ ' . mb_substr($text, 0, 400)]); }
     }
     foreach (array_keys($touched) as $rowId) $pdo->prepare('UPDATE competitor_places SET reviews_at = NOW() WHERE id = ?')->execute([$rowId]);
-    if ($bad && function_exists('crm_notify') && module_enabled('crm')) crm_notify(null, null, 'competitor', '⭐ ' . $c['name'] . ': ' . t('%s تقييم سلبي جديد على خرائط جوجل', $bad));
+    // التنبيهات بقت من cmp_alert_tick (قواعد المستخدم)
 }
 
 function cg_refresh(array $c): bool { if (cg_pending((int)$c['id'])) return true; return cg_start($c, 'read'); }

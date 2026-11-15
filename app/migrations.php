@@ -528,6 +528,23 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '059_plans_removed' => [
+        "UPDATE crm_plan_runs SET state = 'stopped' WHERE state IN ('wait', 'due')",
+    ],
+    '058_comp_compare' => [
+        "ALTER TABLE competitors ADD COLUMN is_self TINYINT(1) NOT NULL DEFAULT 0",
+        "CREATE TABLE IF NOT EXISTS competitor_saved (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            competitor_id INT UNSIGNED NOT NULL,
+            kind VARCHAR(10) NOT NULL,
+            ref_id INT UNSIGNED NOT NULL,
+            note VARCHAR(500) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY ws_ref (workspace_id, kind, ref_id),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '057_comp_maps' => [
         "ALTER TABLE competitors ADD COLUMN maps TEXT NULL",
         "CREATE TABLE IF NOT EXISTS competitor_places (

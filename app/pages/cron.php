@@ -139,7 +139,7 @@ try {
         }
         // خطط المتابعة: الإيميلات المستحقة بتتبعت، والباقي بيتحول مهام
         try {
-            $n = (int)ai_as_workspace($wid, function () { return module_enabled('crm') ? crm_plan_tick(100) : 0; });
+            $n = (int)ai_as_workspace($wid, function () { return 0; /* خطط المتابعة اتشالت */ });
             if ($n) $line .= ' plan_steps+' . $n;
         } catch (Throwable $t) {
             $line .= ' plans=error';
@@ -187,7 +187,7 @@ try {
     // متابعة المنافسين: لكل الشركات (حتى اللي مش مربوطة بالنشر)، كل منافس مرة في اليوم
     try {
         foreach (db()->query("SELECT DISTINCT c.workspace_id FROM competitors c JOIN workspaces w ON w.id = c.workspace_id WHERE COALESCE(w.status, 'active') = 'active'")->fetchAll(PDO::FETCH_COLUMN) as $cw) {
-            try { $n = (int)ai_as_workspace((int)$cw, function () { $k = function_exists('comp_tick') ? comp_tick(10) : 0; if (function_exists('cs_tick')) { try { $k += cs_tick(4); } catch (Throwable $e) {} } if (function_exists('ca_tick')) { try { $k += ca_tick(3); } catch (Throwable $e) {} } if (function_exists('cw_rank_tick')) { try { cw_rank_tick(); } catch (Throwable $e) {} } if (function_exists('cg_tick')) { try { $k += cg_tick(3); } catch (Throwable $e) {} } return $k; }); if ($n) $out[] = 'ws ' . (int)$cw . ': competitors+' . $n; }
+            try { $n = (int)ai_as_workspace((int)$cw, function () { $k = function_exists('comp_tick') ? comp_tick(10) : 0; if (function_exists('cs_tick')) { try { $k += cs_tick(4); } catch (Throwable $e) {} } if (function_exists('ca_tick')) { try { $k += ca_tick(3); } catch (Throwable $e) {} } if (function_exists('cw_rank_tick')) { try { cw_rank_tick(); } catch (Throwable $e) {} } if (function_exists('cg_tick')) { try { $k += cg_tick(3); } catch (Throwable $e) {} } if (function_exists('cmp_alert_tick')) { try { if (cmp_disc_pending()) cmp_disc_collect(); cmp_alert_tick(); cmp_digest_tick(); } catch (Throwable $e) {} } return $k; }); if ($n) $out[] = 'ws ' . (int)$cw . ': competitors+' . $n; }
             catch (Throwable $t) { $out[] = 'ws ' . (int)$cw . ': competitors=error'; }
         }
     } catch (Throwable $t) {}

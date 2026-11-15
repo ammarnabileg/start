@@ -137,20 +137,7 @@ render(t('إعدادات العملاء'), 'crm_settings', function () use ($mgr
         <div><div class="text-xs text-ink-500 mb-1"><?= e(t('معاينة')) ?></div><div class="rounded-xl border border-ink-200 overflow-hidden"><?= crm_mail_wrap(nl2br(e(t("أهلًا أحمد،
 ده مثال لشكل الإيميل اللي هيوصل لعملائك."))), '#') ?></div></div></div></section>
 
-    <section id="plans" class="<?= $sec ?> xl:col-span-2"><h2 class="font-semibold text-ink-900 mb-1"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('قواعد خطط المتابعة')) ?></h2>
-      <form method="post" class="grid md:grid-cols-3 gap-4 text-sm"><?= csrf_field() ?><input type="hidden" name="action" value="plans">
-        <div class="space-y-2"><label class="flex items-center gap-2"><input type="checkbox" name="hours" value="1" <?= $pr['hours'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('ساعات العمل بس')) ?></b></label>
-          <p class="text-[11px] text-ink-500"><?= e(t('الإيميلات والمهام مابتطلعش بالليل ولا يوم الإجازة. بتستنى لأول ساعة شغل.')) ?></p>
-          <div class="flex flex-wrap gap-1"><?php foreach ([t('أحد'), t('اتنين'), t('تلات'), t('أربع'), t('خميس'), t('جمعة'), t('سبت')] as $d => $n): ?><label class="cursor-pointer"><input type="checkbox" class="peer sr-only" name="days[]" value="<?= $d ?>" <?= in_array($d, $pr['days'], true) ? 'checked' : '' ?> <?= $dis ?>><span class="inline-block px-2 py-0.5 rounded-lg border border-ink-200 text-[11px] peer-checked:bg-brand-600 peer-checked:text-white"><?= e($n) ?></span></label><?php endforeach; ?></div>
-          <div class="flex items-center gap-2 text-xs"><input type="time" name="from" value="<?= e($pr['from']) ?>" class="input !mt-0 !py-1 text-xs" <?= $dis ?>> → <input type="time" name="to" value="<?= e($pr['to']) ?>" class="input !mt-0 !py-1 text-xs" <?= $dis ?>></div></div>
-        <div class="space-y-2"><label class="flex items-center gap-2"><input type="checkbox" name="stop_reply" value="1" <?= $pr['stop_reply'] ? 'checked' : '' ?> <?= $dis ?>> <b><?= e(t('وقّف الخطة لو العميل رد')) ?></b></label>
-          <p class="text-[11px] text-ink-500"><?= e(t('لما رسالة أو تعليق جديد من العميل يتسجّل عليه (من زرار "ضيفه Lead" أو الجمع الأوتوماتيك) بعد ما الخطة بدأت، الخطة بتقف ويتعمل له مهمة "رد عليه". ردود الإيميل مش بتتقري.')) ?></p></div>
-        <div class="space-y-2"><b class="block"><?= e(t('"لم يرد" كذا مرة ← خطة تانية')) ?></b>
-          <p class="text-[11px] text-ink-500"><?= e(t('لما تسجّل نتيجة مكالمة "مردّش" العدد ده، العميل بيتنقل لخطة تانية لوحده.')) ?></p>
-          <div class="flex items-center gap-2 text-xs"><input type="number" min="0" max="10" name="na_n" value="<?= (int)$pr['na_n'] ?>" class="input !mt-0 !py-1 !w-16 text-xs" <?= $dis ?>> <?= e(t('مرات ← ')) ?>
-            <select name="na_plan" class="input !mt-0 !py-1 text-xs flex-1" <?= $dis ?>><option value="0"><?= e(t('من غير')) ?></option><?php foreach (crm_plans() as $p): ?><option value="<?= (int)$p['id'] ?>" <?= (int)$pr['na_plan'] === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select></div></div>
-        <?php if ($mgr): ?><div class="md:col-span-3"><button class="btn-primary !py-1.5 !text-xs"><?= e(t('حفظ')) ?></button></div><?php endif; ?>
-      </form></section>
+
   </div>
   <script>window.CSET = <?= json_encode(['mgr' => $mgr, 'pal' => $pal, 'ws' => (string)(ws('name') ?? ''), 'brand' => ['#4f46e5', '#2563eb', '#0891b2', '#059669', '#16a34a', '#ea580c', '#db2777', '#0f172a'],
     'T' => ['del' => t('احذف'), 'leads' => t('عدد العملاء'), 'main' => t('الأساسي'), 'text' => t('نص'), 'num' => t('رقم'), 'sel' => t('اختيارات'), 'textEx' => t('اكتب هنا…'), 'optAdd' => t('اختيار + Enter'), 'fPrev' => t('هيظهر في ملف العميل كده:'),

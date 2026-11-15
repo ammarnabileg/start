@@ -115,7 +115,6 @@ render(t('المصادر والإعدادات'), 'crm_capture', function () use 
       ['g' => 'set', 'u' => $setU('stages,pipes'), 'id' => 's-stages', 'i' => 'layers', 'c' => '#2563eb', 'n' => t('المراحل والـ Pipelines'), 'd' => t('مراحل العميل ومسارات البيع'), 'm' => t('%s مرحلة', count(crm_stages())) . ' · ' . count(crm_pipelines()) . ' Pipeline'],
       ['g' => 'set', 'u' => $setU('fields,tags'), 'id' => 's-fields', 'i' => 'puzzle', 'c' => '#0891b2', 'n' => t('الحقول والتاجات'), 'd' => t('بيانات زيادة لكل عميل وتاجات بتتحط لوحدها'), 'm' => t('%s حقل', count(crm_custom_fields())) . ' · ' . t('%s قاعدة', count(crm_tag_rules()))],
       ['g' => 'set', 'u' => $setU('mail'), 'id' => 's-mail', 'i' => 'mail', 'c' => '#ea580c', 'n' => t('الإيميل'), 'd' => t('الإرسال والتتبع والتذكير اليومي'), 'm' => ''],
-      ['g' => 'set', 'u' => url('crm_plans'), 'go' => 1, 'id' => 'plans', 'i' => 'refresh', 'c' => '#16a34a', 'n' => t('خطط المتابعة'), 'd' => t('اتنقلت للردود التلقائية والـ Workflows'), 'm' => t('%s خطة', count(crm_plans()))],
       ['g' => 'set', 'x' => 1, 'id' => 'tpl', 'i' => 'chat', 'c' => '#22c55e', 'n' => t('رسائل واتساب الجاهزة'), 'd' => t('القوالب اللي بتظهر في نافذة العميل'), 'm' => t('%s قالب', count(crm_templates()))],
       ['g' => 'set', 'x' => 1, 'id' => 'sla', 'i' => 'clock', 'c' => '#ef4444', 'n' => t('السرعة والتوزيع'), 'd' => t('وقت الرد، توزيع العملاء، واحتمالات الإغلاق'), 'm' => t('%s دقيقة', (int)crm_sla_cfg()['mins'])],
     ]; ?>

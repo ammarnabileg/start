@@ -55,9 +55,10 @@ function nav_items(): array
             'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],
         ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => $s3, 'module' => 'ads',
             'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير')], 'also' => ['ad_campaign']],
-        ['key' => 'inbox', 'module' => 'inbox', 'label' => t('الرسائل والتعليقات'), 'section' => $s4, 'tabs' => ['inbox' => t('الرسائل'), 'comments' => t('التعليقات')]],
+        ['key' => 'inbox', 'module' => 'inbox', 'label' => t('الرسائل'), 'section' => $s4],
+        ['key' => 'comments', 'module' => 'inbox', 'label' => t('التعليقات'), 'section' => $s4],
         ['key' => 'automations', 'label' => t('الردود التلقائية'), 'section' => $s4, 'module' => 'automations',
-            'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows', 'crm_plans' => t('خطط متابعة العملاء')]],
+            'tabs' => ['automations' => t('الرد على التعليقات'), 'workflows' => 'Workflows']],
         ['key' => 'gmb', 'label' => 'Google Business', 'section' => $s4, 'module' => 'gmb',
             'tabs' => ['gmb_reviews' => t('التقييمات'), 'gmb_location' => t('بيانات الفرع'), 'gmb_media' => t('الصور')]],
         ['key' => 'whatsapp', 'label' => t('واتساب'), 'section' => $s4, 'module' => 'whatsapp',
@@ -113,7 +114,7 @@ function nav_item_for(string $page): ?array
 function module_pages(): array
 {
     return [
-        'crm' => ['crm', 'crm_find', 'prospects', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc', 'crm_plans'],
+        'crm' => ['crm', 'crm_find', 'prospects', 'crm_leads', 'crm_reports', 'crm_capture', 'crm_settings', 'crm_doc'],
         'automations' => ['automations', 'workflows'],
         'whatsapp' => ['broadcasts', 'wa_templates', 'contacts', 'sequences', 'wa_profile'],
         'analytics' => ['analytics', 'inbox_analytics', 'reports', 'report_print', 'goals', 'alerts'],

@@ -117,12 +117,7 @@ function comp_check(array $c): int
     $pdo->prepare('UPDATE competitors SET snap = ?, last_check = NOW(), last_ok = ? WHERE id = ? AND workspace_id = ?')->execute([json_encode($keep, JSON_UNESCAPED_UNICODE), !empty($new['ok']) ? 1 : 0, (int)$c['id'], $wid]);
     $ins = $pdo->prepare('INSERT INTO competitor_events (workspace_id, competitor_id, kind, title, detail) VALUES (?, ?, ?, ?, ?)');
     foreach ($ev as $e) $ins->execute([$wid, (int)$c['id'], $e[0], mb_substr($e[1], 0, 255), mb_substr((string)$e[2], 0, 500)]);
-    // تنبيه للمديرين بالتغييرات المهمة بس (مش أول قراءة)
-    $important = array_filter($ev, function ($e) { return in_array($e[0], ['price_up', 'price_down', 'price', 'offer_new', 'svc_new', 'down'], true); });
-    if ($important && function_exists('crm_notify') && module_enabled('crm')) {
-        $first = array_values($important)[0];
-        crm_notify(null, null, 'competitor', '👀 ' . $c['name'] . ': ' . comp_ev_title($first[0], $first[1]) . (count($important) > 1 ? ' ' . t('و%s تغيير تاني', count($important) - 1) : ''));
-    }
+    // التنبيهات بقت من cmp_alert_tick حسب قواعد المستخدم (من غير تكرار)
     // الموقع نفسه: التقنيات، الـ SEO، الصفحات الجديدة، الدومين، السرعة، الدفع، الأكواد
     $more = 0; if (function_exists('cw_check')) { try { $more = cw_check($c); } catch (Throwable $e) {} }
     return count($ev) + $more;

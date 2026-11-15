@@ -88,7 +88,7 @@ function ca_store(array $c, array $items): void
     foreach (array_slice($new, 0, 10) as $a) $ev->execute([$wid, $cid, 'ad_new', mb_substr($a['title'] ?: mb_substr($a['body'], 0, 80), 0, 255), mb_substr($a['body'], 0, 500)]);
     if (count($new) > 10) $ev->execute([$wid, $cid, 'ad_new', t('و%s إعلان آخر', count($new) - 10), null]);
     if (!$first) foreach (array_slice($stopped, 0, 10) as $r) $ev->execute([$wid, $cid, 'ad_stop', mb_substr((string)($r['title'] ?: mb_substr((string)$r['body'], 0, 80)), 0, 255), null]);
-    if ($new && function_exists('crm_notify') && module_enabled('crm')) crm_notify(null, null, 'competitor', '📣 ' . $c['name'] . ': ' . t('%s إعلان جديد', count($new)));
+    // التنبيهات بقت من cmp_alert_tick (قواعد المستخدم)
     $pdo->prepare('UPDATE competitors SET ads_check = NOW() WHERE id = ?')->execute([$cid]);
     ca_landing($c, 4);
 }

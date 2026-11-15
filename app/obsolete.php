@@ -7,4 +7,5 @@ return [
     'app/pages/users.php',       // 1.1.0: اتستبدلت بصفحة فريق الشركة
     'app/pages/compose_pro.php', // 1.7.0: اتدمجت في صفحة منشور جديد
     'app/pages/inbox_pro.php',   // 1.7.0: اتدمجت في صفحة الرسائل
+    'app/pages/crm_plans.php',   // 3.230.0: خطط متابعة العملاء اتشالت بطلب المالك
 ];

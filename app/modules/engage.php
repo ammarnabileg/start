@@ -364,6 +364,7 @@ function crm_on_call_outcome(array $l, string $oc): string
     if ($oc === 'answered') { db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]); return ''; }
     if ($oc !== 'no_answer') return '';
     $n = (int)($l['no_answer'] ?? 0) + 1; db()->prepare('UPDATE crm_leads SET no_answer = ? WHERE id = ?')->execute([$n, (int)$l['id']]);
+    return ''; // خطط المتابعة اتشالت: مفيش تسجيل تلقائي في خطة بعد المكالمات اللي ماتردّش (عدّاد عدم الرد فاضل شغال)
     $r = crm_plan_rules(); if ($r['na_n'] < 1 || $n < $r['na_n'] || !$r['na_plan'] || !($p = crm_plan((int)$r['na_plan']))) return '';
     db()->prepare("UPDATE crm_plan_runs SET state = 'stopped' WHERE workspace_id = ? AND lead_id = ? AND state IN ('wait','due')")->execute([(int)ws('id'), (int)$l['id']]);
     db()->prepare('UPDATE crm_leads SET no_answer = 0 WHERE id = ?')->execute([(int)$l['id']]);

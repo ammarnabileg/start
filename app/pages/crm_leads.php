@@ -424,7 +424,7 @@ if (preg_match('/^(\d+)_[0-9a-f]{16}\.(webm|ogg|m4a|mp3)$/', (string)($_GET['voi
     readfile($vf); exit;
 }
 try { crm_fix_stored_phones(); } catch (Throwable $t) { /* مش مهم */ }
-try { crm_plan_tick(30); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
+
 try { crm_sla_tick(); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 try { crm_meeting_reminders(); } catch (Throwable $t) { /* الـ cron هيكمّل */ }
 // الموظف العادي بيشوف بتوعه واللي من غير مسؤول، والمدير بيشوف الكل
@@ -566,7 +566,6 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
       <button type="button" id="ld-b-mail" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg> <?= e(t('إيميل جماعي')) ?></button>
       <select id="ld-b-stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('غيّر المرحلة…')) ?></option><?php foreach ($stages as $k => $lbl): ?><option value="<?= e($k) ?>"><?= e($lbl) ?></option><?php endforeach; ?></select>
       <?php if ($canManage): ?><select id="ld-b-owner" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('وزّع على…')) ?></option><option value="0"><?= e(t('من غير مسؤول')) ?></option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= e($m['name']) ?></option><?php endforeach; ?></select><?php endif; ?>
-      <select id="ld-b-plan" class="input !w-auto !py-1 text-xs"><option value=""><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('ابدأ خطة متابعة…')) ?></option><?php foreach (crm_plans() as $pl): ?><option value="<?= (int)$pl['id'] ?>"><?= e($pl['name']) ?></option><?php endforeach; ?></select>
       <button type="button" id="ld-b-tag" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8zM7.5 8.5h.01"/></svg> <?= e(t('ضيف لقايمة')) ?></button>
       <?php if (crm_has_key()): ?>
         <?php if (can('crm.reveal')): ?><button type="button" id="ld-b-enrich" class="btn-ghost !py-1 !text-xs"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg> <?= e(t('كمّل من Apollo')) ?></button><?php endif; ?>
@@ -681,10 +680,6 @@ render(t('العملاء المحتملين'), 'crm_leads', function () use ($le
           <div id="ld-deals" class="rounded-xl border border-ink-200 p-3 space-y-2">
             <div class="flex items-center gap-2"><span class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15v-5M3 7h17v5h-4a2.5 2.5 0 000 5h4"/></svg> <?= e(t('الصفقات')) ?></span><button type="button" id="ld-deal-add" class="link text-xs ms-auto">+ <?= e(t('صفقة')) ?></button></div>
             <div id="ld-deal-list" class="space-y-1.5"></div>
-          </div>
-          <div id="ld-plan" class="rounded-xl border border-sky-200 bg-sky-50/40 p-3 space-y-2">
-            <div class="text-sm font-semibold text-ink-900"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 4v4h4M4 13a8 8 0 0014.9 4M20 20v-4h-4"/></svg> <?= e(t('خطة المتابعة')) ?></div>
-            <div id="ld-plan-body" class="text-xs"></div>
           </div>
         </div></details>
         <details class="ld-panel ld-sec group/sec" data-tab="dt" open>
