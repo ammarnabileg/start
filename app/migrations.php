@@ -528,6 +528,10 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '060_comp_b2b' => [
+        "ALTER TABLE competitor_site ADD COLUMN b2b MEDIUMTEXT NULL",
+        "ALTER TABLE competitor_site ADD COLUMN b2b_at DATETIME NULL",
+    ],
     '059_plans_removed' => [
         "UPDATE crm_plan_runs SET state = 'stopped' WHERE state IN ('wait', 'due')",
     ],

@@ -1744,3 +1744,9 @@ details[data-rules] summary{cursor:pointer;list-style:none}details[data-rules] s
 .au-kc b{font-size:.84rem;color:#0f172a}.au-kc small{font-size:.68rem;color:#64748b;line-height:1.5}.au-kc.on{border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgb(59 130 246/.12)}
 .dark .au-kind.cmt{background:#172554;color:#bfdbfe}.dark .au-kind.msg{background:#2e1065;color:#ddd6fe}.dark .au-kc{border-color:#334155}.dark .au-kc:hover{background:#1e293b}.dark .au-kc b{color:#f1f5f9}.dark .au-kc.on{background:#172554;border-color:#3b82f6}
 .grid>.card,.grid>section{min-width:0}
+/* المنافسين B2B */
+.cb-box h5{font-size:.72rem;font-weight:700;color:#475569;margin:.75rem 0 .35rem}
+.cb-chips{display:flex;flex-wrap:wrap;gap:.3rem}.cb-chips span{font-size:.72rem;padding:.2rem .55rem;border-radius:99px;background:#f1f5f9;color:#334155}.cb-chips span.cert{background:#ecfccb;color:#3f6212;font-weight:600}
+.cb-flags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem;align-items:center}.cb-flags span{font-size:.72rem;padding:.2rem .55rem;border-radius:8px;background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}.cb-flags span.on{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.cb-list{font-size:.78rem;color:#334155;list-style:disc;padding-inline-start:1.1rem}.cb-list li{margin:.15rem 0}
+.dark .cb-chips span{background:#1e293b;color:#cbd5e1}.dark .cb-flags span{background:#0f172a;border-color:#334155}.dark .cb-list{color:#cbd5e1}.dark .cb-box h5{color:#94a3b8}

@@ -155,6 +155,10 @@ function cw_check(array $c, bool $force = false): int
             }
             $set['sitemap_at'] = date('Y-m-d H:i:s');
         }
+        // B2B (العملاء، المشاريع، الشهادات، الوظائف) كل 3 أيام
+        if (function_exists('cb_check') && ($force || empty($old['b2b_at']) || strtotime((string)$old['b2b_at']) < time() - 3 * 86400)) {
+            try { [$b2b, $evB] = cb_check($html, (string)$r['url'], json_decode((string)($old['b2b'] ?? ''), true) ?: []); $set['b2b'] = json_encode($b2b, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); $set['b2b_at'] = date('Y-m-d H:i:s'); $ev = array_merge($ev, $evB); } catch (Throwable $e) {}
+        }
         // الدومين كل 30 يوم
         if ($force || empty($old['domain_at']) || strtotime((string)$old['domain_at']) < time() - 30 * 86400) { $d = cw_domain((string)parse_url((string)$r['url'], PHP_URL_HOST)); if ($d) { $set['domain'] = json_encode($d, JSON_UNESCAPED_UNICODE); $set['domain_at'] = date('Y-m-d H:i:s'); } }
         // السرعة كل 7 أيام
@@ -234,5 +238,5 @@ function cw_report(array $c): array
         'codes' => json_decode((string)($r['codes'] ?? ''), true) ?: [], 'seo' => json_decode((string)($r['seo'] ?? ''), true) ?: null, 'psi' => json_decode((string)($r['psi'] ?? ''), true) ?: null,
         'domain' => $dom, 'pagesN' => $r['pages_n'] !== null ? (int)$r['pages_n'] : null, 'newPages' => $newPages,
         'up' => ['days' => count($dd), 'ok' => $okN, 'pct' => $dd ? round($okN / count($dd) * 100, 1) : null, 'ms' => $ms ? (int)round(array_sum($ms) / count($ms)) : null, 'series' => array_map(function ($x) { return [$x['day'], (int)$x['ok'], $x['ms'] !== null ? (int)$x['ms'] : null]; }, $dd)],
-        'rank' => $rank + ['host' => $host, 'mine' => $mine, 'kw' => cw_kw($wid), 'on' => function_exists('cs_on') && cs_on()]];
+        'rank' => $rank + ['host' => $host, 'mine' => $mine, 'kw' => cw_kw($wid), 'on' => function_exists('cs_on') && cs_on()], 'b2b' => function_exists('cb_report') ? cb_report($r) : null];
 }

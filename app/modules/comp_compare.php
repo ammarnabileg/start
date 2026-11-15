@@ -32,7 +32,7 @@ function cmp_metrics(array $c, array $priceRows = []): array
     $win = (int)$one('SELECT COUNT(*) FROM competitor_ads WHERE competitor_id = ? AND active = 1 AND COALESCE(started, DATE(first_seen)) <= ?', [$cid, date('Y-m-d', strtotime('-30 days'))]);
     $rt = $pdo->prepare('SELECT SUM(rating * reviews_count) / NULLIF(SUM(reviews_count), 0) a, SUM(reviews_count) n FROM competitor_places WHERE competitor_id = ? AND rating IS NOT NULL'); $rt->execute([$cid]); $rr = $rt->fetch() ?: [];
     $rv = $pdo->prepare('SELECT COUNT(*) n, SUM(r.reply IS NOT NULL AND r.reply <> "") y FROM competitor_reviews r JOIN competitor_places p ON p.id = r.place_row WHERE p.competitor_id = ? AND (r.at IS NULL OR r.at >= ?)'); $rv->execute([$cid, date('Y-m-d', strtotime('-90 days'))]); $rvr = $rv->fetch() ?: [];
-    $site = $pdo->prepare('SELECT psi FROM competitor_site WHERE competitor_id = ?'); $site->execute([$cid]); $psi = json_decode((string)$site->fetchColumn(), true) ?: [];
+    $site = $pdo->prepare('SELECT psi, b2b FROM competitor_site WHERE competitor_id = ?'); $site->execute([$cid]); $sr = $site->fetch() ?: []; $psi = json_decode((string)($sr['psi'] ?? ''), true) ?: []; $bb = json_decode((string)($sr['b2b'] ?? ''), true);
     $up = $pdo->prepare('SELECT COUNT(*) n, SUM(ok) y FROM competitor_site_days WHERE competitor_id = ? AND day >= ?'); $up->execute([$cid, date('Y-m-d', strtotime('-29 days'))]); $upr = $up->fetch() ?: [];
     // آخر نشاط: آخر منشور، آخر إعلان بدأ، آخر تغيير مسجّل
     $last = max(strtotime((string)$one('SELECT MAX(p.posted_at) FROM competitor_posts p JOIN competitor_social s ON s.id = p.social_id WHERE s.competitor_id = ?', [$cid])) ?: 0,
@@ -42,6 +42,7 @@ function cmp_metrics(array $c, array $priceRows = []): array
     return ['followers' => $soc['followers'] ?? null, 'g7' => $soc['g7'] ?? null, 'ppw' => $posts28 ? round($posts28 / 4, 1) : ($soc ? 0 : null), 'er' => $er !== null && $er !== false ? round((float)$er, 2) : null,
         'ads' => $ads, 'win' => $win, 'rating' => isset($rr['a']) && $rr['a'] !== null ? round((float)$rr['a'], 1) : null, 'reviews' => isset($rr['n']) && $rr['n'] !== null ? (int)$rr['n'] : null,
         'revReply' => !empty($rvr['n']) ? (int)round($rvr['y'] / $rvr['n'] * 100) : null, 'speed' => $psi['score'] ?? null, 'uptime' => !empty($upr['n']) ? round($upr['y'] / $upr['n'] * 100, 1) : null,
+        'clients' => is_array($bb) ? count((array)($bb['clients'] ?? [])) : null, 'projects' => is_array($bb) ? count((array)($bb['projects'] ?? [])) : null, 'certs' => is_array($bb) ? count((array)($bb['certs'] ?? [])) + count((array)($bb['vendors'] ?? [])) : null, 'jobs' => is_array($bb) ? (int)($bb['jobsN'] ?? 0) : null,
         'cheaper' => $cheap, 'pricier' => $exp, 'last' => $last ?: null, 'lastDays' => $last ? (int)floor((time() - $last) / 86400) : null];
 }
 
@@ -53,7 +54,7 @@ function cmp_table(): array
     $prices = $others ? comp_price_table($others) : [];
     $cols = []; foreach (array_merge($self ? [$self] : [], $others) as $c) $cols[] = ['id' => (int)$c['id'], 'name' => (string)$c['name'], 'self' => (int)!empty($c['is_self']), 'm' => cmp_metrics($c, $prices)];
     // المؤشرات: الأعلى أحسن إلا اللي عليها low
-    $defs = [['followers', t('المتابعون'), 'hi'], ['g7', t('نمو المتابعين (7 أيام)'), 'hi'], ['ppw', t('منشور/أسبوع'), 'hi'], ['er', t('متوسط التفاعل %'), 'hi'], ['ads', t('إعلانات شغّالة'), 'hi'], ['win', t('إعلانات رابحة (30+ يوم)'), 'hi'],
+    $defs = [['clients', t('عملاء معلنون على موقعه'), 'hi'], ['projects', t('مشاريع منشورة'), 'hi'], ['certs', t('شهادات واعتمادات'), 'hi'], ['jobs', t('وظائف مفتوحة'), 'hi'], ['followers', t('المتابعون'), 'hi'], ['g7', t('نمو المتابعين (7 أيام)'), 'hi'], ['ppw', t('منشور/أسبوع'), 'hi'], ['er', t('متوسط التفاعل %'), 'hi'], ['ads', t('إعلانات شغّالة'), 'hi'], ['win', t('إعلانات رابحة (30+ يوم)'), 'hi'],
         ['rating', t('تقييم خرائط جوجل'), 'hi'], ['reviews', t('عدد المراجعات'), 'hi'], ['revReply', t('نسبة الرد على المراجعات %'), 'hi'], ['speed', t('سرعة الموقع (من 100)'), 'hi'], ['uptime', t('توفر الموقع %'), 'hi']];
     $rows = [];
     foreach ($defs as $d) {
@@ -73,6 +74,7 @@ function cmp_rules(?int $wid = null): array
 {
     $r = json_decode((string)setting('cmp_rules_' . ($wid ?? (int)ws('id')), ''), true) ?: [];
     $d = ['price_drop' => ['on' => 1, 'pct' => 10], 'price_up' => ['on' => 0, 'pct' => 10], 'burst' => ['on' => 1, 'n' => 3], 'ads_start' => ['on' => 1], 'ad_new' => ['on' => 0], 'rating_drop' => ['on' => 1, 'd' => 0.2], 'rev_bad' => ['on' => 1], 'code_new' => ['on' => 1], 'offer_new' => ['on' => 1], 'page_new' => ['on' => 0], 'tech_new' => ['on' => 1], 'down' => ['on' => 0], 'email' => ['on' => 0], 'digest' => ['on' => 1]];
+    $d += ['client_new' => ['on' => 1], 'project_new' => ['on' => 1], 'cert_new' => ['on' => 1], 'jobs_up' => ['on' => 1]]; // B2B
     foreach ($d as $k => $v) $d[$k] = array_merge($v, array_intersect_key((array)($r[$k] ?? []), $v));
     return $d;
 }
@@ -89,7 +91,7 @@ function cmp_alert_tick(): int
         $pct = preg_match('/\(([+-]?\d+)%\)/', $d, $m) ? abs((int)$m[1]) : null;
         $hit = ($k === 'price_down' && $R['price_drop']['on'] && ($pct === null || $pct >= $R['price_drop']['pct'])) || ($k === 'price_up' && $R['price_up']['on'] && ($pct === null || $pct >= $R['price_up']['pct']))
             || ($k === 'rating' && $R['rating_drop']['on'] && preg_match('/([\d.]+)\s*→\s*([\d.]+)/u', $d, $m) && ((float)$m[1] - (float)$m[2]) >= (float)$R['rating_drop']['d'] - 0.001)
-            || (in_array($k, ['rev_bad', 'code_new', 'offer_new', 'page_new', 'tech_new', 'down', 'ad_new'], true) && !empty($R[$k]['on']));
+            || (in_array($k, ['rev_bad', 'code_new', 'offer_new', 'page_new', 'tech_new', 'down', 'ad_new', 'client_new', 'project_new', 'cert_new', 'jobs_up'], true) && !empty($R[$k]['on']));
         if ($hit) $out[] = ['c' => (string)$e['cname'], 'cid' => (int)$e['competitor_id'], 't' => comp_ev_title($k, (string)$e['title']), 'd' => $d];
     }
     save_setting($key, (string)$lastId);
@@ -171,13 +173,24 @@ function cmp_save_toggle(string $kind, int $ref): bool
 function cmp_disc_query(): string
 {
     $k = function_exists('kb_get') ? kb_get((int)ws('id')) : []; $ind = trim((string)($k['company']['industry'] ?? '')); if ($ind === '') return '';
-    $city = function_exists('cx') ? (string)cx('city') : ''; return trim($ind . ($city !== '' ? ' ' . $city : ''));
+    $city = function_exists('cx') ? (string)cx('city') : ''; return trim((cmp_disc_mode() === 'web' ? t('شركات') . ' ' : '') . $ind . ($city !== '' ? ' ' . $city : ''));
 }
-function cmp_disc_start(string $q = ''): bool
+/** طريقة الاكتشاف: web = بحث جوجل (للشركات B2B، الافتراضي) — maps = خرائط جوجل (للمحلات والفروع) */
+function cmp_disc_mode(): string { $m = (string)setting('cmp_disc_mode_' . (int)ws('id'), 'web'); return in_array($m, ['web', 'maps'], true) ? $m : 'web'; }
+/** مواقع مش شركات (أدلة، سوشيال، إعلانات مبوبة): مانعتبرهاش منافسين */
+function cmp_disc_skip_host(string $h): bool
 {
+    return (bool)preg_match('/(^|\.)(google\.|youtube\.|facebook\.|instagram\.|linkedin\.|twitter\.|x\.com$|tiktok\.|snapchat\.|wikipedia\.|wikimedia\.|yellowpages|yelp\.|tripadvisor|bayut|haraj|opensooq|olx\.|dubizzle|indeed\.|glassdoor|bayt\.|zawya\.|argaam\.|amazon\.|noon\.|alibaba|aliexpress|daleeli|saudiyellow|kompass|dnb\.com|crunchbase|reddit\.|quora\.|pinterest\.|apple\.com|play\.google)/i', $h);
+}
+function cmp_disc_start(string $q = '', string $mode = ''): bool
+{
+    if (in_array($mode, ['web', 'maps'], true)) save_setting('cmp_disc_mode_' . (int)ws('id'), $mode); $mode = cmp_disc_mode();
     $q = trim($q) ?: cmp_disc_query(); if ($q === '' || !function_exists('cs_on') || !cs_on()) return false;
-    $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode('compass~crawler-google-places') . '/runs?memory=1024', ['searchStringsArray' => [$q], 'maxCrawledPlacesPerSearch' => 25, 'language' => 'ar', 'maxReviews' => 0, 'maxImages' => 0]);
-    if (empty($r['data']['id'])) return false; save_setting('cmp_disc_run_' . (int)ws('id'), json_encode(['id' => (string)$r['data']['id'], 'at' => time(), 'q' => $q], JSON_UNESCAPED_UNICODE)); return true;
+    if ($mode === 'web') {
+        $cc = strtolower((string)(function_exists('ws_country') ? ws_country() : ''));
+        $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode('apify~google-search-scraper') . '/runs?memory=1024', array_filter(['queries' => $q, 'resultsPerPage' => 30, 'maxPagesPerQuery' => 2, 'languageCode' => lang() === 'ar' ? 'ar' : 'en', 'countryCode' => preg_match('/^[a-z]{2}$/', $cc) ? $cc : null, 'mobileResults' => false]));
+    } else $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode('compass~crawler-google-places') . '/runs?memory=1024', ['searchStringsArray' => [$q], 'maxCrawledPlacesPerSearch' => 25, 'language' => 'ar', 'maxReviews' => 0, 'maxImages' => 0]);
+    if (empty($r['data']['id'])) return false; save_setting('cmp_disc_run_' . (int)ws('id'), json_encode(['id' => (string)$r['data']['id'], 'at' => time(), 'q' => $q, 'mode' => $mode], JSON_UNESCAPED_UNICODE)); return true;
 }
 function cmp_disc_pending(): bool { $r = json_decode((string)setting('cmp_disc_run_' . (int)ws('id'), ''), true); return !empty($r['id']) && (int)($r['at'] ?? 0) > time() - 1800; }
 function cmp_disc_collect(): void
@@ -188,13 +201,26 @@ function cmp_disc_collect(): void
     $items = tnd_apify_req('GET', '/v2/datasets/' . rawurlencode((string)$r['data']['defaultDatasetId']) . '/items?clean=1&limit=60');
     $known = []; foreach (comp_list() as $c) { $known[cg_norm((string)$c['name'])] = 1; $h = preg_replace('/^www\./', '', strtolower((string)parse_url((string)$c['url'], PHP_URL_HOST))); if ($h) $known[$h] = 1; foreach (cg_links($c) as $u) $known[$u] = 1; }
     $mine = function_exists('cw_my_domain') ? cw_my_domain($wid) : ''; $out = [];
+    if (($run['mode'] ?? 'maps') === 'web') {
+        // نتائج بحث جوجل: موقع لكل شركة (من غير الأدلة والسوشيال)، بالترتيب في النتائج
+        $seenH = [];
+        foreach ($items as $page) foreach ((array)($page['organicResults'] ?? []) as $x) {
+            $u = (string)($x['url'] ?? ''); $h = preg_replace('/^www\./', '', strtolower((string)parse_url($u, PHP_URL_HOST))); if ($h === '' || isset($seenH[$h]) || cmp_disc_skip_host($h)) continue;
+            $reg = function_exists('cw_regdomain') ? cw_regdomain($h) : $h; if (isset($known[$h]) || isset($known[$reg]) || ($mine && $reg === $mine)) continue; $seenH[$h] = 1;
+            $t = trim(preg_split('/\s+[-|–—:]\s+/u', (string)($x['title'] ?? ''))[0] ?? ''); if ($t === '') $t = $h;
+            if (isset($known[cg_norm($t)])) continue;
+            $out[] = ['name' => mb_substr($t, 0, 120), 'rating' => null, 'reviews' => null, 'web' => (string)(parse_url($u, PHP_URL_SCHEME) ?: 'https') . '://' . (string)parse_url($u, PHP_URL_HOST), 'maps' => '', 'address' => mb_substr(trim((string)($x['description'] ?? '')), 0, 160)];
+        }
+        save_setting('cmp_disc_' . $wid, json_encode(['at' => date('Y-m-d H:i'), 'q' => $run['q'] ?? '', 'mode' => 'web', 'list' => array_slice($out, 0, 25)], JSON_UNESCAPED_UNICODE));
+        return;
+    }
     foreach ($items as $x) { $t = trim((string)($x['title'] ?? '')); if ($t === '') continue; $web = (string)($x['website'] ?? ''); $h = preg_replace('/^www\./', '', strtolower((string)parse_url($web, PHP_URL_HOST)));
         if (isset($known[cg_norm($t)]) || ($h && (isset($known[$h]) || ($mine && cw_regdomain($h) === $mine))) || isset($known[(string)($x['url'] ?? '')])) continue;
         $out[] = ['name' => mb_substr($t, 0, 120), 'rating' => isset($x['totalScore']) ? (float)$x['totalScore'] : null, 'reviews' => isset($x['reviewsCount']) ? (int)$x['reviewsCount'] : null, 'web' => $web, 'maps' => (string)($x['url'] ?? ''), 'address' => (string)($x['address'] ?? ''), 'cat' => (string)($x['categoryName'] ?? '')]; }
     usort($out, function ($a, $b) { return ($b['reviews'] ?? 0) <=> ($a['reviews'] ?? 0); });
     save_setting('cmp_disc_' . $wid, json_encode(['at' => date('Y-m-d H:i'), 'q' => $run['q'] ?? '', 'list' => array_slice($out, 0, 20)], JSON_UNESCAPED_UNICODE));
 }
-function cmp_disc(): array { $d = json_decode((string)setting('cmp_disc_' . (int)ws('id'), ''), true) ?: []; return ['q' => (string)($d['q'] ?? ''), 'at' => (string)($d['at'] ?? ''), 'list' => (array)($d['list'] ?? []), 'pending' => cmp_disc_pending(), 'suggest' => cmp_disc_query()]; }
+function cmp_disc(): array { $d = json_decode((string)setting('cmp_disc_' . (int)ws('id'), ''), true) ?: []; return ['mode' => cmp_disc_mode(), 'q' => (string)($d['q'] ?? ''), 'at' => (string)($d['at'] ?? ''), 'list' => (array)($d['list'] ?? []), 'pending' => cmp_disc_pending(), 'suggest' => cmp_disc_query()]; }
 
 /** كل بيانات أقسام الصفحة الجديدة في طلب واحد */
 function cmp_overview(): array

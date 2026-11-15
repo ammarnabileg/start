@@ -47,6 +47,11 @@ function comp_ev_title(string $kind, string $subject): string
 {
     switch ($kind) {
         case 'first': return t('أول قراءة للموقع');
+        case 'client_new': return t('عميل جديد على موقعه: %s', $subject);
+        case 'project_new': return t('مشروع جديد: %s', $subject);
+        case 'cert_new': return t('شهادة/اعتماد جديد: %s', $subject);
+        case 'jobs_up': return t('بيوظّف بكثرة: %s وظيفة مفتوحة', $subject);
+        case 'rfq_new': return t('أضاف «طلب عرض سعر» على موقعه');
         case 'down': return t('الموقع مش بيفتح');
         case 'up': return t('الموقع رجع يفتح');
         case 'svc_new': return t('خدمة جديدة: %s', $subject);
