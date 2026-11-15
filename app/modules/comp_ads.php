@@ -124,10 +124,10 @@ function ca_clean_url(string $u): string
 function ca_fetch_page(string $url): array
 {
     $out = ['ok' => false, 'title' => null, 'h1' => null, 'descr' => null, 'prices' => []];
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 4, CURLOPT_TIMEOUT => 12, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; MarketWatch/1.0)', CURLOPT_HTTPHEADER => ['Accept-Language: ar,en;q=0.8']]);
-    $html = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-    if ($code >= 400 || $html === '') return $out;
+    // safe_fetch: بيمنع الروابط اللي بتشاور على عناوين داخلية (الرابط جاي من إعلان، يعني من برّه)
+    $r = safe_fetch($url, ['max' => 600000, 'accept' => '~html~i', 'ua' => 'Mozilla/5.0 (compatible; MarketWatch/1.0)']);
+    if (!empty($r['err']) || (string)($r['body'] ?? '') === '') return $out;
+    $html = (string)$r['body'];
     $html = mb_substr($html, 0, 600000); $out['ok'] = true;
     $txt = function ($s) { return mb_substr(trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string)$s), ENT_QUOTES | ENT_HTML5, 'UTF-8'))), 0, 300) ?: null; };
     if (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m)) $out['title'] = $txt($m[1]);

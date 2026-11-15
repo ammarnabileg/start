@@ -528,6 +528,41 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '056_comp_site' => [
+        "CREATE TABLE IF NOT EXISTS competitor_site (
+            competitor_id INT UNSIGNED NOT NULL PRIMARY KEY,
+            tech TEXT NULL,
+            pay TEXT NULL,
+            codes TEXT NULL,
+            seo TEXT NULL,
+            psi TEXT NULL,
+            psi_at DATETIME NULL,
+            domain TEXT NULL,
+            domain_at DATETIME NULL,
+            pages_n INT UNSIGNED NULL,
+            sitemap_at DATETIME NULL,
+            checked_at DATETIME NULL,
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_pages (
+            competitor_id INT UNSIGNED NOT NULL,
+            url_hash CHAR(32) NOT NULL,
+            url VARCHAR(700) NOT NULL,
+            lastmod DATE NULL,
+            first_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (competitor_id, url_hash),
+            INDEX comp_seen (competitor_id, first_seen),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_site_days (
+            competitor_id INT UNSIGNED NOT NULL,
+            day DATE NOT NULL,
+            ok TINYINT(1) NOT NULL,
+            ms INT UNSIGNED NULL,
+            PRIMARY KEY (competitor_id, day),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '055_comp_ads' => [
         "CREATE TABLE IF NOT EXISTS competitor_ads (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

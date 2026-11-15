@@ -59,6 +59,10 @@ function comp_ev_title(string $kind, string $subject): string
         case 'hours': return t('غيّر المواعيد');
         case 'soc_bio': return t('غيّر وصف حسابه على %s', $subject);
         case 'soc_name': return t('غيّر اسم حسابه على %s', $subject);
+        case 'page_new': return t('صفحة جديدة في موقعه: %s', $subject);
+        case 'seo': return t('غيّر %s', $subject);
+        case 'tech_new': return t('أضاف إلى موقعه: %s', $subject);
+        case 'code_new': return t('كود خصم جديد: %s', $subject);
         case 'ad_new': return t('إعلان جديد: %s', $subject);
         case 'ad_stop': return t('أوقف إعلان: %s', $subject);
         case 'soc_link': return t('غيّر الرابط في حسابه على %s', $subject);
@@ -117,7 +121,9 @@ function comp_check(array $c): int
         $first = array_values($important)[0];
         crm_notify(null, null, 'competitor', '👀 ' . $c['name'] . ': ' . comp_ev_title($first[0], $first[1]) . (count($important) > 1 ? ' ' . t('و%s تغيير تاني', count($important) - 1) : ''));
     }
-    return count($ev);
+    // الموقع نفسه: التقنيات، الـ SEO، الصفحات الجديدة، الدومين، السرعة، الدفع، الأكواد
+    $more = 0; if (function_exists('cw_check')) { try { $more = cw_check($c); } catch (Throwable $e) {} }
+    return count($ev) + $more;
 }
 
 /** التشغيل الدوري: كل منافس مرة في اليوم، لحد 10 في المرة */

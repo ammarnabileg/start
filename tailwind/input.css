@@ -1687,3 +1687,17 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .ca-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .7rem;font-size:.66rem;color:#64748b}.ca-cta{background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:.05rem .45rem;font-weight:700}
 .ca-lp{border:1px solid #e2e8f0;border-radius:12px;padding:.55rem .7rem;margin-bottom:.4rem;font-size:.76rem}.ca-lp b{display:block;color:#0f172a;margin-top:.25rem}.ca-lp p{color:#64748b;margin:.15rem 0 .35rem}.ca-n{font-size:.66rem;color:#64748b;white-space:nowrap}
 .dark .ca-ad,.dark .ca-lp{border-color:#334155}.dark .ca-ad.off{background:#0f172a}.dark .ca-ad p{color:#e2e8f0}.dark .ca-t,.dark .ca-lp b{color:#f1f5f9}.dark .ca-cta{background:#1e3a8a;color:#bfdbfe}.dark .ca-new{background:#4c1d95;color:#ddd6fe}
+/* موقع المنافس */
+.cw-sc{display:inline-grid;place-items:center;width:2.2rem;height:2.2rem;border-radius:99px;font-size:.9rem;border:3px solid currentColor}.cw-sc.g{color:#16a34a}.cw-sc.o{color:#d97706}.cw-sc.b{color:#dc2626}
+.cw-up{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;margin-top:.6rem}.cw-up i{height:18px;border-radius:3px;background:#22c55e}.cw-up i.bad{background:#ef4444}
+.cw-psi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem}.cw-psi span{border-radius:10px;padding:.4rem .5rem;display:flex;flex-direction:column;background:#f1f5f9}.cw-psi small{font-size:.62rem;color:#64748b}.cw-psi b{font-size:.95rem;text-align:start}
+.cw-psi .g{background:#dcfce7}.cw-psi .g b{color:#15803d}.cw-psi .o{background:#fef3c7}.cw-psi .o b{color:#b45309}.cw-psi .b{background:#fee2e2}.cw-psi .b b{color:#b91c1c}
+.cw-hint{font-size:.7rem;color:#4338ca;background:#eef2ff;border-radius:8px;padding:.35rem .55rem;margin-top:.2rem}
+.cw-code{display:flex;align-items:center;gap:.6rem;border:1px dashed #fb923c;background:#fff7ed;border-radius:10px;padding:.4rem .65rem;margin-bottom:.35rem;font-size:.75rem}.cw-code b{font-family:ui-monospace,monospace;color:#c2410c;letter-spacing:.05em}.cw-code small{margin-inline-start:auto;color:#9a3412;font-size:.64rem}
+.cw-seo div{border-bottom:1px solid #f1f5f9;padding:.35rem 0}.cw-seo small{font-size:.64rem;color:#64748b}.cw-seo p{font-size:.78rem;color:#0f172a;margin:.1rem 0 0}
+.cw-facts{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.72rem;color:#64748b;margin-top:.45rem}.cw-facts b{color:#0f172a}.cw-y{color:#16a34a;font-weight:800}.cw-n{color:#dc2626;font-weight:700}
+.cw-pg{display:flex;justify-content:space-between;gap:.5rem;font-size:.74rem;padding:.35rem .5rem;border-radius:8px;color:#1d4ed8}.cw-pg:hover{background:#f8fafc}.cw-pg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cw-pg small{color:#94a3b8;flex-shrink:0}
+.cw-rk em{font-style:normal;font-size:.66rem;font-weight:700}.cw-rk em.up{color:#16a34a}.cw-rk em.dn{color:#dc2626}
+.dark .cw-psi span{background:#1e293b}.dark .cw-hint{background:#1e1b4b;color:#c7d2fe}.dark .cw-code{background:#431407;border-color:#9a3412}.dark .cw-seo div{border-color:#1e293b}.dark .cw-seo p,.dark .cw-facts b{color:#f1f5f9}
+/* التبويبات بقت 6: تتسحب بالعرض بدل ما تخرج برّه الشاشة */
+.cx-tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cx-tabs::-webkit-scrollbar{display:none}.cx-tabs button{white-space:nowrap;flex-shrink:0}
