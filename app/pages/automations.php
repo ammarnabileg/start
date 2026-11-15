@@ -13,7 +13,7 @@ function ca_form_body(string $platform, bool $isCreate): array
     if (!in_array($match, ['exact', 'contains', 'word'], true)) $match = 'contains';
     $dm = trim((string)($_POST['dm_message'] ?? ''));
     $reply = trim((string)($_POST['comment_reply'] ?? ''));
-    if ($name === '') return [null, t('اكتب اسم للأتمتة.')];
+    if ($name === '') return [null, t('اكتب اسمًا للرد التلقائي.')];
     $canDm = ip_automation_dm_platform($platform);
     if ($canDm && $dm === '') return [null, t('اكتب الرسالة الخاصة اللي هتتبعت.')];
     if (!$canDm && $reply === '') return [null, t('المنصة دي بتدعم الرد العام بس، فاكتب الرد العام.')];
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             if ($pp !== '') $body['platformPostId'] = $pp;
             ip_create_automation($z, $body);
             log_activity('automation.create', $body['name']);
-            flash('success', t('تم إنشاء الأتمتة.'));
+            flash('success', t('تم إنشاء الرد التلقائي.'));
         } elseif ($action === 'update' && $id !== '') {
             $platform = (string)($_POST['platform'] ?? '');
             [$body, $error] = ca_form_body($platform, false);
@@ -77,14 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $on = !empty($_POST['on']);
             ip_update_automation($z, $id, ['isActive' => $on]);
             log_activity('automation.' . ($on ? 'enable' : 'disable'), $id);
-            flash('success', $on ? t('الأتمتة اشتغلت.') : t('الأتمتة اتوقفت.'));
+            flash('success', $on ? t('تم تشغيل الرد التلقائي.') : t('تم إيقاف الرد التلقائي.'));
         } elseif ($action === 'delete' && $id !== '') {
             if (!can('automations.manage')) {
                 flash('error', t('الحذف لصاحب الشركة بس.'));
             } else {
                 ip_delete_automation($z, $id);
                 log_activity('automation.delete', $id);
-                flash('success', t('تم حذف الأتمتة.'));
+                flash('success', t('تم حذف الرد التلقائي.'));
             }
         }
     } catch (ZernioException $ex) {
@@ -156,13 +156,13 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
     <div class="grid lg:grid-cols-[22rem_1fr] 2xl:grid-cols-[22rem_1fr_20rem] gap-4 lg:h-[calc(100vh-13rem)] min-h-[560px]" id="au">
       <!-- القائمة -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $editing ? 'hidden lg:flex' : 'flex' ?>">
-        <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الأتمتة')) ?></b><span class="text-xs text-ink-400" id="au-vis"></span></div>
+        <div class="flex items-center gap-2 px-4 h-12 border-b border-ink-200 shrink-0"><b class="text-sm text-ink-900"><?= e(t('الردود التلقائية')) ?></b><span class="text-xs text-ink-400" id="au-vis"></span></div>
         <div class="flex-1 min-h-0 overflow-y-auto" id="au-list">
           <?php if (!$list && !$wfs): ?>
             <div class="p-8 text-center">
               <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center"><svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7z"/></svg></div>
-              <p class="text-sm font-medium text-ink-900"><?= e(t('مفيش أتمتة لسه')) ?></p>
-              <p class="text-xs text-ink-500 mt-1"><?= e(t('اعمل أول أتمتة: كلمة زي "بكام" في تعليق = رد تلقائي في الخاص.')) ?></p>
+              <p class="text-sm font-medium text-ink-900"><?= e(t('لا توجد ردود تلقائية بعد')) ?></p>
+              <p class="text-xs text-ink-500 mt-1"><?= e(t('أنشئ أول رد تلقائي: كلمة مثل "بكم" في تعليق = رد تلقائي في الرسائل الخاصة.')) ?></p>
             </div>
           <?php endif; ?>
           <?php foreach ($list as $it): $io = !empty($it['isActive']); $s = $it['stats'] ?? []; $sel = ($it['id'] ?? '') === $editId; $kw = (array)($it['keywords'] ?? []); ?>
@@ -222,9 +222,9 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
         <?php if (!$editing): ?>
           <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-brand-600/10 to-cyan-500/10 text-brand-600 flex items-center justify-center mb-4"><svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7z"/></svg></div>
-            <p class="font-medium text-ink-900"><?= e(t('اختار أتمتة عشان تعدّلها، أو اعمل واحدة جديدة')) ?></p>
+            <p class="font-medium text-ink-900"><?= e(t('اختر ردًا تلقائيًا لتعديله، أو أنشئ ردًا جديدًا')) ?></p>
             <p class="text-xs text-ink-500 mt-1 max-w-sm"><?= e(t('لما حد يكتب كلمة معينة في تعليق، يوصله رد تلقائي في الخاص و/أو رد عام تحت تعليقه. الرسائل الخاصة متاحة على إنستجرام وفيسبوك بس.')) ?></p>
-            <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('أتمتة جديدة')) ?></a>
+            <a href="<?= e(url('automations', ['new' => 1])) ?>" class="btn-primary mt-4"><?= e(t('رد تلقائي جديد')) ?></a>
           </div>
         <?php else: ?>
           <form method="post" id="au-form" class="flex flex-col min-h-0 flex-1">
@@ -368,8 +368,8 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
     <script>window.AUX = <?= json_encode(['dm' => array_values(array_filter(ip_automation_platforms(), 'ip_automation_dm_platform')), 'plat' => $plat, 'editing' => (bool)$editing,
       'on' => t('شغالة'), 'off' => t('متوقفة'), 'match' => t('هتشتغل ✓ — اتطابقت مع: %s'), 'nomatch' => t('مش هتشتغل — مفيش كلمة مطابقة'), 'any' => t('هتشتغل ✓ — أي تعليق بيشغلها'), 'sampleC' => t('بكام ده؟'), 'emptyR' => t('(من غير رد عام)'), 'emptyD' => t('(اكتب الرسالة الخاصة)'),
       'kwN' => t('%s كلمة · أي تعليق فيه واحدة منهم يشغلها'), 'kwAny' => t('لو سبتها فاضية، أي تعليق هيشغلها.'), 'sugg' => ['سعر', 'بكام', 'price', 'تفاصيل', 'متاح', 'طلب', 'عرض', 'how much', 'info'], 'optional' => t('(اختياري)'), 'required' => t('(مطلوب)'),
-      'needName' => t('اكتب اسم للأتمتة.'), 'needDm' => t('اكتب الرسالة الخاصة اللي هتتبعت.'), 'needReply' => t('المنصة دي بتدعم الرد العام بس، فاكتب الرد العام.'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير حفظ؟'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
-      'toggled_on' => t('الأتمتة اشتغلت.'), 'toggled_off' => t('الأتمتة اتوقفت.'), 'keysTitle' => t('اختصارات الكيبورد'),
+      'needName' => t('اكتب اسمًا للرد التلقائي.'), 'needDm' => t('اكتب الرسالة الخاصة اللي هتتبعت.'), 'needReply' => t('المنصة دي بتدعم الرد العام بس، فاكتب الرد العام.'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير حفظ؟'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
+      'toggled_on' => t('تم تشغيل الرد التلقائي.'), 'toggled_off' => t('تم إيقاف الرد التلقائي.'), 'keysTitle' => t('اختصارات الكيبورد'),
       'keys' => [['j k', t('الأتمتة التالية / السابقة')], ['n', t('أتمتة جديدة')], ['/', t('البحث')], ['t', t('تشغيل / إيقاف المحددة')], ['Ctrl S', t('حفظ')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/automations.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
