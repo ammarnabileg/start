@@ -304,7 +304,7 @@ function ads_connect_buttons(): void
         return;
     }
     ?>
-    <form method="post" action="<?= e(url('ads')) ?>" class="mt-4 flex flex-wrap items-center justify-center gap-2">
+    <form method="post" action="<?= e(url('ads')) ?>" class="mt-4 flex flex-wrap items-center justify-center gap-2" data-no-ajax>
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="connect">
       <select name="platform" class="input !mt-0 !w-auto">

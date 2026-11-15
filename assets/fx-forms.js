@@ -22,6 +22,7 @@
   function eligible(f) {
     if ((f.getAttribute('method') || 'get').toLowerCase() !== 'post' || f.hasAttribute('data-no-ajax') || f.hasAttribute('data-optimistic') || f.target && f.target !== '_self') return false;
     if (f.closest('[data-live-root]') || f.closest('dialog[data-modal-frame]')) return false;
+    if (f.querySelector('input[name=action][value^="connect"], input[name=action][value*="oauth"]')) return false; // الربط بيحوّل لصفحة دخول المنصة (دومين تاني)
     var act = f.getAttribute('action') || location.href; if (SKIP.test(act) || SKIP.test(location.search) && !f.getAttribute('action')) return false;
     try { var u = new URL(act, location.href); if (u.host !== location.host) return false; } catch (e) { return false; }
     return true;
