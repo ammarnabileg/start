@@ -528,6 +528,52 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '057_comp_maps' => [
+        "ALTER TABLE competitors ADD COLUMN maps TEXT NULL",
+        "CREATE TABLE IF NOT EXISTS competitor_places (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            workspace_id INT UNSIGNED NOT NULL,
+            competitor_id INT UNSIGNED NOT NULL,
+            place_id VARCHAR(120) NOT NULL,
+            title VARCHAR(255) NULL,
+            address VARCHAR(500) NULL,
+            category VARCHAR(190) NULL,
+            lat DECIMAL(10,7) NULL,
+            lng DECIMAL(10,7) NULL,
+            rating DECIMAL(2,1) NULL,
+            reviews_count INT UNSIGNED NULL,
+            hours TEXT NULL,
+            url VARCHAR(700) NULL,
+            closed TINYINT(1) NOT NULL DEFAULT 0,
+            last_check DATETIME NULL,
+            reviews_at DATETIME NULL,
+            UNIQUE KEY comp_place (competitor_id, place_id),
+            FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_place_days (
+            place_row INT UNSIGNED NOT NULL,
+            day DATE NOT NULL,
+            rating DECIMAL(2,1) NULL,
+            reviews_count INT UNSIGNED NULL,
+            PRIMARY KEY (place_row, day),
+            FOREIGN KEY (place_row) REFERENCES competitor_places(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS competitor_reviews (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            place_row INT UNSIGNED NOT NULL,
+            ext_id VARCHAR(190) NOT NULL,
+            stars TINYINT UNSIGNED NULL,
+            text TEXT NULL,
+            author VARCHAR(190) NULL,
+            at DATETIME NULL,
+            reply TEXT NULL,
+            reply_at DATETIME NULL,
+            first_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY place_ext (place_row, ext_id),
+            INDEX place_at (place_row, at),
+            FOREIGN KEY (place_row) REFERENCES competitor_places(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '056_comp_site' => [
         "CREATE TABLE IF NOT EXISTS competitor_site (
             competitor_id INT UNSIGNED NOT NULL PRIMARY KEY,
