@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $st = $pdo->prepare("SELECT * FROM workspaces WHERE id = ?");
     $st->execute([$id]);
     $w = $st->fetch();
+    if ($w && ($w['status'] ?? '') === 'deleted') $w = null; // شركة محذوفة: بياناتها محفوظة للإحصائيات بس، مفيش رجوع ولا دخول
 
     if ($action === 'create') {
         $name = trim((string)($_POST['name'] ?? ''));
@@ -82,7 +83,7 @@ $sql = "SELECT w.*,
     (SELECT COUNT(*) FROM connectors c WHERE c.workspace_id = w.id) conns,
     (SELECT MAX(a.created_at) FROM activity_log a WHERE a.workspace_id = w.id) last_activity,
     EXISTS(SELECT 1 FROM workspace_users wu WHERE wu.workspace_id = w.id AND wu.user_id = ? AND wu.status = 'active') am_member
-    FROM workspaces w" . ($q !== '' ? " WHERE w.name LIKE ?" : '') . " ORDER BY w.name";
+    FROM workspaces w WHERE COALESCE(w.status, 'active') <> 'deleted'" . ($q !== '' ? " AND w.name LIKE ?" : '') . " ORDER BY w.name";
 $st = $pdo->prepare($sql);
 $st->execute($q !== '' ? [$me['id'], '%' . $q . '%'] : [$me['id']]);
 $list = $st->fetchAll();
