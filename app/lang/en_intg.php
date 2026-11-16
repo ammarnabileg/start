@@ -5795,4 +5795,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'تفاعل %s%%' => 'Engagement %s%%',
     'المصدر:' => 'Source:',
     'الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا' => 'Images of any size (auto-shrunk) · video up to %s MB',
+    '%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو شِل الحساب.' => '%s needs an image or video. Add one, save as draft, or remove the account.',
+    'يوتيوب يحتاج فيديو.' => 'YouTube needs a video.',
 ];

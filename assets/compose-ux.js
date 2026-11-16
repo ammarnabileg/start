@@ -239,7 +239,10 @@
   function summary() {
     var s = sel(), m = $('.mode:checked'), issues = [];
     s.forEach(function (c) { var l = LIM[c.dataset.plat]; if (l && Array.from(textFor(c)).length > l) issues.push((P.plat[c.dataset.plat] || '') + ': ' + P.tooLong.replace('%s', Array.from(textFor(c)).length - l)); });
-    if ((touched || s.length) && !content.value.trim() && !files.length) issues.push(P.emptyText);
+    // الصور/الفيديو من 3 أماكن: رفع من الجهاز، المكتبة، أو صور الذكاء الاصطناعي
+    var hasMedia = files.length || $$('input[name="lib_media[]"], input[name="ai_media[]"]').length;
+    if ((touched || s.length) && !content.value.trim() && !hasMedia) issues.push(P.emptyText);
+    if (m && m.value !== 'draft' && !hasMedia && s.some(function (c) { return ['instagram', 'tiktok', 'pinterest', 'youtube'].indexOf(c.dataset.plat) > -1; })) issues.push(P.needMedia);
     if (m && m.value === 'schedule' && wi && new Date(wi.value) < new Date()) issues.push(P.past);
     steps(s, m, issues);
     var ex = m && m.value === 'schedule' ? extras() : 0;

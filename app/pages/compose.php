@@ -289,6 +289,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             try { $media[] = ['type' => $kind === 'doc' ? 'document' : $kind, 'url' => media_public_url($z, (int)ws('id'), $mid, 'post', mb_substr((string)$old['content'], 0, 80))]; } catch (Throwable $ex) { $errors[] = $ex->getMessage(); }
         }
         if ($old['content'] === '' && !$media) $errors[] = t('اكتب نص المنشور أو ارفع صورة/فيديو.');
+        // منصات مابتقبلش منشور من غير صورة/فيديو: كانت بتتبعت وتفشل عند المنصة (وتظهر في «فشل»)
+        if ($old['mode'] !== 'draft') {
+            $plNames = array_unique(array_map(function ($x) { return (string)($x['platform'] ?? ''); }, $platforms));
+            $hasVideo = (bool)array_filter($media, function ($m) { return ($m['type'] ?? '') === 'video'; });
+            $needM = array_values(array_intersect($plNames, ['instagram', 'tiktok', 'pinterest']));
+            if ($needM && !$media) $errors[] = t('%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو شِل الحساب.', implode('، ', array_map('platform_label', $needM)));
+            if (in_array('youtube', $plNames, true) && !$hasVideo) $errors[] = t('يوتيوب يحتاج فيديو.');
+        }
 
         $payload = ['content' => $old['content'], 'platforms' => $platforms, 'timezone' => site_timezone()];
         if ($media) $payload['mediaItems'] = $media;
