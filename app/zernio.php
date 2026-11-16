@@ -47,6 +47,9 @@ class Zernio
     private static function ttl(string $path): int
     {
         $rules = [
+            // التصنيفات بتتغير نادرًا (وأي تعديل من المنصة بيصفّر الكاش): كانت بتتطلب مع كل فتحة محادثة فيسبوك وكل تحديث تلقائي
+            '#^/v1/inbox/labels#' => 600,
+            '#^/v1/inbox/conversations/[^/]+/labels#' => 300,
             '#^/v1/inbox/conversations/[^/]+/messages#' => 8,
             '#^/v1/inbox/conversations#' => 15,
             '#^/v1/inbox/comments/#' => 20,
