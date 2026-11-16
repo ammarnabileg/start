@@ -1750,3 +1750,26 @@ details[data-rules] summary{cursor:pointer;list-style:none}details[data-rules] s
 .cb-flags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem;align-items:center}.cb-flags span{font-size:.72rem;padding:.2rem .55rem;border-radius:8px;background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}.cb-flags span.on{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
 .cb-list{font-size:.78rem;color:#334155;list-style:disc;padding-inline-start:1.1rem}.cb-list li{margin:.15rem 0}
 .dark .cb-chips span{background:#1e293b;color:#cbd5e1}.dark .cb-flags span{background:#0f172a;border-color:#334155}.dark .cb-list{color:#cbd5e1}.dark .cb-box h5{color:#94a3b8}
+/* الوضع الداكن — قراءة النصوص (من فحص التباين) */
+.mk-bar{background-color:#0d1630}
+.dark .mk-bar{background-color:#1e293b;box-shadow:0 0 0 1px rgb(255 255 255/.1),0 20px 40px rgb(0 0 0/.5)}
+.dark .text-ink-300{color:#64748b}
+.dark .cx-cmpt td:first-child{color:#cbd5e1}
+.dark .cs-addrule{color:#a5b4fc;border-color:#4338ca}.dark .cs-addrule:hover{background:#1e1b4b}
+.dark .cs-seg button{color:#cbd5e1}.dark .cs-seg button.on{background:#334155;color:#fff}
+.dark .cs-test{background:linear-gradient(135deg,#1e1b4b,#0f172a);border-color:#3730a3}
+.dark .bg-red-600.text-white{background-color:#b91c1c}
+.dark .cx-dc b,.dark .cx-empty h2,.dark .st-card>header b,.dark .st-ph b,.dark .st-slide p{color:#f1f5f9}
+.dark .st-pf,.dark .st-hi p,.dark .pr-cph,.dark .pr-co,.dark .pr-cl,.dark .pr-bst,.dark .cs-mix div{color:#cbd5e1}
+.dark .cx-k{color:#94a3b8}
+.dark .cs-d.dn,.dark .cw-rk em.dn,.dark .cs-cardl em.dn,.dark span.dn{color:#f87171}.dark .cs-d.up,.dark .cw-rk em.up,.dark .cs-cardl em.up,.dark span.up{color:#4ade80}
+.dark .cx-cmpt td.best b{color:#4ade80}.dark .cx-cmpt td.worst b{color:#f87171}
+.dark .cx-chips button{color:#cbd5e1;border-color:#334155}.dark .cx-chips button i{color:#94a3b8}.dark .cx-chips button.on{color:#fff}
+.dark .cx-only{color:#cbd5e1}
+/* الوضع الفاتح: عناوين أقسام القائمة وتلميح البحث (كانوا 2.7-2.9 تباين في كل صفحة) */
+html:not(.dark) .nav-label{color:#64748b}
+html:not(.dark) #ck-open, html:not(.dark) #ck-open span, html:not(.dark) #ck-open kbd{color:#475569}
+/* الوضع الفاتح: النص الثانوي (text-ink-400) كان 2.7-2.9 تباين على الأبيض في كل المنصة → درجة أغمق (≈3.7) */
+html:not(.dark) .text-ink-400{color:#768296}
+html:not(.dark) .text-ink-300{color:#7f8b9e}
+html:not(.dark) .hub2-gt{color:#64748b}

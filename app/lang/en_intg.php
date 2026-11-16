@@ -5734,4 +5734,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'فشل رفع الملف إلى خدمة النشر (%s). حاول مرة أخرى.' => 'Uploading the file to the publishing service failed (%s). Please try again.',
     'يمكنك كتابة منشورك الآن، وسيُحفظ كمسودة تلقائيًا.' => 'You can write your post now; it will be saved as a draft automatically.',
     'تعذّر الاتصال بقاعدة البيانات. راجع بياناتها أو تواصل مع الدعم الفني.' => 'Couldn\'t connect to the database. Check its details or contact support.',
+    'ولّد الصورة أيضًا (OpenAI GPT)' => 'Also generate the image (OpenAI GPT)',
+    'اربط OpenAI لتوليد الصورة تلقائيًا' => 'Connect OpenAI to generate the image automatically',
+    'مثال: مقاولات كهربائية، توريد معدات صناعية، وكالة تسويق' => 'e.g. electrical contracting, industrial equipment supply, marketing agency',
 ];

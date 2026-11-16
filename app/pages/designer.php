@@ -199,7 +199,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
           <section data-pane="ai" hidden>
             <h3><?= e(t('صمّم من جملة')) ?></h3>
             <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
-            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_openai_conn') && img_openai_conn()); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_openai_conn') && img_openai_conn()) ? t('ولّد الصورة كمان (OpenAI GPT)') : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenAI عشان الصورة تتولد لوحدها')) ?></label>
+            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_openai_conn') && img_openai_conn()); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_openai_conn') && img_openai_conn()) ? t('ولّد الصورة أيضًا (OpenAI GPT)') : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenAI لتوليد الصورة تلقائيًا')) ?></label>
             <button type="button" class="btn-primary w-full mt-2" data-cmd="ailayout"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('صمّم')) ?></span></button>
             <h3 class="!mt-5"><?= e(t('كاروسيل كامل من موضوع')) ?></h3>
             <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">

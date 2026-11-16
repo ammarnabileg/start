@@ -19,7 +19,7 @@
   var board = $('pr-board'), table = root.querySelector('.mk-table'), view = 'list';
   try { view = localStorage.getItem('pr-view') || 'list'; } catch (e) {}
   var SCOL = { new: '#64748b', contacted: '#2563eb', qualified: '#7c3aed', proposal: '#d97706', negotiation: '#ea580c', won: '#16a34a', lost: '#dc2626' };
-  function card(r) { var d = jd(r), heat = d.stage === 'won' ? 100 : d.stage === 'lost' ? 0 : +(d.score || 0), hc = heat >= 70 ? '#ef4444' : heat >= 40 ? '#f59e0b' : '#38bdf8';
+  function card(r) { var d = jd(r), heat = d.stage === 'won' ? 100 : d.stage === 'lost' ? 0 : +(d.score || 0), hc = heat >= 70 ? '#dc2626' : heat >= 40 ? '#d97706' : '#0284c7'; // ألوان أغمق: النص الأبيض بيتقري (كان 2.1 تباين)
     return '<article class="pr-card" draggable="true" data-id="' + d.id + '" tabindex="0"><div class="flex items-center gap-2"><span class="pr-av" style="background:' + grad(d.name || '?') + '">' + esc((d.name || '?').trim().charAt(0).toUpperCase()) + '</span>' +
       '<div class="min-w-0 flex-1"><b class="block truncate text-sm text-ink-900" dir="auto">' + esc(d.name) + '</b><small class="block truncate text-[11px] text-ink-500" dir="auto">' + esc(d.company || d.title || d.src || '') + '</small></div><span class="pr-heat" style="--c:' + hc + '">' + heat + '</span></div>' +
       '<div class="flex flex-wrap items-center gap-1 mt-2">' + (d.next ? '<span class="pr-tag' + (d.due ? ' due' : '') + '">' + ic('calendar', 'w-3 h-3') + esc(d.next.slice(0, 5)) + '</span>' : '') + (d.value ? '<span class="pr-tag val">' + esc(num(d.value)) + '</span>' : '') +
