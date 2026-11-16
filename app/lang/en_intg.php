@@ -5794,4 +5794,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'حملة كاملة، أو ترويج منشور، أو إعلان واحد' => 'Full campaign, boost a post, or a single ad',
     'تفاعل %s%%' => 'Engagement %s%%',
     'المصدر:' => 'Source:',
+    'الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا' => 'Images of any size (auto-shrunk) · video up to %s MB',
 ];

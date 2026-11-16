@@ -82,7 +82,8 @@
       b.onclick = function () { var group = accs.filter(function (c) { return c.dataset.plat === p; }), on = group.some(function (c) { return !c.checked; }); group.forEach(function (c) { c.checked = on; c.dispatchEvent(new Event('change', { bubbles: true })); }); };
       chips.appendChild(b);
     });
-    if (Object.keys(plats).length > 1) accBox.before(chips);
+    // زرار «اختار كل حسابات المنصة» مفيد بس لو منصة فيها أكتر من حساب؛ غير كده نسخة من كروت الحسابات نفسها
+    if (Object.keys(plats).length > 1 && Object.keys(plats).some(function (k) { return plats[k] > 1; })) accBox.before(chips);
     if (accs.length > 6) { var s = document.createElement('input'); s.type = 'search'; s.className = 'input !mt-0 !h-9 !py-0 text-sm mb-2'; s.placeholder = P.searchAcc; s.dir = 'auto'; accBox.before(s); s.oninput = function () { var v = s.value.trim().toLowerCase(); accs.forEach(function (c) { c.closest('label').style.display = !v || (c.dataset.name + ' ' + c.dataset.user + ' ' + (P.plat[c.dataset.plat] || '')).toLowerCase().indexOf(v) > -1 ? '' : 'none'; }); }; }
     var head = accBox.previousElementSibling && accBox.parentNode.querySelector('.font-bold'); var cnt = document.createElement('span'); cnt.className = 'ms-2 rounded-full bg-brand-600 text-[#fff] text-[10px] px-1.5 py-0.5 tabular-nums hidden'; if (head) head.appendChild(cnt);
     var paintChips = function () { var n = sel().length; cnt.textContent = n; cnt.classList.toggle('hidden', !n); $$('[data-pf]', chips).forEach(function (b) { var g = accs.filter(function (c) { return c.dataset.plat === b.dataset.pf; }), all = g.every(function (c) { return c.checked; }), some = g.some(function (c) { return c.checked; }); b.className = 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ' + (all ? 'border-brand-500 bg-brand-50 text-brand-700' : some ? 'border-brand-300 text-brand-700' : 'border-ink-200 text-ink-600 hover:border-brand-300'); }); };
@@ -230,10 +231,15 @@
   $$('#cp-steps .cp-st').forEach(function (b) {
     b.onclick = function () { var el = b.dataset.go === 'acc' ? accBox : b.dataset.go === 'txt' ? content : (wi || $('.mode')); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(function () { (b.dataset.go === 'txt' ? content : el).focus && (b.dataset.go === 'txt' ? content : el).focus({ preventScroll: true }); }, 350); var card = el.closest('.card'); if (card) { card.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { card.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200); } };
   });
+  // «اكتب نص المنشور» مايظهرش كخطأ أحمر أول ما الصفحة تفتح: بس بعد ما المستخدم يبدأ (يكتب، يختار حساب، أو يدوس تنفيذ)
+  var touched = false; function touch() { if (!touched) { touched = true; summary(); } }
+  document.addEventListener('change', function (e) { if (e.target.closest && e.target.closest('.acc')) touch(); }, true);
+  if (form) form.addEventListener('submit', function () { touched = true; }, true);
+  content.addEventListener('input', touch, { once: true });
   function summary() {
     var s = sel(), m = $('.mode:checked'), issues = [];
     s.forEach(function (c) { var l = LIM[c.dataset.plat]; if (l && Array.from(textFor(c)).length > l) issues.push((P.plat[c.dataset.plat] || '') + ': ' + P.tooLong.replace('%s', Array.from(textFor(c)).length - l)); });
-    if (!content.value.trim() && !files.length) issues.push(P.emptyText);
+    if ((touched || s.length) && !content.value.trim() && !files.length) issues.push(P.emptyText);
     if (m && m.value === 'schedule' && wi && new Date(wi.value) < new Date()) issues.push(P.past);
     steps(s, m, issues);
     var ex = m && m.value === 'schedule' ? extras() : 0;

@@ -500,7 +500,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
           </div>
           <div id="cpt-check" class="flex flex-wrap gap-1.5 text-[11px]"></div>
-          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('أقصى حجم:')) ?> <?= e(ini_get('upload_max_filesize')) ?></span></div>
+          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا', function_exists('media_max_bytes') ? (string)max(1, (int)floor(media_max_bytes() / 1048576)) : (string)ini_get('upload_max_filesize'))) ?></span></div>
           <label class="block">
             <input type="file" name="media[]" id="mediaInput" multiple accept="image/*,video/*,application/pdf" class="input"></label>
           <div id="mediaPreview" class="flex flex-wrap gap-2 mt-3"></div>
@@ -634,7 +634,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                   </div>
 
         <div class="space-y-4" id="platformPanels">
-          <p class="text-sm text-ink-500" id="noPanels"><?= e(t('اختار الحسابات اللي هتنشر عليها، وتقدر تخصص النص والإعدادات لكل حساب هنا.')) ?></p>
+          <p class="hidden" id="noPanels"><?= e(t('اختار الحسابات اللي هتنشر عليها، وتقدر تخصص النص والإعدادات لكل حساب هنا.')) ?></p>
           <?php foreach ($accounts as $a): $id = $a['_id']; $p = $a['platform']; $n = 'opt[' . $id . ']'; ?>
             <details class="card hidden panel group" data-acc="<?= e($id) ?>" <?= ($o($id, 'custom') !== '' || $o($id, 'first_comment') !== '' || $o($id, 'title') !== '') ? 'open' : '' ?>>
               <summary class="flex items-center gap-2 p-4 cursor-pointer select-none">
