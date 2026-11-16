@@ -2,6 +2,7 @@
 /* الكود اللي بيتحط على موقعك: 1) لو الزائر جه من رابط متتبع، بيسجّل الصفحات اللي فتحها  2) زرار عائم (واتساب + فورم) لو مفعّل */
 header('Content-Type: application/javascript; charset=utf-8'); header('Cache-Control: public, max-age=600'); header('Access-Control-Allow-Origin: *');
 $wid = (int)($_GET['w'] ?? 0); $t = (string)($_GET['t'] ?? '');
+if (ws_closed($wid)) { header('Content-Type: application/javascript'); exit('/* closed */'); }
 $real = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
 if ($real === '' || !hash_equals($real, $t)) exit('/* off */');
 $c = crm_track_cfg($wid);

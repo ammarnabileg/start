@@ -5737,4 +5737,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'ولّد الصورة أيضًا (OpenAI GPT)' => 'Also generate the image (OpenAI GPT)',
     'اربط OpenAI لتوليد الصورة تلقائيًا' => 'Connect OpenAI to generate the image automatically',
     'مثال: مقاولات كهربائية، توريد معدات صناعية، وكالة تسويق' => 'e.g. electrical contracting, industrial equipment supply, marketing agency',
+    'هذه الصفحة لم تعد متاحة.' => 'This page is no longer available.',
 ];

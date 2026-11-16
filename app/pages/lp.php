@@ -1,6 +1,7 @@
 <?php
 /** #52 صفحة هبوط بسيطة للحملة (عامة): index.php?p=lp&w=ID&s=slug — عنوان ووصف وصورة وزرار واتساب وفورم */
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(410); header('Content-Type: text/html; charset=utf-8'); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:40px;text-align:center">' . e(t('هذه الصفحة لم تعد متاحة.')) . '</p>'); } // الشركة اتحذفت
 $slug = preg_replace('/[^a-z0-9-]/', '', strtolower((string)($_GET['s'] ?? '')));
 $pg = null; foreach (lp_list($wid) as $x) if (($x['slug'] ?? '') === $slug && !empty($x['on'])) $pg = $x;
 $tok = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';

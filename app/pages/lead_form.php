@@ -6,6 +6,7 @@
  * الحماية: توكن سري لكل شركة + خانة فخ للروبوتات + حد للطلبات من نفس الـ IP.
  */
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(410); header('Content-Type: text/html; charset=utf-8'); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:40px;text-align:center">' . e(t('هذه الصفحة لم تعد متاحة.')) . '</p>'); } // الشركة اتحذفت
 $tok = (string)($_GET['t'] ?? '');
 $real = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
 $isJson = stripos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'json') !== false || ($_GET['format'] ?? '') === 'json';

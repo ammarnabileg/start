@@ -4,6 +4,7 @@
  * العميل بيختار ميعاد فاضي من المواعيد اللي حددتها، وبيدخل الـ Leads ومعاه اجتماع متسجل ومتابعة في ميعاده.
  */
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(410); header('Content-Type: text/html; charset=utf-8'); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:40px;text-align:center">' . e(t('هذه الصفحة لم تعد متاحة.')) . '</p>'); } // الشركة اتحذفت
 $tok = (string)($_GET['t'] ?? '');
 $real = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
 if ($real === '' || $tok === '' || !hash_equals($real, $tok) || setting('crm_book_on_' . $wid, '0') !== '1') { http_response_code(403); exit('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Booking</title><div style="font-family:system-ui,sans-serif;min-height:90vh;display:grid;place-items:center;text-align:center;color:#334155"><div><div style="font-size:42px">📅</div><p style="font-size:18px;font-weight:700;margin:8px 0 4px" dir="rtl">الحجز مش متاح دلوقتي</p><p style="margin:0;color:#64748b">Booking is not available right now.</p></div></div>'); }

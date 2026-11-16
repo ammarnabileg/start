@@ -5,6 +5,7 @@
  * لازم نرد 2xx خلال 5 ثواني، فبنقفل الاتصال الأول وبعدين نشغّل الرد.
  */
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(200); exit('closed'); } // الشركة اتحذفت: مانشتغلش (والخدمة ماتعيدش المحاولة)
 $raw = (string)file_get_contents('php://input');
 $cfg = json_decode((string)setting('ai_hook_' . $wid, ''), true) ?: [];
 $ok = $wid && !empty($cfg['token']) && hash_equals((string)$cfg['token'], (string)($_GET['k'] ?? ''));

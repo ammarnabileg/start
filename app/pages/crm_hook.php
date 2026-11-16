@@ -4,6 +4,7 @@ header('Content-Type: application/json; charset=utf-8');
 $deny = function (int $code, string $msg) { http_response_code($code); echo json_encode(['ok' => false, 'error' => $msg]); exit; };
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') $deny(405, 'POST only');
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(200); exit('closed'); } // الشركة اتحذفت: مانشتغلش (والخدمة ماتعيدش المحاولة)
 $tok = (string)($_GET['t'] ?? '');
 $st = db()->prepare('SELECT hook_token FROM crm_prefs WHERE workspace_id = ?');
 $st->execute([$wid]);

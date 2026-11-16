@@ -5,6 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 $deny = function (int $code, string $msg) { http_response_code($code); echo json_encode(['ok' => false, 'error' => $msg]); exit; };
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') $deny(405, 'POST only');
 $wid = (int)($_GET['w'] ?? 0);
+if (ws_closed($wid)) { http_response_code(200); exit('closed'); } // الشركة اتحذفت: مانشتغلش (والخدمة ماتعيدش المحاولة)
 $tok = (string)($_GET['t'] ?? '');
 $c = $wid ? (connections('sms_gate', $wid)[0] ?? null) : null;
 if (!$c || $tok === '' || !hash_equals((string)($c['settings']['hook_token'] ?? ''), $tok)) $deny(403, 'bad token');

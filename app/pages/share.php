@@ -5,7 +5,7 @@ $sh = media_share_get($tok);
 header('X-Robots-Tag: noindex, nofollow');
 header('Referrer-Policy: no-referrer');
 if (!$sh) { http_response_code(404); echo '<!doctype html><meta charset="utf-8"><title>404</title><body style="font-family:system-ui;display:grid;place-items:center;height:100vh;color:#475569">' . e(t('الرابط ده مش موجود أو انتهت صلاحيته.')) . '</body>'; exit; }
-$wid = (int)$sh['workspace_id']; $base = (string)$sh['folder'];
+$wid = (int)$sh['workspace_id']; if (ws_closed($wid)) { http_response_code(410); exit; } // الشركة اتحذفت $base = (string)$sh['folder'];
 $inShare = function (array $r) use ($base) { return empty($r['deleted_at']) && ($base === '' || $r['folder'] === $base || strpos((string)$r['folder'], $base . '/') === 0); };
 
 // ملف واحد
