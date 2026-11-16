@@ -364,11 +364,11 @@ function crm_daily_digest(): int
         $st = db()->prepare("SELECT title, due_at FROM crm_tasks WHERE workspace_id = ? AND user_id = ? AND done_at IS NULL AND (due_at IS NULL OR due_at <= ?) ORDER BY due_at LIMIT 30");
         $st->execute([$wid, $uid, $end]); $tasks = $st->fetchAll();
         if (!$leads && !$tasks) continue;
-        $li = ''; foreach ($leads as $l) $li .= '<li><a href="' . e(url('prospects', ['lead' => (int)$l['id']])) . '">' . e($l['name']) . '</a>' . ($l['next_note'] ? ' — ' . e($l['next_note']) : '') . ' <small style="color:#64748b">' . e(fmt_date($l['next_at'], 'h:i A')) . '</small></li>';
+        $li = ''; foreach ($leads as $l) $li .= '<li><a href="' . e(base_url() . '/' . url('prospects', ['lead' => (int)$l['id']])) . '">' . e($l['name']) . '</a>' . ($l['next_note'] ? ' — ' . e($l['next_note']) : '') . ' <small style="color:#64748b">' . e(fmt_date($l['next_at'], 'h:i A')) . '</small></li>';
         $ti = ''; foreach ($tasks as $t) $ti .= '<li>' . e($t['title']) . ($t['due_at'] ? ' <small style="color:#64748b">' . e(fmt_date($t['due_at'], 'd/m h:i A')) . '</small>' : '') . '</li>';
         $html = '<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.8" dir="' . (is_rtl() ? 'rtl' : 'ltr') . '"><p>' . e(t('صباح الخير %s، ده شغلك النهارده:', preg_split('/\s+/u', (string)$m['name'])[0] ?? '')) . '</p>'
             . ($li ? '<b>' . e(t('متابعات العملاء (%s)', count($leads))) . '</b><ul>' . $li . '</ul>' : '') . ($ti ? '<b>' . e(t('مهام (%s)', count($tasks))) . '</b><ul>' . $ti . '</ul>' : '')
-            . '<p><a href="' . e(url('crm_leads') . '#due') . '" style="display:inline-block;background:#2557e0;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">' . e(t('افتح شغل النهارده')) . '</a></p></div>';
+            . '<p><a href="' . e(base_url() . '/' . url('crm_leads') . '#due') . '" style="display:inline-block;background:#2557e0;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">' . e(t('افتح شغل النهارده')) . '</a></p></div>';
         try { send_mail((string)$m['email'], t('شغلك النهارده: %s متابعة و%s مهمة', count($leads), count($tasks)), $html, null, $wid); $n++; } catch (Throwable $e) {}
     }
     return $n;
@@ -448,7 +448,7 @@ function crm_monthly_report(bool $force = false): int
         . '<p>' . e(t('عملاء جداد: %s · بقوا عملاء: %s · قيمة المبيعات: %s · مرات التواصل: %s', $tot['leads'], $tot['won'], number_format($tot['value']), $tot['contacts'])) . ($cy['avg'] !== null ? '<br>' . e(t('متوسط الدورة: %s يوم من أول تواصل لحد البيع', round($cy['avg'], 1))) : '') . '</p>'
         . ($tr ? '<h3>' . e(t('الفريق')) . '</h3><table style="border-collapse:collapse;width:100%"><tr><th ' . $th . '>#</th><th ' . $th . '>' . e(t('الموظف')) . '</th><th ' . $th . '>' . e(t('عملاء')) . '</th><th ' . $th . '>' . e(t('تواصل')) . '</th><th ' . $th . '>' . e(t('بقوا عملاء')) . '</th><th ' . $th . '>' . e(t('القيمة')) . '</th></tr>' . $tr . '</table>' : '')
         . ($ctr ? '<h3>' . e(t('الحملات الإعلانية')) . '</h3><table style="border-collapse:collapse;width:100%"><tr><th ' . $th . '>' . e(t('الحملة')) . '</th><th ' . $th . '>' . e(t('الصرف')) . '</th><th ' . $th . '>' . e(t('عملاء')) . '</th><th ' . $th . '>' . e(t('تكلفة العميل')) . '</th><th ' . $th . '>' . e(t('العائد')) . '</th></tr>' . $ctr . '</table>' : '')
-        . '<p><a href="' . e(url('crm_reports', ['period' => 'last_month'])) . '">' . e(t('افتح التقرير الكامل')) . '</a></p></div>';
+        . '<p><a href="' . e(base_url() . '/' . url('crm_reports', ['period' => 'last_month'])) . '">' . e(t('افتح التقرير الكامل')) . '</a></p></div>';
     $n = 0;
     foreach (crm_members() as $m) if ((($m['role'] ?? '') === 'owner' || (function_exists('role_permissions') && in_array('crm.manage', role_permissions((string)($m['role'] ?? '')), true))) && !empty($m['email'])) { try { send_mail((string)$m['email'], t('تقرير المبيعات لشهر %s', $mName), $html, null, $wid); $n++; } catch (Throwable $e) {} }
     return $n;

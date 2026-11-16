@@ -6,7 +6,10 @@
 
 function lang(): string
 {
-    $l = $_COOKIE['lang'] ?? platform_default('default_lang', 'en');
+    $l = $_COOKIE['lang'] ?? null;
+    // التشغيل الدوري (إيميلات، تنبيهات) مالوش كوكي: نستخدم اللغة اللي فريق الشركة بيستخدمها فعلًا
+    if ($l === null && isset($GLOBALS['__ws_override']['id']) && function_exists('setting')) { try { $l = (string)setting('ws_lang_' . (int)$GLOBALS['__ws_override']['id'], '') ?: null; } catch (Throwable $e) {} }
+    $l = $l ?? platform_default('default_lang', 'en');
     return $l === 'ar' ? 'ar' : 'en';
 }
 
