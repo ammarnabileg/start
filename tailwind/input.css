@@ -1186,8 +1186,9 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 /* صف مضغوط بألوان المنصة */
 #pr [data-mk-row]{padding-block:.6rem;align-items:center}
 .pr-nm{font-size:.9rem}
-.pr-cn [data-c=next]:empty,.pr-cn .pr-ctx:not(:has(i)){display:none}
-.pr-cn:hover .pr-ctx{display:flex}
+.pr-cn [data-c=next]:empty{display:none}
+.pr-cn .pr-ctx:not(:has(i)){visibility:hidden}
+.pr-cn:hover .pr-ctx,.pr-cn .pr-ctx:focus-within{visibility:visible}
 .pr-cph{flex-direction:row;align-items:center;gap:.35rem;font-size:.84rem;flex-wrap:wrap}
 .pr-cphb .mk-act{width:1.55rem;height:1.55rem}
 .pr-note{-webkit-line-clamp:2;font-size:.84rem;line-height:1.5}
@@ -1216,7 +1217,7 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 .pr-uf>button{width:100%;height:1.9rem;display:flex;align-items:center;justify-content:center;gap:.3rem;font-size:.8rem;font-weight:700;color:#fff}
 .pr-acts2{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:.25rem}
 .pr-bview{flex:0 0 auto;width:2rem;height:2rem;display:grid;place-items:center}
-#pr [data-mk-row]:hover .pr-ctx{display:flex}
+#pr [data-mk-row]:hover .pr-ctx{visibility:visible}
 .pr-ownw{float:inline-end;margin-inline-start:.3rem}.pr-ownw .pr-own{width:1.5rem;height:1.5rem;font-size:.62rem}
 .pr-acts2 .mk-act,.pr-bview,.pr-bedit,.pr-bexp{width:1.85rem;height:1.85rem;flex:0 0 auto}
 
@@ -1373,8 +1374,8 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
 #pr-dlg #pd-contact .pd-cli{width:auto!important;height:auto!important;background:none!important;color:#64748b}
 #pr-dlg .pd-cla{margin-inline-start:.1rem}
 #pr-dlg .pd-cla a,#pr-dlg .pd-cla button{width:1.45rem!important;height:1.45rem!important;border-radius:999px}
-#pr-dlg .pd-cla .mk,#pr-dlg .pd-cla .del,#pr-dlg .pd-cla [data-copy]{display:none}
-#pr-dlg .pd-cl:hover .pd-cla .mk,#pr-dlg .pd-cl:hover .pd-cla .del,#pr-dlg .pd-cl:hover .pd-cla [data-copy]{display:grid;opacity:1}
+#pr-dlg .pd-cla .mk,#pr-dlg .pd-cla .del,#pr-dlg .pd-cla [data-copy]{visibility:hidden}
+#pr-dlg .pd-cl:hover .pd-cla .mk,#pr-dlg .pd-cl:hover .pd-cla .del,#pr-dlg .pd-cl:hover .pd-cla [data-copy],#pr-dlg .pd-cla :focus-visible{visibility:visible;opacity:1}
 .pd-cadd{display:inline-flex;align-items:center;gap:.25rem;font-size:.74rem;font-weight:700;padding:.3rem .65rem;border-radius:999px;color:#fff;background:rgb(255 255 255/.15);border:1px dashed rgb(255 255 255/.5)}
 .pd-cadd:hover{background:rgb(255 255 255/.25)}
 #pr-dlg .pd-addc{margin-top:.45rem}
