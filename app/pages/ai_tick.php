@@ -20,6 +20,13 @@ try {
             $out['ran'] = true;
         }
     }
+    // قواعد الرد بالذكاء الاصطناعي (مستقلة عن «الرد الذكي» العام): مرة كل دقيقة بالكتير
+    if ($wid && function_exists('acr_tick') && array_filter(acr_all($wid), function ($r) { return !empty($r['on']); }) && (int)setting('acr_tick_' . $wid, '0') < time() - 55) {
+        save_setting('acr_tick_' . $wid, (string)time());
+        if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+        ignore_user_abort(true); @set_time_limit(120);
+        $out['rules'] = (int)ai_as_workspace($wid, function () use ($wid) { $z = zernio_or_null(); return ($z && function_exists('ai_connection') && ai_connection()) ? acr_tick($wid, $z) : 0; });
+    }
 } catch (Throwable $e) { $out = ['ok' => false, 'error' => mb_substr($e->getMessage(), 0, 200)]; }
 echo json_encode($out, JSON_UNESCAPED_UNICODE);
 exit;

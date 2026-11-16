@@ -42,6 +42,11 @@ try {
                 $line .= ' ai_' . $what . '=error';
             }
         }
+        // ردود تلقائية بالذكاء الاصطناعي (قواعد صفحة «الردود التلقائية»): شغالة لوحدها حتى لو «الرد الذكي» العام مقفول
+        if ($hasZ && function_exists('acr_tick') && function_exists('ai_connection')) try {
+            $k = (int)ai_as_workspace($wid, function () use ($wid) { $z = zernio_or_null(); return ($z && ai_connection() && acr_all($wid)) ? acr_tick($wid, $z) : 0; });
+            if ($k) $line .= ' ai_rules+' . $k;
+        } catch (Throwable $t) { $line .= ' ai_rules=error'; }
         // leads الإعلانات ← الـ Leads الموحدة (قراءة بس، بيقف عند اللي اتسحب قبل كده)
         try {
             $n = (int)ai_as_workspace($wid, function () {

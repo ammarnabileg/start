@@ -24,6 +24,48 @@ function ca_form_body(string $platform, bool $isCreate): array
     return [$body, null];
 }
 
+// ردود بالذكاء الاصطناعي: القاعدة بتتخزن عندنا والمنصة بتشغلها (app/modules/ai_cmrules.php)
+$acrId = (string)($_POST['id'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && function_exists('acr_put') && (($_POST['reply_mode'] ?? '') === 'ai' || acr_is_id($acrId))) {
+    $wid0 = (int)ws('id'); $act = (string)($_POST['action'] ?? '');
+    $J = function ($d) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode($d, JSON_UNESCAPED_UNICODE)); };
+    $setOn = function (array $r, bool $on) { if ($on && empty($r['on'])) $r['since'] = time(); $r['on'] = $on ? 1 : 0; return $r; }; // التشغيل من جديد = الجديد من دلوقتي بس
+    if ($act === 'toggle_json' || $act === 'toggle') {
+        $r = acr_get($wid0, $acrId); $on = $act === 'toggle_json' ? (($_POST['on'] ?? '') === '1') : !empty($_POST['on']);
+        if ($r) { acr_put($wid0, $setOn($r, $on)); log_activity('automation.' . ($on ? 'enable' : 'disable'), $acrId); }
+        if ($act === 'toggle_json') $J(['ok' => (bool)$r, 'on' => $on]);
+        flash('success', $on ? t('تم تشغيل الرد التلقائي.') : t('تم إيقاف الرد التلقائي.')); redirect(url('automations'));
+    }
+    if ($act === 'delete') {
+        if (!can('automations.manage')) flash('error', t('الحذف لصاحب الشركة بس.'));
+        else { acr_delete($wid0, $acrId); log_activity('automation.delete', $acrId); flash('success', t('تم حذف الرد التلقائي.')); }
+        redirect(url('automations'));
+    }
+    if ($act === 'create' || $act === 'update') {
+        $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 100);
+        $back = $act === 'create' ? url('automations', ['new' => 1]) : url('automations', ['id' => $acrId]);
+        if ($name === '') { flash('error', t('اكتب اسمًا للرد التلقائي.')); redirect($back); }
+        if (!function_exists('ai_connection') || !ai_connection()) { flash('error', t('اربط الذكاء الاصطناعي من صفحة التكاملات أولًا.')); redirect($back); }
+        $match = (string)($_POST['match_mode'] ?? 'contains'); if (!in_array($match, ['exact', 'contains', 'word'], true)) $match = 'contains';
+        $rule = $act === 'update' ? (acr_get($wid0, $acrId) ?? []) : [];
+        if ($act === 'create') {
+            $accId = (string)($_POST['account_id'] ?? ''); $acc = null;
+            if ($z) foreach (ip_accounts($z, ip_automation_platforms()) as $x) if ($x['_id'] === $accId) $acc = $x;
+            if (!$acc) { flash('error', t('اختار الحساب.')); redirect($back); }
+            $rule = ['id' => 'ai_' . bin2hex(random_bytes(5)), 'acc' => $accId, 'plat' => (string)$acc['platform'], 'acc_name' => (string)($acc['displayName'] ?? $acc['username'] ?? ''),
+                'post' => trim((string)($_POST['platform_post_id'] ?? '')), 'n' => 0, 'log' => [], 'created' => time()];
+        }
+        if (!$rule) { flash('error', t('الرد التلقائي ده مش موجود.')); redirect(url('automations')); }
+        $rule['name'] = $name; $rule['kw'] = ip_split_keywords((string)($_POST['keywords'] ?? '')); $rule['match'] = $match;
+        $rule['ins'] = mb_substr(trim((string)($_POST['ai_instructions'] ?? '')), 0, 500);
+        $rule = $setOn($rule, !empty($_POST['is_active']));
+        acr_put($wid0, $rule);
+        log_activity('automation.' . $act, $rule['name']);
+        flash('success', $act === 'create' ? t('تم إنشاء الرد التلقائي بالذكاء الاصطناعي. هيرد على التعليقات الجديدة بس من دلوقتي.') : t('تم حفظ التعديلات.'));
+        redirect(url('automations', ['id' => $rule['id']]));
+    }
+}
+
 // تشغيل/إيقاف من القائمة من غير تحميل الصفحة
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_json') {
     header('Content-Type: application/json; charset=utf-8');
@@ -125,6 +167,9 @@ if ($z) {
     }
 }
 
+if (function_exists('acr_all') && $z) {
+    foreach (acr_all((int)ws('id')) as $r0) { $it0 = acr_as_item($r0); $list[] = $it0; if ($editId !== '' && $editId === $r0['id']) { $current = $it0; $logs = []; } }
+}
 render(t('الردود التلقائية'), 'automations', function () use ($z, $list, $wfs, $accounts, $current, $logs, $editId, $isNew, $apiError) {
     if (!$z) { no_api_box(); return; }
     if ($apiError) { error_box($apiError); }
@@ -174,7 +219,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
                   <span class="absolute -bottom-1 -end-1"><?= platform_icon((string)($it['platform'] ?? ''), 'w-[16px] h-[16px]', 'badge') ?></span>
                 </span>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2"><span class="au-kind cmt"><?= e(t('تعليق')) ?></span><span class="au-name text-sm font-medium text-ink-900 truncate"><?= e($it['name'] ?? '') ?></span><span class="au-dot w-1.5 h-1.5 rounded-full shrink-0 <?= $io ? 'bg-lime-500 animate-pulse' : 'bg-ink-300' ?>"></span></div>
+                  <div class="flex items-center gap-2"><span class="au-kind cmt"><?= e(t('تعليق')) ?></span><?php if (!empty($it['ai'])): ?><span class="rounded-md bg-brand-50 text-brand-700 px-1.5 py-0.5 text-[10px] font-semibold">✦ <?= e(t('ذكاء اصطناعي')) ?></span><?php endif; ?><span class="au-name text-sm font-medium text-ink-900 truncate"><?= e($it['name'] ?? '') ?></span><span class="au-dot w-1.5 h-1.5 rounded-full shrink-0 <?= $io ? 'bg-lime-500 animate-pulse' : 'bg-ink-300' ?>"></span></div>
                   <div class="flex flex-wrap gap-1 mt-1.5">
                     <?php foreach (array_slice($kw, 0, 4) as $k): ?><span class="rounded-md bg-ink-100 text-ink-600 px-1.5 py-0.5 text-[10px]"><?= e($k) ?></span><?php endforeach; ?>
                     <?php if (count($kw) > 4): ?><span class="text-[10px] text-ink-400">+<?= count($kw) - 4 ?></span><?php endif; ?>
@@ -284,6 +329,19 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
               <!-- 3 الرد -->
               <section class="space-y-3">
                 <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-brand-600 text-[#fff] text-xs font-semibold flex items-center justify-center">3</span><b class="text-sm text-ink-900"><?= e(t('يرد بـ...')) ?></b></div>
+                <?php $isAi = !empty($a['ai']); $aiOk = function_exists('ai_connection') && ai_connection(); ?>
+                <?php if (!$current || $isAi): ?>
+                <div class="grid grid-cols-2 gap-2" id="au-rmode">
+                  <label class="cursor-pointer rounded-xl border px-3 py-2 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50"><input type="radio" name="reply_mode" value="fixed" class="sr-only" <?= $isAi ? '' : 'checked' ?> <?= $current ? 'disabled' : '' ?>><b class="block text-xs text-ink-900"><?= e(t('نص ثابت')) ?></b><span class="block text-[11px] text-ink-500"><?= e(t('نفس الرد لكل تعليق')) ?></span></label>
+                  <label class="cursor-pointer rounded-xl border px-3 py-2 has-[:checked]:border-brand-400 has-[:checked]:bg-brand-50 <?= $aiOk ? '' : 'opacity-50' ?>"><input type="radio" name="reply_mode" value="ai" class="sr-only" <?= $isAi ? 'checked' : '' ?> <?= $aiOk ? '' : 'disabled' ?>><b class="block text-xs text-ink-900">✦ <?= e(t('بالذكاء الاصطناعي')) ?></b><span class="block text-[11px] text-ink-500"><?= e($aiOk ? t('رد مختلف لكل تعليق من ملف الشركة') : t('اربط الذكاء الاصطناعي أولًا')) ?></span></label>
+                </div>
+                <?php endif; ?>
+                <div id="au-aiwrap" class="<?= $isAi ? '' : 'hidden' ?> space-y-2">
+                  <label class="label !mb-0"><?= e(t('تعليمات للرد (اختياري)')) ?></label>
+                  <textarea name="ai_instructions" rows="2" maxlength="500" class="input" dir="auto" placeholder="<?= e(t('مثال: رد باختصار، واطلب منه يبعت رسالة خاصة لتفاصيل الوظيفة')) ?>"><?= e($a['instructions'] ?? '') ?></textarea>
+                  <p class="text-[11px] text-ink-500"><?= e(t('بيرد رد عام تحت التعليق من ملف شركتك، وعلى التعليقات الجديدة بس (من وقت التشغيل). التعليقات اللي محتاجة إنسان بتتحول لك بدل الرد.')) ?></p>
+                </div>
+                <div id="au-fixedwrap" class="<?= $isAi ? 'hidden' : '' ?> space-y-3">
                 <div id="au-dmwrap" class="<?= ($current && !ip_automation_dm_platform($plat)) ? 'hidden' : '' ?>">
                   <div class="flex items-center justify-between"><label class="label !mb-0"><?= e(t('رسالة في الخاص (DM)')) ?></label><span class="au-cnt text-[11px] text-ink-400 tabular-nums" data-for="dm_message"></span></div>
                   <textarea data-ai="auto_msg,improve" name="dm_message" rows="3" maxlength="1000" class="input" dir="auto" placeholder="<?= e(t('أهلاً! السعر ... وللطلب ابعتلنا هنا')) ?>"><?= e($a['dmMessage'] ?? '') ?></textarea>
@@ -294,6 +352,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
                   <div class="flex items-center justify-between"><label class="label !mb-0"><?= e(t('رد عام تحت التعليق')) ?> <span class="text-ink-400 font-normal" id="au-reqlbl"><?= e(t('(اختياري)')) ?></span></label><span class="au-cnt text-[11px] text-ink-400 tabular-nums" data-for="comment_reply"></span></div>
                   <textarea data-ai="auto_msg,polish_reply" name="comment_reply" rows="2" maxlength="1000" class="input" dir="auto" placeholder="<?= e(t('بعتنالك التفاصيل في الخاص')) ?>"><?= e($a['commentReply'] ?? '') ?></textarea>
                 </div>
+                </div><!-- /au-fixedwrap -->
               </section>
             </div>
             <div class="px-4 py-3 border-t border-ink-200 flex items-center gap-3 shrink-0 bg-white">

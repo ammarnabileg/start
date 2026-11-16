@@ -124,7 +124,8 @@
     form.addEventListener('submit', function (e) {
       if (kwIn.value.trim()) { add(kwIn.value); kwIn.value = ''; }
       var err = '', dm = form.dm_message ? form.dm_message.value.trim() : '';
-      if (!form.elements['name'].value.trim()) err = A.needName; else if (canDm() && !dm) err = A.needDm; else if (!canDm() && !form.comment_reply.value.trim()) err = A.needReply;
+      var aiMode = !!form.querySelector('input[name=reply_mode][value=ai]:checked') || !document.getElementById('au-fixedwrap') || document.getElementById('au-fixedwrap').classList.contains('hidden');
+      if (!form.elements['name'].value.trim()) err = A.needName; else if (!aiMode && canDm() && !dm) err = A.needDm; else if (!aiMode && !canDm() && !form.comment_reply.value.trim()) err = A.needReply;
       $('#au-err').textContent = err; if (err) { e.preventDefault(); return; }
       sending = true;
     });
@@ -156,4 +157,10 @@
     else if (e.key === 't' && items[cur]) items[cur].querySelector('.au-toggle').click();
     else if (e.key === '?') { e.preventDefault(); help(); }
   });
+})();
+/* طريقة الرد: نص ثابت أو بالذكاء الاصطناعي */
+(function () {
+  var rm = document.getElementById('au-rmode'); if (!rm) return;
+  var paint = function () { var ai = !!rm.querySelector('input[value=ai]:checked'); document.getElementById('au-aiwrap').classList.toggle('hidden', !ai); document.getElementById('au-fixedwrap').classList.toggle('hidden', ai); };
+  rm.addEventListener('change', paint); paint();
 })();
