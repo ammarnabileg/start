@@ -336,7 +336,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && in_array($_POST['action'] ?? 
 $status = (string)($_GET['status'] ?? '');
 $validStatus = ['', 'scheduled', 'published', 'draft', 'failed', 'partial'];
 if (!in_array($status, $validStatus, true)) $status = '';
-$view = ($_GET['view'] ?? '') === 'cal' ? 'cal' : 'list';
+// صفحة واحدة بعرضين (قائمة / تقويم): بنفتكر آخر عرض اختاره المستخدم
+if (isset($_GET['view'])) $_SESSION['posts_view'] = $_GET['view'] === 'cal' ? 'cal' : 'list';
+$view = ($_GET['view'] ?? ($_SESSION['posts_view'] ?? 'list')) === 'cal' ? 'cal' : 'list';
 $pageNo = max(1, (int)($_GET['n'] ?? 1));
 $posts = [];
 $pages = 1;
@@ -413,7 +415,7 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
-render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view === 'cal' ? 'calendar' : 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap) {
+render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap) {
     if (!$z) { no_api_box(); return; }
     $tabs = ['' => t('الكل'), 'scheduled' => t('مجدول'), 'published' => t('تم النشر'), 'draft' => t('مسودات'), 'failed' => t('فشل')];
     $stCls = ['scheduled' => 'bg-brand-50 text-brand-700', 'published' => 'bg-lime-100 text-lime-700', 'draft' => 'bg-ink-100 text-ink-600', 'failed' => 'bg-red-100 text-red-700', 'partial' => 'bg-amber-100 text-amber-800', 'publishing' => 'bg-cyan-100 text-cyan-700', 'pending_approval' => 'bg-amber-100 text-amber-800', 'cancelled' => 'bg-ink-100 text-ink-500'];
@@ -439,7 +441,7 @@ render($view === 'cal' ? t('التقويم') : t('المنشورات'), $view ==
         <input type="search" id="ps-q" class="input !mt-0 !h-10 !py-0 ps-9 text-sm" placeholder="<?= e(t('ابحث في المنشورات...')) ?> (/)" dir="auto">
       </div>
       <div class="tb p-0.5 gap-0.5" id="ps-view">
-        <a href="<?= e(url('posts', array_filter(['status' => $status]))) ?>" class="h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-xs <?= $view === 'list' ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="V"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 5h16v6H4zM4 15h16v4H4z"/></svg><?= e(t('قائمة')) ?></a>
+        <a href="<?= e(url('posts', array_filter(['status' => $status, 'view' => 'list']))) ?>" class="h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-xs <?= $view === 'list' ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="V"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 5h16v6H4zM4 15h16v4H4z"/></svg><?= e(t('قائمة')) ?></a>
         <a href="<?= e(url('posts', array_filter(['status' => $status, 'view' => 'cal']))) ?>" class="h-9 px-2.5 rounded-lg flex items-center gap-1.5 text-xs <?= $view === 'cal' ? 'bg-white shadow-sm text-ink-900 font-medium' : 'text-ink-600 hover:bg-ink-100' ?>" title="V"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg><?= e(t('تقويم')) ?></a>
       </div>
  <?php if ($view === 'list'): ?>

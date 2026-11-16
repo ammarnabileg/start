@@ -86,7 +86,7 @@ if ($z) {
     }
 }
 
-render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $current, $sel, $audiences) {
+render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $targets, $current, $sel, $audiences) {
     if (!$z) { no_api_box(); return; }
     $types = ['customer_list' => t('قائمة عملاء'), 'website' => t('زوار الموقع'), 'lookalike' => t('جمهور مشابه'),
         'meta_engagement' => t('اتفاعلوا مع الصفحة'), 'engagement' => t('تفاعل'), 'saved_targeting' => t('استهداف محفوظ'),
@@ -94,7 +94,7 @@ render(t('الجماهير'), 'ads', function () use ($z, $apiError, $targets, $
     $isMeta = $current && ads_is_meta($current['conn']['platform'] ?? '');
     ?>
     <div class="space-y-5">
-      <a href="<?= e(url('ads')) ?>" class="link text-sm"><?= e(t('→ رجوع للحملات')) ?></a>
+
       <?php if ($apiError) error_box($apiError); ?>
       <?php if (!$targets && !$apiError): ads_empty_state(); else: ?>
       <form method="get" class="card p-4 flex flex-wrap items-end gap-3">

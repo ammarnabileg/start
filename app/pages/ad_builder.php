@@ -168,6 +168,7 @@ $list = $id ? [] : ab_list($wid);
 
 render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiError, $targets, $build, $list) {
     if (!$z) { no_api_box(); return; }
+    if (empty($build)) ab_mode_switch('ad_builder');
     if (!$build): ?>
     <div class="space-y-5">
       <?php if ($apiError) error_box($apiError); ?>

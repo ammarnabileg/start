@@ -252,9 +252,9 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
       <?php if ($apiError) error_box($apiError); ?>
 
       <div class="flex flex-wrap items-center gap-2">
-        <a href="<?= e(url('ad_create')) ?>" class="btn-primary"><?= e(t('+ حملة جديدة')) ?></a>
-        <a href="<?= e(url('ad_audiences')) ?>" class="btn-ghost"><?= e(t('الجماهير')) ?></a>
-        <a href="<?= e(url('leads')) ?>" class="btn-ghost"><?= e(t('العملاء المحتملين (Leads)')) ?></a>
+        <?php // إنشاء حملة: طريقتين جوه صفحة الحملات نفسها (مش تبويبات منفصلة) ?>
+        <a href="<?= e(url('ad_builder')) ?>" class="btn-primary" title="<?= e(t('حملة كاملة، أو ترويج منشور، أو إعلان واحد')) ?>"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('حملة جديدة')) ?></a>
+        <a href="<?= e(url('leads')) ?>" class="btn-ghost ms-auto"><?= e(t('العملاء المحتملين (Leads)')) ?></a>
       </div>
 
       <?php if (!$adAccounts || $usableCount === 0 && !array_filter($adAccounts, function ($r) { return $r['accounts']; })): ?>
@@ -379,7 +379,7 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         <?php if (!$campaigns): ?>
           <div class="p-8 text-center text-sm text-ink-500">
             <?= e(t('مفيش حملات بالفلاتر دي.')) ?>
-            <div class="mt-3"><a href="<?= e(url('ad_create')) ?>" class="link"><?= e(t('اعمل أول حملة')) ?></a></div>
+            <div class="mt-3"><a href="<?= e(url('ad_builder')) ?>" class="link"><?= e(t('اعمل أول حملة')) ?></a></div>
           </div>
         <?php else: ?>
           <div class="overflow-x-auto">

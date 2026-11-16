@@ -51,7 +51,7 @@ if (($_GET['ajax'] ?? '') === 'ads') {
     ob_start();
     if (!$camps): ?>
       <div class="px-5 pb-5 text-sm text-ink-500"><?= e(t('مفيش حملات شغالة آخر 7 أيام.')) ?>
-        <?php if (can('ads.spend')): ?> <a href="<?= e(url('ad_create')) ?>" class="link"><?= e(t('اعمل حملة')) ?></a><?php endif; ?></div>
+        <?php if (can('ads.spend')): ?> <a href="<?= e(url('ad_builder')) ?>" class="link"><?= e(t('اعمل حملة')) ?></a><?php endif; ?></div>
     <?php else: ?>
       <div class="grid grid-cols-3 gap-2 px-5">
         <?php foreach ([[t('صرف النهارده'), $money($todaySpend)], [t('صرف آخر 7 أيام'), $money($weekSpend)], [t('النتايج آخر 7 أيام'), [ads_num($res)]]] as [$l, $vs]): ?>

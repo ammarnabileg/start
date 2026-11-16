@@ -53,9 +53,11 @@ function nav_items(): array
             'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')]],
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
-            'tabs' => ['posts' => t('كل المنشورات'), 'calendar' => t('التقويم'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk']],
-        ['key' => 'ads', 'label' => t('الإعلانات'), 'section' => $s3, 'module' => 'ads',
-            'tabs' => ['ads' => t('الحملات'), 'ad_builder' => t('منشئ الحملات'), 'ad_create' => t('حملة سريعة'), 'ad_audiences' => t('الجماهير')], 'also' => ['ad_campaign']],
+            // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات» (قائمة / تقويم)
+            'tabs' => ['posts' => t('المنشورات'), 'approvals' => t('الموافقات'), 'post_log' => t('سجل النشر')], 'also' => ['post_edit', 'queue', 'bulk', 'calendar']],
+        // الإعلانات: بندين رئيسيين من غير قائمة منسدلة. منشئ الحملات والحملة السريعة جوه «الحملات الإعلانية»
+        ['key' => 'ads', 'label' => t('الحملات الإعلانية'), 'section' => $s3, 'module' => 'ads', 'also' => ['ad_campaign', 'ad_builder', 'ad_create']],
+        ['key' => 'ad_audiences', 'label' => t('الجماهير'), 'section' => $s3, 'module' => 'ads'],
         ['key' => 'inbox', 'module' => 'inbox', 'label' => t('الرسائل'), 'section' => $s4],
         ['key' => 'comments', 'module' => 'inbox', 'label' => t('التعليقات'), 'section' => $s4],
         ['key' => 'automations', 'label' => t('الردود التلقائية'), 'section' => $s4, 'module' => 'automations', 'also' => ['workflows']],

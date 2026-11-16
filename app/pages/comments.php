@@ -210,7 +210,7 @@ render(t('التعليقات'), 'comments', function () use ($z, $posts, $next, 
     $pw($comments);
     $preps = $postId ? post_replies($postId) : []; $spam = cm_spam_cfg();
     ?>
-    <div data-live-root<?= $apiError ? ' data-live-error' : '' ?>>
+    <div data-live-root data-live-poll="60000"<?= $apiError ? ' data-live-error' : '' ?>>
     <div class="grid lg:grid-cols-[23rem_1fr] 2xl:grid-cols-[23rem_1fr_19rem] gap-4 h-[calc(100vh-11rem)] min-h-[560px]" id="cmx">
       <!-- المنشورات -->
       <div class="card flex flex-col min-h-0 overflow-hidden <?= $postId ? 'hidden lg:flex' : 'flex' ?>">

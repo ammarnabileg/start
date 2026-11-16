@@ -200,10 +200,15 @@
   }
 
   /* ---------- تحديث تلقائي ---------- */
+  // كل تحديث بيعمل طلبات لـ Zernio (منها تعليقات X وهي الأغلى): لو الموظف مش قدام الشاشة بنبطّأ، وبعد ربع ساعة بنقف لحد ما يرجع
+  var lastAct = Date.now(), idleStopped = false;
+  ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (ev) { document.addEventListener(ev, function () { lastAct = Date.now(); if (idleStopped) { idleStopped = false; poll(); } }, { passive: true }); });
+  function pollMs() { var r = document.querySelector('[data-live-root]'), base = (r && +r.getAttribute('data-live-poll')) || POLL_MS, idle = Date.now() - lastAct; return idle > 180000 ? Math.max(base, 60000) : base; }
   function poll() {
     clearTimeout(pollTimer);
     pollTimer = setTimeout(function () {
       if (document.hidden) return; // التاب مش ظاهر: نوقف لحد ما يرجع
+      if (Date.now() - lastAct > 900000) { idleStopped = true; return; } // مفيش حد قدام الشاشة من ربع ساعة
       if (busy) { poll(); return; }
       load(location.href, { silent: true }).then(function (res) {
         var doc = parse(res.html), next = doc.querySelector('[data-live-root]');
@@ -212,7 +217,7 @@
         backoff = 1;
         if (!busy) swap(doc, 'poll');
       }).catch(function () { backoff = Math.min(backoff * 2, 8); }).finally(poll);
-    }, POLL_MS * backoff);
+    }, pollMs() * backoff);
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
   poll();

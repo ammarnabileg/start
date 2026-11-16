@@ -342,3 +342,15 @@ function ab_json(string $txt): ?array
     while ($stack) $cut .= array_pop($stack) === '{' ? '}' : ']';
     $j = json_decode($cut, true); return is_array($j) ? $j : null;
 }
+
+/** منشئ الحملات بطريقتين في مكان واحد (اتلغت «الحملة السريعة» كصفحة منفصلة): حملة كاملة، أو ترويج منشور / إعلان واحد */
+function ab_mode_switch(string $cur): void
+{
+    echo '<div class="mb-4 inline-flex rounded-xl bg-ink-100 p-1 text-sm" role="tablist">';
+    foreach (['ad_builder' => t('حملة كاملة'), 'ad_create' => t('ترويج منشور')] as $k => $l) {
+        $on = $k === $cur;
+        echo '<a role="tab" aria-selected="' . ($on ? 'true' : 'false') . '" href="' . e(url($k)) . '" class="px-4 py-1.5 rounded-lg ' . ($on ? 'bg-white shadow-sm font-semibold text-ink-900' : 'text-ink-600 hover:text-ink-900') . '">' . e($l) . '</a>';
+    }
+    echo '</div>';
+}
+
