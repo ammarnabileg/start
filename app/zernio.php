@@ -130,7 +130,7 @@ class Zernio
      */
     public function prefetch(array $reqs): void
     {
-        if (self::$noCache || !function_exists('curl_multi_init') || !($dir = self::cacheDir())) return;
+        if (self::$noCache || self::isSlow() || !function_exists('curl_multi_init') || !($dir = self::cacheDir())) return;
         $mh = curl_multi_init(); $jobs = [];
         foreach ($reqs as $r) {
             [$path, $query] = $r + [1 => []]; $ttl = self::ttl($path); if ($ttl <= 0) continue;
@@ -139,7 +139,7 @@ class Zernio
             $f = $dir . '/' . substr($h, 0, 2) . '/' . $h . '.json';
             if (is_file($f) && filemtime($f) > time() - $ttl) continue; // جاهز في الكاش
             $ch = curl_init(self::base() . $path . ($q ? '?' . http_build_query($q) : ''));
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 15,
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6,
                 CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->key, 'Accept: application/json']]);
             curl_multi_add_handle($mh, $ch); $jobs[] = [$ch, $f];
         }
@@ -147,6 +147,7 @@ class Zernio
             do { $st = curl_multi_exec($mh, $run); if ($run) curl_multi_select($mh, 1.0); } while ($run && $st === CURLM_OK);
             foreach ($jobs as [$ch, $f]) {
                 $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $raw = curl_multi_getcontent($ch);
+                if ($code === 0 && $raw === '' && (curl_getinfo($ch, CURLINFO_TOTAL_TIME) >= 14)) self::markSlow(); // اتأخر لحد الحد: الخدمة بطيئة، باقي الطلبات ماتستناش
                 // الأخطاء مابتتحفظش: الطلب العادي بعدين هيجربها ويتعامل مع الخطأ زي الأول
                 if ($code >= 200 && $code < 300 && is_array($d = json_decode((string)$raw, true))) {
                     @mkdir(dirname($f), 0750, true); $tmp = $f . '.' . getmypid() . '.tmp';
@@ -168,8 +169,17 @@ class Zernio
         }
     }
 
+    /** Zernio بطيء: بعد أول قراءة تتأخر، باقي الصفحة (والصفحات التانية لمدة دقيقة) ماتستناش — بيرجع الكاش القديم أو رسالة واضحة */
+    private static $slow = false;
+    private static function slowFlag(): string { return sys_get_temp_dir() . '/zernio_slow_' . md5(self::base()); }
+    private static function isSlow(): bool { if (self::$slow) return true; $f = self::slowFlag(); return is_file($f) && @filemtime($f) > time() - 60; }
+    private static function markSlow(): void { self::$slow = true; @touch(self::slowFlag()); }
+
     private function send(string $method, string $path, array $query = [], $body = null, bool $multipart = false): array
     {
+        $read = $method === 'GET';
+        // القراءة (اللي بتملا الصفحات) مابتستناش Zernio وهو بطيء؛ النشر والإرسال بيحاولوا دايمًا (فعل مقصود من المستخدم)
+        if ($read && self::isSlow()) throw new ZernioException(t('تعذّر الاتصال بخدمة النشر (Zernio) الآن. غالبًا مشكلة مؤقتة؛ حاول مرة أخرى بعد دقائق.'), 503);
         $url = self::base() . $path;
         $query = array_filter($query, function ($v) { return $v !== null && $v !== ''; });
         if ($query) {
@@ -181,8 +191,8 @@ class Zernio
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_TIMEOUT => 120,
-            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => $read ? 15 : 120, // القراءة: 15 ثانية بالكتير (كانت 120 لكل طلب، والصفحة فيها كذا طلب ورا بعض)
+            CURLOPT_CONNECTTIMEOUT => $read ? 6 : 15,
         ]);
         if ($body !== null) {
             if ($multipart) {
@@ -196,9 +206,10 @@ class Zernio
 
         $raw = curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err = curl_error($ch);
+        $err = curl_error($ch); $errno = curl_errno($ch);
         curl_close($ch);
 
+        if ($raw === false && $read && in_array($errno, [CURLE_OPERATION_TIMEDOUT, CURLE_COULDNT_CONNECT], true)) { self::markSlow(); error_log('Zernio slow/unreachable: ' . $err); throw new ZernioException(t('تعذّر الاتصال بخدمة النشر (Zernio) الآن. غالبًا مشكلة مؤقتة؛ حاول مرة أخرى بعد دقائق.'), 503); }
         if ($raw === false) {
             error_log('Zernio connect: ' . $err); // التفاصيل التقنية للوج بس، مش للعميل
             throw new ZernioException(t('تعذّر الاتصال بخدمة النشر (Zernio) الآن. غالبًا مشكلة مؤقتة؛ حاول مرة أخرى بعد دقائق.'));
