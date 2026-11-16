@@ -186,6 +186,8 @@ function connector_registry(): array
 function connections(string $provider, ?int $workspaceId = null, bool $includeDisabled = false): array
 {
     if (!$includeDisabled) {
+        // شركة اتحذفت: تكاملاتها متوقفة (المفاتيح محفوظة بس محدش يستخدمها)
+        $w0 = $workspaceId ?? (int)ws('id'); if ($w0 && function_exists('ws_closed') && ws_closed((int)$w0)) return [];
         return array_values(array_filter(connections($provider, $workspaceId, true), function ($c) { return empty($c['settings']['disabled']); }));
     }
     static $cache = [];
