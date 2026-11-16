@@ -557,8 +557,14 @@
         if (!v) { var extra = Array.prototype.slice.call(pg.children).filter(function (el) { return orig.indexOf(el) < 0; }); orig.forEach(function (el) { pg.appendChild(el); }); extra.forEach(function (el) { pg.appendChild(el); }); }
         else {
           var cards = $$('.ps-card', pg).sort(function (a, b) {
-            if (v === 'eng') return (+b.dataset.eng) - (+a.dataset.eng);
-            var ta = new Date(a.dataset.t).getTime() || 0, tb = new Date(b.dataset.t).getTime() || 0; return v === 'old' ? ta - tb : tb - ta;
+            var num = function (k) { return (+b.dataset[k]) - (+a.dataset[k]); };
+            if (['eng', 'rate', 'imp', 'likes', 'cm'].indexOf(v) > -1) return num(v) || 0;
+            var ta = new Date(a.dataset.t).getTime() || 0, tb = new Date(b.dataset.t).getTime() || 0;
+            if (v === 'st') { var R = { failed: 0, partial: 0, scheduled: 1, draft: 2, published: 3 }, ra = R[a.dataset.st], rb = R[b.dataset.st]; ra = ra == null ? 4 : ra; rb = rb == null ? 4 : rb; return (ra - rb) || (tb - ta); }
+            if (v === 'plat') return String(a.dataset.pf || '').localeCompare(String(b.dataset.pf || '')) || (tb - ta);
+            // موعد النشر: الجاي (المجدول) الأقرب الأول، وبعده اللي فات من الأحدث للأقدم
+            if (v === 'soon' || v === 'late') { var now = Date.now(), fa = ta >= now, fb = tb >= now; if (fa !== fb) return fa ? -1 : 1; if (fa) return v === 'soon' ? ta - tb : tb - ta; return tb - ta; }
+            return v === 'old' ? ta - tb : tb - ta;
           });
           cards.forEach(function (c) { pg.appendChild(c); });
         }
@@ -608,7 +614,7 @@
     }
     var btg = $('#ps-btag-go'); if (btg) btg.onclick = function () { var v = $('#ps-btag').value.trim(); if (!sel.size) return toast(Q.noSel); if (!v) return $('#ps-btag').focus(); btg.disabled = true; quick('tag_add', Array.from(sel), { tags: v }).then(function (r) { btg.disabled = false; setTags(r.tags || {}); toast(Q.tagged.replace('%s', (r.ok || []).length), true); $('#ps-btag').value = ''; }).catch(function (er) { btg.disabled = false; toast(er.message || X.err); }); };
     // "اعرض أكتر": الصفحة الجاية بتتضاف تحت اللي ظاهر (الفلاتر والترتيب بيشتغلوا عليها)
-    var more = $('#ps-more'), pager = $('.ps-pager');
+    var more = $('#ps-loadmore'), pager = $('.ps-pager');
     if (more) {
       if (pager) pager.classList.add('hidden');
       more.onclick = function () {
@@ -640,4 +646,16 @@
     });
     var bdup = $('#ps-bdup'); if (bdup) bdup.onclick = function () { if (!sel.size) return toast(Q.noSel); bdup.disabled = true; quick('dup', Array.from(sel)).then(function (d) { bdup.disabled = false; report(d, Q.duped); }).catch(function (er) { bdup.disabled = false; toast(er.message || X.err); }); };
   })();
+})();
+
+/* قايمة «أدوات» واحدة: في التقويم أدواته بتنضم للقايمة اللي فوق بدل زرار «أدوات» تاني جوه التقويم */
+(function () {
+  var ct = document.getElementById('cal-tools'), menu = document.getElementById('ps-more');
+  if (!ct || !menu) return;
+  var items = ct.querySelectorAll('[data-ct]'); if (!items.length) return;
+  var sep = document.createElement('div'); sep.className = 'my-1 border-t border-ink-100';
+  var head = document.createElement('div'); head.className = 'px-3 pt-1 pb-0.5 text-[11px] font-semibold text-ink-400'; head.textContent = (window.PSX && PSX.calToolsLbl) || '';
+  var first = menu.firstElementChild; menu.insertBefore(head, first);
+  Array.prototype.forEach.call(items, function (b) { b.classList.add('w-full', 'flex', 'items-center', 'gap-2.5'); b.addEventListener('click', function () { try { menu.hidePopover(); } catch (e) {} }); menu.insertBefore(b, first); });
+  menu.insertBefore(sep, first);
 })();

@@ -469,7 +469,11 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         <option value=""><?= e(t('الترتيب العادي')) ?></option>
         <option value="new"><?= e(t('الأحدث')) ?></option>
         <option value="old"><?= e(t('الأقدم')) ?></option>
-        <?php if ($metrics): ?><option value="eng"><?= e(t('الأعلى تفاعل')) ?></option><?php endif; ?>
+        <option value="soon"><?= e(t('موعد النشر: الأقرب أولًا')) ?></option>
+        <option value="late"><?= e(t('موعد النشر: الأبعد أولًا')) ?></option>
+        <option value="st"><?= e(t('حسب الحالة (الفاشل أولًا)')) ?></option>
+        <option value="plat"><?= e(t('حسب المنصة')) ?></option>
+        <?php if ($metrics): ?><optgroup label="<?= e(t('الأداء')) ?>"><option value="eng"><?= e(t('الأعلى تفاعل')) ?></option><option value="rate"><?= e(t('أعلى نسبة تفاعل')) ?></option><option value="imp"><?= e(t('الأكثر مشاهدة')) ?></option><option value="likes"><?= e(t('الأكثر إعجابًا')) ?></option><option value="cm"><?= e(t('الأكثر تعليقًا')) ?></option></optgroup><?php endif; ?>
       </select>
  <?php endif; ?>
       <button type="button" popovertarget="ps-more" class="tb h-10 px-3 gap-1.5 text-xs" title="<?= e(t('أدوات أكتر')) ?>"><?= ui_icon('dots', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('أدوات')) ?></span></button>
@@ -482,7 +486,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       </div>
       <a href="<?= e(url('compose')) ?>" class="btn-primary"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('منشور جديد')) ?></a>
     </div>
-    <?php if (count($plats) > 1): ?>
+    <?php if (count($plats) > 1 && $view !== 'cal' && count(array_unique(array_values($plats))) > 1): // نفس العدد لكل المنصات = كل منشور على كلهم، فالفلتر مالوش فايدة ?>
       <div class="flex flex-wrap items-center gap-1.5 mb-4" id="ps-pf">
         <?php foreach ($plats as $pk => $pn): ?><button type="button" data-pf="<?= e($pk) ?>" class="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-2.5 py-1 text-xs text-ink-600 hover:border-brand-300 transition"><?= platform_icon($pk, 'w-3.5 h-3.5') ?><?= e(platform_label($pk)) ?> <span class="tabular-nums text-ink-400"><?= $pn ?></span></button><?php endforeach; ?>
       </div>
@@ -592,7 +596,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
           <?php $mx = $pm($p); if ($mx) $pdata[$p['_id']]['m'] = $mx; ?>
           <?php $pnotes = $notesMap[$p['_id']] ?? []; $pdata[$p['_id']]['notes'] = $pnotes; ?>
           <?php $ptags = $tagsMap[$p['_id']] ?? []; $pdata[$p['_id']]['tags'] = $ptags; $pdata[$p['_id']]['eg'] = $egMap[$p['_id']] ?? 0; $pdata[$p['_id']]['acc'] = array_values(array_filter($accIds)); ?>
-          <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
+          <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-imp="<?= $mx ? (int)$mx['imp'] : -1 ?>" data-likes="<?= $mx ? (int)$mx['likes'] : -1 ?>" data-cm="<?= $mx ? (int)$mx['comments'] : -1 ?>" data-rate="<?= $mx && $mx['rate'] !== null ? $mx['rate'] : -1 ?>" data-st="<?= e((string)($p['status'] ?? '')) ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
                 <?php if ($mt === 'video'): ?><?php $thumb = (string)($m['thumbnail'] ?? $m['thumbnailUrl'] ?? $m['previewUrl'] ?? ''); ?><?php if ($thumb !== ''): ?><img src="<?= e(thumb_url($thumb)) ?>" class="w-full h-full object-cover" loading="lazy" decoding="async" alt="" referrerpolicy="no-referrer"><?php else: ?><span class="w-full h-full block bg-ink-900"></span><?php endif; ?><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></span></span>
@@ -665,7 +669,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         </div>
       </div>
       <?php if ($pageNo < $pages): ?>
-        <div class="text-center mt-6"><button type="button" id="ps-more" data-next="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
+        <div class="text-center mt-6"><button type="button" id="ps-loadmore" data-next="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
       <?php endif; ?>
       <?php if ($pages > 1): ?>
         <div class="ps-pager flex items-center justify-center gap-1 mt-6">
@@ -690,7 +694,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
           </div>
           <select id="cal-acc" class="input !mt-0 !h-8 !py-0 !w-auto text-xs"><option value=""><?= e(t('كل الحسابات')) ?></option><?php foreach (($accounts ?? []) as $aid => $a): ?><option value="<?= e($aid) ?>"><?= e($a['name']) ?><?= $a['plat'] ? ' · ' . e($a['plat']) : '' ?></option><?php endforeach; ?></select>
           <?php if (can('posts.manage')): ?>
-          <details class="relative" id="cal-tools"><summary class="tb px-3 text-xs list-none cursor-pointer"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg> <?= e(t('أدوات')) ?></summary>
+          <details class="relative hidden" id="cal-tools"><!-- أدواته بتتنقل لقايمة «أدوات» اللي فوق (posts.js) --><summary class="tb px-3 text-xs list-none cursor-pointer"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg> <?= e(t('أدوات')) ?></summary>
             <div class="absolute start-0 mt-1 z-40 w-52 rounded-xl border border-ink-200 bg-white shadow-lg p-1 flex flex-col text-sm">
               <button type="button" data-ct="gaps" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM10 7h4a3 3 0 013 3v4M7 10v4a3 3 0 003 3h4"/></svg> <?= e(t('املا الفراغات')) ?></button>
               <button type="button" data-ct="copyw" class="text-start px-3 py-2 rounded-lg hover:bg-ink-50"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v12H8zM5 16V4h11"/></svg> <?= e(t('انسخ الأسبوع للجاي')) ?></button>
