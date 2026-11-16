@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // المدير بيتضاف كصاحب شركة عشان يقدر يدخلها، والدخول بيتسجل
             $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')
                 ON DUPLICATE KEY UPDATE status = 'active', role = 'owner'")->execute([$id, $me['id']]);
-            $_SESSION['ws'] = $id;
+            $_SESSION['ws'] = $id; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
             log_activity('admin.workspace_enter', $w['name']);
             redirect(url('dashboard'));
             break;

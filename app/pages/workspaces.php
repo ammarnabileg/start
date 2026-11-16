@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $wid = (int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
             ->execute([$wid, $me['id']]);
-        $_SESSION['ws'] = $wid;
+        $_SESSION['ws'] = $wid; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
         log_activity('workspace.add', $name);
         flash('success', t('اتعملت شركة "%s" وانت صاحبها. اربطها من صفحة التكاملات عشان تبدأ.', $name));
         redirect(url('connectors'));
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($st->fetchColumn()) {
             if ($action === 'accept') {
                 $pdo->prepare("UPDATE workspace_users SET status = 'active' WHERE workspace_id = ? AND user_id = ?")->execute([$id, $me['id']]);
-                $_SESSION['ws'] = $id;
+                $_SESSION['ws'] = $id; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
                 flash('success', t('انضميت للشركة.'));
                 redirect(url('dashboard'));
             }

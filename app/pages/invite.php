@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($inv['email']) {
             $pdo->prepare("DELETE FROM workspace_invites WHERE id = ?")->execute([$inv['id']]);
         }
-        $_SESSION['ws'] = (int)$inv['workspace_id'];
+        $_SESSION['ws'] = (int)$inv['workspace_id']; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
         log_activity('invite.accept', $inv['ws_name']);
         flash('success', t('أهلاً بيك في %s.', $inv['ws_name']));
         redirect(url('dashboard'));
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($status === 'active') {
     unset($_SESSION['invite_token']);
-    $_SESSION['ws'] = (int)$inv['workspace_id'];
+    $_SESSION['ws'] = (int)$inv['workspace_id']; user_workspaces(true); // القائمة كانت متخزنة قبل الإضافة
     flash('success', t('انت عضو في %s أصلاً.', $inv['ws_name']));
     redirect(url('dashboard'));
 }
