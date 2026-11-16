@@ -827,7 +827,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
       'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
       'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'), 'tools' => t('الأدوات'), 'aiMenu' => t('الذكاء الاصطناعي'),
-      'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
+      'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropPage' => t('أفلت الملفات هنا لإضافتها إلى المنشور'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
       'xMax' => t('X بيقبل 4 صور بس'), 'needVideo' => t('تيك توك ويوتيوب محتاجين فيديو'), 'igMedia' => t('إنستجرام محتاج صورة أو فيديو'),
       'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'repost' => t('إعادة نشر'), 'send' => t('إرسال'), 'now' => t('الآن'), 'kStory' => t('ستوري'), 'kReel' => t('ريلز'), 'needMedia' => t('الستوري والريلز محتاجين صورة أو فيديو'), 'kNo' => t('%s مابيدعمش النوع ده، هيتنشر منشور عادي'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),
       'modes' => ['now' => t('هيتنشر دلوقتي'), 'draft' => t('هيتحفظ كمسودة'), 'queue' => t('أقرب ميعاد فاضي في الطابور'), 'schedule' => t('مجدول')],

@@ -5743,4 +5743,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'كل قراءة لحسابات المنافس أو إعلاناته أو تقييماته تُحسب تشغيلة.' => 'Each read of a competitor’s accounts, ads or reviews counts as one run.',
     'تشغيلات متابعة المنافسين هذا الشهر: %s من %s' => 'Competitor tracking runs this month: %s of %s',
     'حد Apify الشهري' => 'Monthly Apify limit',
+    'أفلت الملفات هنا لإضافتها إلى المنشور' => 'Drop files here to add them to the post',
 ];

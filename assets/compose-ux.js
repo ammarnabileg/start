@@ -114,10 +114,20 @@
     dz.innerHTML = '<svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b class="text-sm text-ink-900"></b><span class="text-[11px] text-ink-500"></span>';
     dz.querySelector('b').textContent = P.drop; dz.querySelector('span').textContent = P.dropSub;
     lab.appendChild(dz); dz.onclick = function (e) { e.preventDefault(); mi.click(); };
-    var card = content.closest('.card');
-    ['dragenter', 'dragover'].forEach(function (ev) { card.addEventListener(ev, function (e) { if (e.dataTransfer && [].indexOf.call(e.dataTransfer.types, 'Files') > -1) { e.preventDefault(); dz.classList.add('border-brand-500', 'bg-brand-50'); } }); });
-    ['dragleave', 'drop'].forEach(function (ev) { card.addEventListener(ev, function (e) { dz.classList.remove('border-brand-500', 'bg-brand-50'); }); });
-    card.addEventListener('drop', function (e) { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setFiles(files.concat([].slice.call(e.dataTransfer.files).filter(function (f) { return /^(image|video)\//.test(f.type) || f.type === 'application/pdf'; }))); });
+    // السحب على الصفحة كلها (مش كارت النص بس): أي صورة/فيديو يتفلت في أي مكان بيتضاف لملفات المنشور
+    // (إلا جوه نافذة مفتوحة زي مكتبة الوسائط، اللي ليها السحب بتاعها)
+    var ov = document.createElement('div'); ov.className = 'cp-drop-ov'; ov.setAttribute('aria-hidden', 'true');
+    ov.innerHTML = '<div><svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b></b></div>';
+    ov.querySelector('b').textContent = P.dropPage || P.drop; document.body.appendChild(ov);
+    var depth = 0, isFiles = function (e) { return e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], 'Files') > -1; }, inModal = function (e) { return e.target && e.target.closest && e.target.closest('dialog, [data-modal-frame], .mx-root, [data-no-page-drop]'); };
+    var hide = function () { depth = 0; ov.classList.remove('on'); dz.classList.remove('border-brand-500', 'bg-brand-50'); };
+    document.addEventListener('dragenter', function (e) { if (!isFiles(e) || inModal(e)) return; depth++; ov.classList.add('on'); dz.classList.add('border-brand-500', 'bg-brand-50'); });
+    document.addEventListener('dragover', function (e) { if (!isFiles(e) || inModal(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    document.addEventListener('dragleave', function (e) { if (!isFiles(e)) return; if (--depth <= 0 || !e.relatedTarget) hide(); });
+    document.addEventListener('drop', function (e) { if (!isFiles(e) || inModal(e)) { hide(); return; } e.preventDefault(); hide();
+      var add = [].slice.call(e.dataTransfer.files).filter(function (f) { return /^(image|video)\//.test(f.type) || f.type === 'application/pdf'; });
+      if (add.length) { setFiles(files.concat(add)); var mz = $('#mediaPreview'); if (mz && mz.scrollIntoView) mz.scrollIntoView({ behavior: 'smooth', block: 'center' }); } });
+    window.addEventListener('blur', hide);
     content.addEventListener('paste', function (e) { var it = [].slice.call((e.clipboardData || {}).files || []).filter(function (f) { return /^image\//.test(f.type); }); if (it.length) { e.preventDefault(); setFiles(files.concat(it)); } });
   }
 
