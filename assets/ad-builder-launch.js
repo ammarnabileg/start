@@ -60,3 +60,51 @@
   document.addEventListener('ab:render', function (e) { draw(e.detail && e.detail.issues); });
   draw();
 })();
+
+/* نفس الحملة على حسابات تانية: نسخ مستقلة، وبعدين «أطلق الكل» خطوة بخطوة لكل نسخة */
+(function () {
+  var A = window.AB, go = document.getElementById('ab-mt-go'), out = document.getElementById('ab-mt-out');
+  if (!A || !go || !out) return;
+  var T = A.mt || {};
+  var esc = function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var send = function (f) { var fd = new FormData(); fd.append('_csrf', A.csrf); Object.keys(f).forEach(function (k) { [].concat(f[k]).forEach(function (v) { fd.append(k, v); }); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); }); };
+  go.onclick = function () {
+    var picked = [].slice.call(document.querySelectorAll('.ab-mt:checked')).map(function (c) { return c.value; });
+    if (!picked.length) { alert(T.pick || ''); return; }
+    go.disabled = true;
+    send({ action: 'clone_to', id: A.id, 'targets[]': picked }).then(function (d) {
+      go.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
+      go.classList.add('hidden'); document.querySelectorAll('.ab-mt').forEach(function (c) { c.disabled = true; });
+      out.classList.remove('hidden');
+      out.innerHTML = d.made.map(function (m) {
+        return '<div class="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm" data-mt="' + m.id + '"><b class="min-w-0 flex-1 truncate">' + esc(m.name) + '</b>' +
+          (m.curDiff ? '<span class="text-[11px] text-amber-700">' + esc((T.cur || '%s').replace('%s', m.cur)) + '</span>' : '') +
+          (m.stripped ? '<span class="text-[11px] text-amber-700">' + esc(T.stripped || '') + '</span>' : '') +
+          '<span class="ab-mt-st text-[11px] text-ink-500">' + esc(T.ready || '') + '</span><a class="link text-xs" target="_blank" href="' + esc(m.url) + '">' + esc(T.open || '') + '</a></div>';
+      }).join('') +
+        '<label class="flex items-center gap-2 text-xs text-ink-700 mt-2"><input type="checkbox" id="ab-mt-ok"> ' + esc((T.confirm || '%s').replace('%s', d.made.length)) + '</label>' +
+        '<button type="button" class="btn-primary !text-sm" id="ab-mt-launch" disabled>' + esc(T.launchAll || '') + '</button>';
+      var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
+      ok.onchange = function () { lb.disabled = !ok.checked; };
+      lb.onclick = function () {
+        if (!ok.checked) return; lb.disabled = true; ok.disabled = true;
+        var rows = [].slice.call(out.querySelectorAll('[data-mt]')), i = 0, fails = 0;
+        var nextProject = function () {
+          if (i >= rows.length) { lb.textContent = fails ? (T.doneErr || '').replace('%s', fails) : (T.done || ''); return; }
+          var row = rows[i++], id = row.dataset.mt, st = row.querySelector('.ab-mt-st'), n = 0;
+          st.textContent = T.launching || '…'; st.className = 'ab-mt-st text-[11px] text-brand-700';
+          var step = function () {
+            send({ action: 'launch_step', id: id, confirm_spend: '1' }).then(function (r) {
+              if (r.ok && r.finished) { st.textContent = '✓ ' + (T.launched || ''); st.className = 'ab-mt-st text-[11px] text-lime-700'; return nextProject(); }
+              if (r.ok && ++n < 60) return step();
+              fails++; st.textContent = '✗ ' + (r.error || T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject();
+            }).catch(function () { fails++; st.textContent = '✗ ' + (T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject(); });
+          };
+          step();
+        };
+        nextProject();
+      };
+    }).catch(function () { go.disabled = false; });
+  };
+})();
+
