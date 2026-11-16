@@ -38,6 +38,11 @@ if (setting('app_version') !== APP_VERSION) {
 }
 
 $page = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'dashboard'));
+// حماية من تضمين صفحات المنصة جوه موقع تاني لخداع المستخدم (clickjacking). الصفحات العامة (الفورم، الحجز، صفحة الهبوط، روابط التتبع) مستثناة عشان العملاء يقدروا يضمّنوها في مواقعهم
+if (!headers_sent()) {
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    if (!in_array($page, ['lead_form', 'crm_book', 'lp', 'crm_js', 'crm_go', 'crm_t', 'crm_v', 'go', 'share'], true)) { header('X-Frame-Options: SAMEORIGIN'); header("Content-Security-Policy: frame-ancestors 'self'"); }
+}
 // صفحات اتدمجت في 1.7.0
 $merged = ['compose_pro' => 'compose', 'inbox_pro' => 'inbox'];
 // تحليلات الرسائل والتقارير بقوا أقسام جوه صفحة التحليلات (الصفحات نفسها بتشتغل جوه الصفحة الموحدة)

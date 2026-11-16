@@ -528,6 +528,18 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '062_perf_company' => [
+        // الشركات المستهدفة: ربط الشركة بالأشخاص (10 ثواني مع 20 ألف عميل)
+        "ALTER TABLE crm_leads ADD INDEX ws_company (workspace_id, company_id)",
+    ],
+    '061_perf_indexes' => [
+        // أداء مع بيانات كبيرة (+20 ألف عميل): الإحالات كانت بتعمل مقارنة كل عميل بكل عميل (162 ثانية)
+        "ALTER TABLE crm_leads ADD INDEX ws_ref (workspace_id, referred_by)",
+        "ALTER TABLE crm_leads ADD INDEX ws_link (workspace_id, link_code)",
+        "ALTER TABLE crm_leads ADD INDEX ws_created (workspace_id, created_at)",
+        "ALTER TABLE crm_leads ADD INDEX ws_owner (workspace_id, owner_id)",
+        "ALTER TABLE crm_acts ADD INDEX ws_created (workspace_id, created_at)",
+    ],
     '060_comp_b2b' => [
         "ALTER TABLE competitor_site ADD COLUMN b2b MEDIUMTEXT NULL",
         "ALTER TABLE competitor_site ADD COLUMN b2b_at DATETIME NULL",

@@ -410,7 +410,7 @@ if (($_GET['export'] ?? '') !== 'csv') {
 }
 $pipes = crm_pipelines(); $curPl = isset($pipes[$_GET['pl'] ?? '']) ? (string)$_GET['pl'] : 'sales';
 if (count($pipes) > 1) { $where .= ' AND pipeline = ?'; $args[] = $curPl; }
-$st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY pinned DESC, (next_at IS NULL), next_at, id DESC LIMIT 2000");
+$st = db()->prepare("SELECT * FROM crm_leads WHERE $where ORDER BY pinned DESC, (next_at IS NULL), next_at, id DESC LIMIT " . (($_GET['export'] ?? '') === 'csv' ? 200000 : 2000)); // التصدير كامل (من غير حد 2000 الصامت)
 $st->execute($args);
 $rows = $st->fetchAll();
 
