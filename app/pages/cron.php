@@ -12,12 +12,11 @@ if (strlen($token) < 32 || !hash_equals($token, (string)($_GET['token'] ?? '')))
 @set_time_limit(600);
 ignore_user_abort(true);
 
-// منع تشغيلين في نفس الوقت
-$lock = (int)setting('cron_running', 0);
-if ($lock > time() - 600) {
+// منع تشغيلين في نفس الوقت: قفل من قاعدة البيانات (ذرّي، وبيتفك لوحده لو العملية وقعت)
+if ((int)db()->query("SELECT GET_LOCK(CONCAT(DATABASE(), '_cron'), 0)")->fetchColumn() !== 1) {
     exit("already running\n");
 }
-save_setting('cron_running', (string)time());
+save_setting('cron_running', (string)time()); // للعرض بس (آخر تشغيل)
 
 $out = [];
 try {
@@ -189,6 +188,7 @@ try {
     save_setting('cron_last_run', gmdate('Y-m-d H:i:s'));
 } finally {
     save_setting('cron_running', '0');
+    try { db()->query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), '_cron'))"); } catch (Throwable $e) {}
 }
 echo "ok\n" . implode("\n", $out) . "\n";
 exit;

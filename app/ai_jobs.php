@@ -427,6 +427,8 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
         if (!ai_platform_on($cfg, (string)($c['platform'] ?? ''))) { if ($fresh) ai_skip($wid, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), $m, 'هذه المنصة غير مفعّلة في إعدادات الرد الذكي', []); continue; }
         $h = md5($m . '|' . ($c['lastMessageAt'] ?? $c['updatedTime'] ?? ''));
         if (!$fresh && ($done[$id] ?? '') === $h) continue;
+        // حماية تانية: نفس النص في نفس المحادثة اترد عليه خلال ساعتين = مانردش تاني حتى لو وقت الرسالة اللي راجع من Zernio اتغير
+        $tt = explode('|', (string)($done['t:' . $id] ?? '')); if (!$fresh && $tt[0] === md5($m) && (int)($tt[1] ?? 0) > time() - 7200) continue;
         $who = (string)($c['participantName'] ?? ''); $plat = (string)($c['platform'] ?? ''); $res = ai_agent_resumed($wid, 'c:' . $id);
         if (ai_human_recent($wid, 'c:' . $id, $cfg['pause']) && $res < time() - 5) { if ($fresh) ai_skip($wid, $who, $plat, $m, 'متوقف مؤقتًا في هذه المحادثة: موظف ردّ من المنصة خلال آخر %s دقيقة', [$cfg['pause']], 'c:' . $id); $hh = json_decode((string)setting('ai_human_' . $wid, ''), true) ?: []; ai_agent_pause_set($wid, 'c:' . $id, (int)($hh['c:' . $id] ?? time()) + $pause, ['name' => $who, 'platform' => $plat, 'kind' => 'msg']); continue; } // رد بشري من جوه المنصة
         try {
@@ -448,12 +450,12 @@ function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?a
                 kb_handoff_email($wid, (string)($c['participantName'] ?? ''), (string)($c['platform'] ?? ''), $m, $d['reason'], base_url() . '/' . url('inbox', ['c' => $id, 'a' => $acc]));
                 log_activity('ai.handoff', $id . ' ' . $d['reason']);
             }
-            if ($text === '') { $done[$id] = $h; if ($d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => '', 'handoff' => true, 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]); continue; }
+            if ($text === '') { $done[$id] = $h; $done['t:' . $id] = md5($m) . '|' . time(); if ($d['action'] === 'handoff') ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => '', 'handoff' => true, 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]); continue; }
             if ($cfg['mode'] === 'send' && empty($d['guard'])) { $z->sendMessage($id, $acc, $text); ai_sent_mark($wid, $text, 'c:' . $id); log_activity('ai.auto_reply', $id); }
             else $drafts[$id] = ['text' => $text, 't' => time(), 'handoff' => $d['action'] === 'handoff', 'reason' => !empty($d['guard']) ? '⚠ ' . $d['guard'] : $d['reason'], 'guard' => !empty($d['guard']) ? 1 : 0, 'acc' => $acc, 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 400)];
             if (!empty($d['guard']) && $cfg['mode'] === 'send') kb_handoff_email($wid, $who, $plat, $m, '⚠ ' . $d['guard'] . ' — ' . t('الرد محفوظ كمسودة بانتظار مراجعتك'), base_url() . '/' . url('assistant', ['tab' => 'agent']));
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who, 'platform' => $plat, 'in' => mb_substr($m, 0, 300), 'out' => mb_substr($text, 0, 400), 'handoff' => $d['action'] === 'handoff', 'draft' => $cfg['mode'] !== 'send' || !empty($d['guard']), 'reason' => (string)$d['reason'], 'link' => url('inbox', ['c' => $id, 'a' => $acc])]);
-            $done[$id] = $h; $n++;
+            $done[$id] = $h; $done['t:' . $id] = md5($m) . '|' . time(); $n++;
         } catch (Throwable $e) {
             ai_agent_log_add($wid, ['kind' => 'msg', 'who' => $who ?? '', 'platform' => $plat ?? '', 'in' => mb_substr($m, 0, 300), 'out' => '', 'reason' => 'خطأ: ' . mb_substr($e->getMessage(), 0, 160)]);
             break; // حد الاستهلاك أو مشكلة في المزود: نقف
