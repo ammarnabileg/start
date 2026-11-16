@@ -237,8 +237,28 @@ function tnd_apify_conn(): ?array
 function tnd_apify_actor(): string { $a = (string)(tnd_apify_conn()['credentials']['actor'] ?? ''); return isset(tnd_apify_actors()[$a]) ? $a : 'publicmoney~etimad-tender-scraper'; }
 function tnd_apify_on(): bool { return (string)(tnd_apify_conn()['credentials']['api_key'] ?? '') !== ''; }
 
+/**
+ * حد تشغيلات Apify لكل شركة في الشهر: مفتاح Apify واحد للمنصة كلها، فمن غير حد شركة واحدة ممكن تصرف فاتورة المنصة.
+ * الافتراضي 3000 تشغيلة/شهر (يتغير من إعداد apify_cap_default أو apify_cap_{رقم الشركة}). شغل المنصة نفسها (المنافسات الحكومية) مش محسوب.
+ */
+function apify_cap(int $wid): int { $v = setting('apify_cap_' . $wid, ''); return $v !== '' ? max(0, (int)$v) : max(0, (int)setting('apify_cap_default', '3000')); }
+function apify_used(int $wid): int { return (int)setting('apify_runs_' . $wid . '_' . date('Ym'), '0'); }
+/** قبل أي تشغيلة مدفوعة: بترمي استثناء لو الشركة وصلت حدها، وبتعدّ لو لأ */
+function apify_charge(): void
+{
+    $wid = (int)(function_exists('ws') ? ws('id') : 0); if ($wid <= 0) return;
+    $used = apify_used($wid); $cap = apify_cap($wid);
+    if ($used >= $cap) {
+        $k = 'apify_cap_hit_' . $wid . '_' . date('Ym');
+        if (setting($k, '') === '' && function_exists('crm_notify')) { save_setting($k, '1'); try { crm_notify(null, null, 'apify', t('بلغت متابعة المنافسين حدّها الشهري (%s تشغيلة). المتابعة متوقفة حتى بداية الشهر القادم أو رفع الحد.', $cap)); } catch (Throwable $e) {} }
+        throw new RuntimeException(t('بلغت متابعة المنافسين حدّها الشهري (%s تشغيلة). تواصل مع إدارة المنصة لرفع الحد.', $cap));
+    }
+    save_setting('apify_runs_' . $wid . '_' . date('Ym'), (string)($used + 1));
+}
+
 function tnd_apify_req(string $method, string $path, ?array $body = null, ?string $tok = null): array
 {
+    if ($method === 'POST' && preg_match('~/runs(\?|$)|/run-sync~', $path)) apify_charge(); // تشغيلة مدفوعة
     $tok = $tok ?? (string)(tnd_apify_conn()['credentials']['api_key'] ?? ''); if ($tok === '') throw new RuntimeException(t('اربط Apify من التكاملات الأول.'));
     $ch = curl_init(tnd_apify_base() . $path);
     $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];

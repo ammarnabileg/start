@@ -30,6 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     switch ($action) {
+        case 'apify_cap':
+            save_setting('apify_cap_' . $id, (string)max(0, min(1000000, (int)($_POST['cap'] ?? 0))));
+            log_activity('admin.apify_cap', $w['name'] . ': ' . (int)($_POST['cap'] ?? 0));
+            flash('success', t('اتحفظ.'));
+            break;
         case 'enter':
             // المدير بيتضاف كصاحب شركة عشان يقدر يدخلها، والدخول بيتسجل
             $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')
@@ -143,6 +148,8 @@ render(t('الشركات'), 'admin_workspaces', function () use ($list, $users, 
                   <div class="menu end-0 mt-2 !w-72 p-3 space-y-3">
                     <form method="post" class="flex gap-2"><?= csrf_field() ?><input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
                       <input name="name" value="<?= e($w['name']) ?>" class="input !mt-0 text-xs flex-1"><button class="btn-ghost text-xs"><?= e(t('تغيير')) ?></button></form>
+                    <?php if (function_exists('apify_cap')): ?><form method="post" class="flex gap-2 items-center"><?= csrf_field() ?><input type="hidden" name="action" value="apify_cap"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
+                      <span class="text-xs text-ink-500 shrink-0"><?= e(t('حد Apify الشهري')) ?> (<?= number_format(apify_used((int)$w['id'])) ?>)</span><input name="cap" type="number" min="0" step="100" value="<?= apify_cap((int)$w['id']) ?>" class="input !mt-0 text-xs flex-1" dir="ltr"><button class="btn-ghost text-xs"><?= e(t('حفظ')) ?></button></form><?php endif; ?>
                     <form method="post" class="flex gap-2"><?= csrf_field() ?><input type="hidden" name="action" value="owner"><input type="hidden" name="id" value="<?= (int)$w['id'] ?>">
                       <select name="user_id" class="input !mt-0 text-xs flex-1"><?php foreach ($users as $u): ?><option value="<?= (int)$u['id'] ?>"><?= e($u['name']) ?></option><?php endforeach; ?></select>
                       <button class="btn-ghost text-xs"><?= e(t('اعمله صاحب')) ?></button></form>

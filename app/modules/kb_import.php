@@ -30,6 +30,7 @@ function kbi_fetch(string $url, int $max = 600000): array
 function kbi_fetch_apify(string $url, bool $render = false): array
 {
     $tok = (string)(function_exists('tnd_apify_conn') ? (tnd_apify_conn()['credentials']['api_key'] ?? '') : ''); if ($tok === '') return ['err' => 'no key'];
+    if (function_exists('apify_charge')) { try { apify_charge(); } catch (Throwable $e) { return ['err' => $e->getMessage()]; } }
     $cc = function_exists('ws_country') ? strtoupper((string)ws_country()) : 'SA';
     $in = ['query' => $url, 'maxResults' => 1, 'outputFormats' => ['html'], 'scrapingTool' => $render ? 'browser-playwright' : 'raw-http', 'requestTimeoutSecs' => 60, 'proxyConfiguration' => ['useApifyProxy' => true, 'apifyProxyGroups' => ['RESIDENTIAL'], 'apifyProxyCountry' => $cc ?: 'SA']];
     $ch = curl_init(rtrim((string)(getenv('APIFY_BASE') ?: 'https://api.apify.com'), '/') . '/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items?timeout=90&memory=1024');
