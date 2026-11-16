@@ -242,7 +242,7 @@ foreach ($adAccounts as $row) {
     foreach ($row['accounts'] as $a) if (ads_account_usable($a)) $usableCount++;
 }
 
-render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccounts, $campaigns, $pagination, $platform, $adAcc, $status, $range, $pg, $spendByAcc, $totals, $usableCount, $from, $to, $prev) {
+render(t('الحملات الإعلانية'), 'ads', function () use ($z, $apiError, $adAccounts, $campaigns, $pagination, $platform, $adAcc, $status, $range, $pg, $spendByAcc, $totals, $usableCount, $from, $to, $prev) {
     if (!$z) { no_api_box(); return; }
     $q = function (array $over = []) use ($platform, $adAcc, $status, $range) {
         return url('ads', array_filter($over + ['pf' => $platform, 'acc' => $adAcc, 'st' => $status, 'r' => $range], function ($v) { return $v !== '' && $v !== null; }));
@@ -257,7 +257,8 @@ render(t('الإعلانات'), 'ads', function () use ($z, $apiError, $adAccoun
         <a href="<?= e(url('leads')) ?>" class="btn-ghost ms-auto"><?= e(t('العملاء المحتملين (Leads)')) ?></a>
       </div>
 
-      <?php if (!$adAccounts || $usableCount === 0 && !array_filter($adAccounts, function ($r) { return $r['accounts']; })): ?>
+      <?php // لو فيه حملات، يبقى فيه حساب مربوط: صندوق «مفيش حساب» كان بيظهر فوق 5 حملات شغالة (لو طلب الحسابات فشل أو اتأخر)
+      if (!$campaigns && (!$adAccounts || $usableCount === 0 && !array_filter($adAccounts, function ($r) { return $r['accounts']; }))): ?>
         <?php ads_empty_state(); ?>
       <?php else: ?>
       <!-- حسابات الإعلانات -->
