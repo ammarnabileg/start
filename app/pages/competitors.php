@@ -132,6 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 render(t('المنافسين'), 'competitors', function () use ($payload, $kinds) { ?>
+  <?php // منافسين مستنيين القراءة في الخلفية والتشغيل الدوري واقف: نقول بوضوح بدل «ستكتمل خلال دقائق» للأبد
+  $cl = (string)setting('cron_last_run', ''); $cAge = $cl !== '' ? time() - strtotime($cl . ' UTC') : null;
+  $waiting = 0; try { $st = db()->prepare('SELECT COUNT(*) FROM competitors WHERE workspace_id = ? AND last_check IS NULL AND created_at < NOW() - INTERVAL 20 MINUTE'); $st->execute([(int)ws('id')]); $waiting = (int)$st->fetchColumn(); } catch (Throwable $e) {}
+  if ($waiting && ($cAge === null || $cAge > 7200)): ?>
+  <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><b><?= e(t('القراءة في الخلفية متوقفة.')) ?></b> <?= e(t('%s منافس ينتظر قراءة موقعه، لكن المهام الدورية (Cron) لا تعمل على الخادم. أبلغ مدير المنصة بتفعيلها.', $waiting)) ?></div>
+  <?php endif; ?>
   <?php if (function_exists('apify_cap') && cs_on()): $au = apify_used((int)ws('id')); $ac = apify_cap((int)ws('id')); $ap = $ac ? min(100, (int)round($au / $ac * 100)) : 100; ?>
   <p class="mb-3 text-xs <?= $ap >= 90 ? 'text-red-700' : ($ap >= 75 ? 'text-amber-700' : 'text-ink-500') ?>" title="<?= e(t('كل قراءة لحسابات المنافس أو إعلاناته أو تقييماته تُحسب تشغيلة.')) ?>"><?= e(t('تشغيلات متابعة المنافسين هذا الشهر: %s من %s', number_format($au), number_format($ac))) ?></p>
   <?php endif; ?>

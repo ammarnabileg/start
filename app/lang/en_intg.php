@@ -5782,4 +5782,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'أُضيف %s وقُرئ موقعه ✓' => '%s added and its website was read ✓',
     'أُضيف %s، لكن موقعه لا يفتح الآن. سنحاول مرة أخرى تلقائيًا.' => '%s added, but its website is not opening right now. We will retry automatically.',
     'موقع %s يحتاج قراءة متقدمة، وستكتمل خلال دقائق تلقائيًا.' => '%s website needs advanced reading; it will complete automatically within minutes.',
+    'القراءة في الخلفية متوقفة.' => 'Background reading is stopped.',
+    '%s منافس ينتظر قراءة موقعه، لكن المهام الدورية (Cron) لا تعمل على الخادم. أبلغ مدير المنصة بتفعيلها.' => '%s competitor(s) are waiting for their website to be read, but scheduled tasks (Cron) are not running on the server. Ask the platform admin to enable them.',
 ];

@@ -135,7 +135,7 @@ function comp_tick(int $max = 10): int
         $st = db()->prepare('SELECT * FROM competitors WHERE workspace_id = ? AND (last_check IS NULL OR last_check < ?) ORDER BY last_check LIMIT ' . max(1, $max));
         $st->execute([(int)ws('id'), date('Y-m-d H:i:s', time() - 20 * 3600)]);
     } catch (Throwable $e) { return 0; }
-    $n = 0; foreach ($st->fetchAll() as $c) { try { $n += comp_check($c); } catch (Throwable $e) {} }
+    $n = 0; foreach ($st->fetchAll() as $c) { if (isset($GLOBALS['cron_t0']) && microtime(true) - $GLOBALS['cron_t0'] > 400) break; try { $n += comp_check($c); } catch (Throwable $e) {} }
     return $n;
 }
 

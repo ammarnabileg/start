@@ -9,7 +9,7 @@ if (strlen($token) < 32 || !hash_equals($token, (string)($_GET['token'] ?? '')))
     http_response_code(403);
     exit("forbidden\n");
 }
-@set_time_limit(600);
+@set_time_limit(600); $GLOBALS['cron_t0'] = microtime(true); // ميزانية وقت: الخطوات الطويلة (قراءة المنافسين عبر Apify) تقف قبل ما PHP يقتل التشغيلة في النص
 ignore_user_abort(true);
 
 // منع تشغيلين في نفس الوقت: قفل من قاعدة البيانات (ذرّي، وبيتفك لوحده لو العملية وقعت)
