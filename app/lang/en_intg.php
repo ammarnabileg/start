@@ -5744,4 +5744,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'تشغيلات متابعة المنافسين هذا الشهر: %s من %s' => 'Competitor tracking runs this month: %s of %s',
     'حد Apify الشهري' => 'Monthly Apify limit',
     'أفلت الملفات هنا لإضافتها إلى المنشور' => 'Drop files here to add them to the post',
+    'تم تغيير الشركة المفتوحة من تبويب آخر. حدّث الصفحة ثم أعد المحاولة؛ لم يُحفظ أي شيء.' => 'The open company was changed in another tab. Refresh the page and try again; nothing was saved.',
 ];

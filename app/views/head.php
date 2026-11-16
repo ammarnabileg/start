@@ -11,6 +11,16 @@ function page_head(string $title): void
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="<?= theme() ?>">
 <meta name="csrf-token" content="<?= e(session_status() === PHP_SESSION_ACTIVE ? csrf_token() : '') ?>">
+<meta name="ws-id" content="<?= (int)(function_exists('ws') && current_workspace() ? ws('id') : 0) ?>">
+<script>/* كل حفظ بيبعت رقم الشركة اللي الصفحة اتفتحت عليها: لو اتغيرت من تبويب تاني السيرفر بيرفض بدل ما يحفظ في الشركة الغلط */
+(function () { var W = (document.querySelector('meta[name=ws-id]') || {}).content || ''; if (!W || W === '0') return;
+  var same = function (u) { try { return new URL(u, location.href).origin === location.origin; } catch (e) { return true; } };
+  var f0 = window.fetch; if (f0) window.fetch = function (input, init) { init = init || {}; var m = (init.method || (input && input.method) || 'GET').toUpperCase(); var u = typeof input === 'string' ? input : (input && input.url) || '';
+    if (m !== 'GET' && same(u)) { var h = new Headers(init.headers || (input && input.headers) || {}); if (!h.has('X-WS-Id')) h.set('X-WS-Id', W); init.headers = h; } return f0.call(this, input, init); };
+  var o0 = XMLHttpRequest.prototype.open, s0 = XMLHttpRequest.prototype.send; XMLHttpRequest.prototype.open = function (m, u) { this.__wsm = String(m).toUpperCase(); this.__wsu = u; return o0.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function () { if (this.__wsm && this.__wsm !== 'GET' && same(this.__wsu)) { try { this.setRequestHeader('X-WS-Id', W); } catch (e) {} } return s0.apply(this, arguments); };
+  document.addEventListener('submit', function (e) { var f = e.target; if (!f || (f.method || '').toLowerCase() !== 'post' || f.querySelector('input[name=_ws]')) return; var a = f.getAttribute('action'); if (a && !same(a)) return; var i = document.createElement('input'); i.type = 'hidden'; i.name = '_ws'; i.value = W; f.appendChild(i); }, true);
+})();</script>
 <title><?= e($title) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

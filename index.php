@@ -86,6 +86,17 @@ if (!in_array($page, $noWorkspacePages, true) && !current_workspace()) {
     redirect(url('workspaces'));
 }
 
+// تبويبين على شركتين: الصفحة بتبعت رقم الشركة اللي اتفتحت عليها (X-WS-Id أو _ws)، ولو الشركة اتغيرت من تبويب تاني بنرفض بدل ما نحفظ في الشركة الغلط
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && current_workspace() && !in_array($page, ['switch', 'workspaces', 'pref', 'logout', 'login'], true)) {
+    $sentWs = (string)($_POST['_ws'] ?? ($_SERVER['HTTP_X_WS_ID'] ?? ''));
+    if ($sentWs !== '' && ctype_digit($sentWs) && (int)$sentWs !== (int)ws('id')) {
+        $msg = t('تم تغيير الشركة المفتوحة من تبويب آخر. حدّث الصفحة ثم أعد المحاولة؛ لم يُحفظ أي شيء.');
+        $wantsJson = stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false || !empty($_SERVER['HTTP_X_WS_ID']) || isset($_POST['ajax']);
+        if ($wantsJson) { http_response_code(409); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE)); }
+        flash('error', $msg); redirect(url($page));
+    }
+}
+
 // قسم مقفول للشركة دي
 // مكتبة الوسائط بتخدم الصور والرفع لباقي الصفحات (المنشورات، المصمم، الجماعي)، فقفلها بيقفل صفحتها بس
 $mediaSvc = $page === 'media' && (isset($_GET['file']) || isset($_GET['ajax']) || $_SERVER['REQUEST_METHOD'] === 'POST');
