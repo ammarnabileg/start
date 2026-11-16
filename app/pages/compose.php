@@ -208,6 +208,11 @@ $allowedMime = [
     'application/pdf' => 'document',
 ];
 
+// النشر ضغط وZernio مش متاح: مابننشرش، بس بنرجّع كل اللي كتبه واختاره عشان مايضيعش
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $apiError && (string)($_POST['content'] ?? '') !== '') {
+    $old['content'] = trim((string)$_POST['content']); $old['accounts'] = array_map('strval', (array)($_POST['accounts'] ?? []));
+    $old['when'] = (string)($_POST['when'] ?? ''); $old['mode'] = in_array($_POST['mode'] ?? '', ['now', 'schedule', 'draft', 'queue'], true) ? $_POST['mode'] : 'queue';
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
     $old['content'] = trim((string)($_POST['content'] ?? ''));
     $old['accounts'] = array_map('strval', (array)($_POST['accounts'] ?? []));
@@ -375,8 +380,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
 
 render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boards, $apiError, $old, $validation, $done) {
     if (!$z) { no_api_box(); return; }
-    if ($apiError) { error_box($apiError); return; }
-    if (!$accounts) {
+    // Zernio مش متاح: الصفحة بتفضل شغالة (الكتابة والمسودة)، والنشر نفسه متوقف لحد ما يرجع
+    if ($apiError) { error_box($apiError . ' ' . t('يمكنك كتابة منشورك الآن، وسيُحفظ كمسودة تلقائيًا.')); }
+    if (!$accounts && !$apiError) {
         echo '<div class="card p-6">' . e(t('مفيش حسابات مربوطة.')) . ' <a class="link" href="' . e(url('accounts')) . '">' . e(t('اربط حساب الأول')) . '</a></div>';
         return;
     }

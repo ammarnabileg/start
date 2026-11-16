@@ -304,7 +304,7 @@ function ai_req(string $p, string $method, string $path, string $key, $body = nu
     $err = curl_error($ch);
     curl_close($ch);
     $name = ai_provider_name($p);
-    if ($raw === false) throw new AiException(t('تعذر الاتصال بـ %s: %s', $name, $err), 0);
+    if ($raw === false) throw new AiException(net_friendly((string)$name, (string)$err), 0);
     $data = json_decode($raw, true) ?: [];
     if ($status >= 400) {
         $e = $data['error'] ?? $data;

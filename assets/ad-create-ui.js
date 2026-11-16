@@ -30,7 +30,7 @@
   // المنشورات ككروت
   var ps = form.querySelector('#adcPost'), tg = form.querySelector('#adcTarget');
   if (ps) { var pg = document.createElement('div'); pg.className = 'adq-posts'; ps.closest('div').after(pg); ps.classList.add('abx-hide');
-    var paintPosts = function () { var conn = tg ? (tg.selectedOptions[0] || {}).dataset.conn : '', os = [].filter.call(ps.options, function (o) { return o.value && (!o.dataset.conn || o.dataset.conn === conn); });
+    var paintPosts = function () { var conn = tg ? ((tg.selectedOptions[0] || {}).dataset || {}).conn : '', os = [].filter.call(ps.options, function (o) { return o.value && (!o.dataset.conn || o.dataset.conn === conn); });
       pg.innerHTML = os.length ? os.map(function (o) { var t = o.text.split(' · '), pf = /insta|انستجرام|إنستغرام|انستغرام/i.test(t[1] || '') ? 'insta' : 'fb'; return '<button type="button" data-v="' + esc(o.value) + '" class="adq-post' + (o.value === ps.value ? ' on' : '') + '"><span class="adq-pf ' + (/insta/.test(pf) ? 'ig' : 'fb') + '">' + (/insta/.test(pf) ? 'IG' : 'f') + '</span><p dir="auto">' + esc(t.slice(2).join(' · ') || '—') + '</p><small>' + esc(t[0] || '') + '</small></button>'; }).join('')
         : '<p class="text-xs text-ink-400">' + esc(U.noPosts) + '</p>'; };
     pg.addEventListener('click', function (e) { var b = e.target.closest('[data-v]'); if (!b) return; ps.value = b.dataset.v; pg.querySelectorAll('.adq-post').forEach(function (x) { x.classList.toggle('on', x === b); }); fire(ps); });

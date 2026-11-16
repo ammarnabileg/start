@@ -26,7 +26,7 @@ try {
     db();
 } catch (Throwable $t) {
     http_response_code(500);
-    exit(t('<div dir="rtl" style="font-family:sans-serif;padding:40px">تعذر الاتصال بقاعدة البيانات. راجع بياناتها أو كلم الدعم الفني.</div>'));
+    exit(t('<div dir="rtl" style="font-family:sans-serif;padding:40px">تعذّر الاتصال بقاعدة البيانات. راجع بياناتها أو تواصل مع الدعم الفني.</div>'));
 }
 
 /**

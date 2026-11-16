@@ -56,7 +56,7 @@ function img_openai_generate(string $prompt, string $aspect = '1:1', int $n = 1)
         CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'prompt' => mb_substr($prompt, 0, 30000), 'size' => $size, 'quality' => $q, 'n' => $n], JSON_UNESCAPED_UNICODE)]);
     $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $cerr = curl_error($ch); curl_close($ch);
     $j = json_decode($raw, true);
-    if ($raw === '' && $cerr !== '') throw new RuntimeException(t('تعذر الاتصال بـ %s: %s', 'OpenAI', $cerr));
+    if ($raw === '' && $cerr !== '') throw new RuntimeException(net_friendly('OpenAI', (string)$cerr));
     if ($code >= 400 || !is_array($j)) {
         $msg = (string)($j['error']['message'] ?? ('HTTP ' . $code)); $codeS = (string)($j['error']['code'] ?? '');
         if ($codeS === 'moderation_blocked' || stripos($msg, 'safety') !== false) throw new RuntimeException(t('رفض OpenAI الوصف لأنه مخالف لسياسة المحتوى. جرّب وصفًا مختلفًا.'));

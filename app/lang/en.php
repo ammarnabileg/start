@@ -373,7 +373,7 @@ return [
     'البرنامج محدث، بس تقدر تشغل التحديث تاني بأمان.' => 'Up to date — running the update again is safe.',
     'ادخل بحساب مدير النظام:' => 'Sign in with a system admin account:',
     'تحديث البيانات' => 'Update data',
-    '<div dir="rtl" style="font-family:sans-serif;padding:40px">تعذر الاتصال بقاعدة البيانات. راجع بياناتها أو كلم الدعم الفني.</div>' => '<div dir="ltr" style="font-family:sans-serif;padding:40px">Couldn\'t connect to the database. Check its details or contact support.</div>',
+    '<div dir="rtl" style="font-family:sans-serif;padding:40px">تعذّر الاتصال بقاعدة البيانات. راجع بياناتها أو تواصل مع الدعم الفني.</div>' => '<div dir="ltr" style="font-family:sans-serif;padding:40px">Couldn\'t connect to the database. Check its details or contact support.</div>',
     'الصفحة دي لصاحب الشركة بس.' => 'This page is for the company owner only.',
     'جاري التنفيذ...' => 'Working...',
     'تعليق' => 'Comment',

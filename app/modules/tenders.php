@@ -245,7 +245,7 @@ function tnd_apify_req(string $method, string $path, ?array $body = null, ?strin
     if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
     $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
-    if ($raw === false) throw new RuntimeException(t('تعذر الاتصال بـ %s: %s', 'Apify', $err));
+    if ($raw === false) throw new RuntimeException(net_friendly('Apify', (string)$err));
     $d = json_decode((string)$raw, true);
     if ($code === 401 || $code === 403) throw new RuntimeException(t('مفتاح Apify غلط أو مالوش صلاحية.'));
     if ($code >= 400) throw new RuntimeException('Apify: ' . (is_array($d) ? (string)($d['error']['message'] ?? $code) : $code));

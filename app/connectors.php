@@ -258,7 +258,7 @@ function pexels_request(array $c, string $path, array $q = []): array
     $ch = curl_init($base . $path . ($q ? '?' . http_build_query($q) : ''));
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_HTTPHEADER => ['Authorization: ' . $c['api_key'], 'Accept: application/json']]);
     $raw = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
-    if ($raw === false) throw new Exception(t('تعذر الاتصال بـ %s: %s', 'Pexels', $err));
+    if ($raw === false) throw new Exception(net_friendly('Pexels', (string)$err));
     if ($st === 401 || $st === 403) throw new Exception(t('مفتاح %s غير صحيح أو ليس له صلاحية.', 'Pexels'));
     if ($st >= 400) throw new Exception(t('خطأ من %s (%s)', 'Pexels', $st));
     return json_decode($raw, true) ?: [];
@@ -273,7 +273,7 @@ function hf_request(array $c, string $method, string $path, ?array $body = null)
     if ($body !== null) { $h[] = 'Content-Type: application/json'; curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $method, CURLOPT_TIMEOUT => 40, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => $h]);
     $raw = curl_exec($ch); $st = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $err = curl_error($ch); curl_close($ch);
-    if ($raw === false) throw new Exception(t('تعذر الاتصال بـ %s: %s', 'Higgsfield', $err));
+    if ($raw === false) throw new Exception(net_friendly('Higgsfield', (string)$err));
     $d = json_decode($raw, true) ?: [];
     if ($st === 401 || $st === 403) throw new Exception(t('مفتاح %s غير صحيح أو ليس له صلاحية.', 'Higgsfield'));
     if ($st >= 400) {

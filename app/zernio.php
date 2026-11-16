@@ -200,7 +200,8 @@ class Zernio
         curl_close($ch);
 
         if ($raw === false) {
-            throw new ZernioException(t('تعذر الاتصال بـ Zernio: ') . $err);
+            error_log('Zernio connect: ' . $err); // التفاصيل التقنية للوج بس، مش للعميل
+            throw new ZernioException(t('تعذّر الاتصال بخدمة النشر (Zernio) الآن. غالبًا مشكلة مؤقتة؛ حاول مرة أخرى بعد دقائق.'));
         }
         $data = json_decode($raw, true);
         if (!is_array($data)) {
@@ -308,7 +309,8 @@ class Zernio
         curl_close($ch);
         fclose($fh);
         if ($status < 200 || $status >= 300) {
-            throw new ZernioException(t('فشل رفع الملف (%s) %s', $status, $err));
+            if ($err !== '') error_log('Zernio upload: ' . $status . ' ' . $err);
+            throw new ZernioException(t('فشل رفع الملف إلى خدمة النشر (%s). حاول مرة أخرى.', $status ?: '—'));
         }
         return $r['publicUrl'];
     }

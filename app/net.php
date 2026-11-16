@@ -73,3 +73,11 @@ function safe_fetch_public_ip(string $ip): bool
     }
     return true;
 }
+
+/** رسالة واضحة للعميل لما خدمة خارجية ماتردش؛ التفاصيل التقنية (curl) بتروح للّوج بس */
+function net_friendly(string $service, string $techErr = ''): string
+{
+    if ($techErr !== '') error_log($service . ' connect: ' . $techErr);
+    return t('تعذّر الاتصال بخدمة %s الآن. غالبًا مشكلة مؤقتة؛ حاول مرة أخرى بعد دقائق.', $service);
+}
+
