@@ -1704,6 +1704,8 @@ svg.pi{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;strok
 .dark .cw-psi span{background:#1e293b}.dark .cw-hint{background:#1e1b4b;color:#c7d2fe}.dark .cw-code{background:#431407;border-color:#9a3412}.dark .cw-seo div{border-color:#1e293b}.dark .cw-seo p,.dark .cw-facts b{color:#f1f5f9}
 /* التبويبات بقت 6: تتسحب بالعرض بدل ما تخرج برّه الشاشة */
 .cx-tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cx-tabs::-webkit-scrollbar{display:none}.cx-tabs button{white-space:nowrap;flex-shrink:0}
+/* على الشاشات الواسعة: كل التبويبات ظاهرة (سطرين لو لزم) بدل ما «التقييمات» و«الموقع» يستخبوا بره الشاشة */
+@media (min-width:640px){.cx-tabs{flex-wrap:wrap;overflow:visible}}
 .cs-sec .cs-sub{margin:.55rem 0 .35rem;line-height:1.6}.cs-sec .cs-chips + .cs-sub{margin-top:.7rem}.cw-psi + .cs-sub{margin-top:.5rem}
 
 .cx-why{font-size:.7rem;line-height:1.55;color:#b45309;background:#fffbeb;border-radius:8px;padding:.35rem .55rem;margin:.15rem 0 .45rem}.cx-why small{color:#92400e}.dark .cx-why{background:#422006;color:#fde68a}

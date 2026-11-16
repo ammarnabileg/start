@@ -28,6 +28,10 @@ $payload = function () use ($host) {
 if (($_GET['export'] ?? '') === 'csv') { header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="competitors-' . date('Y-m-d') . '.csv"'); echo cmp_csv(); exit; }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $GLOBALS['cw_no_psi'] = true; // PageSpeed بطيء (لحد دقيقة): بيتعمل من التشغيل الدوري بس
+    $GLOBALS['net_quick'] = true; // ومفيش انتظار لـ Apify جوه طلب المستخدم: القراءة عبره بتكمل من التشغيل الدوري
+    @set_time_limit(120);
+    // لو اتخطّينا Apify: نخلي التشغيل الدوري الجاي يقرأه كامل (الموقع الحاجب أو المبني بالجافاسكريبت)
+    $bgRead = function (array $c): bool { if (empty($GLOBALS['net_quick_skipped'])) return false; db()->prepare('UPDATE competitors SET last_check = NULL WHERE id = ?')->execute([(int)$c['id']]); try { db()->prepare('UPDATE competitor_site SET b2b_at = NULL WHERE competitor_id = ?')->execute([(int)$c['id']]); } catch (Throwable $e) {} $GLOBALS['net_quick_skipped'] = false; return true; };
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'overview') { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => true, 'o' => cmp_overview()], JSON_UNESCAPED_UNICODE)); }
     if ($a === 'self_add') { cmp_self_create(); $sf = cmp_self(); if ($sf) { try { cs_sync($sf); if (cs_on()) { cs_refresh($sf); ca_refresh($sf); } comp_check($sf); } catch (Throwable $e) {} } flash('success', t('أضفنا حساباتك للمقارنة. البيانات تكتمل خلال دقائق.')); $back(); }
@@ -57,10 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $links = implode("\n", array_slice(array_values(array_filter(array_map('trim', preg_split('/\s+/', (string)($_POST['links'] ?? ''))), function ($x) { return preg_match('~^https?://~i', $x); })), 0, 6));
         db()->prepare('INSERT INTO competitors (workspace_id, name, url, links, note) VALUES (?, ?, ?, ?, ?)')->execute([$wid, $name, mb_substr($u, 0, 500), $links ?: null, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 500) ?: null]);
         $c = comp_get((int)db()->lastInsertId());
-        comp_check($c); $c = comp_get((int)$c['id']);
+        try { comp_check($c); } catch (Throwable $e) { error_log('comp add check: ' . $e->getMessage()); } $c = comp_get((int)$c['id']); $bg = $bgRead($c);
         try { cs_sync($c); if (cs_on()) { cs_refresh($c); ca_refresh($c); cg_start($c, 'find'); } } catch (Throwable $e) {}
         log_activity('competitor.add', $name);
-        if ($c['last_ok']) flash('success', t('اتضاف %s واتقرا موقعه ✓', $name)); else flash('error', t('اتضاف %s، بس موقعه مش بيفتح دلوقتي. هنحاول تاني بكرة.', $name));
+        if ($bg) flash('success', t('أُضيف %s. موقعه يحتاج قراءة متقدمة، وستكتمل بياناته تلقائيًا خلال دقائق.', $name));
+        elseif ($c['last_ok']) flash('success', t('أُضيف %s وقُرئ موقعه ✓', $name)); else flash('error', t('أُضيف %s، لكن موقعه لا يفتح الآن. سنحاول مرة أخرى تلقائيًا.', $name));
         $back('c' . (int)$c['id']);
     }
     $c = comp_get((int)($_POST['id'] ?? 0));
@@ -88,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $SJ(['ok' => true, 'bad' => $bad, 'r' => cg_report($c)]);
     }
     if ($a === 'site') $SJ(['ok' => true, 'r' => cw_report($c)]);
-    if ($a === 'site_check') { comp_check($c); $SJ(['ok' => true, 'r' => cw_report(comp_get((int)$c['id']))]); }
+    if ($a === 'site_check') { comp_check($c); $bgRead($c); $SJ(['ok' => true, 'r' => cw_report(comp_get((int)$c['id']))]); }
     if ($a === 'rank_poll') { if (cw_rank_pending($wid)) { try { cw_rank_collect($wid); } catch (Throwable $e) {} } $SJ(['ok' => true, 'r' => cw_report($c)]); }
     if ($a === 'ads') $SJ(['ok' => true, 'r' => ca_report($c)]);
     if ($a === 'ads_refresh') {
@@ -112,8 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $SJ(['ok' => true, 'started' => $started, 'links' => array_values(array_filter(explode("\n", (string)$c['links']))), 'r' => cs_report((int)$c['id'])]);
     }
     if ($a === 'check') {
-        $n = comp_check($c); $c = comp_get((int)$c['id']); try { cmp_alert_tick(); } catch (Throwable $e) {}
-        if (!$c['last_ok']) flash('error', t('موقع %s مش بيفتح دلوقتي.', $c['name']));
+        $n = comp_check($c); $c = comp_get((int)$c['id']); $bg = $bgRead($c); try { cmp_alert_tick(); } catch (Throwable $e) {}
+        if ($bg) flash('success', t('موقع %s يحتاج قراءة متقدمة، وستكتمل خلال دقائق تلقائيًا.', $c['name']));
+        elseif (!$c['last_ok']) flash('error', t('موقع %s مش بيفتح دلوقتي.', $c['name']));
         else flash('success', $n ? t('اتسجل %s تغيير ✓', $n) : t('مفيش تغيير من آخر مرة.'));
         $back('c' . (int)$c['id']);
     }

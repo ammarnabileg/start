@@ -5778,4 +5778,8 @@ If you know someone who needs our services, send them this link. They get {get},
     'd/m h:i A' => 'd/m h:i A',
     'يُعرض آخر 500 عملية. ضيّق الفترة أو استخدم البحث لرؤية الأقدم.' => 'Showing the latest 500 entries. Narrow the period or search to see older ones.',
     'انتهت جلستك، سجّل الدخول مرة أخرى للمتابعة.' => 'Your session has expired. Please sign in again to continue.',
+    'أُضيف %s. موقعه يحتاج قراءة متقدمة، وستكتمل بياناته تلقائيًا خلال دقائق.' => '%s added. Its website needs advanced reading; its data will complete automatically within minutes.',
+    'أُضيف %s وقُرئ موقعه ✓' => '%s added and its website was read ✓',
+    'أُضيف %s، لكن موقعه لا يفتح الآن. سنحاول مرة أخرى تلقائيًا.' => '%s added, but its website is not opening right now. We will retry automatically.',
+    'موقع %s يحتاج قراءة متقدمة، وستكتمل خلال دقائق تلقائيًا.' => '%s website needs advanced reading; it will complete automatically within minutes.',
 ];

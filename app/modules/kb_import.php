@@ -16,6 +16,8 @@ function kbi_fetch(string $url, int $max = 600000): array
         $err = (string)$r['err'];
     } else $err = $blocked[$host];
     // الموقع بيقفل الاتصال في وش السيرفر (حجب دول/زيارات آلية): نقراه من Apify ببروكسي سكني من بلد الشركة
+    // طلب تفاعلي (المستخدم مستني الصفحة): مانستناش Apify (لحد 90 ثانية)، نعلّم إن القراءة الكاملة تكمل في الخلفية
+    if (!empty($GLOBALS['net_quick']) && function_exists('cs_on') && cs_on()) { $GLOBALS['net_quick_skipped'] = true; return ['err' => $err]; }
     if ($viaApify > 0 && function_exists('cs_on') && cs_on() && preg_match('~^https?://~i', $url)) {
         $blocked[$host] = $err; $viaApify--;
         $a = kbi_fetch_apify($url);

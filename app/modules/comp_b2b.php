@@ -118,6 +118,9 @@ function cb_vendors(string $text): array
 function cb_looks_js(string $html): bool
 {
     $txt = mb_strlen(cb_text($html)); $scripts = substr_count(strtolower($html), '<script');
+    // مواقع حديثة (Next.js / React): الصفحة كبيرة والنص المقروء نسبة صغيرة جدًا منها
+    $len = strlen($html); if ($len > 150000 && $txt < $len * 0.012) return true;
+    if (strpos($html, 'self.__next_f') !== false && $txt < 8000) return true;
     return ($scripts >= 5 && $txt < 600) || preg_match('~<div[^>]+id=["\'](__next|root|app|__nuxt)["\'][^>]*>\s*</div>~i', $html) || (preg_match('~(swiper|slick|owl-carousel|splide|glide)~i', $html) && !preg_match('~<img\b[^>]*\balt=["\'][^"\']{2,}~i', cb_main($html)));
 }
 
@@ -132,6 +135,7 @@ function cb_check(string $homeHtml, string $homeUrl, array $old): array
         $f = function_exists('kbi_fetch') ? kbi_fetch($u, 900000) : ['err' => 'no fetch']; if (!empty($f['err']) || empty($f['html'])) continue; $h = (string)$f['html'];
         $got = $pull($k, $h);
         // الصفحة طلعت فاضية وشكلها جافاسكريبت: نقراها مرة بمتصفح حقيقي (Apify)
+        if (!$got && $k !== 'certs' && $render > 0 && cb_looks_js($h) && function_exists('cs_on') && cs_on() && function_exists('kbi_fetch_apify') && !empty($GLOBALS['net_quick'])) { $GLOBALS['net_quick_skipped'] = true; $render = 0; }
         if (!$got && $k !== 'certs' && $render > 0 && cb_looks_js($h) && function_exists('cs_on') && cs_on() && function_exists('kbi_fetch_apify')) {
             $render--; $a = kbi_fetch_apify($u, true); if (!empty($a['html'])) { $h = (string)$a['html']; $got = $pull($k, $h); $d['rendered'][] = $k; }
         }

@@ -125,6 +125,11 @@ function cw_check(array $c, bool $force = false): int
     $t0 = microtime(true);
     $k = kbi_fetch((string)$c['url'], 1500000); // نفس القراءة (مع Apify لو الموقع حاجب السيرفر)
     $r = empty($k['err']) ? ['url' => $k['url'], 'body' => $k['html']] : ['err' => $k['err']];
+    // الرئيسية مبنية بالجافاسكريبت (المحتوى بيتحمّل بعد الفتح): نقرأها بمتصفح عبر Apify، في الخلفية بس
+    if (empty($k['err']) && ($k['via'] ?? '') !== 'apify' && function_exists('cb_looks_js') && cb_looks_js((string)$k['html']) && function_exists('cs_on') && cs_on() && function_exists('kbi_fetch_apify')) {
+        if (!empty($GLOBALS['net_quick'])) $GLOBALS['net_quick_skipped'] = true;
+        else { $ra = kbi_fetch_apify((string)$c['url'], true); if (!empty($ra['html']) && mb_strlen(cb_text((string)$ra['html'])) > mb_strlen(cb_text((string)$k['html']))) { $r = ['url' => $ra['url'] ?: $r['url'], 'body' => (string)$ra['html']]; $k['via'] = 'apify'; } }
+    }
     $ms = (int)round((microtime(true) - $t0) * 1000); $ok = empty($r['err']) && (string)($r['body'] ?? '') !== '';
     if ($ok && ($k['via'] ?? '') === 'apify') $ms = null; // الوقت هنا وقت Apify مش وقت الموقع
     $pdo->prepare('REPLACE INTO competitor_site_days (competitor_id, day, ok, ms) VALUES (?, ?, ?, ?)')->execute([$cid, date('Y-m-d'), $ok ? 1 : 0, $ok && $ms !== null ? $ms : null]);
