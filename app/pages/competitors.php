@@ -138,7 +138,7 @@ render(t('المنافسين'), 'competitors', function () use ($payload, $kinds
   if ($waiting && ($cAge === null || $cAge > 7200)): ?>
   <div class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><b><?= e(t('القراءة في الخلفية متوقفة.')) ?></b> <?= e(t('%s منافس ينتظر قراءة موقعه، لكن المهام الدورية (Cron) لا تعمل على الخادم. أبلغ مدير المنصة بتفعيلها.', $waiting)) ?></div>
   <?php endif; ?>
-  <?php if (function_exists('apify_cap') && cs_on()): $au = apify_used((int)ws('id')); $ac = apify_cap((int)ws('id')); $ap = $ac ? min(100, (int)round($au / $ac * 100)) : 100; ?>
+  <?php if (function_exists('apify_cap') && cs_on() && ($ac = apify_cap((int)ws('id'))) && ($ap = min(100, (int)round(($au = apify_used((int)ws('id'))) / $ac * 100))) >= 75): // بيظهر بس لما يقرب من الحد ?>
   <p class="mb-3 text-xs <?= $ap >= 90 ? 'text-red-700' : ($ap >= 75 ? 'text-amber-700' : 'text-ink-500') ?>" title="<?= e(t('كل قراءة لحسابات المنافس أو إعلاناته أو تقييماته تُحسب تشغيلة.')) ?>"><?= e(t('تشغيلات متابعة المنافسين هذا الشهر: %s من %s', number_format($au), number_format($ac))) ?></p>
   <?php endif; ?>
   <div id="cx"></div>
