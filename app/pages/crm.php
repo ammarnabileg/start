@@ -89,12 +89,17 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
     <div id="tg" data-mk>
     <div class="mk-stats">
       <button type="button" class="mk-stat mk-on" data-mk-stat="_all" data-mk-test=""><span class="mk-ic bg-ink-100 text-ink-700"><?= ui_icon('layers', 'w-5 h-5') ?></span><span><b><?= count($rows) ?></b><small><?= e(t('كل الشركات')) ?></small></span></button>
-      <?php foreach ($src as $k => $l): ?>
-        <button type="button" class="mk-stat" data-mk-stat="<?= e($k) ?>" data-mk-test="src=<?= e($k) ?>"><span class="mk-ic <?= $ics[$k][1] ?>"><?= ui_icon($ics[$k][0], 'w-5 h-5') ?></span><span><b><?= (int)$counts[$k] ?></b><small><?= e($l) ?></small></span></button>
-      <?php endforeach; ?>
+
       <button type="button" class="mk-stat" data-mk-stat="warm" data-mk-test="st=warm|st=won"><span class="mk-ic bg-amber-50 text-amber-700"><?= ui_icon('fire', 'w-5 h-5') ?></span><span><b><?= (int)$nWarm ?></b><small><?= e(t('مهتمة أو عملاء')) ?></small></span></button>
       <button type="button" class="mk-stat" data-mk-stat="bare" data-mk-test="bare=1"><span class="mk-ic bg-red-50 text-red-600"><?= ui_icon('alert', 'w-5 h-5') ?></span><span><b><?= (int)$nBare ?></b><small><?= e(t('بياناتها ناقصة')) ?></small></span></button>
     </div>
+    <?php // المصدر: شرائح صغيرة بدل 4 كروت كبيرة (ونفس الفلترة)، والمصدر اللي عدده صفر مايظهرش
+    $srcOn = array_filter($src, function ($k) use ($counts) { return (int)($counts[$k] ?? 0) > 0; }, ARRAY_FILTER_USE_KEY);
+    if (count($srcOn) > 1): ?>
+    <div class="flex flex-wrap items-center gap-1.5 -mt-1 mb-3 text-xs"><span class="text-ink-500"><?= e(t('المصدر:')) ?></span>
+      <?php foreach ($srcOn as $k => $l): ?><button type="button" class="mk-stat-chip inline-flex items-center gap-1 rounded-full border border-ink-200 bg-white px-2.5 py-1 text-ink-700 hover:border-brand-300 [&.mk-on]:border-brand-400 [&.mk-on]:bg-brand-50 [&.mk-on]:text-brand-800" data-mk-stat="<?= e($k) ?>" data-mk-test="src=<?= e($k) ?>"><?= ui_icon($ics[$k][0], 'w-3.5 h-3.5') ?><?= e($l) ?> <b class="tabular-nums"><?= (int)$counts[$k] ?></b></button><?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <div class="mk-tools">
       <label class="mk-search"><?= ui_icon('search') ?><input type="search" data-mk-q placeholder="<?= e(t('ابحث بالاسم أو المجال أو المدينة…')) ?>"><kbd>/</kbd></label>

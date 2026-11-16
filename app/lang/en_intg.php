@@ -5793,4 +5793,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'ترويج منشور' => 'Boost a post',
     'حملة كاملة، أو ترويج منشور، أو إعلان واحد' => 'Full campaign, boost a post, or a single ad',
     'تفاعل %s%%' => 'Engagement %s%%',
+    'المصدر:' => 'Source:',
 ];
