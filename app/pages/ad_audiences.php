@@ -8,6 +8,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     [$connId, $adAccId] = array_pad(explode('|', $sel), 2, '');
     try {
+        if ($action === 'pixel_code') {
+            header('Content-Type: application/json; charset=utf-8');
+            if ($connId === '' || $adAccId === '') exit(json_encode(['ok' => false, 'error' => t('اختار حساب الإعلانات.')], JSON_UNESCAPED_UNICODE));
+            $tg = ads_pixel($z, $connId, (string)($_POST['tag'] ?? ''), $adAccId);
+            exit(json_encode(['ok' => true, 'code' => (string)($tg['code'] ?? ''), 'events' => array_values((array)($tg['events'] ?? []))], JSON_UNESCAPED_UNICODE));
+        }
+        if ($action === 'pixel_create') {
+            $pname = mb_substr(trim((string)($_POST['pixel_name'] ?? '')), 0, 100);
+            if (!can('ads.spend')) flash('error', t('إنشاء البيكسل لصاحب صلاحية الإعلانات بس.'));
+            elseif ($connId === '' || $adAccId === '') flash('error', t('اختار حساب الإعلانات.'));
+            elseif (mb_strlen($pname) < 3) flash('error', t('اكتب اسم للبيكسل (3 حروف على الأقل).'));
+            else {
+                // Zernio مش بيمنع التكرار على Meta وTikTok، والبيكسل مابيتحذفش: نتأكد إن الاسم مش موجود قبل الإنشاء
+                $exists = array_filter(ads_pixels($z, $connId, $adAccId), function ($x) use ($pname) { return mb_strtolower(trim((string)($x['name'] ?? ''))) === mb_strtolower($pname); });
+                if ($exists) flash('error', t('فيه بيكسل بنفس الاسم بالفعل على الحساب ده.'));
+                else { $tg = ads_pixel_create($z, $connId, $adAccId, $pname); log_activity('ads.pixel_create', $pname); flash('success', t('تم إنشاء البيكسل. انسخ كود التركيب وحطه في موقعك.')); redirect(url('ad_audiences', ['t' => $sel, 'px' => (string)($tg['id'] ?? '')])); }
+            }
+            redirect(url('ad_audiences', ['t' => $sel]));
+        }
         if ($connId === '' || $adAccId === '') {
             flash('error', t('اختار حساب الإعلانات.'));
         } elseif ($action === 'delete') {
@@ -62,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 
 $targets = [];
 $audiences = [];
+$pixels = []; $pixelErr = null;
 $apiError = null;
 $current = null;
 if ($z) {
@@ -75,6 +95,7 @@ if ($z) {
             $current = $targets[0];
             $sel = $current['conn']['_id'] . '|' . $current['acc']['id'];
         }
+        if ($current) { try { $pixels = ads_pixels($z, $current['conn']['_id'], (string)$current['acc']['id']); } catch (ZernioException $ex) { $pixelErr = $ex->getMessage(); } }
         $fx = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_audiences.json' : '';
         if ($fx && is_file($fx)) {
             $audiences = json_decode((string)file_get_contents($fx), true) ?: [];
@@ -86,7 +107,7 @@ if ($z) {
     }
 }
 
-render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $targets, $current, $sel, $audiences) {
+render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $targets, $current, $sel, $audiences, $pixels, $pixelErr) {
     if (!$z) { no_api_box(); return; }
     $types = ['customer_list' => t('قائمة عملاء'), 'website' => t('زوار الموقع'), 'lookalike' => t('جمهور مشابه'),
         'meta_engagement' => t('اتفاعلوا مع الصفحة'), 'engagement' => t('تفاعل'), 'saved_targeting' => t('استهداف محفوظ'),
@@ -109,6 +130,37 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         </div>
         <noscript><button class="btn-primary"><?= e(t('عرض')) ?></button></noscript>
       </form>
+
+      <!-- البيكسل: تتبع زوار موقعك (أساس جمهور «زوار الموقع» وقياس التحويلات) -->
+      <section class="card p-5" id="px-card">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="font-bold text-ink-900"><?= e(t('البيكسل')) ?> <span class="text-xs font-normal text-ink-500"><?= e(t('يتتبع زوار موقعك عشان تعمل لهم جمهور وتقيس نتايج إعلاناتك')) ?></span></h2>
+          <?php if (can('ads.spend')): ?><button type="button" class="btn-ghost !text-xs border border-ink-200" data-px-new><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('إنشاء Pixel جديد')) ?></button><?php endif; ?>
+        </div>
+        <?php if ($pixelErr): ?><p class="text-xs text-amber-700"><?= e(t('تعذّر جلب البيكسلات: %s', $pixelErr)) ?></p><?php endif; ?>
+        <?php if (!$pixels && !$pixelErr): ?><p class="text-sm text-ink-500"><?= e(t('لا يوجد Pixel على حساب الإعلانات ده. أنشئ واحدًا من هنا وركّب كوده في موقعك.')) ?></p><?php endif; ?>
+        <div class="divide-y divide-ink-100">
+          <?php foreach ($pixels as $px): $pid = (string)($px['id'] ?? ''); $st = (string)($px['status'] ?? ''); $lf = (string)($px['lastFiredTime'] ?? $px['lastFired'] ?? ''); ?>
+            <div class="py-2.5 flex flex-wrap items-center gap-3" data-px="<?= e($pid) ?>">
+              <span class="w-2 h-2 rounded-full <?= $st === 'active' ? 'bg-lime-500' : 'bg-ink-300' ?>" title="<?= e($st === 'active' ? t('نشط') : t('غير نشط')) ?>"></span>
+              <div class="min-w-0 flex-1"><b class="text-sm text-ink-900"><?= e((string)($px['name'] ?? $pid)) ?></b>
+                <span class="block text-[11px] text-ink-500" dir="ltr" style="text-align:start"><?= e($pid) ?></span></div>
+              <span class="text-xs <?= $lf !== '' ? 'text-ink-600' : 'text-amber-700' ?>"><?= $lf !== '' ? e(t('آخر نشاط: %s', fmt_date($lf, 'd/m H:i'))) : e(t('لم يسجّل أي زيارة بعد')) ?></span>
+              <button type="button" class="btn-ghost !text-xs" data-px-code="<?= e($pid) ?>"><?= e(t('كود التركيب')) ?></button>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <div id="px-codebox" class="hidden mt-3"><textarea readonly rows="7" class="input font-mono text-[11px]" dir="ltr" id="px-code"></textarea>
+          <div class="flex items-center gap-2 mt-2"><button type="button" class="btn-primary !text-xs" id="px-copy"><?= e(t('انسخ الكود')) ?></button><span class="text-[11px] text-ink-500"><?= e(t('حطّه في <head> في كل صفحات موقعك.')) ?></span></div></div>
+        <?php if (can('ads.spend')): ?>
+        <form method="post" id="px-newform" class="hidden mt-3 flex flex-wrap items-end gap-2" onsubmit="return confirm('<?= tjs('البيكسل لا يمكن حذفه بعد إنشائه على أي منصة. تريد المتابعة؟') ?>')">
+          <?= csrf_field() ?><input type="hidden" name="action" value="pixel_create"><input type="hidden" name="t" value="<?= e($sel) ?>">
+          <div class="flex-1 min-w-[12rem]"><label class="label"><?= e(t('اسم البيكسل')) ?></label><input name="pixel_name" class="input" required minlength="3" maxlength="100" value="<?= e(ws('name') . ' — ' . t('الموقع')) ?>"></div>
+          <button class="btn-primary"><?= e(t('إنشاء')) ?></button>
+          <p class="basis-full text-[11px] text-amber-700"><?= e(t('تنبيه: البيكسل لا يُحذف بعد إنشائه (قيد من المنصات نفسها). لو مش هتستخدمه، شيل كوده من موقعك.')) ?></p>
+        </form>
+        <?php endif; ?>
+      </section>
 
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
       <section class="card overflow-hidden">
@@ -168,7 +220,9 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
             <div><label class="label"><?= e(t('رقم الصفحة / الحساب')) ?></label><input name="source_id" class="input" dir="ltr" value="<?= e($current['conn']['metadata']['selectedPageId'] ?? '') ?>"></div>
           </div>
           <div data-aud="website" class="grid sm:grid-cols-2 gap-3">
-            <div><label class="label"><?= e(t('رقم الـ Pixel')) ?></label><input name="pixel_id" class="input" dir="ltr"></div>
+            <div><label class="label"><?= e(t('البيكسل')) ?></label>
+              <?php if ($pixels): ?><select name="pixel_id" class="input"><?php foreach ($pixels as $px): ?><option value="<?= e((string)($px['id'] ?? '')) ?>"><?= e((string)($px['name'] ?? '') . ' · ' . ($px['id'] ?? '')) ?></option><?php endforeach; ?></select>
+              <?php else: ?><input name="pixel_id" class="input" dir="ltr" placeholder="<?= e(t('لا يوجد Pixel: أنشئ واحدًا من كارت «البيكسل» فوق')) ?>"><?php endif; ?></div>
             <div><label class="label"><?= e(t('الرابط بيحتوي على (اختياري)')) ?></label><input name="url_contains" class="input" dir="ltr" placeholder="/products"></div>
           </div>
           <div data-aud="meta_engagement website">
@@ -206,5 +260,26 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
       <script src="assets/ad-aud-ui.js?v=<?= e(APP_VERSION) ?>"></script>
       <?php endif; ?>
     </div>
+<script>
+// على مستوى الصفحة كلها: بيفضل شغال بعد ما live.js يبدّل المحتوى (من غير إعادة تحميل)
+(function () {
+  if (window.__pxBound) return; window.__pxBound = true;
+  document.addEventListener('click', function (e) {
+    var nb = e.target.closest('#px-card [data-px-new]');
+    if (nb) { var nf = document.getElementById('px-newform'); if (nf) { nf.classList.toggle('hidden'); var i = nf.querySelector('input[name=pixel_name]'); if (i) i.focus(); } return; }
+    var cp = e.target.closest('#px-copy');
+    if (cp) { var t0 = document.getElementById('px-code'); t0.select(); try { navigator.clipboard.writeText(t0.value); } catch (x) { document.execCommand('copy'); } cp.textContent = '✓'; return; }
+    var b = e.target.closest('#px-card [data-px-code]'); if (!b) return;
+    var fd = new FormData(); fd.append('action', 'pixel_code'); fd.append('tag', b.dataset.pxCode);
+    var tsel = document.querySelector('select[name=t]'); fd.append('t', tsel ? tsel.value : '');
+    var tk = document.querySelector('input[name=_csrf]'); if (tk) fd.append('_csrf', tk.value);
+    b.disabled = true;
+    fetch(location.pathname + '?p=ad_audiences', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (d) {
+      b.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
+      var ta = document.getElementById('px-code'), box = document.getElementById('px-codebox'); ta.value = d.code || ''; box.classList.remove('hidden'); ta.focus(); ta.select();
+    }).catch(function () { b.disabled = false; });
+  });
+})();
+</script>
     <?php
 }, ['full' => true]);

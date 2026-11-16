@@ -210,6 +210,26 @@ function ads_targeting_search(Zernio $z, string $accountId, string $q, string $d
 
 /* ---------- الجماهير ---------- */
 
+/* ---------- البيكسل (Tracking tags): Meta Pixel، TikTok Pixel، LinkedIn Insight Tag، Google tag... ----------
+ * Zernio: GET/POST /v1/accounts/{accountId}/tracking-tags (accountId = اتصال الإعلانات). مفيش حذف لأي بيكسل على أي منصة. */
+function ads_pixels(Zernio $z, string $accountId, string $adAccountId): array
+{
+    $r = $z->request('GET', '/v1/accounts/' . rawurlencode($accountId) . '/tracking-tags', ['adAccountId' => $adAccountId]);
+    return array_values((array)($r['tags'] ?? $r['trackingTags'] ?? $r['data'] ?? []));
+}
+
+function ads_pixel(Zernio $z, string $accountId, string $tagId, string $adAccountId): array
+{
+    $r = $z->request('GET', '/v1/accounts/' . rawurlencode($accountId) . '/tracking-tags/' . rawurlencode($tagId), ['adAccountId' => $adAccountId]);
+    return (array)($r['tag'] ?? $r);
+}
+
+function ads_pixel_create(Zernio $z, string $accountId, string $adAccountId, string $name): array
+{
+    $r = $z->request('POST', '/v1/accounts/' . rawurlencode($accountId) . '/tracking-tags', [], ['adAccountId' => $adAccountId, 'name' => $name]);
+    return (array)($r['tag'] ?? $r);
+}
+
 function ads_audiences(Zernio $z, string $accountId, string $adAccountId): array
 {
     return $z->request('GET', '/v1/ads/audiences', ['accountId' => $accountId, 'adAccountId' => $adAccountId])['audiences'] ?? [];
