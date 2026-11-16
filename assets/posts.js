@@ -185,12 +185,13 @@
       var pa = {}, per = {}; sch.forEach(function (p) { var k = siteDT(new Date(p.at)).slice(0, 10); (p.ac && p.ac.length ? p.ac : ['_']).forEach(function (a) { var kk = k + '|' + a; pa[kk] = (pa[kk] || 0) + 1; if (pa[kk] > (per[k] || 0)) per[k] = pa[kk]; }); });
       var busy = Object.keys(per).filter(function (k) { return per[k] > Hq.busyN; });
       var nd = Object.keys(dupSet).length;
-      box.classList.remove('hidden');
+      // الصف ده بيظهر بس لو فيه مشكلة (تكرار أو ازدحام)، و«الجدول سليم» من غير داعي كانت زحمة فوق التقويم
+      box.classList.toggle('hidden', !nd && !busy.length);
       box.innerHTML = '<span class="font-semibold text-ink-700">' + uic('alert', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(Hq.hTitle) + ':</span>' +
         (nd ? '<button type="button" id="cal-dup-open" class="rounded-full bg-orange-100 text-orange-800 border border-orange-200 px-2.5 py-0.5 hover:bg-orange-200">' + uic('refresh', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(Hq.hDup.replace('%s', nd).replace('%s', dupGroups.length)) + ' · ' + esc(Hq.hShow) + '</button>' : '') +
         (busy.length ? '<span class="rounded-full bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5">' + uic('fire', 'w-4 h-4 inline-block align-[-3px]') + '' + esc(Hq.hBusy.replace('%s', busy.length).replace('%s', Hq.busyN)) + '</span>' : '') +
-        (!nd && !busy.length ? '<span class="text-lime-700">✓ ' + esc(Hq.hOk) + '</span>' : '') +
         '<label class="ms-auto inline-flex items-center gap-1.5 text-ink-500">' + esc(Hq.hLimit) + ' <input id="cal-busyN" type="number" min="1" max="50" value="' + Hq.busyN + '" class="input !w-16 !py-0.5 text-xs"></label>';
+      if (!nd && !busy.length) box.innerHTML = ''; // مفيش مشكلة: الصف فاضي (والأهداف لو موجودة بتظهر لوحدها تحت)
       var bi = $('#cal-busyN'); if (bi) bi.onchange = function () { var v = Math.max(1, Math.min(50, +bi.value || 6)); try { localStorage.setItem('cal-busyN', v); } catch (e) {} Hq.busyN = v; draw(); };
       var ob = $('#cal-dup-open'); if (ob) ob.onclick = openDups; goalsBar();
       // علامات على التقويم
@@ -289,6 +290,7 @@
       var s = weekStart(), e = new Date(s), cnt = {}; e.setDate(e.getDate() + 7);
       X.data.forEach(function (p) { if (['scheduled', 'published'].indexOf(p.st) < 0) return; var d = new Date(siteDT(new Date(p.at)).slice(0, 16)); if (d < s || d >= e) return; (p.ac || []).forEach(function (a) { cnt[a] = (cnt[a] || 0) + 1; }); });
       var old = $('#cal-goals'); if (old) old.remove();
+      box.classList.remove('hidden');
       var w = document.createElement('div'); w.id = 'cal-goals'; w.className = 'basis-full flex flex-wrap items-center gap-2 pt-1';
       w.innerHTML = '<span class="font-semibold text-ink-700">' + esc(X.q.gLbl) + ':</span>' + ks.map(function (a) { var n = cnt[a] || 0, ok = n >= g[a]; return '<span class="rounded-full border px-2.5 py-0.5 ' + (ok ? 'bg-lime-50 border-lime-200 text-lime-800' : 'bg-amber-50 border-amber-200 text-amber-800') + '">' + esc((X.q.accs || {})[a] || a) + ' ' + n + '/' + g[a] + (ok ? ' ✓' : '') + '</span>'; }).join('');
       box.classList.add('flex-wrap'); box.appendChild(w);
