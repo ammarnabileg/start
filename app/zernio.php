@@ -37,7 +37,8 @@ class Zernio
     }
 
     /** عنوان الخدمة (في الاختبارات بس ممكن يتوجه لسيرفر محلي) */
-    private static function base(): string { $b = getenv('UI_FIXTURES') ? (string)getenv('ZERNIO_BASE') : ''; return $b !== '' ? $b : self::BASE; }
+    // ZERNIO_BASE لو متحدد بيتحترم دايمًا (كان بيتحترم بس مع UI_FIXTURES، فسيرفر اختبار من غيره كان بيكلم Zernio الحقيقي)
+    private static function base(): string { $b = (string)getenv('ZERNIO_BASE'); return $b !== '' ? $b : self::BASE; }
 
     /** تقدر تقفل الكاش لطلب معين (مثلاً زرار "تحديث") */
     public static $noCache = false;

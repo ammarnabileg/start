@@ -20,7 +20,7 @@ $try = function (callable $fn) {
 if (($_GET['ajax'] ?? '') === 'ads') {
     header('Content-Type: text/html; charset=utf-8');
     if (!$z || !can('ads.view') || !module_enabled('ads')) exit;
-    $ck = 'dash_ads_' . (int)ws('id');
+    $ck = 'dash_ads_' . (int)ws('id') . '_' . lang(); // كان بيتحفظ HTML بلغة واحدة: الكارت كان بيظهر إنجليزي جوه الواجهة العربي
     if (!isset($_GET['refresh']) && isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 300) { echo $_SESSION[$ck]['h']; exit; }
     $today = (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d');
     [$f7, $t7] = ads_date_range('7');
@@ -117,12 +117,14 @@ if ($z && empty($dashHit)) {
 $activity = [];
 try {
     $st = db()->prepare("SELECT a.action, a.details, a.created_at, TIMESTAMPDIFF(SECOND, a.created_at, NOW()) AS ago, u.name FROM activity_log a LEFT JOIN users u ON u.id = a.user_id
-        WHERE a.workspace_id = ? AND a.action NOT IN ('login', 'logout') AND a.action NOT LIKE 'admin.%' AND a.action NOT LIKE 'system.%' ORDER BY a.id DESC LIMIT 40");
+        WHERE a.workspace_id = ? AND a.action NOT IN ('login', 'logout', 'settings.update', 'ai.agent_cfg', 'connector.save', 'reports.view', 'kb.save', 'media.upload', 'designer.ai', 'studio.write', 'tenders.kw_add', 'tenders.kw_off') AND a.action NOT LIKE 'admin.%' AND a.action NOT LIKE 'system.%' AND a.action NOT LIKE '%.cfg%' AND a.action NOT LIKE '%.view' ORDER BY a.id DESC LIMIT 60"); // نشاط له معنى بس (منشورات، ردود، عملاء، حملات) — مش حفظ إعدادات
     $st->execute([(int)ws('id')]);
     foreach ($st->fetchAll() as $r) {
         $last = count($activity) - 1;
+        // «أجرى تغييرًا في …» العام من غير تفاصيل ملوش فايدة في الرئيسية (موجود في سجل النشاط الكامل)
+        if (!in_array($r['action'], ['post.create', 'post.delete', 'inbox.reply', 'comment.reply', 'comment.delete', 'account.connect', 'account.disconnect', 'team.invite', 'team.remove', 'invite.accept', 'post.update', 'broadcast.send', 'comment.reply_bulk', 'comment.hide_bulk', 'inbox.assign', 'post.duplicate', 'post.retry', 'post.create_pro', 'review.reply', 'campaign.create', 'automation.create', 'ai.image'], true)) continue;
         if ($last >= 0 && $activity[$last]['action'] === $r['action'] && $activity[$last]['name'] === $r['name']) { $activity[$last]['n']++; $activity[$last]['first'] = $r['created_at']; continue; }
-        if (count($activity) >= 7) break;
+        if (count($activity) >= 5) break;
         $r['n'] = 1; $r['first'] = $r['created_at']; $activity[] = $r;
     }
 } catch (Throwable $t) {
@@ -234,8 +236,6 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <h1 class="text-2xl sm:text-3xl font-semibold text-ink-900 mt-1"><?= e(t('%s، %s', $greet, explode(' ', trim($u['name']))[0])) ?></h1>
       </div>
       <div class="flex flex-wrap gap-2">
-        <?php if (can('inbox.reply')): ?><a href="<?= e(url('inbox')) ?>" class="btn-ghost"><?= e(t('الرسائل')) ?><?php if ($unreadTotal): ?> <span class="bg-red-600 text-white text-[11px] rounded-full px-1.5"><?= (int)$unreadTotal ?></span><?php endif; ?></a><?php endif; ?>
-        <?php if (can('posts.view')): ?><a href="<?= e(url('calendar')) ?>" class="btn-ghost"><?= e(t('التقويم')) ?></a><?php endif; ?>
         <?php if (can('posts.create')): ?><a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('+ منشور جديد')) ?></a><?php endif; ?>
         <?php if ($z): ?><a href="<?= e(url('dashboard', ['refresh' => 1])) ?>" class="tb px-3 gap-1.5 text-sm" title="<?= e(!empty($dashHit) ? t('البيانات محفوظة منذ %s دقيقة. اضغط لجلبها من جديد.', max(1, (int)round((time() - (int)@filemtime($dashF)) / 60))) : t('جلب البيانات من جديد')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('تحديث')) ?></span></a><?php endif; ?>
         <button type="button" id="dash-edit" class="tb px-3 gap-1.5 text-sm" title="<?= e(t('تخصيص الرئيسية')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="hidden sm:inline"><?= e(t('تخصيص')) ?></span></button>
@@ -244,7 +244,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
 
     <?php if (!$z): no_api_box(); return; endif; ?>
 
-    <?php if ($steps && $stepsDone < count($steps)): ?>
+    <?php if ($steps && (!$steps[0][1] || !$steps[1][1])): // بعد ربط النشر وأول حساب «رحلة شركتك» بتكمل نفس الدور ?>
       <!-- قائمة البداية -->
       <div class="card p-5 mb-6">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -299,7 +299,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
 
     <?php if ($z): ?>
     <!-- ملخص اليوم + منشور سريع -->
-    <div class="grid lg:grid-cols-[1fr_24rem] gap-4 mb-6" data-w="brief">
+    <div class="mb-6" data-w="brief">
       <div class="card p-5 relative overflow-hidden">
         <div class="absolute -top-16 -end-16 w-56 h-56 rounded-full bg-gradient-to-br from-brand-500/10 to-cyan-400/10 blur-2xl pointer-events-none"></div>
         <b class="text-sm text-ink-900"><?= e(t('النهارده')) ?></b>
@@ -331,14 +331,6 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         </div>
         <?php endif; ?>
       </div>
-      <?php if (can('posts.create')): ?>
-      <form class="card p-4 flex flex-col" id="dash-quick" action="index.php" method="get">
-        <input type="hidden" name="p" value="compose">
-        <b class="text-sm text-ink-900 flex items-center gap-2"><?= ui_icon('bulb', 'w-4 h-4 text-brand-600') ?><?= e(t('فكرة منشور سريعة')) ?></b>
-        <textarea name="dup_text" rows="4" maxlength="3000" class="input mt-2 text-sm flex-1 resize-none" dir="auto" placeholder="<?= e(t('اكتب الفكرة هنا وكمّلها في صفحة المنشور الجديد...')) ?>"></textarea>
-        <div class="flex items-center gap-2 mt-2"><span class="dq-n text-[11px] text-ink-400 tabular-nums"></span><button class="btn-primary !py-1.5 !text-xs ms-auto"><?= e(t('كمّل في المنشور الجديد')) ?> <kbd class="hidden sm:inline text-[10px] opacity-70">Ctrl ↵</kbd></button></div>
-      </form>
-      <?php endif; ?>
     </div>
     <?php endif; ?>
     <?php if ($bad): ?>

@@ -354,6 +354,21 @@ if ($z && $fixture && is_file($fixture)) {
     $total = count($posts);
     if ($view === 'list' && ($per = (int)($fx['per_page'] ?? 0)) > 0) { $pages = (int)ceil($total / $per); $posts = array_slice($posts, ($pageNo - 1) * $per, $per); } // اختبار الصفحات
 } elseif ($z) {
+    // كل طلبات الصفحة لـ Zernio مع بعض (كانت 7 طلبات ورا بعض = ثواني كتير)
+    if (method_exists($z, 'prefetch')) { try {
+        $pf = zernio_profile(); $ckV = method_exists($z, 'dataVersion') ? $z->dataVersion() : '';
+        $cnt = $_SESSION['ps_counts_' . (int)ws('id')] ?? null; $cntFresh = $cnt && ($cnt['v'] ?? '') === $ckV && $cnt['t'] > time() - 600 && !isset($_GET['refresh']);
+        $mt = $_SESSION['ps_metrics_' . (int)ws('id')] ?? null; $mtFresh = $mt && $mt['t'] > time() - 1800 && !isset($_GET['refresh']);
+        $z->prefetch(array_values(array_filter([
+            $view === 'cal' ? null : ['/v1/posts', ['status' => $status ?: null, 'page' => $pageNo, 'limit' => 24, 'sortBy' => $status === 'scheduled' ? 'scheduled-asc' : 'created-desc', 'profileId' => $pf]],
+            ['/v1/accounts', ['profileId' => $pf, 'category' => 'social']],
+            $cntFresh ? null : ['/v1/posts', ['status' => 'scheduled', 'limit' => 1, 'page' => 1, 'profileId' => $pf]],
+            $cntFresh ? null : ['/v1/posts', ['status' => 'failed', 'limit' => 1, 'page' => 1, 'profileId' => $pf]],
+            $cntFresh ? null : ['/v1/posts', ['status' => 'draft', 'limit' => 1, 'page' => 1, 'profileId' => $pf]],
+            $cntFresh ? null : ['/v1/posts', ['status' => 'published', 'limit' => 1, 'page' => 1, 'profileId' => $pf]],
+            ($mtFresh || !module_enabled('analytics') || !can('analytics.view')) ? null : ['/v1/analytics', ['limit' => 100, 'page' => 1, 'sortBy' => 'date', 'order' => 'desc', 'profileId' => $pf]],
+        ])));
+    } catch (Throwable $e) {} }
     try {
         if ($view === 'cal') {
             // التقويم: المجدول (الجاي) + آخر المنشور، لحد 100 من كل نوع
@@ -383,7 +398,7 @@ $apiRows = [];
 if ($fxa && is_file($fxa)) $apiRows = (array)(json_decode((string)file_get_contents($fxa), true)['posts'] ?? []);
 elseif ($z && !$apiError && module_enabled('analytics') && can('analytics.view') && function_exists('an_posts')) {
     $ck = 'ps_metrics_' . (int)ws('id');
-    if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 600 && !isset($_GET['refresh'])) $apiRows = $_SESSION[$ck]['d'];
+    if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 1800 && !isset($_GET['refresh'])) $apiRows = $_SESSION[$ck]['d']; // أرقام التفاعل (فيها X وهي الأغلى): نص ساعة
     else {
         try { $apiRows = (array)(an_posts($z, ['limit' => 100, 'page' => 1, 'sortBy' => 'date', 'order' => 'desc', 'profileId' => zernio_profile()])['posts'] ?? []); } catch (Throwable $e) { $apiRows = []; }
         $_SESSION[$ck] = ['t' => time(), 'd' => array_map(function ($r) { return ['_id' => $r['_id'] ?? '', 'platforms' => array_map(function ($pl) { return ['platformPostId' => $pl['platformPostId'] ?? '']; }, (array)($r['platforms'] ?? [])), 'platformPostId' => $r['platformPostId'] ?? '', 'analytics' => (array)($r['analytics'] ?? [])]; }, $apiRows)];
@@ -406,12 +421,13 @@ if ($z && $fixture && is_file($fixture)) {
     foreach ((array)(json_decode((string)file_get_contents($fixture), true)['posts'] ?? []) as $p) { $k = (string)($p['status'] ?? ''); $counts[$k] = ($counts[$k] ?? 0) + 1; }
 } elseif ($z && !$apiError) {
     $ck = 'ps_counts_' . (int)ws('id');
-    if (isset($_SESSION[$ck]) && $_SESSION[$ck]['t'] > time() - 120 && !isset($_GET['refresh'])) $counts = $_SESSION[$ck]['d'];
+    $ckV = method_exists($z, 'dataVersion') ? $z->dataVersion() : '';
+    if (isset($_SESSION[$ck]) && ($_SESSION[$ck]['v'] ?? '') === $ckV && $_SESSION[$ck]['t'] > time() - 600 && !isset($_GET['refresh'])) $counts = $_SESSION[$ck]['d']; // بتتحدث مع أي نشر/تعديل
     else {
         foreach (['scheduled', 'failed', 'draft', 'published'] as $k) {
             try { $r = $z->posts(['status' => $k, 'limit' => 1, 'page' => 1, 'profileId' => zernio_profile()]); $counts[$k] = (int)($r['pagination']['total'] ?? count($r['posts'] ?? [])); } catch (ZernioException $ex) { /* اختياري */ }
         }
-        $_SESSION[$ck] = ['t' => time(), 'd' => $counts];
+        $_SESSION[$ck] = ['t' => time(), 'v' => $ckV, 'd' => $counts];
     }
 }
 
@@ -475,6 +491,9 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       $accSeen = []; foreach ($posts as $p0) foreach ((array)($p0['platforms'] ?? []) as $pl0) { $a0 = pub_acc_id($pl0['accountId'] ?? ''); if ($a0 !== '' && isset($accounts[$a0])) $accSeen[$a0] = ($accSeen[$a0] ?? 0) + 1; }
       $tagSeen = []; foreach ($tagsMap as $tgs) foreach ($tgs as $tg) $tagSeen[$tg] = ($tagSeen[$tg] ?? 0) + 1; // كل منشورات الشركة، مش الصفحة دي بس
       arsort($tagSeen);
+      // لو كل منصة عليها حساب واحد، أزرار الحسابات نسخة من أزرار المنصات بنفس الأرقام: مانعرضهاش
+      $platOfAcc = []; foreach ($accSeen as $aid => $n) $platOfAcc[] = (string)($accounts[$aid]['plat'] ?? '');
+      if (count($platOfAcc) === count(array_unique($platOfAcc))) $accSeen = [];
     ?>
     <?php if ($view === 'list' && (count($accSeen) > 1 || $tagSeen)): ?>
       <div class="flex flex-wrap items-center gap-1.5 mb-4 -mt-2" id="ps-af">
@@ -576,9 +595,9 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
           <article data-tags="<?= e(implode('|', $ptags)) ?>" data-acc="<?= e(implode(' ', array_filter($accIds))) ?>" data-eng="<?= $mx ? (int)$mx['eng'] : -1 ?>" data-t="<?= e((string)($when ?? '')) ?>" class="ps-card group relative card p-0 overflow-hidden flex flex-col transition hover:shadow-lg hover:-translate-y-0.5" data-id="<?= e($p['_id']) ?>" data-pf="<?= e($pf) ?>" data-q="<?= e(mb_strtolower(mb_substr((string)($p['content'] ?? ''), 0, 1000))) ?>">
             <?php if ($m && !empty($m['url'])): ?>
               <a href="<?= e(url('post_edit', ['id' => $p['_id']])) ?>" class="ps-media relative block aspect-[16/9] bg-ink-100 overflow-hidden">
-                <?php if ($mt === 'video'): ?><video src="<?= e($m['url']) ?>" class="w-full h-full object-cover" muted preload="metadata"></video><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></span></span>
+                <?php if ($mt === 'video'): ?><?php $thumb = (string)($m['thumbnail'] ?? $m['thumbnailUrl'] ?? $m['previewUrl'] ?? ''); ?><?php if ($thumb !== ''): ?><img src="<?= e($thumb) ?>" class="w-full h-full object-cover" loading="lazy" decoding="async" alt="" referrerpolicy="no-referrer"><?php else: ?><span class="w-full h-full block bg-ink-900"></span><?php endif; ?><span class="absolute inset-0 flex items-center justify-center"><span class="w-10 h-10 rounded-full bg-ink-900/60 text-[#fff] flex items-center justify-center"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></span></span>
                 <?php elseif ($mt === 'document'): ?><span class="w-full h-full flex items-center justify-center text-sm text-ink-500"><?= e(t('ملف')) ?></span>
-                <?php else: ?><img src="<?= e($m['url']) ?>" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" alt="" referrerpolicy="no-referrer"><?php endif; ?>
+                <?php else: ?><img src="<?= e($m['url']) ?>" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" alt="" referrerpolicy="no-referrer"><?php endif; ?>
                 <?php if (count($p['mediaItems']) > 1): ?><span class="absolute bottom-2 end-2 rounded-md bg-ink-900/70 text-[#fff] text-[10px] px-1.5 py-0.5">+<?= count($p['mediaItems']) - 1 ?></span><?php endif; ?>
               </a>
             <?php endif; ?>
@@ -604,7 +623,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
                   <span title="<?= e(t('إعجاب')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-8-5-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 9c0 6-8 11-8 11z"/></svg> <?= e($nf($mx['likes'])) ?></span>
                   <span title="<?= e(t('تعليق')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg> <?= e($nf($mx['comments'])) ?></span>
                   <?php if ($mx['shares']): ?><span title="<?= e(t('مشاركة')) ?>"><svg class="w-4 h-4 inline-block align-[-3px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/></svg> <?= e($nf($mx['shares'])) ?></span><?php endif; ?>
-                  <?php if ($mx['rate'] !== null): ?><span class="ms-auto font-medium <?= $mx['rate'] >= 3 ? 'text-lime-700' : 'text-ink-600' ?>" title="<?= e(t('نسبة التفاعل')) ?>"><?= e($mx['rate']) ?>%</span><?php endif; ?>
+                  <?php if ($mx['rate'] !== null): ?><span class="ms-auto font-medium <?= $mx['rate'] >= 3 ? 'text-lime-700' : 'text-ink-600' ?>" title="<?= e(t('نسبة التفاعل')) ?>"><?= e(t('تفاعل %s%%', $mx['rate'])) ?></span><?php endif; ?>
                 </div>
               <?php endif; ?>
               <?php if ($errs): ?><details class="mt-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2"><summary class="cursor-pointer text-[11px] font-medium text-red-700"><?= e(t('سبب الفشل')) ?></summary><?php foreach ($errs as $er): ?><p class="text-[11px] text-red-700 mt-1 break-words"><?= e(mb_substr($er, 0, 300)) ?></p><?php endforeach; ?></details><?php endif; ?>
@@ -704,7 +723,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       <p class="text-[11px] text-ink-400 mt-2"><?= e(t('التقويم بيجيب كل المنشورات المجدولة في الفترة اللي قدامك، ولما تقلّب بيجيب الباقي. اضغط على يوم فاضي في المستقبل عشان تعمل منشور فيه.')) ?><?php if (can('posts.manage')): ?> <?= e(t('اسحب أي منشور مجدول ليوم تاني عشان تغير ميعاده (نفس الساعة).')) ?><?php endif; ?></p>
     <?php endif; ?>
     <?php endif; ?>
-    <?php $diagRows = (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true); if ($diagRows && can('posts.manage')): ?>
+    <?php $diagRows = isset($_GET['diag']) ? (array)json_decode((string)setting('ps_diag_' . (int)ws('id'), '[]'), true) : []; if ($diagRows && can('posts.manage')): // تشخيص للدعم بس (?diag=1) ?>
       <?php if (is_admin()): ?><details class="card p-4 mt-6 text-sm" id="ps-diag">
         <summary class="cursor-pointer font-semibold text-ink-800">🩺 <?= e(t('تشخيص تغيير المواعيد')) ?> <span class="text-xs text-ink-500 font-normal">(<?= e(t('آخر %s محاولة', count($diagRows))) ?>: <?= e(t('%s نجحت', count(array_filter($diagRows, function ($d) { return !empty($d['ok']); })))) ?>)</span></summary>
         <p class="text-xs text-ink-500 mt-2"><?= e(t('لو تغيير الميعاد مش بيتحفظ، انسخ اللي تحت وابعته للدعم. مفيهوش مفاتيح ولا بيانات سرية.')) ?></p>
