@@ -108,9 +108,9 @@ render(t('الشركات المستهدفة'), 'crm', function () use ($rows, $s
         </div></div>
       <span class="text-xs text-ink-500 tabular-nums"><span data-mk-shown></span></span>
       <span class="ms-auto"></span>
-      <form id="tg-add" class="flex items-center gap-1.5 m-0" data-no-ajax>
-        <input name="q" class="input !mt-0 !py-2 !w-72 text-sm" dir="auto" autocomplete="off" placeholder="<?= e(t('دومين الشركة أو اسمها')) ?>" title="<?= e(t('دومين الشركة (مثلًا company.com) أو اسمها لو مالهاش موقع')) ?>">
-        <button class="btn-ghost"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('أضف')) ?></button>
+      <form id="tg-add" class="flex items-center gap-1.5 m-0 w-full sm:w-auto min-w-0" data-no-ajax>
+        <input name="q" class="input !mt-0 !py-2 flex-1 min-w-0 sm:!w-72 sm:flex-none text-sm" dir="auto" autocomplete="off" placeholder="<?= e(t('دومين الشركة أو اسمها')) ?>" title="<?= e(t('دومين الشركة (مثلًا company.com) أو اسمها لو مالهاش موقع')) ?>">
+        <button class="btn-ghost shrink-0"><?= ui_icon('plus', 'w-4 h-4') ?><?= e(t('أضف')) ?></button>
       </form>
       <?php if ($canManage): ?><button type="button" id="tg-ai" class="btn-primary" <?= $aiOn ? '' : 'data-off="1"' ?>><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اقترح شركات')) ?></span></button><?php endif; ?>
     </div>
