@@ -5745,4 +5745,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'حد Apify الشهري' => 'Monthly Apify limit',
     'أفلت الملفات هنا لإضافتها إلى المنشور' => 'Drop files here to add them to the post',
     'تم تغيير الشركة المفتوحة من تبويب آخر. حدّث الصفحة ثم أعد المحاولة؛ لم يُحفظ أي شيء.' => 'The open company was changed in another tab. Refresh the page and try again; nothing was saved.',
+    'انتهت صلاحية الجلسة (لم يُحفظ شيء). ارجع للصفحة السابقة، وحدّثها، ثم أعد المحاولة — ما كتبته يبقى غالبًا في الصفحة السابقة.' => 'Your session expired (nothing was saved). Go back, refresh the page and try again — what you typed is usually still on the previous page.',
+    'رجوع' => 'Back',
 ];

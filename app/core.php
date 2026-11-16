@@ -127,6 +127,11 @@ function start_session(): void
         return;
     }
     $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    // الجلسة تعيش يوم شغل (8 ساعات من آخر نشاط) بدل الافتراضي (24 دقيقة) اللي كان بيضيّع شغل اللي بيكتب منشور طويل.
+    // فولدر خاص برّه الموقع: عشان تنظيف السيرفر الافتراضي (بإعداداته هو) مايمسحهاش بدري
+    @ini_set('session.gc_maxlifetime', '28800');
+    $sd = rtrim(sys_get_temp_dir(), '/\\') . '/wtd_sess_' . substr(md5(__DIR__), 0, 10);
+    if ((is_dir($sd) || @mkdir($sd, 0700, true)) && is_writable($sd)) session_save_path($sd);
     session_name('ZSESS');
     session_set_cookie_params([
         'lifetime' => 0,
@@ -156,7 +161,10 @@ function check_csrf(): void
     $sent = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
     if (!is_string($sent) || !hash_equals(csrf_token(), $sent)) {
         http_response_code(419);
-        exit(t('انتهت صلاحية الصفحة. ارجع وحدّث الصفحة وحاول تاني.'));
+        $msg = t('انتهت صلاحية الجلسة (لم يُحفظ شيء). ارجع للصفحة السابقة، وحدّثها، ثم أعد المحاولة — ما كتبته يبقى غالبًا في الصفحة السابقة.');
+        if (stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false || !empty($_SERVER['HTTP_X_CSRF_TOKEN']) || !empty($_SERVER['HTTP_X_WS_ID'])) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => $msg, 'expired' => true], JSON_UNESCAPED_UNICODE)); }
+        header('Content-Type: text/html; charset=utf-8');
+        exit('<!doctype html><html dir="' . (function_exists('is_rtl') && is_rtl() ? 'rtl' : 'ltr') . '"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>419</title><div style="font-family:system-ui,sans-serif;max-width:520px;margin:12vh auto;padding:28px;border:1px solid #e2e8f0;border-radius:18px;text-align:center"><p style="font-size:2rem;margin:0">⏳</p><p style="color:#0f172a;line-height:1.7">' . e($msg) . '</p><button onclick="history.back()" style="background:#2563eb;color:#fff;border:0;border-radius:12px;padding:10px 22px;font-size:1rem;cursor:pointer">' . e(t('رجوع')) . '</button></div></html>');
     }
 }
 
