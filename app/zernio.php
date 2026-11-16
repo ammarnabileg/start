@@ -75,6 +75,9 @@ class Zernio
     }
 
     /** "جيل" الكاش لكل مفتاح: أي تعديل بيزوّده، فكل البيانات القديمة بتتجاهل فوراً */
+    /** للصفحات اللي عاملة كاش خاص (الرئيسية): بيتغير مع أي تعديل (نشر، رد، ربط حساب) */
+    public function dataVersion(): string { return $this->cacheGen(); }
+
     private function cacheGen(): string
     {
         $dir = self::cacheDir();

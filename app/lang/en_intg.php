@@ -5784,4 +5784,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'موقع %s يحتاج قراءة متقدمة، وستكتمل خلال دقائق تلقائيًا.' => '%s website needs advanced reading; it will complete automatically within minutes.',
     'القراءة في الخلفية متوقفة.' => 'Background reading is stopped.',
     '%s منافس ينتظر قراءة موقعه، لكن المهام الدورية (Cron) لا تعمل على الخادم. أبلغ مدير المنصة بتفعيلها.' => '%s competitor(s) are waiting for their website to be read, but scheduled tasks (Cron) are not running on the server. Ask the platform admin to enable them.',
+    'البيانات محفوظة منذ %s دقيقة. اضغط لجلبها من جديد.' => 'Data saved %s min ago. Click to fetch fresh data.',
+    'جلب البيانات من جديد' => 'Fetch fresh data',
 ];

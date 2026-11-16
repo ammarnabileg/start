@@ -75,14 +75,23 @@ if (($_GET['ajax'] ?? '') === 'ads') {
 
 $d = ['accounts' => null, 'scheduled' => null, 'convs' => null, 'comments' => null, 'daily' => null];
 $e = [];
-if ($z) {
+// كاش الرئيسية: كل فتحة للرئيسية كانت بتعمل 5 طلبات لـ Zernio (منها أرقام وتعليقات X وهي الأغلى).
+// بنحفظ بيانات الرئيسية 5 دقايق لكل شركة وصلاحيات، والرسم البياني (14 يوم) 6 ساعات. «تحديث» بيجيبها من جديد.
+$dashDir = ROOT_DIR . '/uploads/cache'; @mkdir($dashDir, 0750, true);
+$dashPerm = implode(',', array_map(function ($k) { return can($k) ? 1 : 0; }, ['accounts.view', 'posts.create', 'posts.view', 'inbox.reply', 'comments.reply', 'analytics.view'])) . (module_enabled('analytics') ? 'a' : '');
+$dashF = $dashDir . '/dash_' . (int)ws('id') . '_' . md5($dashPerm . '|' . $pid . '|' . ($z && method_exists($z, 'dataVersion') ? $z->dataVersion() : '')) . '.json';
+$dailyF = $dashDir . '/dashd_' . (int)ws('id') . '_' . md5((string)$pid) . '.json';
+$dashFresh = !isset($_GET['refresh']) && is_file($dashF) && filemtime($dashF) > time() - 300;
+$dailyFresh = !isset($_GET['refresh']) && is_file($dailyF) && filemtime($dailyF) > time() - 6 * 3600;
+if ($z && $dashFresh) { $cd = json_decode((string)@file_get_contents($dashF), true); if (is_array($cd)) { $d = array_merge($d, $cd); $dashHit = true; } }
+if ($z && empty($dashHit)) {
     // الطلبات كلها في نفس الوقت بدل واحد ورا التاني (ده كان سبب بطء الرئيسية)
     if (method_exists($z, 'prefetch')) { try { $z->prefetch(array_values(array_filter([
         (can('accounts.view') || can('posts.create')) ? ['/v1/accounts', ['profileId' => $pid]] : null,
         can('posts.view') ? ['/v1/posts', ['status' => 'scheduled', 'limit' => 50, 'sortBy' => 'scheduled-asc', 'profileId' => $pid]] : null,
         can('inbox.reply') ? ['/v1/inbox/conversations', ['limit' => 30, 'profileId' => $pid]] : null,
         can('comments.reply') ? ['/v1/inbox/comments', ['limit' => 5, 'profileId' => $pid]] : null,
-        (can('analytics.view') && module_enabled('analytics')) ? ['/v1/analytics/daily-metrics', ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 13 * 86400), 'toDate' => gmdate('Y-m-d')]] : null,
+        (can('analytics.view') && module_enabled('analytics') && !$dailyFresh) ? ['/v1/analytics/daily-metrics', ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 13 * 86400), 'toDate' => gmdate('Y-m-d')]] : null,
     ]))); } catch (Throwable $t) {} }
     if (can('accounts.view') || can('posts.create')) [$d['accounts'], $e['accounts']] = $try(function () use ($z, $pid) { return $z->allAccounts($pid); });
     if (can('posts.view')) [$d['scheduled'], $e['scheduled']] = $try(function () use ($z, $pid) {
@@ -91,10 +100,17 @@ if ($z) {
     if (can('inbox.reply')) [$d['convs'], $e['convs']] = $try(function () use ($z, $pid) { return $z->conversations(['limit' => 30, 'profileId' => $pid])['data'] ?? []; });
     if (can('comments.reply')) [$d['comments'], $e['comments']] = $try(function () use ($z, $pid) { return $z->commentedPosts(['limit' => 5, 'profileId' => $pid])['data'] ?? []; });
     if (can('analytics.view') && module_enabled('analytics') && function_exists('an_daily_metrics')) {
-        [$d['daily'], $e['daily']] = $try(function () use ($z, $pid) {
-            return an_daily_metrics($z, ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 13 * 86400), 'toDate' => gmdate('Y-m-d')]);
-        });
+        $cdd = $dailyFresh ? json_decode((string)@file_get_contents($dailyF), true) : null;
+        if (is_array($cdd)) $d['daily'] = $cdd;
+        else {
+            [$d['daily'], $e['daily']] = $try(function () use ($z, $pid) {
+                return an_daily_metrics($z, ['profileId' => $pid, 'fromDate' => gmdate('Y-m-d', time() - 13 * 86400), 'toDate' => gmdate('Y-m-d')]);
+            });
+            if (empty($e['daily']) && is_array($d['daily'])) @file_put_contents($dailyF, json_encode($d['daily'], JSON_UNESCAPED_UNICODE));
+        }
     }
+    // نحفظ بس لو كل الطلبات نجحت (مانحفظش خطأ مؤقت 5 دقايق)
+    if (!array_filter($e)) @file_put_contents($dashF, json_encode($d, JSON_UNESCAPED_UNICODE));
 }
 
 // نشاط الفريق من سجل البرنامج (من غير طلبات خارجية)
@@ -221,6 +237,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <?php if (can('inbox.reply')): ?><a href="<?= e(url('inbox')) ?>" class="btn-ghost"><?= e(t('الرسائل')) ?><?php if ($unreadTotal): ?> <span class="bg-red-600 text-white text-[11px] rounded-full px-1.5"><?= (int)$unreadTotal ?></span><?php endif; ?></a><?php endif; ?>
         <?php if (can('posts.view')): ?><a href="<?= e(url('calendar')) ?>" class="btn-ghost"><?= e(t('التقويم')) ?></a><?php endif; ?>
         <?php if (can('posts.create')): ?><a href="<?= e(url('compose')) ?>" class="btn-primary"><?= e(t('+ منشور جديد')) ?></a><?php endif; ?>
+        <?php if ($z): ?><a href="<?= e(url('dashboard', ['refresh' => 1])) ?>" class="tb px-3 gap-1.5 text-sm" title="<?= e(!empty($dashHit) ? t('البيانات محفوظة منذ %s دقيقة. اضغط لجلبها من جديد.', max(1, (int)round((time() - (int)@filemtime($dashF)) / 60))) : t('جلب البيانات من جديد')) ?>"><?= ui_icon('refresh', 'w-4 h-4') ?><span class="hidden sm:inline"><?= e(t('تحديث')) ?></span></a><?php endif; ?>
         <button type="button" id="dash-edit" class="tb px-3 gap-1.5 text-sm" title="<?= e(t('تخصيص الرئيسية')) ?>"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="hidden sm:inline"><?= e(t('تخصيص')) ?></span></button>
       </div>
     </div>
