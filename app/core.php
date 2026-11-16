@@ -8,6 +8,7 @@ require_once __DIR__ . '/i18n.php';
 require_once __DIR__ . '/crypto.php';
 require_once __DIR__ . '/net.php';
 require_once __DIR__ . '/ws_purge.php';
+require_once __DIR__ . '/thumb.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/navigation.php';
 require_once __DIR__ . '/platforms.php';
