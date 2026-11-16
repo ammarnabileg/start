@@ -233,7 +233,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
             <?php if ($current): ?><input type="hidden" name="id" value="<?= e($a['id'] ?? '') ?>"><input type="hidden" name="platform" value="<?= e($plat) ?>"><?php endif; ?>
             <div class="px-4 h-14 border-b border-ink-200 flex items-center gap-3 shrink-0">
               <a href="<?= e(url('automations')) ?>" class="lg:hidden p-2 -ms-2 rounded-lg hover:bg-ink-100"><svg class="w-5 h-5 rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></a>
-              <input name="name" required maxlength="100" class="flex-1 min-w-0 bg-transparent border-0 p-0 text-base font-semibold text-ink-900 focus:ring-0 focus:outline-none placeholder:text-ink-400" value="<?= e($a['name'] ?? '') ?>" placeholder="<?= e(t('اسم الأتمتة، مثلًا: السعر في الخاص')) ?>" dir="auto">
+              <input name="name" required maxlength="100" class="flex-1 min-w-0 bg-transparent border-0 p-0 text-base font-semibold text-ink-900 focus:ring-0 focus:outline-none placeholder:text-ink-400" value="<?= e($a['name'] ?? '') ?>" placeholder="<?= e(t('اسم الرد التلقائي، مثلًا: السعر في الخاص')) ?>" dir="auto">
               <label class="inline-flex items-center gap-2 text-xs text-ink-600 cursor-pointer"><input type="checkbox" name="is_active" value="1" class="sr-only peer" <?= ($a['isActive'] ?? true) ? 'checked' : '' ?>><span class="w-9 h-5 rounded-full bg-ink-300 peer-checked:bg-lime-500 transition relative after:absolute after:top-0.5 after:start-0.5 after:w-4 after:h-4 after:rounded-full after:bg-[#fff] after:shadow after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4"></span><span class="au-onlbl"></span></label>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
@@ -258,7 +258,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
                       </label>
                     <?php endforeach; ?>
                   </div>
-                  <?php if (!$accounts): ?><p class="text-xs text-red-600"><?= e(t('مفيش حساب مربوط يدعم الأتمتة (إنستجرام، فيسبوك، تيك توك، ثريدز، لينكدإن، يوتيوب).')) ?></p><?php endif; ?>
+                  <?php if (!$accounts): ?><p class="text-xs text-red-600"><?= e(t('لا يوجد حساب مربوط يدعم الردود التلقائية (إنستجرام، فيسبوك، تيك توك، ثريدز، لينكدإن، يوتيوب).')) ?></p><?php endif; ?>
                   <details class="text-sm"><summary class="cursor-pointer text-xs text-brand-700"><?= e(t('على منشور واحد بس؟ (اختياري)')) ?></summary>
                     <input name="platform_post_id" class="input mt-2" dir="ltr" placeholder="<?= e(t('رقم المنشور على المنصة. سيبه فاضي عشان تشتغل على كل المنشورات')) ?>"></details>
                 <?php else: ?>
@@ -306,7 +306,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
             </div>
           </form>
           <?php if ($current && can('automations.manage')): ?>
-            <form method="post" id="au-del" class="hidden" onsubmit="return confirm('<?= tjs('حذف الأتمتة دي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($a['id'] ?? '') ?>"></form>
+            <form method="post" id="au-del" class="hidden" onsubmit="return confirm('<?= tjs('حذف هذا الرد التلقائي؟') ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= e($a['id'] ?? '') ?>"></form>
           <?php endif; ?>
         <?php endif; ?>
       </div>
@@ -360,7 +360,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
           <div class="p-5 text-sm text-ink-600 space-y-2">
             <b class="text-ink-900"><?= e(t('إزاي بتشتغل؟')) ?></b>
             <p><?= e(t('لما حد يكتب تعليق فيه واحدة من الكلمات دي، البرنامج بيبعتله الرسالة الخاصة أوتوماتيك، وممكن كمان يرد عليه رد عام تحت التعليق.')) ?></p>
-            <p><?= e(t('كل شخص بياخد الرسالة مرة واحدة بس لكل أتمتة.')) ?></p>
+            <p><?= e(t('كل شخص يستلم الرسالة مرة واحدة فقط لكل رد تلقائي.')) ?></p>
           </div>
         <?php endif; ?>
       </aside>
@@ -370,7 +370,7 @@ render(t('الردود التلقائية'), 'automations', function () use ($z,
       'kwN' => t('%s كلمة · أي تعليق فيه واحدة منهم يشغلها'), 'kwAny' => t('لو سبتها فاضية، أي تعليق هيشغلها.'), 'sugg' => ['سعر', 'بكام', 'price', 'تفاصيل', 'متاح', 'طلب', 'عرض', 'how much', 'info'], 'optional' => t('(اختياري)'), 'required' => t('(مطلوب)'),
       'needName' => t('اكتب اسمًا للرد التلقائي.'), 'needDm' => t('اكتب الرسالة الخاصة اللي هتتبعت.'), 'needReply' => t('المنصة دي بتدعم الرد العام بس، فاكتب الرد العام.'), 'leave' => t('فيه تعديلات مش محفوظة. تخرج من غير حفظ؟'), 'err' => t('حصلت مشكلة في الاتصال. جرب تاني.'),
       'toggled_on' => t('تم تشغيل الرد التلقائي.'), 'toggled_off' => t('تم إيقاف الرد التلقائي.'), 'keysTitle' => t('اختصارات الكيبورد'),
-      'keys' => [['j k', t('الأتمتة التالية / السابقة')], ['n', t('أتمتة جديدة')], ['/', t('البحث')], ['t', t('تشغيل / إيقاف المحددة')], ['Ctrl S', t('حفظ')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
+      'keys' => [['j k', t('الرد التلقائي التالي / السابق')], ['n', t('رد تلقائي جديد')], ['/', t('البحث')], ['t', t('تشغيل / إيقاف المحددة')], ['Ctrl S', t('حفظ')], ['?', t('الاختصارات')]]], JSON_UNESCAPED_UNICODE) ?>;</script>
     <script src="assets/automations.js?v=<?= e(APP_VERSION) ?>"></script>
     <?php
 }, ['full' => true]);

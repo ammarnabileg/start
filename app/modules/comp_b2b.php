@@ -65,7 +65,8 @@ function cb_clients(string $html): array
 {
     $main = cb_main($html); $names = [];
     if (preg_match_all('~<img\b[^>]*>~i', $main, $m)) foreach ($m[0] as $img) {
-        foreach (['alt', 'title'] as $at) if (preg_match('~\b' . $at . '=["\']([^"\']{2,80})["\']~iu', $img, $x)) { $names[] = $x[1]; break; }
+        // القيمة لحد علامة التنصيص اللي فتحتها بس (عشان «Ma'aden» و«Lowe's» مايتقطعوش)
+        foreach (['alt', 'title'] as $at) if (preg_match('~\b' . $at . '=(["\'])(.{2,80}?)\1~iu', $img, $x)) { $names[] = $x[2]; break; }
     }
     if (preg_match_all('~<li\b[^>]*>(.*?)</li>~is', $main, $m)) foreach ($m[1] as $li) { $t = trim(preg_replace('/\s+/u', ' ', strip_tags($li))); if (mb_strlen($t) >= 2 && mb_strlen($t) <= 60) $names[] = $t; }
     $out = [];
@@ -113,16 +114,30 @@ function cb_vendors(string $text): array
     return $out;
 }
 
+/** الصفحة شكلها مبنية بالجافاسكريبت؟ (سكربتات كتير ونص قليل، أو غلاف تطبيق فاضي، أو كاروسيل من غير صور) */
+function cb_looks_js(string $html): bool
+{
+    $txt = mb_strlen(cb_text($html)); $scripts = substr_count(strtolower($html), '<script');
+    return ($scripts >= 5 && $txt < 600) || preg_match('~<div[^>]+id=["\'](__next|root|app|__nuxt)["\'][^>]*>\s*</div>~i', $html) || (preg_match('~(swiper|slick|owl-carousel|splide|glide)~i', $html) && !preg_match('~<img\b[^>]*\balt=["\'][^"\']{2,}~i', cb_main($html)));
+}
+
 /** فحص B2B: بيرجع [البيانات, الأحداث] */
 function cb_check(string $homeHtml, string $homeUrl, array $old): array
 {
     $pages = cb_find_pages($homeHtml, $homeUrl); $allText = cb_text($homeHtml, true);
     $d = ['pages' => $pages, 'clients' => [], 'projects' => [], 'jobs' => [], 'certs' => [], 'vendors' => [], 'rfq' => false, 'profile' => '', 'cr' => false];
+    $render = 2; // أقصى صفحتين بمتصفح حقيقي في الفحص الواحد (تكلفة Apify)
+    $pull = function (string $k, string $h) { return $k === 'clients' ? cb_clients($h) : ($k === 'projects' ? cb_headings($h) : ($k === 'careers' ? cb_headings($h, 80) : [])); };
     foreach ($pages as $k => $u) {
         $f = function_exists('kbi_fetch') ? kbi_fetch($u, 900000) : ['err' => 'no fetch']; if (!empty($f['err']) || empty($f['html'])) continue; $h = (string)$f['html'];
-        if ($k === 'clients') $d['clients'] = cb_clients($h);
-        elseif ($k === 'projects') $d['projects'] = cb_headings($h);
-        elseif ($k === 'careers') $d['jobs'] = cb_headings($h, 80);
+        $got = $pull($k, $h);
+        // الصفحة طلعت فاضية وشكلها جافاسكريبت: نقراها مرة بمتصفح حقيقي (Apify)
+        if (!$got && $k !== 'certs' && $render > 0 && cb_looks_js($h) && function_exists('cs_on') && cs_on() && function_exists('kbi_fetch_apify')) {
+            $render--; $a = kbi_fetch_apify($u, true); if (!empty($a['html'])) { $h = (string)$a['html']; $got = $pull($k, $h); $d['rendered'][] = $k; }
+        }
+        if ($k === 'clients') $d['clients'] = $got;
+        elseif ($k === 'projects') $d['projects'] = $got;
+        elseif ($k === 'careers') $d['jobs'] = $got;
         $allText .= ' ' . cb_text($h, true);
     }
     // لو مفيش صفحة عملاء: قسم «عملاؤنا» في الرئيسية نفسها

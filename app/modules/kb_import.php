@@ -26,11 +26,12 @@ function kbi_fetch(string $url, int $max = 600000): array
 }
 
 /** قراءة صفحة عن طريق Apify (RAG Web Browser) — بيستنى النتيجة (لحد 100 ثانية) */
-function kbi_fetch_apify(string $url): array
+/** $render = متصفح حقيقي بيشغّل الجافاسكريبت (للصفحات اللي محتواها بيتبني بعد التحميل) — أبطأ وأغلى، فبيتستخدم عند الحاجة بس */
+function kbi_fetch_apify(string $url, bool $render = false): array
 {
     $tok = (string)(function_exists('tnd_apify_conn') ? (tnd_apify_conn()['credentials']['api_key'] ?? '') : ''); if ($tok === '') return ['err' => 'no key'];
     $cc = function_exists('ws_country') ? strtoupper((string)ws_country()) : 'SA';
-    $in = ['query' => $url, 'maxResults' => 1, 'outputFormats' => ['html'], 'scrapingTool' => 'raw-http', 'requestTimeoutSecs' => 60, 'proxyConfiguration' => ['useApifyProxy' => true, 'apifyProxyGroups' => ['RESIDENTIAL'], 'apifyProxyCountry' => $cc ?: 'SA']];
+    $in = ['query' => $url, 'maxResults' => 1, 'outputFormats' => ['html'], 'scrapingTool' => $render ? 'browser-playwright' : 'raw-http', 'requestTimeoutSecs' => 60, 'proxyConfiguration' => ['useApifyProxy' => true, 'apifyProxyGroups' => ['RESIDENTIAL'], 'apifyProxyCountry' => $cc ?: 'SA']];
     $ch = curl_init(rtrim((string)(getenv('APIFY_BASE') ?: 'https://api.apify.com'), '/') . '/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items?timeout=90&memory=1024');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($in), CURLOPT_TIMEOUT => 100, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $tok]]);
     $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
