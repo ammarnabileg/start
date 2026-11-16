@@ -248,6 +248,8 @@
       store.set(DK, JSON.stringify({ t: content.value, a: sel().map(function (c) { return c.value; }), at: Date.now() })); $('#cp-draft').textContent = '✎ ' + P.draftSaved;
     }, 500);
   }
+  // المسودة تُحذف بعد نجاح النشر فقط (لو الجلسة انتهت أو النت فصل، النص يفضل محفوظ)
+  if (/[?&]done=1/.test(location.search)) store.set(DK, '');
   var saved = null; try { saved = JSON.parse(store.get(DK) || 'null'); } catch (e) {}
   if (saved && saved.t && !content.value.trim() && Date.now() - saved.at < 7 * 864e5) {
     var bn = document.createElement('div'); bn.className = 'mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm';
@@ -261,7 +263,7 @@
   form.addEventListener('submit', function (e) {
     var a = e.submitter, m = $('.mode:checked');
     if ((!a || a.value !== 'validate') && m && m.value === 'now' && !confirm(P.confirmNow)) { e.preventDefault(); return; }
-    if (!a || a.value !== 'validate') { sending = true; store.set(DK, ''); store.set(LK, JSON.stringify(sel().map(function (c) { return c.value; }))); }
+    if (!a || a.value !== 'validate') { sending = true; clearTimeout(tm); if (content.value.trim()) store.set(DK, JSON.stringify({ t: content.value, a: sel().map(function (c) { return c.value; }), at: Date.now() })); store.set(LK, JSON.stringify(sel().map(function (c) { return c.value; }))); }
   });
   // الحسابات اللي استخدمتها آخر مرة بتتعلم لوحدها (لو الصفحة فاضية)
   (function () {
