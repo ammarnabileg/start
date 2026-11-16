@@ -365,7 +365,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                     try { $z->createPost(['scheduledFor' => $f] + $payload); $made++; }
                     catch (ZernioException $ex) { $extraFail[] = substr($f, 0, 16) . ': ' . $ex->getMessage(); }
                 }
-                log_activity('post.create_pro', $old['mode'] . ' ' . count($platforms) . ' accounts' . ($made > 1 ? ' x' . $made : ''));
+                // سجل النشر: تفاصيل مفهومة (النص، المنصات، الطريقة، الميعاد، رقم المنشور) بدل «now 2 accounts»
+                log_activity('post.create_pro', json_encode(['v' => 2, 'mode' => $old['mode'], 'id' => (string)($newId ?? ''), 'plat' => array_values(array_unique(array_map(function ($x) { return (string)($x['platform'] ?? ''); }, $platforms))), 'n' => count($platforms),
+                    'text' => mb_substr(trim(preg_replace('/\s+/u', ' ', (string)$old['content'])), 0, 160), 'at' => (string)($payload['scheduledFor'] ?? ''), 'x' => $made, 'media' => count($media ?? [])], JSON_UNESCAPED_UNICODE));
                 foreach ($extraFail as $m) flash('error', t('الميعاد الإضافي ماتعملش: %s', $m));
                 $_SESSION['cp_done'] = ['id' => $newId, 'mode' => $old['mode'], 'n' => $made, 'when' => $payload['scheduledFor'] ?? '', 'more' => $extraAt,
                     'text' => mb_substr($old['content'], 0, 4000), 'acc' => $old['accounts'], 'count' => count($platforms)];

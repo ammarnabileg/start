@@ -876,7 +876,7 @@ function crm_lookalike(): array
     $rows = $pick(['won']); $basis = 'won';
     if (count($rows) < 3) { $rows = $pick(['won', 'proposal', 'qualified']); $basis = 'warm'; }
     if (count($rows) < 2) return ['ok' => false];
-    $top = function (array $vals, int $n, int $min = 1) { $c = array_count_values(array_filter($vals, 'strlen')); arsort($c); return array_keys(array_filter(array_slice($c, 0, $n, true), function ($x) use ($min) { return $x >= $min; })); };
+    $top = function (array $vals, int $n, int $min = 1) { $c = array_count_values(array_filter(array_map('strval', array_filter($vals, function ($v) { return $v !== null; })), 'strlen')); arsort($c); return array_keys(array_filter(array_slice($c, 0, $n, true), function ($x) use ($min) { return $x >= $min; })); };
     // المسمى: بنوحّد الكلمات الشائعة عشان "Owner & Founder" و"Owner" يتحسبوا واحد
     $titles = array_map(function ($t) { $t = mb_strtolower(trim((string)$t)); foreach (['owner' => 'Owner', 'founder' => 'Founder', 'ceo' => 'CEO', 'marketing' => 'Marketing Manager', 'sales' => 'Sales Manager', 'operations' => 'Operations Manager', 'general manager' => 'General Manager'] as $k => $v) if (strpos($t, $k) !== false) return $v; return $t !== '' ? ucwords($t) : ''; }, array_column($rows, 'title'));
     $sizes = []; foreach (array_column($rows, 'employees') as $e) { $e = (int)$e; if (!$e) continue; foreach (crm_sizes() as $k => $_) { [$a, $b] = array_map('intval', explode(',', $k)); if ($e >= $a && $e <= $b) { $sizes[] = $k; break; } } }
