@@ -13,8 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', t('اكتب اسم الشركة.'));
             redirect(url('workspaces'));
         }
-        $pdo->prepare("INSERT INTO workspaces (name, created_by) VALUES (?, ?)")
-            ->execute([mb_substr($name, 0, 120), $me['id']]);
+        // التوقيت من متصفح المستخدم (شركة في الرياض تاخد توقيت الرياض، مش القاهرة الافتراضي) — المنشورات المجدولة بتعتمد عليه
+        $tz = (string)($_POST['tz'] ?? ''); if (!in_array($tz, timezone_identifiers_list(), true)) $tz = 'Africa/Cairo';
+        $pdo->prepare("INSERT INTO workspaces (name, created_by, timezone) VALUES (?, ?, ?)")
+            ->execute([mb_substr($name, 0, 120), $me['id'], $tz]);
         $wid = (int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
             ->execute([$wid, $me['id']]);
@@ -63,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (trim((string)($_POST['confirm'] ?? '')) !== $name) {
             flash('error', t('عشان تحذف، اكتب اسم الشركة بالظبط زي ما هو.'));
         } else {
-            $pdo->prepare("DELETE FROM workspaces WHERE id = ?")->execute([$id]);
+            require_once ROOT_DIR . '/app/ws_purge.php'; $purged = ws_purge((int)$id); // كل بيانات الشركة وملفاتها، مش صف الشركة بس
             log_activity('workspace.delete', $name);
             flash('success', t('اتحذفت "%s" من البرنامج. حساباتها ومنشوراتها في خدمة النشر زي ما هي.', $name));
         }
@@ -162,7 +164,7 @@ render(t('شركاتي'), 'workspaces', function () use ($list, $invites, $cur, 
       </div>
 
       <form method="post" class="card p-5 space-y-3 lg:sticky lg:top-4">
-        <?= csrf_field() ?><input type="hidden" name="action" value="add">
+        <?= csrf_field() ?><input type="hidden" name="action" value="add"><input type="hidden" name="tz" data-tz><script>document.querySelectorAll('[data-tz]').forEach(function (i) { try { i.value = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {} });</script>
         <h2 class="font-bold text-ink-900"><?= e(t('شركة جديدة')) ?></h2>
         <input name="name" placeholder="<?= e(t('اسم الشركة')) ?>" required maxlength="120" class="input">
         <ol class="text-xs text-ink-600 space-y-1 list-decimal ps-4">

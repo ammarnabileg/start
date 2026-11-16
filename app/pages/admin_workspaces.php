@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (trim((string)($_POST['confirm'] ?? '')) !== $w['name']) {
                 flash('error', t('عشان تحذف، اكتب اسم الشركة بالظبط زي ما هو.'));
             } else {
-                $pdo->prepare("DELETE FROM workspaces WHERE id = ?")->execute([$id]);
+                require_once ROOT_DIR . '/app/ws_purge.php'; $purged = ws_purge((int)$id); // كل بيانات الشركة وملفاتها، مش صف الشركة بس
                 log_activity('admin.workspace_delete', $w['name']);
                 flash('success', t('اتحذفت "%s" من البرنامج. حساباتها ومنشوراتها في خدمة النشر زي ما هي.', $w['name']));
             }
