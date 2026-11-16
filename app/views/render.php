@@ -133,5 +133,7 @@ function after_login_redirect(): void
     if (!empty($_SESSION['invite_token'])) {
         redirect(url('invite', ['t' => $_SESSION['invite_token']]));
     }
+    $to = (string)($_SESSION['after_login'] ?? ''); unset($_SESSION['after_login']);
+    if ($to !== '' && preg_match('#^index\.php\?p=[a-z0-9_]+(&[^\s<>"\\\\]*)?$#i', $to) && !preg_match('#[?&]p=(login|logout|register)\b#', $to)) redirect($to);
     redirect(url('dashboard'));
 }

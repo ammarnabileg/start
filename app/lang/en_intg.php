@@ -5777,4 +5777,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'موعد النشر: %s' => 'Scheduled for: %s',
     'd/m h:i A' => 'd/m h:i A',
     'يُعرض آخر 500 عملية. ضيّق الفترة أو استخدم البحث لرؤية الأقدم.' => 'Showing the latest 500 entries. Narrow the period or search to see older ones.',
+    'انتهت جلستك، سجّل الدخول مرة أخرى للمتابعة.' => 'Your session has expired. Please sign in again to continue.',
 ];

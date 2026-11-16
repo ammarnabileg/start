@@ -57,7 +57,17 @@ if (isset($merged[$page])) {
 }
 
 $public = ['login', 'register', 'invite', 'pref', 'cron', 'share', 'smsgate_hook', 'zernio_hook', 'crm_hook', 'lead_form', 'crm_t', 'crm_book', 'crm_go', 'crm_v', 'crm_js', 'go', 'lp'];
+// علامة «كان مسجّل دخول» (مش سر، مجرد 1): بتتحط طول ما المستخدم داخل وبتتمسح عند الخروج.
+// لو موجودة ومفيش مستخدم = الجلسة انتهت فعلًا (مش زائر جديد).
+if (current_user() && empty($_COOKIE['zin'])) setcookie('zin', '1', ['expires' => time() + 31536000, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Lax']);
 if (!in_array($page, $public, true) && !current_user()) {
+    // الجلسة انتهت: نقول له السبب ونرجعه لنفس الصفحة بعد الدخول
+    if (!empty($_COOKIE['zin']) && $page !== 'logout') {
+        setcookie('zin', '', ['expires' => time() - 3600, 'path' => '/']);
+        flash('info', t('انتهت جلستك، سجّل الدخول مرة أخرى للمتابعة.'));
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') $_SESSION['after_login'] = 'index.php?' . http_build_query($_GET);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && (stripos($_SERVER['HTTP_ACCEPT'] ?? '', 'json') !== false || !empty($_SERVER['HTTP_X_REQUESTED_WITH']))) { http_response_code(401); header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('انتهت جلستك، سجّل الدخول مرة أخرى للمتابعة.'), 'login' => true], JSON_UNESCAPED_UNICODE)); }
+    }
     redirect(url('login'));
 }
 
