@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($u && password_verify($pass, $u['password_hash']) && ($u['status'] ?? 'active') !== 'active') {
             flash('error', t('الحساب ده موقوف. كلم مدير النظام.'));
         } elseif ($u && password_verify($pass, $u['password_hash']) && setting('maintenance', '0') === '1' && $u['role'] !== 'admin') {
-            flash('error', t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.'));
+            flash('error', (string)setting('maintenance_message', '') ?: t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.'));
         } elseif ($u && password_verify($pass, $u['password_hash'])) {
             clear_attempts($pdo);
             $pdo->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?")->execute([$u['id']]);

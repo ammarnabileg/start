@@ -44,6 +44,6 @@
       else { var row = {}; Object.keys(g.cols).forEach(function (k) { row[k] = $('[data-rv="' + c.dataset.g + '-' + c.dataset.r + '-' + k + '"]').value; }); pick[g.sec].rows.push(row); }
     });
     var b = this; b.disabled = true;
-    post({ action: 'kb_site_apply', pick: JSON.stringify(pick) }).then(function (j) { if (!j.ok) { b.disabled = false; return alert(j.error || C.err); } if (window.fxToast) fxToast(C.done.replace('%s', j.done)); setTimeout(function () { location.reload(); }, 700); }).catch(function () { b.disabled = false; });
+    post({ action: 'kb_site_apply', pick: JSON.stringify(pick) }).then(function (j) { if (!j.ok) { b.disabled = false; return (window.fxToast ? function (m) { fxToast(m, 'error'); } : alert)(j.error || C.err); } if (window.fxToast) fxToast(C.done.replace('%s', j.done)); setTimeout(function () { location.reload(); }, 700); }).catch(function () { b.disabled = false; });
   });
 })();

@@ -73,7 +73,7 @@ $seen = array_flip(array_column($rows, 'id'));
 foreach (['fav', 'applied'] as $m) foreach (tnd_marked($m) as $t) if (!isset($seen[$t['id']])) { $t['hits'] = []; $rows[] = $t; $seen[$t['id']] = 1; }
 $counts = ['match' => 0, 'soon' => 0, 'fav' => 0, 'applied' => 0, 'all' => 0];
 foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = !$t['deadline'] || strtotime($t['deadline']) > time();
-    if ($t['hits'] && !$hid && $act) $counts['match']++; if ($t['hits'] && !$hid && $act && strtotime($t['deadline']) < time() + 3 * 86400) $counts['soon']++;
+    if ($t['hits'] && !$hid && $act) $counts['match']++; if ($t['hits'] && !$hid && $act && $t['deadline'] && strtotime($t['deadline']) < time() + 3 * 86400) $counts['soon']++;
     if ($t['mark'] === 'fav') $counts['fav']++; if ($t['mark'] === 'applied') $counts['applied']++; if (!$hid && $act) $counts['all']++; }
 render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $rows, $counts, $mgr) {
     $ago = function ($sec) { if ($sec === null) return t('لسه ماوصلش بيانات'); if ($sec < 3600) return t('من %s دقيقة', max(1, intdiv($sec, 60))); if ($sec < 86400) return t('من %s ساعة', intdiv($sec, 3600)); return t('من %s يوم', intdiv($sec, 86400)); };
@@ -205,7 +205,7 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
           $j = ['id' => (int)$t['id'], 'name' => $t['name'], 'agency' => (string)$t['agency'], 'branch' => (string)$t['branch'], 'activity' => trim((string)$t['activity']), 'type' => (string)$t['type'], 'ref' => (string)$t['ref'],
             'booklet' => $bk, 'deadline' => $dlTxt, 'inquiry' => $t['inquiry_at'] ? fmt_date($t['inquiry_at'], 'd/m/Y') : '', 'published' => $t['published_at'] ? fmt_date($t['published_at'], 'd/m/Y') : '',
             'url' => tnd_url($t), 'hits' => array_values($t['hits']), 'lead' => !empty($t['lead_id']) ? url('prospects', ['lead' => (int)$t['lead_id']]) : '', 'days' => $d]; ?>
-        <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$t['id'] ?>" data-match="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act ? 1 : 0 ?>" data-soon="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act && $left < 3 * 86400 ? 1 : 0 ?>"
+        <div class="mk-row <?= $cols ?>" data-mk-row data-id="<?= (int)$t['id'] ?>" data-match="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act ? 1 : 0 ?>" data-soon="<?= $t['hits'] && $t['mark'] !== 'hidden' && $act && $left !== null && $left < 3 * 86400 ? 1 : 0 ?>"
           data-act="<?= $act && $t['mark'] !== 'hidden' ? 1 : 0 ?>" data-mark="<?= e((string)$t['mark']) ?>" data-q="<?= e(mb_strtolower($t['name'] . ' ' . $t['agency'] . ' ' . $t['branch'] . ' ' . $t['activity'] . ' ' . $t['ref'])) ?>"
           data-s-name="<?= e(mb_strtolower($t['name'])) ?>" data-s-act="<?= e(mb_strtolower((string)$t['activity'])) ?>" data-s-dl="<?= e((string)$t['deadline']) ?>" data-s-bk="<?= (float)$t['booklet'] ?>" data-s-type="<?= e((string)$t['type']) ?>"
           data-j="<?= e(json_encode($j, JSON_UNESCAPED_UNICODE)) ?>">

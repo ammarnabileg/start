@@ -185,13 +185,14 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('أداء الرسائل'), url('analytics', ['tab' => 'messages'])]];
       $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('analytics', ['tab' => 'messages'])]];
       $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('الرسائل'), url('inbox')]];
+      $R['ads'] = $R['ad_create'] = $R['ad_builder'] = [[t('عملاء الإعلانات'), url('leads')], [t('الجماهير'), url('ad_audiences')], [t('أداء المحتوى'), url('analytics')]];
+      $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], $crmOn2 ? [t('العملاء'), url('prospects')] : null];
+      $R['leads'] = array_filter($R['leads']);
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
         $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('المصادر وصفحات الهبوط'), url('crm_capture')], [t('العملاء'), url('prospects')]];
-        $R['ads'] = $R['ad_create'] = $R['ad_builder'] = [[t('عملاء الإعلانات'), url('leads')], [t('الجماهير'), url('ad_audiences')], [t('أداء المحتوى'), url('analytics')]];
-        $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], [t('العملاء'), url('prospects')]];
         $R['prospects'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
       $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || (!in_array($m[1], $dp, true) && (($pp = page_permission($m[1])) === null || can($pp))); };

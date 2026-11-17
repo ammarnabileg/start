@@ -159,7 +159,8 @@
 })();
 
 /* مهام الذكاء الاصطناعي: كتابة منشور / اقتراح رد */
-function aiToast(msg, kind) { // kind: 'ok' = نجاح (أخضر، 3 ثواني)، غير كده = خطأ (أحمر، 6 ثواني)
+function aiToast(msg, kind) { // kind: 'ok' = نجاح، غير كده = خطأ. نظام رسايل واحد للمنصة كلها
+  if (window.fxToast) return fxToast(msg, kind === 'ok' ? 'success' : 'error');
   var ok = kind === 'ok', t = document.createElement('div');
   t.className = 'fixed bottom-5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-[70] max-w-md rounded-xl ' + (ok ? 'bg-lime-600' : 'bg-red-600') + ' text-[#fff] text-sm px-4 py-3 shadow-xl';
   t.setAttribute('role', ok ? 'status' : 'alert');

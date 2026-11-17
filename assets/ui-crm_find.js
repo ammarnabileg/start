@@ -59,7 +59,7 @@
     var box = e.target.closest('[data-s]'); if (!box) return; var id = +box.dataset.s, s = byS(id), fd = new FormData();
     if (e.target.closest('.fd-s-load')) { fillForm(s.filters); search(1); return; }
     if (e.target.closest('.fd-s-del')) { if (!confirm(T.del)) return; fd.append('action', 'del_search'); fd.append('id', id); post(fd).then(function (r) { if (r.ok) { D.searches = r.searches; drawSaved(); } }); return; }
-    if (e.target.closest('.fd-s-run')) { fd.append('action', 'run_search'); fd.append('id', id); box.classList.add('animate-pulse'); post(fd).then(function (r) { box.classList.remove('animate-pulse'); if (!r.ok) return toast(r.error); D.searches = r.searches; drawSaved(); }); return; }
+    if (e.target.closest('.fd-s-run')) { fd.append('action', 'run_search'); fd.append('id', id); box.classList.add('animate-pulse'); post(fd).then(function (r) { box.classList.remove('animate-pulse'); if (!r.ok) return toast(r.error, 'error'); D.searches = r.searches; drawSaved(); }); return; }
     if (e.target.closest('.fd-s-new')) {
       fillForm(s.filters); fd.append('action', 'show_new'); fd.append('id', id);
       list.innerHTML = skeleton();
@@ -75,7 +75,7 @@
   document.getElementById('fd-save').addEventListener('click', function () {
     var n = prompt(T.askName); if (!n || !n.trim()) return;
     var fd = new FormData(form); fd.append('action', 'save_search'); fd.append('name', n.trim());
-    post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err); D.searches = r.searches; drawSaved(); });
+    post(fd).then(function (r) { if (!r.ok) return toast(r.error || T.err, 'error'); D.searches = r.searches; drawSaved(); });
   });
   drawSaved();
   document.getElementById('fd-look').addEventListener('click', function () {
@@ -99,7 +99,7 @@
     post(fd).then(function (r) {
       var n = 0; people.forEach(function (p) { if (r.done && r.done[p.id]) { p.lead = r.done[p.id]; n++; } });
       document.getElementById('fd-left').textContent = r.left; draw();
-      if (r.error) toast(r.error); else if (n) toast(T.done.replace('%s', n));
-    }).catch(function () { count(); toast(T.err); });
+      if (r.error) toast(r.error, 'error'); else if (n) toast(T.done.replace('%s', n));
+    }).catch(function () { count(); toast(T.err, 'error'); });
   });
 })();
