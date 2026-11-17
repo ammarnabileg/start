@@ -118,7 +118,7 @@ function ai_agent_ajax(string $a): void
         if (!$x) { if (function_exists('ai_unlock')) ai_unlock('reply', $wid); $J(['ok' => false, 'error' => t('المسودة غير موجودة.')] + ai_agent_state($wid)); }
         $ver = (string)($_POST['v'] ?? ''); if ($ver !== '' && $ver !== md5((string)$x['text'])) { if (function_exists('ai_unlock')) ai_unlock('reply', $wid); $J(['ok' => false, 'error' => t('وصلت رسالة جديدة وتغيّرت المسودة. راجعها مرة أخرى.')] + ai_agent_state($wid)); }
         unset($dr[$id]); save_setting('ai_drafts_' . $wid, json_encode($dr, JSON_UNESCAPED_UNICODE)); if (function_exists('ai_unlock')) ai_unlock('reply', $wid);
-        $restore = function () use ($wid, $id, $x) { $d2 = ai_drafts($wid); if (!isset($d2[$id])) { $d2[$id] = $x; save_setting('ai_drafts_' . $wid, json_encode($d2, JSON_UNESCAPED_UNICODE)); } };
+        $restore = function () use ($wid, $id, $x) { if (function_exists('ai_lock')) ai_lock('reply', $wid, 20); $d2 = ai_drafts($wid); if (!isset($d2[$id])) { $d2[$id] = $x; save_setting('ai_drafts_' . $wid, json_encode($d2, JSON_UNESCAPED_UNICODE)); } if (function_exists('ai_unlock')) ai_unlock('reply', $wid); };
         if ($do === 'send') {
             $text = trim((string)($_POST['text'] ?? $x['text'])); if ($text === '') { $restore(); $J(['ok' => false, 'error' => t('الرد فارغ.')]); }
             if (empty($x['acc'])) { $restore(); $J(['ok' => false, 'error' => t('افتح المحادثة وأرسلها من هناك.')]); }

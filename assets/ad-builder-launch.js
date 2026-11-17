@@ -43,7 +43,7 @@
   function post(f) { var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('id', A.id); Object.keys(f).forEach(function (k) { fd.append(k, f[k]); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function validate() {
     running = true; var b = document.getElementById('ab-validate'); b.disabled = true; b.textContent = L.validating;
-    Promise.resolve(X.save(true)).then(function () { post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { alert(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
+    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; b.disabled = false; alert(L.netErr); draw(); return; } post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { alert(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
   }
   function launch() {
     if (!confirm(L.lastQ)) return; running = true;

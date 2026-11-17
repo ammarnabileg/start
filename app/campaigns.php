@@ -77,23 +77,26 @@ function camp_tick(int $wid, int $max = 5): int
             // حجز ذرّي لكل رسالة: لو تشغيل تاني سبقنا عليها، نسيبها له (مافيش إرسال مرتين)
             $claim->execute([(int)$iid]); if ($claim->rowCount() !== 1) continue;
             $sti = $pdo->prepare('SELECT * FROM msg_campaign_items WHERE id = ?'); $sti->execute([(int)$iid]); $it = $sti->fetch(); if (!$it) continue;
+            $sentOk = false;
             try {
                 $text = camp_render($camp, $it);
                 if (getenv('CAMPAIGN_DRY_RUN')) { usleep(50000); }
                 elseif (!$z) throw new Exception('Zernio');
                 else $z->sendMessage($it['conv_id'], $it['account_id'], $text);
+                $sentOk = true;
                 $pdo->prepare("UPDATE msg_campaign_items SET status = 'sent', sent_at = UTC_TIMESTAMP(), error = '' WHERE id = ?")->execute([$it['id']]);
                 $pdo->prepare("UPDATE msg_campaigns SET sent = sent + 1, last_tick = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
                 $done++;
             } catch (Throwable $e) {
+                if ($sentOk) { try { $pdo->prepare("UPDATE msg_campaign_items SET status = 'sent', sent_at = UTC_TIMESTAMP(), error = '' WHERE id = ?")->execute([$it['id']]); } catch (Throwable $e2) {} continue; } // الرسالة وصلت فعلًا
                 $pdo->prepare("UPDATE msg_campaign_items SET status = 'failed', sent_at = UTC_TIMESTAMP(), error = ? WHERE id = ?")->execute([mb_substr($e->getMessage(), 0, 250), $it['id']]);
                 $pdo->prepare("UPDATE msg_campaigns SET failed = failed + 1, last_tick = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
                 // فشل كتير ورا بعض: غالبًا مشكلة في الحساب أو حد، نوقف الحملة بدل ما نكمل نفشل
-                $st = $pdo->prepare("SELECT status FROM msg_campaign_items WHERE campaign_id = ? AND status IN ('sent','failed') ORDER BY sent_at DESC, id DESC LIMIT 5");
-                $st->execute([$camp['id']]);
+                $st = $pdo->prepare("SELECT status FROM msg_campaign_items WHERE campaign_id = ? AND status IN ('sent','failed') AND sent_at > ? ORDER BY sent_at DESC, id DESC LIMIT 5");
+                $st->execute([$camp['id'], (string)setting('camp_resumed_' . $camp['id'], '1970-01-01 00:00:00')]); // الفشل القديم قبل الاستئناف مايتحسبش
                 $last = $st->fetchAll(PDO::FETCH_COLUMN);
                 if (count($last) >= 5 && !array_diff($last, ['failed'])) {
-                    $pdo->prepare("UPDATE msg_campaigns SET status = 'paused' WHERE id = ?")->execute([$camp['id']]);
+                    $pdo->prepare("UPDATE msg_campaigns SET status = 'paused' WHERE id = ? AND status = 'running'")->execute([$camp['id']]);
                     break;
                 }
             }

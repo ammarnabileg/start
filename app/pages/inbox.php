@@ -127,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         if (!$c || !$to || in_array($c['status'], ['done', 'cancelled'], true)) $J(['error' => t('طلب غير صحيح.')], 400);
         db()->prepare("UPDATE msg_campaigns SET status = ?" . ($to === 'cancelled' ? ", finished_at = NOW()" : '') . " WHERE id = ?")->execute([$to, $c['id']]);
         if ($to === 'cancelled') db()->prepare("UPDATE msg_campaign_items SET status = 'cancelled' WHERE campaign_id = ? AND status = 'queued'")->execute([$c['id']]);
+        if ($to === 'running') save_setting('camp_resumed_' . (int)$c['id'], gmdate('Y-m-d H:i:s'));
         $J(['ok' => true]);
     }
     // الصفحة وهي مفتوحة بتبعت دفعة صغيرة كل شوية، عشان الحملة تمشي حتى لو مفيش cron

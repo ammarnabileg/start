@@ -154,9 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') continue;
                 if (count($parts) > 3) { $parts = [$parts[0], implode(' | ', array_slice($parts, 1, -1)), end($parts)]; } // | جوه اسم الصنف
                 $item = $old[mb_strtolower($parts[0] . '|' . $parts[1])] ?? []; $item['labels'] = $item['labels'] ?? [['displayName' => $parts[1]]]; $item['labels'][0]['displayName'] = $parts[1]; if (trim((string)($parts[2] ?? '')) === '') unset($item['attributes']['price']); // السعر اتشال
-                $pr = (string)($parts[2] ?? ''); $price = preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $pr) ? str_replace(',', '', $pr) : str_replace(',', '.', $pr); // 1,250.50 = ألف ومتين
+                $pr = strtr((string)($parts[2] ?? ''), ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '٫' => '.', '٬' => ',']); $pr = trim((string)preg_replace('/[^\d.,]/', '', $pr)); $price = preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $pr) ? str_replace(',', '', $pr) : str_replace(',', '.', $pr); // 1,250.50 = ألف ومتين
                 if ($price !== '' && is_numeric($price)) {
-                    $item['attributes'] = ['price' => ['currencyCode' => $cur, 'units' => (string)(int)floor((float)$price), 'nanos' => (int)round(((float)$price - floor((float)$price)) * 1e9)]];
+                    $item['attributes'] = (array)($item['attributes'] ?? []); $item['attributes']['price'] = ( ['currencyCode' => $cur, 'units' => (string)(int)floor((float)$price), 'nanos' => (int)round(((float)$price - floor((float)$price)) * 1e9)]);
                 }
                 $sections[$parts[0]][] = $item;
             }

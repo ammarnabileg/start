@@ -269,12 +269,12 @@ function an_notice(string $msg): string
 function an_period(array $g): array
 {
     $today = gmdate('Y-m-d');
-    $ok = function ($s) { return is_string($s) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $s) && strtotime($s) !== false; };
+    $ok = function ($s) { return is_string($s) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1]); };
     $from = $g['from'] ?? '';
     $to = $g['to'] ?? '';
     if ($ok($from) && $ok($to)) {
-        if ($to > $today) $to = $today;
         if ($from > $to) [$from, $to] = [$to, $from];
+        if ($to > $today) $to = $today; if ($from > $today) $from = $today;
         $len = (int)round((strtotime($to) - strtotime($from)) / 86400) + 1;
         if ($len > 366) { $from = gmdate('Y-m-d', strtotime($to) - 365 * 86400); $len = 366; }
         $custom = true;
