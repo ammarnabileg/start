@@ -6,6 +6,7 @@
  */
 
 class CrmException extends Exception {}
+class CrmLockedException extends CrmException {} // عميل زميل: نتخطاه، مش خطأ يوقف الدفعة
 /** العملية مش متاحة في خطة Apollo الحالية (المفتاح سليم) */
 class CrmPlanException extends CrmException {}
 
@@ -244,7 +245,7 @@ function crm_reveal(array $co, string $pid, array $prefs): array
         'phone_pending' => $phone === '' ? 1 : 0, 'linkedin' => (string)($p['linkedin_url'] ?? ''),
         'country' => (string)($p['country'] ?? $co['country'] ?? ''), 'owner_id' => $uid ?: null, 'respect_owner' => 1,
     ]);
-    if (!empty($lead['locked'])) throw new CrmException(t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.'));
+    if (!empty($lead['locked'])) throw new CrmLockedException(t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.'));
     if (!empty($lead['id'])) db()->prepare('UPDATE crm_leads SET email_status = ?, enriched_at = NOW() WHERE id = ?')->execute([mb_substr((string)($p['email_status'] ?? ''), 0, 20) ?: null, (int)$lead['id']]);
     log_activity('crm.reveal', $pid . ' ' . $co['name']);
     return $lead;

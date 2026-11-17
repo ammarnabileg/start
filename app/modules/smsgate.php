@@ -18,6 +18,8 @@ function smsgate_base(array $c): string
     if (($c['server'] ?? 'cloud') === 'private') {
         $u = rtrim((string)($c['url'] ?? ''), '/');
         if (!preg_match('#^https://#', $u)) throw new SmsGateException(t('رابط السيرفر الخاص لازم يبدأ بـ https://'));
+        $hh = (string)parse_url($u, PHP_URL_HOST); $ips = filter_var($hh, FILTER_VALIDATE_IP) ? [$hh] : (gethostbynamel($hh) ?: []);
+        if (!$ips || (function_exists('safe_fetch_public_ip') && array_filter($ips, function ($i) { return !safe_fetch_public_ip($i); }))) throw new SmsGateException(t('رابط السيرفر الخاص لازم يكون عنوان عام.'));
         return $u . '/api/3rdparty/v1';
     }
     return 'https://api.sms-gate.app/3rdparty/v1';
@@ -72,7 +74,7 @@ function smsgate_register_hooks(array $c): int
 {
     $url = smsgate_hook_url($c);
     foreach ((array)smsgate_request($c, 'GET', '/webhooks') as $w) {
-        if (is_array($w) && strpos((string)($w['url'] ?? ''), 'p=smsgate_hook') !== false && !empty($w['id'])) smsgate_request($c, 'DELETE', '/webhooks/' . rawurlencode((string)$w['id']));
+        if (is_array($w) && strpos((string)($w['url'] ?? ''), substr($url, 0, (int)strpos($url, '&t=') + 3)) === 0 && !empty($w['id'])) smsgate_request($c, 'DELETE', '/webhooks/' . rawurlencode((string)$w['id']));
     }
     $n = 0;
     foreach (['sms:received', 'sms:sent', 'sms:delivered', 'sms:failed'] as $ev) { smsgate_request($c, 'POST', '/webhooks', ['url' => $url, 'event' => $ev]); $n++; }

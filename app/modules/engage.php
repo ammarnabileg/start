@@ -306,6 +306,7 @@ function crm_merge_leads(int $keep, int $drop, array $pick): bool
         $use = ($pick[$f] ?? '') === 'drop' ? $b[$f] : ($a[$f] === null || $a[$f] === '' ? $b[$f] : $a[$f]);
         if ($use !== $a[$f]) { $set[] = "$f = ?"; $vals[] = $use; }
     }
+    if (array_key_exists('unsub', $a) && !empty($b['unsub']) && empty($a['unsub'])) $set[] = 'unsub = 1'; // اللي لغى الاشتراك يفضل لاغيه
     // الأرقام والإيميلات: مفيش حاجة بتضيع في الدمج، اللي مش أساسي بيروح للإضافي
     foreach (['phone', 'email'] as $k) { if (!array_key_exists($k . 's', $a)) continue;
         $main = ($pick[$k] ?? '') === 'drop' ? $b[$k] : ((string)$a[$k] !== '' ? $a[$k] : $b[$k]);

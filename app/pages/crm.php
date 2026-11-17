@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $J(['ok' => true, 'merged' => !empty($l['merged']), 'person' => $person(crm_lead((int)$l['id']))]);
     }
     if ($a === 'remove') {
+        if (!$canManage) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
         $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
         db()->prepare('UPDATE crm_companies SET hidden = 1 WHERE id = ? AND workspace_id = ?')->execute([(int)$co['id'], $wid]);
         $J(['ok' => true]);

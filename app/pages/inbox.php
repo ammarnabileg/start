@@ -122,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         $J(['ok' => true, 'id' => $id, 'total' => count($list), 'skipped' => $skipped]);
     }
     if ($act === 'camp_ctl') {
+        if (!can('inbox.reply')) $J(['error' => t('مالكش صلاحية.')], 403);
         $c = camp_get($wid, (int)($_POST['id'] ?? 0));
         $to = ['pause' => 'paused', 'resume' => 'running', 'cancel' => 'cancelled'][(string)($_POST['op'] ?? '')] ?? null;
         if (!$c || !$to || in_array($c['status'], ['done', 'cancelled'], true)) $J(['error' => t('طلب غير صحيح.')], 400);

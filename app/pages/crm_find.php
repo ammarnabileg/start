@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $l = crm_reveal(['id' => 0, 'name' => mb_substr((string)($p['company'] ?? ''), 0, 255), 'country' => (string)($p['country'] ?? '')], $pid, $prefs);
                 $done[$pid] = (int)$l['id'];
                 if ($list !== '') crm_add_tag((int)$l['id'], $list);
-            } catch (CrmException $ex) { $err = $ex->getMessage(); break; }
+            } catch (CrmLockedException $ex) { continue; } catch (CrmException $ex) { $err = $ex->getMessage(); break; }
         }
         $json(['ok' => true, 'done' => $done, 'error' => $err, 'left' => max(0, (int)$prefs['daily_limit'] - crm_reveals_today($uid))]);
     }

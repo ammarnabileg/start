@@ -36,7 +36,7 @@ if (isset($_GET['zip'])) {
 // ---- JSON
 $json = function ($a) { header('Content-Type: application/json; charset=utf-8'); echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
 if (($_GET['ajax'] ?? '') === 'uses') $json(['ok' => true, 'uses' => media_uses($wid, (int)($_GET['id'] ?? 0))]);
-if (($_GET['ajax'] ?? '') === 'shares') $json(['ok' => true, 'shares' => media_shares($wid, (string)($_GET['folder'] ?? ''))]);
+if (($_GET['ajax'] ?? '') === 'shares') $json(!can('posts.create') ? ['ok' => true, 'shares' => []] : ['ok' => true, 'shares' => media_shares($wid, (string)($_GET['folder'] ?? ''))]);
 if (($_GET['ajax'] ?? '') === 'list' && isset($_GET['loc'])) { // صفحات (للسرعة)
     $off = max(0, (int)($_GET['offset'] ?? 0));
     if ($off === 0) { try { media_sync_ai($wid); } catch (Throwable $e) {} try { media_purge_old($wid); } catch (Throwable $e) {} }
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // الفولدرات الفرعية بتطلع مستوى واحد بنفس ترتيبها (مش كلها بتتفرد في الأب)
         $pre = $parent === '' ? '' : $parent . '/';
         db()->prepare("UPDATE media_files SET folder = CASE WHEN BINARY folder = ? THEN ? ELSE CONCAT(?, SUBSTRING(folder, ?)) END WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$old, $parent, $pre, mb_strlen($old) + 2, $wid, $old, addcslashes($old, '%_\\') . '/%']);
-        try { db()->prepare("DELETE FROM media_shares WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$wid, $old, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} // روابط مشاركة الفولدر المحذوف تتقفل
+        try { db()->prepare("DELETE FROM media_shares WHERE workspace_id = ? AND BINARY folder = ?")->execute([$wid, $old]); db()->prepare("UPDATE media_shares SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND BINARY folder LIKE ?")->execute([$pre, mb_strlen($old) + 2, $wid, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} /* الفولدرات الفرعية بتطلع لفوق ومعاها روابطها */ // روابط مشاركة الفولدر المحذوف تتقفل
         $all = []; foreach ($fall() as $f) { if ($f === $old) continue; $all[] = strpos($f, $old . '/') === 0 ? $pre . substr($f, strlen($old) + 1) : $f; }
         save_setting($fkey, json_encode(array_values(array_unique($all)), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $parent]);
     }

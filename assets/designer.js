@@ -15,7 +15,7 @@
       d.addEventListener('close', function () { d.remove(); res(out); });
       d.showModal(); var f = d.querySelector('[data-v]') || d.querySelector('[data-ok]'); setTimeout(function () { f.focus(); if (f.select) f.select(); }, 30); }); };
 
-  var KEY = 'dz_draft_' + (location.host || ''), W = 1080, H = 1080, zoom = 1, hist = [], fut = [], lock = false, saveT = null;
+  var KEY = 'dz_draft_' + (location.host || '') + '_' + ((window.DZ && DZ.ws) || '') + '_' + ((window.DZ && DZ.uid) || ''), W = 1080, H = 1080, zoom = 1, hist = [], fut = [], lock = false, saveT = null;
   var B = C.brand.concat(['#0f172a', '#ffffff']), P = B[0], S = B[1] || '#0f172a', A = B[2] || '#f59e0b';
   var cv = new fabric.Canvas('dz-c', { preserveObjectStacking: true, backgroundColor: '#ffffff', selectionColor: 'rgba(37,99,235,.08)', selectionBorderColor: '#2563eb' });
   fabric.Object.prototype.set({ transparentCorners: false, cornerColor: '#fff', cornerStrokeColor: '#2563eb', borderColor: '#2563eb', cornerSize: 11, cornerStyle: 'circle', padding: 4 });

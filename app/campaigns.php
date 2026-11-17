@@ -84,7 +84,7 @@ function camp_tick(int $wid, int $max = 5): int
                 elseif (!$z) throw new Exception('Zernio');
                 else $z->sendMessage($it['conv_id'], $it['account_id'], $text);
                 $sentOk = true;
-                if (function_exists('ai_sent_mark')) { try { ai_sent_mark((int)$camp['workspace_id'], $text, 'c:' . $it['conv_id']); } catch (Throwable $e) {} }
+                if (function_exists('ai_sent_mark')) { try { ai_sent_mark((int)$camp['workspace_id'], $text); } catch (Throwable $e) {} }
                 $pdo->prepare("UPDATE msg_campaign_items SET status = 'sent', sent_at = UTC_TIMESTAMP(), error = '' WHERE id = ?")->execute([$it['id']]);
                 $pdo->prepare("UPDATE msg_campaigns SET sent = sent + 1, last_tick = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
                 $done++;
