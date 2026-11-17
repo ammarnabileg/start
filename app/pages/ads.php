@@ -15,6 +15,8 @@ $back = url('ads', array_filter(['pf' => $platform, 'acc' => $adAcc, 'st' => $st
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_advisor') {
     header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE));
+    if (!ai_connection()) exit(json_encode(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي أولًا من التكاملات.'), 'connect' => url('connectors')], JSON_UNESCAPED_UNICODE));
     $mode = ($_POST['mode'] ?? '') === 'realloc' ? 'realloc' : 'summary';
     $rows = array_slice((array)(json_decode((string)($_POST['data'] ?? '[]'), true) ?: []), 0, 40);
     $lines = [];
@@ -50,6 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_ad
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'ai_analyze') {
     header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE));
+    if (!ai_connection()) exit(json_encode(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي أولًا من التكاملات.'), 'connect' => url('connectors')], JSON_UNESCAPED_UNICODE));
     $d = json_decode((string)($_POST['data'] ?? '{}'), true) ?: [];
     $lines = [];
     foreach (['name', 'platform', 'status', 'currency', 'budget', 'spend', 'impressions', 'clicks', 'ctr', 'cpc', 'results', 'prev_spend', 'prev_clicks', 'prev_results', 'account_avg_ctr', 'account_avg_cpc', 'period'] as $k) {

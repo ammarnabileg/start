@@ -8,6 +8,8 @@ $id = (int)($_GET['id'] ?? 0);
 // ---- الذكاء الاصطناعي: بناء الحملة، جمهور مجموعة، نسخ إعلان، مراجعة الهيكل
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['ai_build', 'ai_plan', 'ai_ads', 'ai_audience', 'ai_copy', 'ai_review'], true)) {
     header('Content-Type: application/json; charset=utf-8');
+    if (!can('ai.use')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE); exit; }
+    if (!ai_connection()) { echo json_encode(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي أولًا من التكاملات.'), 'connect' => url('connectors')], JSON_UNESCAPED_UNICODE); exit; }
     $b = ab_get($wid, (int)($_POST['id'] ?? 0));
     if (!$b) { echo json_encode(['ok' => false, 'error' => t('المشروع مش موجود')]); exit; }
     $act = $_POST['action'] === 'ai_build' ? 'ai_plan' : $_POST['action']; $d = $b['data']; $p = (string)$d['platform']; $C = ab_caps($p);

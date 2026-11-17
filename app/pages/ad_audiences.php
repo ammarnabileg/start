@@ -346,7 +346,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
     var tk = document.querySelector('input[name=_csrf]'); if (tk) fd.append('_csrf', tk.value);
     b.disabled = true;
     fetch(location.pathname + '?p=ad_audiences', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (d) {
-      b.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
+      b.disabled = false; if (!d.ok) { alert(d.error || <?= json_encode(t('تعذّر جلب كود التركيب. حاول مرة أخرى.')) ?>); return; }
       var ta = document.getElementById('px-code'), box = document.getElementById('px-codebox'); ta.value = d.code || ''; box.classList.remove('hidden'); ta.focus(); ta.select();
     }).catch(function () { b.disabled = false; alert(<?= json_encode(t('تعذّر جلب كود التركيب. حاول مرة أخرى.'), JSON_UNESCAPED_UNICODE) ?>); });
   });

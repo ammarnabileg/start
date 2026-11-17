@@ -304,7 +304,8 @@ document.addEventListener('click', function (e) {
       if (ta.classList.contains('flex-1')) ta.classList.add('w-full');
       ta.classList.add('pe-10');
       var b = document.createElement('button'); b.type = 'button'; b.title = P.title;
-      b.className = 'ai-spark absolute end-2 top-2 ' + (ta.classList.contains('!mt-0') ? '' : 'mt-1.5 ') + 'w-7 h-7 rounded-lg flex items-center justify-center text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition disabled:opacity-60';
+      var inp = ta.tagName === 'INPUT'; if (inp && !ta.classList.contains('!mt-0')) { w.classList.add('mt-1.5'); ta.classList.add('!mt-0'); } // خانة سطر واحد: الزرار في النص رأسيًا
+      b.className = 'ai-spark absolute end-1.5 ' + (inp ? 'top-1/2 -translate-y-1/2 w-6 h-6 ' : 'top-2 ' + (ta.classList.contains('!mt-0') ? '' : 'mt-1.5 ') + 'w-7 h-7 ') + 'rounded-lg flex items-center justify-center text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition disabled:opacity-60';
       b.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>';
       b.onclick = function (e) { e.preventDefault(); menu ? closeMenu() : openMenu(ta, b); };
       w.appendChild(b);

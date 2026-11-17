@@ -6318,4 +6318,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'حذف هذا الرد المحفوظ نهائيًا؟' => 'Delete this saved reply permanently?',
     'سيتم حذف العناصر المحددة نهائيًا. متابعة؟' => 'The selected items will be deleted permanently. Continue?',
     'الرد الذكي بالذكاء الاصطناعي' => 'AI auto-reply agent',
+    'اربط مزود ذكاء اصطناعي أولًا من التكاملات.' => 'Connect an AI provider first from Integrations.',
 ];
