@@ -6314,4 +6314,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'Markdown مختصر' => 'Markdown (short)',
     'بدون نصوص المستندات المرفوعة، مناسب للتعليمات المخصصة.' => 'Without uploaded document text; good for custom instructions.',
     'للربط مع أنظمة أو أدوات أخرى.' => 'For other systems or tools.',
+    'اطلب من مالك الشركة ربط حساب الإعلانات.' => 'Ask the company owner to connect the ad account.',
 ];

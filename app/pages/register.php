@@ -48,7 +48,7 @@ if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {
 auth_page(t('حساب جديد'), function () use ($open, $old) {
     if (!$open): ?>
       <p class="text-sm text-slate-600 text-center"><?= e(setting('maintenance', '0') === '1' ? t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.') : t('التسجيل مقفول. اطلب لينك دعوة من صاحب الشركة.')) ?></p>
-      <a href="<?= e(url('login')) ?>" class="block text-center text-indigo-700 font-semibold"><?= e(t('رجوع للدخول')) ?></a>
+      <a href="<?= e(url('login')) ?>" class="block text-center text-brand-700 font-semibold"><?= e(t('رجوع للدخول')) ?></a>
     <?php return; endif; ?>
     <form method="post" class="space-y-4">
       <?= csrf_field() ?>
@@ -56,7 +56,7 @@ auth_page(t('حساب جديد'), function () use ($open, $old) {
       <?= auth_input('email', t('الإيميل'), 'email', $old['email'], true) ?>
       <?= auth_input('password', t('كلمة السر (8 حروف على الأقل)'), 'password', '', true) ?>
       <?= auth_input('password2', t('اكتب كلمة السر تاني'), 'password', '', true) ?>
-      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3"><?= e(t('إنشاء الحساب')) ?></button>
+      <button class="btn-primary w-full !py-3 justify-center"><?= e(t('إنشاء الحساب')) ?></button>
     </form>
     <p class="text-center text-sm text-slate-500"><?= e(t('عندك حساب؟')) ?> <a href="<?= e(url('login')) ?>" class="link"><?= e(t('سجل دخول')) ?></a></p>
     <?php

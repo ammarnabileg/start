@@ -178,7 +178,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     <?php // الصفحات مترابطة: كل صفحة بتوديك للخطوة اللي قبلها واللي بعدها في الرحلة
       $crmOn2 = $curWs && module_enabled('crm') && can('crm.view'); $R = [];
       $R['knowledge'] = [[t('اكتب منشور من ملفك'), url('compose')], [t('الردود التلقائية بتستخدمه'), url('automations')]];
-      $R['compose'] = array_filter([[t('المنشورات (قائمة أو تقويم)'), url('posts')], $crmOn2 ? [t('اعمل صفحة هبوط للمنشور'), url('crm_capture') . '#lp'] : null, [t('أفضل وقت للنشر'), url('analytics')]]);
+      $R['compose'] = array_filter([[t('المنشورات (قائمة أو تقويم)'), url('posts')], $crmOn2 ? [t('اعمل صفحة هبوط للمنشور'), url('crm_capture') . '#lp'] : null, [t('أفضل وقت للنشر'), url('analytics', ['tab' => 'timing'])]]);
       $R['posts'] = $R['calendar'] = array_filter([[t('التعليقات على منشوراتك'), url('comments')], [t('أداء المنشورات'), url('analytics')], $crmOn2 ? [t('روابط المنشورات والعملاء اللي جابتهم'), url('crm_reports')] : null]);
       $R['analytics'] = array_filter([[t('التنبيهات'), url('alerts')], [t('التقارير'), url('analytics', ['tab' => 'reports'])], [t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
       $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('prospects')] : null, [t('ردود تلقائية'), url('automations')]]);

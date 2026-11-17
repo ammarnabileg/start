@@ -43,19 +43,19 @@
   function post(f) { var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('id', A.id); Object.keys(f).forEach(function (k) { fd.append(k, f[k]); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function validate() {
     running = true; var b = document.getElementById('ab-validate'); b.disabled = true; b.textContent = L.validating;
-    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; b.disabled = false; alert(L.netErr); draw(); return; } post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { alert(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
+    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; b.disabled = false; aiToast(L.netErr); draw(); return; } post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { aiToast(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
   }
   function launch() {
     if (!confirm(L.lastQ)) return; running = true;
     var step = function () {
       post({ action: 'launch_step', confirm_spend: '1' }).then(function (j) {
         if (j.progress) prog = j.progress;
-        if (!j.ok) { running = false; if (j.unknown) prog.inflight = j.step; else if (j.step != null) { prog.errors = prog.errors || {}; prog.errors[j.step] = j.error; } else alert(j.error); draw(); return; }
+        if (!j.ok) { running = false; if (j.unknown) prog.inflight = j.step; else if (j.step != null) { prog.errors = prog.errors || {}; prog.errors[j.step] = j.error; } else aiToast(j.error); draw(); return; }
         if (j.finished) { running = false; A.state = 'launched'; draw(); return; }
         draw(); setTimeout(step, 400);
-      }).catch(function () { running = false; prog.inflight = prog.inflight == null ? -1 : prog.inflight; alert(L.netErr); location.reload(); });
+      }).catch(function () { running = false; prog.inflight = prog.inflight == null ? -1 : prog.inflight; aiToast(L.netErr); setTimeout(function () { location.reload(); }, 1800); });
     };
-    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; alert(L.netErr); draw(); return; } step(); }); // الإطلاق بعد ما آخر تعديل يتحفظ فعلًا
+    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; aiToast(L.netErr); draw(); return; } step(); }); // الإطلاق بعد ما آخر تعديل يتحفظ فعلًا
   }
   document.addEventListener('ab:render', function (e) { draw(e.detail && e.detail.issues); });
   draw();
@@ -100,7 +100,7 @@
     var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
     if (!ok || !ok.checked) return;
     if (pending) { setTimeout(launchAll, 300); return; } // استنى حفظ الميزانية الأول
-    var bad = out.querySelector('[data-mt][data-bad]'); if (bad) { alert(T.badBudget || 'Budget not saved'); var bi = bad.querySelector('.ab-mt-b'); if (bi) bi.focus(); return; }
+    var bad = out.querySelector('[data-mt][data-bad]'); if (bad) { aiToast(T.badBudget || 'Budget not saved'); var bi = bad.querySelector('.ab-mt-b'); if (bi) bi.focus(); return; }
     lb.disabled = true; ok.disabled = true; out.querySelectorAll('.ab-mt-b').forEach(function (x) { x.disabled = true; });
     var list = [].slice.call(out.querySelectorAll('[data-mt]:not([data-locked])')), i = 0, fails = 0;
     var nextProject = function () {
@@ -121,13 +121,13 @@
   rows = (window.AB_MT_EXIST || []).slice(); if (rows.length) draw();
   if (go) go.onclick = function () {
     var picked = [].slice.call(document.querySelectorAll('.ab-mt:checked:not(:disabled)')).map(function (c) { return c.value; });
-    if (!picked.length) { alert(T.pick || ''); return; }
+    if (!picked.length) { aiToast(T.pick || ''); return; }
     go.disabled = true;
     send({ action: 'clone_to', id: A.id, 'targets[]': picked }).then(function (d) {
-      go.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
+      go.disabled = false; if (!d.ok) { aiToast(d.error || ''); return; }
       document.querySelectorAll('.ab-mt:checked').forEach(function (c) { c.checked = false; c.disabled = true; });
       rows = rows.concat(d.made); draw();
-      if (d.skipped && d.skipped.length) alert((T.skipped || '%s').replace('%s', d.skipped.join('، ')));
+      if (d.skipped && d.skipped.length) aiToast((T.skipped || '%s').replace('%s', d.skipped.join('، ')));
     }).catch(function () { go.disabled = false; });
   };
 })();

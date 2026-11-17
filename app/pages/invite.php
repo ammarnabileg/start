@@ -24,7 +24,7 @@ if (!$me) {
     auth_page(t('دعوة'), function () use ($inv) {
         ?>
         <p class="text-center"><b><?= e($inv['by_name'] ?: t('حد')) ?></b> <?= e(t('بيدعوك تنضم لشركة')) ?> <b><?= e($inv['ws_name']) ?></b></p>
-        <a href="<?= e(url('register')) ?>" class="block text-center w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-3"><?= e(t('اعمل حساب')) ?></a>
+        <a href="<?= e(url('register')) ?>" class="btn-primary w-full !py-3 justify-center"><?= e(t('اعمل حساب')) ?></a>
         <a href="<?= e(url('login')) ?>" class="block text-center w-full border border-slate-300 font-semibold rounded-lg py-3"><?= e(t('عندي حساب، سجل دخول')) ?></a>
         <?php
     });

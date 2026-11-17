@@ -400,7 +400,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
       </div>
       <details class="relative">
         <summary class="btn-ghost list-none cursor-pointer"><?= ui_icon('download', 'w-4 h-4') ?> <span><?= e(t('تصدير كملف')) ?></span></summary>
-        <div class="absolute end-0 z-30 mt-2 w-72 rounded-2xl border border-ink-200 bg-white p-2 shadow-xl text-sm">
+        <div class="absolute start-0 sm:start-auto sm:end-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-ink-200 bg-white p-2 shadow-xl text-sm">
           <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'md'])) ?>"><b class="block text-ink-900"><?= e(t('Markdown (موصى به)')) ?></b><span class="text-xs text-ink-500"><?= e(t('ارفعه في Claude Projects أو ChatGPT كملف معرفة.')) ?></span></a>
           <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'md', 'nofiles' => 1])) ?>"><b class="block text-ink-900"><?= e(t('Markdown مختصر')) ?></b><span class="text-xs text-ink-500"><?= e(t('بدون نصوص المستندات المرفوعة، مناسب للتعليمات المخصصة.')) ?></span></a>
           <a class="block rounded-xl px-3 py-2 hover:bg-ink-50" href="<?= e(url('knowledge', ['export' => 'json'])) ?>"><b class="block text-ink-900">JSON</b><span class="text-xs text-ink-500"><?= e(t('للربط مع أنظمة أو أدوات أخرى.')) ?></span></a>
