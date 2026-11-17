@@ -1784,3 +1784,17 @@ html:not(.dark) .hub2-gt{color:#64748b}
 .cp-drop-ov.on{display:flex}
 .cp-drop-ov div{display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:1.5rem 2rem;border-radius:18px;background:#fff;color:#1d4ed8;box-shadow:0 20px 50px rgb(0 0 0/.15);font-size:1rem}
 .dark .cp-drop-ov div{background:#1e293b;color:#93c5fd}
+/* السكرول: رفيع وبلون الواجهة في الوضعين (كان رمادي فاتح بأسهم على الخلفية الداكنة) */
+html{color-scheme:light;scrollbar-width:thin;scrollbar-color:rgb(148 163 184/.55) transparent}
+html.dark{color-scheme:dark;scrollbar-color:rgb(71 85 105/.8) #0b1220}
+*{scrollbar-width:thin;scrollbar-color:rgb(148 163 184/.55) transparent}
+html.dark *{scrollbar-color:rgb(71 85 105/.75) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgb(148 163 184/.55);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgb(100 116 139/.8);background-clip:padding-box;border:2px solid transparent}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-corner{background:transparent}
+html.dark::-webkit-scrollbar-track,html.dark ::-webkit-scrollbar-track{background:#0b1220}
+html.dark ::-webkit-scrollbar-thumb{background:rgb(71 85 105/.8);background-clip:padding-box;border:2px solid transparent}
+html.dark ::-webkit-scrollbar-thumb:hover{background:rgb(100 116 139/.9);background-clip:padding-box;border:2px solid transparent}
