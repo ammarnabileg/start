@@ -165,7 +165,7 @@ function tnd_list(bool $all = false, int $limit = 400): array
 {
     $cfg = tnd_cfg(); $wid = (int)ws('id');
     $from = date('Y-m-d H:i:s', time() + 86400 * max(0, (int)$cfg['min_days']));
-    $st = db()->prepare('SELECT t.*, m.status mark, m.note mnote, m.lead_id FROM tenders t LEFT JOIN tender_marks m ON m.tender_id = t.id AND m.workspace_id = ? WHERE t.deadline >= ? ORDER BY t.deadline LIMIT 5000');
+    $st = db()->prepare('SELECT t.*, m.status mark, m.note mnote, m.lead_id FROM tenders t LEFT JOIN tender_marks m ON m.tender_id = t.id AND m.workspace_id = ? WHERE (t.deadline IS NULL OR t.deadline >= ?) ORDER BY t.deadline IS NULL, t.deadline LIMIT 5000');
     $st->execute([$wid, $from]); $out = [];
     foreach ($st->fetchAll() as $t) {
         $t['hits'] = tnd_hits($t, (array)$cfg['words'], (array)$cfg['not']);

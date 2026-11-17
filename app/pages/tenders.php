@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mb_substr(t('آخر موعد لتقديم العروض %s', $t['deadline'] ? fmt_date($t['deadline'], 'd/m h:i A') : '—'), 0, 255), (int)$l['id'], $wid]);
             if (function_exists('crm_act_add')) crm_act_add((int)$l['id'], 'note', '🏛️ ' . t('اتحولت من منافسة: %s', mb_substr($t['name'], 0, 200)));
         }
-        tnd_mark($tid, 'applied', null, (int)$l['id']);
+        if ($mgr || in_array((string)(($tmq = db()->prepare('SELECT status FROM tender_marks WHERE workspace_id = ? AND tender_id = ?')) && $tmq->execute([(int)ws('id'), $tid]) ? ($tmq->fetchColumn() ?: '') : ''), ['', 'fav'], true)) tnd_mark($tid, 'applied', null, (int)$l['id']);
         log_activity('tenders.deal', (string)$t['ref']);
         $J(['ok' => true, 'status' => 'applied', 'lead' => (int)$l['id'], 'url' => url('prospects', ['lead' => (int)$l['id']])]);
     }

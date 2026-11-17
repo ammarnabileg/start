@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $op = (string)($_POST['op'] ?? ($action === 'enrich_stale' ? 'enrich' : ''));
         if ($action === 'enrich_stale') {
             $st = db()->prepare("SELECT id FROM crm_leads WHERE workspace_id = ? AND stage NOT IN ('won','lost') AND (email IS NOT NULL OR company IS NOT NULL OR (ext_id IS NOT NULL AND ext_id NOT LIKE 'ib:%' AND ext_id NOT LIKE 'cm:%' AND ext_id NOT LIKE 'dom:%'))
-                AND (enriched_at IS NULL AND (title IS NULL OR email IS NULL OR phone IS NULL) OR enriched_at < ?) " . ($canManage ? '' : 'AND owner_id = ' . $uid) . " ORDER BY enriched_at IS NOT NULL, enriched_at, id DESC LIMIT 25");
+                AND (enriched_at IS NULL AND (title IS NULL OR email IS NULL OR phone IS NULL) OR enriched_at < ?) " . ($canManage ? '' : 'AND (owner_id = ' . (int)$uid . ' OR owner_id IS NULL)') . " ORDER BY enriched_at IS NOT NULL, enriched_at, id DESC LIMIT 25");
             $st->execute([$wid, date('Y-m-d H:i:s', time() - 90 * 86400)]);
             $ids = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
         } else $ids = array_slice(array_map('intval', (array)($_POST['ids'] ?? [])), 0, 200);
@@ -171,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $em, 'phone' => $ph, 'country' => $r['country'] ?? '', 'owner_id' => $canManage ? null : $uid]);
             if (!$l) { $skip++; continue; }
             $tg = trim((string)($r['tags'] ?? '')); $nt = trim((string)($r['note'] ?? ''));
+            if (!empty($l['locked'])) { $skip++; continue; } // عميل زميل: ماتلمسش
             if (!empty($l['merged'])) { $merged++; // عميل موجود: التاجات بتتضاف والملاحظة بتتلحق (لو ليك صلاحية عليه)
                 if (($tg !== '' || $nt !== '') && crm_can_edit($l)) db()->prepare("UPDATE crm_leads SET tags = LEFT(TRIM(BOTH ', ' FROM CONCAT_WS(', ', NULLIF(tags, ''), NULLIF(?, ''))), 255), note = LEFT(TRIM(CONCAT_WS('\n', NULLIF(note, ''), NULLIF(?, ''))), 2000) WHERE id = ?")->execute([$tg, $nt, (int)$l['id']]);
                 continue; }
@@ -374,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($k === 'note' && function_exists('crm_mentions')) crm_mentions($body, (int)$l['id']);
         if ($k === 'call' && in_array($oc, ['no_answer', 'busy'], true)) {
             // محاولة تانية بكرة في نفس الوقت تقريبًا
-            $ra = date('Y-m-d H:i:s', strtotime('+1 day')); db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > ?, ?, next_note), next_at = IF(next_at IS NULL OR next_at > ?, ?, next_at) WHERE id = ?')->execute([$ra, t('محاولة اتصال تانية (%s)', $ocs[$oc]), $ra, $ra, (int)$l['id']]); // متابعة أقرب (زي اجتماع) تفضل
+            $ra = date('Y-m-d H:i:s', strtotime('+1 day')); db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > ? OR next_at < NOW(), ?, next_note), next_at = IF(next_at IS NULL OR next_at > ? OR next_at < NOW(), ?, next_at) WHERE id = ?')->execute([$ra, t('محاولة اتصال تانية (%s)', $ocs[$oc]), $ra, $ra, (int)$l['id']]); // متابعة أقرب (زي اجتماع) تفضل
         }
         if ($k === 'call' && $oc === 'wrong') db()->prepare('UPDATE crm_leads SET phone = NULL WHERE id = ?')->execute([(int)$l['id']]);
         if ($k === 'call' && function_exists('crm_on_call_outcome')) crm_on_call_outcome($l, $oc);

@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $p = json_decode((string)$r['payload'], true) ?: [];
             if (isset($_POST['content'])) $p['content'] = mb_substr((string)$_POST['content'], 0, 10000);
+            if (trim((string)($p['content'] ?? '')) === '' && empty($p['mediaItems'])) throw new ZernioException(t('النص فارغ. اكتب نص المنشور قبل الموافقة.'));
             if ($r['want'] !== 'now' && $r['want'] !== 'queue' && $ts($r['want']) < time()) { unset($p['scheduledFor']); $p['publishNow'] = true; } // الميعاد فات وهو مستني
             $z->createPost($p); $posted = true;
             db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);

@@ -24,7 +24,7 @@ if (isset($_GET['zip'])) {
     $ids = array_slice(array_filter(array_map('intval', explode(',', (string)$_GET['zip']))), 0, 300);
     if (!$ids || !class_exists('ZipArchive')) { http_response_code(400); exit; }
     $tmp = tempnam(sys_get_temp_dir(), 'mz'); ignore_user_abort(true); register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) @unlink($tmp); }); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
-    foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
+    foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r || !empty($r['deleted_at'])) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
         $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($r['folder'] . '/' . $n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($r['folder'] . '/' . $n)] = 1;
         $z->addFile($p, ($r['folder'] !== '' ? $r['folder'] . '/' : '') . $n); }
     $cnt = $z->numFiles; $z->close();

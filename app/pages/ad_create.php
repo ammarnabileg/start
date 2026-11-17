@@ -91,7 +91,7 @@ function adc_read_form(array $in, array $goals, array $ctas): array
         'budget_type' => ($in['budget_type'] ?? '') === 'lifetime' ? 'lifetime' : 'daily',
         'start' => (string)($in['start'] ?? ''),
         'end' => (string)($in['end'] ?? ''),
-        'countries' => strtoupper(preg_replace('/[^A-Za-z,]/', '', (string)($in['countries'] ?? ''))),
+        'countries' => implode(',', array_values(array_unique(array_filter(preg_split('/[\s,،;]+/u', strtoupper((string)($in['countries'] ?? ''))), function ($c) { return preg_match('/^[A-Z]{2}$/', $c); })))),
         'age_min' => max(18, min(65, (int)($in['age_min'] ?? 18))),
         'age_max' => max(18, min(65, (int)($in['age_max'] ?? 65))),
         'gender' => in_array($in['gender'] ?? '', ['male', 'female'], true) ? $in['gender'] : 'all',
