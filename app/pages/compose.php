@@ -303,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
         // الفحوص الرخيصة قبل رفع الملفات: ميعاد فات أو فاضي، أو A/B مع الموافقة
         if (!$errors && $old['mode'] === 'schedule') { $pre = DateTime::createFromFormat('Y-m-d\TH:i', (string)$old['when'], new DateTimeZone(site_timezone())); if (!$pre) $errors[] = t('اختار تاريخ ووقت النشر.'); elseif ($pre < new DateTime('now', new DateTimeZone(site_timezone()))) $errors[] = t('وقت النشر لازم يكون في المستقبل.'); }
         // 0) نسخة A/B مش بتعدّي على الموافقة: نقول بدل ما تضيع
+        if (!$errors && trim((string)($_POST['ab_text'] ?? '')) !== '' && !in_array($old['mode'], ['schedule', 'now'], true)) $errors[] = t('اختبار A/B يعمل مع الجدولة أو النشر الآن فقط. غيّر طريقة النشر أو احذف النسخة (ب).');
         if (!$errors && trim((string)($_POST['ab_text'] ?? '')) !== '' && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage') && $old['mode'] !== 'draft') $errors[] = t('اختبار A/B غير متاح للمنشورات التي تحتاج موافقة المدير. احذف النسخة (ب) أو اطلب من المدير النشر.');
         $media = [];
         if (!$errors && !empty($_FILES['media']['name'][0])) {
@@ -404,7 +405,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
                 if (function_exists('crm_notify')) foreach (ws_approvers() as $u) crm_notify($u, null, 'approval', t('📝 منشور جديد مستني موافقتك من %s', (string)(current_user()['name'] ?? '')));
                 log_activity('post.approval_request', mb_substr($old['content'], 0, 60));
                 flash('success', t('اتبعت للمدير يوافق عليه. هيتنشر في الميعاد اللي اخترته بعد الموافقة.'));
-                redirect(url('approvals'));
+                redirect(url('approvals', ['cpd' => (int)ws('id') . '_' . (int)(current_user()['id'] ?? 0)])); /* المسودة المحلية تتمسح: المنشور اتبعت للموافقة */
             } catch (ZernioException $ex) { $errors[] = $ex->getMessage(); }
         }
         if (!$errors) {

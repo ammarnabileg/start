@@ -423,3 +423,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localh
     if (x && d.dataset.outsideClick !== 'close') x.click(); else d.close();
   });
 })();
+
+/* بعد إرسال منشور للموافقة: نمسح مسودة الإنشاء المحلية عشان مايتبعتش مرتين */
+(function () { var m = /[?&]cpd=(\d+_\d+)/.exec(location.search); if (!m) return; try { localStorage.removeItem('cp_draft_' + m[1]); } catch (e) {} try { var r = indexedDB.open('cp_drafts'); r.onsuccess = function () { try { var db = r.result, tx = db.transaction(db.objectStoreNames[0], 'readwrite'); tx.objectStore(db.objectStoreNames[0]).delete('cp_draft_' + m[1]); } catch (e) {} }; } catch (e) {} })();

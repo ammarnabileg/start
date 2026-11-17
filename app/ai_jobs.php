@@ -489,6 +489,7 @@ function ai_auto_reply_run(int $wid, bool $force = false, ?array $hookMsg = null
             } catch (Throwable $e) { ai_agent_log_add($wid, ['kind' => 'comment', 'who' => (string)$hookCmt['name'], 'platform' => (string)$hookCmt['platform'], 'in' => mb_substr($tx, 0, 300), 'out' => '', 'reason' => 'خطأ: ' . mb_substr($e->getMessage(), 0, 160)]); }
         }
         save_setting('ai_replied_' . $wid, json_encode(array_slice($done, -600, null, true)));
+        save_setting('ai_drafts_' . $wid, json_encode($drafts, JSON_UNESCAPED_UNICODE)); // علامة «اتبعت رسالة الانتظار» ماتضيعش
         return $n;
     }
     // ---------- التعليقات (رد عام على التعليق، من قاعدة المعرفة بس) ----------

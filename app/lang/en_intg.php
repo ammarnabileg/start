@@ -6082,4 +6082,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'نعم، ألغِ الاشتراك' => 'Yes, unsubscribe',
     'هذا التكامل يقبل اتصالًا واحدًا فقط. عدّل الاتصال الموجود.' => 'This integration allows only one connection. Edit the existing one.',
     'إيقاف كل الحملات يتطلب صلاحية إدارة الإنفاق الإعلاني.' => 'Stopping all campaigns requires the ad spend permission.',
+    'إنشاء المحتوى' => 'Content creation',
+    'اختبار A/B يعمل مع الجدولة أو النشر الآن فقط. غيّر طريقة النشر أو احذف النسخة (ب).' => 'A/B testing works only with scheduling or publish now. Change the publish mode or remove version B.',
 ];
