@@ -276,7 +276,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
             <div><label class="label"><?= e(t('رقم الصفحة / الحساب')) ?></label><input name="source_id" class="input" dir="ltr" value="<?= e($current['conn']['metadata']['selectedPageId'] ?? '') ?>"></div>
           </div>
           <div data-aud="customer_list" class="space-y-2">
-            <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN && can('crm.manage') ? 'checked' : 'disabled' ?>>
+            <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN && can('crm.manage') ? '' : 'disabled' ?>>
               <span class="flex-1"><?= e(t('ضيف عملاء الـ CRM اللي ليهم إيميل')) ?> <b class="text-brand-700">(<?= ads_num($crmN) ?>)</b></span><?php if ($crmN && !can('crm.manage')): ?><span class="basis-full text-[11px] text-amber-700"><?= e(t('إضافة عملاء الـ CRM تحتاج صلاحية إدارة العملاء.')) ?></span><?php endif; ?>
               <select name="crm_stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('كلهم')) ?></option><option value="won"><?= e(t('اللي اشتروا بس (%s)', ads_num($crmW))) ?></option></select></label>
             <div><label class="label"><?= e(t('أو الصق إيميلات (واحد في كل سطر)')) ?><?= $isMeta ? ' ' . e(t('أو أرقام موبايل بكود الدولة')) : '' ?></label>

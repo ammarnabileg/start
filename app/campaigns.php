@@ -71,7 +71,9 @@ function camp_tick(int $wid, int $max = 5): int
             continue;
         }
         $z = zernio_or_null(); $claim = $pdo->prepare("UPDATE msg_campaign_items SET status = 'sending', sent_at = UTC_TIMESTAMP() WHERE id = ? AND status = 'queued'");
+        $stc = $pdo->prepare('SELECT status FROM msg_campaigns WHERE id = ?');
         foreach ($ids as $iid) {
+            $stc->execute([$camp['id']]); if ($stc->fetchColumn() !== 'running') break; // إيقاف أو إلغاء أثناء الدفعة يتنفذ فورًا
             // حجز ذرّي لكل رسالة: لو تشغيل تاني سبقنا عليها، نسيبها له (مافيش إرسال مرتين)
             $claim->execute([(int)$iid]); if ($claim->rowCount() !== 1) continue;
             $sti = $pdo->prepare('SELECT * FROM msg_campaign_items WHERE id = ?'); $sti->execute([(int)$iid]); $it = $sti->fetch(); if (!$it) continue;

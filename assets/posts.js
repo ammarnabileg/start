@@ -67,6 +67,7 @@
       return { y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute };
     } catch (e) { return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes() }; }
   }
+  function siteNow() { var p = siteParts(new Date()); return new Date(p.y, p.m - 1, p.d, p.h, p.mi); } // ساعة الشركة كـ Date محلي (الخلايا مبنية بتاريخ الشركة)
   function siteDT(d) { var p = siteParts(d); return p.y + '-' + pad2(p.m) + '-' + pad2(p.d) + 'T' + pad2(p.h) + ':' + pad2(p.mi); }
   window.__siteDT = siteDT;
   var bd = $('#ps-bulkdel'); if (bd) bd.onclick = function () { if (sel.size && confirm(X.delN.replace('%s', sel.size))) del(Array.from(sel)); };
@@ -121,7 +122,7 @@
       var end = days[6];
       $('#cal-title').textContent = days[0].toLocaleDateString(lang, { day: 'numeric', month: 'short' }) + ' – ' + end.toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' });
       var by = {}; filtered().forEach(function (p) { var sp = siteParts(new Date(p.at)), k = sp.y + '-' + sp.m + '-' + sp.d + '@' + sp.h; (by[k] = by[k] || []).push(p); });
-      var today = key(new Date()), now = new Date(), rtl = document.documentElement.dir === 'rtl', order = rtl ? days.slice().reverse() : days;
+      var today = key(siteNow()), now = siteNow(), rtl = document.documentElement.dir === 'rtl', order = rtl ? days.slice().reverse() : days;
       var h = '<table class="w-full table-fixed text-[11px] border-collapse"><thead class="sticky top-0 z-[2] bg-ink-50"><tr>' + (rtl ? '' : '<th class="w-14"></th>') +
         order.map(function (d) { return '<th class="py-2 font-medium ' + (key(d) === today ? 'text-brand-700' : 'text-ink-500') + '" dir="auto">' + esc(d.toLocaleDateString(lang, { weekday: 'short' })) + ' <span class="tabular-nums">' + d.getDate() + '</span></th>'; }).join('') + (rtl ? '<th class="w-14"></th>' : '') + '</tr></thead><tbody>';
       for (var hr = 0; hr < 24; hr++) {
@@ -141,13 +142,13 @@
       X.data.forEach(function (p) { if (v && p.txt.toLowerCase().indexOf(v) < 0) return; if (pf && p.pf.indexOf(pf) < 0) return; if (cAcc && (p.ac || []).indexOf(cAcc) < 0) return; var d = new Date(p.at); if (isNaN(d)) return; var sp = siteParts(d), kk = sp.y + '-' + sp.m + '-' + sp.d; (by[kk] = by[kk] || []).push(p); });
       $('#cal-title').textContent = cur.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
       // أيام فاضية في الأسبوعين الجايين (مفيش ولا منشور مجدول)
-      var gapSet = {}, gapN = 0, t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      var gapSet = {}, gapN = 0, t0 = siteNow(); t0.setHours(0, 0, 0, 0);
       for (var gi = 0; gi < 14; gi++) { var gd = new Date(t0); gd.setDate(t0.getDate() + gi); var gk = key(gd); var has = (by[gk] || []).some(function (p) { return p.st === 'scheduled'; }); if (!has) { gapSet[gk] = 1; gapN++; } }
       var gb = $('#cal-gaps'); if (!gb) { gb = document.createElement('span'); gb.id = 'cal-gaps'; gb.className = 'text-[11px] rounded-full px-2 py-0.5'; $('#cal-title').after(gb); }
       gb.textContent = gapN ? (X.q.gaps || '').replace('%s', gapN) : (X.q.noGaps || ''); gb.className = 'text-[11px] rounded-full px-2 py-0.5 ' + (gapN ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-lime-50 text-lime-700 border border-lime-200');
       grid.innerHTML = '';
       var first = new Date(cur), off = (first.getDay() - start + 7) % 7; first.setDate(1 - off);
-      var today = key(new Date());
+      var today = key(siteNow());
       for (var k = 0; k < 42; k++) {
         var d = new Date(first); d.setDate(first.getDate() + k);
         var inM = d.getMonth() === cur.getMonth(), items = (by[key(d)] || []).sort(function (a, b) { return new Date(a.at) - new Date(b.at); }), fut = d >= new Date(new Date().setHours(0, 0, 0, 0));

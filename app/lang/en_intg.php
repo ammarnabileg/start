@@ -6244,4 +6244,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'سيحل الكاروسيل الجديد محل التصميم الحالي بكل صفحاته. احفظ تعديلاتك أولًا إن أردت الاحتفاظ بها.' => 'The new carousel will replace the current design and all its pages. Save first if you want to keep it.',
     'لا يمكنك تعديل أو إزالة عضو لديه صلاحيات أكثر منك.' => 'You cannot change or remove a member who has more permissions than you.',
     'إرسال الرسائل النصية يتطلب صلاحية الإنفاق على الأرقام.' => 'Sending SMS requires the phone spend permission.',
+    'تعذّر قراءة المنيو الحالي من Google، فلم نحفظ حتى لا يُمسح. حاول مرة أخرى.' => 'Could not read the current menu from Google, so nothing was saved to avoid wiping it. Try again.',
+    'الوقت لازم يكون بالشكل HH:MM' => 'Time must be in HH:MM format',
+    'حتى %s' => 'until %s',
 ];

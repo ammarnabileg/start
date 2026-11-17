@@ -108,11 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 if ($date === '') continue;
                 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) throw new ZernioException(t('تاريخ مش صحيح.'));
                 $closed = !empty($_POST['sp_closed'][$i]);
-                $p = ['startDate' => gmb_date_obj($date), 'endDate' => gmb_date_obj($date), 'closed' => $closed];
+                $end = (string)($_POST['sp_end'][$i] ?? ''); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end) || $end < $date) $end = $date; // فترة أكتر من يوم تفضل زي ما هي
+                $p = ['startDate' => gmb_date_obj($date), 'endDate' => gmb_date_obj($end), 'closed' => $closed];
                 if (!$closed) {
                     $o = (string)($_POST['sp_from'][$i] ?? '');
                     $c = (string)($_POST['sp_to'][$i] ?? '');
                     if ($o === '' || $c === '') throw new ZernioException(t('حدد مواعيد اليوم الخاص أو علّم إنه مقفول.'));
+                    if (!preg_match('/^\d{2}:\d{2}$/', $o) || !preg_match('/^\d{2}:\d{2}$/', $c)) throw new ZernioException(t('الوقت لازم يكون بالشكل HH:MM'));
+                    if ($c <= $o && $end === $date) { $p['endDate'] = gmb_date_obj((new DateTime($date))->modify('+1 day')->format('Y-m-d')); } // بيقفل بعد نص الليل
                     $p['openTime'] = gmb_time_obj($o);
                     $p['closeTime'] = gmb_time_obj($c);
                 }
@@ -143,11 +146,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             $cur = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)($_POST['currency'] ?? cx('cur')))) ?: cx('cur');
             $menuName = trim((string)($_POST['menu_name'] ?? '')) ?: 'Menu';
             $sections = [];
+            // المنيو الحالي لازم يتقري الأول: لو فشل مانكتبش فوقه (كان ممكن يمسح المنيو كله)، وبنحافظ على الوصف والصور وباقي المنيوهات
+            try { $curMenus = gmb_food_menus($z, $acc, $lid); } catch (Throwable $e) { throw new ZernioException(t('تعذّر قراءة المنيو الحالي من Google، فلم نحفظ حتى لا يُمسح. حاول مرة أخرى.')); }
+            $old = []; foreach ((array)(($curMenus[0]['sections'] ?? [])) as $sx) { $sl = (string)($sx['labels'][0]['displayName'] ?? ''); foreach ((array)($sx['items'] ?? []) as $ix) $old[mb_strtolower($sl . '|' . (string)($ix['labels'][0]['displayName'] ?? ''))] = $ix; }
             foreach (preg_split('/\R/', (string)($_POST['menu'] ?? '')) as $line) {
                 $parts = array_map('trim', explode('|', $line));
                 if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') continue;
-                $item = ['labels' => [['displayName' => $parts[1]]]];
-                $price = str_replace(',', '.', (string)($parts[2] ?? ''));
+                if (count($parts) > 3) { $parts = [$parts[0], implode(' | ', array_slice($parts, 1, -1)), end($parts)]; } // | جوه اسم الصنف
+                $item = $old[mb_strtolower($parts[0] . '|' . $parts[1])] ?? []; $item['labels'] = $item['labels'] ?? [['displayName' => $parts[1]]]; $item['labels'][0]['displayName'] = $parts[1];
+                $pr = (string)($parts[2] ?? ''); $price = preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $pr) ? str_replace(',', '', $pr) : str_replace(',', '.', $pr); // 1,250.50 = ألف ومتين
                 if ($price !== '' && is_numeric($price)) {
                     $item['attributes'] = ['price' => ['currencyCode' => $cur, 'units' => (string)(int)floor((float)$price), 'nanos' => (int)round(((float)$price - floor((float)$price)) * 1e9)]];
                 }
@@ -156,7 +163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             if (!$sections) throw new ZernioException(t('اكتب صنف واحد على الأقل بالشكل: القسم | الصنف | السعر'));
             $secs = [];
             foreach ($sections as $sn => $its) $secs[] = ['labels' => [['displayName' => $sn]], 'items' => $its];
-            gmb_update_food_menus($z, $acc, $lid, [['labels' => [['displayName' => $menuName]], 'sections' => $secs]]);
+            $first = array_merge((array)($curMenus[0] ?? []), ['labels' => [['displayName' => $menuName]], 'sections' => $secs]);
+            gmb_update_food_menus($z, $acc, $lid, array_merge([$first], array_slice((array)$curMenus, 1))); // المنيوهات التانية تفضل
             log_activity('gmb.menu_update', $lid);
             flash('success', t('تم حفظ المنيو.'));
         } elseif ($action === 'action_add') {
@@ -396,7 +404,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
         <div class="space-y-2" id="gl-sp">
           <?php foreach ($sp as $i => $p): ?>
             <div class="gl-sp flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 p-2.5">
-              <input type="date" name="sp_date[<?= $i ?>]" class="input !mt-0 !w-40 !py-1.5" value="<?= e(gmb_date_str($p['startDate'] ?? null)) ?>">
+              <input type="date" name="sp_date[<?= $i ?>]" class="input !mt-0 !w-40 !py-1.5" value="<?= e(gmb_date_str($p['startDate'] ?? null)) ?>"><?php $sd0 = gmb_date_str($p['startDate'] ?? null); $ed0 = gmb_date_str($p['endDate'] ?? null); if ($ed0 !== '' && $ed0 !== $sd0 && empty($p['closeTime']['hours'])) : ?><input type="hidden" name="sp_end[<?= $i ?>]" value="<?= e($ed0) ?>"><span class="text-[11px] text-ink-500"><?= e(t('حتى %s', $ed0)) ?></span><?php endif; ?>
               <label class="cursor-pointer"><input type="checkbox" name="sp_closed[<?= $i ?>]" value="1" class="peer sr-only" <?= !empty($p['closed']) ? 'checked' : '' ?>><span class="inline-block rounded-full border border-ink-200 px-3 py-1 text-xs peer-checked:bg-red-600 peer-checked:border-red-600 peer-checked:text-white transition"><?= e(t('مقفول')) ?></span></label>
               <input type="time" name="sp_from[<?= $i ?>]" class="input !mt-0 !w-[7.5rem] !py-1.5" value="<?= e(isset($p['openTime']) ? gmb_time($p['openTime']) : '') ?>">
               <span class="text-ink-400">–</span>
