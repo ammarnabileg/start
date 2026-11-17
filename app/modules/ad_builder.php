@@ -434,6 +434,9 @@ function ab_find_id(array $r, array $keys): ?string
     return null;
 }
 
+/** المنصة نفّذت الطلب بس مارجّعتش الرقم: لازم مراجعة يدوية قبل أي إعادة (عشان مانعملش نسخة مكررة) */
+class AbCreatedNoId extends RuntimeException {}
+
 /** تنفيذ خطوة واحدة. بيرجع [ok, رسالة, ids محدّثة] */
 function ab_run_step(Zernio $z, array $d, array $step, array $ids): array
 {
@@ -441,13 +444,14 @@ function ab_run_step(Zernio $z, array $d, array $step, array $ids): array
     if ($step['k'] === 'campaign') {
         $r = $z->request('POST', '/v1/ads/campaigns', [], $body);
         $cid = ab_find_id($r, ['platformCampaignId', 'campaignId']) ?? ab_find_id($r['campaign'] ?? [], ['id', '_id']);
-        if (!$cid) throw new RuntimeException(t('الحملة اتعملت بس ما رجعش رقمها. افتح صفحة الحملات قبل ما تكمل.'));
+        if (!$cid) throw new AbCreatedNoId(t('الحملة اتعملت بس ما رجعش رقمها. افتح صفحة الحملات قبل ما تكمل.'));
         $ids['campaign'] = $cid; return [true, '', $ids, $r];
     }
     $r = $z->request('POST', '/v1/ads/create', [], $body);
     if ($step['k'] === 'set') {
         $sid = ab_find_id($r, ['platformAdSetId', 'adSetId']) ?? ab_find_id($r['adSet'] ?? [], ['id', '_id']);
-        if ($sid) $ids['sets'][$step['si']] = $sid;
+        if (!$sid) throw new AbCreatedNoId(t('مجموعة الإعلانات اتعملت بس ما رجعش رقمها. افتح صفحة الحملات قبل ما تكمل.'));
+        $ids['sets'][$step['si']] = $sid;
         if (empty($ids['campaign'])) { $cid = ab_find_id($r, ['platformCampaignId', 'campaignId']); if ($cid && ab_caps((string)$d['platform'])['campaignsEndpoint']) $ids['campaign'] = $cid; }
     }
     $warn = ab_find_id($r, ['warning', 'activation_failed']);

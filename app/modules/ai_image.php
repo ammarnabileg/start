@@ -97,7 +97,7 @@ function img_or_conn(): ?array
 /** موديلات OpenRouter اللي بتطلّع صور (من قايمة الموديلات، متخزنة 6 ساعات) */
 function img_or_models(array $c): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_img_models2.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_img_models2_' . substr(sha1((string)$c['credentials']['api_key']), 0, 12) . '.json';
     if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j) && $j) return $j; }
     $ch = curl_init(ai_base('openrouter') . '/models');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
@@ -174,14 +174,14 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
 
 function vid_or_models(array $c): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models2.json';
-    if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j)) return $j; }
+    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models2_' . substr(sha1((string)$c['credentials']['api_key']), 0, 12) . '.json';
+    if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j) && $j) return $j; }
     $ch = curl_init(ai_base('openrouter') . '/videos/models');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
     $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
     $out = [];
     foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_filter(array_map('intval', (array)($m['supported_durations'] ?? [])), function ($d) { return $d > 0; })), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? [])), 'usd_s' => vid_or_price((array)($m['pricing_skus'] ?? $m['pricing'] ?? []))];
-    @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out));
+    if ($out) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out)); }
     return $out;
 }
 

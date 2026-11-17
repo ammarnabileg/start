@@ -98,7 +98,7 @@ function acr_tick(int $wid, Zernio $z, int $max = 15): int
                     $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => mb_substr($rt, 0, 300), 'st' => 'sent'];
                     $rule['log'] = array_slice((array)$rule['log'], -30);
                     $changed[$rule['id']] = $rule; $n++;
-                } catch (Throwable $e) { error_log('acr: ' . $e->getMessage()); $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => mb_substr($e->getMessage(), 0, 200), 'st' => 'failed']; $rule['log'] = array_slice((array)$rule['log'], -30); $changed[$rule['id']] = $rule; $fails = ($fails ?? 0) + 1; if ($fails >= 3) break 3; }
+                } catch (Throwable $e) { error_log('acr: ' . $e->getMessage()); $fk = 'cf:' . $cid; $done[$fk] = (int)($done[$fk] ?? 0) + 1; if ($done[$fk] >= 3) $done[$k] = 1; if ($done[$fk] > 1) { $fails = ($fails ?? 0) + 1; if ($fails >= 3) break 3; continue; } $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => mb_substr($e->getMessage(), 0, 200), 'st' => 'failed']; $rule['log'] = array_slice((array)$rule['log'], -30); $changed[$rule['id']] = $rule; $fails = ($fails ?? 0) + 1; if ($fails >= 3) break 3; }
             }
         }
     }

@@ -1,4 +1,7 @@
 <?php
+
+/** خلية CSV آمنة: أي نص بيبدأ بـ = + - @ يتحول لنص عادي في الإكسل */
+function cmp_cell($v) { $v = (string)$v; return $v !== '' && strpos("=+-@\t\r", $v[0]) !== false && !is_numeric($v) ? "'" . $v : $v; }
 /**
  * المقارنة والتنبيهات (الأفكار 42-50، من غير ذكاء اصطناعي): «أنت قدامهم» بالترتيب، تنبيهات بقواعد (جرس + إيميل)،
  * ملخص أسبوعي، آخر نشاط، تقويم العروض، تصدير، المحفوظات، واكتشاف منافسين من خرائط جوجل.
@@ -232,12 +235,12 @@ function cmp_overview(): array
 function cmp_csv(): string
 {
     $tb = cmp_table(); $f = fopen('php://temp', 'w+'); fwrite($f, "\xEF\xBB\xBF");
-    fputcsv($f, array_merge([t('المؤشر')], array_map(function ($c) { return $c['name'] . ($c['self'] ? ' (' . t('أنت') . ')' : ''); }, $tb['cols'])));
-    foreach ($tb['rows'] as $r) fputcsv($f, array_merge([$r['label']], array_map(function ($x) { return $x['v'] === null ? '' : $x['v'] . ($x['rank'] ? ' (#' . $x['rank'] . ')' : ''); }, $r['cells'])));
-    fputcsv($f, array_merge([t('آخر نشاط (أيام)')], array_map(function ($c) { return $c['last'] === null ? '' : $c['last']; }, $tb['cols'])));
-    fputcsv($f, array_merge([t('خدمات هم أرخص فيها')], array_map(function ($c) { return $c['self'] ? '' : $c['cheaper']; }, $tb['cols'])));
-    fputcsv($f, []); fputcsv($f, [t('المنافس'), t('التاريخ'), t('التغيير'), t('التفاصيل')]);
+    fputcsv($f, array_map('cmp_cell', array_merge([t('المؤشر')], array_map(function ($c) { return $c['name'] . ($c['self'] ? ' (' . t('أنت') . ')' : ''); }, $tb['cols']))));
+    foreach ($tb['rows'] as $r) fputcsv($f, array_map('cmp_cell', array_merge([$r['label']], array_map(function ($x) { return $x['v'] === null ? '' : $x['v'] . ($x['rank'] ? ' (#' . $x['rank'] . ')' : ''); }, $r['cells']))));
+    fputcsv($f, array_map('cmp_cell', array_merge([t('آخر نشاط (أيام)')], array_map(function ($c) { return $c['last'] === null ? '' : $c['last']; }, $tb['cols']))));
+    fputcsv($f, array_map('cmp_cell', array_merge([t('خدمات هم أرخص فيها')], array_map(function ($c) { return $c['self'] ? '' : $c['cheaper']; }, $tb['cols']))));
+    fputcsv($f, []); fputcsv($f, array_map('cmp_cell', [t('المنافس'), t('التاريخ'), t('التغيير'), t('التفاصيل')]));
     $st = db()->prepare('SELECT e.*, c.name cname FROM competitor_events e JOIN competitors c ON c.id = e.competitor_id WHERE e.workspace_id = ? AND e.kind <> "first" ORDER BY e.id DESC LIMIT 1000'); $st->execute([(int)ws('id')]);
-    foreach ($st->fetchAll() as $e) fputcsv($f, [(string)$e['cname'], substr((string)$e['created_at'], 0, 16), comp_ev_title($e['kind'], (string)$e['title']), (string)$e['detail']]);
+    foreach ($st->fetchAll() as $e) fputcsv($f, array_map('cmp_cell', [(string)$e['cname'], substr((string)$e['created_at'], 0, 16), comp_ev_title($e['kind'], (string)$e['title']), (string)$e['detail']]));
     rewind($f); $s = stream_get_contents($f); fclose($f); return $s;
 }

@@ -722,7 +722,7 @@ function an_set_tags(string $postId, array $tags): void
 function an_other_workspace_client(int $wid, ?string &$profile = null): ?Zernio
 {
     $mine = false;
-    foreach (user_workspaces() as $w) if ((int)$w['id'] === $wid) $mine = true;
+    foreach (user_workspaces() as $w) if ((int)$w['id'] === $wid) { $role = (string)($w['my_role'] ?? $w['role'] ?? ''); $mine = $role === 'owner' || (function_exists('role_permissions') && in_array('analytics.view', (array)role_permissions($role, $wid), true)); }
     if (!$mine) return null;
     foreach (connections('zernio', $wid) as $c) {
         $key = (string)($c['credentials']['api_key'] ?? '');

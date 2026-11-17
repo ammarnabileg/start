@@ -70,9 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     }
     if (!can('comments.reply')) $J(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], 403);
     if ($act === 'c_hide') {
-        $ok = 0; foreach ($ids as $cid) { try { $z->hideComment($postId, $cid, $accId); $ok++; } catch (Throwable $e) {} }
+        $ok = 0; $bad = 0; $err = ''; foreach ($ids as $cid) { try { $z->hideComment($postId, $cid, $accId); $ok++; } catch (Throwable $e) { $bad++; if ($err === '') $err = $e->getMessage(); } }
         log_activity('comment.hide_bulk', $postId . ' ' . $ok);
-        $J(['ok' => true, 'done' => $ok]);
+        if (!$ok && $bad) $J(['ok' => false, 'error' => $err, 'failed' => $bad]);
+        $J(['ok' => true, 'done' => $ok, 'failed' => $bad, 'error' => $bad ? t('تعذّر إخفاء %s تعليق: %s', $bad, $err) : '']);
     }
     // رد على تعليق واحد (الواجهة بتنادي ده لكل تعليق محدد ورا بعض، بفاصل زمني)
     $cid = $ids[0] ?? '';

@@ -109,9 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         log_activity('ads.builder_step', $b['id'] . ' #' . $i);
         echo json_encode(['ok' => true, 'step' => $i, 'warn' => $warn, 'finished' => $fin, 'progress' => $pr], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $ex) {
-        $pr['inflight'] = null; $pr['errors'][$i] = $ex->getMessage();
+        $unk = $ex instanceof AbCreatedNoId; $pr['inflight'] = $unk ? $i : null; $pr['errors'][$i] = $ex->getMessage();
         ab_set_progress($wid, $b['id'], 'failed', $pr);
-        echo json_encode(['ok' => false, 'step' => $i, 'error' => $ex->getMessage(), 'progress' => $pr], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => false, 'unknown' => $unk, 'step' => $i, 'error' => $ex->getMessage(), 'progress' => $pr], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
@@ -292,7 +292,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     if (!empty($d['cloneOf'])) { $others = []; ?><p class="mb-3 text-xs text-ink-500"><?= ui_icon('layers', 'w-3.5 h-3.5 inline') ?> <?= e(t('دي نسخة من حملة على حساب تاني.')) ?> <a class="link" href="<?= e(url('ad_builder', ['id' => (int)$d['cloneOf']])) ?>"><?= e(t('افتح الحملة الأصلية')) ?></a></p><?php }
     $copies = $others ? ab_copies((int)ws('id'), (int)$build['id']) : [];
     $copyRows = [];
-    foreach ($copies as $cacc => $cp) { $cb = ab_get((int)ws('id'), $cp['id']); if (!$cb) continue; $copyRows[] = ['id' => $cp['id'], 'name' => $cp['name'], 'acc' => (string)($cb['data']['accName'] ?? $cacc), 'cur' => (string)($cb['data']['currency'] ?? ''), 'curDiff' => ($cb['data']['currency'] ?? '') !== ($d['currency'] ?? ''), 'stripped' => false, 'url' => url('ad_builder', ['id' => $cp['id']]), 'budget' => ab_main_budget($cb['data']), 'state' => $cp['state'], 'locked' => !in_array($cb['state'], ['draft', 'failed'], true)]; }
+    foreach ($copies as $cacc => $cp) { $cb = ab_get((int)ws('id'), $cp['id']); if (!$cb) continue; $copyRows[] = ['id' => $cp['id'], 'name' => $cp['name'], 'acc' => (string)($cb['data']['accName'] ?? $cacc), 'cur' => (string)($cb['data']['currency'] ?? ''), 'curDiff' => ($cb['data']['currency'] ?? '') !== ($d['currency'] ?? ''), 'stripped' => false, 'url' => url('ad_builder', ['id' => $cp['id']]), 'budget' => ab_main_budget($cb['data']), 'state' => $cp['state'], 'locked' => !in_array($cb['state'], ['draft', 'failed'], true), 'partial' => !empty($cb['progress']['done'])]; }
     if ($others && can('ads.spend') && (in_array($build['state'], ['draft', 'failed'], true) && empty($build['progress']['done']) || $copyRows)): ?>
     <details class="card mb-4" id="ab-multi" <?= $copyRows ? 'open' : '' ?>>
       <summary class="flex flex-wrap items-center gap-2 px-5 py-3 cursor-pointer list-none"><?= ui_icon('layers', 'w-4 h-4 text-brand-600') ?><b class="text-sm text-ink-900"><?= e(t('نفس الحملة على حسابات تانية')) ?></b><span class="text-xs text-ink-500"><?= e(t('%s حساب على نفس المنصة', count($others))) ?></span></summary>
@@ -311,7 +311,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
     </details>
     <?php endif; ?>
     <div id="ab-app" class="min-h-[60vh]" data-id="<?= (int)$build['id'] ?>"><div class="card p-8 text-center text-sm text-ink-500"><?= e(t('بيحمّل...')) ?></div></div>
-    <script>window.AB = <?= json_encode(['mt' => ['badBudget' => t('ميزانية إحدى النسخ لم تُحفظ. صحّحها أولًا.'), 'pick' => t('اختار حساب واحد على الأقل.'), 'cur' => t('العملة %s: راجع الميزانية'), 'stripped' => t('اتشال الجمهور المخصص/النموذج'), 'ready' => t('جاهزة'), 'open' => t('افتح'), 'confirm' => t('أوافق على صرف ميزانية %s حملات على حساباتها'), 'launchAll' => t('أطلق الكل'), 'launching' => t('بيتطلق…'), 'launched' => t('اتطلقت'), 'failed' => t('فشل الإطلاق'), 'done' => t('خلصت كلها ✓'), 'doneErr' => t('خلصت، و%s فشلت: افتحها وصلّحها'), 'budget' => t('الميزانية'), 'saved' => t('اتحفظت'), 'skipped' => t('فيه نسخة بالفعل على: %s'), 'existing' => t('النسخ الموجودة'), 'launchedAlready' => t('اتطلقت قبل كده')], 
+    <script>window.AB = <?= json_encode(['mt' => ['partial' => t('توقفت في المنتصف: ستُستكمل'), 'badBudget' => t('ميزانية إحدى النسخ لم تُحفظ. صحّحها أولًا.'), 'pick' => t('اختار حساب واحد على الأقل.'), 'cur' => t('العملة %s: راجع الميزانية'), 'stripped' => t('اتشال الجمهور المخصص/النموذج'), 'ready' => t('جاهزة'), 'open' => t('افتح'), 'confirm' => t('أوافق على صرف ميزانية %s حملات على حساباتها'), 'launchAll' => t('أطلق الكل'), 'launching' => t('بيتطلق…'), 'launched' => t('اتطلقت'), 'failed' => t('فشل الإطلاق'), 'done' => t('خلصت كلها ✓'), 'doneErr' => t('خلصت، و%s فشلت: افتحها وصلّحها'), 'budget' => t('الميزانية'), 'saved' => t('اتحفظت'), 'skipped' => t('فيه نسخة بالفعل على: %s'), 'existing' => t('النسخ الموجودة'), 'launchedAlready' => t('اتطلقت قبل كده')], 
         'id' => (int)$build['id'], 'state' => $build['state'], 'progress' => $build['progress'], 'data' => $d,
         'caps' => ab_caps($d['platform']), 'plan' => ab_plan($d), 'campaignsUrl' => url('ads'), 'platformLabel' => ab_platform_label($d['platform']),
         'csrf' => csrf_token(), 'url' => url('ad_builder'), 'listUrl' => url('ad_builder'),

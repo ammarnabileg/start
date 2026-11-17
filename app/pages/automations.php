@@ -168,7 +168,7 @@ if ($z) {
 }
 
 if (function_exists('acr_all') && $z) {
-    foreach (acr_all((int)ws('id')) as $r0) { $it0 = acr_as_item($r0); $list[] = $it0; if ($editId !== '' && $editId === $r0['id']) { $current = $it0; $logs = []; } }
+    foreach (acr_all((int)ws('id')) as $r0) { $it0 = acr_as_item($r0); $list[] = $it0; if ($editId !== '' && $editId === $r0['id']) { $current = $it0; $logs = array_map(function ($l) { return ['status' => (string)($l['st'] ?? ''), 'commenterName' => (string)($l['who'] ?? ''), 'commentText' => trim((string)($l['in'] ?? '') . (($l['out'] ?? '') !== '' ? ' → ' . $l['out'] : '')), 'createdAt' => !empty($l['at']) ? gmdate('c', (int)$l['at']) : null]; }, $it0['recentLogs']); } }
 }
 render(t('الردود التلقائية'), 'automations', function () use ($z, $list, $wfs, $accounts, $current, $logs, $editId, $isNew, $apiError) {
     if (!$z) { no_api_box(); return; }

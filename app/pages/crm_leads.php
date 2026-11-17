@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $json(['ok' => true, 'lead' => $out(crm_lead((int)$keep['id'])), 'gone' => (int)$drop['id']]);
     }
     $l = crm_lead((int)($_POST['id'] ?? 0));
-    if ($l && $action === 'acts') { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => null, 'intel' => crm_intel($l, $ac), 'mails' => $mails, 'deals' => crm_deals((int)$l['id']), 'visits' => crm_visits((int)$l['id'])]); }
+    if ($l && $action === 'acts' && crm_can_edit($l)) { $ac = crm_acts((int)$l['id']); $mails = crm_mails((int)$l['id']); $json(['ok' => true, 'acts' => $ac, 'run' => null, 'intel' => crm_intel($l, $ac), 'mails' => $mails, 'deals' => crm_deals((int)$l['id']), 'visits' => crm_visits((int)$l['id'])]); }
     if (!$l || !crm_can_edit($l)) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل العميل ده.')]);
     if ($action === 'stage') {
         $s = (string)($_POST['stage'] ?? '');

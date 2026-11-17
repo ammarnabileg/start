@@ -68,6 +68,7 @@ if (in_array($task, ['image', 'image_status'], true)) {
     }
     if ($task === 'image' && $video && function_exists('vid_provider') && vid_provider() === 'openrouter') {
         if (!ai_feature_on('video')) $out(['error' => t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')], 403);
+        if ((string)($_POST['src'] ?? '') !== '') $out(['error' => t('تحويل صورة إلى فيديو غير متاح عبر OpenRouter حاليًا. استخدم وصفًا نصيًا، أو اربط Higgsfield.')], 422);
         $prompt = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 1500); if ($prompt === '') $out(['error' => t('اكتب وصف الفيديو أولًا.')], 422);
         $ar = in_array($_POST['aspect'] ?? '', ['1:1', '4:5', '9:16', '16:9'], true) ? ($_POST['aspect'] === '4:5' ? '3:4' : $_POST['aspect']) : '9:16';
         try { $vid = vid_or_start($prompt, $ar); } catch (Throwable $e) { $out(['error' => $e->getMessage()], 502); }

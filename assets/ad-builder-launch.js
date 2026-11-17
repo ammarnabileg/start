@@ -71,10 +71,10 @@
   function rowHtml(m) {
     var locked = !!m.locked;
     return '<div class="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm" data-mt="' + m.id + '"' + (locked ? ' data-locked="1"' : '') + '><b class="min-w-0 flex-1 truncate">' + esc(m.name) + '</b>' +
-      (locked ? '' : '<label class="inline-flex items-center gap-1 text-[11px] text-ink-500">' + esc(T.budget || '') + ' <input type="number" min="1" step="0.01" class="input !w-24 !py-0.5 !mt-0 text-xs ab-mt-b" value="' + esc(m.budget || '') + '" dir="ltr"> <span dir="ltr">' + esc(m.cur || '') + '</span></label>') +
+      ((locked || m.partial) ? '' : '<label class="inline-flex items-center gap-1 text-[11px] text-ink-500">' + esc(T.budget || '') + ' <input type="number" min="1" step="0.01" class="input !w-24 !py-0.5 !mt-0 text-xs ab-mt-b" value="' + esc(m.budget || '') + '" dir="ltr"> <span dir="ltr">' + esc(m.cur || '') + '</span></label>') +
       (m.curDiff && !locked ? '<span class="text-[11px] text-amber-700">' + esc((T.cur || '%s').replace('%s', m.cur)) + '</span>' : '') +
       (m.stripped ? '<span class="text-[11px] text-amber-700">' + esc(T.stripped || '') + '</span>' : '') +
-      '<span class="ab-mt-st text-[11px] ' + (locked ? 'text-lime-700' : 'text-ink-500') + '">' + esc(locked ? '✓ ' + (T.launchedAlready || '') : (T.ready || '')) + '</span><a class="link text-xs" target="_blank" href="' + esc(m.url) + '">' + esc(T.open || '') + '</a></div>';
+      '<span class="ab-mt-st text-[11px] ' + (locked ? 'text-lime-700' : 'text-ink-500') + '">' + esc(locked ? '✓ ' + (T.launchedAlready || '') : m.partial ? (T.partial || '') : (T.ready || '')) + '</span><a class="link text-xs" target="_blank" href="' + esc(m.url) + '">' + esc(T.open || '') + '</a></div>';
   }
   function draw() {
     var todo = rows.filter(function (m) { return !m.locked; }).length;

@@ -3,6 +3,7 @@
 $wid = (int)($_GET['w'] ?? 0); $k = (string)($_GET['k'] ?? ''); $u = (string)($_GET['u'] ?? '');
 if (!preg_match('~^https?://~i', $u)) { http_response_code(400); exit('bad link'); }
 $lead = $wid ? crm_lead_from_token($wid, $k) : 0;
+if (!$lead) { http_response_code(404); exit('link expired'); } // مايبقاش محوّل مفتوح لأي موقع
 if ($lead) {
     $st = db()->prepare('SELECT id FROM crm_leads WHERE id = ? AND workspace_id = ?'); $st->execute([$lead, $wid]);
     if ($st->fetchColumn()) {

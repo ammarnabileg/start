@@ -88,7 +88,8 @@ function comp_ev_detail(string $kind, ?string $detail): string
 function comp_diff(array $old, array $new): array
 {
     $ev = [];
-    if (empty($old)) return [['first', '', count($new['services'] ?? []) . '|' . count($new['offers'] ?? [])]];
+    if (empty($old)) return empty($new['ok']) ? [] : [['first', '', count($new['services'] ?? []) . '|' . count($new['offers'] ?? [])]];
+    if (empty($old['ok']) && !array_key_exists('services', $old) && !empty($new['ok'])) return [['first', '', count($new['services'] ?? []) . '|' . count($new['offers'] ?? [])]]; // ماكانش فيه قراءة ناجحة قبل كده
     if (empty($new['ok'])) return !empty($old['ok']) ? [['down', '', preg_match('/\d{3}/', (string)($new['err'] ?? ''), $hc) ? $hc[0] : '']] : [];
     if (empty($old['ok'])) $ev[] = ['up', '', ''];
     $o = (array)($old['services'] ?? []); $n = (array)($new['services'] ?? []);

@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $s = $st->fetch(); if (!$s) $json(['ok' => false, 'error' => t('البحث ده مش موجود.')]);
         $filters = json_decode((string)$s['filters'], true) ?: [];
         $onlyNew = array_flip((array)json_decode((string)$s['new_ids'], true));
-        db()->prepare('UPDATE crm_searches SET new_ids = NULL, new_count = 0 WHERE id = ? AND workspace_id = ?')->execute([(int)$_POST['id'], $wid]);
+        $clearNew = (int)$_POST['id'];
         $action = 'search';
     }
     if ($action === 'search') {
@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $more = (count($r['people']) >= 25) ? crm_people_search($filters, 2)['people'] : [];
                 $r['people'] = array_values(array_filter(array_merge($r['people'], $more), function ($p) use ($onlyNew) { return isset($onlyNew[$p['id']]); }));
                 $r['total'] = count($r['people']); $r['onlyNew'] = true;
+                if (!empty($clearNew)) db()->prepare('UPDATE crm_searches SET new_ids = NULL, new_count = 0 WHERE id = ? AND workspace_id = ?')->execute([$clearNew, $wid]);
             }
         } catch (CrmException $ex) {
             $json(['ok' => false, 'error' => $ex->getMessage(), 'plan' => $ex instanceof CrmPlanException]);

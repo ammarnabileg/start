@@ -79,11 +79,12 @@ $e = [];
 // بنحفظ بيانات الرئيسية 5 دقايق لكل شركة وصلاحيات، والرسم البياني (14 يوم) 6 ساعات. «تحديث» بيجيبها من جديد.
 $dashDir = ROOT_DIR . '/uploads/cache'; @mkdir($dashDir, 0750, true);
 $dashPerm = implode(',', array_map(function ($k) { return can($k) ? 1 : 0; }, ['accounts.view', 'posts.create', 'posts.view', 'inbox.reply', 'comments.reply', 'analytics.view'])) . (module_enabled('analytics') ? 'a' : '');
-$dashF = $dashDir . '/dash_' . (int)ws('id') . '_' . md5($dashPerm . '|' . $pid . '|' . ($z && method_exists($z, 'dataVersion') ? $z->dataVersion() : '')) . '.json';
+$dashVer = $z && method_exists($z, 'dataVersion') ? (string)$z->dataVersion() : '';
+$dashF = $dashDir . '/dash_' . (int)ws('id') . '_' . md5($dashPerm . '|' . $pid) . '.json';
 $dailyF = $dashDir . '/dashd_' . (int)ws('id') . '_' . md5((string)$pid) . '.json';
 $dashFresh = !isset($_GET['refresh']) && is_file($dashF) && filemtime($dashF) > time() - 300;
 $dailyFresh = !isset($_GET['refresh']) && is_file($dailyF) && filemtime($dailyF) > time() - 6 * 3600;
-if ($z && $dashFresh) { $cd = json_decode((string)@file_get_contents($dashF), true); if (is_array($cd)) { $d = array_merge($d, $cd); $dashHit = true; } }
+if ($z && $dashFresh) { $cd = json_decode((string)@file_get_contents($dashF), true); if (is_array($cd) && (string)($cd['__v'] ?? '') === $dashVer) { unset($cd['__v']); $d = array_merge($d, $cd); $dashHit = true; } }
 if ($z && empty($dashHit)) {
     // الطلبات كلها في نفس الوقت بدل واحد ورا التاني (ده كان سبب بطء الرئيسية)
     if (method_exists($z, 'prefetch')) { try { $z->prefetch(array_values(array_filter([
@@ -110,7 +111,7 @@ if ($z && empty($dashHit)) {
         }
     }
     // نحفظ بس لو كل الطلبات نجحت (مانحفظش خطأ مؤقت 5 دقايق)
-    if (!array_filter($e)) @file_put_contents($dashF, json_encode($d, JSON_UNESCAPED_UNICODE));
+    if (!array_filter($e)) @file_put_contents($dashF, json_encode($d + ['__v' => $dashVer], JSON_UNESCAPED_UNICODE));
 }
 
 // نشاط الفريق من سجل البرنامج (من غير طلبات خارجية)
