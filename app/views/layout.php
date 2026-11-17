@@ -43,7 +43,6 @@ $I = [
     'inbox' => 'M21 12a8.5 8.5 0 01-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1121 12z',
     'comments' => 'M4 5h16v10H9l-5 4zM8 9h8M8 12h5',
     'goals' => 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 17a5 5 0 100-10 5 5 0 000 10zM12 13a1 1 0 100-2 1 1 0 000 2z',
-    'comments' => 'M7 9h10M7 13h6m-9 7l3-3h12a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v15z',
     'accounts' => 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1m1 3.7a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
     'team' => 'M16 20v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 11a4 4 0 100-8 4 4 0 000 8m13 9v-1a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8',
     'connectors' => 'M15 7a4 4 0 11-3.5 6L5 19.5 2.5 17l1.5-1.5L2.5 14 4 12.5l1.5 1.5 6-6A4 4 0 0115 7z',
@@ -188,6 +187,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['ads'] = $R['ad_create'] = $R['ad_builder'] = [[t('عملاء الإعلانات'), url('leads')], [t('الجماهير'), url('ad_audiences')], [t('أداء المحتوى'), url('analytics')]];
       $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], $crmOn2 ? [t('العملاء'), url('prospects')] : null];
       $R['leads'] = array_filter($R['leads']);
+      $R['goals'] = [[t('أداء المنشورات'), url('analytics')], [t('منشور جديد'), url('compose')], [t('التنبيهات'), url('alerts')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];

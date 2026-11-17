@@ -76,7 +76,7 @@ td[contenteditable],span[contenteditable]{outline:none;border-radius:6px}td[cont
   tb.addEventListener('input', calc); tax.addEventListener('input', calc); cur.addEventListener('input', calc);
   tb.addEventListener('click', function (e) { if (e.target.closest('.x') && tb.rows.length > 1) { e.target.closest('tr').remove(); calc(); } });
   document.getElementById('add').addEventListener('click', function () { var r = tb.rows[0].cloneNode(true); r.cells[0].textContent = ''; r.querySelector('[data-q]').textContent = '1'; r.querySelector('[data-p]').textContent = '0'; tb.appendChild(r); r.cells[0].focus(); calc(); });
-  var save = function () { var fd = new FormData(); fd.append('tax', tax.value); fd.append('cur', cur.value); fd.append('_csrf', <?= json_encode(csrf_token()) ?>); fetch(location.href, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.ok ? null : r.json(); }).then(function (j) { if (j && j.error) alert(j.error); }).catch(function () {}); };
+  var save = function () { var fd = new FormData(); fd.append('tax', tax.value); fd.append('cur', cur.value); fd.append('_csrf', <?= json_encode(csrf_token()) ?>); fetch(location.href, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.ok ? null : r.json(); }).then(function (j) { if (j && j.error) alert(j.error); }).catch(function () { alert((window.T && T.liveFailed) || 'Error'); }); };
   <?php if (can('crm.manage')): ?>tax.addEventListener('change', save); cur.addEventListener('change', save);<?php endif; ?> /* غير المدير: التغيير للعرض الحالي بس */ // بتتفتكر للمرة الجاية
   calc();
 })();

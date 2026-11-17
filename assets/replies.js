@@ -62,7 +62,7 @@
     }
     d.querySelector('.add').onclick = function () {
       var sc = d.querySelector('.sc'), bd = d.querySelector('.bd');
-      post({ action: 'reply_save', shortcut: sc.value, body: bd.value }).then(function (r) { if (r.error) { alert(r.error); return; } R.items = r.items; sc.value = ''; bd.value = ''; draw(); sc.focus(); });
+      post({ action: 'reply_save', shortcut: sc.value, body: bd.value }).then(function (r) { if (r.error) { alert(r.error); return; } R.items = r.items; sc.value = ''; bd.value = ''; draw(); sc.focus(); }).catch(function () { alert((window.T && T.liveFailed) || 'Error'); });
     };
     d.querySelector('.x').onclick = function () { d.close(); };
     d.addEventListener('close', function () { d.remove(); });

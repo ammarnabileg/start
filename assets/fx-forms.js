@@ -18,6 +18,8 @@
     stack.appendChild(t); setTimeout(function () { t.style.transition = 'opacity .3s, transform .3s'; t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(function () { t.remove(); }, 320); }, ok ? 2600 : 6000);
   }
   window.fxToast = toast;
+  // الوحدة: أي alert قديم في المنصة يطلع بنفس رسالة المنصة بدل نافذة المتصفح
+  window.alert = function (m) { toast(String(m == null ? '' : m), 'error'); };
   function pageOf(u) { try { return new URL(u, location.href).searchParams.get('p') || 'dashboard'; } catch (e) { return ''; } }
   function eligible(f) {
     if ((f.getAttribute('method') || 'get').toLowerCase() !== 'post' || f.hasAttribute('data-no-ajax') || f.hasAttribute('data-optimistic') || f.target && f.target !== '_self') return false;
