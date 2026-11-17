@@ -25,7 +25,7 @@
   var ext = function (n) { var m = /\.([a-z0-9]{1,5})$/i.exec(n); return m ? m[1].toUpperCase() : ''; };
   var typeName = function (f) { return f.kind === 'image' ? S.tImage + ' ' + ext(f.name) : f.kind === 'video' ? S.tVideo + ' ' + ext(f.name) : f.kind === 'audio' ? S.tAudio : ext(f.name) + ' ' + S.tFile; };
   var when = function (s) { var d = new Date(String(s).replace(' ', 'T')); return isNaN(d) ? s : d.toLocaleDateString(M.lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString(M.lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' }); };
-  function post(f) { var fd = new FormData(); fd.append('_csrf', M.csrf); Object.keys(f).forEach(function (k) { [].concat(f[k]).forEach(function (v) { fd.append(k, v); }); }); return fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok === false && f.action !== 'shares') toast(j.error || S.publicErr, 'err'); return j; }, function (e) { toast(S.publicErr, 'err'); throw e; }); }
+  function post(f) { var fd = new FormData(); fd.append('_csrf', M.csrf); Object.keys(f).forEach(function (k) { [].concat(f[k]).forEach(function (v) { fd.append(k, v); }); }); return fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok === false && f.action !== 'shares') toast(j.error || S.err || S.publicErr, 'err'); return j; }, function (e) { toast(S.publicErr, 'err'); throw e; }); }
 
   function Explorer(host, opt) {
     opt = opt || {};

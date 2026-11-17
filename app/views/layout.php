@@ -189,6 +189,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], $crmOn2 ? [t('العملاء'), url('prospects')] : null];
       $R['leads'] = array_filter($R['leads']);
       $R['phone_kyc'] = [[t('الأرقام'), url('phone_numbers')]];
+      $R['automations'] = $R['automations'] ?? [[t('قاعدة المعرفة'), url('knowledge')], [t('الرسائل'), url('inbox')]];
       foreach (['automations', 'inbox', 'comments'] as $rk) if (isset($R[$rk])) $R[$rk][] = [t('الرد الذكي بالذكاء الاصطناعي'), url('assistant', ['tab' => 'agent'])];
       $R['goals'] = [[t('أداء المنشورات'), url('analytics')], [t('منشور جديد'), url('compose')], [t('التنبيهات'), url('alerts')]];
       if ($crmOn2) {

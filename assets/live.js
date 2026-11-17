@@ -18,6 +18,7 @@
   box.className = 'fixed bottom-5 inset-x-0 z-[60] flex flex-col items-center gap-2 pointer-events-none px-4';
   document.body.appendChild(box);
   function toast(msg, type) {
+    if (window.fxToast) return fxToast(msg, type === 'error' ? 'error' : 'success'); // نظام رسايل واحد
     var el = document.createElement('div');
     el.className = 'pointer-events-auto max-w-md w-full sm:w-auto rounded-xl px-4 py-3 text-sm shadow-lg border transition duration-300 ' +
       (type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-ink-900 border-ink-200');
@@ -27,7 +28,8 @@
     setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 300); }, type === 'error' ? 7000 : 3000);
   }
   // الرسايل اللي جت مع تحميل الصفحة نفسها
-  document.querySelectorAll('[data-flash]').forEach(function (f) { toast(f.textContent.trim(), f.dataset.flash); f.remove(); });
+  var flashes = function () { document.querySelectorAll('[data-flash]').forEach(function (f) { toast(f.textContent.trim(), f.dataset.flash); f.remove(); }); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', flashes); else flashes();
 
   /* ---------- مؤشر تحميل رفيع فوق ---------- */
   var bar = document.createElement('div');

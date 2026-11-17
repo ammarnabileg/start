@@ -297,7 +297,7 @@ document.addEventListener('click', function (e) {
     menu.style.left = left + 'px'; menu.style.top = top + 'px';
   }
   function init(root) {
-    (root.querySelectorAll ? root : document).querySelectorAll('textarea[data-ai]:not([data-ai-ready])').forEach(function (ta) {
+    (root.querySelectorAll ? root : document).querySelectorAll('textarea[data-ai]:not([data-ai-ready]),input[data-ai]:not([data-ai-ready])').forEach(function (ta) {
       ta.dataset.aiReady = '1';
       var w = document.createElement('div'); w.className = 'relative' + (ta.classList.contains('flex-1') ? ' flex-1 min-w-0' : '');
       ta.parentNode.insertBefore(w, ta); w.appendChild(ta);
@@ -311,7 +311,7 @@ document.addEventListener('click', function (e) {
     });
   }
   init(document);
-  new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) init(n.matches && n.matches('textarea') ? n.parentNode : n); }); }); }).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) init(n.matches && n.matches('textarea,input') ? n.parentNode : n); }); }); }).observe(document.body, { childList: true, subtree: true });
 })();
 
 
