@@ -73,7 +73,7 @@ if (isset($_GET['detail'])) {
 /* ---------- حفظ وسوم منشور (محلي في قاعدة البيانات) ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'tags') {
     $postId = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)($_POST['post_id'] ?? ''));
-    if ($postId !== '' && an_tags_available()) {
+    if ($postId !== '' && an_tags_available() && (can('posts.manage') || can('posts.create'))) {
         an_set_tags($postId, explode(',', str_replace('،', ',', (string)($_POST['tags'] ?? ''))));
         log_activity('analytics.tags', $postId);
         flash('success', t('اتحفظت الوسوم.'));

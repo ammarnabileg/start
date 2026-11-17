@@ -39,8 +39,8 @@ if ($ev === 'sms:received') {
     $state = substr($ev, 4);
     $err = $ev === 'sms:failed' ? mb_substr((string)($p['reason'] ?? $p['error'] ?? ''), 0, 250) : null;
     // "delivered" مايرجعش لـ "sent" لو الترتيب اتلخبط
-    db()->prepare("UPDATE sms_gate_messages SET state = ?, error = COALESCE(?, error) WHERE workspace_id = ? AND ext_id = ? AND direction = 'out' AND NOT (state = 'delivered' AND ? = 'sent')")
-        ->execute([$state, $err, $wid, $mid, $state]);
+    db()->prepare("UPDATE sms_gate_messages SET state = ?, error = COALESCE(?, error) WHERE workspace_id = ? AND ext_id = ? AND direction = 'out' AND NOT (state IN ('delivered', 'failed') AND ? = 'sent') AND NOT (state = 'delivered' AND ? = 'failed')")
+        ->execute([$state, $err, $wid, $mid, $state, $state]); // الحالة النهائية ماترجعش لورا
 }
 echo json_encode(['ok' => true]);
 exit;

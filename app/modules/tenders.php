@@ -26,7 +26,7 @@ function tnd_ingest(string $src, array $items): array
     $pdo = db(); $new = 0; $up = 0; $skip = 0;
     $sel = $pdo->prepare('SELECT id FROM tenders WHERE src = ? AND ext_id = ?');
     $ins = $pdo->prepare('INSERT INTO tenders (src, ext_id, ref, id_str, name, agency, branch, type, activity, booklet, published_at, inquiry_at, deadline) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    $upd = $pdo->prepare('UPDATE tenders SET ref = ?, id_str = ?, name = ?, agency = ?, branch = ?, type = ?, activity = ?, booklet = ?, published_at = COALESCE(?, published_at), inquiry_at = ?, deadline = ?, last_seen = NOW() WHERE id = ?');
+    $upd = $pdo->prepare('UPDATE tenders SET ref = ?, id_str = ?, name = ?, agency = ?, branch = ?, type = ?, activity = ?, booklet = ?, published_at = COALESCE(?, published_at), inquiry_at = COALESCE(?, inquiry_at), deadline = COALESCE(?, deadline), last_seen = NOW() WHERE id = ?');
     foreach ($items as $x) {
         if (!is_array($x)) { $skip++; continue; }
         $ext = (int)($x['tenderId'] ?? 0); $name = trim((string)($x['tenderName'] ?? ''));
@@ -328,8 +328,7 @@ function tnd_apify_collect(): ?array
     $run = json_decode((string)setting('tenders_apify_run', ''), true); if (empty($run['id'])) return null;
     $r = tnd_apify_req('GET', '/v2/actor-runs/' . rawurlencode($run['id'])); $st = (string)($r['data']['status'] ?? '');
     if (in_array($st, ['READY', 'RUNNING'], true)) return null;
-    save_setting('tenders_apify_run', '');
-    if ($st !== 'SUCCEEDED') { save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify', 'new' => 0, 'updated' => 0, 'skipped' => 0, 'note' => 'error: Apify run ' . $st])); return ['new' => 0, 'updated' => 0, 'skipped' => 0, 'error' => $st]; }
+    if ($st !== 'SUCCEEDED') { save_setting('tenders_apify_run', ''); save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify', 'new' => 0, 'updated' => 0, 'skipped' => 0, 'note' => 'error: Apify run ' . $st])); return ['new' => 0, 'updated' => 0, 'skipped' => 0, 'error' => $st]; }
     $ds = (string)($r['data']['defaultDatasetId'] ?? ''); $tot = ['new' => 0, 'updated' => 0, 'skipped' => 0];
     for ($off = 0; $off < 5000; $off += 500) {
         $items = tnd_apify_req('GET', '/v2/datasets/' . rawurlencode($ds) . '/items?clean=1&format=json&limit=500&offset=' . $off);
@@ -337,6 +336,7 @@ function tnd_apify_collect(): ?array
         $res = tnd_ingest('etimad', array_map('tnd_apify_map', $items)); foreach ($tot as $k => $v) $tot[$k] += $res[$k];
         if (count($items) < 500) break;
     }
+    save_setting('tenders_apify_run', ''); // بعد ما النتايج اتجابت كلها: لو جلب وقع، المرة الجاية تعيد
     if ($tot['new'] + $tot['updated'] > 0) save_setting('tenders_last_ingest', gmdate('Y-m-d H:i:s'));
     save_setting('tenders_last_stats', json_encode(['at' => gmdate('c'), 'src' => 'apify' . (!empty($run['full']) ? ' (full)' : '')] + $tot + ['note' => '']));
     $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (!empty($run['full']) && (!is_array($q) || !$q)) save_setting('tenders_apify_full_done', gmdate('Y-m-d'));

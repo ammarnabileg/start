@@ -30,6 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
                 log_activity('wa_template.delete', $name . ' ' . $lang);
                 flash('success', t('تم حذف القالب.'));
             }
+        } elseif ($action === 'create' && !can('whatsapp.manage')) {
+            flash('error', t('إنشاء القوالب يتطلب صلاحية إدارة واتساب.'));
         } elseif ($action === 'create') {
             $name = strtolower(trim((string)($_POST['name'] ?? '')));
             $category = strtoupper((string)($_POST['category'] ?? ''));

@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             foreach ((array)($_POST['steps'] ?? []) as $s) {
                 [$tn, $tl] = array_pad(explode('|', (string)($s['template'] ?? ''), 2), 2, '');
                 $unit = ['m' => 1, 'h' => 60, 'd' => 1440][(string)($s['unit'] ?? 'd')] ?? 1440;
-                if ($tn === '') { if ($steps) $carry += max(0, (int)($s['delay'] ?? 0)) * $unit; continue; } // خطوة من غير قالب: تأخيرها مايضيعش
+                if ($tn === '') { $carry += max(0, (int)($s['delay'] ?? 0)) * $unit; continue; } // خطوة من غير قالب: تأخيرها مايضيعش
                 $tpl = ['name' => $tn, 'language' => $tl];
                 $map = wa_mapping_from_post($s['map'] ?? []);
                 if ($map) $tpl['variableMapping'] = $map;

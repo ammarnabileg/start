@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
     }
     if ($a === 'apify_poll' && is_ws_owner() && tnd_apify_on()) {
-        try { $c = tnd_apify_collect(); $J(['ok' => true, 'done' => $c !== null, 'res' => $c]); } catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+        try { $c = tnd_apify_collect(); if ($c !== null) { $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start(false); $J(['ok' => true, 'done' => false, 'res' => $c]); } } $J(['ok' => true, 'done' => $c !== null, 'res' => $c]); } /* باقي الكلمات في الطابور تكمل */ catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
     }
     // حالة منافسة (حفظ، قدّمت، إخفاء، صفقة) — JSON
     $tid = (int)($_POST['id'] ?? 0);
@@ -75,7 +75,7 @@ foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = $t['deadline'] &&
     if ($t['mark'] === 'fav') $counts['fav']++; if ($t['mark'] === 'applied') $counts['applied']++; if (!$hid && $act) $counts['all']++; }
 render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $rows, $counts, $mgr) {
     $ago = function ($sec) { if ($sec === null) return t('لسه ماوصلش بيانات'); if ($sec < 3600) return t('من %s دقيقة', max(1, intdiv($sec, 60))); if ($sec < 86400) return t('من %s ساعة', intdiv($sec, 3600)); return t('من %s يوم', intdiv($sec, 86400)); };
-    $mark = function (string $txt, array $hits) { $out = e($txt); foreach ($hits as $w) { $out = preg_replace('/(' . preg_quote(e($w), '/') . ')/u', '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">$1</mark>', $out); } return $out; };
+    $mark = function (string $txt, array $hits) { $out = e($txt); $hits = array_values(array_filter(array_map('strval', $hits), 'strlen')); if (!$hits) return $out; usort($hits, function ($a, $b) { return mb_strlen($b) <=> mb_strlen($a); }); return (string)preg_replace('/(' . implode('|', array_map(function ($w) { return preg_quote(e($w), '/'); }, $hits)) . ')/u', '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">$1</mark>', $out); }; /* مرة واحدة: مايلمسش الـ HTML اللي اتضاف */
     ?>
 
     <?php if ($mgr): ?>

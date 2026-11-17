@@ -100,6 +100,7 @@ function ai_agent_ajax(string $a): void
         $J(['ok' => true, 'n' => $n] + ai_agent_state($wid));
     }
     if ($a === 'agent_test') {
+        if (!is_ws_owner() && (!ai_feature_on('auto_reply') || !can('settings.manage'))) $J(['ok' => false, 'error' => t('تجربة الوكيل متاحة لمدير الإعدادات عند تفعيل الرد الذكي.')], 403);
         $m = trim((string)($_POST['m'] ?? '')); if ($m === '') $J(['ok' => false, 'error' => t('اكتب رسالة للتجربة.')]);
         if (!ai_connection()) $J(['ok' => false, 'error' => t('اربط مزود ذكاء اصطناعي أولًا.')]);
         if (ai_kb($wid) === '') $J(['ok' => false, 'error' => t('قاعدة المعرفة فارغة: لن يتمكن الرد الذكي من الرد.')]);

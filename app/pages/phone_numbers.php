@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if (in_array($type, ['local', 'mobile', 'national', 'toll_free'], true)) $body['numberType'] = $type;
                 if ($body['purchaseIntentId'] === '') unset($body['purchaseIntentId']);
                 $r = ph_purchase($z, $body);
-                log_activity('phone.buy', $number);
+                if (($r['status'] ?? '') !== 'kyc_required' && empty($r['checkoutUrl'])) log_activity('phone.buy', $number);
                 if (($r['status'] ?? '') === 'kyc_required') {
                     flash('success', t('الدولة دي محتاجة بيانات هوية (KYC) قبل ما الرقم يتطلب. املاها هنا.'));
                     redirect(url('phone_kyc', array_filter(['country' => $country, 'numberType' => (string)($r['numberType'] ?? $type) ?: null, 'phoneNumber' => $number ?: null, 'sms' => $wantsSms ? 1 : null])));
