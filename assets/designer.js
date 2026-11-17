@@ -33,7 +33,7 @@
   $('dz-size').addEventListener('change', function () { setSize(this.value, true); snap(); });
 
   /* ---------- التاريخ والحفظ التلقائي ---------- */
-  function json() { return JSON.stringify({ w: W, h: H, name: $('dz-name').value, c: cv.toJSON(['name', 'lockMovementX', 'lockMovementY', 'selectable', 'evented', 'dzRole', 'dzCircle', 'dzRx', 'dzF', 'dzFill']) }); }
+  function json() { return JSON.stringify({ w: W, h: H, name: $('dz-name').value, c: cv.toJSON(['name', 'lockMovementX', 'lockMovementY', 'selectable', 'evented', 'dzRole', 'dzCircle', 'dzRx', 'dzF', 'dzFill', 'dzCrop', 'globalCompositeOperation']) }); }
   function snap() { if (lock) return; hist.push(json()); if (hist.length > 60) hist.shift(); fut = []; layers(); clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, hist[hist.length - 1]); $('dz-saved').textContent = '✓ ' + L.draft; } catch (e) {} }, 600); }
   function load(s, cb) { var d = JSON.parse(s); lock = true; W = d.w; H = d.h; $('dz-size').value = W + 'x' + H; if (d.name) $('dz-name').value = d.name;
     cv.loadFromJSON(d.c, function () { fit(); cv.requestRenderAll(); lock = false; layers(); if (cb) cb(); }); }

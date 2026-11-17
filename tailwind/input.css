@@ -211,21 +211,25 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-rail { @apply flex flex-col gap-0.5 p-1.5 bg-white border-e border-ink-200 overflow-y-auto; }
   .dz-rail button { @apply flex flex-col items-center gap-1 rounded-lg w-14 py-2 text-[10px] text-ink-500 transition hover:bg-ink-50 hover:text-ink-900; }
   .dz-rail button.on { @apply bg-brand-50 text-brand-700 font-semibold; }
-  .dz-panel { @apply w-60 overflow-y-auto p-3; }
+  .dz-panel { @apply w-72 overflow-y-auto p-4; }
+  .dz-panel section > h3:first-child, .dz-panel h3 { @apply text-[12px] font-bold text-ink-800 mb-2.5; }
+  .dz-acc { @apply mb-3 rounded-xl border border-ink-200 px-3 py-2; } .dz-acc > summary { @apply cursor-pointer select-none text-[11px] font-bold text-ink-600 py-1; } .dz-acc[open] > summary { @apply mb-2 text-brand-700; }
+  .dz-num { @apply flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2 py-1 text-[10px] text-ink-500 focus-within:border-brand-400; }
+  .dz-num input { @apply w-full min-w-0 bg-transparent text-[12px] text-ink-900 tabular-nums outline-none; }
   .dz-panel h3 { @apply text-[11px] font-semibold text-ink-500 mb-2; }
   .dz-add { @apply block w-full text-start rounded-xl border border-ink-200 bg-white px-3 py-2.5 mb-2 text-ink-900 transition hover:border-brand-400 hover:bg-brand-50/40; }
   .dz-shape { @apply grid place-items-center rounded-xl border border-ink-200 aspect-square text-ink-700 transition hover:border-brand-400 hover:text-brand-700 hover:bg-brand-50/40; }
   .dz-sw { @apply w-full h-8 rounded-lg border border-black/10 transition hover:scale-110; }
   .dz-tpl { @apply relative w-full rounded-xl overflow-hidden border border-ink-200 bg-ink-100 bg-cover bg-center transition hover:ring-4 hover:ring-brand-500/25 hover:-translate-y-0.5 hover:shadow-lg; }
   .dz-tpl:not(.ready) { @apply animate-pulse; }
-  .dz-tpl span { @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent text-white text-[11px] pt-4 pb-1.5 text-center opacity-0 transition; }
+  .dz-tpl span { @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent text-white text-[11px] font-semibold pt-6 pb-1.5 text-center opacity-90 transition; }
   .dz-tpl:hover span { @apply opacity-100; }
   .dz-cat { @apply rounded-full border border-ink-200 px-2.5 py-1 text-[11px] text-ink-600 hover:border-brand-300; }
   .dz-cat.on { @apply bg-ink-900 border-ink-900 text-white; }
   .dz-stage { @apply relative flex-1 min-w-0 grid place-items-center overflow-auto bg-[repeating-conic-gradient(rgb(var(--ink-100))_0_25%,rgb(var(--ink-50))_0_50%)] bg-[length:24px_24px]; }
   .dz-wrap { @apply shadow-[0_20px_60px_-15px_rgba(15,23,42,.35)]; }
   .dz-drop { @apply absolute inset-4 grid place-items-center rounded-2xl border-4 border-dashed border-brand-400 bg-brand-50/70 text-brand-800 font-semibold pointer-events-none; }
-  .dz-props { @apply w-60 shrink-0 border-s border-ink-200 flex flex-col overflow-y-auto; }
+  .dz-props { @apply w-64 shrink-0 border-s border-ink-200 flex flex-col overflow-y-auto; }
   #dz-p { @apply p-3; }
   .dz-row { @apply flex flex-wrap items-center gap-2 mb-3 text-xs text-ink-600; }
   .dz-row > label { @apply w-full text-[11px] font-semibold text-ink-500; }

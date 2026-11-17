@@ -75,6 +75,9 @@
   var F = fabric.Image.filters;
   function filters(o) { var f = o.dzF || {}, list = [];
     if (f.br) list.push(new F.Brightness({ brightness: +f.br })); if (f.ct) list.push(new F.Contrast({ contrast: +f.ct })); if (f.sa) list.push(new F.Saturation({ saturation: +f.sa })); if (+f.bl) list.push(new F.Blur({ blur: +f.bl }));
+    if (+f.vb) list.push(new F.Vibrance({ vibrance: +f.vb })); if (+f.hu) list.push(new F.HueRotation({ rotation: +f.hu })); if (+f.no) list.push(new F.Noise({ noise: +f.no })); if (+f.px > 1) list.push(new F.Pixelate({ blocksize: +f.px }));
+    if (+f.sh) list.push(new F.Convolute({ matrix: [0, -f.sh, 0, -f.sh, 1 + 4 * f.sh, -f.sh, 0, -f.sh, 0] }));
+    if (f.p && F[{ vintage: 'Vintage', polaroid: 'Polaroid', kodachrome: 'Kodachrome', technicolor: 'Technicolor', brownie: 'Brownie', invert: 'Invert', bw: 'BlackWhite' }[f.p]]) list.push(new F[{ vintage: 'Vintage', polaroid: 'Polaroid', kodachrome: 'Kodachrome', technicolor: 'Technicolor', brownie: 'Brownie', invert: 'Invert', bw: 'BlackWhite' }[f.p]]());
     if (f.p === 'gray') list.push(new F.Grayscale()); if (f.p === 'sepia') list.push(new F.Sepia());
     if (f.p === 'warm') list.push(new F.ColorMatrix({ matrix: [1.1, 0, 0, 0, 0.03, 0, 1, 0, 0, 0.01, 0, 0, 0.85, 0, 0, 0, 0, 0, 1, 0] }));
     if (f.p === 'cool') list.push(new F.ColorMatrix({ matrix: [0.9, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1.12, 0, 0.03, 0, 0, 0, 1, 0] }));
