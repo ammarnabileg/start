@@ -221,6 +221,7 @@
     return card(S.ad, '<div class="grid gap-3 sm:grid-cols-2">' + field(S.adName, inp(P + '.name', ad.name, 'maxlength="200" placeholder="' + esc(fmt(S.adN, ai + 1)) + '"')) + '<div><span class="label">' + esc(S.format) + '</span><div class="mt-1.5">' + fmts + '</div></div></div>')
       + card(S.media, media) + card(S.copy, copy) + card(S.ctaT, cta);
   }
+  var casesAll = false;
   function side(iss, errs) {
     var c = D.campaign, cbo = c.budgetLevel === 'campaign' && C.cbo, nAds = 0, daily = 0;
     D.adSets.forEach(function (st) { nAds += st.ads.length; if (!cbo && st.budget.type === 'daily') daily += +st.budget.amount || 0; });
@@ -232,7 +233,16 @@
       + '</section>';
     var chk = '<section class="card p-4"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900 me-auto">' + esc(S.checks) + '</b><span class="text-xs ' + (errs ? 'text-red-600' : 'text-lime-700') + '">' + esc(errs ? fmt(S.nErr, errs) : S.allOk) + '</span></div>'
       + (iss.length ? '<ul class="space-y-1.5 max-h-80 overflow-y-auto">' + iss.map(function (x) { var where = x.t === 'campaign' ? S.campaign : x.t === 'adset' ? setName(x.s) : setName(x.s) + ' › ' + adName(x.s, x.a); return '<li><button type="button" data-go="' + x.t + '|' + (x.s == null ? '' : x.s) + '|' + (x.a == null ? '' : x.a) + '" class="w-full text-start rounded-lg px-2.5 py-1.5 text-xs ' + (x.lvl === 'err' ? 'bg-red-50 text-red-800' : x.lvl === 'tip' ? 'bg-brand-50 text-brand-900' : 'bg-amber-50 text-amber-900') + '"><b>' + esc(where) + ':</b> ' + esc(x.msg) + '</button></li>'; }).join('') + '</ul>' : '<p class="text-xs text-ink-500">' + esc(S.noIssues) + '</p>') + '</section>';
-    return '<div id="ab-preview"></div>' + sum + chk + '<div id="ab-launch"></div>';
+    // حملات مشابهة نجحت: نفس المنصة، ونفس الهدف الأول
+    var cs = (A.cases || []).slice().sort(function (x, y) { return (y.g === c.goal) - (x.g === c.goal); }), nSame = cs.filter(function (x) { return x.g === c.goal; }).length;
+    var cas = cs.length ? '<section class="card p-4" id="ab-cases"><div class="flex items-center gap-2 mb-1"><b class="text-sm text-ink-900 me-auto">' + esc(S.casesT) + '</b>' + (nSame ? '<span class="text-[11px] rounded bg-brand-50 text-brand-800 px-1.5 py-0.5">' + esc(S.casesSame) + ' · ' + nSame + '</span>' : '') + '</div>'
+      + '<p class="text-[11px] text-ink-500 mb-2">' + esc(S.casesNote) + '</p><ul class="space-y-2.5">' + cs.map(function (x, i) {
+        return '<li class="ab-case rounded-lg border border-ink-100 p-2.5' + (i >= 3 && !casesAll ? ' hidden' : '') + '"><div class="flex flex-wrap items-center gap-1.5 text-xs"><b class="text-ink-900">' + esc(x.c) + '</b><span class="text-ink-400">' + esc(x.r) + '</span>'
+          + '<span class="ms-auto rounded bg-ink-100 text-ink-700 px-1.5 py-0.5 text-[10px]">' + esc((S.stages || {})[x.s] || x.s) + '</span></div>'
+          + '<p class="text-xs font-semibold text-lime-700 mt-1">' + esc(x.res) + '</p><p class="text-xs text-ink-700 mt-0.5">' + esc(x.l) + '</p>'
+          + '<a class="link text-[11px]" href="' + esc(x.u) + '" target="_blank" rel="noopener">' + esc(S.casesSrc) + ' ↗</a></li>'; }).join('') + '</ul>'
+      + (cs.length > 3 ? '<button type="button" class="link text-xs mt-2" data-cases-all>' + esc(casesAll ? S.casesLess : fmt(S.casesMore, cs.length)) + '</button>' : '') + '</section>' : '';
+    return '<div id="ab-preview"></div>' + sum + chk + cas + '<div id="ab-launch"></div>';
   }
 
   // ---- مسارات البيانات
@@ -298,6 +308,7 @@
   root.addEventListener('focusin', function (e) { if (e.target.classList.contains('ab-cty')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
   root.addEventListener('click', function (e) {
     var cp = e.target.closest('[data-cpick]'), rp = e.target.closest('[data-rpick]');
+    if (e.target.closest('[data-cases-all]')) { casesAll = !casesAll; rerender(); return; }
     var pb = e.target.closest('[data-preset]'), ib = e.target.closest('[data-icp]');
     if (pb) { var q = pb.dataset.preset.split('|'), pr = (S.presets || [])[+q[1]], t1 = D.adSets[+q[0]].targeting; if (!pr) return; ['seniorities', 'jobFunctions'].forEach(function (k) { t1[k] = JSON.parse(JSON.stringify(pr[k])); }); t1.companySizes = pr.companySizes.slice(); save(); rerender(); return; }
     if (ib) { var si2 = +ib.dataset.icp; ib.disabled = true; fetch(A.url + '&ajax=icp', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {

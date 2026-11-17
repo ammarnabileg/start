@@ -318,6 +318,7 @@ render(t('منشئ الحملات'), 'ad_builder', function () use ($z, $apiErro
         'geoUrl' => url('ad_create', ['ajax' => 1]), 'myCountry' => ws_country(), 'lang' => lang(),
         'canSpend' => can('ads.spend'), 'kbProducts' => array_values(array_filter(array_map(function ($r) { return trim((string)($r['name'] ?? '')); }, (array)(kb_get((int)ws('id'))['services']['rows'] ?? [])))),
         's' => ab_strings(),
+        'cases' => array_values(array_filter((array)require __DIR__ . '/../data/ad_cases.php', function ($x) use ($d) { return $x['p'] === $d['platform']; })),
         'ai2' => ['intro' => t('اكتب المطلوب وهيشتغل كميديا باير وبيّاع وآرت دايركتور: استراتيجية، من 3 لـ 5 مجموعات بجماهير وأماكن مختلفة، وفي كل مجموعة من 3 لـ 7 إعلانات بزوايا وتصميمات مختلفة. هتراجع كل حاجة قبل ما تطبّق.'),
           'briefPh' => t('مثلًا: عاوزين عملاء شركات للأمن السيبراني في السعودية والإمارات، الخدمة: فحص اختراق وحماية'), 'markets' => t('الأسواق (اختياري)'), 'marketsPh' => t('السعودية، الإمارات، مصر'), 'nSets' => t('عدد المجموعات'), 'nAds' => t('الإعلانات في كل مجموعة'),
           'note' => t('الصور والفيديوهات مش بتتعمل هنا: كل إعلان بييجي معاه توجيه فني ووصف صورة جاهز تستخدمه في المصمم أو توليد الصور.'), 'planning' => t('بيحلل السوق ويبني الاستراتيجية والمجموعات…'), 'writing' => t('بيكتب إعلانات المجموعة %s من %s…'),

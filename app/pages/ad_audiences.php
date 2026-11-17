@@ -114,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
 
 $targets = [];
 $audiences = [];
+$needAds = false;
 $pixels = []; $pixelErr = null;
 $apiError = null;
 $current = null;
@@ -121,18 +122,27 @@ if ($z) {
     try {
         $fxT = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_targets.json' : ''; // اختبارات بس
         $targets = $fxT && is_file($fxT) ? (json_decode((string)file_get_contents($fxT), true)['targets'] ?? []) : ads_usable_accounts($z, ads_connections($z));
+        // نفس حساب الإعلانات بيظهر مرتين: من حساب النشر (linkedin) ومن إضافة الإعلانات (linkedinads).
+        // البيكسل والجماهير في Zernio بيقبلوا حساب الإعلانات بس، فنفضّله ونشيل التكرار.
+        $isAdsConn = function ($t) { return (bool)preg_match('/ads$/', (string)($t['conn']['platform'] ?? '')); };
+        $by = [];
+        foreach ($targets as $t) { $k = (string)$t['acc']['id']; if (!isset($by[$k]) || (!$isAdsConn($by[$k]) && $isAdsConn($t))) $by[$k] = $t; }
+        $targets = array_values($by);
         foreach ($targets as $t) {
             if ($t['conn']['_id'] . '|' . $t['acc']['id'] === $sel) $current = $t;
         }
+        if (!$current && $sel !== '') { [, $selAcc] = array_pad(explode('|', $sel), 2, ''); foreach ($targets as $t) if ((string)$t['acc']['id'] === $selAcc) $current = $t; }
         if (!$current && $targets) {
             $current = $targets[0];
             $sel = $current['conn']['_id'] . '|' . $current['acc']['id'];
         }
-        if ($current) { try { $pixels = ads_pixels($z, $current['conn']['_id'], (string)$current['acc']['id']); } catch (ZernioException $ex) { $pixelErr = $ex->getMessage(); } }
+        $needAds = $current && !$isAdsConn($current) && !ads_is_meta((string)($current['conn']['platform'] ?? ''));
+        if ($current) $sel = $current['conn']['_id'] . '|' . $current['acc']['id'];
+        if ($current && !$needAds) { try { $pixels = ads_pixels($z, $current['conn']['_id'], (string)$current['acc']['id']); } catch (ZernioException $ex) { $pixelErr = $ex->getMessage(); } }
         $fx = getenv('UI_FIXTURES') ? getenv('UI_FIXTURES') . '/ad_audiences.json' : '';
         if ($fx && is_file($fx)) {
             $audiences = json_decode((string)file_get_contents($fx), true) ?: [];
-        } elseif ($current) {
+        } elseif ($current && !$needAds) {
             $audiences = ads_audiences($z, $current['conn']['_id'], (string)$current['acc']['id']);
         }
     } catch (ZernioException $ex) {
@@ -140,7 +150,7 @@ if ($z) {
     }
 }
 
-render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $targets, $current, $sel, $audiences, $pixels, $pixelErr) {
+render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $targets, $current, $sel, $audiences, $pixels, $pixelErr, $needAds) {
     if (!$z) { no_api_box(); return; }
     $types = ['customer_list' => t('قائمة عملاء'), 'website' => t('زوار الموقع'), 'lookalike' => t('جمهور مشابه'),
         'meta_engagement' => t('اتفاعلوا مع الصفحة'), 'engagement' => t('تفاعل'), 'saved_targeting' => t('استهداف محفوظ'),
@@ -166,6 +176,13 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         <noscript><button class="btn-primary"><?= e(t('عرض')) ?></button></noscript>
       </form>
 
+      <?php if ($needAds): ?>
+      <section class="card p-6 text-center">
+        <h2 class="font-bold text-ink-900"><?= e(t('هذا الحساب مربوط للنشر فقط')) ?></h2>
+        <p class="text-sm text-ink-600 mt-2 max-w-xl mx-auto"><?= e(t('البيكسل والجماهير المخصصة تحتاج ربط إضافة الإعلانات للمنصة نفسها (مثل LinkedIn Ads)، وليس حساب النشر. اربطها مرة واحدة من هنا ثم ارجع لهذه الصفحة.')) ?></p>
+        <?php ads_connect_buttons(); ?>
+      </section>
+      <?php else: ?>
       <!-- البيكسل: تتبع زوار موقعك (أساس جمهور «زوار الموقع» وقياس التحويلات) -->
       <section class="card p-5" id="px-card">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -306,6 +323,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         'doIt' => t('جهّزهولي'), 'toBuilder' => t('افتح منشئ الحملات'), 'warmName' => t('متفاعلين آخر 90 يوم'), 'dN' => t('%s يوم'), 'precise' => t('أدق'), 'wide' => t('أوسع'),
         'rTip1' => t('1–2%: أقرب ناس لجمهورك، الأفضل للمبيعات.'), 'rTip2' => t('3–5%: توازن بين الدقة والحجم.'), 'rTip3' => t('6–10%: وصول أكبر بدقة أقل، مناسب للانتشار.')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
       <script src="assets/ad-aud-ui.js?v=<?= e(APP_VERSION) ?>"></script>
+      <?php endif; ?>
       <?php endif; ?>
     </div>
 <script>
