@@ -642,7 +642,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                     $label = $day === (new DateTime('now', new DateTimeZone(site_timezone())))->format('Y-m-d') ? t('النهارده') : ($day === (new DateTime('yesterday', new DateTimeZone(site_timezone())))->format('Y-m-d') ? t('امبارح') : fmt_date($m['createdAt'] ?? null, 'd/m/Y')); ?>
               <div class="flex justify-center my-2"><span class="text-[11px] text-ink-500 bg-white border border-ink-200 rounded-full px-3 py-0.5"><?= e($label) ?></span></div>
             <?php endif; ?>
-              <div class="flex <?= $out ? 'justify-start' : 'justify-end' ?>">
+              <div class="flex <?= $out ? 'justify-start' : 'justify-end' ?>" data-who="<?= $out ? 'agent' : 'customer' ?>">
                 <div class="max-w-[80%] group">
                   <div class="px-4 py-2.5 text-sm shadow-sm <?= $out ? 'rounded-2xl rounded-ss-md bg-gradient-to-br from-brand-600 to-brand-700 text-[#fff]' : 'rounded-2xl rounded-se-md bg-white border border-ink-200 text-ink-800' ?>">
                     <?php if (!empty($m['isDeleted'])): ?><em class="opacity-70"><?= e(t('رسالة محذوفة')) ?></em>

@@ -88,7 +88,7 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
     foreach ($metrics as $k => $mt) {
         if (!isset($goals[$k]) || $month > $thisMonth) continue;
         $tg = (float)$goals[$k]['target']; $v = $act['values'][$k] ?? null; if ($v === null) continue;
-        if ($mt['lower']) { $v <= $tg ? $sum['ok']++ : $sum['late']++; continue; }
+        if ($mt['lower']) { $v <= $tg ? ($month < $thisMonth ? $sum['hit']++ : $sum['ok']++) : $sum['late']++; continue; } // شهر خلص وتحقق = «اتحقق»
         if ($v >= $tg) $sum['hit']++; elseif ($v >= $tg * $elapsed * 0.95) $sum['ok']++; else $sum['late']++;
     }
     $totG = count($goals);
@@ -114,7 +114,7 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
             $pct = ($val !== null && $target > 0) ? ($mt['lower'] ? ($val <= $target ? 100 : $target / $val * 100) : $val / $target * 100) : 0;
             if ($month > $thisMonth) { $status = ['badge', t('لسه ما بدأش')]; }
             elseif ($val === null) { $status = ['badge', t('مفيش بيانات')]; }
-            elseif ($mt['lower']) { $status = $val <= $target ? ['badge badge-green', t('ماشي كويس')] : ['badge bg-red-50 text-red-700', t('متأخر')]; }
+            elseif ($mt['lower']) { $status = $val <= $target ? ['badge badge-green', $month < $thisMonth ? t('اتحقق') : t('ماشي كويس')] : ['badge bg-red-50 text-red-700', t('متأخر')]; }
             else {
                 $expected = $target * $elapsed;
                 if ($val >= $target) $status = ['badge badge-green', t('اتحقق')];
@@ -180,7 +180,7 @@ render(t('الأهداف الشهرية'), 'goals', function () use ($metrics, $
           (function () {
             var ins = document.querySelectorAll('.gl-in');
             var c = document.querySelector('.gl-copy'); if (c) c.onclick = function () { ins.forEach(function (i) { if (i.dataset.prev) i.value = i.dataset.prev; }); };
-            document.querySelectorAll('.gl-up').forEach(function (b) { b.onclick = function () { var f = +b.dataset.f; ins.forEach(function (i) { var base = +(i.value || i.dataset.prev || 0); if (!base) return; i.value = i.dataset.lower === '1' ? Math.round(base / f) : Math.round(base * f); }); }; });
+            document.querySelectorAll('.gl-up').forEach(function (b) { b.onclick = function () { var f = +b.dataset.f; ins.forEach(function (i) { var base = +(i.dataset.prev || i.value || 0); if (!base) return; var r = function (x) { return x >= 10 ? Math.round(x) : Math.round(x * 100) / 100; }; var nv = i.dataset.lower === '1' ? r(base / f) : r(base * f); if (nv > 0) i.value = nv; /* من هدف الشهر اللي فات، ومن غير ما يتقرب لصفر */ }); }; });
           })();
           </script>
         <?php endif; ?>

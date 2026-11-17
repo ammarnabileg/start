@@ -197,7 +197,17 @@ document.addEventListener('click', function (e) {
 
   function ctxOf(ta) {
     var el = ta.closest('[data-ai-context]') || document.getElementById('thread') || (ta.form && ta.form.parentElement) || ta.form;
-    return el ? el.innerText.replace(/\n{3,}/g, '\n\n').slice(-5000) : '';
+    if (!el) return '';
+    // محادثة: كل رسالة بـ «العميل:» أو «إحنا:» ومن غير نصوص الأزرار المخفية (التفاعلات، تعديل، حذف)
+    var rows = el.querySelectorAll('[data-who]');
+    if (rows.length) {
+      var out = [];
+      rows.forEach(function (r) { var b = r.querySelector('.px-4') || r; var c = b.cloneNode(true); c.querySelectorAll('button, details, form, .opacity-0, [aria-hidden="true"]').forEach(function (x) { x.remove(); });
+        var tx = (c.innerText || c.textContent || '').replace(/\s+\n/g, '\n').trim(); if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
+      return out.join('\n').slice(-5000);
+    }
+    var cl = el.cloneNode(true); cl.querySelectorAll('button, details:not([open]), .opacity-0, [aria-hidden="true"]').forEach(function (x) { x.remove(); });
+    return (cl.innerText || cl.textContent || '').replace(/\n{3,}/g, '\n\n').slice(-5000);
   }
   function panel(ta, html) {
     var old = ta.parentNode.parentNode.querySelector('.ai-result'); if (old) old.remove();

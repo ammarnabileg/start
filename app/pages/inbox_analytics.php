@@ -140,7 +140,7 @@ $__sec = function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team,
           foreach ($vol['timeseries'] ?? [] as $r) $byDate[$r['date'] ?? ''] = $r;
           $bars = [];
           for ($i = $days - 1; $i >= 0; $i--) {
-              $dt = gmdate('Y-m-d', time() - $i * 86400);
+              $dt = gmdate('Y-m-d', strtotime(substr((string)$to, 0, 10) . ' 12:00:00 UTC') - $i * 86400);
               $rv = (int)($byDate[$dt]['received'] ?? 0); $sv = (int)($byDate[$dt]['sent'] ?? 0);
               $bars[] = [gmdate('d/m', strtotime($dt)), $rv + $sv, gmdate('d/m', strtotime($dt)) . ' — ' . t('وصل %s · اتبعت %s', $rv, $sv)];
           }
@@ -158,7 +158,7 @@ $__sec = function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team,
             <p class="text-xs text-ink-500 mb-2"><?= e(t('الرسائل يوم بيوم')) ?> <?php if ($prevVol): ?><span class="text-ink-400">· <?= e(t('المقارنة مع الـ %s يوم اللي قبلهم', $days)) ?></span><?php endif; ?></p>
             <?php
             $lab = []; $rv = []; $sv = [];
-            for ($i = $days - 1; $i >= 0; $i--) { $dt = gmdate('Y-m-d', time() - $i * 86400); $lab[] = gmdate('d/m', strtotime($dt)); $rv[] = (int)($byDate[$dt]['received'] ?? 0); $sv[] = (int)($byDate[$dt]['sent'] ?? 0); }
+            for ($i = $days - 1; $i >= 0; $i--) { $dt = gmdate('Y-m-d', strtotime(substr((string)$to, 0, 10) . ' 12:00:00 UTC') - $i * 86400); $lab[] = gmdate('d/m', strtotime($dt)); $rv[] = (int)($byDate[$dt]['received'] ?? 0); $sv[] = (int)($byDate[$dt]['sent'] ?? 0); }
             ?>
             <div id="ia-chart" class="h-64" data-cfg="<?= e(json_encode(['labels' => $lab, 'rv' => $rv, 'sv' => $sv, 'rl' => t('وصلت'), 'sl' => t('اتبعتت')], JSON_UNESCAPED_UNICODE)) ?>"><?= an_bars($bars, 'bg-cyan-500') ?></div>
             <script src="assets/vendor/echarts.min.js?v=5.5.1"></script>
