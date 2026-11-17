@@ -108,7 +108,7 @@ function adc_read_form(array $in, array $goals, array $ctas): array
     if ($f['mode'] === 'boost' && $f['post'] === '' && $f['post_manual'] === '') $errors[] = t('اختار المنشور اللي عايز تروّجه.');
     if ($f['mode'] === 'new') {
         if ($f['headline'] === '' || $f['body'] === '') $errors[] = t('اكتب العنوان ونص الإعلان.');
-        if (!filter_var($f['link'], FILTER_VALIDATE_URL)) $errors[] = t('اكتب رابط صحيح يبدأ بـ https://');
+        if (!filter_var($f['link'], FILTER_VALIDATE_URL) || !preg_match('~^https?://~i', $f['link'])) $errors[] = t('اكتب رابط صحيح يبدأ بـ https://');
         if (!isset($ctas[$f['cta']])) $f['cta'] = 'LEARN_MORE';
     }
     $countries = array_values(array_filter(explode(',', $f['countries']), function ($c) { return strlen($c) === 2; }));
@@ -219,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 }
             }
         }
-        if (!$errors && $f['mode'] === 'new' && !filter_var($f['image_url'], FILTER_VALIDATE_URL)) {
+        if (!$errors && $f['mode'] === 'new' && (!filter_var($f['image_url'], FILTER_VALIDATE_URL) || !preg_match('~^https?://~i', $f['image_url']))) {
             $errors[] = t('ارفع صورة للإعلان أو حط رابط صورة.');
         }
         $_SESSION['adc_form_' . (int)ws('id')] = $f;

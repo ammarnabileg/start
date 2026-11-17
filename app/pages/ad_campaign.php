@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     try {
         if (!in_array($platform, ads_campaign_platforms(), true)) {
             $say('error', t('بيانات الحملة ناقصة.'));
-        } elseif ($needsOwner && !can('ads.spend')) {
+        } elseif (($needsOwner || in_array($action, ['campaign_status', 'adset_status', 'ad_status'], true)) && !can('ads.spend')) { // الإيقاف كمان بيأثر على الحملة
             $say('error', t('التشغيل وتعديل الميزانية لصاحب الشركة بس.'));
         } elseif ($needsOwner && empty($_POST['confirm_spend'])) {
             $say('error', t('لازم تعلّم على خانة التأكيد الأول.'));
