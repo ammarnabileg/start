@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $camp = ''; foreach ($utm as $u) if (strpos($u, 'utm_campaign=') === 0) $camp = preg_replace('/[^A-Za-z0-9]/', '', substr($u, 13));
         if ($camp !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([substr($camp, 0, 16), (int)$l['id']]);
         db()->prepare('UPDATE crm_leads SET next_at = COALESCE(next_at, NOW()), next_note = COALESCE(next_note, ?) WHERE id = ?')->execute([$isCall ? t('📞 طلب مكالمة، اتصل بيه دلوقتي') : t('ملا فورم الموقع، كلّمه'), (int)$l['id']]);
-        if ($qb !== '' || $qw !== '') db()->prepare('UPDATE crm_leads SET q_budget = ?, q_when = ? WHERE id = ?')->execute([$qb ?: null, $qw ?: null, (int)$l['id']]);
+        if ($qb !== '' || $qw !== '') db()->prepare('UPDATE crm_leads SET q_budget = COALESCE(q_budget, ?), q_when = COALESCE(q_when, ?) WHERE id = ?')->execute([$qb ?: null, $qw ?: null, (int)$l['id']]);
         if ($refLead && $refLead !== (int)$l['id']) {
             db()->prepare('UPDATE crm_leads SET referred_by = COALESCE(referred_by, ?) WHERE id = ?')->execute([$refLead, (int)$l['id']]);
             $rn = crm_lead($refLead); crm_act_add((int)$l['id'], 'note', '🤝 ' . t('جه بإحالة من %s', (string)($rn['name'] ?? '')));

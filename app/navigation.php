@@ -50,7 +50,7 @@ function nav_items(): array
         ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s2, 'module' => 'crm'],
         ['key' => 'studio', 'module' => 'studio', 'label' => t('استوديو المحتوى'), 'section' => $sC,
-            'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')]],
+            'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')], 'flat' => true], // بند واحد في القائمة، والتنقل بين الأقسام من أعلى الصفحة
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
             // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات» (قائمة / تقويم)

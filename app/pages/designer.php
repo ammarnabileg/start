@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'dsave') {
         $data = (string)($_POST['data'] ?? ''); $thumb = (string)($_POST['thumb'] ?? '');
         if (strlen($data) > 12 * 1048576 || !is_array(json_decode($data, true))) $J(['error' => t('التصميم كبير أو مش سليم.')], 422);
-        if ($thumb !== '' && (strlen($thumb) > 400000 || strpos($thumb, 'data:image/jpeg;base64,') !== 0)) $thumb = '';
+        if ($thumb !== '' && (strlen($thumb) > 400000 || !preg_match('~^data:image/jpeg;base64,[A-Za-z0-9+/=]+$~', $thumb))) $thumb = ''; // من غير علامات تنصيص (بيتحط في style)
         $name = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 120) ?: t('تصميم بدون اسم');
         $w = max(50, min(5000, (int)($_POST['w'] ?? 1080))); $h = max(50, min(5000, (int)($_POST['h'] ?? 1080))); $pg = max(1, min(30, (int)($_POST['pages'] ?? 1)));
         $id = (int)($_POST['id'] ?? 0);
@@ -175,16 +175,17 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       <span class="dz-div"></span>
       <button type="button" class="dz-ib" data-cmd="zoom-" title="<?= e(t('تصغير')) ?>">−</button><span id="dz-zoom" class="text-xs tabular-nums text-ink-600 w-10 text-center">100%</span><button type="button" class="dz-ib" data-cmd="zoom+" title="<?= e(t('تكبير')) ?>">+</button>
       <span class="ms-auto"></span>
-      <span id="dz-saved" class="text-[11px] text-ink-400"></span>
-      <button type="button" class="btn-ghost !py-1.5 !text-sm" data-cmd="dsave" title="Ctrl+S"><?= ui_icon('check', 'w-4 h-4') ?><?= e(t('حفظ التصميم')) ?></button>
-      <div class="relative"><button type="button" class="btn-ghost !py-1.5 !text-sm" id="dz-exp-b"><?= ui_icon('download', 'w-4 h-4') ?><?= e(t('تحميل')) ?> ▾</button>
+      <div class="dz-grp">
+        <button type="button" class="dz-ib" data-cmd="dsave" title="<?= e(t('حفظ التصميم')) ?> (Ctrl+S)"><?= ui_icon('check', 'w-4 h-4') ?></button>
+        <button type="button" class="dz-ib" data-cmd="save" title="<?= e(t('حفظ في المكتبة')) ?>"><?= ui_icon('folder', 'w-4 h-4') ?></button>
+        <div class="relative"><button type="button" class="dz-ib !w-auto px-2 gap-0.5 !flex items-center" id="dz-exp-b" title="<?= e(t('تحميل')) ?>"><?= ui_icon('download', 'w-4 h-4') ?><span class="text-[10px]">▾</span></button>
         <div id="dz-exp" class="hidden absolute z-40 top-full mt-1 end-0 w-56 rounded-xl border border-ink-200 bg-white shadow-xl p-1 text-sm">
           <button type="button" class="dz-mi" data-exp="png">PNG <small><?= e(t('الصفحة الحالية، أعلى جودة')) ?></small></button>
           <button type="button" class="dz-mi" data-exp="jpg">JPG <small><?= e(t('حجم أصغر')) ?></small></button>
           <button type="button" class="dz-mi" data-exp="all">PNG × <?= e(t('كل الصفحات')) ?></button>
           <button type="button" class="dz-mi" data-exp="pdf">PDF <small><?= e(t('كل الصفحات في ملف واحد')) ?></small></button></div></div>
-      <button type="button" class="btn-ghost !py-1.5 !text-sm" data-cmd="save"><?= ui_icon('folder', 'w-4 h-4') ?><?= e(t('حفظ في المكتبة')) ?></button>
-      <button type="button" class="btn-primary !py-1.5 !text-sm" data-cmd="post"><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('انشره')) ?></button>
+      </div>
+      <button type="button" class="btn-primary !py-1.5 !px-3 !text-sm" data-cmd="post"><?= ui_icon('megaphone', 'w-4 h-4') ?><?= e(t('انشره')) ?></button>
     </div>
     <div class="dz-body">
       <!-- لوحة الأدوات -->
@@ -270,10 +271,11 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       </aside>
       <!-- اللوحة -->
       <div class="dz-center"><div class="dz-stage" id="dz-stage"><div id="dz-wrap" class="dz-wrap"><canvas id="dz-c"></canvas></div><div id="dz-drop" class="dz-drop hidden"><?= e(t('سيب الصورة هنا')) ?></div></div>
-        <div class="dz-pages"><div id="dz-pages" class="flex items-center gap-2 overflow-x-auto"></div><button type="button" class="dz-padd" data-cmd="addpage" title="<?= e(t('صفحة جديدة')) ?>">+</button><span class="text-[11px] text-ink-400 whitespace-nowrap"><?= e(t('صفحات للكاروسيل')) ?></span></div></div>
+        <div class="dz-pages"><div id="dz-pages" class="flex items-center gap-2 overflow-x-auto"></div><button type="button" class="dz-padd" data-cmd="addpage" title="<?= e(t('صفحة جديدة')) ?>">+</button><span class="text-[11px] text-ink-400 whitespace-nowrap"><?= e(t('صفحات للكاروسيل')) ?></span></div>
+        <div class="dz-status"><span id="dz-saved"></span><span class="ms-auto truncate">Ctrl+Z <?= e(t('تراجع')) ?> · Ctrl+D <?= e(t('نسخة')) ?> · Del <?= e(t('حذف')) ?> · Ctrl+S <?= e(t('حفظ')) ?> · <?= e(t('الأسهم للتحريك')) ?></span></div></div>
       <!-- الخصائص -->
       <aside class="dz-props" id="dz-props">
-        <div id="dz-none" class="text-center text-sm text-ink-400 py-10 px-4"><?= ui_icon('pointer', 'w-6 h-6 mx-auto mb-2') ?><?= e(t('اختار عنصر على اللوحة عشان تعدّله')) ?></div>
+        <div id="dz-none" class="text-center text-sm text-ink-400 py-6 px-4"><?= ui_icon('pointer', 'w-6 h-6 mx-auto mb-2') ?><?= e(t('اختار عنصر على اللوحة عشان تعدّله')) ?></div>
         <div id="dz-multi" hidden class="p-3"><b class="block text-xs text-ink-500 mb-2"><span id="dz-mn"></span> <?= e(t('عناصر محددة')) ?></b>
           <div class="grid grid-cols-6 gap-1 mb-2"><?php foreach (['left' => '⇤', 'hcenter' => '↔', 'right' => '⇥', 'top' => '⤒', 'vcenter' => '↕', 'bottom' => '⤓'] as $k => $g): ?><button type="button" class="dz-tg" data-align="<?= $k ?>"><?= $g ?></button><?php endforeach; ?></div>
           <div class="grid grid-cols-2 gap-1 mb-2"><button type="button" class="dz-ib2" data-align="dh"><?= e(t('توزيع أفقي')) ?></button><button type="button" class="dz-ib2" data-align="dv"><?= e(t('توزيع رأسي')) ?></button></div>
@@ -310,7 +312,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
             <button type="button" class="dz-ib2" data-cmd="center" title="<?= e(t('في النص')) ?>">⊕</button><button type="button" class="dz-ib2" data-cmd="lock" title="<?= e(t('قفل')) ?>"><?= ui_icon('lock', 'w-4 h-4') ?></button>
             <button type="button" class="dz-ib2 col-span-2" data-cmd="dup"><?= ui_icon('copy', 'w-4 h-4') ?><?= e(t('نسخة')) ?></button><button type="button" class="dz-ib2 col-span-2 hover:!text-red-600" data-cmd="del"><?= ui_icon('trash', 'w-4 h-4') ?><?= e(t('حذف')) ?></button></div>
         </div>
-        <div class="mt-auto border-t border-ink-100 p-3"><b class="block text-xs text-ink-500 mb-2"><?= e(t('الطبقات')) ?></b><ol id="dz-layers" class="space-y-1 max-h-60 overflow-y-auto text-xs"></ol></div>
+        <div class="border-t border-ink-100 p-3 flex-1 min-h-0 flex flex-col"><b class="block text-xs text-ink-500 mb-2"><?= e(t('الطبقات')) ?></b><ol id="dz-layers" class="space-y-1 flex-1 min-h-[8rem] overflow-y-auto text-xs"></ol></div>
       </aside>
     </div>
   </div>

@@ -356,7 +356,6 @@ function crm_daily_digest(): int
     $tz = new DateTimeZone(site_timezone()); $now = new DateTime('now', $tz);
     if ((int)$now->format('G') < 8) return 0; // بيتبعت الصبح بس
     $day = $now->format('Y-m-d'); if (setting('crm_digest_day_' . $wid, '') === $day) return 0;
-    save_setting('crm_digest_day_' . $wid, $day);
     $end = (clone $now)->setTime(23, 59, 59)->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
     $n = 0;
     foreach (crm_members() as $m) {
@@ -372,6 +371,7 @@ function crm_daily_digest(): int
             . ($li ? '<b>' . e(t('متابعات العملاء (%s)', count($leads))) . '</b><ul>' . $li . '</ul>' : '') . ($ti ? '<b>' . e(t('مهام (%s)', count($tasks))) . '</b><ul>' . $ti . '</ul>' : '')
             . '<p><a href="' . e(base_url() . '/' . url('crm_leads') . '#due') . '" style="display:inline-block;background:#2557e0;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">' . e(t('افتح شغل النهارده')) . '</a></p></div>';
         try { send_mail((string)$m['email'], t('شغلك النهارده: %s متابعة و%s مهمة', count($leads), count($tasks)), $html, null, $wid); $n++; } catch (Throwable $e) {}
+    if ($n) save_setting('crm_digest_day_' . $wid, $day); // اليوم يتعلّم بس لو الإيميل وصل لحد
     }
     return $n;
 }

@@ -213,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255); if ($title === '') $json(['ok' => false, 'error' => t('اكتب المهمة.')]);
             $due = trim((string)($_POST['due'] ?? '')); try { $due = $due !== '' ? (new DateTime($due, new DateTimeZone(site_timezone())))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s') : null; } catch (Exception $e) { $due = null; }
             $to = (int)($_POST['user'] ?? 0); if (!$canManage || !in_array($to, $memberIds, true)) $to = $uid;
-            $lid = (int)($_POST['lead'] ?? 0); $ll = $lid ? crm_lead($lid) : null;
+            $lid = (int)($_POST['lead'] ?? 0); $ll = $lid ? crm_lead($lid) : null; if ($ll && !crm_can_edit($ll)) $ll = null; // عميل زميل: المهمة تتعمل من غير ربط
             $lid = $ll ? (int)$ll['id'] : 0;
             db()->prepare('INSERT INTO crm_tasks (workspace_id, user_id, lead_id, title, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')->execute([$wid, $to, $ll ? (int)$ll['id'] : null, $title, $due, $uid]);
             if ($to !== $uid) crm_notify($to, $ll ? (int)$ll['id'] : null, 'task', t('%s ضاف لك مهمة: %s', (string)(current_user()['name'] ?? ''), $title));

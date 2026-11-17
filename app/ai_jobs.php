@@ -90,7 +90,7 @@ function ai_smart_alerts(int $wid): int
     save_setting($key, gmdate('Y-m-d'));
     $sys = 'You monitor social media metrics for a business. From the DATA, find real anomalies only (drops or spikes over ~30% vs the recent average, accounts needing reconnection, many unread messages). '
         . 'Return ONLY JSON: {"alerts":[{"title":"short title","detail":"one sentence with numbers","level":"warning|info"}]} — empty array if nothing unusual. Write in ' . (setting('default_lang', 'en') === 'ar' ? 'Arabic' : 'English') . '. Never invent numbers.';
-    $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => "DATA:\n" . assistant_context(true)]], 700, 'analyze');
+    try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => "DATA:\n" . assistant_context(true)]], 700, 'analyze'); } catch (Throwable $e) { save_setting($key, ''); throw $e; } // الفشل مايلغيش تنبيهات اليوم
     $json = $r['text'];
     if (preg_match('/\{.*\}/s', $json, $m)) $json = $m[0];
     $alerts = json_decode($json, true)['alerts'] ?? [];

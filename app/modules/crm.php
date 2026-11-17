@@ -866,7 +866,12 @@ function crm_visits(int $leadId): array
 function crm_track_link(array $l, string $url): string
 {
     $wid = (int)ws('id'); crm_form_url();
-    return base_url() . '/index.php?' . http_build_query(['p' => 'crm_go', 'w' => $wid, 'k' => crm_lead_token($wid, (int)$l['id']), 'u' => $url]);
+    return base_url() . '/index.php?' . http_build_query(['p' => 'crm_go', 'w' => $wid, 'k' => crm_lead_token($wid, (int)$l['id']), 'u' => $url, 's' => crm_url_sig($wid, $url)]);
+}
+/** توقيع الرابط نفسه: مايتحوّلش لأي موقع غير اللي اتبعت فعلًا */
+function crm_url_sig(int $wid, string $url): string
+{
+    return substr(hash_hmac('sha256', 'u:' . $url, crm_link_key($wid)), 0, 12);
 }
 function crm_site_script(): string
 {

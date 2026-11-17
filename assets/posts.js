@@ -249,7 +249,7 @@
         var id = ids[i++]; psQuick(op, [id], extraFn ? extraFn(id) : {}).then(function (d) { (d.ok || []).length ? ok++ : bad++; next(); }).catch(function () { bad++; next(); });
       })();
     }
-    function inBlack(d) { var r = X.q.blackout || [], dw = +siteDT(d).slice(0, 10).split('-').length && new Date(siteDT(d).slice(0, 10) + 'T12:00').getDay(), hm = siteDT(d).slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
+    function inBlack(d) { var r = X.q.blackout || [], dw = new Date(siteDT(d).slice(0, 10) + 'T12:00').getDay(), hm = siteDT(d).slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
     function inBlackS(w) { var r = X.q.blackout || [], dw = new Date(w.slice(0, 10) + 'T12:00').getDay(), hm = w.slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
     window.__psInBlack = inBlack;
     // الأزرار بتتنقل لقايمة «أدوات» اللي فوق، فالاستماع على الصفحة كلها
@@ -286,7 +286,7 @@
       if (k === 'goals') return goalsDlg();
     });
     /* ---------- #49 أهداف نشر أسبوعية ---------- */
-    function weekStart() { var d = new Date(siteDT(new Date()).slice(0, 10) + 'T00:00'); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); return d; }
+    function weekStart() { var d = new Date(siteDT(new Date()).slice(0, 10) + 'T00:00'); var ws = X.weekStart == null ? 6 : +X.weekStart; d.setDate(d.getDate() - ((d.getDay() - ws + 7) % 7)); return d; }
     function goalsBar() {
       var g = X.q.goals || {}, ks = Object.keys(g), box = $('#cal-health'); if (!ks.length || !box) return;
       var s = weekStart(), e = new Date(s), cnt = {}; e.setDate(e.getDate() + 7);

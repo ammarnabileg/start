@@ -78,7 +78,9 @@
   function setFill(o, c) { if (o.type === 'group') o.getObjects().forEach(function (x) { if (x.type !== 'textbox') x.set('fill', c); }); else if (o.type === 'line' || (o.type === 'path' && !o.fill)) o.set('stroke', c); else o.set('fill', c); cv.requestRenderAll(); snap(); sync(); }
 
   /* ---------- القوالب الاحترافية: كل قالب بيرجع {size, bg, objs} بألوان الشركة ونصوصها، والمعاينة بتترسم فعلًا ---------- */
-  var K = C.kb || {}, SVS = (K.svcs || []).filter(function (s) { return s.name; }), SV = SVS[0] || {}, SV2 = SVS[1] || SV, CO = K.name || L.company, FAQ = K.faq || [];
+  // نصوص قاعدة المعرفة طويلة (فقرات): للعناوين بناخد أول جملة قصيرة بس
+  var SHORT = function (s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); if (!s) return ''; var m = s.split(/[.!?؟؛;\n]| - | – /)[0].trim(); var ci = m.indexOf(':'); if (ci > -1 && ci < 28 && m.length - ci > 8) m = m.slice(ci + 1).trim(); /* «عنوان: قيمة» → القيمة */ if (m.length < 6) m = s; if (m.length > n) { m = m.slice(0, n); var sp = m.lastIndexOf(' '); if (sp > n * 0.5) m = m.slice(0, sp); m += '…'; } return m; };
+  var K0 = C.kb || {}, K = Object.assign({}, K0, { focus: SHORT(K0.focus, 42), tagline: SHORT(K0.tagline, 80), pod: SHORT(K0.pod, 110), rtb: SHORT(K0.rtb, 140), about: SHORT(K0.about, 140) }), SVS = (K.svcs || []).filter(function (s) { return s.name; }), SV = SVS[0] || {}, SV2 = SVS[1] || SV, CO = K.name || L.company, FAQ = K.faq || [];
   var LTR = function (x) { return x ? '\u2066' + x + '\u2069' : ''; }; // عزل اتجاه الأرقام واليوزر عشان @ وعلامة + يفضلوا في مكانهم
   var WA = LTR(K.whatsapp || K.phone || ''), HANDLE = K.handle ? LTR('@' + K.handle) : '', FOOT = [HANDLE, WA].filter(Boolean).join('   ·   ');
   var OFFER = K.focus || (SV.name ? SV.name + (SV.price ? ' — ' + SV.price : '') : L.off);
@@ -88,7 +90,12 @@
     var t = new fabric.Textbox('📷  ' + L.ph, { fontSize: Math.max(18, w * 0.06), fill: '#64748b', fontFamily: 'Cairo', width: w * 0.8, textAlign: 'center', originX: 'center', originY: 'center' });
     return new fabric.Group([shape, t], { left: x, top: y, dzRole: 'ph', dzCircle: !!(o && o.circle), dzRx: (o && o.rx) || 0 });
   }
-  function T(t, o) { var ar = isAr(t); return new fabric.Textbox(t, Object.assign({ fontFamily: ar ? 'Cairo' : 'Inter', fontSize: W * 0.05, fill: S, width: W * 0.84, left: W * 0.08, textAlign: ar ? 'right' : 'left', direction: ar ? 'rtl' : 'ltr', lineHeight: 1.15 }, o || {})); }
+  function T(t, o) { var ar = isAr(t); var tb = new fabric.Textbox(t, Object.assign({ fontFamily: ar ? 'Cairo' : 'Inter', fontSize: W * 0.05, fill: S, width: W * 0.84, left: W * 0.08, textAlign: ar ? 'right' : 'left', direction: ar ? 'rtl' : 'ltr', lineHeight: 1.15 }, o || {})); return fitT(tb, o && o.maxLines); }
+  // النص مايطلعش برا مكانه: نصغّر الخط لحد عدد سطور معقول، ولو لسه طويل نقصّه بـ «…»
+  function fitT(tb, cap) { var fs0 = tb.fontSize; if (!cap) cap = fs0 >= W * 0.075 ? 2 : fs0 >= W * 0.055 ? 3 : fs0 >= W * 0.04 ? 4 : 6; var n = function () { tb.initDimensions(); return (tb.textLines || []).length; };
+    while (n() > cap && tb.fontSize > fs0 * 0.6) tb.set('fontSize', tb.fontSize * 0.92);
+    var guard = 0; while (n() > cap && tb.text.length > 4 && guard++ < 200) { var w = tb.text.replace(/…$/, '').split(' '); if (w.length < 2) break; w.pop(); tb.set('text', w.join(' ') + '…'); }
+    return tb; }
   function TC(t, o) { return T(t, Object.assign({ textAlign: 'center' }, o || {})); }
   function pill(t, x, y, bg, fg, fs, mid) { var tt = new fabric.Textbox(t, { fontSize: fs, fontWeight: 800, fill: fg, fontFamily: isAr(t) ? 'Cairo' : 'Inter', textAlign: 'center', originX: 'center', originY: 'center', width: fs * Math.max(4, t.length * 0.62) }); var r = new fabric.Rect({ width: tt.width + fs * 1.6, height: fs * 2.1, rx: fs * 1.05, ry: fs * 1.05, fill: bg, originX: 'center', originY: 'center' }); return new fabric.Group([r, tt], { left: x, top: y, originX: mid ? 'center' : 'left' }); }
   function R(x, y, w, h, fill, o) { return new fabric.Rect(Object.assign({ left: x, top: y, width: w, height: h, fill: fill }, o || {})); }
@@ -99,7 +106,7 @@
       new fabric.Polygon([{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H * 0.42 }, { x: 0, y: H * 0.62 }], { fill: P }),
       circ(W * 0.84, H * 0.22, W * 0.14, A), TC(SV.price || '%', { left: W * 0.7, width: W * 0.28, top: H * 0.18, fontSize: W * 0.06, fontWeight: 900, fill: S }),
       T(L.offer, { top: H * 0.12, fontSize: W * 0.045, fill: light, fontWeight: 700, width: W * 0.6 }),
-      T(C.title || K.focus || SV.name || L.h1, { top: H * 0.2, fontSize: W * 0.085, fill: '#fff', fontWeight: 900, width: W * 0.6 }),
+      T(C.title || SV.name || K.focus || L.h1, { top: H * 0.2, fontSize: W * 0.085, fill: '#fff', fontWeight: 900, width: W * 0.6 }),
       T(K.tagline || L.limited, { top: H * 0.66, fontSize: W * 0.036, fill: light }), pill(WA ? L.orderWa : L.cta, W * 0.08, H * 0.78, A, S, W * 0.032),
       T(CO + (FOOT ? '   ·   ' + FOOT : ''), { top: H * 0.92, fontSize: W * 0.026, fill: light, fontWeight: 700 })] }; } },
     { n: L.t2, cat: 'product', size: '1080x1080', b: function () { return { bg: '#f8fafc', objs: [
@@ -141,7 +148,7 @@
       T(CO + '  →', { top: H * 0.91, fontSize: W * 0.03, fill: '#64748b' })] }; } },
     { n: L.t11, cat: 'offer', size: '1080x1080', b: function () { return { bg: '#fff', objs: [
       R(0, 0, W, H * 0.13, P), T('📣  ' + L.news, { top: H * 0.035, fontSize: W * 0.04, fill: '#fff', fontWeight: 700 }),
-      T(C.title || K.focus || CO, { top: H * 0.22, fontSize: W * 0.08, fontWeight: 900 }), R(W * 0.8, H * 0.45, W * 0.12, 6, A),
+      T(C.title || SV.name || K.focus || CO, { top: H * 0.22, fontSize: W * 0.08, fontWeight: 900 }), R(W * 0.8, H * 0.45, W * 0.12, 6, A),
       T(C.text || K.about || K.tagline || L.p, { top: H * 0.5, fontSize: W * 0.036, fill: '#475569', lineHeight: 1.45 }), T(CO, { top: H * 0.9, fontSize: W * 0.03, fill: P, fontWeight: 900 })] }; } },
     { n: L.t12, cat: 'story', size: '1080x1920', b: function () { return { bg: grad([P, '#0f172a']), objs: [
       ph(W * 0.1, H * 0.12, W * 0.8, W * 0.8, { rx: W * 0.06 }), pill(L.offer, W * 0.5, H * 0.58, A, S, W * 0.04, true),

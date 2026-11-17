@@ -125,7 +125,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <nav class="flex-1 overflow-y-auto p-3">
     <?php $lastSection = null; foreach ($navItems as $it): ?>
       <?php if ($it['section'] !== $lastSection): $lastSection = $it['section']; if ($lastSection !== ''): ?><div class="nav-label"><?= e($lastSection) ?></div><?php endif; endif; ?>
-      <?php $isAct = $navActive && $navActive['key'] === $it['key']; if (!empty($it['tabs']) && count($it['tabs']) > 1): ?>
+      <?php $isAct = $navActive && $navActive['key'] === $it['key']; if (!empty($it['tabs']) && count($it['tabs']) > 1 && empty($it['flat'])): ?>
         <details class="nav-grp group/ng" data-ng="<?= e($it['key']) ?>" <?= $isAct ? 'open' : '' ?>>
           <summary class="nav-item list-none cursor-pointer select-none <?= $isAct ? 'text-ink-900 font-medium' : '' ?>"><?= $icon($I[$it['key']] ?? $I['dashboard']) ?><span class="flex-1"><?= e($it['label']) ?></span><?= $icon('M6 9l6 6 6-6', 'w-4 h-4 text-ink-400 transition group-open/ng:rotate-180') ?></summary>
           <div class="relative ms-[22px] ps-3 border-s border-ink-200 my-0.5 space-y-0.5">

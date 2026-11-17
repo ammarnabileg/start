@@ -92,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 if ($ok) flash('success', t('اتعدلت ميزانية %s حملة.', $ok));
                 if ($fail) flash('error', t('%s حملة ما اتعدلتش: %s', count($fail), $fail[0]));
             }
+        } elseif ($action === 'stop_all' && !can('ads.spend')) {
+            flash('error', t('إيقاف كل الحملات يتطلب صلاحية إدارة الإنفاق الإعلاني.'));
         } elseif ($action === 'stop_all') {
             // طوارئ: وقف كل الحملات الشغالة في كل الحسابات (مش بس الصفحة الحالية)
             if (($_POST['confirm_text'] ?? '') !== 'STOP') {

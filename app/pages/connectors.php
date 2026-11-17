@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ((int)$c['id'] === $cid) $existing = $c;
     }
 
+    if ($action === 'save' && !$existing && !empty($def['single']) && connections($provider, null, true)) { flash('error', t('هذا التكامل يقبل اتصالًا واحدًا فقط. عدّل الاتصال الموجود.')); redirect(url('connectors')); }
     if ($action === 'save') {
         $label = trim((string)($_POST['label'] ?? ''));
         $creds = [];

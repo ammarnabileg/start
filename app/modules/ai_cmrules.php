@@ -96,7 +96,7 @@ function acr_tick_run(int $wid, Zernio $z, int $max = 15): int
                     $hist = trim((string)($rule['ins'] ?? '')) !== '' ? t('تعليمات صاحب الصفحة للرد: %s', (string)$rule['ins']) : '';
                     $d = ai_decide($wid, $cfg, $tx, 'comment', $hist);
                     $rt = function_exists('ai_sign') ? ai_sign($cfg, trim((string)$d['reply'], " \n\"'«»")) : trim((string)$d['reply']);
-                    if (($d['action'] ?? '') === 'handoff' || $rt === '') { $done[$k] = 1; $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => '', 'st' => 'handoff']; $changed[$rule['id']] = $rule; continue; }
+                    if (($d['action'] ?? '') === 'handoff' || $rt === '') { $done[$k] = 1; $rule['log'][] = ['at' => time(), 'who' => (string)($c['from']['name'] ?? ''), 'in' => mb_substr($tx, 0, 200), 'out' => '', 'st' => 'handoff']; $rule['log'] = array_slice($rule['log'], -30); $changed[$rule['id']] = $rule; continue; }
                     $z->replyComment($pid, $acc, $rt, $cid); $done[$k] = 1;
                     if (function_exists('ai_sent_mark')) ai_sent_mark($wid, $rt, 'p:' . $pid);
                     log_activity('ai.auto_comment', $cid);
