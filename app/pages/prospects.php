@@ -283,7 +283,7 @@ if (($_GET['ajax'] ?? '') === 'queue') {
 // المكررين على كل العملاء: نفس آخر 9 أرقام في الرقم أو نفس الإيميل
 if (($_GET['ajax'] ?? '') === 'dups') {
     $pairs = []; $ids = [];
-    $st = db()->prepare("SELECT id, phone, phones, email, emails FROM crm_leads WHERE $where AND (phone <> '' OR email <> '' OR phones IS NOT NULL OR emails IS NOT NULL) ORDER BY id"); $st->execute($args);
+    $st = db()->prepare("SELECT id, phone, phones, email, emails FROM crm_leads WHERE $where AND (phone <> '' OR email <> '' OR phones IS NOT NULL OR emails IS NOT NULL) ORDER BY id DESC LIMIT 20000"); $st->execute($args); // أحدث 20 ألف عميل بس: الكشف كان بيقرا الكل في الذاكرة
     $by = [];
     while ($r = $st->fetch()) { $id = (int)$r['id'];
         foreach (array_merge([(string)$r['phone']], json_decode((string)($r['phones'] ?? ''), true) ?: []) as $p) { $d = substr(preg_replace('/\D/', '', (string)$p), -9); if (strlen($d) >= 6) $by['p' . $d][$id] = 1; }
