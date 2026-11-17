@@ -36,7 +36,7 @@ function ab_default_adset(string $country, int $n): array
     return [
         'id' => 's' . bin2hex(random_bytes(3)), 'name' => '', 'budget' => ['amount' => '', 'type' => 'daily'], 'optimizationGoal' => '',
         'targeting' => ['countries' => [$country], 'excludeCountries' => [], 'regions' => [], 'cities' => [], 'ageMin' => 18, 'ageMax' => 65, 'gender' => 'all',
-            'languages' => [], 'interests' => [], 'behaviors' => [], 'workPositions' => [], 'workIndustries' => [], 'audienceId' => '', 'audienceExclude' => [],
+            'languages' => [], 'interests' => [], 'behaviors' => [], 'workPositions' => [], 'workIndustries' => [], 'workEmployers' => [], 'industries' => [], 'seniorities' => [], 'jobFunctions' => [], 'skills' => [], 'companySizes' => [], 'advantage' => 0, 'audienceId' => '', 'audienceExclude' => [],
             'placementsMode' => 'auto', 'placements' => [], 'userDevice' => [], 'userOs' => []],
         'ads' => [ab_default_ad()],
     ];
@@ -82,7 +82,7 @@ function ab_scale_budget(array $d, float $amount): array
     return $d;
 }
 
-function ab_get(int $wid, int $id): ?array
+function ab_get_raw(int $wid, int $id): ?array
 {
     $st = db()->prepare("SELECT * FROM ad_builds WHERE workspace_id = ? AND id = ?");
     $st->execute([$wid, $id]);
@@ -91,6 +91,15 @@ function ab_get(int $wid, int $id): ?array
     $r['data'] = json_decode((string)$r['data'], true) ?: [];
     $r['progress'] = $r['progress'] ? (json_decode((string)$r['progress'], true) ?: null) : null;
     return $r;
+}
+
+/** المشروع + تكملة حقول الاستهداف الجديدة للمشاريع القديمة */
+function ab_get(int $wid, int $id): ?array
+{
+    $b = ab_get_raw($wid, $id); if (!$b || !is_array($b['data'] ?? null)) return $b;
+    $def = ab_default_adset('EG', 1)['targeting'];
+    foreach ((array)($b['data']['adSets'] ?? []) as $i => $st) $b['data']['adSets'][$i]['targeting'] = (array)($st['targeting'] ?? []) + $def;
+    return $b;
 }
 
 function ab_create(int $wid, array $data, string $name): int
@@ -128,7 +137,7 @@ function ab_caps(string $p): array
     $c = [
         'meta' => ['goals' => ['traffic', 'engagement', 'awareness', 'video_views', 'lead_generation', 'conversions', 'app_promotion', 'page_likes'], 'cbo' => true,
             'bid' => ['LOWEST_COST_WITHOUT_CAP', 'LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'LOWEST_COST_WITH_MIN_ROAS'], 'special' => ['HOUSING', 'EMPLOYMENT', 'CREDIT', 'ISSUES_ELECTIONS_POLITICS'],
-            'targeting' => ['regions' => true, 'cities' => true, 'excludeCountries' => false, 'interests' => true, 'work' => false, 'audience' => false,
+            'targeting' => ['regions' => true, 'cities' => true, 'excludeCountries' => false, 'interests' => true, 'work' => true, 'audience' => true, 'behaviors' => true, 'languages' => true, 'advantage' => true,
                 'placements' => ['facebook_feed', 'facebook_stories', 'facebook_reels', 'instagram_feed', 'instagram_stories', 'instagram_reels', 'messenger', 'audience_network'], 'devices' => false],
             'formats' => ['image', 'video', 'carousel'], 'multiText' => true, 'ctas' => $metaCta, 'maxHeadline' => 255, 'leadForm' => true, 'reach' => true, 'validate' => true, 'multiAds' => 'creatives', 'maxAdsPerSet' => 50],
         'google' => ['goals' => ['traffic', 'awareness', 'engagement'], 'budgetTypes' => ['daily'], 'bid' => ['LOWEST_COST_WITHOUT_CAP', 'COST_CAP', 'LOWEST_COST_WITH_MIN_ROAS'],
@@ -136,7 +145,7 @@ function ab_caps(string $p): array
             'formats' => ['image'], 'ctas' => ['LEARN_MORE'], 'maxHeadline' => 30, 'maxBody' => 90, 'notes' => ['googleSearch']],
         'linkedin' => ['goals' => ['traffic', 'engagement', 'awareness', 'video_views', 'lead_generation'], 'formats' => ['image', 'video', 'carousel'],
             'ctas' => ['LEARN_MORE', 'SIGN_UP', 'DOWNLOAD', 'SUBSCRIBE', 'REGISTER', 'JOIN', 'ATTEND', 'REQUEST_DEMO', 'VIEW_QUOTE', 'APPLY', 'SEE_MORE', 'SHOP_NOW', 'BUY_NOW'],
-            'maxHeadline' => 400, 'leadForm' => true, 'reach' => true, 'minDaily' => 10, 'targeting' => ['regions' => true, 'cities' => false, 'excludeCountries' => false, 'interests' => false, 'work' => false, 'audience' => false, 'placements' => [], 'devices' => false], 'notes' => ['linkedinOrg']],
+            'maxHeadline' => 400, 'leadForm' => true, 'reach' => true, 'minDaily' => 10, 'targeting' => ['regions' => true, 'cities' => false, 'excludeCountries' => false, 'interests' => false, 'work' => false, 'audience' => true, 'b2b' => true, 'languages' => true, 'placements' => [], 'devices' => false], 'notes' => ['linkedinOrg']],
         'tiktok' => ['goals' => ['traffic', 'engagement', 'awareness', 'video_views', 'lead_generation', 'conversions', 'app_promotion'], 'formats' => ['video'],
             'ctas' => ['LEARN_MORE', 'SHOP_NOW', 'SIGN_UP', 'CONTACT_US', 'DOWNLOAD', 'BOOK_NOW', 'ORDER_NOW', 'APPLY_NOW', 'WATCH_NOW'], 'validate' => true, 'maxAdsPerSet' => 0,
             'targeting' => ['regions' => true, 'cities' => true, 'excludeCountries' => false, 'interests' => false, 'work' => false, 'audience' => false, 'placements' => [], 'devices' => false], 'notes' => ['tiktokVideo', 'tiktokGender']],
@@ -161,6 +170,31 @@ function ab_caps(string $p): array
 function ab_strings(): array
 {
     return [
+        'b2bMeta' => t('استهداف الأعمال (Meta)'), 'workEmployers' => t('جهة العمل'), 'workIndustries' => t('مجال العمل'), 'behaviors' => t('السلوكيات'),
+        'b2bLi' => t('استهداف الأعمال B2B (لينكدإن)'), 'b2bLiHint' => t('الأفضل: الوظيفة + الأقدمية معًا، واكتفِ بمعيارين أو ثلاثة حتى لا يضيق الجمهور.'),
+        'industries' => t('الصناعة'), 'seniorities' => t('الأقدمية'), 'jobFunctions' => t('الوظيفة'), 'skills' => t('المهارات'), 'companySizes' => t('حجم الشركة (عدد الموظفين)'),
+        'sizes' => ['A' => '1', 'B' => '2–10', 'C' => '11–50', 'D' => '51–200', 'E' => '201–500', 'F' => '501–1000', 'G' => '1001–5000', 'H' => '5001–10000', 'I' => '10000+'],
+        'typeOne' => t('اكتب حرفًا واحدًا لعرض القائمة'), 'typeToSearch' => t('اكتب للبحث…'),
+        'languages' => t('اللغة'), 'langAr' => t('العربية'), 'langEn' => 'English', 'langHint' => t('في لينكدإن: لغة واحدة لكل مجموعة إعلانية؛ أنشئ مجموعة للعربية وأخرى للإنجليزية.'),
+        'advantage' => t('Advantage+ للجمهور'), 'advantageHint' => t('يسمح لـ Meta بتوسيع الجمهور خارج اختياراتك عندما يتوقع نتائج أفضل. توصي به Meta لمعظم الحملات.'),
+        'excludeAud' => t('استبعاد جمهور'), 'excludeAudHint' => t('مثل عملائك الحاليين أو من سجّلوا بالفعل: لا تدفع للوصول إليهم مرة أخرى.'),
+        // مستشار الحملة: مختصر لتوصيات Meta/LinkedIn/Google/TikTok الرسمية ودراسات حالة B2B
+        'adv' => [
+            'leadGoal' => t('لعملاء B2B: هدف «العملاء المحتملون» مع نموذج داخل المنصة يحوّل أفضل بكثير من الزيارات (لينكدإن: 13% للنماذج مقابل 2.35% لصفحات الهبوط).'),
+            'consolidate' => t('أكثر من 3 مجموعات: Meta توصي بالدمج حتى تصل كل مجموعة إلى نحو 50 نتيجة أسبوعيًا وتخرج من مرحلة التعلّم.'),
+            'learning' => t('مرحلة التعلّم تحتاج نحو 50 نتيجة في 7 أيام: الميزانية اليومية لكل مجموعة ≈ تكلفة النتيجة المستهدفة × 7.'),
+            'looseBid' => t('سقف التكلفة من البداية يبطّئ التعلّم: ابدأ بدون سقف (أو بسقف مرن) ثم أضفه بعد ظهور تكلفة حقيقية.'),
+            'liB2b' => t('أضف استهداف B2B (الوظيفة + الأقدمية، أو الصناعة) أو جمهورًا مخصصًا؛ الموقع وحده واسع جدًا لحملات الشركات.'),
+            'liHyper' => t('معايير كثيرة تضيّق الجمهور: لينكدإن توصي بمعيارين أو ثلاثة، والحجم المقترح 50 ألفًا فأكثر.'),
+            'liPair' => t('لينكدإن توصي بدمج الوظيفة مع الأقدمية للوصول إلى صانعي القرار.'),
+            'liLang' => t('لغة واحدة لكل مجموعة في لينكدإن: قسّمها إلى مجموعة عربية وأخرى إنجليزية.'),
+            'liAds' => t('لينكدإن توصي بـ 3 إلى 5 إعلانات في كل مجموعة، وتعرض الأفضل أداءً تلقائيًا.'),
+            'metaBroad' => t('اهتمامات كثيرة: Meta تنصح بجمهور أوسع (أو تفعيل Advantage+) وترك الإعلان نفسه يجذب الشخص المناسب.'),
+            'metaVideo' => t('أضف فيديو عموديًا (9:16) بصوت: بيانات Meta تُظهر تكلفة أقل عندما يكون 20% على الأقل من الإعلانات بهذا الشكل.'),
+            'exclude' => t('استبعد عملاءك الحاليين ومن سجّلوا بالفعل (جمهور مخصص) حتى لا تدفع للوصول إليهم مجددًا.'),
+            'arabic' => t('الجمهور في دولة عربية ولا يوجد نص عربي: الإعلانات العربية (بلهجة السوق) تحقق تفاعلًا أعلى في المنطقة.'),
+            'afterLaunch' => t('بعد الإطلاق: لا تحكم قبل 7 أيام (مرحلة التعلّم)، وزِد الميزانية بنحو 20% كل بضعة أيام، وقِس تكلفة العميل المؤهَّل لا تكلفة أي عميل.'),
+        ],
         'back' => t('→ المشاريع'), 'untitled' => t('حملة بدون اسم'), 'lockedTag' => t('اتطلقت — للعرض بس'), 'autosave' => t('بيتحفظ لوحده'), 'saving' => t('بيحفظ...'), 'savedAt' => t('اتحفظ %s'), 'saveErr' => t('ما اتحفظش، هنجرب تاني'),
         'campaign' => t('الحملة'), 'adset' => t('المجموعة الإعلانية'), 'ad' => t('الإعلان'), 'setN' => t('مجموعة %s'), 'adN' => t('إعلان %s'), 'addSet' => t('مجموعة إعلانية'), 'addAd' => t('إعلان'), 'duplicate' => t('نسخ'), 'del' => t('امسح'),
         'delQ' => t('تمسح ده؟'), 'copySuffix' => t('(نسخة)'), 'campName' => t('اسم الحملة'), 'goal' => t('الهدف'), 'budgetBid' => t('الميزانية والمزايدة'), 'schedule' => t('المواعيد والفئات الخاصة'),
@@ -256,6 +290,24 @@ function ab_targeting(array $tg, string $p): array
         if ($p !== 'tiktok' && ($tg['gender'] ?? 'all') !== 'all') $o['gender'] = $tg['gender'];
     }
     if (!empty($tg['interests'])) $o['interests'] = array_map(function ($x) { return ['id' => (string)$x['id'], 'name' => (string)$x['name']]; }, $tg['interests']);
+    // اللغات والجماهير (المخصصة/المشابهة): include + exclude
+    $ids = function ($l) { return array_values(array_filter(array_map(function ($x) { return is_array($x) ? (string)($x['id'] ?? '') : (string)$x; }, (array)$l))); };
+    if (!empty($tg['languages']) && in_array($p, ['meta', 'linkedin', 'google'], true)) $o['languages'] = array_values(array_map('strval', (array)$tg['languages']));
+    if (in_array($p, ['meta', 'linkedin', 'tiktok'], true)) {
+        if (!empty($tg['audienceId'])) $o['audienceInclude'] = [(string)$tg['audienceId']];
+        if ($ex = $ids($tg['audienceExclude'] ?? [])) $o['audienceExclude'] = $ex;
+    }
+    if ($p === 'meta') {
+        $pair = function ($l) { return array_values(array_map(function ($x) { return ['id' => (string)$x['id'], 'name' => (string)($x['name'] ?? '')]; }, (array)$l)); };
+        foreach (['behaviors', 'workPositions', 'workEmployers', 'workIndustries'] as $k) if (!empty($tg[$k])) $o[$k] = $pair($tg[$k]);
+        $o['advantageAudience'] = !empty($tg['advantage']) ? 1 : 0;
+    }
+    if ($p === 'linkedin') {
+        // B2B: الصناعة، حجم الشركة، الأقدمية، الوظيفة، المهارات (المسمى الوظيفي مايتجمعش مع الأقدمية/الوظيفة عند لينكدإن)
+        foreach (['industries', 'seniorities', 'jobFunctions', 'skills'] as $k) if ($v = $ids($tg[$k] ?? [])) $o[$k] = $v;
+        if (!empty($tg['companySizes'])) $o['companySizes'] = array_values(array_intersect(array_map('strval', (array)$tg['companySizes']), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']));
+        if (!empty($tg['behaviors'])) $o['behaviors'] = array_map(function ($x) { return ['id' => (string)$x['id']]; }, (array)$tg['behaviors']);
+    }
     if ($p === 'meta' && ($tg['placementsMode'] ?? 'auto') === 'manual' && !empty($tg['placements'])) {
         $pp = ['publisher_platforms' => [], 'facebook_positions' => [], 'instagram_positions' => [], 'messenger_positions' => [], 'audience_network_positions' => []];
         $map = ['facebook_feed' => ['facebook', 'facebook_positions', 'feed'], 'facebook_stories' => ['facebook', 'facebook_positions', 'story'], 'facebook_reels' => ['facebook', 'facebook_positions', 'facebook_reels'],

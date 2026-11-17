@@ -42,10 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
 // بحث الاستهداف (اهتمامات/أماكن) — بيرجع JSON للـ JS
 if (isset($_GET['ajax']) && $z) {
     header('Content-Type: application/json; charset=utf-8');
-    $dim = ($_GET['dim'] ?? '') === 'geo' ? 'geo' : 'interest';
+    // كل أبعاد البحث اللي Zernio بيدعمها (كان مسموح geo وinterest بس، فخانة «المسمى الوظيفي» ماكانتش بتلاقي حاجة)
+    $dims = ['geo', 'interest', 'behavior', 'workPosition', 'workEmployer', 'workIndustry', 'industry', 'jobFunction', 'seniority', 'skill'];
+    $dim = in_array((string)($_GET['dim'] ?? ''), $dims, true) ? (string)$_GET['dim'] : 'interest';
+    $wholeTable = in_array($dim, ['jobFunction', 'seniority', 'workIndustry'], true); // جداول صغيرة: حرف واحد كفاية
     $q = trim((string)($_GET['q'] ?? ''));
     $out = [];
-    if (mb_strlen($q) >= 2 && !empty($_GET['conn'])) {
+    if (mb_strlen($q) >= ($wholeTable ? 1 : 2) && !empty($_GET['conn'])) {
         try {
             foreach (ads_targeting_search($z, (string)$_GET['conn'], $q, $dim, (string)($_GET['acc'] ?? '') ?: null) as $r) {
                 $out[] = ['id' => (string)$r['id'], 'name' => (string)$r['name'], 'type' => (string)($r['type'] ?? ''),

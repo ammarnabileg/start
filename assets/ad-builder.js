@@ -71,6 +71,32 @@
       var a = D.adSets[i].targeting, b = D.adSets[j].targeting, key = function (t) { return [t.countries.slice().sort().join(','), t.ageMin, t.ageMax, t.gender, (t.interests || []).map(function (x) { return x.id; }).sort().join(','), t.audienceId].join('|'); };
       if (key(a) === key(b)) add('warn', fmt(S.iOverlap, setName(i), setName(j)), 'adset', j);
     }
+    // ---- مستشار الحملة: قواعد مبنية على توصيات المنصات ودراسات حالة B2B (مش أخطاء: مابتمنعش الإطلاق)
+    var A2 = S.adv || {}, pf = D.platform, tip = function (key, t, s2, a2) { if (A2[key]) add('tip', A2[key], t, s2, a2); };
+    var dailyOf = function (st) { return cbo ? (+c.budget.amount || 0) / Math.max(1, D.adSets.length) : (+st.budget.amount || 0); };
+    if ((pf === 'linkedin' || pf === 'meta') && ['traffic', 'engagement'].indexOf(c.goal) >= 0 && C.goals.indexOf('lead_generation') >= 0) tip('leadGoal', 'campaign');
+    if (pf === 'meta' && D.adSets.length > 3) tip('consolidate', 'campaign');
+    if ((pf === 'meta' || pf === 'tiktok') && ['lead_generation', 'conversions'].indexOf(c.goal) >= 0) tip('learning', 'campaign');
+    if ((c.bidStrategy === 'COST_CAP' || c.bidStrategy === 'LOWEST_COST_WITH_BID_CAP') && !c.startDate) tip('looseBid', 'campaign');
+    var hasAudList = (window.__abAud || []).length > 0;
+    D.adSets.forEach(function (st, si) {
+      var tg = st.targeting || {}, ads = st.ads || [];
+      if (pf === 'linkedin') {
+        var facets = ['industries', 'seniorities', 'jobFunctions', 'skills', 'companySizes'].filter(function (k) { return (tg[k] || []).length; }).length;
+        if (!facets && !tg.audienceId) tip('liB2b', 'adset', si);
+        if (facets > 3) tip('liHyper', 'adset', si);
+        if (((tg.seniorities || []).length > 0) !== ((tg.jobFunctions || []).length > 0)) tip('liPair', 'adset', si);
+        if ((tg.languages || []).length > 1) tip('liLang', 'adset', si);
+        if (ads.length < 3 && C.maxAdsPerSet !== 1) tip('liAds', 'adset', si);
+      }
+      if (pf === 'meta') {
+        if ((tg.interests || []).length + (tg.workPositions || []).length + (tg.behaviors || []).length > 8 && !tg.advantage) tip('metaBroad', 'adset', si);
+        if (!ads.some(function (a) { return a.format === 'video'; }) && (C.formats || []).indexOf('video') >= 0) tip('metaVideo', 'adset', si);
+      }
+      if (hasAudList && !(tg.audienceExclude || []).length && ['lead_generation', 'conversions'].indexOf(c.goal) >= 0) tip('exclude', 'adset', si);
+      if (['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM'].some(function (cc) { return (tg.countries || []).indexOf(cc) >= 0; }) && !ads.some(function (a) { return /[؀-ۿ]/.test((a.headline || '') + (a.body || '') + ((a.bodies || [])[0] || '')); })) tip('arabic', 'adset', si);
+    });
+    if (out.length && !out.some(function (x) { return x.lvl === 'err'; })) tip('afterLaunch', 'campaign');
     return out;
   }
   var setName = function (si) { return D.adSets[si].name || fmt(S.setN, si + 1); };
@@ -152,9 +178,24 @@
     var people = '<div class="grid gap-3 sm:grid-cols-3">' + field(S.ageMin, inp(P + '.targeting.ageMin', tg.ageMin, 'type="number" min="13" max="65"')) + field(S.ageMax, inp(P + '.targeting.ageMax', tg.ageMax, 'type="number" min="13" max="65"'))
       + field(S.gender, selBox(P + '.targeting.gender', tg.gender, [['all', S.gAll], ['male', S.gMale], ['female', S.gFemale]])) + '</div>'
       + (T.interests ? field(S.interests, '<div class="relative"><input class="input ab-int" data-si="' + si + '" data-dim="interest" placeholder="' + esc(S.searchInterest) + '" autocomplete="off"><div class="ab-dd hidden absolute z-30 inset-x-0 mt-1 card max-h-64 overflow-y-auto"></div></div>', S.interestHint) + chips(tg.interests.map(function (x) { return [esc(x.name) + (x.size ? ' <span class="opacity-60">' + Math.round(x.size / 1e6) + 'M</span>' : '')]; }), P + '.targeting.interests') : '')
-      + (T.work ? field(S.workPositions, '<div class="relative"><input class="input ab-int" data-si="' + si + '" data-dim="work_position" data-k="workPositions" placeholder="' + esc(S.searchWork) + '" autocomplete="off"><div class="ab-dd hidden absolute z-30 inset-x-0 mt-1 card max-h-64 overflow-y-auto"></div></div>') + chips(tg.workPositions.map(function (x) { return [esc(x.name)]; }), P + '.targeting.workPositions') : '');
+
+      + (function () {
+        // بحث بالشرايح لأي بُعد استهداف (المنصة بتدور عند Zernio)
+        var srch = function (label, dim, k, ph, hint) { return field(label, '<div class="relative"><input class="input ab-int" data-si="' + si + '" data-dim="' + dim + '" data-k="' + k + '" placeholder="' + esc(ph || S.typeToSearch || '') + '" autocomplete="off"><div class="ab-dd hidden absolute z-30 inset-x-0 mt-1 card max-h-64 overflow-y-auto"></div></div>', hint) + chips((tg[k] || []).map(function (x) { return [esc(x.name || x.id)]; }), P + '.targeting.' + k); };
+        var h = '';
+        if (T.work) h += '<div class="rounded-xl border border-ink-200 p-3 space-y-3"><b class="block text-xs text-ink-700">' + esc(S.b2bMeta || '') + '</b>'
+          + srch(S.workPositions, 'workPosition', 'workPositions', S.searchWork) + srch(S.workEmployers || '', 'workEmployer', 'workEmployers') + srch(S.workIndustries || '', 'workIndustry', 'workIndustries') + '</div>';
+        if (T.behaviors) h += srch(S.behaviors || '', 'behavior', 'behaviors');
+        if (T.b2b) h += '<div class="rounded-xl border border-ink-200 p-3 space-y-3"><b class="block text-xs text-ink-700">' + esc(S.b2bLi || '') + '</b><p class="text-[11px] text-ink-500">' + esc(S.b2bLiHint || '') + '</p>'
+          + srch(S.industries || '', 'industry', 'industries') + srch(S.seniorities || '', 'seniority', 'seniorities', S.typeOne) + srch(S.jobFunctions || '', 'jobFunction', 'jobFunctions', S.typeOne) + srch(S.skills || '', 'skill', 'skills')
+          + field(S.companySizes || '', '<div class="flex flex-wrap gap-1.5">' + ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(function (c) { var on = (tg.companySizes || []).indexOf(c) >= 0; return '<label class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs cursor-pointer ' + (on ? 'border-brand-400 bg-brand-50 text-brand-800' : 'border-ink-200 text-ink-600') + '"><input type="checkbox" class="sr-only" data-toggle="' + P + '.targeting.companySizes" value="' + c + '"' + (on ? ' checked' : '') + '>' + esc((S.sizes || {})[c] || c) + '</label>'; }).join('') + '</div>') + '</div>';
+        if (T.languages) h += field(S.languages || '', '<div class="flex flex-wrap gap-1.5">' + [['ar', S.langAr || 'العربية'], ['en', S.langEn || 'English']].map(function (l) { var on = (tg.languages || []).indexOf(l[0]) >= 0; return '<label class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs cursor-pointer ' + (on ? 'border-brand-400 bg-brand-50 text-brand-800' : 'border-ink-200 text-ink-600') + '"><input type="checkbox" class="sr-only" data-toggle="' + P + '.targeting.languages" value="' + l[0] + '"' + (on ? ' checked' : '') + '>' + esc(l[1]) + '</label>'; }).join('') + '</div>', S.langHint);
+        if (T.advantage) h += '<label class="flex items-start gap-2 text-sm rounded-xl border border-ink-200 px-3 py-2"><input type="checkbox" class="mt-1" data-bool="' + P + '.targeting.advantage"' + (tg.advantage ? ' checked' : '') + '><span><b class="block text-xs text-ink-900">' + esc(S.advantage || '') + '</b><span class="block text-[11px] text-ink-500">' + esc(S.advantageHint || '') + '</span></span></label>';
+        return h;
+      })();
     // الجمهور المخصص
-    var aud = T.audience ? field(S.customAud, '<select class="input ab-aud" data-p="' + P + '.targeting.audienceId"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === tg.audienceId ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.audHint) : '';
+    var aud = T.audience ? field(S.customAud, '<select class="input ab-aud" data-p="' + P + '.targeting.audienceId"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + (a.id === tg.audienceId ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.audHint) : ''
+      + (T.audience && (window.__abAud || []).length ? field(S.excludeAud || '', '<select class="input ab-aud" data-p="' + P + '.targeting.audienceExclude" data-arr="1"><option value="">' + esc(S.none) + '</option>' + (window.__abAud || []).map(function (a) { return '<option value="' + esc(a.id) + '"' + ((tg.audienceExclude || []).indexOf(a.id) >= 0 ? ' selected' : '') + '>' + esc(a.name) + '</option>'; }).join('') + '</select>', S.excludeAudHint) : '');
     // أماكن الظهور
     var pl = T.placements && T.placements.length ? '<div class="seg w-max">' + ['auto', 'manual'].map(function (m) { return '<a href="#" data-set="' + P + '.targeting.placementsMode" data-v="' + m + '" class="' + (tg.placementsMode === m ? 'on' : '') + '">' + esc(m === 'auto' ? S.plAuto : S.plManual) + '</a>'; }).join('') + '</div>'
       + (tg.placementsMode === 'manual' ? '<div class="grid gap-2 sm:grid-cols-2">' + T.placements.map(function (p) { var on = tg.placements.indexOf(p) >= 0; return '<label class="flex items-center gap-2 text-sm rounded-lg border border-ink-200 px-3 py-2"><input type="checkbox" data-toggle="' + P + '.targeting.placements" value="' + esc(p) + '"' + (on ? ' checked' : '') + '>' + esc(S.placementsL[p] || p) + '</label>'; }).join('') + '</div>' : '<p class="text-[11px] text-ink-500">' + esc(S.plAutoHint) + '</p>') : '';
@@ -189,7 +230,7 @@
       + (daily ? '<div class="flex justify-between"><span class="text-ink-500">' + esc(S.dailyTotal) + '</span><b dir="ltr">' + esc(money(daily, D.currency)) + '</b></div><div class="flex justify-between"><span class="text-ink-500">' + esc(S.monthly) + '</span><span dir="ltr">' + esc(money(daily * 30, D.currency)) + '</span></div>' : '')
       + '</section>';
     var chk = '<section class="card p-4"><div class="flex items-center gap-2 mb-2"><b class="text-sm text-ink-900 me-auto">' + esc(S.checks) + '</b><span class="text-xs ' + (errs ? 'text-red-600' : 'text-lime-700') + '">' + esc(errs ? fmt(S.nErr, errs) : S.allOk) + '</span></div>'
-      + (iss.length ? '<ul class="space-y-1.5 max-h-80 overflow-y-auto">' + iss.map(function (x) { var where = x.t === 'campaign' ? S.campaign : x.t === 'adset' ? setName(x.s) : setName(x.s) + ' › ' + adName(x.s, x.a); return '<li><button type="button" data-go="' + x.t + '|' + (x.s == null ? '' : x.s) + '|' + (x.a == null ? '' : x.a) + '" class="w-full text-start rounded-lg px-2.5 py-1.5 text-xs ' + (x.lvl === 'err' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900') + '"><b>' + esc(where) + ':</b> ' + esc(x.msg) + '</button></li>'; }).join('') + '</ul>' : '<p class="text-xs text-ink-500">' + esc(S.noIssues) + '</p>') + '</section>';
+      + (iss.length ? '<ul class="space-y-1.5 max-h-80 overflow-y-auto">' + iss.map(function (x) { var where = x.t === 'campaign' ? S.campaign : x.t === 'adset' ? setName(x.s) : setName(x.s) + ' › ' + adName(x.s, x.a); return '<li><button type="button" data-go="' + x.t + '|' + (x.s == null ? '' : x.s) + '|' + (x.a == null ? '' : x.a) + '" class="w-full text-start rounded-lg px-2.5 py-1.5 text-xs ' + (x.lvl === 'err' ? 'bg-red-50 text-red-800' : x.lvl === 'tip' ? 'bg-brand-50 text-brand-900' : 'bg-amber-50 text-amber-900') + '"><b>' + esc(where) + ':</b> ' + esc(x.msg) + '</button></li>'; }).join('') + '</ul>' : '<p class="text-xs text-ink-500">' + esc(S.noIssues) + '</p>') + '</section>';
     return '<div id="ab-preview"></div>' + sum + chk + '<div id="ab-launch"></div>';
   }
 
@@ -202,9 +243,10 @@
 
   root.addEventListener('input', function (e) {
     var p = e.target.dataset.p; if (!p || locked) return;
-    var v = e.target.type === 'number' ? (e.target.value === '' ? '' : +e.target.value) : e.target.value; setP(p, v); save(); soft();
+    var v = e.target.type === 'number' ? (e.target.value === '' ? '' : +e.target.value) : e.target.value; if (e.target.dataset.arr) v = v ? [v] : []; setP(p, v); save(); soft();
   });
   root.addEventListener('change', function (e) {
+    var bl = e.target.dataset.bool; if (bl && !locked) { setP(bl, e.target.checked ? 1 : 0); save(); rerender(); return; }
     var tg = e.target.dataset.toggle; if (tg && !locked) { var arr = getP(tg) || []; var i = arr.indexOf(e.target.value); if (e.target.checked && i < 0) arr.push(e.target.value); if (!e.target.checked && i >= 0) arr.splice(i, 1); setP(tg, arr); save(); rerender(); return; }
     if (e.target.tagName === 'SELECT' && e.target.dataset.p) { save(); rerender(); }
   });
@@ -240,8 +282,9 @@
       dd.classList.remove('hidden'); return;
     }
     if (el.classList.contains('ab-geo') || el.classList.contains('ab-int')) {
-      clearTimeout(ddT); if (q.length < 2) { dd.classList.add('hidden'); return; }
       var dim = el.classList.contains('ab-geo') ? 'geo' : (el.dataset.dim || 'interest');
+      // جداول صغيرة (الأقدمية، الوظيفة، مجال العمل): حرف واحد كفاية
+      clearTimeout(ddT); if (q.length < (['seniority', 'jobFunction', 'workIndustry'].indexOf(dim) >= 0 ? 1 : 2)) { dd.classList.add('hidden'); return; }
       ddT = setTimeout(function () {
         dd.innerHTML = '<p class="p-3 text-xs text-ink-500">' + esc(S.searching) + '</p>'; dd.classList.remove('hidden');
         fetch(A.geoUrl + '&dim=' + encodeURIComponent(dim) + '&q=' + encodeURIComponent(el.value.trim()) + '&conn=' + encodeURIComponent(D.connId) + '&acc=' + encodeURIComponent(D.adAccountId), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
