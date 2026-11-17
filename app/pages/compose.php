@@ -352,7 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && !$apiError) {
             $plNames = array_unique(array_map(function ($x) { return (string)($x['platform'] ?? ''); }, $platforms));
             $hasVideo = (bool)array_filter($media, function ($m) { return ($m['type'] ?? '') === 'video'; });
             $needM = array_values(array_intersect($plNames, ['instagram', 'tiktok', 'pinterest']));
-            if ($needM && !$media) $errors[] = t('%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو شِل الحساب.', implode('، ', array_map('platform_label', $needM)));
+            if ($needM && !$media) $errors[] = t('%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو أزِل الحساب.', implode('، ', array_map('platform_label', $needM)));
             if (in_array('youtube', $plNames, true) && !$hasVideo) $errors[] = t('يوتيوب يحتاج فيديو.');
         }
 

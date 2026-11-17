@@ -7,9 +7,8 @@ $pg = null; foreach (lp_list($wid) as $x) if (($x['slug'] ?? '') === $slug && !e
 $tok = $wid ? (string)setting('crm_form_token_' . $wid, '') : '';
 if (!$pg || $tok === '') { http_response_code(404); exit('<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif">Page not found.</p>'); }
 // عدّاد زيارات بسيط
-$pg['views'] = (int)($pg['views'] ?? 0) + 1;
-$all = lp_list($wid); foreach ($all as &$x) if ($x['slug'] === $slug) $x['views'] = $pg['views']; unset($x);
-save_setting('crm_lp_' . $wid, json_encode($all, JSON_UNESCAPED_UNICODE));
+// عداد منفصل وذرّي: الزيارات ماتكتبش فوق تعديلات المدير على الصفحات
+try { db()->prepare("INSERT INTO settings (name, value) VALUES (?, '1') ON DUPLICATE KEY UPDATE value = CAST(value AS UNSIGNED) + 1")->execute(['lpv_' . $wid . '_' . $slug]); } catch (Throwable $e) {}
 $color = preg_match('/^#[0-9a-f]{6}$/i', (string)($pg['color'] ?? '')) ? $pg['color'] : '#4f46e5';
 $q = ['p' => 'lead_form', 'w' => $wid, 't' => $tok, 'utm_source' => 'landing', 'utm_campaign' => $slug];
 foreach (['utm_source', 'utm_medium', 'utm_campaign'] as $u) if (!empty($_GET[$u])) $q[$u] = mb_substr((string)$_GET[$u], 0, 60);

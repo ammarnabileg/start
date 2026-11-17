@@ -6251,4 +6251,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'لا توجد خطوة معلّقة لإعادة المحاولة.' => 'There is no pending step to retry.',
     'جارٍ تحديث الردود، حاول بعد ثوانٍ.' => 'Replies are being updated; try again in a few seconds.',
     'وصلت رسالة جديدة وتغيّرت المسودة. راجعها مرة أخرى.' => 'A new message arrived and the draft changed. Review it again.',
+    'وصلت للحد الأقصى (30 صفحة). احذف صفحة قديمة أولًا.' => 'You reached the limit (30 pages). Delete an old page first.',
+    '%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو أزِل الحساب.' => '%s needs an image or video. Add one, save as draft, or remove the account.',
 ];

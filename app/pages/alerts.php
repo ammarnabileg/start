@@ -201,7 +201,7 @@ render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $cat
         fetch(location.href, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
           var li = f.closest('.al'); li.dataset.seen = '1'; li.classList.add('opacity-70'); li.querySelector('p').classList.remove('font-semibold'); f.remove();
           if (U) { U.textContent = d.unseen; }
-          var badge = document.querySelector('[data-unseen-badge]'); if (badge) badge.textContent = d.unseen;
+          var badge = document.querySelector('[data-bell-badge]'); if (badge && d.unseen != null) { var n = (+badge.dataset.other || 0) + (+d.unseen || 0); if (n > 0) badge.textContent = n; else badge.remove(); }
           filt();
         }).catch(function () { f.submit(); });
       });

@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         $c = camp_get($wid, (int)($_POST['id'] ?? 0));
         $to = ['pause' => 'paused', 'resume' => 'running', 'cancel' => 'cancelled'][(string)($_POST['op'] ?? '')] ?? null;
         if (!$c || !$to || in_array($c['status'], ['done', 'cancelled'], true)) $J(['error' => t('طلب غير صحيح.')], 400);
-        db()->prepare("UPDATE msg_campaigns SET status = ?" . ($to === 'cancelled' ? ", finished_at = NOW()" : '') . " WHERE id = ?")->execute([$to, $c['id']]);
+        db()->prepare("UPDATE msg_campaigns SET status = ?" . ($to === 'cancelled' ? ", finished_at = UTC_TIMESTAMP()" : '') . " WHERE id = ?")->execute([$to, $c['id']]);
         if ($to === 'cancelled') db()->prepare("UPDATE msg_campaign_items SET status = 'cancelled' WHERE campaign_id = ? AND status = 'queued'")->execute([$c['id']]);
         if ($to === 'running') save_setting('camp_resumed_' . (int)$c['id'], gmdate('Y-m-d H:i:s'));
         $J(['ok' => true]);

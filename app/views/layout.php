@@ -99,11 +99,11 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
     $crmN = ($curWs && function_exists('crm_notifs_unseen') && module_enabled('crm') && can('crm.view')) ? crm_notifs_unseen((int)$curWs['id'], (int)(current_user()['id'] ?? 0)) : 0;
     $bellN = count($invites) + $alertsN + $crmN;
-    $bellHref = $invites ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
+    $bellHref = $invites && !($alertsN + $crmN) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
   ?>
   <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
-    <?php if ($bellN): ?><span class="absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white"><?= (int)$bellN ?></span><?php endif; ?>
+    <?php if ($bellN): ?><span data-bell-badge data-other="<?= (int)(count($invites) + $crmN) ?>" class="absolute -top-1.5 -end-1.5 bg-rose-600 text-[#fff] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-white"><?= (int)$bellN ?></span><?php endif; ?>
   </a>
   <details class="relative" data-dropdown>
     <summary class="tb gap-2 ps-1 pe-3 cursor-pointer !text-ink-900">

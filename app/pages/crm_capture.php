@@ -22,8 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'color' => preg_match('/^#[0-9a-f]{6}$/i', (string)($_POST['color'] ?? '')) ? $_POST['color'] : '#4f46e5', 'wa' => preg_replace('/\D/', '', (string)($_POST['wa'] ?? '')), 'cta' => mb_substr(trim((string)($_POST['cta'] ?? '')), 0, 60)];
         if ($row['title'] === '') { flash('error', t('اكتب عنوان للصفحة.')); redirect(url('crm_capture') . '#lp'); }
         $all = lp_list(); $old = (string)($_POST['old'] ?? ''); $found = false;
+        foreach ($all as $x) if ($x['slug'] === $slug && $x['slug'] !== $old) { flash('error', t('الرابط ده مستخدم. اختار اسم تاني.')); redirect(url('crm_capture') . '#lp'); } // تغيير الرابط لرابط صفحة تانية
         foreach ($all as &$x) if ($x['slug'] === ($old ?: $slug)) { $row['views'] = (int)($x['views'] ?? 0); $x = $row; $found = true; } unset($x);
-        if (!$found) { foreach ($all as $x) if ($x['slug'] === $slug) { flash('error', t('الرابط ده مستخدم. اختار اسم تاني.')); redirect(url('crm_capture') . '#lp'); } $all[] = $row; }
+        if (!$found) { if (count($all) >= 30) { flash('error', t('وصلت للحد الأقصى (30 صفحة). احذف صفحة قديمة أولًا.')); redirect(url('crm_capture') . '#lp'); } $all[] = $row; }
         save_setting('crm_lp_' . $wid, json_encode(array_slice($all, 0, 30), JSON_UNESCAPED_UNICODE)); log_activity('crm.lp_save', $slug);
         flash('success', t('اتحفظت الصفحة ✓')); redirect(url('crm_capture') . '#lp');
     }
@@ -71,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $formUrl = crm_form_url(); $bookUrl = crm_book_url(); $callUrl = $formUrl . '&m=call';
-$lps = lp_list(); $sheet = cap_sheet_cfg();
+$lps = lp_list(); foreach ($lps as &$lpx) $lpx['views'] = (int)($lpx['views'] ?? 0) + (int)setting('lpv_' . $wid . '_' . $lpx['slug'], '0'); unset($lpx); $sheet = cap_sheet_cfg();
 // "Infinity" بعد json لو اخترت تتخطى القديم: نعرضه كأنه صفر
 if ((int)$sheet['seen'] > 1e9) $sheet['seen'] = 0;
 $st = db()->prepare("SELECT id, name, company FROM crm_leads WHERE workspace_id = ? AND stage IN ('won','proposal','qualified') ORDER BY stage = 'won' DESC, id DESC LIMIT 300"); $st->execute([$wid]); $refLeads = $st->fetchAll();
