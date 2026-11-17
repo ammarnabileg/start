@@ -215,6 +215,7 @@ function current_user(): ?array
                 $fp = substr(hash('sha256', (string)$user['password_hash']), 0, 16);
                 if (!isset($_SESSION['pwfp'])) $_SESSION['pwfp'] = $fp;
                 elseif (!hash_equals((string)$_SESSION['pwfp'], $fp) && empty($_SESSION['impersonator'])) { $user = null; unset($_SESSION['uid'], $_SESSION['pwfp']); return null; }
+                if (!empty($_SESSION['impersonator']) && isset($_SESSION['imp_pwfp'])) { $ip = db()->prepare('SELECT password_hash FROM users WHERE id = ?'); $ip->execute([(int)$_SESSION['impersonator']]); if (!hash_equals((string)$_SESSION['imp_pwfp'], substr(hash('sha256', (string)$ip->fetchColumn()), 0, 16))) { $user = null; unset($_SESSION['uid'], $_SESSION['impersonator'], $_SESSION['imp_pwfp'], $_SESSION['pwfp']); return null; } }
                 unset($user['password_hash']);
                 // حساب موقوف: يخرج فوراً
                 if (($user['status'] ?? 'active') !== 'active') {

@@ -92,6 +92,7 @@ if ($z && ($_GET['ajax'] ?? '') === 'qslots') {
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'direct') {
     header('Content-Type: application/json; charset=utf-8');
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { echo json_encode(['ok' => false, 'error' => t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')], JSON_UNESCAPED_UNICODE); exit; }
     if (!$dry && !can('posts.create')) { echo json_encode(['ok' => false, 'error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE); exit; }
     $rows = array_slice((array)json_decode((string)($_POST['rows'] ?? '[]'), true), 0, 25);
     $wid = (int)ws('id'); $tz = new DateTimeZone(site_timezone());
@@ -246,6 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'caption
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1') {
     header('Content-Type: application/json; charset=utf-8');
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { echo json_encode(['ok' => false, 'error' => t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')], JSON_UNESCAPED_UNICODE); exit; }
     $csv = (string)($_POST['csv_text'] ?? '');
     try {
         if (trim($csv) === '') throw new ZernioException(t('اختار ملف أو اكتب سطر واحد على الأقل.'));
@@ -294,6 +296,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $f = $_FILES['csv'] ?? null;
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { echo json_encode(['ok' => false, 'error' => t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')], JSON_UNESCAPED_UNICODE); exit; }
     try {
         if (!$f || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
             throw new ZernioException(t('اختار ملف CSV الأول.'));

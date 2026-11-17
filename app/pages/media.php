@@ -23,7 +23,7 @@ if (isset($_GET['file'])) {
 if (isset($_GET['zip'])) {
     $ids = array_slice(array_filter(array_map('intval', explode(',', (string)$_GET['zip']))), 0, 300);
     if (!$ids || !class_exists('ZipArchive')) { http_response_code(400); exit; }
-    $tmp = tempnam(sys_get_temp_dir(), 'mz'); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
+    $tmp = tempnam(sys_get_temp_dir(), 'mz'); ignore_user_abort(true); register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) @unlink($tmp); }); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
     foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
         $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($n)] = 1;
         $z->addFile($p, ($r['folder'] !== '' ? $r['folder'] . '/' : '') . $n); }
@@ -84,9 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ?')->execute([$on, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'folder_rename') { // بيغيّر الفولدر وكل اللي جواه
         $old = $fclean($_POST['from'] ?? ''); $new = $fclean($_POST['to'] ?? ''); if ($old === '' || $new === '') $json(['ok' => false, 'error' => t('اكتب اسمًا صالحًا للمجلد.')]);
-        if ($new !== $old) { $ex = db()->prepare('SELECT 1 FROM media_files WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?) LIMIT 1'); $ex->execute([$wid, $new, addcslashes($new, '%_\\') . '/%']); if (in_array($new, $fall(), true) || $ex->fetchColumn()) $json(['ok' => false, 'error' => t('يوجد مجلد بهذا الاسم بالفعل.')]); }
-        try { db()->prepare("UPDATE media_shares SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} // روابط المشاركة تمشي مع الفولدر
-        db()->prepare("UPDATE media_files SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, addcslashes($old, '%_\\') . '/%']);
+        if ($new !== $old) { $ex = db()->prepare('SELECT 1 FROM media_files WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?) LIMIT 1'); $ex->execute([$wid, $new, addcslashes($new, '%_\\') . '/%']); if (in_array($new, $fall(), true) || $ex->fetchColumn()) $json(['ok' => false, 'error' => t('يوجد مجلد بهذا الاسم بالفعل.')]); }
+        try { db()->prepare("UPDATE media_shares SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} // روابط المشاركة تمشي مع الفولدر
+        db()->prepare("UPDATE media_files SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, addcslashes($old, '%_\\') . '/%']);
         $all = array_map(function ($f) use ($old, $new) { return $f === $old || strpos($f, $old . '/') === 0 ? $new . substr($f, strlen($old)) : $f; }, $fall());
         save_setting($fkey, json_encode(array_values(array_unique($all)), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $new]);
     }
@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $old = $fclean($_POST['folder'] ?? ''); if ($old === '') $json(['ok' => false]); $parent = strpos($old, '/') !== false ? substr($old, 0, strrpos($old, '/')) : '';
         // الفولدرات الفرعية بتطلع مستوى واحد بنفس ترتيبها (مش كلها بتتفرد في الأب)
         $pre = $parent === '' ? '' : $parent . '/';
-        db()->prepare("UPDATE media_files SET folder = CASE WHEN folder = ? THEN ? ELSE CONCAT(?, SUBSTRING(folder, ?)) END WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$old, $parent, $pre, mb_strlen($old) + 2, $wid, $old, addcslashes($old, '%_\\') . '/%']);
-        try { db()->prepare("DELETE FROM media_shares WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$wid, $old, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} // روابط مشاركة الفولدر المحذوف تتقفل
+        db()->prepare("UPDATE media_files SET folder = CASE WHEN BINARY folder = ? THEN ? ELSE CONCAT(?, SUBSTRING(folder, ?)) END WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$old, $parent, $pre, mb_strlen($old) + 2, $wid, $old, addcslashes($old, '%_\\') . '/%']);
+        try { db()->prepare("DELETE FROM media_shares WHERE workspace_id = ? AND (BINARY folder = ? OR BINARY folder LIKE ?)")->execute([$wid, $old, addcslashes($old, '%_\\') . '/%']); } catch (Throwable $e) {} // روابط مشاركة الفولدر المحذوف تتقفل
         $all = []; foreach ($fall() as $f) { if ($f === $old) continue; $all[] = strpos($f, $old . '/') === 0 ? $pre . substr($f, strlen($old) + 1) : $f; }
         save_setting($fkey, json_encode(array_values(array_unique($all)), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $parent]);
     }

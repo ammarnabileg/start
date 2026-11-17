@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($a === 'kw_add' && mb_strlen($k) < 2) $J(['ok' => false, 'error' => t('الكلمة قصيرة جدًا.')]);
         if ($a === 'kw_add' && count($c['add']) >= 60) $J(['ok' => false, 'error' => t('وصلت للحد الأقصى (60 كلمة).')]);
         if ($a === 'kw_add' && mb_strlen($k) >= 2) { $c['off'] = $drop($c['off']); if (!in_array($k, array_map('tnd_norm', $c['words']), true)) $c['add'][] = $w; }
-        if ($a === 'kw_off' && $k !== '') $c['off'][] = $w;
+        if ($a === 'kw_off' && $k !== '' && !in_array($k, array_map('tnd_norm', $c['off']), true)) { if (count($c['off']) >= 200) $J(['ok' => false, 'error' => t('وصلت للحد الأقصى.')]); $c['off'][] = $w; }
         if ($a === 'kw_on') $c['off'] = $drop($c['off']);
         if ($a === 'kw_del') $c['add'] = $drop($c['add']);
         if ($a === 'cfg') { $c['not'] = tnd_words_clean($_POST['not'] ?? '', 40); $c['min_days'] = (int)($_POST['min_days'] ?? 2); }

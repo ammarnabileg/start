@@ -1072,8 +1072,9 @@ function crm_lead_upsert(array $d): array
         foreach ($f as $k => $v) { if ($v !== null && ($found[$k] === null || $found[$k] === '')) { $set[] = "$k = ?"; $vals[] = $v; } }
         if ($ext !== '' && !$found['ext_id']) { $set[] = 'ext_id = ?'; $vals[] = $ext; }
         if ($phone !== '') $set[] = 'phone_pending = 0';
-        if ($set) { $vals[] = (int)$found['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals); }
-        return crm_lead((int)$found['id']) + ['merged' => true];
+        $locked = current_user() && !crm_can_edit($found); // عميل زميل (أو رابط عام): مابنلمسش بياناته
+        if ($set && !$locked) { $vals[] = (int)$found['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals); }
+        return crm_lead((int)$found['id']) + ['merged' => true, 'locked' => $locked];
     }
     $src = isset(crm_sources()[$d['source'] ?? '']) ? $d['source'] : 'manual';
     $owner = array_key_exists('owner_id', $d) && $d['owner_id'] ? (int)$d['owner_id'] : (crm_route_owner($d + ['source' => $src]) ?? crm_next_owner());

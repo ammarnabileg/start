@@ -54,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name === '') {
             flash('error', t('اكتب اسم الدور.'));
         } elseif ($rid) {
+            if (!is_ws_owner()) { $rp = $pdo->prepare('SELECT permissions FROM workspace_roles WHERE id = ? AND workspace_id = ?'); $rp->execute([$rid, $wid]); if (array_diff((array)json_decode((string)$rp->fetchColumn(), true), role_permissions((string)ws('my_role'), $wid))) { flash('error', t('هذا الدور فيه صلاحيات أعلى من صلاحياتك.')); redirect(url('team') . '#roles'); } }
             $pdo->prepare("UPDATE workspace_roles SET name = ?, permissions = ? WHERE id = ? AND workspace_id = ?")->execute([mb_substr($name, 0, 80), json_encode($perms), $rid, $wid]);
             log_activity('team.role_update', $name);
             flash('success', t('اتحفظ الدور "%s".', $name));
@@ -66,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'role_delete') {
         $rid = (int)($_POST['role_id'] ?? 0);
+        if (!is_ws_owner()) { $rp = $pdo->prepare('SELECT permissions FROM workspace_roles WHERE id = ? AND workspace_id = ?'); $rp->execute([$rid, $wid]); if (array_diff((array)json_decode((string)$rp->fetchColumn(), true), role_permissions((string)ws('my_role'), $wid))) { flash('error', t('هذا الدور فيه صلاحيات أعلى من صلاحياتك.')); redirect(url('team') . '#roles'); } }
         // الأعضاء اللي عندهم الدور ده بيرجعوا محررين
         $pdo->prepare("UPDATE workspace_users SET role = 'editor' WHERE workspace_id = ? AND role = ?")->execute([$wid, 'r' . $rid]);
         $pdo->prepare("UPDATE workspace_invites SET role = 'editor' WHERE workspace_id = ? AND role = ?")->execute([$wid, 'r' . $rid]);
@@ -171,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             log_activity('team.role', $uid . ' ' . $role);
             flash('success', t('اتغيرت الصلاحية.'));
         } else {
-            $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$wid, $uid]);
+            $pdo->prepare("DELETE FROM workspace_users WHERE workspace_id = ? AND user_id = ?")->execute([$wid, $uid]); $rm = json_decode((string)setting('ws_removed_' . $wid, '[]'), true) ?: []; $rm[(string)$uid] = 1; save_setting('ws_removed_' . $wid, json_encode($rm)); // لينك دعوة قديم مايرجعوش
             log_activity('team.remove', (string)$uid);
             flash('success', t('اتشال من الشركة.'));
         }

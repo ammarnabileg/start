@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($a === 'ref_cfg') { $mgr = can('crm.manage') || is_ws_owner(); if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
         save_setting('crm_ref_cfg_' . $wid, json_encode(['on' => !empty($_POST['on']) ? 1 : 0, 'give' => mb_substr(trim((string)($_POST['give'] ?? '')), 0, 120), 'get' => mb_substr(trim((string)($_POST['get'] ?? '')), 0, 120),
             'when' => ($_POST['when'] ?? '') === 'lead' ? 'lead' : 'won', 'msg' => mb_substr(trim((string)($_POST['msg'] ?? '')), 0, 1000)], JSON_UNESCAPED_UNICODE)); $J(['ok' => true]); }
-    if ($a === 'ref_paid') { $id = (int)($_POST['lead'] ?? 0); $l = crm_lead($id); if (!$l) $J(['ok' => false, 'error' => t('بيانات ناقصة')]);
+    if ($a === 'ref_paid') { if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]); $id = (int)($_POST['lead'] ?? 0); $l = crm_lead($id); if (!$l) $J(['ok' => false, 'error' => t('بيانات ناقصة')]);
         $p = cap_ref_paid($wid); $p[(string)$id] = max(0, (int)($_POST['n'] ?? 0)); save_setting('crm_ref_paid_' . $wid, json_encode($p)); crm_act_add($id, 'note', '🎁 ' . t('اتسلّمت مكافأة الإحالة (%s)', (int)$p[(string)$id])); $J(['ok' => true, 'n' => (int)$p[(string)$id]]); }
     if ($a === 'ref_link') { $l = crm_lead((int)($_POST['lead'] ?? 0)); $l ? $J(['ok' => true, 'url' => cap_ref_link((int)$l['id']), 'name' => $l['name']]) : $J(['error' => t('بيانات ناقصة')], 422); }
     if ($a === 'card_parse') {

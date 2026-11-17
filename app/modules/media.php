@@ -276,7 +276,7 @@ function media_query(int $wid, string $loc, string $folder, string $q, string $s
 {
     $w = ['workspace_id = ?', $loc === 'trash' ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
     if ($loc === 'folder') {
-        if ($q !== '') { $w[] = '(folder = ? OR folder LIKE ?)'; array_push($a, $folder, $folder . '/%'); } else { $w[] = 'folder = ?'; $a[] = $folder; }
+        if ($q !== '') { $w[] = '(BINARY folder = ? OR BINARY folder LIKE ?)'; array_push($a, $folder, $folder . '/%'); } else { $w[] = 'folder = ?'; $a[] = $folder; }
     } elseif ($loc === 'all' && $q === '') { $w[] = "folder = ''"; }
     elseif ($loc === 'recent') $w[] = 'created_at > (NOW() - INTERVAL 7 DAY)';
     elseif ($loc === 'star') $w[] = 'starred = 1';

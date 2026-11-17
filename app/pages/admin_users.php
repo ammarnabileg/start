@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($self || ($u['status'] ?? 'active') !== 'active') break;
             if (($u['role'] ?? '') === 'admin') { flash('error', t('لا يمكن الدخول بحساب مدير منصة آخر.')); break; }
             log_activity('admin.impersonate', $u['email']);
-            $_SESSION['impersonator'] = (int)$me['id'];
+            $_SESSION['impersonator'] = (int)$me['id']; $ifp = db()->prepare('SELECT password_hash FROM users WHERE id = ?'); $ifp->execute([(int)$me['id']]); $_SESSION['imp_pwfp'] = substr(hash('sha256', (string)$ifp->fetchColumn()), 0, 16); // باسورد الأدمن اتغير = الجلسة تقفل
             unset($_SESSION['ws']);
             session_regenerate_id(true);
             $_SESSION['uid'] = (int)$u['id'];

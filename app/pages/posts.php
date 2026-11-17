@@ -242,6 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
         exit(json_encode(['ok' => array_keys($out), 'tags' => $out, 'failed' => []], JSON_UNESCAPED_UNICODE));
     }
     $need = in_array($op, ['dup', 'repost', 'note', 'copyshift'], true) ? 'posts.create' : 'posts.manage';
+    if (in_array($op, ['repost', 'copyshift'], true) && setting('post_approval_' . (int)ws('id'), '0') === '1') $need = 'posts.manage'; // مايتخطاش موافقة المدير
     if (!can($need)) { http_response_code(403); exit(json_encode(['error' => t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')], JSON_UNESCAPED_UNICODE)); }
     $ids = array_slice(array_values(array_filter(array_map('strval', (array)($_POST['ids'] ?? [])), function ($x) { return preg_match('/^[\w-]{1,64}$/', $x); })), 0, 50);
     $tz = new DateTimeZone(site_timezone());

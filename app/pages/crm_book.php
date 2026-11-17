@@ -40,7 +40,7 @@ ai_as_workspace($wid, function () use ($wid) {
                 $when = (new DateTime($slot, $tz))->format('d/m h:i A');
                 db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), (int)$l['id']]);
                 crm_act_add((int)$l['id'], 'meet', '📅 ' . t('حجز اجتماع: %s (%s دقيقة)', $when, $cfg['len']) . ($note !== '' ? "\n“" . $note . '”' : ''));
-                db()->prepare("UPDATE crm_leads SET stage = IF(stage IN ('new','contacted'), 'qualified', stage) WHERE id = ?")->execute([(int)$l['id']]);
+                if (empty($l['merged'])) db()->prepare("UPDATE crm_leads SET stage = IF(stage IN ('new','contacted'), 'qualified', stage) WHERE id = ?")->execute([(int)$l['id']]); // عميل موجود: الحجز من رابط عام مش إثبات
                 db()->commit();
                 $done = $when;
             } catch (Throwable $e) {
