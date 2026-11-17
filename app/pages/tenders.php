@@ -34,7 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
     }
     if ($a === 'apify_poll' && is_ws_owner() && tnd_apify_on()) {
-        try { $c = tnd_apify_collect(); if ($c !== null) { $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start(false); $J(['ok' => true, 'done' => false, 'res' => $c]); } } $J(['ok' => true, 'done' => $c !== null, 'res' => $c]); } /* باقي الكلمات في الطابور تكمل */ catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
+        if (!tnd_apify_lock()) $J(['ok' => true, 'done' => false]);
+        try { $c = tnd_apify_collect(); if ($c !== null) { $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); $J(['ok' => true, 'done' => false, 'res' => $c]); } } $J(['ok' => true, 'done' => $c !== null, 'res' => $c]); } /* باقي الكلمات في الطابور تكمل */ catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
     }
     // حالة منافسة (حفظ، قدّمت، إخفاء، صفقة) — JSON
     $tid = (int)($_POST['id'] ?? 0);
@@ -148,7 +149,7 @@ render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $ro
       // الإضافة والحذف كمان يرجعوا اللوحة مفتوحة
       var _post = post; post = function (d) { keepOpen(); return _post(d); };
       var ai = document.getElementById('kw-ai'); if (ai) ai.addEventListener('click', function () { ai.disabled = true; ai.querySelector('span').textContent = C.aiBusy; post({ action: 'kw_ai' }); });
-      if (C.needAi) { var f = new FormData(); f.append('_csrf', C.csrf); f.append('action', 'kw_ai'); fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) location.reload(); }); }
+      if (C.needAi && !sessionStorage.getItem('tnd_kwai')) { sessionStorage.setItem('tnd_kwai', '1'); var f = new FormData(); f.append('_csrf', C.csrf); f.append('action', 'kw_ai'); fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (j.ok) location.reload(); }); }
       var fa = document.getElementById('kw-add'); if (fa) fa.addEventListener('submit', function (e) { e.preventDefault(); var w = fa.w.value.trim(); if (w) post({ action: 'kw_add', w: w }); });
       var fc = document.getElementById('kw-cfg'); if (fc) fc.addEventListener('submit', function (e) { e.preventDefault(); post({ action: 'cfg', not: fc.not.value, min_days: fc.min_days.value }); });
     })();

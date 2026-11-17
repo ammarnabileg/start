@@ -258,7 +258,7 @@ function apify_charge(): void
 
 function tnd_apify_req(string $method, string $path, ?array $body = null, ?string $tok = null): array
 {
-    if ($method === 'POST' && preg_match('~/runs(\?|$)|/run-sync~', $path)) apify_charge(); // تشغيلة مدفوعة
+    if ($method === 'POST' && preg_match('~/runs(\?|$)|/run-sync~', $path) && strpos($path, '/acts/' . rawurlencode(tnd_apify_actor()) . '/') === false) apify_charge(); // تشغيلة مدفوعة (سحب المناقصات على مستوى المنصة مابيتحسبش على شركة)
     $tok = $tok ?? (string)(tnd_apify_conn()['credentials']['api_key'] ?? ''); if ($tok === '') throw new RuntimeException(t('اربط Apify من التكاملات الأول.'));
     $ch = curl_init(tnd_apify_base() . $path);
     $h = ['Accept: application/json', 'Authorization: Bearer ' . $tok];
@@ -302,8 +302,9 @@ function tnd_apify_start(bool $full): string
         $kw = (string)array_shift($q); save_setting('tenders_apify_queue', json_encode(array_values($q), JSON_UNESCAPED_UNICODE));
         $in = ['keyword' => $kw, 'maxItems' => $full ? 100 : 25];
     }
-    $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode(tnd_apify_actor()) . '/runs', $in);
-    $id = (string)($r['data']['id'] ?? ''); if ($id === '') throw new RuntimeException(t('Apify مارجعش رقم التشغيلة.'));
+    try { $r = tnd_apify_req('POST', '/v2/acts/' . rawurlencode(tnd_apify_actor()) . '/runs', $in);
+    $id = (string)($r['data']['id'] ?? ''); if ($id === '') throw new RuntimeException(t('Apify مارجعش رقم التشغيلة.')); }
+    catch (Throwable $e) { if (isset($q) && $kw !== '') { array_unshift($q, $kw); save_setting('tenders_apify_queue', json_encode(array_values($q), JSON_UNESCAPED_UNICODE)); } throw $e; } // الكلمة ترجع للطابور
     save_setting('tenders_apify_run', json_encode(['id' => $id, 'full' => $full, 'kw' => $kw, 'at' => gmdate('c')], JSON_UNESCAPED_UNICODE));
     return $id;
 }
@@ -344,13 +345,16 @@ function tnd_apify_collect(): ?array
 }
 
 /** التشغيل الدوري (على مستوى المنصة): يلم التشغيلة اللي خلصت، ويبدأ تشغيلة اليوم مرة واحدة */
+/** قفل واحد لجمع/بدء تشغيلات Apify (الكرون وصفحة المالك مايشتغلوش في نفس الوقت) */
+function tnd_apify_lock(): bool { try { return (int)db()->query("SELECT GET_LOCK('tnd_apify', 0)")->fetchColumn() === 1; } catch (Throwable $e) { return true; } }
 function tnd_apify_tick(): string
 {
     if (!tnd_apify_on()) return '';
+    if (!tnd_apify_lock()) return 'busy';
     try {
         $c = tnd_apify_collect(); if ($c !== null) { $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); return 'collected+' . ($c['new'] ?? 0); }
         if ((string)setting('tenders_apify_run', '') !== '') return 'running';
-        $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start(false); return 'next word'; }
+        $q = json_decode((string)setting('tenders_apify_queue', ''), true); if (is_array($q) && $q) { tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); return 'next word'; }
         $today = gmdate('Y-m-d');
         if ((string)setting('tenders_apify_day', '') === $today) return '';
         $full = (string)setting('tenders_apify_full_done', '') === '' || (gmdate('j') === '1' && tnd_apify_actor() === 'dottti~etimad-tender-radar'); // أول مرة، وأول كل شهر لفة كاملة (للخدمة الغنية بس) عشان المواعيد اللي اتمدت

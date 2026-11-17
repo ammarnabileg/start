@@ -7,6 +7,7 @@ $fx = $fxd && is_file($fxd . '/sms.json') ? json_decode((string)file_get_content
 $gate = function_exists('smsgate_conf') ? smsgate_conf() : null;
 $gateFake = $fxd && is_file($fxd . '/smsgate_fake.php') ? require $fxd . '/smsgate_fake.php' : null; // اختبارات بس
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($z || $gate) && !can('phone.spend')) { flash('error', t('إرسال الرسائل النصية يتطلب صلاحية الإنفاق على الأرقام.')); redirect(url('sms')); }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($z || $gate)) {
     $from = (string)($_POST['from'] ?? '');
     $to = ph_e164((string)($_POST['to'] ?? ''));
