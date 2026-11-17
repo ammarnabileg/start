@@ -62,7 +62,7 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
         <fieldset class="space-y-2">
           <legend class="label"><?= e(t('الفترة')) ?></legend>
           <?php foreach ([['last_week', t('الأسبوع اللي فات'), $w], ['last_month', t('الشهر اللي فات'), $m]] as $i => [$k, $l, $p]): ?>
-            <label class="flex items-center gap-3 rounded-xl border border-ink-200 px-3 py-2.5 cursor-pointer hover:bg-ink-50">
+            <label class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ink-200 px-3 py-2.5 cursor-pointer hover:bg-ink-50">
               <input type="radio" name="period" value="<?= e($k) ?>" <?= $i === 0 ? 'checked' : '' ?> class="w-4 h-4 accent-brand-600">
               <span class="text-sm text-ink-800"><?= e($l) ?></span>
               <span class="text-xs text-ink-500 ms-auto"><bdi dir="ltr"><?= e($dmy($p['from']) . ' – ' . $dmy($p['to'])) ?></bdi></span>
@@ -71,10 +71,10 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
           <label class="flex flex-wrap items-center gap-3 rounded-xl border border-ink-200 px-3 py-2.5 cursor-pointer hover:bg-ink-50">
             <input type="radio" name="period" value="custom" class="w-4 h-4 accent-brand-600" id="rp-custom">
             <span class="text-sm text-ink-800"><?= e(t('فترة مخصصة')) ?></span>
-            <span class="flex items-center gap-2 ms-auto">
-              <input type="date" name="from" class="input py-1.5 w-auto" value="<?= e($w['from']) ?>" max="<?= e(gmdate('Y-m-d')) ?>" onfocus="document.getElementById('rp-custom').checked=true" aria-label="<?= e(t('من')) ?>">
+            <span class="flex w-full sm:w-auto items-center gap-2 sm:ms-auto">
+              <input type="date" name="from" class="input py-1.5 w-auto min-w-0 flex-1" value="<?= e($w['from']) ?>" max="<?= e(gmdate('Y-m-d')) ?>" onfocus="document.getElementById('rp-custom').checked=true" aria-label="<?= e(t('من')) ?>">
               <span class="text-ink-400">–</span>
-              <input type="date" name="to" class="input py-1.5 w-auto" value="<?= e($w['to']) ?>" max="<?= e(gmdate('Y-m-d')) ?>" onfocus="document.getElementById('rp-custom').checked=true" aria-label="<?= e(t('إلى')) ?>">
+              <input type="date" name="to" class="input py-1.5 w-auto min-w-0 flex-1" value="<?= e($w['to']) ?>" max="<?= e(gmdate('Y-m-d')) ?>" onfocus="document.getElementById('rp-custom').checked=true" aria-label="<?= e(t('إلى')) ?>">
             </span>
           </label>
           <div class="flex flex-wrap items-center gap-1.5 pt-1" id="rp-quick">
