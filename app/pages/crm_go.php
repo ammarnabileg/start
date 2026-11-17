@@ -2,6 +2,7 @@
 /* رابط متتبع: بيسجّل إن العميل فتحه، وبيحوّله لموقعك ومعاه ?ap= عشان كود الموقع يتابع باقي الصفحات */
 $wid = (int)($_GET['w'] ?? 0); $k = (string)($_GET['k'] ?? ''); $u = (string)($_GET['u'] ?? '');
 if (!preg_match('~^https?://~i', $u)) { http_response_code(400); exit('bad link'); }
+if ($wid && function_exists('ws_closed') && ws_closed($wid)) { http_response_code(410); exit('link expired'); }
 $lead = $wid && hash_equals(crm_url_sig($wid, $u), (string)($_GET['s'] ?? '')) ? crm_lead_from_token($wid, $k) : 0; // الرابط لازم يكون نفس اللي اتبعت
 if (!$lead) { http_response_code(404); exit('link expired'); } // مايبقاش محوّل مفتوح لأي موقع
 if ($lead) {

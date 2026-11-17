@@ -244,6 +244,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
                 </div>
               <?php endif; ?>
 
+<?php if (can('gmb.manage')): ?>
               <form method="post" id="<?= e($rid) ?>" class="mt-3 <?= !empty($rv['reply']) ? 'hidden' : '' ?>">
                 <?= csrf_field() ?><input type="hidden" name="action" value="reply">
                 <input type="hidden" name="review_id" value="<?= e($rv['id']) ?>"><input type="hidden" name="account_id" value="<?= e($rv['accountId'] ?? '') ?>">
@@ -252,7 +253,7 @@ render(t('تقييمات العملاء'), 'gmb_reviews', function () use ($z, $
                   <textarea data-ai="reply_review,polish_reply" name="message" rows="2" maxlength="4000" required class="input flex-1 !mt-0" placeholder="<?= e(t('اكتب ردك على التقييم…')) ?>"><?= e($rv['reply']['text'] ?? '') ?></textarea>
                   <button class="btn-primary"><?= e(!empty($rv['reply']) ? t('حفظ') : t('رد')) ?></button>
                 </div>
-              </form>
+              </form><?php endif; ?>
             </div>
           </div>
         </div>

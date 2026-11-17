@@ -171,8 +171,8 @@ render(t('جهات الاتصال'), 'contacts', function () use ($z, $accounts,
         </select>
         <button class="btn-ghost"><?= e(t('بحث')) ?></button>
       </form>
-      <a href="<?= e(url('contacts', ['new' => 1])) ?>" class="btn-primary"><?= e(t('+ جهة اتصال')) ?></a>
-      <button type="button" class="btn-ghost" onclick="document.getElementById('importBox').classList.toggle('hidden')"><?= e(t('استيراد CSV')) ?></button>
+      <?php if (can('whatsapp.manage')): ?><a href="<?= e(url('contacts', ['new' => 1])) ?>" class="btn-primary"><?= e(t('+ جهة اتصال')) ?></a>
+      <button type="button" class="btn-ghost" onclick="document.getElementById('importBox').classList.toggle('hidden')"><?= e(t('استيراد CSV')) ?></button><?php endif; ?>
     </div>
 
     <form id="importBox" method="post" enctype="multipart/form-data" class="card p-5 mb-4 space-y-3 hidden">
@@ -189,7 +189,7 @@ Ahmed Ali,<?= e(cx_phone(false)) ?>,ahmed@example.com,ACME,vip;<?= e(preg_replac
       <button class="btn-primary"><?= e(t('استيراد')) ?></button>
     </form>
 
-    <?php if ($showForm): $c = $edit ?: []; ?>
+    <?php if ($showForm && can('whatsapp.manage')): $c = $edit ?: []; ?>
     <form method="post" class="card p-5 mb-4 space-y-3">
       <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= e($c['id'] ?? '') ?>"><input type="hidden" name="wa" value="<?= e((string)$acc) ?>">
       <div class="flex justify-between"><h2 class="font-semibold"><?= e($edit ? t('تعديل جهة اتصال') : t('جهة اتصال جديدة')) ?></h2><a href="<?= e(url('contacts')) ?>" class="text-sm text-ink-500"><?= e(t('إلغاء')) ?></a></div>

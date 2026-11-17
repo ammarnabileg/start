@@ -88,7 +88,7 @@
       team({ action: 'team_state', state: st.dataset.state }); return;
     }
     if (e.target.closest('#ibx-note-add')) { addNote(); return; }
-    var nd = e.target.closest('.ibx-note-del'); if (nd) { var n = nd.closest('.ibx-note'); if (!confirm((window.T && T.delSure) || '؟')) return; team({ action: 'team_note_del', id: n.dataset.id }).then(function (d) { if (d && d.ok) n.remove(); else if (window.toast) toast((d && d.error) || '✗'); }); }
+    var nd = e.target.closest('.ibx-note-del'); if (nd) { var n = nd.closest('.ibx-note'); if (!confirm((window.IBX && IBX.noteDel) || (document.documentElement.lang === 'en' ? 'Delete this note?' : 'حذف هذه الملاحظة؟'))) return; team({ action: 'team_note_del', id: n.dataset.id }).then(function (d) { if (d && d.ok) n.remove(); else if (window.toast) toast((d && d.error) || '✗'); }); }
   });
   document.addEventListener('keydown', function (e) { if (e.target.id === 'ibx-note-in' && e.key === 'Enter') { e.preventDefault(); addNote(); } });
   function addNote() {

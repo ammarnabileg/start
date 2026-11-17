@@ -182,14 +182,14 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['posts'] = $R['calendar'] = array_filter([[t('التعليقات على منشوراتك'), url('comments')], [t('أداء المنشورات'), url('analytics')], $crmOn2 ? [t('روابط المنشورات والعملاء اللي جابتهم'), url('crm_reports')] : null]);
       $R['analytics'] = array_filter([[t('جدول منشور في أحسن وقت'), url('compose')], $crmOn2 ? [t('مبيعات كل مصدر'), url('crm_reports')] : null]);
       $R['comments'] = $R['inbox'] = array_filter([$crmOn2 ? [t('العملاء اللي جم من هنا'), url('prospects')] : null, [t('ردود تلقائية'), url('automations')]]);
+      $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('أداء الرسائل'), url('inbox_analytics')]];
+      $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('inbox_analytics')]];
+      $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('الرسائل'), url('inbox')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
         $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('العملاء'), url('prospects')]];
-        $R['alerts'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('أداء الرسائل'), url('inbox_analytics')]];
-        $R['reports'] = [[t('التحليلات'), url('analytics')], [t('التنبيهات'), url('alerts')], [t('أداء الرسائل'), url('inbox_analytics')]];
-        $R['inbox_analytics'] = [[t('التحليلات'), url('analytics')], [t('التقارير'), url('reports')], [t('الرسائل'), url('inbox')]];
         $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
       $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || (!in_array($m[1], $dp, true) && (($pp = page_permission($m[1])) === null || can($pp))); };

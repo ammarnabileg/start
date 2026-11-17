@@ -9,14 +9,14 @@ $back = url('post_edit', ['id' => $id]);
 
 if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
-    $need = ['update' => 'posts.manage', 'edit_published' => 'posts.manage', 'retry' => 'posts.create', 'duplicate' => 'posts.create'][$action] ?? null;
+    $need = ['update' => 'posts.manage', 'edit_published' => 'posts.manage', 'retry' => 'posts.manage', 'duplicate' => 'posts.create'][$action] ?? null;
     if ($need && !can($need)) { flash('error', t('مالكش صلاحية تفتح الصفحة دي. اطلبها من صاحب الشركة.')); redirect($back); }
     try {
         if ($action === 'update') {
             $content = trim((string)($_POST['content'] ?? ''));
             $ids = array_map('strval', (array)($_POST['accounts'] ?? []));
             $byId = [];
-            foreach ($z->accounts(zernio_profile()) as $a) $byId[$a['_id']] = $a;
+            foreach (acc_filter($z->accounts(zernio_profile())) as $a) $byId[$a['_id']] = $a;
             $platforms = [];
             // نحافظ على إعدادات كل منصة القديمة لو الحساب لسه متختار
             $oldPl = [];

@@ -104,7 +104,8 @@ unset($_SESSION['sms_draft']);
 
 render(t('رسايل SMS'), 'sms', function () use ($z, $fx, $gate, $apiError, $numbers, $smsNumbers, $convs, $imsg, $regs, $optOuts, $rcs, $partial, $draft, $mineThreads) {
     if (!$z && !$fx && !$gate) { no_api_box(); return; }
-    if ($apiError) { error_box($apiError); return; }
+    if ($apiError && !$gate) { error_box($apiError); return; }
+    if ($apiError) $partial[] = $apiError; // خط الموبايل شغال من غير Zernio
     foreach (array_unique($partial) as $p) { echo '<div class="mb-3">'; error_box($p); echo '</div>'; }
     if (!$numbers && !$gate) { ph_empty_numbers(); return; }
     $owner = can('phone.spend');
