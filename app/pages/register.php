@@ -3,13 +3,16 @@ if (current_user()) {
     after_login_redirect();
 }
 
-$open = (setting('allow_signup', '1') === '1' || !empty($_SESSION['invite_token'])) && setting('maintenance', '0') !== '1';
+$invRow = null;
+if (!empty($_SESSION['invite_token'])) { $ist = db()->prepare('SELECT email FROM workspace_invites WHERE token = ? AND expires_at > NOW()'); $ist->execute([(string)$_SESSION['invite_token']]); $invRow = $ist->fetch() ?: null; if (!$invRow) unset($_SESSION['invite_token']); }
+$open = (setting('allow_signup', '1') === '1' || $invRow) && setting('maintenance', '0') !== '1';
 $old = ['name' => '', 'email' => ''];
 
 if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo = db();
     $old['name'] = trim((string)($_POST['name'] ?? ''));
     $old['email'] = strtolower(trim((string)($_POST['email'] ?? '')));
+    if (setting('allow_signup', '1') !== '1' && $invRow && trim((string)($invRow['email'] ?? '')) !== '' && strtolower(trim((string)$invRow['email'])) !== $old['email']) { flash('error', t('هذه الدعوة مخصصة لبريد إلكتروني آخر. سجّل بنفس البريد الذي وصلته الدعوة.')); redirect(url('register')); }
     $pass = (string)($_POST['password'] ?? '');
     $errors = [];
     if (too_many_attempts($pdo)) $errors[] = t('محاولات كتير. استنى 15 دقيقة.');

@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     if ($cid === '' || $text === '') $J(['error' => t('اكتب الرد الأول.')], 422);
     $name = trim(explode(' ', trim((string)($_POST['name'] ?? '')))[0] ?? '');
     $text = trim(str_replace(['{name}', '{الاسم}'], $name, $text));
-    if (!empty($_POST['vary']) && ai_connection()) {
+    if (!empty($_POST['vary']) && ai_connection() && can('ai.use')) {
         try {
             $r = ai_chat([['role' => 'system', 'content' => 'Rewrite this public reply to a social media comment with different wording so repeated replies do not look automated. Keep the meaning, facts, links and roughly the same length. Address the commenter naturally. Same language/dialect. Return ONLY the reply.'],
                 ['role' => 'user', 'content' => "Reply:\n" . $text . "\n\nTheir comment:\n" . mb_substr((string)($_POST['comment'] ?? ''), 0, 400)]], 300, 'reply');

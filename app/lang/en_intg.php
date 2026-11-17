@@ -6253,4 +6253,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'وصلت رسالة جديدة وتغيّرت المسودة. راجعها مرة أخرى.' => 'A new message arrived and the draft changed. Review it again.',
     'وصلت للحد الأقصى (30 صفحة). احذف صفحة قديمة أولًا.' => 'You reached the limit (30 pages). Delete an old page first.',
     '%s يحتاج صورة أو فيديو. أضف صورة، أو احفظه مسودة، أو أزِل الحساب.' => '%s needs an image or video. Add one, save as draft, or remove the account.',
+    'هذه الدعوة مخصصة لبريد إلكتروني آخر. سجّل بنفس البريد الذي وصلته الدعوة.' => 'This invite is for another email. Sign up with the email that received the invite.',
+    'لا يمكن الدخول بحساب مدير منصة آخر.' => 'You cannot sign in as another platform admin.',
 ];

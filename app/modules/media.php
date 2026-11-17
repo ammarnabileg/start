@@ -131,10 +131,11 @@ function media_sync_ai(int $wid): int
     foreach ($files as $f) {
         $b = basename($f); if (in_array($b, $done, true)) continue;
         $mime = (string)(mime_content_type($f) ?: ''); if (!isset(media_types()[$mime])) { $done[] = $b; continue; }
-        try { media_store_path($wid, $f, 'ai-' . $b, $mime, media_ai_folder()); $n++; } catch (Throwable $e) {}
+        try { media_store_path($wid, $f, 'ai-' . $b, $mime, media_ai_folder()); $n++; } catch (Throwable $e) { error_log('media_sync_ai: ' . $e->getMessage()); continue; } // يتعاد المرة الجاية
         $done[] = $b; if ($n >= 40) break;
     }
-    save_setting('media_ai_sync_' . $wid, json_encode(array_slice($done, -2000)));
+    $have = array_flip(array_map('basename', $files)); $done = array_values(array_filter($done, function ($x) use ($have) { return isset($have[$x]); })); // بنشيل بس اللي ملفه اتمسح
+    save_setting('media_ai_sync_' . $wid, json_encode($done));
     return $n;
 }
 

@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
         case 'impersonate':
             if ($self || ($u['status'] ?? 'active') !== 'active') break;
+            if (($u['role'] ?? '') === 'admin') { flash('error', t('لا يمكن الدخول بحساب مدير منصة آخر.')); break; }
             log_activity('admin.impersonate', $u['email']);
             $_SESSION['impersonator'] = (int)$me['id'];
             unset($_SESSION['ws']);

@@ -271,6 +271,18 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-dcard:hover .dz-ddel { @apply opacity-100; }
   /* hidden لازم يغلب على flex/grid جوه المصمم (وإلا أدوات الصورة بتظهر مع النص) */
   .dz-shell [hidden], .dz-props [hidden] { display: none !important; }
+  /* الموبايل: اللوحة فوق، وتحتها الأدوات، وتحتها الخصائص (بدل أعمدة جنب بعض بتخنق اللوحة) */
+  @media (max-width: 767px) {
+    .dz-shell { height: auto !important; min-height: 0; }
+    .dz-body { flex-direction: column; }
+    .dz-center { order: 1; min-height: 62vh; }
+    .dz-side { order: 2; flex-direction: column; border-inline-end-width: 0; border-top: 1px solid rgb(var(--ink-200)); }
+    .dz-rail button { flex-shrink: 0; }
+    .dz-rail { flex-direction: row; overflow-x: auto; border-inline-end-width: 0; }
+    .dz-panel { width: auto; flex: 1; max-height: 55vh; }
+    .dz-props { order: 3; width: 100%; border-inline-start-width: 0; border-top: 1px solid rgb(var(--ink-200)); max-height: 60vh; }
+    .dz-top { gap: .25rem; } .dz-name { width: 7rem; }
+  }
   .dz-stk-i { @apply relative w-full overflow-hidden rounded-lg bg-ink-100 transition hover:ring-4 hover:ring-brand-500/25; }
   .dz-stk-i img { @apply w-full h-full object-cover; }
   #dz-ico-st button { @apply rounded-md px-1.5 py-0.5 text-ink-500; } #dz-ico-st button.on { @apply bg-white text-brand-700 shadow-sm; }

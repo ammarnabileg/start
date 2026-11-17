@@ -51,6 +51,7 @@
   function openReply() { document.getElementById('cm-dn').textContent = sel.size; document.getElementById('cm-err').textContent = ''; document.getElementById('cm-prog').classList.add('hidden'); stop = false; dlg.showModal(); }
   if (dlg) {
     dlg.querySelectorAll('[data-cm-close]').forEach(function (b) { b.addEventListener('click', function () { stop = true; dlg.close(); }); });
+    dlg.addEventListener('close', function () { stop = true; var g = document.getElementById('cm-go'); if (g) g.disabled = false; }); // Esc أو الضغط برا بيوقف الإرسال كمان
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var ids = [...sel], msg = form.message.value.trim(), vary = form.vary && form.vary.checked ? 1 : '', go = document.getElementById('cm-go');

@@ -29,7 +29,7 @@
 /* المصمم بياخد ارتفاع الشاشة بالظبط، والضغط على أي عنصر مايحرّكش الصفحة */
 (function () {
   var sh = document.querySelector('.dz-shell'); if (!sh) return;
-  function fit() { var top = sh.getBoundingClientRect().top + window.scrollY; var h = Math.max(520, window.innerHeight - top - 16); sh.style.height = h + 'px'; }
+  function fit() { if (window.innerWidth < 768) { sh.style.height = ''; return; } var top = sh.getBoundingClientRect().top + window.scrollY; var h = Math.max(520, window.innerHeight - top - 16); sh.style.height = h + 'px'; }
   fit(); window.addEventListener('resize', fit); setTimeout(fit, 300);
   var keepY = null;
   // الأماكن اللي بتسبب قفزة: الضغط على اللوحة، تحديد عنصر، الطبقات، تعديل النص (textarea مخفي بيتحط مكان المؤشر)
