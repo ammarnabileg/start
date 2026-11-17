@@ -185,7 +185,7 @@
       var old = it.dir ? it.path.split('/').pop() : it.f.name, inp = document.createElement('input'); inp.value = old; inp.className = 'w-full rounded border border-brand-400 px-1 py-0.5 text-[12px] text-center bg-white text-ink-900';
       node.replaceWith(inp); inp.focus(); var dot = old.lastIndexOf('.'); inp.setSelectionRange(0, !it.dir && dot > 0 ? dot : old.length);
       var done = false, commit = function (ok) { if (done) return; done = true; var v = inp.value.trim(); if (!ok || !v || v === old) { items(); win.focus(); return; }
-        if (it.dir) { var parent = it.path.indexOf('/') >= 0 ? it.path.slice(0, it.path.lastIndexOf('/')) + '/' : ''; post({ action: 'folder_rename', from: it.path, to: parent + v.replace(/\//g, '') }).then(function () { load(); win.focus(); }); }
+        if (it.dir) { var parent = it.path.indexOf('/') >= 0 ? it.path.slice(0, it.path.lastIndexOf('/')) + '/' : ''; post({ action: 'folder_rename', from: it.path, to: parent + v.replace(/\//g, '') }).then(function (j) { if (j && !j.ok && j.error && window.toast) toast(j.error, 'error'); load(); win.focus(); }); }
         else post({ action: 'rename', id: it.f.id, name: v }).then(function () { load(); win.focus(); }); };
       inp.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') commit(true); if (e.key === 'Escape') commit(false); }); inp.addEventListener('blur', function () { commit(true); }); inp.addEventListener('mousedown', function (e) { e.stopPropagation(); });
     }

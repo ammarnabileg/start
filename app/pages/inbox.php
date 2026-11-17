@@ -256,6 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                 }
                 break;
             case 'delete_msg':
+                if (!can('inbox.manage')) { flash('error', t('حذف الرسائل يتطلب صلاحية إدارة الرسائل.')); break; }
                 if ($msgId !== '') {
                     ip_delete_message($z, $convId, $msgId, $accId);
                     log_activity('inbox.delete_message', $msgId);

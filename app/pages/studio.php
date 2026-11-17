@@ -91,7 +91,7 @@ render(t('الكتابة بالذكاء الاصطناعي'), 'studio', function
     </div>
   </div>
   <?php endif; ?>
-  <script>window.ST = <?= json_encode(['ws' => (int)ws('id') . '_' . (int)(current_user()['id'] ?? 0) . '_', 'csrf' => csrf_token(), 'url' => url('studio'), 'compose' => url('compose'), 'designer' => url('designer'),
+  <script>window.ST = <?= json_encode(['sk' => (int)ws('id') . '_' . (int)(current_user()['id'] ?? 0) . '_', 'csrf' => csrf_token(), 'url' => url('studio'), 'compose' => url('compose'), 'designer' => url('designer'),
     'L' => ['busy' => t('بنكتب…'), 'err' => t('حصلت مشكلة.'), 'copy' => t('نسخ'), 'copied' => t('اتنسخ ✓'), 'post' => t('انشره'), 'design' => t('صمّمه'), 'edit' => t('عدّل'), 'save' => t('حفظ'), 'visual' => t('الصورة المقترحة'), 'more' => t('اكتب نسخ تانية'), 'chars' => t('حرف'),
       'vText' => t('نص'), 'vPrev' => t('معاينة'), 'variant' => t('نوّع'), 'short' => t('أقصر'), 'long' => t('أطول'), 'sell' => t('أقوى في البيع'), 'emo' => t('عاطفية أكتر'), 'rewriting' => t('بنعيد الصياغة…'),
       'fav' => t('احفظ'), 'faved' => t('اتحفظت ⭐'), 'saved' => t('المحفوظ'), 'hist' => t('آخر كتابات'), 'restore' => t('رجّعها'), 'noHist' => t('لسه مفيش. اللي هتكتبه هيتحفظ هنا على الجهاز ده.'), 'clear' => t('امسح'),

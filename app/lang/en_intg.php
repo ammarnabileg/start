@@ -6237,4 +6237,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'صِف الصورة بالتفصيل' => 'Describe the image in detail',
     'حدّد نصًا على اللوحة، ثم اختر من العناوين المقترحة.' => 'Select text on the canvas, then pick from the suggested headlines.',
     'ينشئ نسخة من التصميم الحالي بمقاس البوست والطولي والستوري والعرضي، ويحفظها في مشاريعي.' => 'Creates copies of the current design in post, portrait, story and landscape sizes, saved in My projects.',
+    'اكتب اسمًا صالحًا للمجلد.' => 'Enter a valid folder name.',
+    'يوجد مجلد بهذا الاسم بالفعل.' => 'A folder with this name already exists.',
+    'حذف الرسائل يتطلب صلاحية إدارة الرسائل.' => 'Deleting messages requires the inbox manage permission.',
 ];

@@ -110,7 +110,7 @@
     if (p && p.j) X.load(p.j, done); else { X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); done(); } }
   $('dz-pages').addEventListener('click', function (e) {
     var d = e.target.closest('[data-pgdel]'); if (d) { e.stopPropagation(); var i = +d.dataset.pgdel; return window.dzAsk(L.delPageQ, { danger: true, title: L.delPageT, ok: L.del }).then(function (ok) { if (!ok) return; storeCur(); pages.splice(i, 1); var n = Math.min(cur >= i ? Math.max(0, cur - 1) : cur, pages.length - 1); cur = -1; busy = false; cur = n; if (pages[n] && pages[n].j) X.load(pages[n].j, function () { X.resetHist(); drawPages(); }); else { X.setLock(true); cv.clear(); X.setLock(false); X.resetHist(); drawPages(); } }); return; }
-    var u = e.target.closest('[data-pgdup]'); if (u) { e.stopPropagation(); storeCur(); var k = +u.dataset.pgdup; pages.splice(k + 1, 0, JSON.parse(JSON.stringify(pages[k]))); go(k + 1); return; }
+    var u = e.target.closest('[data-pgdup]'); if (u) { e.stopPropagation(); storeCur(); var k = +u.dataset.pgdup; pages.splice(k + 1, 0, JSON.parse(JSON.stringify(pages[k]))); if (k < cur) cur++; go(k + 1); return; } // الصفحة الحالية اتزحزحت
     var p = e.target.closest('[data-pg]'); if (p) go(+p.dataset.pg); });
   MORE.addpage = function () { storeCur(); pages.splice(cur + 1, 0, null); go(cur + 1); };
   cv.on('after:render', function () { clearTimeout(drawPages.t); drawPages.t = setTimeout(function () { if (!busy) { pages[cur] = { j: pages[cur] && pages[cur].j, t: pageThumb() }; var im = document.querySelector('.dz-pg[data-pg="' + cur + '"] img'); if (im) im.src = pages[cur].t; else drawPages(); } }, 700); });
