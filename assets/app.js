@@ -222,13 +222,16 @@ document.addEventListener('click', function (e) {
         ta.scrollTop = ta.scrollHeight;
       }
     }
+    // الاستضافة أحيانًا بتخزّن أو بتقطع البث: لو البث مارجّعش نتيجة، نعيد الطلب مرة من غير بث
+    function plain() { var f2 = new FormData(); fd.forEach(function (v, k) { if (k !== 'stream') f2.append(k, v); }); acc = ''; if (live) { live.remove(); live = null; } if (mode !== 'show') ta.value = orig;
+      return fetch('index.php?p=ai_task', { method: 'POST', body: f2, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) { return r.text(); }).then(function (t) { try { return JSON.parse(t); } catch (e) { return { error: ((window.T && T.liveFailed) || 'Error') + ' (' + (t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || 'HTTP') + ')' }; } }); }
     fetch('index.php?p=ai_task', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf() } }).then(function (r) {
       var ct = r.headers.get('content-type') || '';
-      if (ct.indexOf('text/event-stream') < 0 || !r.body || !window.TextDecoder) return r.json();
+      if (ct.indexOf('text/event-stream') < 0 || !r.body || !window.TextDecoder) return r.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return plain(); } });
       var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', fin = null;
       function pump() {
         return reader.read().then(function (x) {
-          if (x.done) return fin || { error: (window.T && T.liveFailed) || 'Error' };
+          if (x.done) { if (fin) return fin; if (acc.trim()) return { text: acc, mode: mode }; return plain(); }
           buf += dec.decode(x.value, { stream: true }); var parts = buf.split('\n\n'); buf = parts.pop();
           parts.forEach(function (ev) { ev.split('\n').forEach(function (l) { if (l.indexOf('data:') !== 0) return; try { var o = JSON.parse(l.slice(5)); } catch (e) { return; } if (o.d != null) onDelta(o.d); else fin = o; }); });
           return pump();
@@ -255,7 +258,7 @@ document.addEventListener('click', function (e) {
         ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
         ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
       }
-    }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); })
+    }).catch(function () { return plain().then(function (d) { if (d.error) { ta.value = orig; window.aiToast ? aiToast(d.error) : alert(d.error); return; } if (d.mode === 'show') { var bx = panel(ta, '<div class="ai-body whitespace-pre-wrap leading-relaxed"></div>'); bx.querySelector('.ai-body').textContent = d.text; } else { ta.value = d.mode === 'append' ? (orig.replace(/\s+$/, '') + (orig ? '\n\n' : '') + d.text) : d.text; ta.dispatchEvent(new Event('input', { bubbles: true })); } }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); }); })
       .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); });
   }
   function openMenu(ta, btn) {
