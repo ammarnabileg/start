@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!ai_feature_on('assistant')) { flash('error', t('هذه الميزة متوقفة في الشركة. يمكن تفعيلها من إعدادات الذكاء الاصطناعي.')); redirect(url('assistant', ['tab' => 'features'])); }
     if ($action === 'clear') {
         $hist = [];
-        unset($_SESSION['ai_ctx'][$wid]);
+        foreach (['', 'x', 'n', 'xn'] as $sfx) unset($_SESSION['ai_ctx'][$wid . $sfx]);
         redirect(url('assistant'));
     }
     $q = trim((string)($_POST['message'] ?? ''));

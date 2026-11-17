@@ -677,7 +677,7 @@ render(t('الرسائل'), 'inbox', function () use ($z, $folder, $status, $pla
                       <?php if ($out && ip_can_edit($plat)): ?>
                         <details class="inline"><summary class="cursor-pointer link"><?= e(t('تعديل')) ?></summary>
                           <form method="post" class="flex gap-1 mt-1"><?= csrf_field() ?><input type="hidden" name="action" value="edit_msg"><input type="hidden" name="message_id" value="<?= e($mid) ?>">
-                            <input name="text" required class="input text-xs py-1" value="<?= e($m['message'] ?? '') ?>"><button class="btn-ghost text-xs"><?= e(t('حفظ')) ?></button></form>
+                            <textarea name="text" required rows="3" dir="auto" class="input text-xs py-1"><?= e($m['message'] ?? '') ?></textarea><button class="btn-ghost text-xs"><?= e(t('حفظ')) ?></button></form>
                         </details>
                       <?php endif; ?>
                       <?php if ($out && ip_can_delete($plat)): ?>

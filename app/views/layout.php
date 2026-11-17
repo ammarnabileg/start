@@ -185,9 +185,9 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];
         $R['crm_leads'] = [[t('هات عملاء أكتر'), url('crm_capture')], [t('تقارير المبيعات'), url('crm_reports')], [t('الرسائل'), url('inbox')]];
-        $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['due' => 1])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
+        $R['crm_reports'] = [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('حسّن المصادر الضعيفة'), url('crm_capture')], [t('أداء المحتوى'), url('analytics')]];
         $R['crm_settings'] = [[t('العملاء'), url('prospects')]];
-        $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['due' => 1])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
+        $R['prospects'] = $R['crm_leads'] ?? [[t('شغل النهارده'), url('prospects', ['stat' => 'due'])], [t('مصادر العملاء'), url('crm_capture')], [t('التقارير'), url('crm_reports')]];
       }
       $okU = function ($u) { $dp = function_exists('disabled_pages') ? disabled_pages() : []; return !preg_match('/[?&]p=([a-z_]+)/', (string)$u, $m) || !in_array($m[1], $dp, true); };
       $rel = array_values(array_filter($R[$active] ?? [], function ($x) use ($okU) { return $okU($x[1]); }));
@@ -282,7 +282,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <span class="text-xs font-medium tracking-wide text-ink-500 group-hover:text-brand-700 transition" style="writing-mode:vertical-rl"><?= e(t('اسأل الذكاء الاصطناعي')) ?></span>
   <kbd class="mt-auto rounded-md border border-ink-200 bg-ink-50 px-1 py-0.5 text-[9px] font-mono text-ink-400 opacity-0 group-hover:opacity-100 transition" dir="ltr">Ctrl J</kbd>
 </button>
-<button type="button" data-cp-toggle class="lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
+<button type="button" data-cp-toggle class="<?= in_array($active ?? '', ['compose', 'post_edit'], true) ? '!bottom-24 ' : '' ?>lg:hidden fixed bottom-5 end-5 z-40 w-14 h-14 rounded-full text-[#fff] shadow-xl shadow-brand-600/30 bg-gradient-to-br from-brand-600 via-cyan-500 to-lime-400 flex items-center justify-center" aria-label="<?= e(t('اسأل الذكاء الاصطناعي')) ?>">
   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
 </button>
 <aside id="cp" role="dialog" aria-label="AI" class="group/cp fixed z-40 top-16 bottom-0 end-0 w-full sm:w-[26rem] bg-white border-s border-ink-200 shadow-2xl lg:shadow-none flex flex-col translate-x-full rtl:-translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-out">
@@ -323,7 +323,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   $ckPages = []; foreach ($navItems as $it) { if ($it['key'] === 'admin') continue; foreach (($it['tabs'] ?? [$it['key'] => $it['label']]) as $tk => $tl) $ckPages[] = ['l' => $tl, 'g' => $it['label'] !== $tl ? $it['label'] : '', 's' => $it['section'], 'u' => url($tk), 'i' => $I[$it['key']] ?? $I['dashboard']]; }
   $ckAct = [];
   if (can('posts.create')) { $ckAct[] = ['l' => t('اكتب منشور جديد'), 'u' => url('compose'), 'k' => 'n']; $ckAct[] = ['l' => t('رفع منشورات من Excel'), 'u' => url('bulk')]; }
-  if (module_enabled('crm') && can('crm.view')) { $ckAct[] = ['l' => t('ضيف عميل جديد'), 'u' => url('prospects') . '#add', 'k' => 'l']; $ckAct[] = ['l' => t('شغل النهارده (المتابعات المستحقة)'), 'u' => url('prospects', ['due' => 1])]; $ckAct[] = ['l' => t('اعمل صفحة هبوط أو QR'), 'u' => url('crm_capture') . '#lp']; }
+  if (module_enabled('crm') && can('crm.view')) { $ckAct[] = ['l' => t('ضيف عميل جديد'), 'u' => url('prospects') . '#add', 'k' => 'l']; $ckAct[] = ['l' => t('شغل النهارده (المتابعات المستحقة)'), 'u' => url('prospects', ['stat' => 'due'])]; $ckAct[] = ['l' => t('اعمل صفحة هبوط أو QR'), 'u' => url('crm_capture') . '#lp']; }
   $ckAct[] = ['l' => t('الرسائل اللي مستنية رد'), 'u' => url('inbox')];
 ?>
 <div id="ck" class="fixed inset-0 z-[90] hidden items-start justify-center bg-ink-900/40 backdrop-blur-sm p-4 pt-[12vh]" aria-hidden="true">

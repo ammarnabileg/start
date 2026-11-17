@@ -456,7 +456,7 @@ function crm_send_email(array $l, string $subject, string $text, string $via = '
     $sent = 0; $err = null;
     foreach ($to as $i => $addr) {
         $tk = $i ? bin2hex(random_bytes(16)) : $tok; $bs = base_url() . '/index.php?p=crm_t&k=' . $tk;
-        $h = $i ? str_replace($base, $bs, $html) : $html;
+        $h = $i ? str_replace([$base, e($base)], [$bs, e($bs)], $html) : $html;
         try { send_mail($addr, $subject, $h, null, $wid); $sent++; } catch (Throwable $ex) { $err = $ex; continue; }
         db()->prepare('INSERT INTO crm_mails (workspace_id, lead_id, user_id, token, subject) VALUES (?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)(current_user()['id'] ?? 0) ?: null, $tk, $subject]);
     }

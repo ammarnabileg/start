@@ -200,7 +200,8 @@
       if (!files.length && !dirs.length) return;
       if (st.loc.t === 'trash' || hard) { if (!confirm(fmt(S.purgeQ, files.length))) return; return post({ action: 'purge', 'ids[]': files }).then(function () { st.sel = []; load(); }); }
       if (dirs.length && !confirm(fmt(S.delMixed, files.length, dirs.length))) return;
-      Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function () {
+      Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function (rs) {
+        if (rs.some(function (j) { return j && j.ok === false; })) return load();
         st.sel = []; load(); if (files.length) undoToast(fmt(S.trashed, files.length), function () { post({ action: 'restore', 'ids[]': files }).then(function () { toast(S.restored, 'ok'); load(); }); });
       });
     }

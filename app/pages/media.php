@@ -25,7 +25,7 @@ if (isset($_GET['zip'])) {
     if (!$ids || !class_exists('ZipArchive')) { http_response_code(400); exit; }
     $tmp = tempnam(sys_get_temp_dir(), 'mz'); ignore_user_abort(true); register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) @unlink($tmp); }); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
     foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
-        $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($n)] = 1;
+        $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($r['folder'] . '/' . $n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($r['folder'] . '/' . $n)] = 1;
         $z->addFile($p, ($r['folder'] !== '' ? $r['folder'] . '/' : '') . $n); }
     $cnt = $z->numFiles; $z->close();
     if (!$cnt) { @unlink($tmp); http_response_code(404); exit(t('لا توجد ملفات صالحة للتحميل.')); }
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $f['name'] = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 200) ?: $src['name']; $dest = isset($_POST['folder']) ? $fclean($_POST['folder']) : (string)$src['folder']; if ($dest !== (string)$src['folder'] && $dest !== '') { $fa = $fall(); if (!in_array($dest, $fa, true)) { $fa[] = $dest; save_setting($fkey, json_encode(array_values($fa), JSON_UNESCAPED_UNICODE)); } } $row = media_store_upload($wid, $f, $dest); $json(['ok' => true, 'item' => $row]); }
         catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
     }
-    if ($act === 'rename') { $n = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255); if ($n === '') $json(['ok' => false]); db()->prepare('UPDATE media_files SET name = ? WHERE workspace_id = ? AND id = ?')->execute([$n, $wid, $id]); $json(['ok' => true]); }
+    if ($act === 'rename') { $n = mb_substr(trim((string)preg_replace('/[\x00-\x1f\/\\\\]+/u', '', (string)($_POST['name'] ?? ''))), 0, 255); if ($n === '') $json(['ok' => false]); db()->prepare('UPDATE media_files SET name = ? WHERE workspace_id = ? AND id = ?')->execute([$n, $wid, $id]); $json(['ok' => true]); }
     if ($act === 'tags') { db()->prepare('UPDATE media_files SET tags = ? WHERE workspace_id = ? AND id = ?')->execute([mb_substr(trim((string)($_POST['tags'] ?? '')), 0, 500), $wid, $id]); $json(['ok' => true]); }
     if ($act === 'move') { $f = $fclean($_POST['folder'] ?? ''); foreach ($ids as $x) db()->prepare('UPDATE media_files SET folder = ? WHERE workspace_id = ? AND id = ?')->execute([$f, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'delete') { media_trash($wid, $ids); log_activity('media.trash', (string)count($ids)); $json(['ok' => true]); }

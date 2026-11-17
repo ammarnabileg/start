@@ -1842,3 +1842,17 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
 @media (hover: none) { #ibx .group .opacity-0, .ibx-sel { opacity: 1 !important; } }
 @media (hover: none) { #ibx .group .ibx-qa { display: flex !important; } #ibx [data-ocr] { display: inline-flex !important; } #ibx .ibx-qa button { min-width: 40px; min-height: 40px; } }
 @media (max-width: 1023px) { main { padding-bottom: 6rem; } } /* زرار المساعد العائم مايغطيش آخر الصفحة */
+
+/* أجهزة اللمس: مفيش هوفر، فالأزرار لازم تبان وتبقى كبيرة كفاية */
+@media (hover: none) {
+  .sm-it > div.absolute { opacity: 1 !important; }
+  .mk-acts { opacity: 1 !important; }
+  .pr-cn .pr-ctx { visibility: visible !important; }
+  .hf-tovideo { display: flex !important; }
+}
+@media (pointer: coarse) {
+  .pr-cl .mk-act, #pr .mk-acts .mk-act, .pr-acts2 .mk-act, .pr-bview, .pr-bedit, .pr-bexp { width: 2.5rem !important; height: 2.5rem !important; }
+  .pr-cl { gap: .5rem; }
+  .sm-it > div.absolute a, .sm-it > div.absolute button { min-height: 40px; }
+  .hf-tovideo { font-size: 12px !important; padding: .45rem .7rem !important; }
+}

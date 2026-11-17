@@ -56,7 +56,7 @@ render(t('حسابي'), 'account', function () use ($me, $recent, $wsCount) {
             <span class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-cyan-500 text-white text-2xl font-bold flex items-center justify-center" id="ac-av"><?= e(mb_strtoupper(mb_substr((string)$me['name'], 0, 1))) ?></span>
             <div class="min-w-0"><div class="font-bold text-ink-900 text-lg truncate"><?= e($me['name']) ?></div>
               <div class="text-sm text-ink-500 truncate" dir="ltr" style="text-align:start"><?= e($me['email']) ?></div>
-              <div class="text-xs text-ink-400 mt-0.5"><?= e(t('عضو في %s شركة', $wsCount)) ?></div></div>
+              <div class="text-xs text-ink-400 mt-0.5"><?= e((int)$wsCount === 1 ? t('عضو في شركة واحدة') : t('عضو في %s شركة', $wsCount)) ?></div></div>
           </div>
           <label class="block"><span class="label"><?= e(t('الاسم')) ?></span><input name="name" id="ac-name" value="<?= e($me['name']) ?>" required maxlength="120" class="input"></label>
           <div>

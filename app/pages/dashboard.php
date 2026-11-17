@@ -279,7 +279,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
     if ($crmOn) { try { $q0 = db()->prepare("SELECT SUM(created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)), SUM(next_at IS NOT NULL AND next_at <= NOW() AND stage NOT IN ('won','lost')), SUM(stage = 'won' AND won_at >= ?) FROM crm_leads WHERE workspace_id = ?"); $q0->execute([date('Y-m-01'), $wid0]); [$newL, $dueL, $wonL] = array_map('intval', $q0->fetch(PDO::FETCH_NUM)); } catch (Throwable $x) {} }
     if ($crmOn) {
       $J[] = ['🧲', t('جمع العملاء'), (string)$newL, t('عميل جديد في 7 أيام'), $newL >= 3, $newL >= 3 ? t('شوف مصادرهم') : t('اعمل فورم أو صفحة هبوط'), $newL >= 3 ? url('crm_reports') : url('crm_capture')];
-      $J[] = ['🤝', t('المبيعات'), (string)$dueL, t('متابعة مستحقة'), $dueL === 0, $dueL ? t('ابدأ المتابعات') : t('افتح العملاء'), url('crm_leads') . ($dueL ? '#due' : '')];
+      $J[] = ['🤝', t('المبيعات'), (string)$dueL, t('متابعة مستحقة'), $dueL === 0, $dueL ? t('ابدأ المتابعات') : t('افتح العملاء'), ($dueL ? url('prospects', ['stat' => 'due']) : url('prospects'))];
     }
     $nextI = null; foreach ($J as $i => $x) if (!$x[4]) { $nextI = $i; break; }
     ?>
