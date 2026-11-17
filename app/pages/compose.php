@@ -36,6 +36,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'from_
     $J(['ok' => true, 'text' => $text, 'image' => $img, 'lib' => $lib]);
 }
 // #7: اكتب عن الصورة (AI بالرؤية، بيصرف كريديت بس لما تدوس)
+// تصميم صورة من المنشور: (1) اقتراح وصف إنجليزي احترافي (2) التوليد وحفظه في المكتبة
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['poster_prompt', 'poster_gen'], true)) {
+    header('Content-Type: application/json; charset=utf-8');
+    $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
+    if (!can('ai.use')) $J(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')]);
+    $styles = ['photo' => 'photorealistic commercial photography, natural light, shallow depth of field', 'minimal' => 'clean minimal flat design, generous negative space, modern geometric shapes',
+        '3d' => 'polished 3D render, soft studio lighting, premium materials', 'corporate' => 'corporate B2B visual, professional, trustworthy, blue and neutral palette',
+        'illustration' => 'editorial vector illustration, bold shapes, vibrant but balanced colors', 'luxury' => 'luxury aesthetic, dark elegant background, gold accents, dramatic lighting'];
+    $style = isset($styles[$_POST['style'] ?? '']) ? $_POST['style'] : 'photo';
+    $aspect = in_array($_POST['aspect'] ?? '', ['1:1', '4:5', '9:16', '16:9'], true) ? $_POST['aspect'] : '1:1';
+    if ($_POST['action'] === 'poster_prompt') {
+        if (!ai_connection()) $J(['ok' => false, 'error' => t('اربط مزوّد ذكاء اصطناعي أولًا.')]);
+        $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 3000); if ($text === '') $J(['ok' => false, 'error' => t('اكتب نص المنشور أولًا.')]);
+        $head = mb_substr(trim((string)($_POST['headline'] ?? '')), 0, 80); $nref = max(0, min(4, (int)($_POST['nref'] ?? 0)));
+        try {
+            $r = ai_chat([['role' => 'system', 'content' => "You are a senior art director writing prompts for an image generation model (GPT image). Read the social media post and write ONE professional English prompt for a scroll-stopping social media visual that supports the post's message.\nInclude: subject and scene, composition for a {$aspect} frame, lighting, color palette, mood, camera/lens or render details, and what to avoid (no clutter, no distorted hands, no random text)." .
+                "\nStyle: {$styles[$style]}." . ($head !== '' ? "\nRender this exact headline text clearly on the image, large and legible, with correct spelling: \"{$head}\"." : "\nDo not put any text or letters in the image.") .
+                ($nref ? "\n{$nref} reference image(s) will be attached (product, logo or person): tell the model to keep them faithful and integrate them naturally." : '') . "\nReturn ONLY the prompt, 60-140 words, no quotes, no preamble."],
+                ['role' => 'user', 'content' => $text]], 500, 'compose');
+            $J(['ok' => true, 'prompt' => trim((string)$r['text'], " \n\"")]);
+        } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+    }
+    // التوليد
+    if (!function_exists('img_openai_conn') || !img_openai_conn()) $J(['ok' => false, 'error' => t('اربط OpenAI أولًا من صفحة التكاملات لتوليد الصور.')]);
+    $prompt = trim((string)($_POST['prompt'] ?? '')); if (mb_strlen($prompt) < 10) $J(['ok' => false, 'error' => t('اكتب وصف الصورة.')]);
+    $wid = (int)ws('id'); $refs = [];
+    foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && strpos((string)$mr['mime'], 'image/') === 0) $refs[] = media_file_path($wid, $mr); }
+    try {
+        $names = img_openai_generate($prompt, $aspect, 1, $refs, (string)($_POST['quality'] ?? ''));
+        if (function_exists('media_sync_ai')) media_sync_ai($wid);
+        $h = @sha1_file(hf_lib_dir($wid) . '/' . $names[0]); $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND (sha1 = ? OR name = ?) ORDER BY id DESC LIMIT 1'); $st->execute([$wid, (string)$h, 'ai-' . $names[0]]); $mr = $st->fetch();
+        if (!$mr) $J(['ok' => false, 'error' => t('اتولدت الصورة لكن تعذّر حفظها في المكتبة.')]);
+        $mr = media_row($mr); log_activity('ai.poster', $aspect . ' ' . $style . ($refs ? ' +' . count($refs) . ' ref' : ''));
+        $J(['ok' => true, 'file' => ['id' => $mr['id'], 'url' => $mr['url'], 'thumb' => $mr['thumb'], 'kind' => $mr['kind'], 'name' => $mr['name']]]);
+    } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'img_caption') {
     header('Content-Type: application/json; charset=utf-8');
     $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
@@ -532,6 +568,71 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <?= json_encode($pre, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>.forEach(add);
           })();
           </script>
+          <?php if (can('ai.use') && function_exists('img_openai_conn') && img_openai_conn()): ?>
+          <button type="button" id="pst-open" class="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-l from-brand-600 to-fuchsia-600 px-3.5 py-2 text-sm font-semibold text-[#fff] shadow-sm hover:shadow-md"><?= ai_icon('spark', 'w-4 h-4') ?> <?= e(t('صمّم صورة من المنشور')) ?></button>
+          <dialog id="pst" class="m-auto w-[min(760px,94vw)] rounded-3xl p-0 shadow-2xl backdrop:bg-ink-900/50">
+            <div class="flex items-center gap-3 border-b border-ink-100 px-5 py-3.5">
+              <b class="text-ink-900"><?= e(t('تصميم صورة من المنشور')) ?></b>
+              <ol class="flex items-center gap-2 text-xs text-ink-500 ms-auto"><li data-stp="1" class="font-bold text-brand-700">1 · <?= e(t('الإعداد')) ?></li><li>›</li><li data-stp="2">2 · <?= e(t('التصميم')) ?></li></ol>
+              <button type="button" data-pst-x class="w-8 h-8 rounded-full hover:bg-ink-100 text-ink-500" aria-label="✕">✕</button>
+            </div>
+            <div id="pst-1" class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div class="grid sm:grid-cols-3 gap-3">
+                <div><label class="label"><?= e(t('المقاس')) ?></label><select id="pst-aspect" class="input">
+                  <option value="1:1"><?= e(t('بوست مربع 1:1')) ?></option><option value="4:5"><?= e(t('بوست طولي 4:5')) ?></option><option value="9:16"><?= e(t('ستوري / ريلز 9:16')) ?></option><option value="16:9"><?= e(t('عرضي 16:9 (لينكدإن، إكس، يوتيوب)')) ?></option></select></div>
+                <div><label class="label"><?= e(t('الأسلوب')) ?></label><select id="pst-style" class="input">
+                  <option value="photo"><?= e(t('تصوير احترافي')) ?></option><option value="corporate"><?= e(t('شركات B2B')) ?></option><option value="minimal"><?= e(t('بسيط مسطّح')) ?></option><option value="3d"><?= e(t('ثلاثي الأبعاد')) ?></option><option value="illustration"><?= e(t('رسم توضيحي')) ?></option><option value="luxury"><?= e(t('فاخر')) ?></option></select></div>
+                <div><label class="label"><?= e(t('الجودة')) ?></label><select id="pst-q" class="input"><option value="low"><?= e(t('سريعة (أرخص)')) ?></option><option value="medium" selected><?= e(t('متوسطة')) ?></option><option value="high"><?= e(t('عالية (أغلى)')) ?></option></select></div>
+              </div>
+              <div><label class="label"><?= e(t('عنوان مكتوب على الصورة (اختياري)')) ?></label><input id="pst-head" class="input" maxlength="80" placeholder="<?= e(t('اتركه فارغًا لصورة بدون كتابة')) ?>">
+                <p class="text-[11px] text-amber-700 mt-1"><?= e(t('الكتابة الإنجليزية تخرج أدق. العربية قد تخرج بأخطاء في الحروف، راجعها قبل النشر.')) ?></p></div>
+              <div><div class="flex items-center justify-between"><label class="label"><?= e(t('صور مرفقة (منتج، لوجو، شخص)')) ?></label><button type="button" id="pst-addref" class="link text-xs">+ <?= e(t('اختر أو ارفع من المكتبة')) ?></button></div>
+                <div id="pst-refs" class="flex flex-wrap gap-2 min-h-[1rem]"></div><p class="text-[11px] text-ink-500 mt-1"><?= e(t('حتى 4 صور. الذكاء الاصطناعي يبني التصميم عليها.')) ?></p></div>
+              <div><div class="flex items-center justify-between"><label class="label"><?= e(t('وصف الصورة (Prompt) بالإنجليزية')) ?></label><button type="button" id="pst-suggest" class="link text-xs">✦ <?= e(t('اقترح من جديد')) ?></button></div>
+                <textarea id="pst-prompt" rows="6" class="input font-mono text-xs" dir="ltr" placeholder="<?= e(t('يكتبه الذكاء الاصطناعي من نص المنشور، ويمكنك تعديله...')) ?>"></textarea></div>
+              <p id="pst-err1" class="text-xs text-red-600 hidden"></p>
+              <div class="flex justify-end gap-2"><button type="button" data-pst-x class="btn-ghost"><?= e(t('إلغاء')) ?></button><button type="button" id="pst-next" class="btn-primary"><?= e(t('التالي: صمّم')) ?> ←</button></div>
+            </div>
+            <div id="pst-2" class="hidden p-5 space-y-4">
+              <div class="grid place-items-center rounded-2xl bg-ink-50 min-h-[320px] overflow-hidden" id="pst-stage"></div>
+              <p id="pst-err2" class="text-xs text-red-600 hidden"></p>
+              <div class="flex flex-wrap items-center gap-2"><span id="pst-saved" class="text-xs text-lime-700 hidden">✓ <?= e(t('حُفظت في مكتبة الوسائط')) ?></span>
+                <button type="button" id="pst-back" class="btn-ghost ms-auto">→ <?= e(t('تعديل الإعداد')) ?></button>
+                <button type="button" id="pst-again" class="btn-ghost"><?= e(t('إعادة التصميم')) ?></button>
+                <button type="button" id="pst-use" class="btn-primary" disabled><?= e(t('أضفها للمنشور')) ?></button>
+                <button type="button" data-pst-x class="btn-ghost"><?= e(t('خروج')) ?></button></div>
+            </div>
+          </dialog>
+          <script>
+          (function () {
+            var dlg = document.getElementById('pst'); if (!dlg || dlg.dataset.on) return; dlg.dataset.on = 1;
+            var $ = function (id) { return document.getElementById(id); }, refs = [], file = null, busy = false, csrf = document.querySelector('meta[name=csrf-token]').content;
+            var L = <?= json_encode(['wait' => t('جاري التصميم... قد يستغرق حتى دقيقة'), 'writing' => t('يكتب الوصف...'), 'noText' => t('اكتب نص المنشور أولًا، الصورة تتصمم بناءً عليه.'), 'added' => t('أُضيفت للمنشور ✓'), 'err' => t('حدث خطأ، حاول مرة أخرى.')], JSON_UNESCAPED_UNICODE) ?>;
+            function post(d) { var fd = new FormData(); Object.keys(d).forEach(function (k) { [].concat(d[k]).forEach(function (v) { fd.append(k, v); }); }); fd.append('_csrf', csrf);
+              return fetch(location.pathname + '?p=compose', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf } }).then(function (r) { return r.text(); }).then(function (t) { try { return JSON.parse(t); } catch (e) { return { ok: false, error: L.err + ' (' + t.replace(/<[^>]+>/g, ' ').trim().slice(0, 120) + ')' }; } }); }
+            function step(n) { $('pst-1').classList.toggle('hidden', n !== 1); $('pst-2').classList.toggle('hidden', n !== 2); dlg.querySelectorAll('[data-stp]').forEach(function (li) { li.classList.toggle('font-bold', +li.dataset.stp === n); li.classList.toggle('text-brand-700', +li.dataset.stp === n); }); }
+            function err(id, m) { var e = $(id); e.textContent = m || ''; e.classList.toggle('hidden', !m); }
+            function txt() { var c = document.getElementById('content'); return c ? c.value.trim() : ''; }
+            function suggest() { if (!txt()) { err('pst-err1', L.noText); return; } err('pst-err1', ''); var pr = $('pst-prompt'), b = $('pst-suggest'); pr.value = ''; pr.placeholder = L.writing; b.disabled = true;
+              post({ action: 'poster_prompt', text: txt(), aspect: $('pst-aspect').value, style: $('pst-style').value, headline: $('pst-head').value, nref: refs.length }).then(function (d) { if (d.ok) pr.value = d.prompt; else err('pst-err1', d.error); }).finally(function () { b.disabled = false; }); }
+            function paintRefs() { $('pst-refs').innerHTML = refs.map(function (f, i) { return '<span class="relative w-16 h-16 rounded-xl overflow-hidden border border-ink-200"><img src="' + (f.thumb || f.url) + '" class="w-full h-full object-cover" alt=""><button type="button" data-rm="' + i + '" class="absolute top-0.5 end-0.5 w-5 h-5 rounded-full bg-ink-900/70 text-[#fff] text-xs">×</button></span>'; }).join(''); }
+            function design() { if (busy) return; if ($('pst-prompt').value.trim().length < 10) { err('pst-err1', L.noText); step(1); return; } busy = true; step(2); err('pst-err2', ''); file = null; $('pst-use').disabled = true; $('pst-saved').classList.add('hidden'); $('pst-again').disabled = true;
+              $('pst-stage').innerHTML = '<div class="text-center p-8"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin"></div><p class="text-sm text-ink-600">' + L.wait + '</p></div>';
+              post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q').value, 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
+                if (!d.ok) { $('pst-stage').innerHTML = ''; err('pst-err2', d.error); return; } file = d.file;
+                $('pst-stage').innerHTML = '<img src="' + d.file.url + '" alt="" class="max-h-[60vh] w-auto object-contain">'; $('pst-use').disabled = false; $('pst-saved').classList.remove('hidden');
+              }).catch(function () { err('pst-err2', L.err); }).finally(function () { busy = false; $('pst-again').disabled = false; }); }
+            $('pst-open').addEventListener('click', function () { step(1); dlg.showModal(); if (!$('pst-prompt').value.trim()) suggest(); });
+            dlg.addEventListener('click', function (e) { if (e.target.closest('[data-pst-x]')) dlg.close(); var rm = e.target.closest('[data-rm]'); if (rm) { refs.splice(+rm.dataset.rm, 1); paintRefs(); } });
+            $('pst-suggest').onclick = suggest; $('pst-next').onclick = design; $('pst-again').onclick = design; $('pst-back').onclick = function () { step(1); };
+            ['pst-aspect', 'pst-style'].forEach(function (id) { $(id).addEventListener('change', function () { if ($('pst-prompt').dataset.touched !== '1') suggest(); }); });
+            $('pst-prompt').addEventListener('input', function () { this.dataset.touched = '1'; });
+            $('pst-addref').onclick = function () { if (!window.mediaPick) return; window.mediaPick({ accept: 'image', multiple: true, public: false }).then(function (fs) { (fs || []).forEach(function (f) { if (refs.length < 4 && !refs.some(function (x) { return x.id === f.id; })) refs.push(f); }); paintRefs(); }); };
+            $('pst-use').onclick = function () { if (!file || !window.cpAddLib) return; window.cpAddLib(file); this.textContent = L.added; this.disabled = true; setTimeout(function () { dlg.close(); }, 600); };
+            dlg.addEventListener('close', function () { $('pst-use').textContent = <?= json_encode(t('أضفها للمنشور'), JSON_UNESCAPED_UNICODE) ?>; });
+          })();
+          </script>
+          <?php endif; ?>
           <?php if (ai_connection() && can('ai.use') && ai_feature_on('vision')): ?>
           <div class="flex flex-wrap items-center gap-2 mt-2" id="vis-box">
             <?php foreach (['from_image', 'alt_text'] as $vk): if (!ai_feature_on($vk)) continue; ?>

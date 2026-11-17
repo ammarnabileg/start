@@ -43,17 +43,27 @@ function img_lib_save_bytes(int $wid, string $bytes, string $prompt): ?string
 }
 
 /** يولّد صورة أو أكتر ويرجع أسماءها في المكتبة. بيرمي استثناء برسالة واضحة لو فشل */
-function img_openai_generate(string $prompt, string $aspect = '1:1', int $n = 1): array
+function img_openai_generate(string $prompt, string $aspect = '1:1', int $n = 1, array $refs = [], string $quality = ''): array
 {
     $c = img_openai_conn(); if (!$c) throw new RuntimeException(t('اربط OpenAI أولًا من صفحة التكاملات.'));
     $wid = (int)ws('id'); $budget = function_exists('ai_budget') ? ai_budget($wid) : 0;
     if ($budget > 0 && function_exists('ai_month_spend') && ai_month_spend($wid) >= $budget) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format($budget, 2)));
-    $model = img_openai_model(); $size = img_openai_size($aspect); $q = img_openai_quality(); $n = max(1, min(4, $n));
+    $model = img_openai_model(); $size = img_openai_size($aspect); $q = in_array($quality, ['low', 'medium', 'high'], true) ? $quality : img_openai_quality(); $n = max(1, min(4, $n));
     @set_time_limit(180);
+    $refs = array_slice(array_values(array_filter($refs, 'is_file')), 0, 4);
+    if ($refs) {
+        // صور مرجعية (منتج، لوجو، شخص): endpoint التعديل بياخد لحد كام صورة ويبني عليها
+        $post = ['model' => $model, 'prompt' => mb_substr($prompt, 0, 30000), 'size' => $size, 'quality' => $q, 'n' => (string)$n];
+        foreach ($refs as $i => $f) $post['image[' . $i . ']'] = new CURLFile($f, (string)(mime_content_type($f) ?: 'image/png'), basename($f));
+        $ch = curl_init(ai_base('openai') . '/images/edits');
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']], CURLOPT_POSTFIELDS => $post]);
+    } else {
     $ch = curl_init(ai_base('openai') . '/images/generations');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $c['credentials']['api_key']],
         CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'prompt' => mb_substr($prompt, 0, 30000), 'size' => $size, 'quality' => $q, 'n' => $n], JSON_UNESCAPED_UNICODE)]);
+    }
     $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $cerr = curl_error($ch); curl_close($ch);
     $j = json_decode($raw, true);
     if ($raw === '' && $cerr !== '') throw new RuntimeException(net_friendly('OpenAI', (string)$cerr));

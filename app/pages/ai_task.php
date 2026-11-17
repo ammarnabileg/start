@@ -254,6 +254,9 @@ if ($task === 'preset') {
         if (!preg_match('#^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$#', $img) || strlen($img) > 3 * 1048576) $out(['error' => t('اختر صورة أولًا (أقل من 2 ميجا).')], 422);
     }
     $sys = str_replace('{lang}', lang() === 'ar' ? 'Arabic' : 'English', $pr['sys']) . ' The business is "' . ws('name') . '".';
+    // لغة المنشور الأصلي تغلب: قاعدة المعرفة غالبًا بالعربي وبتشد الموديل للعربي حتى لو المنشور إنجليزي
+    if ($pr['group'] === 'compose' && !in_array($key, ['translate_en', 'translate_ar', 'img_prompt', 'alt_text'], true) && ($lk = ai_text_lang($text)) !== '')
+        $sys .= "\n\nLANGUAGE RULE (highest priority): the user's text is in {$lk}. Write the whole output in {$lk} only" . ($lk === 'Arabic' ? ', in the same dialect as the text' : '') . ', even if the knowledge base or business name is in another language.';
     $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? $text : $ctx);
     try {
         $userMsg = $pr['needs'] === 'image' ? ['role' => 'user', 'content' => [['type' => 'text', 'text' => $text !== '' ? "Draft text:\n" . $text : 'Image:'], ['type' => 'image_url', 'image_url' => ['url' => $img]]]] : ['role' => 'user', 'content' => $user];
@@ -284,6 +287,7 @@ if ($task === 'compose') {
     $sys = "You are a social media copywriter for \"$brand\". Write in the same language as the user's text (default $lang). "
         . "If the text is a short idea, write a ready-to-publish post from it. If it's a draft, improve it while keeping its meaning and facts. "
         . "Keep it concise, natural, with at most 3 relevant hashtags and no more than 2 emojis. Return ONLY the post text, no quotes or explanations.";
+    if (($lk = ai_text_lang($text)) !== '') $sys .= "\n\nLANGUAGE RULE (highest priority): the user's text is in {$lk}. Write the whole output in {$lk} only, even if the knowledge base is in another language.";
     $msgs = [['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $text]];
 } else {
     if ($ctx === '') $out(['error' => t('مفيش محادثة نقترح رد عليها.')], 422);

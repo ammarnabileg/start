@@ -222,6 +222,15 @@ function ai_kb(int $wid, string $query = ''): string
     return kb_compile($wid, $query);
 }
 
+/** لغة النص الغالبة: Arabic / English / '' (مش واضح) — بالحروف، من غير موديل */
+function ai_text_lang(string $t): string
+{
+    $t = preg_replace('~https?://\S+|#\S+|@\S+~u', ' ', $t);
+    $ar = preg_match_all('/\p{Arabic}/u', $t); $la = preg_match_all('/[A-Za-z]/', $t);
+    if ($ar + $la < 4) return '';
+    return $ar >= $la ? 'Arabic' : ($la >= 2 * $ar ? 'English' : '');
+}
+
 function ai_with_kb(array $messages, string $task): array
 {
     // آخر رسالة من المستخدم = اللي بندور على أجزاء الملفات المناسبة ليها
