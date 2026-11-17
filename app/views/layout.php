@@ -97,8 +97,9 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
   <?php
     $alertsN = ($curWs && function_exists('alerts_unseen_count') && can('analytics.view') && module_enabled('analytics')) ? alerts_unseen_count((int)$curWs['id']) : 0;
     $crmN = ($curWs && function_exists('crm_notifs_unseen') && module_enabled('crm') && can('crm.view')) ? crm_notifs_unseen((int)$curWs['id'], (int)(current_user()['id'] ?? 0)) : 0;
-    $bellN = count($invites) + $alertsN + $crmN;
-    $bellHref = ($invites && !($alertsN + $crmN)) || (!(can('analytics.view') && module_enabled('analytics')) && !(can('crm.view') && module_enabled('crm'))) ? url('workspaces') : url('alerts'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
+    $apN = 0; if ($curWs && can('posts.manage')) { try { $aq = db()->prepare("SELECT COUNT(*) FROM post_approvals WHERE workspace_id = ? AND status = 'pending'"); $aq->execute([(int)$curWs['id']]); $apN = (int)$aq->fetchColumn(); } catch (Throwable $e) {} } // منشورات مستنية موافقتك
+    $bellN = count($invites) + $alertsN + $crmN + $apN;
+    $bellHref = ($invites && !($alertsN + $crmN)) || (!(can('analytics.view') && module_enabled('analytics')) && !(can('crm.view') && module_enabled('crm'))) ? url('workspaces') : url('alerts'); if ($apN && !($alertsN + $crmN)) $bellHref = url('approvals'); // مركز تنبيهات واحد: تنبيهات العملاء + تنبيهات الأداء
   ?>
   <a href="<?= e($bellHref) ?>" id="tb-bell" data-n="<?= (int)$bellN ?>" class="tb relative w-10 justify-center <?= $bellN ? '!text-ink-900' : '' ?>" title="<?= e(t('التنبيهات')) ?>">
     <?= $icon('M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1') ?>
@@ -188,6 +189,7 @@ $initial = mb_substr(trim($user['name'] ?? '?'), 0, 1);
       $R['leads'] = [[t('الحملات الإعلانية'), url('ads')], $crmOn2 ? [t('العملاء'), url('prospects')] : null];
       $R['leads'] = array_filter($R['leads']);
       $R['phone_kyc'] = [[t('الأرقام'), url('phone_numbers')]];
+      foreach (['automations', 'inbox', 'comments'] as $rk) if (isset($R[$rk])) $R[$rk][] = [t('الرد الذكي بالذكاء الاصطناعي'), url('assistant', ['tab' => 'agent'])];
       $R['goals'] = [[t('أداء المنشورات'), url('analytics')], [t('منشور جديد'), url('compose')], [t('التنبيهات'), url('alerts')]];
       if ($crmOn2) {
         $R['crm_capture'] = [[t('العملاء اللي اتجمعوا'), url('prospects')], [t('أنهي مصدر بيجيب أكتر'), url('crm_reports')], [t('اكتب منشور بلينك متتبع'), url('compose')]];

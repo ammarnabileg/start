@@ -130,7 +130,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
     }
     ?>
     <div class="flex flex-wrap items-center gap-3 mb-5">
-      <a class="link text-sm" href="<?= e(url('posts')) ?>">&larr; <?= e(t('رجوع للمنشورات')) ?></a>
+      <a class="link text-sm" href="<?= e(url('posts')) ?>"><?= is_rtl() ? '&rarr;' : '&larr;' ?> <?= e(t('رجوع للمنشورات')) ?></a>
       <span class="text-xs px-2 py-0.5 rounded-full font-semibold <?= $cls ?>"><?= e($label) ?></span>
       <?php if (!empty($post['scheduledFor'])): ?><span class="text-sm text-ink-600"><?= e(t('موعد النشر:')) ?> <?= e(fmt_date($post['scheduledFor'], 'd/m h:i A')) ?></span><?php endif; ?>
       <div class="ms-auto flex flex-wrap gap-2">
@@ -154,7 +154,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
           <?= csrf_field() ?><input type="hidden" name="action" value="update">
           <h2 class="font-bold"><?= e(t('تعديل المنشور قبل نشره')) ?></h2>
           <label class="block"><span class="label"><?= e(t('نص المنشور')) ?></span>
-            <textarea data-ai="improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score" name="content" id="pe-text" rows="7" class="input" dir="auto"><?= e($post['content'] ?? '') ?></textarea></label>
+            <textarea data-ai="improve,hashtags,cta,hook,shorten,tone_formal,tone_friendly,tone_excited,tone_funny,translate_en,translate_ar,variants,three,thread,review,score,img_prompt" name="content" id="pe-text" rows="7" class="input" dir="auto"><?= e($post['content'] ?? '') ?></textarea></label>
           <div id="pe-lim" class="flex flex-wrap gap-1.5 -mt-2"></div>
           <label class="block"><span class="label"><?= e(t('موعد النشر')) ?> (<?= e(site_timezone()) ?>)</span>
             <input type="datetime-local" name="when" id="pe-when" value="<?= e($whenVal) ?>" class="input" dir="ltr"></label>

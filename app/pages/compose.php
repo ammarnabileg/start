@@ -478,7 +478,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <button type="button" id="cp-again" class="btn-primary !text-sm">＋ <?= e(t('منشور تاني بنفس الحسابات')) ?></button>
           <a class="btn-ghost !text-sm" href="<?= e(url('compose', ['dup_text' => $done['text'], 'dup_acc' => implode(',', $done['acc'])])) ?>"><?= e(t('كرّره بنفس النص')) ?></a>
           <?php if ($done['id']): ?><a class="btn-ghost !text-sm" href="<?= e(url('post_edit', ['id' => $done['id']])) ?>"><?= e(t('افتح المنشور')) ?></a><?php endif; ?>
-          <a class="btn-ghost !text-sm" href="<?= e(url('calendar')) ?>"><?= e(t('التقويم')) ?></a>
+          <a class="btn-ghost !text-sm" href="<?= e(url('posts', ['view' => 'cal'])) ?>"><?= e(t('التقويم')) ?></a>
         </div>
       </div>
     <?php endif; ?>
@@ -521,8 +521,8 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           <div id="cp-auto" class="hidden basis-full w-full min-w-0 mt-1 rounded-xl border border-ink-200 bg-ink-50 p-3 space-y-2 text-sm whitespace-normal">
             <div class="font-medium text-ink-900">🤖 <?= e(t('رد أوتوماتيك على «%s»', $ctaW[0])) ?></div>
             <p class="text-[11px] text-ink-500"><?= e(t('أي حد يعلّق بالكلمة دي على أي منشور للحسابات المختارة: بيترد عليه رد عام، وبتوصله رسالة خاصة فيها اللينك (فيسبوك وإنستجرام)، وبيظهر في العملاء المقترحين.')) ?></p>
-            <input id="cp-auto-reply" class="input !py-1.5 text-sm w-full" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
-            <textarea id="cp-auto-dm" rows="3" class="input text-sm w-full whitespace-pre-wrap break-words" maxlength="900" dir="auto"><?= e(t('أهلاً! دي التفاصيل اللي طلبتها 👇') . "\n" . $link) ?></textarea>
+            <input id="cp-auto-reply" data-ai="auto_msg,polish_reply" class="input !py-1.5 text-sm w-full" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
+            <textarea id="cp-auto-dm" data-ai="auto_msg,improve" rows="3" class="input text-sm w-full whitespace-pre-wrap break-words" maxlength="900" dir="auto"><?= e(t('أهلاً! دي التفاصيل اللي طلبتها 👇') . "\n" . $link) ?></textarea>
             <div class="flex items-center gap-2"><button type="button" id="cp-auto-go" class="btn-primary !py-1.5 !text-xs"><?= e(t('فعّل على الحسابات المختارة')) ?></button><span id="cp-auto-msg" class="text-xs"></span></div>
           </div>
           <?php endif; ?>
