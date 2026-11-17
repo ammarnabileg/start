@@ -438,3 +438,7 @@
   var lm = document.getElementById('libMedia'); if (lm && window.MutationObserver) new MutationObserver(sync).observe(lm, { childList: true });
   sync(); setTimeout(sync, 300); window.addEventListener('load', sync);
 })();
+
+/* استلام نص طويل من الاستوديو أو «كرّره» */
+(function () { if (!/[?&]handoff=1/.test(location.search)) return; var t = null; try { t = sessionStorage.getItem('cp_handoff'); sessionStorage.removeItem('cp_handoff'); } catch (e) {} if (!t) return;
+  var ta = document.getElementById('content'); if (!ta) return; ta.value = t; ta.dispatchEvent(new Event('input', { bubbles: true })); })();

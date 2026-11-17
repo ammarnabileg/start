@@ -208,9 +208,10 @@ document.addEventListener('click', function (e) {
   window.aiRun = function (ta, key, btn) { return run(ta, key, btn); }; window.aiItems = P.items;
   function run(ta, key, btn) {
     var p = P.items[key]; closeMenu();
+    if (ta.dataset.aiBusy) return; ta.dataset.aiBusy = '1'; // تشغيلتين على نفس الخانة بيخلطوا النصين
     var fd = new FormData(); fd.append('task', 'preset'); fd.append('preset', key); fd.append('text', ta.value); fd.append('context', ctxOf(ta)); fd.append('stream', '1');
     btn.disabled = true; btn.classList.add('animate-pulse');
-    var mode = (P.modes || {})[key] || 'replace', orig = ta.value, acc = '', live = null;
+    var mode = (P.modes || {})[key] || 'replace', orig = ta.value, acc = '', live = null; if (mode !== 'show') ta.readOnly = true; // اللي يتكتب أثناء البث كان بيضيع
     // الرد كلمة كلمة: للاستبدال/الإضافة بيتكتب جوه الخانة، وللعرض بيتكتب في صندوق تحت
     function onDelta(d) {
       acc += d;
@@ -231,14 +232,14 @@ document.addEventListener('click', function (e) {
       var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', fin = null;
       function pump() {
         return reader.read().then(function (x) {
-          if (x.done) { if (fin) return fin; if (acc.trim()) return { text: acc, mode: mode }; return plain(); }
+          if (x.done) { if (fin) return fin; if (acc.trim()) return { error: (window.T && T.aiCut) || 'انقطع الاتصال أثناء الكتابة. لم نغيّر نصك، حاول مرة أخرى.' }; return plain(); } // نص ناقص مش نتيجة
           buf += dec.decode(x.value, { stream: true }); var parts = buf.split('\n\n'); buf = parts.pop();
           parts.forEach(function (ev) { ev.split('\n').forEach(function (l) { if (l.indexOf('data:') !== 0) return; try { var o = JSON.parse(l.slice(5)); } catch (e) { return; } if (o.d != null) onDelta(o.d); else fin = o; }); });
           return pump();
         });
       }
       return pump();
-    }).catch(function () { return plain(); }).then(function (d) {
+    }).catch(function () { return acc ? { error: (window.T && T.aiCut) || 'انقطع الاتصال أثناء الكتابة. لم نغيّر نصك، حاول مرة أخرى.' } : plain(); }).then(function (d) { delete ta.dataset.aiBusy; ta.readOnly = false; // لو وصل جزء: الطلب اتحسب، مانعيدوش
       if (d.error && mode !== 'show') ta.value = orig;
       if (live) live.remove();
       if (d.error) { window.aiToast ? aiToast(d.error) : alert(d.error); return; }
@@ -259,7 +260,7 @@ document.addEventListener('click', function (e) {
         ta.classList.add('ring-4', 'ring-brand-500/20'); setTimeout(function () { ta.classList.remove('ring-4', 'ring-brand-500/20'); }, 1200);
       }
     }).catch(function () { var m = (window.T && T.liveFailed) || 'Error'; window.aiToast ? aiToast(m) : alert(m); })
-      .finally(function () { btn.disabled = false; btn.classList.remove('animate-pulse'); });
+      .finally(function () { delete ta.dataset.aiBusy; ta.readOnly = false; btn.disabled = false; btn.classList.remove('animate-pulse'); });
   }
   function openMenu(ta, btn) {
     closeMenu();
@@ -426,3 +427,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localh
 
 /* بعد إرسال منشور للموافقة: نمسح مسودة الإنشاء المحلية عشان مايتبعتش مرتين */
 (function () { var m = /[?&]cpd=(\d+_\d+)/.exec(location.search); if (!m) return; try { localStorage.removeItem('cp_draft_' + m[1]); } catch (e) {} try { var r = indexedDB.open('cp_drafts'); r.onsuccess = function () { try { var db = r.result, tx = db.transaction(db.objectStoreNames[0], 'readwrite'); tx.objectStore(db.objectStoreNames[0]).delete('cp_draft_' + m[1]); } catch (e) {} }; } catch (e) {} })();
+
+/* روابط «انشره / كرّره» بالنص الطويل: النص بيتنقل عبر sessionStorage بدل الرابط (الروابط الطويلة بترجع 414) */
+document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a[href*="dup_text="]'); if (!a || e.ctrlKey || e.metaKey || e.button) return;
+  try { var u = new URL(a.href, location.href), t = u.searchParams.get('dup_text') || ''; if (t.length < 300) return; sessionStorage.setItem('cp_handoff', t); u.searchParams.delete('dup_text'); u.searchParams.set('handoff', '1'); e.preventDefault(); location.href = u.toString(); } catch (x) {} }, true);

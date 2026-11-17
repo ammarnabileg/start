@@ -39,3 +39,35 @@
   if (window.DZX && window.DZX.cv) ['selection:created', 'selection:updated', 'text:editing:entered'].forEach(function (ev) { window.DZX.cv.on(ev, hold); });
   window.addEventListener('wheel', function () { keepY = null; }, { passive: true }); window.addEventListener('keydown', function (e) { if (/Page|Arrow|Home|End/.test(e.key) && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) keepY = null; });
 })();
+
+
+/* إزالة الخلفية: سريعة في المتصفح (خلفية سادة) أو بالذكاء الاصطناعي */
+(function () {
+  var X = window.DZX; if (!X) return; var cv = X.cv, C = X.C || window.DZ || {}, L = (C.L || {});
+  function img() { var o = cv.getActiveObject(); return o && o.type === 'image' ? o : null; }
+  function st(t) { var e = document.getElementById('dz-rembg-st'); if (e) e.textContent = t || ''; }
+  function srcCanvas(o) { var el = o._originalElement || o.getElement(), w = el.naturalWidth || el.width, h = el.naturalHeight || el.height, c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(el, 0, 0); return c; }
+  function put(o, url, cb) { var keep = { left: o.left, top: o.top, sx: o.getScaledWidth(), sy: o.getScaledHeight() };
+    o.setSrc(url, function () { o.set({ scaleX: keep.sx / o.width, scaleY: keep.sy / o.height, cropX: 0, cropY: 0 }); o.dzCrop = null; if (o.filters && o.filters.length) o.applyFilters(); o.setCoords(); cv.requestRenderAll(); X.snap(); cb && cb(); }, { crossOrigin: 'anonymous' }); }
+  function quick(o) { var c; try { c = srcCanvas(o); var g = c.getContext('2d'), w = c.width, h = c.height, d = g.getImageData(0, 0, w, h), px = d.data; } catch (e) { return X.toast(L.rembgCors || 'تعذر قراءة الصورة. احفظها في المكتبة ثم أعد المحاولة.', 'error'); }
+    // لون الخلفية = متوسط الأركان، وبعدين ملء من كل الأطراف للبكسلات القريبة منه
+    var cs = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]].map(function (p) { var i = (p[1] * w + p[0]) * 4; return [px[i], px[i + 1], px[i + 2]]; });
+    var br = 0, bg = 0, bb = 0; cs.forEach(function (x) { br += x[0]; bg += x[1]; bb += x[2]; }); br /= 4; bg /= 4; bb /= 4;
+    var tol = 48, seen = new Uint8Array(w * h), stack = [];
+    for (var x = 0; x < w; x++) { stack.push(x, (h - 1) * w + x); } for (var y = 0; y < h; y++) { stack.push(y * w, y * w + w - 1); }
+    var near = function (i) { var k = i * 4; return Math.abs(px[k] - br) + Math.abs(px[k + 1] - bg) + Math.abs(px[k + 2] - bb) < tol * 1.6 && px[k + 3] > 10; };
+    var n = 0; while (stack.length) { var i = stack.pop(); if (seen[i]) continue; seen[i] = 1; if (!near(i)) continue; px[i * 4 + 3] = 0; n++;
+      var cx = i % w, cy = (i / w) | 0; if (cx > 0) stack.push(i - 1); if (cx < w - 1) stack.push(i + 1); if (cy > 0) stack.push(i - w); if (cy < h - 1) stack.push(i + w); }
+    if (n < w * h * 0.03) return X.toast(L.rembgNone || 'الخلفية ليست سادة. استخدم الإزالة بالذكاء الاصطناعي.', 'error');
+    // حواف أنعم: البكسل الملاصق للشفاف ياخد شفافية جزئية
+    for (var j = 0; j < w * h; j++) { if (px[j * 4 + 3] === 0) continue; var cx2 = j % w, cy2 = (j / w) | 0, t = 0; if (cx2 > 0 && px[(j - 1) * 4 + 3] === 0) t++; if (cx2 < w - 1 && px[(j + 1) * 4 + 3] === 0) t++; if (cy2 > 0 && px[(j - w) * 4 + 3] === 0) t++; if (cy2 < h - 1 && px[(j + w) * 4 + 3] === 0) t++; if (t) px[j * 4 + 3] = Math.round(px[j * 4 + 3] * (1 - t * 0.2)); }
+    g.putImageData(d, 0, 0); put(o, c.toDataURL('image/png'), function () { X.toast(L.rembgDone || '✓'); }); }
+  function ai(o, b) { var c; try { c = srcCanvas(o); c.toDataURL(); } catch (e) { return X.toast(L.rembgCors || 'تعذر قراءة الصورة.', 'error'); }
+    b.disabled = true; b.classList.add('animate-pulse'); st(L.rembgBusy || '…');
+    c.toBlob(function (blob) { var f = new FormData(); f.append('action', 'rembg'); f.append('_csrf', C.csrf); f.append('file', blob, 'img.png');
+      fetch(C.url, { method: 'POST', body: f, credentials: 'same-origin', headers: { 'X-CSRF-Token': C.csrf } }).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok) { st(''); X.toast(j.error || '✗', 'error'); return; } put(o, j.url, function () { st(''); X.toast(L.rembgDone || '✓'); }); })
+      .catch(function () { st(''); X.toast('✗', 'error'); }).finally(function () { b.disabled = false; b.classList.remove('animate-pulse'); }); }, 'image/png'); }
+  document.addEventListener('click', function (e) { var b = e.target.closest('[data-cmd="rembg-quick"],[data-cmd="rembg-ai"]'); if (!b) return; e.stopImmediatePropagation(); var o = img(); if (!o) return;
+    if (b.dataset.cmd === 'rembg-quick') quick(o); else ai(o, b); }, true);
+})();

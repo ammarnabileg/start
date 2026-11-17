@@ -87,6 +87,27 @@ function img_openai_generate(string $prompt, string $aspect = '1:1', int $n = 1,
 }
 
 
+/** إزالة خلفية صورة بالذكاء الاصطناعي (OpenAI بخلفية شفافة). بيرجع اسم ملف PNG في المكتبة */
+function img_remove_bg(string $file): string
+{
+    $c = img_openai_conn(); if (!$c) throw new RuntimeException(t('إزالة الخلفية بالذكاء الاصطناعي تحتاج ربط OpenAI من صفحة التكاملات. جرّب «إزالة سريعة» للخلفيات السادة.'));
+    $wid = (int)ws('id'); $budget = function_exists('ai_budget') ? ai_budget($wid) : 0;
+    if ($budget > 0 && function_exists('ai_month_spend') && ai_month_spend($wid) >= $budget) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر.'));
+    $model = img_openai_model(); $q = img_openai_quality(); @set_time_limit(180);
+    $post = ['model' => $model, 'prompt' => 'Remove the background completely and make it fully transparent. Keep the main subject exactly as it is: same shape, colors, details, text and proportions. Do not add anything, do not redraw, do not crop the subject.',
+        'background' => 'transparent', 'output_format' => 'png', 'quality' => $q, 'size' => 'auto', 'n' => '1', 'image[0]' => new CURLFile($file, (string)(mime_content_type($file) ?: 'image/png'), 'image.png')];
+    $ch = curl_init(ai_base('openai') . '/images/edits');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']], CURLOPT_POSTFIELDS => $post]);
+    $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $cerr = curl_error($ch); curl_close($ch); $j = json_decode($raw, true);
+    if ($raw === '' && $cerr !== '') throw new RuntimeException(net_friendly('OpenAI', (string)$cerr));
+    if ($code >= 400 || !is_array($j)) { $msg = (string)($j['error']['message'] ?? ('HTTP ' . $code)); if ($code === 401) throw new RuntimeException(t('مفتاح OpenAI غير صحيح.')); throw new RuntimeException('OpenAI: ' . mb_substr($msg, 0, 300)); }
+    $b64 = (string)($j['data'][0]['b64_json'] ?? ''); $bytes = $b64 !== '' ? base64_decode($b64, true) : false;
+    if (!$bytes) throw new RuntimeException(t('لم يرجع OpenAI صورة. جرّب مرة أخرى.'));
+    $nm = img_lib_save_bytes($wid, $bytes, 'background removed'); if (!$nm) throw new RuntimeException(t('تعذر حفظ الصورة.'));
+    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openai', $model, ['cost' => round(img_openai_cost($q, '1024x1024'), 4), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
+    return $nm;
+}
+
 /* ---------- OpenRouter: موديلات بتطلّع صور (Gemini Image، GPT Image ...) بنفس مفتاح OpenRouter ---------- */
 
 function img_or_conn(): ?array
