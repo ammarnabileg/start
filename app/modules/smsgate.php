@@ -79,14 +79,14 @@ function smsgate_register_hooks(array $c): int
     return $n;
 }
 
-function smsgate_norm(string $phone): string
+function smsgate_norm(string $phone, ?int $wid = null): string
 {
     $p = preg_replace('/[^\d+]/', '', $phone);
     if ($p === '') return '';
     if (strpos($p, '00') === 0) return '+' . substr($p, 2);
     if ($p[0] === '+') return $p;
     // رقم محلي (01xxxxxxxxx): الصفر الأول = كود دولة الشركة
-    $cc = ['EG' => '20', 'SA' => '966', 'AE' => '971', 'KW' => '965', 'QA' => '974', 'BH' => '973', 'OM' => '968', 'JO' => '962', 'LB' => '961', 'IQ' => '964', 'MA' => '212', 'DZ' => '213', 'TN' => '216', 'LY' => '218', 'SD' => '249', 'YE' => '967', 'PS' => '970', 'SY' => '963'][function_exists('ws_country') ? (string)ws_country() : 'EG'] ?? '';
+    $cc = ['EG' => '20', 'SA' => '966', 'AE' => '971', 'KW' => '965', 'QA' => '974', 'BH' => '973', 'OM' => '968', 'JO' => '962', 'LB' => '961', 'IQ' => '964', 'MA' => '212', 'DZ' => '213', 'TN' => '216', 'LY' => '218', 'SD' => '249', 'YE' => '967', 'PS' => '970', 'SY' => '963'][function_exists('ws_country') ? (string)ws_country($wid) : 'EG'] ?? '';
     if ($p[0] === '0' && $cc !== '' && strlen($p) >= 8) return '+' . $cc . substr($p, 1);
     if ($cc !== '' && strpos($p, $cc) === 0 && strlen($p) > 10) return '+' . $p; // مكتوب بالكود من غير +
     if ($p[0] !== '0' && strlen($p) >= 11) return '+' . $p; // رقم دولي مكتوب من غير +
@@ -96,7 +96,7 @@ function smsgate_norm(string $phone): string
 function smsgate_log(int $wid, string $dir, string $phone, string $body, string $ext = '', string $state = '', ?int $sim = null, ?int $by = null, ?string $at = null): int
 {
     db()->prepare('INSERT INTO sms_gate_messages (workspace_id, direction, phone, body, ext_id, state, sim, sent_by, seen, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-        ->execute([$wid, $dir, smsgate_norm($phone), mb_substr($body, 0, 2000), $ext ?: null, $state, $sim, $by, $dir === 'out' ? 1 : 0, $at ?: date('Y-m-d H:i:s')]);
+        ->execute([$wid, $dir, smsgate_norm($phone, $wid), mb_substr($body, 0, 2000), $ext ?: null, $state, $sim, $by, $dir === 'out' ? 1 : 0, $at ?: date('Y-m-d H:i:s')]);
     return (int)db()->lastInsertId();
 }
 
@@ -113,7 +113,7 @@ function smsgate_threads(int $wid, int $limit = 200): array
 function smsgate_thread(int $wid, string $phone, int $limit = 300): array
 {
     $st = db()->prepare('SELECT * FROM (SELECT * FROM sms_gate_messages WHERE workspace_id = ? AND phone = ? ORDER BY id DESC LIMIT ' . (int)$limit . ') t ORDER BY id');
-    $st->execute([$wid, smsgate_norm($phone)]);
+    $st->execute([$wid, smsgate_norm($phone, $wid)]);
     db()->prepare("UPDATE sms_gate_messages SET seen = 1 WHERE workspace_id = ? AND phone = ? AND direction = 'in' AND seen = 0")->execute([$wid, smsgate_norm($phone)]);
     return $st->fetchAll();
 }

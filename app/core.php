@@ -210,6 +210,7 @@ function current_user(): ?array
             $st = db()->prepare("SELECT * FROM users WHERE id = ?");
             $st->execute([$_SESSION['uid']]);
             $user = $st->fetch() ?: null;
+            if (!$user) unset($_SESSION['uid'], $_SESSION['pwfp'], $_SESSION['impersonator'], $_SESSION['imp_pwfp']); // مستخدم اتمسح
             if ($user) {
                 // تغيير كلمة السر بيقفل كل الجلسات التانية: بصمة الباسورد في الجلسة لازم تطابق
                 $fp = substr(hash('sha256', (string)$user['password_hash']), 0, 16);

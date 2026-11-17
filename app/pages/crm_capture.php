@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $J(['ok' => true, 'lines' => array_slice($lines, 0, 30), 'name' => $name, 'phone' => $c['phone'], 'email' => $c['email'], 'company' => $company, 'title' => $title, 'site' => $site]);
     }
     if ($a === 'card_save') {
-        $l = crm_lead_upsert(['source' => 'manual', 'name' => mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255) ?: t('كارت بزنس'), 'phone' => mb_substr(trim((string)($_POST['phone'] ?? '')), 0, 40), 'email' => mb_substr(trim((string)($_POST['email'] ?? '')), 0, 255),
+        $l = crm_lead_upsert(['respect_owner' => 1, 'source' => 'manual', 'name' => mb_substr(trim((string)($_POST['name'] ?? '')), 0, 255) ?: t('كارت بزنس'), 'phone' => mb_substr(trim((string)($_POST['phone'] ?? '')), 0, 40), 'email' => mb_substr(trim((string)($_POST['email'] ?? '')), 0, 255),
             'company' => mb_substr(trim((string)($_POST['company'] ?? '')), 0, 255), 'title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255), 'owner_id' => (int)(current_user()['id'] ?? 0)]);
         if (!$l) $J(['error' => t('اكتب رقم أو إيميل على الأقل.')], 422);
         if (empty($l['merged']) && ($plk = (string)($_POST['pl'] ?? '')) !== '' && $plk !== 'sales' && isset(crm_pipelines()[$plk])) db()->prepare('UPDATE crm_leads SET pipeline = ? WHERE id = ?')->execute([$plk, (int)$l['id']]);

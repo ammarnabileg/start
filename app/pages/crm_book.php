@@ -33,12 +33,12 @@ ai_as_workspace($wid, function () use ($wid) {
                 db()->beginTransaction();
                 db()->prepare('INSERT INTO crm_bookings (workspace_id, start_at, len) VALUES (?, ?, ?)')->execute([$wid, $start, max(15, min(240, (int)($cfg['len'] ?? 30)))]); // UNIQUE بيمنع حجزين في نفس الميعاد
                 $bid = (int)db()->lastInsertId();
-                $l = crm_lead_upsert(['source' => 'form', 'name' => $name, 'phone' => $phone, 'email' => $email, 'owner_id' => null]);
+                $l = crm_lead_upsert(['public' => 1, 'source' => 'form', 'name' => $name, 'phone' => $phone, 'email' => $email, 'owner_id' => null]);
                 db()->prepare('UPDATE crm_bookings SET lead_id = ? WHERE id = ?')->execute([(int)$l['id'], $bid]);
                 $camp = preg_replace('/[^A-Za-z0-9]/', '', (string)($_GET['utm_campaign'] ?? ''));
                 if ($camp !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([substr($camp, 0, 16), (int)$l['id']]);
                 $when = (new DateTime($slot, $tz))->format('d/m h:i A');
-                db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), (int)$l['id']]);
+                if (empty($l['merged'])) db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), (int)$l['id']]);
                 crm_act_add((int)$l['id'], 'meet', '📅 ' . t('حجز اجتماع: %s (%s دقيقة)', $when, $cfg['len']) . ($note !== '' ? "\n“" . $note . '”' : ''));
                 if (empty($l['merged'])) db()->prepare("UPDATE crm_leads SET stage = IF(stage IN ('new','contacted'), 'qualified', stage) WHERE id = ?")->execute([(int)$l['id']]); // عميل موجود: الحجز من رابط عام مش إثبات
                 db()->commit();

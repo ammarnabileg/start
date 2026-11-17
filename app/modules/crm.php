@@ -1072,7 +1072,7 @@ function crm_lead_upsert(array $d): array
         foreach ($f as $k => $v) { if ($v !== null && ($found[$k] === null || $found[$k] === '')) { $set[] = "$k = ?"; $vals[] = $v; } }
         if ($ext !== '' && !$found['ext_id']) { $set[] = 'ext_id = ?'; $vals[] = $ext; }
         if ($phone !== '') $set[] = 'phone_pending = 0';
-        $locked = current_user() && !crm_can_edit($found); // عميل زميل (أو رابط عام): مابنلمسش بياناته
+        $locked = !empty($d['public']) || (!empty($d['respect_owner']) && current_user() && !crm_can_edit($found)); // عميل زميل (أو رابط عام): مابنلمسش بياناته
         if ($set && !$locked) { $vals[] = (int)$found['id']; db()->prepare('UPDATE crm_leads SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals); }
         return crm_lead((int)$found['id']) + ['merged' => true, 'locked' => $locked];
     }

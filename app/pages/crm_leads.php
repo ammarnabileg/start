@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (array_slice((array)$items, 0, 100) as $it) {
             if (!is_array($it) || trim((string)($it['ext'] ?? '')) === '') continue;
             $l = crm_from_social(['source' => $it['source'] ?? '', 'ext' => $it['ext'], 'name' => $it['name'] ?? '', 'phone' => $it['phone'] ?? '', 'email' => $it['email'] ?? '',
-                'text' => $it['text'] ?? '', 'url' => $it['url'] ?? '', 'where' => $it['where'] ?? '', 'owner_id' => $canManage ? null : $uid]);
+                'text' => $it['text'] ?? '', 'url' => $it['url'] ?? '', 'where' => $it['where'] ?? '', 'owner_id' => $canManage ? null : $uid, 'respect_owner' => 1]);
+        if (!empty($l['locked'])) $json(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
             if (!$l) continue;
             if ($l['merged']) $m++; else $n++;
         }
@@ -164,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nm = trim((string)($r['name'] ?? ''));
             $ph = trim((string)($r['phone'] ?? '')); $em = trim((string)($r['email'] ?? ''));
             if ($ph === '' && $em === '') { $skip++; continue; }
-            $l = crm_lead_upsert(['source' => 'import', 'name' => $nm !== '' ? $nm : ($em ?: $ph), 'company' => $r['company'] ?? '', 'title' => $r['title'] ?? '',
+            $l = crm_lead_upsert(['respect_owner' => 1, 'source' => 'import', 'name' => $nm !== '' ? $nm : ($em ?: $ph), 'company' => $r['company'] ?? '', 'title' => $r['title'] ?? '',
                 'email' => $em, 'phone' => $ph, 'country' => $r['country'] ?? '', 'owner_id' => $canManage ? null : $uid]);
             if (!$l) { $skip++; continue; }
             $tg = trim((string)($r['tags'] ?? '')); $nt = trim((string)($r['note'] ?? ''));

@@ -296,7 +296,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $f = $_FILES['csv'] ?? null;
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
-    if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { echo json_encode(['ok' => false, 'error' => t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')], JSON_UNESCAPED_UNICODE); exit; }
+    if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { flash('error', t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')); redirect(url('bulk')); }
     try {
         if (!$f || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
             throw new ZernioException(t('اختار ملف CSV الأول.'));

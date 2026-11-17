@@ -76,7 +76,7 @@ foreach ($rows as $t) { $hid = $t['mark'] === 'hidden'; $act = $t['deadline'] &&
     if ($t['mark'] === 'fav') $counts['fav']++; if ($t['mark'] === 'applied') $counts['applied']++; if (!$hid && $act) $counts['all']++; }
 render(t('آخر المنافسات'), 'tenders', function () use ($cfg, $h, $rows, $counts, $mgr) {
     $ago = function ($sec) { if ($sec === null) return t('لسه ماوصلش بيانات'); if ($sec < 3600) return t('من %s دقيقة', max(1, intdiv($sec, 60))); if ($sec < 86400) return t('من %s ساعة', intdiv($sec, 3600)); return t('من %s يوم', intdiv($sec, 86400)); };
-    $mark = function (string $txt, array $hits) { $out = e($txt); $hits = array_values(array_filter(array_map('strval', $hits), 'strlen')); if (!$hits) return $out; usort($hits, function ($a, $b) { return mb_strlen($b) <=> mb_strlen($a); }); return (string)preg_replace('/(' . implode('|', array_map(function ($w) { return preg_quote(e($w), '/'); }, $hits)) . ')/u', '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">$1</mark>', $out); }; /* مرة واحدة: مايلمسش الـ HTML اللي اتضاف */
+    $mark = function (string $txt, array $hits) { $hits = array_values(array_filter(array_map('strval', $hits), 'strlen')); if (!$hits) return e($txt); usort($hits, function ($a, $b) { return mb_strlen($b) <=> mb_strlen($a); }); $parts = preg_split('/(' . implode('|', array_map(function ($w) { return preg_quote($w, '/'); }, $hits)) . ')/u', $txt, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$txt]; $o = ''; foreach ($parts as $k => $pc) $o .= $k % 2 ? '<mark class="bg-amber-100 text-ink-900 rounded px-0.5">' . e($pc) . '</mark>' : e($pc); return $o; }; /* التظليل على النص الخام وبعدين escape */
     ?>
 
     <?php if ($mgr): ?>

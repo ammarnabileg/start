@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['answer'] ?? '') === 'accept') {
         $rm = json_decode((string)setting('ws_removed_' . (int)$inv['workspace_id'], '[]'), true) ?: [];
         if ($status === false && isset($rm[(string)$me['id']]) && empty($inv['email'])) { flash('error', t('تم حذفك من هذه الشركة. اطلب دعوة جديدة باسمك.')); redirect(url('dashboard')); }
+        if (isset($rm[(string)$me['id']]) && !($status === false && empty($inv['email']))) { unset($rm[(string)$me['id']]); save_setting('ws_removed_' . (int)$inv['workspace_id'], json_encode($rm)); }
         if ($status === false) {
             $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status, invited_by) VALUES (?, ?, ?, 'active', ?)")
                 ->execute([$inv['workspace_id'], $me['id'], $inv['role'], $inv['created_by']]);

@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $co = $getCo((int)($_POST['id'] ?? 0)); if (!$co) $J(['ok' => false], 404);
         $name = trim((string)($_POST['name'] ?? '')); $ph = trim((string)($_POST['phone'] ?? '')); $em = trim((string)($_POST['email'] ?? ''));
         if ($name === '' || ($ph === '' && $em === '')) $J(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل.')], 400);
-        $l = crm_lead_upsert(['source' => 'manual', 'company_id' => (int)$co['id'], 'company' => $co['name'], 'name' => $name, 'title' => (string)($_POST['title'] ?? ''), 'phone' => $ph, 'email' => $em, 'country' => (string)$co['country']]); if (!empty($l['locked'])) $J(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
+        $l = crm_lead_upsert(['source' => 'manual', 'company_id' => (int)$co['id'], 'company' => $co['name'], 'name' => $name, 'title' => (string)($_POST['title'] ?? ''), 'phone' => $ph, 'email' => $em, 'country' => (string)$co['country'], 'respect_owner' => 1]); if (!empty($l['locked'])) $J(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
         if (empty($l['company_id'])) db()->prepare('UPDATE crm_leads SET company_id = ? WHERE id = ? AND workspace_id = ?')->execute([(int)$co['id'], (int)$l['id'], $wid]);
         $J(['ok' => true, 'merged' => !empty($l['merged']), 'person' => $person(crm_lead((int)$l['id']))]);
     }

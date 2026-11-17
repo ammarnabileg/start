@@ -19,14 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $p = json_decode((string)$r['payload'], true) ?: [];
             if (isset($_POST['content'])) $p['content'] = mb_substr((string)$_POST['content'], 0, 10000);
             if ($r['want'] !== 'now' && $r['want'] !== 'queue' && $ts($r['want']) < time()) { unset($p['scheduledFor']); $p['publishNow'] = true; } // الميعاد فات وهو مستني
-            $z->createPost($p);
+            $z->createPost($p); $posted = true;
+            db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);
             foreach ((array)json_decode((string)$r['extra'], true) as $f) if ($ts($f) > time()) { try { $z->createPost(['scheduledFor' => $f] + array_diff_key($p, ['publishNow' => 1])); } catch (ZernioException $e) {} }
             if ($r['draft_id']) { try { $z->request('DELETE', '/v1/posts/' . rawurlencode($r['draft_id'])); } catch (ZernioException $e) {} }
             db()->prepare("UPDATE post_approvals SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$uid, (int)$r['id']]);
             if ($r['user_id'] && function_exists('crm_notify')) crm_notify((int)$r['user_id'], null, 'approval', t('✅ المدير وافق على منشورك'));
             log_activity('post.approved', (string)$r['id']);
             flash('success', t('اتوافق عليه ✓'));
-        } catch (ZernioException $ex) { db()->prepare("UPDATE post_approvals SET status = 'pending' WHERE id = ? AND status = 'approving'")->execute([(int)$r['id']]); flash('error', $ex->getMessage()); }
+        } catch (ZernioException $ex) { db()->prepare("UPDATE post_approvals SET status = 'pending' WHERE id = ? AND status = 'approving'")->execute([(int)$r['id']]); flash('error', $ex->getMessage()); } catch (Throwable $ex) { db()->prepare("UPDATE post_approvals SET status = ? WHERE id = ? AND status = 'approving'")->execute([empty($posted) ? 'pending' : 'approved', (int)$r['id']]); flash('error', t('حصل خطأ، جرّب تاني.')); }
     }
     if ($a === 'reject') {
         $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 300);

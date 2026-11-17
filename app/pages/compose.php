@@ -150,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cta_a
     $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
     if (!$z) $J(['ok' => false, 'error' => $err ?: t('اربط Zernio الأول.')]);
     if (!module_enabled('automations')) $J(['ok' => false, 'error' => t('القسم ده مقفول للشركة دي. صاحب الشركة يقدر يفتحه من الإعدادات.')]);
+    if (!can('automations.manage')) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
     $word = mb_substr(trim((string)($_POST['word'] ?? '')), 0, 40);
     $dm = mb_substr(trim((string)($_POST['dm'] ?? '')), 0, 900);
     $reply = mb_substr(trim((string)($_POST['reply'] ?? '')), 0, 300);
