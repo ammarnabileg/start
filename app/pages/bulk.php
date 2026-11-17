@@ -97,7 +97,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
     $rows = array_slice((array)json_decode((string)($_POST['rows'] ?? '[]'), true), 0, 25);
     $wid = (int)ws('id'); $tz = new DateTimeZone(site_timezone());
     $byId = [];
-    try { foreach ($z->accounts(zernio_profile()) as $a) $byId[(string)$a['_id']] = $a; } catch (ZernioException $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
+    try { foreach (acc_filter($z->accounts(zernio_profile())) as $a) $byId[(string)$a['_id']] = $a; } catch (ZernioException $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); exit; }
     $pid = null;
     @set_time_limit(30 + 5 * count($rows));
     $res = []; $valid = 0;
@@ -247,6 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'caption
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1') {
     header('Content-Type: application/json; charset=utf-8');
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && acc_allowed() !== null) { echo json_encode(['ok' => false, 'error' => t('حسابك مقيد بحسابات معينة؛ استخدم الإدخال المباشر بالحسابات.')], JSON_UNESCAPED_UNICODE); exit; }
     if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { echo json_encode(['ok' => false, 'error' => t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')], JSON_UNESCAPED_UNICODE); exit; }
     $csv = (string)($_POST['csv_text'] ?? '');
     try {
@@ -296,6 +297,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
 if ($z && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $f = $_FILES['csv'] ?? null;
     $dry = ($_POST['mode'] ?? 'check') !== 'create';
+    if (!$dry && acc_allowed() !== null) { flash('error', t('حسابك مقيد بحسابات معينة؛ استخدم الإدخال المباشر بالحسابات.')); redirect(url('bulk')); }
     if (!$dry && setting('post_approval_' . (int)ws('id'), '0') === '1' && !can('posts.manage')) { flash('error', t('المنشورات تحتاج موافقة المدير؛ الرفع الجماعي متاح للمدير فقط.')); redirect(url('bulk')); }
     try {
         if (!$f || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {

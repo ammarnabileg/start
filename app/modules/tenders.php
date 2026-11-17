@@ -125,7 +125,7 @@ function tnd_cfg(): array
 }
 function tnd_cfg_save(array $c): void
 {
-    save_setting('tnd_cfg_' . (int)ws('id'), json_encode(['add' => array_values(array_slice($c['add'], 0, 60)), 'off' => array_values(array_slice($c['off'], 0, 60)), 'not' => array_values(array_slice($c['not'], 0, 40)), 'min_days' => max(0, min(30, (int)$c['min_days']))], JSON_UNESCAPED_UNICODE));
+    save_setting('tnd_cfg_' . (int)ws('id'), json_encode(['add' => array_values(array_slice($c['add'], 0, 60)), 'off' => array_values(array_slice($c['off'], 0, 200)), 'not' => array_values(array_slice($c['not'], 0, 40)), 'min_days' => max(0, min(30, (int)$c['min_days']))], JSON_UNESCAPED_UNICODE));
 }
 
 function tnd_words_clean($raw, int $max = 60): array

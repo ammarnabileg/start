@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (password_verify($new, (string)$pdo->query("SELECT password_hash FROM users WHERE id = " . (int)$me['id'])->fetchColumn())) {
             flash('error', t('كلمة السر الجديدة هي نفس القديمة.'));
         } else {
-            $nh = password_hash($new, PASSWORD_DEFAULT); $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([$nh, $me['id']]);
+            $nh = password_hash($new, PASSWORD_DEFAULT); $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([$nh, $me['id']]); try { $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$me['id']]); } catch (Throwable $e) {}
             session_regenerate_id(true); $_SESSION['pwfp'] = substr(hash('sha256', $nh), 0, 16); // الجلسة دي تفضل، والباقي يخرج
             log_activity('account.password');
             flash('success', t('كلمة السر اتغيرت.'));

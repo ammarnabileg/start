@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $st = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $st->execute([$email]);
         $u = $st->fetch();
+        if (!$u) password_verify($pass, '$2y$10$vThJ135o1j48bzQZI4e04OtHwuSVVXz70x7hTQN9/AGXQFUTYHz16'); // توقيت ثابت
         if ($u && password_verify($pass, $u['password_hash']) && ($u['status'] ?? 'active') !== 'active') {
             flash('error', t('الحساب ده موقوف. كلم مدير النظام.'));
         } elseif ($u && password_verify($pass, $u['password_hash']) && setting('maintenance', '0') === '1' && $u['role'] !== 'admin') {

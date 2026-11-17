@@ -226,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare('INSERT INTO crm_tasks (workspace_id, user_id, lead_id, title, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')->execute([$wid, $to, $ll ? (int)$ll['id'] : null, $title, $due, $uid]);
             if ($to !== $uid) crm_notify($to, $ll ? (int)$ll['id'] : null, 'task', t('%s ضاف لك مهمة: %s', (string)(current_user()['name'] ?? ''), $title));
         } else {
-            $tid = (int)($_POST['task'] ?? 0); $st = db()->prepare('SELECT lead_id, due_at, done_at FROM crm_tasks WHERE id = ? AND workspace_id = ?'); $st->execute([$tid, $wid]); $tk = $st->fetch() ?: []; $lid = (int)($tk['lead_id'] ?? 0); $doneDue = empty($tk['done_at']) ? ($tk['due_at'] ?? null) : null;
+            $tid = (int)($_POST['task'] ?? 0); $st = db()->prepare('SELECT lead_id, due_at, done_at, user_id, created_by FROM crm_tasks WHERE id = ? AND workspace_id = ?'); $st->execute([$tid, $wid]); $tk = $st->fetch() ?: []; if (!$tk || (!$canManage && (int)$tk['user_id'] !== $uid && !($action === 'task_done' ? $tk['user_id'] === null : (int)$tk['created_by'] === $uid))) $json(['ok' => false, 'error' => t('مالكش صلاحية.')]); $lid = (int)($tk['lead_id'] ?? 0); $doneDue = empty($tk['done_at']) ? ($tk['due_at'] ?? null) : null;
             if ($action === 'task_done') db()->prepare('UPDATE crm_tasks SET done_at = IF(done_at IS NULL, NOW(), NULL) WHERE id = ? AND workspace_id = ? AND (user_id = ? OR user_id IS NULL OR ? = 1)')->execute([$tid, $wid, $uid, $canManage ? 1 : 0]);
             else db()->prepare('DELETE FROM crm_tasks WHERE id = ? AND workspace_id = ? AND (user_id = ? OR created_by = ? OR ? = 1)')->execute([$tid, $wid, $uid, $uid, $canManage ? 1 : 0]);
         }

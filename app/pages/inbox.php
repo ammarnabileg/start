@@ -38,7 +38,8 @@ if (isset($_GET['img_proxy'])) {
     curl_close($ch);
     $f = new finfo(FILEINFO_MIME_TYPE);
     $mime = $buf !== '' ? (string)$f->buffer($buf) : '';
-    if ($code >= 400 || strpos($mime, 'image/') !== 0) { http_response_code(404); exit; }
+    if ($code >= 400 || !in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)) { http_response_code(404); exit; }
+    header("Content-Security-Policy: sandbox; default-src 'none'");
     header('Content-Type: ' . $mime);
     header('Cache-Control: private, max-age=600');
     header('X-Content-Type-Options: nosniff');

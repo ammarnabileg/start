@@ -20,6 +20,7 @@ function smsgate_base(array $c): string
         if (!preg_match('#^https://#', $u)) throw new SmsGateException(t('رابط السيرفر الخاص لازم يبدأ بـ https://'));
         $hh = (string)parse_url($u, PHP_URL_HOST); $ips = filter_var($hh, FILTER_VALIDATE_IP) ? [$hh] : (gethostbynamel($hh) ?: []);
         if (!$ips || (function_exists('safe_fetch_public_ip') && array_filter($ips, function ($i) { return !safe_fetch_public_ip($i); }))) throw new SmsGateException(t('رابط السيرفر الخاص لازم يكون عنوان عام.'));
+        $GLOBALS['smsgate_pin'] = [$hh . ':' . ((int)parse_url($u, PHP_URL_PORT) ?: 443) . ':' . $ips[0]];
         return $u . '/api/3rdparty/v1';
     }
     return 'https://api.sms-gate.app/3rdparty/v1';
@@ -29,7 +30,8 @@ function smsgate_base(array $c): string
 function smsgate_request(array $c, string $method, string $path, $body = null)
 {
     if (trim((string)($c['user'] ?? '')) === '' || (string)($c['pass'] ?? '') === '') throw new SmsGateException(t('اكتب اسم المستخدم وكلمة السر من التطبيق.'));
-    $ch = curl_init(smsgate_base($c) . $path);
+    $GLOBALS['smsgate_pin'] = null; $ch = curl_init(smsgate_base($c) . $path);
+    if (!empty($GLOBALS['smsgate_pin'])) curl_setopt_array($ch, [CURLOPT_RESOLVE => $GLOBALS['smsgate_pin'], CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]);
     $h = ['Accept: application/json'];
     if ($body !== null) $h[] = 'Content-Type: application/json';
     curl_setopt_array($ch, [
@@ -74,7 +76,7 @@ function smsgate_register_hooks(array $c): int
 {
     $url = smsgate_hook_url($c);
     foreach ((array)smsgate_request($c, 'GET', '/webhooks') as $w) {
-        if (is_array($w) && strpos((string)($w['url'] ?? ''), substr($url, 0, (int)strpos($url, '&t=') + 3)) === 0 && !empty($w['id'])) smsgate_request($c, 'DELETE', '/webhooks/' . rawurlencode((string)$w['id']));
+        if (is_array($w) && (function ($wu) { parse_str((string)parse_url($wu, PHP_URL_QUERY), $q); return ($q['p'] ?? '') === 'smsgate_hook' && (int)($q['w'] ?? 0) === (int)ws('id'); })((string)($w['url'] ?? '')) && !empty($w['id'])) smsgate_request($c, 'DELETE', '/webhooks/' . rawurlencode((string)$w['id']));
     }
     $n = 0;
     foreach (['sms:received', 'sms:sent', 'sms:delivered', 'sms:failed'] as $ev) { smsgate_request($c, 'POST', '/webhooks', ['url' => $url, 'event' => $ev]); $n++; }
@@ -83,6 +85,7 @@ function smsgate_register_hooks(array $c): int
 
 function smsgate_norm(string $phone, ?int $wid = null): string
 {
+    if (preg_match('/\p{L}/u', $phone)) return mb_substr(trim($phone), 0, 40); // مرسل بالاسم
     $p = preg_replace('/[^\d+]/', '', $phone);
     if ($p === '') return '';
     if (strpos($p, '00') === 0) return '+' . substr($p, 2);

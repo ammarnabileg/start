@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'password':
             $pass = (string)($_POST['password'] ?? '');
             if (strlen($pass) < 8) { flash('error', t('كلمة السر لازم تكون 8 حروف على الأقل.')); break; }
-            $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([password_hash($pass, PASSWORD_DEFAULT), $id]);
+            $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([password_hash($pass, PASSWORD_DEFAULT), $id]); try { $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$id]); } catch (Throwable $e) {}
             log_activity('admin.user_password', $u['email']);
             flash('success', t('اتغيرت كلمة سر %s.', $u['name']));
             break;
