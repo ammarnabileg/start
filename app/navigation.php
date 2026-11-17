@@ -49,8 +49,10 @@ function nav_items(): array
         ['key' => 'crm_capture', 'label' => t('المصادر والإعدادات'), 'section' => $s2, 'module' => 'crm', 'also' => ['leads', 'crm_settings']],
         ['key' => 'competitors', 'module' => 'competitors', 'label' => t('المنافسين'), 'section' => $s2],
         ['key' => 'crm_reports', 'label' => t('تقارير المبيعات'), 'section' => $s2, 'module' => 'crm'],
-        ['key' => 'studio', 'module' => 'studio', 'label' => t('استوديو المحتوى'), 'section' => $sC,
-            'tabs' => ['studio' => t('الكتابة بالذكاء الاصطناعي'), 'studio_media' => t('الصور والفيديو'), 'designer' => t('المصمم')], 'flat' => true], // بند واحد في القائمة، والتنقل بين الأقسام من أعلى الصفحة
+        // استوديو المحتوى: 3 بنود رئيسية مباشرة (من غير قائمة منسدلة)
+        ['key' => 'studio', 'module' => 'studio', 'label' => t('الكتابة بالذكاء الاصطناعي'), 'section' => $sC],
+        ['key' => 'studio_media', 'module' => 'studio', 'label' => t('الصور والفيديو'), 'section' => $sC],
+        ['key' => 'designer', 'module' => 'studio', 'label' => t('المصمم'), 'section' => $sC],
         ['key' => 'compose', 'module' => 'publishing', 'label' => t('منشور جديد'), 'section' => $s3],
         ['key' => 'posts', 'module' => 'publishing', 'label' => t('المنشورات'), 'section' => $s3,
             // التقويم مش صفحة لوحده: هو طريقة عرض جوه «المنشورات» (قائمة / تقويم)

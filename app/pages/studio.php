@@ -35,9 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $base = mb_substr(trim((string)($_POST['base'] ?? '')), 0, 4000);
     if ($base !== '' && isset($hows[$_POST['how'] ?? ''])) { $n = 1; $user = "Rewrite this content. {$hows[$_POST['how']]} Keep facts unchanged.\n\n" . $base;
         $sys = str_replace('with exactly ' . max(1, min(6, (int)($_POST['n'] ?? 3))) . ' items', 'with exactly 1 items', $sys); }
-    try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], 2200, 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
-    $txt = (string)($r['text'] ?? ''); if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
-    $d = json_decode($txt, true); $items = [];
+    // المساحة على قد عدد النسخ: 2200 كانت بتقطع منشورات لينكدإن الطويلة في النص فالـ JSON يبوظ
+    try { $r = ai_chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => $user]], min(7000, 900 + 1300 * $n), 'compose'); } catch (Throwable $e) { $J(['error' => $e->getMessage()], 502); }
+    $raw = trim((string)($r['text'] ?? '')); $txt = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $raw);
+    if (preg_match('/\{.*\}/s', $txt, $m)) $txt = $m[0];
+    $d = json_decode($txt, true);
+    if (is_array($d) && array_is_list($d)) $d = ['items' => $d]; // رجّع مصفوفة على طول
+    if (!is_array($d) || empty($d['items'])) { // اتقطع في النص: ناخد النسخ اللي اكتملت
+        $d = ['items' => []]; if (preg_match_all('/\{(?:[^{}]|\{[^{}]*\})*"text"\s*:(?:[^{}]|\{[^{}]*\})*\}/su', $txt, $mm)) foreach ($mm[0] as $o) { $x = json_decode($o, true); if (is_array($x)) $d['items'][] = $x; }
+        if (!$d['items'] && $raw !== '' && $raw[0] !== '{' && $raw[0] !== '[') $d['items'][] = ['title' => '', 'text' => $raw]; // نص عادي من غير JSON
+    }
+    $items = [];
     foreach ((array)($d['items'] ?? []) as $it) {
         if (!is_array($it) || trim((string)($it['text'] ?? '')) === '') continue;
         $tags = array_values(array_filter(array_map(function ($h) { $h = trim((string)$h); return $h === '' ? '' : ($h[0] === '#' ? $h : '#' . $h); }, (array)($it['hashtags'] ?? []))));
