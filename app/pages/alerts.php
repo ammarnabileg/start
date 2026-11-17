@@ -62,6 +62,7 @@ $st->execute([$wid]);
 foreach ($st->fetchAll() as $r) $stats[$r['rule']] = $r;
 
 render(t('التنبيهات'), 'alerts', function () use ($alerts, $rules, $catalog, $canManage, $hasApi, $unseen, $lastEval, $stats, $crmList, $canCrm, $canAn) {
+    if (can('posts.manage')) { try { $aq = db()->prepare("SELECT COUNT(*) FROM post_approvals WHERE workspace_id = ? AND status = 'pending'"); $aq->execute([(int)ws('id')]); $apN = (int)$aq->fetchColumn(); if ($apN) echo '<a href="' . e(url('approvals')) . '" class="card p-4 mb-4 flex items-center gap-3 border-amber-200 bg-amber-50 text-amber-900">' . ui_icon('clock', 'w-5 h-5') . '<b class="flex-1">' . e(t('%s منشورات بانتظار موافقتك', $apN)) . '</b><span class="text-sm">' . e(t('راجعها الآن')) . '</span></a>'; } catch (Throwable $e) {} } // الجرس بيعدّها: لازم تبان هنا
     if ($canCrm): $cu = count(array_filter($crmList, function ($x) { return !(int)$x['seen']; })); ?>
     <div class="card p-5 mb-5" id="notifs">
       <div class="flex flex-wrap items-center gap-2 mb-3">
