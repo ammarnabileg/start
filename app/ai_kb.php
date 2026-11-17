@@ -575,6 +575,7 @@ function kb_file_store(int $wid, string $name, string $mime, int $size, string $
         if (($_POST['keep_name'] ?? '') === '1') { $st = db()->prepare("UPDATE kb_files SET method = ?, content = ? WHERE id = ? AND workspace_id = ?"); $st->execute([$method, $text, $rid, $wid]); }
         else { $st = db()->prepare("UPDATE kb_files SET name = ?, mime = ?, size = ?, method = ?, content = ? WHERE id = ? AND workspace_id = ?"); $st->execute([$name, $mime, $size, $method, $text, $rid, $wid]); }
         if ($st->rowCount() || db()->query("SELECT 1 FROM kb_files WHERE id = " . $rid . " AND workspace_id = " . $wid)->fetchColumn()) { $GLOBALS['kb_last_id'] = $rid; return; }
+        throw new RuntimeException(t('الملف اتحذف أثناء التحديث. أعد تحميل الصفحة.')); // مانرجعش ملف محذوف
     }
     db()->prepare("INSERT INTO kb_files (workspace_id, name, mime, size, method, content) VALUES (?, ?, ?, ?, ?, ?)")->execute([$wid, $name, $mime, $size, $method, $text]);
     $GLOBALS['kb_last_id'] = (int)db()->lastInsertId();
@@ -588,7 +589,7 @@ function kb_orig(int $wid, int $id): ?string
     return null;
 }
 function kb_orig_del(int $wid, int $id): void { foreach ((array)glob(kb_orig_dir($wid) . '/' . $id . '.*') as $f) @unlink($f); }
-function kb_orig_ext(string $name): string { $e = strtolower(pathinfo($name, PATHINFO_EXTENSION)); return preg_match('/^[a-z0-9]{1,5}$/', $e) ? $e : 'bin'; }
+function kb_orig_ext(string $name): string { $e = strtolower(pathinfo($name, PATHINFO_EXTENSION)); return in_array($e, ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'txt', 'md', 'pptx', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'rtf', 'odt'], true) ? $e : 'bin'; } // امتدادات معروفة بس (مفيش php/html على السيرفر)
 function kb_orig_save(int $wid, int $id, string $tmp, string $name): void
 {
     $d = kb_orig_dir($wid); if (!is_dir($d)) @mkdir($d, 0750, true);

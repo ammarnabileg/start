@@ -42,6 +42,7 @@ auth_page(t('سجّل دخولك'), function () use ($email, $canRegister) {
       <?= auth_input('email', t('الإيميل'), 'email', $email, true) ?>
       <label class="block"><span class="text-sm font-semibold"><?= e(t('كلمة السر')) ?></span>
         <input type="password" name="password" required autocomplete="current-password" class="input" dir="ltr"></label>
+      <div class="-mt-3 text-end"><a href="<?= e(url('forgot')) ?>" class="text-xs link"><?= e(t('نسيت كلمة السر؟')) ?></a></div>
       <button class="btn-primary w-full !py-3"><?= e(t('دخول')) ?></button>
     </form>
     <?php if ($canRegister): ?>

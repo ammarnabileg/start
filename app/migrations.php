@@ -528,6 +528,18 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '064_password_resets' => [
+        "CREATE TABLE IF NOT EXISTS password_resets (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            token_hash CHAR(64) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY (token_hash), INDEX (user_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ],
     '063_media_en_folders' => [
         // الفولدرات التلقائية بقت بأسماء إنجليزي
         "UPDATE media_files SET folder = 'AI Generated' WHERE folder IN ('مولدة بالذكاء الاصطناعي', 'مولدة بالذكاء الاصطناعى')",

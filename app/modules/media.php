@@ -90,7 +90,7 @@ function media_store_path(int $wid, string $src, string $name, string $mime, str
     $dir = media_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
     // نفس الملف اترفع قبل كده؟ نرجّع القديم بدل نسخة مكررة
     $hash = @sha1_file($src);
-    if ($hash) { $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND sha1 = ? LIMIT 1'); $st->execute([$wid, $hash]); if ($old = $st->fetch()) { if ($uploaded) @unlink($src); if (!empty($old['deleted_at'])) { db()->prepare('UPDATE media_files SET deleted_at = NULL, folder = ? WHERE id = ?')->execute([mb_substr(trim($folder), 0, 120), $old['id']]); $old = media_get($wid, (int)$old['id']); } return media_row($old) + ['dup' => true]; } }
+    if ($hash) { $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND sha1 = ? LIMIT 1'); $st->execute([$wid, $hash]); if (($old = $st->fetch()) && !is_file(media_file_path($wid, $old))) { db()->prepare('DELETE FROM media_files WHERE id = ?')->execute([(int)$old['id']]); $old = false; } /* السجل ملفه ضايع: نحفظ النسخة الجديدة */ if ($old) { if ($uploaded) @unlink($src); if (!empty($old['deleted_at'])) { db()->prepare('UPDATE media_files SET deleted_at = NULL, folder = ? WHERE id = ?')->execute([mb_substr(trim($folder), 0, 120), $old['id']]); $old = media_get($wid, (int)$old['id']); } return media_row($old) + ['dup' => true]; } }
     $ext = media_types()[$mime] ?? 'bin';
     $fn = date('Ymd') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
     $dest = $dir . '/' . $fn;
