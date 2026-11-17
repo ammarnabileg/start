@@ -243,5 +243,19 @@
       var p = pill(HANDLE || CO, G.W / 2, y + G.u * 44, S, '#fff', G.u * 3, true); o.push(p);
       return { bg: '#ffffff', objs: o }; } },
   ];
+  /* ---------- نسخ من كل قالب: ألوان الهوية مقلوبة، فاتح/داكن، ومقاس تاني (أكتر من 100 قالب بنفس الجودة) ---------- */
+  function lc(c) { return typeof c === 'string' ? c.toLowerCase().replace(/\s+/g, '') : c; }
+  function recolor(map) { return function (r) { var f = function (c) { if (typeof c !== 'string') return c; var k = lc(c); if (map[k] !== undefined) return map[k];
+        var m = /^rgba\((255,255,255|15,23,42),([\d.]+)\)$/.exec(k); if (m && map['rgba:' + m[1]]) return 'rgba(' + map['rgba:' + m[1]] + ',' + m[2] + ')'; return c; };
+      var walk = function (o) { ['fill', 'stroke'].forEach(function (p) { if (typeof o[p] === 'string') o.set(p, f(o[p])); }); if (o.type === 'group' && o.dzRole !== 'ph') o.getObjects().forEach(walk); };
+      r.objs.forEach(walk); if (typeof r.bg === 'string') r.bg = f(r.bg); return r; }; }
+  var SW = {}; SW[lc(P)] = S; SW[lc(S)] = P;
+  var INV = { '#ffffff': S, '#fff': S, '#f4f6fb': '#0b1220', '#fffdf8': S, '#475569': 'rgba(255,255,255,.75)', '#64748b': 'rgba(255,255,255,.65)', '#334155': 'rgba(255,255,255,.85)', '#cbd5e1': 'rgba(255,255,255,.25)', 'rgba:255,255,255': '15,23,42', 'rgba:15,23,42': '255,255,255' }; INV[lc(S)] = '#ffffff';
+  var NEXT = { '1080x1080': '1080x1350', '1080x1350': '1080x1920', '1080x1920': '1080x1350', '1200x628': '1200x628' };
+  var VAR = [];
+  TPLS.forEach(function (base) { var vs = [['swap', tl('vSwap', 'ألوان معكوسة')], ['inv', tl('vInv', 'فاتح / داكن')], [base.size === '1200x628' ? 'both' : 'size', base.size === '1200x628' ? tl('vAlt', 'نسخة بديلة') : (NEXT[base.size] === '1080x1920' ? tl('vStory', 'ستوري') : tl('vTall', 'طولي'))]];
+    vs.forEach(function (v) { var fx = v[0] === 'swap' ? recolor(SW) : v[0] === 'inv' ? recolor(INV) : v[0] === 'both' ? function (r) { return recolor(INV)(recolor(SW)(r)); } : function (r) { return r; };
+      VAR.push({ n: base.n + ' · ' + v[1], cat: base.cat, size: v[0] === 'size' ? NEXT[base.size] : base.size, b: function () { return fx(base.b()); } }); }); });
+  TPLS = TPLS.concat(VAR);
   X.TPL.length = 0; TPLS.forEach(function (t) { X.TPL.push(t); }); if (document.querySelector('#dz-tpls')) X.thumbs();
 })();

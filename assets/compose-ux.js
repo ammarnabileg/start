@@ -442,3 +442,6 @@
 /* استلام نص طويل من الاستوديو أو «كرّره» */
 (function () { if (!/[?&]handoff=1/.test(location.search)) return; var t = null; try { t = sessionStorage.getItem('cp_handoff'); sessionStorage.removeItem('cp_handoff'); } catch (e) {} if (!t) return;
   var ta = document.getElementById('content'); if (!ta) return; ta.value = t; ta.dispatchEvent(new Event('input', { bubbles: true })); })();
+
+/* ?lib= (من المصمم أو المكتبة) بيتطبق مرة واحدة: بعدها نشيله من الرابط عشان الريفرش مايرجّعش الصورة اللي اتشالت */
+(function () { if (!/[?&](lib|dup_text|dup_acc|handoff)=/.test(location.search)) return; try { var u = new URL(location.href); ['lib', 'dup_text', 'dup_acc', 'handoff'].forEach(function (k) { u.searchParams.delete(k); }); setTimeout(function () { history.replaceState(history.state, '', u.toString()); }, 800); } catch (e) {} })();

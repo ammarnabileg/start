@@ -528,6 +528,12 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '063_media_en_folders' => [
+        // الفولدرات التلقائية بقت بأسماء إنجليزي
+        "UPDATE media_files SET folder = 'AI Generated' WHERE folder IN ('مولدة بالذكاء الاصطناعي', 'مولدة بالذكاء الاصطناعى')",
+        "UPDATE media_files SET folder = 'Designs' WHERE folder = 'التصميمات'",
+        "UPDATE settings SET value = REPLACE(REPLACE(value, 'مولدة بالذكاء الاصطناعي', 'AI Generated'), 'التصميمات', 'Designs') WHERE name LIKE 'media\\_folders\\_%'",
+    ],
     '062_perf_company' => [
         // الشركات المستهدفة: ربط الشركة بالأشخاص (10 ثواني مع 20 ألف عميل)
         "ALTER TABLE crm_leads ADD INDEX ws_company (workspace_id, company_id)",

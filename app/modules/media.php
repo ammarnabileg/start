@@ -122,7 +122,7 @@ function media_thumb_path(int $wid, array $r): string
 }
 
 /** ضم صور الذكاء الاصطناعي المولدة (uploads/ai/{wid}) للمكتبة في فولدر لوحده */
-function media_ai_folder(): string { return t('مولدة بالذكاء الاصطناعي'); }
+function media_ai_folder(): string { return 'AI Generated'; } // أسماء الفولدرات التلقائية إنجليزي
 function media_sync_ai(int $wid): int
 {
     if (!function_exists('hf_lib_dir')) return 0;

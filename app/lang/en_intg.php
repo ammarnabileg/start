@@ -6215,4 +6215,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'الصورة غير صالحة.' => 'Invalid image.',
     'تعذر حفظ الصورة.' => 'Could not save the image.',
     'انقطع الاتصال أثناء الكتابة. لم نغيّر نصك، حاول مرة أخرى.' => 'The connection dropped while writing. Your text was not changed; try again.',
+    'ألوان معكوسة' => 'Swapped colors',
+    'فاتح / داكن' => 'Light / dark',
+    'نسخة بديلة' => 'Alternate',
 ];

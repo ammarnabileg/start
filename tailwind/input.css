@@ -224,7 +224,8 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-tpl:not(.ready) { @apply animate-pulse; }
   .dz-tpl span { @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent text-white text-[11px] font-semibold pt-6 pb-1.5 text-center opacity-90 transition; }
   .dz-tpl:hover span { @apply opacity-100; }
-  .dz-cat { @apply rounded-full border border-ink-200 px-2.5 py-1 text-[11px] text-ink-600 hover:border-brand-300; }
+  .dz-chips { @apply flex gap-1 mb-3 -mx-4 px-4 pb-1.5 overflow-x-auto; scrollbar-width: thin; }
+  .dz-cat { @apply shrink-0 whitespace-nowrap rounded-full border border-ink-200 bg-white px-2.5 py-0.5 text-[11px] text-ink-600 hover:border-brand-300; }
   .dz-cat.on { @apply bg-ink-900 border-ink-900 text-white; }
   .dz-stage { @apply relative flex-1 min-w-0 grid place-items-center overflow-auto bg-[repeating-conic-gradient(rgb(var(--ink-100))_0_25%,rgb(var(--ink-50))_0_50%)] bg-[length:24px_24px]; }
   .dz-wrap { @apply shadow-[0_20px_60px_-15px_rgba(15,23,42,.35)]; }

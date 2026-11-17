@@ -95,13 +95,15 @@
   ly.addEventListener('dragend', function () { dragI = -1; drawLayers(); });
 
   /* ---------- 5) العناصر ---------- */
-  function badge(t, kind) { var fs = X.W * 0.04, tx = new fabric.Textbox(t, { fontSize: fs, fontWeight: 900, fill: kind === 2 ? S : '#fff', fontFamily: X.isAr(t) ? 'Cairo' : 'Inter', textAlign: 'center', originX: 'center', originY: 'center', width: fs * Math.max(4, t.length * 0.62) });
-    var bg;
-    if (kind === 0) { var pts = []; for (var i = 0; i < 24; i++) { var r = i % 2 ? tx.width * 0.62 : tx.width * 0.74, a = Math.PI / 12 * i; pts.push({ x: r * Math.cos(a), y: r * Math.sin(a) }); } bg = new fabric.Polygon(pts, { fill: '#dc2626', originX: 'center', originY: 'center' }); }
-    else if (kind === 1) bg = new fabric.Rect({ width: tx.width + fs * 1.6, height: fs * 2, rx: fs, ry: fs, fill: P, originX: 'center', originY: 'center' });
-    else if (kind === 2) bg = new fabric.Rect({ width: tx.width + fs * 1.6, height: fs * 2, rx: 6, ry: 6, fill: A, originX: 'center', originY: 'center', angle: -4 });
-    else bg = new fabric.Path('M0 0 H' + (tx.width + fs * 2) + ' L' + (tx.width + fs * 1.2) + ' ' + fs + ' L' + (tx.width + fs * 2) + ' ' + fs * 2 + ' H0 L' + fs * 0.8 + ' ' + fs + ' Z', { fill: S, originX: 'center', originY: 'center' });
-    return new fabric.Group([bg, tx], { dzC: 1 }); }
+  // الملصق على اللوحة = نفس شكل المعاينة بالظبط (نص سطر واحد مقاس فعلي، والخلفية على قده)
+  function badge(t, kind) { var fs = X.W * 0.04, ar = X.isAr(t);
+    var tx = new fabric.Text(t, { fontSize: fs, fontWeight: 800, fill: kind === 2 ? S : '#fff', fontFamily: ar ? 'Cairo' : 'Inter', originX: 'center', originY: 'center', direction: ar ? 'rtl' : 'ltr' });
+    var w = tx.width + fs * 1.9, h = fs * 2.05, bg;
+    if (kind === 0) bg = new fabric.Rect({ width: w, height: h, rx: h / 2, ry: h / 2, fill: '#dc2626', originX: 'center', originY: 'center' });
+    else if (kind === 1) bg = new fabric.Rect({ width: w, height: h, rx: h / 2, ry: h / 2, fill: P, originX: 'center', originY: 'center' });
+    else if (kind === 2) bg = new fabric.Rect({ width: w, height: h, rx: fs * 0.15, ry: fs * 0.15, fill: A, originX: 'center', originY: 'center' });
+    else { w = tx.width + fs * 2.6; bg = new fabric.Polygon([{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w * 0.9, y: h / 2 }, { x: w, y: h }, { x: 0, y: h }, { x: w * 0.08, y: h / 2 }], { fill: S, originX: 'center', originY: 'center' }); }
+    var g = new fabric.Group([bg, tx], { dzC: 1 }); if (kind === 2) g.set('angle', -4); return g; }
   var STK = L.stk.map(function (t, i) { return { t: t, k: i % 4 }; });
   $('dz-stk').innerHTML = STK.map(function (s, i) { var st = ['background:#dc2626;color:#fff;border-radius:999px', 'background:' + P + ';color:#fff;border-radius:999px', 'background:' + A + ';color:' + S + ';transform:rotate(-4deg)', 'background:' + S + ';color:#fff;clip-path:polygon(0 0,100% 0,90% 50%,100% 100%,0 100%,8% 50%)'][s.k];
     return '<button type="button" class="dz-el" data-stk="' + i + '" data-q="' + esc(s.t) + '"><span style="' + st + ';padding:.35rem 1.1rem;white-space:nowrap;font-weight:800;font-size:12px;display:inline-block">' + esc(s.t) + '</span></button>'; }).join('');
