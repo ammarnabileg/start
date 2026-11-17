@@ -82,7 +82,15 @@ function smsgate_register_hooks(array $c): int
 function smsgate_norm(string $phone): string
 {
     $p = preg_replace('/[^\d+]/', '', $phone);
-    return $p === '' ? '' : ($p[0] === '+' ? $p : (strlen($p) > 9 ? '+' . $p : $p));
+    if ($p === '') return '';
+    if (strpos($p, '00') === 0) return '+' . substr($p, 2);
+    if ($p[0] === '+') return $p;
+    // رقم محلي (01xxxxxxxxx): الصفر الأول = كود دولة الشركة
+    $cc = ['EG' => '20', 'SA' => '966', 'AE' => '971', 'KW' => '965', 'QA' => '974', 'BH' => '973', 'OM' => '968', 'JO' => '962', 'LB' => '961', 'IQ' => '964', 'MA' => '212', 'DZ' => '213', 'TN' => '216', 'LY' => '218', 'SD' => '249', 'YE' => '967', 'PS' => '970', 'SY' => '963'][function_exists('ws_country') ? (string)ws_country() : 'EG'] ?? '';
+    if ($p[0] === '0' && $cc !== '' && strlen($p) >= 8) return '+' . $cc . substr($p, 1);
+    if ($cc !== '' && strpos($p, $cc) === 0 && strlen($p) > 10) return '+' . $p; // مكتوب بالكود من غير +
+    if ($p[0] !== '0' && strlen($p) >= 11) return '+' . $p; // رقم دولي مكتوب من غير +
+    return $p; // قصير ومش واضح: نسيبه زي ما هو بدل ما نخمّن
 }
 
 function smsgate_log(int $wid, string $dir, string $phone, string $body, string $ext = '', string $state = '', ?int $sim = null, ?int $by = null, ?string $at = null): int

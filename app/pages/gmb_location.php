@@ -42,6 +42,10 @@ function gmb_money(?array $p): string
     return rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc && !can('gmb.manage')) {
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('تعديل الفرع يحتاج صلاحية إدارة Google Business.')], JSON_UNESCAPED_UNICODE)); }
+    flash('error', t('تعديل الفرع يحتاج صلاحية إدارة Google Business.')); redirect($_SERVER['REQUEST_URI'] ?? url('gmb_location'));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     $action = (string)($_POST['action'] ?? '');
     $acc = $loc['account'];

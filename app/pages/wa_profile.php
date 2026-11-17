@@ -20,6 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc && wa_is_sandbox($accoun
     flash('error', t('مينفعش تعدل على الرقم التجريبي.'));
     redirect(url('wa_profile', ['wa' => $acc]));
 }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc && !can('whatsapp.manage')) {
+    flash('error', t('تعديل ملف واتساب لصاحب صلاحية إدارة واتساب فقط.'));
+    redirect(url('wa_profile', ['wa' => $acc]));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $acc) {
     $action = (string)($_POST['action'] ?? '');
     try {

@@ -253,10 +253,10 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
         // صور مكتبة الوسائط (lib:ID) → رابط عام. بتترفع لـ Zernio أول مرة بس وبيتحفظ رابطها
         $wid = (int)ws('id');
         $libMap = [];
-        $csv = preg_replace_callback('/\blib:(\d+)\b/', function ($m) use ($z, $wid, &$libMap) {
+        $csv = preg_replace_callback('/\blib:(\d+)\b/', function ($m) use ($z, $wid, &$libMap, $dry) {
             $id = (int)$m[1];
             if (!isset($libMap[$id])) {
-                try { $libMap[$id] = media_public_url($z, $wid, $id, 'bulk'); }
+                try { $libMap[$id] = media_public_url($z, $wid, $id, $dry ? '' : 'bulk'); }
                 catch (Throwable $t) { $libMap[$id] = 'missing-media-' . $id; }
             }
             return $libMap[$id];

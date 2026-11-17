@@ -27,7 +27,8 @@ if (isset($_GET['zip'])) {
     foreach ($ids as $id) { $r = media_get($wid, $id); if (!$r) continue; $p = media_file_path($wid, $r); if (!is_file($p)) continue;
         $n = preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $base = $n; $k = 2; while (isset($used[mb_strtolower($n)])) { $n = preg_replace('/(\.[^.]+)?$/', ' (' . $k++ . ')$1', $base, 1); } $used[mb_strtolower($n)] = 1;
         $z->addFile($p, ($r['folder'] !== '' ? $r['folder'] . '/' : '') . $n); }
-    $z->close();
+    $cnt = $z->numFiles; $z->close();
+    if (!$cnt) { @unlink($tmp); http_response_code(404); exit(t('لا توجد ملفات صالحة للتحميل.')); }
     header('Content-Type: application/zip'); header('Content-Length: ' . filesize($tmp)); header('Content-Disposition: attachment; filename="media-' . date('Y-m-d') . '.zip"');
     readfile($tmp); @unlink($tmp); exit;
 }
@@ -79,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'delete') { media_trash($wid, $ids); log_activity('media.trash', (string)count($ids)); $json(['ok' => true]); }
     if ($act === 'restore') { media_restore($wid, $ids); $json(['ok' => true]); }
     if ($act === 'purge') { foreach ($ids as $x) { $r = media_get($wid, $x); if ($r && $r['deleted_at']) media_delete($wid, $x); } log_activity('media.delete', (string)count($ids)); $json(['ok' => true]); }
-    if ($act === 'empty_trash') { foreach (media_list($wid, ['trash' => true]) as $r) media_delete($wid, $r['id']); $json(['ok' => true]); }
+    if ($act === 'empty_trash') { $st = db()->prepare('SELECT id FROM media_files WHERE workspace_id = ? AND deleted_at IS NOT NULL'); $st->execute([$wid]); foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $x) media_delete($wid, (int)$x); $json(['ok' => true]); }
     if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ?')->execute([$on, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'folder_rename') { // بيغيّر الفولدر وكل اللي جواه
         $old = $fclean($_POST['from'] ?? ''); $new = $fclean($_POST['to'] ?? ''); if ($old === '' || $new === '') $json(['ok' => false]);

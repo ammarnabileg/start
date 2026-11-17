@@ -46,7 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             }
             $b = wa_create_broadcast($z, $payload);
             $newId = (string)($b['id'] ?? '');
-            $r = wa_add_broadcast_recipients($z, $newId, $mode === 'tags' ? ['useSegment' => true] : ['contactIds' => $contactIds]);
+            if ($newId === '') throw new ZernioException(t('لم يرجع رقم الحملة. حاول مرة أخرى.'));
+            try { $r = wa_add_broadcast_recipients($z, $newId, $mode === 'tags' ? ['useSegment' => true] : ['contactIds' => $contactIds]); } catch (ZernioException $ex2) { flash('error', t('اتعملت الحملة كمسودة لكن إضافة المستلمين فشلت: %s', $ex2->getMessage())); redirect(url('broadcasts', ['id' => $newId])); }
             log_activity('broadcast.create', $name);
             flash('success', t('المسودة اتعملت واتضاف %s مستلم (اتساب %s). راجعها قبل الإرسال.', (int)($r['added'] ?? 0), (int)($r['skipped'] ?? 0)));
             redirect(url('broadcasts', ['id' => $newId, 'wa' => $acc]));
@@ -81,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
                     flash('success', t('الحملة اتجدولت.'));
                 }
             }
+        } elseif ($action === 'cancel' && !can('whatsapp.manage')) {
+            flash('error', t('إلغاء الحملة لصاحب صلاحية إدارة واتساب فقط.'));
         } elseif ($action === 'cancel') {
             wa_broadcast_action($z, $bid, 'cancel');
             log_activity('broadcast.cancel', $bid);

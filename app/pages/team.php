@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'role_save') {
         $name = trim((string)($_POST['name'] ?? ''));
         $perms = array_values(array_intersect((array)($_POST['perms'] ?? []), all_permissions()));
+        if (!is_ws_owner()) $perms = array_values(array_intersect($perms, role_permissions((string)ws('my_role'), $wid))); // مفيش ترقية لنفسك عن طريق دور جديد
         $rid = (int)($_POST['role_id'] ?? 0);
         if ($name === '') {
             flash('error', t('اكتب اسم الدور.'));

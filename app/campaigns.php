@@ -62,15 +62,19 @@ function camp_tick(int $wid, int $max = 5): int
         $room = min($max - $done, (int)$camp['per_minute'] - (int)$st->fetchColumn());
         if ($room <= 0) continue;
         // بنحجز العناصر عشان لو اتشغّل مرتين في نفس الوقت مايتبعتش لنفس العميل مرتين
+        // رسايل اتحجزت ووقفت في النص (التشغيل اتقطع) من أكتر من 10 دقايق: ترجع للطابور
+        $pdo->prepare("UPDATE msg_campaign_items SET status = 'queued', sent_at = NULL WHERE campaign_id = ? AND status = 'sending' AND (sent_at IS NULL OR sent_at < ?)")->execute([$camp['id'], gmdate('Y-m-d H:i:s', time() - 600)]);
         $ids = $pdo->query("SELECT id FROM msg_campaign_items WHERE campaign_id = " . (int)$camp['id'] . " AND status = 'queued' ORDER BY id LIMIT " . (int)$room)->fetchAll(PDO::FETCH_COLUMN);
         if (!$ids) {
-            $pdo->prepare("UPDATE msg_campaigns SET status = 'done', finished_at = NOW() WHERE id = ?")->execute([$camp['id']]);
+            $st2 = $pdo->prepare("SELECT COUNT(*) FROM msg_campaign_items WHERE campaign_id = ? AND status IN ('queued','sending')"); $st2->execute([$camp['id']]);
+            if (!(int)$st2->fetchColumn()) $pdo->prepare("UPDATE msg_campaigns SET status = 'done', finished_at = NOW() WHERE id = ?")->execute([$camp['id']]);
             continue;
         }
-        $in = implode(',', array_map('intval', $ids));
-        $pdo->exec("UPDATE msg_campaign_items SET status = 'sending' WHERE id IN ($in) AND status = 'queued'");
-        $z = zernio_or_null();
-        foreach ($pdo->query("SELECT * FROM msg_campaign_items WHERE id IN ($in) AND status = 'sending'")->fetchAll() as $it) {
+        $z = zernio_or_null(); $claim = $pdo->prepare("UPDATE msg_campaign_items SET status = 'sending', sent_at = NOW() WHERE id = ? AND status = 'queued'");
+        foreach ($ids as $iid) {
+            // حجز ذرّي لكل رسالة: لو تشغيل تاني سبقنا عليها، نسيبها له (مافيش إرسال مرتين)
+            $claim->execute([(int)$iid]); if ($claim->rowCount() !== 1) continue;
+            $sti = $pdo->prepare('SELECT * FROM msg_campaign_items WHERE id = ?'); $sti->execute([(int)$iid]); $it = $sti->fetch(); if (!$it) continue;
             try {
                 $text = camp_render($camp, $it);
                 if (getenv('CAMPAIGN_DRY_RUN')) { usleep(50000); }

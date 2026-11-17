@@ -310,6 +310,11 @@ function img_trim_bands(string $bytes): string
     $min = 0.06;
     if ($l < $w * $min) $l = 0; if ($r < $w * $min) $r = 0; if ($t < $h * $min) $t = 0; if ($b < $h * $min) $b = 0;
     if (!$l && !$r && !$t && !$b) { imagedestroy($im); return $bytes; }
+    // 3 أو 4 حواف سادة = غالبًا عنصر في نص خلفية سادة (صورة منتج): مانلمسهاش
+    if ((int)(bool)$l + (int)(bool)$r + (int)(bool)$t + (int)(bool)$b >= 3) { imagedestroy($im); return $bytes; }
+    // لو نفس لون الشريط مالي جزء كبير من وسط الصورة، فهو جزء من التصميم مش شريط زيادة
+    $same = 0; $tot = 0; for ($x = (int)($w * 0.3); $x < $w * 0.7; $x += max(1, intdiv($w, 80))) for ($y = (int)($h * 0.3); $y < $h * 0.7; $y += max(1, intdiv($h, 80))) { $c = imagecolorat($im, $x, $y); $tot++; if (abs((($c >> 16) & 255) - $rr) + abs((($c >> 8) & 255) - $rg) + abs(($c & 255) - $rb) <= 40) $same++; }
+    if ($tot && $same / $tot > 0.35) { imagedestroy($im); return $bytes; }
     $cw = $w - $l - $r; $ch = $h - $t - $b; if ($cw < $w * 0.4 || $ch < $h * 0.4) { imagedestroy($im); return $bytes; }
     // نرجع لنسبة الصورة الأصلية بقص من المنتصف، وبعدين نكبّر لنفس المقاس
     $ratio = $w / $h; if ($cw / $ch > $ratio) { $nw = (int)round($ch * $ratio); $l += intdiv($cw - $nw, 2); $cw = $nw; } else { $nh = (int)round($cw / $ratio); $t += intdiv($ch - $nh, 2); $ch = $nh; }

@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         } catch (Throwable $ex) { echo json_encode(['ok' => false, 'error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE); }
         exit;
     }
+    if (!can('gmb.manage')) { flash('error', t('الرد على التقييمات يحتاج صلاحية إدارة Google Business.')); redirect(url('gmb_reviews')); }
     $reviewId = (string)($_POST['review_id'] ?? '');
     $accId = (string)($_POST['account_id'] ?? '');
     $isGmb = !empty($_POST['gmb']);

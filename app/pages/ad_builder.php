@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         log_activity('ads.builder_step', $b['id'] . ' #' . $i);
         echo json_encode(['ok' => true, 'step' => $i, 'warn' => $warn, 'finished' => $fin, 'progress' => $pr], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $ex) {
-        $unk = $ex instanceof AbCreatedNoId; $pr['inflight'] = $unk ? $i : null; $pr['errors'][$i] = $ex->getMessage();
+        $unk = $ex instanceof AbCreatedNoId || ($ex instanceof ZernioException && ((int)$ex->status === 0 || (int)$ex->status >= 500)); $pr['inflight'] = $unk ? $i : null; $pr['errors'][$i] = $ex->getMessage();
         ab_set_progress($wid, $b['id'], 'failed', $pr);
         echo json_encode(['ok' => false, 'unknown' => $unk, 'step' => $i, 'error' => $ex->getMessage(), 'progress' => $pr], JSON_UNESCAPED_UNICODE);
     }

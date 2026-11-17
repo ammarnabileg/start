@@ -60,8 +60,12 @@
         var a = v[i], b = v[i + 1];
         $('select.wa-tpl', a).value = $('select.wa-tpl', b).value; $('select.wa-tpl', a).dispatchEvent(new Event('change', { bubbles: true }));
         $('.sq-d', a).value = $('.sq-d', b).value; $('.sq-u', a).value = $('.sq-u', b).value;
+        // اختيارات المتغيرات ({{1}} = الاسم / نص ثابت ...) لازم تتنقل مع القالب
+        var fa = a.querySelectorAll('.wa-field'), fb = b.querySelectorAll('.wa-field'), ca = a.querySelectorAll('.wa-custom'), cb = b.querySelectorAll('.wa-custom');
+        for (var n = 0; n < fa.length; n++) { if (fb[n]) { fa[n].value = fb[n].value; fa[n].dispatchEvent(new Event('change', { bubbles: true })); } if (ca[n] && cb[n]) { ca[n].value = cb[n].value; ca[n].hidden = cb[n].hidden; ca[n].className = cb[n].className; } }
       }
       var last = v[v.length - 1];
+      last.querySelectorAll('.wa-field').forEach(function (x) { x.selectedIndex = 0; }); last.querySelectorAll('.wa-custom').forEach(function (x) { x.value = ''; });
       $('select.wa-tpl', last).value = ''; $('select.wa-tpl', last).dispatchEvent(new Event('change', { bubbles: true }));
       last.style.display = 'none'; paint();
     };
