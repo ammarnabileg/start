@@ -413,3 +413,17 @@
   box.addEventListener('change', apply);
   document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('acc')) setTimeout(apply, 0); });
 })();
+
+/* الذكاء الاصطناعي مبني على نص المستخدم: النجمة تختفي لو الخانة فاضية (ونجمة الوسائط تظهر لو فيه نص أو صورة) */
+(function () {
+  var ta = document.getElementById('content'); if (!ta) return;
+  function hasImg() { return [].some.call((document.getElementById('mediaInput') || {}).files || [], function (f) { return /^image\//.test(f.type); }) || !!document.querySelector('#libMedia img'); }
+  function sync() {
+    var has = ta.value.trim() !== '', wrap = ta.parentNode, sp = wrap && wrap.querySelector('.ai-spark');
+    if (sp) sp.classList.toggle('hidden', !has);
+    var m = document.getElementById('mai'); if (m) m.classList.toggle('hidden', !has && !hasImg());
+  }
+  ta.addEventListener('input', sync); document.addEventListener('change', sync);
+  var lm = document.getElementById('libMedia'); if (lm && window.MutationObserver) new MutationObserver(sync).observe(lm, { childList: true });
+  sync(); setTimeout(sync, 300); window.addEventListener('load', sync);
+})();
