@@ -340,6 +340,8 @@ if (!in_array($status, $validStatus, true)) $status = '';
 if (isset($_GET['view'])) $_SESSION['posts_view'] = $_GET['view'] === 'cal' ? 'cal' : 'list';
 $view = ($_GET['view'] ?? ($_SESSION['posts_view'] ?? 'list')) === 'cal' ? 'cal' : 'list';
 $pageNo = max(1, (int)($_GET['n'] ?? 1));
+// الترتيب على كل المنشورات (مش الصفحة الحالية بس): بنجيب الكل (لحد 1000) ونرتب هنا
+$sort = in_array($_GET['sort'] ?? '', ['new', 'old', 'soon', 'late', 'st', 'plat', 'eng', 'rate', 'imp', 'likes', 'cm'], true) ? $_GET['sort'] : '';
 $posts = [];
 $pages = 1;
 $total = null;
@@ -352,7 +354,8 @@ if ($z && $fixture && is_file($fixture)) {
     foreach ($fx['posts'] ?? [] as $p) if ($status === '' || ($p['status'] ?? '') === $status) $posts[] = $p;
     foreach ($fx['accounts'] ?? [] as $acc) $accounts[$acc['_id']] = ['name' => $acc['displayName'] ?? '', 'pic' => '', 'plat' => $acc['platform'] ?? ''];
     $total = count($posts);
-    if ($view === 'list' && ($per = (int)($fx['per_page'] ?? 0)) > 0) { $pages = (int)ceil($total / $per); $posts = array_slice($posts, ($pageNo - 1) * $per, $per); } // اختبار الصفحات
+    $psPer = (int)($fx['per_page'] ?? 0);
+    if ($view === 'list' && !$sort && ($per = $psPer) > 0) { $pages = (int)ceil($total / $per); $posts = array_slice($posts, ($pageNo - 1) * $per, $per); } // اختبار الصفحات
 } elseif ($z) {
     // كل طلبات الصفحة لـ Zernio مع بعض (كانت 7 طلبات ورا بعض = ثواني كتير)
     if (method_exists($z, 'prefetch')) { try {
@@ -380,8 +383,12 @@ if ($z && $fixture && is_file($fixture)) {
             $seen = [];
             foreach (array_merge($a, $b) as $p) { $id = (string)($p['_id'] ?? ''); if ($id === '' || isset($seen[$id])) continue; $seen[$id] = 1; if ($status === '' || ($p['status'] ?? '') === $status) $posts[] = $p; }
         } else {
+            if ($sort) {
+                $posts = []; for ($pg = 1; $pg <= 10; $pg++) { $r = $z->posts(['status' => $status ?: null, 'page' => $pg, 'limit' => 100, 'sortBy' => 'created-desc', 'profileId' => zernio_profile()]); $posts = array_merge($posts, (array)($r['posts'] ?? [])); if ($pg >= (int)($r['pagination']['pages'] ?? 1)) break; }
+                $r = ['pagination' => ['pages' => 1, 'total' => $r['pagination']['total'] ?? count($posts)]];
+            } else
             $r = $z->posts(['status' => $status ?: null, 'page' => $pageNo, 'limit' => 24, 'sortBy' => $status === 'scheduled' ? 'scheduled-asc' : 'created-desc', 'profileId' => zernio_profile()]);
-            $posts = $r['posts'] ?? [];
+            $posts = $sort ? $posts : ($r['posts'] ?? []);
             $pages = max(1, (int)($r['pagination']['pages'] ?? 1));
             $total = isset($r['pagination']['total']) ? (int)$r['pagination']['total'] : null;
         }
@@ -413,6 +420,22 @@ foreach ($apiRows as $r) {
     foreach ($keys as $k) $metrics[$k] = $row;
 }
 
+if ($sort && $view === 'list') {
+    $mOf = function ($p) use ($metrics) { if (isset($metrics[$p['_id'] ?? ''])) return $metrics[$p['_id']]; foreach ((array)($p['platforms'] ?? []) as $pl) if (!empty($pl['platformPostId']) && isset($metrics[$pl['platformPostId']])) return $metrics[$pl['platformPostId']]; return null; };
+    $tOf = function ($p) { return strtotime((string)($p['scheduledFor'] ?? $p['publishedAt'] ?? $p['createdAt'] ?? '')) ?: 0; };
+    $now = time(); $R = ['failed' => 0, 'partial' => 0, 'scheduled' => 1, 'draft' => 2, 'published' => 3];
+    $pfOf = function ($p) { return (string)(((array)($p['platforms'] ?? []))[0]['platform'] ?? ''); };
+    usort($posts, function ($a, $b) use ($sort, $mOf, $tOf, $now, $R, $pfOf) {
+        $ta = $tOf($a); $tb = $tOf($b);
+        if (in_array($sort, ['eng', 'rate', 'imp', 'likes', 'cm'], true)) { $k = $sort === 'cm' ? 'comments' : $sort; $ma = $mOf($a); $mb = $mOf($b); return (($mb[$k] ?? -1) <=> ($ma[$k] ?? -1)) ?: ($tb <=> $ta); }
+        if ($sort === 'st') return (($R[$a['status'] ?? ''] ?? 4) <=> ($R[$b['status'] ?? ''] ?? 4)) ?: ($tb <=> $ta);
+        if ($sort === 'plat') return strcmp($pfOf($a), $pfOf($b)) ?: ($tb <=> $ta);
+        if ($sort === 'soon' || $sort === 'late') { $fa = $ta >= $now; $fb = $tb >= $now; if ($fa !== $fb) return $fa ? -1 : 1; return $fa ? ($sort === 'soon' ? $ta <=> $tb : $tb <=> $ta) : $tb <=> $ta; }
+        return $sort === 'old' ? $ta <=> $tb : $tb <=> $ta;
+    });
+    $per = !empty($psPer) ? $psPer : 24; $total = count($posts); $pages = max(1, (int)ceil($total / $per)); $pageNo = min($pageNo, $pages); $posts = array_slice($posts, ($pageNo - 1) * $per, $per);
+}
+
 $tagsMap = (function_exists('an_tags_available') && an_tags_available()) ? an_tags_map() : [];
 $egMap = []; try { $egq = db()->prepare('SELECT post_id, every_days FROM post_evergreen WHERE workspace_id = ?'); $egq->execute([(int)ws('id')]); foreach ($egq->fetchAll() as $r) $egMap[$r['post_id']] = (int)$r['every_days']; } catch (Throwable $e) {}
 $counts = [];
@@ -431,7 +454,7 @@ if ($z && $fixture && is_file($fixture)) {
     }
 }
 
-render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap) {
+render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $pageNo, $status, $view, $total, $apiError, $accounts, $counts, $metrics, $tagsMap, $sort) {
     if (!$z) { no_api_box(); return; }
     $tabs = ['' => t('الكل'), 'scheduled' => t('مجدول'), 'published' => t('تم النشر'), 'draft' => t('مسودات'), 'failed' => t('فشل')];
     $stCls = ['scheduled' => 'bg-brand-50 text-brand-700', 'published' => 'bg-lime-100 text-lime-700', 'draft' => 'bg-ink-100 text-ink-600', 'failed' => 'bg-red-100 text-red-700', 'partial' => 'bg-amber-100 text-amber-800', 'publishing' => 'bg-cyan-100 text-cyan-700', 'pending_approval' => 'bg-amber-100 text-amber-800', 'cancelled' => 'bg-ink-100 text-ink-500'];
@@ -467,7 +490,7 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
       </div>
  <select id="ps-sort" class="tb !h-10 px-2 text-xs" aria-label="<?= e(t('ترتيب')) ?>">
         <option value=""><?= e(t('الترتيب العادي')) ?></option>
-        <option value="new"><?= e(t('الأحدث')) ?></option>
+        <option value="new"<?= $sort === 'new' ? ' selected' : '' ?>><?= e(t('الأحدث')) ?></option>
         <option value="old"><?= e(t('الأقدم')) ?></option>
         <option value="soon"><?= e(t('موعد النشر: الأقرب أولًا')) ?></option>
         <option value="late"><?= e(t('موعد النشر: الأبعد أولًا')) ?></option>
@@ -669,13 +692,13 @@ render(t('المنشورات'), 'posts', function () use ($z, $posts, $pages, $p
         </div>
       </div>
       <?php if ($pageNo < $pages): ?>
-        <div class="text-center mt-6"><button type="button" id="ps-loadmore" data-next="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
+        <div class="text-center mt-6"><button type="button" id="ps-loadmore" data-next="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1]))) ?>" data-pages="<?= (int)$pages ?>" data-page="<?= (int)$pageNo ?>" class="btn-ghost"><?= e(t('اعرض أكتر')) ?> <span class="text-ink-400 text-xs"><?= e(t('(صفحة %s من %s)', $pageNo + 1, $pages)) ?></span></button></div>
       <?php endif; ?>
       <?php if ($pages > 1): ?>
         <div class="ps-pager flex items-center justify-center gap-1 mt-6">
-          <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo - 1]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
-          <?php for ($i = max(1, $pageNo - 2); $i <= min($pages, $pageNo + 2); $i++): ?><a class="tb w-9 justify-center text-sm <?= $i === $pageNo ? '!bg-brand-600 !text-[#fff]' : '' ?>" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $i]))) ?>"><?= $i ?></a><?php endfor; ?>
-          <?php if ($pageNo < $pages): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'n' => $pageNo + 1]))) ?>"><?= e(t('التالي')) ?> ›</a><?php endif; ?>
+          <?php if ($pageNo > 1): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo - 1]))) ?>">‹ <?= e(t('السابق')) ?></a><?php endif; ?>
+          <?php for ($i = max(1, $pageNo - 2); $i <= min($pages, $pageNo + 2); $i++): ?><a class="tb w-9 justify-center text-sm <?= $i === $pageNo ? '!bg-brand-600 !text-[#fff]' : '' ?>" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $i]))) ?>"><?= $i ?></a><?php endfor; ?>
+          <?php if ($pageNo < $pages): ?><a class="tb px-3 text-sm" href="<?= e(url('posts', array_filter(['status' => $status, 'sort' => $sort, 'n' => $pageNo + 1]))) ?>"><?= e(t('التالي')) ?> ›</a><?php endif; ?>
         </div>
       <?php endif; ?>
 

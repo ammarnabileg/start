@@ -552,7 +552,6 @@
     var srt = $('#ps-sort'), pg = $('#ps-grid');
     if (srt && pg) {
       var orig = Array.prototype.slice.call(pg.children);
-      try { srt.value = localStorage.getItem('ps-sort') || ''; } catch (e) {}
       var doSort = function () {
         var v = srt.value; try { localStorage.setItem('ps-sort', v); } catch (e) {}
         if (!v) { var extra = Array.prototype.slice.call(pg.children).filter(function (el) { return orig.indexOf(el) < 0; }); orig.forEach(function (el) { pg.appendChild(el); }); extra.forEach(function (el) { pg.appendChild(el); }); }
@@ -571,7 +570,10 @@
         }
         $$('.ps-day', pg).forEach(function (h) { h.classList.toggle('hidden', !!v); });
       };
-      srt.addEventListener('change', doSort); if (srt.value) doSort();
+      // الترتيب بيتعمل على السيرفر لكل المنشورات: نغيّر الرابط ونرجع لأول صفحة
+      var u0 = new URL(location.href); srt.value = u0.searchParams.get('sort') || '';
+      srt.addEventListener('change', function () { var u = new URL(location.href); if (srt.value) u.searchParams.set('sort', srt.value); else u.searchParams.delete('sort'); u.searchParams.delete('n'); location.href = u.toString(); });
+      if (srt.value) $$('.ps-day', pg).forEach(function (h) { h.classList.add('hidden'); });
     }
     // جماعي
     var all = $('#ps-all'); if (all) all.onchange = function () { visibleIds().forEach(function (id) { if (all.checked) sel.add(id); else sel.delete(id); }); $$('.ps-card').forEach(function (c) { var cb = $('.ps-sel', c); if (cb) cb.checked = sel.has(c.dataset.id); }); bar(); };
