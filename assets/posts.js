@@ -251,8 +251,9 @@
     }
     function inBlack(d) { var r = X.q.blackout || [], dw = +siteDT(d).slice(0, 10).split('-').length && new Date(siteDT(d).slice(0, 10) + 'T12:00').getDay(), hm = siteDT(d).slice(11, 16); return r.some(function (b) { return b.days.indexOf(dw) > -1 && hm >= b.from && hm < b.to; }); }
     window.__psInBlack = inBlack;
-    if (ctl) ctl.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-ct]'); if (!b) return; ctl.open = false; var k = b.dataset.ct;
+    // الأزرار بتتنقل لقايمة «أدوات» اللي فوق، فالاستماع على الصفحة كلها
+    if (ctl) document.addEventListener('click', function (e) {
+      var b = e.target.closest('#cal-tools [data-ct], #ps-more [data-ct]'); if (!b) return; ctl.open = false; var k = b.dataset.ct;
       if (k === 'pause') {
         var f = prompt(X.q.pFrom, siteDT(new Date()).slice(0, 10)); if (!f) return; var t = prompt(X.q.pTo, f); if (!t) return; var n = parseInt(prompt(X.q.pDays, '1'), 10); if (!n) return;
         var ids = sched().filter(function (p) { var d = siteDT(new Date(p.at)).slice(0, 10); return d >= f && d <= t; }).map(function (p) { return p.id; });

@@ -116,6 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     exit;
 }
 
+// ---- «اقترح من عملائي»: استهداف لينكدإن من ملف عملاء الـ CRM
+if (($_GET['ajax'] ?? '') === 'icp') { header('Content-Type: application/json; charset=utf-8'); echo json_encode(ab_icp_targeting(), JSON_UNESCAPED_UNICODE); exit; }
 // ---- الجماهير المخصصة (قراءة بس)
 if (($_GET['ajax'] ?? '') === 'audiences' && $z) {
     header('Content-Type: application/json; charset=utf-8');

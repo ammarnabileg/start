@@ -166,6 +166,54 @@ function ab_caps(string $p): array
     return $r;
 }
 
+/* ---------- استهداف B2B جاهز (لينكدإن) ----------
+ * أرقام الأقدمية والوظيفة دي هي التصنيف الموحّد بتاع لينكدإن (نفسها في كل الحسابات).
+ * الأقدمية: 3 مبتدئ، 4 خبير، 5 مدير، 6 مدير إدارة، 7 نائب رئيس، 8 الإدارة العليا، 9 شريك، 10 مالك */
+function ab_li_seniority(): array
+{
+    return ['3' => t('مبتدئ'), '4' => t('خبير'), '5' => t('مدير'), '6' => t('مدير إدارة'), '7' => t('نائب رئيس'), '8' => t('الإدارة العليا (CXO)'), '9' => t('شريك'), '10' => t('مالك')];
+}
+
+function ab_li_functions(): array
+{
+    return ['1' => t('المحاسبة'), '4' => t('تطوير الأعمال'), '8' => t('الهندسة'), '9' => t('ريادة الأعمال'), '10' => t('المالية'), '12' => t('الموارد البشرية'), '13' => t('تقنية المعلومات'),
+        '15' => t('التسويق'), '18' => t('العمليات'), '19' => t('إدارة المنتجات'), '20' => t('إدارة المشاريع'), '21' => t('المشتريات'), '25' => t('المبيعات')];
+}
+
+/** قوالب جاهزة: أقدمية + وظيفة + حجم شركة (القاعدة: معيارين أو تلاتة بس) */
+function ab_li_presets(): array
+{
+    $S = ab_li_seniority(); $F = ab_li_functions();
+    $sen = function (array $ids) use ($S) { return array_map(function ($i) use ($S) { return ['id' => 'urn:li:seniority:' . $i, 'name' => $S[$i]]; }, $ids); };
+    $fn = function (array $ids) use ($F) { return array_map(function ($i) use ($F) { return ['id' => 'urn:li:function:' . $i, 'name' => $F[$i]]; }, $ids); };
+    return [
+        ['k' => 'exec', 'name' => t('صناع القرار في الشركات الكبيرة'), 'seniorities' => $sen(['7', '8', '10']), 'jobFunctions' => [], 'companySizes' => ['F', 'G', 'H', 'I']],
+        ['k' => 'smb', 'name' => t('أصحاب الشركات الصغيرة والمتوسطة'), 'seniorities' => $sen(['8', '9', '10']), 'jobFunctions' => [], 'companySizes' => ['B', 'C', 'D']],
+        ['k' => 'mkt', 'name' => t('قادة التسويق'), 'seniorities' => $sen(['5', '6', '7', '8']), 'jobFunctions' => $fn(['15']), 'companySizes' => []],
+        ['k' => 'it', 'name' => t('قادة تقنية المعلومات'), 'seniorities' => $sen(['5', '6', '7', '8']), 'jobFunctions' => $fn(['13']), 'companySizes' => []],
+        ['k' => 'buy', 'name' => t('المشتريات والعمليات'), 'seniorities' => $sen(['5', '6', '7']), 'jobFunctions' => $fn(['21', '18']), 'companySizes' => ['E', 'F', 'G', 'H', 'I']],
+        ['k' => 'hr', 'name' => t('الموارد البشرية'), 'seniorities' => $sen(['5', '6', '7', '8']), 'jobFunctions' => $fn(['12']), 'companySizes' => []],
+        ['k' => 'fin', 'name' => t('المالية'), 'seniorities' => $sen(['5', '6', '7', '8']), 'jobFunctions' => $fn(['10', '1']), 'companySizes' => []],
+    ];
+}
+
+/** «اقترح من عملائي»: ملف عملاء الشركة (crm_lookalike) → استهداف لينكدإن */
+function ab_icp_targeting(): array
+{
+    if (!function_exists('crm_lookalike')) return ['ok' => false];
+    $L = crm_lookalike(); if (empty($L['ok'])) return ['ok' => false, 'n' => (int)($L['n'] ?? 0)];
+    $f = $L['filters']; $S = ab_li_seniority(); $F = ab_li_functions();
+    $titles = mb_strtolower((string)($f['titles'] ?? ''));
+    $sen = []; foreach (['owner' => '10', 'founder' => '10', 'partner' => '9', 'ceo' => '8', 'chief' => '8', 'cxo' => '8', 'general manager' => '7', 'vp' => '7', 'vice' => '7', 'director' => '6', 'head' => '6', 'manager' => '5'] as $w => $id) if (mb_strpos($titles, $w) !== false) $sen[$id] = ['id' => 'urn:li:seniority:' . $id, 'name' => $S[$id]];
+    $fn = []; foreach (['marketing' => '15', 'sales' => '25', 'operation' => '18', 'it ' => '13', 'technology' => '13', 'hr' => '12', 'human' => '12', 'finance' => '10', 'procure' => '21', 'purchas' => '21', 'engineer' => '8', 'business development' => '4', 'product' => '19'] as $w => $id) if (mb_strpos($titles . ' ', $w) !== false) $fn[$id] = ['id' => 'urn:li:function:' . $id, 'name' => $F[$id]];
+    // حجم الشركة: نطاقات الـ CRM (من,إلى) → حروف لينكدإن
+    $map = [[1, 1, 'A'], [2, 10, 'B'], [11, 50, 'C'], [51, 200, 'D'], [201, 500, 'E'], [501, 1000, 'F'], [1001, 5000, 'G'], [5001, 10000, 'H'], [10001, PHP_INT_MAX, 'I']];
+    $sizes = []; foreach ((array)($f['sizes'] ?? []) as $k) { [$a, $b] = array_map('intval', explode(',', (string)$k) + [0, 0]); if (!$b) $b = PHP_INT_MAX; foreach ($map as [$x, $y, $c]) if ($x <= $b && $y >= $a) $sizes[$c] = $c; }
+    $cc = []; foreach (array_map('trim', explode(',', (string)($f['locations'] ?? ''))) as $loc) { $code = function_exists('country_code') ? country_code($loc) : ''; if ($code === '' && preg_match('/^[A-Z]{2}$/', $loc)) $code = $loc; if ($code !== '') $cc[] = $code; }
+    return ['ok' => true, 'n' => (int)$L['n'], 'basis' => (string)$L['basis'], 'seniorities' => array_values($sen), 'jobFunctions' => array_values(array_slice($fn, 0, 2, true)), 'companySizes' => array_values($sizes), 'countries' => array_values(array_unique($cc)),
+        'titles' => (string)($f['titles'] ?? ''), 'industry' => (string)($f['keywords'] ?? '')];
+}
+
 /** نصوص الواجهة */
 function ab_strings(): array
 {
@@ -179,6 +227,8 @@ function ab_strings(): array
         'advantage' => t('Advantage+ للجمهور'), 'advantageHint' => t('يسمح لـ Meta بتوسيع الجمهور خارج اختياراتك عندما يتوقع نتائج أفضل. توصي به Meta لمعظم الحملات.'),
         'excludeAud' => t('استبعاد جمهور'), 'excludeAudHint' => t('مثل عملائك الحاليين أو من سجّلوا بالفعل: لا تدفع للوصول إليهم مرة أخرى.'),
         // مستشار الحملة: مختصر لتوصيات Meta/LinkedIn/Google/TikTok الرسمية ودراسات حالة B2B
+        'presets' => ab_li_presets(), 'presetsL' => t('قوالب جاهزة (بضغطة)'), 'presetHint' => t('القالب بيستبدل الأقدمية والوظيفة وحجم الشركة الحاليين. القاعدة: معيارين أو تلاتة بس، والجمهور 50 ألف أو أكتر.'),
+        'icpBtn' => t('اقترح من عملائي'), 'icpNone' => t('مفيش عملاء كفاية في الـ CRM (محتاج 5 على الأقل بمسمى أو حجم شركة).'), 'icpDone' => t('اتطبق من %d عميل'),
         'adv' => [
             'leadGoal' => t('لعملاء B2B: هدف «العملاء المحتملون» مع نموذج داخل المنصة يحوّل أفضل بكثير من الزيارات (لينكدإن: 13% للنماذج مقابل 2.35% لصفحات الهبوط).'),
             'consolidate' => t('أكثر من 3 مجموعات: Meta توصي بالدمج حتى تصل كل مجموعة إلى نحو 50 نتيجة أسبوعيًا وتخرج من مرحلة التعلّم.'),
