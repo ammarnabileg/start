@@ -242,8 +242,9 @@ function crm_reveal(array $co, string $pid, array $prefs): array
         'name' => trim((string)($p['name'] ?? (($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? '')))) ?: '—',
         'title' => (string)($p['title'] ?? ''), 'email' => $email, 'phone' => $phone,
         'phone_pending' => $phone === '' ? 1 : 0, 'linkedin' => (string)($p['linkedin_url'] ?? ''),
-        'country' => (string)($p['country'] ?? $co['country'] ?? ''), 'owner_id' => $uid ?: null,
+        'country' => (string)($p['country'] ?? $co['country'] ?? ''), 'owner_id' => $uid ?: null, 'respect_owner' => 1,
     ]);
+    if (!empty($lead['locked'])) throw new CrmException(t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.'));
     if (!empty($lead['id'])) db()->prepare('UPDATE crm_leads SET email_status = ?, enriched_at = NOW() WHERE id = ?')->execute([mb_substr((string)($p['email_status'] ?? ''), 0, 20) ?: null, (int)$lead['id']]);
     log_activity('crm.reveal', $pid . ' ' . $co['name']);
     return $lead;
@@ -447,7 +448,7 @@ function crm_send_email(array $l, string $subject, string $text, string $via = '
     $tok = bin2hex(random_bytes(16));
     $base = base_url() . '/index.php?p=crm_t&k=' . $tok;
     // الروابط بتتحول عشان نعرف إنه ضغط، وبعدها بيروح للرابط الأصلي
-    $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base, $wid) { return '<a href="' . e($base . '&u=' . rawurlencode($m[0]) . '&s=' . crm_url_sig($wid, $m[0])) . '">' . e($m[0]) . '</a>'; }, nl2br(e($text)));
+    $html = preg_replace_callback('~https?://[^\s<>"\']+~u', function ($m) use ($base, $wid) { $u = html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8'); return '<a href="' . e($base . '&u=' . rawurlencode($u) . '&s=' . crm_url_sig($wid, $u)) . '">' . e($u) . '</a>'; }, nl2br(e($text)));
     $html = crm_mail_wrap($html, $base . '&x=1') . '<img src="' . e($base . '&o=1') . '" width="1" height="1" alt="" style="display:block;border:0">';
     // كل إيميلات العميل (الأساسي + الإضافي)؛ كل عنوان بإيميل لوحده عشان التتبع يبقى لكل واحد
     $to = array_values(array_unique(array_filter(array_merge([(string)$l['email']], json_decode((string)($l['emails'] ?? ''), true) ?: []), function ($x) { return filter_var($x, FILTER_VALIDATE_EMAIL); })));
@@ -677,12 +678,13 @@ function crm_meeting_reminders(): int
 {
     $wid = (int)ws('id'); $n = 0;
     foreach ([['reminded_24', 24 * 3600, 23 * 3600], ['reminded_1', 3600, 0]] as [$col, $ahead, $min]) {
-        $st = db()->prepare("SELECT b.id, b.start_at, l.id lid, l.name, l.email, l.owner_id FROM crm_bookings b JOIN crm_leads l ON l.id = b.lead_id WHERE b.workspace_id = ? AND b.$col = 0 AND b.start_at > ? AND b.start_at <= ? LIMIT 50");
+        $st = db()->prepare("SELECT b.id, b.start_at, l.id lid, l.name, l.email, l.owner_id, l.unsub FROM crm_bookings b JOIN crm_leads l ON l.id = b.lead_id WHERE b.workspace_id = ? AND b.$col = 0 AND b.start_at > ? AND b.start_at <= ? LIMIT 50");
         $st->execute([$wid, date('Y-m-d H:i:s', time() + $min), date('Y-m-d H:i:s', time() + $ahead)]);
         foreach ($st->fetchAll() as $b) {
+            $cl = db()->prepare("UPDATE crm_bookings SET $col = 1 WHERE id = ? AND $col = 0"); $cl->execute([(int)$b['id']]); if ($cl->rowCount() !== 1) continue; // طلب تاني سبقنا
             $when = fmt_date($b['start_at'], 'd/m h:i A');
             crm_notify($b['owner_id'] ? (int)$b['owner_id'] : null, (int)$b['lid'], 'meet', t('📅 اجتماع مع %s %s', $b['name'], $when));
-            if (!empty($b['email']) && function_exists('smtp_config') && smtp_config($wid)) {
+            if (!empty($b['email']) && empty($b['unsub']) && function_exists('smtp_config') && smtp_config($wid)) {
                 try { send_mail((string)$b['email'], t('تذكير بميعادك: %s', $when), nl2br(e(t('أهلاً %s، بنفكّرك بميعادنا %s. لو محتاج تغيّره ردّ على الإيميل ده.', preg_split('/\s+/u', trim((string)$b['name']))[0] ?? '', $when))), null, $wid); } catch (Throwable $e) {}
             }
             db()->prepare("UPDATE crm_bookings SET $col = 1 WHERE id = ?")->execute([(int)$b['id']]); $n++;
@@ -852,7 +854,7 @@ function crm_track_visit(int $wid, int $leadId, string $url): void
         $l = crm_lead($leadId); if (!$l) return;
         if ($hot) {
             crm_act_add($leadId, 'note', '🔥 ' . t('فتح صفحة مهمة على موقعك') . "\n" . $url);
-            db()->prepare('UPDATE crm_leads SET next_at = IF(next_at IS NULL OR next_at > NOW(), NOW(), next_at), next_note = ? WHERE id = ?')->execute([t('🔥 بيتفرج على صفحة الأسعار دلوقتي، كلّمه'), $leadId]);
+            db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > NOW(), ?, next_note), next_at = IF(next_at IS NULL OR next_at > NOW(), NOW(), next_at) WHERE id = ?')->execute([t('🔥 بيتفرج على صفحة الأسعار دلوقتي، كلّمه'), $leadId]);
         }
     });
 }

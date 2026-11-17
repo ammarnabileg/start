@@ -42,7 +42,7 @@ function media_list(int $wid, array $f = []): array
     $w = ['workspace_id = ?', !empty($f['trash']) ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
     if (isset($f['folder']) && $f['folder'] !== '*') { $w[] = 'folder = ?'; $a[] = (string)$f['folder']; }
     if (!empty($f['kind'])) { $m = ['image' => 'image/%', 'video' => 'video/%', 'audio' => 'audio/%'][$f['kind']] ?? null; if ($m) { $w[] = 'mime LIKE ?'; $a[] = $m; } elseif ($f['kind'] === 'doc') { $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%' AND mime NOT LIKE 'audio/%'"; } }
-    if (!empty($f['q'])) { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; array_push($a, '%' . $f['q'] . '%', '%' . $f['q'] . '%', '%' . $f['q'] . '%'); }
+    if (!empty($f['q'])) { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; $qq = '%' . addcslashes((string)$f['q'], '%_\\') . '%'; array_push($a, $qq, $qq, $qq); }
     $st = db()->prepare('SELECT * FROM media_files WHERE ' . implode(' AND ', $w) . ' ORDER BY created_at DESC, id DESC LIMIT 500');
     $st->execute($a);
     return array_map('media_row', $st->fetchAll());
@@ -282,8 +282,8 @@ function media_query(int $wid, string $loc, string $folder, string $q, string $s
     elseif ($loc === 'recent') $w[] = 'created_at > (NOW() - INTERVAL 7 DAY)';
     elseif ($loc === 'star') $w[] = 'starred = 1';
     elseif ($loc === 'image' || $loc === 'video') { $w[] = 'mime LIKE ?'; $a[] = $loc . '/%'; }
-    elseif ($loc === 'doc') $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%'";
-    if ($q !== '') { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; array_push($a, '%' . $q . '%', '%' . $q . '%', '%' . $q . '%'); }
+    elseif ($loc === 'doc') $w[] = "mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%' AND mime NOT LIKE 'audio/%'";
+    if ($q !== '') { $w[] = '(name LIKE ? OR tags LIKE ? OR ai_desc LIKE ?)'; $qq = '%' . addcslashes($q, '%_\\') . '%'; array_push($a, $qq, $qq, $qq); }
     $col = ['name' => 'name', 'size' => 'size', 'type' => 'mime', 'date' => $loc === 'trash' ? 'deleted_at' : 'created_at'][$sort] ?? 'created_at';
     $where = implode(' AND ', $w);
     $st = db()->prepare("SELECT COUNT(*) FROM media_files WHERE $where"); $st->execute($a); $total = (int)$st->fetchColumn();
@@ -296,7 +296,7 @@ function media_query(int $wid, string $loc, string $folder, string $q, string $s
 function media_counts(int $wid): array
 {
     $st = db()->prepare("SELECT SUM(deleted_at IS NULL) a, SUM(deleted_at IS NULL AND created_at > (NOW() - INTERVAL 7 DAY)) r, SUM(deleted_at IS NULL AND starred = 1) s,
-        SUM(deleted_at IS NULL AND mime LIKE 'image/%') i, SUM(deleted_at IS NULL AND mime LIKE 'video/%') v, SUM(deleted_at IS NULL AND mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%') d, SUM(deleted_at IS NOT NULL) t
+        SUM(deleted_at IS NULL AND mime LIKE 'image/%') i, SUM(deleted_at IS NULL AND mime LIKE 'video/%') v, SUM(deleted_at IS NULL AND mime NOT LIKE 'image/%' AND mime NOT LIKE 'video/%' AND mime NOT LIKE 'audio/%') d, SUM(deleted_at IS NOT NULL) t
         FROM media_files WHERE workspace_id = ?");
     $st->execute([$wid]); $r = $st->fetch() ?: [];
     return ['all' => (int)($r['a'] ?? 0), 'recent' => (int)($r['r'] ?? 0), 'star' => (int)($r['s'] ?? 0), 'image' => (int)($r['i'] ?? 0), 'video' => (int)($r['v'] ?? 0), 'doc' => (int)($r['d'] ?? 0), 'trash' => (int)($r['t'] ?? 0)];

@@ -32,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($a === 'reject') {
         $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 300);
         $rj = db()->prepare("UPDATE post_approvals SET status = 'rejected', note = ?, decided_by = ?, decided_at = NOW() WHERE id = ? AND status = 'pending'"); $rj->execute([$note ?: null, $uid, (int)$r['id']]);
-        if (!$rj->rowCount()) { flash('error', t('تمت معالجة هذا الطلب بالفعل.')); redirect(url('approvals')); } /* مايتعارضش مع موافقة شغالة */
+        if (!$rj->rowCount()) { flash('error', t('تمت معالجة هذا الطلب بالفعل.')); redirect(url('approvals')); }
+        if (!empty($r['draft_id']) && !empty($z)) { try { $z->request('DELETE', '/v1/posts/' . rawurlencode($r['draft_id'])); } catch (Throwable $e) {} } // المرفوض مايفضلش مسودة /* مايتعارضش مع موافقة شغالة */
         if ($r['user_id'] && function_exists('crm_notify')) crm_notify((int)$r['user_id'], null, 'approval', t('✕ المدير رفض منشورك') . ($note !== '' ? ': ' . $note : ''));
         log_activity('post.rejected', (string)$r['id']);
         flash('success', t('اترفض، وصاحبه وصله ملاحظتك.'));

@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pid = (string)($p['id'] ?? ''); if (!preg_match('/^[\w-]{1,64}$/', $pid)) continue;
             $st = db()->prepare('SELECT id FROM crm_leads WHERE workspace_id = ? AND ext_id = ? LIMIT 1');
             $st->execute([$wid, $pid]);
-            if ($id = (int)$st->fetchColumn()) { $done[$pid] = $id; if ($list !== '') crm_add_tag($id, $list); continue; } // مانصرفش كريديت تاني
+            if ($id = (int)$st->fetchColumn()) { $done[$pid] = $id; if ($list !== '' && ($xl = crm_lead($id)) && crm_can_edit($xl)) crm_add_tag($id, $list); continue; } // مانصرفش كريديت تاني
             if ((int)$prefs['daily_limit'] - crm_reveals_today($uid) <= 0) { $err = t('خلصت حد الكشف بتاعك النهارده (%s). بيتجدد بكرة.', (int)$prefs['daily_limit']); break; }
             try {
                 $l = crm_reveal(['id' => 0, 'name' => mb_substr((string)($p['company'] ?? ''), 0, 255), 'country' => (string)($p['country'] ?? '')], $pid, $prefs);

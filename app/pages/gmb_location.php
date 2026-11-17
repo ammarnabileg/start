@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
             }
             if (!$sections) throw new ZernioException(t('اكتب صنف واحد على الأقل بالشكل: القسم | الصنف | السعر'));
             $secs = [];
-            foreach ($sections as $sn => $its) $secs[] = ['labels' => [['displayName' => $sn]], 'items' => $its];
+            foreach ($sections as $sn => $its) $secs[] = ['labels' => [['displayName' => (string)$sn]], 'items' => $its];
             $first = array_merge((array)($curMenus[0] ?? []), ['labels' => [['displayName' => $menuName]], 'sections' => $secs]);
             gmb_update_food_menus($z, $acc, $lid, array_merge([$first], array_slice((array)$curMenus, 1))); // المنيوهات التانية تفضل
             log_activity('gmb.menu_update', $lid);

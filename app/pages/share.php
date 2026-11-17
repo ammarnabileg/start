@@ -30,7 +30,7 @@ $files = $st->fetchAll();
 // الكل كـ ZIP
 if (isset($_GET['zip']) && $sh['allow_download'] && class_exists('ZipArchive')) {
     $tmp = tempnam(sys_get_temp_dir(), 'sz'); ignore_user_abort(true); register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) @unlink($tmp); }); $z = new ZipArchive(); $z->open($tmp, ZipArchive::OVERWRITE); $used = [];
-    foreach ($files as $r) { $p = media_file_path($wid, $r); if (!is_file($p)) continue; $rel = $base !== '' ? ltrim(substr((string)$r['folder'], strlen($base)), '/') : (string)$r['folder'];
+    $tot = 0; foreach ($files as $r) { $p = media_file_path($wid, $r); if (!is_file($p)) continue; $tot += (int)@filesize($p); if ($tot > 2 * 1024 * 1024 * 1024) break; /* حد 2 جيجا */ $rel = $base !== '' ? ltrim(substr((string)$r['folder'], strlen($base)), '/') : (string)$r['folder'];
         $n = ($rel !== '' ? $rel . '/' : '') . preg_replace('/[\x00-\x1f\/\\\\]+/u', '_', (string)$r['name']); $k = 2; $o = $n; while (isset($used[$n])) $n = preg_replace('/(\.[^.\/]+)?$/', ' (' . $k++ . ')$1', $o, 1); $used[$n] = 1; $z->addFile($p, $n); }
     $z->close(); header('Content-Type: application/zip'); header('Content-Length: ' . filesize($tmp)); header('Content-Disposition: attachment; filename="' . ($base !== '' ? preg_replace('/[^\w\-]+/u', '_', basename($base)) : 'files') . '.zip"');
     readfile($tmp); @unlink($tmp); exit;
