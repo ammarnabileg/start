@@ -528,6 +528,9 @@ return [
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     ],
+    '065_booking_len' => [
+        "ALTER TABLE crm_bookings ADD COLUMN len SMALLINT UNSIGNED NULL",
+    ],
     '064_password_resets' => [
         "CREATE TABLE IF NOT EXISTS password_resets (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

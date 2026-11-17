@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($a === 'pipes') {
         $o = [];
-        foreach ((array)($_POST['pl'] ?? []) as $k => $v) { $v = mb_substr(trim((string)$v), 0, 40); if ($v === '' && empty($_POST['pdel'][$k])) { foreach (crm_pipelines() as $op) if ($op['key'] === (string)$k) $v = (string)$op['label']; } /* الاسم اتمسح بالغلط: يفضل */ if ($v !== '' && empty($_POST['pdel'][$k])) $o[] = ['key' => (string)$k, 'label' => $v]; elseif ($k === 'sales') $o[] = ['key' => 'sales', 'label' => t('المبيعات')]; }
+        foreach ((array)($_POST['pl'] ?? []) as $k => $v) { $v = mb_substr(trim((string)$v), 0, 40); if ($v === '' && empty($_POST['pdel'][$k])) { $pp = crm_pipelines(); if (isset($pp[(string)$k])) $v = (string)$pp[(string)$k]; } /* الاسم اتمسح بالغلط: يفضل */ if ($v !== '' && empty($_POST['pdel'][$k])) $o[] = ['key' => (string)$k, 'label' => $v]; elseif ($k === 'sales') $o[] = ['key' => 'sales', 'label' => t('المبيعات')]; }
         foreach ((array)($_POST['pdel'] ?? []) as $k => $_) if ($k !== 'sales') db()->prepare("UPDATE crm_leads SET pipeline = 'sales' WHERE workspace_id = ? AND pipeline = ?")->execute([$wid, (string)$k]);
         $n = mb_substr(trim((string)($_POST['new_pipe'] ?? '')), 0, 40);
         if ($n !== '' && count($o) < 8) $o[] = ['key' => $slug('', 'p'), 'label' => $n];

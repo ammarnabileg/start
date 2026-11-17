@@ -168,8 +168,8 @@ function adc_payload(array $f): array
     return $p;
 }
 
-$form = $_SESSION['adc_form'] ?? null;
-if (!empty($_GET['boost_post'])) { $form = ['mode' => 'boost', 'post' => (string)$_GET['boost_post'], 'boost_acc' => (string)($_GET['boost_acc'] ?? ''), 'goal' => 'engagement']; unset($_SESSION['adc_form']); }
+$form = $_SESSION['adc_form_' . (int)ws('id')] ?? null;
+if (!empty($_GET['boost_post'])) { $form = ['mode' => 'boost', 'post' => (string)$_GET['boost_post'], 'boost_acc' => (string)($_GET['boost_acc'] ?? ''), 'goal' => 'engagement']; unset($_SESSION['adc_form_' . (int)ws('id')]); }
 if (!$form && !empty($_GET['dup'])) {
     $form = ['name' => mb_substr(t('نسخة من %s', (string)($_GET['dup_name'] ?? '')), 0, 200), 'dup_acc' => (string)($_GET['dup_acc'] ?? ''),
         'budget' => (float)($_GET['dup_budget'] ?? 0) ?: '', 'budget_type' => ($_GET['dup_bt'] ?? '') === 'lifetime' ? 'lifetime' : 'daily'];
@@ -189,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         $drafts = array_values(array_filter($drafts, function ($d) use ($id) { return $d['id'] !== $id; }));
         array_unshift($drafts, ['id' => $id, 'name' => $f['name'] !== '' ? $f['name'] : t('مسودة بدون اسم'), 'saved' => date('Y-m-d H:i'), 'by' => (string)(current_user()['name'] ?? ''), 'form' => $f]);
         save_setting($draftKey, json_encode(array_slice($drafts, 0, 20), JSON_UNESCAPED_UNICODE));
-        unset($_SESSION['adc_form']);
+        unset($_SESSION['adc_form_' . (int)ws('id')]);
         flash('success', t('اتحفظت المسودة. الصورة المرفوعة مش بتتحفظ، رابط الصورة بس.'));
         redirect(url('ad_create', ['draft' => $id]));
     }
@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
         if (!$errors && $f['mode'] === 'new' && !filter_var($f['image_url'], FILTER_VALIDATE_URL)) {
             $errors[] = t('ارفع صورة للإعلان أو حط رابط صورة.');
         }
-        $_SESSION['adc_form'] = $f;
+        $_SESSION['adc_form_' . (int)ws('id')] = $f;
         if ($errors) {
             foreach ($errors as $m) flash('error', $m);
             redirect(url('ad_create'));
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $payload = adc_payload($f);
             $r = $f['mode'] === 'boost' ? ads_boost($z, $payload) : ads_create($z, $payload);
             log_activity('ads.create', $f['name'] . ' (' . $payload['status'] . ', ' . $f['budget'] . ' ' . $f['budget_type'] . ')');
-            unset($_SESSION['adc_form']);
+            unset($_SESSION['adc_form_' . (int)ws('id')]);
             flash('success', $f['launch'] === 'active' ? t('تم إنشاء الحملة وتشغيلها.') : t('تم إنشاء الحملة وهي متوقفة. راجعها وشغّلها لما تكون جاهز.'));
             foreach ($r['warnings'] ?? [] as $w) flash('error', (string)$w);
             $cid = (string)($r['ad']['platformCampaignId'] ?? '');
@@ -254,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             redirect(url('ad_create', ['step' => 'review']));
         }
     } elseif ($action === 'reset') {
-        unset($_SESSION['adc_form']);
+        unset($_SESSION['adc_form_' . (int)ws('id')]);
         redirect(url('ad_create'));
     }
     redirect(url('ad_create'));

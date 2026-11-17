@@ -31,7 +31,7 @@ ai_as_workspace($wid, function () use ($wid) {
             $start = (new DateTime($slot, $tz))->setTimezone($srvTz)->format('Y-m-d H:i:s');
             try {
                 db()->beginTransaction();
-                db()->prepare('INSERT INTO crm_bookings (workspace_id, start_at) VALUES (?, ?)')->execute([$wid, $start]); // UNIQUE بيمنع حجزين في نفس الميعاد
+                db()->prepare('INSERT INTO crm_bookings (workspace_id, start_at, len) VALUES (?, ?, ?)')->execute([$wid, $start, max(15, min(240, (int)($cfg['len'] ?? 30)))]); // UNIQUE بيمنع حجزين في نفس الميعاد
                 $bid = (int)db()->lastInsertId();
                 $l = crm_lead_upsert(['source' => 'form', 'name' => $name, 'phone' => $phone, 'email' => $email, 'owner_id' => null]);
                 db()->prepare('UPDATE crm_bookings SET lead_id = ? WHERE id = ?')->execute([(int)$l['id'], $bid]);

@@ -911,15 +911,16 @@ function crm_book_slots(array $c): array
 {
     $tz = new DateTimeZone(site_timezone()); $srv = new DateTimeZone(date_default_timezone_get());
     $len = max(15, min(240, (int)$c['len'])); $now = new DateTime('now', $tz); $min = (clone $now)->modify('+' . max(0, (int)$c['notice']) . ' hours');
-    $st = db()->prepare('SELECT start_at FROM crm_bookings WHERE workspace_id = ? AND start_at >= ?'); $st->execute([(int)ws('id'), date('Y-m-d H:i:s')]);
-    $taken = []; foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $s) $taken[(new DateTime($s, $srv))->setTimezone($tz)->format('Y-m-d H:i')] = 1;
+    $st = db()->prepare('SELECT start_at, len FROM crm_bookings WHERE workspace_id = ? AND start_at >= ?'); $st->execute([(int)ws('id'), date('Y-m-d H:i:s', time() - 6 * 3600)]);
+    $busy = []; foreach ($st->fetchAll() as $b) { $bs = (new DateTime($b['start_at'], $srv))->getTimestamp(); $busy[] = [$bs, $bs + 60 * max(15, (int)($b['len'] ?: $len))]; } // فترات محجوزة (بمدتها)
+    $taken = [];
     $out = [];
     for ($i = 0; $i <= max(1, min(60, (int)$c['ahead'])); $i++) {
         $d = (clone $now)->setTime(0, 0)->modify("+$i days");
         if (!in_array((int)$d->format('w'), array_map('intval', (array)$c['days']), true)) continue;
         [$fh, $fm] = array_map('intval', explode(':', (string)$c['from']) + [0, 0]); [$th, $tm] = array_map('intval', explode(':', (string)$c['to']) + [0, 0]);
         $t = (clone $d)->setTime($fh, $fm); $end = (clone $d)->setTime($th, $tm);
-        for (; (clone $t)->modify("+$len minutes") <= $end; $t->modify("+$len minutes")) { $k = $t->format('Y-m-d H:i'); if ($t > $min && !isset($taken[$k])) $out[$d->format('Y-m-d')][] = $k; }
+        for (; (clone $t)->modify("+$len minutes") <= $end; $t->modify("+$len minutes")) { $k = $t->format('Y-m-d H:i'); $ts = $t->getTimestamp(); $clash = false; foreach ($busy as $bb) if ($ts < $bb[1] && $ts + 60 * $len > $bb[0]) { $clash = true; break; } if ($t > $min && !$clash) $out[$d->format('Y-m-d')][] = $k; }
     }
     return $out;
 }

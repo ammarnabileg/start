@@ -318,9 +318,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             else db()->prepare('INSERT INTO crm_deals (workspace_id, lead_id, owner_id, title, value, status, close_at, closed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)$l['owner_id'] ?: ($uid ?: null), $title, $val, $stt, $close, $stt === 'open' ? null : date('Y-m-d H:i:s')]);
             crm_act_add((int)$l['id'], 'note', '💼 ' . $title . ' · ' . number_format($val) . ' · ' . crm_deal_statuses()[$stt]);
             // أول صفقة تتقفل بنجاح بتنقل العميل لـ "بقى عميل"
-            if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); if (function_exists('crm_push_ad_stage')) { try { crm_push_ad_stage(['stage' => 'won'] + $l); } catch (Throwable $e) {} } /* منصة الإعلانات تعرف إنه اشترى */ crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
+            if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); $pushWon = true; crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
         }
         crm_deals_rollup((int)$l['id']);
+        if (!empty($pushWon) && function_exists('crm_push_ad_stage') && ($fresh = crm_lead((int)$l['id']))) { try { crm_push_ad_stage($fresh); } catch (Throwable $e) {} } // منصة الإعلانات تعرف إنه اشترى، بالقيمة الجديدة
         $json(['ok' => true, 'deals' => crm_deals((int)$l['id']), 'lead' => $out(crm_lead((int)$l['id']))]);
     }
     if ($action === 'track_link') {
@@ -384,6 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'delete' && $canManage) {
         db()->prepare('DELETE FROM crm_acts WHERE lead_id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
+        try { db()->prepare('DELETE FROM crm_bookings WHERE lead_id = ? AND workspace_id = ? AND start_at > NOW()')->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {}
         db()->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         log_activity('crm.delete', $l['id'] . ' ' . $l['name']);
         $json(['ok' => true]);
