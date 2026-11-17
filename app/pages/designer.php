@@ -214,24 +214,33 @@ render(t('المصمم'), 'designer', function () use ($brand, $co, $img, $kbd, 
         <div class="dz-panel">
           <section data-pane="mine" hidden><div class="flex items-center justify-between mb-2"><h3 class="!mb-0"><?= e(t('مشاريعي')) ?> <span id="dz-mine-n" class="ms-1 rounded-full bg-ink-100 px-1.5 text-[10px] text-ink-600"></span></h3><button type="button" class="text-[11px] font-semibold text-brand-700 hover:underline" data-cmd="new">+ <?= e(t('مشروع جديد')) ?></button></div><input id="dz-mine-q" type="search" class="dz-sel w-full mb-3" placeholder="<?= e(t('ابحث في مشاريعك…')) ?>"><div id="dz-mine" class="grid grid-cols-2 gap-2"></div></section>
           <section data-pane="ai" hidden>
-            <h3><?= e(t('صمّم من جملة')) ?></h3>
-            <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
-            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_provider') && img_provider() !== '') ? (img_provider() === 'openai' ? t('ولّد الصورة أيضًا (OpenAI GPT)') : t('ولّد الصورة أيضًا (OpenRouter)')) : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenRouter أو OpenAI لتوليد الصورة تلقائيًا')) ?></label>
-            <button type="button" class="btn-primary w-full mt-2" data-cmd="ailayout"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('صمّم')) ?></span></button>
-            <h3 class="!mt-5"><?= e(t('كاروسيل كامل من موضوع')) ?></h3>
-            <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">
-            <button type="button" class="btn-ghost w-full mt-2" data-cmd="aicarousel"><?= ui_icon('layers', 'w-4 h-4') ?><span><?= e(t('اعمل الكاروسيل')) ?></span></button>
-            <h3 class="!mt-5"><?= e(t('مقاسات لكل المنصات')) ?></h3>
-            <p class="text-[11px] text-ink-500 mb-2"><?= e(t('بيعمل نسخة من التصميم الحالي بمقاس البوست والطولي والستوري والعرضي، وبيحفظهم في تصميماتي.')) ?></p>
-            <button type="button" class="btn-ghost w-full" data-cmd="resizeall"><?= ui_icon('copy', 'w-4 h-4') ?><span><?= e(t('اعمل كل المقاسات')) ?></span></button>
-            <h3 class="!mt-5"><?= e(t('صمّم لي بالذكاء الاصطناعي')) ?></h3>
-            <input id="dz-ai-topic" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('الموضوع أو الخدمة (اختياري)')) ?>">
-            <button type="button" class="btn-primary w-full mt-2" data-cmd="aidesign"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اعمل تصميم')) ?></span></button>
-            <h3 class="!mt-5"><?= e(t('عناوين للنص المحدد')) ?></h3>
-            <button type="button" class="btn-ghost w-full" data-cmd="aihead"><?= ui_icon('type', 'w-4 h-4') ?><span><?= e(t('اقترح عناوين')) ?></span></button><div id="dz-heads" class="space-y-1.5 mt-2"></div>
-            <h3 class="!mt-5"><?= e(t('ولّد صورة')) ?></h3>
-            <textarea id="dz-ai-img" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة، وهتتحط في مكان الصورة المحدد أو على اللوحة')) ?>"></textarea>
-            <button type="button" class="btn-ghost w-full mt-2" data-cmd="aiimg"><?= ui_icon('image', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button><p id="dz-ai-st" class="text-[11px] text-ink-500 mt-2"></p></section>
+            <h3><?= e(t('أدوات الذكاء الاصطناعي')) ?></h3>
+            <div class="grid grid-cols-2 gap-2 mb-3" id="dz-ai-tabs">
+              <?php foreach (['layout' => ['spark', t('صمّم من جملة'), t('اكتب فكرتك ويصمّمها')], 'design' => ['layers', t('تصميم تلقائي'), t('من خدماتك وقاعدة المعرفة')], 'car' => ['copy', t('كاروسيل كامل'), t('عدة شرائح من موضوع واحد')], 'img' => ['image', t('ولّد صورة'), t('صورة من وصف نصي')], 'head' => ['type', t('عناوين جذابة'), t('للنص المحدد على اللوحة')], 'sizes' => ['grid', t('كل المقاسات'), t('بوست وستوري وطولي وعرضي')]] as $k => [$ic, $ti, $ds]): ?>
+              <button type="button" class="dz-aitile" data-aitool="<?= $k ?>"><span class="dz-aitile-i"><?= ui_icon($ic, 'w-4 h-4') ?></span><b><?= e($ti) ?></b><small><?= e($ds) ?></small></button>
+              <?php endforeach; ?>
+            </div>
+            <div class="dz-aiform" data-aiform="layout"><b class="dz-aiform-t"><?= e(t('صمّم من جملة')) ?></b>
+              <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
+              <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_provider') && img_provider() !== '') ? (img_provider() === 'openai' ? t('ولّد الصورة أيضًا (OpenAI GPT)') : t('ولّد الصورة أيضًا (OpenRouter)')) : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenRouter أو OpenAI لتوليد الصورة تلقائيًا')) ?></label>
+              <button type="button" class="btn-primary w-full mt-3" data-cmd="ailayout"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('صمّم')) ?></span></button></div>
+            <div class="dz-aiform" data-aiform="design" hidden><b class="dz-aiform-t"><?= e(t('تصميم تلقائي')) ?></b><p class="dz-aiform-h"><?= e(t('يكتب العنوان والنص من خدماتك ويختار القالب المناسب.')) ?></p>
+              <input id="dz-ai-topic" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('الموضوع أو الخدمة (اختياري)')) ?>">
+              <button type="button" class="btn-primary w-full mt-3" data-cmd="aidesign"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('اعمل تصميم')) ?></span></button></div>
+            <div class="dz-aiform" data-aiform="car" hidden><b class="dz-aiform-t"><?= e(t('كاروسيل كامل')) ?></b><p class="dz-aiform-h"><?= e(t('اكتب موضوعًا، ويتولد كاروسيل بعدة شرائح جاهزة للنشر.')) ?></p>
+              <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">
+              <button type="button" class="btn-primary w-full mt-3" data-cmd="aicarousel"><?= ui_icon('layers', 'w-4 h-4') ?><span><?= e(t('اعمل الكاروسيل')) ?></span></button></div>
+            <div class="dz-aiform" data-aiform="img" hidden><b class="dz-aiform-t"><?= e(t('ولّد صورة')) ?></b><p class="dz-aiform-h"><?= e(t('تُوضع في مكان الصورة المحدد أو على اللوحة.')) ?></p>
+              <textarea id="dz-ai-img" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="1200" placeholder="<?= e(t('صِف الصورة بالتفصيل')) ?>"></textarea>
+              <button type="button" class="btn-primary w-full mt-3" data-cmd="aiimg"><?= ui_icon('image', 'w-4 h-4') ?><span><?= e(t('ولّد')) ?></span></button></div>
+            <div class="dz-aiform" data-aiform="head" hidden><b class="dz-aiform-t"><?= e(t('عناوين جذابة')) ?></b><p class="dz-aiform-h"><?= e(t('حدّد نصًا على اللوحة، ثم اختر من العناوين المقترحة.')) ?></p>
+              <button type="button" class="btn-primary w-full" data-cmd="aihead"><?= ui_icon('type', 'w-4 h-4') ?><span><?= e(t('اقترح عناوين')) ?></span></button><div id="dz-heads" class="space-y-1.5 mt-2"></div></div>
+            <div class="dz-aiform" data-aiform="sizes" hidden><b class="dz-aiform-t"><?= e(t('كل المقاسات')) ?></b><p class="dz-aiform-h"><?= e(t('ينشئ نسخة من التصميم الحالي بمقاس البوست والطولي والستوري والعرضي، ويحفظها في مشاريعي.')) ?></p>
+              <button type="button" class="btn-primary w-full" data-cmd="resizeall"><?= ui_icon('copy', 'w-4 h-4') ?><span><?= e(t('اعمل كل المقاسات')) ?></span></button></div>
+            <p id="dz-ai-st" class="text-[11px] text-ink-500 mt-2"></p>
+            <script>(function () { var t = document.getElementById('dz-ai-tabs'); if (!t) return; function on(k) { t.querySelectorAll('[data-aitool]').forEach(function (b) { b.classList.toggle('on', b.dataset.aitool === k); }); document.querySelectorAll('[data-aiform]').forEach(function (f) { f.hidden = f.dataset.aiform !== k; }); }
+              t.addEventListener('click', function (e) { var b = e.target.closest('[data-aitool]'); if (b) { on(b.dataset.aitool); var i = document.querySelector('[data-aiform="' + b.dataset.aitool + '"] textarea, [data-aiform="' + b.dataset.aitool + '"] input:not([type=checkbox])'); if (i) i.focus(); } }); on('layout'); })();</script>
+          </section>
           <section data-pane="tpl"><h3><?= e(t('قوالب من قاعدة المعرفة بألوانك')) ?></h3><div id="dz-tcat" class="dz-chips"></div><div id="dz-tpls" class="grid grid-cols-2 gap-2 items-start"></div></section>
           <section data-pane="el" hidden>
             <label class="mk-search !w-full mb-3"><?= ui_icon('search') ?><input type="search" id="dz-el-q" placeholder="<?= e(t('ابحث في العناصر…')) ?>"></label>

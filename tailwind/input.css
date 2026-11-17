@@ -214,6 +214,11 @@ tr.fx-hit td { background: rgb(var(--amber-100) / .6); }
   .dz-panel { @apply w-72 overflow-y-auto p-4; }
   .dz-panel section > h3:first-child, .dz-panel h3 { @apply text-[12px] font-bold text-ink-800 mb-2.5; }
   .dz-acc { @apply mb-3 rounded-xl border border-ink-200 px-3 py-2; } .dz-acc > summary { @apply cursor-pointer select-none text-[11px] font-bold text-ink-600 py-1; } .dz-acc[open] > summary { @apply mb-2 text-brand-700; }
+  .dz-aitile { @apply flex flex-col items-start gap-0.5 rounded-xl border border-ink-200 bg-white p-2.5 text-start transition hover:border-brand-300 hover:bg-brand-50/40; }
+  .dz-aitile b { @apply text-[12px] font-bold text-ink-900; } .dz-aitile small { @apply text-[10px] leading-4 text-ink-500; }
+  .dz-aitile-i { @apply mb-1 grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand-600; }
+  .dz-aitile.on { @apply border-brand-500 bg-brand-50 ring-2 ring-brand-500/15; } .dz-aitile.on .dz-aitile-i { @apply bg-brand-600 text-white; }
+  .dz-aiform { @apply rounded-xl border border-ink-200 bg-ink-50/60 p-3; } .dz-aiform-t { @apply block text-[12px] font-bold text-ink-900 mb-1; } .dz-aiform-h { @apply text-[11px] leading-5 text-ink-500 mb-2; }
   .dz-num { @apply flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2 py-1 text-[10px] text-ink-500 focus-within:border-brand-400; }
   .dz-num input { @apply w-full min-w-0 bg-transparent text-[12px] text-ink-900 tabular-nums outline-none; }
   .dz-panel h3 { @apply text-[11px] font-semibold text-ink-500 mb-2; }
