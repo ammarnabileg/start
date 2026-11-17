@@ -6247,4 +6247,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'تعذّر قراءة المنيو الحالي من Google، فلم نحفظ حتى لا يُمسح. حاول مرة أخرى.' => 'Could not read the current menu from Google, so nothing was saved to avoid wiping it. Try again.',
     'الوقت لازم يكون بالشكل HH:MM' => 'Time must be in HH:MM format',
     'حتى %s' => 'until %s',
+    'يوجد %s منيو. المعروض هنا الأول فقط، وباقي المنيوهات تبقى كما هي عند الحفظ.' => 'There are %s menus. Only the first is shown here; the others stay unchanged when you save.',
+    'لا توجد خطوة معلّقة لإعادة المحاولة.' => 'There is no pending step to retry.',
 ];

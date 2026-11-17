@@ -328,7 +328,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && in_array($_POST['action'] ?? 
     $ok = []; $fail = [];
     foreach ($ids as $id) {
         if (!preg_match('/^[\w-]{1,64}$/', $id)) continue;
-        try { $z->deletePost($id); log_activity('post.delete', $id); $ok[] = $id; } catch (ZernioException $ex) { $fail[$id] = $ex->getMessage(); }
+        try { $z->deletePost($id); log_activity('post.delete', $id); $ok[] = $id; foreach (['post_tags', 'post_notes', 'post_evergreen'] as $tb) { try { db()->prepare("DELETE FROM $tb WHERE workspace_id = ? AND post_id = ?")->execute([(int)ws('id'), $id]); } catch (Throwable $e) {} } /* بيانات المنشور المحذوف */ } catch (ZernioException $ex) { $fail[$id] = $ex->getMessage(); }
     }
     if ($json) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => $ok, 'failed' => $fail], JSON_UNESCAPED_UNICODE)); }
     $fail ? flash('error', reset($fail)) : flash('success', t('تم حذف المنشور.'));

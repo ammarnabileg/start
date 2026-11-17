@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 $parts = array_map('trim', explode('|', $line));
                 if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') continue;
                 if (count($parts) > 3) { $parts = [$parts[0], implode(' | ', array_slice($parts, 1, -1)), end($parts)]; } // | جوه اسم الصنف
-                $item = $old[mb_strtolower($parts[0] . '|' . $parts[1])] ?? []; $item['labels'] = $item['labels'] ?? [['displayName' => $parts[1]]]; $item['labels'][0]['displayName'] = $parts[1];
+                $item = $old[mb_strtolower($parts[0] . '|' . $parts[1])] ?? []; $item['labels'] = $item['labels'] ?? [['displayName' => $parts[1]]]; $item['labels'][0]['displayName'] = $parts[1]; if (trim((string)($parts[2] ?? '')) === '') unset($item['attributes']['price']); // السعر اتشال
                 $pr = (string)($parts[2] ?? ''); $price = preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $pr) ? str_replace(',', '', $pr) : str_replace(',', '.', $pr); // 1,250.50 = ألف ومتين
                 if ($price !== '' && is_numeric($price)) {
                     $item['attributes'] = ['price' => ['currencyCode' => $cur, 'units' => (string)(int)floor((float)$price), 'nanos' => (int)round(((float)$price - floor((float)$price)) * 1e9)]];
@@ -525,7 +525,7 @@ render(t('بيانات الفرع على جوجل'), 'gmb_location', function ()
         <?php $head('menu', t('منيو الأكل'), t('الأصناف بتظهر في تبويب المنيو على جوجل')); ?>
         <?php $err('menus'); ?>
         <?= csrf_field() ?><?= $hidden ?><input type="hidden" name="action" value="menu">
-        <?php if (count($menus) > 1): ?><p class="text-xs text-amber-700 mb-3"><?= e(t('فيه %s منيو، المعروض هنا أول واحد بس، والحفظ هيستبدلهم بالمنيو ده.', count($menus))) ?></p><?php endif; ?>
+        <?php if (count($menus) > 1): ?><p class="text-xs text-amber-700 mb-3"><?= e(t('يوجد %s منيو. المعروض هنا الأول فقط، وباقي المنيوهات تبقى كما هي عند الحفظ.', count($menus))) ?></p><?php endif; ?>
         <label class="block mb-4"><span class="label"><?= e(t('اسم المنيو')) ?></span><input name="menu_name" class="input sm:!w-64" value="<?= e($menuName) ?>"></label>
         <textarea name="menu" rows="8" class="input font-mono text-sm" data-rows="<?= e(t('القسم')) ?>|<?= e(t('الصنف')) ?>|<?= e(t('السعر')) ?>" placeholder="<?= e(t('القسم | الصنف | السعر')) ?>"><?= e(implode("\n", $mlines)) ?></textarea>
         <div class="flex justify-end items-center gap-3 mt-5 pt-4 border-t border-ink-100">

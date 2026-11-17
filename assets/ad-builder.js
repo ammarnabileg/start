@@ -19,16 +19,17 @@
   var GROUPS = { gulf: ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'], mena: ['SA', 'AE', 'KW', 'QA', 'BH', 'OM', 'EG', 'JO', 'LB', 'IQ', 'MA', 'DZ', 'TN', 'LY', 'PS', 'SD', 'YE', 'SY', 'MR'], levant: ['JO', 'LB', 'PS', 'SY', 'IQ'], maghreb: ['MA', 'DZ', 'TN', 'LY', 'MR'], eu: ['DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'SE', 'DK', 'FI', 'IE', 'PT', 'PL', 'CZ', 'GR', 'RO', 'HU'], na: ['US', 'CA'] };
 
   // ---- الحفظ التلقائي
-  var saveT, saving = false, dirty = false;
+  var saveT, saving = false, dirty = false, seq = 0, chain = Promise.resolve(true);
+  // الحفظ بيرجع Promise (الإطلاق بيستناه)، والطلبات بتمشي ورا بعض بالترتيب، و«اتحفظ» بيتعلّم بس لو آخر تعديل هو اللي اتحفظ ونجح
   function save(now) {
-    if (locked) return; dirty = true; clearTimeout(saveT);
-    saveT = setTimeout(function () {
-      saving = true; paintSave(S.saving);
-      var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'save'); fd.append('id', A.id); fd.append('data', JSON.stringify(D));
-      fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
-        saving = false; dirty = false; paintSave(j.ok ? fmt(S.savedAt, j.at) : (j.error || S.saveErr), !j.ok);
-      }).catch(function () { saving = false; paintSave(S.saveErr, true); });
-    }, now ? 0 : 700);
+    if (locked) return Promise.resolve(true); dirty = true; clearTimeout(saveT); var my = ++seq;
+    return new Promise(function (res) { saveT = setTimeout(function () {
+      chain = chain.then(function () { saving = true; paintSave(S.saving);
+        var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('action', 'save'); fd.append('id', A.id); fd.append('data', JSON.stringify(D));
+        return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+          saving = false; if (j.ok && my === seq) dirty = false; paintSave(j.ok ? fmt(S.savedAt, j.at) : (j.error || S.saveErr), !j.ok); res(!!j.ok); return true;
+        }).catch(function () { saving = false; paintSave(S.saveErr, true); res(false); return true; }); });
+    }, now ? 0 : 700); });
   }
   function paintSave(t, bad) { var e = $('#ab-save'); if (e) { e.textContent = t; e.className = 'text-xs ' + (bad ? 'text-red-600' : 'text-ink-500'); } }
   window.addEventListener('beforeunload', function (e) { if (dirty || saving) { e.preventDefault(); e.returnValue = ''; } });

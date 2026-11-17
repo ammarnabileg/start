@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     if (!can('ads.spend')) { echo json_encode(['ok' => false, 'error' => t('الإطلاق لصاحب صلاحية الصرف بس.')]); exit; }
     $d = $b['data']; $plan = ab_plan($d); $C = ab_caps((string)$d['platform']);
     $pr = $b['progress'] ?: ['ids' => ['campaign' => null, 'sets' => []], 'done' => [], 'inflight' => null, 'errors' => [], 'log' => []];
-    if ($_POST['action'] === 'reset_inflight') { $pr['inflight'] = null; ab_set_progress($wid, $b['id'], 'failed', $pr); echo json_encode(['ok' => true]); exit; }
+    if ($_POST['action'] === 'reset_inflight') { if ($pr['inflight'] === null || $b['state'] !== 'failed') { echo json_encode(['ok' => false, 'error' => t('لا توجد خطوة معلّقة لإعادة المحاولة.')], JSON_UNESCAPED_UNICODE); exit; } $pr['inflight'] = null; ab_set_progress($wid, $b['id'], 'failed', $pr); echo json_encode(['ok' => true]); exit; }
     if ($_POST['action'] === 'validate') {
         if (!$C['validate']) { echo json_encode(['ok' => false, 'error' => t('المنصة دي مفيهاش فحص من غير إنشاء.')]); exit; }
         $res = [];
@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'copy_
     $b = ab_get($wid, (int)($_POST['id'] ?? 0)); $amt = (float)str_replace(',', '.', (string)($_POST['amount'] ?? ''));
     if (!$b || empty($b['data']['cloneOf'])) { echo json_encode(['ok' => false, 'error' => t('المشروع مش موجود')]); exit; }
     if (!can('ads.spend')) { echo json_encode(['ok' => false, 'error' => t('الإطلاق لصاحب صلاحية الصرف بس.')]); exit; }
-    if (!in_array($b['state'], ['draft', 'failed'], true) || !empty($b['progress']['done'])) { echo json_encode(['ok' => false, 'error' => t('الحملة اتطلقت، مينفعش تتعدل.')]); exit; }
+    if (!in_array($b['state'], ['draft', 'failed'], true) || !empty($b['progress']['done']) || (($b['progress']['inflight'] ?? null) !== null)) { echo json_encode(['ok' => false, 'error' => t('الحملة اتطلقت، مينفعش تتعدل.')]); exit; }
     if ($amt < 1 || $amt > 100000000) { echo json_encode(['ok' => false, 'error' => t('الميزانية لازم تكون 1 على الأقل.')]); exit; }
     $nd = ab_scale_budget($b['data'], $amt); ab_save($wid, $b['id'], $nd);
     log_activity('ads.builder_copy_budget', $b['id'] . ' ' . $amt);

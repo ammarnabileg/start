@@ -42,11 +42,11 @@
   }
   function post(f) { var fd = new FormData(); fd.append('_csrf', A.csrf); fd.append('id', A.id); Object.keys(f).forEach(function (k) { fd.append(k, f[k]); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
   function validate() {
-    running = true; var b = document.getElementById('ab-validate'); b.disabled = true; b.textContent = L.validating; X.save(true);
-    setTimeout(function () { post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { alert(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); }, 900);
+    running = true; var b = document.getElementById('ab-validate'); b.disabled = true; b.textContent = L.validating;
+    Promise.resolve(X.save(true)).then(function () { post({ action: 'validate' }).then(function (j) { running = false; if (!j.ok) { alert(j.error); draw(); return; } vres = j.results; draw(); }).catch(function () { running = false; draw(); }); });
   }
   function launch() {
-    if (!confirm(L.lastQ)) return; running = true; X.save(true);
+    if (!confirm(L.lastQ)) return; running = true;
     var step = function () {
       post({ action: 'launch_step', confirm_spend: '1' }).then(function (j) {
         if (j.progress) prog = j.progress;
@@ -55,7 +55,7 @@
         draw(); setTimeout(step, 400);
       }).catch(function () { running = false; prog.inflight = prog.inflight == null ? -1 : prog.inflight; alert(L.netErr); location.reload(); });
     };
-    setTimeout(step, 900);
+    Promise.resolve(X.save(true)).then(function (ok) { if (ok === false) { running = false; alert(L.netErr); draw(); return; } step(); }); // الإطلاق بعد ما آخر تعديل يتحفظ فعلًا
   }
   document.addEventListener('ab:render', function (e) { draw(e.detail && e.detail.issues); });
   draw();

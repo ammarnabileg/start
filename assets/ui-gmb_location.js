@@ -86,7 +86,7 @@
   function paintSpecial() {
     var seen = {}, td = today();
     spRows().forEach(function (r) {
-      var i = $$('input', r), date = i[0].value, closed = i[1].checked;
+      var i = $$('input:not([type=hidden])', r), date = i[0].value, closed = i[1].checked;
       i[2].disabled = i[3].disabled = closed;
       i[2].style.opacity = i[3].style.opacity = closed ? '.35' : '';
       var w = $('.gl-w', r); if (!w) { w = el('span', 'gl-w text-xs'); r.insertBefore(w, $('.gl-sp-del', r)); }
