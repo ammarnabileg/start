@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0); $ids = array_slice(array_map('intval', (array)($_POST['ids'] ?? ($id ? [$id] : []))), 0, 200);
     if ($act === 'derive') { // نسخة معدلة (قص/تصغير) من المتصفح: صورة جديدة جنب الأصل
         $src = media_get($wid, (int)($_POST['src'] ?? 0)); $f = $_FILES['file'] ?? null;
-        if (!$src || !$f) $json(['ok' => false, 'error' => t('الملف مش موجود')]);
+        if (!$src || !$f || !empty($src['deleted_at'])) $json(['ok' => false, 'error' => t('الملف مش موجود')]);
         try { $f['name'] = mb_substr(trim((string)($_POST['name'] ?? '')), 0, 200) ?: $src['name']; $dest = isset($_POST['folder']) ? $fclean($_POST['folder']) : (string)$src['folder']; if ($dest !== (string)$src['folder'] && $dest !== '') { $fa = $fall(); if (!in_array($dest, $fa, true)) { $fa[] = $dest; save_setting($fkey, json_encode(array_values($fa), JSON_UNESCAPED_UNICODE)); } } $row = media_store_upload($wid, $f, $dest); $json(['ok' => true, 'item' => $row]); }
         catch (Throwable $e) { $json(['ok' => false, 'error' => $e->getMessage()]); }
     }

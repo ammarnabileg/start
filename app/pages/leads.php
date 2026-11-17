@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'lead_
     $lid = mb_substr((string)($_POST['lead_id'] ?? ''), 0, 120);
     $stage = (string)($_POST['stage'] ?? 'new');
     if ($lid === '' || !isset($stages[$stage])) { echo json_encode(['ok' => false, 'error' => t('بيانات ناقصة')]); exit; }
+    if (!can('crm.manage') && !can('ads.spend')) { $ow = db()->prepare('SELECT owner_id FROM crm_leads WHERE workspace_id = ? AND ext_id = ?'); $ow->execute([(int)ws('id'), 'ad:' . $lid]); $o = $ow->fetchColumn(); if ($o !== false && $o !== null && (int)$o !== (int)(current_user()['id'] ?? 0)) { echo json_encode(['ok' => false, 'error' => t('هذا العميل مسند لزميل آخر.')], JSON_UNESCAPED_UNICODE); exit; } }
     $val = trim((string)($_POST['value'] ?? ''));
     $val = $val === '' ? null : max(0, (float)str_replace(',', '.', $val));
     $st = db()->prepare("INSERT INTO lead_meta (workspace_id, lead_id, campaign_id, stage, deal_value, note, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)

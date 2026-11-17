@@ -382,7 +382,7 @@ function crm_deals_rollup(int $leadId): void
 {
     $st = db()->prepare("SELECT COUNT(*), COALESCE(SUM(CASE WHEN status <> 'lost' THEN value END), 0) FROM crm_deals WHERE workspace_id = ? AND lead_id = ?");
     $st->execute([(int)ws('id'), $leadId]); [$n, $sum] = $st->fetch(PDO::FETCH_NUM);
-    db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ? AND workspace_id = ?')->execute([(int)$n ? (float)$sum : 0, $leadId, (int)ws('id')]); // مفيش صفقات = مفيش قيمة
+    if ((int)$n) db()->prepare('UPDATE crm_leads SET deal_value = ? WHERE id = ? AND workspace_id = ?')->execute([(float)$sum, $leadId, (int)ws('id')]);
 }
 /** فترة التقرير */
 function crm_period(string $p): array

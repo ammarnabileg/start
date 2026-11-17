@@ -189,6 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tm = function ($v, $d) { return preg_match('/^\d{2}:\d{2}$/', (string)$v) ? $v : $d; };
         $c = ['title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 120), 'days' => $days, 'from' => $tm($_POST['from'] ?? '', '10:00'), 'to' => $tm($_POST['to'] ?? '', '17:00'),
             'len' => max(15, min(240, (int)($_POST['len'] ?? 30))), 'ahead' => max(1, min(60, (int)($_POST['ahead'] ?? 14))), 'notice' => max(0, min(72, (int)($_POST['notice'] ?? 3))), 'color' => crm_book_cfg()['color']];
+        // مواعيد مستحيلة كانت بتقفل الحجز من غير ما حد يعرف
+        if (!$c['days']) $json(['ok' => false, 'error' => t('اختر يومًا واحدًا على الأقل للحجز.')]);
+        if (strtotime('2000-01-01 ' . $c['from'] . ' +' . $c['len'] . ' minutes') > strtotime('2000-01-01 ' . $c['to'])) $json(['ok' => false, 'error' => t('وقت البداية لازم يكون قبل النهاية بمدة موعد واحد على الأقل.')]);
         save_setting('crm_book_cfg_' . $wid, json_encode($c, JSON_UNESCAPED_UNICODE));
         save_setting('crm_book_on_' . $wid, !empty($_POST['on']) ? '1' : '0');
         $json(['ok' => true, 'url' => crm_book_url()]);
@@ -305,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'deal_save' || $action === 'deal_del') {
         $did = (int)($_POST['deal'] ?? 0);
-        if ($action === 'deal_del') db()->prepare('DELETE FROM crm_deals WHERE id = ? AND workspace_id = ? AND lead_id = ?')->execute([$did, $wid, (int)$l['id']]);
+        if ($action === 'deal_del') { db()->prepare('DELETE FROM crm_deals WHERE id = ? AND workspace_id = ? AND lead_id = ?')->execute([$did, $wid, (int)$l['id']]); $dn = db()->prepare('SELECT COUNT(*) FROM crm_deals WHERE workspace_id = ? AND lead_id = ?'); $dn->execute([$wid, (int)$l['id']]); if (!(int)$dn->fetchColumn()) db()->prepare('UPDATE crm_leads SET deal_value = NULL WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]); } // آخر صفقة اتمسحت
         else {
             $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 190); if ($title === '') $json(['ok' => false, 'error' => t('اكتب اسم الصفقة.')]);
             $val = max(0, (float)str_replace(',', '.', (string)($_POST['value'] ?? '0')));
@@ -315,7 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             else db()->prepare('INSERT INTO crm_deals (workspace_id, lead_id, owner_id, title, value, status, close_at, closed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([$wid, (int)$l['id'], (int)$l['owner_id'] ?: ($uid ?: null), $title, $val, $stt, $close, $stt === 'open' ? null : date('Y-m-d H:i:s')]);
             crm_act_add((int)$l['id'], 'note', '💼 ' . $title . ' · ' . number_format($val) . ' · ' . crm_deal_statuses()[$stt]);
             // أول صفقة تتقفل بنجاح بتنقل العميل لـ "بقى عميل"
-            if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
+            if ($stt === 'won' && $l['stage'] !== 'won') { db()->prepare("UPDATE crm_leads SET stage = 'won' WHERE id = ?")->execute([(int)$l['id']]); if (function_exists('crm_push_ad_stage')) { try { crm_push_ad_stage(['stage' => 'won'] + $l); } catch (Throwable $e) {} } /* منصة الإعلانات تعرف إنه اشترى */ crm_act_add((int)$l['id'], 'stage', $stages[$l['stage']] . (is_rtl() ? ' ← ' : ' → ') . $stages['won']); }
         }
         crm_deals_rollup((int)$l['id']);
         $json(['ok' => true, 'deals' => crm_deals((int)$l['id']), 'lead' => $out(crm_lead((int)$l['id']))]);

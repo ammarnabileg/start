@@ -6283,4 +6283,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'تعديل العملاء يتطلب صلاحية إدارة العملاء.' => 'Editing leads requires the CRM manage permission.',
     'الضريبة والعملة الافتراضية يغيّرها مدير العملاء فقط.' => 'Only a CRM manager can change the default tax and currency.',
     'الحد الأقصى 20 مستلمًا للتقرير. قلّل القائمة.' => 'A report can have at most 20 recipients. Shorten the list.',
+    'هذا العميل مسند لزميل آخر.' => 'This lead is assigned to another teammate.',
+    'اختر يومًا واحدًا على الأقل للحجز.' => 'Pick at least one booking day.',
+    'وقت البداية لازم يكون قبل النهاية بمدة موعد واحد على الأقل.' => 'Start time must be before end time by at least one meeting length.',
 ];
