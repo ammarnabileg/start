@@ -5977,4 +5977,8 @@ If you know someone who needs our services, send them this link. They get {get},
     'لا يوجد شعار في قاعدة المعرفة.' => 'No logo in the knowledge base.',
     'أضف الشعار' => 'Add logo',
     'يرد دائمًا بلغة العميل ولهجته أولًا. اللغة الافتراضية تُستخدم فقط عندما لا تكون لغة الرسالة واضحة (رموز أو أرقام فقط).' => 'Always replies in the customer’s language and dialect first. The default language is used only when the message language is unclear (emoji or numbers only).',
+    'رفع من جهازك' => 'Upload from device',
+    'اختر منها، أو أفلت ملفًا هنا ليُحفظ فيها' => 'Pick from it, or drop a file here to save it there',
+    'اختر صورة لتظهر أوامر: اكتب منشورًا من الصورة، ووصف Alt.' => 'Choose an image to see: write a post from the image, and Alt text.',
+    'تصميم الصور يحتاج ربط OpenAI (مفتاح API) من صفحة التكاملات. تفتحها الآن؟' => 'Image design needs OpenAI (API key) connected in Integrations. Open it now?',
 ];

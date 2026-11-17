@@ -111,10 +111,24 @@
   if (mi) {
     mi.addEventListener('change', function () { files = [].slice.call(mi.files); setTimeout(drawMedia, 0); render(); });
     var lab = mi.closest('label'); mi.classList.add('hidden');
-    var dz = document.createElement('div'); dz.className = 'mt-1 flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 px-4 py-5 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition';
-    dz.innerHTML = '<svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b class="text-sm text-ink-900"></b><span class="text-[11px] text-ink-500"></span>';
-    dz.querySelector('b').textContent = P.drop; dz.querySelector('span').textContent = P.dropSub;
-    lab.appendChild(dz); dz.onclick = function (e) { e.preventDefault(); mi.click(); };
+    // المستطيل نصين: يمين رفع من الجهاز، شمال مكتبة الوسائط. الإفلات شغال على الاتنين
+    var dz = document.createElement('div'); dz.className = 'cp-dz mt-1 grid grid-cols-2 gap-1 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 p-1 transition';
+    dz.innerHTML = '<div data-dz="up" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer rounded-xl hover:bg-brand-50/60 transition"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>'
+      + '<div data-dz="lib" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer rounded-xl hover:bg-brand-50/60 transition border-s border-dashed border-ink-300"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>';
+    var hu = dz.querySelector('[data-dz=up]'), hl = dz.querySelector('[data-dz=lib]');
+    hu.querySelector('b').textContent = P.dropUp || P.drop; hu.querySelector('span').textContent = P.dropSub;
+    hl.querySelector('b').textContent = P.dropLib || 'Library'; hl.querySelector('span').textContent = P.dropLibSub || '';
+    lab.appendChild(dz);
+    hu.onclick = function (e) { e.preventDefault(); mi.click(); };
+    hl.onclick = function (e) { e.preventDefault(); var lp = document.getElementById('libPick'); if (lp) lp.click(); };
+    var lpb = document.getElementById('libPick'); if (lpb) lpb.classList.add('hidden');
+    // إفلات على نص المكتبة: يترفع للمكتبة ويتضاف للمنشور من هناك
+    function toLibrary(list) { if (!window.MEDIA || !window.cpAddLib) { setFiles(files.concat(list)); return; }
+      hl.classList.add('animate-pulse'); var fd = new FormData(); fd.append('_csrf', MEDIA.csrf); fd.append('action', 'upload'); list.forEach(function (f) { fd.append('files[]', f, f.name); });
+      fetch(MEDIA.post, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); })
+        .then(function (d) { (d.items || []).forEach(function (it) { window.cpAddLib(it); }); if (d.errors && d.errors.length) (window.aiToast || alert)(d.errors.join('\n')); })
+        .catch(function () { (window.aiToast || alert)((window.T && T.liveFailed) || 'Error'); }).finally(function () { hl.classList.remove('animate-pulse'); }); }
+    dz.addEventListener('dragover', function (e) { var h = e.target.closest('[data-dz]'); [hu, hl].forEach(function (x) { x.classList.toggle('bg-brand-100', x === h); }); });
     // السحب على الصفحة كلها (مش كارت النص بس): أي صورة/فيديو يتفلت في أي مكان بيتضاف لملفات المنشور
     // (إلا جوه نافذة مفتوحة زي مكتبة الوسائط، اللي ليها السحب بتاعها)
     var ov = document.createElement('div'); ov.className = 'cp-drop-ov'; ov.setAttribute('aria-hidden', 'true');
@@ -127,6 +141,8 @@
     document.addEventListener('dragleave', function (e) { if (!isFiles(e)) return; if (--depth <= 0 || !e.relatedTarget) hide(); });
     document.addEventListener('drop', function (e) { if (!isFiles(e) || inModal(e)) { hide(); return; } e.preventDefault(); hide();
       var add = [].slice.call(e.dataTransfer.files).filter(function (f) { return /^(image|video)\//.test(f.type) || f.type === 'application/pdf'; });
+      [hu, hl].forEach(function (x) { x.classList.remove('bg-brand-100'); });
+      if (add.length && e.target.closest && e.target.closest('[data-dz=lib]')) { toLibrary(add); return; }
       if (add.length) { setFiles(files.concat(add)); var mz = $('#mediaPreview'); if (mz && mz.scrollIntoView) mz.scrollIntoView({ behavior: 'smooth', block: 'center' }); } });
     window.addEventListener('blur', hide);
     content.addEventListener('paste', function (e) { var it = [].slice.call((e.clipboardData || {}).files || []).filter(function (f) { return /^image\//.test(f.type); }); if (it.length) { e.preventDefault(); setFiles(files.concat(it)); } });

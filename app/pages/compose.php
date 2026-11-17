@@ -551,7 +551,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <p class="text-[11px] text-ink-500"><?= e(t('النتيجة (أنهي نسخة تفاعلها أعلى) بتظهر في التحليلات تحت "أفضل 10 منشورات". شغال مع الجدولة والنشر دلوقتي.')) ?></p>
           </div>
           <div id="cpt-check" class="flex flex-wrap gap-1.5 text-[11px]"></div>
-          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا', function_exists('media_max_bytes') ? (string)max(1, (int)floor(media_max_bytes() / 1048576)) : (string)ini_get('upload_max_filesize'))) ?></span><?php if (can('ai.use') && ((function_exists('img_openai_conn') && img_openai_conn()) || (ai_connection() && ai_feature_on('vision')))): ?>
+          <div class="border-t border-ink-100 pt-4"><div class="flex items-center gap-2 mb-2"><b class="text-ink-900"><?= e(t('صور أو فيديو')) ?></b><span class="text-[11px] text-ink-400"><?= e(t('اختياري')) ?> · <?= e(t('الصور بأي حجم (تُصغَّر تلقائيًا) · الفيديو حتى %s ميجا', function_exists('media_max_bytes') ? (string)max(1, (int)floor(media_max_bytes() / 1048576)) : (string)ini_get('upload_max_filesize'))) ?></span><?php if (can('ai.use')): ?>
             <div class="relative ms-auto" id="mai"><button type="button" id="mai-btn" class="w-8 h-8 grid place-items-center rounded-lg border border-brand-200 bg-brand-50 text-brand-700 hover:shadow-sm" title="<?= e(t('الذكاء الاصطناعي')) ?>" aria-label="<?= e(t('الذكاء الاصطناعي')) ?>" aria-expanded="false"><?= ai_icon('spark', 'w-4 h-4') ?></button>
               <div id="mai-pop" class="hidden absolute end-0 z-40 mt-2 w-60 rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl text-sm"></div></div>
             <?php endif; ?></div>
@@ -663,16 +663,17 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             function firstImage() { var f = [].slice.call((document.getElementById('mediaInput') || {}).files || []).filter(function (x) { return /^image\//.test(x.type); })[0]; if (f) return f;
               var im = document.querySelector('#libMedia img'); return im ? im.src : null; }
             function items() { var out = [], img = firstImage();
-              if (document.getElementById('pst-open')) out.push(['pst', <?= json_encode(t('صمّم صورة من المنشور'), JSON_UNESCAPED_UNICODE) ?>]);
+              out.push(['pst', <?= json_encode(t('صمّم صورة من المنشور'), JSON_UNESCAPED_UNICODE) ?>]);
               if (img) document.querySelectorAll('#vis-box [data-vis]').forEach(function (b) { out.push(['vis:' + b.dataset.vis, b.textContent.trim()]); });
+              if (!img) out.push(['note', <?= json_encode(t('اختر صورة لتظهر أوامر: اكتب منشورًا من الصورة، ووصف Alt.'), JSON_UNESCAPED_UNICODE) ?>]);
               return out; }
             function close() { pop.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); }
             btn.addEventListener('click', function (e) { e.stopPropagation(); if (!pop.classList.contains('hidden')) return close();
-              pop.innerHTML = items().map(function (x) { return '<button type="button" data-mai="' + x[0] + '" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-ink-50">✦ <span></span></button>'; }).join('');
+              pop.innerHTML = items().map(function (x) { return x[0] === 'note' ? '<p class="px-3 py-2 text-[11px] text-ink-500 border-t border-ink-100 mt-1"><span></span></p>' : '<button type="button" data-mai="' + x[0] + '" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-ink-50">✦ <span></span></button>'; }).join('');
               items().forEach(function (x, i) { pop.children[i].querySelector('span').textContent = x[1]; });
               pop.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); });
             pop.addEventListener('click', function (e) { var b = e.target.closest('[data-mai]'); if (!b) return; close(); var k = b.dataset.mai;
-              if (k === 'pst') document.getElementById('pst-open').click(); else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
+              if (k === 'pst') { var po = document.getElementById('pst-open'); if (po) po.click(); else if (confirm(<?= json_encode(t('تصميم الصور يحتاج ربط OpenAI (مفتاح API) من صفحة التكاملات. تفتحها الآن؟'), JSON_UNESCAPED_UNICODE) ?>)) location.href = <?= json_encode(url('connectors'), JSON_UNESCAPED_SLASHES) ?>; } else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
             document.addEventListener('click', function (e) { if (!e.target.closest('#mai')) close(); });
             window.cpFirstImage = firstImage;
           })();
@@ -982,7 +983,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
       'icons' => array_combine($cpPlats, array_map(function ($p) { return platform_icon($p, 'w-3.5 h-3.5'); }, $cpPlats)),
       'plat' => array_combine($cpPlats, array_map('platform_label', $cpPlats)),
       'tooLong' => t('أطول من المسموح بـ %s حرف'), 'tags' => t('%s هاشتاج'), 'emoji' => t('إيموجي'), 'hashtag' => t('هاشتاج'), 'line' => t('سطر جديد'), 'tools' => t('الأدوات'), 'aiMenu' => t('الذكاء الاصطناعي'),
-      'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropPage' => t('أفلت الملفات هنا لإضافتها إلى المنشور'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'),
+      'searchAcc' => t('ابحث في الحسابات...'), 'remove' => t('حذف'), 'drop' => t('اسحب الصور أو الفيديو هنا، أو اضغط للاختيار'), 'dropPage' => t('أفلت الملفات هنا لإضافتها إلى المنشور'), 'dropSub' => t('تقدر كمان تلصق صورة في خانة النص (Ctrl+V)'), 'dropUp' => t('رفع من جهازك'), 'dropLib' => t('مكتبة الوسائط'), 'dropLibSub' => t('اختر منها، أو أفلت ملفًا هنا ليُحفظ فيها'),
       'xMax' => t('X بيقبل 4 صور بس'), 'needVideo' => t('تيك توك ويوتيوب محتاجين فيديو'), 'igMedia' => t('إنستجرام محتاج صورة أو فيديو'),
       'preview' => t('معاينة'), 'pickAcc' => t('اختار حساب عشان تشوف المعاينة'), 'more' => t('المزيد'), 'emptyText' => t('اكتب نص المنشور أو ضيف صورة'), 'like' => t('إعجاب'), 'repost' => t('إعادة نشر'), 'send' => t('إرسال'), 'now' => t('الآن'), 'kStory' => t('ستوري'), 'kReel' => t('ريلز'), 'needMedia' => t('الستوري والريلز محتاجين صورة أو فيديو'), 'kNo' => t('%s مابيدعمش النوع ده، هيتنشر منشور عادي'), 'comment' => t('تعليق'), 'share' => t('مشاركة'), 'customText' => t('الحساب ده بيستخدم نص خاص بيه'),
       'modes' => ['now' => t('هيتنشر دلوقتي'), 'draft' => t('هيتحفظ كمسودة'), 'queue' => t('أقرب ميعاد فاضي في الطابور'), 'schedule' => t('مجدول')],
