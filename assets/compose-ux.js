@@ -40,7 +40,7 @@
     var dd = document.createElement('div'); dd.className = 'cp-dd';
     dd.innerHTML = '<button type="button" id="' + id + '-btn" aria-expanded="false" class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100">' + icon + esc(label) + '<svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>';
     var panel = document.createElement('div'); panel.id = id + '-pop'; panel.className = 'hidden absolute z-40 top-full mt-2 rounded-2xl border border-ink-200 bg-white p-3 shadow-2xl'; panel.style.left = '6px'; panel.style.right = '6px';
-    content.style.display = 'flex'; content.style.flexWrap = 'wrap'; content.style.gap = '.4rem'; content.style.padding = '0'; content.querySelectorAll(':scope > *').forEach(function (x) { x.style.whiteSpace = 'nowrap'; });
+    content.style.display = 'flex'; content.style.flexWrap = 'wrap'; content.style.gap = '.4rem'; content.style.padding = '0'; content.querySelectorAll(':scope > *').forEach(function (x) { if (x.id === 'cp-auto' || x.querySelector('input, textarea, select')) { x.style.whiteSpace = 'normal'; x.style.flexBasis = '100%'; return; } x.style.whiteSpace = 'nowrap'; });
     panel.appendChild(content); dd.appendChild(panel); bar.insertBefore(dd, before || bar.querySelector('#cp-tags'));
     var btn = dd.querySelector('button');
     function show(on) { panel.classList.toggle('hidden', !on); btn.setAttribute('aria-expanded', on ? 'true' : 'false'); btn.classList.toggle('bg-ink-100', on); }
@@ -91,7 +91,7 @@
 
   /* ---------- 4) الوسائط: سحب وإفلات + حذف + معلومات ---------- */
   var files = [];
-  function setFiles(list) { files = list; try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); mi.files = dt.files; } catch (e) {} drawMedia(); render(); if (window.cpAiSync) window.cpAiSync(); }
+  function setFiles(list) { files = list; if (window.cpSaveDraft && !restoring) setTimeout(window.cpSaveDraft, 0); try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); mi.files = dt.files; } catch (e) {} drawMedia(); render(); if (window.cpAiSync) window.cpAiSync(); }
   function drawMedia() {
     var mp = $('#mediaPreview'); if (!mp) return; mp.innerHTML = '';
     files.forEach(function (f, i) {
@@ -109,12 +109,12 @@
     w.textContent = msgs.join(' · ');
   }
   if (mi) {
-    mi.addEventListener('change', function () { files = [].slice.call(mi.files); setTimeout(drawMedia, 0); render(); });
+    mi.addEventListener('change', function () { files = [].slice.call(mi.files); if (window.cpSaveDraft) window.cpSaveDraft(); setTimeout(drawMedia, 0); render(); });
     var lab = mi.closest('label'); mi.classList.add('hidden');
     // المستطيل نصين: يمين رفع من الجهاز، شمال مكتبة الوسائط. الإفلات شغال على الاتنين
-    var dz = document.createElement('div'); dz.className = 'cp-dz mt-1 grid grid-cols-2 gap-1 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 p-1 transition';
-    dz.innerHTML = '<div data-dz="up" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer rounded-xl hover:bg-brand-50/60 transition"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>'
-      + '<div data-dz="lib" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer rounded-xl hover:bg-brand-50/60 transition border-s border-dashed border-ink-300"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>';
+    var dz = document.createElement('div'); dz.className = 'cp-dz mt-1 grid grid-cols-2 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 transition hover:border-brand-400';
+    dz.innerHTML = '<div data-dz="up" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer transition hover:[&_b]:text-brand-700"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>'
+      + '<div data-dz="lib" class="flex flex-col items-center justify-center gap-1 px-2 py-4 sm:px-4 sm:py-5 text-center cursor-pointer transition hover:[&_b]:text-brand-700 relative before:absolute before:start-0 before:top-4 before:bottom-4 before:w-px before:bg-ink-200"><svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z"/></svg><b class="text-xs sm:text-sm text-ink-900"></b><span class="hidden sm:block text-[11px] text-ink-500"></span></div>';
     var hu = dz.querySelector('[data-dz=up]'), hl = dz.querySelector('[data-dz=lib]');
     hu.querySelector('b').textContent = P.dropUp || P.drop; hu.querySelector('span').textContent = P.dropSub;
     hl.querySelector('b').textContent = P.dropLib || 'Library'; hl.querySelector('span').textContent = P.dropLibSub || '';
@@ -267,28 +267,38 @@
 
   /* ---------- 8) مسودة تلقائية + Ctrl+Enter + تحذير الخروج ---------- */
   var DK = 'cp_draft_' + (P.ws || ''), sending = false, tm = null;
+  // صور المسودة: صور المكتبة بتتحفظ كبيانات، وملفات الجهاز في IndexedDB
+  var idb = function (mode, fn) { try { var rq = indexedDB.open('cp_drafts', 1); rq.onupgradeneeded = function () { rq.result.createObjectStore('f'); }; rq.onsuccess = function () { var tx = rq.result.transaction('f', mode); fn(tx.objectStore('f')); }; } catch (e) {} };
+  var putFiles = function (list) { idb('readwrite', function (st) { list.length ? st.put(list.map(function (f) { return { b: f, n: f.name, t: f.type }; }), DK) : st.delete(DK); }); };
+  var getFiles = function (cb) { idb('readonly', function (st) { var g = st.get(DK); g.onsuccess = function () { cb((g.result || []).map(function (x) { try { return new File([x.b], x.n, { type: x.t }); } catch (e) { return null; } }).filter(Boolean)); }; }); };
+  var libItems = function () { return [].slice.call(document.querySelectorAll('#libMedia > div')).map(function (w) { var i = w.querySelector('input'), m = w.querySelector('img, video'); return i ? { id: +i.value, url: m ? (m.getAttribute('src') || '').replace(/#t=.*$/, '') : '', thumb: m && m.tagName === 'IMG' ? m.getAttribute('src') : '', kind: m && m.tagName === 'VIDEO' ? 'video' : 'image', name: w.title || '' } : null; }).filter(Boolean); };
+  function draftObj() { return { t: content.value, a: sel().map(function (c) { return c.value; }), m: libItems(), nf: files.length, at: Date.now() }; }
   function saveDraft() {
     clearTimeout(tm); tm = setTimeout(function () {
-      if (!content.value.trim()) { store.set(DK, ''); $('#cp-draft').textContent = ''; return; }
-      store.set(DK, JSON.stringify({ t: content.value, a: sel().map(function (c) { return c.value; }), at: Date.now() })); $('#cp-draft').textContent = '✎ ' + P.draftSaved;
+      var o = draftObj();
+      if (!o.t.trim() && !o.m.length && !o.nf) { store.set(DK, ''); putFiles([]); $('#cp-draft').textContent = ''; return; }
+      store.set(DK, JSON.stringify(o)); putFiles(files); $('#cp-draft').textContent = '✎ ' + P.draftSaved;
     }, 500);
   }
+  window.cpSaveDraft = saveDraft;
+  var lmBox = document.getElementById('libMedia'); if (lmBox && window.MutationObserver) new MutationObserver(function () { if (!restoring) saveDraft(); }).observe(lmBox, { childList: true });
+  var restoring = false;
   // المسودة تُحذف بعد نجاح النشر فقط (لو الجلسة انتهت أو النت فصل، النص يفضل محفوظ)
-  if (/[?&]done=1/.test(location.search)) store.set(DK, '');
+  if (/[?&]done=1/.test(location.search)) { store.set(DK, ''); putFiles([]); }
   var saved = null; try { saved = JSON.parse(store.get(DK) || 'null'); } catch (e) {}
-  if (saved && saved.t && !content.value.trim() && Date.now() - saved.at < 7 * 864e5) {
+  if (saved && (saved.t || (saved.m || []).length || saved.nf) && !content.value.trim() && Date.now() - saved.at < 7 * 864e5) {
     var bn = document.createElement('div'); bn.className = 'mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm';
     bn.innerHTML = '<span class="flex-1 text-amber-900"></span><button type="button" class="r btn-primary !py-1.5 !text-xs"></button><button type="button" class="x btn-ghost !py-1.5 !text-xs"></button>';
-    bn.querySelector('span').textContent = P.restore + ' «' + saved.t.slice(0, 60) + (saved.t.length > 60 ? '…' : '') + '»'; bn.querySelector('.r').textContent = P.restoreBtn; bn.querySelector('.x').textContent = P.discard;
+    var nM = (saved.m || []).length + (saved.nf || 0); bn.querySelector('span').textContent = P.restore + ' «' + (saved.t || '').slice(0, 60) + ((saved.t || '').length > 60 ? '…' : '') + '»' + (nM ? ' + ' + nM + ' 🖼' : ''); bn.querySelector('.r').textContent = P.restoreBtn; bn.querySelector('.x').textContent = P.discard;
     form.before(bn);
-    bn.querySelector('.r').onclick = function () { content.value = saved.t; accs.forEach(function (c) { if (saved.a.indexOf(c.value) > -1 && !c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } }); content.dispatchEvent(new Event('input', { bubbles: true })); bn.remove(); content.focus(); };
-    bn.querySelector('.x').onclick = function () { store.set(DK, ''); bn.remove(); };
+    bn.querySelector('.r').onclick = function () { restoring = true; (saved.m || []).forEach(function (f) { if (window.cpAddLib) window.cpAddLib(f); }); if (saved.nf) getFiles(function (fs) { if (fs.length) setFiles(files.concat(fs)); }); setTimeout(function () { restoring = false; }, 300); content.value = saved.t || ''; accs.forEach(function (c) { if (saved.a.indexOf(c.value) > -1 && !c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } }); content.dispatchEvent(new Event('input', { bubbles: true })); bn.remove(); content.focus(); };
+    bn.querySelector('.x').onclick = function () { store.set(DK, ''); putFiles([]); bn.remove(); };
   }
   var LK = 'cp_last_acc_' + (P.ws || '');
   form.addEventListener('submit', function (e) {
     var a = e.submitter, m = $('.mode:checked');
     if ((!a || a.value !== 'validate') && m && m.value === 'now' && !confirm(P.confirmNow)) { e.preventDefault(); return; }
-    if (!a || a.value !== 'validate') { sending = true; clearTimeout(tm); if (content.value.trim()) store.set(DK, JSON.stringify({ t: content.value, a: sel().map(function (c) { return c.value; }), at: Date.now() })); store.set(LK, JSON.stringify(sel().map(function (c) { return c.value; }))); }
+    if (!a || a.value !== 'validate') { sending = true; clearTimeout(tm); var o2 = draftObj(); if (o2.t.trim() || o2.m.length || o2.nf) { store.set(DK, JSON.stringify(o2)); putFiles(files); } store.set(LK, JSON.stringify(sel().map(function (c) { return c.value; }))); }
   });
   // الحسابات اللي استخدمتها آخر مرة بتتعلم لوحدها (لو الصفحة فاضية)
   (function () {

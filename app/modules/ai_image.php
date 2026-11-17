@@ -32,6 +32,7 @@ function img_openai_cost(string $quality, string $size): float
 function img_lib_save_bytes(int $wid, string $bytes, string $prompt): ?string
 {
     $dir = hf_lib_dir($wid); if (!is_dir($dir)) @mkdir($dir, 0750, true);
+    if (function_exists('img_trim_bands')) $bytes = img_trim_bands($bytes);
     $tmp = tempnam(sys_get_temp_dir(), 'oa'); file_put_contents($tmp, $bytes); $mime = (string)mime_content_type($tmp);
     $ext = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mime] ?? null;
     if (!$ext || filesize($tmp) > 25 * 1048576) { @unlink($tmp); return null; }
@@ -174,13 +175,13 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
 
 function vid_or_models(array $c): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models2_' . substr(sha1((string)$c['credentials']['api_key']), 0, 12) . '.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models3_' . substr(sha1((string)$c['credentials']['api_key']), 0, 12) . '.json';
     if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j) && $j) return $j; }
     $ch = curl_init(ai_base('openrouter') . '/videos/models');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
     $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
     $out = [];
-    foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_filter(array_map('intval', (array)($m['supported_durations'] ?? [])), function ($d) { return $d > 0; })), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? [])), 'usd_s' => vid_or_price((array)($m['pricing_skus'] ?? $m['pricing'] ?? []))];
+    foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_filter(array_map('intval', (array)($m['supported_durations'] ?? [])), function ($d) { return $d > 0; })), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? [])), 'usd_s' => vid_or_price((array)($m['pricing_skus'] ?? $m['pricing'] ?? [])), 'res' => vid_or_res_prices((array)($m['pricing_skus'] ?? $m['pricing'] ?? []), (array)($m['supported_resolutions'] ?? []))];
     if ($out) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out)); }
     return $out;
 }
@@ -218,8 +219,10 @@ function vid_or_start(string $prompt, string $aspect = '9:16', int $duration = 0
     $c = img_or_conn(); if (!$c) throw new RuntimeException(t('اربط OpenRouter أولًا من صفحة التكاملات.'));
     $model = vid_or_model($c); if ($model === '') throw new RuntimeException(t('لا يوجد موديل فيديو متاح على حساب OpenRouter.'));
     $body = ['model' => $model, 'prompt' => mb_substr($prompt, 0, 4000), 'aspect_ratio' => $aspect];
+    $res = trim((string)setting('vid_or_res_' . (int)ws('id'), ''));
     $info = array_values(array_filter(vid_or_models($c), function ($m) use ($model) { return $m['id'] === $model; }))[0] ?? [];
     if (!empty($info['ratios']) && !in_array($aspect, $info['ratios'], true)) unset($body['aspect_ratio']);
+    if ($res !== '' && isset($info['res'][$res])) $body['resolution'] = $res;
     if ($duration > 0 && (empty($info['durations']) || in_array($duration, $info['durations'], true))) $body['duration'] = $duration;
     $r = vid_or_req($c, 'POST', '/videos', $body); $id = (string)($r['id'] ?? '');
     if ($id === '' || !preg_match('/^[\w-]{4,100}$/', $id)) throw new RuntimeException(t('لم يرجع OpenRouter رقم المهمة.'));
@@ -266,5 +269,52 @@ function vid_or_price(array $p): ?float
     if (($v = $pick(['video_tokens', 'video_tokens_without_audio'])) !== null) return round($v * 21600, 4);
     foreach ($p as $k => $v) if (preg_match('/second/', $k) && !preg_match('/long|reference|input/', $k) && (float)$v > 0) return round(strpos($k, 'cents') !== false ? (float)$v / 100 : (float)$v, 4);
     return null;
+}
+
+/** سعر الثانية لكل جودة يدعمها الموديل: ['480p' => 0.05, '720p' => 0.1, ...] (null لو مش معروف) */
+function vid_or_res_prices(array $p, array $resList): array
+{
+    $px = ['360p' => [640, 360], '480p' => [854, 480], '720p' => [1280, 720], '768p' => [1366, 768], '1080p' => [1920, 1080], '1K' => [1024, 1024], '2K' => [2560, 1440], '4K' => [3840, 2160], '4k' => [3840, 2160]];
+    $out = [];
+    foreach ($resList as $r) {
+        $r = (string)$r; $lk = strtolower($r); $v = null;
+        foreach (['duration_seconds_' . $lk, 'duration_seconds_with_audio_' . $lk] as $k) if ($v === null && isset($p[$k]) && (float)$p[$k] > 0) $v = (float)$p[$k];
+        if ($v === null && isset($p['cents_per_video_output_second_' . $lk]) && (float)$p['cents_per_video_output_second_' . $lk] > 0) $v = (float)$p['cents_per_video_output_second_' . $lk] / 100;
+        if ($v === null && isset($px[$r]) && ($t = (float)($p['video_tokens'] ?? $p['video_tokens_without_audio'] ?? 0)) > 0) $v = $t * $px[$r][0] * $px[$r][1] * 24 / 1024;
+        if ($v === null) foreach (['duration_seconds', 'duration_seconds_with_audio'] as $k) if ($v === null && isset($p[$k]) && (float)$p[$k] > 0) $v = (float)$p[$k]; // سعر واحد لكل الجودات
+        $out[$r] = $v === null ? null : round($v, 4);
+    }
+    return $out;
+}
+
+/**
+ * شبكة أمان: بعض الموديلات بترجع الصورة ومعاها شريط فاضي (أبيض أو لون واحد) على حرف.
+ * لو الشريط أكتر من 6% من الصورة: نقصه، وبعدين نقص من المنتصف عشان نرجع لنفس نسبة الصورة الأصلية.
+ */
+function img_trim_bands(string $bytes): string
+{
+    if (!function_exists('imagecreatefromstring')) return $bytes;
+    $im = @imagecreatefromstring($bytes); if (!$im) return $bytes;
+    $w = imagesx($im); $h = imagesy($im); if ($w < 64 || $h < 64) { imagedestroy($im); return $bytes; }
+    // عمود/صف «فاضي» = كل نقطة فيه قريبة من لون الركن وتقريبًا من غير تفاصيل
+    $ref = imagecolorat($im, 0, 0); $rr = ($ref >> 16) & 255; $rg = ($ref >> 8) & 255; $rb = $ref & 255;
+    $flat = function ($x0, $y0, $dx, $dy, $n) use ($im, $rr, $rg, $rb) {
+        $bad = 0; $step = max(1, intdiv($n, 60));
+        for ($i = 0; $i < $n; $i += $step) { $c = imagecolorat($im, $x0 + $dx * $i, $y0 + $dy * $i); if (abs((($c >> 16) & 255) - $rr) + abs((($c >> 8) & 255) - $rg) + abs(($c & 255) - $rb) > 40) $bad++; }
+        return $bad <= 1;
+    };
+    $l = 0; while ($l < $w * 0.45 && $flat($l, 0, 0, 1, $h)) $l++;
+    $r = 0; while ($r < $w * 0.45 && $flat($w - 1 - $r, 0, 0, 1, $h)) $r++;
+    $t = 0; while ($t < $h * 0.45 && $flat(0, $t, 1, 0, $w)) $t++;
+    $b = 0; while ($b < $h * 0.45 && $flat(0, $h - 1 - $b, 1, 0, $w)) $b++;
+    $min = 0.06;
+    if ($l < $w * $min) $l = 0; if ($r < $w * $min) $r = 0; if ($t < $h * $min) $t = 0; if ($b < $h * $min) $b = 0;
+    if (!$l && !$r && !$t && !$b) { imagedestroy($im); return $bytes; }
+    $cw = $w - $l - $r; $ch = $h - $t - $b; if ($cw < $w * 0.4 || $ch < $h * 0.4) { imagedestroy($im); return $bytes; }
+    // نرجع لنسبة الصورة الأصلية بقص من المنتصف، وبعدين نكبّر لنفس المقاس
+    $ratio = $w / $h; if ($cw / $ch > $ratio) { $nw = (int)round($ch * $ratio); $l += intdiv($cw - $nw, 2); $cw = $nw; } else { $nh = (int)round($cw / $ratio); $t += intdiv($ch - $nh, 2); $ch = $nh; }
+    $out = imagecreatetruecolor($w, $h); imagecopyresampled($out, $im, 0, 0, $l, $t, $w, $h, $cw, $ch);
+    ob_start(); imagepng($out); $png = (string)ob_get_clean(); imagedestroy($im); imagedestroy($out);
+    return $png !== '' ? $png : $bytes;
 }
 

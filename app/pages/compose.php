@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     header('Content-Type: application/json; charset=utf-8');
     $J = function ($a) { echo json_encode($a, JSON_UNESCAPED_UNICODE); exit; };
     if (!can('ai.use')) $J(['ok' => false, 'error' => t('مالكش صلاحية استخدام الذكاء الاصطناعي.')]);
-    $styles = ['photo' => 'photorealistic commercial photography, natural light, shallow depth of field', 'minimal' => 'clean minimal flat design, generous negative space, modern geometric shapes',
+    $styles = ['photo' => 'photorealistic commercial photography, natural light, shallow depth of field', 'minimal' => 'clean minimal flat design, bold modern geometric shapes, strong color blocking that fills the whole canvas',
         '3d' => 'polished 3D render, soft studio lighting, premium materials', 'corporate' => 'corporate B2B visual, professional, trustworthy, blue and neutral palette',
         'illustration' => 'editorial vector illustration, bold shapes, vibrant but balanced colors', 'luxury' => 'luxury aesthetic, dark elegant background, gold accents, dramatic lighting'];
     $vs = (array)(kb_get((int)ws('id'))['visual_style'] ?? []); $bColors = trim((string)($vs['colors'] ?? '')); $bStyle = trim((string)($vs['style'] ?? ''));
@@ -54,9 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         $text = mb_substr(trim((string)($_POST['text'] ?? '')), 0, 3000); if ($text === '') $J(['ok' => false, 'error' => t('اكتب نص المنشور أولًا.')]);
         $head = mb_substr(trim((string)($_POST['headline'] ?? '')), 0, 80); $nref = max(0, min(4, (int)($_POST['nref'] ?? 0))) + (!empty($_POST['use_logo']) ? 1 : 0);
         try {
-            $r = ai_chat([['role' => 'system', 'content' => "You are a senior art director writing prompts for an image generation model (GPT image). Read the social media post and write ONE professional English prompt for a scroll-stopping social media visual that supports the post's message.\nInclude: subject and scene, composition for a {$aspect} frame, lighting, color palette, mood, camera/lens or render details, and what to avoid (no clutter, no distorted hands, no random text)." .
-                "\nStyle: {$styles[$style]}.\n{$brand}" . ($head !== '' ? "\nRender this exact headline text clearly on the image, large and legible, with correct spelling: \"{$head}\"." : "\nDo not put any text or letters in the image.") .
-                ($nref ? "\n{$nref} reference image(s) will be attached (product, logo or person): tell the model to keep them faithful and integrate them naturally." : '') . "\nReturn ONLY the prompt, 60-140 words, no quotes, no preamble."],
+            $sysP = "You are an award-winning art director and prompt engineer for photorealistic and graphic image models (GPT Image, Gemini Image). Turn the social media post into ONE production-ready English image prompt for a premium, scroll-stopping social visual.\n"
+                . "Think first (do not output this): what is the single core message of the post, who is the audience, and what ONE striking visual idea expresses it? Avoid stock-photo cliches (people pointing at screens, handshakes, generic smiling models, random server aisles, floating holograms) unless the post is literally about that; prefer a specific, concrete, story-driven scene or a bold conceptual metaphor.\n"
+                . "Write the prompt as one dense paragraph covering, in this order: 1) the visual concept in one line; 2) the hero subject with concrete details (materials, textures, wardrobe, setting); 3) composition for an exact {$aspect} frame: subject large and well framed, clear focal point, depth, rule of thirds; 4) camera and lens (e.g. 35mm or 85mm, aperture) or render style; 5) lighting (direction, quality, color temperature) and mood; 6) color palette; 7) style keywords; 8) quality cues (ultra-detailed, sharp focus, professional color grading, high dynamic range).\n"
+                . "MANDATORY framing: full-bleed, edge-to-edge composition that fills the entire canvas; no white or blank areas, no borders, no frames, no margins, no padding, no split layouts, no empty side panels, no collage.\n"
+                . "Style: {$styles[$style]}.\n{$brand}\n"
+                . ($head !== '' ? "Typography: render the exact headline \"{$head}\" once, large, bold, perfectly spelled, high contrast, integrated into the scene (not on a blank panel), with safe margins from the edges.\n" : "No text, letters, numbers, logos or watermarks anywhere in the image unless a reference logo is attached.\n")
+                . ($nref ? "{$nref} reference image(s) are attached (product, logo or person): keep them faithful in shape, colors and proportions and integrate them naturally with matching light and perspective.\n" : '')
+                . "End with a short negative list: avoid blank areas, white borders, distorted hands or faces, extra fingers, garbled text, low resolution, oversaturation, clutter.\n"
+                . "Return ONLY the final prompt (120-200 words), no quotes, no headings, no preamble.";
+            $r = ai_chat([['role' => 'system', 'content' => $sysP],
                 ['role' => 'user', 'content' => $text]], 500, 'compose');
             $J(['ok' => true, 'prompt' => trim((string)$r['text'], " \n\"")]);
         } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
@@ -66,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     $prompt = trim((string)($_POST['prompt'] ?? '')); if (mb_strlen($prompt) < 10) $J(['ok' => false, 'error' => t('اكتب وصف الصورة.')]);
     // الهوية بتتطبق حتى لو المستخدم عدّل الوصف ومسح الألوان
     if ($bColors !== '' && stripos($prompt, $bColors) === false) $prompt .= "\n\nBrand colors (must use as dominant palette): {$bColors}.";
+    $prompt .= "\n\nFraming: full-bleed edge-to-edge image filling the entire {$aspect} canvas. No white or empty areas, no borders, margins, frames, side panels or split layout.";
     $wid = (int)ws('id'); $refs = [];
     $okM = ['image/png', 'image/jpeg', 'image/webp']; $lg = !empty($_POST['use_logo']) && function_exists('kb_logo') ? kb_logo($wid) : null; if ($lg && !in_array((string)$lg['mime'], $okM, true)) $lg = null;
     if ($lg) { $refs[] = media_file_path($wid, $lg); $prompt .= "\n\nThe first attached image is the company logo: place it small and clean in a corner, keep its exact shape and colors, do not redraw or distort it."; }
@@ -501,11 +509,11 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
           </div></div>
           <?php if ($ctaW && module_enabled('automations')):
             $link = setting('crm_book_on_' . (int)ws('id'), '0') === '1' ? crm_book_url() : crm_form_url(); ?>
-          <div id="cp-auto" class="hidden basis-full w-full mt-1 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2 text-sm">
+          <div id="cp-auto" class="hidden basis-full w-full min-w-0 mt-1 rounded-xl border border-ink-200 bg-ink-50 p-3 space-y-2 text-sm whitespace-normal">
             <div class="font-medium text-ink-900">🤖 <?= e(t('رد أوتوماتيك على «%s»', $ctaW[0])) ?></div>
             <p class="text-[11px] text-ink-500"><?= e(t('أي حد يعلّق بالكلمة دي على أي منشور للحسابات المختارة: بيترد عليه رد عام، وبتوصله رسالة خاصة فيها اللينك (فيسبوك وإنستجرام)، وبيظهر في العملاء المقترحين.')) ?></p>
-            <input id="cp-auto-reply" class="input !py-1.5 text-sm" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
-            <textarea id="cp-auto-dm" rows="2" class="input text-sm" maxlength="900" dir="auto"><?= e(t('أهلاً! دي التفاصيل اللي طلبتها 👇') . "\n" . $link) ?></textarea>
+            <input id="cp-auto-reply" class="input !py-1.5 text-sm w-full" maxlength="300" value="<?= e(t('بعتنالك رسالة خاصة فيها التفاصيل 📩')) ?>">
+            <textarea id="cp-auto-dm" rows="3" class="input text-sm w-full whitespace-pre-wrap break-words" maxlength="900" dir="auto"><?= e(t('أهلاً! دي التفاصيل اللي طلبتها 👇') . "\n" . $link) ?></textarea>
             <div class="flex items-center gap-2"><button type="button" id="cp-auto-go" class="btn-primary !py-1.5 !text-xs"><?= e(t('فعّل على الحسابات المختارة')) ?></button><span id="cp-auto-msg" class="text-xs"></span></div>
           </div>
           <?php endif; ?>

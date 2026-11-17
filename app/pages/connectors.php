@@ -76,7 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'vid_model' && $existing && $provider === 'openrouter') {
         $m = trim((string)($_POST['vid_model'] ?? ''));
         $ok = $m === '' || (function_exists('vid_or_models') && in_array($m, array_column(vid_or_models($existing), 'id'), true));
-        if ($ok) { save_setting('vid_or_model_' . (int)ws('id'), $m); flash('success', t('اتحفظ.')); } else flash('error', t('الموديل غير متاح.'));
+        $rs = trim((string)($_POST['vid_res'] ?? '')); if ($rs !== '' && !preg_match('/^[0-9]{3,4}p$|^[124]K$|^4k$/', $rs)) $rs = '';
+        if ($ok) { save_setting('vid_or_model_' . (int)ws('id'), $m); save_setting('vid_or_res_' . (int)ws('id'), $rs); flash('success', t('اتحفظ.')); } else flash('error', t('الموديل غير متاح.'));
     }
     if ($action === 'img_model' && $existing && $provider === 'openrouter') {
         $m = trim((string)($_POST['img_model'] ?? ''));
@@ -366,6 +367,14 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                   <option value=""><?= e($hasHf ? t('Higgsfield (الافتراضي)') : t('تلقائي')) ?></option>
                   <?php foreach ($vL as $vm): ?><option value="<?= e($vm['id']) ?>" <?= $vCur === $vm['id'] ? 'selected' : '' ?>><?= e($vm['name'] . ' (' . $vm['id'] . ')' . (isset($vm['usd_s']) && $vm['usd_s'] !== null ? ' · ≈ $' . rtrim(rtrim(number_format($vm['usd_s'], 3), '0'), '.') . t('/ثانية') . ' (' . t('8 ثوانٍ ≈ $%s', rtrim(rtrim(number_format($vm['usd_s'] * 8, 2), '0'), '.')) . ')' : '') . ($vm['durations'] ? ' · ' . min($vm['durations']) . '–' . max($vm['durations']) . 's' : '')) ?></option><?php endforeach; ?>
                 </select>
+                <?php $vSel = null; foreach ($vL as $vm) if ($vm['id'] === ($vCur !== '' ? $vCur : (function_exists('vid_or_model') ? vid_or_model($c) : ''))) $vSel = $vm; $vRes = (string)setting('vid_or_res_' . (int)ws('id'), ''); ?>
+                <?php if ($vSel && !empty($vSel['res'])): ?>
+                <label class="block mt-3"><span class="label"><?= e(t('جودة الفيديو')) ?> <span class="text-ink-400 font-normal" dir="ltr">(<?= e($vSel['id']) ?>)</span></span>
+                  <select name="vid_res" class="input mt-1" onchange="this.form.requestSubmit()" dir="ltr">
+                    <option value=""><?= e(t('الافتراضية للموديل')) ?></option>
+                    <?php foreach ($vSel['res'] as $rk => $rv): ?><option value="<?= e($rk) ?>" <?= $vRes === $rk ? 'selected' : '' ?>><?= e($rk . ($rv !== null ? ' · ≈ $' . rtrim(rtrim(number_format($rv, 3), '0'), '.') . t('/ثانية') . ' (' . t('8 ثوانٍ ≈ $%s', rtrim(rtrim(number_format($rv * 8, 2), '0'), '.')) . ')' : '')) ?></option><?php endforeach; ?>
+                  </select></label>
+                <?php endif; ?>
                 <p class="text-xs text-ink-500 mt-1"><?= e(t('الأسعار تقريبية بدقة 720p من OpenRouter، والسعر النهائي يظهر في سجل الاستهلاك.')) ?> <?= e(t('الفيديو يُولَّد في الخلفية وقد يستغرق عدة دقائق، ثم يُحفظ في مكتبة الوسائط. تكلفته أعلى بكثير من الصور.')) ?></p>
                 <?php else: ?><p class="text-xs text-amber-700 mt-2"><?= e(t('تعذّر جلب موديلات الفيديو من OpenRouter الآن.')) ?></p><?php endif; ?>
               </form>

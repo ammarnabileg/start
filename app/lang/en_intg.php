@@ -6027,4 +6027,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'تحويل صورة إلى فيديو غير متاح عبر OpenRouter حاليًا. استخدم وصفًا نصيًا، أو اربط Higgsfield.' => 'Image-to-video is not available via OpenRouter yet. Use a text prompt, or connect Higgsfield.',
     'تعذّر إخفاء %s تعليق: %s' => 'Could not hide %s comments: %s',
     'هذا الإجراء يحتاج صلاحية إدارة الإعدادات.' => 'This action needs settings management permission.',
+    'جودة الفيديو' => 'Video quality',
+    'الافتراضية للموديل' => 'Model default',
 ];
