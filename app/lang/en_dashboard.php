@@ -46,4 +46,5 @@ return [
     'الهاتف' => 'Phone',
     'عمل تغيير في %s' => 'made a change in %s',
     'الأهداف' => 'Goals',
+    'التنبيهات والأداء' => 'Alerts & performance',
 ];

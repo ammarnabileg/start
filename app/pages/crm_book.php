@@ -38,7 +38,7 @@ ai_as_workspace($wid, function () use ($wid) {
                 $camp = preg_replace('/[^A-Za-z0-9]/', '', (string)($_GET['utm_campaign'] ?? ''));
                 if ($camp !== '') db()->prepare('UPDATE crm_leads SET link_code = COALESCE(link_code, ?) WHERE id = ?')->execute([substr($camp, 0, 16), (int)$l['id']]);
                 $when = (new DateTime($slot, $tz))->format('d/m h:i A');
-                db()->prepare('UPDATE crm_leads SET next_at = IF(next_at IS NULL OR next_at > ?, ?, next_at), next_note = IF(next_at IS NULL OR next_at > ?, ?, next_note) WHERE id = ?')->execute([$start, $start, $start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), (int)$l['id']]);
+                db()->prepare('UPDATE crm_leads SET next_note = IF(next_at IS NULL OR next_at > ?, ?, next_note), next_at = IF(next_at IS NULL OR next_at > ?, ?, next_at) WHERE id = ?')->execute([$start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), $start, $start, (int)$l['id']]);
                 crm_act_add((int)$l['id'], 'meet', '📅 ' . t('حجز اجتماع: %s (%s دقيقة)', $when, $cfg['len']) . ($note !== '' ? "\n“" . $note . '”' : ''));
                 if (empty($l['merged'])) db()->prepare("UPDATE crm_leads SET stage = IF(stage IN ('new','contacted'), 'qualified', stage) WHERE id = ?")->execute([(int)$l['id']]); // عميل موجود: الحجز من رابط عام مش إثبات
                 db()->commit();

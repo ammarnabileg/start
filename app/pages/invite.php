@@ -5,7 +5,7 @@ $token = preg_replace('/[^a-f0-9]/', '', (string)($_GET['t'] ?? $_POST['t'] ?? '
 
 $st = $pdo->prepare("SELECT i.*, w.name AS ws_name, u.name AS by_name FROM workspace_invites i
     JOIN workspaces w ON w.id = i.workspace_id LEFT JOIN users u ON u.id = i.created_by
-    WHERE i.token = ? AND i.expires_at > NOW()");
+    WHERE i.token = ? AND i.expires_at > NOW() AND COALESCE(w.status, 'active') = 'active'");
 $st->execute([$token]);
 $inv = $token !== '' ? $st->fetch() : false;
 

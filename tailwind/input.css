@@ -1879,3 +1879,5 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
   #ibx-compose { flex-wrap: wrap; }
   #ibx-compose > textarea, #ibx-compose > div:has(> textarea) { flex: 1 1 100% !important; order: -1; min-width: 100%; }
 }
+
+@media (pointer: coarse) { #ibx form button[name=emoji] { min-width: 40px; min-height: 40px; font-size: 18px; } }

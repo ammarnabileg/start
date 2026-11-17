@@ -41,7 +41,7 @@ function cm_spam_words(array $c): array
 function cm_is_bad(string $t, array $c): string
 {
     $l = mb_strtolower($t);
-    foreach (cm_spam_words($c) as $w) if ($w !== '' && (preg_match('/\p{Arabic}/u', $w) ? preg_match('/(?<![\p{L}\p{N}])(?:[وفبلك]?(?:ال)?)' . preg_quote($w, '/') . '(?:ين|ون|ات|ه|ها|هم|ك|ي)?(?![\p{L}\p{N}])/u', $l) : preg_match('/(?<![\p{L}\p{N}])' . preg_quote($w, '/') . '(?![\p{L}\p{N}])/u', $l))) return 'word';
+    foreach (cm_spam_words($c) as $w) if ($w !== '' && (preg_match('/\p{Arabic}/u', $w) ? preg_match('/(?<![\p{L}\p{N}])(?:[وفبلك]?(?:ال)?)' . preg_quote($w, '/') . '(?:تين|ين|ون|ات|ية|ه|ة|ا|ها|هم|كم|نا|وا|تم|ك|ي)?(?![\p{L}\p{N}])/u', $l) : preg_match('/(?<![\p{L}\p{N}])' . preg_quote($w, '/') . '(?![\p{L}\p{N}])/u', $l))) return 'word';
     if (!empty($c['links']) && preg_match('~(https?://|www\.|bit\.ly|t\.me/|wa\.me/)~i', $t)) return 'link';
     return '';
 }

@@ -133,7 +133,7 @@ if ($mode === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (too_many_attempts($pdo)) {
             $errors[] = t('محاولات كتير غلط. استنى 15 دقيقة وجرب تاني.');
         } else {
-            $st = $pdo->prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'");
+            $st = $pdo->prepare("SELECT * FROM users WHERE email = ? AND role = 'admin' AND COALESCE(status, 'active') = 'active'");
             $st->execute([strtolower(post('email'))]);
             $admin = $st->fetch();
             if (!$admin || !password_verify((string)($_POST['password'] ?? ''), $admin['password_hash'])) {

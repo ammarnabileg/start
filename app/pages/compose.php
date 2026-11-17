@@ -116,13 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cpt_s
 if (($_GET['ajax'] ?? '') === 'best' && $z && function_exists('next_best_time')) {
     header('Content-Type: application/json; charset=utf-8');
     $out = [];
-    foreach (array_slice(array_filter(array_map('strval', (array)($_GET['acc'] ?? []))), 0, 8) as $acc) {
+    $okAcc = acc_allowed(); foreach (array_slice(array_filter(array_map('strval', (array)($_GET['acc'] ?? []))), 0, 8) as $acc) { if ($okAcc !== null && !in_array($acc, $okAcc, true)) continue;
         $nb = next_best_time($z, $acc);
         if ($nb) $out[] = ['acc' => $acc, 'at' => $nb->format('Y-m-d\TH:i'), 'label' => weekday_name((int)$nb->format('w')) . ' ' . $nb->format('h:i A')];
     }
     exit(json_encode(['ok' => true, 'items' => $out], JSON_UNESCAPED_UNICODE));
 }
 // #11: لينك متتبع للمنشور
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['coupon_new', 'track_link', 'cta_word'], true) && !(module_enabled('crm') && can('crm.view'))) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('مالكش صلاحية.')], JSON_UNESCAPED_UNICODE)); }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'coupon_new') {
     header('Content-Type: application/json; charset=utf-8');
     $cp = coupon_make((string)($_POST['code'] ?? ''), (string)($_POST['label'] ?? ''));

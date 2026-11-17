@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tid = (int)($_POST['id'] ?? 0);
     $st = db()->prepare('SELECT * FROM tenders WHERE id = ?'); $st->execute([$tid]); $t = $st->fetch();
     if (!$t) $J(['ok' => false, 'error' => t('المنافسة دي مش موجودة.')], 404);
+    if (in_array($a, ['applied', 'hidden', 'clear'], true) && !$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')]);
     if (in_array($a, ['fav', 'applied', 'hidden', 'clear'], true)) {
         tnd_mark($tid, $a === 'clear' ? '' : $a);
         log_activity('tenders.' . $a, (string)$t['ref']);

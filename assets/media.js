@@ -205,7 +205,7 @@
         st.sel = []; load(); if (files.length) undoToast(fmt(S.trashed, files.length), function () { post({ action: 'restore', 'ids[]': files }).then(function () { toast(S.restored, 'ok'); load(); }); });
       });
     }
-    function restore(keys) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (ids.length) post({ action: 'restore', 'ids[]': ids }).then(function () { toast(S.restored, 'ok'); st.sel = []; load(); }); }
+    function restore(keys) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (ids.length) post({ action: 'restore', 'ids[]': ids }).then(function (j) { if (!j || j.ok === false) return; toast(S.restored, 'ok'); st.sel = []; load(); }); }
     function star(keys) { var fs = selFiles(), on = !fs.every(function (f) { return f.star; }); post({ action: 'star', on: on ? 1 : '', 'ids[]': fs.map(function (f) { return f.id; }) }).then(load); }
     function zip(keys) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return k.slice(1); }); if (ids.length) location.href = M.page + '&zip=' + ids.join(','); }
     // نافذة "نقل إلى" بشجرة الفولدرات
@@ -226,7 +226,7 @@
       if (!files.length && !dirs.length) return; if (!confirm(dirs.length ? fmt(S.delMixed, files.length, dirs.length) : fmt(S.delQ, files.length))) return;
       Promise.all([files.length ? post({ action: 'delete', 'ids[]': files }) : null].concat(dirs.map(function (d) { return post({ action: 'folder_delete', folder: d }); }))).then(function () { st.sel = []; load(); });
     }
-    function moveTo(keys, folder) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (!ids.length) return; post({ action: 'move', folder: folder, 'ids[]': ids }).then(function () { toast(S.moved, 'ok'); load(); }); }
+    function moveTo(keys, folder) { var ids = keys.filter(function (k) { return k[0] === 'f'; }).map(function (k) { return +k.slice(1); }); if (!ids.length) return; post({ action: 'move', folder: folder, 'ids[]': ids }).then(function (j) { if (!j || j.ok === false) return; toast(S.moved, 'ok'); load(); }); }
     function newFolder() {
       if (!['folder', 'all'].includes(st.loc.t)) go({ t: 'all', f: '' });
       var base = st.loc.t === 'folder' ? st.loc.f : '', host2 = win.querySelector('.mx-items'), names = Object.keys(subfolders(base)), nm = S.newFolderName, k = 2; while (names.indexOf(nm) >= 0) nm = S.newFolderName + ' ' + k++;
