@@ -345,28 +345,28 @@ render(t('التكاملات'), 'connectors', function () use ($registry, $detai
                   <?php endforeach; ?>
                 </div>
               </form>
-              <?php $imL = []; try { $imL = function_exists('img_or_models') ? img_or_models($c) : []; } catch (Throwable $e) {} $imCur = (string)setting('img_or_model_' . (int)ws('id'), ''); $imAuto = function_exists('img_or_model') && $imL ? img_or_model($c) : ''; ?>
+              <?php $imL = []; try { $imL = function_exists('img_or_models') ? img_or_models($c) : []; usort($imL, function ($a, $b) { return ($a['usd'] ?? 99) <=> ($b['usd'] ?? 99); }); } catch (Throwable $e) {} $imCur = (string)setting('img_or_model_' . (int)ws('id'), ''); $imAuto = function_exists('img_or_model') && $imL ? img_or_model($c) : ''; ?>
               <form method="post" class="mt-4">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="img_model">
                 <span class="label"><?= e(t('موديل توليد الصور')) ?></span>
                 <?php if ($imL): ?>
                 <select name="img_model" class="input mt-2" onchange="this.form.requestSubmit()" dir="ltr">
                   <option value=""><?= e(t('تلقائي')) ?><?= $imCur === '' && $imAuto !== '' ? ' — ' . e($imAuto) : '' ?></option>
-                  <?php foreach ($imL as $im): ?><option value="<?= e($im['id']) ?>" <?= $imCur === $im['id'] ? 'selected' : '' ?>><?= e($im['name'] . ' (' . $im['id'] . ')' . ($im['img_in'] ? '' : ' · ' . t('بدون صور مرجعية'))) ?></option><?php endforeach; ?>
+                  <?php foreach ($imL as $im): ?><option value="<?= e($im['id']) ?>" <?= $imCur === $im['id'] ? 'selected' : '' ?>><?= e($im['name'] . ' (' . $im['id'] . ')' . (isset($im['usd']) && $im['usd'] !== null ? ' · ≈ $' . rtrim(rtrim(number_format($im['usd'], 3), '0'), '.') . ' ' . t('للصورة') : '') . ($im['img_in'] ? '' : ' · ' . t('بدون صور مرجعية'))) ?></option><?php endforeach; ?>
                 </select>
                 <p class="text-xs text-ink-500 mt-1"><?= e(t('يُستخدم في تصميم الصور واستوديو المحتوى والمصمم. لو OpenAI مربوط، يُستخدم OpenAI أولًا.')) ?></p>
                 <?php else: ?><p class="text-xs text-amber-700 mt-2"><?= e(t('تعذّر جلب موديلات الصور من OpenRouter الآن.')) ?></p><?php endif; ?>
               </form>
-              <?php $vL = []; try { $vL = function_exists('vid_or_models') ? vid_or_models($c) : []; } catch (Throwable $e) {} $vCur = (string)setting('vid_or_model_' . (int)ws('id'), ''); $hasHf = (bool)connector('higgsfield'); ?>
+              <?php $vL = []; try { $vL = function_exists('vid_or_models') ? vid_or_models($c) : []; usort($vL, function ($a, $b) { return ($a['usd_s'] ?? 99) <=> ($b['usd_s'] ?? 99); }); } catch (Throwable $e) {} $vCur = (string)setting('vid_or_model_' . (int)ws('id'), ''); $hasHf = (bool)connector('higgsfield'); ?>
               <form method="post" class="mt-4">
                 <?= csrf_field() ?><input type="hidden" name="provider" value="openrouter"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><input type="hidden" name="action" value="vid_model">
                 <span class="label"><?= e(t('موديل توليد الفيديو')) ?></span>
                 <?php if ($vL): ?>
                 <select name="vid_model" class="input mt-2" onchange="this.form.requestSubmit()" dir="ltr">
                   <option value=""><?= e($hasHf ? t('Higgsfield (الافتراضي)') : t('تلقائي')) ?></option>
-                  <?php foreach ($vL as $vm): ?><option value="<?= e($vm['id']) ?>" <?= $vCur === $vm['id'] ? 'selected' : '' ?>><?= e($vm['name'] . ' (' . $vm['id'] . ')' . ($vm['durations'] ? ' · ' . implode('/', $vm['durations']) . 's' : '')) ?></option><?php endforeach; ?>
+                  <?php foreach ($vL as $vm): ?><option value="<?= e($vm['id']) ?>" <?= $vCur === $vm['id'] ? 'selected' : '' ?>><?= e($vm['name'] . ' (' . $vm['id'] . ')' . (isset($vm['usd_s']) && $vm['usd_s'] !== null ? ' · ≈ $' . rtrim(rtrim(number_format($vm['usd_s'], 3), '0'), '.') . t('/ثانية') . ' (' . t('8 ثوانٍ ≈ $%s', rtrim(rtrim(number_format($vm['usd_s'] * 8, 2), '0'), '.')) . ')' : '') . ($vm['durations'] ? ' · ' . min($vm['durations']) . '–' . max($vm['durations']) . 's' : '')) ?></option><?php endforeach; ?>
                 </select>
-                <p class="text-xs text-ink-500 mt-1"><?= e(t('الفيديو يُولَّد في الخلفية وقد يستغرق عدة دقائق، ثم يُحفظ في مكتبة الوسائط. تكلفته أعلى بكثير من الصور.')) ?></p>
+                <p class="text-xs text-ink-500 mt-1"><?= e(t('الأسعار تقريبية بدقة 720p من OpenRouter، والسعر النهائي يظهر في سجل الاستهلاك.')) ?> <?= e(t('الفيديو يُولَّد في الخلفية وقد يستغرق عدة دقائق، ثم يُحفظ في مكتبة الوسائط. تكلفته أعلى بكثير من الصور.')) ?></p>
                 <?php else: ?><p class="text-xs text-amber-700 mt-2"><?= e(t('تعذّر جلب موديلات الفيديو من OpenRouter الآن.')) ?></p><?php endif; ?>
               </form>
             <?php endif; ?>

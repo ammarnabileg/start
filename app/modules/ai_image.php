@@ -97,13 +97,13 @@ function img_or_conn(): ?array
 /** موديلات OpenRouter اللي بتطلّع صور (من قايمة الموديلات، متخزنة 6 ساعات) */
 function img_or_models(array $c): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_img_models.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_img_models2.json';
     if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j) && $j) return $j; }
     $ch = curl_init(ai_base('openrouter') . '/models');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
     $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
     $out = [];
-    foreach ((array)($j['data'] ?? []) as $m) if (in_array('image', (array)($m['architecture']['output_modalities'] ?? []), true) && strpos((string)$m['id'], 'openrouter/') !== 0) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'img_in' => in_array('image', (array)($m['architecture']['input_modalities'] ?? []), true)];
+    foreach ((array)($j['data'] ?? []) as $m) if (in_array('image', (array)($m['architecture']['output_modalities'] ?? []), true) && strpos((string)$m['id'], 'openrouter/') !== 0) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'img_in' => in_array('image', (array)($m['architecture']['input_modalities'] ?? []), true), 'usd' => img_or_price((array)($m['pricing'] ?? []))];
     if ($out) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out)); }
     return $out;
 }
@@ -174,13 +174,13 @@ function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array 
 
 function vid_or_models(array $c): array
 {
-    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models.json';
+    $file = ROOT_DIR . '/uploads/cache/openrouter_vid_models2.json';
     if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j)) return $j; }
     $ch = curl_init(ai_base('openrouter') . '/videos/models');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
     $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
     $out = [];
-    foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_map('intval', (array)($m['supported_durations'] ?? []))), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? []))];
+    foreach ((array)($j['data'] ?? []) as $m) if (!empty($m['id'])) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'durations' => array_values(array_filter(array_map('intval', (array)($m['supported_durations'] ?? [])), function ($d) { return $d > 0; })), 'ratios' => array_values((array)($m['supported_aspect_ratios'] ?? [])), 'usd_s' => vid_or_price((array)($m['pricing_skus'] ?? $m['pricing'] ?? []))];
     @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out));
     return $out;
 }
@@ -246,5 +246,25 @@ function vid_or_poll(string $id): array
     if (function_exists('media_sync_ai')) { try { media_sync_ai($wid); } catch (Throwable $e) {} }
     if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'video', 'openrouter', vid_or_model($c), ['cost' => (float)($r['usage']['cost'] ?? 0), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
     return ['status' => $names ? 'completed' : 'failed', 'names' => $names, 'error' => $names ? '' : t('اكتمل الفيديو لكن تعذّر تنزيله.')];
+}
+
+/** سعر تقريبي للصورة الواحدة بالدولار: توكنز الصورة الناتجة (~1290 توكن للصورة 1024) أو سعر ثابت للصورة */
+function img_or_price(array $p): ?float
+{
+    if (isset($p['image_output']) && (float)$p['image_output'] > 0) return round((float)$p['image_output'] * 1290, 4);
+    if (isset($p['image']) && (float)$p['image'] > 0.001) return round((float)$p['image'], 4);
+    return null;
+}
+
+/** سعر تقريبي للثانية بالدولار عند 720p (المنصة بتعلن الأسعار بأشكال مختلفة حسب الموديل) */
+function vid_or_price(array $p): ?float
+{
+    $pick = function (array $keys) use ($p) { foreach ($keys as $k) if (isset($p[$k]) && (float)$p[$k] > 0) return (float)$p[$k]; return null; };
+    if (($v = $pick(['duration_seconds_720p', 'duration_seconds_with_audio_720p', 'duration_seconds_768p', 'duration_seconds', 'duration_seconds_with_audio', 'duration_seconds_1080p'])) !== null) return round($v, 4);
+    if (($v = $pick(['cents_per_video_output_second_720p', 'cents_per_video_output_second_768p', 'cents_per_video_output_second', 'cents_per_video_output_second_1080p', 'cents_per_video_output_second_480p'])) !== null) return round($v / 100, 4);
+    // بالتوكنز: 1280×720 × 24 فريم ÷ 1024 ≈ 21,600 توكن للثانية
+    if (($v = $pick(['video_tokens', 'video_tokens_without_audio'])) !== null) return round($v * 21600, 4);
+    foreach ($p as $k => $v) if (preg_match('/second/', $k) && !preg_match('/long|reference|input/', $k) && (float)$v > 0) return round(strpos($k, 'cents') !== false ? (float)$v / 100 : (float)$v, 4);
+    return null;
 }
 
