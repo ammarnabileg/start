@@ -374,7 +374,7 @@
     [weekBox].forEach(function (box) {
       if (!box) return;
       box.addEventListener('dragstart', function (e) { var a = e.target.closest('[data-pid]'); if (!a) return; dragId = a.dataset.pid; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragId); } catch (er) {} a.classList.add('opacity-50'); });
-      box.addEventListener('dragend', function () { dragId = null; $$('[data-wday]', box).forEach(function (c) { c.classList.remove('ring-2', 'ring-inset', 'ring-brand-400'); }); });
+      box.addEventListener('dragend', function (e) { if (e.target && e.target.classList) e.target.classList.remove('opacity-50'); dragId = null; $$('[data-wday]', box).forEach(function (c) { c.classList.remove('ring-2', 'ring-inset', 'ring-brand-400'); }); });
       box.addEventListener('dragover', function (e) { var c = e.target.closest('[data-wday]'); if (!c || !dragId) return; e.preventDefault(); $$('[data-wday]', box).forEach(function (x) { var on = x === c; x.classList.toggle('ring-2', on); x.classList.toggle('ring-inset', on); x.classList.toggle('ring-brand-400', on); }); });
       box.addEventListener('drop', function (e) {
         var c = e.target.closest('[data-wday]'); if (!c || !dragId) return; e.preventDefault();
@@ -392,7 +392,7 @@
       });
     });
     grid.addEventListener('dragstart', function (e) { var a = e.target.closest('[data-pid]'); if (!a) return; dragId = a.dataset.pid; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragId); } catch (er) {} a.classList.add('opacity-50'); });
-    grid.addEventListener('dragend', function () { dragId = null; $$('[data-day]', grid).forEach(function (c) { c.classList.remove('ring-2', 'ring-inset', 'ring-brand-400', 'bg-brand-50'); }); });
+    grid.addEventListener('dragend', function (e) { if (e.target && e.target.classList) e.target.classList.remove('opacity-50'); dragId = null; $$('[data-day]', grid).forEach(function (c) { c.classList.remove('ring-2', 'ring-inset', 'ring-brand-400', 'bg-brand-50'); }); });
     grid.addEventListener('dragover', function (e) { var c = e.target.closest('[data-day]'); if (!c || !dragId) return; e.preventDefault(); $$('[data-day]', grid).forEach(function (x) { var on = x === c; x.classList.toggle('ring-2', on); x.classList.toggle('ring-inset', on); x.classList.toggle('ring-brand-400', on); x.classList.toggle('bg-brand-50', on); }); });
     grid.addEventListener('drop', function (e) {
       var c = e.target.closest('[data-day]'); if (!c || !dragId) return; e.preventDefault();

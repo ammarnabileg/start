@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $a = (string)($_POST['action'] ?? '');
     if ($a === 'toggle' && $mgr) { save_setting('post_approval_' . $wid, !empty($_POST['on']) ? '1' : '0'); flash('success', t('اتحفظ ✓')); redirect(url('approvals')); }
     $st = db()->prepare("SELECT * FROM post_approvals WHERE id = ? AND workspace_id = ? AND status = 'pending'"); $st->execute([(int)($_POST['id'] ?? 0), $wid]); $r = $st->fetch();
-    if (!$r || !$mgr || !$z) { flash('error', t('بيانات ناقصة')); redirect(url('approvals')); }
+    if (!$r || !$mgr || (!$z && $a !== 'reject')) { flash('error', t('بيانات ناقصة')); redirect(url('approvals')); }
     if ($a === 'approve') {
         // حجز ذرّي: ضغطتين أو مديرين في نفس اللحظة مايعملوش نشر مرتين
         $cl = db()->prepare("UPDATE post_approvals SET status = 'approving' WHERE id = ? AND status = 'pending'"); $cl->execute([(int)$r['id']]);
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($a === 'reject') {
         $note = mb_substr(trim((string)($_POST['note'] ?? '')), 0, 300);
-        db()->prepare("UPDATE post_approvals SET status = 'rejected', note = ?, decided_by = ?, decided_at = NOW() WHERE id = ?")->execute([$note ?: null, $uid, (int)$r['id']]);
+        db()->prepare("UPDATE post_approvals SET status = 'rejected', note = ?, decided_by = ?, decided_at = NOW() WHERE id = ? AND status = 'pending'")->execute([$note ?: null, $uid, (int)$r['id']]); /* مايتعارضش مع موافقة شغالة */
         if ($r['user_id'] && function_exists('crm_notify')) crm_notify((int)$r['user_id'], null, 'approval', t('✕ المدير رفض منشورك') . ($note !== '' ? ': ' . $note : ''));
         log_activity('post.rejected', (string)$r['id']);
         flash('success', t('اترفض، وصاحبه وصله ملاحظتك.'));

@@ -427,7 +427,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
         <script>
         (function () {
           var b = document.getElementById('dash-ads-body'); if (!b || b.dataset.on) return; b.dataset.on = '1';
-          fetch(<?= json_encode(url('dashboard', ['ajax' => 'ads'])) ?>, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
+          fetch(<?= json_encode(url('dashboard', ['ajax' => 'ads'] + (!empty($_GET['refresh']) ? ['refresh' => 1] : []))) ?>, { credentials: 'same-origin' }).then(function (r) { if (!r.ok || r.redirected) throw 0; return r.text(); }).then(function (h) {
             if (!h.trim()) { document.getElementById('dash-ads').remove(); return; }
             b.outerHTML = '<div>' + h + '</div>';
           }).catch(function () { b.classList.remove('animate-pulse'); b.textContent = <?= json_encode(t('ما قدرناش نحمّل الإعلانات')) ?>; });
