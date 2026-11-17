@@ -231,7 +231,7 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
         </form>
         <?php if ($estimateErr): ?><div class="mt-3"><?php error_box($estimateErr); ?></div><?php endif; ?>
         <?php if ($estimate): $cost = (float)($estimate['breakdown']['billableCostUSD'] ?? $estimate['perMinuteUsd'] ?? 0); $sel = $dialFrom ?: ph_e164($voice[0]['phoneNumber']); $fwdDefault = ''; foreach ($voice as $n) { if (ph_e164($n['phoneNumber']) === $sel) $fwdDefault = preg_replace('/^tel:/', '', (string)($n['pstnForwardTo'] ?? '')); } ?>
-          <form method="post" class="mt-4 space-y-3" onsubmit="return confirm(<?= tjs('المكالمة هتتطلب فعلاً وهتتحسب. نكمل؟') ?>)">
+          <form method="post" class="mt-4 space-y-3" onsubmit="return confirm('<?= tjs('المكالمة هتتطلب فعلاً وهتتحسب. نكمل؟') ?>')">
             <?= csrf_field() ?><input type="hidden" name="action" value="call"><input type="hidden" name="to" value="<?= e($dialTo) ?>"><input type="hidden" name="from" value="<?= e($sel) ?>">
             <p class="text-sm font-semibold"><?= e(t('التكلفة التقريبية: $%s للدقيقة (%s).', number_format($cost, 3), (string)($estimate['destinationCountry'] ?? ''))) ?></p>
             <label class="block"><span class="label"><?= e(t('وصّلها على (رقمك)')) ?></span><input name="forward" class="input" dir="ltr" placeholder="<?= e(cx_phone()) ?>" value="<?= e($fwdDefault) ?>"></label>
@@ -259,7 +259,7 @@ render(t('المكالمات'), 'calls', function () use ($fx, $z, $apiError, $n
             <?php if (!empty($n['ivrEnabled']) || (!empty($n['pstnForwardTo']) && !preg_match('/^tel:/', (string)$n['pstnForwardTo']))): ?>
               <p class="sm:col-span-2 text-xs text-amber-700"><?= e(t('الرقم ده عليه إعدادات متقدمة (قايمة اختيارات أو تحويل لنظام آلي). عدلها من لوحة التكامل عشان ماتتمسحش.')) ?></p>
             <?php endif; ?>
-            <div><button class="btn-primary" onclick="return confirm(<?= tjs('حفظ الإعدادات هيفعّل المكالمات على الرقم ده. نكمل؟') ?>)"><?= e(t('احفظ')) ?></button></div>
+            <div><button class="btn-primary" onclick="return confirm('<?= tjs('حفظ الإعدادات هيفعّل المكالمات على الرقم ده. نكمل؟') ?>')"><?= e(t('احفظ')) ?></button></div>
           </form>
         <?php endforeach; ?>
       </div>

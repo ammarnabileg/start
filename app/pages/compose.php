@@ -940,7 +940,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 var q = acc.map(function (a) { return 'acc[]=' + encodeURIComponent(a); }).join('&');
                 fetch(location.pathname + '?p=compose&ajax=best&' + q).then(function (r) { return r.json(); }).then(function (r) {
                   if (!r.ok || !r.items.length) { box.classList.add('hidden'); return; }
-                  lst.innerHTML = r.items.map(function (it) { return '<button type="button" class="chip text-xs" data-at="' + it.at + '" title="' + it.at.replace('T', ' ') + '">' + (names[it.acc] || '') + ': <b>' + it.label + '</b></button>'; }).join('');
+                  lst.innerHTML = r.items.map(function (it) { return '<button type="button" class="chip text-xs" data-at="' + it.at + '" title="' + it.at.replace('T', ' ') + '">' + String(names[it.acc] || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }) + ': <b>' + it.label + '</b></button>'; // اسم الحساب نص مش HTML }).join('');
                   box.classList.remove('hidden');
                 }).catch(function () {});
               }

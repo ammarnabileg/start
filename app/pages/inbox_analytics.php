@@ -74,7 +74,7 @@ if ($z) {
     $words = ia2_top_words($texts, 20);
 }
 
-$__sec = function () use ($z, $fx, $res, $errs, $days, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies, $prevVol) {
+$__sec = function () use ($z, $fx, $res, $errs, $days, $from, $to, $plat, $platforms, $team, $sample, $sampleConvs, $words, $ads, $convErr, $fromReplies, $prevVol) {
     if (!$z && !$fx) { no_api_box(); return; }
     $q = function (array $over = []) use ($days, $plat) {
         $in = !empty($GLOBALS['AN_INLINE']) && empty($over['csv']); $pp = $over + ['d' => $days, 'pl' => $plat] + ($in ? ['tab' => 'messages'] + array_intersect_key($_GET, ['from' => 1, 'to' => 1]) : []);

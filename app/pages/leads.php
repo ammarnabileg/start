@@ -10,6 +10,7 @@ $cursor = (string)($_GET['cursor'] ?? '');
 $stages = ['new' => t('جديد'), 'contacted' => t('اتكلمنا معاه'), 'qualified' => t('مهتم'), 'converted' => t('بقى عميل'), 'lost' => t('مش مناسب')];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'lead_save') {
     header('Content-Type: application/json; charset=utf-8');
+    if (!can('crm.edit') && !can('crm.manage') && !can('ads.spend')) { echo json_encode(['ok' => false, 'error' => t('تعديل العملاء يتطلب صلاحية إدارة العملاء.')], JSON_UNESCAPED_UNICODE); exit; }
     $lid = mb_substr((string)($_POST['lead_id'] ?? ''), 0, 120);
     $stage = (string)($_POST['stage'] ?? 'new');
     if ($lid === '' || !isset($stages[$stage])) { echo json_encode(['ok' => false, 'error' => t('بيانات ناقصة')]); exit; }

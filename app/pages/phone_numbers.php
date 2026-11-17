@@ -335,7 +335,7 @@ render(t('أرقام التليفون'), 'phone_numbers', function () use ($z, $
           <?php if ($owner && !in_array($st, ['releasing', 'released'], true)): ?>
             <details class="mt-4 pt-3 border-t border-ink-100 text-sm group">
               <summary class="cursor-pointer list-none text-xs text-ink-400 hover:text-red-700 inline-flex items-center gap-1"><?= e(t('إلغاء الرقم')) ?> <span class="group-open:rotate-180 transition-transform">⌄</span></summary>
-              <form method="post" class="mt-3 p-3 rounded-xl bg-red-50 border border-red-200" onsubmit="return confirm(<?= tjs('إلغاء الرقم نهائي ومش هتقدر ترجعه. متأكد؟') ?>)">
+              <form method="post" class="mt-3 p-3 rounded-xl bg-red-50 border border-red-200" onsubmit="return confirm('<?= tjs('إلغاء الرقم نهائي ومش هتقدر ترجعه. متأكد؟') ?>')">
                 <?= csrf_field() ?><input type="hidden" name="action" value="release"><input type="hidden" name="id" value="<?= e($n['_id'] ?? '') ?>">
                 <label class="flex items-start gap-2 text-red-800"><input type="checkbox" name="confirm" value="1" required class="mt-1">
                   <span><?= e(t('فاهم إن الرقم هيروح نهائياً، وأي واتساب أو مكالمات أو رسايل عليه هتقف.')) ?></span></label>

@@ -198,16 +198,15 @@ document.addEventListener('click', function (e) {
   function ctxOf(ta) {
     var el = ta.closest('[data-ai-context]') || document.getElementById('thread') || (ta.form && ta.form.parentElement) || ta.form;
     if (!el) return '';
-    // محادثة: كل رسالة بـ «العميل:» أو «إحنا:» ومن غير نصوص الأزرار المخفية (التفاعلات، تعديل، حذف)
+    // محادثة: كل رسالة بنصها بس (من العنصر الحي) ومعاها مين قالها
     var rows = el.querySelectorAll('[data-who]');
     if (rows.length) {
       var out = [];
-      rows.forEach(function (r) { var b = r.querySelector('.px-4') || r; var c = b.cloneNode(true); c.querySelectorAll('button, details, form, .opacity-0, [aria-hidden="true"]').forEach(function (x) { x.remove(); });
-        var tx = (c.innerText || c.textContent || '').replace(/\s+\n/g, '\n').trim(); if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
+      rows.forEach(function (r) { var ps = r.querySelectorAll('.px-4 > p, .px-4 > em'), tx = [].map.call(ps, function (x) { return x.innerText.trim(); }).filter(Boolean).join('\n');
+        if (!tx && r.querySelector('.px-4 img')) tx = '[image]'; if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
       return out.join('\n').slice(-5000);
     }
-    var cl = el.cloneNode(true); cl.querySelectorAll('button, details:not([open]), .opacity-0, [aria-hidden="true"]').forEach(function (x) { x.remove(); });
-    return (cl.innerText || cl.textContent || '').replace(/\n{3,}/g, '\n\n').slice(-5000);
+    return el.innerText.replace(/\n{3,}/g, '\n\n').slice(-5000); // باقي الصفحات: النص الظاهر زي الأول
   }
   function panel(ta, html) {
     var old = ta.parentNode.parentNode.querySelector('.ai-result'); if (old) old.remove();

@@ -6280,4 +6280,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'المنصة في وضع الصيانة الآن. حاول بعد قليل.' => 'The platform is under maintenance. Try again shortly.',
     'بريد المرسل غير صحيح، فتم الإبقاء على القديم.' => 'The sender email is invalid; the previous one was kept.',
     'اتحقق' => 'Achieved',
+    'تعديل العملاء يتطلب صلاحية إدارة العملاء.' => 'Editing leads requires the CRM manage permission.',
 ];
