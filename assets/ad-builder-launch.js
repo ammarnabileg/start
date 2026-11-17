@@ -61,50 +61,72 @@
   draw();
 })();
 
-/* نفس الحملة على حسابات تانية: نسخ مستقلة، وبعدين «أطلق الكل» خطوة بخطوة لكل نسخة */
+/* نفس الحملة على حسابات تانية: نسخ مستقلة (نسخة واحدة لكل حساب)، ميزانية لكل نسخة، و«أطلق الكل» خطوة بخطوة */
 (function () {
   var A = window.AB, go = document.getElementById('ab-mt-go'), out = document.getElementById('ab-mt-out');
-  if (!A || !go || !out) return;
-  var T = A.mt || {};
+  if (!A || !out) return;
+  var T = A.mt || {}, rows = [], pending = 0;
   var esc = function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var send = function (f) { var fd = new FormData(); fd.append('_csrf', A.csrf); Object.keys(f).forEach(function (k) { [].concat(f[k]).forEach(function (v) { fd.append(k, v); }); }); return fetch(A.url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } }).then(function (r) { return r.json(); }); };
-  go.onclick = function () {
-    var picked = [].slice.call(document.querySelectorAll('.ab-mt:checked')).map(function (c) { return c.value; });
+  function rowHtml(m) {
+    var locked = !!m.locked;
+    return '<div class="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm" data-mt="' + m.id + '"' + (locked ? ' data-locked="1"' : '') + '><b class="min-w-0 flex-1 truncate">' + esc(m.name) + '</b>' +
+      (locked ? '' : '<label class="inline-flex items-center gap-1 text-[11px] text-ink-500">' + esc(T.budget || '') + ' <input type="number" min="1" step="0.01" class="input !w-24 !py-0.5 !mt-0 text-xs ab-mt-b" value="' + esc(m.budget || '') + '" dir="ltr"> <span dir="ltr">' + esc(m.cur || '') + '</span></label>') +
+      (m.curDiff && !locked ? '<span class="text-[11px] text-amber-700">' + esc((T.cur || '%s').replace('%s', m.cur)) + '</span>' : '') +
+      (m.stripped ? '<span class="text-[11px] text-amber-700">' + esc(T.stripped || '') + '</span>' : '') +
+      '<span class="ab-mt-st text-[11px] ' + (locked ? 'text-lime-700' : 'text-ink-500') + '">' + esc(locked ? '✓ ' + (T.launchedAlready || '') : (T.ready || '')) + '</span><a class="link text-xs" target="_blank" href="' + esc(m.url) + '">' + esc(T.open || '') + '</a></div>';
+  }
+  function draw() {
+    var todo = rows.filter(function (m) { return !m.locked; }).length;
+    out.classList.toggle('hidden', !rows.length);
+    out.innerHTML = (rows.length ? '<b class="block text-xs text-ink-700">' + esc(T.existing || '') + '</b>' : '') + rows.map(rowHtml).join('') +
+      (todo ? '<label class="flex items-center gap-2 text-xs text-ink-700 mt-2"><input type="checkbox" id="ab-mt-ok"> ' + esc((T.confirm || '%s').replace('%s', todo)) + '</label><button type="button" class="btn-primary !text-sm" id="ab-mt-launch" disabled>' + esc(T.launchAll || '') + '</button>' : '');
+    var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
+    if (ok) ok.onchange = function () { lb.disabled = !ok.checked; };
+    if (lb) lb.onclick = launchAll;
+  }
+  // الميزانية: بتتحفظ أول ما تتغير
+  out.addEventListener('change', function (e) {
+    var inp = e.target.closest('.ab-mt-b'); if (!inp) return;
+    var row = inp.closest('[data-mt]'), st = row.querySelector('.ab-mt-st'); pending++; inp.disabled = true;
+    send({ action: 'copy_budget', id: row.dataset.mt, amount: inp.value }).then(function (d) {
+      pending--; inp.disabled = false;
+      if (!d.ok) { st.textContent = '✗ ' + (d.error || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; return; }
+      inp.value = d.budget; st.textContent = '✓ ' + (T.saved || ''); st.className = 'ab-mt-st text-[11px] text-lime-700';
+      rows.forEach(function (m) { if (String(m.id) === row.dataset.mt) m.budget = d.budget; });
+    }).catch(function () { pending--; inp.disabled = false; });
+  });
+  function launchAll() {
+    var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
+    if (!ok || !ok.checked) return;
+    if (pending) { setTimeout(launchAll, 300); return; } // استنى حفظ الميزانية الأول
+    lb.disabled = true; ok.disabled = true; out.querySelectorAll('.ab-mt-b').forEach(function (x) { x.disabled = true; });
+    var list = [].slice.call(out.querySelectorAll('[data-mt]:not([data-locked])')), i = 0, fails = 0;
+    var nextProject = function () {
+      if (i >= list.length) { lb.textContent = fails ? (T.doneErr || '').replace('%s', fails) : (T.done || ''); return; }
+      var row = list[i++], id = row.dataset.mt, st = row.querySelector('.ab-mt-st'), n = 0;
+      st.textContent = T.launching || '…'; st.className = 'ab-mt-st text-[11px] text-brand-700';
+      var step = function () {
+        send({ action: 'launch_step', id: id, confirm_spend: '1' }).then(function (r) {
+          if (r.ok && r.finished) { st.textContent = '✓ ' + (T.launched || ''); st.className = 'ab-mt-st text-[11px] text-lime-700'; row.dataset.locked = '1'; rows.forEach(function (m) { if (String(m.id) === id) m.locked = true; }); return nextProject(); }
+          if (r.ok && ++n < 60) return step();
+          fails++; st.textContent = '✗ ' + (r.error || T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject();
+        }).catch(function () { fails++; st.textContent = '✗ ' + (T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject(); });
+      };
+      step();
+    };
+    nextProject();
+  }
+  rows = (window.AB_MT_EXIST || []).slice(); if (rows.length) draw();
+  if (go) go.onclick = function () {
+    var picked = [].slice.call(document.querySelectorAll('.ab-mt:checked:not(:disabled)')).map(function (c) { return c.value; });
     if (!picked.length) { alert(T.pick || ''); return; }
     go.disabled = true;
     send({ action: 'clone_to', id: A.id, 'targets[]': picked }).then(function (d) {
       go.disabled = false; if (!d.ok) { alert(d.error || ''); return; }
-      go.classList.add('hidden'); document.querySelectorAll('.ab-mt').forEach(function (c) { c.disabled = true; });
-      out.classList.remove('hidden');
-      out.innerHTML = d.made.map(function (m) {
-        return '<div class="flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 px-3 py-2 text-sm" data-mt="' + m.id + '"><b class="min-w-0 flex-1 truncate">' + esc(m.name) + '</b>' +
-          (m.curDiff ? '<span class="text-[11px] text-amber-700">' + esc((T.cur || '%s').replace('%s', m.cur)) + '</span>' : '') +
-          (m.stripped ? '<span class="text-[11px] text-amber-700">' + esc(T.stripped || '') + '</span>' : '') +
-          '<span class="ab-mt-st text-[11px] text-ink-500">' + esc(T.ready || '') + '</span><a class="link text-xs" target="_blank" href="' + esc(m.url) + '">' + esc(T.open || '') + '</a></div>';
-      }).join('') +
-        '<label class="flex items-center gap-2 text-xs text-ink-700 mt-2"><input type="checkbox" id="ab-mt-ok"> ' + esc((T.confirm || '%s').replace('%s', d.made.length)) + '</label>' +
-        '<button type="button" class="btn-primary !text-sm" id="ab-mt-launch" disabled>' + esc(T.launchAll || '') + '</button>';
-      var ok = document.getElementById('ab-mt-ok'), lb = document.getElementById('ab-mt-launch');
-      ok.onchange = function () { lb.disabled = !ok.checked; };
-      lb.onclick = function () {
-        if (!ok.checked) return; lb.disabled = true; ok.disabled = true;
-        var rows = [].slice.call(out.querySelectorAll('[data-mt]')), i = 0, fails = 0;
-        var nextProject = function () {
-          if (i >= rows.length) { lb.textContent = fails ? (T.doneErr || '').replace('%s', fails) : (T.done || ''); return; }
-          var row = rows[i++], id = row.dataset.mt, st = row.querySelector('.ab-mt-st'), n = 0;
-          st.textContent = T.launching || '…'; st.className = 'ab-mt-st text-[11px] text-brand-700';
-          var step = function () {
-            send({ action: 'launch_step', id: id, confirm_spend: '1' }).then(function (r) {
-              if (r.ok && r.finished) { st.textContent = '✓ ' + (T.launched || ''); st.className = 'ab-mt-st text-[11px] text-lime-700'; return nextProject(); }
-              if (r.ok && ++n < 60) return step();
-              fails++; st.textContent = '✗ ' + (r.error || T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject();
-            }).catch(function () { fails++; st.textContent = '✗ ' + (T.failed || ''); st.className = 'ab-mt-st text-[11px] text-red-600'; nextProject(); });
-          };
-          step();
-        };
-        nextProject();
-      };
+      document.querySelectorAll('.ab-mt:checked').forEach(function (c) { c.checked = false; c.disabled = true; });
+      rows = rows.concat(d.made); draw();
+      if (d.skipped && d.skipped.length) alert((T.skipped || '%s').replace('%s', d.skipped.join('، ')));
     }).catch(function () { go.disabled = false; });
   };
 })();
-

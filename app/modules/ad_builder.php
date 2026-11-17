@@ -55,6 +55,33 @@ function ab_list(int $wid): array
     return $st->fetchAll();
 }
 
+/** نسخ حملة على حسابات تانية (cloneOf): [adAccountId => ['id','name','state']] — عشان مانعملش نسختين لنفس الحساب */
+function ab_copies(int $wid, int $srcId): array
+{
+    $st = db()->prepare("SELECT id, name, state, JSON_UNQUOTE(JSON_EXTRACT(data, '$.adAccountId')) AS acc FROM ad_builds WHERE workspace_id = ? AND JSON_EXTRACT(data, '$.cloneOf') = ?");
+    $st->execute([$wid, $srcId]);
+    $out = []; foreach ($st->fetchAll() as $r) $out[(string)$r['acc']] = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'state' => (string)$r['state']];
+    return $out;
+}
+
+/** الميزانية الأساسية: ميزانية الحملة لو على مستوى الحملة، وإلا ميزانية أول مجموعة */
+function ab_main_budget(array $d): float
+{
+    if (($d['campaign']['budgetLevel'] ?? '') === 'campaign') return (float)($d['campaign']['budget']['amount'] ?? 0);
+    return (float)($d['adSets'][0]['budget']['amount'] ?? 0);
+}
+
+/** تغيير ميزانية نسخة: كل الميزانيات بتتضرب في نفس النسبة (المجموعات بتحافظ على نسبها لبعض) */
+function ab_scale_budget(array $d, float $amount): array
+{
+    $main = ab_main_budget($d); if ($amount <= 0) return $d;
+    $r = $main > 0 ? $amount / $main : null;
+    $set = function ($v) use ($r, $amount) { return $r === null ? $amount : round((float)$v * $r, 2); };
+    if (isset($d['campaign']['budget']['amount']) && ($d['campaign']['budget']['amount'] !== '' || ($d['campaign']['budgetLevel'] ?? '') === 'campaign')) $d['campaign']['budget']['amount'] = $set($d['campaign']['budget']['amount'] ?: 0);
+    foreach ((array)($d['adSets'] ?? []) as $i => $st) if (isset($st['budget']) && (($st['budget']['amount'] ?? '') !== '' || ($d['campaign']['budgetLevel'] ?? '') !== 'campaign')) $d['adSets'][$i]['budget']['amount'] = $set($st['budget']['amount'] ?: 0);
+    return $d;
+}
+
 function ab_get(int $wid, int $id): ?array
 {
     $st = db()->prepare("SELECT * FROM ad_builds WHERE workspace_id = ? AND id = ?");
