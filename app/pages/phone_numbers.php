@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             $id = (string)($_POST['id'] ?? '');
             if (empty($_POST['confirm'])) {
                 flash('error', t('لازم تعلّم على مربع التأكيد قبل إلغاء الرقم.'));
+            } elseif (!in_array($id, array_map(function ($n) { return (string)($n['_id'] ?? $n['id'] ?? ''); }, (array)(ph_numbers($z)['numbers'] ?? [])), true)) {
+                flash('error', t('الرقم مش موجود.'));
             } else {
                 $r = ph_release($z, $id);
                 log_activity('phone.release', (string)($r['phoneNumber']['phoneNumber'] ?? $id));

@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$me['id']]);
         if (!password_verify($cur, (string)$st->fetchColumn())) {
             flash('error', t('كلمة السر الحالية غلط.'));
+        } elseif (!empty($_SESSION['impersonator'])) {
+            flash('error', t('لا يمكن تغيير كلمة السر أثناء الدخول كمستخدم آخر.'));
         } elseif (strlen($new) < 8) {
             flash('error', t('كلمة السر الجديدة لازم تكون 8 حروف على الأقل.'));
         } elseif ($new !== $new2) {

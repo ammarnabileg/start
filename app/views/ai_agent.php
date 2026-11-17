@@ -63,6 +63,7 @@ function ai_hook_sync(int $wid, bool $on): array
 function ai_agent_ajax(string $a): void
 {
     $wid = (int)ws('id'); $J = function ($d, int $c = 200) { http_response_code($c); header('Content-Type: application/json; charset=utf-8'); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; };
+    if ($a === 'agent_state' && !is_ws_owner() && !can('inbox.reply')) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
     if (!is_ws_owner() && $a !== 'agent_test' && $a !== 'agent_state') $J(['ok' => false, 'error' => t('هذا الإعداد متاح لمالك الشركة فقط.')], 403);
     if ($a === 'agent_save') {
         $c = ai_reply_cfg($wid); $in = $_POST;

@@ -110,6 +110,7 @@ function media_thumb_path(int $wid, array $r): string
 {
     $src = media_file_path($wid, $r);
     if (media_kind((string)$r['mime']) !== 'image' || !function_exists('imagecreatetruecolor') || (int)$r['size'] < 40000) return $src;
+    $gi = @getimagesize($src); if (!$gi || $gi[0] * $gi[1] > 40000000) return $src; // صورة أبعادها ضخمة تقفل الذاكرة
     $dir = media_dir($wid) . '/thumbs'; $t = $dir . '/' . (int)$r['id'] . '.jpg';
     if (is_file($t)) return $t;
     if (!is_dir($dir)) @mkdir($dir, 0750, true);
@@ -144,7 +145,7 @@ function media_file_path(int $wid, array $r): string { return media_dir($wid) . 
 /** رابط عام للملف (للمنصات): بيترفع لزيرنيو أول مرة ويتحفظ */
 function media_public_url(Zernio $z, int $wid, int $id, string $ctx = '', string $ref = ''): string
 {
-    $r = media_get($wid, $id); if (!$r) throw new RuntimeException(t('الملف مش موجود'));
+    $r = media_get($wid, $id); if (!$r || !empty($r['deleted_at'])) throw new RuntimeException(t('الملف مش موجود'));
     if ($ctx !== '') media_log_use($wid, $id, $ctx, $ref);
     if (!empty($r['public_url'])) return (string)$r['public_url'];
     $u = $z->uploadFile(media_file_path($wid, $r), (string)$r['name'], (string)$r['mime']);
@@ -276,7 +277,7 @@ function media_query(int $wid, string $loc, string $folder, string $q, string $s
 {
     $w = ['workspace_id = ?', $loc === 'trash' ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL']; $a = [$wid];
     if ($loc === 'folder') {
-        if ($q !== '') { $w[] = '(BINARY folder = ? OR BINARY folder LIKE ?)'; array_push($a, $folder, $folder . '/%'); } else { $w[] = 'folder = ?'; $a[] = $folder; }
+        if ($q !== '') { $w[] = '(BINARY folder = ? OR BINARY folder LIKE ?)'; array_push($a, $folder, addcslashes($folder, '%_\\') . '/%'); } else { $w[] = 'folder = ?'; $a[] = $folder; }
     } elseif ($loc === 'all' && $q === '') { $w[] = "folder = ''"; }
     elseif ($loc === 'recent') $w[] = 'created_at > (NOW() - INTERVAL 7 DAY)';
     elseif ($loc === 'star') $w[] = 'starred = 1';

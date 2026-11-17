@@ -259,7 +259,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
         $libFn = function ($m) use ($z, $wid, &$libMap, $dry, &$missing) {
             $id = (int)$m[1];
             if (!isset($libMap[$id])) {
-                try { if ($dry) { if (!media_get($wid, $id)) throw new RuntimeException('x'); $libMap[$id] = 'https://lib.invalid/' . $id; } else $libMap[$id] = media_public_url($z, $wid, $id, 'bulk'); } // الفحص مايرفعش ملفات
+                try { if ($dry) { if (!($mr = media_get($wid, $id)) || !empty($mr['deleted_at'])) throw new RuntimeException('x'); $libMap[$id] = 'https://lib.invalid/' . $id; } else $libMap[$id] = media_public_url($z, $wid, $id, 'bulk'); } // الفحص مايرفعش ملفات
                 catch (Throwable $t) { $libMap[$id] = ''; $missing[$id] = 1; }
             }
             return $libMap[$id];

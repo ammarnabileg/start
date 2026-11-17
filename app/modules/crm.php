@@ -1107,8 +1107,9 @@ function crm_from_social(array $d): array
     $ext = mb_substr((string)($d['ext'] ?? ''), 0, 190);
     $found = crm_contacts_merge(crm_extract_contacts((string)($d['text'] ?? '')), $d);
     $l = crm_lead_upsert(['source' => $src, 'ext_id' => $ext, 'name' => $d['name'] ?? '', 'phone' => $found['phone'], 'email' => $found['email'],
-        'owner_id' => $d['owner_id'] ?? null]);
+        'owner_id' => $d['owner_id'] ?? null, 'respect_owner' => !empty($d['respect_owner'])]);
     if (!$l) return [];
+    if (!empty($l['locked'])) return ['id' => (int)$l['id'], 'merged' => true, 'locked' => true]; // عميل زميل: مابنكتبش عليه
     $url = mb_substr(trim((string)($d['url'] ?? '')), 0, 500);
     if ($url !== '' && empty($l['src_url'])) db()->prepare('UPDATE crm_leads SET src_url = ? WHERE id = ?')->execute([$url, (int)$l['id']]);
     $txt = trim((string)($d['text'] ?? ''));

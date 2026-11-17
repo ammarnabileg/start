@@ -114,6 +114,6 @@ function smsgate_thread(int $wid, string $phone, int $limit = 300): array
 {
     $st = db()->prepare('SELECT * FROM (SELECT * FROM sms_gate_messages WHERE workspace_id = ? AND phone = ? ORDER BY id DESC LIMIT ' . (int)$limit . ') t ORDER BY id');
     $st->execute([$wid, smsgate_norm($phone, $wid)]);
-    db()->prepare("UPDATE sms_gate_messages SET seen = 1 WHERE workspace_id = ? AND phone = ? AND direction = 'in' AND seen = 0")->execute([$wid, smsgate_norm($phone)]);
+    db()->prepare("UPDATE sms_gate_messages SET seen = 1 WHERE workspace_id = ? AND phone = ? AND direction = 'in' AND seen = 0")->execute([$wid, smsgate_norm($phone, $wid)]);
     return $st->fetchAll();
 }

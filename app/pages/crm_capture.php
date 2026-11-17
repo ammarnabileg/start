@@ -57,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'company' => mb_substr(trim((string)($_POST['company'] ?? '')), 0, 255), 'title' => mb_substr(trim((string)($_POST['title'] ?? '')), 0, 255), 'owner_id' => (int)(current_user()['id'] ?? 0)]);
         if (!$l) $J(['error' => t('اكتب رقم أو إيميل على الأقل.')], 422);
         if (empty($l['merged']) && ($plk = (string)($_POST['pl'] ?? '')) !== '' && $plk !== 'sales' && isset(crm_pipelines()[$plk])) db()->prepare('UPDATE crm_leads SET pipeline = ? WHERE id = ?')->execute([$plk, (int)$l['id']]);
+        if (!empty($l['locked'])) $J(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
         crm_act_add((int)$l['id'], 'note', '🪪 ' . t('اتضاف من كارت بزنس') . (trim((string)($_POST['event'] ?? '')) !== '' ? ' — ' . mb_substr(trim((string)$_POST['event']), 0, 120) : '') . (trim((string)($_POST['site'] ?? '')) !== '' ? ' · ' . mb_substr(trim((string)$_POST['site']), 0, 200) : ''));
         $J(['ok' => true, 'id' => (int)$l['id'], 'merged' => !empty($l['merged'])]);
     }

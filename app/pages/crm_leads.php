@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!is_array($it) || trim((string)($it['ext'] ?? '')) === '') continue;
             $l = crm_from_social(['source' => $it['source'] ?? '', 'ext' => $it['ext'], 'name' => $it['name'] ?? '', 'phone' => $it['phone'] ?? '', 'email' => $it['email'] ?? '',
                 'text' => $it['text'] ?? '', 'url' => $it['url'] ?? '', 'where' => $it['where'] ?? '', 'owner_id' => $canManage ? null : $uid, 'respect_owner' => 1]);
-        if (!empty($l['locked'])) $json(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
             if (!$l) continue;
+            if (!empty($l['locked'])) continue; // عميل زميل: يتخطى
             if ($l['merged']) $m++; else $n++;
         }
         log_activity('crm.suggest_add', "$n new");
@@ -85,7 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '' || (trim((string)($_POST['email'] ?? '')) === '' && trim((string)($_POST['phone'] ?? '')) === '')) $json(['ok' => false, 'error' => t('اكتب الاسم ورقم أو إيميل على الأقل.')]);
         $l = crm_lead_upsert(['source' => 'manual', 'name' => $name, 'company' => $_POST['company'] ?? '', 'title' => $_POST['title'] ?? '',
-            'email' => $_POST['email'] ?? '', 'phone' => $_POST['phone'] ?? '', 'owner_id' => $canManage ? null : $uid]);
+            'email' => $_POST['email'] ?? '', 'phone' => $_POST['phone'] ?? '', 'owner_id' => $canManage ? null : $uid, 'respect_owner' => 1]);
+        if (!empty($l['locked'])) $json(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
         if (empty($l['merged']) && isset(crm_pipelines()[$_POST['pl'] ?? '']) && $_POST['pl'] !== 'sales') { db()->prepare('UPDATE crm_leads SET pipeline = ? WHERE id = ?')->execute([(string)$_POST['pl'], (int)$l['id']]); $l = crm_lead((int)$l['id']) + ['merged' => false]; }
         log_activity('crm.add', $name);
         $json(['ok' => true, 'merged' => !empty($l['merged']), 'lead' => $out($l)]);
@@ -95,8 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         if ($name === '' && trim((string)($_POST['ext'] ?? '')) === '') $json(['ok' => false, 'error' => t('بيانات ناقصة')]);
         $l = crm_from_social(['source' => $_POST['source'] ?? '', 'ext' => $_POST['ext'] ?? '', 'name' => $name, 'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? '',
-            'text' => $_POST['text'] ?? '', 'url' => $_POST['url'] ?? '', 'where' => $_POST['where'] ?? '', 'owner_id' => $canManage ? null : $uid]);
+            'text' => $_POST['text'] ?? '', 'url' => $_POST['url'] ?? '', 'where' => $_POST['where'] ?? '', 'owner_id' => $canManage ? null : $uid, 'respect_owner' => 1]);
         if (!$l) $json(['ok' => false, 'error' => t('حصل خطأ، جرب تاني')]);
+        if (!empty($l['locked'])) $json(['ok' => false, 'error' => t('هذا الشخص مسجّل بالفعل كعميل لزميل آخر.')]);
         log_activity('crm.from_social', (string)$l['id']);
         $json(['ok' => true, 'merged' => $l['merged'], 'id' => (int)$l['id'], 'phone' => (string)$l['phone'], 'email' => (string)$l['email'], 'url' => url('prospects', ['lead' => (int)$l['id']])]);
     }
