@@ -210,6 +210,10 @@ function current_user(): ?array
             $st->execute([$_SESSION['uid']]);
             $user = $st->fetch() ?: null;
             if ($user) {
+                // تغيير كلمة السر بيقفل كل الجلسات التانية: بصمة الباسورد في الجلسة لازم تطابق
+                $fp = substr(hash('sha256', (string)$user['password_hash']), 0, 16);
+                if (!isset($_SESSION['pwfp'])) $_SESSION['pwfp'] = $fp;
+                elseif (!hash_equals((string)$_SESSION['pwfp'], $fp) && empty($_SESSION['impersonator'])) { $user = null; unset($_SESSION['uid'], $_SESSION['pwfp']); return null; }
                 unset($user['password_hash']);
                 // حساب موقوف: يخرج فوراً
                 if (($user['status'] ?? 'active') !== 'active') {

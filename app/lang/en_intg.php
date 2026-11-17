@@ -6036,4 +6036,7 @@ If you know someone who needs our services, send them this link. They get {get},
     'الرد على التقييمات يحتاج صلاحية إدارة Google Business.' => 'Replying to reviews requires Google Business management permission.',
     'تعديل الفرع يحتاج صلاحية إدارة Google Business.' => 'Editing the location requires Google Business management permission.',
     'لا توجد ملفات صالحة للتحميل.' => 'No valid files to download.',
+    'تم سحب المناقصات اليوم بالفعل. التحديث التالي غدًا.' => 'Tenders were already pulled today. Next update tomorrow.',
+    'الكلمة قصيرة جدًا.' => 'The word is too short.',
+    'وصلت للحد الأقصى (60 كلمة).' => 'You reached the maximum (60 words).',
 ];

@@ -17,6 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$mgr) $J(['ok' => false, 'error' => t('مالكش صلاحية.')], 403);
         $c = tnd_cfg(); $w = mb_substr(trim((string)($_POST['w'] ?? '')), 0, 40); $k = tnd_norm($w);
         $drop = function (array $l) use ($k) { return array_values(array_filter($l, function ($x) use ($k) { return tnd_norm($x) !== $k; })); };
+        if ($a === 'kw_add' && mb_strlen($k) < 2) $J(['ok' => false, 'error' => t('الكلمة قصيرة جدًا.')]);
+        if ($a === 'kw_add' && count($c['add']) >= 60) $J(['ok' => false, 'error' => t('وصلت للحد الأقصى (60 كلمة).')]);
         if ($a === 'kw_add' && mb_strlen($k) >= 2) { $c['off'] = $drop($c['off']); if (!in_array($k, array_map('tnd_norm', $c['words']), true)) $c['add'][] = $w; }
         if ($a === 'kw_off' && $k !== '') $c['off'][] = $w;
         if ($a === 'kw_on') $c['off'] = $drop($c['off']);
@@ -26,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $J(['ok' => true]);
     }
     if ($a === 'apify_pull' && is_ws_owner() && tnd_apify_on()) {
+        // مفتاح Apify مشترك للمنصة كلها: السحب اليدوي مرة في اليوم للكل، والمدير بس يقدر يعيده
+        if (!is_admin() && (string)setting('tenders_apify_day', '') === gmdate('Y-m-d')) $J(['ok' => false, 'error' => t('تم سحب المناقصات اليوم بالفعل. التحديث التالي غدًا.')], 429);
         try { if ((string)setting('tenders_apify_run', '') === '') { tnd_apify_start((string)setting('tenders_apify_full_done', '') === ''); save_setting('tenders_apify_day', gmdate('Y-m-d')); } $J(['ok' => true]); }
         catch (Throwable $e) { $J(['ok' => false, 'error' => $e->getMessage()], 400); }
     }

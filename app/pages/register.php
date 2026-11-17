@@ -33,7 +33,7 @@ if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {
         claim_email_invites($uid, $old['email']);
         session_regenerate_id(true);
         $_SESSION['uid'] = $uid;
-        log_activity('register');
+        try { $pdo->prepare("INSERT INTO activity_log (user_id, action) VALUES (?, 'register')")->execute([$uid]); } catch (Throwable $e) {} // current_user() متخزن null من أول الصفحة
         if (empty($_SESSION['invite_token'])) {
             redirect(url('workspaces'));
         }
@@ -44,7 +44,7 @@ if ($open && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 auth_page(t('حساب جديد'), function () use ($open, $old) {
     if (!$open): ?>
-      <p class="text-sm text-slate-600 text-center"><?= e(t('التسجيل مقفول. اطلب لينك دعوة من صاحب الشركة.')) ?></p>
+      <p class="text-sm text-slate-600 text-center"><?= e(setting('maintenance', '0') === '1' ? t('المنصة في وضع الصيانة دلوقتي. جرب بعد شوية.') : t('التسجيل مقفول. اطلب لينك دعوة من صاحب الشركة.')) ?></p>
       <a href="<?= e(url('login')) ?>" class="block text-center text-indigo-700 font-semibold"><?= e(t('رجوع للدخول')) ?></a>
     <?php return; endif; ?>
     <form method="post" class="space-y-4">

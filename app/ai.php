@@ -207,6 +207,8 @@ function ai_log_usage(int $wid, string $task, string $provider, string $model, a
             $price = ai_model_price($model);
         }
         if ($price) $cost = ($price['in'] * $in + $price['out'] * $out) / 1e6;
+        // سعر مش معروف: تقدير محافظ (5$ داخل / 15$ خارج لكل مليون) عشان حد الميزانية الشهري مايتعداش من غير ما يتحسب
+        elseif ($in || $out) $cost = round(($in * 5 + $out * 15) / 1e6, 6);
     }
     try {
         db()->prepare("INSERT INTO ai_usage (workspace_id, user_id, task, provider, model, tokens_in, tokens_out, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")

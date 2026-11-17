@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(url('connectors'));
         }
         $same = $existing && $existing['credentials'] == $creds;
-        $settings = $same ? $existing['settings'] : [];
+        $settings = $same ? $existing['settings'] : array_intersect_key((array)($existing['settings'] ?? []), array_flip(['primary', 'disabled', 'tier', 'profile_id', 'or_model'])); // المفاتيح اتغيرت: الموديلات بتتجاب تاني، والباقي يفضل
         if ($models !== null) {
             $settings['models'] = $models;
             if (!in_array($settings['model'] ?? '', $models, true)) $settings['model'] = ai_default_model($models);

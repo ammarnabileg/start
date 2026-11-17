@@ -138,6 +138,7 @@ function ai_call_transcript(Zernio $z, string $id): string
     if ($text === '') {
         $oa = connector('openai');
         if (!$oa || !empty($oa['settings']['disabled'])) throw new AiException(t('لا يوجد نص لهذه المكالمة. اربط OpenAI لتفريغ التسجيل صوتيًا.'));
+        $bw = (int)ws('id'); if (ai_budget($bw) > 0 && ai_month_spend($bw) >= ai_budget($bw)) throw new AiException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر.'));
         $url = ph_call_recording($z, $id);
         if ($url === '') throw new AiException(t('هذه المكالمة غير مسجلة.'));
         // safe_fetch: عناوين عامة بس وكل تحويل بيتفحص، وحد 25 ميجا
@@ -392,7 +393,18 @@ function ai_ts($v): int { if (is_numeric($v)) return (int)$v > 2000000000 ? (int
  * بيشتغل خارج المواعيد أو طول الوقت حسب الإعداد. لو حد من الفريق رد بإيده (من هنا أو من التطبيق نفسه)
  * الإيجنت بيسكت على المحادثة/المنشور ده لحد ما تعدي مدة الإيقاف (افتراضي 30 دقيقة) من آخر رد بشري.
  */
+/** قفل لكل شركة على مستوى قاعدة البيانات: الرد الذكي مايشتغلش مرتين في نفس الوقت (تابين، أو cron مع الصفحة) */
+function ai_lock(string $what, int $wid, int $wait = 0): bool { try { return (int)db()->query("SELECT GET_LOCK(" . db()->quote(DB_NAME_LOCK_PREFIX() . $what . '_' . $wid) . ", " . max(0, min(20, $wait)) . ")")->fetchColumn() === 1; } catch (Throwable $e) { return true; } }
+function ai_unlock(string $what, int $wid): void { try { db()->query("SELECT RELEASE_LOCK(" . db()->quote(DB_NAME_LOCK_PREFIX() . $what . '_' . $wid) . ")"); } catch (Throwable $e) {} }
+function DB_NAME_LOCK_PREFIX(): string { static $p = null; if ($p === null) { try { $p = (string)db()->query('SELECT DATABASE()')->fetchColumn() . '_'; } catch (Throwable $e) { $p = 'app_'; } } return $p; }
+
 function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?array $hookCmt = null): int
+{
+    if (!ai_lock('reply', $wid, ($hookMsg || $hookCmt) ? 10 : 0)) return 0; // الرسالة الفورية تستنى الدور شوية بدل ما تضيع
+    try { return ai_auto_reply_run($wid, $force, $hookMsg, $hookCmt); } finally { ai_unlock('reply', $wid); }
+}
+
+function ai_auto_reply_run(int $wid, bool $force = false, ?array $hookMsg = null, ?array $hookCmt = null): int
 {
     $cfg = ai_reply_cfg($wid);
     if (!ai_connection() || ai_kb($wid) === '') return 0;

@@ -63,6 +63,12 @@ function acr_match(array $r, string $tx): bool
 /** التشغيل: لحد $max رد في المرة (اللي فاضل بيتعمل في المرة الجاية) */
 function acr_tick(int $wid, Zernio $z, int $max = 15): int
 {
+    if (function_exists('ai_lock') && !ai_lock('reply', $wid, 5)) return 0;
+    try { return acr_tick_run($wid, $z, $max); } finally { if (function_exists('ai_unlock')) ai_unlock('reply', $wid); }
+}
+
+function acr_tick_run(int $wid, Zernio $z, int $max = 15): int
+{
     $rules = array_values(array_filter(acr_all($wid), function ($r) { return !empty($r['on']); }));
     if (!$rules || !function_exists('ai_decide') || !function_exists('ai_reply_cfg')) return 0;
     $cfg = ai_reply_cfg($wid); $n = 0;

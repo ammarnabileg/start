@@ -16,7 +16,7 @@ try {
             save_setting('ai_tick_' . $wid, (string)time());
             session_write_close(); // ما نعطلش باقي طلبات المستخدم
             ignore_user_abort(true); @set_time_limit(120);
-            $out['n'] = (int)ai_as_workspace($wid, function () use ($wid) { return ai_auto_reply($wid); });
+            try { $out['n'] = (int)ai_as_workspace($wid, function () use ($wid) { return ai_auto_reply($wid); }); } catch (Throwable $e) { $out['err_reply'] = mb_substr($e->getMessage(), 0, 200); save_setting('ai_last_err_' . $wid, json_encode(['t' => time(), 'm' => $out['err_reply']], JSON_UNESCAPED_UNICODE)); }
             $out['ran'] = true;
         }
     }
@@ -25,7 +25,7 @@ try {
         save_setting('acr_tick_' . $wid, (string)time());
         if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
         ignore_user_abort(true); @set_time_limit(120);
-        $out['rules'] = (int)ai_as_workspace($wid, function () use ($wid) { $z = zernio_or_null(); return ($z && function_exists('ai_connection') && ai_connection()) ? acr_tick($wid, $z) : 0; });
+        try { $out['rules'] = (int)ai_as_workspace($wid, function () use ($wid) { $z = zernio_or_null(); return ($z && function_exists('ai_connection') && ai_connection()) ? acr_tick($wid, $z) : 0; }); } catch (Throwable $e) { $out['err_rules'] = mb_substr($e->getMessage(), 0, 200); save_setting('ai_last_err_' . $wid, json_encode(['t' => time(), 'm' => $out['err_rules']], JSON_UNESCAPED_UNICODE)); }
     }
 } catch (Throwable $e) { $out = ['ok' => false, 'error' => mb_substr($e->getMessage(), 0, 200)]; }
 echo json_encode($out, JSON_UNESCAPED_UNICODE);
