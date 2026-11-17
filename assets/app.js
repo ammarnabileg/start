@@ -206,7 +206,12 @@ document.addEventListener('click', function (e) {
         var ex = []; if (r.querySelector('.px-4 img')) ex.push('[image]'); r.querySelectorAll('.px-4 > a').forEach(function (a) { ex.push('[' + a.innerText.trim() + ']'); }); tx = [tx].concat(ex).filter(Boolean).join(' '); if (tx) out.push((r.dataset.who === 'agent' ? 'Agent: ' : 'Customer: ') + tx); });
       return out.join('\n').slice(-5000);
     }
-    return el.innerText.replace(/\n{3,}/g, '\n\n').slice(-5000); // باقي الصفحات: النص الظاهر زي الأول
+    // باقي الصفحات: النص الظاهر، من غير نتايج ذكاء قديمة ولا أزرار ولا قوايم
+    var hid = [].slice.call(el.querySelectorAll('.ai-result, button, select, [data-ai-skip]')).filter(function (x) { return x.style.display !== 'none'; });
+    var foc = document.activeElement;
+    hid.forEach(function (x) { x.dataset.aiPrev = x.style.display; x.style.display = 'none'; });
+    var txt; try { txt = el.innerText; } finally { hid.forEach(function (x) { x.style.display = x.dataset.aiPrev; delete x.dataset.aiPrev; }); if (foc && foc.focus) foc.focus({ preventScroll: true }); }
+    return txt.replace(/\n{3,}/g, '\n\n').slice(-5000);
   }
   function panel(ta, html) {
     var old = ta.parentNode.parentNode.querySelector('.ai-result'); if (old) old.remove();

@@ -266,10 +266,11 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
             $fh = fopen('php://temp', 'r+'); fwrite($fh, $csv); rewind($fh);
             $hd = fgetcsv($fh, 0, ',', '"', ''); $mi = $hd ? array_search('media_urls', array_map(function ($x) { return strtolower(trim((string)$x, " \t\xEF\xBB\xBF")); }, $hd), true) : false;
             if ($mi !== false) {
-                $o = fopen('php://temp', 'r+'); fputcsv($o, $hd, ',', '"', '');
+                $hEnd = ftell($fh); $o = fopen('php://temp', 'r+'); fwrite($o, substr($csv, 0, $hEnd)); // العناوين زي ما هي بالظبط
                 while (($row = fgetcsv($fh, 0, ',', '"', '')) !== false) { if (isset($row[$mi])) $row[$mi] = preg_replace_callback('/\blib:(\d+)\b/', $libFn, (string)$row[$mi]); fputcsv($o, $row, ',', '"', ''); }
                 rewind($o); $csv = stream_get_contents($o); fclose($o);
             }
+            elseif (preg_match('/\blib:\d+\b/', $csv)) { fclose($fh); throw new ZernioException(t('صور المكتبة (lib:) لازم تكون في عمود media_urls.')); }
             fclose($fh);
             if ($missing) throw new ZernioException(t('صور غير موجودة في المكتبة:') . ' lib:' . implode(', lib:', array_keys($missing)));
         }
