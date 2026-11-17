@@ -52,7 +52,7 @@ if (($_GET['ajax'] ?? '') === 'list') {
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = (string)($_POST['action'] ?? '');
-    $fclean = function ($v) { $parts = array_filter(array_map(function ($x) { return trim(str_replace('\\', '', $x)); }, explode('/', (string)$v)), 'strlen'); return mb_substr(implode('/', $parts), 0, 120); };
+    $fclean = function ($v) { $parts = array_filter(array_map(function ($x) { return trim(str_replace('\\', '', $x)); }, explode('/', (string)$v)), function ($x) { return $x !== '' && $x !== '.' && $x !== '..'; }); return mb_substr(implode('/', $parts), 0, 120); };
     $fkey = 'media_folders_' . $wid; $fall = function () use ($fkey) { return (array)json_decode((string)setting($fkey, '[]'), true); };
     if (!can('posts.create')) $json(['ok' => false, 'error' => t('مش مسموحلك تعدّل المكتبة.')]);
     if ($act === 'upload') {
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $files = $_FILES['files'] ?? null;
         if ($files && is_array($files['name'])) {
             foreach ($files['name'] as $i => $n) {
-                try { $items[] = media_store_upload($wid, ['name' => $n, 'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]], (string)($_POST['folder'] ?? '')); }
+                try { $items[] = media_store_upload($wid, ['name' => $n, 'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]], $fclean($_POST['folder'] ?? '')); }
                 catch (Throwable $e) { $errs[] = $n . ': ' . $e->getMessage(); }
             }
         }
@@ -84,13 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'star') { $on = !empty($_POST['on']) ? 1 : 0; foreach ($ids as $x) db()->prepare('UPDATE media_files SET starred = ? WHERE workspace_id = ? AND id = ?')->execute([$on, $wid, $x]); $json(['ok' => true]); }
     if ($act === 'folder_rename') { // بيغيّر الفولدر وكل اللي جواه
         $old = $fclean($_POST['from'] ?? ''); $new = $fclean($_POST['to'] ?? ''); if ($old === '' || $new === '') $json(['ok' => false]);
-        db()->prepare("UPDATE media_files SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, $old . '/%']);
+        db()->prepare("UPDATE media_files SET folder = CONCAT(?, SUBSTRING(folder, ?)) WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$new, mb_strlen($old) + 1, $wid, $old, addcslashes($old, '%_\\') . '/%']);
         $all = array_map(function ($f) use ($old, $new) { return $f === $old || strpos($f, $old . '/') === 0 ? $new . substr($f, strlen($old)) : $f; }, $fall());
         save_setting($fkey, json_encode(array_values(array_unique($all)), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $new]);
     }
     if ($act === 'folder_delete') { // الملفات اللي جواه بتطلع للفولدر الأب، مش بتتمسح
         $old = $fclean($_POST['folder'] ?? ''); if ($old === '') $json(['ok' => false]); $parent = strpos($old, '/') !== false ? substr($old, 0, strrpos($old, '/')) : '';
-        db()->prepare("UPDATE media_files SET folder = ? WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$parent, $wid, $old, $old . '/%']);
+        db()->prepare("UPDATE media_files SET folder = ? WHERE workspace_id = ? AND (folder = ? OR folder LIKE ?)")->execute([$parent, $wid, $old, addcslashes($old, '%_\\') . '/%']);
         save_setting($fkey, json_encode(array_values(array_filter($fall(), function ($f) use ($old) { return $f !== $old && strpos($f, $old . '/') !== 0; })), JSON_UNESCAPED_UNICODE)); $json(['ok' => true, 'folder' => $parent]);
     }
     if ($act === 'folder') {

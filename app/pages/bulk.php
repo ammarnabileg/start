@@ -115,7 +115,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
         $payload = ['content' => $g('post_content'), 'platforms' => $platforms, 'timezone' => $g('tz') ?: site_timezone()];
         $media = [];
         foreach (array_filter(array_map('trim', explode('|', $g('media_urls')))) as $u) {
-            if (preg_match('/^lib:(\d+)$/', $u, $m)) { try { $u = media_public_url($z, $wid, (int)$m[1], 'bulk'); } catch (Throwable $e) { $errs[] = t('الصورة دي مش موجودة في المكتبة'); continue; } }
+            if (preg_match('/^lib:(\d+)$/', $u, $m)) { try { $u = $dry ? (media_get($wid, (int)$m[1]) ? 'https://lib.invalid/' . (int)$m[1] : '') : media_public_url($z, $wid, (int)$m[1], 'bulk'); if ($u === '') throw new RuntimeException('x'); /* الفحص مايرفعش الملف للعامة */ } catch (Throwable $e) { $errs[] = t('الصورة دي مش موجودة في المكتبة'); continue; } }
             if (!preg_match('#^https?://#i', $u)) { $errs[] = t('الرابط لازم يبدأ بـ http'); continue; }
             $media[] = ['type' => preg_match('/\.(mp4|mov|webm)(\?|$)/i', $u) ? 'video' : 'image', 'url' => $u];
         }

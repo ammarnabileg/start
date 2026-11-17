@@ -67,10 +67,10 @@ function camp_tick(int $wid, int $max = 5): int
         $ids = $pdo->query("SELECT id FROM msg_campaign_items WHERE campaign_id = " . (int)$camp['id'] . " AND status = 'queued' ORDER BY id LIMIT " . (int)$room)->fetchAll(PDO::FETCH_COLUMN);
         if (!$ids) {
             $st2 = $pdo->prepare("SELECT COUNT(*) FROM msg_campaign_items WHERE campaign_id = ? AND status IN ('queued','sending')"); $st2->execute([$camp['id']]);
-            if (!(int)$st2->fetchColumn()) $pdo->prepare("UPDATE msg_campaigns SET status = 'done', finished_at = NOW() WHERE id = ?")->execute([$camp['id']]);
+            if (!(int)$st2->fetchColumn()) $pdo->prepare("UPDATE msg_campaigns SET status = 'done', finished_at = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
             continue;
         }
-        $z = zernio_or_null(); $claim = $pdo->prepare("UPDATE msg_campaign_items SET status = 'sending', sent_at = NOW() WHERE id = ? AND status = 'queued'");
+        $z = zernio_or_null(); $claim = $pdo->prepare("UPDATE msg_campaign_items SET status = 'sending', sent_at = UTC_TIMESTAMP() WHERE id = ? AND status = 'queued'");
         foreach ($ids as $iid) {
             // حجز ذرّي لكل رسالة: لو تشغيل تاني سبقنا عليها، نسيبها له (مافيش إرسال مرتين)
             $claim->execute([(int)$iid]); if ($claim->rowCount() !== 1) continue;
@@ -80,12 +80,12 @@ function camp_tick(int $wid, int $max = 5): int
                 if (getenv('CAMPAIGN_DRY_RUN')) { usleep(50000); }
                 elseif (!$z) throw new Exception('Zernio');
                 else $z->sendMessage($it['conv_id'], $it['account_id'], $text);
-                $pdo->prepare("UPDATE msg_campaign_items SET status = 'sent', sent_at = NOW(), error = '' WHERE id = ?")->execute([$it['id']]);
-                $pdo->prepare("UPDATE msg_campaigns SET sent = sent + 1, last_tick = NOW() WHERE id = ?")->execute([$camp['id']]);
+                $pdo->prepare("UPDATE msg_campaign_items SET status = 'sent', sent_at = UTC_TIMESTAMP(), error = '' WHERE id = ?")->execute([$it['id']]);
+                $pdo->prepare("UPDATE msg_campaigns SET sent = sent + 1, last_tick = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
                 $done++;
             } catch (Throwable $e) {
-                $pdo->prepare("UPDATE msg_campaign_items SET status = 'failed', sent_at = NOW(), error = ? WHERE id = ?")->execute([mb_substr($e->getMessage(), 0, 250), $it['id']]);
-                $pdo->prepare("UPDATE msg_campaigns SET failed = failed + 1, last_tick = NOW() WHERE id = ?")->execute([$camp['id']]);
+                $pdo->prepare("UPDATE msg_campaign_items SET status = 'failed', sent_at = UTC_TIMESTAMP(), error = ? WHERE id = ?")->execute([mb_substr($e->getMessage(), 0, 250), $it['id']]);
+                $pdo->prepare("UPDATE msg_campaigns SET failed = failed + 1, last_tick = UTC_TIMESTAMP() WHERE id = ?")->execute([$camp['id']]);
                 // فشل كتير ورا بعض: غالبًا مشكلة في الحساب أو حد، نوقف الحملة بدل ما نكمل نفشل
                 $st = $pdo->prepare("SELECT status FROM msg_campaign_items WHERE campaign_id = ? AND status IN ('sent','failed') ORDER BY sent_at DESC, id DESC LIMIT 5");
                 $st->execute([$camp['id']]);

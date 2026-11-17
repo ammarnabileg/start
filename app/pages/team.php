@@ -159,6 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', t('العضو ده مش موجود.'));
         } elseif ($losingOwner && owners_count($wid) <= 1) {
             flash('error', t('لازم يفضل صاحب شركة واحد على الأقل.'));
+        } elseif ($action === 'role' && !is_ws_owner() && array_diff(role_permissions($role, $wid), array_filter(all_permissions(), 'can'))) {
+            flash('error', t('لا يمكنك منح دور فيه صلاحيات أكثر من صلاحياتك.'));
         } elseif ($action === 'role') {
             $pdo->prepare("UPDATE workspace_users SET role = ? WHERE workspace_id = ? AND user_id = ?")->execute([$role, $wid, $uid]);
             log_activity('team.role', $uid . ' ' . $role);

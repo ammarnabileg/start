@@ -31,7 +31,10 @@ if ($z && $id !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $platforms[] = $item;
             }
+            // حسابات المنشور اللي مش ظاهرة في الفورم (محتاجة ربط أو موقوفة) تفضل زي ما هي
+            foreach ($oldPl as $aid => $pl) if (!isset($byId[$aid]) || !(($byId[$aid]['isActive'] ?? true) && empty($byId[$aid]['needsReconnection']))) $platforms[] = $pl;
             $payload = ['content' => $content, 'platforms' => $platforms, 'timezone' => site_timezone()];
+            $op0 = pub_get_post($z, $id); if (function_exists('ps_media') && ($mm = ps_media($op0))) $payload['mediaItems'] = $mm; // التعديل الكامل بيستبدل المنشور: الصور لازم تتبعت تاني
             $when = (string)($_POST['when'] ?? '');
             if ($when !== '') {
                 $dt = DateTime::createFromFormat('Y-m-d\TH:i', $when, new DateTimeZone(site_timezone()));
@@ -122,7 +125,7 @@ render(t('تفاصيل المنشور'), 'posts', function () use ($z, $fx, $id,
     $whenVal = '';
     if (!empty($post['scheduledFor'])) {
         try {
-            $whenVal = (new DateTime($post['scheduledFor']))->setTimezone(new DateTimeZone(site_timezone()))->format('Y-m-d\TH:i');
+            $wd = (new DateTime($post['scheduledFor']))->setTimezone(new DateTimeZone(site_timezone())); if (!in_array($status, ['failed', 'cancelled'], true) || $wd > new DateTime('now')) $whenVal = $wd->format('Y-m-d\TH:i'); // ميعاد فات لمنشور فشل: الحقل فاضي عشان الحفظ مايترفضش
         } catch (Throwable $t) {}
     }
     ?>

@@ -33,8 +33,8 @@ if (isset($_GET['img_proxy'])) {
     $buf = '';
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => false, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 20, CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
         CURLOPT_WRITEFUNCTION => function ($c, $d) use (&$buf) { $buf .= $d; return strlen($buf) > 8 * 1048576 ? 0 : strlen($d); }]);
-    curl_exec($ch);
-    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $okx = curl_exec($ch) !== false;
+    $code = $okx ? (int)curl_getinfo($ch, CURLINFO_HTTP_CODE) : 599; // اتقطع (أكبر من 8MB أو خطأ): مانبعتش صورة ناقصة
     curl_close($ch);
     $f = new finfo(FILEINFO_MIME_TYPE);
     $mime = $buf !== '' ? (string)$f->buffer($buf) : '';

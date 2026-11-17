@@ -187,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         echo json_encode(['ok' => true, 'at' => date('H:i')]); exit;
     }
     if ($act === 'delete') {
+        if ($b['state'] === 'launching' || !empty($b['progress']['done']) || !empty($b['progress']['inflight'])) { echo json_encode(['ok' => false, 'error' => t('الحملة بدأ إطلاقها على المنصة. لا يمكن حذف المشروع حتى لا يضيع سجل ما تم إنشاؤه.')], JSON_UNESCAPED_UNICODE); exit; }
         db()->prepare("DELETE FROM ad_builds WHERE workspace_id = ? AND id = ?")->execute([$wid, $b['id']]);
         echo json_encode(['ok' => true]); exit;
     }

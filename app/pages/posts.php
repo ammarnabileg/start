@@ -303,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && ($_POST['action'] ?? '') === 
                 $dt = new DateTime((string)$p['scheduledFor']); $dt->setTimezone($tz); $dt->modify('+' . max(1, min(60, (int)($_POST['n'] ?? 7))) . ' day');
                 ps_repost($z, $id, $dt); log_activity('post.copy_week', $id);
             } elseif ($op === 'from_draft') { // #17 املا الفراغات: المسودة تتجدول في ميعاد فاضي (نسخة مجدولة والمسودة تتمسح)
+                if ((string)(pub_get_post($z, $id)['status'] ?? '') !== 'draft') throw new ZernioException(t('المنشور ده لم يعد مسودة. حدّث الصفحة.'));
                 $dt = DateTime::createFromFormat('Y-m-d\TH:i', (string)($_POST['when'] ?? ''), $tz);
                 if (!$dt || $dt < new DateTime('now', $tz)) throw new ZernioException(t('وقت النشر لازم يكون في المستقبل.'));
                 $nid = ps_repost($z, $id, $dt); if ($nid !== '') { try { $z->deletePost($id); } catch (ZernioException $e) {} }
