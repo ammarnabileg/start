@@ -112,7 +112,7 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === 'd
             $platforms[] = $item;
         }
         if (!$platforms) $errs[] = t('اختار حساب واحد على الأقل.');
-        $payload = ['content' => $g('post_content'), 'platforms' => $platforms, 'timezone' => $g('tz') ?: site_timezone()];
+        $payload = ['content' => $g('post_content'), 'platforms' => $platforms, 'timezone' => in_array($g('tz'), timezone_identifiers_list(), true) ? $g('tz') : site_timezone()]; // منطقة زمنية غلط في صف مابتوقعش الدفعة كلها
         $media = [];
         foreach (array_filter(array_map('trim', explode('|', $g('media_urls')))) as $u) {
             if (preg_match('/^lib:(\d+)$/', $u, $m)) { try { $u = $dry ? (media_get($wid, (int)$m[1]) ? 'https://lib.invalid/' . (int)$m[1] : '') : media_public_url($z, $wid, (int)$m[1], 'bulk'); if ($u === '') throw new RuntimeException('x'); /* الفحص مايرفعش الملف للعامة */ } catch (Throwable $e) { $errs[] = t('الصورة دي مش موجودة في المكتبة'); continue; } }

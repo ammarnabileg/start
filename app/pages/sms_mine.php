@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $c) {
     $out = ['ok' => false];
     try {
         if ($action === 'send') {
+            if (!can('phone.spend')) throw new SmsGateException(t('إرسال الرسائل النصية يتطلب صلاحية الإنفاق على الأرقام.'));
             $text = trim((string)($_POST['text'] ?? ''));
             if (!preg_match('/^\+\d{7,15}$/', $phone)) throw new SmsGateException(t('اكتب الرقم بالصيغة الدولية، مثلاً %s.', cx_phone()));
             if ($text === '') throw new SmsGateException(t('اكتب الرسالة الأول.'));

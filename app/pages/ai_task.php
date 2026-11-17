@@ -274,7 +274,7 @@ if ($task === 'preset') {
     // لغة المنشور الأصلي تغلب: قاعدة المعرفة غالبًا بالعربي وبتشد الموديل للعربي حتى لو المنشور إنجليزي
     if ($pr['group'] === 'compose' && !in_array($key, ['translate_en', 'translate_ar', 'img_prompt', 'alt_text'], true) && ($lk = ai_text_lang($text)) !== '')
         $sys .= "\n\nLANGUAGE RULE (highest priority): the user's text is in {$lk}. Write the whole output in {$lk} only" . ($lk === 'Arabic' ? ', in the same dialect as the text' : '') . ', even if the knowledge base or business name is in another language.';
-    $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? $text : $ctx);
+    $user = $pr['needs'] === 'context' ? "Content:\n" . $ctx . ($text !== '' ? "\n\nCurrent draft:\n" . $text : '') : ($text !== '' ? ($pr['needs'] === 'any' && $ctx !== '' ? "Context:\n" . $ctx . "\n\nDraft:\n" . $text : $text) : $ctx); // المسودة مابتلغيش السياق
     try {
         $userMsg = $pr['needs'] === 'image' ? ['role' => 'user', 'content' => [['type' => 'text', 'text' => $text !== '' ? "Draft text:\n" . $text : 'Image:'], ['type' => 'image_url', 'image_url' => ['url' => $img]]]] : ['role' => 'user', 'content' => $user];
         if ($streaming) {

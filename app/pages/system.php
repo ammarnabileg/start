@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     $pw = (string)($_POST['smtp_pass'] ?? '');
     if ($pw !== '') save_setting('smtp_pass', encrypt_secret($pw)); // فاضي = سيب القديم
     $from = trim((string)($_POST['smtp_from'] ?? ''));
-    save_setting('smtp_from', filter_var($from, FILTER_VALIDATE_EMAIL) ? $from : '');
+    if ($from !== '' && !filter_var($from, FILTER_VALIDATE_EMAIL)) flash('error', t('بريد المرسل غير صحيح، فتم الإبقاء على القديم.')); else save_setting('smtp_from', $from);
     save_setting('smtp_from_name', mb_substr(trim((string)($_POST['smtp_from_name'] ?? '')), 0, 120));
     log_activity('system.smtp_save', $host);
     if ($_POST['action'] === 'smtp_test') {
