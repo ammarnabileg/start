@@ -15,7 +15,7 @@ function bulk_with_profile(string $path, string $profileId): string
     fputcsv($out, array_merge(array_values($h2), ['profiles']), ',', '"', '');
     while (($r = fgetcsv($in, 0, ',', '"', '')) !== false) {
         if (!array_filter($r, function ($x) { return trim((string)$x) !== ''; })) continue;
-        $r = array_pad($r, count($head), '');
+        $r = array_slice(array_pad($r, count($head), ''), 0, count($head)); // أعمدة زيادة كانت بتزحلق البروفايل
         if ($drop !== false) unset($r[$drop]);
         fputcsv($out, array_merge(array_values($r), [$profileId]), ',', '"', '');
     }
@@ -253,14 +253,26 @@ if ($z && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['ajax'] ?? '') === '1
         // صور مكتبة الوسائط (lib:ID) → رابط عام. بتترفع لـ Zernio أول مرة بس وبيتحفظ رابطها
         $wid = (int)ws('id');
         $libMap = [];
-        $csv = preg_replace_callback('/\blib:(\d+)\b/', function ($m) use ($z, $wid, &$libMap, $dry) {
+        $missing = [];
+        $libFn = function ($m) use ($z, $wid, &$libMap, $dry, &$missing) {
             $id = (int)$m[1];
             if (!isset($libMap[$id])) {
                 try { if ($dry) { if (!media_get($wid, $id)) throw new RuntimeException('x'); $libMap[$id] = 'https://lib.invalid/' . $id; } else $libMap[$id] = media_public_url($z, $wid, $id, 'bulk'); } // الفحص مايرفعش ملفات
-                catch (Throwable $t) { $libMap[$id] = 'missing-media-' . $id; }
+                catch (Throwable $t) { $libMap[$id] = ''; $missing[$id] = 1; }
             }
             return $libMap[$id];
-        }, $csv);
+        };
+        if (strpos($csv, 'lib:') !== false) { // بس عمود media_urls، مش نص البوست
+            $fh = fopen('php://temp', 'r+'); fwrite($fh, $csv); rewind($fh);
+            $hd = fgetcsv($fh, 0, ',', '"', ''); $mi = $hd ? array_search('media_urls', array_map(function ($x) { return strtolower(trim((string)$x, " \t\xEF\xBB\xBF")); }, $hd), true) : false;
+            if ($mi !== false) {
+                $o = fopen('php://temp', 'r+'); fputcsv($o, $hd, ',', '"', '');
+                while (($row = fgetcsv($fh, 0, ',', '"', '')) !== false) { if (isset($row[$mi])) $row[$mi] = preg_replace_callback('/\blib:(\d+)\b/', $libFn, (string)$row[$mi]); fputcsv($o, $row, ',', '"', ''); }
+                rewind($o); $csv = stream_get_contents($o); fclose($o);
+            }
+            fclose($fh);
+            if ($missing) throw new ZernioException(t('صور غير موجودة في المكتبة:') . ' lib:' . implode(', lib:', array_keys($missing)));
+        }
         $tmp = tempnam(sys_get_temp_dir(), 'bkx');
         file_put_contents($tmp, $csv);
         register_shutdown_function(function () use ($tmp) { if (is_file($tmp)) unlink($tmp); });

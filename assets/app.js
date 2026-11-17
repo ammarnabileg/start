@@ -274,6 +274,7 @@ document.addEventListener('click', function (e) {
   function openMenu(ta, btn) {
     closeMenu();
     var keys = ta.dataset.ai.split(',').map(function (k) { return k.trim(); }).filter(function (k) { return P.items[k]; });
+    if (!keys.length) { var nm = (window.T && T.liveFailed) || 'Error'; return window.aiToast ? aiToast(nm) : alert(nm); } // مفيش أدوات متاحة
     menu = document.createElement('div');
     menu.className = 'fixed z-[60] w-60 max-h-80 overflow-y-auto rounded-2xl border border-ink-200 bg-white p-1.5 shadow-2xl shadow-ink-900/15';
     keys.forEach(function (k) {
