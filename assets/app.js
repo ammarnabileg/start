@@ -12,7 +12,7 @@
     if (f.closest('[data-live-root]')) return;
     var b = ev.submitter || f.querySelector('button:not([type=button])');
     if (!b) return;
-    setTimeout(function () { if (ev.defaultPrevented) return; b.disabled = true; b.dataset.busy = '1'; b.setAttribute('aria-busy', 'true'); b.classList.add('opacity-70', 'cursor-wait'); }, 0);
+    setTimeout(function () { if (ev.defaultPrevented) return; f.querySelectorAll('button[type=submit],button:not([type])').forEach(function (o) { if (o !== b && !o.disabled) { o.disabled = true; o.dataset.busy = '1'; } }); /* زرار تاني في نفس الفورم مايتبعتش وهو شغال */ b.disabled = true; b.dataset.busy = '1'; b.setAttribute('aria-busy', 'true'); b.classList.add('opacity-70', 'cursor-wait'); }, 0);
   });
   window.addEventListener('pageshow', function () { document.querySelectorAll('[data-busy]').forEach(function (b) { b.disabled = false; delete b.dataset.busy; b.removeAttribute('aria-busy'); b.classList.remove('opacity-70', 'cursor-wait'); }); }); // رجعت بزرار Back: الزرار يرجع شغال
 
