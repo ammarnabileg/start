@@ -1,5 +1,14 @@
 <?php
-/** الجماهير المخصصة: عرض، إنشاء (أنواع بسيطة)، حذف */
+/** الجماهير المخصصة: عرض، إنشاء (حسب المنصة)، حذف */
+/** الأنواع اللي Zernio بيقدر ينشئها على كل منصة (من التوثيق) */
+function aud_types_for(string $plat): array
+{
+    $m = ['metaads' => ['meta_engagement', 'website', 'customer_list', 'lookalike'], 'facebookads' => ['meta_engagement', 'website', 'customer_list', 'lookalike'], 'instagramads' => ['meta_engagement', 'website', 'customer_list', 'lookalike'],
+        'linkedinads' => ['engagement', 'customer_list'], 'tiktokads' => ['tiktok_engagement', 'website', 'customer_list', 'lookalike'], 'googleads' => ['website', 'customer_list', 'lookalike'],
+        'pinterestads' => ['pinterest_engagement', 'website', 'customer_list', 'lookalike'], 'xads' => ['customer_list'], 'twitterads' => ['customer_list']];
+    if (isset($m[$plat])) return $m[$plat];
+    return ads_is_meta($plat) ? $m['metaads'] : ['customer_list'];
+}
 $err = null;
 $z = zernio_or_null($err);
 $sel = (string)($_GET['t'] ?? $_POST['t'] ?? '');
@@ -40,18 +49,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             }
         } elseif ($action === 'create') {
             $type = (string)($_POST['type'] ?? '');
+            $plat = '';
+            foreach ((getenv('UI_FIXTURES') && is_file(getenv('UI_FIXTURES') . '/ad_targets.json')) ? (json_decode((string)file_get_contents(getenv('UI_FIXTURES') . '/ad_targets.json'), true)['targets'] ?? []) : ads_usable_accounts($z, ads_connections($z)) as $t0) if ($t0['conn']['_id'] . '|' . $t0['acc']['id'] === $sel) $plat = (string)($t0['conn']['platform'] ?? '');
+            $allowed = aud_types_for($plat);
             $name = trim((string)($_POST['name'] ?? ''));
             $days = max(1, min(180, (int)($_POST['days'] ?? 30)));
             $p = ['accountId' => $connId, 'adAccountId' => $adAccId, 'name' => $name, 'type' => $type];
             $bad = null;
+            $rows = [];
             if (mb_strlen($name) < 3) {
                 $bad = t('اكتب اسم للجمهور (3 حروف على الأقل).');
+            } elseif (!in_array($type, $allowed, true)) {
+                $bad = t('نوع الجمهور ده مش مدعوم على المنصة دي.');
             } elseif ($type === 'website') {
-                $p['pixelId'] = trim((string)($_POST['pixel_id'] ?? ''));
                 $p['retentionDays'] = $days;
+                if ($plat !== 'googleads') { $p['pixelId'] = trim((string)($_POST['pixel_id'] ?? '')); if ($p['pixelId'] === '') $bad = t('اختار البيكسل.'); }
+                if ($plat === 'tiktokads') { $ok = [7, 14, 30, 60, 90, 180]; $best = 7; foreach ($ok as $o) if (abs($o - $days) < abs($best - $days)) $best = $o; $p['retentionDays'] = $best; $ev = (string)($_POST['event'] ?? ''); if ($ev !== '') $p['event'] = $ev; }
                 $u = trim((string)($_POST['url_contains'] ?? ''));
-                if ($u !== '') $p['urlContains'] = $u;
-                if ($p['pixelId'] === '') $bad = t('اكتب رقم الـ Pixel.');
+                if ($u !== '' && $plat !== 'pinterestads') $p['urlContains'] = $u;
+            } elseif (in_array($type, ['engagement', 'tiktok_engagement', 'pinterest_engagement'], true)) {
+                // بتتملي من تفاعل الناس مع حسابك على المنصة: مفيش حقول زيادة
+            } elseif ($type === 'customer_list') {
+                $raw = preg_split('/[\s,;]+/u', (string)($_POST['list'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+                foreach ($raw as $x) { $x = trim($x); if (filter_var($x, FILTER_VALIDATE_EMAIL)) $rows[mb_strtolower($x)] = ['email' => mb_strtolower($x)]; elseif ($plat === 'metaads' && preg_match('/^\+?\d{8,15}$/', $x)) $rows[$x] = ['phone' => $x]; }
+                if (!empty($_POST['from_crm'])) {
+                    $stg = (string)($_POST['crm_stage'] ?? '') === 'won' ? " AND stage = 'won'" : '';
+                    $st = db()->prepare("SELECT email, phone FROM crm_leads WHERE workspace_id = ? AND email IS NOT NULL AND email <> ''" . $stg . ' LIMIT 50000'); $st->execute([(int)ws('id')]);
+                    foreach ($st->fetchAll() as $r) { $em = mb_strtolower(trim((string)$r['email'])); if (filter_var($em, FILTER_VALIDATE_EMAIL)) $rows[$em] = array_filter(['email' => $em, 'phone' => $plat === 'metaads' ? (string)$r['phone'] : '']); }
+                }
+                if (!$rows) $bad = t('مفيش إيميلات صالحة. الصق قائمة أو اختار عملاء الـ CRM.');
             } elseif ($type === 'meta_engagement') {
                 $p['engagementSource'] = ($_POST['source'] ?? '') === 'instagram' ? 'instagram' : 'page';
                 $p['sourceId'] = trim((string)($_POST['source_id'] ?? ''));
@@ -60,7 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             } elseif ($type === 'lookalike') {
                 $p['sourceAudienceId'] = trim((string)($_POST['source_audience'] ?? ''));
                 $p['country'] = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', (string)($_POST['country'] ?? '')), 0, 2));
-                $p['ratio'] = max(0.01, min(0.2, ((int)($_POST['ratio'] ?? 1)) / 100));
+                if (in_array($plat, ['tiktokads', 'googleads'], true)) $p['size'] = in_array($_POST['size'] ?? '', ['narrow', 'balanced', 'broad'], true) ? $_POST['size'] : 'narrow';
+                else $p['ratio'] = max(0.01, min($plat === 'pinterestads' ? 0.1 : 0.2, ((int)($_POST['ratio'] ?? 1)) / 100));
                 if ($p['sourceAudienceId'] === '' || strlen($p['country']) !== 2) $bad = t('اختار الجمهور الأصلي واكتب كود الدولة.');
             } else {
                 $bad = t('نوع جمهور مش مدعوم.');
@@ -68,9 +95,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
             if ($bad) {
                 flash('error', $bad);
             } else {
-                ads_create_audience($z, $p);
+                $res = ads_create_audience($z, $p);
                 log_activity('ads.audience_create', $type . ': ' . $name);
-                flash('success', t('تم إنشاء الجمهور. ممكن ياخد شوية وقت لحد ما يتملي.'));
+                if ($rows) {
+                    // الإيميلات بتتبعت نص عادي وZernio بيعمل لها تشفير SHA256 قبل ما يبعتها للمنصة
+                    $aid = (string)($res['audience']['id'] ?? $res['audience']['_id'] ?? ''); $sent = 0;
+                    try { if ($aid !== '') foreach (array_chunk(array_values($rows), 10000) as $ch) { $z->request('POST', '/v1/ads/audiences/' . rawurlencode($aid) . '/users', [], ['users' => $ch]); $sent += count($ch); } }
+                    catch (ZernioException $ex) { flash('error', t('الجمهور اتعمل، لكن رفع القائمة فشل: %s', $ex->getMessage())); redirect(url('ad_audiences', ['t' => $sel])); }
+                    flash('success', t('تم إنشاء الجمهور ورفع %s جهة اتصال. المطابقة بتاخد لحد 48 ساعة.', ads_num($sent)));
+                } else flash('success', t('تم إنشاء الجمهور. ممكن ياخد شوية وقت لحد ما يتملي.'));
             }
         }
     } catch (ZernioException $ex) {
@@ -113,6 +146,8 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         'meta_engagement' => t('اتفاعلوا مع الصفحة'), 'engagement' => t('تفاعل'), 'saved_targeting' => t('استهداف محفوظ'),
         'company_list' => t('قائمة شركات'), 'website_retargeting' => t('زوار الموقع')];
     $isMeta = $current && ads_is_meta($current['conn']['platform'] ?? '');
+    $plat = (string)($current['conn']['platform'] ?? ''); $allowed = aud_types_for($plat);
+    $crmN = 0; $crmW = 0; try { $st = db()->prepare("SELECT COUNT(*), SUM(stage = 'won') FROM crm_leads WHERE workspace_id = ? AND email IS NOT NULL AND email <> ''"); $st->execute([(int)ws('id')]); [$crmN, $crmW] = array_map('intval', $st->fetch(PDO::FETCH_NUM)); } catch (Throwable $e) {}
     ?>
     <div class="space-y-5">
 
@@ -209,9 +244,9 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
             <div><label class="label"><?= e(t('الاسم')) ?></label><input name="name" class="input" required minlength="3" maxlength="200"></div>
             <div><label class="label"><?= e(t('النوع')) ?></label>
               <select name="type" class="input" id="audType">
-                <?php if ($isMeta): ?><option value="meta_engagement"><?= e(t('ناس اتفاعلوا مع صفحتك / انستجرام')) ?></option><?php endif; ?>
-                <option value="website"><?= e(t('زوار موقعك (محتاج Pixel)')) ?></option>
-                <?php if ($audiences): ?><option value="lookalike"><?= e(t('جمهور مشابه لجمهور عندك')) ?></option><?php endif; ?>
+                <?php $lbl = ['meta_engagement' => t('ناس اتفاعلوا مع صفحتك / انستجرام'), 'engagement' => t('ناس اتفاعلوا مع صفحتك وإعلاناتك على لينكدإن'), 'tiktok_engagement' => t('ناس اتفاعلوا مع حسابك على تيك توك'), 'pinterest_engagement' => t('ناس اتفاعلوا مع حسابك على بنترست'),
+                  'customer_list' => t('قائمة عملائك (إيميلات من الـ CRM أو ملف)'), 'website' => $plat === 'googleads' ? t('زوار موقعك (Google tag)') : t('زوار موقعك (محتاج Pixel)'), 'lookalike' => t('جمهور مشابه لجمهور عندك')];
+                foreach ($allowed as $ty0): if ($ty0 === 'lookalike' && !$audiences) continue; ?><option value="<?= e($ty0) ?>"><?= e($lbl[$ty0]) ?></option><?php endforeach; ?>
               </select></div>
           </div>
           <div data-aud="meta_engagement" class="grid sm:grid-cols-2 gap-3">
@@ -219,11 +254,21 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
               <select name="source" class="input"><option value="page"><?= e(t('صفحة فيسبوك')) ?></option><option value="instagram"><?= e(t('حساب انستجرام')) ?></option></select></div>
             <div><label class="label"><?= e(t('رقم الصفحة / الحساب')) ?></label><input name="source_id" class="input" dir="ltr" value="<?= e($current['conn']['metadata']['selectedPageId'] ?? '') ?>"></div>
           </div>
+          <div data-aud="customer_list" class="space-y-2">
+            <label class="flex items-center gap-2 text-sm rounded-xl border border-ink-200 p-3 cursor-pointer"><input type="checkbox" name="from_crm" value="1" <?= $crmN ? 'checked' : 'disabled' ?>>
+              <span class="flex-1"><?= e(t('ضيف عملاء الـ CRM اللي ليهم إيميل')) ?> <b class="text-brand-700">(<?= ads_num($crmN) ?>)</b></span>
+              <select name="crm_stage" class="input !w-auto !py-1 text-xs"><option value=""><?= e(t('كلهم')) ?></option><option value="won"><?= e(t('اللي اشتروا بس (%s)', ads_num($crmW))) ?></option></select></label>
+            <div><label class="label"><?= e(t('أو الصق إيميلات (واحد في كل سطر)')) ?><?= $plat === 'metaads' || $isMeta ? ' ' . e(t('أو أرقام موبايل بكود الدولة')) : '' ?></label>
+              <textarea name="list" rows="4" class="input font-mono text-xs" dir="ltr" placeholder="name@company.com"></textarea>
+              <p class="text-[11px] text-ink-500 mt-1"><span id="aud-lc">0</span> <?= e(t('صالح')) ?> · <?= e(t('بيتشفّر (SHA256) قبل ما يوصل للمنصة. المنصة محتاجة 300 مطابقة على الأقل عشان تقدر تعلن عليه.')) ?></p></div>
+          </div>
+          <div data-aud="engagement tiktok_engagement pinterest_engagement" class="rounded-xl bg-brand-50 p-3 text-xs text-brand-800"><?= e(t('بيتملي لوحده من الناس اللي اتفاعلوا مع حسابك وإعلاناتك على المنصة. مفيش حاجة تجهزها.')) ?></div>
           <div data-aud="website" class="grid sm:grid-cols-2 gap-3">
-            <div><label class="label"><?= e(t('البيكسل')) ?></label>
+            <?php if ($plat !== 'googleads'): ?><div><label class="label"><?= e(t('البيكسل')) ?></label>
               <?php if ($pixels): ?><select name="pixel_id" class="input"><?php foreach ($pixels as $px): ?><option value="<?= e((string)($px['id'] ?? '')) ?>"><?= e((string)($px['name'] ?? '') . ' · ' . ($px['id'] ?? '')) ?></option><?php endforeach; ?></select>
-              <?php else: ?><input name="pixel_id" class="input" dir="ltr" placeholder="<?= e(t('لا يوجد Pixel: أنشئ واحدًا من كارت «البيكسل» فوق')) ?>"><?php endif; ?></div>
-            <div><label class="label"><?= e(t('الرابط بيحتوي على (اختياري)')) ?></label><input name="url_contains" class="input" dir="ltr" placeholder="/products"></div>
+              <?php else: ?><p class="text-xs text-amber-700 rounded-lg bg-amber-50 p-2"><?= e(t('لا يوجد Pixel على الحساب ده.')) ?> <button type="button" class="link" data-px-new><?= e(t('أنشئ واحدًا')) ?></button></p><?php endif; ?></div><?php endif; ?>
+            <?php if ($plat === 'tiktokads'): ?><div><label class="label"><?= e(t('الحدث')) ?></label><select name="event" class="input"><?php foreach (['' => t('تصفح الصفحات'), 'PRODUCT DETAIL PAGE BROWSE' => t('شاهد منتج'), 'PIXEL ADD TO CART' => t('أضاف للسلة'), 'INITIATE CHECKOUT' => t('بدأ الدفع'), 'COMPLETE PAYMENT' => t('دفع'), 'PIXEL SUBMIT FORM' => t('أرسل نموذج'), 'CONTACT' => t('تواصل')] as $k => $v): ?><option value="<?= e($k) ?>"><?= e($v) ?></option><?php endforeach; ?></select></div><?php endif; ?>
+            <?php if ($plat !== 'pinterestads'): ?><div><label class="label"><?= e(t('الرابط بيحتوي على (اختياري)')) ?></label><input name="url_contains" class="input" dir="ltr" placeholder="/products"></div><?php endif; ?>
           </div>
           <div data-aud="meta_engagement website">
             <label class="label"><?= e(t('آخر كام يوم')) ?></label><input name="days" type="number" min="1" max="180" value="30" class="input !w-32">
@@ -232,7 +277,8 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
             <div><label class="label"><?= e(t('الجمهور الأصلي')) ?></label>
               <select name="source_audience" class="input"><?php foreach ($audiences as $a): if (empty($a['id'] ?? $a['platformAudienceId'] ?? null)) continue; ?><option value="<?= e($a['id'] ?? $a['platformAudienceId']) ?>"><?= e($a['name'] ?? '') ?></option><?php endforeach; ?></select></div>
             <div><label class="label"><?= e(t('الدولة (كود من حرفين)')) ?></label><input name="country" class="input" dir="ltr" maxlength="2" value="<?= e(ws_country()) ?>"></div>
-            <div><label class="label"><?= e(t('الحجم %')) ?></label><input name="ratio" type="number" min="1" max="20" value="1" class="input"></div>
+            <?php if (in_array($plat, ['tiktokads', 'googleads'], true)): ?><div><label class="label"><?= e(t('الحجم')) ?></label><select name="size" class="input"><option value="narrow"><?= e(t('ضيق (أدق)')) ?></option><option value="balanced"><?= e(t('متوازن')) ?></option><option value="broad"><?= e(t('واسع')) ?></option></select></div>
+            <?php else: ?><div><label class="label"><?= e(t('الحجم %')) ?></label><input name="ratio" type="number" min="1" max="<?= $plat === 'pinterestads' ? 10 : 20 ?>" value="1" class="input"></div><?php endif; ?>
           </div>
           <p class="text-xs text-ink-500"><?= e(t('الجمهور بيتعمل على المنصة نفسها، ومش بيصرف فلوس لوحده.')) ?></p>
           <button class="btn-primary"><?= e(t('إنشاء الجمهور')) ?></button>
@@ -242,6 +288,8 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
           var s = document.getElementById('audType');
           function sync() { document.querySelectorAll('#audForm [data-aud]').forEach(function (el) { el.style.display = el.dataset.aud.split(' ').indexOf(s.value) >= 0 ? '' : 'none'; }); }
           s.addEventListener('change', sync); sync();
+          var ta = document.querySelector('#audForm textarea[name=list]'), lc = document.getElementById('aud-lc');
+          if (ta) ta.addEventListener('input', function () { lc.textContent = ta.value.split(/[\s,;]+/).filter(function (x) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x) || /^\+?\d{8,15}$/.test(x); }).length; });
         })();
         </script>
       </section>
@@ -250,7 +298,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
         'hints' => ['meta_engagement' => t('الأنسب للبداية: ناس عرفوك فعلًا، وغالبًا بيتحولوا أسرع.'), 'website' => t('محتاج Pixel متركّب على موقعك، وإلا الجمهور هيفضل فاضي.'), 'lookalike' => t('ابدأ بـ 1% لأدق تشابه، وكبّر الحجم لو عاوز وصول أكبر.')]], JSON_UNESCAPED_UNICODE) ?>;</script>
       <script src="assets/ui-ad_audiences.js?v=<?= e(APP_VERSION) ?>"></script>
       <script>window.AUDU = <?= json_encode(['list' => array_map(function ($a) { return ['id' => (string)($a['id'] ?? $a['platformAudienceId'] ?? ''), 'name' => (string)($a['name'] ?? ''), 'type' => (string)($a['type'] ?? ''), 'size' => (float)($a['size'] ?? 0), 'status' => (string)($a['status'] ?? '')]; }, $audiences),
-        'canLook' => (bool)$audiences, 'isMeta' => (bool)$isMeta, 'builder' => url('ad_builder'), 'people' => t('حوالي %s شخص'),
+        'canLook' => (bool)$audiences, 'isMeta' => (bool)$isMeta, 'warmType' => array_values(array_intersect(['meta_engagement', 'engagement', 'tiktok_engagement', 'pinterest_engagement', 'customer_list', 'website'], $allowed))[0] ?? 'customer_list', 'builder' => url('ad_builder'), 'people' => t('حوالي %s شخص'),
         'fSmall' => t('صغير جدًا'), 'fNiche' => t('متخصص'), 'fGood' => t('حجم ممتاز'), 'fBroad' => t('واسع'), 'makeLook' => t('مشابه منه'), 'copyId' => t('انسخ الـ ID'), 'copied' => t('اتنسخ ✓'), 'del' => t('حذف'), 'lookName' => t('مشابه 1% - %s'),
         'sortDef' => t('الترتيب الأصلي'), 'sortSize' => t('الأكبر الأول'), 'sortName' => t('بالاسم'),
         'ladT' => t('سلّم الجماهير'), 'ladD' => t('ابدأ بالناس اللي عرفوك، اعمل منهم مشابه، وبعدين وسّع.'), 'tWarm' => t('دافي'), 'tWarmD' => t('تفاعلوا أو زاروا أو عملاء'), 'tLook' => t('مشابه'), 'tLookD' => t('ناس شبه الدافيين'), 'tBroad' => t('واسع'), 'tBroadD' => t('استهداف محفوظ واهتمامات'),
@@ -265,7 +313,7 @@ render(t('الجماهير'), 'ad_audiences', function () use ($z, $apiError, $t
 (function () {
   if (window.__pxBound) return; window.__pxBound = true;
   document.addEventListener('click', function (e) {
-    var nb = e.target.closest('#px-card [data-px-new]');
+    var nb = e.target.closest('[data-px-new]'); if (nb && !nb.closest('#px-card')) document.getElementById('px-card').scrollIntoView({ behavior: 'smooth' });
     if (nb) { var nf = document.getElementById('px-newform'); if (nf) { nf.classList.toggle('hidden'); var i = nf.querySelector('input[name=pixel_name]'); if (i) i.focus(); } return; }
     var cp = e.target.closest('#px-copy');
     if (cp) { var t0 = document.getElementById('px-code'); t0.select(); try { navigator.clipboard.writeText(t0.value); } catch (x) { document.execCommand('copy'); } cp.textContent = '✓'; return; }

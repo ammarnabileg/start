@@ -37,7 +37,7 @@
     lad.innerHTML = '<div class="flex flex-wrap items-center gap-2 mb-3"><b class="text-ink-900">' + ic('layers', 'w-4 h-4 inline') + ' ' + esc(U.ladT) + '</b><small class="text-xs text-ink-500">' + esc(U.ladD) + '</small></div><div class="aud-tiers">' +
       tier('warm', U.tWarm, U.tWarmD, warm, '#db2777') + '<i>←</i>' + tier('look', U.tLook, U.tLookD, look, '#7c3aed') + '<i>←</i>' + tier('broad', U.tBroad, U.tBroadD, broad, '#d97706') + '</div>' +
       '<div class="aud-next"><span>💡</span><p>' + esc(next[0]) + '</p>' + (next[1] === 'look' ? '<button type="button" class="btn-primary !py-1.5 !text-xs" data-look="' + esc(next[2]) + '">' + esc(U.doIt) + '</button>' : next[1] === 'warm' ? '<button type="button" class="btn-primary !py-1.5 !text-xs" data-warm>' + esc(U.doIt) + '</button>' : '<a class="btn-ghost !py-1.5 !text-xs" href="' + esc(U.builder) + '">' + esc(U.toBuilder) + '</a>') + '</div>';
-    host.before(lad); lad.addEventListener('click', function (e) { if (e.target.closest('[data-warm]')) prefill(U.isMeta ? 'meta_engagement' : 'website', { name: U.warmName, days: '90' }); }); }
+    host.before(lad); lad.addEventListener('click', function (e) { if (e.target.closest('[data-warm]')) prefill(U.warmType || (U.isMeta ? 'meta_engagement' : 'website'), { name: U.warmName, days: '90' }); }); }
 
   /* ---------- الفورم ---------- */
   function prefill(type, vals) { if (!form) return; var t = form.querySelector('#audType'); if (![].some.call(t.options, function (o) { return o.value === type; })) return; t.value = type; fire(t);
