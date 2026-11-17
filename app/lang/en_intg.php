@@ -6286,4 +6286,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'هذا العميل مسند لزميل آخر.' => 'This lead is assigned to another teammate.',
     'اختر يومًا واحدًا على الأقل للحجز.' => 'Pick at least one booking day.',
     'وقت البداية لازم يكون قبل النهاية بمدة موعد واحد على الأقل.' => 'Start time must be before end time by at least one meeting length.',
+    'الصورة أكبر من قدرة المتصفح. اختر مقاسًا أصغر ثم احفظ.' => 'The image is too large for the browser. Choose a smaller size and save.',
 ];

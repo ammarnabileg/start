@@ -386,7 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete' && $canManage) {
         db()->prepare('DELETE FROM crm_acts WHERE lead_id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         try { db()->prepare('DELETE FROM crm_bookings WHERE lead_id = ? AND workspace_id = ? AND start_at > NOW()')->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {}
-        foreach (['crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs'] as $tb) { try { db()->prepare("DELETE FROM $tb WHERE lead_id = ? AND workspace_id = ?")->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {} } // مايفضلش يتحسب في التقارير
+        foreach (['crm_deals', 'crm_tasks', 'crm_visits', 'crm_notifs', 'crm_mails'] as $tb) { try { db()->prepare("DELETE FROM $tb WHERE lead_id = ? AND workspace_id = ?")->execute([(int)$l['id'], $wid]); } catch (Throwable $e) {} } // مايفضلش يتحسب في التقارير
         db()->prepare('DELETE FROM crm_leads WHERE id = ? AND workspace_id = ?')->execute([(int)$l['id'], $wid]);
         log_activity('crm.delete', $l['id'] . ' ' . $l['name']);
         $json(['ok' => true]);

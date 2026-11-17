@@ -480,8 +480,8 @@
       cv.addEventListener('pointerup', function () { drag = null; });
       d.querySelector('.go').onclick = function () {
         var b = this, g = geo(), o = outSize(g), c2 = document.createElement('canvas'); c2.width = o[0]; c2.height = o[1]; c2.getContext('2d').drawImage(img, g.sx, g.sy, g.cw, g.ch, 0, 0, o[0], o[1]); b.disabled = true; b.textContent = S.saving;
-        c2.toBlob(function (blob) { var base = f.name.replace(/\.[^.]+$/, ''), fd = new FormData(); fd.append('_csrf', M.csrf); fd.append('action', 'derive'); fd.append('src', f.id); fd.append('name', base + '-' + label + '.jpg'); fd.append('file', blob, base + '-' + label + '.jpg');
-          fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = S.saveCopy; return toast(j.error || S.publicErr, 'err'); } toast(S.cropped, 'ok'); d.close(); st.sel = ['f' + j.item.id]; load(); }); }, 'image/jpeg', 0.9);
+        c2.toBlob(function (blob) { if (!blob) { b.disabled = false; b.textContent = S.saveCopy; return toast(S.tooBig || S.publicErr, 'err'); } var base = f.name.replace(/\.[^.]+$/, ''), fd = new FormData(); fd.append('_csrf', M.csrf); fd.append('action', 'derive'); fd.append('src', f.id); fd.append('name', base + '-' + label + '.jpg'); fd.append('file', blob, base + '-' + label + '.jpg');
+          fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = S.saveCopy; return toast(j.error || S.publicErr, 'err'); } toast(S.cropped, 'ok'); d.close(); st.sel = ['f' + j.item.id]; load(); }).catch(function () { b.disabled = false; b.textContent = S.saveCopy; toast(S.publicErr, 'err'); }); }, 'image/jpeg', 0.9);
       };
     }
 
@@ -544,8 +544,8 @@
       d.querySelector('.rs').onclick = function () { S2 = { rot: 0, fh: 1, fv: 1, br: 100, ct: 100, sa: 100, q: 85 }; [].forEach.call(d.querySelectorAll('input[type=range]'), function (r) { r.value = S2[r.dataset.k]; d.querySelector('.v-' + r.dataset.k).textContent = r.value; }); redraw(); };
       d.querySelector('.go').onclick = function () {
         var b = this, c2 = document.createElement('canvas'), mime = d.querySelector('.fm').value, ex2 = { 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/png': 'png' }[mime]; render(c2, out()); b.disabled = true; b.textContent = S.saving;
-        c2.toBlob(function (blob) { var nm = f.name.replace(/\.[^.]+$/, '') + '-' + S.editedSuffix + '.' + ex2, fd = new FormData(); fd.append('_csrf', M.csrf); fd.append('action', 'derive'); fd.append('src', f.id); fd.append('name', nm); fd.append('file', blob, nm);
-          fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = S.saveCopy; return toast(j.error || S.publicErr, 'err'); } toast(S.edited, 'ok'); d.close(); st.sel = ['f' + j.item.id]; load(); }); }, mime, S2.q / 100);
+        c2.toBlob(function (blob) { if (!blob) { b.disabled = false; b.textContent = S.saveCopy; return toast(S.tooBig || S.publicErr, 'err'); } var nm = f.name.replace(/\.[^.]+$/, '') + '-' + S.editedSuffix + '.' + ex2, fd = new FormData(); fd.append('_csrf', M.csrf); fd.append('action', 'derive'); fd.append('src', f.id); fd.append('name', nm); fd.append('file', blob, nm);
+          fetch(M.post, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) { b.disabled = false; b.textContent = S.saveCopy; return toast(j.error || S.publicErr, 'err'); } toast(S.edited, 'ok'); d.close(); st.sel = ['f' + j.item.id]; load(); }).catch(function () { b.disabled = false; b.textContent = S.saveCopy; toast(S.publicErr, 'err'); }); }, mime, S2.q / 100);
       };
     }
     function finish() {

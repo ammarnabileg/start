@@ -265,7 +265,7 @@ function crm_custom_clean(array $in): array
     foreach (crm_custom_fields() as $f) {
         $known[$f['key']] = 1;
         $v = trim((string)($in[$f['key']] ?? '')); if ($v === '') continue;
-        if ($f['type'] === 'number') $v = (string)(float)str_replace(',', '.', $v);
+        if ($f['type'] === 'number') { $n = strtr($v, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '٫' => '.', '٬' => ',']); $n = preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $n) ? str_replace(',', '', $n) : str_replace(',', '.', $n); if (is_numeric($n)) $v = (string)(float)$n; } // 1,000 = ألف؛ نص مش رقمي يفضل كما هو
         // اختيار قديم اتغير اسمه/اتشال: بيفضل محفوظ بدل ما يتمسح بصمت
         $o[$f['key']] = mb_substr($v, 0, 200);
     }
