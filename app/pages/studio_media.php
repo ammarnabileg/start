@@ -4,7 +4,9 @@ $wid = (int)ws('id');
 $hf = connector('higgsfield'); $oa = function_exists('img_provider') && img_provider() !== '';
 $on = ($hf || $oa) && ai_feature_on('image');
 $lib = $on ? hf_lib_list($wid, 30) : [];
-render(t('الصور والفيديو'), 'studio_media', function () use ($on, $lib, $hf, $oa) {
+$libIds = []; // الصورة اللي اتولدت ليها نسخة في المكتبة: "في منشور" يفتح الكتابة بيها
+if ($lib && function_exists('media_sync_ai')) { try { media_sync_ai($wid); $q = db()->prepare('SELECT id, name FROM media_files WHERE workspace_id = ? AND deleted_at IS NULL AND name IN (' . implode(',', array_fill(0, count($lib), '?')) . ')'); $q->execute(array_merge([$wid], array_map(function ($n) { return 'ai-' . $n; }, $lib))); foreach ($q->fetchAll() as $r) $libIds[substr((string)$r['name'], 3)] = (int)$r['id']; } catch (Throwable $e) {} }
+render(t('الصور والفيديو'), 'studio_media', function () use ($on, $lib, $hf, $oa, $libIds) {
     $ratios = ['1:1' => [t('مربع'), 'aspect-square'], '4:5' => [t('بوست'), 'aspect-[4/5]'], '9:16' => [t('ستوري'), 'aspect-[9/16]'], '16:9' => [t('عرضي'), 'aspect-video']];
     ?>
   <?php if (!$on): ?>
@@ -31,7 +33,7 @@ render(t('الصور والفيديو'), 'studio_media', function () use ($on, $
         <?php if ($v): ?><video src="<?= e($src) ?>" muted loop playsinline preload="metadata" class="w-full h-full object-cover"></video><?php else: ?><img src="<?= e($src) ?>" loading="lazy" alt="" class="w-full h-full object-cover transition group-hover:scale-105"><?php endif; ?>
         <div class="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
           <?php if (!$v): ?><a class="flex-1 rounded-lg bg-white/95 text-ink-900 text-xs font-medium py-1.5 text-center" href="<?= e(url('designer', ['img' => $src])) ?>"><?= e(t('صمّم بيها')) ?></a><?php endif; ?>
-          <a class="flex-1 rounded-lg bg-brand-600 text-white text-xs font-medium py-1.5 text-center" href="<?= e(url('compose')) ?>"><?= e(t('في منشور')) ?></a>
+          <a class="flex-1 rounded-lg bg-brand-600 text-white text-xs font-medium py-1.5 text-center" href="<?= e(isset($libIds[$n]) ? url('compose', ['lib' => $libIds[$n]]) : url('compose')) ?>"><?= e(t('في منشور')) ?></a>
           <a class="rounded-lg bg-white/95 text-ink-900 px-2 grid place-items-center" href="<?= e($src) ?>" download title="<?= e(t('تحميل')) ?>"><?= ui_icon('download', 'w-4 h-4') ?></a></div>
       </div>
     <?php endforeach; ?>

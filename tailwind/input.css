@@ -1873,3 +1873,9 @@ html.dark [class*="inset-0"][class*="bg-ink-900/"],html.dark .cx-shb,html.dark .
   .ibx-note-del { min-width: 36px; min-height: 36px; font-size: 13px; }
   .ibx-mtools button, .ibx-mtools a { min-height: 32px; padding-inline: .5rem; }
 }
+
+/* صندوق الرد على الموبايل: خانة الكتابة سطر كامل والأزرار تحتها */
+@media (max-width: 639px) {
+  #ibx-compose { flex-wrap: wrap; }
+  #ibx-compose > textarea, #ibx-compose > div:has(> textarea) { flex: 1 1 100% !important; order: -1; min-width: 100%; }
+}

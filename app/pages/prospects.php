@@ -89,11 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!can('crm.view')) $J(['ok' => false, 'error' => t('طلب غير صحيح.')], 403);
         $sub = trim((string)($_POST['subject'] ?? '')); $body = trim((string)($_POST['body'] ?? ''));
         if ($body === '') $J(['ok' => false, 'error' => t('اكتب نص الرسالة.')], 422);
+        if (function_exists('smtp_config') && !smtp_config((int)ws('id'))) $J(['ok' => false, 'error' => t('لإرسال الإيميلات اربط بريدك (SMTP) أولًا، وGmail يصلح مجانًا.'), 'connect_url' => url('connectors')]);
+        @set_time_limit(120);
         $sent = 0; $leads = 0; $skip = 0; $errs = [];
         foreach (array_slice((array)($_POST['ids'] ?? []), 0, 25) as $id) { $l = $getLead((int)$id); if (!$l) continue;
             if (!crm_can_edit($l) || (!$l['email'] && !$l['emails']) || !empty($l['unsub'])) { $skip++; continue; }
             try { $r = crm_send_email($l, crm_fill_vars($sub, $l), crm_fill_vars($body, $l)); $sent += (int)($r['sent'] ?? 1); $leads++; }
-            catch (Throwable $ex) { $errs[] = $ex->getMessage(); } }
+            catch (Throwable $ex) { $errs[] = $ex->getMessage(); if ($ex instanceof MailException && !$sent && preg_match('/SMTP \(|TLS|connect|reach|timed out|نوصل|resolve/iu', $ex->getMessage())) break; /* السيرفر مش بيرد: مانستناش 20 ثانية لكل عميل */ } }
         if (!$sent && $errs) $J(['ok' => false, 'error' => $errs[0]]);
         log_activity('crm.email_bulk', (string)$sent);
         $J(['ok' => true, 'sent' => $sent, 'leads' => $leads, 'skip' => $skip, 'fail' => count($errs)]);

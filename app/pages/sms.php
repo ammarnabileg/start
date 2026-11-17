@@ -99,6 +99,7 @@ if (($z || $fx) && !$apiError && !empty($_GET['csv'])) {
 
 $mineThreads = $gate ? smsgate_threads((int)ws('id'), 50) : [];
 $draft = (array)($_SESSION['sms_draft'] ?? []);
+if (!$draft && isset($_GET['to'])) $draft = ['to' => mb_substr(preg_replace('/[^\d+ ]/', '', (string)$_GET['to']), 0, 30), 'text' => '', 'from' => '']; // جاي من بطاقة العميل
 unset($_SESSION['sms_draft']);
 
 render(t('رسايل SMS'), 'sms', function () use ($z, $fx, $gate, $apiError, $numbers, $smsNumbers, $convs, $imsg, $regs, $optOuts, $rcs, $partial, $draft, $mineThreads) {

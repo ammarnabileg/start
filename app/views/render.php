@@ -21,13 +21,19 @@ function error_box(string $msg): void
 
 function no_api_box(): void
 {
-    echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5">';
-    echo t('<p class="font-bold mb-1">البرنامج لسه مش مربوط بخدمة النشر</p>');
-    if (can('integrations.manage')) {
-        echo '<p class="text-sm"><a class="underline font-semibold" href="' . e(url('connectors')) . '">' . e(t('اربط الشركة من صفحة التكاملات.')) . '</a></p>';
-    } else {
-        echo t('<p class="text-sm">اطلب من صاحب الشركة يضيف مفتاح الـ API.</p>');
-    }
+    // رسالة على حسب الصفحة: المستخدم يفهم هو محتاج يربط إيه وليه، من غير كلام تقني
+    $pg = (string)($_GET['p'] ?? '');
+    $why = [
+        'inbox' => t('لتصلك رسائل العملاء هنا، اربط حسابات التواصل أولًا.'), 'comments' => t('لعرض التعليقات والرد عليها، اربط حسابات التواصل أولًا.'),
+        'calls' => t('لتفعيل المكالمات، اربط خدمة الاتصال أولًا.'), 'phone_numbers' => t('لشراء الأرقام وإدارتها، اربط خدمة الاتصال أولًا.'), 'sms' => t('لإرسال الرسائل النصية، اربط خدمة الرسائل أو خط جوالك أولًا.'),
+        'ads' => t('لعرض الحملات الإعلانية وإنشائها، اربط حسابات الإعلانات أولًا.'), 'ad_builder' => t('لإنشاء إعلان، اربط حسابات الإعلانات أولًا.'), 'ad_create' => t('لإنشاء إعلان، اربط حسابات الإعلانات أولًا.'),
+        'gmb_reviews' => t('لعرض تقييمات Google والرد عليها، اربط حساب Google Business أولًا.'), 'gmb_location' => t('لإدارة فرعك على Google، اربط حساب Google Business أولًا.'),
+        'broadcasts' => t('لإرسال رسائل جماعية، اربط حسابات التواصل أولًا.'), 'contacts' => t('لإدارة جهات الاتصال، اربط واتساب أولًا.'), 'workflows' => t('لتشغيل الأتمتة، اربط حسابات التواصل أولًا.'),
+    ][$pg] ?? t('للنشر ومتابعة حساباتك، اربط حسابات التواصل أولًا.');
+    echo '<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-5 flex flex-wrap items-center gap-3">';
+    echo '<div class="flex-1 min-w-[14rem]"><p class="font-bold mb-1">' . e(t('لم يتم الربط بعد')) . '</p><p class="text-sm">' . e($why) . '</p></div>';
+    if (can('integrations.manage') || is_ws_owner()) echo '<a class="btn-primary" href="' . e(url('connectors')) . '">' . e(t('اربط الآن')) . '</a>';
+    else echo '<p class="text-sm">' . e(t('اطلب من مالك الشركة ربط الحسابات.')) . '</p>';
     echo '</div>';
 }
 

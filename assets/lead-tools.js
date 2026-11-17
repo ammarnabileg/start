@@ -142,6 +142,7 @@
   function fill(t) { var d = lead(); return t.replace(/\{name\}/g, (d.name || '').split(/\s+/)[0]).replace(/\{company\}/g, d.company || '').replace(/\{me\}/g, C.L.me || '').replace(/\{book\}/g, C.L.book || ''); }
   function emPaint(mails) { var p = $('pd-p-em'), d = lead(), keep = p.querySelector('[data-ef]'), sv = keep ? { s: keep.subject.value, b: keep.body.value } : null;
     if (!d.email) { p.innerHTML = '<div class="pd-empty">' + ic('mail', 'w-8 h-8') + '<p>' + esc(T.noEmail) + '</p></div>'; badge('em', 0); return; }
+    if (C.L.smtpOk === false) { p.innerHTML = '<div class="pd-empty">' + ic('mail', 'w-8 h-8') + '<p>' + esc(T.needSmtp || 'Connect email (SMTP) first') + '</p>' + (C.L.canConn ? '<a class="btn-primary !py-2 !text-sm mt-2 inline-flex" href="' + esc(C.L.connUrl) + '">' + esc(T.connectNow || 'Connect') + '</a>' : '') + '</div>'; badge('em', mails.length); return; } // مفيش إيميل متوصل: بطاقة ربط بدل فورم هيفشل
     p.innerHTML = (data.unsub ? '<p class="rounded-xl bg-amber-50 text-amber-800 text-xs p-2 mb-2">' + esc(T.unsub) + '</p>' : '') +
       '<form class="pd-ef" data-ef data-no-ajax><div class="flex items-center gap-2 text-xs text-ink-500 mb-1.5">' + ic('mail', 'w-3.5 h-3.5') + '<span dir="ltr" class="truncate">' + esc(d.email) + '</span></div>' +
       '<input name="subject" class="input !mt-0 text-sm" dir="auto" required maxlength="255" placeholder="' + esc(T.subject) + '"><textarea name="body" rows="5" class="input !mt-1.5 text-sm" dir="auto" required placeholder="' + esc(T.body) + '"></textarea>' +

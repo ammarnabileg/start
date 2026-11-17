@@ -243,7 +243,7 @@ render(t('الرئيسية'), 'dashboard', function () use ($z, $d, $e, $activit
       </div>
     </div>
 
-    <?php if (!$z): no_api_box(); return; endif; ?>
+    <?php if (!$z): no_api_box(); endif; /* الباقي (المتابعات والمهام) يفضل ظاهر */ ?>
 
     <?php if ($steps && (!$steps[0][1] || !$steps[1][1])): // بعد ربط النشر وأول حساب «رحلة شركتك» بتكمل نفس الدور ?>
       <!-- قائمة البداية -->
