@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
                 if (!preg_match('/^\d{2}:\d{2}$/', $o) || !preg_match('/^\d{2}:\d{2}$/', $c)) throw new ZernioException(t('اكتب مواعيد الفتح والقفل لكل يوم شغال.'));
                 // لو القفل بعد نص الليل يبقى اليوم اللي بعده
                 $closeDay = $day;
-                if ($c <= $o) {
+                if ($c <= $o && $c !== '00:00') { // 00:00 = آخر نفس اليوم (24:00) مش اليوم اللي بعده
                     $keys = array_keys(gmb_days());
                     $closeDay = $keys[(array_search($day, $keys, true) + 1) % 7];
                 }

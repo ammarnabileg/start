@@ -408,3 +408,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localh
     });
   }, true);
 })();
+
+/* أي نافذة منبثقة في المنصة: الضغط برا النافذة (على الخلفية) بيقفلها */
+(function () {
+  if (window.__dlgOutside) return; window.__dlgOutside = 1;
+  var downOut = null;
+  var outside = function (d, e) { if (!d || d.tagName !== 'DIALOG' || !d.open) return false; var r = d.getBoundingClientRect(); return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom; };
+  // لازم الضغطة تبدأ وتخلص برا (عشان سحب تحديد نص من جوه لبرا مايقفلش النافذة)
+  document.addEventListener('pointerdown', function (e) { downOut = outside(e.target, e) ? e.target : null; }, true);
+  document.addEventListener('click', function (e) {
+    var d = e.target; if (!downOut || d !== downOut || !outside(d, e) || d.dataset.noOutside === '1') { downOut = null; return; }
+    downOut = null;
+    var x = d.querySelector('[data-pst-x], [data-close], [data-x], .ai-x, button[aria-label="✕"], button[aria-label="×"]');
+    if (x && d.dataset.outsideClick !== 'close') x.click(); else d.close();
+  });
+})();

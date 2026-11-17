@@ -20,18 +20,19 @@ const WA_SEQ_MAX_STEPS = 5;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z) {
     $action = (string)($_POST['action'] ?? '');
     $sid = (string)($_POST['id'] ?? '');
+    if (in_array($action, ['create', 'activate', 'pause', 'enroll', 'unenroll'], true) && !can('whatsapp.manage')) { flash('error', t('إنشاء السلاسل وتفعيلها وتسجيل جهات الاتصال يتطلب صلاحية إدارة واتساب (الإرسال مدفوع).')); redirect(url('sequences', array_filter(['id' => $sid ?: null, 'wa' => $acc ?? null]))); }
     try {
         if ($action === 'create' && $acc) {
             $name = trim((string)($_POST['name'] ?? ''));
-            $steps = [];
+            $steps = []; $carry = 0;
             foreach ((array)($_POST['steps'] ?? []) as $s) {
                 [$tn, $tl] = array_pad(explode('|', (string)($s['template'] ?? ''), 2), 2, '');
-                if ($tn === '') continue;
                 $unit = ['m' => 1, 'h' => 60, 'd' => 1440][(string)($s['unit'] ?? 'd')] ?? 1440;
+                if ($tn === '') { if ($steps) $carry += max(0, (int)($s['delay'] ?? 0)) * $unit; continue; } // خطوة من غير قالب: تأخيرها مايضيعش
                 $tpl = ['name' => $tn, 'language' => $tl];
                 $map = wa_mapping_from_post($s['map'] ?? []);
                 if ($map) $tpl['variableMapping'] = $map;
-                $steps[] = ['order' => count($steps) + 1, 'delayMinutes' => max(0, (int)($s['delay'] ?? 0)) * $unit, 'template' => $tpl];
+                $steps[] = ['order' => count($steps) + 1, 'delayMinutes' => max(0, (int)($s['delay'] ?? 0)) * $unit + $carry, 'template' => $tpl]; $carry = 0;
             }
             if ($name === '' || !$steps) {
                 flash('error', t('اكتب اسم للسلسلة وضيف خطوة واحدة على الأقل.'));

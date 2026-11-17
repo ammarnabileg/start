@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $z && $loc) {
     $action = (string)($_POST['action'] ?? '');
     $ajax = !empty($_POST['ajax']);
     $out = ['ok' => false];
+    if (!can('gmb.manage')) { if ($ajax) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('رفع الصور يتطلب صلاحية إدارة Google Business.')], JSON_UNESCAPED_UNICODE)); } flash('error', t('رفع الصور يتطلب صلاحية إدارة Google Business.')); redirect($_SERVER['REQUEST_URI'] ?? url('gmb_media')); }
     try {
         if ($action === 'upload') {
             $f = media_lib_file('photo') ?: ($_FILES['photo'] ?? null);

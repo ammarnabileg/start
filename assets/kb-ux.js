@@ -203,3 +203,19 @@
     if (window.mediaPick) window.mediaPick({ accept: 'image', public: false }).then(function (f) { f = f && (f[0] || f); if (f && f.id) set(f.id, f.thumb || f.url); });
   });
 })();
+
+
+/* ألوان الهوية من الشعار نفسه */
+(function () {
+  if (window.__kbLogoCol) return; window.__kbLogoCol = 1;
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-kb-logo-colors]'); if (!b) return;
+    var form = b.closest('form'), inp = form && form.querySelector('[name="d[colors]"]'); if (!inp) return;
+    var fd = new FormData(); fd.append('action', 'kb_logo_colors'); var tk = document.querySelector('meta[name=csrf-token]'); if (tk) fd.append('_csrf', tk.content);
+    b.disabled = true;
+    fetch(location.pathname + '?p=knowledge', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', 'X-CSRF-Token': tk ? tk.content : '' } }).then(function (r) { return r.json(); }).then(function (j) {
+      b.disabled = false; if (!j.ok) { (window.toast || alert)(j.error || '✗'); return; }
+      inp.value = j.colors; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    }).catch(function () { b.disabled = false; });
+  });
+})();

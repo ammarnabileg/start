@@ -109,6 +109,6 @@ function acr_tick_run(int $wid, Zernio $z, int $max = 15): int
         }
     }
     save_setting('ai_replied_' . $wid, json_encode(array_slice($done, -1500, null, true)));
-    if ($changed) { $all = acr_all($wid); foreach ($all as $i => $r) if (isset($changed[$r['id']])) { $cur = $changed[$r['id']]; $cur['on'] = $r['on']; $all[$i] = $cur; } acr_save($wid, $all); }
+    if ($changed) { $all = acr_all($wid); foreach ($all as $i => $r) if (isset($changed[$r['id']])) { $cur = $changed[$r['id']]; $r['n'] = $cur['n'] ?? ($r['n'] ?? 0); $r['log'] = $cur['log'] ?? ($r['log'] ?? []); $all[$i] = $r; } acr_save($wid, $all); } // التعديلات اللي حصلت أثناء التشغيل (كلمات، تعليمات، since) تفضل
     return $n;
 }

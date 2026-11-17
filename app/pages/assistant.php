@@ -9,7 +9,7 @@ if (!is_array($hist)) $hist = [];
 $connected = ai_connection() !== null;
 $tabs = ['models' => t('الموديلات والمهام'), 'agent' => t('الرد الذكي'), 'features' => t('الميزات'), 'usage' => t('الاستهلاك والإعدادات')];
 require_once __DIR__ . '/../views/ai_agent.php';
-if ($tab_req = (string)($_GET['ajax'] ?? '')) { if (strpos($tab_req, 'agent_') === 0) ai_agent_ajax($tab_req); }
+if ($tab_req = (string)($_GET['ajax'] ?? '')) { if (strpos($tab_req, 'agent_') === 0) { if ($tab_req !== 'agent_state' && $_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); header('Content-Type: application/json; charset=utf-8'); exit('{"ok":false,"error":"POST required"}'); } ai_agent_ajax($tab_req); } }
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'models';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

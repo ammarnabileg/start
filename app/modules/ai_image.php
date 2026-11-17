@@ -324,3 +324,29 @@ function img_trim_bands(string $bytes): string
     return $png !== '' ? $png : $bytes;
 }
 
+
+/** الألوان الأساسية في صورة (الشعار): بنتجاهل الأبيض والأسود والشفاف، ونجمع الألوان القريبة */
+function img_palette(string $path, int $n = 4): array
+{
+    if (!is_file($path) || !function_exists('imagecreatefromstring')) return [];
+    $im = @imagecreatefromstring((string)file_get_contents($path)); if (!$im) return [];
+    $w = imagesx($im); $h = imagesy($im); $step = max(1, (int)floor(sqrt($w * $h / 6000))); $bins = [];
+    for ($x = 0; $x < $w; $x += $step) for ($y = 0; $y < $h; $y += $step) {
+        $c = imagecolorat($im, $x, $y); $a = ($c >> 24) & 127; if ($a > 80) continue; // شفاف
+        $r = ($c >> 16) & 255; $g = ($c >> 8) & 255; $b = $c & 255; $mx = max($r, $g, $b); $mn = min($r, $g, $b);
+        if ($mx > 235 && $mn > 225) continue; if ($mx < 25) continue; // أبيض/أسود
+        if ($mx - $mn < 18 && $mx > 60 && $mx < 220) continue; // رمادي باهت
+        $k = (($r >> 5) << 6) | (($g >> 5) << 3) | ($b >> 5); // تجميع تقريبي
+        if (!isset($bins[$k])) $bins[$k] = [0, 0, 0, 0]; $bins[$k][0]++; $bins[$k][1] += $r; $bins[$k][2] += $g; $bins[$k][3] += $b;
+    }
+    imagedestroy($im); uasort($bins, function ($a, $b) { return $b[0] <=> $a[0]; });
+    $out = []; foreach ($bins as $v) { $hex = sprintf('#%02X%02X%02X', (int)($v[1] / $v[0]), (int)($v[2] / $v[0]), (int)($v[3] / $v[0])); $out[] = $hex; if (count($out) >= $n) break; }
+    return $out;
+}
+
+/** ألوان الشعار من قاعدة المعرفة (لو فيه شعار) */
+function kb_logo_palette(int $wid): array
+{
+    $lg = function_exists('kb_logo') ? kb_logo($wid) : null; if (!$lg || !function_exists('media_file_path')) return [];
+    return img_palette(media_file_path($wid, $lg), 4);
+}

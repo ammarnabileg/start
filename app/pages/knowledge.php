@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $json(['ok' => true, 'groups' => $out, 'pages' => $r['pages']]);
     }
+    if ($action === 'kb_logo_colors') { $pal = function_exists('kb_logo_palette') ? kb_logo_palette($wid) : []; $json($pal ? ['ok' => true, 'colors' => implode(', ', $pal)] : ['ok' => false, 'error' => t('أضف الشعار في «عن الشركة» أولًا.')]); }
     if ($action === 'kb_site_apply') {
         $pick = json_decode((string)($_POST['pick'] ?? '{}'), true) ?: []; $cur = kb_get($wid); $n = 0;
         foreach ($pick as $sec => $data) {
@@ -522,7 +523,7 @@ render(t('قاعدة المعرفة'), 'knowledge', function () use ($schema, $k
               <label class="block"><span class="label"><?= e(t('كلمات ممنوعة')) ?></span><input name="d[words]" class="input" value="<?= e($d['words'] ?? '') ?>" <?= $dis ?> placeholder="<?= e(t('مثلاً: خرافي، لا يُصدق، الأفضل في العالم، مضمون 100%')) ?>"></label>
             <?php elseif ($s['type'] === 'visual'): ?>
               <label class="block"><span class="label"><?= e(t('الألوان')) ?></span><input name="d[colors]" class="input" value="<?= e($d['colors'] ?? '') ?>" <?= $dis ?> placeholder="<?= e(t('مثلاً: أزرق #1D4ED8 وأبيض، ولمسات ذهبي')) ?>"></label>
-              <div class="flex flex-wrap gap-2" id="kb-swatches"></div>
+              <div class="flex flex-wrap items-center gap-2"><div class="flex flex-wrap gap-2" id="kb-swatches"></div><button type="button" class="btn-ghost !text-xs border border-ink-200 ms-auto" data-kb-logo-colors <?= $dis ?>>🎨 <?= e(t('استخرج الألوان من الشعار')) ?></button></div>
               <label class="block"><span class="label"><?= e(t('ستايل الصور')) ?></span><textarea name="d[style]" rows="4" class="input text-sm" <?= $dis ?> placeholder="<?= e(t('مثلاً: تصوير منتجات بإضاءة طبيعية، خلفيات فاتحة بسيطة، أشخاص حقيقيين مش رسومات')) ?>"><?= e($d['style'] ?? '') ?></textarea></label>
               <p class="text-xs text-ink-400"><?= e(t('بيتضاف تلقائيًا لكل صورة بتتولد من Higgsfield، لو مفيش ستايل مكتوب في إعدادات Higgsfield.')) ?></p>
             <?php elseif ($s['type'] === 'escalation'): $tr = (array)($d['triggers'] ?? ['angry', 'refund', 'complaint', 'human']); ?>
