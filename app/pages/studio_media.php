@@ -1,7 +1,7 @@
 <?php
 /** استوديو المحتوى: الصور والفيديو بالذكاء الاصطناعي (Higgsfield). النتايج بتتحفظ في مكتبة الوسائط وتتفتح في المصمم أو منشور جديد */
 $wid = (int)ws('id');
-$hf = connector('higgsfield'); $oa = function_exists('img_openai_conn') ? img_openai_conn() : null;
+$hf = connector('higgsfield'); $oa = function_exists('img_provider') && img_provider() !== '';
 $on = ($hf || $oa) && ai_feature_on('image');
 $lib = $on ? hf_lib_list($wid, 30) : [];
 render(t('استوديو المحتوى'), 'studio_media', function () use ($on, $lib, $hf, $oa) {
@@ -9,7 +9,7 @@ render(t('استوديو المحتوى'), 'studio_media', function () use ($on,
     ?>
   <?php if (!$on): ?>
     <div class="card p-8 text-center"><div class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-ink-900 text-white grid place-items-center font-bold">H</div>
-      <b class="block text-ink-900"><?= e(($hf || $oa) ? t('توليد الصور متوقف في إعدادات الذكاء الاصطناعي') : t('اربط OpenAI من التكاملات لتوليد الصور')) ?></b>
+      <b class="block text-ink-900"><?= e(($hf || $oa) ? t('توليد الصور متوقف في إعدادات الذكاء الاصطناعي') : t('اربط OpenRouter أو OpenAI من التكاملات لتوليد الصور')) ?></b>
       <p class="text-sm text-ink-500 mt-1"><?= e(t('الصور تُولَّد بموديل GPT للصور من OpenAI، والفيديو عبر Higgsfield. النتائج تُحفظ في مكتبة الوسائط.')) ?></p>
       <a href="<?= e(url(($hf || $oa) ? 'assistant' : 'connectors')) ?>" class="btn-primary mt-4 inline-flex"><?= e(($hf || $oa) ? t('إعدادات الذكاء الاصطناعي') : t('فتح التكاملات')) ?></a></div>
   <?php else: ?>

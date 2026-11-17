@@ -294,7 +294,7 @@ function ai_base(string $p): string
 {
     $mock = getenv('AI_MOCK_BASE');
     if ($mock) return rtrim($mock, '/') . '/' . $p;
-    return ['anthropic' => 'https://api.anthropic.com/v1', 'openai' => 'https://api.openai.com/v1', 'gemini' => 'https://generativelanguage.googleapis.com/v1beta'][$p];
+    return ['anthropic' => 'https://api.anthropic.com/v1', 'openai' => 'https://api.openai.com/v1', 'gemini' => 'https://generativelanguage.googleapis.com/v1beta', 'openrouter' => AI_BASE][$p];
 }
 
 /** طلب HTTP لأي مزود */

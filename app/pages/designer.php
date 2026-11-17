@@ -199,7 +199,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
           <section data-pane="ai" hidden>
             <h3><?= e(t('صمّم من جملة')) ?></h3>
             <textarea id="dz-ai-brief" rows="3" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: بوست لعرض المشويات في الويك إند بشكل فخم')) ?>"></textarea>
-            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_openai_conn') && img_openai_conn()); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_openai_conn') && img_openai_conn()) ? t('ولّد الصورة أيضًا (OpenAI GPT)') : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenAI لتوليد الصورة تلقائيًا')) ?></label>
+            <label class="flex items-center gap-2 text-xs text-ink-600 mt-2"><?php $imgOn = connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''); ?><input type="checkbox" id="dz-ai-withimg" class="rounded" <?= $imgOn ? 'checked' : 'disabled' ?>> <?= e($imgOn ? ((function_exists('img_provider') && img_provider() !== '') ? (img_provider() === 'openai' ? t('ولّد الصورة أيضًا (OpenAI GPT)') : t('ولّد الصورة أيضًا (OpenRouter)')) : t('ولّد الصورة كمان (Higgsfield)')) : t('اربط OpenRouter أو OpenAI لتوليد الصورة تلقائيًا')) ?></label>
             <button type="button" class="btn-primary w-full mt-2" data-cmd="ailayout"><?= ui_icon('spark', 'w-4 h-4') ?><span><?= e(t('صمّم')) ?></span></button>
             <h3 class="!mt-5"><?= e(t('كاروسيل كامل من موضوع')) ?></h3>
             <input id="dz-ai-car" class="input !mt-0 text-sm" dir="auto" maxlength="300" placeholder="<?= e(t('مثلًا: 5 أسباب تطلب من عندنا')) ?>">
@@ -314,7 +314,7 @@ render(t('استوديو المحتوى'), 'designer', function () use ($brand, 
       </aside>
     </div>
   </div>
-  <script>window.DZ = <?= json_encode(['kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_openai_conn') && (bool)img_openai_conn()), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
+  <script>window.DZ = <?= json_encode(['kit' => $kitOut, 'pexels' => (bool)connector('pexels'), 'connectUrl' => url('connectors'), 'icons' => ui_icon_paths(), 'hf' => (bool)connector('higgsfield') || (function_exists('img_provider') && img_provider() !== ''), 'kb' => $kbd, 'csrf' => csrf_token(), 'url' => url('designer'), 'brand' => $brand, 'company' => (string)($co['name'] ?? ''), 'tagline' => (string)($co['tagline'] ?? ''), 'img' => $img,
     'title' => mb_substr((string)($_GET['title'] ?? ''), 0, 120), 'text' => mb_substr((string)($_GET['text'] ?? ''), 0, 160), 'fonts' => $fonts,
     'L' => ['h1' => t('عنوان كبير'), 'h2' => t('عنوان فرعي'), 'p' => t('اكتب النص هنا'), 'cta' => t('اطلب الآن'), 'quote' => t('«خدمة ممتازة وسرعة في التنفيذ»'), 'quoteBy' => t('— عميل سعيد'), 'company' => t('اسم الشركة'),
       'saved' => t('اتحفظ في المكتبة ✓'), 'saving' => t('بنحفظ…'), 'err' => t('حصلت مشكلة.'), 'draft' => t('مسودة محفوظة'), 'restore' => t('عندك تصميم لسه شغال عليه. نكمّله؟'), 'replace' => t('القالب هيبدل التصميم الحالي. تكمل؟'),

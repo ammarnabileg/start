@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
         } catch (Throwable $ex) { $J(['ok' => false, 'error' => $ex->getMessage()]); }
     }
     // التوليد
-    if (!function_exists('img_openai_conn') || !img_openai_conn()) $J(['ok' => false, 'error' => t('اربط OpenAI أولًا من صفحة التكاملات لتوليد الصور.')]);
+    if (!function_exists('img_provider') || img_provider() === '') $J(['ok' => false, 'error' => t('اربط OpenRouter أو OpenAI أولًا من صفحة التكاملات لتوليد الصور.')]);
     $prompt = trim((string)($_POST['prompt'] ?? '')); if (mb_strlen($prompt) < 10) $J(['ok' => false, 'error' => t('اكتب وصف الصورة.')]);
     // الهوية بتتطبق حتى لو المستخدم عدّل الوصف ومسح الألوان
     if ($bColors !== '' && stripos($prompt, $bColors) === false) $prompt .= "\n\nBrand colors (must use as dominant palette): {$bColors}.";
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     if ($lg) { $refs[] = media_file_path($wid, $lg); $prompt .= "\n\nThe first attached image is the company logo: place it small and clean in a corner, keep its exact shape and colors, do not redraw or distort it."; }
     foreach (array_slice(array_unique(array_map('intval', (array)($_POST['refs'] ?? []))), 0, $lg ? 3 : 4) as $mid) { $mr = media_get($wid, $mid); if ($mr && empty($mr['deleted_at']) && in_array((string)$mr['mime'], $okM, true)) $refs[] = media_file_path($wid, $mr); }
     try {
-        $names = img_openai_generate($prompt, $aspect, 1, $refs, (string)($_POST['quality'] ?? ''));
+        $names = img_provider() === 'openai' ? img_openai_generate($prompt, $aspect, 1, $refs, (string)($_POST['quality'] ?? '')) : img_or_generate($prompt, $aspect, $refs);
         if (function_exists('media_sync_ai')) media_sync_ai($wid);
         $h = @sha1_file(hf_lib_dir($wid) . '/' . $names[0]); $st = db()->prepare('SELECT * FROM media_files WHERE workspace_id = ? AND (sha1 = ? OR name = ?) ORDER BY id DESC LIMIT 1'); $st->execute([$wid, (string)$h, 'ai-' . $names[0]]); $mr = $st->fetch();
         if (!$mr) $J(['ok' => false, 'error' => t('اتولدت الصورة لكن تعذّر حفظها في المكتبة.')]);
@@ -578,7 +578,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             <?= json_encode($pre, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>.forEach(add);
           })();
           </script>
-          <?php if (can('ai.use') && function_exists('img_openai_conn') && img_openai_conn()): ?>
+          <?php if (can('ai.use') && function_exists('img_provider') && img_provider() !== ''): ?>
           <button type="button" id="pst-open" class="hidden items-center gap-1.5 rounded-xl bg-gradient-to-l from-brand-600 to-fuchsia-600 px-3.5 py-2 text-sm font-semibold text-[#fff] shadow-sm hover:shadow-md"><?= ai_icon('spark', 'w-4 h-4') ?> <?= e(t('صمّم صورة من المنشور')) ?></button>
           <dialog id="pst" class="m-auto w-[min(760px,94vw)] rounded-3xl p-0 shadow-2xl backdrop:bg-ink-900/50">
             <div class="flex items-center gap-3 border-b border-ink-100 px-5 py-3.5">
@@ -593,7 +593,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
                 <div><label class="label"><?= e(t('الأسلوب')) ?></label><select id="pst-style" class="input">
                   <?php $vsK = (array)(kb_get((int)ws('id'))['visual_style'] ?? []); $hasBrand = trim((string)($vsK['colors'] ?? '') . ($vsK['style'] ?? '')) !== ''; if ($hasBrand): ?><option value="brand" selected><?= e(t('هوية الشركة')) ?></option><?php endif; ?>
                   <option value="photo"><?= e(t('تصوير احترافي')) ?></option><option value="corporate"><?= e(t('شركات B2B')) ?></option><option value="minimal"><?= e(t('بسيط مسطّح')) ?></option><option value="3d"><?= e(t('ثلاثي الأبعاد')) ?></option><option value="illustration"><?= e(t('رسم توضيحي')) ?></option><option value="luxury"><?= e(t('فاخر')) ?></option></select></div>
-                <div><label class="label"><?= e(t('الجودة')) ?></label><select id="pst-q" class="input"><option value="low"><?= e(t('سريعة (أرخص)')) ?></option><option value="medium" selected><?= e(t('متوسطة')) ?></option><option value="high"><?= e(t('عالية (أغلى)')) ?></option></select></div>
+<?php if (img_provider() === 'openai'): ?>                <div><label class="label"><?= e(t('الجودة')) ?></label><select id="pst-q" class="input"><option value="low"><?= e(t('سريعة (أرخص)')) ?></option><option value="medium" selected><?= e(t('متوسطة')) ?></option><option value="high"><?= e(t('عالية (أغلى)')) ?></option></select></div><?php else: ?><div><label class="label"><?= e(t('الموديل')) ?></label><p class="input !bg-ink-50 text-xs truncate" dir="ltr"><?= e(img_or_conn() ? img_or_model(img_or_conn()) : '') ?></p></div><?php endif; ?>
               </div>
               <?php if ($hasBrand): preg_match_all('/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i', (string)($vsK['colors'] ?? ''), $hx); ?>
               <div class="flex flex-wrap items-center gap-2 rounded-xl bg-ink-50 px-3 py-2 text-xs text-ink-700"><b><?= e(t('تُطبَّق هوية الشركة:')) ?></b>
@@ -642,7 +642,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
             function paintRefs() { $('pst-refs').innerHTML = refs.map(function (f, i) { return '<span class="relative w-16 h-16 rounded-xl overflow-hidden border border-ink-200"><img src="' + (f.thumb || f.url) + '" class="w-full h-full object-cover" alt=""><button type="button" data-rm="' + i + '" class="absolute top-0.5 end-0.5 w-5 h-5 rounded-full bg-ink-900/70 text-[#fff] text-xs">×</button></span>'; }).join(''); }
             function design() { if (busy) return; if ($('pst-prompt').value.trim().length < 10) { err('pst-err1', L.noText); step(1); return; } busy = true; step(2); err('pst-err2', ''); file = null; $('pst-use').disabled = true; $('pst-saved').classList.add('hidden'); $('pst-again').disabled = true;
               $('pst-stage').innerHTML = '<div class="text-center p-8"><div class="mx-auto mb-3 w-10 h-10 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin"></div><p class="text-sm text-ink-600">' + L.wait + '</p></div>';
-              post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q').value, use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '', 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
+              post({ action: 'poster_gen', prompt: $('pst-prompt').value, aspect: $('pst-aspect').value, style: $('pst-style').value, quality: $('pst-q') ? $('pst-q').value : '', use_logo: $('pst-logo') && $('pst-logo').checked ? 1 : '', 'refs[]': refs.map(function (f) { return f.id; }) }).then(function (d) {
                 if (!d.ok) { $('pst-stage').innerHTML = ''; err('pst-err2', d.error); return; } file = d.file;
                 $('pst-stage').innerHTML = '<img src="' + d.file.url + '" alt="" class="max-h-[60vh] w-auto object-contain">'; $('pst-use').disabled = false; $('pst-saved').classList.remove('hidden');
               }).catch(function () { err('pst-err2', L.err); }).finally(function () { busy = false; $('pst-again').disabled = false; }); }
@@ -673,7 +673,7 @@ render(t('منشور جديد'), 'compose', function () use ($z, $accounts, $boa
               items().forEach(function (x, i) { pop.children[i].querySelector('span').textContent = x[1]; });
               pop.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); });
             pop.addEventListener('click', function (e) { var b = e.target.closest('[data-mai]'); if (!b) return; close(); var k = b.dataset.mai;
-              if (k === 'pst') { var po = document.getElementById('pst-open'); if (po) po.click(); else if (confirm(<?= json_encode(t('تصميم الصور يحتاج ربط OpenAI (مفتاح API) من صفحة التكاملات. تفتحها الآن؟'), JSON_UNESCAPED_UNICODE) ?>)) location.href = <?= json_encode(url('connectors'), JSON_UNESCAPED_SLASHES) ?>; } else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
+              if (k === 'pst') { var po = document.getElementById('pst-open'); if (po) po.click(); else if (confirm(<?= json_encode(t('تصميم الصور يحتاج ربط OpenRouter أو OpenAI من صفحة التكاملات. تفتحها الآن؟'), JSON_UNESCAPED_UNICODE) ?>)) location.href = <?= json_encode(url('connectors'), JSON_UNESCAPED_SLASHES) ?>; } else { var v = document.querySelector('#vis-box [data-vis="' + k.slice(4) + '"]'); if (v) v.click(); } });
             document.addEventListener('click', function (e) { if (!e.target.closest('#mai')) close(); });
             window.cpFirstImage = firstImage;
           })();

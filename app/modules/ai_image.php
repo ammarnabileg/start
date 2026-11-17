@@ -84,3 +84,78 @@ function img_openai_generate(string $prompt, string $aspect = '1:1', int $n = 1,
     if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openai', $model, ['cost' => round(img_openai_cost($q, $size) * count($names), 4), 'prompt_tokens' => 0, 'completion_tokens' => 0]); } catch (Throwable $e) {} }
     return $names;
 }
+
+
+/* ---------- OpenRouter: موديلات بتطلّع صور (Gemini Image، GPT Image ...) بنفس مفتاح OpenRouter ---------- */
+
+function img_or_conn(): ?array
+{
+    $c = function_exists('connector') ? connector('openrouter') : null;
+    return $c && (string)($c['credentials']['api_key'] ?? '') !== '' ? $c : null;
+}
+
+/** موديلات OpenRouter اللي بتطلّع صور (من قايمة الموديلات، متخزنة 6 ساعات) */
+function img_or_models(array $c): array
+{
+    $file = ROOT_DIR . '/uploads/cache/openrouter_img_models.json';
+    if (is_file($file) && filemtime($file) > time() - 21600) { $j = json_decode((string)file_get_contents($file), true); if (is_array($j) && $j) return $j; }
+    $ch = curl_init(ai_base('openrouter') . '/models');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $c['credentials']['api_key']]]);
+    $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
+    $out = [];
+    foreach ((array)($j['data'] ?? []) as $m) if (in_array('image', (array)($m['architecture']['output_modalities'] ?? []), true)) $out[] = ['id' => (string)$m['id'], 'name' => (string)($m['name'] ?? $m['id']), 'img_in' => in_array('image', (array)($m['architecture']['input_modalities'] ?? []), true)];
+    if ($out) { @mkdir(dirname($file), 0750, true); @file_put_contents($file, json_encode($out)); }
+    return $out;
+}
+
+/** الموديل المختار: من الإعدادات لو متحدد، وإلا الأشهر للصور */
+function img_or_model(array $c): string
+{
+    $set = trim((string)setting('img_or_model', ''));
+    $list = img_or_models($c); $ids = array_column($list, 'id');
+    if ($set !== '' && in_array($set, $ids, true)) return $set;
+    foreach (['google/gemini-2.5-flash-image', 'google/gemini-2.5-flash-image-preview', 'openai/gpt-5-image-mini', 'openai/gpt-5-image'] as $pref) if (in_array($pref, $ids, true)) return $pref;
+    return $ids[0] ?? '';
+}
+
+/** يولّد صورة عبر OpenRouter (chat/completions + modalities) ويحفظها في المكتبة */
+function img_or_generate(string $prompt, string $aspect = '1:1', array $refs = []): array
+{
+    $c = img_or_conn(); if (!$c) throw new RuntimeException(t('اربط OpenRouter أو OpenAI أولًا من صفحة التكاملات.'));
+    $wid = (int)ws('id'); $budget = function_exists('ai_budget') ? ai_budget($wid) : 0;
+    if ($budget > 0 && function_exists('ai_month_spend') && ai_month_spend($wid) >= $budget) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر.'));
+    $model = img_or_model($c); if ($model === '') throw new RuntimeException(t('لا يوجد موديل صور متاح على حساب OpenRouter.'));
+    $parts = [['type' => 'text', 'text' => mb_substr($prompt, 0, 30000) . "\n\nAspect ratio: {$aspect}."]];
+    foreach (array_slice(array_values(array_filter($refs, 'is_file')), 0, 4) as $f) { $mime = (string)(mime_content_type($f) ?: 'image/png'); $parts[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mime . ';base64,' . base64_encode((string)file_get_contents($f))]]; }
+    @set_time_limit(180);
+    $ch = curl_init(ai_base('openrouter') . '/chat/completions');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 170, CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $c['credentials']['api_key'], 'HTTP-Referer: ' . (function_exists('base_url') ? base_url() : 'https://localhost'), 'X-Title: ' . (string)setting('site_name', 'Panel')],
+        CURLOPT_POSTFIELDS => json_encode(['model' => $model, 'modalities' => ['image', 'text'], 'messages' => [['role' => 'user', 'content' => $parts]], 'image_config' => ['aspect_ratio' => $aspect]], JSON_UNESCAPED_UNICODE)]);
+    $raw = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $cerr = curl_error($ch); curl_close($ch);
+    if ($raw === '' && $cerr !== '') throw new RuntimeException(net_friendly('OpenRouter', (string)$cerr));
+    $j = json_decode($raw, true);
+    if ($code >= 400 || !is_array($j) || isset($j['error'])) throw new RuntimeException('OpenRouter: ' . mb_substr((string)($j['error']['message'] ?? ('HTTP ' . $code)), 0, 300));
+    $names = [];
+    foreach ((array)($j['choices'][0]['message']['images'] ?? []) as $im) {
+        $u = (string)($im['image_url']['url'] ?? ''); $bytes = null;
+        if (preg_match('~^data:image/[a-z+]+;base64,(.+)$~s', $u, $m)) $bytes = base64_decode($m[1], true);
+        elseif (preg_match('~^https://~', $u)) { $r = safe_fetch($u, ['max' => 25 * 1048576]); $bytes = empty($r['err']) ? (string)$r['body'] : null; }
+        if ($bytes) { $nm = img_lib_save_bytes($wid, $bytes, $prompt); if ($nm) $names[] = $nm; }
+    }
+    if (!$names) throw new RuntimeException(t('لم يرجع الموديل صورة (%s). جرّب مرة أخرى أو موديلًا آخر.', $model));
+    if (function_exists('ai_log_usage')) { try { ai_log_usage($wid, 'image', 'openrouter', $model, ['cost' => (float)($j['usage']['cost'] ?? 0), 'prompt_tokens' => (int)($j['usage']['prompt_tokens'] ?? 0), 'completion_tokens' => (int)($j['usage']['completion_tokens'] ?? 0)]); } catch (Throwable $e) {} }
+    return $names;
+}
+
+/** أي مزوّد صور متاح؟ OpenAI أولًا (أدق في الكتابة على الصور)، وإلا OpenRouter */
+function img_provider(): string { return img_openai_conn() ? 'openai' : (img_or_conn() ? 'openrouter' : ''); }
+
+
+/** توليد صورة بأي مزوّد متاح (OpenAI أو OpenRouter) */
+function img_generate(string $prompt, string $aspect = '1:1', int $n = 1, array $refs = []): array
+{
+    if (img_provider() === 'openai') return img_openai_generate($prompt, $aspect, $n, $refs);
+    $out = []; for ($i = 0; $i < max(1, min(2, $n)); $i++) $out = array_merge($out, img_or_generate($prompt, $aspect, $refs));
+    return $out;
+}
