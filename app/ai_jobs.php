@@ -138,7 +138,7 @@ function ai_call_transcript(Zernio $z, string $id): string
     if ($text === '') {
         $oa = connector('openai');
         if (!$oa || !empty($oa['settings']['disabled'])) throw new AiException(t('لا يوجد نص لهذه المكالمة. اربط OpenAI لتفريغ التسجيل صوتيًا.'));
-        $bw = (int)ws('id'); if (ai_budget($bw) > 0 && ai_month_spend($bw) >= ai_budget($bw)) throw new AiException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر.'));
+        $bw = (int)ws('id'); if (ai_budget($bw) > 0 && ai_month_spend($bw) >= ai_budget($bw)) throw new AiException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format(ai_budget($bw), 2)));
         $url = ph_call_recording($z, $id);
         if ($url === '') throw new AiException(t('هذه المكالمة غير مسجلة.'));
         // safe_fetch: عناوين عامة بس وكل تحويل بيتفحص، وحد 25 ميجا
@@ -400,7 +400,10 @@ function DB_NAME_LOCK_PREFIX(): string { static $p = null; if ($p === null) { tr
 
 function ai_auto_reply(int $wid, bool $force = false, ?array $hookMsg = null, ?array $hookCmt = null): int
 {
-    if (!ai_lock('reply', $wid, ($hookMsg || $hookCmt) ? 10 : 0)) return 0; // الرسالة الفورية تستنى الدور شوية بدل ما تضيع
+    if (!ai_lock('reply', $wid, ($hookMsg || $hookCmt) ? 10 : ($force ? 3 : 0))) { // الرسالة الفورية تستنى الدور شوية بدل ما تضيع
+        if ($force) throw new AiException(t('فيه تشغيل للرد الذكي شغال دلوقتي. جرّب بعد دقيقة.'));
+        return 0;
+    }
     try { return ai_auto_reply_run($wid, $force, $hookMsg, $hookCmt); } finally { ai_unlock('reply', $wid); }
 }
 

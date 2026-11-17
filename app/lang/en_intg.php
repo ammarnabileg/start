@@ -6039,4 +6039,6 @@ If you know someone who needs our services, send them this link. They get {get},
     'تم سحب المناقصات اليوم بالفعل. التحديث التالي غدًا.' => 'Tenders were already pulled today. Next update tomorrow.',
     'الكلمة قصيرة جدًا.' => 'The word is too short.',
     'وصلت للحد الأقصى (60 كلمة).' => 'You reached the maximum (60 words).',
+    'فيه تشغيل للرد الذكي شغال دلوقتي. جرّب بعد دقيقة.' => 'An AI reply run is already in progress. Try again in a minute.',
+    'تعذّر الحجز الآن. حاول مرة أخرى.' => 'Could not book right now. Please try again.',
 ];

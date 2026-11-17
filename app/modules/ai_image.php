@@ -217,6 +217,7 @@ function vid_or_req(array $c, string $method, string $path, ?array $body = null,
 function vid_or_start(string $prompt, string $aspect = '9:16', int $duration = 0): string
 {
     $c = img_or_conn(); if (!$c) throw new RuntimeException(t('اربط OpenRouter أولًا من صفحة التكاملات.'));
+    $wid = (int)ws('id'); if (function_exists('ai_budget') && ai_budget($wid) > 0 && ai_month_spend($wid) >= ai_budget($wid)) throw new RuntimeException(t('وصلت الشركة لحد استهلاك الذكاء الاصطناعي هذا الشهر ($%s). صاحب الشركة يقدر يرفعه من صفحة التكاملات.', number_format(ai_budget($wid), 2)));
     $model = vid_or_model($c); if ($model === '') throw new RuntimeException(t('لا يوجد موديل فيديو متاح على حساب OpenRouter.'));
     $body = ['model' => $model, 'prompt' => mb_substr($prompt, 0, 4000), 'aspect_ratio' => $aspect];
     $res = trim((string)setting('vid_or_res_' . (int)ws('id'), ''));

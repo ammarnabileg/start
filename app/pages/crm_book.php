@@ -30,6 +30,7 @@ ai_as_workspace($wid, function () use ($wid) {
             db()->prepare('INSERT INTO crm_form_log (workspace_id, ip) VALUES (?, ?)')->execute([$wid, $ip]);
             $start = (new DateTime($slot, $tz))->setTimezone($srvTz)->format('Y-m-d H:i:s');
             try {
+                db()->beginTransaction();
                 db()->prepare('INSERT INTO crm_bookings (workspace_id, start_at) VALUES (?, ?)')->execute([$wid, $start]); // UNIQUE بيمنع حجزين في نفس الميعاد
                 $bid = (int)db()->lastInsertId();
                 $l = crm_lead_upsert(['source' => 'form', 'name' => $name, 'phone' => $phone, 'email' => $email, 'owner_id' => null]);
@@ -40,8 +41,14 @@ ai_as_workspace($wid, function () use ($wid) {
                 db()->prepare('UPDATE crm_leads SET next_at = ?, next_note = ? WHERE id = ?')->execute([$start, mb_substr('🤝 ' . t('اجتماع محجوز %s', $when), 0, 255), (int)$l['id']]);
                 crm_act_add((int)$l['id'], 'meet', '📅 ' . t('حجز اجتماع: %s (%s دقيقة)', $when, $cfg['len']) . ($note !== '' ? "\n“" . $note . '”' : ''));
                 db()->prepare("UPDATE crm_leads SET stage = IF(stage IN ('new','contacted'), 'qualified', stage) WHERE id = ?")->execute([(int)$l['id']]);
+                db()->commit();
                 $done = $when;
-            } catch (PDOException $e) { $err = t('الميعاد ده اتحجز حالًا. اختار ميعاد تاني.'); $slots = crm_book_slots($cfg); }
+            } catch (Throwable $e) {
+                if (db()->inTransaction()) db()->rollBack();
+                $err = ($e instanceof PDOException && (string)$e->getCode() === '23000') ? t('الميعاد ده اتحجز حالًا. اختار ميعاد تاني.') : t('تعذّر الحجز الآن. حاول مرة أخرى.');
+                if (!($e instanceof PDOException && (string)$e->getCode() === '23000')) error_log('crm_book: ' . $e->getMessage());
+                $slots = crm_book_slots($cfg);
+            }
         }
     }
     $color = preg_match('/^#[0-9a-f]{6}$/i', (string)$cfg['color']) ? $cfg['color'] : '#4f46e5';
