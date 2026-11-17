@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bgRead = function (array $c): bool { if (empty($GLOBALS['net_quick_skipped'])) return false; db()->prepare('UPDATE competitors SET last_check = NULL WHERE id = ?')->execute([(int)$c['id']]); try { db()->prepare('UPDATE competitor_site SET b2b_at = NULL WHERE competitor_id = ?')->execute([(int)$c['id']]); } catch (Throwable $e) {} $GLOBALS['net_quick_skipped'] = false; return true; };
     $a = (string)($_POST['action'] ?? '');
     if (!in_array($a, ['overview', 'site', 'ads', 'ads_poll', 'reviews', 'reviews_poll', 'social', 'social_poll', 'disc_poll', 'rank_poll'], true) && !can('settings.manage')) {
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('هذا الإجراء يحتاج صلاحية إدارة الإعدادات.')], JSON_UNESCAPED_UNICODE)); }
+        if (!empty($_POST['ajax']) || !empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'json') !== false) { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => false, 'error' => t('هذا الإجراء يحتاج صلاحية إدارة الإعدادات.')], JSON_UNESCAPED_UNICODE)); }
         flash('error', t('هذا الإجراء يحتاج صلاحية إدارة الإعدادات.')); redirect(url('competitors'));
     }
     if ($a === 'overview') { header('Content-Type: application/json; charset=utf-8'); exit(json_encode(['ok' => true, 'o' => cmp_overview()], JSON_UNESCAPED_UNICODE)); }

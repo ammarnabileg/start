@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $creds = [];
         foreach ($def['fields'] as $f) {
             $v = trim((string)($_POST['f'][$f['key']] ?? ''));
-            if ($v === '' && $existing) {
+            if ($v === '' && $existing && !empty($f['secret'])) {
                 $v = (string)($existing['credentials'][$f['key']] ?? ''); // خانة سرية فاضية = سيب القديمة
             }
             if (($f['type'] ?? '') === 'select' && !isset($f['options'][$v])) $v = (string)($f['default'] ?? array_key_first($f['options']));
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(url('connectors'));
         }
         $same = $existing && $existing['credentials'] == $creds;
-        $settings = $same ? $existing['settings'] : array_intersect_key((array)($existing['settings'] ?? []), array_flip(['primary', 'disabled', 'tier', 'profile_id', 'or_model'])); // المفاتيح اتغيرت: الموديلات بتتجاب تاني، والباقي يفضل
+        $settings = $same ? $existing['settings'] : array_intersect_key((array)($existing['settings'] ?? []), array_flip(['primary', 'disabled', 'tier', 'profile_id', 'or_model', 'model'])); // المفاتيح اتغيرت: الموديلات بتتجاب تاني، والباقي يفضل
         if ($models !== null) {
             $settings['models'] = $models;
             if (!in_array($settings['model'] ?? '', $models, true)) $settings['model'] = ai_default_model($models);

@@ -30,6 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
     $role = (string)($_POST['role'] ?? 'editor');
     if (!valid_role($role)) $role = 'editor';
+    // مفيش حد يدعو أو يعيّن بصلاحيات أكتر من صلاحياته (إلا المالك)
+    $myPerms = array_filter(all_permissions(), 'can');
+    if (!is_ws_owner() && in_array($action, ['invite_email', 'invite_link'], true) && array_diff(role_permissions($role, (int)ws('id')), $myPerms)) { flash('error', t('لا يمكنك منح دور فيه صلاحيات أكثر من صلاحياتك.')); redirect(url('team')); }
     if ($role === 'owner' && !is_ws_owner()) $role = 'editor'; // صلاحية المالك يديها المالك بس
     $uid = (int)($_POST['user_id'] ?? 0);
 
@@ -159,7 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', t('العضو ده مش موجود.'));
         } elseif ($losingOwner && owners_count($wid) <= 1) {
             flash('error', t('لازم يفضل صاحب شركة واحد على الأقل.'));
-        } elseif ($action === 'role' && !is_ws_owner() && array_diff(role_permissions($role, $wid), array_filter(all_permissions(), 'can'))) {
+        } elseif (!is_ws_owner() && $current !== false && array_diff(role_permissions((string)$current, $wid), $myPerms)) {
+            flash('error', t('لا يمكنك تعديل أو إزالة عضو لديه صلاحيات أكثر منك.'));
+        } elseif ($action === 'role' && !is_ws_owner() && array_diff(role_permissions($role, $wid), $myPerms)) {
             flash('error', t('لا يمكنك منح دور فيه صلاحيات أكثر من صلاحياتك.'));
         } elseif ($action === 'role') {
             $pdo->prepare("UPDATE workspace_users SET role = ? WHERE workspace_id = ? AND user_id = ?")->execute([$role, $wid, $uid]);

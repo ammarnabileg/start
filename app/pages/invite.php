@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("INSERT INTO workspace_users (workspace_id, user_id, role, status, invited_by) VALUES (?, ?, ?, 'active', ?)")
                 ->execute([$inv['workspace_id'], $me['id'], $inv['role'], $inv['created_by']]);
         } else {
-            $pdo->prepare("UPDATE workspace_users SET status = 'active' WHERE workspace_id = ? AND user_id = ?")->execute([$inv['workspace_id'], $me['id']]);
+            $pdo->prepare("UPDATE workspace_users SET status = 'active', role = ? WHERE workspace_id = ? AND user_id = ? AND status <> 'active'")->execute([$inv['role'], $inv['workspace_id'], $me['id']]); // الدور اللي في الرابط
         }
         if ($inv['email']) {
             $pdo->prepare("DELETE FROM workspace_invites WHERE id = ?")->execute([$inv['id']]);

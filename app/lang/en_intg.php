@@ -6242,4 +6242,5 @@ If you know someone who needs our services, send them this link. They get {get},
     'حذف الرسائل يتطلب صلاحية إدارة الرسائل.' => 'Deleting messages requires the inbox manage permission.',
     'انتظر حتى يكتمل التحميل ثم احفظ.' => 'Wait for loading to finish, then save.',
     'سيحل الكاروسيل الجديد محل التصميم الحالي بكل صفحاته. احفظ تعديلاتك أولًا إن أردت الاحتفاظ بها.' => 'The new carousel will replace the current design and all its pages. Save first if you want to keep it.',
+    'لا يمكنك تعديل أو إزالة عضو لديه صلاحيات أكثر منك.' => 'You cannot change or remove a member who has more permissions than you.',
 ];
