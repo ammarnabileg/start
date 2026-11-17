@@ -816,13 +816,23 @@ function crm_links_report(): array
 /** توكن العميل في الروابط: id.توقيع (مايتخمنش ومايتغيرش) */
 function crm_lead_token(int $wid, int $leadId): string
 {
-    $sec = (string)setting('crm_form_token_' . $wid, '') ?: (string)setting('cron_token', 'x');
+    $sec = (string)setting('crm_form_token_' . $wid, '') ?: crm_link_key($wid);
     return $leadId . '.' . substr(hash_hmac('sha256', $wid . ':' . $leadId, $sec), 0, 12);
+}
+/** مفتاح توقيع روابط العملاء لكل شركة لوحدها (كان بيرجع لتوكن التشغيل الدوري العام) */
+function crm_link_key(int $wid): string
+{
+    $k = (string)setting('crm_link_key_' . $wid, '');
+    if ($k === '') { $k = bin2hex(random_bytes(24)); save_setting('crm_link_key_' . $wid, $k); }
+    return $k;
 }
 function crm_lead_from_token(int $wid, string $tok): int
 {
     if (!preg_match('/^(\d{1,10})\.([0-9a-f]{12})$/', $tok, $m)) return 0;
-    return hash_equals(crm_lead_token($wid, (int)$m[1]), $tok) ? (int)$m[1] : 0;
+    if (hash_equals(crm_lead_token($wid, (int)$m[1]), $tok)) return (int)$m[1];
+    // روابط قديمة اتبعتت قبل المفتاح الجديد: مقبولة لحد ما توكن التشغيل الدوري يتغيّر
+    if (setting('crm_form_token_' . $wid, '') === '' && ($ct = (string)setting('cron_token', '')) !== '') { $old = $m[1] . '.' . substr(hash_hmac('sha256', $wid . ':' . $m[1], $ct), 0, 12); if (hash_equals($old, $tok)) return (int)$m[1]; }
+    return 0;
 }
 function crm_track_cfg(int $wid): array
 {

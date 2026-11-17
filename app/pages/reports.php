@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $accErr = null;
 $accounts = rp_clients($wid) ? rp_accounts($wid, $accErr) : [];
 $sched = rp_schedule($wid);
-$token = $canManage ? rp_cron_token() : '';
+$token = function_exists('is_admin') && is_admin() ? rp_cron_token() : ''; // التوكن عام للمنصة كلها: لمدير المنصة بس
 
 $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) {
     $tz = rp_tz($wid);
@@ -155,7 +155,7 @@ $__sec = function () use ($wid, $accounts, $accErr, $sched, $token, $canManage) 
           <?php endif; ?>
         </div>
 
-        <?php if ($canManage): $cmd = 'curl -s "' . base_url() . '/index.php?p=cron&token=' . $token . '"'; ?>
+        <?php if ($canManage && $token !== ''): $cmd = 'curl -s "' . base_url() . '/index.php?p=cron&token=' . $token . '"'; ?>
           <div class="card p-6 space-y-3">
             <?php $cl = (string)setting('cron_last_run', ''); $age = $cl !== '' ? time() - strtotime($cl . ' UTC') : null; ?>
             <div class="flex items-center gap-2"><h2 class="font-bold text-ink-900 me-auto"><?= e(t('تشغيل تلقائي (Cron)')) ?></h2>

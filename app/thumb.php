@@ -8,7 +8,7 @@
 function thumb_key(): string
 {
     static $k = null;
-    if ($k === null) { $c = function_exists('app_config') ? app_config() : []; $k = (string)($c['app_key'] ?? '') ?: (string)setting('cron_token', 'thumb'); }
+    if ($k === null) { $c = function_exists('app_config') ? app_config() : []; $k = (string)($c['app_key'] ?? ''); if ($k === '') { $k = (string)setting('thumb_key', ''); if ($k === '' && function_exists('save_setting')) { $k = bin2hex(random_bytes(24)); save_setting('thumb_key', $k); } } }
     return $k;
 }
 

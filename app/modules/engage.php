@@ -435,7 +435,7 @@ function crm_monthly_report(bool $force = false): int
 {
     $wid = (int)ws('id'); if (!function_exists('smtp_config') || !smtp_config($wid)) return 0;
     $tz = new DateTimeZone(site_timezone()); $now = new DateTime('now', $tz); $key = $now->format('Y-m');
-    if (!$force && ((int)$now->format('j') !== 1 || (int)$now->format('G') < 8 || setting('crm_monthly_' . $wid, '') === $key)) return 0;
+    if (!$force && (((int)$now->format('j') === 1 && (int)$now->format('G') < 8) || setting('crm_monthly_' . $wid, '') === $key)) return 0;
     save_setting('crm_monthly_' . $wid, $key);
     [$from, $to] = crm_period('last_month'); $rows = crm_team_report($from, $to);
     $tot = ['leads' => 0, 'won' => 0, 'value' => 0, 'contacts' => 0]; foreach ($rows as $r) foreach ($tot as $k => $_) $tot[$k] += $r[$k];
