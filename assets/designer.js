@@ -8,7 +8,7 @@
       d.innerHTML = '<form method="dialog" class="p-6"><div class="flex items-start gap-4"><span class="shrink-0 w-11 h-11 rounded-2xl grid place-items-center text-lg font-black ' + (o.danger ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600') + '">' + (o.icon || (o.danger ? '!' : '?')) + '</span><div class="flex-1 min-w-0">'
         + (o.title ? '<h3 class="text-base font-bold text-ink-900 mb-1">' + es(o.title) + '</h3>' : '') + '<p class="text-sm text-ink-600 leading-7">' + es(msg) + '</p>'
         + (o.input != null ? '<input data-v class="input w-full mt-3" maxlength="80" value="' + es(o.input) + '">' : '') + '</div></div>'
-        + '<div class="flex flex-wrap justify-end gap-2 mt-6"><button type="button" class="btn-ghost" data-x>' + es(o.cancel || L.cancel || 'Cancel') + '</button><button type="submit" class="btn-primary' + (o.danger ? ' !bg-red-600 hover:!bg-red-700 !border-red-600' : '') + '" data-ok>' + es(o.ok || L.ok || 'OK') + '</button></div></form>';
+        + '<div class="flex flex-wrap justify-end gap-2 mt-6"><button type="button" class="btn-ghost" data-x>' + es(o.cancel || L.cancel || 'Cancel') + '</button><button type="submit" class="btn-primary' + (o.danger ? ' !bg-none !bg-red-600 hover:!bg-red-700 !border-red-600' : '') + '" data-ok>' + es(o.ok || L.ok || 'OK') + '</button></div></form>';
       document.body.appendChild(d);
       d.querySelector('[data-x]').onclick = function () { d.close(); };
       d.querySelector('form').onsubmit = function (e) { e.preventDefault(); var v = d.querySelector('[data-v]'); out = v ? v.value.trim() : true; if (v && !out) { v.focus(); return; } d.close(); };

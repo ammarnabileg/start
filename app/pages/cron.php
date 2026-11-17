@@ -160,11 +160,12 @@ try {
         if ($hasZ) try {
             $s = rp_schedule($wid);
             $kind = rp_due($s, rp_tz($wid));
+            if ($kind && (int)setting('rp_fail_' . $wid, '0') > time() - 6 * 3600) $kind = null; // فشل كله من قريب: نستنى 6 ساعات قبل إعادة المحاولة
             if ($kind) {
                 [$emails] = rp_parse_emails((string)$s['recipients']);
                 [$ok, $fail] = rp_send_report($wid, $emails, $kind, (string)$s['lang']);
                 $res = gmdate('Y-m-d H:i') . ' ' . $kind . ' ok=' . $ok . ' fail=' . $fail;
-                rp_mark_sent($wid, $res, $ok > 0);
+                rp_mark_sent($wid, $res, $ok > 0); save_setting('rp_fail_' . $wid, $ok > 0 ? '0' : (string)time());
                 $line .= ' report ' . $res;
             } else {
                 $line .= ' report=not-due';

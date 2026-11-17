@@ -109,7 +109,7 @@
     var done = function () { busy = false; X.resetHist(); drawPages(); };
     if (p && p.j) X.load(p.j, done); else { X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); done(); } }
   $('dz-pages').addEventListener('click', function (e) {
-    var d = e.target.closest('[data-pgdel]'); if (d) { e.stopPropagation(); var i = +d.dataset.pgdel; return window.dzAsk(L.delPageQ, { danger: true, title: L.delPageT, ok: L.del }).then(function (ok) { if (!ok) return; storeCur(); pages.splice(i, 1); var n = Math.min(cur >= i ? Math.max(0, cur - 1) : cur, pages.length - 1); cur = -1; busy = false; cur = n; if (pages[n] && pages[n].j) X.load(pages[n].j, function () { X.resetHist(); drawPages(); }); else { X.setLock(true); cv.clear(); X.setLock(false); X.resetHist(); drawPages(); } }); return; }
+    var d = e.target.closest('[data-pgdel]'); if (d) { e.stopPropagation(); if (busy) return; var i = +d.dataset.pgdel; return window.dzAsk(L.delPageQ, { danger: true, title: L.delPageT, ok: L.del }).then(function (ok) { if (!ok) return; storeCur(); pages.splice(i, 1); var n = Math.min(cur >= i ? Math.max(0, cur - 1) : cur, pages.length - 1); cur = -1; busy = false; cur = n; if (pages[n] && pages[n].j) X.load(pages[n].j, function () { X.resetHist(); drawPages(); }); else { X.setLock(true); cv.clear(); X.setLock(false); X.resetHist(); drawPages(); } }); return; }
     var u = e.target.closest('[data-pgdup]'); if (u) { e.stopPropagation(); storeCur(); var k = +u.dataset.pgdup; pages.splice(k + 1, 0, JSON.parse(JSON.stringify(pages[k]))); if (k < cur) cur++; go(k + 1); return; } // الصفحة الحالية اتزحزحت
     var p = e.target.closest('[data-pg]'); if (p) go(+p.dataset.pg); });
   MORE.addpage = function () { storeCur(); pages.splice(cur + 1, 0, null); go(cur + 1); };
@@ -118,10 +118,11 @@
   /* ---------- 7) تصميماتي ---------- */
   function allPages() { storeCur(); return pages.map(function (p) { return p && p.j ? p.j : null; }).filter(Boolean); }
   var saving = false;
-  function saveDesign() { if (saving) return; saving = true; var b = document.querySelector('[data-cmd="dsave"]'); b.disabled = true; var ps = allPages();
+  var gen = 0; // بيزيد مع فتح/إنشاء تصميم: رد حفظ قديم مايغيّرش التصميم المفتوح
+  function saveDesign() { if (saving) return; if (busy) return X.toast(L.waitLoad || '…', 'info'); saving = true; var g0 = gen; var b = document.querySelector('[data-cmd="dsave"]'); b.disabled = true; var ps = allPages();
     post({ action: 'dsave', id: designId, name: $('dz-name').value, w: X.W, h: X.H, pages: ps.length, data: JSON.stringify({ v: 2, pages: ps }), thumb: (pages[0] && pages[0].t) || '' }).then(function (j) { saving = false; b.disabled = false;
-      if (!j.ok) return X.toast(j.error || L.err, 'error'); designId = j.id; X.toast(L.dsaved); try { localStorage.setItem('dz_last_id', designId); } catch (e) {} mine(); }).catch(function () { saving = false; b.disabled = false; X.toast(L.err, 'error'); }); }
-  function openDesign(id, force) { if (!force && id !== designId && cv.getObjects().length) return window.dzAsk(L.openQ, { title: L.openT, ok: L.open, icon: '↗' }).then(function (ok) { if (ok) openDesign(id, true); }); if (id === designId) return; post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
+      if (!j.ok) return X.toast(j.error || L.err, 'error'); if (g0 === gen) designId = j.id; X.toast(L.dsaved); try { localStorage.setItem('dz_last_id', designId); } catch (e) {} mine(); }).catch(function () { saving = false; b.disabled = false; X.toast(L.err, 'error'); }); }
+  function openDesign(id, force) { if (!force && id !== designId && cv.getObjects().length) return window.dzAsk(L.openQ, { title: L.openT, ok: L.open, icon: '↗' }).then(function (ok) { if (ok) openDesign(id, true); }); if (id === designId) return; gen++; post({ action: 'dget', id: id }).then(function (j) { if (!j.ok) return X.toast(j.error || L.err, 'error'); var d = JSON.parse(j.data), ps = d.pages || [d];
     designId = j.id; pages = ps.map(function (s) { return { j: typeof s === 'string' ? s : JSON.stringify(s), t: '' }; }); cur = 0; busy = true;
     X.load(pages[0].j, function () { $('dz-name').value = j.name; busy = false; X.resetHist(); drawPages(); }); }); }
   var mineAll = [], mineQ = '';
@@ -143,7 +144,7 @@
   // تغيير الاسم من الشريط العلوي يتحفظ للمشروع المفتوح
   $('dz-name').addEventListener('change', function () { var v = this.value.trim(); if (designId && v) post({ action: 'drename', id: designId, name: v }).then(function () { mine(); }); });
   MORE.dsave = saveDesign;
-  MORE['new'] = function (force) { if (force !== true && cv.getObjects().length) return window.dzAsk(L.newQ, { title: L.newT, ok: L.newOk, icon: '+' }).then(function (ok) { if (ok) MORE['new'](true); }); designId = 0; pages = [null]; cur = 0; $('dz-name').value = L.untitled; X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); X.resetHist(); drawPages(); };
+  MORE['new'] = function (force) { if (force !== true && cv.getObjects().length) return window.dzAsk(L.newQ, { title: L.newT, ok: L.newOk, icon: '+' }).then(function (ok) { if (ok) MORE['new'](true); }); gen++; designId = 0; pages = [null]; cur = 0; $('dz-name').value = L.untitled; X.setLock(true); cv.clear(); cv.setBackgroundColor('#ffffff', function () {}); X.setLock(false); cv.requestRenderAll(); X.resetHist(); drawPages(); };
 
   /* ---------- 8) التصدير: PNG / JPG / كل الصفحات / PDF ---------- */
   // التحميل عن طريق Blob: روابط data الكبيرة المتصفح بيتجاهل اسم الملف معاها

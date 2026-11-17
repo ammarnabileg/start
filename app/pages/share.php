@@ -24,7 +24,7 @@ if (isset($_GET['file'])) {
 }
 
 $st = db()->prepare("SELECT * FROM media_files WHERE workspace_id = ? AND deleted_at IS NULL AND (? = '' OR folder = ? OR folder LIKE ?) ORDER BY folder, created_at DESC LIMIT 1000");
-$st->execute([$wid, $base, $base, $base . '/%']);
+$st->execute([$wid, $base, $base, addcslashes((string)$base, '%_\\') . '/%']); // _ و % في الاسم مايبقوش wildcard
 $files = $st->fetchAll();
 
 // الكل كـ ZIP

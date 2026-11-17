@@ -17,7 +17,9 @@
   }
   function poll(id, slot, tries) {
     call({ task: 'image_status', id: id }).then(function (s) {
+      if (s.error && s.status === 'pending') { msg(s.error, true); if (tries < 80) setTimeout(function () { poll(id, slot, tries + 1); }, 5000); return; } // شركة تانية مفتوحة: نستنى
       if (s.error) { slot.remove(); msg(s.error, true); if (--pending <= 0) busy(false); return; }
+      if (s.status === 'completed' && !(s.images || []).length) { slot.remove(); msg(L.slow || '✗', true); if (--pending <= 0) busy(false); return; }
       if (s.status === 'completed') { (s.images || []).forEach(function (im, i) { item(im, i ? (function () { var x = ph(); return x; })() : slot); }); msg(L.done); if (--pending <= 0) busy(false); return; }
       if (tries > 80) { slot.remove(); msg(L.slow, true); if (--pending <= 0) busy(false); return; }
       setTimeout(function () { poll(id, slot, tries + 1); }, 3000);

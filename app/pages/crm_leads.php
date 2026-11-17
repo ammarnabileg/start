@@ -167,13 +167,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $l = crm_lead_upsert(['source' => 'import', 'name' => $nm !== '' ? $nm : ($em ?: $ph), 'company' => $r['company'] ?? '', 'title' => $r['title'] ?? '',
                 'email' => $em, 'phone' => $ph, 'country' => $r['country'] ?? '', 'owner_id' => $canManage ? null : $uid]);
             if (!$l) { $skip++; continue; }
-            if (!empty($l['merged'])) { $merged++; continue; }
-            $new++;
             $tg = trim((string)($r['tags'] ?? '')); $nt = trim((string)($r['note'] ?? ''));
+            if (!empty($l['merged'])) { $merged++; // عميل موجود: التاجات بتتضاف والملاحظة بتتلحق (لو ليك صلاحية عليه)
+                if (($tg !== '' || $nt !== '') && crm_can_edit($l)) db()->prepare("UPDATE crm_leads SET tags = LEFT(TRIM(BOTH ', ' FROM CONCAT_WS(', ', NULLIF(tags, ''), NULLIF(?, ''))), 255), note = LEFT(TRIM(CONCAT_WS('\n', NULLIF(note, ''), NULLIF(?, ''))), 2000) WHERE id = ?")->execute([$tg, $nt, (int)$l['id']]);
+                continue; }
+            $new++;
             if ($tg !== '' || $nt !== '') db()->prepare('UPDATE crm_leads SET tags = ?, note = ? WHERE id = ?')->execute([mb_substr($tg, 0, 255) ?: null, mb_substr($nt, 0, 2000) ?: null, (int)$l['id']]);
         }
         log_activity('crm.import', "$new new, $merged merged");
-        $json(['ok' => true, 'new' => $new, 'merged' => $merged, 'skip' => $skip]);
+        $json(['ok' => true, 'new' => $new, 'merged' => $merged, 'skip' => $skip + max(0, count($rows) - 2000)]); // اللي بعد 2000 بيتعدّوا ضمن المتخطّى
     }
     if ($action === 'track_save' && $canManage) {
         save_setting('crm_track_cfg_' . $wid, json_encode(['hot' => mb_substr(trim((string)($_POST['hot'] ?? '')), 0, 300), 'wa' => preg_replace('/[^\d+]/', '', (string)($_POST['wa'] ?? '')),
